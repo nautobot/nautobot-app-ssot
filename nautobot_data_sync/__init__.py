@@ -12,7 +12,7 @@ class NautobotDataSyncConfig(PluginConfig):
     verbose_name = "Nautobot Data Sync"
     version = __version__
     author = "Network to Code, LLC"
-    description = "Nautobot Data Sync."
+    description = "Nautobot Data Sync"
     base_url = "data-sync"
     required_settings = []
     min_version = "1.0.1"
