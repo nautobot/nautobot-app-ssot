@@ -33,6 +33,7 @@ class DataSyncWorker:
         - slug (cls.__name__) - URL-safe unique identifier of this worker class.
         - description ("")- Detailed description of this worker class.
         """
+
         dry_run_default = True
 
     @classproperty
@@ -97,6 +98,7 @@ class DataSyncWorker:
         self,
         action,
         status,
+        message="",
         diff=None,
         changed_object=None,
         object_repr=None,

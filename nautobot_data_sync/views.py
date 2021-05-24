@@ -25,7 +25,7 @@ from .tables import SyncTable, SyncLogEntryTable
 class SyncListView(ObjectListView):
     """View for listing Sync records."""
 
-    queryset = Sync.objects.all()
+    queryset = Sync.queryset()
     filterset = SyncFilter
     filterset_form = SyncFilterForm
     table = SyncTable
@@ -105,6 +105,7 @@ class SyncCreateView(ObjectEditView):
 
 class SyncDeleteView(ObjectDeleteView):
     """View for deleting a single Sync record."""
+
     queryset = Sync.objects.all()
 
 

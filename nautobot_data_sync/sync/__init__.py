@@ -9,7 +9,7 @@ from django.utils import timezone
 from django_rq import job
 import structlog
 
-from nautobot.extras.choices import JobResultStatusChoices
+from nautobot.extras.choices import JobResultStatusChoices, LogLevelChoices
 
 from nautobot_data_sync.choices import SyncLogEntryActionChoices
 from nautobot_data_sync.models import Sync, SyncLogEntry
@@ -65,14 +65,18 @@ def sync(sync_id, data):
     """Perform a requested sync."""
     sync = Sync.objects.get(id=sync_id)
 
-    logger.info("START: data synchronization %s", sync)
-
+    sync.job_result.log(
+        f"START: data synchronization {sync}", grouping="sync", level_choice=LogLevelChoices.LOG_INFO, logger=logger
+    )
     sync.job_result.set_status(JobResultStatusChoices.STATUS_RUNNING)
     sync.job_result.save()
 
     try:
         structlog.configure(
-            processors=[log_to_log_entry, structlog.stdlib.render_to_log_kwargs,],
+            processors=[
+                log_to_log_entry,
+                structlog.stdlib.render_to_log_kwargs,
+            ],
             context_class=dict,
             logger_factory=structlog.stdlib.LoggerFactory(),
             wrapper_class=structlog.stdlib.BoundLogger,
@@ -84,10 +88,20 @@ def sync(sync_id, data):
         sync_worker.execute(dry_run=sync.dry_run)
 
     except Exception as exc:
-        logger.error("Exception occurred during %s: %s", sync, exc)
+        sync.job_result.log(
+            f"Exception occurred during {sync}: {exc}",
+            grouping="sync",
+            level_choice=LogLevelChoices.LOG_FAILURE,
+            logger=logger,
+        )
         sync.job_result.set_status(JobResultStatusChoices.STATUS_FAILED)
     else:
-        logger.info("FINISH: data synchronization %s", sync)
+        sync.job_result.log(
+            f"FINISH: data synchronization {sync}",
+            grouping="sync",
+            level_choice=LogLevelChoices.LOG_INFO,
+            logger=logger,
+        )
         sync.job_result.set_status(JobResultStatusChoices.STATUS_COMPLETED)
     finally:
         sync.job_result.completed = timezone.now()

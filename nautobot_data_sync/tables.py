@@ -1,6 +1,6 @@
 """Data tables for data synchronization."""
 
-from django_tables2 import Column, JSONColumn, LinkColumn, TemplateColumn
+from django_tables2 import Column, DateTimeColumn, JSONColumn, LinkColumn, TemplateColumn
 
 from nautobot.utilities.tables import BaseTable, ToggleColumn
 
@@ -40,9 +40,10 @@ class SyncTable(BaseTable):
     """Table for listing Sync records."""
 
     pk = ToggleColumn()
-    created = LinkColumn(text=lambda sync: sync.job_result.created)
+    timestamp = DateTimeColumn(accessor="job_result.created", linkify=True, short=True, verbose_name="Timestamp")
     name = Column(accessor="job_result.name")
     dry_run = TemplateColumn(template_code=DRY_RUN_LABEL, verbose_name="Sync?")
+    status = TemplateColumn(template_code="{% include 'extras/inc/job_label.html' with result=record.job_result %}")
 
     num_unchanged = TemplateColumn(
         template_code=ACTION_LOGS_LINK,
@@ -87,9 +88,10 @@ class SyncTable(BaseTable):
         model = Sync
         fields = (
             "pk",
-            "created",
+            "timestamp",
             "name",
             "user",
+            "status",
             "dry_run",
             "num_unchanged",
             "num_created",
@@ -102,8 +104,9 @@ class SyncTable(BaseTable):
         )
         default_columns = (
             "pk",
-            "created",
+            "timestamp",
             "name",
+            "status",
             "dry_run",
             "num_created",
             "num_updated",
@@ -112,6 +115,7 @@ class SyncTable(BaseTable):
             "num_errored",
             "message",
         )
+        order_by = ("-timestamp",)
 
 
 ACTION_LABEL = """<span class="label label-{{ record.get_action_class }}">{{ record.action }}</span>"""
@@ -124,12 +128,14 @@ class SyncLogEntryTable(BaseTable):
     """Table for displaying SyncLogEntry records."""
 
     pk = ToggleColumn()
-    sync = Column(accessor="sync__id")
+    sync = LinkColumn(accessor="sync__id", verbose_name="Sync")
     action = TemplateColumn(template_code=ACTION_LABEL)
     diff = JSONColumn(orderable=False)
     status = TemplateColumn(template_code=LOG_STATUS_LABEL)
     message = TemplateColumn(template_code=MESSAGE_SPAN, orderable=False)
+    changed_object = LinkColumn(verbose_name="Changed object")
 
     class Meta(BaseTable.Meta):
         model = SyncLogEntry
         fields = ("pk", "timestamp", "sync", "action", "changed_object", "diff", "status", "message")
+        order_by = ("-timestamp",)

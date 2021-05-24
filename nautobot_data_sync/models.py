@@ -46,6 +46,28 @@ class Sync(BaseModel, ChangeLoggedModel, CustomFieldModel, RelationshipModel):
     def get_absolute_url(self):
         return reverse("plugins:nautobot_data_sync:sync", kwargs={"pk": self.pk})
 
+    @classmethod
+    def queryset(cls):
+        """Construct an efficient queryset for this model and related data."""
+        return (
+            cls.objects.defer("diff")
+            .select_related("job_result")
+            .prefetch_related("logs")
+            .annotate(
+                num_unchanged=models.Count(
+                    "log", filter=models.Q(log__action=SyncLogEntryActionChoices.ACTION_NO_CHANGE)
+                ),
+                num_created=models.Count("log", filter=models.Q(log__action=SyncLogEntryActionChoices.ACTION_CREATE)),
+                num_updated=models.Count("log", filter=models.Q(log__action=SyncLogEntryActionChoices.ACTION_UPDATE)),
+                num_deleted=models.Count("log", filter=models.Q(log__action=SyncLogEntryActionChoices.ACTION_DELETE)),
+                num_succeeded=models.Count(
+                    "log", filter=models.Q(log__status=SyncLogEntryStatusChoices.STATUS_SUCCESS)
+                ),
+                num_failed=models.Count("log", filter=models.Q(log__status=SyncLogEntryStatusChoices.STATUS_FAILURE)),
+                num_errored=models.Count("log", filter=models.Q(log__status=SyncLogEntryStatusChoices.STATUS_ERROR)),
+            )
+        )
+
 
 class SyncLogEntry(BaseModel):
     """Record of a single event during a data sync operation.
@@ -59,9 +81,7 @@ class SyncLogEntry(BaseModel):
     may reflect this or may reflect a change that *could not happen* or *failed*.
     """
 
-    sync = models.ForeignKey(
-        to=Sync, on_delete=models.CASCADE, related_name="logs", related_query_name="log"
-    )
+    sync = models.ForeignKey(to=Sync, on_delete=models.CASCADE, related_name="logs", related_query_name="log")
     timestamp = models.DateTimeField(auto_now_add=True)
 
     action = models.CharField(max_length=32, choices=SyncLogEntryActionChoices)
@@ -69,7 +89,10 @@ class SyncLogEntry(BaseModel):
     diff = models.JSONField()
 
     changed_object_type = models.ForeignKey(
-        to=ContentType, blank=True, null=True, on_delete=models.PROTECT,
+        to=ContentType,
+        blank=True,
+        null=True,
+        on_delete=models.PROTECT,
     )
     changed_object_id = models.UUIDField(blank=True, null=True)
     changed_object = GenericForeignKey(ct_field="changed_object_type", fk_field="changed_object_id")

@@ -846,9 +846,9 @@ svgwrite = "~1.4.1"
 
 [package.source]
 type = "git"
-url = "https://github.com/nautobot/nautobot"
-reference = "develop"
-resolved_reference = "386ecaa57bf3c49d4427d9151df2e2ebbc68d7d1"
+url = "https://github.com/nautobot/nautobot.git"
+reference = "gfm-jobresult-view"
+resolved_reference = "bdb91f11b3cbc3948592b1aedb050c34df26c3d2"
 
 [[package]]
 name = "netaddr"
@@ -1470,7 +1470,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "69aa4a5b32ba3034d5129c30edd7ef48b5230c33f057a895d6cb57c8e98e71ae"
+content-hash = "43b4622b29e6e6d18c93c5673063f62e4f71236033788e78baeeaa457d6db479"
 
 [metadata.files]
 aniso8601 = [

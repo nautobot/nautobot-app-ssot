@@ -9,6 +9,7 @@ from nautobot.utilities.exceptions import AbortTransaction
 from nautobot_data_sync.choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 from nautobot_data_sync.sync.base import DataSyncWorker
 
+
 class ExampleSyncWorker(DataSyncWorker):
 
     site_slug = StringVar(description="Which site's data to synchronize", default="")
@@ -19,7 +20,7 @@ class ExampleSyncWorker(DataSyncWorker):
         description = "An example of how a sync worker might be implemented"
 
     def execute(self, dry_run=True):
-        """Perform a dry-run of data synchronization."""
+        """Perform a mock data synchronization."""
 
         # For sake of a simple example, we don't actually use DiffSync here
         try:
@@ -28,13 +29,13 @@ class ExampleSyncWorker(DataSyncWorker):
                     slug=self.data["site_slug"],
                     defaults={"name": self.data["site_slug"]},
                 )
-                self.sync_log(
-                    action=SyncLogEntryActionChoices.ACTION_CREATE if created else SyncLogEntryActionChoices.ACTION_UPDATE,
-                    status=SyncLogEntryStatusChoices.STATUS_SUCCESS,
-                    changed_object=site,
-                )
-
-                if self.dry_run:
+                if dry_run:
                     raise AbortTransaction()
         except AbortTransaction:
             self.job_log("Database changes have been reverted automatically.")
+
+        self.sync_log(
+            action=SyncLogEntryActionChoices.ACTION_CREATE if created else SyncLogEntryActionChoices.ACTION_UPDATE,
+            status=SyncLogEntryStatusChoices.STATUS_SUCCESS,
+            changed_object=site,
+        )
