@@ -12,20 +12,8 @@ COPY poetry.lock pyproject.toml /source/
 # and the project is copied in and installed after this step
 RUN poetry install --no-interaction --no-ansi --no-root
 
-COPY nautobot-plugin-data-sync-servicenow/poetry.lock nautobot-plugin-data-sync-servicenow/pyproject.toml /source/nautobot-plugin-data-sync-servicenow/
-WORKDIR /source/nautobot-plugin-data-sync-servicenow
-RUN poetry install --no-interaction --no-ansi --no-root
-
 # Copy in the rest of the source code and install local Nautobot plugin
-WORKDIR /source
 COPY . /source
 RUN poetry install --no-interaction --no-ansi
 
-WORKDIR /source/nautobot-plugin-data-sync-servicenow
-RUN poetry install --no-interaction --no-ansi
-
-# Work around https://github.com/python-poetry/poetry/issues/3139
-RUN pip install colorama
-
-WORKDIR /source
 COPY development/nautobot_config.py /opt/nautobot/nautobot_config.py

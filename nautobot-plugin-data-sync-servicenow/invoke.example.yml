@@ -1,0 +1,11 @@
+---
+nautobot_data_sync_servicenow:
+  project_name: "nautobot-data-sync-servicenow"
+  nautobot_ver: "develop-latest"
+  local: false
+  python_ver: "3.6"
+  compose_dir: "development"
+  compose_files:
+    - "docker-compose.requirements.yml"
+    - "docker-compose.base.yml"
+    - "docker-compose.dev.yml"

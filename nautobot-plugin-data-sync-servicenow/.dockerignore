@@ -1,0 +1,20 @@
+# Docker related
+development/Dockerfile
+development/docker-compose*.yml
+development/*.env
+*.env
+
+# Python
+**/*.pyc
+**/*.pyo
+
+
+# Other
+docs/_build
+FAQ.md
+.git/
+.gitignore
+.github
+tasks.py
+LICENSE
+**/*.log

@@ -202,52 +202,7 @@ INTERNAL_IPS = ("127.0.0.1", "::1")
 
 # Enable custom logging. Please see the Django documentation for detailed guidance on configuring custom logs:
 #   https://docs.djangoproject.com/en/stable/topics/logging/
-LOG_LEVEL = "DEBUG" if DEBUG else "INFO"
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "normal": {
-            "format": "%(asctime)s.%(msecs)03d %(levelname)-7s %(name)s :\n  %(message)s",
-            "datefmt": "%H:%M:%S",
-        },
-        "verbose": {
-            "format": "%(asctime)s.%(msecs)03d %(levelname)-7s %(name)-20s %(filename)-15s %(funcName)30s() :\n  %(message)s",
-            "datefmt": "%H:%M:%S",
-        },
-    },
-    "handlers": {
-        "normal_console": {
-            "level": "INFO",
-            "class": "rq.utils.ColorizingStreamHandler",
-            "formatter": "normal",
-        },
-        "verbose_console": {
-            "level": "DEBUG",
-            "class": "rq.utils.ColorizingStreamHandler",
-            "formatter": "verbose",
-        },
-    },
-    "loggers": {
-        "django": {"handlers": ["normal_console"], "level": "INFO"},
-        "nautobot": {
-            "handlers": ["verbose_console" if DEBUG else "normal_console"],
-            "level": LOG_LEVEL,
-        },
-        "rq.worker": {
-            "handlers": ["verbose_console" if DEBUG else "normal_console"],
-            "level": LOG_LEVEL,
-        },
-        "nautobot_data_sync": {
-            "handlers": ["verbose_console" if DEBUG else "normal_console"],
-            "level": LOG_LEVEL,
-        },
-        "nautobot_data_sync_servicenow": {
-            "handlers": ["verbose_console" if DEBUG else "normal_console"],
-            "level": LOG_LEVEL,
-        },
-    },
-}
+LOGGING = {}
 
 # Setting this to True will display a "maintenance mode" banner at the top of every page.
 MAINTENANCE_MODE = False
@@ -289,7 +244,7 @@ NAPALM_ARGS = {}
 PAGINATE_COUNT = int(os.environ.get("PAGINATE_COUNT", 50))
 
 # Enable installed plugins. Add the name of each plugin to the list.
-PLUGINS = ["nautobot_data_sync"]
+PLUGINS = ["nautobot_data_sync_servicenow"]
 
 # Plugins configuration settings. These settings are used by various plugins that the user may have installed.
 # Each key in the dictionary is the name of an installed plugin and its value is a dictionary of settings.

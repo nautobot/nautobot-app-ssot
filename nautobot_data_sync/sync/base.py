@@ -14,6 +14,10 @@ from nautobot_data_sync.models import SyncLogEntry
 class DataSyncWorker:
     """Semi-abstract base class to serve as a parent for all data sync worker implementations."""
 
+    # Django: when passed this class or one of its subclasses as context for a template,
+    # DO NOT automatically instantiate it!
+    do_not_call_in_templates = True
+
     def __init__(self, sync=None, data=None):
         """Instantiate a DataSyncWorker in preparation for executing the data sync.
 
@@ -23,6 +27,7 @@ class DataSyncWorker:
         """
         self.sync = sync
         self.data = data
+        self.dry_run = data.get("dry_run", True) if data else True
 
     class Meta:
         """Metaclass attributes of a DataSyncWorker.
@@ -125,8 +130,8 @@ class DataSyncWorker:
     # Methods to be implemented by subclasses, below:
     #
 
-    def execute(self, dry_run=True):
-        """Perform a dry run or actual data synchronization."""
+    def execute(self):
+        """Perform a dry run or actual data synchronization, depending on self.dry_run."""
 
     def lookup_object(self, model_name, unique_id):
         """Look up the Nautobot record and associated ObjectChange, if any, identified by the args.

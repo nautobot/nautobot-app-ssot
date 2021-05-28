@@ -85,7 +85,7 @@ def sync(sync_id, data):
 
         sync_worker = get_sync_worker_class(name=sync.job_result.name)(sync=sync, data=data)
 
-        sync_worker.execute(dry_run=sync.dry_run)
+        sync_worker.execute()
 
     except Exception as exc:
         sync.job_result.log(
