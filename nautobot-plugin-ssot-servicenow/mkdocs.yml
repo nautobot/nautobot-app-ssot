@@ -1,9 +1,9 @@
 ---
 dev_addr: "127.0.0.1:8001"
-edit_uri: "edit/main/nautobot-plugin-ssot/docs"
-site_name: "Nautobot Single Source of Truth Documentation"
-site_url: "https://nautobot-plugin-ssot.readthedocs.io/"
-repo_url: "https://github.com/nautobot/nautobot-plugin-ssot"
+edit_uri: "edit/main/nautobot-plugin-ssot-servicenow/docs"
+site_name: "Nautobot SSoT ServiceNow Documentation"
+site_url: "https://nautobot-plugin-ssot-servicenow.readthedocs.io/"
+repo_url: "https://github.com/nautobot/nautobot-plugin-ssot-servicenow"
 python:
   install:
     - requirements: "docs/requirements.txt"

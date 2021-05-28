@@ -33,13 +33,13 @@ def is_truthy(arg):
 
 
 # Use pyinvoke configuration for default values, see http://docs.pyinvoke.org/en/stable/concepts/configuration.html
-# Variables may be overwritten in invoke.yml or by the environment variables INVOKE_NAUTOBOT-DATA-SYNC_xxx
-namespace = Collection("nautobot_ssot")
+# Variables may be overwritten in invoke.yml or by the environment variables INVOKE_NAUTOBOT-DATA-SYNC-SERVICENOW_xxx
+namespace = Collection("nautobot_ssot_servicenow")
 namespace.configure(
     {
-        "nautobot_ssot": {
+        "nautobot_ssot_servicenow": {
             "nautobot_ver": "develop-latest",
-            "project_name": "nautobot-ssot",
+            "project_name": "nautobot-ssot-servicenow",
             "python_ver": "3.6",
             "local": False,
             "compose_dir": os.path.join(os.path.dirname(__file__), "development"),
@@ -81,10 +81,10 @@ def docker_compose(context, command, **kwargs):
         command (str): Command string to append to the "docker-compose ..." command, such as "build", "up", etc.
         **kwargs: Passed through to the context.run() call.
     """
-    build_env = {"NAUTOBOT_VER": context.nautobot_ssot.nautobot_ver, "PYTHON_VER": context.nautobot_ssot.python_ver}
-    compose_command = f'docker-compose --project-name {context.nautobot_ssot.project_name} --project-directory "{context.nautobot_ssot.compose_dir}"'
-    for compose_file in context.nautobot_ssot.compose_files:
-        compose_file_path = os.path.join(context.nautobot_ssot.compose_dir, compose_file)
+    build_env = {"NAUTOBOT_VER": context.nautobot_ssot_servicenow.nautobot_ver, "PYTHON_VER": context.nautobot_ssot_servicenow.python_ver}
+    compose_command = f'docker-compose --project-name {context.nautobot_ssot_servicenow.project_name} --project-directory "{context.nautobot_ssot_servicenow.compose_dir}"'
+    for compose_file in context.nautobot_ssot_servicenow.compose_files:
+        compose_file_path = os.path.join(context.nautobot_ssot_servicenow.compose_dir, compose_file)
         compose_command += f' -f "{compose_file_path}"'
     compose_command += f" {command}"
     print(f'Running docker-compose command "{command}"')
@@ -93,7 +93,7 @@ def docker_compose(context, command, **kwargs):
 
 def run_command(context, command, **kwargs):
     """Wrapper to run a command locally or inside the nautobot container."""
-    if is_truthy(context.nautobot_ssot.local):
+    if is_truthy(context.nautobot_ssot_servicenow.local):
         context.run(command, **kwargs)
     else:
         # Check if netbox is running, no need to start another netbox container to run a command
@@ -125,7 +125,7 @@ def build(context, force_rm=False, cache=True):
     if force_rm:
         command += " --force-rm"
 
-    print(f"Building Nautobot with Python {context.nautobot_ssot.python_ver}...")
+    print(f"Building Nautobot with Python {context.nautobot_ssot_servicenow.python_ver}...")
     docker_compose(context, command)
 
 
@@ -217,7 +217,7 @@ def createsuperuser(context, user="admin"):
 )
 def makemigrations(context, name=""):
     """Perform makemigrations operation in Django."""
-    command = "nautobot-server makemigrations nautobot_ssot"
+    command = "nautobot-server makemigrations nautobot_ssot_servicenow"
 
     if name:
         command += f" --name {name}"
@@ -289,7 +289,7 @@ def hadolint(context):
 @task
 def pylint(context):
     """Run pylint code analysis."""
-    command = 'pylint --init-hook "import nautobot; nautobot.setup()" --rcfile pyproject.toml nautobot_ssot'
+    command = 'pylint --init-hook "import nautobot; nautobot.setup()" --rcfile pyproject.toml nautobot_ssot_servicenow'
     run_command(context, command)
 
 
@@ -324,7 +324,7 @@ def check_migrations(context):
         "buffer": "Discard output from passing tests",
     }
 )
-def unittest(context, keepdb=False, label="nautobot_ssot", failfast=False, buffer=True):
+def unittest(context, keepdb=False, label="nautobot_ssot_servicenow", failfast=False, buffer=True):
     """Run Nautobot unit tests."""
     command = f"coverage run --module nautobot.core.cli test {label}"
 
@@ -340,7 +340,7 @@ def unittest(context, keepdb=False, label="nautobot_ssot", failfast=False, buffe
 @task
 def unittest_coverage(context):
     """Report on code test coverage as measured by 'invoke unittest'."""
-    command = "coverage report --skip-covered --include 'nautobot_ssot/*' --omit *migrations*"
+    command = "coverage report --skip-covered --include 'nautobot_ssot_servicenow/*' --omit *migrations*"
 
     run_command(context, command)
 
@@ -353,7 +353,7 @@ def unittest_coverage(context):
 def tests(context, failfast=False):
     """Run all tests for this plugin."""
     # If we are not running locally, start the docker containers so we don't have to for each test
-    if not is_truthy(context.nautobot_ssot.local):
+    if not is_truthy(context.nautobot_ssot_servicenow.local):
         print("Starting Docker Containers...")
         start(context)
     # Sorted loosely from fastest to slowest

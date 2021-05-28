@@ -807,48 +807,41 @@ python-versions = "*"
 
 [[package]]
 name = "nautobot"
-version = "1.0.1"
+version = "1.0.2"
 description = "Source of truth and network automation platform."
 category = "main"
 optional = false
-python-versions = "^3.6"
-develop = false
+python-versions = ">=3.6,<4.0"
 
 [package.dependencies]
-Django = "~3.1.8"
-django-cacheops = "~5.1"
-django-cors-headers = "~3.7.0"
-django-cryptography = "~1.0"
-django-filter = "~2.4.0"
-django-mptt = "~0.11.0"
-django-prometheus = "~2.1.0"
-django-redis = "~4.12.1"
-django-rq = "~2.4.1"
-django-tables2 = "~2.3.4"
-django-taggit = "~1.3.0"
-django-timezone-field = "~4.1.2"
-django-webserver = "~1.2.0"
-djangorestframework = "~3.12.4"
-drf-yasg = {version = "~1.20.0", extras = ["validation"]}
-GitPython = "~3.1.15"
-graphene-django = "~2.15.0"
-importlib-metadata = {version = "~3.4.0", markers = "python_version < \"3.8\""}
-Jinja2 = "~2.11.3"
-Markdown = "~3.3.4"
-netaddr = "~0.8.0"
-Pillow = "~8.1.0"
-psycopg2-binary = "~2.8.6"
-pycryptodome = "~3.10.1"
-pyuwsgi = "~2.0.19.1.post0"
-PyYAML = "~5.4.1"
-social-auth-app-django = "^4.0.0"
-svgwrite = "~1.4.1"
-
-[package.source]
-type = "git"
-url = "https://github.com/nautobot/nautobot.git"
-reference = "gfm-jobresult-view"
-resolved_reference = "bdb91f11b3cbc3948592b1aedb050c34df26c3d2"
+Django = ">=3.1.8,<3.2.0"
+django-cacheops = ">=5.1,<5.2"
+django-cors-headers = ">=3.7.0,<3.8.0"
+django-cryptography = ">=1.0,<1.1"
+django-filter = ">=2.4.0,<2.5.0"
+django-mptt = ">=0.11.0,<0.12.0"
+django-prometheus = ">=2.1.0,<2.2.0"
+django-redis = ">=4.12.1,<4.13.0"
+django-rq = ">=2.4.1,<2.5.0"
+django-tables2 = ">=2.3.4,<2.4.0"
+django-taggit = ">=1.3.0,<1.4.0"
+django-timezone-field = ">=4.1.2,<4.2.0"
+django-webserver = ">=1.2.0,<1.3.0"
+djangorestframework = ">=3.12.4,<3.13.0"
+drf-yasg = {version = ">=1.20.0,<1.21.0", extras = ["validation"]}
+GitPython = ">=3.1.15,<3.2.0"
+graphene-django = ">=2.15.0,<2.16.0"
+importlib-metadata = {version = ">=3.4.0,<3.5.0", markers = "python_version < \"3.8\""}
+Jinja2 = ">=2.11.3,<2.12.0"
+Markdown = ">=3.3.4,<3.4.0"
+netaddr = ">=0.8.0,<0.9.0"
+Pillow = ">=8.1.0,<8.2.0"
+psycopg2-binary = ">=2.8.6,<2.9.0"
+pycryptodome = ">=3.10.1,<3.11.0"
+pyuwsgi = ">=2.0.19.1.post0,<2.1.0.0"
+PyYAML = ">=5.4.1,<5.5.0"
+social-auth-app-django = ">=4.0.0,<5.0.0"
+svgwrite = ">=1.4.1,<1.5.0"
 
 [[package]]
 name = "netaddr"
@@ -1112,7 +1105,7 @@ postgresql = ["psycopg2"]
 
 [[package]]
 name = "pytz"
-version = "2021.1"
+version = "2019.3"
 description = "World timezone definitions, modern and historical"
 category = "main"
 optional = false
@@ -1470,7 +1463,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "43b4622b29e6e6d18c93c5673063f62e4f71236033788e78baeeaa457d6db479"
+content-hash = "8ec824bea06391a19886eb095cc8295b5b261cdbed3733458b373be19b5d5332"
 
 [metadata.files]
 aniso8601 = [
@@ -1877,7 +1870,10 @@ mypy-extensions = [
     {file = "mypy_extensions-0.4.3-py2.py3-none-any.whl", hash = "sha256:090fedd75945a69ae91ce1303b5824f428daf5a028d2f6ab8a299250a846f15d"},
     {file = "mypy_extensions-0.4.3.tar.gz", hash = "sha256:2d82818f5bb3e369420cb3c4060a7970edba416647068eb4c5343488a6c604a8"},
 ]
-nautobot = []
+nautobot = [
+    {file = "nautobot-1.0.2-py3-none-any.whl", hash = "sha256:319ca74089a9b77829d559c2a8e8151aebb309c53a54cd08cb298bd573afbbdf"},
+    {file = "nautobot-1.0.2.tar.gz", hash = "sha256:a6d3ba1f8d87267e05035067a224d6a3c0e2d150f19219ee2691837f28ed7189"},
+]
 netaddr = [
     {file = "netaddr-0.8.0-py2.py3-none-any.whl", hash = "sha256:9666d0232c32d2656e5e5f8d735f58fd6c7457ce52fc21c98d45f2af78f990ac"},
     {file = "netaddr-0.8.0.tar.gz", hash = "sha256:d6cc57c7a07b1d9d2e917aa8b36ae8ce61c35ba3fcd1b83ca31c5a0ee2b5a243"},
@@ -2081,8 +2077,8 @@ python3-openid = [
     {file = "python3_openid-3.2.0-py3-none-any.whl", hash = "sha256:6626f771e0417486701e0b4daff762e7212e820ca5b29fcc0d05f6f8736dfa6b"},
 ]
 pytz = [
-    {file = "pytz-2021.1-py2.py3-none-any.whl", hash = "sha256:eb10ce3e7736052ed3623d49975ce333bcd712c7bb19a58b9e2089d4057d0798"},
-    {file = "pytz-2021.1.tar.gz", hash = "sha256:83a4a90894bf38e243cf052c8b58f381bfe9a7a483f6a9cab140bc7f702ac4da"},
+    {file = "pytz-2019.3-py2.py3-none-any.whl", hash = "sha256:1c557d7d0e871de1f5ccd5833f60fb2550652da6be2693c1e02300743d21500d"},
+    {file = "pytz-2019.3.tar.gz", hash = "sha256:b02c06db6cf09c12dd25137e563b31700d3b80fcc4ad23abb7a315f2789819be"},
 ]
 pyuwsgi = [
     {file = "pyuwsgi-2.0.19.1.post0-cp27-cp27m-macosx_10_13_x86_64.whl", hash = "sha256:a425f562f382a097ca49df26b70d47d12f0cf0abf233610f3f58b1f7f780355e"},

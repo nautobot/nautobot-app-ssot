@@ -7,7 +7,7 @@ x-nautobot-build: &nautobot-build
     context: "../"
     dockerfile: "development/Dockerfile"
 x-nautobot-base: &nautobot-base
-  image: "nautobot-ssot/nautobot:${NAUTOBOT_VER}-py${PYTHON_VER}"
+  image: "nautobot-ssot-servicenow/nautobot:${NAUTOBOT_VER}-py${PYTHON_VER}"
   env_file:
     - "dev.env"
     - "creds.env"

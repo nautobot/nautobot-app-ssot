@@ -1,6 +1,6 @@
 ---
-nautobot_ssot:
-  project_name: "nautobot-ssot"
+nautobot_ssot_servicenow:
+  project_name: "nautobot-ssot-servicenow"
   nautobot_ver: "develop-latest"
   local: false
   python_ver: "3.6"

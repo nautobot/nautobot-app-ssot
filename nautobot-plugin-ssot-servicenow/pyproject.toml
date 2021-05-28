@@ -1,28 +1,29 @@
 [tool.poetry]
-name = "nautobot-ssot"
+name = "nautobot-ssot-servicenow"
 version = "0.1.0"
-description = "Nautobot Single Source of Truth"
+description = "Nautobot SSoT ServiceNow"
 authors = ["Network to Code, LLC <opensource@networktocode.com>"]
 
 license = "Apache-2.0"
 
 readme = "README.md"
-homepage = "https://github.com/nautobot/nautobot-plugin-ssot"
-repository = "https://github.com/nautobot/nautobot-plugin-ssot"
+homepage = "https://github.com/nautobot/nautobot-plugin-ssot-servicenow"
+repository = "https://github.com/nautobot/nautobot-plugin-ssot-servicenow"
 keywords = ["nautobot", "nautobot-plugin"]
 include = [
-
     "LICENSE",
-
     "README.md",
 ]
 packages = [
-    { include = "nautobot_ssot" },
+    { include = "nautobot_ssot_servicenow" },
 ]
 
 [tool.poetry.dependencies]
 python = "^3.6"
-nautobot = "^1.0.2"
+Jinja2 = "<3"
+pysnow = "^0.7.17"
+usaddress = "^0.5.10"
+PyYAML = "^5.4.1"
 diffsync = "^1.3.0"
 
 [tool.poetry.dev-dependencies]
@@ -40,7 +41,7 @@ mkdocs = "*"
 markdown-include = "*"
 
 [tool.poetry.plugins."nautobot_ssot.sync_worker_classes"]
-"example" = "nautobot_ssot.sync.example:ExampleSyncWorker"
+"ServiceNow export" = "nautobot_ssot_servicenow.worker:ServiceNowExportDataSyncWorker"
 
 [tool.black]
 line-length = 120

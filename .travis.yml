@@ -8,7 +8,7 @@ env:
   # Each version of Nautobot listed here must have a corresponding directory/configuration file
   # under development/nautobot_<NAUTOBOT_VER>/configuration.py
   matrix:
-    - "INVOKE_NAUTOBOT-DATA-SYNC_NAUTOBOT_VER=1.0.1"
+    - "INVOKE_NAUTOBOT_SSOT_NAUTOBOT_VER=1.0.1"
 # Add your encrypted secret below, you can encrypt secret using "travis encrypt"
 # https://docs.travis-ci.com/user/environment-variables/#defining-encrypted-variables-in-travisyml
 # global:
@@ -29,8 +29,8 @@ script:
   # If you want to test different versions, it may require updating the poetry definition for Nautobot
   # as that is where the version is controlled
   # - "poetry add nautobot=$NAUTOBOT_VER"
-  - "INVOKE_NAUTOBOT-DATA-SYNC_PYTHON_VER=$TRAVIS_PYTHON_VERSION invoke build --no-cache"
-  - "INVOKE_NAUTOBOT-DATA-SYNC_PYTHON_VER=$TRAVIS_PYTHON_VERSION invoke tests --failfast"
+  - "INVOKE_NAUTOBOT_SSOT_PYTHON_VER=$TRAVIS_PYTHON_VERSION invoke build --no-cache"
+  - "INVOKE_NAUTOBOT_SSOT_PYTHON_VER=$TRAVIS_PYTHON_VERSION invoke tests --failfast"
 # --------------------------------------------------------------------------
 # Deploy
 #  Uncomment the section below if you would like to publish a new release to pypi automatically
