@@ -6,6 +6,11 @@ from nautobot.utilities.choices import ButtonColorChoices
 
 menu_items = (
     PluginMenuItem(
+        link="plugins:nautobot_ssot:dashboard",
+        link_text="Dashboard",
+        permissions=["nautobot_ssot.view_sync"],
+    ),
+    PluginMenuItem(
         link="plugins:nautobot_ssot:sync_list",
         link_text="History",
         permissions=["nautobot_ssot.view_sync"],

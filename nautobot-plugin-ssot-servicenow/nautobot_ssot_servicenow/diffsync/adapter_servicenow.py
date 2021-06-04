@@ -89,7 +89,7 @@ class ServiceNowDiffSync(DiffSync):
 
         try:
             self.add(model)
-            self.worker.job_log(f"Added {modelname} {model.get_unique_id()}")
+            self.worker.job_log(f"Loaded {modelname} {model.get_unique_id()}")
         except ObjectAlreadyExists:
             # TODO: the baseline data in ServiceNow has a number of duplicate Location entries. For now, continue
             self.worker.job_log(f"Duplicate object encountered for {modelname} {model.get_unique_id()}")
@@ -104,7 +104,7 @@ class ServiceNowDiffSync(DiffSync):
                 parent_model = self.get(kwargs["parent"]["modelname"], parent_uid)
                 parent_model.add_child(model)
                 self.worker.job_log(
-                    f"Added {modelname} {model.get_unique_id} as a child of {parent_model.get_type()} {parent_model.get_unique_id()}"
+                    f"Recorded {modelname} {model.get_unique_id()} as a child of {parent_model.get_type()} {parent_model.get_unique_id()}"
                 )
 
     def map_record_to_attrs(self, record, mappings):  # TODO pylint: disable=too-many-branches

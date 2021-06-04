@@ -1,11 +1,11 @@
 """Data tables for Single Source of Truth (SSOT) views."""
-
 from django_tables2 import Column, DateTimeColumn, JSONColumn, LinkColumn, TemplateColumn
 
 from nautobot.utilities.tables import BaseTable, ToggleColumn
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 from .models import Sync, SyncLogEntry
+from .sync import get_data_source, get_data_target
 
 
 ACTION_LOGS_LINK = """
@@ -36,12 +36,27 @@ DRY_RUN_LABEL = """
 MESSAGE_SPAN = """<span class="message">{% if record.message %}{{ record.message }}{% else %}—{% endif %}</span>"""
 
 
+class DashboardTable(BaseTable):
+    """Abbreviated version of SyncTable, for use with the dashboard."""
+
+    start_time = DateTimeColumn(linkify=True, short=True)
+    source = Column(linkify=lambda record: record.get_source_url())
+    target = Column(linkify=lambda record: record.get_target_url())
+    status = TemplateColumn(template_code="{% include 'extras/inc/job_label.html' with result=record.job_result %}")
+    dry_run = TemplateColumn(template_code=DRY_RUN_LABEL, verbose_name="Sync?")
+
+    class Meta(BaseTable.Meta):
+        model = Sync
+        fields = ["source", "target", "start_time", "status", "dry_run"]
+        order_by = ["-start_time"]
+
+
 class SyncTable(BaseTable):
     """Table for listing Sync records."""
 
     pk = ToggleColumn()
-    timestamp = DateTimeColumn(accessor="job_result.created", linkify=True, short=True, verbose_name="Timestamp")
-    name = Column(accessor="job_result.name")
+    start_time = DateTimeColumn(linkify=True, short=True)
+    duration = TemplateColumn(template_code="{% load shorter_timedelta %}{{ record.duration | shorter_timedelta }}")
     dry_run = TemplateColumn(template_code=DRY_RUN_LABEL, verbose_name="Sync?")
     status = TemplateColumn(template_code="{% include 'extras/inc/job_label.html' with result=record.job_result %}")
 
@@ -82,14 +97,14 @@ class SyncTable(BaseTable):
         extra_context={"link_class": "num_errored", "status": SyncLogEntryStatusChoices.STATUS_ERROR},
     )
 
-    message = TemplateColumn(template_code=MESSAGE_SPAN, orderable=False)
-
     class Meta(BaseTable.Meta):
         model = Sync
         fields = (
             "pk",
-            "timestamp",
-            "name",
+            "source",
+            "target",
+            "start_time",
+            "duration",
             "user",
             "status",
             "dry_run",
@@ -100,12 +115,12 @@ class SyncTable(BaseTable):
             "num_succeeded",
             "num_failed",
             "num_errored",
-            "message",
         )
         default_columns = (
             "pk",
-            "timestamp",
-            "name",
+            "source",
+            "target",
+            "start_time",
             "status",
             "dry_run",
             "num_created",
@@ -113,9 +128,8 @@ class SyncTable(BaseTable):
             "num_deleted",
             "num_failed",
             "num_errored",
-            "message",
         )
-        order_by = ("-timestamp",)
+        order_by = ("-start_time",)
 
 
 ACTION_LABEL = """<span class="label label-{{ record.get_action_class }}">{{ record.action }}</span>"""

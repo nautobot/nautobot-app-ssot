@@ -33,8 +33,8 @@ class ServiceNowExportDataSyncWorker(DataSyncWorker):
     )
 
     class Meta:
-        name = "Data Sync to ServiceNow"
-        slug = "service-now-export"
+        name = "ServiceNow"
+        slug = "service-now"
         description = "Synchronize data from Nautobot into ServiceNow."
 
     def __init__(self, *args, **kwargs):

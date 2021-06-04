@@ -18,9 +18,39 @@ from nautobot.core.views.generic import BulkDeleteView, ObjectDeleteView, Object
 from .filters import SyncFilter, SyncLogEntryFilter
 from .forms import SyncFilterForm, SyncLogEntryFilterForm
 from .models import Sync, SyncLogEntry
-from .sync import get_sync_worker_class, get_sync_worker_classes
-from .tables import SyncTable, SyncLogEntryTable
+from .sync import get_data_sources, get_data_targets, get_data_source, get_data_target
+from .tables import DashboardTable, SyncTable, SyncLogEntryTable
 
+
+class DashboardView(ObjectListView):
+    """Dashboard / overview of SSoT."""
+
+    queryset = Sync.queryset()
+    table = DashboardTable
+    action_buttons = []
+    template_name = "nautobot_ssot/dashboard.html"
+
+    def extra_context(self):
+        context = {
+            "queryset": self.queryset,
+            "data_sources": get_data_sources(),
+            "data_targets": get_data_targets(),
+            "source": {},
+            "target": {},
+        }
+        sync_ct = ContentType.objects.get_for_model(Sync)
+        for source in context["data_sources"]:
+            context["source"][source.name] = self.queryset.filter(
+                job_result__obj_type=sync_ct,
+                job_result__name=source.name,
+            )
+        for target in context["data_targets"]:
+            context["target"][target.name] = self.queryset.filter(
+                job_result__obj_type=sync_ct,
+                job_result__name=target.name,
+            )
+
+        return context
 
 class SyncListView(ObjectListView):
     """View for listing Sync records."""
@@ -30,10 +60,13 @@ class SyncListView(ObjectListView):
     filterset_form = SyncFilterForm
     table = SyncTable
     action_buttons = []
-    template_name = "nautobot_ssot/sync_home.html"
+    template_name = "nautobot_ssot/history.html"
 
     def extra_context(self):
-        return {"sync_worker_classes": get_sync_worker_classes()}
+        return {
+            "data_sources": get_data_sources(),
+            "data_targets": get_data_targets(),
+        }
 
 
 class SyncCreateView(ObjectEditView):
@@ -41,11 +74,14 @@ class SyncCreateView(ObjectEditView):
 
     queryset = Sync.objects.all()
 
-    def get(self, request, sync_worker_slug):
+    def get(self, request, slug, kind="source"):
         """Render a form for executing the given sync worker."""
 
         try:
-            sync_worker_class = get_sync_worker_class(slug=sync_worker_slug)
+            if kind == "source":
+                sync_worker_class = get_data_source(slug=slug)
+            else:
+                sync_worker_class = get_data_target(slug=slug)
         except KeyError:
             raise Http404
 
@@ -53,17 +89,24 @@ class SyncCreateView(ObjectEditView):
 
         return render(
             request,
-            "nautobot_ssot/sync.html",
+            "nautobot_ssot/sync_run.html",
             {
                 "sync_worker_class": sync_worker_class,
                 "form": form,
             },
         )
 
-    def post(self, request, sync_worker_slug):
+    def post(self, request, slug, kind="source"):
         """Enqueue the given sync worker for execution!"""
         try:
-            sync_worker_class = get_sync_worker_class(slug=sync_worker_slug)
+            if kind == "source":
+                sync_worker_class = get_data_source(slug=slug)
+                source = sync_worker_class.name
+                target = "Nautobot"
+            else:
+                sync_worker_class = get_data_target(slug=slug)
+                source = "Nautobot"
+                target = sync_worker_class.name
         except KeyError:
             raise Http404
 
@@ -75,7 +118,7 @@ class SyncCreateView(ObjectEditView):
         if form.is_valid():
             dry_run = form.cleaned_data.pop("dry_run")
 
-            sync = Sync.objects.create(dry_run=dry_run, diff={})
+            sync = Sync.objects.create(source=source, target=target, dry_run=dry_run, diff={})
             job_result = JobResult.objects.create(
                 name=sync_worker_class.name,
                 obj_type=ContentType.objects.get_for_model(sync),
@@ -95,7 +138,7 @@ class SyncCreateView(ObjectEditView):
 
         return render(
             request,
-            "nautobot_ssot/sync.html",
+            "nautobot_ssot/sync_run.html",
             {
                 "sync_worker_class": sync_worker_class,
                 "form": form,

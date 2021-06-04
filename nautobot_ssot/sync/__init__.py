@@ -12,7 +12,6 @@ import structlog
 from nautobot.extras.choices import JobResultStatusChoices, LogLevelChoices
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices
-from nautobot_ssot.models import Sync, SyncLogEntry
 
 
 logger = logging.getLogger("rq.worker")
@@ -20,6 +19,8 @@ logger = logging.getLogger("rq.worker")
 
 def log_to_log_entry(_logger, _log_method, event_dict):
     """Capture certain structlog messages from DiffSync into the Nautobot database."""
+    # TODO rework this
+    from nautobot_ssot.models import SyncLogEntry
     if all(key in event_dict for key in ("src", "dst", "action", "model", "unique_id", "diffs", "status")):
         sync = event_dict["src"].sync
         sync_worker = event_dict["src"].sync_worker
@@ -41,28 +42,49 @@ def log_to_log_entry(_logger, _log_method, event_dict):
         )
     return event_dict
 
+def get_data_sources():
+    """Get a list of registered sync worker data sources."""
+    return sorted(
+        [
+            entrypoint.load() for entrypoint in pkg_resources.iter_entry_points("nautobot_ssot.data_sources")
+        ],
+        key=lambda worker: worker.name,
+    )
 
-def get_sync_worker_classes():
-    return [
-        entrypoint.load() for entrypoint in pkg_resources.iter_entry_points("nautobot_ssot.sync_worker_classes")
-    ]
+def get_data_targets():
+    """Get a list of registered sync worker data targets."""
+    return sorted(
+        [
+            entrypoint.load() for entrypoint in pkg_resources.iter_entry_points("nautobot_ssot.data_targets")
+        ],
+        key=lambda worker: worker.name,
+    )
 
+def get_data_source(name=None, slug=None):
+    """Look up the specified data source class."""
+    for data_source in get_data_sources():
+        if name and data_source.name != name:
+            continue
+        if slug and data_source.slug != slug:
+            continue
+        return data_source
+    raise KeyError(f'No data source "{name or slug}" found!')
 
-def get_sync_worker_class(name=None, slug=None):
-    """Look up the specified sync worker class."""
-    for entrypoint in pkg_resources.iter_entry_points("nautobot_ssot.sync_worker_classes"):
-        sync_worker_class = entrypoint.load()
-        if name and sync_worker_class.name == name:
-            return sync_worker_class
-        if slug and sync_worker_class.slug == slug:
-            return sync_worker_class
-    else:
-        raise KeyError(f'No registered sync worker "{name or slug}" found!')
-
+def get_data_target(name=None, slug=None):
+    """Look up the specified data target class."""
+    for data_target in get_data_targets():
+        if name and data_target.name != name:
+            continue
+        if slug and data_target.slug != slug:
+            continue
+        return data_target
+    raise KeyError(f'No data target "{name or slug}" found!')
 
 @job("default")
 def sync(sync_id, data):
     """Perform a requested sync."""
+    # TODO rework this
+    from nautobot_ssot.models import Sync
     sync = Sync.objects.get(id=sync_id)
 
     sync.job_result.log(
@@ -70,6 +92,8 @@ def sync(sync_id, data):
     )
     sync.job_result.set_status(JobResultStatusChoices.STATUS_RUNNING)
     sync.job_result.save()
+    sync.start_time = timezone.now()
+    sync.save()
 
     try:
         structlog.configure(
@@ -83,7 +107,10 @@ def sync(sync_id, data):
             cache_logger_on_first_use=True,
         )
 
-        sync_worker = get_sync_worker_class(name=sync.job_result.name)(sync=sync, data=data)
+        if sync.source != "Nautobot":
+            sync_worker = get_data_source(name=sync.source)(sync=sync, data=data)
+        else:
+            sync_worker = get_data_target(name=sync.target)(sync=sync, data=data)
 
         sync_worker.execute()
 

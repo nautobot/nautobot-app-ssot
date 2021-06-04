@@ -1,0 +1,11 @@
+{% for status in statuses %}
+    <label class="label
+        {% if status == 'completed' %}label-success
+        {% elif status == 'failed' %}label-danger
+        {% elif status == 'errored' %}label-danger
+        {% elif status == 'pending' %}label-default
+        {% elif status == 'running' %}label-warning
+        {% endif %}">
+    </label>&nbsp;
+{% endfor %}
+<span class="badge">{{ count }}</span>

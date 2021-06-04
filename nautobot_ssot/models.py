@@ -14,18 +14,21 @@ The interaction between these models and Nautobot's native JobResult model deser
     This field is therefore not suitable for storage of in-depth data synchronization log messages,
     which have a different set of content requirements, but is used for high-level status reporting.
 
-JobResult 1-->1 Sync 1-->n SyncLogEntry 1-->1 ObjectChange
+JobResult 1<->1 Sync 1-->n SyncLogEntry 1-->1 ObjectChange
 """
+from datetime import timedelta
 
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.urls import reverse
+from django.utils.timezone import now
 
 from nautobot.core.models import BaseModel
 from nautobot.extras.models import ChangeLoggedModel, CustomFieldModel, JobResult, ObjectChange, RelationshipModel
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
+from .sync import get_data_source, get_data_target
 
 
 class Sync(BaseModel, ChangeLoggedModel, CustomFieldModel, RelationshipModel):
@@ -34,14 +37,24 @@ class Sync(BaseModel, ChangeLoggedModel, CustomFieldModel, RelationshipModel):
     Essentially an extension of the JobResult model to add a few additional fields.
     """
 
+    source = models.CharField(max_length=64, help_text="System data is read from")
+    target = models.CharField(max_length=64, help_text="System data is written to")
+
+    start_time = models.DateTimeField(null=True)
+    # end_time is represented by the job_result.completed field
+
     dry_run = models.BooleanField(
         default=False, help_text="Report what data would be synced but do not make any changes"
     )
     diff = models.JSONField()
+
     job_result = models.ForeignKey(to=JobResult, on_delete=models.PROTECT, blank=True, null=True)
 
     class Meta:
-        ordering = ["-created"]
+        ordering = ["start_time"]
+
+    def __str__(self):
+        return f"{self.source} -> {self.target}, {self.start_time}"
 
     def get_absolute_url(self):
         return reverse("plugins:nautobot_ssot:sync", kwargs={"pk": self.pk})
@@ -66,6 +79,33 @@ class Sync(BaseModel, ChangeLoggedModel, CustomFieldModel, RelationshipModel):
                 num_failed=models.Count("log", filter=models.Q(log__status=SyncLogEntryStatusChoices.STATUS_FAILURE)),
                 num_errored=models.Count("log", filter=models.Q(log__status=SyncLogEntryStatusChoices.STATUS_ERROR)),
             )
+        )
+
+    @property
+    def duration(self):
+        """Total execution time of this Sync."""
+        if not self.start_time:
+            return timedelta()  # zero
+        if not self.job_result.completed:
+            return now() - self.start_time
+        return self.job_result.completed - self.start_time
+
+    def get_source_url(self):
+        """Get the absolute url of the source worker associated with this instance."""
+        if self.source == "Nautobot":
+            return None
+        return reverse(
+            "plugins:nautobot_ssot:sync_add_source",
+            kwargs={"slug": get_data_source(name=self.source).slug},
+        )
+
+    def get_target_url(self):
+        """Get the absolute url of the target worker associated with this instance."""
+        if self.source == "Nautobot":
+            return None
+        return reverse(
+            "plugins:nautobot_ssot:sync_add_target",
+            kwargs={"slug": get_data_target(name=self.target).slug},
         )
 
 

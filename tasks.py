@@ -15,6 +15,7 @@ limitations under the License.
 from distutils.util import strtobool
 from invoke import Collection, task as invoke_task
 import os
+import time
 
 
 def is_truthy(arg):
@@ -250,6 +251,15 @@ def post_upgrade(context):
     command = "nautobot-server post_upgrade"
 
     run_command(context, command)
+
+
+@task
+def sql_import(context):
+    """Import nautobot_backup.dump into the database."""
+    docker_compose(context, "up -d postgres")
+    time.sleep(2)
+    context.run(f"docker cp nautobot_backup.dump nautobot-ssot_postgres_1:/tmp/")
+    docker_compose(context, 'exec postgres sh -c "psql -h localhost -d nautobot -U nautbot < /tmp/nautobot_backup.dump"', pty=True)
 
 
 # ------------------------------------------------------------------------------

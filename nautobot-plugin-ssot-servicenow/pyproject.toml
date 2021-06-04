@@ -40,8 +40,8 @@ coverage = "*"
 mkdocs = "*"
 markdown-include = "*"
 
-[tool.poetry.plugins."nautobot_ssot.sync_worker_classes"]
-"ServiceNow export" = "nautobot_ssot_servicenow.worker:ServiceNowExportDataSyncWorker"
+[tool.poetry.plugins."nautobot_ssot.data_targets"]
+"ServiceNow" = "nautobot_ssot_servicenow.worker:ServiceNowExportDataSyncWorker"
 
 [tool.black]
 line-length = 120
