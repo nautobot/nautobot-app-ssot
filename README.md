@@ -106,13 +106,14 @@ This project is managed by [Python Poetry](https://python-poetry.org/) and has a
 
 1.  Install Poetry, see the [Poetry Documentation](https://python-poetry.org/docs/#installation) for your operating system.
 2.  Install Docker, see the [Docker documentation](https://docs.docker.com/get-docker/) for your operating system.
+3.  If you wish to use any data sources / data target libraries, add the appropriate `*.whl` files to the `packages/` directory - they will be automatically installed as part of any Docker build. (TODO change this eventually)
 
 Once you have Poetry and Docker installed you can run the following commands to install all other development dependencies in an isolated python virtual environment:
 
 ```shell
 poetry shell
 poetry install
-invoke start
+invoke build start
 ```
 
 Nautobot server can now be accessed at [http://localhost:8080](http://localhost:8080).
