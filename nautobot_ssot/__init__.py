@@ -9,7 +9,7 @@ class NautobotSSOTPluginConfig(PluginConfig):
     """Plugin configuration for the nautobot_ssot plugin."""
 
     name = "nautobot_ssot"
-    verbose_name = "SSoT"
+    verbose_name = "Single Source of Truth"
     version = __version__
     author = "Network to Code, LLC"
     description = "Nautobot Single Source of Truth"

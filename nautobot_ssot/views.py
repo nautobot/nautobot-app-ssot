@@ -116,7 +116,7 @@ class SyncCreateView(ObjectEditView):
         form = sync_worker_class.as_form(request.POST, request.FILES)
 
         if form.is_valid():
-            dry_run = form.cleaned_data.pop("dry_run")
+            dry_run = form.cleaned_data.get("dry_run", True)
 
             sync = Sync.objects.create(source=source, target=target, dry_run=dry_run, diff={})
             job_result = JobResult.objects.create(
@@ -130,7 +130,7 @@ class SyncCreateView(ObjectEditView):
 
             transaction.on_commit(
                 lambda: get_queue("default").enqueue(
-                    "nautobot_ssot.sync.sync", sync_id=sync.pk, data=form.cleaned_data, job_timeout=3600
+                    "nautobot_ssot.sync.job.sync", sync_id=sync.pk, data=form.cleaned_data, job_timeout=3600
                 )
             )
 

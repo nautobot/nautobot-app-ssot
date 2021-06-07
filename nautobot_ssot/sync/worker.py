@@ -1,5 +1,4 @@
 """Base/generic functionality for implementation of a data synchronization worker class."""
-
 from collections import OrderedDict
 
 from django.utils.functional import classproperty
@@ -131,10 +130,17 @@ class DataSyncWorker:
     #
 
     def execute(self):
-        """Perform a dry run or actual data synchronization, depending on self.dry_run."""
+        """Perform a dry run or actual data synchronization, depending on self.dry_run.
+
+        Note that unlike a Nautobot Job, it is up to the implementation to provide dry-run behavior;
+        since execution may involve manipulation of data in other systems, Nautobot cannot itself
+        guarantee proper rollback or other dry-run behavior on its own.
+        """
 
     def lookup_object(self, model_name, unique_id):
         """Look up the Nautobot record and associated ObjectChange, if any, identified by the args.
+
+        Optional helper method used to build more detailed/accurate SyncLogEntry records from DiffSync logs.
 
         Args:
             model_name (str): DiffSyncModel class name or similar class/model label.

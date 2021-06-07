@@ -101,7 +101,7 @@ class Sync(BaseModel, ChangeLoggedModel, CustomFieldModel, RelationshipModel):
 
     def get_target_url(self):
         """Get the absolute url of the target worker associated with this instance."""
-        if self.source == "Nautobot":
+        if self.target == "Nautobot":
             return None
         return reverse(
             "plugins:nautobot_ssot:sync_add_target",
@@ -141,10 +141,6 @@ class SyncLogEntry(BaseModel):
     object_change = models.ForeignKey(to=ObjectChange, on_delete=models.SET_NULL, blank=True, null=True)
 
     message = models.CharField(max_length=511, blank=True)
-
-    @property
-    def dry_run(self):
-        return self.overview.dry_run
 
     class Meta:
         verbose_name_plural = "sync log entries"
