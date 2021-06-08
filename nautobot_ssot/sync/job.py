@@ -1,5 +1,6 @@
 """Job API for invoking a sync worker."""
 import logging
+import traceback
 
 from django.utils import timezone
 
@@ -78,6 +79,7 @@ def sync(sync_id, data):
             level_choice=LogLevelChoices.LOG_FAILURE,
             logger=logger,
         )
+        logger.error(traceback.format_exc())
         sync.job_result.set_status(JobResultStatusChoices.STATUS_FAILED)
     else:
         sync.job_result.log(
