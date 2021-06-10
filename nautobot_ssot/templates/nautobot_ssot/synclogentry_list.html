@@ -1,0 +1,13 @@
+{% extends 'generic/object_list.html' %}
+
+{% block header %}
+    <div class="row">
+        <div class="col-md-12">
+            <ol class="breadcrumb">
+                <li><a href="{% url 'plugins:nautobot_ssot:dashboard' %}">Single Source of Truth</a></li>
+                <li>Sync Logs</li>
+            </ol>
+        </div>
+    </div>
+{% endblock %}
+{% block title %}SSoT Sync Logs{% endblock %}

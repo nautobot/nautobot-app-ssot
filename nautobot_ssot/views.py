@@ -180,3 +180,4 @@ class SyncLogEntryListView(ObjectListView):
     filterset_form = SyncLogEntryFilterForm
     table = SyncLogEntryTable
     action_buttons = []
+    template_name = "nautobot_ssot/synclogentry_list.html"
