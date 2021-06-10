@@ -114,11 +114,14 @@ class SyncLogEntry(BaseModel):
 
     Detailed sync logs are recorded in this model, rather than in JobResult.data, because
     JobResult.data imposes fairly strict expectations about the structure of its contents
-    that do not align well with the requirements of this plugin.
+    that do not align well with the requirements of this plugin. Also, storing log entries as individual
+    database records rather than a single JSON blob allows us to filter, query, sort, etc. as desired.
 
     This model somewhat "shadows" Nautobot's built-in ObjectChange model; the key distinction to
     bear in mind is that an ObjectChange reflects a change that *did happen*, while a SyncLogEntry
     may reflect this or may reflect a change that *could not happen* or *failed*.
+    Additionally, if we're syncing data from Nautobot to a different system as data target,
+    the data isn't changing in Nautobot, so there will be no ObjectChange record.
     """
 
     sync = models.ForeignKey(to=Sync, on_delete=models.CASCADE, related_name="logs", related_query_name="log")
@@ -126,16 +129,16 @@ class SyncLogEntry(BaseModel):
 
     action = models.CharField(max_length=32, choices=SyncLogEntryActionChoices)
     status = models.CharField(max_length=32, choices=SyncLogEntryStatusChoices)
-    diff = models.JSONField()
+    diff = models.JSONField(blank=True, null=True)
 
-    changed_object_type = models.ForeignKey(
+    synced_object_type = models.ForeignKey(
         to=ContentType,
         blank=True,
         null=True,
         on_delete=models.PROTECT,
     )
-    changed_object_id = models.UUIDField(blank=True, null=True)
-    changed_object = GenericForeignKey(ct_field="changed_object_type", fk_field="changed_object_id")
+    synced_object_id = models.UUIDField(blank=True, null=True)
+    synced_object = GenericForeignKey(ct_field="synced_object_type", fk_field="synced_object_id")
 
     object_repr = models.CharField(max_length=200, editable=False)
     object_change = models.ForeignKey(to=ObjectChange, on_delete=models.SET_NULL, blank=True, null=True)

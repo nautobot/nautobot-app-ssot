@@ -23,7 +23,7 @@ class SyncLogEntryFilter(BaseFilterSet):
 
     class Meta:
         model = SyncLogEntry
-        fields = ["sync", "action", "status", "changed_object_type"]
+        fields = ["sync", "action", "status", "synced_object_type"]
 
     def search(self, queryset, name, value):
         if not value.strip():

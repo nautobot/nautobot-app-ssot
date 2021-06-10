@@ -38,16 +38,16 @@ def sync(sync_id, data):
             object_repr = event_dict["unique_id"]
             # The DiffSync log gives us a model name (string) and unique_id (string).
             # Try to look up the actual Nautobot object that this describes.
-            changed_object, object_change = sync_worker.lookup_object(event_dict["model"], event_dict["unique_id"])
-            if changed_object:
-                object_repr = repr(changed_object)
+            synced_object, object_change = sync_worker.lookup_object(event_dict["model"], event_dict["unique_id"])
+            if synced_object:
+                object_repr = repr(synced_object)
             SyncLogEntry.objects.create(
                 sync=sync,
                 action=event_dict["action"] or SyncLogEntryActionChoices.ACTION_NO_CHANGE,
-                diff=event_dict["diffs"],
+                diff=event_dict["diffs"] if event_dict["action"] else None,
                 status=event_dict["status"],
                 message=event_dict["event"],
-                changed_object=changed_object,
+                synced_object=synced_object,
                 object_change=object_change,
                 object_repr=object_repr,
             )

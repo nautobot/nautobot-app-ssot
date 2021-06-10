@@ -104,15 +104,15 @@ class DataSyncWorker:
         status,
         message="",
         diff=None,
-        changed_object=None,
+        synced_object=None,
         object_repr=None,
         object_change=None,
     ):
         """Log a action message as a SyncLogEntry."""
         if not diff:
             diff = {}
-        if changed_object and not object_repr:
-            object_repr = repr(changed_object)
+        if synced_object and not object_repr:
+            object_repr = repr(synced_object)
 
         SyncLogEntry.objects.create(
             sync=self.sync,
@@ -120,7 +120,7 @@ class DataSyncWorker:
             status=status,
             message=message,
             diff=diff,
-            changed_object=changed_object,
+            synced_object=synced_object,
             object_repr=object_repr,
             object_change=object_change,
         )

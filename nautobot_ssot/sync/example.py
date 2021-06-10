@@ -34,7 +34,7 @@ class ExampleSyncWorker(DataSyncWorker):
                 self.sync_log(
                     action=action,
                     status=SyncLogEntryStatusChoices.STATUS_SUCCESS,
-                    changed_object=site,
+                    synced_object=site,
                 )
                 if self.dry_run:
                     # Note that this is not an ideal way to implement dry-run behavior;

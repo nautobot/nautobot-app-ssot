@@ -142,14 +142,16 @@ class SyncLogEntryTable(BaseTable):
     """Table for displaying SyncLogEntry records."""
 
     pk = ToggleColumn()
-    sync = LinkColumn(accessor="sync__id", verbose_name="Sync")
+    sync = LinkColumn(verbose_name="Sync")
     action = TemplateColumn(template_code=ACTION_LABEL)
-    diff = JSONColumn(orderable=False)
     status = TemplateColumn(template_code=LOG_STATUS_LABEL)
+    diff = JSONColumn(orderable=False)
     message = TemplateColumn(template_code=MESSAGE_SPAN, orderable=False)
-    changed_object = LinkColumn(verbose_name="Changed object")
+    synced_object = LinkColumn(verbose_name="Synced Object")
+    object_change = LinkColumn()
 
     class Meta(BaseTable.Meta):
         model = SyncLogEntry
-        fields = ("pk", "timestamp", "sync", "action", "changed_object", "diff", "status", "message")
+        fields = ("pk", "timestamp", "sync", "action", "synced_object_type", "synced_object", "object_repr", "object_change", "status", "diff", "message")
+        default_columns = ("pk", "timestamp", "sync", "action", "synced_object", "status", "diff", "message")
         order_by = ("-timestamp",)
