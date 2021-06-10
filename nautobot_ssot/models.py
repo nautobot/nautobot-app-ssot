@@ -18,10 +18,12 @@ JobResult 1<->1 Sync 1-->n SyncLogEntry 1-->1 ObjectChange
 """
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.urls import reverse
+from django.utils.formats import date_format
 from django.utils.timezone import now
 
 from nautobot.core.models import BaseModel
@@ -54,7 +56,7 @@ class Sync(BaseModel, ChangeLoggedModel, CustomFieldModel, RelationshipModel):
         ordering = ["start_time"]
 
     def __str__(self):
-        return f"{self.source} -> {self.target}, {self.start_time}"
+        return f"{self.source} -> {self.target}, {date_format(self.start_time, format=settings.SHORT_DATETIME_FORMAT)}"
 
     def get_absolute_url(self):
         return reverse("plugins:nautobot_ssot:sync", kwargs={"pk": self.pk})
