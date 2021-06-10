@@ -56,7 +56,7 @@ class Sync(BaseModel, ChangeLoggedModel, CustomFieldModel, RelationshipModel):
         ordering = ["start_time"]
 
     def __str__(self):
-        return f"{self.source} -> {self.target}, {date_format(self.start_time, format=settings.SHORT_DATETIME_FORMAT)}"
+        return f"{self.source} → {self.target}, {date_format(self.start_time, format=settings.SHORT_DATETIME_FORMAT)}"
 
     def get_absolute_url(self):
         return reverse("plugins:nautobot_ssot:sync", kwargs={"pk": self.pk})

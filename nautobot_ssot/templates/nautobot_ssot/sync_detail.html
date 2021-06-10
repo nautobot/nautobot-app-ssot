@@ -2,6 +2,7 @@
 {% load buttons %}
 {% load custom_links %}
 {% load plugins %}
+{% load shorter_timedelta %}
 
 {% block header %}
     <div class="row">
@@ -42,16 +43,96 @@
         <div class="col-md-6">
             <div class="panel panel-default">
                 <div class="panel-heading">
-                    <strong>Summary</strong>
+                    <strong>Sync</strong>
                 </div>
                 <table class="table table-hover panel-body attr-table">
                     <tr>
-                        <td>Dry run?</td>
-                        <td>{{ object.dry_run }}</td>
+                        <td>Data Source</td>
+                        <td>
+                            {% if object.get_source_url %}
+                                <a href="{{ object.get_source_url }}">{{ object.source }}</a>
+                            {% else %}
+                                {{ object.source }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Data Target</td>
+                        <td>
+                            {% if object.get_target_url %}
+                                <a href="{{ object.get_target_url }}">{{ object.target }}</a>
+                            {% else %}
+                                {{ object.target }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Sync or Dry run?</td>
+                        <td>
+                            {% if object.dry_run %}
+                                <span class="dry_run label label-default">Dry Run</span>
+                            {% else %}
+                                <span class="dry_run label label-info">Sync</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Start Time</td>
+                        <td>{{ object.start_time }} <span class="text-muted">({{ object.start_time | timesince }} ago)</span></td>
+                    </tr>
+                    <tr>
+                        <td>End Time</td>
+                        <td>{{ object.job_result.completed }} <span class="text-muted">({{ object.job_result.completed | timesince }} ago)</span></td>
+                    </tr>
+                    <tr>
+                        <td>Duration</td>
+                        <td>{{ object.duration | shorter_timedelta }}</td>
+                    </tr>
+                    <tr>
+                        <td>Status</td>
+                        <td>{{ object.job_result.get_status_display }}</td>
                     </tr>
                     <tr>
                         <td>Job result</td>
-                        <td><a href="{{ object.job_result.get_absolute_url }}">{{ object.job_result }}</a></td>
+                        <td><a href="{{ object.job_result.get_absolute_url }}">{{ object.job_result.pk }}</a></td>
+                    </tr>
+                </table>
+            </div>
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <strong>Statistics</strong>
+                </div>
+                <table class="table table-hover panel-body attr-table">
+                    <tr>
+                        <td>Actions Taken</td>
+                        <td class="report-stats">
+                            <label class="label label-success" title="Create">
+                                <i class="mdi mdi-plus-thick"></i> {{ object.num_created }}
+                            </label>
+                            <label class="label label-warning" title="Update">
+                                <i class="mdi mdi-pencil"></i> {{ object.num_updated }}
+                            </label>
+                            <label class="label label-danger" title="Delete">
+                                <i class="mdi mdi-trash-can-outline"></i> {{ object.num_deleted }}
+                            </label>
+                            <label class="label label-default" title="No change">
+                                <i class="mdi mdi-cancel"></i> {{ object.num_unchanged }}
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Outcomes</td>
+                        <td class="report-stats">
+                            <label class="label label-success" title="Success">
+                                <i class="mdi mdi-emoticon-happy"></i> {{ object.num_succeeded }}
+                            </label>
+                            <label class="label label-warning" title="Failure">
+                                <i class="mdi mdi-close-octagon"></i> {{ object.num_failed }}
+                            </label>
+                            <label class="label label-danger" title="Error">
+                                <i class="mdi mdi-alert"></i> {{ object.num_errored }}
+                            </label>
+                        </td>
                     </tr>
                 </table>
             </div>
@@ -64,7 +145,7 @@
                 <div class="panel-heading">
                     <strong>Diff</strong>
                 </div>
-                <pre class="panel-body">{{ diff }}</pre>
+                <pre class="panel-body" style="max-height: 400px">{{ diff }}</pre>
             </div>
             {% plugin_right_page object %}
         </div>

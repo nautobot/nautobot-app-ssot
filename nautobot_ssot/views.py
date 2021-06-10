@@ -162,7 +162,7 @@ class SyncBulkDeleteView(BulkDeleteView):
 class SyncView(ObjectView):
     """View for details of a single Sync record."""
 
-    queryset = Sync.objects.all()
+    queryset = Sync.queryset()
     template_name = "nautobot_ssot/sync_detail.html"
 
     def get_extra_context(self, request, instance):
