@@ -6,13 +6,14 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib import messages
 from django.db import transaction
 from django.http import Http404
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 
 from django_rq import get_queue
 from django_rq.queues import get_connection
 from rq import Worker
 
 from nautobot.extras.models import JobResult
+from nautobot.extras.views import ObjectChangeLogView
 from nautobot.core.views.generic import BulkDeleteView, ObjectDeleteView, ObjectEditView, ObjectListView, ObjectView
 
 from .filters import SyncFilter, SyncLogEntryFilter
@@ -170,6 +171,40 @@ class SyncView(ObjectView):
         return {
             "diff": pprint.pformat(instance.diff, width=180, compact=True),
         }
+
+
+class SyncJobResultView(ObjectView):
+    """View for the JobResult associated with a single Sync record."""
+
+    queryset = Sync.objects.all()
+    template_name = "nautobot_ssot/sync_jobresult.html"
+
+    def get_extra_context(self, request, instance):
+        """Add additional context to the view."""
+        return {
+            "active_tab": "jobresult",
+        }
+
+
+class SyncLogEntriesView(ObjectListView):
+    """View for SyncLogEntries associated with a given Sync."""
+
+    queryset = SyncLogEntry.objects.all()
+    filterset = SyncLogEntryFilter
+    filterset_form = SyncLogEntryFilterForm
+    table = SyncLogEntryTable
+    action_buttons = []
+    template_name = "nautobot_ssot/sync_logentries.html"
+
+    def get(self, request, pk):
+        instance = get_object_or_404(Sync.objects.all(), pk=pk)
+        self.queryset = SyncLogEntry.objects.filter(sync=instance)
+
+        return super().get(request)
+
+
+class SyncChangeLogView(ObjectChangeLogView):
+    base_template = "nautobot_ssot/sync_header.html"
 
 
 class SyncLogEntryListView(ObjectListView):
