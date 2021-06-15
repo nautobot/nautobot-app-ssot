@@ -226,7 +226,7 @@ structlog = ">=20.1.0,<21.0.0"
 
 [[package]]
 name = "django"
-version = "3.1.11"
+version = "3.1.12"
 description = "A high-level Python Web framework that encourages rapid development and clean, pragmatic design."
 category = "main"
 optional = false
@@ -807,41 +807,48 @@ python-versions = "*"
 
 [[package]]
 name = "nautobot"
-version = "1.0.2"
+version = "1.0.3-beta.1"
 description = "Source of truth and network automation platform."
 category = "main"
 optional = false
-python-versions = ">=3.6,<4.0"
+python-versions = "^3.6"
+develop = false
 
 [package.dependencies]
-Django = ">=3.1.8,<3.2.0"
-django-cacheops = ">=5.1,<5.2"
-django-cors-headers = ">=3.7.0,<3.8.0"
-django-cryptography = ">=1.0,<1.1"
-django-filter = ">=2.4.0,<2.5.0"
-django-mptt = ">=0.11.0,<0.12.0"
-django-prometheus = ">=2.1.0,<2.2.0"
-django-redis = ">=4.12.1,<4.13.0"
-django-rq = ">=2.4.1,<2.5.0"
-django-tables2 = ">=2.3.4,<2.4.0"
-django-taggit = ">=1.3.0,<1.4.0"
-django-timezone-field = ">=4.1.2,<4.2.0"
-django-webserver = ">=1.2.0,<1.3.0"
-djangorestframework = ">=3.12.4,<3.13.0"
-drf-yasg = {version = ">=1.20.0,<1.21.0", extras = ["validation"]}
-GitPython = ">=3.1.15,<3.2.0"
-graphene-django = ">=2.15.0,<2.16.0"
-importlib-metadata = {version = ">=3.4.0,<3.5.0", markers = "python_version < \"3.8\""}
-Jinja2 = ">=2.11.3,<2.12.0"
-Markdown = ">=3.3.4,<3.4.0"
-netaddr = ">=0.8.0,<0.9.0"
-Pillow = ">=8.1.0,<8.2.0"
-psycopg2-binary = ">=2.8.6,<2.9.0"
-pycryptodome = ">=3.10.1,<3.11.0"
-pyuwsgi = ">=2.0.19.1.post0,<2.1.0.0"
-PyYAML = ">=5.4.1,<5.5.0"
-social-auth-app-django = ">=4.0.0,<5.0.0"
-svgwrite = ">=1.4.1,<1.5.0"
+Django = "~3.1.12"
+django-cacheops = "~5.1"
+django-cors-headers = "~3.7.0"
+django-cryptography = "~1.0"
+django-filter = "~2.4.0"
+django-mptt = "~0.11.0"
+django-prometheus = "~2.1.0"
+django-redis = "~4.12.1"
+django-rq = "~2.4.1"
+django-tables2 = "~2.3.4"
+django-taggit = "~1.3.0"
+django-timezone-field = "~4.1.2"
+django-webserver = "~1.2.0"
+djangorestframework = "~3.12.4"
+drf-yasg = {version = "~1.20.0", extras = ["validation"]}
+GitPython = "~3.1.15"
+graphene-django = "~2.15.0"
+importlib-metadata = {version = "~3.4.0", markers = "python_version < \"3.8\""}
+Jinja2 = "~2.11.3"
+Markdown = "~3.3.4"
+netaddr = "~0.8.0"
+Pillow = "~8.1.0"
+psycopg2-binary = "~2.8.6"
+pycryptodome = "~3.10.1"
+pyuwsgi = "~2.0.19.1.post0"
+PyYAML = "~5.4.1"
+social-auth-app-django = "^4.0.0"
+svgwrite = "~1.4.1"
+
+[package.source]
+type = "git"
+url = "https://github.com/nautobot/nautobot.git"
+reference = "gfm-jobresult-plugintemplate"
+resolved_reference = "3dde6019eb59da4d61bf85fbfb7fe8f1f94125fb"
 
 [[package]]
 name = "netaddr"
@@ -1463,7 +1470,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "8ec824bea06391a19886eb095cc8295b5b261cdbed3733458b373be19b5d5332"
+content-hash = "b31f18f65590b6cf0621e61d1d914d06102eaed53b9e647132ed05d6832628a6"
 
 [metadata.files]
 aniso8601 = [
@@ -1637,8 +1644,8 @@ diffsync = [
     {file = "diffsync-1.3.0.tar.gz", hash = "sha256:ab5499293e307f872056a757bea22e0c88ec91e88dfdba4d6bdc59832835b2af"},
 ]
 django = [
-    {file = "Django-3.1.11-py3-none-any.whl", hash = "sha256:c79245c488411d1ae300b8f7a08ac18a496380204cf3035aff97ad917a8de999"},
-    {file = "Django-3.1.11.tar.gz", hash = "sha256:9a0a2f3d34c53032578b54db7ec55929b87dda6fec27a06cc2587afbea1965e5"},
+    {file = "Django-3.1.12-py3-none-any.whl", hash = "sha256:a523d62b7ab2908f551dabc32b99017a86aa7784e32b761708e52be3dce6d35d"},
+    {file = "Django-3.1.12.tar.gz", hash = "sha256:dc41bf07357f1f4810c1c555b685cb51f780b41e37892d6cc92b89789f2847e1"},
 ]
 django-appconf = [
     {file = "django-appconf-1.0.4.tar.gz", hash = "sha256:be58deb54a43d77d2e1621fe59f787681376d3cd0b8bd8e4758ef6c3a6453380"},
@@ -1870,10 +1877,7 @@ mypy-extensions = [
     {file = "mypy_extensions-0.4.3-py2.py3-none-any.whl", hash = "sha256:090fedd75945a69ae91ce1303b5824f428daf5a028d2f6ab8a299250a846f15d"},
     {file = "mypy_extensions-0.4.3.tar.gz", hash = "sha256:2d82818f5bb3e369420cb3c4060a7970edba416647068eb4c5343488a6c604a8"},
 ]
-nautobot = [
-    {file = "nautobot-1.0.2-py3-none-any.whl", hash = "sha256:319ca74089a9b77829d559c2a8e8151aebb309c53a54cd08cb298bd573afbbdf"},
-    {file = "nautobot-1.0.2.tar.gz", hash = "sha256:a6d3ba1f8d87267e05035067a224d6a3c0e2d150f19219ee2691837f28ed7189"},
-]
+nautobot = []
 netaddr = [
     {file = "netaddr-0.8.0-py2.py3-none-any.whl", hash = "sha256:9666d0232c32d2656e5e5f8d735f58fd6c7457ce52fc21c98d45f2af78f990ac"},
     {file = "netaddr-0.8.0.tar.gz", hash = "sha256:d6cc57c7a07b1d9d2e917aa8b36ae8ce61c35ba3fcd1b83ca31c5a0ee2b5a243"},
