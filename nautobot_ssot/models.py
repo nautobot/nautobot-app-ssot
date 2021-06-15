@@ -30,7 +30,6 @@ from nautobot.core.models import BaseModel
 from nautobot.extras.models import ChangeLoggedModel, CustomFieldModel, JobResult, ObjectChange, RelationshipModel
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
-from .sync import get_data_source, get_data_target
 
 
 class Sync(BaseModel, ChangeLoggedModel, CustomFieldModel, RelationshipModel):
@@ -97,8 +96,8 @@ class Sync(BaseModel, ChangeLoggedModel, CustomFieldModel, RelationshipModel):
         if self.source == "Nautobot":
             return None
         return reverse(
-            "plugins:nautobot_ssot:sync_add_source",
-            kwargs={"slug": get_data_source(name=self.source).slug},
+            "extras:job",
+            kwargs={"class_path": self.job_result.name},
         )
 
     def get_target_url(self):
@@ -106,8 +105,8 @@ class Sync(BaseModel, ChangeLoggedModel, CustomFieldModel, RelationshipModel):
         if self.target == "Nautobot":
             return None
         return reverse(
-            "plugins:nautobot_ssot:sync_add_target",
-            kwargs={"slug": get_data_target(name=self.target).slug},
+            "extras:job",
+            kwargs={"class_path": self.job_result.name},
         )
 
 

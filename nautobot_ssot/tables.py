@@ -5,7 +5,6 @@ from nautobot.utilities.tables import BaseTable, ToggleColumn
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 from .models import Sync, SyncLogEntry
-from .sync import get_data_source, get_data_target
 
 
 ACTION_LOGS_LINK = """
@@ -55,6 +54,8 @@ class SyncTable(BaseTable):
     """Table for listing Sync records."""
 
     pk = ToggleColumn()
+    source = Column(linkify=lambda record: record.get_source_url())
+    target = Column(linkify=lambda record: record.get_target_url())
     start_time = DateTimeColumn(linkify=True, short=True)
     duration = TemplateColumn(template_code="{% load shorter_timedelta %}{{ record.duration | shorter_timedelta }}")
     dry_run = TemplateColumn(template_code=DRY_RUN_LABEL, verbose_name="Sync?")

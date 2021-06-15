@@ -6,18 +6,6 @@ from . import models, views
 
 urlpatterns = [
     path("", views.DashboardView.as_view(), name="dashboard"),
-    path(
-        "sync/to/<str:slug>/",
-        views.SyncCreateView.as_view(),
-        name="sync_add_target",
-        kwargs={"kind": "target"},
-    ),
-    path(
-        "sync/from/<str:slug>/",
-        views.SyncCreateView.as_view(),
-        name="sync_add_source",
-        kwargs={"kind": "source"},
-    ),
     path("history/", views.SyncListView.as_view(), name="sync_list"),
     path("history/delete/", views.SyncBulkDeleteView.as_view(), name="sync_bulk_delete"),
     path("history/<uuid:pk>/", views.SyncView.as_view(), name="sync"),

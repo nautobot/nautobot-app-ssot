@@ -21,7 +21,7 @@
                                     {% dashboard_data data_source queryset "source" %}
                                 </span>
                                 <h4 class="list-group-item-heading">
-                                    <a href="{% url 'plugins:nautobot_ssot:sync_add_source' slug=data_source.slug %}">
+                                    <a href="{% url 'extras:job' class_path=data_source.class_path %}">
                                         {{ data_source.name }}
                                     </a>
                                 </h4>
@@ -45,7 +45,7 @@
                                     {% dashboard_data data_target queryset "target" %}
                                 </span>
                                 <h4 class="list-group-item-heading">
-                                    <a href="{% url 'plugins:nautobot_ssot:sync_add_target' slug=data_target.slug %}">
+                                    <a href="{% url 'extras:job' class_path=data_target.class_path %}">
                                         {{ data_target.name }}
                                     </a>
                                 </h4>

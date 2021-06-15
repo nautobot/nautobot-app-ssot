@@ -18,24 +18,25 @@ from nautobot.core.views.generic import BulkDeleteView, ObjectDeleteView, Object
 
 from .filters import SyncFilter, SyncLogEntryFilter
 from .forms import SyncFilterForm, SyncLogEntryFilterForm
+from .jobs import get_data_jobs
 from .models import Sync, SyncLogEntry
-from .sync import get_data_sources, get_data_targets, get_data_source, get_data_target
 from .tables import DashboardTable, SyncTable, SyncLogEntryTable
 
 
 class DashboardView(ObjectListView):
     """Dashboard / overview of SSoT."""
 
-    queryset = Sync.queryset()
+    queryset = Sync.objects.all()
     table = DashboardTable
     action_buttons = []
     template_name = "nautobot_ssot/dashboard.html"
 
     def extra_context(self):
+        data_sources, data_targets = get_data_jobs()
         context = {
             "queryset": self.queryset,
-            "data_sources": get_data_sources(),
-            "data_targets": get_data_targets(),
+            "data_sources": data_sources,
+            "data_targets": data_targets,
             "source": {},
             "target": {},
         }
@@ -43,12 +44,12 @@ class DashboardView(ObjectListView):
         for source in context["data_sources"]:
             context["source"][source.name] = self.queryset.filter(
                 job_result__obj_type=sync_ct,
-                job_result__name=source.name,
+                job_result__name=source.class_path,
             )
         for target in context["data_targets"]:
             context["target"][target.name] = self.queryset.filter(
                 job_result__obj_type=sync_ct,
-                job_result__name=target.name,
+                job_result__name=target.class_path,
             )
 
         return context
@@ -64,87 +65,11 @@ class SyncListView(ObjectListView):
     template_name = "nautobot_ssot/history.html"
 
     def extra_context(self):
+        data_sources, data_targets = get_data_jobs()
         return {
-            "data_sources": get_data_sources(),
-            "data_targets": get_data_targets(),
+            "data_sources": data_sources,
+            "data_targets": data_targets,
         }
-
-
-class SyncCreateView(ObjectEditView):
-    """View for starting a new Sync."""
-
-    queryset = Sync.objects.all()
-
-    def get(self, request, slug, kind="source"):
-        """Render a form for executing the given sync worker."""
-
-        try:
-            if kind == "source":
-                sync_worker_class = get_data_source(slug=slug)
-            else:
-                sync_worker_class = get_data_target(slug=slug)
-        except KeyError:
-            raise Http404
-
-        form = sync_worker_class.as_form(initial=request.GET)
-
-        return render(
-            request,
-            "nautobot_ssot/sync_run.html",
-            {
-                "sync_worker_class": sync_worker_class,
-                "form": form,
-            },
-        )
-
-    def post(self, request, slug, kind="source"):
-        """Enqueue the given sync worker for execution!"""
-        try:
-            if kind == "source":
-                sync_worker_class = get_data_source(slug=slug)
-                source = sync_worker_class.name
-                target = "Nautobot"
-            else:
-                sync_worker_class = get_data_target(slug=slug)
-                source = "Nautobot"
-                target = sync_worker_class.name
-        except KeyError:
-            raise Http404
-
-        if not Worker.count(get_connection("default")):
-            messages.error(request, "Unable to perform sync: RQ worker process not running.")
-
-        form = sync_worker_class.as_form(request.POST, request.FILES)
-
-        if form.is_valid():
-            dry_run = form.cleaned_data.get("dry_run", True)
-
-            sync = Sync.objects.create(source=source, target=target, dry_run=dry_run, diff={})
-            job_result = JobResult.objects.create(
-                name=sync_worker_class.name,
-                obj_type=ContentType.objects.get_for_model(sync),
-                user=request.user,
-                job_id=sync.pk,
-            )
-            sync.job_result = job_result
-            sync.save()
-
-            transaction.on_commit(
-                lambda: get_queue("default").enqueue(
-                    "nautobot_ssot.sync.job.sync", sync_id=sync.pk, data=form.cleaned_data, job_timeout=3600
-                )
-            )
-
-            return redirect("plugins:nautobot_ssot:sync", pk=sync.pk)
-
-        return render(
-            request,
-            "nautobot_ssot/sync_run.html",
-            {
-                "sync_worker_class": sync_worker_class,
-                "form": form,
-            },
-        )
 
 
 class SyncDeleteView(ObjectDeleteView):
