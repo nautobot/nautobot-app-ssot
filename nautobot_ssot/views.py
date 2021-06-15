@@ -3,22 +3,18 @@
 import pprint
 
 from django.contrib.contenttypes.models import ContentType
-from django.contrib import messages
-from django.db import transaction
 from django.http import Http404
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, render
+from django.views.generic import View
 
-from django_rq import get_queue
-from django_rq.queues import get_connection
-from rq import Worker
-
-from nautobot.extras.models import JobResult
+from nautobot.extras.jobs import get_job
 from nautobot.extras.views import ObjectChangeLogView
-from nautobot.core.views.generic import BulkDeleteView, ObjectDeleteView, ObjectEditView, ObjectListView, ObjectView
+from nautobot.core.views.generic import BulkDeleteView, ObjectDeleteView, ObjectListView, ObjectView
+from nautobot.utilities.views import ContentTypePermissionRequiredMixin
 
 from .filters import SyncFilter, SyncLogEntryFilter
 from .forms import SyncFilterForm, SyncLogEntryFilterForm
-from .jobs import get_data_jobs
+from .jobs import get_data_jobs, DataSource, DataTarget
 from .models import Sync, SyncLogEntry
 from .tables import DashboardTable, SyncTable, SyncLogEntryTable
 
@@ -53,6 +49,30 @@ class DashboardView(ObjectListView):
             )
 
         return context
+
+
+class DataSourceTargetView(ContentTypePermissionRequiredMixin, View):
+    """Detail view of a given Data Source or Data Target Job."""
+
+    def get_required_permission(self):
+        return "extras.view_job"
+
+    def get(self, request, class_path):
+        job_class = get_job(class_path)
+        if not job_class or not issubclass(job_class, (DataSource, DataTarget)):
+            raise Http404
+
+        syncs = Sync.objects.filter(source=job_class.data_source, target=job_class.data_target)
+
+        return render(
+            request,
+            "nautobot_ssot/data_source_target.html",
+            {
+                "job_class": job_class,
+                "syncs": syncs,
+                "source_or_target": "source" if issubclass(job_class, DataSource) else "target",
+            },
+        )
 
 class SyncListView(ObjectListView):
     """View for listing Sync records."""

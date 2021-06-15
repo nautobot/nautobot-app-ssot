@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% load helpers %}
+
+{% block header %}
+    <div class="row">
+        <div class="col-md-12">
+            <ol class="breadcrumb">
+                <li><a href="{% url 'plugins:nautobot_ssot:dashboard' %}">Single Source of Truth</a></li>
+                <li>Data {{ source_or_target | title }}s</li>
+                <li>{{ job_class }}</li>
+            </ol>
+        </div>
+    </div>
+    <h1>{% block title %}SSoT - {{ job_class }}{% endblock %}</h1>
+{% endblock %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-md-6 col-md-offset-3">
+            <table class="text-center">
+                <tr>
+                    <td style="width: 256px">
+                        {% if job_class.data_source_icon %}
+                            <img src="{{ job_class.data_source_icon }}" width="256">
+                        {% else %}
+                            <span class="mdi mdi-database"></span>
+                        {% endif %}
+                    </td>
+                    <td style="width: 128px"><h1>⟹</h1></td>
+                    <td style="width: 256px">
+                        {% if job_class.data_target_icon %}
+                            <img src="{{ job_class.data_target_icon }}">
+                        {% else %}
+                            <span class="mdi mdi-database"></span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td><h1>{{ job_class.data_source }}</h1></td>
+                    <td></td>
+                    <td><h1>{{ job_class.data_target }}</h1></td>
+                </tr>
+            </table>
+        </div>
+    </div>
+{% endblock %}

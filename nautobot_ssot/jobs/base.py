@@ -1,6 +1,7 @@
 """Base Job classes for sync workers."""
 
 from django.forms import HiddenInput
+from django.templatetags.static import static
 from django.utils import timezone
 
 import structlog
@@ -17,8 +18,10 @@ class DataSyncBaseJob(BaseJob):
     Works mostly as per the BaseJob API, with the following changes:
 
     - Concrete subclasses are responsible for implementing `self.sync_data()`, **not** `self.run()`.
-    - Additional Meta field `dry_run_default` is available to be defined if desired.
-    - Meta fields `data_source` and `data_target` can be defined for lookup purposes
+    - Subclasses may optionally define any Meta field supported by Jobs, as well as the following:
+      - `dry_run_default` - defaults to True if unspecified
+      - `data_source` and `data_target` as labels (by default, will use the `name` and/or "Nautobot" as appropriate)
+      - `data_source_icon` and `data_target_icon`
     """
 
     dry_run = BooleanVar()
@@ -121,6 +124,16 @@ class DataSyncBaseJob(BaseJob):
         """The system or data source being modified by this sync."""
         return getattr(self.Meta, "data_target", self.name)
 
+    @property
+    def data_source_icon(self):
+        """Icon corresponding to the data_source."""
+        return getattr(self.Meta, "data_source_icon", None)
+
+    @property
+    def data_target_icon(self):
+        """Icon corresponding to the data_target."""
+        return getattr(self.Meta, "data_target_icon", None)
+
     def run(self, data, commit):
         """Job entry point from Nautobot - do not override!"""
         self.sync = Sync.objects.create(
@@ -156,6 +169,10 @@ class DataSource(DataSyncBaseJob):
     def data_target(self):
         return "Nautobot"
 
+    @property
+    def data_target_icon(self):
+        return static("img/nautobot_icon_384x384.png")
+
 
 class DataTarget(DataSyncBaseJob):
     """Base class for Jobs that sync data **to** another data target **from** Nautobot."""
@@ -165,3 +182,7 @@ class DataTarget(DataSyncBaseJob):
     @property
     def data_source(self):
         return "Nautobot"
+
+    @property
+    def data_source_icon(self):
+        return static("img/nautobot_icon_384x384.png")
