@@ -1,8 +1,10 @@
+from django.urls import reverse
+
 from nautobot.dcim.models import Site
 from nautobot.extras.jobs import StringVar, Job
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
-from nautobot_ssot.jobs.base import DataSource, DataTarget
+from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
 
 
 class ExampleDataSource(DataSource, Job):
@@ -14,6 +16,12 @@ class ExampleDataSource(DataSource, Job):
         name = "Example Data Source"
         description = "An example of a 'data source' Job for loading data into Nautobot from elsewhere."
         data_source = "Dummy Data"
+
+    @classmethod
+    def data_mappings(cls):
+        return (
+            DataMapping("site slug", None, "Site", reverse("dcim:site_list")),
+        )
 
     def sync_data(self):
         """Perform data sync into Nautobot."""
@@ -39,6 +47,12 @@ class ExampleDataTarget(DataTarget, Job):
         name = "Example Data Target"
         description = "An example of a 'data target' Job for loading data from Nautobot into elsewhere."
         data_target = "Dummy Data"
+
+    @classmethod
+    def data_mappings(cls):
+        return (
+            DataMapping("Site", reverse("dcim:site_list"), "site slug", None),
+        )
 
     def sync_data(self):
         """Perform data sync from Nautobot."""

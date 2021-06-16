@@ -16,7 +16,7 @@ from .filters import SyncFilter, SyncLogEntryFilter
 from .forms import SyncFilterForm, SyncLogEntryFilterForm
 from .jobs import get_data_jobs, DataSource, DataTarget
 from .models import Sync, SyncLogEntry
-from .tables import DashboardTable, SyncTable, SyncLogEntryTable
+from .tables import DashboardTable, SyncTable, SyncTableSingleSourceOrTarget, SyncLogEntryTable
 
 
 class DashboardView(ObjectListView):
@@ -62,14 +62,15 @@ class DataSourceTargetView(ContentTypePermissionRequiredMixin, View):
         if not job_class or not issubclass(job_class, (DataSource, DataTarget)):
             raise Http404
 
-        syncs = Sync.objects.filter(source=job_class.data_source, target=job_class.data_target)
+        syncs = Sync.queryset().filter(source=job_class.data_source, target=job_class.data_target)
+        table = SyncTableSingleSourceOrTarget(syncs, user=request.user)
 
         return render(
             request,
             "nautobot_ssot/data_source_target.html",
             {
                 "job_class": job_class,
-                "syncs": syncs,
+                "table": table,
                 "source_or_target": "source" if issubclass(job_class, DataSource) else "target",
             },
         )

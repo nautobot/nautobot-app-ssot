@@ -133,6 +133,23 @@ class SyncTable(BaseTable):
         order_by = ("-start_time",)
 
 
+class SyncTableSingleSourceOrTarget(SyncTable):
+    """Subclass of SyncTable with fewer default columns."""
+
+    class Meta(SyncTable.Meta):
+        default_columns = (
+            "start_time",
+            "status",
+            "dry_run",
+            "num_unchanged",
+            "num_created",
+            "num_updated",
+            "num_deleted",
+            "num_failed",
+            "num_errored",
+        )
+
+
 ACTION_LABEL = """<span class="label label-{{ record.get_action_class }}">{{ record.action }}</span>"""
 
 

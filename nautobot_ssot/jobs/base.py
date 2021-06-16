@@ -1,8 +1,10 @@
 """Base Job classes for sync workers."""
+from collections import namedtuple
 
 from django.forms import HiddenInput
 from django.templatetags.static import static
 from django.utils import timezone
+from django.utils.functional import classproperty
 
 import structlog
 
@@ -10,6 +12,9 @@ from nautobot.extras.jobs import BaseJob, BooleanVar
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices
 from nautobot_ssot.models import Sync, SyncLogEntry
+
+
+DataMapping = namedtuple("DataMapping", ["source_name", "source_url", "target_name", "target_url"])
 
 
 class DataSyncBaseJob(BaseJob):
@@ -51,6 +56,15 @@ class DataSyncBaseJob(BaseJob):
             tuple: (nautobot_record, nautobot_objectchange_record). Either or both may be None.
         """
         return (None, None)
+
+    @classmethod
+    def data_mappings(cls):
+        """List the data mappings involved in this sync job.
+
+        Returns:
+            Iterable[DataMapping]
+        """
+        return []
 
     def sync_log(
         self,
@@ -114,25 +128,25 @@ class DataSyncBaseJob(BaseJob):
         form.fields["_commit"].widget = HiddenInput()
         return form
 
-    @property
-    def data_source(self):
+    @classproperty
+    def data_source(cls):
         """The system or data source providing input data for this sync."""
-        return getattr(self.Meta, "data_source", self.name)
+        return getattr(cls.Meta, "data_source", cls.name)
 
-    @property
-    def data_target(self):
+    @classproperty
+    def data_target(cls):
         """The system or data source being modified by this sync."""
-        return getattr(self.Meta, "data_target", self.name)
+        return getattr(cls.Meta, "data_target", cls.name)
 
-    @property
-    def data_source_icon(self):
+    @classproperty
+    def data_source_icon(cls):
         """Icon corresponding to the data_source."""
-        return getattr(self.Meta, "data_source_icon", None)
+        return getattr(cls.Meta, "data_source_icon", None)
 
-    @property
-    def data_target_icon(self):
+    @classproperty
+    def data_target_icon(cls):
         """Icon corresponding to the data_target."""
-        return getattr(self.Meta, "data_target_icon", None)
+        return getattr(cls.Meta, "data_target_icon", None)
 
     def run(self, data, commit):
         """Job entry point from Nautobot - do not override!"""
@@ -165,12 +179,12 @@ class DataSource(DataSyncBaseJob):
 
     dry_run = BooleanVar(description="Perform a dry-run, making no actual changes to Nautobot data.")
 
-    @property
-    def data_target(self):
+    @classproperty
+    def data_target(cls):
         return "Nautobot"
 
-    @property
-    def data_target_icon(self):
+    @classproperty
+    def data_target_icon(cls):
         return static("img/nautobot_icon_384x384.png")
 
 
@@ -179,10 +193,10 @@ class DataTarget(DataSyncBaseJob):
 
     dry_run = BooleanVar(description="Perform a dry-run, making no actual changes to the remote system.")
 
-    @property
-    def data_source(self):
+    @classproperty
+    def data_source(cls):
         return "Nautobot"
 
-    @property
-    def data_source_icon(self):
+    @classproperty
+    def data_source_icon(cls):
         return static("img/nautobot_icon_384x384.png")
