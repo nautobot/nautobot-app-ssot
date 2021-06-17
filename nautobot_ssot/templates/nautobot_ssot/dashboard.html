@@ -19,15 +19,17 @@
                             <div class="list-group-item">
                                 <span class="pull-right">
                                     {% dashboard_data data_source queryset "source" %}
-                                    <a class="btn btn-xs btn-primary" href="{% url 'extras:job' class_path=data_source.class_path %}">
-                                        <i class="mdi mdi-play"></i> Sync Now
-                                    </a>
                                 </span>
                                 <h4 class="list-group-item-heading">
                                     <a href="{% url 'plugins:nautobot_ssot:data_source' class_path=data_source.class_path %}">
                                         {{ data_source.name }}
                                     </a>
                                 </h4>
+                                <span class="pull-right">
+                                    <a class="btn btn-xs btn-primary" href="{% url 'extras:job' class_path=data_source.class_path %}">
+                                        <i class="mdi mdi-play"></i> Sync
+                                    </a>
+                                </span>
                                 <p class="list-group-item-text text-muted">{{ data_source.description }}</p>
                             </div>
                         {% endfor %}
@@ -46,15 +48,17 @@
                             <div class="list-group-item">
                                 <span class="pull-right">
                                     {% dashboard_data data_target queryset "target" %}
-                                    <a class="btn btn-xs btn-primary" href="{% url 'extras:job' class_path=data_target.class_path %}">
-                                        <i class="mdi mdi-play"></i> Sync Now
-                                    </a>
                                 </span>
                                 <h4 class="list-group-item-heading">
                                     <a href="{% url 'plugins:nautobot_ssot:data_target' class_path=data_target.class_path %}">
                                         {{ data_target.name }}
                                     </a>
                                 </h4>
+                                <span class="pull-right">
+                                    <a class="btn btn-xs btn-primary" href="{% url 'extras:job' class_path=data_target.class_path %}">
+                                        <i class="mdi mdi-play"></i> Sync
+                                    </a>
+                                </span>
                                 <p class="list-group-item-text text-muted">{{ data_target.description }}</p>
                             </div>
                         {% endfor %}

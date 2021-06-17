@@ -73,7 +73,7 @@ class DataSyncBaseJob(BaseJob):
         message="",
         diff=None,
         synced_object=None,
-        object_repr=None,
+        object_repr="",
         object_change=None,
     ):
         """Log a action message as a SyncLogEntry."""
@@ -185,7 +185,7 @@ class DataSource(DataSyncBaseJob):
 
     @classproperty
     def data_target_icon(cls):
-        return static("img/nautobot_icon_384x384.png")
+        return static("img/nautobot_logo.png")
 
 
 class DataTarget(DataSyncBaseJob):
@@ -199,4 +199,4 @@ class DataTarget(DataSyncBaseJob):
 
     @classproperty
     def data_source_icon(cls):
-        return static("img/nautobot_icon_384x384.png")
+        return static("img/nautobot_logo.png")

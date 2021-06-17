@@ -42,7 +42,7 @@ class DashboardTable(BaseTable):
     source = Column(linkify=lambda record: record.get_source_url())
     target = Column(linkify=lambda record: record.get_target_url())
     status = TemplateColumn(template_code="{% include 'extras/inc/job_label.html' with result=record.job_result %}")
-    dry_run = TemplateColumn(template_code=DRY_RUN_LABEL, verbose_name="Sync?")
+    dry_run = TemplateColumn(template_code=DRY_RUN_LABEL, verbose_name="Type")
 
     class Meta(BaseTable.Meta):
         model = Sync
@@ -58,7 +58,7 @@ class SyncTable(BaseTable):
     target = Column(linkify=lambda record: record.get_target_url())
     start_time = DateTimeColumn(linkify=True, short=True)
     duration = TemplateColumn(template_code="{% load shorter_timedelta %}{{ record.duration | shorter_timedelta }}")
-    dry_run = TemplateColumn(template_code=DRY_RUN_LABEL, verbose_name="Sync?")
+    dry_run = TemplateColumn(template_code=DRY_RUN_LABEL, verbose_name="Type")
     status = TemplateColumn(template_code="{% include 'extras/inc/job_label.html' with result=record.job_result %}")
 
     num_unchanged = TemplateColumn(
