@@ -66,6 +66,15 @@ class DataSyncBaseJob(BaseJob):
         """
         return []
 
+    @classmethod
+    def config_information(cls):
+        """Return a dict of user-facing configuration information {property: value}.
+
+        Note that this will be rendered 'as-is' in the UI, so as a general practice this
+        should NOT include sensitive information such as passwords!
+        """
+        return {}
+
     def sync_log(
         self,
         action,
@@ -97,12 +106,14 @@ class DataSyncBaseJob(BaseJob):
             # The DiffSync log gives us a model name (string) and unique_id (string).
             # Try to look up the actual Nautobot object that this describes.
             synced_object, object_change = self.lookup_object(event_dict["model"], event_dict["unique_id"])
+            object_repr = repr(synced_object) if synced_object else f"{event_dict['model']} {event_dict['unique_id']}"
             self.sync_log(
                 action=event_dict["action"] or SyncLogEntryActionChoices.ACTION_NO_CHANGE,
                 diff=event_dict["diffs"] if event_dict["action"] else None,
                 status=event_dict["status"],
                 message=event_dict["event"],
                 synced_object=synced_object,
+                object_repr=object_repr,
                 object_change=object_change,
             )
 

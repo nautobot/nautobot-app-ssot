@@ -53,6 +53,23 @@
                     <td><h2>{{ job_class.data_target }}</h2></td>
                 </tr>
             </table>
+            <div class="panel panel-default">
+                <div class="panel-heading"><strong>Configuration</strong></div>
+                <table class="table panel-body table-hover">
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Value</th>
+                    </tr>
+                    {% for parameter, value in job_class.config_information.items %}
+                        <tr>
+                            <td>{{ parameter }}</td>
+                            <td>
+                                {% if value %}<code>{{ value }}</code>{% else %}—{% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </table>
+            </div>
         </div>
         <div class="col-md-6">
             <div class="panel panel-default">
