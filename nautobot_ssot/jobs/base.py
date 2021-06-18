@@ -6,6 +6,9 @@ from django.templatetags.static import static
 from django.utils import timezone
 from django.utils.functional import classproperty
 
+# pylint-django doesn't understand classproperty, and complains unnecessarily. We disable this specific warning:
+# pylint: disable=no-self-argument
+
 import structlog
 
 from nautobot.extras.jobs import BaseJob, BooleanVar
@@ -41,9 +44,9 @@ class DataSyncBaseJob(BaseJob):
         - self.sync       (Sync instance tracking this job execution)
         - self.job_result (as per Job API)
         """
-        pass
+        pass  # pylint: disable=unnecessary-pass
 
-    def lookup_object(self, model_name, unique_id):
+    def lookup_object(self, model_name, unique_id):  # pylint: disable=no-self-use,unused-argument
         """Look up the Nautobot record and associated ObjectChange, if any, identified by the args.
 
         Optional helper method used to build more detailed/accurate SyncLogEntry records from DiffSync logs.
@@ -75,7 +78,7 @@ class DataSyncBaseJob(BaseJob):
         """
         return {}
 
-    def sync_log(
+    def sync_log(  # pylint: disable=too-many-arguments
         self,
         action,
         status,
@@ -121,14 +124,14 @@ class DataSyncBaseJob(BaseJob):
 
     @classmethod
     def _get_vars(cls):
-        """Extend Job._get_vars() to include `dry_run` variable.
+        """Extend Job._get_vars to include `dry_run` variable.
 
         Workaround for https://github.com/netbox-community/netbox/issues/5529
         """
-        vars = super()._get_vars()
+        got_vars = super()._get_vars()
         if hasattr(cls, "dry_run"):
-            vars["dry_run"] = cls.dry_run
-        return vars
+            got_vars["dry_run"] = cls.dry_run
+        return got_vars
 
     def as_form(self, data=None, files=None, initial=None):
         """Render this instance as a Django form for user inputs, including a "Dry run" field."""
@@ -161,6 +164,7 @@ class DataSyncBaseJob(BaseJob):
 
     def run(self, data, commit):
         """Job entry point from Nautobot - do not override!"""
+        # pylint: disable=attribute-defined-outside-init
         self.sync = Sync.objects.create(
             source=self.data_source,
             target=self.data_target,
@@ -192,10 +196,12 @@ class DataSource(DataSyncBaseJob):
 
     @classproperty
     def data_target(cls):
+        """For a DataSource this is always Nautobot."""
         return "Nautobot"
 
     @classproperty
     def data_target_icon(cls):
+        """For a DataSource this is always the Nautobot logo."""
         return static("img/nautobot_logo.png")
 
 
@@ -206,8 +212,10 @@ class DataTarget(DataSyncBaseJob):
 
     @classproperty
     def data_source(cls):
+        """For a DataTarget this is always Nautobot."""
         return "Nautobot"
 
     @classproperty
     def data_source_icon(cls):
+        """For a DataTarget this is always the Nautobot logo."""
         return static("img/nautobot_logo.png")

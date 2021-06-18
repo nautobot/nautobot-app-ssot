@@ -1,8 +1,12 @@
+"""Plugin template content extensions of base Nautobot views."""
+
 from django.urls import reverse
 
 from nautobot.extras.plugins import PluginTemplateExtension
 
 from nautobot_ssot.models import Sync
+
+# pylint: disable=abstract-method
 
 
 class JobResultSyncLink(PluginTemplateExtension):
@@ -11,6 +15,7 @@ class JobResultSyncLink(PluginTemplateExtension):
     model = "extras.jobresult"
 
     def buttons(self):
+        """Inject a custom button into the JobResult detail view, if applicable."""
         try:
             sync = Sync.objects.get(job_result=self.context["object"])
             return f"""

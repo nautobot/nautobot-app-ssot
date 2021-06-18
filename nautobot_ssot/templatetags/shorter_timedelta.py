@@ -1,3 +1,5 @@
+"""Simple template tag to render a shorter representation of a timedelta object."""
+
 from django import template
 from django.utils.html import format_html
 

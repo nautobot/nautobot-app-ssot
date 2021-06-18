@@ -14,6 +14,8 @@ class SyncFilterForm(BootstrapMixin, forms.ModelForm):
     dry_run = forms.ChoiceField(choices=BOOLEAN_WITH_BLANK_CHOICES, required=False)
 
     class Meta:
+        """Metaclass attributes of SyncFilterForm."""
+
         model = Sync
         fields = ["dry_run"]
 
@@ -27,6 +29,8 @@ class SyncLogEntryFilterForm(BootstrapMixin, forms.ModelForm):
     status = forms.ChoiceField(choices=add_blank_choice(SyncLogEntryStatusChoices), required=False)
 
     class Meta:
+        """Metaclass attributes of SyncLogEntryFilterForm."""
+
         model = SyncLogEntry
         fields = ["sync", "action", "status"]
 

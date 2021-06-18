@@ -52,12 +52,16 @@ class Sync(BaseModel, ChangeLoggedModel, CustomFieldModel, RelationshipModel):
     job_result = models.ForeignKey(to=JobResult, on_delete=models.PROTECT, blank=True, null=True)
 
     class Meta:
+        """Metaclass attributes of Sync model."""
+
         ordering = ["start_time"]
 
     def __str__(self):
+        """String representation of a Sync instance."""
         return f"{self.source} → {self.target}, {date_format(self.start_time, format=settings.SHORT_DATETIME_FORMAT)}"
 
     def get_absolute_url(self):
+        """Get the detail-view URL for this instance."""
         return reverse("plugins:nautobot_ssot:sync", kwargs={"pk": self.pk})
 
     @classmethod
@@ -147,6 +151,8 @@ class SyncLogEntry(BaseModel):
     message = models.CharField(max_length=511, blank=True)
 
     class Meta:
+        """Metaclass attributes of SyncLogEntry."""
+
         verbose_name_plural = "sync log entries"
         ordering = ["sync", "timestamp"]
 

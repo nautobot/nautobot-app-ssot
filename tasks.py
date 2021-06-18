@@ -258,7 +258,7 @@ def sql_import(context):
     """Import nautobot_backup.dump into the database."""
     docker_compose(context, "up -d postgres")
     time.sleep(2)
-    context.run(f"docker cp nautobot_backup.dump nautobot-ssot_postgres_1:/tmp/")
+    context.run("docker cp nautobot_backup.dump nautobot-ssot_postgres_1:/tmp/")
     docker_compose(
         context, 'exec postgres sh -c "psql -h localhost -d nautobot -U nautbot < /tmp/nautobot_backup.dump"', pty=True
     )

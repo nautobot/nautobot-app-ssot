@@ -1,3 +1,5 @@
+"""Sample data-source and data-target Jobs."""
+
 from django.urls import reverse
 
 from nautobot.dcim.models import Site
@@ -13,12 +15,15 @@ class ExampleDataSource(DataSource, Job):
     site_slug = StringVar(description="Site to create or update", default="")
 
     class Meta:
+        """Metaclass attributes of ExampleDataSource."""
+
         name = "Example Data Source"
         description = "An example of a 'data source' Job for loading data into Nautobot from elsewhere."
         data_source = "Dummy Data"
 
     @classmethod
     def data_mappings(cls):
+        """This Job maps a site slug to a Site object."""
         return (DataMapping("site slug", None, "Site", reverse("dcim:site_list")),)
 
     def sync_data(self):
@@ -42,12 +47,15 @@ class ExampleDataTarget(DataTarget, Job):
     site_slug = StringVar(description="Site to sync to an imaginary data target", default="")
 
     class Meta:
+        """Metaclass attributes of ExampleDataTarget."""
+
         name = "Example Data Target"
         description = "An example of a 'data target' Job for loading data from Nautobot into elsewhere."
         data_target = "Dummy Data"
 
     @classmethod
     def data_mappings(cls):
+        """This Job maps a Site object to a site slug."""
         return (DataMapping("Site", reverse("dcim:site_list"), "site slug", None),)
 
     def sync_data(self):

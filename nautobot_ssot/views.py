@@ -28,6 +28,7 @@ class DashboardView(ObjectListView):
     template_name = "nautobot_ssot/dashboard.html"
 
     def extra_context(self):
+        """Extend the view context with additional details."""
         data_sources, data_targets = get_data_jobs()
         context = {
             "queryset": self.queryset,
@@ -55,9 +56,11 @@ class DataSourceTargetView(ContentTypePermissionRequiredMixin, View):
     """Detail view of a given Data Source or Data Target Job."""
 
     def get_required_permission(self):
+        """Permissions required to access this view."""
         return "extras.view_job"
 
     def get(self, request, class_path):
+        """HTTP GET request handler."""
         job_class = get_job(class_path)
         if not job_class or not issubclass(job_class, (DataSource, DataTarget)):
             raise Http404
@@ -87,6 +90,7 @@ class SyncListView(ObjectListView):
     template_name = "nautobot_ssot/history.html"
 
     def extra_context(self):
+        """Extend the view context with additional information."""
         data_sources, data_targets = get_data_jobs()
         return {
             "data_sources": data_sources,
@@ -143,7 +147,8 @@ class SyncLogEntriesView(ObjectListView):
     action_buttons = []
     template_name = "nautobot_ssot/sync_logentries.html"
 
-    def get(self, request, pk):
+    def get(self, request, pk):  # pylint: disable=arguments-differ
+        """HTTP GET request handler."""
         instance = get_object_or_404(Sync.objects.all(), pk=pk)
         self.queryset = SyncLogEntry.objects.filter(sync=instance)
 
@@ -151,6 +156,9 @@ class SyncLogEntriesView(ObjectListView):
 
 
 class SyncChangeLogView(ObjectChangeLogView):
+    """View for monitoring the changelog of a Sync object."""
+
+    # TODO: remove this view, sync should not be a changeloggedmodel
     base_template = "nautobot_ssot/sync_header.html"
 
 

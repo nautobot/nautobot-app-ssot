@@ -45,6 +45,8 @@ class DashboardTable(BaseTable):
     dry_run = TemplateColumn(template_code=DRY_RUN_LABEL, verbose_name="Type")
 
     class Meta(BaseTable.Meta):
+        """Metaclass attributes of DashboardTable."""
+
         model = Sync
         fields = ["source", "target", "start_time", "status", "dry_run"]
         order_by = ["-start_time"]
@@ -99,6 +101,8 @@ class SyncTable(BaseTable):
     )
 
     class Meta(BaseTable.Meta):
+        """Metaclass attributes of SyncTable."""
+
         model = Sync
         fields = (
             "pk",
@@ -137,6 +141,8 @@ class SyncTableSingleSourceOrTarget(SyncTable):
     """Subclass of SyncTable with fewer default columns."""
 
     class Meta(SyncTable.Meta):
+        """Metaclass attributes of SyncTableSingleSourceOrTarget."""
+
         default_columns = (
             "start_time",
             "status",
@@ -178,6 +184,8 @@ class SyncLogEntryTable(BaseTable):
     object_change = LinkColumn()
 
     class Meta(BaseTable.Meta):
+        """Metaclass attributes of SyncLogEntryTable."""
+
         model = SyncLogEntry
         fields = (
             "pk",
