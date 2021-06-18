@@ -12,7 +12,7 @@ COPY poetry.lock pyproject.toml /source/
 RUN poetry install --no-interaction --no-ansi --no-root
 
 # Add worker plugin(s) if present
-COPY packages/*.whl /tmp/packages/
+COPY packages/placeholder packages/*.whl /tmp/packages/
 RUN pip install /tmp/packages/*.whl
 
 # Copy in the rest of the source code and install local Nautobot plugin
