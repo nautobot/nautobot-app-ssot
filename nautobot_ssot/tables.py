@@ -156,6 +156,15 @@ ACTION_LABEL = """<span class="label label-{{ record.get_action_class }}">{{ rec
 LOG_STATUS_LABEL = """<span class="label label-{{ record.get_status_class }}">{{ record.status }}</span>"""
 
 
+SYNCED_OBJECT = """
+{% if record.synced_object %}
+<a href="{{ record.synced_object.get_absolute_url}}">{{ record.synced_object}}</a>
+{% else %}
+{{ record.object_repr }}
+{% endif %}
+"""
+
+
 class SyncLogEntryTable(BaseTable):
     """Table for displaying SyncLogEntry records."""
 
@@ -165,11 +174,11 @@ class SyncLogEntryTable(BaseTable):
     status = TemplateColumn(template_code=LOG_STATUS_LABEL)
     diff = JSONColumn(orderable=False)
     message = TemplateColumn(template_code=MESSAGE_SPAN, orderable=False)
-    synced_object = LinkColumn(verbose_name="Synced Object")
+    synced_object = TemplateColumn(template_code=SYNCED_OBJECT)
     object_change = LinkColumn()
 
     class Meta(BaseTable.Meta):
         model = SyncLogEntry
-        fields = ("pk", "timestamp", "sync", "action", "synced_object_type", "synced_object", "object_repr", "object_change", "status", "diff", "message")
+        fields = ("pk", "timestamp", "sync", "action", "synced_object_type", "synced_object", "object_change", "status", "diff", "message")
         default_columns = ("pk", "timestamp", "sync", "action", "synced_object", "status", "diff", "message")
         order_by = ("-timestamp",)
