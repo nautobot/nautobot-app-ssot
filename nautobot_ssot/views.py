@@ -148,10 +148,14 @@ class SyncLogEntriesView(ObjectListView):
 
     def get(self, request, pk):  # pylint: disable=arguments-differ
         """HTTP GET request handler."""
-        instance = get_object_or_404(Sync.objects.all(), pk=pk)
-        self.queryset = SyncLogEntry.objects.filter(sync=instance)
+        self.instance = get_object_or_404(Sync.objects.all(), pk=pk)  # pylint: disable=attribute-defined-outside-init
+        self.queryset = SyncLogEntry.objects.filter(sync=self.instance)
 
         return super().get(request)
+
+    def extra_context(self):
+        """Add additional context to the view."""
+        return {"active_tab": "logentries", "object": self.instance}
 
 
 class SyncLogEntryListView(ObjectListView):

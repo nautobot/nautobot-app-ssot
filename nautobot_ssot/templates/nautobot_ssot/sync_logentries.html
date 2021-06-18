@@ -6,5 +6,6 @@
         <div class="col-md-12">
             {% include "responsive_table.html" %}
         </div>
+        {% include 'inc/paginator.html' with paginator=table.paginator page=table.page %}
     </div>
 {% endblock %}
