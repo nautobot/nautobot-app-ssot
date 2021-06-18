@@ -27,12 +27,16 @@ from django.utils.formats import date_format
 from django.utils.timezone import now
 
 from nautobot.core.models import BaseModel
-from nautobot.extras.models import ChangeLoggedModel, CustomFieldModel, JobResult, ObjectChange, RelationshipModel
+from nautobot.extras.models import JobResult, ObjectChange
+from nautobot.extras.utils import extras_features
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 
 
-class Sync(BaseModel, ChangeLoggedModel, CustomFieldModel, RelationshipModel):
+@extras_features(
+    "custom_links",
+)
+class Sync(BaseModel):
     """High-level overview of a data sync event/process/attempt.
 
     Essentially an extension of the JobResult model to add a few additional fields.

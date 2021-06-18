@@ -8,7 +8,6 @@ from django.shortcuts import get_object_or_404, render
 from django.views.generic import View
 
 from nautobot.extras.jobs import get_job
-from nautobot.extras.views import ObjectChangeLogView
 from nautobot.core.views.generic import BulkDeleteView, ObjectDeleteView, ObjectListView, ObjectView
 from nautobot.utilities.views import ContentTypePermissionRequiredMixin
 
@@ -153,13 +152,6 @@ class SyncLogEntriesView(ObjectListView):
         self.queryset = SyncLogEntry.objects.filter(sync=instance)
 
         return super().get(request)
-
-
-class SyncChangeLogView(ObjectChangeLogView):
-    """View for monitoring the changelog of a Sync object."""
-
-    # TODO: remove this view, sync should not be a changeloggedmodel
-    base_template = "nautobot_ssot/sync_header.html"
 
 
 class SyncLogEntryListView(ObjectListView):
