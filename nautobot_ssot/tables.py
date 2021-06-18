@@ -179,6 +179,17 @@ class SyncLogEntryTable(BaseTable):
 
     class Meta(BaseTable.Meta):
         model = SyncLogEntry
-        fields = ("pk", "timestamp", "sync", "action", "synced_object_type", "synced_object", "object_change", "status", "diff", "message")
+        fields = (
+            "pk",
+            "timestamp",
+            "sync",
+            "action",
+            "synced_object_type",
+            "synced_object",
+            "object_change",
+            "status",
+            "diff",
+            "message",
+        )
         default_columns = ("pk", "timestamp", "sync", "action", "synced_object", "status", "diff", "message")
         order_by = ("-timestamp",)

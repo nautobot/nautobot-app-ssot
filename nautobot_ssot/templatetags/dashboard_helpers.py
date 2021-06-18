@@ -15,7 +15,4 @@ def dashboard_data(sync_worker_class, queryset, kind="source"):
         records = queryset.filter(source=sync_worker_class.name).order_by("-start_time")
     else:
         records = queryset.filter(target=sync_worker_class.name).order_by("-start_time")
-    return {
-        "statuses": [record.job_result.status for record in records[:10]],
-        "count": records.count()
-    }
+    return {"statuses": [record.job_result.status for record in records[:10]], "count": records.count()}

@@ -19,9 +19,7 @@ class ExampleDataSource(DataSource, Job):
 
     @classmethod
     def data_mappings(cls):
-        return (
-            DataMapping("site slug", None, "Site", reverse("dcim:site_list")),
-        )
+        return (DataMapping("site slug", None, "Site", reverse("dcim:site_list")),)
 
     def sync_data(self):
         """Perform data sync into Nautobot."""
@@ -50,9 +48,7 @@ class ExampleDataTarget(DataTarget, Job):
 
     @classmethod
     def data_mappings(cls):
-        return (
-            DataMapping("Site", reverse("dcim:site_list"), "site slug", None),
-        )
+        return (DataMapping("Site", reverse("dcim:site_list"), "site slug", None),)
 
     def sync_data(self):
         """Perform data sync from Nautobot."""

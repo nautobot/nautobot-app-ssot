@@ -23,4 +23,5 @@ class JobResultSyncLink(PluginTemplateExtension):
         except Sync.DoesNotExist:
             return ""
 
+
 template_extensions = [JobResultSyncLink]

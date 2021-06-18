@@ -127,7 +127,7 @@ class DataSyncBaseJob(BaseJob):
         """
         vars = super()._get_vars()
         if hasattr(cls, "dry_run"):
-            vars['dry_run'] = cls.dry_run
+            vars["dry_run"] = cls.dry_run
         return vars
 
     def as_form(self, data=None, files=None, initial=None):

@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('nautobot_ssot', '0002_refinements'),
+        ("nautobot_ssot", "0002_refinements"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='synclogentry',
-            name='object_repr',
-            field=models.CharField(blank=True, default='', editable=False, max_length=200),
+            model_name="synclogentry",
+            name="object_repr",
+            field=models.CharField(blank=True, default="", editable=False, max_length=200),
         ),
     ]

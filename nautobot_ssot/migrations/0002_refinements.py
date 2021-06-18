@@ -6,23 +6,23 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('nautobot_ssot', '0001_initial'),
+        ("nautobot_ssot", "0001_initial"),
     ]
 
     operations = [
         migrations.RenameField(
-            model_name='synclogentry',
-            old_name='changed_object_id',
-            new_name='synced_object_id',
+            model_name="synclogentry",
+            old_name="changed_object_id",
+            new_name="synced_object_id",
         ),
         migrations.RenameField(
-            model_name='synclogentry',
-            old_name='changed_object_type',
-            new_name='synced_object_type',
+            model_name="synclogentry",
+            old_name="changed_object_type",
+            new_name="synced_object_type",
         ),
         migrations.AlterField(
-            model_name='synclogentry',
-            name='diff',
+            model_name="synclogentry",
+            name="diff",
             field=models.JSONField(blank=True, null=True),
         ),
     ]

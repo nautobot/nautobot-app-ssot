@@ -75,6 +75,7 @@ class DataSourceTargetView(ContentTypePermissionRequiredMixin, View):
             },
         )
 
+
 class SyncListView(ObjectListView):
     """View for listing Sync records."""
 
