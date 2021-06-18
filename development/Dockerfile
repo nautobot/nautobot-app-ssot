@@ -13,7 +13,7 @@ RUN poetry install --no-interaction --no-ansi --no-root
 
 # Add worker plugin(s) if present
 COPY packages/placeholder packages/*.whl /tmp/packages/
-RUN for wheel in /tmp/packages/*.whl; do pip install $wheel; done
+RUN for wheel in /tmp/packages/*.whl; do [ -f "$wheel" ] || continue; pip install "$wheel"; done
 
 # Copy in the rest of the source code and install local Nautobot plugin
 WORKDIR /source
