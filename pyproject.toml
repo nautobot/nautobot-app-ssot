@@ -22,7 +22,7 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.6"
-nautobot = {git = "https://github.com/nautobot/nautobot.git", rev = "gfm-jobresult-plugintemplate"}
+nautobot = {git = "https://github.com/nautobot/nautobot.git", rev = "develop"}
 diffsync = "^1.3.0"
 
 [tool.poetry.dev-dependencies]
