@@ -104,7 +104,7 @@ class Sync(BaseModel):
         if self.source == "Nautobot":
             return None
         return reverse(
-            "extras:job",
+            "plugins:nautobot_ssot:data_source",
             kwargs={"class_path": self.job_result.name},
         )
 
@@ -113,7 +113,7 @@ class Sync(BaseModel):
         if self.target == "Nautobot":
             return None
         return reverse(
-            "extras:job",
+            "plugins:nautobot_ssot:data_target",
             kwargs={"class_path": self.job_result.name},
         )
 

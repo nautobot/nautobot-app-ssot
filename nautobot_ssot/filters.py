@@ -33,4 +33,4 @@ class SyncLogEntryFilter(BaseFilterSet):
         """String search of SyncLogEntry records."""
         if not value.strip():
             return queryset
-        return queryset.filter(Q(diff__icontains=value) | Q(message_icontains=value))
+        return queryset.filter(Q(diff__icontains=value) | Q(message__icontains=value))

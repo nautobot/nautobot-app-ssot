@@ -7,8 +7,11 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 from django.views.generic import View
 
+from django_tables2 import RequestConfig
+
 from nautobot.extras.jobs import get_job
 from nautobot.core.views.generic import BulkDeleteView, ObjectDeleteView, ObjectListView, ObjectView
+from nautobot.utilities.paginator import EnhancedPaginator
 from nautobot.utilities.views import ContentTypePermissionRequiredMixin
 
 from .filters import SyncFilter, SyncLogEntryFilter
@@ -29,12 +32,22 @@ class DashboardView(ObjectListView):
     def extra_context(self):
         """Extend the view context with additional details."""
         data_sources, data_targets = get_data_jobs()
+        # Override default table context to limit the maximum number of records shown
+        table = self.table(self.queryset, user=self.request.user)
+        RequestConfig(
+            self.request,
+            {
+                "paginator_class": EnhancedPaginator,
+                "per_page": 10,
+            },
+        ).configure(table)
         context = {
             "queryset": self.queryset,
             "data_sources": data_sources,
             "data_targets": data_targets,
             "source": {},
             "target": {},
+            "table": table,
         }
         sync_ct = ContentType.objects.get_for_model(Sync)
         for source in context["data_sources"]:

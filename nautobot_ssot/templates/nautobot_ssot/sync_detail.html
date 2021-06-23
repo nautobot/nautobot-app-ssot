@@ -62,7 +62,7 @@
                     </tr>
                     <tr>
                         <td>Status</td>
-                        <td>{{ object.job_result.get_status_display }}</td>
+                        <td>{% include 'extras/inc/job_label.html' with result=object.job_result %}</td>
                     </tr>
                     <tr>
                         <td>Job result</td>
@@ -81,16 +81,20 @@
                     <tr>
                         <td>Actions Taken</td>
                         <td>
-                            <a class="btn btn-xs btn-success" title="Create">
+                            <a class="btn btn-xs btn-success" title="Create"
+                               href="{% url 'plugins:nautobot_ssot:sync_logentries' pk=object.pk %}?action=create">
                                 <i class="mdi mdi-plus-thick"></i> {{ object.num_created }}
                             </a>
-                            <a class="btn btn-xs btn-warning" title="Update">
+                            <a class="btn btn-xs btn-warning" title="Update"
+                               href="{% url 'plugins:nautobot_ssot:sync_logentries' pk=object.pk %}?action=update">
                                 <i class="mdi mdi-pencil"></i> {{ object.num_updated }}
                             </a>
-                            <a class="btn btn-xs btn-danger" title="Delete">
+                            <a class="btn btn-xs btn-danger" title="Delete"
+                               href="{% url 'plugins:nautobot_ssot:sync_logentries' pk=object.pk %}?action=delete">
                                 <i class="mdi mdi-trash-can-outline"></i> {{ object.num_deleted }}
                             </a>
-                            <a class="btn btn-xs btn-default" title="No change">
+                            <a class="btn btn-xs btn-default" title="No change"
+                               href="{% url 'plugins:nautobot_ssot:sync_logentries' pk=object.pk %}?action=no-change">
                                 <i class="mdi mdi-cancel"></i> {{ object.num_unchanged }}
                             </a>
                         </td>
@@ -98,13 +102,16 @@
                     <tr>
                         <td>Outcomes</td>
                         <td>
-                            <a class="btn btn-xs btn-success" title="Success">
+                            <a class="btn btn-xs btn-success" title="Success"
+                               href="{% url 'plugins:nautobot_ssot:sync_logentries' pk=object.pk %}?status=success">
                                 <i class="mdi mdi-emoticon-happy"></i> {{ object.num_succeeded }}
                             </a>
-                            <a class="btn btn-xs btn-warning" title="Failure">
+                            <a class="btn btn-xs btn-warning" title="Failure"
+                               href="{% url 'plugins:nautobot_ssot:sync_logentries' pk=object.pk %}?status=failure">
                                 <i class="mdi mdi-close-octagon"></i> {{ object.num_failed }}
                             </a>
-                            <a class="btn btn-xs btn-danger" title="Error">
+                            <a class="btn btn-xs btn-danger" title="Error"
+                               href="{% url 'plugins:nautobot_ssot:sync_logentries' pk=object.pk %}?status=error">
                                 <i class="mdi mdi-alert"></i> {{ object.num_errored }}
                             </a>
                         </td>
