@@ -15,7 +15,7 @@ class NautobotSSOTPluginConfig(PluginConfig):
     description = "Nautobot Single Source of Truth"
     base_url = "ssot"
     required_settings = []
-    min_version = "1.0.1"
+    min_version = "1.0.3"
     max_version = "1.9999"
     default_settings = {}
     caching_config = {}

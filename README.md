@@ -1,16 +1,16 @@
 # Nautobot Single Source of Truth (SSoT)
 
-A plugin for [Nautobot](https://github.com/nautobot/nautobot).
+A plugin for [Nautobot](https://github.com/nautobot/nautobot). This plugin facilitates integration and data synchronization between various "source of truth" (SoT) systems, with Nautobot acting as a central clearinghouse for data - a Single Source of Truth, if you will.
 
 ## Installation
 
-The plugin is available as a Python package in pypi and can be installed with pip
+The plugin is available as a Python package in PyPI and can be installed with `pip`:
 
 ```shell
 pip install nautobot-ssot
 ```
 
-> The plugin is compatible with Nautobot 1.0.1 and higher
+> This plugin is compatible with Nautobot 1.0.3 and higher.
 
 To ensure Nautobot Single Source of Truth is automatically re-installed during future upgrades, create a file named `local_requirements.txt` (if not already existing) in the Nautobot root directory (alongside `requirements.txt`) and list the `nautobot-ssot` package:
 
@@ -18,22 +18,12 @@ To ensure Nautobot Single Source of Truth is automatically re-installed during f
 # echo nautobot-ssot >> local_requirements.txt
 ```
 
-Once installed, the plugin needs to be enabled in your `nautobot_configuration.py`
+Once installed, the plugin needs to be enabled in your `nautobot_config.py`:
 
 ```python
-# In your configuration.py
+# In your nautobot_config.py
 PLUGINS = ["nautobot_ssot"]
-
-# PLUGINS_CONFIG = {
-#   "nautobot_ssot": {
-#     ADD YOUR SETTINGS HERE
-#   }
-# }
 ```
-
-The plugin behavior can be controlled with the following list of settings
-
-- TODO
 
 ## Usage
 

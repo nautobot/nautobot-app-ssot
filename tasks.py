@@ -39,7 +39,7 @@ namespace = Collection("nautobot_ssot")
 namespace.configure(
     {
         "nautobot_ssot": {
-            "nautobot_ver": "1.0.2",
+            "nautobot_ver": "1.0.3",
             "project_name": "nautobot-ssot",
             "python_ver": "3.6",
             "local": False,
