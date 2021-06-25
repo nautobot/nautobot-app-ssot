@@ -79,40 +79,42 @@
                 </div>
                 <table class="table table-hover panel-body attr-table">
                     <tr>
-                        <td>Actions Taken</td>
+                        <td>Creates</td>
                         <td>
-                            <a class="btn btn-xs btn-success" title="Create"
-                               href="{% url 'plugins:nautobot_ssot:sync_logentries' pk=object.pk %}?action=create">
-                                <i class="mdi mdi-plus-thick"></i> {{ object.num_created }}
-                            </a>
-                            <a class="btn btn-xs btn-warning" title="Update"
-                               href="{% url 'plugins:nautobot_ssot:sync_logentries' pk=object.pk %}?action=update">
-                                <i class="mdi mdi-pencil"></i> {{ object.num_updated }}
-                            </a>
-                            <a class="btn btn-xs btn-danger" title="Delete"
-                               href="{% url 'plugins:nautobot_ssot:sync_logentries' pk=object.pk %}?action=delete">
-                                <i class="mdi mdi-trash-can-outline"></i> {{ object.num_deleted }}
-                            </a>
-                            <a class="btn btn-xs btn-default" title="No change"
-                               href="{% url 'plugins:nautobot_ssot:sync_logentries' pk=object.pk %}?action=no-change">
-                                <i class="mdi mdi-cancel"></i> {{ object.num_unchanged }}
+                            <a class="label label-success" href="{% url 'plugins:nautobot_ssot:sync_logentries' pk=object.pk %}?action=create">
+                                {{ object.num_created }}
                             </a>
                         </td>
                     </tr>
                     <tr>
-                        <td>Outcomes</td>
+                        <td>Updates</td>
                         <td>
-                            <a class="btn btn-xs btn-success" title="Success"
-                               href="{% url 'plugins:nautobot_ssot:sync_logentries' pk=object.pk %}?status=success">
-                                <i class="mdi mdi-emoticon-happy"></i> {{ object.num_succeeded }}
+                            <a class="label label-warning" href="{% url 'plugins:nautobot_ssot:sync_logentries' pk=object.pk %}?action=update">
+                                {{ object.num_updated }}
                             </a>
-                            <a class="btn btn-xs btn-warning" title="Failure"
-                               href="{% url 'plugins:nautobot_ssot:sync_logentries' pk=object.pk %}?status=failure">
-                                <i class="mdi mdi-close-octagon"></i> {{ object.num_failed }}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Deletes</td>
+                        <td>
+                            <a class="label label-danger" href="{% url 'plugins:nautobot_ssot:sync_logentries' pk=object.pk %}?action=delete">
+                                {{ object.num_deleted }}
                             </a>
-                            <a class="btn btn-xs btn-danger" title="Error"
-                               href="{% url 'plugins:nautobot_ssot:sync_logentries' pk=object.pk %}?status=error">
-                                <i class="mdi mdi-alert"></i> {{ object.num_errored }}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Failures</td>
+                        <td>
+                            <a href="{% url 'plugins:nautobot_ssot:sync_logentries' pk=object.pk %}?status=failure">
+                                {{ object.num_failed }}
+                            </a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Errors</td>
+                        <td>
+                            <a href="{% url 'plugins:nautobot_ssot:sync_logentries' pk=object.pk %}?status=error">
+                                {{ object.num_errored }}
                             </a>
                         </td>
                     </tr>
