@@ -69,7 +69,7 @@ class Sync(BaseModel):
         return reverse("plugins:nautobot_ssot:sync", kwargs={"pk": self.pk})
 
     @classmethod
-    def queryset(cls):
+    def annotated_queryset(cls):
         """Construct an efficient queryset for this model and related data."""
         return (
             cls.objects.defer("diff")

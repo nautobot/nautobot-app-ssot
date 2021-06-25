@@ -1,5 +1,6 @@
 """Base Job classes for sync workers."""
 from collections import namedtuple
+from typing import Iterable
 
 from django.forms import HiddenInput
 from django.templatetags.static import static
@@ -18,6 +19,25 @@ from nautobot_ssot.models import Sync, SyncLogEntry
 
 
 DataMapping = namedtuple("DataMapping", ["source_name", "source_url", "target_name", "target_url"])
+"""Entry in the list returned by a job's data_mappings() API.
+
+The idea here is to provide insight into how various classes of data are mapped between Nautobot
+and the other system acting as data source/target.
+
+* source_name: Name of a data class (device, location, vlan, etc.) provided by the data source.
+* source_url: URL (if any) to hyperlink for this source_name in the UI.
+              Can be used, for example, to link to the Nautobot list view for this data class.
+* target_name: Name of a data class on the data target that corresponds to the source data.
+* target_url: URL (if any) to hyperlink the target_name.
+"""
+
+
+ObjectLookup = namedtuple("ObjectLookup", ["nautobot_record", "nautobot_objectchange_record"])
+"""Return type from the lookup_object() API.
+
+Includes an optional Nautobot record instance (Site, Device, etc.) and optionally a corresponding
+ObjectChange record identifying the change to this record that resulted from the current data sync.
+"""
 
 
 class DataSyncBaseJob(BaseJob):
@@ -46,7 +66,7 @@ class DataSyncBaseJob(BaseJob):
         """
         pass  # pylint: disable=unnecessary-pass
 
-    def lookup_object(self, model_name, unique_id):  # pylint: disable=no-self-use,unused-argument
+    def lookup_object(self, model_name, unique_id) -> ObjectLookup:  # pylint: disable=no-self-use,unused-argument
         """Look up the Nautobot record and associated ObjectChange, if any, identified by the args.
 
         Optional helper method used to build more detailed/accurate SyncLogEntry records from DiffSync logs.
@@ -54,19 +74,12 @@ class DataSyncBaseJob(BaseJob):
         Args:
             model_name (str): DiffSyncModel class name or similar class/model label.
             unique_id (str): DiffSyncModel unique_id or similar unique identifier.
-
-        Returns:
-            tuple: (nautobot_record, nautobot_objectchange_record). Either or both may be None.
         """
-        return (None, None)
+        return ObjectLookup(nautobot_record=None, nautobot_objectchange_record=None)
 
     @classmethod
-    def data_mappings(cls):
-        """List the data mappings involved in this sync job.
-
-        Returns:
-            Iterable[DataMapping]
-        """
+    def data_mappings(cls) -> Iterable[DataMapping]:
+        """List the data mappings involved in this sync job."""
         return []
 
     @classmethod

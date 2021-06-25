@@ -77,7 +77,7 @@ class DataSourceTargetView(ContentTypePermissionRequiredMixin, View):
         if not job_class or not issubclass(job_class, (DataSource, DataTarget)):
             raise Http404
 
-        syncs = Sync.queryset().filter(source=job_class.data_source, target=job_class.data_target)
+        syncs = Sync.annotated_queryset().filter(source=job_class.data_source, target=job_class.data_target)
         table = SyncTableSingleSourceOrTarget(syncs, user=request.user)
 
         return render(
@@ -94,7 +94,7 @@ class DataSourceTargetView(ContentTypePermissionRequiredMixin, View):
 class SyncListView(ObjectListView):
     """View for listing Sync records."""
 
-    queryset = Sync.queryset()
+    queryset = Sync.annotated_queryset()
     filterset = SyncFilter
     filterset_form = SyncFilterForm
     table = SyncTable
@@ -126,7 +126,7 @@ class SyncBulkDeleteView(BulkDeleteView):
 class SyncView(ObjectView):
     """View for details of a single Sync record."""
 
-    queryset = Sync.queryset()
+    queryset = Sync.annotated_queryset()
     template_name = "nautobot_ssot/sync_detail.html"
 
     def get_extra_context(self, request, instance):
