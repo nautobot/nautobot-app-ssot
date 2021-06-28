@@ -45,13 +45,13 @@ class Sync(BaseModel):
     source = models.CharField(max_length=64, help_text="System data is read from")
     target = models.CharField(max_length=64, help_text="System data is written to")
 
-    start_time = models.DateTimeField(null=True)
+    start_time = models.DateTimeField(blank=True, null=True)
     # end_time is represented by the job_result.completed field
 
     dry_run = models.BooleanField(
         default=False, help_text="Report what data would be synced but do not make any changes"
     )
-    diff = models.JSONField()
+    diff = models.JSONField(blank=True)
 
     job_result = models.ForeignKey(to=JobResult, on_delete=models.PROTECT, blank=True, null=True)
 
@@ -95,13 +95,13 @@ class Sync(BaseModel):
         """Total execution time of this Sync."""
         if not self.start_time:
             return timedelta()  # zero
-        if not self.job_result.completed:
+        if not self.job_result or not self.job_result.completed:
             return now() - self.start_time
         return self.job_result.completed - self.start_time
 
     def get_source_url(self):
         """Get the absolute url of the source worker associated with this instance."""
-        if self.source == "Nautobot":
+        if self.source == "Nautobot" or not self.job_result:
             return None
         return reverse(
             "plugins:nautobot_ssot:data_source",
@@ -110,7 +110,7 @@ class Sync(BaseModel):
 
     def get_target_url(self):
         """Get the absolute url of the target worker associated with this instance."""
-        if self.target == "Nautobot":
+        if self.target == "Nautobot" or not self.job_result:
             return None
         return reverse(
             "plugins:nautobot_ssot:data_target",

@@ -140,6 +140,13 @@ class DataSyncBaseJob(BaseJob):
             got_vars["dry_run"] = cls.dry_run
         return got_vars
 
+    def __init__(self):
+        """Initialize a Job."""
+        super().__init__()
+        self.sync = None
+        self.kwargs = {}
+        self.commit = False
+
     def as_form(self, data=None, files=None, initial=None):
         """Render this instance as a Django form for user inputs, including a "Dry run" field."""
         form = super().as_form(data=data, files=files, initial=initial)
@@ -171,7 +178,6 @@ class DataSyncBaseJob(BaseJob):
 
     def run(self, data, commit):
         """Job entry point from Nautobot - do not override!"""
-        # pylint: disable=attribute-defined-outside-init
         self.sync = Sync.objects.create(
             source=self.data_source,
             target=self.data_target,

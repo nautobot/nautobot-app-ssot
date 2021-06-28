@@ -67,6 +67,8 @@ class DashboardView(ObjectListView):
 class DataSourceTargetView(ContentTypePermissionRequiredMixin, View):
     """Detail view of a given Data Source or Data Target Job."""
 
+    additional_permissions = ("nautobot_ssot.view_sync",)
+
     def get_required_permission(self):
         """Permissions required to access this view."""
         return "extras.view_job"
