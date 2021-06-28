@@ -7,13 +7,12 @@ from django.urls import reverse
 
 from nautobot.dcim.models import Region, Site
 from nautobot.extras.jobs import Job, StringVar
-from nautobot.extras.models import ObjectChange, Status
+from nautobot.extras.models import Status
 
 from diffsync import DiffSync, DiffSyncModel
 from diffsync.enum import DiffSyncFlags
 import requests
 
-from nautobot_ssot.choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
 
 
