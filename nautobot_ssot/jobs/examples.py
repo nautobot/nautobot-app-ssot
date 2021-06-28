@@ -428,22 +428,18 @@ class ExampleDataSource(DataSource, Job):
             self.log_info(message="Sync complete")
 
     def lookup_object(self, model_name, unique_id):
-        """Look up a Nautobot object based on the DiffSync model name and unique ID.
-
-        Returns:
-            tuple: (nautobot object, nautobot ObjectChange record if any)
-        """
+        """Look up a Nautobot object based on the DiffSync model name and unique ID."""
         if model_name == "region":
             try:
-                return (Region.objects.get(name=unique_id), None)
+                return Region.objects.get(name=unique_id)
             except Region.DoesNotExist:
                 pass
         elif model_name == "site":
             try:
-                return (Site.objects.get(name=unique_id), None)
+                return Site.objects.get(name=unique_id)
             except Site.DoesNotExist:
                 pass
-        return (None, None)
+        return None
 
 
 class ExampleDataTarget(DataTarget, Job):
@@ -495,19 +491,15 @@ class ExampleDataTarget(DataTarget, Job):
         return (None, None)
 
     def lookup_object(self, model_name, unique_id):
-        """Look up a Nautobot object based on the DiffSync model name and unique ID.
-
-        Returns:
-            tuple: (nautobot object, nautobot ObjectChange record if any)
-        """
+        """Look up a Nautobot object based on the DiffSync model name and unique ID."""
         if model_name == "region":
             try:
-                return (Region.objects.get(name=unique_id), None)
+                return Region.objects.get(name=unique_id)
             except Region.DoesNotExist:
                 pass
         elif model_name == "site":
             try:
-                return (Site.objects.get(name=unique_id), None)
+                return Site.objects.get(name=unique_id)
             except Site.DoesNotExist:
                 pass
-        return (None, None)
+        return None

@@ -32,14 +32,6 @@ and the other system acting as data source/target.
 """
 
 
-ObjectLookup = namedtuple("ObjectLookup", ["nautobot_record", "nautobot_objectchange_record"])
-"""Return type from the lookup_object() API.
-
-Includes an optional Nautobot record instance (Site, Device, etc.) and optionally a corresponding
-ObjectChange record identifying the change to this record that resulted from the current data sync.
-"""
-
-
 class DataSyncBaseJob(BaseJob):
     """Common base class for data synchronization jobs.
 
@@ -66,16 +58,19 @@ class DataSyncBaseJob(BaseJob):
         """
         pass  # pylint: disable=unnecessary-pass
 
-    def lookup_object(self, model_name, unique_id) -> ObjectLookup:  # pylint: disable=no-self-use,unused-argument
-        """Look up the Nautobot record and associated ObjectChange, if any, identified by the args.
+    def lookup_object(self, model_name, unique_id):  # pylint: disable=no-self-use,unused-argument
+        """Look up the Nautobot record, if any, identified by the args.
 
         Optional helper method used to build more detailed/accurate SyncLogEntry records from DiffSync logs.
 
         Args:
             model_name (str): DiffSyncModel class name or similar class/model label.
             unique_id (str): DiffSyncModel unique_id or similar unique identifier.
+
+        Returns:
+            models.Model: Nautobot model instance, or None
         """
-        return ObjectLookup(nautobot_record=None, nautobot_objectchange_record=None)
+        return None
 
     @classmethod
     def data_mappings(cls) -> Iterable[DataMapping]:
@@ -99,7 +94,6 @@ class DataSyncBaseJob(BaseJob):
         diff=None,
         synced_object=None,
         object_repr="",
-        object_change=None,
     ):
         """Log a action message as a SyncLogEntry."""
         if synced_object and not object_repr:
@@ -113,7 +107,6 @@ class DataSyncBaseJob(BaseJob):
             diff=diff,
             synced_object=synced_object,
             object_repr=object_repr,
-            object_change=object_change,
         )
 
     def _structlog_to_sync_log_entry(self, _logger, _log_method, event_dict):
@@ -121,7 +114,9 @@ class DataSyncBaseJob(BaseJob):
         if all(key in event_dict for key in ("src", "dst", "action", "model", "unique_id", "diffs", "status")):
             # The DiffSync log gives us a model name (string) and unique_id (string).
             # Try to look up the actual Nautobot object that this describes.
-            synced_object, object_change = self.lookup_object(event_dict["model"], event_dict["unique_id"])
+            synced_object = self.lookup_object(  # pylint: disable=assignment-from-none
+                event_dict["model"], event_dict["unique_id"]
+            )
             object_repr = repr(synced_object) if synced_object else f"{event_dict['model']} {event_dict['unique_id']}"
             self.sync_log(
                 action=event_dict["action"] or SyncLogEntryActionChoices.ACTION_NO_CHANGE,
@@ -130,7 +125,6 @@ class DataSyncBaseJob(BaseJob):
                 message=event_dict["event"],
                 synced_object=synced_object,
                 object_repr=object_repr,
-                object_change=object_change,
             )
 
         return event_dict

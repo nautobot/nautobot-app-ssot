@@ -14,7 +14,7 @@ The interaction between these models and Nautobot's native JobResult model deser
     This field is therefore not suitable for storage of in-depth data synchronization log messages,
     which have a different set of content requirements, but is used for high-level status reporting.
 
-JobResult 1<->1 Sync 1-->n SyncLogEntry 1-->1 ObjectChange
+JobResult 1<->1 Sync 1-->n SyncLogEntry
 """
 from datetime import timedelta
 
@@ -27,7 +27,7 @@ from django.utils.formats import date_format
 from django.utils.timezone import now
 
 from nautobot.core.models import BaseModel
-from nautobot.extras.models import JobResult, ObjectChange
+from nautobot.extras.models import JobResult
 from nautobot.extras.utils import extras_features
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
@@ -150,7 +150,6 @@ class SyncLogEntry(BaseModel):
     synced_object = GenericForeignKey(ct_field="synced_object_type", fk_field="synced_object_id")
 
     object_repr = models.CharField(max_length=200, blank=True, default="", editable=False)
-    object_change = models.ForeignKey(to=ObjectChange, on_delete=models.SET_NULL, blank=True, null=True)
 
     message = models.CharField(max_length=511, blank=True)
 

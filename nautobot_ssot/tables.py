@@ -181,7 +181,6 @@ class SyncLogEntryTable(BaseTable):
     diff = JSONColumn(orderable=False)
     message = TemplateColumn(template_code=MESSAGE_SPAN, orderable=False)
     synced_object = TemplateColumn(template_code=SYNCED_OBJECT)
-    object_change = LinkColumn()
 
     class Meta(BaseTable.Meta):
         """Metaclass attributes of SyncLogEntryTable."""
@@ -194,7 +193,6 @@ class SyncLogEntryTable(BaseTable):
             "action",
             "synced_object_type",
             "synced_object",
-            "object_change",
             "status",
             "diff",
             "message",
