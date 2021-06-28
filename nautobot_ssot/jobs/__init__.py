@@ -1,11 +1,16 @@
 """Plugin provision of Nautobot Job subclasses."""
 
+from django.conf import settings
+
 from nautobot.extras.jobs import get_jobs
 
 from .base import DataSource, DataTarget
 from .examples import ExampleDataSource, ExampleDataTarget
 
-jobs = [ExampleDataSource, ExampleDataTarget]
+if settings.PLUGINS_CONFIG.get("nautobot_ssot", {}).get("hide_example_jobs", False):
+    jobs = []
+else:
+    jobs = [ExampleDataSource, ExampleDataTarget]
 
 
 def get_data_jobs():

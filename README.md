@@ -12,10 +12,10 @@ pip install nautobot-ssot
 
 > This plugin is compatible with Nautobot 1.0.3 and higher.
 
-To ensure Nautobot Single Source of Truth is automatically re-installed during future upgrades, create a file named `local_requirements.txt` (if not already existing) in the Nautobot root directory (alongside `requirements.txt`) and list the `nautobot-ssot` package:
+To ensure Nautobot Single Source of Truth is re-installed during future upgrades, create a file named `local_requirements.txt` (if not already existing) in the Nautobot root directory and list the `nautobot-ssot` package in this file:
 
-```no-highlight
-# echo nautobot-ssot >> local_requirements.txt
+```shell
+$ echo nautobot-ssot >> local_requirements.txt
 ```
 
 Once installed, the plugin needs to be enabled in your `nautobot_config.py`:
@@ -23,7 +23,17 @@ Once installed, the plugin needs to be enabled in your `nautobot_config.py`:
 ```python
 # In your nautobot_config.py
 PLUGINS = ["nautobot_ssot"]
+
+PLUGINS_CONFIG = {
+    "nautobot_ssot": {
+        "hide_example_jobs": False,  # defaults to False if unspecified
+    }
+}
 ```
+
+The plugin behavior can be controlled with the following list of settings:
+
+- `"hide_example_jobs"`: By default this plugin includes a pair of example data source / data target jobs so that you can see how it works without installing any additional plugins to provide specific system integrations. Once you have installed or developed some "real" system integrations to work with this plugin, you may wish to hide the example jobs, which you may do by setting this configuration setting to `True`.
 
 ## Usage
 
@@ -79,7 +89,7 @@ nautobot_ssot:
 poetry shell
 poetry install
 export $(cat development/dev.env | xargs)
-export $(cat development/creds.env | xargs) 
+export $(cat development/creds.env | xargs)
 ```
 
 4.  You can now run nautobot-server commands as you would from the [Nautobot documentation](https://nautobot.readthedocs.io/en/latest/) for example to start the development server:
@@ -110,7 +120,7 @@ Nautobot server can now be accessed at [http://localhost:8080](http://localhost:
 
 ### CLI Helper Commands
 
-The project is coming with a CLI helper based on [invoke](http://www.pyinvoke.org/) to help setup the development environment. The commands are listed below in 3 categories `dev environment`, `utility` and `testing`. 
+The project is coming with a CLI helper based on [invoke](http://www.pyinvoke.org/) to help setup the development environment. The commands are listed below in 3 categories `dev environment`, `utility` and `testing`.
 
 Each command can be executed with `invoke <command>`. Environment variables `INVOKE_NAUTOBOT_SSOT_PYTHON_VER` and `INVOKE_NAUTOBOT_SSOT_NAUTOBOT_VER` may be specified to override the default versions. Each command also has its own help `invoke <command> --help`
 
