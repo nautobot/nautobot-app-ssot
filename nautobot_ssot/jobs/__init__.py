@@ -7,7 +7,7 @@ from nautobot.extras.jobs import get_jobs
 from .base import DataSource, DataTarget
 from .examples import ExampleDataSource, ExampleDataTarget
 
-if settings.PLUGINS_CONFIG.get("nautobot_ssot", {}).get("hide_example_jobs", False):
+if settings.PLUGINS_CONFIG["nautobot_ssot"]["hide_example_jobs"]:
     jobs = []
 else:
     jobs = [ExampleDataSource, ExampleDataTarget]

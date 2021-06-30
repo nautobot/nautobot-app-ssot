@@ -23,7 +23,9 @@ class NautobotSSOTPluginConfig(PluginConfig):
     required_settings = []
     min_version = "1.0.3"
     max_version = "1.9999"
-    default_settings = {}
+    default_settings = {
+        "hide_example_jobs": False,
+    }
     caching_config = {}
 
 
