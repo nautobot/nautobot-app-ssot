@@ -3,7 +3,7 @@ import unittest
 import os
 import toml
 
-from nautobot_data_sync import __version__ as project_version
+from nautobot_ssot import __version__ as project_version
 
 
 class TestVersion(unittest.TestCase):

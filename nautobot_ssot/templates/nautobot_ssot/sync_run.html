@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% load helpers %}
+{% load form_helpers %}
+
+{% block title %}{{ sync_worker_class.name }}{% endblock %}
+
+{% block content %}
+    <div class="row noprint">
+        <div class="col-md-12">
+            <ol class="breadcrumb">
+                <li><a href="{% url 'plugins:nautobot_ssot:dashboard' %}">Single Source of Truth</a></li>
+                <li>{{ sync_worker_class.name }}</li>
+            </ol>
+        </div>
+    </div>
+    <h1>{{ sync_worker_class.name }}</h1>
+    <p>{{ sync_worker_class.description }}</p>
+    <div class="row">
+        <div class="col-md-6 col-md-offset-3">
+            <form action="" method="post" enctype="multipart/form-data" class="form form-horizontal">
+                {% csrf_token %}
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <strong>Sync Parameters</strong>
+                    </div>
+                    <div class="panel-body">
+                        {% render_form form %}
+                    </div>
+                </div>
+                <div class="pull-right">
+                    <button type="submit" name="_run" class="btn btn-primary">
+                        <i class="mdi mdi-play"></i> Execute
+                    </button>
+                    <a href="{% url 'plugins:nautobot_ssot:sync_list' %}" class="btn btn-default">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock %}

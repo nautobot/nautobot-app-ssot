@@ -1,6 +1,6 @@
 ---
-nautobot_data_sync:
-  project_name: "nautobot-data-sync"
+nautobot_ssot:
+  project_name: "nautobot-ssot"
   nautobot_ver: "develop-latest"
   local: false
   python_ver: "3.6"

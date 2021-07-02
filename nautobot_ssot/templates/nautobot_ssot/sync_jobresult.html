@@ -1,0 +1,13 @@
+{% extends 'nautobot_ssot/sync_header.html' %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-md-12">
+            {% include "extras/inc/jobresult.html" with result=object.job_result %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block javascript %}
+    {% include 'extras/inc/jobresult_js.html' with result=object.job_result %}
+{% endblock %}

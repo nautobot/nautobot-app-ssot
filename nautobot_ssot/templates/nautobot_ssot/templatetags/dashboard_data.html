@@ -1,0 +1,13 @@
+{% for sync in syncs %}
+    <a href="{% url 'plugins:nautobot_ssot:sync' pk=sync.pk %}" class="label
+        {% if sync.job_result.status == 'completed' %}label-success
+        {% elif sync.job_result.status == 'failed' %}label-danger
+        {% elif sync.job_result.status == 'errored' %}label-danger
+        {% elif sync.job_result.status == 'pending' %}label-default
+        {% elif sync.job_result.status == 'running' %}label-warning
+        {% endif %}"
+        title="{{ sync }}">
+    </a>
+    &nbsp;
+{% endfor %}
+<span class="badge" title="Total syncs">{{ count }}</span>

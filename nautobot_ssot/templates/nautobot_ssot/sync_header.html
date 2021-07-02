@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% load buttons %}
+{% load custom_links %}
+{% load plugins %}
+
+{% block header %}
+    <div class="row">
+        <div class="col-md-12">
+            <ol class="breadcrumb">
+                <li><a href="{% url 'plugins:nautobot_ssot:dashboard' %}">Single Source of Truth</a></li>
+                {% if object.get_source_url %}
+                    <li>Data Sources</li>
+                    <li>
+                        {% if object.job_result.related_object.class_path %}
+                            <a href="{% url 'plugins:nautobot_ssot:data_source' class_path=object.job_result.related_object.class_path %}">
+                                {{ object.job_result.related_object }}
+                            </a>
+                        {% else %}
+                            {{ object.source }}
+                        {% endif %}
+                    </li>
+                {% else %}
+                    <li>Data Targets</li>
+                    <li>
+                        {% if object.job_result.related_object.class_path %}
+                            <a href="{% url 'plugins:nautobot_ssot:data_target' class_path=object.job_result.related_object.class_path %}">
+                                {{ object.job_result.related_object }}
+                            </a>
+                        {% else %}
+                            {{ object.target }}
+                        {% endif %}
+                    </li>
+                {% endif %}
+                <li>{{ object }}</li>
+            </ol>
+        </div>
+    </div>
+    <div class="pull-right noprint">
+        {% plugin_buttons object %}
+        {% if perms.nautobot_ssot.delete_sync %}
+            {% delete_button object %}
+        {% endif %}
+    </div>
+    <h1>{% block title %}{{ object }}{% endblock %}</h1>
+    <div class="pull-right noprint">
+        {% custom_links object %}
+    </div>
+    <ul class="nav nav-tabs">
+        <li role="presentation"{% if not active_tab %} class="active"{% endif %}>
+            <a href="{{ object.get_absolute_url }}">Data Sync</a>
+        </li>
+        <li role="presentation"{% if active_tab == 'jobresult' %} class="active"{% endif %}>
+            <a href="{% url 'plugins:nautobot_ssot:sync_jobresult' pk=object.pk %}">Job Logs</a>
+        </li>
+        <li role="presentation"{% if active_tab == 'logentries' %} class="active"{% endif %}>
+            <a href="{% url 'plugins:nautobot_ssot:sync_logentries' pk=object.pk %}">Sync Logs</a>
+        </li>
+    </ul>
+{% endblock %}

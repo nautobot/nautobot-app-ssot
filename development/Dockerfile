@@ -1,8 +1,7 @@
 
 ARG PYTHON_VER
 ARG NAUTOBOT_VER
-# FROM ghcr.io/nautobot/nautobot-dev:${NAUTOBOT_VER}-py${PYTHON_VER}
-FROM nniehoff/nautobot-dev:${NAUTOBOT_VER}-py${PYTHON_VER}
+FROM ghcr.io/nautobot/nautobot-dev:${NAUTOBOT_VER}-py${PYTHON_VER}
 
 WORKDIR /source
 
@@ -12,8 +11,14 @@ COPY poetry.lock pyproject.toml /source/
 # and the project is copied in and installed after this step
 RUN poetry install --no-interaction --no-ansi --no-root
 
+# Add worker plugin(s) if present
+COPY packages/placeholder packages/*.whl /tmp/packages/
+RUN for wheel in /tmp/packages/*.whl; do [ -f "$wheel" ] || continue; pip install "$wheel"; done
+
 # Copy in the rest of the source code and install local Nautobot plugin
+WORKDIR /source
 COPY . /source
 RUN poetry install --no-interaction --no-ansi
 
+WORKDIR /source
 COPY development/nautobot_config.py /opt/nautobot/nautobot_config.py

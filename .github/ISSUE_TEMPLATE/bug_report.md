@@ -1,12 +1,12 @@
 ---
 name: 🐛 Bug Report
-about: Report a reproducible bug in the current release of nautobot-data-sync
+about: Report a reproducible bug in the current release of nautobot-ssot
 ---
 
 ### Environment
 * Python version:  <!-- Example: 3.7.7 -->
-* Nautobot version:  <!-- Example: 1.0.1 -->
-* nautobot-data-sync version:  <!-- Example: 0.1.0 -->
+* Nautobot version:  <!-- Example: 1.0.3 -->
+* nautobot-ssot version:  <!-- Example: 0.1.0 -->
 
 <!-- What did you expect to happen? -->
 ### Expected Behavior

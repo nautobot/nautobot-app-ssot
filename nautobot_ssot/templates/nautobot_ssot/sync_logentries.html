@@ -1,0 +1,11 @@
+{% extends 'nautobot_ssot/sync_header.html' %}
+{% load buttons %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-md-12">
+            {% include "responsive_table.html" %}
+        </div>
+        {% include 'inc/paginator.html' with paginator=table.paginator page=table.page %}
+    </div>
+{% endblock %}

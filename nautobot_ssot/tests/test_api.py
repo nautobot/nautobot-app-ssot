@@ -1,4 +1,4 @@
-"""Unit tests for nautobot_data_sync."""
+"""Unit tests for nautobot_ssot."""
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -11,7 +11,7 @@ User = get_user_model()
 
 
 class PlaceholderAPITest(TestCase):
-    """Test the NautobotDataSync API."""
+    """Test the nautobot_ssot API."""
 
     def setUp(self):
         """Create a superuser and token for API calls."""
