@@ -37,7 +37,23 @@ Once installed, the plugin needs to be enabled in your `nautobot_config.py`:
 PLUGINS = ["nautobot_ssot"]
 ```
 
-This plugin provides examples of Data Source and Data Target jobs that you can run to get a feel for the capabilities of the plugin, but to get the most out of this plugin you will want to find other existing Jobs and/or create your own Jobs; these Jobs can be installed like any other Nautobot Job, i.e. via a plugin, by inclusion in a Git repository, or by manual installation of individual Job source files to Nautobot's `JOBS_ROOT` directory.
+### Installing Data Source and Data Target Jobs
+
+This plugin provides examples of Data Source and Data Target jobs that you can run to get a feel for the capabilities of the plugin, but to get the most out of this plugin you will want to find other existing Jobs and/or [create your own Jobs](./developing_jobs.md). Such Jobs can be installed like any other Nautobot Job:
+
+* by [packaging into a Nautobot plugin](https://nautobot.readthedocs.io/en/stable/plugins/development/#including-jobs) which can then be installed into Nautobot's virtual environment
+* by [inclusion in a Git repository](https://nautobot.readthedocs.io/en/stable/models/extras/gitrepository/#jobs) which can be configured in Nautobot and refreshed on demand
+* by [manual installation of individual Job source files](https://nautobot.readthedocs.io/en/stable/additional-features/jobs/#writing-jobs) to Nautobot's `JOBS_ROOT` directory
+
+Example screenshots of possible Data Sources and Data Targets are shown below.
+
+---
+
+![Example data source - Arista CloudVision](./images/example_cloudvision.png)
+
+---
+
+![Example data target - ServiceNow](./images/example_servicenow.png)
 
 ## Configuration
 
