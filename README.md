@@ -2,6 +2,8 @@
 
 A plugin for [Nautobot](https://github.com/nautobot/nautobot). This plugin facilitates integration and data synchronization between various "source of truth" (SoT) systems, with Nautobot acting as a central clearinghouse for data - a Single Source of Truth, if you will.
 
+A goal of this plugin is to make it relatively quick and straightforward to [develop and integrate](https://nautobot-plugin-ssot.readthedocs.io/en/latest/developing_jobs/) your own system-specific Data Sources and Data Targets into Nautobot with a common UI and user experience.
+
 ## Installation
 
 The plugin is available as a Python package in PyPI and can be installed with `pip`:
@@ -11,12 +13,6 @@ pip install nautobot-ssot
 ```
 
 > This plugin is compatible with Nautobot 1.0.3 and higher.
-
-To ensure Nautobot Single Source of Truth is re-installed during future upgrades, create a file named `local_requirements.txt` (if not already existing) in the Nautobot root directory and list the `nautobot-ssot` package in this file:
-
-```shell
-$ echo nautobot-ssot >> local_requirements.txt
-```
 
 Once installed, the plugin needs to be enabled in your `nautobot_config.py`:
 
@@ -37,7 +33,7 @@ The plugin behavior can be controlled with the following list of settings:
 
 ## Usage
 
-Refer to the [documentation](./docs/index.md) for usage details.
+Refer to the [documentation](https://nautobot-plugin-ssot.readthedocs.io/en/latest/) for usage details.
 
 ## Questions
 
@@ -46,8 +42,12 @@ Sign up [here](http://slack.networktocode.com/)
 
 ## Screenshots
 
-![Dashboard screenshot](./docs/images/dashboard_initial.png)
+![Dashboard screenshot](https://nautobot-plugin-ssot.readthedocs.io/en/latest/images/dashboard_initial.png)
 
-![Data Source detail view](./docs/images/data_source_detail.png)
+![Data Source detail view](https://nautobot-plugin-ssot.readthedocs.io/en/latest/images/data_source_detail.png)
 
-![Sync detail view](./docs/images/sync_detail.png)
+![Sync detail view](https://nautobot-plugin-ssot.readthedocs.io/en/latest/images/sync_detail.png)
+
+![Example data source - Arista CloudVision](https://nautobot-plugin-ssot.readthedocs.io/en/latest/images/example_cloudvision.png)
+
+![Example data target - ServiceNow](https://nautobot-plugin-ssot.readthedocs.io/en/latest/images/example_servicenow.png)

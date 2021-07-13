@@ -1,5 +1,6 @@
 """Base Job classes for sync workers."""
 from collections import namedtuple
+import traceback
 from typing import Iterable
 
 from django.forms import HiddenInput
@@ -199,7 +200,14 @@ class DataSyncBaseJob(BaseJob):
         self.kwargs = data
         self.commit = commit
 
-        self.sync_data()
+        # We need to catch exceptions and handle them, because if they aren't caught here,
+        # they'll be caught by the Nautobot core run_job() function, which will trigger a database
+        # rollback, which will delete our above created Sync record!
+        try:
+            self.sync_data()
+        except Exception as exc:  # pylint: disable=broad-except
+            stacktrace = traceback.format_exc()
+            self.log_failure(message=f"An exception occurred: `{type(exc).__name__}: {exc}`\n```\n{stacktrace}\n```")
 
 
 class DataSource(DataSyncBaseJob):
