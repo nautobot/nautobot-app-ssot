@@ -60,7 +60,7 @@ jobs:
         "on":
           all_branches: true
 
-    - stage: "deploy_pypi"
+    - stage: "deploy-pypi"
       before_script:
         - "pip install --upgrade pip"
         - "pip install poetry"
