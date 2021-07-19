@@ -1,20 +1,30 @@
 ---
+stages:
+  - name: "test"
+  - name: "deploy-github"
+    if: "tag IS present"
+  - name: "deploy-pypi"
+    if: "tag IS present"
+
 language: "python"
 python:
   - "3.6"
   - "3.7"
   - "3.8"
+
 env:
   # Each version of Nautobot listed here must have a corresponding directory/configuration file
   # under development/nautobot_<NAUTOBOT_VER>/configuration.py
   matrix:
     - "INVOKE_NAUTOBOT_SSOT_NAUTOBOT_VER=1.0.3"
+
 # Add your encrypted secret below, you can encrypt secret using "travis encrypt"
 # https://docs.travis-ci.com/user/environment-variables/#defining-encrypted-variables-in-travisyml
 # global:
 #   secure: <Add encrypted token>
 services:
   - "docker"
+
 # --------------------------------------------------------------------------
 # Tests
 # --------------------------------------------------------------------------
@@ -31,18 +41,35 @@ script:
   # - "poetry add nautobot=$NAUTOBOT_VER"
   - "INVOKE_NAUTOBOT_SSOT_PYTHON_VER=$TRAVIS_PYTHON_VERSION invoke build --no-cache"
   - "INVOKE_NAUTOBOT_SSOT_PYTHON_VER=$TRAVIS_PYTHON_VERSION invoke tests --failfast"
-# --------------------------------------------------------------------------
-# Deploy
-#  Uncomment the section below if you would like to publish a new release to pypi automatically
-#  when a new tag is created in master. You"ll also need to generate a dedicated API key for this project in pypi
-#  and encrypt the key with "travis encrypt PYPI_TOKEN=<value> --add env.global --com"
-# --------------------------------------------------------------------------
-# deploy:
-#   provider: script
-#   script: poetry config pypi-token.pypi $PYPI_TOKEN && poetry publish --build
-#   skip_cleanup: true
-#   on:
-#     tags: true
-#     branch: master
-#     condition: $NAUTOBOT_VER = master
-#     python: 3.7
+
+jobs:
+  include:
+    - stage: "deploy-github"
+      before_script:
+        - "pip install --upgrade pip"
+        - "pip install poetry"
+      script:
+        - "poetry version $TRAVIS_TAG"
+        - "poetry build"
+      deploy:
+        provider: "releases"
+        api_key: "$GITHUB_AUTH_TOKEN"
+        file_glob: true
+        file: "dist/*"
+        skip_cleanup: true
+        "on":
+          all_branches: true
+
+    - stage: "deploy_pypi"
+      before_script:
+        - "pip install --upgrade pip"
+        - "pip install poetry"
+      script:
+        - "echo Deploying the release to PyPI"
+        - "poetry version $TRAVIS_TAG"
+      deploy:
+        provider: "script"
+        skip_cleanup: true
+        script: "poetry publish --build -u __token__ -p $PYPI_TOKEN"
+        "on":
+          all_branches: true
