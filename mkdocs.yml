@@ -17,8 +17,6 @@ extra_css:
   - "extra.css"
 markdown_extensions:
   - "admonition"
-  - markdown_include.include:
-      headingOffset: 1
   - toc:
       permalink: true
 nav:
