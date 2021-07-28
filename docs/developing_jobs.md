@@ -7,7 +7,9 @@ Familiarity with [DiffSync](https://diffsync.readthedocs.io/en/latest/) and with
 In brief, the following general steps can be followed:
 
 1. Define one or more `DiffSyncModel` data model class(es) representing the common data record(s) to be synchronized between the two systems.
-    
+
+    * Define your models based on the data you want to sync. For example, if you are syncing specific attributes (e.g. tags) of a device, but not the devices themselves, your parent model
+    should be the tags. This approach prevents unnecessary `create`, `update`, and `delete` calls for models that are not sync'd.
     * For each model class, implement the `create`, `update`, and `delete` DiffSyncModel APIs for writing data to the Data Target system.
 
 2. Define a `DiffSync` adapter class for loading initial data from Nautobot and constructing instances of each `DiffSyncModel` class to represent that data.
