@@ -321,6 +321,17 @@ def bandit(context):
 
 
 @task
+def yamllint(context):
+    """Run yamllint to validate formating adheres to NTC defined YAML standards.
+
+    Args:
+        context (obj): Used to run specific commands
+    """
+    command = "yamllint . --format standard"
+    run_command(context, command)
+
+
+@task
 def check_migrations(context):
     """Check for missing migrations."""
     command = "nautobot-server --config=nautobot/core/tests/nautobot_config.py makemigrations --dry-run --check"
