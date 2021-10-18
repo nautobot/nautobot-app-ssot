@@ -18,6 +18,8 @@ from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
 
 # In a more complex Job, you would probably want to move the DiffSyncModel subclasses into a separate Python module(s).
 
+name = "SSoT Examples" # pylint: disable=invalid-name
+
 
 class RegionModel(DiffSyncModel):
     """Shared data model representing a Region in either of the local or remote Nautobot instances."""
