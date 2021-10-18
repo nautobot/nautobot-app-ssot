@@ -24,3 +24,4 @@ nav:
   - Developing Data Jobs: "developing_jobs.md"
   - Developing the plugin itself: "development.md"
   - Contributing: "contributing.md"
+  - Changelog: "changelog.md"
