@@ -50,10 +50,10 @@ optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [package.extras]
-dev = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "mypy", "pytest-mypy-plugins", "zope.interface", "furo", "sphinx", "sphinx-notfound-page", "pre-commit"]
 docs = ["furo", "sphinx", "zope.interface", "sphinx-notfound-page"]
 tests = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "mypy", "pytest-mypy-plugins", "zope.interface"]
 tests_no_zope = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "mypy", "pytest-mypy-plugins"]
+dev = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "mypy", "pytest-mypy-plugins", "zope.interface", "furo", "sphinx", "sphinx-notfound-page", "pre-commit"]
 
 [[package]]
 name = "bandit"
@@ -64,11 +64,11 @@ optional = false
 python-versions = ">=3.5"
 
 [package.dependencies]
-colorama = {version = ">=0.3.9", markers = "platform_system == \"Windows\""}
-GitPython = ">=1.0.1"
+stevedore = ">=1.20.0"
 PyYAML = ">=5.3.1"
 six = ">=1.10.0"
-stevedore = ">=1.20.0"
+colorama = {version = ">=0.3.9", markers = "platform_system == \"Windows\""}
+GitPython = ">=1.0.1"
 
 [[package]]
 name = "black"
@@ -79,15 +79,15 @@ optional = false
 python-versions = ">=3.6"
 
 [package.dependencies]
-appdirs = "*"
-click = ">=7.1.2"
+regex = ">=2020.1.8"
 dataclasses = {version = ">=0.6", markers = "python_version < \"3.7\""}
 mypy-extensions = ">=0.4.3"
-pathspec = ">=0.6,<1"
-regex = ">=2020.1.8"
-toml = ">=0.10.1"
 typed-ast = ">=1.4.0"
+toml = ">=0.10.1"
 typing-extensions = ">=3.7.4"
+pathspec = ">=0.6,<1"
+click = ">=7.1.2"
+appdirs = "*"
 
 [package.extras]
 colorama = ["colorama (>=0.4.3)"]
@@ -149,8 +149,8 @@ python-versions = "*"
 
 [package.dependencies]
 coreschema = "*"
-itypes = "*"
 requests = "*"
+itypes = "*"
 uritemplate = "*"
 
 [[package]]
@@ -187,11 +187,11 @@ python-versions = ">=3.6"
 cffi = ">=1.12"
 
 [package.extras]
-docs = ["sphinx (>=1.6.5,!=1.8.0,!=3.1.0,!=3.1.1)", "sphinx-rtd-theme"]
-docstest = ["doc8", "pyenchant (>=1.6.11)", "twine (>=1.12.0)", "sphinxcontrib-spelling (>=4.0.1)"]
 pep8test = ["black", "flake8", "flake8-import-order", "pep8-naming"]
+docstest = ["doc8", "pyenchant (>=1.6.11)", "twine (>=1.12.0)", "sphinxcontrib-spelling (>=4.0.1)"]
 sdist = ["setuptools-rust (>=0.11.4)"]
 ssh = ["bcrypt (>=3.1.5)"]
+docs = ["sphinx (>=1.6.5,!=1.8.0,!=3.1.0,!=3.1.1)", "sphinx-rtd-theme"]
 test = ["pytest (>=6.0)", "pytest-cov", "pytest-subtests", "pytest-xdist", "pretend", "iso8601", "pytz", "hypothesis (>=1.11.4,!=3.79.2)"]
 
 [[package]]
@@ -220,9 +220,9 @@ python-versions = ">=3.6,<4.0"
 
 [package.dependencies]
 colorama = ">=0.4.3,<0.5.0"
-dataclasses = {version = ">=0.7,<0.8", markers = "python_version >= \"3.6\" and python_version < \"3.7\""}
-pydantic = ">=1.7.2,<2.0.0"
 structlog = ">=20.1.0,<21.0.0"
+pydantic = ">=1.7.2,<2.0.0"
+dataclasses = {version = ">=0.7,<0.8", markers = "python_version >= \"3.6\" and python_version < \"3.7\""}
 
 [[package]]
 name = "django"
@@ -233,9 +233,9 @@ optional = false
 python-versions = ">=3.6"
 
 [package.dependencies]
-asgiref = ">=3.2.10,<4"
-pytz = "*"
 sqlparse = ">=0.2.2"
+pytz = "*"
+asgiref = ">=3.2.10,<4"
 
 [package.extras]
 argon2 = ["argon2-cffi (>=16.1.0)"]
@@ -261,10 +261,10 @@ optional = false
 python-versions = ">=3.5"
 
 [package.dependencies]
-django = ">=2.1"
 funcy = ">=1.8,<2.0"
-redis = ">=3.0.0"
 six = ">=1.4.0"
+redis = ">=3.0.0"
+django = ">=2.1"
 
 [[package]]
 name = "django-cors-headers"
@@ -298,8 +298,8 @@ optional = false
 python-versions = ">=3.6"
 
 [package.dependencies]
-Django = ">=2.2"
 sqlparse = ">=0.2.0"
+Django = ">=2.2"
 
 [[package]]
 name = "django-filter"
@@ -329,8 +329,8 @@ optional = false
 python-versions = ">=3.5"
 
 [package.dependencies]
-Django = ">=1.11"
 django-js-asset = "*"
+Django = ">=1.11"
 
 [[package]]
 name = "django-prometheus"
@@ -352,8 +352,8 @@ optional = false
 python-versions = ">=3.5"
 
 [package.dependencies]
-Django = ">=2.2"
 redis = ">=3.0.0"
+Django = ">=2.2"
 
 [[package]]
 name = "django-rq"
@@ -364,9 +364,9 @@ optional = false
 python-versions = "*"
 
 [package.dependencies]
-django = ">=2.0"
 redis = ">=3"
 rq = ">=1.2"
+django = ">=2.0"
 
 [package.extras]
 Sentry = ["raven (>=6.1.0)"]
@@ -406,8 +406,8 @@ optional = false
 python-versions = ">=3.5"
 
 [package.dependencies]
-django = ">=2.2"
 pytz = "*"
+django = ">=2.2"
 
 [package.extras]
 rest_framework = ["djangorestframework (>=3.0.0)"]
@@ -424,11 +424,11 @@ python-versions = "*"
 Django = "*"
 
 [package.extras]
-gunicorn = ["gunicorn"]
-pyuwsgi = ["pyuwsgi"]
 test = ["pytest", "mock"]
-uvicorn = ["uvicorn (>0.6)"]
+pyuwsgi = ["pyuwsgi"]
+gunicorn = ["gunicorn"]
 waitress = ["waitress"]
+uvicorn = ["uvicorn (>0.6)"]
 
 [[package]]
 name = "djangorestframework"
@@ -451,12 +451,12 @@ python-versions = ">=3.6"
 
 [package.dependencies]
 coreapi = ">=2.3.3"
-coreschema = ">=0.0.4"
-Django = ">=2.2.16"
-djangorestframework = ">=3.10.3"
-inflection = ">=0.3.1"
-packaging = "*"
 "ruamel.yaml" = ">=0.15.34"
+coreschema = ">=0.0.4"
+inflection = ">=0.3.1"
+Django = ">=2.2.16"
+packaging = "*"
+djangorestframework = ">=3.10.3"
 swagger-spec-validator = {version = ">=2.1.0", optional = true, markers = "extra == \"validation\""}
 uritemplate = ">=3.0.0"
 
@@ -513,8 +513,8 @@ optional = false
 python-versions = ">=3.5"
 
 [package.dependencies]
-gitdb = ">=4.0.1,<5"
 typing-extensions = {version = ">=3.7.4.0", markers = "python_version < \"3.8\""}
+gitdb = ">=4.0.1,<5"
 
 [[package]]
 name = "graphene"
@@ -526,14 +526,14 @@ python-versions = "*"
 
 [package.dependencies]
 aniso8601 = ">=3,<=7"
+six = ">=1.10.0,<2"
 graphql-core = ">=2.1,<3"
 graphql-relay = ">=2,<3"
-six = ">=1.10.0,<2"
 
 [package.extras]
-django = ["graphene-django"]
-sqlalchemy = ["graphene-sqlalchemy"]
 test = ["pytest", "pytest-benchmark", "pytest-cov", "pytest-mock", "snapshottest", "coveralls", "promise", "six", "mock", "pytz", "iso8601"]
+sqlalchemy = ["graphene-sqlalchemy"]
+django = ["graphene-django"]
 
 [[package]]
 name = "graphene-django"
@@ -544,18 +544,18 @@ optional = false
 python-versions = "*"
 
 [package.dependencies]
-Django = ">=1.11"
-graphene = ">=2.1.7,<3"
 graphql-core = ">=2.1.0,<3"
-promise = ">=2.1"
-singledispatch = ">=3.4.0.3"
+graphene = ">=2.1.7,<3"
 six = ">=1.10.0"
+Django = ">=1.11"
+singledispatch = ">=3.4.0.3"
+promise = ">=2.1"
 text-unidecode = "*"
 
 [package.extras]
-dev = ["black (==19.10b0)", "flake8 (==3.7.9)", "flake8-black (==0.1.1)", "flake8-bugbear (==20.1.4)", "pytest (>=3.6.3)", "pytest-cov", "coveralls", "mock", "pytz", "pytest-django (>=3.3.2)", "djangorestframework (>=3.6.3)", "django-filter (<2)", "django-filter (>=2)"]
-rest_framework = ["djangorestframework (>=3.6.3)"]
 test = ["pytest (>=3.6.3)", "pytest-cov", "coveralls", "mock", "pytz", "pytest-django (>=3.3.2)", "djangorestframework (>=3.6.3)", "django-filter (<2)", "django-filter (>=2)"]
+rest_framework = ["djangorestframework (>=3.6.3)"]
+dev = ["black (==19.10b0)", "flake8 (==3.7.9)", "flake8-black (==0.1.1)", "flake8-bugbear (==20.1.4)", "pytest (>=3.6.3)", "pytest-cov", "coveralls", "mock", "pytz", "pytest-django (>=3.3.2)", "djangorestframework (>=3.6.3)", "django-filter (<2)", "django-filter (>=2)"]
 
 [[package]]
 name = "graphql-core"
@@ -566,13 +566,13 @@ optional = false
 python-versions = "*"
 
 [package.dependencies]
-promise = ">=2.3,<3"
 rx = ">=1.6,<2"
 six = ">=1.10.0"
+promise = ">=2.3,<3"
 
 [package.extras]
-gevent = ["gevent (>=1.1)"]
 test = ["six (==1.14.0)", "pyannotate (==1.2.0)", "pytest (==4.6.10)", "pytest-django (==3.9.0)", "pytest-cov (==2.8.1)", "coveralls (==1.11.1)", "cython (==0.29.17)", "gevent (==1.5.0)", "pytest-benchmark (==3.2.3)", "pytest-mock (==2.0.0)"]
+gevent = ["gevent (>=1.1)"]
 
 [[package]]
 name = "graphql-relay"
@@ -583,9 +583,9 @@ optional = false
 python-versions = "*"
 
 [package.dependencies]
-graphql-core = ">=2.2,<3"
-promise = ">=2.2,<3"
 six = ">=1.12"
+promise = ">=2.2,<3"
+graphql-core = ">=2.2,<3"
 
 [[package]]
 name = "idna"
@@ -651,9 +651,9 @@ optional = false
 python-versions = ">=3.6,<4.0"
 
 [package.extras]
+colors = ["colorama (>=0.4.3,<0.5.0)"]
 pipfile_deprecated_finder = ["pipreqs", "requirementslib"]
 requirements_deprecated_finder = ["pipreqs", "pip-api"]
-colors = ["colorama (>=0.4.3,<0.5.0)"]
 
 [[package]]
 name = "itypes"
@@ -694,14 +694,14 @@ optional = false
 python-versions = "*"
 
 [package.dependencies]
-attrs = ">=17.4.0"
 importlib-metadata = {version = "*", markers = "python_version < \"3.8\""}
 pyrsistent = ">=0.14.0"
 six = ">=1.11.0"
+attrs = ">=17.4.0"
 
 [package.extras]
-format = ["idna", "jsonpointer (>1.13)", "rfc3987", "strict-rfc3339", "webcolors"]
 format_nongpl = ["idna", "jsonpointer (>1.13)", "webcolors", "rfc3986-validator (>0.1.0)", "rfc3339-validator"]
+format = ["idna", "jsonpointer (>1.13)", "rfc3987", "strict-rfc3339", "webcolors"]
 
 [[package]]
 name = "lazy-object-proxy"
@@ -720,8 +720,8 @@ optional = false
 python-versions = "*"
 
 [package.dependencies]
-six = "*"
 tornado = {version = "*", markers = "python_version > \"2.7\""}
+six = "*"
 
 [[package]]
 name = "lunr"
@@ -732,9 +732,9 @@ optional = false
 python-versions = "*"
 
 [package.dependencies]
+six = ">=1.11.0"
 future = ">=0.16.0"
 nltk = {version = ">=3.2.5", optional = true, markers = "python_version > \"2.7\" and extra == \"languages\""}
-six = ">=1.11.0"
 
 [package.extras]
 languages = ["nltk (>=3.2.5,<3.5)", "nltk (>=3.2.5)"]
@@ -752,17 +752,6 @@ importlib-metadata = {version = "*", markers = "python_version < \"3.8\""}
 
 [package.extras]
 testing = ["coverage", "pyyaml"]
-
-[[package]]
-name = "markdown-include"
-version = "0.6.0"
-description = "This is an extension to Python-Markdown which provides an \"include\" function, similar to that found in LaTeX (and also the C pre-processor and Fortran). I originally wrote it for my FORD Fortran auto-documentation generator."
-category = "dev"
-optional = false
-python-versions = "*"
-
-[package.dependencies]
-markdown = "*"
 
 [[package]]
 name = "markupsafe"
@@ -789,13 +778,13 @@ optional = false
 python-versions = ">=3.5"
 
 [package.dependencies]
-click = ">=3.3"
-Jinja2 = ">=2.10.1"
-livereload = ">=2.5.1"
 lunr = {version = "0.5.8", extras = ["languages"]}
-Markdown = ">=3.2.1"
 PyYAML = ">=3.10"
+Markdown = ">=3.2.1"
+livereload = ">=2.5.1"
 tornado = ">=5.0"
+Jinja2 = ">=2.10.1"
+click = ">=3.3"
 
 [[package]]
 name = "mypy-extensions"
@@ -814,34 +803,34 @@ optional = false
 python-versions = ">=3.6,<4.0"
 
 [package.dependencies]
-Django = ">=3.1.12,<3.2.0"
-django-cacheops = ">=5.1,<5.2"
-django-cors-headers = ">=3.7.0,<3.8.0"
-django-cryptography = ">=1.0,<1.1"
-django-filter = ">=2.4.0,<2.5.0"
-django-mptt = ">=0.11.0,<0.12.0"
-django-prometheus = ">=2.1.0,<2.2.0"
-django-redis = ">=4.12.1,<4.13.0"
-django-rq = ">=2.4.1,<2.5.0"
-django-tables2 = ">=2.3.4,<2.4.0"
-django-taggit = ">=1.3.0,<1.4.0"
-django-timezone-field = ">=4.1.2,<4.2.0"
-django-webserver = ">=1.2.0,<1.3.0"
-djangorestframework = ">=3.12.4,<3.13.0"
-drf-yasg = {version = ">=1.20.0,<1.21.0", extras = ["validation"]}
-GitPython = ">=3.1.15,<3.2.0"
 graphene-django = ">=2.15.0,<2.16.0"
-importlib-metadata = {version = ">=3.4.0,<3.5.0", markers = "python_version < \"3.8\""}
-Jinja2 = ">=2.11.3,<2.12.0"
-Markdown = ">=3.3.4,<3.4.0"
-netaddr = ">=0.8.0,<0.9.0"
-Pillow = ">=8.1.0,<8.2.0"
-psycopg2-binary = ">=2.8.6,<2.9.0"
-pycryptodome = ">=3.10.1,<3.11.0"
-pyuwsgi = ">=2.0.19.1.post0,<2.1.0.0"
-PyYAML = ">=5.4.1,<5.5.0"
-social-auth-app-django = ">=4.0.0,<5.0.0"
+django-cors-headers = ">=3.7.0,<3.8.0"
+django-prometheus = ">=2.1.0,<2.2.0"
+GitPython = ">=3.1.15,<3.2.0"
+django-rq = ">=2.4.1,<2.5.0"
+django-filter = ">=2.4.0,<2.5.0"
 svgwrite = ">=1.4.1,<1.5.0"
+importlib-metadata = {version = ">=3.4.0,<3.5.0", markers = "python_version < \"3.8\""}
+djangorestframework = ">=3.12.4,<3.13.0"
+django-taggit = ">=1.3.0,<1.4.0"
+Jinja2 = ">=2.11.3,<2.12.0"
+django-timezone-field = ">=4.1.2,<4.2.0"
+django-redis = ">=4.12.1,<4.13.0"
+PyYAML = ">=5.4.1,<5.5.0"
+django-tables2 = ">=2.3.4,<2.4.0"
+django-webserver = ">=1.2.0,<1.3.0"
+pyuwsgi = ">=2.0.19.1.post0,<2.1.0.0"
+Django = ">=3.1.12,<3.2.0"
+django-cryptography = ">=1.0,<1.1"
+django-cacheops = ">=5.1,<5.2"
+Pillow = ">=8.1.0,<8.2.0"
+Markdown = ">=3.3.4,<3.4.0"
+psycopg2-binary = ">=2.8.6,<2.9.0"
+netaddr = ">=0.8.0,<0.9.0"
+drf-yasg = {version = ">=1.20.0,<1.21.0", extras = ["validation"]}
+pycryptodome = ">=3.10.1,<3.11.0"
+social-auth-app-django = ">=4.0.0,<5.0.0"
+django-mptt = ">=0.11.0,<0.12.0"
 
 [[package]]
 name = "netaddr"
@@ -863,18 +852,18 @@ optional = false
 python-versions = ">=3.5.*"
 
 [package.dependencies]
-click = "*"
 joblib = "*"
 regex = "*"
 tqdm = "*"
+click = "*"
 
 [package.extras]
-all = ["matplotlib", "twython", "scipy", "numpy", "gensim (<4.0.0)", "python-crfsuite", "pyparsing", "scikit-learn", "requests"]
-corenlp = ["requests"]
-machine_learning = ["gensim (<4.0.0)", "numpy", "python-crfsuite", "scikit-learn", "scipy"]
 plot = ["matplotlib"]
-tgrep = ["pyparsing"]
+all = ["matplotlib", "twython", "scipy", "numpy", "gensim (<4.0.0)", "python-crfsuite", "pyparsing", "scikit-learn", "requests"]
 twitter = ["twython"]
+tgrep = ["pyparsing"]
+machine_learning = ["gensim (<4.0.0)", "numpy", "python-crfsuite", "scikit-learn", "scipy"]
+corenlp = ["requests"]
 
 [[package]]
 name = "oauthlib"
@@ -885,9 +874,9 @@ optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
 [package.extras]
-rsa = ["cryptography"]
 signals = ["blinker"]
 signedtoken = ["cryptography", "pyjwt (>=1.0.0)"]
+rsa = ["cryptography"]
 
 [[package]]
 name = "packaging"
@@ -994,8 +983,8 @@ dataclasses = {version = ">=0.6", markers = "python_version < \"3.7\""}
 
 [package.extras]
 dotenv = ["python-dotenv (>=0.10.4)"]
-email = ["email-validator (>=1.0.3)"]
 typing_extensions = ["typing-extensions (>=3.7.2)"]
+email = ["email-validator (>=1.0.3)"]
 
 [[package]]
 name = "pydocstyle"
@@ -1025,10 +1014,10 @@ optional = false
 python-versions = ">=3.6"
 
 [package.extras]
-crypto = ["cryptography (>=3.3.1,<4.0.0)"]
-dev = ["sphinx", "sphinx-rtd-theme", "zope.interface", "cryptography (>=3.3.1,<4.0.0)", "pytest (>=6.0.0,<7.0.0)", "coverage[toml] (==5.0.4)", "mypy", "pre-commit"]
 docs = ["sphinx", "sphinx-rtd-theme", "zope.interface"]
 tests = ["pytest (>=6.0.0,<7.0.0)", "coverage[toml] (==5.0.4)"]
+crypto = ["cryptography (>=3.3.1,<4.0.0)"]
+dev = ["sphinx", "sphinx-rtd-theme", "zope.interface", "cryptography (>=3.3.1,<4.0.0)", "pytest (>=6.0.0,<7.0.0)", "coverage[toml] (==5.0.4)", "mypy", "pre-commit"]
 
 [[package]]
 name = "pylint"
@@ -1040,10 +1029,10 @@ python-versions = "~=3.6"
 
 [package.dependencies]
 astroid = ">=2.5.6,<2.7"
-colorama = {version = "*", markers = "sys_platform == \"win32\""}
-isort = ">=4.2.5,<6"
 mccabe = ">=0.6,<0.7"
+colorama = {version = "*", markers = "sys_platform == \"win32\""}
 toml = ">=0.7.1"
+isort = ">=4.2.5,<6"
 
 [[package]]
 name = "pylint-django"
@@ -1058,8 +1047,8 @@ pylint = ">=2.0"
 pylint-plugin-utils = ">=0.5"
 
 [package.extras]
-for_tests = ["django-tables2", "factory-boy", "coverage", "pytest"]
 with_django = ["django"]
+for_tests = ["django-tables2", "factory-boy", "coverage", "pytest"]
 
 [[package]]
 name = "pylint-plugin-utils"
@@ -1100,8 +1089,8 @@ python-versions = "*"
 defusedxml = "*"
 
 [package.extras]
-mysql = ["mysql-connector-python"]
 postgresql = ["psycopg2"]
+mysql = ["mysql-connector-python"]
 
 [[package]]
 name = "pytz"
@@ -1155,9 +1144,9 @@ optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [package.dependencies]
+idna = ">=2.5,<3"
 certifi = ">=2017.4.17"
 chardet = ">=3.0.2,<5"
-idna = ">=2.5,<3"
 urllib3 = ">=1.21.1,<1.27"
 
 [package.extras]
@@ -1188,8 +1177,8 @@ optional = false
 python-versions = ">=3.5"
 
 [package.dependencies]
-click = ">=5.0.0"
 redis = ">=3.5.0"
+click = ">=5.0.0"
 
 [[package]]
 name = "ruamel.yaml"
@@ -1282,18 +1271,18 @@ optional = false
 python-versions = ">=3.6"
 
 [package.dependencies]
-cryptography = ">=1.4"
-defusedxml = ">=0.5.0rc1"
 oauthlib = ">=1.0.3"
-PyJWT = ">=2.0.0"
+cryptography = ">=1.4"
 python3-openid = ">=3.0.10"
-requests = ">=2.9.1"
 requests-oauthlib = ">=0.6.1"
+requests = ">=2.9.1"
+defusedxml = ">=0.5.0rc1"
+PyJWT = ">=2.0.0"
 
 [package.extras]
+azuread = ["cryptography (>=2.1.1)"]
 all = ["python-jose (>=3.0.0)", "python3-saml (>=1.2.1)", "cryptography (>=2.1.1)"]
 allpy3 = ["python-jose (>=3.0.0)", "python3-saml (>=1.2.1)", "cryptography (>=2.1.1)"]
-azuread = ["cryptography (>=2.1.1)"]
 openidconnect = ["python-jose (>=3.0.0)"]
 saml = ["python3-saml (>=1.2.1)"]
 
@@ -1329,9 +1318,9 @@ python-versions = ">=3.6"
 typing-extensions = {version = "*", markers = "python_version < \"3.8\""}
 
 [package.extras]
-dev = ["coverage", "freezegun (>=0.2.8)", "pretend", "pytest-asyncio", "pytest-randomly", "pytest (>=6.0)", "simplejson", "furo", "sphinx", "sphinx-toolbox", "twisted", "pre-commit"]
 docs = ["furo", "sphinx", "sphinx-toolbox", "twisted"]
 tests = ["coverage", "freezegun (>=0.2.8)", "pretend", "pytest-asyncio", "pytest-randomly", "pytest (>=6.0)", "simplejson"]
+dev = ["coverage", "freezegun (>=0.2.8)", "pretend", "pytest-asyncio", "pytest-randomly", "pytest (>=6.0)", "simplejson", "furo", "sphinx", "sphinx-toolbox", "twisted", "pre-commit"]
 
 [[package]]
 name = "svgwrite"
@@ -1350,9 +1339,9 @@ optional = false
 python-versions = "*"
 
 [package.dependencies]
-jsonschema = "*"
 pyyaml = "*"
 six = "*"
+jsonschema = "*"
 
 [[package]]
 name = "text-unidecode"
@@ -1387,9 +1376,9 @@ optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.7"
 
 [package.extras]
-dev = ["py-make (>=0.1.0)", "twine", "wheel"]
-notebook = ["ipywidgets (>=6)"]
 telegram = ["requests"]
+notebook = ["ipywidgets (>=6)"]
+dev = ["py-make (>=0.1.0)", "twine", "wheel"]
 
 [[package]]
 name = "typed-ast"
@@ -1424,8 +1413,8 @@ optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4"
 
 [package.extras]
-secure = ["pyOpenSSL (>=0.14)", "cryptography (>=1.3.4)", "idna (>=2.0.0)", "certifi", "ipaddress"]
 socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
+secure = ["pyOpenSSL (>=0.14)", "cryptography (>=1.3.4)", "idna (>=2.0.0)", "certifi", "ipaddress"]
 brotli = ["brotlipy (>=0.6.0)"]
 
 [[package]]
@@ -1463,7 +1452,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "510d64a876d05b3641849523fe93ec166121efd164e16139fcdfc2ec68b3fe8d"
+content-hash = "b6dcf59df937ec3950fb49d1cc56cc556701a2ab4c01ad400109b1513be6ac40"
 
 [metadata.files]
 aniso8601 = [
@@ -1818,9 +1807,6 @@ lunr = [
 markdown = [
     {file = "Markdown-3.3.4-py3-none-any.whl", hash = "sha256:96c3ba1261de2f7547b46a00ea8463832c921d3f9d6aba3f255a6f71386db20c"},
     {file = "Markdown-3.3.4.tar.gz", hash = "sha256:31b5b491868dcc87d6c24b7e3d19a0d730d59d3e46f4eea6430a321bed387a49"},
-]
-markdown-include = [
-    {file = "markdown-include-0.6.0.tar.gz", hash = "sha256:6f5d680e36f7780c7f0f61dca53ca581bd50d1b56137ddcd6353efafa0c3e4a2"},
 ]
 markupsafe = [
     {file = "MarkupSafe-2.0.0-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:2efaeb1baff547063bad2b2893a8f5e9c459c4624e1a96644bbba08910ae34e0"},
