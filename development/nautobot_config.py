@@ -363,3 +363,6 @@ if "debug_toolbar" not in EXTRA_INSTALLED_APPS:
     EXTRA_INSTALLED_APPS.append("debug_toolbar")
 if "debug_toolbar.middleware.DebugToolbarMiddleware" not in settings.MIDDLEWARE:
     settings.MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
+
+# Increasing limit of Celery run time, because some dump examples are intense!
+NAUTOBOT_CELERY_TASK_SOFT_TIME_LIMIT = 600

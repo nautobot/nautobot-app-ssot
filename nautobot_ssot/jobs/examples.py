@@ -1,11 +1,13 @@
 """Sample data-source and data-target Jobs."""
 from typing import Optional
 from uuid import UUID
-
+from django.contrib.contenttypes.models import ContentType
 from django.templatetags.static import static
 from django.urls import reverse
 
 from nautobot.dcim.models import Region, Site
+from nautobot.ipam.models import Prefix
+from nautobot.tenancy.models import Tenant
 from nautobot.extras.jobs import Job, StringVar
 from nautobot.extras.models import Status
 
@@ -53,6 +55,25 @@ class SiteModel(DiffSyncModel):
     slug: str
     status_slug: str
     region_name: Optional[str]  # may be None
+    description: str
+
+    # Not in _attributes or _identifiers, hence not included in diff calculations
+    pk: Optional[UUID]
+
+
+class PrefixModel(DiffSyncModel):
+    """Shared data model representing a Prefix in either of the local or remote Nautobot instances."""
+
+    # Metadata about this model
+    _modelname = "prefix"
+    _identifiers = ("prefix", "tenant_slug")
+    # To keep this example simple, we don't include **all** attributes of a Prefix here. But you could!
+    _attributes = ("description", "status_slug")
+
+    # Data type declarations for all identifiers and attributes
+    prefix: str
+    tenant_slug: str
+    status_slug: str
     description: str
 
     # Not in _attributes or _identifiers, hence not included in diff calculations
@@ -158,6 +179,9 @@ class SiteRemoteModel(SiteModel):
         return super().delete()
 
 
+# TODO: Add PrefixRemoteModel but not done because the idea is to test import to local instance
+
+
 class RegionLocalModel(RegionModel):
     """Implementation of Region create/update/delete methods for updating local Nautobot data."""
 
@@ -252,6 +276,63 @@ class SiteLocalModel(SiteModel):
         return super().delete()
 
 
+class PrefixLocalModel(PrefixModel):
+    """Implementation of Prefix create/update/delete methods for updating local Nautobot data."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create a new Prefix record in local Nautobot.
+
+        Args:
+            diffsync (NautobotLocal): DiffSync adapter owning this Prefix
+            ids (dict): Initial values for this model's _identifiers
+            attrs (dict): Initial values for this model's _attributes
+        """
+        prefix = Prefix(prefix=ids["prefix"], description=attrs["description"])
+        tenant_obj, _ = Tenant.objects.get_or_create(
+            slug=ids["tenant_slug"],
+            defaults={"name": ids["tenant_slug"]},
+        )
+        prefix.tenant = tenant_obj
+        if "status_slug" in attrs:
+            status_obj, _ = Status.objects.get_or_create(
+                slug=attrs["status_slug"],
+                defaults={"name": attrs["status_slug"]},
+            )
+            status_obj.content_types.set([ContentType.objects.get_for_model(Prefix)])
+            status_obj.save()
+            prefix.status = status_obj
+        prefix.validated_save()
+        return super().create(diffsync, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update an existing Prefix record in local Nautobot.
+
+        Args:
+            attrs (dict): Updated values for any of this model's _attributes
+        """
+        prefix = Prefix.objects.get(prefix=self.prefix, tenant__slug=self.tenant_slug)
+        for attr_name in ("description",):
+            if attr_name in attrs:
+                setattr(prefix, attr_name, attrs[attr_name])
+
+        if "status_slug" in attrs:
+            status_obj, _ = Status.objects.get_or_create(
+                defaults={"name": attrs["status_slug"]},
+            )
+            status_obj.content_types.set([ContentType.objects.get_for_model(Prefix)])
+            status_obj.save()
+            prefix.status = status_obj
+        prefix.validated_save()
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete an existing Prefix record from local Nautobot."""
+        prefix = Prefix.objects.get(prefix=self.prefix)
+        prefix.delete()
+        return super().delete()
+
+
 # In a more complex Job, you would probably want to move each DiffSync subclass into a separate Python module.
 
 
@@ -265,9 +346,10 @@ class NautobotRemote(DiffSync):
     # Model classes used by this adapter class
     region = RegionRemoteModel
     site = SiteRemoteModel
+    prefix = PrefixModel
 
     # Top-level class labels, i.e. those classes that are handled directly rather than as children of other models
-    top_level = ("region", "site")
+    top_level = ("region", "site", "prefix")
 
     def __init__(self, *args, url=None, token=None, job=None, **kwargs):
         """Instantiate this class, but do not load data immediately from the remote system.
@@ -323,6 +405,22 @@ class NautobotRemote(DiffSync):
             self.add(site)
             self.job.log_debug(message=f"Loaded {site} from remote Nautobot instance")
 
+        prefix_data = requests.get(f"{self.url}/api/ipam/prefixes/", headers=self.headers, params={"limit": 0}).json()
+        prefixes = prefix_data["results"]
+        while prefix_data["next"]:
+            prefix_data = requests.get(prefix_data["next"], headers=self.headers, params={"limit": 0}).json()
+            prefixes.extend(prefix_data["results"])
+        for prefix_entry in prefixes:
+            prefix = self.prefix(
+                prefix=prefix_entry["prefix"],
+                description=prefix_entry["description"],
+                status_slug=prefix_entry["status"]["value"] if prefix_entry["status"] else "active",
+                tenant_slug=prefix_entry["tenant"]["slug"] if prefix_entry["tenant"] else None,
+                pk=prefix_entry["id"],
+            )
+            self.add(prefix)
+            self.job.log_debug(message=f"Loaded {prefix} from remote Nautobot instance")
+
     def post(self, path, data):
         """Send an appropriately constructed HTTP POST request."""
         response = requests.post(f"{self.url}{path}", headers=self.headers, json=data)
@@ -348,9 +446,10 @@ class NautobotLocal(DiffSync):
     # Model classes used by this adapter class
     region = RegionLocalModel
     site = SiteLocalModel
+    prefix = PrefixLocalModel
 
     # Top-level class labels, i.e. those classes that are handled directly rather than as children of other models
-    top_level = ("region", "site")
+    top_level = ("region", "site", "prefix")
 
     def __init__(self, *args, job=None, **kwargs):
         """Instantiate this class, but do not load data immediately from the local system."""
@@ -382,6 +481,17 @@ class NautobotLocal(DiffSync):
             self.add(site_model)
             self.job.log_debug(message=f"Loaded {site_model} from local Nautobot instance")
 
+        for prefix in Prefix.objects.all():
+            prefix_model = self.prefix(
+                prefix=str(prefix.prefix),
+                description=prefix.description,
+                status_slug=prefix.status.slug if prefix.status else "active",
+                tenant_slug=prefix.tenant.slug if prefix.tenant else "",
+                pk=prefix.pk,
+            )
+            self.add(prefix_model)
+            self.job.log_debug(message=f"Loaded {prefix_model} from local Nautobot instance")
+
 
 # The actual Data Source and Data Target Jobs are relatively simple to implement
 # once you have the above DiffSync scaffolding in place.
@@ -409,6 +519,7 @@ class ExampleDataSource(DataSource, Job):
         return (
             DataMapping("Region (remote)", None, "Region (local)", reverse("dcim:region_list")),
             DataMapping("Site (remote)", None, "Site (local)", reverse("dcim:site_list")),
+            DataMapping("Prefix (remote)", None, "Prefix (local)", reverse("ipam:prefix_list")),
         )
 
     def sync_data(self):
@@ -445,6 +556,13 @@ class ExampleDataSource(DataSource, Job):
             try:
                 return Site.objects.get(name=unique_id)
             except Site.DoesNotExist:
+                pass
+        elif model_name == "prefix":
+            try:
+                return Prefix.objects.get(
+                    prefix=unique_id.split("__")[0], tenant__slug=unique_id.split("__")[1] or None
+                )
+            except Prefix.DoesNotExist:
                 pass
         return None
 
@@ -508,5 +626,13 @@ class ExampleDataTarget(DataTarget, Job):
             try:
                 return Site.objects.get(name=unique_id)
             except Site.DoesNotExist:
+                pass
+
+        elif model_name == "prefix":
+            try:
+                return Prefix.objects.get(
+                    prefix=unique_id.split("__")[0], tenant__slug=unique_id.split("__")[1] or None
+                )
+            except Prefix.DoesNotExist:
                 pass
         return None
