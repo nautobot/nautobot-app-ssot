@@ -290,11 +290,12 @@ class NautobotRemote(DiffSync):
 
     def load(self):
         """Load Region and Site data from the remote Nautobot instance."""
-        # To keep the example simple, we disable REST API pagination of results.
-        # In a real job, especially when expecting a large number of results,
-        # we'd want to handle pagination, or use something like PyNautobot.
         region_data = requests.get(f"{self.url}/api/dcim/regions/", headers=self.headers, params={"limit": 0}).json()
-        for region_entry in region_data["results"]:
+        regions = region_data["results"]
+        while region_data["next"]:
+            region_data = requests.get(region_data["next"], headers=self.headers, params={"limit": 0}).json()
+            regions.extend(region_data["results"])
+        for region_entry in regions:
             region = self.region(
                 name=region_entry["name"],
                 slug=region_entry["slug"],
@@ -306,7 +307,11 @@ class NautobotRemote(DiffSync):
             self.job.log_debug(message=f"Loaded {region} from remote Nautobot instance")
 
         site_data = requests.get(f"{self.url}/api/dcim/sites/", headers=self.headers, params={"limit": 0}).json()
-        for site_entry in site_data["results"]:
+        sites = site_data["results"]
+        while site_data["next"]:
+            site_data = requests.get(site_data["next"], headers=self.headers, params={"limit": 0}).json()
+            sites.extend(site_data["results"])
+        for site_entry in sites:
             site = self.site(
                 name=site_entry["name"],
                 slug=site_entry["slug"],
