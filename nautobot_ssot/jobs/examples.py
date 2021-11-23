@@ -191,7 +191,6 @@ class PrefixRemoteModel(PrefixModel):
             ids (dict): Initial values for this model's _identifiers
             attrs (dict): Initial values for this model's _attributes
         """
-
         diffsync.post(
             "/api/ipam/prefixes/",
             {
