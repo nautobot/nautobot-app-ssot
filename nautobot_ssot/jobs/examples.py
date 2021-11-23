@@ -1,5 +1,5 @@
 """Sample data-source and data-target Jobs."""
-from typing import Optional
+from typing import Optional, Mapping
 from uuid import UUID
 from django.contrib.contenttypes.models import ContentType
 from django.templatetags.static import static
@@ -334,14 +334,12 @@ class PrefixLocalModel(PrefixModel):
             defaults={"name": ids["tenant_slug"]},
         )
         prefix.tenant = tenant_obj
-        if "status_slug" in attrs:
-            status_obj, _ = Status.objects.get_or_create(
-                slug=attrs["status_slug"],
-                defaults={"name": attrs["status_slug"]},
-            )
-            status_obj.content_types.set([ContentType.objects.get_for_model(Prefix)])
-            status_obj.save()
-            prefix.status = status_obj
+        status_obj, _ = Status.objects.get_or_create(
+            slug=attrs["status_slug"],
+            defaults={"name": attrs["status_slug"]},
+        )
+        status_obj.content_types.add(ContentType.objects.get_for_model(Prefix))
+        prefix.status = status_obj
         prefix.validated_save()
         return super().create(diffsync, ids=ids, attrs=attrs)
 
@@ -360,15 +358,14 @@ class PrefixLocalModel(PrefixModel):
             status_obj, _ = Status.objects.get_or_create(
                 defaults={"name": attrs["status_slug"]},
             )
-            status_obj.content_types.set([ContentType.objects.get_for_model(Prefix)])
-            status_obj.save()
+            status_obj.content_types.add(ContentType.objects.get_for_model(Prefix))
             prefix.status = status_obj
         prefix.validated_save()
         return super().update(attrs)
 
     def delete(self):
         """Delete an existing Prefix record from local Nautobot."""
-        prefix = Prefix.objects.get(prefix=self.prefix)
+        prefix = Prefix.objects.get(prefix=self.prefix, tenant_slug=self.tenant_slug)
         prefix.delete()
         return super().delete()
 
@@ -410,14 +407,18 @@ class NautobotRemote(DiffSync):
             "Authorization": f"Token {self.token}",
         }
 
+    def _get_api_data(self, url_path: str) -> Mapping:
+        """Returns data from a url_path using pagination."""
+        data = requests.get(f"{self.url}/{url_path}", headers=self.headers, params={"limit": 0}).json()
+        result_data = data["results"]
+        while data["next"]:
+            data = requests.get(data["next"], headers=self.headers, params={"limit": 0}).json()
+            result_data.extend(data["results"])
+        return result_data
+
     def load(self):
         """Load Region and Site data from the remote Nautobot instance."""
-        region_data = requests.get(f"{self.url}/api/dcim/regions/", headers=self.headers, params={"limit": 0}).json()
-        regions = region_data["results"]
-        while region_data["next"]:
-            region_data = requests.get(region_data["next"], headers=self.headers, params={"limit": 0}).json()
-            regions.extend(region_data["results"])
-        for region_entry in regions:
+        for region_entry in self._get_api_data("api/dcim/regions/"):
             region = self.region(
                 name=region_entry["name"],
                 slug=region_entry["slug"],
@@ -428,16 +429,11 @@ class NautobotRemote(DiffSync):
             self.add(region)
             self.job.log_debug(message=f"Loaded {region} from remote Nautobot instance")
 
-        site_data = requests.get(f"{self.url}/api/dcim/sites/", headers=self.headers, params={"limit": 0}).json()
-        sites = site_data["results"]
-        while site_data["next"]:
-            site_data = requests.get(site_data["next"], headers=self.headers, params={"limit": 0}).json()
-            sites.extend(site_data["results"])
-        for site_entry in sites:
+        for site_entry in self._get_api_data("api/dcim/sites/"):
             site = self.site(
                 name=site_entry["name"],
                 slug=site_entry["slug"],
-                status_slug=site_entry["status"]["value"] if site_entry["status"] else "active",
+                status_slug=site_entry["status"]["value"],
                 region_name=site_entry["region"]["name"] if site_entry["region"] else None,
                 description=site_entry["description"],
                 pk=site_entry["id"],
@@ -445,16 +441,11 @@ class NautobotRemote(DiffSync):
             self.add(site)
             self.job.log_debug(message=f"Loaded {site} from remote Nautobot instance")
 
-        prefix_data = requests.get(f"{self.url}/api/ipam/prefixes/", headers=self.headers, params={"limit": 0}).json()
-        prefixes = prefix_data["results"]
-        while prefix_data["next"]:
-            prefix_data = requests.get(prefix_data["next"], headers=self.headers, params={"limit": 0}).json()
-            prefixes.extend(prefix_data["results"])
-        for prefix_entry in prefixes:
+        for prefix_entry in self._get_api_data("api/ipam/prefixes/"):
             prefix = self.prefix(
                 prefix=prefix_entry["prefix"],
                 description=prefix_entry["description"],
-                status_slug=prefix_entry["status"]["value"] if prefix_entry["status"] else "active",
+                status_slug=prefix_entry["status"]["value"],
                 tenant_slug=prefix_entry["tenant"]["slug"] if prefix_entry["tenant"] else None,
                 pk=prefix_entry["id"],
             )
@@ -513,7 +504,7 @@ class NautobotLocal(DiffSync):
             site_model = self.site(
                 name=site.name,
                 slug=site.slug,
-                status_slug=site.status.slug if site.status else "active",
+                status_slug=site.status.slug,
                 region_name=site.region.name if site.region else None,
                 description=site.description,
                 pk=site.pk,
@@ -525,7 +516,7 @@ class NautobotLocal(DiffSync):
             prefix_model = self.prefix(
                 prefix=str(prefix.prefix),
                 description=prefix.description,
-                status_slug=prefix.status.slug if prefix.status else "active",
+                status_slug=prefix.status.slug,
                 tenant_slug=prefix.tenant.slug if prefix.tenant else "",
                 pk=prefix.pk,
             )
