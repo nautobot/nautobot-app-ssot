@@ -179,7 +179,48 @@ class SiteRemoteModel(SiteModel):
         return super().delete()
 
 
-# TODO: Add PrefixRemoteModel but not done because the idea is to test import to local instance
+class PrefixRemoteModel(PrefixModel):
+    """Implementation of Prefix create/update/delete methods for updating remote Nautobot data."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create a new Prefix in remote Nautobot.
+
+        Args:
+            diffsync (NautobotRemote): DiffSync adapter owning this Prefix
+            ids (dict): Initial values for this model's _identifiers
+            attrs (dict): Initial values for this model's _attributes
+        """
+
+        diffsync.post(
+            "/api/ipam/prefixes/",
+            {
+                "prefix": ids["prefix"],
+                "tenant": {"slug": ids["tenant_slug"]} if ids["tenant_slug"] else None,
+                "description": attrs["description"],
+                "status": attrs["status_slug"],
+            },
+        )
+        return super().create(diffsync, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update an existing Site record in remote Nautobot.
+
+        Args:
+            attrs (dict): Updated values for this record's _attributes
+        """
+        data = {}
+        if "description" in attrs:
+            data["description"] = attrs["description"]
+        if "status_slug" in attrs:
+            data["status"] = attrs["status_slug"]
+        self.diffsync.patch(f"/api/dcim/sites/{self.pk}/", data)
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete an existing Site record from remote Nautobot."""
+        self.diffsync.delete(f"/api/dcim/sites/{self.pk}/")
+        return super().delete()
 
 
 class RegionLocalModel(RegionModel):
