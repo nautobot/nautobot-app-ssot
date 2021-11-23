@@ -15,7 +15,7 @@ services:
     command:
       - "sh"
       - "-c"  # this is to evaluate the $REDIS_PASSWORD from the env
-      - "redis-server --appendonly yes --requirepass $$REDIS_PASSWORD"
+      - "redis-server --appendonly yes --requirepass $$NAUTOBOT_REDIS_PASSWORD"
     env_file:
       - "dev.env"
       - "creds.env"
