@@ -325,6 +325,3 @@ if "debug_toolbar" not in INSTALLED_APPS:  # noqa: F405
     INSTALLED_APPS.append("debug_toolbar")  # noqa: F405
 if "debug_toolbar.middleware.DebugToolbarMiddleware" not in MIDDLEWARE:  # noqa: F405
     MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")  # noqa: F405
-
-CELERY_TASK_SOFT_TIME_LIMIT = 600
-CELERY_TASK_TIME_LIMIT = 1200
