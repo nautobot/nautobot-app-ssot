@@ -1,5 +1,6 @@
 """Base Job classes for sync workers."""
 from collections import namedtuple
+from datetime import datetime
 import traceback
 from typing import Iterable
 
@@ -47,8 +48,26 @@ class DataSyncBaseJob(BaseJob):
 
     dry_run = BooleanVar()
 
+    def load_source_adapter(self):
+        """TODO:."""
+        pass
+
+    def load_target_adapter(self):
+        """TODO:."""
+        pass
+
+    def calculate_diff(self):
+        """TODO:."""
+        pass
+
+    def execute_sync(self):
+        """TODO:."""
+        pass
+
     def sync_data(self):
         """Method to be implemented by data sync concrete Job implementations.
+
+        Note: You could completely overwrite it if desired.
 
         Available instance attributes include:
 
@@ -57,7 +76,28 @@ class DataSyncBaseJob(BaseJob):
         - self.sync       (Sync instance tracking this job execution)
         - self.job_result (as per Job API)
         """
-        pass  # pylint: disable=unnecessary-pass
+        # TODO: most of the log messages from the methods could be standarised here
+        # example: self.log_info(message="Loading current data from source adapter...")
+        start_time = datetime.now()
+        self.load_source_adapter()
+        load_source_adapter_time = datetime.now()
+        self.load_target_adapter()
+        load_target_adapter_time = datetime.now()
+        self.calculate_diff()
+        calculate_diff_time = datetime.now()
+
+        time_message = (
+            f"Remote Load Time: {load_source_adapter_time - start_time}\n",
+            f"Local Load Time: {load_target_adapter_time - load_source_adapter_time}\n",
+            f"Diff Time: {calculate_diff_time - load_target_adapter_time}\n",
+        )
+
+        if not self.kwargs["dry_run"]:
+            self.execute_sync()
+            execute_sync_time = datetime.now()
+            time_message += (f"Sync Time: {execute_sync_time - calculate_diff_time}",)
+
+        self.log_info(message=time_message)
 
     def lookup_object(self, model_name, unique_id):  # pylint: disable=no-self-use,unused-argument
         """Look up the Nautobot record, if any, identified by the args.
