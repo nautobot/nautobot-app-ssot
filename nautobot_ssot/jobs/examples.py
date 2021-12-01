@@ -329,11 +329,13 @@ class PrefixLocalModel(PrefixModel):
             attrs (dict): Initial values for this model's _attributes
         """
         prefix = Prefix(prefix=ids["prefix"], description=attrs["description"])
-        tenant_obj, _ = Tenant.objects.get_or_create(
-            slug=ids["tenant_slug"],
-            defaults={"name": ids["tenant_slug"]},
-        )
-        prefix.tenant = tenant_obj
+        if ids["tenant_slug"]:
+            tenant_obj, _ = Tenant.objects.get_or_create(
+                slug=ids["tenant_slug"],
+                defaults={"name": ids["tenant_slug"]},
+            )
+            prefix.tenant = tenant_obj
+
         status_obj, _ = Status.objects.get_or_create(
             slug=attrs["status_slug"],
             defaults={"name": attrs["status_slug"]},
@@ -446,7 +448,7 @@ class NautobotRemote(DiffSync):
                 prefix=prefix_entry["prefix"],
                 description=prefix_entry["description"],
                 status_slug=prefix_entry["status"]["value"],
-                tenant_slug=prefix_entry["tenant"]["slug"] if prefix_entry["tenant"] else None,
+                tenant_slug=prefix_entry["tenant"]["slug"] if prefix_entry["tenant"] else "",
                 pk=prefix_entry["id"],
             )
             self.add(prefix)
