@@ -365,7 +365,7 @@ class PrefixLocalModel(PrefixModel):
 
     def delete(self):
         """Delete an existing Prefix record from local Nautobot."""
-        prefix = Prefix.objects.get(prefix=self.prefix, tenant_slug=self.tenant_slug)
+        prefix = Prefix.objects.get(prefix=self.prefix, tenant__slug=self.tenant_slug)
         prefix.delete()
         return super().delete()
 
