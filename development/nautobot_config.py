@@ -1,15 +1,12 @@
-#########################
-#                       #
-#   Required settings   #
-#                       #
-#########################
+"""Nautobot development configuration file."""
 
 import os
 import sys
 
-from distutils.util import strtobool
 from django.core.exceptions import ImproperlyConfigured
-from nautobot.core import settings
+from nautobot.core.settings import *  # noqa: F403
+from nautobot.core.settings_funcs import is_truthy, parse_redis_connection
+
 
 # Enforce required configuration parameters
 for key in [
@@ -18,27 +15,10 @@ for key in [
     "POSTGRES_USER",
     "POSTGRES_HOST",
     "POSTGRES_PASSWORD",
-    "REDIS_HOST",
-    "REDIS_PASSWORD",
     "SECRET_KEY",
 ]:
     if not os.environ.get(key):
         raise ImproperlyConfigured(f"Required environment variable {key} is missing.")
-
-
-def is_truthy(arg):
-    """Convert "truthy" strings into Booleans.
-
-    Examples:
-        >>> is_truthy('yes')
-        True
-    Args:
-        arg (str): Truthy string (True values are y, yes, t, true, on and 1; false values are n, no,
-        f, false, off and 0. Raises ValueError if val is anything else.
-    """
-    if isinstance(arg, bool):
-        return arg
-    return bool(strtobool(arg))
 
 
 TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
@@ -63,46 +43,28 @@ DATABASES = {
     }
 }
 
-# Redis variables
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = os.getenv("REDIS_PORT", 6379)
-REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 
-# Check for Redis SSL
-REDIS_SCHEME = "redis"
-REDIS_SSL = is_truthy(os.environ.get("REDIS_SSL", False))
-if REDIS_SSL:
-    REDIS_SCHEME = "rediss"
+# Nautobot uses Cacheops for database query caching. These are the following defaults.
+# For detailed configuration see: https://github.com/Suor/django-cacheops#setup
 
-# The django-redis cache is used to establish concurrent locks using Redis. The
-# django-rq settings will use the same instance/database by default.
-#
-# This "default" server is now used by RQ_QUEUES.
-# >> See: nautobot.core.settings.RQ_QUEUES
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": f"{REDIS_SCHEME}://{REDIS_HOST}:{REDIS_PORT}/0",
+        "LOCATION": parse_redis_connection(redis_database=0),
         "TIMEOUT": 300,
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "PASSWORD": REDIS_PASSWORD,
         },
     }
 }
+CACHEOPS_REDIS = parse_redis_connection(redis_database=1)
 
-# RQ_QUEUES is not set here because it just uses the default that gets imported
-# up top via `from nautobot.core.settings import *`.
-
-# REDIS CACHEOPS
-CACHEOPS_REDIS = f"{REDIS_SCHEME}://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/1"
 
 # This key is used for secure generation of random numbers and strings. It must never be exposed outside of this file.
 # For optimal security, SECRET_KEY should be at least 50 characters in length and contain a mix of letters, numbers, and
 # symbols. Nautobot will not run without this defined. For more information, see
 # https://docs.djangoproject.com/en/stable/ref/settings/#std:setting-SECRET_KEY
 SECRET_KEY = os.environ["SECRET_KEY"]
-
 
 #########################
 #                       #
@@ -357,9 +319,9 @@ SHORT_DATETIME_FORMAT = os.environ.get("SHORT_DATETIME_FORMAT", "Y-m-d H:i")
 EXTRA_INSTALLED_APPS = os.environ["EXTRA_INSTALLED_APPS"].split(",") if os.environ.get("EXTRA_INSTALLED_APPS") else []
 
 # Django Debug Toolbar
-DEBUG_TOOLBAR_CONFIG = {"SHOW_TOOLBAR_CALLBACK": lambda _request: DEBUG and not TESTING}
-
-if "debug_toolbar" not in EXTRA_INSTALLED_APPS:
-    EXTRA_INSTALLED_APPS.append("debug_toolbar")
-if "debug_toolbar.middleware.DebugToolbarMiddleware" not in settings.MIDDLEWARE:
-    settings.MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
+if DEBUG:
+    DEBUG_TOOLBAR_CONFIG = {"SHOW_TOOLBAR_CALLBACK": lambda _request: DEBUG and not TESTING}
+    if "debug_toolbar" not in INSTALLED_APPS:  # noqa: F405
+        INSTALLED_APPS.append("debug_toolbar")  # noqa: F405
+    if "debug_toolbar.middleware.DebugToolbarMiddleware" not in MIDDLEWARE:  # noqa: F405
+        MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")  # noqa: F405

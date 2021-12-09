@@ -25,8 +25,23 @@ services:
     <<: *nautobot-base
   worker:
     entrypoint: "nautobot-server rqworker"
+    healthcheck:
+      interval: "5s"
+      timeout: "5s"
+      start_period: "5s"
+      retries: 3
+      test: ["CMD", "nautobot-server", "health_check"]
     depends_on:
       - "nautobot"
+    <<: *nautobot-base
+  celery_worker:
     healthcheck:
       disable: true
+    depends_on:
+      - "nautobot"
+      - "redis"
+    entrypoint:
+      - "sh"
+      - "-c"  # this is to evaluate the $NAUTOBOT_LOG_LEVEL from the env
+      - "nautobot-server celery worker -l $$NAUTOBOT_LOG_LEVEL"  # $$ because of docker-compose
     <<: *nautobot-base
