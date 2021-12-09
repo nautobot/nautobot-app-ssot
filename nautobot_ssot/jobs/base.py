@@ -2,6 +2,7 @@
 from collections import namedtuple
 from datetime import datetime
 import traceback
+import tracemalloc
 from typing import Iterable
 
 from django.forms import HiddenInput
@@ -40,7 +41,7 @@ class DataSyncBaseJob(BaseJob):
 
     Works mostly as per the BaseJob API, with the following changes:
 
-    - Concrete subclasses are responsible for implementing `self.sync_data()`, **not** `self.run()`.
+    - Concrete subclasses are responsible for implementing `self.sync_data()` (or related hooks), **not** `self.run()`.
     - Subclasses may optionally define any Meta field supported by Jobs, as well as the following:
       - `dry_run_default` - defaults to True if unspecified
       - `data_source` and `data_target` as labels (by default, will use the `name` and/or "Nautobot" as appropriate)
@@ -48,6 +49,7 @@ class DataSyncBaseJob(BaseJob):
     """
 
     dry_run = BooleanVar()
+    memory_profiling = BooleanVar()
 
     def load_source_adapter(self):
         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`.
@@ -112,6 +114,9 @@ class DataSyncBaseJob(BaseJob):
         if not self.sync:
             return
 
+        if self.kwargs["memory_profiling"]:
+            tracemalloc.start()
+
         start_time = datetime.now()
 
         self.log_info(message="Loading current data from source adapter...")
@@ -149,6 +154,17 @@ class DataSyncBaseJob(BaseJob):
             self.sync.save()
             self.log_info(message="Sync complete")
             self.log_info(message=f"Sync Time: {self.sync.sync_time}")
+
+        if self.kwargs["memory_profiling"]:
+            memory_size, memory_peak = tracemalloc.get_traced_memory()
+            self.sync.memory_usage = tracemalloc.get_tracemalloc_memory()
+            self.sync.save()
+            self.log_info(
+                message=(
+                    f"Traced Memory (Current, Peak): {memory_size}, {memory_peak}\n",
+                    f"Memory Usage: {self.sync.memory_usage}",
+                )
+            )
 
     def lookup_object(self, model_name, unique_id):  # pylint: disable=no-self-use,unused-argument
         """Look up the Nautobot record, if any, identified by the args.
@@ -230,6 +246,9 @@ class DataSyncBaseJob(BaseJob):
         got_vars = super()._get_vars()
         if hasattr(cls, "dry_run"):
             got_vars["dry_run"] = cls.dry_run
+
+        if hasattr(cls, "memory_profiling"):
+            got_vars["memory_profiling"] = cls.memory_profiling
         return got_vars
 
     def __init__(self):
@@ -310,6 +329,7 @@ class DataSource(DataSyncBaseJob):
     """Base class for Jobs that sync data **from** another data source **to** Nautobot."""
 
     dry_run = BooleanVar(description="Perform a dry-run, making no actual changes to Nautobot data.")
+    memory_profiling = BooleanVar(description="Perform a memory profiling analysis.", default=False)
 
     @classproperty
     def data_target(cls):
@@ -326,6 +346,7 @@ class DataTarget(DataSyncBaseJob):
     """Base class for Jobs that sync data **to** another data target **from** Nautobot."""
 
     dry_run = BooleanVar(description="Perform a dry-run, making no actual changes to the remote system.")
+    memory_profiling = BooleanVar(description="Perform a memory profiling analysis.", default=False)
 
     @classproperty
     def data_source(cls):

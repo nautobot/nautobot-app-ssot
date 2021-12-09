@@ -80,10 +80,14 @@ class BaseJobTestCase(TestCase):
         """Test the run() method."""
         self.job.run(data={"dry_run": True}, commit=True)
         self.assertIsNotNone(self.job.sync)
+        self.assertIsNotNone(self.job.sync.load_time_source)
+        self.assertIsNotNone(self.job.sync.load_time_target)
+        self.assertIsNotNone(self.job.sync.diff_time)
+        self.assertIsNone(self.job.sync.sync_time)
         self.assertEqual(self.job.sync.source, self.job.data_source)
         self.assertEqual(self.job.sync.target, self.job.data_target)
         self.assertTrue(self.job.sync.dry_run)
-        self.assertEqual(self.job.job_result, self.job.sync.job_result)  # both are None
+        self.assertEqual(self.job.job_result, self.job.sync.job_result)
 
 
 class DataSourceTestCase(BaseJobTestCase):
