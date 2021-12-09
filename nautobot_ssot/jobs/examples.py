@@ -10,7 +10,6 @@ from nautobot.extras.jobs import Job, StringVar
 from nautobot.extras.models import Status
 
 from diffsync import DiffSync, DiffSyncModel
-from diffsync.enum import DiffSyncFlags
 import requests
 
 from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
@@ -407,32 +406,14 @@ class ExampleDataSource(DataSource, Job):
         )
 
     def load_source_adapter(self):
-        """TODO:."""
-        self.log_info(message="Loading current data from remote Nautobot...")
+        """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""
         self.source_adapter = NautobotRemote(url=self.kwargs["source_url"], token=self.kwargs["source_token"], job=self)
         self.source_adapter.load()
 
     def load_target_adapter(self):
-        """TODO:."""
-        self.log_info(message="Loading current data from local Nautobot...")
+        """Method to instantiate and load the SOURCE adapter into `self.target_adapter`."""
         self.target_adapter = NautobotLocal(job=self)
         self.target_adapter.load()
-
-    def calculate_diff(self):
-        """TODO:."""
-        # In a more complete example you might make these flags configurable rather than hard-coded
-        self.diffsync_flags = DiffSyncFlags.CONTINUE_ON_FAILURE | DiffSyncFlags.LOG_UNCHANGED_RECORDS
-
-        self.log_info(message="Calculating diffs...")
-        diff = self.target_adapter.diff_from(self.source_adapter, flags=self.diffsync_flags)
-        self.sync.diff = diff.dict()
-        self.sync.save()
-
-    def execute_sync(self):
-        """TODO:."""
-        self.log_info(message="Syncing from remote Nautobot to local Nautobot...")
-        self.target_adapter.sync_from(self.source_adapter, flags=self.diffsync_flags)
-        self.log_info(message="Sync complete")
 
     def lookup_object(self, model_name, unique_id):
         """Look up a Nautobot object based on the DiffSync model name and unique ID."""
@@ -472,35 +453,14 @@ class ExampleDataTarget(DataTarget, Job):
         )
 
     def load_source_adapter(self):
-        """TODO:."""
-        self.log_info(message="Loading current data from local Nautobot...")
+        """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""
         self.source_adapter = NautobotLocal(job=self)
         self.source_adapter.load()
 
     def load_target_adapter(self):
-        """TODO:."""
-
-        self.log_info(message="Loading current data from remote Nautobot...")
+        """Method to instantiate and load the TARGET adapter into `self.target_adapter`."""
         self.target_adapter = NautobotRemote(url=self.kwargs["target_url"], token=self.kwargs["target_token"], job=self)
         self.target_adapter.load()
-
-    def calculate_diff(self):
-        """TODO:."""
-        # In a more complete example you might make these flags configurable rather than hard-coded
-        self.diffsync_flags = (
-            DiffSyncFlags.CONTINUE_ON_FAILURE | DiffSyncFlags.LOG_UNCHANGED_RECORDS | DiffSyncFlags.SKIP_UNMATCHED_DST
-        )
-
-        self.log_info(message="Calculating diffs...")
-        diff = self.source_adapter.diff_to(self.target_adapter, flags=self.diffsync_flags)
-        self.sync.diff = diff.dict()
-        self.sync.save()
-
-    def execute_sync(self):
-        """TODO:."""
-        self.log_info(message="Syncing from local Nautobot to remote Nautobot...")
-        self.source_adapter.sync_to(self.target_adapter, flags=self.diffsync_flags)
-        self.log_info(message="Sync complete")
 
     def lookup_object(self, model_name, unique_id):
         """Look up a Nautobot object based on the DiffSync model name and unique ID."""

@@ -47,6 +47,10 @@ class Sync(BaseModel):
 
     start_time = models.DateTimeField(blank=True, null=True)
     # end_time is represented by the job_result.completed field
+    load_time_source = models.DurationField(blank=True, null=True)
+    load_time_target = models.DurationField(blank=True, null=True)
+    diff_time = models.DurationField(blank=True, null=True)
+    sync_time = models.DurationField(blank=True, null=True)
 
     dry_run = models.BooleanField(
         default=False, help_text="Report what data would be synced but do not make any changes"

@@ -12,6 +12,7 @@ from django.utils.functional import classproperty
 # pylint-django doesn't understand classproperty, and complains unnecessarily. We disable this specific warning:
 # pylint: disable=no-self-argument
 
+from diffsync.enum import DiffSyncFlags
 import structlog
 
 from nautobot.extras.jobs import BaseJob, BooleanVar
@@ -49,26 +50,58 @@ class DataSyncBaseJob(BaseJob):
     dry_run = BooleanVar()
 
     def load_source_adapter(self):
-        """TODO:."""
-        pass
+        """Method to instantiate and load the SOURCE adapter into `self.source_adapter`.
+
+        Relevant available instance attributes include:
+
+        - self.kwargs     (corresponds to the Job's `data` input, including 'dry_run' option)
+        - self.job_result (as per Job API)
+        """
+        raise NotImplementedError
 
     def load_target_adapter(self):
-        """TODO:."""
-        pass
+        """Method to instantiate and load the TARGET adapter into `self.target_adapter`.
+
+        Relevant available instance attributes include:
+
+        - self.kwargs     (corresponds to the Job's `data` input, including 'dry_run' option)
+        - self.job_result (as per Job API)
+        """
+        raise NotImplementedError
 
     def calculate_diff(self):
-        """TODO:."""
-        pass
+        """Method to calculate the difference from SOURCE to TARGET adapter and store in `self.diff`.
+
+        This is a generic implementation that you could overwrite completely in you custom logic.
+        """
+        if self.source_adapter and self.target_adapter:
+            self.diffsync_flags = (
+                DiffSyncFlags.CONTINUE_ON_FAILURE
+                | DiffSyncFlags.LOG_UNCHANGED_RECORDS
+                | DiffSyncFlags.SKIP_UNMATCHED_DST
+            )
+            self.diff = self.source_adapter.diff_to(self.target_adapter, flags=self.diffsync_flags)
+            self.sync.diff = self.diff.dict()
+            self.sync.save()
 
     def execute_sync(self):
-        """TODO:."""
-        pass
+        """Method to synchronize the difference from `self.diff`, from SOURCE to TARGET adapter.
+
+        This is a generic implementation that you could overwrite completely in you custom logic.
+        """
+        if self.source_adapter and self.target_adapter:
+            self.source_adapter.sync_to(self.target_adapter, flags=self.diffsync_flags)
 
     def sync_data(self):
-        """Method to be implemented by data sync concrete Job implementations.
+        """Method to load data from adapters, calculate diffs and sync (if not dry-run).
 
-        Note: You could completely overwrite it if desired.
+        It is composed by 4 methods:
+        - self.load_source_adapter: instantiates the source adapter (self.source_adapter) and loads its data
+        - self.load_target_adapter: instantiates the target adapter (self.target_adapter) and loads its data
+        - self.calculate_diff: generates the diff from source to target adapter and stores it in self.diff
+        - self.execute_sync: if not dry-run, uses the self.diff to synchronize from source to target
 
+        This is a generic implementation that you could overwrite completely in you custom logic.
         Available instance attributes include:
 
         - self.kwargs     (corresponds to the Job's `data` input, including 'dry_run' option)
@@ -76,28 +109,46 @@ class DataSyncBaseJob(BaseJob):
         - self.sync       (Sync instance tracking this job execution)
         - self.job_result (as per Job API)
         """
-        # TODO: most of the log messages from the methods could be standarised here
-        # example: self.log_info(message="Loading current data from source adapter...")
+        if not self.sync:
+            return
+
         start_time = datetime.now()
+
+        self.log_info(message="Loading current data from source adapter...")
         self.load_source_adapter()
         load_source_adapter_time = datetime.now()
-        self.load_target_adapter()
-        load_target_adapter_time = datetime.now()
-        self.calculate_diff()
-        calculate_diff_time = datetime.now()
-
-        time_message = (
-            f"Remote Load Time: {load_source_adapter_time - start_time}\n",
-            f"Local Load Time: {load_target_adapter_time - load_source_adapter_time}\n",
-            f"Diff Time: {calculate_diff_time - load_target_adapter_time}\n",
+        self.sync.load_time_source = load_source_adapter_time - start_time
+        self.sync.save()
+        self.log_info(
+            message=f"Source Load Time from {self.source_adapter.__class__.__name__}: {self.sync.load_time_source}"
         )
 
+        self.log_info(message="Loading current data from target adapter...")
+        self.load_target_adapter()
+        load_target_adapter_time = datetime.now()
+        self.sync.load_time_target = load_target_adapter_time - load_source_adapter_time
+        self.sync.save()
+        self.log_info(
+            message=f"Target Load Time from {self.target_adapter.__class__.__name__}: {self.sync.load_time_target}"
+        )
+
+        self.log_info(message="Calculating diffs...")
+        self.calculate_diff()
+        calculate_diff_time = datetime.now()
+        self.sync.diff_time = calculate_diff_time - load_target_adapter_time
+        self.sync.save()
+        self.log_info(message=f"Diff Time: {self.sync.diff_time}")
+
         if not self.kwargs["dry_run"]:
+            self.log_info(
+                message=f"Syncing from {self.source_adapter.__class__.__name__} to {self.target_adapter.__class__.__name__}..."
+            )
             self.execute_sync()
             execute_sync_time = datetime.now()
-            time_message += (f"Sync Time: {execute_sync_time - calculate_diff_time}",)
-
-        self.log_info(message=time_message)
+            self.sync.sync_time = execute_sync_time - calculate_diff_time
+            self.sync.save()
+            self.log_info(message="Sync complete")
+            self.log_info(message=f"Sync Time: {self.sync.sync_time}")
 
     def lookup_object(self, model_name, unique_id):  # pylint: disable=no-self-use,unused-argument
         """Look up the Nautobot record, if any, identified by the args.
@@ -187,6 +238,10 @@ class DataSyncBaseJob(BaseJob):
         self.sync = None
         self.kwargs = {}
         self.commit = False
+        self.diff = None
+        self.diffsync_flags = None
+        self.source_adapter = None
+        self.target_adapter = None
 
     def as_form(self, data=None, files=None, initial=None):
         """Render this instance as a Django form for user inputs, including a "Dry run" field."""
@@ -250,6 +305,7 @@ class DataSyncBaseJob(BaseJob):
             self.log_failure(message=f"An exception occurred: `{type(exc).__name__}: {exc}`\n```\n{stacktrace}\n```")
 
 
+# pylint: disable=abstract-method
 class DataSource(DataSyncBaseJob):
     """Base class for Jobs that sync data **from** another data source **to** Nautobot."""
 

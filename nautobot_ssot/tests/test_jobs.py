@@ -1,7 +1,11 @@
 """Test the Job classes in nautobot_ssot."""
+import uuid
+from django.contrib.contenttypes.models import ContentType
 
 from django.forms import HiddenInput
 from django.test import TestCase
+
+from nautobot.extras.models import JobResult
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 from nautobot_ssot.jobs.base import DataSyncBaseJob
@@ -17,6 +21,15 @@ class BaseJobTestCase(TestCase):
     def setUp(self):
         """Per-test setup."""
         self.job = self.job_class()
+
+        self.job.job_result = JobResult.objects.create(
+            name="fake job",
+            obj_type=ContentType.objects.get(app_label="extras", model="job"),
+            job_id=uuid.uuid4(),
+        )
+
+        self.job.load_source_adapter = lambda *x, **y: None
+        self.job.load_target_adapter = lambda *x, **y: None
 
     def test_sync_log(self):
         """Test the sync_log() method."""
