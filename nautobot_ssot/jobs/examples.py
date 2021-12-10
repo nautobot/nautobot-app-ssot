@@ -12,6 +12,8 @@ from nautobot.extras.jobs import Job, StringVar
 from nautobot.extras.models import Status
 
 from diffsync import DiffSync, DiffSyncModel
+from diffsync.enum import DiffSyncFlags
+
 import requests
 
 from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
@@ -537,6 +539,11 @@ class ExampleDataSource(DataSource, Job):
     )
     source_token = StringVar(description="REST API authentication token for remote Nautobot instance", default="a" * 40)
 
+    def __init__(self):
+        """Initialize ExampleDataSource."""
+        super().__init__()
+        self.diffsync_flags = self.diffsync_flags | DiffSyncFlags.SKIP_UNMATCHED_DST
+
     class Meta:
         """Metaclass attributes of ExampleDataSource."""
 
@@ -591,6 +598,11 @@ class ExampleDataTarget(DataTarget, Job):
 
     target_url = StringVar(description="Remote Nautobot instance to update", default="https://demo.nautobot.com")
     target_token = StringVar(description="REST API authentication token for remote Nautobot instance", default="a" * 40)
+
+    def __init__(self):
+        """Initialize ExampleDataTarget."""
+        super().__init__()
+        self.diffsync_flags = self.diffsync_flags | DiffSyncFlags.SKIP_UNMATCHED_DST
 
     class Meta:
         """Metaclass attributes of ExampleDataTarget."""

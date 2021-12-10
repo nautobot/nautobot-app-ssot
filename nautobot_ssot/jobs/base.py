@@ -49,7 +49,7 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     """
 
     dry_run = BooleanVar()
-    memory_profiling = BooleanVar()
+    memory_profiling = BooleanVar(description="Perform a memory profiling analysis.", default=False)
 
     def load_source_adapter(self):
         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`.
@@ -119,18 +119,14 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         load_source_adapter_time = datetime.now()
         self.sync.load_time_source = load_source_adapter_time - start_time
         self.sync.save()
-        self.log_info(
-            message=f"Source Load Time from {self.source_adapter}: {self.sync.load_time_source}"
-        )
+        self.log_info(message=f"Source Load Time from {self.source_adapter}: {self.sync.load_time_source}")
 
         self.log_info(message="Loading current data from target adapter...")
         self.load_target_adapter()
         load_target_adapter_time = datetime.now()
         self.sync.load_time_target = load_target_adapter_time - load_source_adapter_time
         self.sync.save()
-        self.log_info(
-            message=f"Target Load Time from {self.target_adapter}: {self.sync.load_time_target}"
-        )
+        self.log_info(message=f"Target Load Time from {self.target_adapter}: {self.sync.load_time_target}")
 
         self.log_info(message="Calculating diffs...")
         self.calculate_diff()
@@ -140,9 +136,7 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         self.log_info(message=f"Diff Calculation Time: {self.sync.diff_time}")
 
         if not self.kwargs["dry_run"]:
-            self.log_info(
-                message=f"Syncing from {self.source_adapter} to {self.target_adapter}..."
-            )
+            self.log_info(message=f"Syncing from {self.source_adapter} to {self.target_adapter}...")
             self.execute_sync()
             execute_sync_time = datetime.now()
             self.sync.sync_time = execute_sync_time - calculate_diff_time
@@ -156,8 +150,8 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             self.sync.save()
             self.log_info(
                 message=(
-                    f"Traced Memory (Current, Peak): {memory_size}, {memory_peak}\n",
-                    f"Memory Usage: {self.sync.memory_usage}",
+                    f"Traced Memory Blocks (Current, Peak): {memory_size}, {memory_peak}\n",
+                    f"Memory Usage: {self.sync.memory_usage} bytes",
                 )
             )
 
@@ -256,9 +250,7 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         self.source_adapter = None
         self.target_adapter = None
         # Default diffsync flags. You can overwrite them at any time.
-        self.diffsync_flags = (
-            DiffSyncFlags.CONTINUE_ON_FAILURE | DiffSyncFlags.LOG_UNCHANGED_RECORDS | DiffSyncFlags.SKIP_UNMATCHED_DST
-        )
+        self.diffsync_flags = DiffSyncFlags.CONTINUE_ON_FAILURE | DiffSyncFlags.LOG_UNCHANGED_RECORDS
 
     def as_form(self, data=None, files=None, initial=None):
         """Render this instance as a Django form for user inputs, including a "Dry run" field."""
@@ -327,7 +319,6 @@ class DataSource(DataSyncBaseJob):
     """Base class for Jobs that sync data **from** another data source **to** Nautobot."""
 
     dry_run = BooleanVar(description="Perform a dry-run, making no actual changes to Nautobot data.")
-    memory_profiling = BooleanVar(description="Perform a memory profiling analysis.", default=False)
 
     @classproperty
     def data_target(cls):
@@ -344,7 +335,6 @@ class DataTarget(DataSyncBaseJob):
     """Base class for Jobs that sync data **to** another data target **from** Nautobot."""
 
     dry_run = BooleanVar(description="Perform a dry-run, making no actual changes to the remote system.")
-    memory_profiling = BooleanVar(description="Perform a memory profiling analysis.", default=False)
 
     @classproperty
     def data_source(cls):
