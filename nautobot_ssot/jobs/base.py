@@ -120,7 +120,7 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         self.sync.load_time_source = load_source_adapter_time - start_time
         self.sync.save()
         self.log_info(
-            message=f"Source Load Time from {self.source_adapter.__class__.__name__}: {self.sync.load_time_source}"
+            message=f"Source Load Time from {self.source_adapter}: {self.sync.load_time_source}"
         )
 
         self.log_info(message="Loading current data from target adapter...")
@@ -129,7 +129,7 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         self.sync.load_time_target = load_target_adapter_time - load_source_adapter_time
         self.sync.save()
         self.log_info(
-            message=f"Target Load Time from {self.target_adapter.__class__.__name__}: {self.sync.load_time_target}"
+            message=f"Target Load Time from {self.target_adapter}: {self.sync.load_time_target}"
         )
 
         self.log_info(message="Calculating diffs...")
@@ -137,11 +137,11 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         calculate_diff_time = datetime.now()
         self.sync.diff_time = calculate_diff_time - load_target_adapter_time
         self.sync.save()
-        self.log_info(message=f"Diff Time: {self.sync.diff_time}")
+        self.log_info(message=f"Diff Calculation Time: {self.sync.diff_time}")
 
         if not self.kwargs["dry_run"]:
             self.log_info(
-                message=f"Syncing from {self.source_adapter.__class__.__name__} to {self.target_adapter.__class__.__name__}..."
+                message=f"Syncing from {self.source_adapter} to {self.target_adapter}..."
             )
             self.execute_sync()
             execute_sync_time = datetime.now()
