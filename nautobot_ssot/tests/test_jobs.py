@@ -33,7 +33,7 @@ class BaseJobTestCase(TestCase):
 
     def test_sync_log(self):
         """Test the sync_log() method."""
-        self.job.run(data={"dry_run": True}, commit=True)
+        self.job.run(data={"dry_run": True, "memory_profiling": False}, commit=True)
         self.assertIsNotNone(self.job.sync)
         # Minimal parameters
         self.job.sync_log(
@@ -78,7 +78,7 @@ class BaseJobTestCase(TestCase):
 
     def test_run(self):
         """Test the run() method."""
-        self.job.run(data={"dry_run": True}, commit=True)
+        self.job.run(data={"dry_run": True, "memory_profiling": False}, commit=True)
         self.assertIsNotNone(self.job.sync)
         self.assertIsNotNone(self.job.sync.load_time_source)
         self.assertIsNotNone(self.job.sync.load_time_target)
