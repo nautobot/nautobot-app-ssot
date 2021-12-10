@@ -36,7 +36,7 @@ and the other system acting as data source/target.
 """
 
 
-class DataSyncBaseJob(BaseJob):
+class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     """Common base class for data synchronization jobs.
 
     Works mostly as per the BaseJob API, with the following changes:
