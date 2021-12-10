@@ -74,14 +74,9 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     def calculate_diff(self):
         """Method to calculate the difference from SOURCE to TARGET adapter and store in `self.diff`.
 
-        This is a generic implementation that you could overwrite completely in you custom logic.
+        This is a generic implementation that you could overwrite completely in your custom logic.
         """
         if self.source_adapter and self.target_adapter:
-            self.diffsync_flags = (
-                DiffSyncFlags.CONTINUE_ON_FAILURE
-                | DiffSyncFlags.LOG_UNCHANGED_RECORDS
-                | DiffSyncFlags.SKIP_UNMATCHED_DST
-            )
             self.diff = self.source_adapter.diff_to(self.target_adapter, flags=self.diffsync_flags)
             self.sync.diff = self.diff.dict()
             self.sync.save()
@@ -89,7 +84,7 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     def execute_sync(self):
         """Method to synchronize the difference from `self.diff`, from SOURCE to TARGET adapter.
 
-        This is a generic implementation that you could overwrite completely in you custom logic.
+        This is a generic implementation that you could overwrite completely in your custom logic.
         """
         if self.source_adapter and self.target_adapter:
             self.source_adapter.sync_to(self.target_adapter, flags=self.diffsync_flags)
@@ -258,9 +253,12 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         self.kwargs = {}
         self.commit = False
         self.diff = None
-        self.diffsync_flags = None
         self.source_adapter = None
         self.target_adapter = None
+        # Default diffsync flags. You can overwrite them at any time.
+        self.diffsync_flags = (
+            DiffSyncFlags.CONTINUE_ON_FAILURE | DiffSyncFlags.LOG_UNCHANGED_RECORDS | DiffSyncFlags.SKIP_UNMATCHED_DST
+        )
 
     def as_form(self, data=None, files=None, initial=None):
         """Render this instance as a Django form for user inputs, including a "Dry run" field."""

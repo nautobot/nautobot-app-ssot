@@ -560,7 +560,7 @@ class ExampleDataSource(DataSource, Job):
         self.source_adapter.load()
 
     def load_target_adapter(self):
-        """Method to instantiate and load the SOURCE adapter into `self.target_adapter`."""
+        """Method to instantiate and load the TARGET adapter into `self.target_adapter`."""
         self.target_adapter = NautobotLocal(job=self)
         self.target_adapter.load()
 
