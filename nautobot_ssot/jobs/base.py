@@ -80,6 +80,8 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             self.diff = self.source_adapter.diff_to(self.target_adapter, flags=self.diffsync_flags)
             self.sync.diff = self.diff.dict()
             self.sync.save()
+        else:
+            self.log_warning(message="Not both adapters were properly initialized prior to diff calculation.")
 
     def execute_sync(self):
         """Method to synchronize the difference from `self.diff`, from SOURCE to TARGET adapter.
@@ -88,6 +90,8 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         """
         if self.source_adapter and self.target_adapter:
             self.source_adapter.sync_to(self.target_adapter, flags=self.diffsync_flags)
+        else:
+            self.log_warning(message="Not both adapters were properly initialized prior to synchronization.")
 
     def sync_data(self):
         """Method to load data from adapters, calculate diffs and sync (if not dry-run).
@@ -135,7 +139,9 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         self.sync.save()
         self.log_info(message=f"Diff Calculation Time: {self.sync.diff_time}")
 
-        if not self.kwargs["dry_run"]:
+        if self.kwargs["dry_run"]:
+            self.log_info("As `dry_run` is set, skipping the actual data sync.")
+        else:
             self.log_info(message=f"Syncing from {self.source_adapter} to {self.target_adapter}...")
             self.execute_sync()
             execute_sync_time = datetime.now()
@@ -145,12 +151,12 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             self.log_info(message=f"Sync Time: {self.sync.sync_time}")
 
         if self.kwargs["memory_profiling"]:
-            memory_size, memory_peak = tracemalloc.get_traced_memory()
+            self.sync.memory_size, self.sync.memory_peak = tracemalloc.get_traced_memory()
             self.sync.memory_usage = tracemalloc.get_tracemalloc_memory()
             self.sync.save()
             self.log_info(
                 message=(
-                    f"Traced Memory Blocks (Current, Peak): {memory_size}, {memory_peak}\n",
+                    f"Traced Memory Blocks (Current, Peak): {self.sync.memory_size}, {self.sync.memory_peak}\n",
                     f"Memory Usage: {self.sync.memory_usage} bytes",
                 )
             )

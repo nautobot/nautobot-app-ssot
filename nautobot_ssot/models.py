@@ -52,6 +52,8 @@ class Sync(BaseModel):
     diff_time = models.DurationField(blank=True, null=True)
     sync_time = models.DurationField(blank=True, null=True)
     memory_usage = models.IntegerField(blank=True, null=True)
+    memory_size = models.IntegerField(blank=True, null=True)
+    memory_peak = models.IntegerField(blank=True, null=True)
 
     dry_run = models.BooleanField(
         default=False, help_text="Report what data would be synced but do not make any changes"
