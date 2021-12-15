@@ -1,6 +1,8 @@
 """Base Job classes for sync workers."""
 from collections import namedtuple
+from datetime import datetime
 import traceback
+import tracemalloc
 from typing import Iterable
 
 from django.forms import HiddenInput
@@ -11,6 +13,7 @@ from django.utils.functional import classproperty
 # pylint-django doesn't understand classproperty, and complains unnecessarily. We disable this specific warning:
 # pylint: disable=no-self-argument
 
+from diffsync.enum import DiffSyncFlags
 import structlog
 
 from nautobot.extras.jobs import BaseJob, BooleanVar
@@ -33,12 +36,12 @@ and the other system acting as data source/target.
 """
 
 
-class DataSyncBaseJob(BaseJob):
+class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     """Common base class for data synchronization jobs.
 
     Works mostly as per the BaseJob API, with the following changes:
 
-    - Concrete subclasses are responsible for implementing `self.sync_data()`, **not** `self.run()`.
+    - Concrete subclasses are responsible for implementing `self.sync_data()` (or related hooks), **not** `self.run()`.
     - Subclasses may optionally define any Meta field supported by Jobs, as well as the following:
       - `dry_run_default` - defaults to True if unspecified
       - `data_source` and `data_target` as labels (by default, will use the `name` and/or "Nautobot" as appropriate)
@@ -46,10 +49,60 @@ class DataSyncBaseJob(BaseJob):
     """
 
     dry_run = BooleanVar()
+    memory_profiling = BooleanVar(description="Perform a memory profiling analysis.", default=False)
+
+    def load_source_adapter(self):
+        """Method to instantiate and load the SOURCE adapter into `self.source_adapter`.
+
+        Relevant available instance attributes include:
+
+        - self.kwargs     (corresponds to the Job's `data` input, including 'dry_run' option)
+        - self.job_result (as per Job API)
+        """
+        raise NotImplementedError
+
+    def load_target_adapter(self):
+        """Method to instantiate and load the TARGET adapter into `self.target_adapter`.
+
+        Relevant available instance attributes include:
+
+        - self.kwargs     (corresponds to the Job's `data` input, including 'dry_run' option)
+        - self.job_result (as per Job API)
+        """
+        raise NotImplementedError
+
+    def calculate_diff(self):
+        """Method to calculate the difference from SOURCE to TARGET adapter and store in `self.diff`.
+
+        This is a generic implementation that you could overwrite completely in your custom logic.
+        """
+        if self.source_adapter and self.target_adapter:
+            self.diff = self.source_adapter.diff_to(self.target_adapter, flags=self.diffsync_flags)
+            self.sync.diff = self.diff.dict()
+            self.sync.save()
+        else:
+            self.log_warning(message="Not both adapters were properly initialized prior to diff calculation.")
+
+    def execute_sync(self):
+        """Method to synchronize the difference from `self.diff`, from SOURCE to TARGET adapter.
+
+        This is a generic implementation that you could overwrite completely in your custom logic.
+        """
+        if self.source_adapter and self.target_adapter:
+            self.source_adapter.sync_to(self.target_adapter, flags=self.diffsync_flags)
+        else:
+            self.log_warning(message="Not both adapters were properly initialized prior to synchronization.")
 
     def sync_data(self):
-        """Method to be implemented by data sync concrete Job implementations.
+        """Method to load data from adapters, calculate diffs and sync (if not dry-run).
 
+        It is composed by 4 methods:
+        - self.load_source_adapter: instantiates the source adapter (self.source_adapter) and loads its data
+        - self.load_target_adapter: instantiates the target adapter (self.target_adapter) and loads its data
+        - self.calculate_diff: generates the diff from source to target adapter and stores it in self.diff
+        - self.execute_sync: if not dry-run, uses the self.diff to synchronize from source to target
+
+        This is a generic implementation that you could overwrite completely in you custom logic.
         Available instance attributes include:
 
         - self.kwargs     (corresponds to the Job's `data` input, including 'dry_run' option)
@@ -57,7 +110,56 @@ class DataSyncBaseJob(BaseJob):
         - self.sync       (Sync instance tracking this job execution)
         - self.job_result (as per Job API)
         """
-        pass  # pylint: disable=unnecessary-pass
+        if not self.sync:
+            return
+
+        if self.kwargs["memory_profiling"]:
+            tracemalloc.start()
+
+        start_time = datetime.now()
+
+        self.log_info(message="Loading current data from source adapter...")
+        self.load_source_adapter()
+        load_source_adapter_time = datetime.now()
+        self.sync.load_time_source = load_source_adapter_time - start_time
+        self.sync.save()
+        self.log_info(message=f"Source Load Time from {self.source_adapter}: {self.sync.load_time_source}")
+
+        self.log_info(message="Loading current data from target adapter...")
+        self.load_target_adapter()
+        load_target_adapter_time = datetime.now()
+        self.sync.load_time_target = load_target_adapter_time - load_source_adapter_time
+        self.sync.save()
+        self.log_info(message=f"Target Load Time from {self.target_adapter}: {self.sync.load_time_target}")
+
+        self.log_info(message="Calculating diffs...")
+        self.calculate_diff()
+        calculate_diff_time = datetime.now()
+        self.sync.diff_time = calculate_diff_time - load_target_adapter_time
+        self.sync.save()
+        self.log_info(message=f"Diff Calculation Time: {self.sync.diff_time}")
+
+        if self.kwargs["dry_run"]:
+            self.log_info("As `dry_run` is set, skipping the actual data sync.")
+        else:
+            self.log_info(message=f"Syncing from {self.source_adapter} to {self.target_adapter}...")
+            self.execute_sync()
+            execute_sync_time = datetime.now()
+            self.sync.sync_time = execute_sync_time - calculate_diff_time
+            self.sync.save()
+            self.log_info(message="Sync complete")
+            self.log_info(message=f"Sync Time: {self.sync.sync_time}")
+
+        if self.kwargs["memory_profiling"]:
+            self.sync.memory_size, self.sync.memory_peak = tracemalloc.get_traced_memory()
+            self.sync.memory_usage = tracemalloc.get_tracemalloc_memory()
+            self.sync.save()
+            self.log_info(
+                message=(
+                    f"Traced Memory Blocks (Current, Peak): {self.sync.memory_size}, {self.sync.memory_peak}\n",
+                    f"Memory Usage: {self.sync.memory_usage} bytes",
+                )
+            )
 
     def lookup_object(self, model_name, unique_id):  # pylint: disable=no-self-use,unused-argument
         """Look up the Nautobot record, if any, identified by the args.
@@ -139,6 +241,9 @@ class DataSyncBaseJob(BaseJob):
         got_vars = super()._get_vars()
         if hasattr(cls, "dry_run"):
             got_vars["dry_run"] = cls.dry_run
+
+        if hasattr(cls, "memory_profiling"):
+            got_vars["memory_profiling"] = cls.memory_profiling
         return got_vars
 
     def __init__(self):
@@ -147,6 +252,11 @@ class DataSyncBaseJob(BaseJob):
         self.sync = None
         self.kwargs = {}
         self.commit = False
+        self.diff = None
+        self.source_adapter = None
+        self.target_adapter = None
+        # Default diffsync flags. You can overwrite them at any time.
+        self.diffsync_flags = DiffSyncFlags.CONTINUE_ON_FAILURE | DiffSyncFlags.LOG_UNCHANGED_RECORDS
 
     def as_form(self, data=None, files=None, initial=None):
         """Render this instance as a Django form for user inputs, including a "Dry run" field."""
@@ -210,6 +320,7 @@ class DataSyncBaseJob(BaseJob):
             self.log_failure(message=f"An exception occurred: `{type(exc).__name__}: {exc}`\n```\n{stacktrace}\n```")
 
 
+# pylint: disable=abstract-method
 class DataSource(DataSyncBaseJob):
     """Base class for Jobs that sync data **from** another data source **to** Nautobot."""
 

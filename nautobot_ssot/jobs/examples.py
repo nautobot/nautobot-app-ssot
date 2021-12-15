@@ -13,6 +13,7 @@ from nautobot.extras.models import Status
 
 from diffsync import DiffSync, DiffSyncModel
 from diffsync.enum import DiffSyncFlags
+
 import requests
 
 from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
@@ -538,6 +539,11 @@ class ExampleDataSource(DataSource, Job):
     )
     source_token = StringVar(description="REST API authentication token for remote Nautobot instance", default="a" * 40)
 
+    def __init__(self):
+        """Initialize ExampleDataSource."""
+        super().__init__()
+        self.diffsync_flags = self.diffsync_flags | DiffSyncFlags.SKIP_UNMATCHED_DST
+
     class Meta:
         """Metaclass attributes of ExampleDataSource."""
 
@@ -555,28 +561,15 @@ class ExampleDataSource(DataSource, Job):
             DataMapping("Prefix (remote)", None, "Prefix (local)", reverse("ipam:prefix_list")),
         )
 
-    def sync_data(self):
-        """Perform data sync into Nautobot."""
-        self.log_info(message="Loading current data from remote Nautobot...")
-        remote_nautobot = NautobotRemote(url=self.kwargs["source_url"], token=self.kwargs["source_token"], job=self)
-        remote_nautobot.load()
+    def load_source_adapter(self):
+        """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""
+        self.source_adapter = NautobotRemote(url=self.kwargs["source_url"], token=self.kwargs["source_token"], job=self)
+        self.source_adapter.load()
 
-        self.log_info(message="Loading current data from local Nautobot...")
-        local_nautobot = NautobotLocal(job=self)
-        local_nautobot.load()
-
-        # In a more complete example you might make these flags configurable rather than hard-coded
-        diffsync_flags = DiffSyncFlags.CONTINUE_ON_FAILURE | DiffSyncFlags.LOG_UNCHANGED_RECORDS
-
-        self.log_info(message="Calculating diffs...")
-        diff = local_nautobot.diff_from(remote_nautobot, flags=diffsync_flags)
-        self.sync.diff = diff.dict()
-        self.sync.save()
-
-        if not self.kwargs["dry_run"]:
-            self.log_info(message="Syncing from remote Nautobot to local Nautobot...")
-            local_nautobot.sync_from(remote_nautobot, flags=diffsync_flags)
-            self.log_info(message="Sync complete")
+    def load_target_adapter(self):
+        """Method to instantiate and load the TARGET adapter into `self.target_adapter`."""
+        self.target_adapter = NautobotLocal(job=self)
+        self.target_adapter.load()
 
     def lookup_object(self, model_name, unique_id):
         """Look up a Nautobot object based on the DiffSync model name and unique ID."""
@@ -606,6 +599,11 @@ class ExampleDataTarget(DataTarget, Job):
     target_url = StringVar(description="Remote Nautobot instance to update", default="https://demo.nautobot.com")
     target_token = StringVar(description="REST API authentication token for remote Nautobot instance", default="a" * 40)
 
+    def __init__(self):
+        """Initialize ExampleDataTarget."""
+        super().__init__()
+        self.diffsync_flags = self.diffsync_flags | DiffSyncFlags.SKIP_UNMATCHED_DST
+
     class Meta:
         """Metaclass attributes of ExampleDataTarget."""
 
@@ -622,31 +620,15 @@ class ExampleDataTarget(DataTarget, Job):
             DataMapping("Site (local)", reverse("dcim:site_list"), "Site (remote)", None),
         )
 
-    def sync_data(self):
-        """Perform data sync from Nautobot."""
-        self.log_info(message="Loading current data from local Nautobot...")
-        local_nautobot = NautobotLocal(job=self)
-        local_nautobot.load()
+    def load_source_adapter(self):
+        """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""
+        self.source_adapter = NautobotLocal(job=self)
+        self.source_adapter.load()
 
-        self.log_info(message="Loading current data from remote Nautobot...")
-        remote_nautobot = NautobotRemote(url=self.kwargs["target_url"], token=self.kwargs["target_token"], job=self)
-        remote_nautobot.load()
-
-        # In a more complete example you might make these flags configurable rather than hard-coded
-        diffsync_flags = (
-            DiffSyncFlags.CONTINUE_ON_FAILURE | DiffSyncFlags.LOG_UNCHANGED_RECORDS | DiffSyncFlags.SKIP_UNMATCHED_DST
-        )
-
-        self.log_info(message="Calculating diffs...")
-        diff = local_nautobot.diff_to(remote_nautobot, flags=diffsync_flags)
-        self.sync.diff = diff.dict()
-        self.sync.save()
-
-        if not self.kwargs["dry_run"]:
-            self.log_info(message="Syncing from local Nautobot to remote Nautobot...")
-            local_nautobot.sync_to(remote_nautobot, flags=diffsync_flags)
-            self.log_info(message="Sync complete")
-        return (None, None)
+    def load_target_adapter(self):
+        """Method to instantiate and load the TARGET adapter into `self.target_adapter`."""
+        self.target_adapter = NautobotRemote(url=self.kwargs["target_url"], token=self.kwargs["target_token"], job=self)
+        self.target_adapter.load()
 
     def lookup_object(self, model_name, unique_id):
         """Look up a Nautobot object based on the DiffSync model name and unique ID."""
