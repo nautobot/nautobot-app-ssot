@@ -1,11 +1,12 @@
 """Test the Job classes in nautobot_ssot."""
 import uuid
+from unittest import mock
 from django.contrib.contenttypes.models import ContentType
 
 from django.forms import HiddenInput
 from django.test import TestCase
 
-from nautobot.extras.models import JobResult
+from nautobot.extras.models import JobResult, models
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 from nautobot_ssot.jobs.base import DataSyncBaseJob
@@ -13,6 +14,18 @@ from nautobot_ssot.jobs import DataSource, DataTarget
 from nautobot_ssot.models import SyncLogEntry
 
 
+def nautobot_jobs_logs_decorator():
+    """Decorator for mock patch if < Nautobot 1.2."""
+
+    def decorator(func):
+        if not hasattr(models, "JOB_LOGS"):
+            return func
+        return mock.patch("nautobot.extras.models.models.JOB_LOGS", None)(func)
+
+    return decorator
+
+
+@nautobot_jobs_logs_decorator()
 class BaseJobTestCase(TestCase):
     """Test the DataSyncBaseJob class."""
 

@@ -146,9 +146,19 @@ class SyncJobResultView(ObjectView):
 
     def get_extra_context(self, request, instance):
         """Add additional context to the view."""
-        return {
+        context = {
             "active_tab": "jobresult",
         }
+        try:
+            from nautobot.extras.models import JobLogEntry  # pylint:disable=import-outside-toplevel
+            from nautobot.extras.tables import JobLogEntryTable  # pylint:disable=import-outside-toplevel
+
+            logs = JobLogEntry.objects.restrict(request.user, "view").filter(job_result=instance.job_result)
+            context["log_table"] = JobLogEntryTable(data=logs, user=request.user)
+        except ImportError:
+            context["log_table"] = None
+
+        return context
 
 
 class SyncLogEntriesView(ObjectListView):

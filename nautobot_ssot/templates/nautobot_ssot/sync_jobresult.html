@@ -3,7 +3,7 @@
 {% block content %}
     <div class="row">
         <div class="col-md-12">
-            {% include "extras/inc/jobresult.html" with result=object.job_result %}
+            {% include "extras/inc/jobresult.html" with result=object.job_result log_table=log_table%}
         </div>
     </div>
 {% endblock %}
