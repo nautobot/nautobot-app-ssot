@@ -76,7 +76,7 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         This is a generic implementation that you could overwrite completely in your custom logic.
         """
-        if self.source_adapter and self.target_adapter:
+        if self.source_adapter is not None and self.target_adapter is not None:
             self.diff = self.source_adapter.diff_to(self.target_adapter, flags=self.diffsync_flags)
             self.sync.diff = self.diff.dict()
             self.sync.save()
@@ -88,7 +88,7 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         This is a generic implementation that you could overwrite completely in your custom logic.
         """
-        if self.source_adapter and self.target_adapter:
+        if self.source_adapter is not None and self.target_adapter is not None:
             self.source_adapter.sync_to(self.target_adapter, flags=self.diffsync_flags)
         else:
             self.log_warning(message="Not both adapters were properly initialized prior to synchronization.")
