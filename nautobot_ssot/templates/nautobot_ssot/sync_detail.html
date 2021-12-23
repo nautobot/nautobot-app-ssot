@@ -119,6 +119,41 @@
                         </td>
                     </tr>
                 </table>
+                <div class="panel-heading">
+                    <strong>Performance stats</strong>
+                </div>
+                <table class="table table-hover panel-body attr-table">
+                    <tr>
+                        <td>Time loading Source</td>
+                        <td>{{ object.load_time_source | shorter_timedelta }}</td>
+                    </tr>
+                    <tr>
+                        <td>Time loading Target</td>
+                        <td>{{ object.load_time_target | shorter_timedelta }}</td>
+                    </tr>
+                    <tr>
+                        <td>Time calculating diff</td>
+                        <td>{{ object.diff_time | shorter_timedelta }}</td>
+                    </tr>
+                    <tr>
+                        <td>Time enforcing sync</td>
+                        <td>{{ object.sync_time | shorter_timedelta }}</td>
+                    </tr>
+                    {% if object.memory_usage %}
+                    <tr>
+                        <td>Memory usage</td>
+                        <td>{{ object.memory_usage }} bytes</td>
+                    </tr>
+                    <tr>
+                        <td>Memory blocks</td>
+                        <td>{{ object.memory_size }} blocks</td>
+                    </tr>
+                    <tr>
+                        <td>Memory peak blocks</td>
+                        <td>{{ object.memory_peak }} blocks</td>
+                    </tr>
+                    {% endif %}
+                </table>
             </div>
             {% include 'inc/custom_fields_panel.html' %}
             {% include 'inc/relationships_panel.html' %}
