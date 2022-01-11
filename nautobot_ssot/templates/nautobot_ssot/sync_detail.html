@@ -138,38 +138,62 @@
                     <tr>
                         <td>Memory used loading {{ object.source }}</td>
                         <td>
-                            <ul>
-                                <li>{{ object.load_source_memory_size | intcomma }} bytes</li>
-                                <li>{{ object.load_source_memory_peak | intcomma }} bytes</li>
-                            </ul>
+                            <table class="table table-hover panel-body attr-table">
+                                <tr>
+                                    <td>Final</td>
+                                    <td>{{ object.load_source_memory_size | intcomma }} bytes</td>
+                                </tr>
+                                <tr>
+                                    <td>Peak</td>
+                                    <td>{{ object.load_source_memory_size | intcomma }} bytes</td>
+                                </tr>
+                            </table>
                         </td>
                     </tr>
                     <tr>
                         <td>Memory used loading {{ object.target }}</td>
                         <td>
-                            <ul>
-                                <li>{{ object.load_target_memory_size | intcomma }} bytes</li>
-                                <li>{{ object.load_target_memory_peak | intcomma }} bytes</li>
-                            </ul>
+                            <table class="table table-hover panel-body attr-table">
+                                <tr>
+                                    <td>Final</td>
+                                    <td>{{ object.load_target_memory_size | intcomma }} bytes</td>
+                                </tr>
+                                <tr>
+                                    <td>Peak</td>
+                                    <td>{{ object.load_target_memory_peak | intcomma }} bytes</td>
+                                </tr>
+                            </table>
                         </td>
                     </tr>
                     <tr>
                         <td>Memory used calculating diff</td>
                         <td>
-                            <ul>
-                                <li>{{ object.diff_memory_size | intcomma }} bytes</li>
-                                <li>{{ object.diff_memory_peak | intcomma }} bytes</li>
-                            </ul>
+                            <table class="table table-hover panel-body attr-table">
+                                <tr>
+                                    <td>Final</td>
+                                    <td>{{ object.diff_memory_size | intcomma }} bytes</td>
+                                </tr>
+                                <tr>
+                                    <td>Peak</td>
+                                    <td>{{ object.diff_memory_peak | intcomma }} bytes</td>
+                                </tr>
+                            </table>
                         </td>
                     </tr>
                     {% if object.sync_memory_size %}
                     <tr>
                         <td>Memory used syncing</td>
                         <td>
-                            <ul>
-                                <li>{{ object.sync_memory_size | intcomma }} bytes</li>
-                                <li>{{ object.sync_memory_peak | intcomma }} bytes</li>
-                            </ul>
+                            <table class="table table-hover panel-body attr-table">
+                                <tr>
+                                    <td>Final</td>
+                                    <td>{{ object.sync_memory_size | intcomma }} bytes</td>
+                                </tr>
+                                <tr>
+                                    <td>Peak</td>
+                                    <td>{{ object.sync_memory_peak | intcomma }} bytes</td>
+                                </tr>
+                            </table>
                         </td>
                     </tr>
                     {% endif %}
