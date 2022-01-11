@@ -66,7 +66,7 @@
                                 <li>{{ object.load_time_target | shorter_timedelta }} loading from {{ object.target }}</li>
                                 <li>{{ object.diff_time | shorter_timedelta }} calulating diffs</li>
                                 <li>{{ object.sync_time | shorter_timedelta }} performing sync</li>
-                              </ul>
+                            </ul>
                         </td>
                     </tr>
                     <tr>
@@ -129,24 +129,50 @@
                     </tr>
                 </table>
             </div>
-            {% if object.memory_usage %}
+            {% if object.load_source_memory_size %}
             <div class="panel panel-default">
                 <div class="panel-heading">
-                    <strong>Performance Stats</strong>
+                    <strong>Memory Usage Stats</strong>
                 </div>
                 <table class="table table-hover panel-body attr-table">
                     <tr>
-                        <td>Memory Usage</td>
-                        <td>{{ object.memory_usage | intcomma }} bytes</td>
+                        <td>Memory used loading {{ object.source }}</td>
+                        <td>
+                            <ul>
+                                <li>{{ object.load_source_memory_size | intcomma }} bytes</li>
+                                <li>{{ object.load_source_memory_peak | intcomma }} bytes</li>
+                            </ul>
+                        </td>
                     </tr>
                     <tr>
-                        <td>Memory Blocks</td>
-                        <td>{{ object.memory_size | intcomma }} blocks</td>
+                        <td>Memory used loading {{ object.target }}</td>
+                        <td>
+                            <ul>
+                                <li>{{ object.load_target_memory_size | intcomma }} bytes</li>
+                                <li>{{ object.load_target_memory_peak | intcomma }} bytes</li>
+                            </ul>
+                        </td>
                     </tr>
                     <tr>
-                        <td>Memory Peak Blocks</td>
-                        <td>{{ object.memory_peak | intcomma }} blocks</td>
+                        <td>Memory used calculating diff</td>
+                        <td>
+                            <ul>
+                                <li>{{ object.diff_memory_size | intcomma }} bytes</li>
+                                <li>{{ object.diff_memory_peak | intcomma }} bytes</li>
+                            </ul>
+                        </td>
                     </tr>
+                    {% if object.sync_memory_size %}
+                    <tr>
+                        <td>Memory used syncing</td>
+                        <td>
+                            <ul>
+                                <li>{{ object.sync_memory_size | intcomma }} bytes</li>
+                                <li>{{ object.sync_memory_peak | intcomma }} bytes</li>
+                            </ul>
+                        </td>
+                    </tr>
+                    {% endif %}
                 </table>
             </div>
             {% endif %}

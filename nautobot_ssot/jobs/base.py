@@ -110,6 +110,18 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         - self.sync       (Sync instance tracking this job execution)
         - self.job_result (as per Job API)
         """
+
+        def record_memory_trace(step: str):
+            """Helper function to record memory usage and reset tracemalloc stats."""
+            memory_size, memory_peak = tracemalloc.get_traced_memory()
+            setattr(self.sync, f"{step}_memory_size", memory_size)
+            setattr(self.sync, f"{step}_memory_peak", memory_peak)
+            self.sync.save()
+            self.log_info(
+                message=(f"Traced memory for {step} (Current, Peak): {memory_size} bytes, {memory_peak} bytes")
+            )
+            tracemalloc.clear_traces()
+
         if not self.sync:
             return
 
@@ -124,6 +136,8 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         self.sync.load_time_source = load_source_adapter_time - start_time
         self.sync.save()
         self.log_info(message=f"Source Load Time from {self.source_adapter}: {self.sync.load_time_source}")
+        if self.kwargs["memory_profiling"]:
+            record_memory_trace("load_source")
 
         self.log_info(message="Loading current data from target adapter...")
         self.load_target_adapter()
@@ -131,6 +145,8 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         self.sync.load_time_target = load_target_adapter_time - load_source_adapter_time
         self.sync.save()
         self.log_info(message=f"Target Load Time from {self.target_adapter}: {self.sync.load_time_target}")
+        if self.kwargs["memory_profiling"]:
+            record_memory_trace("load_target")
 
         self.log_info(message="Calculating diffs...")
         self.calculate_diff()
@@ -138,6 +154,8 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         self.sync.diff_time = calculate_diff_time - load_target_adapter_time
         self.sync.save()
         self.log_info(message=f"Diff Calculation Time: {self.sync.diff_time}")
+        if self.kwargs["memory_profiling"]:
+            record_memory_trace("diff")
 
         if self.kwargs["dry_run"]:
             self.log_info("As `dry_run` is set, skipping the actual data sync.")
@@ -149,17 +167,8 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             self.sync.save()
             self.log_info(message="Sync complete")
             self.log_info(message=f"Sync Time: {self.sync.sync_time}")
-
-        if self.kwargs["memory_profiling"]:
-            self.sync.memory_size, self.sync.memory_peak = tracemalloc.get_traced_memory()
-            self.sync.memory_usage = tracemalloc.get_tracemalloc_memory()
-            self.sync.save()
-            self.log_info(
-                message=(
-                    f"Traced Memory Blocks (Current, Peak): {self.sync.memory_size}, {self.sync.memory_peak}\n",
-                    f"Memory Usage: {self.sync.memory_usage} bytes",
-                )
-            )
+            if self.kwargs["memory_profiling"]:
+                record_memory_trace("sync")
 
     def lookup_object(self, model_name, unique_id):  # pylint: disable=no-self-use,unused-argument
         """Look up the Nautobot record, if any, identified by the args.

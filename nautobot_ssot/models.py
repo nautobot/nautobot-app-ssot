@@ -51,9 +51,14 @@ class Sync(BaseModel):
     load_time_target = models.DurationField(blank=True, null=True)
     diff_time = models.DurationField(blank=True, null=True)
     sync_time = models.DurationField(blank=True, null=True)
-    memory_usage = models.IntegerField(blank=True, null=True)
-    memory_size = models.IntegerField(blank=True, null=True)
-    memory_peak = models.IntegerField(blank=True, null=True)
+    load_source_memory_size = models.IntegerField(blank=True, null=True)
+    load_source_memory_peak = models.IntegerField(blank=True, null=True)
+    load_target_memory_size = models.IntegerField(blank=True, null=True)
+    load_target_memory_peak = models.IntegerField(blank=True, null=True)
+    diff_memory_size = models.IntegerField(blank=True, null=True)
+    diff_memory_peak = models.IntegerField(blank=True, null=True)
+    sync_memory_size = models.IntegerField(blank=True, null=True)
+    sync_memory_peak = models.IntegerField(blank=True, null=True)
 
     dry_run = models.BooleanField(
         default=False, help_text="Report what data would be synced but do not make any changes"
