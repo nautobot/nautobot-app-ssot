@@ -138,65 +138,41 @@
                 </div>
                 <table class="table table-hover panel-body attr-table">
                     <tr>
-                        <td>Memory used loading {{ object.source }}</td>
-                        <td>
-                            <table class="table table-hover panel-body attr-table">
-                                <tr>
-                                    <td>Final</td>
-                                    <td>{{ object.source_load_memory_final | humanize_size }}</td>
-                                </tr>
-                                <tr>
-                                    <td>Peak</td>
-                                    <td>{{ object.source_load_memory_final | humanize_size }}</td>
-                                </tr>
-                            </table>
-                        </td>
+                        <td rowspan="2">Memory used loading {{ object.source }}</td>
+                        <td>Final</td>
+                        <td>{{ object.source_load_memory_final | humanize_size }}</td>
                     </tr>
                     <tr>
-                        <td>Memory used loading {{ object.target }}</td>
-                        <td>
-                            <table class="table table-hover panel-body attr-table">
-                                <tr>
-                                    <td>Final</td>
-                                    <td>{{ object.target_load_memory_final | humanize_size }}</td>
-                                </tr>
-                                <tr>
-                                    <td>Peak</td>
-                                    <td>{{ object.target_load_memory_peak | humanize_size }}</td>
-                                </tr>
-                            </table>
-                        </td>
+                        <td>Peak</td>
+                        <td>{{ object.source_load_memory_peak | humanize_size }}</td>
                     </tr>
                     <tr>
-                        <td>Memory used calculating diff</td>
-                        <td>
-                            <table class="table table-hover panel-body attr-table">
-                                <tr>
-                                    <td>Final</td>
-                                    <td>{{ object.diff_memory_final | humanize_size }}</td>
-                                </tr>
-                                <tr>
-                                    <td>Peak</td>
-                                    <td>{{ object.diff_memory_peak | humanize_size }}</td>
-                                </tr>
-                            </table>
-                        </td>
+                        <td rowspan="2">Memory used loading {{ object.targe }}</td>
+                        <td>Final</td>
+                        <td>{{ object.target_load_memory_final | humanize_size }}</td>
+                    </tr>
+                    <tr>
+                        <td>Peak</td>
+                        <td>{{ object.target_load_memory_peak | humanize_size }}</td>
+                    </tr>
+                    <tr>
+                        <td rowspan="2">Memory used calculating diff</td>
+                        <td>Final</td>
+                        <td>{{ object.diff_memory_final | humanize_size }}</td>
+                    </tr>
+                    <tr>
+                        <td>Peak</td>
+                        <td>{{ object.diff_memory_peak | humanize_size }}</td>
                     </tr>
                     {% if object.sync_memory_final %}
                     <tr>
-                        <td>Memory used syncing</td>
-                        <td>
-                            <table class="table table-hover panel-body attr-table">
-                                <tr>
-                                    <td>Final</td>
-                                    <td>{{ object.sync_memory_final | humanize_size }}</td>
-                                </tr>
-                                <tr>
-                                    <td>Peak</td>
-                                    <td>{{ object.sync_memory_peak | humanize_size }}</td>
-                                </tr>
-                            </table>
-                        </td>
+                        <td rowspan="2">Memory used syncing</td>
+                        <td>Final</td>
+                        <td>{{ object.sync_memory_final | humanize_size }}</td>
+                    </tr>
+                    <tr>
+                        <td>Peak</td>
+                        <td>{{ object.sync_memory_peak | humanize_size }}</td>
                     </tr>
                     {% endif %}
                 </table>
