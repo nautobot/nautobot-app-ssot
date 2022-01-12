@@ -4,7 +4,7 @@
 {% load shorter_timedelta %}
 {% load render_diff %}
 {% load humanize %}
-{% load humanize_size %}
+{% load humanize_bytes %}
 
 
 {% block content %}
@@ -140,39 +140,39 @@
                     <tr>
                         <td rowspan="2">Memory used loading {{ object.source }}</td>
                         <td>Final</td>
-                        <td>{{ object.source_load_memory_final | humanize_size }}</td>
+                        <td>{{ object.source_load_memory_final | humanize_bytes }}</td>
                     </tr>
                     <tr>
                         <td>Peak</td>
-                        <td>{{ object.source_load_memory_peak | humanize_size }}</td>
+                        <td>{{ object.source_load_memory_peak | humanize_bytes }}</td>
                     </tr>
                     <tr>
                         <td rowspan="2">Memory used loading {{ object.target }}</td>
                         <td>Final</td>
-                        <td>{{ object.target_load_memory_final | humanize_size }}</td>
+                        <td>{{ object.target_load_memory_final | humanize_bytes }}</td>
                     </tr>
                     <tr>
                         <td>Peak</td>
-                        <td>{{ object.target_load_memory_peak | humanize_size }}</td>
+                        <td>{{ object.target_load_memory_peak | humanize_bytes }}</td>
                     </tr>
                     <tr>
                         <td rowspan="2">Memory used calculating diff</td>
                         <td>Final</td>
-                        <td>{{ object.diff_memory_final | humanize_size }}</td>
+                        <td>{{ object.diff_memory_final | humanize_bytes }}</td>
                     </tr>
                     <tr>
                         <td>Peak</td>
-                        <td>{{ object.diff_memory_peak | humanize_size }}</td>
+                        <td>{{ object.diff_memory_peak | humanize_bytes }}</td>
                     </tr>
                     {% if object.sync_memory_final %}
                     <tr>
                         <td rowspan="2">Memory used syncing</td>
                         <td>Final</td>
-                        <td>{{ object.sync_memory_final | humanize_size }}</td>
+                        <td>{{ object.sync_memory_final | humanize_bytes }}</td>
                     </tr>
                     <tr>
                         <td>Peak</td>
-                        <td>{{ object.sync_memory_peak | humanize_size }}</td>
+                        <td>{{ object.sync_memory_peak | humanize_bytes }}</td>
                     </tr>
                     {% endif %}
                 </table>

@@ -7,7 +7,7 @@ register = template.Library()
 
 
 @register.filter()
-def humanize_size(size):
+def humanize_bytes(size):
     """Humanize memory size given in bytes.
 
     Examples:
