@@ -62,8 +62,8 @@
                         <td>
                             {{ object.duration | shorter_timedelta }} total
                             <ul>
-                                <li>{{ object.load_time_source | shorter_timedelta }} loading from {{ object.source }}</li>
-                                <li>{{ object.load_time_target | shorter_timedelta }} loading from {{ object.target }}</li>
+                                <li>{{ object.source_load_time | shorter_timedelta }} loading from {{ object.source }}</li>
+                                <li>{{ object.target_load_time | shorter_timedelta }} loading from {{ object.target }}</li>
                                 <li>{{ object.diff_time | shorter_timedelta }} calulating diffs</li>
                                 <li>{{ object.sync_time | shorter_timedelta }} performing sync</li>
                             </ul>
@@ -129,7 +129,7 @@
                     </tr>
                 </table>
             </div>
-            {% if object.load_source_memory_size %}
+            {% if object.source_load_memory_final %}
             <div class="panel panel-default">
                 <div class="panel-heading">
                     <strong>Memory Usage Stats</strong>
@@ -141,11 +141,11 @@
                             <table class="table table-hover panel-body attr-table">
                                 <tr>
                                     <td>Final</td>
-                                    <td>{{ object.load_source_memory_size | intcomma }} bytes</td>
+                                    <td>{{ object.source_load_memory_final | intcomma }} bytes</td>
                                 </tr>
                                 <tr>
                                     <td>Peak</td>
-                                    <td>{{ object.load_source_memory_size | intcomma }} bytes</td>
+                                    <td>{{ object.source_load_memory_final | intcomma }} bytes</td>
                                 </tr>
                             </table>
                         </td>
@@ -156,11 +156,11 @@
                             <table class="table table-hover panel-body attr-table">
                                 <tr>
                                     <td>Final</td>
-                                    <td>{{ object.load_target_memory_size | intcomma }} bytes</td>
+                                    <td>{{ object.target_load_memory_final | intcomma }} bytes</td>
                                 </tr>
                                 <tr>
                                     <td>Peak</td>
-                                    <td>{{ object.load_target_memory_peak | intcomma }} bytes</td>
+                                    <td>{{ object.target_load_memory_peak | intcomma }} bytes</td>
                                 </tr>
                             </table>
                         </td>
@@ -171,7 +171,7 @@
                             <table class="table table-hover panel-body attr-table">
                                 <tr>
                                     <td>Final</td>
-                                    <td>{{ object.diff_memory_size | intcomma }} bytes</td>
+                                    <td>{{ object.diff_memory_final | intcomma }} bytes</td>
                                 </tr>
                                 <tr>
                                     <td>Peak</td>
@@ -180,14 +180,14 @@
                             </table>
                         </td>
                     </tr>
-                    {% if object.sync_memory_size %}
+                    {% if object.sync_memory_final %}
                     <tr>
                         <td>Memory used syncing</td>
                         <td>
                             <table class="table table-hover panel-body attr-table">
                                 <tr>
                                     <td>Final</td>
-                                    <td>{{ object.sync_memory_size | intcomma }} bytes</td>
+                                    <td>{{ object.sync_memory_final | intcomma }} bytes</td>
                                 </tr>
                                 <tr>
                                     <td>Peak</td>

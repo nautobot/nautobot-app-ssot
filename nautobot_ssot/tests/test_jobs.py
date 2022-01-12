@@ -28,8 +28,8 @@ class BaseJobTestCase(TestCase):
             job_id=uuid.uuid4(),
         )
 
-        self.job.load_source_adapter = lambda *x, **y: None
-        self.job.load_target_adapter = lambda *x, **y: None
+        self.job.source_load_adapter = lambda *x, **y: None
+        self.job.target_load_adapter = lambda *x, **y: None
 
     def test_sync_log(self):
         """Test the sync_log() method."""
@@ -80,8 +80,8 @@ class BaseJobTestCase(TestCase):
         """Test the run() method."""
         self.job.run(data={"dry_run": True, "memory_profiling": False}, commit=True)
         self.assertIsNotNone(self.job.sync)
-        self.assertIsNotNone(self.job.sync.load_time_source)
-        self.assertIsNotNone(self.job.sync.load_time_target)
+        self.assertIsNotNone(self.job.sync.source_load_time)
+        self.assertIsNotNone(self.job.sync.target_load_time)
         self.assertIsNotNone(self.job.sync.diff_time)
         self.assertIsNone(self.job.sync.sync_time)
         self.assertEqual(self.job.sync.source, self.job.data_source)

@@ -51,7 +51,7 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     dry_run = BooleanVar()
     memory_profiling = BooleanVar(description="Perform a memory profiling analysis.", default=False)
 
-    def load_source_adapter(self):
+    def source_load_adapter(self):
         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`.
 
         Relevant available instance attributes include:
@@ -61,7 +61,7 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         """
         raise NotImplementedError
 
-    def load_target_adapter(self):
+    def target_load_adapter(self):
         """Method to instantiate and load the TARGET adapter into `self.target_adapter`.
 
         Relevant available instance attributes include:
@@ -97,8 +97,8 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         """Method to load data from adapters, calculate diffs and sync (if not dry-run).
 
         It is composed by 4 methods:
-        - self.load_source_adapter: instantiates the source adapter (self.source_adapter) and loads its data
-        - self.load_target_adapter: instantiates the target adapter (self.target_adapter) and loads its data
+        - self.source_load_adapter: instantiates the source adapter (self.source_adapter) and loads its data
+        - self.target_load_adapter: instantiates the target adapter (self.target_adapter) and loads its data
         - self.calculate_diff: generates the diff from source to target adapter and stores it in self.diff
         - self.execute_sync: if not dry-run, uses the self.diff to synchronize from source to target
 
@@ -113,12 +113,12 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         def record_memory_trace(step: str):
             """Helper function to record memory usage and reset tracemalloc stats."""
-            memory_size, memory_peak = tracemalloc.get_traced_memory()
-            setattr(self.sync, f"{step}_memory_size", memory_size)
+            memory_final, memory_peak = tracemalloc.get_traced_memory()
+            setattr(self.sync, f"{step}_memory_final", memory_final)
             setattr(self.sync, f"{step}_memory_peak", memory_peak)
             self.sync.save()
             self.log_info(
-                message=(f"Traced memory for {step} (Current, Peak): {memory_size} bytes, {memory_peak} bytes")
+                message=(f"Traced memory for {step} (Final, Peak): {memory_final} bytes, {memory_peak} bytes")
             )
             tracemalloc.clear_traces()
 
@@ -131,27 +131,27 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         start_time = datetime.now()
 
         self.log_info(message="Loading current data from source adapter...")
-        self.load_source_adapter()
-        load_source_adapter_time = datetime.now()
-        self.sync.load_time_source = load_source_adapter_time - start_time
+        self.source_load_adapter()
+        source_load_adapter_time = datetime.now()
+        self.sync.source_load_time = source_load_adapter_time - start_time
         self.sync.save()
-        self.log_info(message=f"Source Load Time from {self.source_adapter}: {self.sync.load_time_source}")
+        self.log_info(message=f"Source Load Time from {self.source_adapter}: {self.sync.source_load_time}")
         if self.kwargs["memory_profiling"]:
-            record_memory_trace("load_source")
+            record_memory_trace("source_load")
 
         self.log_info(message="Loading current data from target adapter...")
-        self.load_target_adapter()
-        load_target_adapter_time = datetime.now()
-        self.sync.load_time_target = load_target_adapter_time - load_source_adapter_time
+        self.target_load_adapter()
+        target_load_adapter_time = datetime.now()
+        self.sync.target_load_time = target_load_adapter_time - source_load_adapter_time
         self.sync.save()
-        self.log_info(message=f"Target Load Time from {self.target_adapter}: {self.sync.load_time_target}")
+        self.log_info(message=f"Target Load Time from {self.target_adapter}: {self.sync.target_load_time}")
         if self.kwargs["memory_profiling"]:
-            record_memory_trace("load_target")
+            record_memory_trace("target_load")
 
         self.log_info(message="Calculating diffs...")
         self.calculate_diff()
         calculate_diff_time = datetime.now()
-        self.sync.diff_time = calculate_diff_time - load_target_adapter_time
+        self.sync.diff_time = calculate_diff_time - target_load_adapter_time
         self.sync.save()
         self.log_info(message=f"Diff Calculation Time: {self.sync.diff_time}")
         if self.kwargs["memory_profiling"]:
