@@ -4,6 +4,8 @@
 {% load shorter_timedelta %}
 {% load render_diff %}
 {% load humanize %}
+{% load humanize_size %}
+
 
 {% block content %}
     <style>
@@ -141,11 +143,11 @@
                             <table class="table table-hover panel-body attr-table">
                                 <tr>
                                     <td>Final</td>
-                                    <td>{{ object.source_load_memory_final | intcomma }} bytes</td>
+                                    <td>{{ object.source_load_memory_final | humanize_size }}</td>
                                 </tr>
                                 <tr>
                                     <td>Peak</td>
-                                    <td>{{ object.source_load_memory_final | intcomma }} bytes</td>
+                                    <td>{{ object.source_load_memory_final | humanize_size }}</td>
                                 </tr>
                             </table>
                         </td>
@@ -156,11 +158,11 @@
                             <table class="table table-hover panel-body attr-table">
                                 <tr>
                                     <td>Final</td>
-                                    <td>{{ object.target_load_memory_final | intcomma }} bytes</td>
+                                    <td>{{ object.target_load_memory_final | humanize_size }}</td>
                                 </tr>
                                 <tr>
                                     <td>Peak</td>
-                                    <td>{{ object.target_load_memory_peak | intcomma }} bytes</td>
+                                    <td>{{ object.target_load_memory_peak | humanize_size }}</td>
                                 </tr>
                             </table>
                         </td>
@@ -171,11 +173,11 @@
                             <table class="table table-hover panel-body attr-table">
                                 <tr>
                                     <td>Final</td>
-                                    <td>{{ object.diff_memory_final | intcomma }} bytes</td>
+                                    <td>{{ object.diff_memory_final | humanize_size }}</td>
                                 </tr>
                                 <tr>
                                     <td>Peak</td>
-                                    <td>{{ object.diff_memory_peak | intcomma }} bytes</td>
+                                    <td>{{ object.diff_memory_peak | humanize_size }}</td>
                                 </tr>
                             </table>
                         </td>
@@ -187,11 +189,11 @@
                             <table class="table table-hover panel-body attr-table">
                                 <tr>
                                     <td>Final</td>
-                                    <td>{{ object.sync_memory_final | intcomma }} bytes</td>
+                                    <td>{{ object.sync_memory_final | humanize_size }}</td>
                                 </tr>
                                 <tr>
                                     <td>Peak</td>
-                                    <td>{{ object.sync_memory_peak | intcomma }} bytes</td>
+                                    <td>{{ object.sync_memory_peak | humanize_size }}</td>
                                 </tr>
                             </table>
                         </td>
