@@ -386,7 +386,7 @@ class NautobotRemote(DiffSync):
     # Model classes used by this adapter class
     region = RegionRemoteModel
     site = SiteRemoteModel
-    prefix = PrefixModel
+    prefix = PrefixRemoteModel
 
     # Top-level class labels, i.e. those classes that are handled directly rather than as children of other models
     top_level = ("region", "site", "prefix")
@@ -616,8 +616,9 @@ class ExampleDataTarget(DataTarget, Job):
     def data_mappings(cls):
         """This Job maps Region and Site objects from the local system to the remote system."""
         return (
-            DataMapping("Region (local)", reverse("dcim:site_list"), "Region (remote)", None),
+            DataMapping("Region (local)", reverse("dcim:region_list"), "Region (remote)", None),
             DataMapping("Site (local)", reverse("dcim:site_list"), "Site (remote)", None),
+            DataMapping("Prefix (local)", reverse("ipam:prefix_list"), "Prefix (remote)", None),
         )
 
     def load_source_adapter(self):
@@ -642,7 +643,6 @@ class ExampleDataTarget(DataTarget, Job):
                 return Site.objects.get(name=unique_id)
             except Site.DoesNotExist:
                 pass
-
         elif model_name == "prefix":
             try:
                 return Prefix.objects.get(
