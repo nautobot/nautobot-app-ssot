@@ -37,7 +37,7 @@ In brief, the following general steps can be followed:
 
    - `self.calculate_diff`: This method is implemented by default, using the output from load_adapter methods.
 
-   - `self.execue_sync`: This method is implemented by default, using the output from load_adapter methods. Only executed if it's not a `dry-run` execution.
+   - `self.execute_sync`: This method is implemented by default, using the output from load_adapter methods. Only executed if it's not a `dry-run` execution.
 
 5. Optionally, on your Job class, also implement the `lookup_object`, `data_mappings`, and/or `config_information` APIs (to provide more information to the end user about the details of this Job), as well as the various metadata properties on your Job's `Meta` inner class. Refer to the example Jobs provided in this plugin for examples and further details.
 6. Install your Job via any of the supported Nautobot methods (installation into the `JOBS_ROOT` directory, inclusion in a Git repository, or packaging as part of a plugin) and it should automatically become available!
@@ -46,10 +46,10 @@ In brief, the following general steps can be followed:
 
 The built-in implementation of `sync_data` is composed by 4 steps:
 
-- Load data from source adapter
-- Load data from target adapter
+- Loading data from source adapter
+- Loading data from target adapter
 - Calculating diff
-- Executing synchronization (if not `dry-run)
+- Executing synchronization (if not `dry-run`)
 
 For each one of these 4 steps we can capture data for performance analysis:
 
