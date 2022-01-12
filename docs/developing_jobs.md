@@ -17,19 +17,19 @@ In brief, the following general steps can be followed:
 
 4. Develop a Job class, derived from either the `DataSource` or `DataTarget` classes provided by this plugin, and implement the adapters to populate the `self.source_adapter` and `self.target_adapter` that are used by the built-in implementation of `sync_data`. This `sync_data` method is an opinionated way of running the process including some performance data, more in [next section](#analyze-job-performance), but you could overwrite it completely or any of the key hooks that it calls:
 
-   - `self.source_load_adapter`: This is mandatory to be implemented. As an example:
+   - `self.load_source_adapter`: This is mandatory to be implemented. As an example:
 
      ```python
-     def source_load_adapter(self):
+     def load_source_adapter(self):
          """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""
          self.source_adapter = NautobotRemote(url=self.kwargs["source_url"], token=self.kwargs["source_token"], job=self)
          self.source_adapter.load()
      ```
 
-   - `self.target_load_adapter`: This is mandatory to be implemented. As an example:
+   - `self.load_target_adapter`: This is mandatory to be implemented. As an example:
 
      ```python
-     def source_load_adapter(self):
+     def load_source_adapter(self):
          """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""
          self.source_adapter = NautobotRemote(url=self.kwargs["source_url"], token=self.kwargs["source_token"], job=self)
          self.source_adapter.load()

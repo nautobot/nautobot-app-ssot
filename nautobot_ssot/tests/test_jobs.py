@@ -28,8 +28,8 @@ class BaseJobTestCase(TestCase):
             job_id=uuid.uuid4(),
         )
 
-        self.job.source_load_adapter = lambda *x, **y: None
-        self.job.target_load_adapter = lambda *x, **y: None
+        self.job.load_source_adapter = lambda *x, **y: None
+        self.job.load_target_adapter = lambda *x, **y: None
 
     def test_sync_log(self):
         """Test the sync_log() method."""

@@ -51,7 +51,7 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     dry_run = BooleanVar()
     memory_profiling = BooleanVar(description="Perform a memory profiling analysis.", default=False)
 
-    def source_load_adapter(self):
+    def load_source_adapter(self):
         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`.
 
         Relevant available instance attributes include:
@@ -61,7 +61,7 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         """
         raise NotImplementedError
 
-    def target_load_adapter(self):
+    def load_target_adapter(self):
         """Method to instantiate and load the TARGET adapter into `self.target_adapter`.
 
         Relevant available instance attributes include:
@@ -97,8 +97,8 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         """Method to load data from adapters, calculate diffs and sync (if not dry-run).
 
         It is composed by 4 methods:
-        - self.source_load_adapter: instantiates the source adapter (self.source_adapter) and loads its data
-        - self.target_load_adapter: instantiates the target adapter (self.target_adapter) and loads its data
+        - self.load_source_adapter: instantiates the source adapter (self.source_adapter) and loads its data
+        - self.load_target_adapter: instantiates the target adapter (self.target_adapter) and loads its data
         - self.calculate_diff: generates the diff from source to target adapter and stores it in self.diff
         - self.execute_sync: if not dry-run, uses the self.diff to synchronize from source to target
 
@@ -131,18 +131,18 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         start_time = datetime.now()
 
         self.log_info(message="Loading current data from source adapter...")
-        self.source_load_adapter()
-        source_load_adapter_time = datetime.now()
-        self.sync.source_load_time = source_load_adapter_time - start_time
+        self.load_source_adapter()
+        load_source_adapter_time = datetime.now()
+        self.sync.source_load_time = load_source_adapter_time - start_time
         self.sync.save()
         self.log_info(message=f"Source Load Time from {self.source_adapter}: {self.sync.source_load_time}")
         if self.kwargs["memory_profiling"]:
             record_memory_trace("source_load")
 
         self.log_info(message="Loading current data from target adapter...")
-        self.target_load_adapter()
-        target_load_adapter_time = datetime.now()
-        self.sync.target_load_time = target_load_adapter_time - source_load_adapter_time
+        self.load_target_adapter()
+        load_target_adapter_time = datetime.now()
+        self.sync.target_load_time = load_target_adapter_time - load_source_adapter_time
         self.sync.save()
         self.log_info(message=f"Target Load Time from {self.target_adapter}: {self.sync.target_load_time}")
         if self.kwargs["memory_profiling"]:
@@ -151,7 +151,7 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         self.log_info(message="Calculating diffs...")
         self.calculate_diff()
         calculate_diff_time = datetime.now()
-        self.sync.diff_time = calculate_diff_time - target_load_adapter_time
+        self.sync.diff_time = calculate_diff_time - load_target_adapter_time
         self.sync.save()
         self.log_info(message=f"Diff Calculation Time: {self.sync.diff_time}")
         if self.kwargs["memory_profiling"]:
