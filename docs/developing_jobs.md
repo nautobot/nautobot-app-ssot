@@ -29,10 +29,10 @@ In brief, the following general steps can be followed:
    - `self.load_target_adapter`: This is mandatory to be implemented. As an example:
 
      ```python
-     def load_source_adapter(self):
-         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""
-         self.source_adapter = NautobotRemote(url=self.kwargs["source_url"], token=self.kwargs["source_token"], job=self)
-         self.source_adapter.load()
+     def load_target_adapter(self):
+        """Method to instantiate and load the TARGET adapter into `self.target_adapter`."""
+        self.target_adapter = NautobotLocal(job=self)
+        self.target_adapter.load()
      ```
 
    - `self.calculate_diff`: This method is implemented by default, using the output from load_adapter methods.
