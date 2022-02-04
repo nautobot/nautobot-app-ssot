@@ -1,7 +1,11 @@
 """Test the Job classes in nautobot_ssot."""
+import uuid
+from django.contrib.contenttypes.models import ContentType
 
 from django.forms import HiddenInput
 from django.test import TestCase
+
+from nautobot.extras.models import JobResult
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 from nautobot_ssot.jobs.base import DataSyncBaseJob
@@ -18,9 +22,18 @@ class BaseJobTestCase(TestCase):
         """Per-test setup."""
         self.job = self.job_class()
 
+        self.job.job_result = JobResult.objects.create(
+            name="fake job",
+            obj_type=ContentType.objects.get(app_label="extras", model="job"),
+            job_id=uuid.uuid4(),
+        )
+
+        self.job.load_source_adapter = lambda *x, **y: None
+        self.job.load_target_adapter = lambda *x, **y: None
+
     def test_sync_log(self):
         """Test the sync_log() method."""
-        self.job.run(data={"dry_run": True}, commit=True)
+        self.job.run(data={"dry_run": True, "memory_profiling": False}, commit=True)
         self.assertIsNotNone(self.job.sync)
         # Minimal parameters
         self.job.sync_log(
@@ -65,12 +78,16 @@ class BaseJobTestCase(TestCase):
 
     def test_run(self):
         """Test the run() method."""
-        self.job.run(data={"dry_run": True}, commit=True)
+        self.job.run(data={"dry_run": True, "memory_profiling": False}, commit=True)
         self.assertIsNotNone(self.job.sync)
+        self.assertIsNotNone(self.job.sync.source_load_time)
+        self.assertIsNotNone(self.job.sync.target_load_time)
+        self.assertIsNotNone(self.job.sync.diff_time)
+        self.assertIsNone(self.job.sync.sync_time)
         self.assertEqual(self.job.sync.source, self.job.data_source)
         self.assertEqual(self.job.sync.target, self.job.data_target)
         self.assertTrue(self.job.sync.dry_run)
-        self.assertEqual(self.job.job_result, self.job.sync.job_result)  # both are None
+        self.assertEqual(self.job.job_result, self.job.sync.job_result)
 
 
 class DataSourceTestCase(BaseJobTestCase):
