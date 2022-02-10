@@ -1,12 +1,13 @@
 # Changelog
 
-## v1.1.0 - YYYY-MM-DD
+## v1.1.0 - 2022-02-03
 
 ### Added
 
 - [#11](https://github.com/nautobot/nautobot-plugin-ssot/issues/11) - Add option to profile memory usage during job execution.
-- [#14](https://github.com/nautobot/nautobot-plugin-ssot/pull/14) - Added Prefix sync to example jobs, added Celery worker to dev environment.
+- [#14](https://github.com/nautobot/nautobot-plugin-ssot/pull/14), [#22](https://github.com/nautobot/nautobot-plugin-ssot/pull/22) - Added Prefix sync to example jobs, added Celery worker to dev environment.
 - [#15](https://github.com/nautobot/nautobot-plugin-ssot/pull/15) - Added `load_source_adapter`, `load_target_adapter`, `calculate_diff`, and `execute_sync` API methods that Job implementations can override instead of overriding the generalized `sync_data` method.
+- [#21](https://github.com/nautobot/nautobot-plugin-ssot/pull/21) - Add performance stats in Sync job detail view.
 
 ### Fixed
 
