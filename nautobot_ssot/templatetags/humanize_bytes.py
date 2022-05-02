@@ -15,6 +15,9 @@ def humanize_bytes(size):
         1024 => "1 KiB"
         1024*1024 => "1 MiB"
     """
+    if not isinstance(size, (int, float)):
+        return "no data"
+
     suffix = "B"
     for unit in ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"]:
         if abs(size) < 1024.0:
