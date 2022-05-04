@@ -45,9 +45,13 @@ def render_diff_recursive(diff):
             child_result += f'<li class="{child_class}">{child}<ul>'
 
             for attr, value in child_diffs.pop("+", {}).items():
+                if isinstance(value, dict):
+                    value = str(value).replace("{", "{{").replace("}", "}}")
                 child_result += f'<li class="diff-added">{attr}: {value}</li>'
 
             for attr, value in child_diffs.pop("-", {}).items():
+                if isinstance(value, dict):
+                    value = str(value).replace("{", "{{").replace("}", "}}")
                 child_result += f'<li class="diff-subtracted">{attr}: {value}</li>'
 
             if child_diffs:
