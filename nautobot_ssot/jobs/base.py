@@ -80,6 +80,7 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             self.diff = self.source_adapter.diff_to(self.target_adapter, flags=self.diffsync_flags)
             self.sync.diff = self.diff.dict()
             self.sync.save()
+            self.log_info(message=self.sync.diff.summary())
         else:
             self.log_warning(message="Not both adapters were properly initialized prior to diff calculation.")
 
