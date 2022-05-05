@@ -1,8 +1,7 @@
 """Template tag for rendering a DiffSync diff dictionary in a more human-readable form."""
 
 from django import template
-from django.utils.html import format_html
-
+from django.utils.safestring import mark_safe
 
 register = template.Library()
 
@@ -45,13 +44,9 @@ def render_diff_recursive(diff):
             child_result += f'<li class="{child_class}">{child}<ul>'
 
             for attr, value in child_diffs.pop("+", {}).items():
-                if isinstance(value, dict):
-                    value = str(value).replace("{", "{{").replace("}", "}}")
                 child_result += f'<li class="diff-added">{attr}: {value}</li>'
 
             for attr, value in child_diffs.pop("-", {}).items():
-                if isinstance(value, dict):
-                    value = str(value).replace("{", "{{").replace("}", "}}")
                 child_result += f'<li class="diff-subtracted">{attr}: {value}</li>'
 
             if child_diffs:
@@ -66,5 +61,4 @@ def render_diff_recursive(diff):
 def render_diff(diff):
     """Render a DiffSync diff dict to HTML."""
     result = f"<ul>{render_diff_recursive(diff)}</ul>"
-
-    return format_html(result)
+    return mark_safe(result)
