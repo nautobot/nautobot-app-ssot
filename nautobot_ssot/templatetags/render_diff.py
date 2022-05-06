@@ -43,7 +43,7 @@ def render_diff_recursive(diff):
                 child_class = "diff-unchanged"
             else:
                 child_class = "diff-changed"
-            child_result += format_html('<li class="{}">{}<ul>', mark_safe(child_class), child)  # nosec
+            child_result += format_html('<li class="{}">{}<ul>', child_class, child)
 
             for attr, value in child_diffs.pop("+", {}).items():
                 child_result += format_html('<li class="diff-added">{}: {}</li>', attr, value)
