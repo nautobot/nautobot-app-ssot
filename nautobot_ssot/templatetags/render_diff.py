@@ -1,6 +1,7 @@
 """Template tag for rendering a DiffSync diff dictionary in a more human-readable form."""
 
 from django import template
+from django.utils.safestring import mark_safe
 from django.utils.html import format_html
 
 
@@ -42,25 +43,24 @@ def render_diff_recursive(diff):
                 child_class = "diff-unchanged"
             else:
                 child_class = "diff-changed"
-            child_result += f'<li class="{child_class}">{child}<ul>'
+            child_result += format_html('<li class="{}">{}<ul>', child_class, child)
 
             for attr, value in child_diffs.pop("+", {}).items():
-                child_result += f'<li class="diff-added">{attr}: {value}</li>'
+                child_result += format_html('<li class="diff-added">{}: {}</li>', attr, value)
 
             for attr, value in child_diffs.pop("-", {}).items():
-                child_result += f'<li class="diff-subtracted">{attr}: {value}</li>'
+                child_result += format_html('<li class="diff-subtracted">{}: {}</li>', attr, value)
 
             if child_diffs:
                 child_result += render_diff_recursive(child_diffs)
 
             child_result += "</ul></li>"
-        result += f"<li>{record_type}<ul>{child_result}</ul></li>"
+        result += format_html("<li>{}<ul>{}</ul></li>", record_type, mark_safe(child_result))  # nosec
     return result
 
 
 @register.simple_tag
 def render_diff(diff):
     """Render a DiffSync diff dict to HTML."""
-    result = f"<ul>{render_diff_recursive(diff)}</ul>"
-
-    return format_html(result)
+    html_text = render_diff_recursive(diff)
+    return format_html("<ul>{}</ul>", mark_safe(html_text))  # nosec
