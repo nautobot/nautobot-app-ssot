@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.1.1 - 2022-05-06
+
+### Added
+
+- [#43](https://github.com/nautobot/nautobot-plugin-ssot/pull/43) - The detailed SSoT log output contains a summary info message about the diff changes.
+
+### Fixed
+
+- [#42](https://github.com/nautobot/nautobot-plugin-ssot/pull/42) - Use format_html to create all HTML pieces in render_diff and combine with mark_safe when is formatted twice.
+- [#40](https://github.com/nautobot/nautobot-plugin-ssot/pull/40) - Handle gracefully unexpected input type for humanize_bytes filter.
+
 ## v1.1.0 - 2022-02-03
 
 ### Added
