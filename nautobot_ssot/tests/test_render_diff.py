@@ -38,6 +38,18 @@ test_params = [
         },
         '<ul><li>model_name<ul><li class="diff-subtracted">element<ul><li class="diff-subtracted">cfs: {&#x27;this is a XSS&#x27;: &#x27;&lt;script&gt;alert(document.cookie)&lt;/script&gt;&#x27;}</li></ul></li></ul></li></ul>',
     ),
+    (
+        {
+            "model_name": {
+                "element": {
+                    "-": {
+                        "description": "<script>alert(document.cookie)</script>",
+                    }
+                },
+            }
+        },
+        '<ul><li>model_name<ul><li class="diff-subtracted">element<ul><li class="diff-subtracted">description: &lt;script&gt;alert(document.cookie)&lt;/script&gt;</li></ul></li></ul></li></ul>',
+    ),
 ]
 
 
