@@ -97,7 +97,7 @@ class BaseJobTestCase(TestCase):
         self.job.target_adapter = Mock()
         self.job.source_adapter.diff_to().dict.return_value = {}
         self.job.calculate_diff()
-        self.job.source_adapter.diff_to.assert_called_once()
+        self.job.source_adapter.diff_to.assert_called()
         self.job.sync.save.assert_called_once()
 
 
