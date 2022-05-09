@@ -1,4 +1,5 @@
 """Test the Job classes in nautobot_ssot."""
+from unittest.mock import Mock
 import uuid
 from django.contrib.contenttypes.models import ContentType
 
@@ -88,6 +89,16 @@ class BaseJobTestCase(TestCase):
         self.assertEqual(self.job.sync.target, self.job.data_target)
         self.assertTrue(self.job.sync.dry_run)
         self.assertEqual(self.job.job_result, self.job.sync.job_result)
+
+    def test_calculate_diff(self):
+        """Test calculate_diff() method."""
+        self.job.sync = Mock()
+        self.job.source_adapter = Mock()
+        self.job.target_adapter = Mock()
+        self.job.source_adapter.diff_to().dict.return_value = {}
+        self.job.calculate_diff()
+        self.job.source_adapter.diff_to.assert_called_once()
+        self.job.sync.save.assert_called_once()
 
 
 class DataSourceTestCase(BaseJobTestCase):
