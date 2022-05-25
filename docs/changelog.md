@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.2 - 2022-05-09
+
+### Fixed
+
+- [#48](https://github.com/nautobot/nautobot-plugin-ssot/pull/48) - Fix introduced bug in #43, using a nonexistent method in an object.
+
 ## v1.1.1 - 2022-05-06
 
 ### Added
