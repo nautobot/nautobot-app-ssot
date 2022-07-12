@@ -28,7 +28,7 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.7"
 nautobot = "*"
-diffsync = "^1.5.1"
+diffsync = "^1.6.0"
 Markdown = "!=3.3.5"
 
 [tool.poetry.dev-dependencies]
