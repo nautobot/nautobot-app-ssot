@@ -268,7 +268,7 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # Default diffsync flags. You can overwrite them at any time.
         self.diffsync_flags = DiffSyncFlags.CONTINUE_ON_FAILURE | DiffSyncFlags.LOG_UNCHANGED_RECORDS
 
-    def as_form(self, data=None, files=None, initial=None):
+    def as_form(self, data=None, files=None, initial=None, approval_view=False):
         """Render this instance as a Django form for user inputs, including a "Dry run" field."""
         form = super().as_form(data=data, files=files, initial=initial)
         # Set the "dry_run" widget's initial value based on our Meta attribute, if any
