@@ -1,6 +1,7 @@
 """Base Job classes for sync workers."""
 from collections import namedtuple
 from datetime import datetime
+from packaging import Version
 import traceback
 import tracemalloc
 from typing import Iterable
@@ -16,6 +17,7 @@ from django.utils.functional import classproperty
 from diffsync.enum import DiffSyncFlags
 import structlog
 
+from nautobot import __version__ as nautobot_version
 from nautobot.extras.jobs import BaseJob, BooleanVar
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices
@@ -270,7 +272,10 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
     def as_form(self, data=None, files=None, initial=None, approval_view=False):
         """Render this instance as a Django form for user inputs, including a "Dry run" field."""
-        form = super().as_form(data=data, files=files, initial=initial)
+        if Version(nautobot_version) < Version("1.2"):
+            form = super().as_form(data=data, files=files, initial=initial)
+        else:
+            form = super().as_form(data=data, files=files, initial=initial, approval_view=approval_view)
         # Set the "dry_run" widget's initial value based on our Meta attribute, if any
         form.fields["dry_run"].initial = getattr(self.Meta, "dry_run_default", True)
         # Hide the "commit" widget to reduce user confusion
