@@ -1,10 +1,10 @@
 """Base Job classes for sync workers."""
 from collections import namedtuple
 from datetime import datetime
-from packaging import Version
 import traceback
 import tracemalloc
 from typing import Iterable
+from packaging.version import Version
 
 from django.forms import HiddenInput
 from django.templatetags.static import static
