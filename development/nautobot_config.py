@@ -43,9 +43,6 @@ DATABASES = {
     }
 }
 
-DATABASES["job_logs"] = DATABASES["default"].copy()
-DATABASES["job_logs"]["TEST"] = {"MIRROR": "default"}
-
 
 # Nautobot uses Cacheops for database query caching. These are the following defaults.
 # For detailed configuration see: https://github.com/Suor/django-cacheops#setup
