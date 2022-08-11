@@ -13,12 +13,11 @@ from nautobot.extras.models import JobResult
 from nautobot.utilities.testing import TransactionTestCase
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
-from nautobot_ssot.jobs.base import DataSyncBaseJob
-from nautobot_ssot.jobs import DataSource, DataTarget
+from nautobot_ssot.tests.jobs import DataSyncBaseJob, DataSource, DataTarget
 from nautobot_ssot.models import SyncLogEntry
 
 
-@override_settings(JOBS_ROOT=os.path.join(os.path.dirname(os.path.dirname(__file__)), "jobs"))
+@override_settings(JOBS_ROOT=os.path.join(os.path.dirname(__file__), "jobs"))
 class BaseJobTestCase(TransactionTestCase):
     """Test the DataSyncBaseJob class."""
 
