@@ -1,5 +1,5 @@
 """Plugin declaration for nautobot_ssot."""
-
+# flake8: noqa
 try:
     from importlib import metadata
 except ImportError:

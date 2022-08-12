@@ -105,6 +105,9 @@ class SyncViewsTestCase(  # pylint: disable=too-many-ancestors
             200,
         )
 
+    def test_has_advanced_tab(self):
+        pass
+
 
 class SyncLogEntryViewsTestCase(ViewTestCases.ListObjectsViewTestCase):  # pylint: disable=too-many-ancestors
     """Test views related to the SyncLogEntry model."""
@@ -139,3 +142,6 @@ class SyncLogEntryViewsTestCase(ViewTestCases.ListObjectsViewTestCase):  # pylin
                 object_repr="Placeholder",
                 message="Log message",
             )
+
+    def test_has_advanced_tab(self):
+        pass
