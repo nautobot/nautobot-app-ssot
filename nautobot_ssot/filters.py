@@ -8,7 +8,7 @@ from nautobot.utilities.filters import BaseFilterSet
 from .models import Sync, SyncLogEntry
 
 
-class SyncFilter(BaseFilterSet):
+class SyncFilterSet(BaseFilterSet):
     """Filter capabilities for SyncOverview instances."""
 
     class Meta:
@@ -18,7 +18,7 @@ class SyncFilter(BaseFilterSet):
         fields = ["dry_run", "job_result"]
 
 
-class SyncLogEntryFilter(BaseFilterSet):
+class SyncLogEntryFilterSet(BaseFilterSet):
     """Filter capabilities for SyncLogEntry instances."""
 
     q = django_filters.CharFilter(method="search", label="Search")

@@ -161,9 +161,9 @@ class SyncLogEntry(BaseModel):
     synced_object_id = models.UUIDField(blank=True, null=True)
     synced_object = GenericForeignKey(ct_field="synced_object_type", fk_field="synced_object_id")
 
-    object_repr = models.CharField(max_length=200, blank=True, default="", editable=False)
+    object_repr = models.TextField(blank=True, default="", editable=False)
 
-    message = models.CharField(max_length=511, blank=True)
+    message = models.TextField(blank=True)
 
     class Meta:
         """Metaclass attributes of SyncLogEntry."""
