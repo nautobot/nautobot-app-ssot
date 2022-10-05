@@ -1,4 +1,7 @@
 """Sample data-source and data-target Jobs."""
+# Skip colon check for multiple statements on one line.
+# flake8: noqa: E701
+
 from typing import Optional, Mapping
 from uuid import UUID
 from django.contrib.contenttypes.models import ContentType

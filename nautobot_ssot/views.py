@@ -14,7 +14,7 @@ from nautobot.core.views.generic import BulkDeleteView, ObjectDeleteView, Object
 from nautobot.utilities.paginator import EnhancedPaginator
 from nautobot.utilities.views import ContentTypePermissionRequiredMixin
 
-from .filters import SyncFilter, SyncLogEntryFilter
+from .filters import SyncFilterSet, SyncLogEntryFilterSet
 from .forms import SyncFilterForm, SyncLogEntryFilterForm
 from .jobs import get_data_jobs, DataSource, DataTarget
 from .models import Sync, SyncLogEntry
@@ -97,7 +97,7 @@ class SyncListView(ObjectListView):
     """View for listing Sync records."""
 
     queryset = Sync.annotated_queryset()
-    filterset = SyncFilter
+    filterset = SyncFilterSet
     filterset_form = SyncFilterForm
     table = SyncTable
     action_buttons = []
@@ -155,7 +155,7 @@ class SyncLogEntriesView(ObjectListView):
     """View for SyncLogEntries associated with a given Sync."""
 
     queryset = SyncLogEntry.objects.all()
-    filterset = SyncLogEntryFilter
+    filterset = SyncLogEntryFilterSet
     filterset_form = SyncLogEntryFilterForm
     table = SyncLogEntryTable
     action_buttons = []
@@ -177,7 +177,7 @@ class SyncLogEntryListView(ObjectListView):
     """View for listing SyncLogEntry records."""
 
     queryset = SyncLogEntry.objects.all()
-    filterset = SyncLogEntryFilter
+    filterset = SyncLogEntryFilterSet
     filterset_form = SyncLogEntryFilterForm
     table = SyncLogEntryTable
     action_buttons = []

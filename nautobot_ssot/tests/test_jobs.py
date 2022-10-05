@@ -1,23 +1,31 @@
 """Test the Job classes in nautobot_ssot."""
+import os.path
 from unittest.mock import Mock
 import uuid
 from django.contrib.contenttypes.models import ContentType
 
 from django.forms import HiddenInput
-from django.test import TestCase
+from django.test import override_settings
+
+# from django.test import TestCase
 
 from nautobot.extras.models import JobResult
+from nautobot.utilities.testing import TransactionTestCase
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
-from nautobot_ssot.jobs.base import DataSyncBaseJob
-from nautobot_ssot.jobs import DataSource, DataTarget
+from nautobot_ssot.tests.jobs import DataSyncBaseJob, DataSource, DataTarget
 from nautobot_ssot.models import SyncLogEntry
 
 
-class BaseJobTestCase(TestCase):
+@override_settings(JOBS_ROOT=os.path.join(os.path.dirname(__file__), "jobs"))
+class BaseJobTestCase(TransactionTestCase):
     """Test the DataSyncBaseJob class."""
 
     job_class = DataSyncBaseJob
+    databases = (
+        "default",
+        "job_logs",
+    )
 
     def setUp(self):
         """Per-test setup."""
@@ -28,6 +36,8 @@ class BaseJobTestCase(TestCase):
             obj_type=ContentType.objects.get(app_label="extras", model="job"),
             job_id=uuid.uuid4(),
         )
+
+        # name=self.job.class_path,
 
         self.job.load_source_adapter = lambda *x, **y: None
         self.job.load_target_adapter = lambda *x, **y: None
