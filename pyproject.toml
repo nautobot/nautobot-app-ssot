@@ -28,7 +28,7 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.7"
 nautobot = "*"
-diffsync = "^1.6.0"
+diffsync = "^1.7.0"
 Markdown = "!=3.3.5"
 packaging = "^21.3"
 
@@ -41,7 +41,7 @@ bandit = "*"
 pylint = "*"
 pylint-django = "*"
 pydocstyle = "*"
-flake8 = "*"
+flake8 = "~3.9.1"
 coverage = "*"
 mkdocs = "*"
 

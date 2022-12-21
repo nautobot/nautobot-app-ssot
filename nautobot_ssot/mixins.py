@@ -3,22 +3,14 @@
 from typing import Optional
 from diffsync.enum import DiffSyncFlags, DiffSyncModelFlags
 
-
-def get_fk(fks, diffsync, key, value):
-    """Function to get the fk of an object, given information stored in ORM."""
-    # fks comes from self._foreign_keys
-    # key matches a key in `_foreign_keys` which is the local attribute
-    # value is the get_unique_id() we are looking for
-    if key in list(fks.keys()):
-        model = [val for _key, val in fks.items() if _key == key][0]
-        key_model = diffsync.meta[model]
-        pkey = diffsync.get(model, value).pk
-    return key_model.objects.get(pk=pkey)
+# from django.db import models
+from django.db.models.base import Model
 
 
 class DiffSyncModelMixIn:
     """MixIn class to handle sync generically."""
 
+    _orm_model = None
     _foreign_key = {}
     _many_to_many = {}
     _generic_relation = {}
@@ -32,12 +24,12 @@ class DiffSyncModelMixIn:
         """Create Method to handle generically."""
         model = super().create(ids=ids, diffsync=diffsync, attrs=attrs)
         # model is the DiffSyncModel instance, which has data about the instance required
-        db_model = cls.Meta.model
+        db_model = cls._orm_model
+        if not db_model:
+            raise ValueError(f"The attribute `_orm_model` was not set on {cls.__name__}")
         obj = db_model()
         instance_values = {**ids, **attrs}
-        combined = (
-            list(model._foreign_key.keys()) + list(model._many_to_many.keys()) + list(model._generic_relation.keys())
-        )
+        combined = cls.combined_keys(model)
         for key, value in instance_values.items():
             if hasattr(model, "_skip") and key in model._skip:
                 continue
@@ -53,20 +45,19 @@ class DiffSyncModelMixIn:
                     with_values = "__".join(
                         [instance_values[key] for key in list(model._generic_relation[key]["identifiers"])]
                     )
-                    db_obj = get_fk(with_parent, diffsync, key, with_values)
+                    db_obj = cls.get_fk(with_parent, diffsync, key, with_values)
                     setattr(obj, model._generic_relation[key]["attr"], db_obj)
                 if key in list(model._foreign_key.keys()):
-                    db_obj = get_fk(model._foreign_key, diffsync, key, value)
+                    db_obj = cls.get_fk(model._foreign_key, diffsync, key, value)
                     setattr(obj, key, db_obj)
                 if key in list(model._many_to_many.keys()):
                     if isinstance(value, list):
                         for val in value:
-                            db_obj = get_fk(model._many_to_many, diffsync, key, val)
+                            db_obj = cls.get_fk(model._many_to_many, diffsync, key, val)
                             getattr(obj, key).add(db_obj)
                     else:
-                        db_obj = get_fk(model._many_to_many, diffsync, key, value)
+                        db_obj = cls.get_fk(model._many_to_many, diffsync, key, value)
                         obj.set(db_obj)
-
         obj.validated_save()
         if not model.pk:
             setattr(model, "pk", obj.pk)
@@ -74,20 +65,24 @@ class DiffSyncModelMixIn:
 
     def update(self, attrs):  # pylint: disable=too-many-branches
         """Create Method to handle generically."""
-        db_model = self.Meta.model
+        db_model = self._orm_model
+        if not db_model:
+            raise ValueError(f"The attribute `_orm_model` was not set on {self.__name__}")
+        # Simply doing this to make the code in the update and add more similar
         diffsync = self.diffsync
-        combined = list(self._foreign_key.keys()) + list(self._many_to_many.keys())
-        instance_values = {**attrs}
-        _vars = self.get_identifiers()
-        for key, val in _vars.items():
-            if key in list(self._foreign_key.keys()):
-                db_obj = get_fk(self._foreign_key, diffsync, key, val)
-                _vars[key] = str(db_obj.pk)
-            if key in list(self._many_to_many.keys()):
-                db_obj = get_fk(self._many_to_many, diffsync, key, val)
-                _vars[key] = str(db_obj.pk)
+        instance_values = attrs.copy()
+        combined = self.combined_keys(self)
+        var_by_pk = self.get_identifiers()
 
-        obj = db_model.objects.get(**_vars)
+        for key, val in var_by_pk.items():
+            if key in list(self._foreign_key.keys()):
+                db_obj = self.get_fk(self._foreign_key, diffsync, key, val)
+                var_by_pk[key] = str(db_obj.pk)
+            if key in list(self._many_to_many.keys()):
+                db_obj = self.get_fk(self._many_to_many, diffsync, key, val)
+                var_by_pk[key] = str(db_obj.pk)
+
+        obj = db_model.objects.get(**var_by_pk)
 
         for key, value in instance_values.items():
             if hasattr(self, "_skip") and key in self._skip:
@@ -104,31 +99,67 @@ class DiffSyncModelMixIn:
                     with_values = "__".join(
                         [instance_values[key] for key in list(self._generic_relation[key]["identifiers"])]
                     )
-                    db_obj = get_fk(with_parent, diffsync, key, with_values)
+                    db_obj = self.get_fk(with_parent, diffsync, key, with_values)
                     setattr(obj, self._generic_relation[key]["attr"], db_obj)
                 if key in list(self._foreign_key.keys()):
-                    db_obj = get_fk(self._foreign_key, diffsync, key, value)
+                    db_obj = self.get_fk(self._foreign_key, diffsync, key, value)
                     setattr(obj, key, db_obj)
                 if key in list(self._many_to_many.keys()):
                     if isinstance(value, list):
                         for val in value:
-                            db_obj = get_fk(self._many_to_many, diffsync, key, val)
+                            db_obj = self.get_fk(self._many_to_many, diffsync, key, val)
                             getattr(obj, key).add(db_obj)
                     else:
-                        db_obj = get_fk(self._many_to_many, diffsync, key, value)
+                        db_obj = self.get_fk(self._many_to_many, diffsync, key, value)
                         obj.set(db_obj)
         obj.save()
         return super().update(attrs)
 
     def delete(self):
         """Create Method to handle generically."""
-        db_model = self.Meta.model
+        db_model = self._orm_model
+        if not db_model:
+            raise ValueError(f"The attribute `_orm_model` was not set on {self.__name__}")
         obj = db_model.objects.get(pk=self.pk)
         obj.delete()
 
         super().delete()
         return self
 
+    @staticmethod
+    def get_fk(fks, diffsync, key, value):
+        """Function to get the fk of an object, given information stored in ORM."""
+        # fks comes from self._foreign_keys
+        # key matches a key in `_foreign_keys` which is the local attribute
+        # value is the get_unique_id() we are looking for
+        if key in list(fks.keys()):
+            model_name = [val for _key, val in fks.items() if _key == key][0]
+            # key_model = diffsync.meta[model]
+
+            model = diffsync.get(model_name, value)
+            key_model = model._orm_model
+            pkey = model.pk
+            return key_model.objects.get(pk=pkey)
+
+    @staticmethod
+    def combined_keys(obj):
+        """These are a series of sanity checks to ensure check for things what would cause an issue."""
+        # TODO: Make more descriptive errors that include the value to make easier to find
+        fk_set = set(list(obj._foreign_key.keys()))
+        mtm_set = set(list(obj._many_to_many.keys()))
+        gfk_set = set(list(obj._generic_relation.keys()))
+        if bool(fk_set.intersection(mtm_set)):
+            raise ValueError("There are matching keys in mutual exclusive dictionaries")
+        if bool(fk_set.intersection(gfk_set)):
+            raise ValueError("There are matching keys in mutual exclusive dictionaries")
+        if bool(mtm_set.intersection(gfk_set)):
+            raise ValueError("There are matching keys in mutual exclusive dictionaries")
+        if not hasattr(obj, "_orm_model"):
+            raise ValueError("The `_orm_model` attribute was not set.")
+        if not issubclass(obj._orm_model, Model):
+            raise ValueError(f"The `_orm_model` attribute value: `{obj._orm_model}` is not a Django an instance of `django.db.models.base.Model` {obj._orm_model.mro()}")
+        _combined_keys = set(list(fk_set) +  list(mtm_set) + list(gfk_set))
+        return _combined_keys
 
 class DiffSyncMixIn:
     """Mixin to update add to allow for 'stuffing' data based on unique fields."""
@@ -150,6 +181,8 @@ class DiffSyncMixIn:
 
 
 class AdapterMixIn:
+    """Simple pass2 docstring."""
+
     def apply_diffsync_flags(self):
         """Helper function for DiffSync Flag assignment."""
         if not self.diffsync_flags:

@@ -4,13 +4,14 @@ from django.conf import settings
 
 from nautobot.extras.jobs import get_jobs
 
-from .base import DataSource, DataTarget
-from .examples import ExampleDataSource, ExampleDataTarget
+from nautobot_ssot.jobs.base import DataSource, DataTarget
+from nautobot_ssot.jobs.examples import ExampleDataSource, ExampleDataTarget
+from nautobot_ssot.jobs.example_mixin import SyncFromDictionary
 
 if settings.PLUGINS_CONFIG["nautobot_ssot"]["hide_example_jobs"]:
     jobs = []
 else:
-    jobs = [ExampleDataSource, ExampleDataTarget]
+    jobs = [ExampleDataSource, ExampleDataTarget, SyncFromDictionary]
 
 
 def get_data_jobs():
