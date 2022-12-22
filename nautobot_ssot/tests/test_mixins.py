@@ -22,10 +22,6 @@ class NautobotMixinModelTestCase(TransactionTestCase):
 
     fixtures = ["nautobot_dump.json"]
 
-    def _fixture_setup(self):
-        Status.objects.all().delete()
-        super()._fixture_setup()
-
     def setUp(self):
         """Initialize the Database with some datas."""
         self.user = User.objects.create(username="admin", is_active=True, is_superuser=True)
@@ -38,18 +34,17 @@ class NautobotMixinModelTestCase(TransactionTestCase):
         onboarding_device = Site.objects.get(slug="ams01")
         self.assertIsNotNone(onboarding_device)
 
-    def test_first_create(self):
+    def test_basic_create(self):
         nautobot_adapter = NautobotLocal(None, request=self.request)
         nautobot_adapter.load()
 
         local_example_data = copy.deepcopy(example_data)
-        local_example_data["interface"]["ams01-edge-02__Ethernet5/1"] = {
+        local_example_data["interface"]["ams01-edge-01__Ethernet5/1"] = {
+            "device": "ams01-edge-01",
             "name": "Ethernet5/1",
-            "device": "ams01-edge-02",
-            "mode": "access",
             "description": "",
             "type": "10gbase-t",
-            "tagged_vlans": [],
+            "mode": "access",
             "status": "active",
         }
         local_example_data["device"]["ams01-edge-01"]["interfaces"].append("ams01-edge-01__Ethernet5/1")
@@ -60,7 +55,7 @@ class NautobotMixinModelTestCase(TransactionTestCase):
         nautobot_adapter.sync_from(network_adapter)
         self.assertEqual(Interface.objects.filter(name="Ethernet5/1").count(), 1)
 
-    def test_first_update(self):
+    def test_basic_update(self):
         nautobot_adapter = NautobotLocal(None, request=self.request)
         nautobot_adapter.load()
         local_example_data = copy.deepcopy(example_data)
@@ -71,7 +66,7 @@ class NautobotMixinModelTestCase(TransactionTestCase):
         nautobot_adapter.sync_from(network_adapter_from_data)
         self.assertEqual(Interface.objects.filter(description="new description")[0].description, "new description")
 
-    def test_first_delete(self):
+    def test_basic_delete(self):
         nautobot_adapter = NautobotLocal(None, request=self.request)
         nautobot_adapter.load()
         local_example_data = copy.deepcopy(example_data)
@@ -82,3 +77,30 @@ class NautobotMixinModelTestCase(TransactionTestCase):
         network_adapter_from_data.load_from_dict(local_example_data)
         nautobot_adapter.sync_from(network_adapter_from_data)
         self.assertEqual(Interface.objects.filter(name="Ethernet1/1").count(), 2)
+
+    def test_add_cf_field(self):
+        pass
+
+    def test_append_attribute(self):
+        pass
+
+    def test_pop_attribute(self):
+        pass
+
+    def test_null_attribute(self):
+        pass
+
+    def test_null_cf_field(self):
+        pass
+
+    def test_null_fk(self):
+        pass
+
+    def test_null_m2m(self):
+        pass
+
+    def test_append_m2m(self):
+        pass
+
+    def test_pop_m2m(self):
+        pass

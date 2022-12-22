@@ -22,6 +22,8 @@ class Command(BaseCommand):
             "users.user",
             "users.token",
             "extras.job",
+            "extras.joblogentry",
+            "extras.jobresult",
             "django_rq",
             "extras.objectchange",
         ]

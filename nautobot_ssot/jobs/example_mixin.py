@@ -9,16 +9,14 @@ from django.templatetags.static import static
 
 from diffsync import DiffSync, DiffSyncModel
 
-
 from nautobot.dcim import models as dcim_models
 from nautobot.ipam import models as ipam_models
 from nautobot.extras import models as extras_models
 from nautobot.extras.jobs import Job
-from nautobot.dcim.choices import InterfaceTypeChoices
+from nautobot.core.graphql import execute_query
 
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 from nautobot_ssot.mixins import DiffSyncModelMixIn
-from nautobot_ssot.utils import get_gql_data
 
 
 from nautobot_ssot.tests.mock.basic import data as example_data
@@ -54,6 +52,10 @@ SITE_QUERY = """{
           name
           vid
         }
+        status {
+          slug
+          id
+        }
         tags {
           name
         }
@@ -86,41 +88,6 @@ SITE_QUERY = """{
   }
 }"""
 
-INTERFACE_ENUM_QUERY = """{
-  __schema {
-    types{
-      name
-      kind
-      enumValues {
-        name
-        description
-      }
-    }
-  }
-}
-"""
-
-def populate_interface_types(data):
-    """Function to convert what GraphQL shows vs what data is stored for interface types."""
-    interface_types = list(filter(lambda x: x["name"] == "DcimInterfaceTypeChoices", data["__schema"]["types"]))[0][
-        "enumValues"
-    ]
-    return {item["name"]: item["description"] for item in interface_types}
-
-
-def get_interface_type_value(val, interface_types):
-    """Function to create dictionary of Interface Types."""
-    for _, value in InterfaceTypeChoices.CHOICES:
-        for item in value:
-            if interface_types[val] == item[1]:
-                return item[0]
-    raise ValueError(f"Value: {val} not found")
-
-# for _, value in InterfaceTypeChoices.CHOICES:
-#     for item in value:
-#         print(f"{item[0]} {value}")
-#         if interface_types[val] == item[1]:
-#             return item[0]
 class Site(DiffSyncModel):
     """Site Model based on DiffSyncModel.
 
@@ -165,11 +132,11 @@ class Interface(DiffSyncModel):  # pylint: disable=too-many-instance-attributes
     _shortname = ("name",)
     _attributes = (
         "description",
+        "mode",
         "tagged_vlans",
         "untagged_vlan",
-        "mode",
         "type",
-        # "status",
+        "status",
     )
     _children = {}
 
@@ -177,12 +144,12 @@ class Interface(DiffSyncModel):  # pylint: disable=too-many-instance-attributes
     name: str
 
     description: Optional[str]
+    mode: Optional[str]
     tagged_vlans: List[str] = []
     untagged_vlan: Optional[str]
-    mode: Optional[str]
     type: str
 
-    # status: str
+    status: str
 
 
 class Vlan(DiffSyncModel):
@@ -230,7 +197,7 @@ class NautobotInterface(DiffSyncModelMixIn, Interface):
     """Simple pass4 docstring."""
 
     _orm_model = dcim_models.Interface
-    _foreign_key = {"device": "device", "untagged_vlan": "vlan"}
+    _foreign_key = {"device": "device", "untagged_vlan": "vlan", "status": "status"}
     _many_to_many = {"tagged_vlans": "vlan"}
     pk: Optional[str]
 
@@ -279,7 +246,7 @@ class NautobotLocal(DiffSync):
             _st = self.status(slug=status.slug, name=status.name, pk=str(status.pk))
             self.add(_st)
 
-        for site_gql in get_gql_data(self.request, SITE_QUERY)["sites"]:
+        for site_gql in execute_query(query=SITE_QUERY, request=self.request).data["sites"]:
             site = self.site(slug=site_gql["slug"], name=site_gql["name"], pk=site_gql["id"])
             self.add(site)
             for vlan_gql in site_gql["vlans"]:
@@ -297,17 +264,16 @@ class NautobotLocal(DiffSync):
                 self.add(device)
                 site.add_child(device)
                 for interface_gql in device_gql["interfaces"]:
-                    print(interface_gql.get("tagged_vlans"))
-                    print(interface_gql.get("untagged_vlan"))
                     interface = self.interface(
                         name=interface_gql["name"],
                         description=interface_gql["description"],
+                        mode=interface_gql["mode"].lower(),
                         tagged_vlans=[vlan["vid"] for vlan in interface_gql.get("tagged_vlans", [])],
                         untagged_vlan=interface_gql["untagged_vlan"]["vid"] if interface_gql.get("untagged_vlan") else None,
+                        status=interface_gql["status"]["slug"],
                         pk=interface_gql["id"],
                         device=device_gql["name"],
-                        mode=interface_gql["mode"],
-                        type=re.sub(r'^A_', '', interface_gql["type"]).lower(),
+                        type=re.sub(r'^A_', '', interface_gql["type"]).lower().replace("_", "-"),
                     )
                     self.add(interface)
                     device.add_child(interface)

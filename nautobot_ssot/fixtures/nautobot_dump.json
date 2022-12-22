@@ -1,101 +1,26 @@
 [
 {
-  "model": "dcim.interface",
-  "pk": "06bda970-cf32-4fc5-ae40-a1e1e5f497e0",
-  "fields": {
-    "_custom_field_data": {},
-    "device": "e2ff2aab-5742-4a2d-a4aa-044de125335f",
-    "name": "vlan101",
-    "label": "",
-    "description": "",
-    "cable": null,
-    "_cable_peer_type": null,
-    "_cable_peer_id": null,
-    "_path": null,
-    "enabled": true,
-    "mac_address": null,
-    "mtu": null,
-    "mode": "access",
-    "_name": "9999999999999999vlan000101............",
-    "lag": null,
-    "type": "10gbase-t",
-    "mgmt_only": false,
-    "untagged_vlan": null,
-    "tagged_vlans": []
-  }
-},
-{
-  "model": "dcim.interface",
-  "pk": "6dbab1e8-e321-45d9-9975-c0bbfef0fc04",
-  "fields": {
-    "_custom_field_data": {},
-    "device": "3bf4e6e8-2208-4601-8f7a-c21255ad0d7d",
-    "name": "vlan102",
-    "label": "",
-    "description": "",
-    "cable": null,
-    "_cable_peer_type": null,
-    "_cable_peer_id": null,
-    "_path": null,
-    "enabled": true,
-    "mac_address": null,
-    "mtu": null,
-    "mode": "access",
-    "_name": "9999999999999999vlan000102............",
-    "lag": null,
-    "type": "10gbase-t",
-    "mgmt_only": false,
-    "untagged_vlan": null,
-    "tagged_vlans": []
-  }
-},
-{
-  "model": "dcim.interface",
-  "pk": "8229c926-52a9-4990-970c-c62ece7b6a63",
-  "fields": {
-    "_custom_field_data": {},
-    "device": "133b57bf-9872-4418-af60-408409484d25",
-    "name": "vlan103",
-    "label": "",
-    "description": "",
-    "cable": null,
-    "_cable_peer_type": null,
-    "_cable_peer_id": null,
-    "_path": null,
-    "enabled": true,
-    "mac_address": null,
-    "mtu": null,
-    "mode": "access",
-    "_name": "9999999999999999vlan000103............",
-    "lag": null,
-    "type": "10gbase-t",
-    "mgmt_only": false,
-    "untagged_vlan": null,
-    "tagged_vlans": []
-  }
-},
-{
   "model": "dcim.manufacturer",
-  "pk": "276c093a-7505-4fbd-8964-a2838c47557c",
+  "pk": "455bfe50-5131-40fb-9b13-8413cd5531e3",
   "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T02:06:33.642Z",
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:15:54.445Z",
     "_custom_field_data": {},
-    "name": "Cisco",
+    "name": "cisco",
     "slug": "cisco",
     "description": ""
   }
 },
 {
   "model": "dcim.devicetype",
-  "pk": "d13bef00-fd45-4676-93ec-f25c08c1cec8",
+  "pk": "7a820a8d-bbcc-43ea-b544-d3b241c8afb4",
   "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T02:06:33.644Z",
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:16:10.617Z",
     "_custom_field_data": {},
-    "manufacturer": "276c093a-7505-4fbd-8964-a2838c47557c",
-    "model": "C9410R",
-    "slug": "C9410R",
+    "manufacturer": "455bfe50-5131-40fb-9b13-8413cd5531e3",
+    "model": "isr-1001",
+    "slug": "isr-1001",
     "part_number": "",
     "u_height": 1,
     "is_full_depth": true,
@@ -107,12 +32,12 @@
 },
 {
   "model": "dcim.devicerole",
-  "pk": "13b250b5-86cd-43c9-bcc3-b232106e83ba",
+  "pk": "3d10b425-0536-4686-9279-732cc7b2c85e",
   "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T02:06:33.643Z",
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:15:44.995Z",
     "_custom_field_data": {},
-    "name": "Switch",
+    "name": "switch",
     "slug": "switch",
     "color": "9e9e9e",
     "vm_role": true,
@@ -120,130 +45,627 @@
   }
 },
 {
-  "model": "dcim.platform",
-  "pk": "acdb5bd3-b30e-429e-8dbc-40cf33b655dc",
+  "model": "extras.status",
   "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T02:06:33.646Z",
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:13:13.076Z",
     "_custom_field_data": {},
-    "name": "ios",
-    "slug": "ios",
-    "manufacturer": null,
-    "napalm_driver": "",
-    "napalm_args": null,
+    "name": "Container",
+    "color": "9e9e9e",
+    "slug": "container",
+    "description": "Network contains children",
+    "content_types": [
+      [
+        "ipam",
+        "prefix"
+      ]
+    ]
+  }
+},
+{
+  "model": "extras.status",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:13:12.894Z",
+    "_custom_field_data": {},
+    "name": "Planned",
+    "color": "00bcd4",
+    "slug": "planned",
+    "description": "Unit has been planned",
+    "content_types": [
+      [
+        "circuits",
+        "circuit"
+      ],
+      [
+        "dcim",
+        "cable"
+      ],
+      [
+        "dcim",
+        "device"
+      ],
+      [
+        "dcim",
+        "interface"
+      ],
+      [
+        "dcim",
+        "location"
+      ],
+      [
+        "dcim",
+        "powerfeed"
+      ],
+      [
+        "dcim",
+        "rack"
+      ],
+      [
+        "dcim",
+        "deviceredundancygroup"
+      ],
+      [
+        "dcim",
+        "site"
+      ],
+      [
+        "virtualization",
+        "virtualmachine"
+      ],
+      [
+        "virtualization",
+        "vminterface"
+      ]
+    ]
+  }
+},
+{
+  "model": "extras.status",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:13:12.913Z",
+    "_custom_field_data": {},
+    "name": "Decommissioned",
+    "color": "9e9e9e",
+    "slug": "decommissioned",
+    "description": "Circuit has been decommissioned",
+    "content_types": [
+      [
+        "circuits",
+        "circuit"
+      ]
+    ]
+  }
+},
+{
+  "model": "extras.status",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:13:12.974Z",
+    "_custom_field_data": {},
+    "name": "Staging",
+    "color": "2196f3",
+    "slug": "staging",
+    "description": "Site or Location is in the process of being staged",
+    "content_types": [
+      [
+        "dcim",
+        "location"
+      ],
+      [
+        "dcim",
+        "deviceredundancygroup"
+      ],
+      [
+        "dcim",
+        "site"
+      ]
+    ]
+  }
+},
+{
+  "model": "extras.status",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:13:12.901Z",
+    "_custom_field_data": {},
+    "name": "Active",
+    "color": "4caf50",
+    "slug": "active",
+    "description": "Unit is active",
+    "content_types": [
+      [
+        "circuits",
+        "circuit"
+      ],
+      [
+        "dcim",
+        "device"
+      ],
+      [
+        "dcim",
+        "interface"
+      ],
+      [
+        "dcim",
+        "location"
+      ],
+      [
+        "dcim",
+        "powerfeed"
+      ],
+      [
+        "dcim",
+        "rack"
+      ],
+      [
+        "dcim",
+        "deviceredundancygroup"
+      ],
+      [
+        "dcim",
+        "site"
+      ],
+      [
+        "ipam",
+        "ipaddress"
+      ],
+      [
+        "ipam",
+        "prefix"
+      ],
+      [
+        "ipam",
+        "vlan"
+      ],
+      [
+        "virtualization",
+        "virtualmachine"
+      ],
+      [
+        "virtualization",
+        "vminterface"
+      ]
+    ]
+  }
+},
+{
+  "model": "extras.status",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:13:13.067Z",
+    "_custom_field_data": {},
+    "name": "DHCP",
+    "color": "4caf50",
+    "slug": "dhcp",
+    "description": "Dynamically assigned IPv4/IPv6 address",
+    "content_types": [
+      [
+        "ipam",
+        "ipaddress"
+      ]
+    ]
+  }
+},
+{
+  "model": "extras.status",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:13:12.905Z",
+    "_custom_field_data": {},
+    "name": "Offline",
+    "color": "ffc107",
+    "slug": "offline",
+    "description": "Unit is offline",
+    "content_types": [
+      [
+        "circuits",
+        "circuit"
+      ],
+      [
+        "dcim",
+        "device"
+      ],
+      [
+        "dcim",
+        "powerfeed"
+      ],
+      [
+        "virtualization",
+        "virtualmachine"
+      ]
+    ]
+  }
+},
+{
+  "model": "extras.status",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:13:12.924Z",
+    "_custom_field_data": {},
+    "name": "Decommissioning",
+    "color": "ffc107",
+    "slug": "decommissioning",
+    "description": "Unit is being decommissioned",
+    "content_types": [
+      [
+        "dcim",
+        "cable"
+      ],
+      [
+        "dcim",
+        "device"
+      ],
+      [
+        "dcim",
+        "interface"
+      ],
+      [
+        "dcim",
+        "location"
+      ],
+      [
+        "dcim",
+        "deviceredundancygroup"
+      ],
+      [
+        "dcim",
+        "site"
+      ],
+      [
+        "virtualization",
+        "virtualmachine"
+      ],
+      [
+        "virtualization",
+        "vminterface"
+      ]
+    ]
+  }
+},
+{
+  "model": "extras.status",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:13:12.945Z",
+    "_custom_field_data": {},
+    "name": "Inventory",
+    "color": "9e9e9e",
+    "slug": "inventory",
+    "description": "Device is in inventory",
+    "content_types": [
+      [
+        "dcim",
+        "device"
+      ]
+    ]
+  }
+},
+{
+  "model": "extras.status",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:13:13.012Z",
+    "_custom_field_data": {},
+    "name": "Available",
+    "color": "4caf50",
+    "slug": "available",
+    "description": "Unit is available",
+    "content_types": [
+      [
+        "dcim",
+        "rack"
+      ]
+    ]
+  }
+},
+{
+  "model": "extras.status",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:13:12.909Z",
+    "_custom_field_data": {},
+    "name": "Deprovisioning",
+    "color": "ffc107",
+    "slug": "deprovisioning",
+    "description": "Circuit is being deprovisioned",
+    "content_types": [
+      [
+        "circuits",
+        "circuit"
+      ]
+    ]
+  }
+},
+{
+  "model": "extras.status",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:13:12.964Z",
+    "_custom_field_data": {},
+    "name": "Maintenance",
+    "color": "9e9e9e",
+    "slug": "maintenance",
+    "description": "Unit is under maintenance",
+    "content_types": [
+      [
+        "dcim",
+        "interface"
+      ],
+      [
+        "virtualization",
+        "vminterface"
+      ]
+    ]
+  }
+},
+{
+  "model": "extras.status",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:13:13.009Z",
+    "_custom_field_data": {},
+    "name": "Reserved",
+    "color": "00bcd4",
+    "slug": "reserved",
+    "description": "Unit is reserved",
+    "content_types": [
+      [
+        "dcim",
+        "rack"
+      ],
+      [
+        "ipam",
+        "ipaddress"
+      ],
+      [
+        "ipam",
+        "prefix"
+      ],
+      [
+        "ipam",
+        "vlan"
+      ]
+    ]
+  }
+},
+{
+  "model": "extras.status",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:13:12.938Z",
+    "_custom_field_data": {},
+    "name": "Staged",
+    "color": "2196f3",
+    "slug": "staged",
+    "description": "Unit has been staged",
+    "content_types": [
+      [
+        "dcim",
+        "device"
+      ],
+      [
+        "virtualization",
+        "virtualmachine"
+      ]
+    ]
+  }
+},
+{
+  "model": "extras.status",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:13:13.070Z",
+    "_custom_field_data": {},
+    "name": "SLAAC",
+    "color": "4caf50",
+    "slug": "slaac",
+    "description": "Dynamically assigned IPv6 address",
+    "content_types": [
+      [
+        "ipam",
+        "ipaddress"
+      ]
+    ]
+  }
+},
+{
+  "model": "extras.status",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:13:13.024Z",
+    "_custom_field_data": {},
+    "name": "Deprecated",
+    "color": "f44336",
+    "slug": "deprecated",
+    "description": "Unit has been deprecated",
+    "content_types": [
+      [
+        "dcim",
+        "rack"
+      ],
+      [
+        "ipam",
+        "ipaddress"
+      ],
+      [
+        "ipam",
+        "prefix"
+      ],
+      [
+        "ipam",
+        "vlan"
+      ]
+    ]
+  }
+},
+{
+  "model": "extras.status",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:13:12.899Z",
+    "_custom_field_data": {},
+    "name": "Provisioning",
+    "color": "2196f3",
+    "slug": "provisioning",
+    "description": "Circuit is being provisioned",
+    "content_types": [
+      [
+        "circuits",
+        "circuit"
+      ]
+    ]
+  }
+},
+{
+  "model": "extras.status",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:13:12.942Z",
+    "_custom_field_data": {},
+    "name": "Failed",
+    "color": "f44336",
+    "slug": "failed",
+    "description": "Unit has failed",
+    "content_types": [
+      [
+        "dcim",
+        "device"
+      ],
+      [
+        "dcim",
+        "interface"
+      ],
+      [
+        "dcim",
+        "powerfeed"
+      ],
+      [
+        "virtualization",
+        "virtualmachine"
+      ],
+      [
+        "virtualization",
+        "vminterface"
+      ]
+    ]
+  }
+},
+{
+  "model": "extras.status",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:13:12.987Z",
+    "_custom_field_data": {},
+    "name": "Retired",
+    "color": "f44336",
+    "slug": "retired",
+    "description": "Site or Location has been retired",
+    "content_types": [
+      [
+        "dcim",
+        "location"
+      ],
+      [
+        "dcim",
+        "deviceredundancygroup"
+      ],
+      [
+        "dcim",
+        "site"
+      ]
+    ]
+  }
+},
+{
+  "model": "extras.status",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:13:12.918Z",
+    "_custom_field_data": {},
+    "name": "Connected",
+    "color": "4caf50",
+    "slug": "connected",
+    "description": "Cable is connected",
+    "content_types": [
+      [
+        "dcim",
+        "cable"
+      ]
+    ]
+  }
+},
+{
+  "model": "ipam.vlan",
+  "pk": "279656b9-c901-4d37-9d1c-0a3917c05ae4",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:17:41.393Z",
+    "_custom_field_data": {},
+    "status": [
+      "Active"
+    ],
+    "site": "f258621c-0122-400d-9320-f57686c89ff3",
+    "location": null,
+    "group": null,
+    "vid": 103,
+    "name": "VL103",
+    "tenant": null,
+    "role": null,
     "description": ""
   }
 },
 {
-  "model": "dcim.device",
-  "pk": "133b57bf-9872-4418-af60-408409484d25",
+  "model": "ipam.vlan",
+  "pk": "49232039-be47-4256-a129-305d6c6da9cf",
   "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T02:06:33.792Z",
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:17:41.325Z",
     "_custom_field_data": {},
-    "status": "dfdeaf88-7392-421e-a83b-543a022cc5b0",
-    "local_context_data": null,
-    "local_context_schema": null,
-    "local_context_data_owner_content_type": null,
-    "local_context_data_owner_object_id": null,
-    "device_type": "d13bef00-fd45-4676-93ec-f25c08c1cec8",
-    "device_role": "13b250b5-86cd-43c9-bcc3-b232106e83ba",
+    "status": [
+      "Active"
+    ],
+    "site": "f258621c-0122-400d-9320-f57686c89ff3",
+    "location": null,
+    "group": null,
+    "vid": 101,
+    "name": "VL101",
     "tenant": null,
-    "platform": "acdb5bd3-b30e-429e-8dbc-40cf33b655dc",
-    "name": "ams01-edge-03",
-    "_name": "ams00000001-edge-00000003",
-    "serial": "",
-    "asset_tag": null,
-    "site": "f07d864a-dcee-4e2c-bc22-636248ce813c",
-    "rack": null,
-    "position": null,
-    "face": "",
-    "primary_ip4": "1da118a6-8586-4315-b63c-2fed39b67a71",
-    "primary_ip6": null,
-    "cluster": null,
-    "virtual_chassis": null,
-    "vc_position": null,
-    "vc_priority": null,
-    "comments": "",
-    "secrets_group": null
+    "role": null,
+    "description": ""
   }
 },
 {
-  "model": "dcim.device",
-  "pk": "3bf4e6e8-2208-4601-8f7a-c21255ad0d7d",
+  "model": "ipam.vlan",
+  "pk": "950cccde-a190-4959-8365-febc13afaecf",
   "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T02:06:33.739Z",
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:17:41.378Z",
     "_custom_field_data": {},
-    "status": "dfdeaf88-7392-421e-a83b-543a022cc5b0",
-    "local_context_data": null,
-    "local_context_schema": null,
-    "local_context_data_owner_content_type": null,
-    "local_context_data_owner_object_id": null,
-    "device_type": "d13bef00-fd45-4676-93ec-f25c08c1cec8",
-    "device_role": "13b250b5-86cd-43c9-bcc3-b232106e83ba",
+    "status": [
+      "Active"
+    ],
+    "site": "f258621c-0122-400d-9320-f57686c89ff3",
+    "location": null,
+    "group": null,
+    "vid": 102,
+    "name": "VL102",
     "tenant": null,
-    "platform": "acdb5bd3-b30e-429e-8dbc-40cf33b655dc",
-    "name": "ams01-edge-02",
-    "_name": "ams00000001-edge-00000002",
-    "serial": "",
-    "asset_tag": null,
-    "site": "f07d864a-dcee-4e2c-bc22-636248ce813c",
-    "rack": null,
-    "position": null,
-    "face": "",
-    "primary_ip4": "6ed67eb5-8c16-407d-ba01-d6be32aab131",
-    "primary_ip6": null,
-    "cluster": null,
-    "virtual_chassis": null,
-    "vc_position": null,
-    "vc_priority": null,
-    "comments": "",
-    "secrets_group": null
-  }
-},
-{
-  "model": "dcim.device",
-  "pk": "e2ff2aab-5742-4a2d-a4aa-044de125335f",
-  "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T02:06:33.700Z",
-    "_custom_field_data": {},
-    "status": "dfdeaf88-7392-421e-a83b-543a022cc5b0",
-    "local_context_data": null,
-    "local_context_schema": null,
-    "local_context_data_owner_content_type": null,
-    "local_context_data_owner_object_id": null,
-    "device_type": "d13bef00-fd45-4676-93ec-f25c08c1cec8",
-    "device_role": "13b250b5-86cd-43c9-bcc3-b232106e83ba",
-    "tenant": null,
-    "platform": "acdb5bd3-b30e-429e-8dbc-40cf33b655dc",
-    "name": "ams01-edge-01",
-    "_name": "ams00000001-edge-00000001",
-    "serial": "",
-    "asset_tag": null,
-    "site": "f07d864a-dcee-4e2c-bc22-636248ce813c",
-    "rack": null,
-    "position": null,
-    "face": "",
-    "primary_ip4": "c51cf656-12a9-470f-be3c-b50651a7d5d4",
-    "primary_ip6": null,
-    "cluster": null,
-    "virtual_chassis": null,
-    "vc_position": null,
-    "vc_priority": null,
-    "comments": "",
-    "secrets_group": null
+    "role": null,
+    "description": ""
   }
 },
 {
   "model": "dcim.site",
-  "pk": "f07d864a-dcee-4e2c-bc22-636248ce813c",
+  "pk": "f258621c-0122-400d-9320-f57686c89ff3",
   "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T02:06:33.641Z",
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:16:52.352Z",
     "_custom_field_data": {},
-    "status": null,
+    "status": [
+      "Active"
+    ],
     "name": "ams01",
     "_name": "ams00000001",
     "slug": "ams01",
@@ -264,552 +686,603 @@
   }
 },
 {
-  "model": "ipam.ipaddress",
-  "pk": "1da118a6-8586-4315-b63c-2fed39b67a71",
+  "model": "dcim.device",
+  "pk": "30647ec0-0ab1-40fc-becf-735ca49a2562",
   "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T02:06:33.769Z",
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:17:06.876Z",
     "_custom_field_data": {},
-    "status": "dfdeaf88-7392-421e-a83b-543a022cc5b0",
-    "host": "10.100.3.1",
-    "broadcast": "10.100.3.255",
-    "prefix_length": 24,
-    "vrf": null,
-    "tenant": null,
-    "role": "",
-    "assigned_object_type": [
-      "dcim",
-      "interface"
+    "status": [
+      "Active"
     ],
-    "assigned_object_id": "8229c926-52a9-4990-970c-c62ece7b6a63",
-    "nat_inside": null,
-    "dns_name": "",
-    "description": ""
-  }
-},
-{
-  "model": "ipam.ipaddress",
-  "pk": "6ed67eb5-8c16-407d-ba01-d6be32aab131",
-  "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T02:06:33.721Z",
-    "_custom_field_data": {},
-    "status": "dfdeaf88-7392-421e-a83b-543a022cc5b0",
-    "host": "10.100.2.1",
-    "broadcast": "10.100.2.255",
-    "prefix_length": 24,
-    "vrf": null,
+    "local_context_data": null,
+    "local_context_schema": null,
+    "local_context_data_owner_content_type": null,
+    "local_context_data_owner_object_id": null,
+    "device_type": "7a820a8d-bbcc-43ea-b544-d3b241c8afb4",
+    "device_role": "3d10b425-0536-4686-9279-732cc7b2c85e",
     "tenant": null,
-    "role": "",
-    "assigned_object_type": [
-      "dcim",
-      "interface"
-    ],
-    "assigned_object_id": "6dbab1e8-e321-45d9-9975-c0bbfef0fc04",
-    "nat_inside": null,
-    "dns_name": "",
-    "description": ""
+    "platform": null,
+    "name": "ams01-edge-01",
+    "_name": "ams00000001-edge-00000001",
+    "serial": "",
+    "asset_tag": null,
+    "site": "f258621c-0122-400d-9320-f57686c89ff3",
+    "location": null,
+    "rack": null,
+    "position": null,
+    "face": "",
+    "primary_ip4": null,
+    "primary_ip6": null,
+    "cluster": null,
+    "virtual_chassis": null,
+    "device_redundancy_group": null,
+    "device_redundancy_group_priority": null,
+    "vc_position": null,
+    "vc_priority": null,
+    "comments": "",
+    "secrets_group": null
   }
 },
 {
-  "model": "ipam.ipaddress",
-  "pk": "c51cf656-12a9-470f-be3c-b50651a7d5d4",
+  "model": "dcim.device",
+  "pk": "38c03ce1-4e0f-4d3b-9333-6775983d537c",
   "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T02:06:33.672Z",
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:17:14.863Z",
     "_custom_field_data": {},
-    "status": "dfdeaf88-7392-421e-a83b-543a022cc5b0",
-    "host": "10.100.1.1",
-    "broadcast": "10.100.1.255",
-    "prefix_length": 24,
-    "vrf": null,
+    "status": [
+      "Active"
+    ],
+    "local_context_data": null,
+    "local_context_schema": null,
+    "local_context_data_owner_content_type": null,
+    "local_context_data_owner_object_id": null,
+    "device_type": "7a820a8d-bbcc-43ea-b544-d3b241c8afb4",
+    "device_role": "3d10b425-0536-4686-9279-732cc7b2c85e",
     "tenant": null,
-    "role": "",
-    "assigned_object_type": [
-      "dcim",
-      "interface"
+    "platform": null,
+    "name": "ams01-edge-02",
+    "_name": "ams00000001-edge-00000002",
+    "serial": "",
+    "asset_tag": null,
+    "site": "f258621c-0122-400d-9320-f57686c89ff3",
+    "location": null,
+    "rack": null,
+    "position": null,
+    "face": "",
+    "primary_ip4": null,
+    "primary_ip6": null,
+    "cluster": null,
+    "virtual_chassis": null,
+    "device_redundancy_group": null,
+    "device_redundancy_group_priority": null,
+    "vc_position": null,
+    "vc_priority": null,
+    "comments": "",
+    "secrets_group": null
+  }
+},
+{
+  "model": "dcim.device",
+  "pk": "924e8976-155a-4c64-bd9f-b40d436d3f3d",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T00:17:25.849Z",
+    "_custom_field_data": {},
+    "status": [
+      "Active"
     ],
-    "assigned_object_id": "06bda970-cf32-4fc5-ae40-a1e1e5f497e0",
-    "nat_inside": null,
-    "dns_name": "",
-    "description": ""
+    "local_context_data": null,
+    "local_context_schema": null,
+    "local_context_data_owner_content_type": null,
+    "local_context_data_owner_object_id": null,
+    "device_type": "7a820a8d-bbcc-43ea-b544-d3b241c8afb4",
+    "device_role": "3d10b425-0536-4686-9279-732cc7b2c85e",
+    "tenant": null,
+    "platform": null,
+    "name": "ams01-edge-03",
+    "_name": "ams00000001-edge-00000003",
+    "serial": "",
+    "asset_tag": null,
+    "site": "f258621c-0122-400d-9320-f57686c89ff3",
+    "location": null,
+    "rack": null,
+    "position": null,
+    "face": "",
+    "primary_ip4": null,
+    "primary_ip6": null,
+    "cluster": null,
+    "virtual_chassis": null,
+    "device_redundancy_group": null,
+    "device_redundancy_group_priority": null,
+    "vc_position": null,
+    "vc_priority": null,
+    "comments": "",
+    "secrets_group": null
   }
 },
 {
-  "model": "extras.status",
-  "pk": "41038675-f7eb-49d8-bdcf-84427458e8ca",
+  "model": "dcim.interface",
+  "pk": "0445ff23-b8f0-4bde-9b70-59a8a3020995",
   "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T01:59:10.131Z",
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T01:55:43.116Z",
     "_custom_field_data": {},
-    "name": "Deprovisioning",
-    "color": "ffc107",
-    "slug": "deprovisioning",
-    "description": "Circuit is being deprovisioned",
-    "content_types": [
-      [
-        "circuits",
-        "circuit"
-      ]
+    "status": [
+      "Active"
+    ],
+    "device": "30647ec0-0ab1-40fc-becf-735ca49a2562",
+    "name": "PortChannel1",
+    "label": "",
+    "description": "",
+    "cable": null,
+    "_cable_peer_type": null,
+    "_cable_peer_id": null,
+    "_path": null,
+    "enabled": true,
+    "mac_address": null,
+    "mtu": null,
+    "mode": "access",
+    "parent_interface": null,
+    "bridge": null,
+    "_name": "9999999999999999PortChannel000001............",
+    "lag": null,
+    "type": "10gbase-t",
+    "mgmt_only": false,
+    "untagged_vlan": null,
+    "tagged_vlans": []
+  }
+},
+{
+  "model": "dcim.interface",
+  "pk": "11428a1e-290c-4cac-8a5a-3bbe98ddd207",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T01:55:43.175Z",
+    "_custom_field_data": {},
+    "status": [
+      "Active"
+    ],
+    "device": "38c03ce1-4e0f-4d3b-9333-6775983d537c",
+    "name": "Ethernet1/1",
+    "label": "",
+    "description": "",
+    "cable": null,
+    "_cable_peer_type": null,
+    "_cable_peer_id": null,
+    "_path": null,
+    "enabled": true,
+    "mac_address": null,
+    "mtu": null,
+    "mode": "access",
+    "parent_interface": null,
+    "bridge": null,
+    "_name": "0001999999999999Ethernet000001............",
+    "lag": null,
+    "type": "10gbase-t",
+    "mgmt_only": false,
+    "untagged_vlan": null,
+    "tagged_vlans": []
+  }
+},
+{
+  "model": "dcim.interface",
+  "pk": "27048e16-54ca-4d0e-8aa7-ce7e4209dde1",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T02:01:25.943Z",
+    "_custom_field_data": {},
+    "status": [
+      "Active"
+    ],
+    "device": "30647ec0-0ab1-40fc-becf-735ca49a2562",
+    "name": "Ethernet3/1",
+    "label": "",
+    "description": "",
+    "cable": null,
+    "_cable_peer_type": null,
+    "_cable_peer_id": null,
+    "_path": null,
+    "enabled": true,
+    "mac_address": null,
+    "mtu": null,
+    "mode": "access",
+    "parent_interface": null,
+    "bridge": null,
+    "_name": "0003999999999999Ethernet000001............",
+    "lag": null,
+    "type": "10gbase-t",
+    "mgmt_only": false,
+    "untagged_vlan": null,
+    "tagged_vlans": []
+  }
+},
+{
+  "model": "dcim.interface",
+  "pk": "3c926b3d-44c9-4144-92d5-3a91540f4970",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T01:55:43.295Z",
+    "_custom_field_data": {},
+    "status": [
+      "Active"
+    ],
+    "device": "924e8976-155a-4c64-bd9f-b40d436d3f3d",
+    "name": "Loopback0",
+    "label": "",
+    "description": "",
+    "cable": null,
+    "_cable_peer_type": null,
+    "_cable_peer_id": null,
+    "_path": null,
+    "enabled": true,
+    "mac_address": null,
+    "mtu": null,
+    "mode": "access",
+    "parent_interface": null,
+    "bridge": null,
+    "_name": "9999999999999999Loopback000000............",
+    "lag": null,
+    "type": "10gbase-t",
+    "mgmt_only": false,
+    "untagged_vlan": null,
+    "tagged_vlans": []
+  }
+},
+{
+  "model": "dcim.interface",
+  "pk": "41dff07d-44c8-48b2-a056-9b6c27767143",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T01:55:43.134Z",
+    "_custom_field_data": {},
+    "status": [
+      "Active"
+    ],
+    "device": "30647ec0-0ab1-40fc-becf-735ca49a2562",
+    "name": "Loopback0",
+    "label": "",
+    "description": "",
+    "cable": null,
+    "_cable_peer_type": null,
+    "_cable_peer_id": null,
+    "_path": null,
+    "enabled": true,
+    "mac_address": null,
+    "mtu": null,
+    "mode": "access",
+    "parent_interface": null,
+    "bridge": null,
+    "_name": "9999999999999999Loopback000000............",
+    "lag": null,
+    "type": "10gbase-t",
+    "mgmt_only": false,
+    "untagged_vlan": null,
+    "tagged_vlans": []
+  }
+},
+{
+  "model": "dcim.interface",
+  "pk": "441e3c40-99a3-4a41-9f95-acf43caad1b5",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T01:55:42.992Z",
+    "_custom_field_data": {},
+    "status": [
+      "Active"
+    ],
+    "device": "30647ec0-0ab1-40fc-becf-735ca49a2562",
+    "name": "vlan101",
+    "label": "",
+    "description": "",
+    "cable": null,
+    "_cable_peer_type": null,
+    "_cable_peer_id": null,
+    "_path": null,
+    "enabled": true,
+    "mac_address": null,
+    "mtu": null,
+    "mode": "access",
+    "parent_interface": null,
+    "bridge": null,
+    "_name": "9999999999999999vlan000101............",
+    "lag": null,
+    "type": "10gbase-t",
+    "mgmt_only": false,
+    "untagged_vlan": null,
+    "tagged_vlans": []
+  }
+},
+{
+  "model": "dcim.interface",
+  "pk": "53cf3e46-1f27-4cd5-b15f-5aec88b78164",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T01:55:43.276Z",
+    "_custom_field_data": {},
+    "status": [
+      "Active"
+    ],
+    "device": "924e8976-155a-4c64-bd9f-b40d436d3f3d",
+    "name": "Ethernet2/1",
+    "label": "",
+    "description": "",
+    "cable": null,
+    "_cable_peer_type": null,
+    "_cable_peer_id": null,
+    "_path": null,
+    "enabled": true,
+    "mac_address": null,
+    "mtu": null,
+    "mode": "access",
+    "parent_interface": null,
+    "bridge": null,
+    "_name": "0002999999999999Ethernet000001............",
+    "lag": null,
+    "type": "10gbase-t",
+    "mgmt_only": false,
+    "untagged_vlan": null,
+    "tagged_vlans": []
+  }
+},
+{
+  "model": "dcim.interface",
+  "pk": "6e181c02-0b9f-42a6-92cd-16a7ee7b9f01",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T01:55:43.054Z",
+    "_custom_field_data": {},
+    "status": [
+      "Active"
+    ],
+    "device": "30647ec0-0ab1-40fc-becf-735ca49a2562",
+    "name": "Ethernet2/1",
+    "label": "",
+    "description": "",
+    "cable": null,
+    "_cable_peer_type": null,
+    "_cable_peer_id": null,
+    "_path": null,
+    "enabled": true,
+    "mac_address": null,
+    "mtu": null,
+    "mode": "access",
+    "parent_interface": null,
+    "bridge": null,
+    "_name": "0002999999999999Ethernet000001............",
+    "lag": null,
+    "type": "10gbase-t",
+    "mgmt_only": false,
+    "untagged_vlan": null,
+    "tagged_vlans": []
+  }
+},
+{
+  "model": "dcim.interface",
+  "pk": "8e8dfcd9-49d4-4691-9b64-e4798eda4c48",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T01:55:43.257Z",
+    "_custom_field_data": {},
+    "status": [
+      "Active"
+    ],
+    "device": "924e8976-155a-4c64-bd9f-b40d436d3f3d",
+    "name": "Ethernet1/1",
+    "label": "",
+    "description": "",
+    "cable": null,
+    "_cable_peer_type": null,
+    "_cable_peer_id": null,
+    "_path": null,
+    "enabled": true,
+    "mac_address": null,
+    "mtu": null,
+    "mode": "access",
+    "parent_interface": null,
+    "bridge": null,
+    "_name": "0001999999999999Ethernet000001............",
+    "lag": null,
+    "type": "10gbase-t",
+    "mgmt_only": false,
+    "untagged_vlan": null,
+    "tagged_vlans": []
+  }
+},
+{
+  "model": "dcim.interface",
+  "pk": "8fc62211-b810-4c7e-bf5e-9d2657d34bc6",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T01:55:43.197Z",
+    "_custom_field_data": {},
+    "status": [
+      "Active"
+    ],
+    "device": "38c03ce1-4e0f-4d3b-9333-6775983d537c",
+    "name": "Ethernet2/1",
+    "label": "",
+    "description": "",
+    "cable": null,
+    "_cable_peer_type": null,
+    "_cable_peer_id": null,
+    "_path": null,
+    "enabled": true,
+    "mac_address": null,
+    "mtu": null,
+    "mode": "access",
+    "parent_interface": null,
+    "bridge": null,
+    "_name": "0002999999999999Ethernet000001............",
+    "lag": null,
+    "type": "10gbase-t",
+    "mgmt_only": false,
+    "untagged_vlan": null,
+    "tagged_vlans": []
+  }
+},
+{
+  "model": "dcim.interface",
+  "pk": "91fb1e03-76ea-47d1-aefc-cc298bbd8531",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T01:55:43.035Z",
+    "_custom_field_data": {},
+    "status": [
+      "Active"
+    ],
+    "device": "30647ec0-0ab1-40fc-becf-735ca49a2562",
+    "name": "Ethernet1/1",
+    "label": "",
+    "description": "",
+    "cable": null,
+    "_cable_peer_type": null,
+    "_cable_peer_id": null,
+    "_path": null,
+    "enabled": true,
+    "mac_address": null,
+    "mtu": null,
+    "mode": "access",
+    "parent_interface": null,
+    "bridge": null,
+    "_name": "0001999999999999Ethernet000001............",
+    "lag": null,
+    "type": "10gbase-t",
+    "mgmt_only": false,
+    "untagged_vlan": null,
+    "tagged_vlans": []
+  }
+},
+{
+  "model": "dcim.interface",
+  "pk": "bd9b1f16-40a2-4567-ad12-28c89f13eaca",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T01:55:43.154Z",
+    "_custom_field_data": {},
+    "status": [
+      "Active"
+    ],
+    "device": "38c03ce1-4e0f-4d3b-9333-6775983d537c",
+    "name": "vlan102",
+    "label": "",
+    "description": "",
+    "cable": null,
+    "_cable_peer_type": null,
+    "_cable_peer_id": null,
+    "_path": null,
+    "enabled": true,
+    "mac_address": null,
+    "mtu": null,
+    "mode": "access",
+    "parent_interface": null,
+    "bridge": null,
+    "_name": "9999999999999999vlan000102............",
+    "lag": null,
+    "type": "10gbase-t",
+    "mgmt_only": false,
+    "untagged_vlan": null,
+    "tagged_vlans": []
+  }
+},
+{
+  "model": "dcim.interface",
+  "pk": "dc0f7eec-cf9e-4d97-9aaf-df663741ae69",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T01:55:43.219Z",
+    "_custom_field_data": {},
+    "status": [
+      "Active"
+    ],
+    "device": "38c03ce1-4e0f-4d3b-9333-6775983d537c",
+    "name": "Loopback0",
+    "label": "",
+    "description": "",
+    "cable": null,
+    "_cable_peer_type": null,
+    "_cable_peer_id": null,
+    "_path": null,
+    "enabled": true,
+    "mac_address": null,
+    "mtu": null,
+    "mode": "access",
+    "parent_interface": null,
+    "bridge": null,
+    "_name": "9999999999999999Loopback000000............",
+    "lag": null,
+    "type": "10gbase-t",
+    "mgmt_only": false,
+    "untagged_vlan": null,
+    "tagged_vlans": []
+  }
+},
+{
+  "model": "dcim.interface",
+  "pk": "e5ef8dfc-f6ed-49d7-830c-99efb305718d",
+  "fields": {
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T01:57:47.273Z",
+    "_custom_field_data": {},
+    "status": [
+      "Active"
+    ],
+    "device": "30647ec0-0ab1-40fc-becf-735ca49a2562",
+    "name": "Ethernet4/1",
+    "label": "",
+    "description": "",
+    "cable": null,
+    "_cable_peer_type": null,
+    "_cable_peer_id": null,
+    "_path": null,
+    "enabled": true,
+    "mac_address": null,
+    "mtu": null,
+    "mode": "tagged",
+    "parent_interface": null,
+    "bridge": null,
+    "_name": "0004999999999999Ethernet000001............",
+    "lag": null,
+    "type": "10gbase-t",
+    "mgmt_only": false,
+    "untagged_vlan": "49232039-be47-4256-a129-305d6c6da9cf",
+    "tagged_vlans": [
+      "950cccde-a190-4959-8365-febc13afaecf",
+      "279656b9-c901-4d37-9d1c-0a3917c05ae4"
     ]
   }
 },
 {
-  "model": "extras.status",
-  "pk": "5578bd4a-f908-4477-8f01-b0e53c67cbf1",
+  "model": "dcim.interface",
+  "pk": "f08ed161-a7e2-49ff-aecb-5c5dd7c03996",
   "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T01:59:10.043Z",
+    "created": "2022-12-22",
+    "last_updated": "2022-12-22T01:55:43.239Z",
     "_custom_field_data": {},
-    "name": "Retired",
-    "color": "f44336",
-    "slug": "retired",
-    "description": "Site has been retired",
-    "content_types": [
-      [
-        "dcim",
-        "site"
-      ]
-    ]
-  }
-},
-{
-  "model": "extras.status",
-  "pk": "5b0db006-5bce-4c92-8773-6f3ef4f58a07",
-  "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T01:59:10.055Z",
-    "_custom_field_data": {},
-    "name": "Reserved",
-    "color": "ffc107",
-    "slug": "reserved",
-    "description": "Unit is reserved",
-    "content_types": [
-      [
-        "dcim",
-        "rack"
-      ],
-      [
-        "ipam",
-        "prefix"
-      ],
-      [
-        "ipam",
-        "ipaddress"
-      ],
-      [
-        "ipam",
-        "vlan"
-      ]
-    ]
-  }
-},
-{
-  "model": "extras.status",
-  "pk": "5ba28a93-c5d8-4f90-aed0-faffec09f4df",
-  "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T01:59:09.989Z",
-    "_custom_field_data": {},
-    "name": "Offline",
-    "color": "ffc107",
-    "slug": "offline",
-    "description": "Unit is offline",
-    "content_types": [
-      [
-        "dcim",
-        "device"
-      ],
-      [
-        "dcim",
-        "powerfeed"
-      ],
-      [
-        "circuits",
-        "circuit"
-      ],
-      [
-        "virtualization",
-        "virtualmachine"
-      ]
-    ]
-  }
-},
-{
-  "model": "extras.status",
-  "pk": "6d6c92f8-059f-49ab-8780-b46c06a10d69",
-  "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T01:59:10.078Z",
-    "_custom_field_data": {},
-    "name": "Deprecated",
-    "color": "f44336",
-    "slug": "deprecated",
-    "description": "Unit has been deprecated",
-    "content_types": [
-      [
-        "dcim",
-        "rack"
-      ],
-      [
-        "ipam",
-        "prefix"
-      ],
-      [
-        "ipam",
-        "ipaddress"
-      ],
-      [
-        "ipam",
-        "vlan"
-      ]
-    ]
-  }
-},
-{
-  "model": "extras.status",
-  "pk": "78d65131-1b85-449d-9d60-107fe10584ef",
-  "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T01:59:10.135Z",
-    "_custom_field_data": {},
-    "name": "Decommissioned",
-    "color": "9e9e9e",
-    "slug": "decommissioned",
-    "description": "Circuit has been decommissioned",
-    "content_types": [
-      [
-        "circuits",
-        "circuit"
-      ]
-    ]
-  }
-},
-{
-  "model": "extras.status",
-  "pk": "8f0e0975-4f2b-40c0-9828-222777f583a4",
-  "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T01:59:10.189Z",
-    "_custom_field_data": {},
-    "name": "DHCP",
-    "color": "4caf50",
-    "slug": "dhcp",
-    "description": "Dynamically assigned IPv4/IPv6 address",
-    "content_types": [
-      [
-        "ipam",
-        "ipaddress"
-      ]
-    ]
-  }
-},
-{
-  "model": "extras.status",
-  "pk": "9410c09e-3ef1-47d3-a418-d017626dcab7",
-  "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T01:59:10.194Z",
-    "_custom_field_data": {},
-    "name": "SLAAC",
-    "color": "4caf50",
-    "slug": "slaac",
-    "description": "Dynamically assigned IPv6 address",
-    "content_types": [
-      [
-        "ipam",
-        "ipaddress"
-      ]
-    ]
-  }
-},
-{
-  "model": "extras.status",
-  "pk": "9bbf4323-68ac-46d3-a594-b511d8f88a6a",
-  "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T01:59:10.010Z",
-    "_custom_field_data": {},
-    "name": "Inventory",
-    "color": "9e9e9e",
-    "slug": "inventory",
-    "description": "Device is in inventory",
-    "content_types": [
-      [
-        "dcim",
-        "device"
-      ]
-    ]
-  }
-},
-{
-  "model": "extras.status",
-  "pk": "a52c28a8-5128-4492-b6ae-222ddeb9a751",
-  "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T01:59:10.022Z",
-    "_custom_field_data": {},
-    "name": "Staging",
-    "color": "2196f3",
-    "slug": "staging",
-    "description": "Site is in the process of being staged",
-    "content_types": [
-      [
-        "dcim",
-        "site"
-      ]
-    ]
-  }
-},
-{
-  "model": "extras.status",
-  "pk": "bbae7abf-1eed-4958-8729-fc5a40ec7357",
-  "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T01:59:10.013Z",
-    "_custom_field_data": {},
-    "name": "Decommissioning",
-    "color": "ffc107",
-    "slug": "decommissioning",
-    "description": "Unit is being decommissioned",
-    "content_types": [
-      [
-        "dcim",
-        "device"
-      ],
-      [
-        "dcim",
-        "site"
-      ],
-      [
-        "dcim",
-        "cable"
-      ],
-      [
-        "virtualization",
-        "virtualmachine"
-      ]
-    ]
-  }
-},
-{
-  "model": "extras.status",
-  "pk": "be2ba58f-b7b3-40fd-ac6b-a46b02421004",
-  "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T01:59:10.006Z",
-    "_custom_field_data": {},
-    "name": "Failed",
-    "color": "f44336",
-    "slug": "failed",
-    "description": "Unit has failed",
-    "content_types": [
-      [
-        "dcim",
-        "device"
-      ],
-      [
-        "dcim",
-        "powerfeed"
-      ],
-      [
-        "virtualization",
-        "virtualmachine"
-      ]
-    ]
-  }
-},
-{
-  "model": "extras.status",
-  "pk": "bfc5b7ed-6faf-44c6-9277-66b020c96380",
-  "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T01:59:10.142Z",
-    "_custom_field_data": {},
-    "name": "Container",
-    "color": "9e9e9e",
-    "slug": "container",
-    "description": "Network contains children",
-    "content_types": [
-      [
-        "ipam",
-        "prefix"
-      ]
-    ]
-  }
-},
-{
-  "model": "extras.status",
-  "pk": "c481ec59-46c8-4fc4-a467-416b4dcd091e",
-  "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T01:59:10.061Z",
-    "_custom_field_data": {},
-    "name": "Available",
-    "color": "4caf50",
-    "slug": "available",
-    "description": "Unit is available",
-    "content_types": [
-      [
-        "dcim",
-        "rack"
-      ]
-    ]
-  }
-},
-{
-  "model": "extras.status",
-  "pk": "cf693dab-76ff-41d1-a63a-ac397f7047ea",
-  "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T01:59:10.118Z",
-    "_custom_field_data": {},
-    "name": "Provisioning",
-    "color": "2196f3",
-    "slug": "provisioning",
-    "description": "Circuit is being provisioned",
-    "content_types": [
-      [
-        "circuits",
-        "circuit"
-      ]
-    ]
-  }
-},
-{
-  "model": "extras.status",
-  "pk": "dfdeaf88-7392-421e-a83b-543a022cc5b0",
-  "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T01:59:09.994Z",
-    "_custom_field_data": {},
-    "name": "Active",
-    "color": "4caf50",
-    "slug": "active",
-    "description": "Unit is active",
-    "content_types": [
-      [
-        "dcim",
-        "device"
-      ],
-      [
-        "dcim",
-        "site"
-      ],
-      [
-        "dcim",
-        "rack"
-      ],
-      [
-        "dcim",
-        "powerfeed"
-      ],
-      [
-        "circuits",
-        "circuit"
-      ],
-      [
-        "ipam",
-        "prefix"
-      ],
-      [
-        "ipam",
-        "ipaddress"
-      ],
-      [
-        "ipam",
-        "vlan"
-      ],
-      [
-        "virtualization",
-        "virtualmachine"
-      ]
-    ]
-  }
-},
-{
-  "model": "extras.status",
-  "pk": "e5406764-6f2d-4d9c-ad7e-201f107d585d",
-  "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T01:59:10.085Z",
-    "_custom_field_data": {},
-    "name": "Connected",
-    "color": "4caf50",
-    "slug": "connected",
-    "description": "Cable is connected",
-    "content_types": [
-      [
-        "dcim",
-        "cable"
-      ]
-    ]
-  }
-},
-{
-  "model": "extras.status",
-  "pk": "e5b5c6eb-08d2-4211-9794-2b4bf6e9e6a6",
-  "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T01:59:10.002Z",
-    "_custom_field_data": {},
-    "name": "Staged",
-    "color": "2196f3",
-    "slug": "staged",
-    "description": "Unit has been staged",
-    "content_types": [
-      [
-        "dcim",
-        "device"
-      ],
-      [
-        "virtualization",
-        "virtualmachine"
-      ]
-    ]
-  }
-},
-{
-  "model": "extras.status",
-  "pk": "f072ec48-7945-46d5-8b9e-133894ecc60e",
-  "fields": {
-    "created": "2022-12-18",
-    "last_updated": "2022-12-18T01:59:09.998Z",
-    "_custom_field_data": {},
-    "name": "Planned",
-    "color": "00bcd4",
-    "slug": "planned",
-    "description": "Unit has been planned",
-    "content_types": [
-      [
-        "dcim",
-        "device"
-      ],
-      [
-        "dcim",
-        "site"
-      ],
-      [
-        "dcim",
-        "rack"
-      ],
-      [
-        "dcim",
-        "cable"
-      ],
-      [
-        "dcim",
-        "powerfeed"
-      ],
-      [
-        "circuits",
-        "circuit"
-      ],
-      [
-        "virtualization",
-        "virtualmachine"
-      ]
-    ]
+    "status": [
+      "Active"
+    ],
+    "device": "924e8976-155a-4c64-bd9f-b40d436d3f3d",
+    "name": "vlan103",
+    "label": "",
+    "description": "",
+    "cable": null,
+    "_cable_peer_type": null,
+    "_cable_peer_id": null,
+    "_path": null,
+    "enabled": true,
+    "mac_address": null,
+    "mtu": null,
+    "mode": "access",
+    "parent_interface": null,
+    "bridge": null,
+    "_name": "9999999999999999vlan000103............",
+    "lag": null,
+    "type": "10gbase-t",
+    "mgmt_only": false,
+    "untagged_vlan": null,
+    "tagged_vlans": []
   }
 }
 ]

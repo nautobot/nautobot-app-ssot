@@ -26,6 +26,7 @@ data = {
             "description": "",
             "type": "10gbase-t",
             "mode": "access",
+            "status": "active",
         },
         "ams01-edge-01__Ethernet1/1": {
             "device": "ams01-edge-01",
@@ -33,6 +34,7 @@ data = {
             "description": "",
             "type": "10gbase-t",
             "mode": "access",
+            "status": "active",
         },
         "ams01-edge-01__Ethernet2/1": {
             "device": "ams01-edge-01",
@@ -40,6 +42,7 @@ data = {
             "description": "",
             "type": "10gbase-t",
             "mode": "access",
+            "status": "active",
         },
         "ams01-edge-01__PortChannel1": {
             "device": "ams01-edge-01",
@@ -47,6 +50,7 @@ data = {
             "description": "",
             "type": "10gbase-t",
             "mode": "access",
+            "status": "active",
         },
         "ams01-edge-01__Ethernet3/1": {
             "device": "ams01-edge-01",
@@ -54,15 +58,17 @@ data = {
             "description": "",
             "type": "10gbase-t",
             "mode": "access",
+            "status": "active",
         },
         "ams01-edge-01__Ethernet4/1": {
             "device": "ams01-edge-01",
             "name": "Ethernet4/1",
             "description": "",
             "type": "10gbase-t",
-            "mode": "access",
-            "tagged_vlans": ["ams01__102", "ams01__103"],
-            "untagged_vlan": "ams01__101",
+            "mode": "tagged",
+            "status": "active",
+            "tagged_vlans": ["102", "103"],
+            "untagged_vlan": "101",
         },
         "ams01-edge-01__Loopback0": {
             "device": "ams01-edge-01",
@@ -70,6 +76,7 @@ data = {
             "description": "",
             "type": "10gbase-t",
             "mode": "access",
+            "status": "active",
         },
         "ams01-edge-02__vlan102": {
             "device": "ams01-edge-02",
@@ -77,6 +84,7 @@ data = {
             "description": "",
             "type": "10gbase-t",
             "mode": "access",
+            "status": "active",
         },
         "ams01-edge-02__Ethernet1/1": {
             "device": "ams01-edge-02",
@@ -84,6 +92,7 @@ data = {
             "description": "",
             "type": "10gbase-t",
             "mode": "access",
+            "status": "active",
         },
         "ams01-edge-02__Ethernet2/1": {
             "device": "ams01-edge-02",
@@ -91,6 +100,7 @@ data = {
             "description": "",
             "type": "10gbase-t",
             "mode": "access",
+            "status": "active",
         },
         "ams01-edge-02__Loopback0": {
             "device": "ams01-edge-02",
@@ -98,6 +108,7 @@ data = {
             "description": "",
             "type": "10gbase-t",
             "mode": "access",
+            "status": "active",
         },
         "ams01-edge-03__vlan103": {
             "device": "ams01-edge-03",
@@ -105,6 +116,7 @@ data = {
             "description": "",
             "type": "10gbase-t",
             "mode": "access",
+            "status": "active",
         },
         "ams01-edge-03__Ethernet1/1": {
             "device": "ams01-edge-03",
@@ -112,6 +124,7 @@ data = {
             "description": "",
             "type": "10gbase-t",
             "mode": "access",
+            "status": "active",
         },
         "ams01-edge-03__Ethernet2/1": {
             "device": "ams01-edge-03",
@@ -119,6 +132,7 @@ data = {
             "description": "",
             "type": "10gbase-t",
             "mode": "access",
+            "status": "active",
         },
         "ams01-edge-03__Loopback0": {
             "device": "ams01-edge-03",
@@ -126,6 +140,7 @@ data = {
             "description": "",
             "type": "10gbase-t",
             "mode": "access",
+            "status": "active",
         },
     },
     "site": {
