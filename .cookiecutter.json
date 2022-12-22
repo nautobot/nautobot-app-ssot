@@ -1,0 +1,25 @@
+{
+  "cookiecutter": {
+    "codeowner_github_usernames": "@glennmatthews @jathanism @lampwins @chadell",
+    "full_name": "Network to Code, LLC",
+    "email": "info@networktocode.com",
+    "github_org": "nautobot",
+    "plugin_name": "nautobot_ssot",
+    "verbose_name": "Nautobot Ssot",
+    "plugin_slug": "nautobot-ssot",
+    "project_slug": "nautobot-plugin-ssot",
+    "repo_url": "https://github.com/nautobot/nautobot-plugin-ssot",
+    "base_url": "ssot",
+    "min_nautobot_version": "1.4.0",
+    "max_nautobot_version": "1.9999",
+    "nautobot_version": "1.5.1",
+    "camel_name": "NautobotSsot",
+    "project_short_description": "Nautobot Single Source of Truth",
+    "version": "1.2.0",
+    "model_class_name": "Sync",
+    "open_source_license": "Apache-2.0",
+    "docs_base_url": "https://docs.nautobot.com",
+    "docs_app_url": "https://docs.nautobot.com/projects/nautobot-ssot/en/latest",
+    "_template": "../cookiecutter-ntc/nautobot-plugin"
+  }
+}
