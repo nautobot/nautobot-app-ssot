@@ -1,5 +1,4 @@
 {% extends 'generic/object_detail.html' %}
-{% load helpers %}
 {% load render_table from django_tables2 %}
 
 {% block header %}
@@ -26,89 +25,88 @@
     </style>
 {% endblock %}
 
-{% block content %}
-    <div class="row">
-        <div class="col-md-6">
-            <table class="text-center">
+{% block content_left_page %}
+    <table class="text-center">
+        <tr>
+            <td style="width: 200px">
+                {% if job_class.data_source_icon %}
+                    <img src="{{ job_class.data_source_icon }}" width="200">
+                {% else %}
+                    <span class="mdi mdi-database"></span>
+                {% endif %}
+            </td>
+            <td style="width: 128px"><h1>⟹</h1></td>
+            <td style="width: 200px">
+                {% if job_class.data_target_icon %}
+                    <img src="{{ job_class.data_target_icon }}" width="200">
+                {% else %}
+                    <span class="mdi mdi-database"></span>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td><h2>{{ job_class.data_source }}</h2></td>
+            <td></td>
+            <td><h2>{{ job_class.data_target }}</h2></td>
+        </tr>
+    </table>
+    {% if job_class.config_information %}
+        <div class="panel panel-default">
+            <div class="panel-heading"><strong>Configuration</strong></div>
+            <table class="table panel-body table-hover">
                 <tr>
-                    <td style="width: 200px">
-                        {% if job_class.data_source_icon %}
-                            <img src="{{ job_class.data_source_icon }}" width="200">
-                        {% else %}
-                            <span class="mdi mdi-database"></span>
-                        {% endif %}
-                    </td>
-                    <td style="width: 128px"><h1>⟹</h1></td>
-                    <td style="width: 200px">
-                        {% if job_class.data_target_icon %}
-                            <img src="{{ job_class.data_target_icon }}" width="200">
-                        {% else %}
-                            <span class="mdi mdi-database"></span>
-                        {% endif %}
-                    </td>
+                    <th>Parameter</th>
+                    <th>Value</th>
                 </tr>
-                <tr>
-                    <td><h2>{{ job_class.data_source }}</h2></td>
-                    <td></td>
-                    <td><h2>{{ job_class.data_target }}</h2></td>
-                </tr>
-            </table>
-            {% if job_class.config_information %}
-                <div class="panel panel-default">
-                    <div class="panel-heading"><strong>Configuration</strong></div>
-                    <table class="table panel-body table-hover">
-                        <tr>
-                            <th>Parameter</th>
-                            <th>Value</th>
-                        </tr>
-                        {% for parameter, value in job_class.config_information.items %}
-                            <tr>
-                                <td>{{ parameter }}</td>
-                                <td>
-                                    {% if value %}<code>{{ value }}</code>{% else %}—{% endif %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </table>
-                </div>
-            {% endif %}
-        </div>
-        <div class="col-md-6">
-            <div class="panel panel-default">
-                <div class="panel-heading"><strong>Data Mappings</strong></div>
-                <table class="table panel-body table-hover">
+                {% for parameter, value in job_class.config_information.items %}
                     <tr>
-                        <th>{{ job_class.data_source }}</th>
-                        <th>{{ job_class.data_target }}</th>
+                        <td>{{ parameter }}</td>
+                        <td>
+                            {% if value %}<code>{{ value }}</code>{% else %}—{% endif %}
+                        </td>
                     </tr>
-                    {% for source_name, source_url, target_name, target_url in job_class.data_mappings %}
-                        <tr>
-                            <td>
-                                {% if source_url %}
-                                    <a href="{{ source_url }}">{{ source_name }}</a>
-                                {% else %}
-                                    {{ source_name }}
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if target_url %}
-                                    <a href="{{ target_url }}">{{ target_name }}</a>
-                                {% else %}
-                                    {{ target_name }}
-                                {% endif %}
-                            </td>
-                        </tr>
-                    {% empty %}
-                        <tr>
-                            <td>—</td>
-                            <td>—</td>
-                        </tr>
-                    {% endfor %}
-                </table>
-            </div>
+                {% endfor %}
+            </table>
         </div>
+    {% endif %}
+{% endblock %}
+
+{% block content_right_page %}
+    <div class="panel panel-default">
+        <div class="panel-heading"><strong>Data Mappings</strong></div>
+        <table class="table panel-body table-hover">
+            <tr>
+                <th>{{ job_class.data_source }}</th>
+                <th>{{ job_class.data_target }}</th>
+            </tr>
+            {% for source_name, source_url, target_name, target_url in job_class.data_mappings %}
+                <tr>
+                    <td>
+                        {% if source_url %}
+                            <a href="{{ source_url }}">{{ source_name }}</a>
+                        {% else %}
+                            {{ source_name }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if target_url %}
+                            <a href="{{ target_url }}">{{ target_name }}</a>
+                        {% else %}
+                            {{ target_name }}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td>—</td>
+                    <td>—</td>
+                </tr>
+            {% endfor %}
+        </table>
     </div>
-    <hr>
+{% endblock %}
+
+{% block content_full_width_page %}
     <div class="row">
         <div class="col-md-12">
             <h2>Sync History</h2>
