@@ -1,7 +1,7 @@
 {% extends 'generic/object_detail.html' %}
 {% load render_table from django_tables2 %}
 
-{% block breadcrumbs %}
+{% block extra_breadcrumbs %}
     <li><a href="{% url 'plugins:nautobot_ssot:dashboard' %}">Single Source of Truth</a></li>
     <li>Data {{ source_or_target | title }}s</li>
     <li>{{ job_class }}</li>
