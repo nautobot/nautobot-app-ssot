@@ -12,7 +12,7 @@
     "base_url": "ssot",
     "min_nautobot_version": "1.4.0",
     "max_nautobot_version": "1.9999",
-    "nautobot_version": "1.5.9",
+    "nautobot_version": "1.5.1",
     "camel_name": "NautobotSsot",
     "project_short_description": "Nautobot Single Source of Truth",
     "version": "1.2.0",
