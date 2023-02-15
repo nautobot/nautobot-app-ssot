@@ -1,19 +1,40 @@
 # Getting Started with the App
 
-This document provides a step-by-step tutorial on how to get the App going and how to use it.
-
 ## Install the App
 
 To install the App, please follow the instructions detailed in the [Installation Guide](../admin/install.md).
 
 ## First steps with the App
 
-!!! warning "Developer Note - Remove Me!"
-    What (with screenshots preferably) does it look like to perform the simplest workflow within the App once installed?
+By default this plugin provides an example Data Source Job and example Data Target Job. You can run this example job to get a feel for the capabilities of the plugin.
 
-## What are the next steps?
+---
+![Example Jobs](../images/example_jobs.png)
 
-!!! warning "Developer Note - Remove Me!"
-    After taking the first steps, what else could the users look at doing.
 
-You can check out the [Use Cases](app_use_cases.md) section for more examples.
+However, to get the most out of this plugin you will want to find other existing Jobs and/or [create your own Jobs](./developing_jobs.md). Such Jobs can be installed like any other Nautobot Job:
+
+* by [packaging into a Nautobot plugin](https://nautobot.readthedocs.io/en/stable/plugins/development/#including-jobs) which can then be installed into Nautobot's virtual environment
+* by [inclusion in a Git repository](https://nautobot.readthedocs.io/en/stable/models/extras/gitrepository/#jobs) which can be configured in Nautobot and refreshed on demand
+* by [manual installation of individual Job source files](https://nautobot.readthedocs.io/en/stable/additional-features/jobs/#writing-jobs) to Nautobot's `JOBS_ROOT` directory
+
+
+Example screenshots of possible Data Sources and Data Targets are shown below.
+
+---
+
+![Example data source - Arista CloudVision](../images/example_cloudvision.png)
+
+---
+
+![Example data target - ServiceNow](../images/example_servicenow.png)
+
+Once you have other, more useful Jobs installed, these example Jobs can be disabled and removed from the UI by configuring `"hide_example_jobs"` to `True` in your `nautobot_config.py`:
+
+```python
+PLUGINS_CONFIG = {
+    "nautobot_ssot": {
+        "hide_example_jobs": True,
+    }
+}
+```
