@@ -1,10 +1,9 @@
 # Compatibility Matrix
 
-!!! warning "Developer Note - Remove Me!"
-    Explain how the release models of the plugin and of Nautobot work together, how releases are supported, how features and older releases are deprecated etc.
+While that last supported version will not be strictly enforced--via the max_version setting, any issues with an updated Nautobot supported version in a minor release, will require a bug to be raised and a fix in Nautobot core to address, with no fixes expected in this plugin. This allows the Nautobot Single Source of Truth App the ability to quickly take advantage of the latest features.
 
 | Single Source of Truth Version | Nautobot First Support Version | Nautobot Last Support Version |
-| ------------- | -------------------- | ------------- |
-| 1.0.X         | 1.2.0                | 1.99.99        |
-| 1.1.X         | 1.4.0                | 1.99.99        |
-| 1.2.X         | 2.0.0                | 2.99.99        |
+| ------------------------------ | ------------------------------ | ----------------------------- |
+| 1.0.X                          | 1.0.3                          | 1.99.99                       |
+| 1.1.X                          | 1.0.3                          | 1.99.99                       |
+| 1.2.X                          | 1.0.3                          | 2.99.99                       |
