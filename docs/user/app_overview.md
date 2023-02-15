@@ -1,13 +1,11 @@
 # App Overview
 
-This document provides an overview of the App including critical information and import considerations when applying it to your Nautobot environment.
+A plugin for Nautobot. This plugin facilitates integration and data synchronization between various "source of truth" (SoT) systems, with Nautobot acting as a central clearinghouse for data - a Single Source of Truth, if you will.
 
 !!! note
     Throughout this documentation, the terms "app" and "plugin" will be used interchangeably.
 
-## Description/Overview
-
-A plugin for [Nautobot](https://github.com/nautobot/nautobot). This plugin facilitates integration and data synchronization between various "source of truth" (SoT) systems, with Nautobot acting as a central clearinghouse for data - a Single Source of Truth, if you will.
+## Description
 
 The nautobot-ssot plugin builds atop the [DiffSync](https://github.com/networktocode/diffsync) Python library and Nautobot's Jobs feature. This enables the rapid development and integration of Jobs that can be run within Nautobot to pull data from other systems ("Data Sources") into Nautobot and/or push data from Nautobot into other systems ("Data Targets") as desired. Key features include the following:
 
@@ -24,14 +22,3 @@ The nautobot-ssot plugin builds atop the [DiffSync](https://github.com/networkto
 * Glenn Matthew (@glennmatthews)
 * Christian Adell (@chadell)
 * Justin Drew (@jdrew82)
-
-## Nautobot Features Used
-
-!!! warning "Developer Note - Remove Me!"
-    What is shown today in the Installed Plugins page in Nautobot. What parts of Nautobot does it interact with, what does it add etc. ?
-
-### Extras
-
-!!! warning "Developer Note - Remove Me!"
-    Custom Fields - things like which CFs are created by this app?
-    Jobs - are jobs, if so, which ones, installed by this app?

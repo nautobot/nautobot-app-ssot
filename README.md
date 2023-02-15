@@ -35,15 +35,22 @@ To avoid extra work and temporary links, make sure that publishing docs (or merg
 
 ### Screenshots
 
+---
+
 The dashboard view of the app.
 ![Dashboard View](https://raw.githubusercontent.com/nautobot/nautobot-plugin-ssot/develop/docs/images/dashboard_initial.png)
+
+---
 
 The detailed view of the example data source that is prepackaged within this app.
 ![Data Source Detail View](https://raw.githubusercontent.com/nautobot/nautobot-plugin-ssot/develop/docs/images/data_source_detail.png)
 
+---
+
 The detailed view of an executed sync.
 ![Sync Detail View](https://raw.githubusercontent.com/nautobot/nautobot-plugin-ssot/develop/docs/images/sync_detail.png)
 
+---
 
 More screenshots can be found in the [Using the App](https://docs.nautobot.com/projects/ssot/en/latest/user/app_use_cases/) page in the documentation.
 
@@ -57,7 +64,7 @@ This App is installed in the Nautobot Community Sandbox found over at [demo.naut
 
 Full documentation for this App can be found over on the [Nautobot Docs](https://docs.nautobot.com) website:
 
-- [User Guide](https://docs.nautobot.com/projects/ssot/en/latest/user/app_overview/) - Overview, Using the App, Getting Started.
+- [User Guide](https://docs.nautobot.com/projects/ssot/en/latest/user/app_overview/) - Overview, Using the App, Getting Started, Developing Jobs.
 - [Administrator Guide](https://docs.nautobot.com/projects/ssot/en/latest/admin/install/) - How to Install, Configure, Upgrade, or Uninstall the App.
 - [Developer Guide](https://docs.nautobot.com/projects/ssot/en/latest/dev/contributing/) - Extending the App, Code Reference, Contribution Guide.
 - [Release Notes / Changelog](https://docs.nautobot.com/projects/ssot/en/latest/admin/release_notes/).
