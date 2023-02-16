@@ -15,7 +15,6 @@ limitations under the License.
 from distutils.util import strtobool
 from invoke import Collection, task as invoke_task
 import os
-import time
 
 
 def is_truthy(arg):
@@ -34,22 +33,23 @@ def is_truthy(arg):
 
 
 # Use pyinvoke configuration for default values, see http://docs.pyinvoke.org/en/stable/concepts/configuration.html
-# Variables may be overwritten in invoke.yml or by the environment variables INVOKE_NAUTOBOT-DATA-SYNC_xxx
+# Variables may be overwritten in invoke.yml or by the environment variables INVOKE_NAUTOBOT_SSOT_xxx
 namespace = Collection("nautobot_ssot")
 namespace.configure(
     {
         "nautobot_ssot": {
-            "nautobot_ver": "1.3.8",
-            "project_name": "nautobot-ssot",
+            "nautobot_ver": "1.5.1",
+            "project_name": "nautobot_ssot",
             "python_ver": "3.7",
             "local": False,
             "compose_dir": os.path.join(os.path.dirname(__file__), "development"),
             "compose_files": [
-                "docker-compose.requirements.yml",
                 "docker-compose.base.yml",
+                "docker-compose.redis.yml",
+                "docker-compose.postgres.yml",
                 "docker-compose.dev.yml",
-                "docker-compose.docs.yml",
             ],
+            "compose_http_timeout": "86400",
         }
     }
 )
@@ -82,7 +82,13 @@ def docker_compose(context, command, **kwargs):
         command (str): Command string to append to the "docker-compose ..." command, such as "build", "up", etc.
         **kwargs: Passed through to the context.run() call.
     """
-    build_env = {"NAUTOBOT_VER": context.nautobot_ssot.nautobot_ver, "PYTHON_VER": context.nautobot_ssot.python_ver}
+    build_env = {
+        # Note: 'docker-compose logs' will stop following after 60 seconds by default,
+        # so we are overriding that by setting this environment variable.
+        "COMPOSE_HTTP_TIMEOUT": context.nautobot_ssot.compose_http_timeout,
+        "NAUTOBOT_VER": context.nautobot_ssot.nautobot_ver,
+        "PYTHON_VER": context.nautobot_ssot.python_ver,
+    }
     compose_command = f'docker-compose --project-name {context.nautobot_ssot.project_name} --project-directory "{context.nautobot_ssot.compose_dir}"'
     for compose_file in context.nautobot_ssot.compose_files:
         compose_file_path = os.path.join(context.nautobot_ssot.compose_dir, compose_file)
@@ -97,7 +103,7 @@ def run_command(context, command, **kwargs):
     if is_truthy(context.nautobot_ssot.local):
         context.run(command, **kwargs)
     else:
-        # Check if netbox is running, no need to start another netbox container to run a command
+        # Check if nautobot is running, no need to start another nautobot container to run a command
         docker_compose_status = "ps --services --filter status=running"
         results = docker_compose(context, docker_compose_status, hide="out")
         if "nautobot" in results.stdout:
@@ -183,6 +189,26 @@ def vscode(context):
     context.run(command)
 
 
+@task(
+    help={
+        "service": "Docker-compose service name to view (default: nautobot)",
+        "follow": "Follow logs",
+        "tail": "Tail N number of lines or 'all'",
+    }
+)
+def logs(context, service="nautobot", follow=False, tail=None):
+    """View the logs of a docker-compose service."""
+    command = "logs "
+
+    if follow:
+        command += "--follow "
+    if tail:
+        command += f"--tail={tail} "
+
+    command += service
+    docker_compose(context, command)
+
+
 # ------------------------------------------------------------------------------
 # ACTIONS
 # ------------------------------------------------------------------------------
@@ -190,6 +216,13 @@ def vscode(context):
 def nbshell(context):
     """Launch an interactive nbshell session."""
     command = "nautobot-server nbshell"
+    run_command(context, command)
+
+
+@task
+def shell_plus(context):
+    """Launch an interactive shell_plus session."""
+    command = "nautobot-server shell_plus"
     run_command(context, command)
 
 
@@ -253,15 +286,19 @@ def post_upgrade(context):
     run_command(context, command)
 
 
+# ------------------------------------------------------------------------------
+# DOCS
+# ------------------------------------------------------------------------------
 @task
-def sql_import(context):
-    """Import nautobot_backup.dump into the database."""
-    docker_compose(context, "up -d postgres")
-    time.sleep(2)
-    context.run("docker cp nautobot_backup.dump nautobot-ssot_postgres_1:/tmp/")
-    docker_compose(
-        context, 'exec postgres sh -c "psql -h localhost -d nautobot -U nautbot < /tmp/nautobot_backup.dump"', pty=True
-    )
+def docs(context):
+    """Build and serve docs locally for development."""
+    command = "mkdocs serve -v"
+
+    if is_truthy(context.nautobot_ssot.local):
+        print("Serving Documentation...")
+        run_command(context, command)
+    else:
+        print("Only used when developing locally (i.e. context.nautobot_ssot.local=True)!")
 
 
 # ------------------------------------------------------------------------------
@@ -309,7 +346,7 @@ def pylint(context):
 def pydocstyle(context):
     """Run pydocstyle to validate docstring formatting adheres to NTC defined standards."""
     # We exclude the /migrations/ directory since it is autogenerated code
-    command = "pydocstyle --config=.pydocstyle.ini ."
+    command = "pydocstyle ."
     run_command(context, command)
 
 
@@ -388,6 +425,8 @@ def tests(context, failfast=False):
     bandit(context)
     print("Running pydocstyle...")
     pydocstyle(context)
+    print("Running yamllint...")
+    yamllint(context)
     print("Running pylint...")
     pylint(context)
     print("Running unit tests...")

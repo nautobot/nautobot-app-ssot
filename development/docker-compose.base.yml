@@ -9,39 +9,31 @@ x-nautobot-build: &nautobot-build
 x-nautobot-base: &nautobot-base
   image: "nautobot-ssot/nautobot:${NAUTOBOT_VER}-py${PYTHON_VER}"
   env_file:
-    - "dev.env"
+    - "development.env"
     - "creds.env"
   tty: true
 
-version: "3.4"
+version: "3.8"
 services:
   nautobot:
-    ports:
-      - "8080:8080"
     depends_on:
-      - "postgres"
-      - "redis"
+      redis:
+        condition: "service_started"
+      db:
+        condition: "service_healthy"
     <<: *nautobot-build
     <<: *nautobot-base
   worker:
-    entrypoint: "nautobot-server rqworker"
-    healthcheck:
-      interval: "5s"
-      timeout: "5s"
-      start_period: "5s"
-      retries: 3
-      test: ["CMD", "nautobot-server", "health_check"]
-    depends_on:
-      - "nautobot"
-    <<: *nautobot-base
-  celery_worker:
-    healthcheck:
-      disable: true
-    depends_on:
-      - "nautobot"
-      - "redis"
     entrypoint:
       - "sh"
       - "-c"  # this is to evaluate the $NAUTOBOT_LOG_LEVEL from the env
-      - "nautobot-server celery worker -l $$NAUTOBOT_LOG_LEVEL"  # $$ because of docker-compose
+      - "watchmedo auto-restart --directory './' --pattern '*.py' --recursive -- nautobot-server celery worker -l $$NAUTOBOT_LOG_LEVEL --events"  ## $$ because of docker-compose
+    depends_on:
+      - "nautobot"
+    healthcheck:
+      interval: "30s"
+      timeout: "10s"
+      start_period: "30s"
+      retries: 3
+      test: ["CMD", "bash", "-c", "nautobot-server celery inspect ping --destination celery@$$HOSTNAME"]  ## $$ because of docker-compose
     <<: *nautobot-base
