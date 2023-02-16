@@ -1,7 +1,7 @@
 ---
 name: "Nautobot Upstream Testing"
 
-on: # yamllint disable-line rule:truthy rule:comments
+on:  # yamllint disable-line rule:truthy rule:comments
   schedule:
     - cron: "0 4 */2 * *"  # every other day at midnight
   push:  # yamllint disable rule:empty-values
