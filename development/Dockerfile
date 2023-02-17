@@ -39,7 +39,7 @@ RUN curl -sSL https://install.python-poetry.org | python3 - && \
 
 # Uncomment the lines below if you are apt-installing any package.
 # RUN apt-get -y update && apt-get -y install \
-#     libldap2-dev
+#     libldap2-dev \
 #     && rm -rf /var/lib/apt/lists/*
 
 # --> Stop safe to modify section

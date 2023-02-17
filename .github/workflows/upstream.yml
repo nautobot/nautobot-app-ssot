@@ -1,5 +1,5 @@
 ---
-name: "Nautobot Upstream Testing"
+name: "Nautobot Upstream Monitor"
 
 on:  # yamllint disable-line rule:truthy rule:comments
   schedule:
