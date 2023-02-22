@@ -59,7 +59,6 @@ mkdocs-version-annotations = "1.0.0"
 mkdocstrings = "0.20"
 mkdocstrings-python = "0.8.3"
 
-
 [tool.poetry.plugins."nautobot_ssot.data_sources"]
 "example" = "nautobot_ssot.sync.example:ExampleSyncWorker"
 

@@ -1,6 +1,6 @@
 ---
 dev_addr: "127.0.0.1:8001"
-edit_uri: "edit/develop/docs"
+edit_uri: "blob/develop/docs"
 site_dir: "nautobot_ssot/static/nautobot_ssot/docs"
 site_name: "Single Source of Truth Documentation"
 site_url: "https://docs.nautobot.com/projects/ssot/en/latest/"
@@ -17,10 +17,13 @@ theme:
     - "navigation.tracking"
     - "navigation.tabs"
     - "navigation.tabs.sticky"
+    - "navigation.footer"
     - "search.suggest"
     - "search.highlight"
     - "search.share"
     - "navigation.indexes"
+    - "content.action.edit"
+    - "content.action.view"
   favicon: "assets/favicon.ico"
   logo: "assets/nautobot_logo.svg"
   palette:
