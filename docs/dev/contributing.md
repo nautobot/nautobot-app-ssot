@@ -14,8 +14,8 @@ Documentation is built using [mkdocs](https://www.mkdocs.org/). The [Docker base
 
 The branching policy includes the following tenets:
 
-* The develop branch is the primary branch to develop off of
-* PRs intended to add new features should be sourced from the develop branch.
+* The `develop` branch is the primary branch to develop off of.
+* PRs intended to add new features should be sourced from the `develop` branch.
 * PRs intended to address bug fixes and security patches should be sourced from the develop branch.
 * PRs intended to add new features that break backward compatibility should be discussed before a PR is created.
 

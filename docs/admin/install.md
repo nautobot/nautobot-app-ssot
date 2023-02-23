@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- The plugin is compatible with Nautobot 1.0.3 and higher.
+- The plugin is compatible with Nautobot 1.4.0 and higher.
 - Databases supported: PostgreSQL, MySQL
 
 !!! note

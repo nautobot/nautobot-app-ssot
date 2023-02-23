@@ -46,8 +46,6 @@ The **Sync Logs** tab shows the logs captured from DiffSync regarding the indivi
 
 ![Sync logs view](../images/sync_logs.png)
 
-## Use-cases and common workflows
-
 ## Screenshots
 
 Here is a consolidated view of all the pages within the SSoT plugin.
