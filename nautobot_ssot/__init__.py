@@ -21,7 +21,7 @@ class NautobotSSOTPluginConfig(PluginConfig):
     description = "Nautobot Single Source of Truth."
     base_url = "ssot"
     required_settings = []
-    min_version = "1.0.3"
+    min_version = "1.4.0"
     max_version = "1.9999"
     default_settings = {
         "hide_example_jobs": False,

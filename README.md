@@ -12,7 +12,7 @@ The plugin is available as a Python package in PyPI and can be installed with `p
 pip install nautobot-ssot
 ```
 
-> This plugin is compatible with Nautobot 1.0.3 and higher.
+> This plugin is compatible with Nautobot 1.4.0 and higher.
 
 Once installed, the plugin needs to be enabled in your `nautobot_config.py`:
 
