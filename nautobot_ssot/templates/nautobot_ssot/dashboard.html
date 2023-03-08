@@ -1,8 +1,10 @@
-{% extends 'base.html' %}
+{% extends 'generic/object_list.html' %}
 {% load buttons %}
 {% load helpers %}
 {% load static %}
 {% load dashboard_helpers %}
+
+{% block header %}{% endblock %}
 
 {% block content %}
     <h1>{% block title %}Single Source of Truth{% endblock %}</h1>
