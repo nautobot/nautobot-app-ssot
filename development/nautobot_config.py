@@ -142,3 +142,5 @@ PLUGINS = ["nautobot_ssot"]
 #         'buzz': 'bazz'
 #     }
 # }
+
+METRICS_ENABLED = True
