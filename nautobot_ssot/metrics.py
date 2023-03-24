@@ -20,25 +20,27 @@ def metric_ssot_jobs():
     )
 
     for job in Job.objects.filter(slug__icontains="ssot"):
-        ssot_job_durations.add_metric(
-            labels=["source_load_time", job.slug],
-            value=Sync.objects.filter(job_result__job_model_id=job.id).last().source_load_time.micoseconds,
-        )
+        last_job_sync = Sync.objects.filter(job_result__job_model_id=job.id).last()
+        if last_job_sync:
+            ssot_job_durations.add_metric(
+                labels=["source_load_time", job.slug],
+                value=last_job_sync.source_load_time.microseconds,
+            )
 
-        ssot_job_durations.add_metric(
-            labels=["target_load_time", job.slug],
-            value=Sync.objects.filter(job_result__job_model_id=job.id).last().target_load_time.microseconds,
-        )
+            ssot_job_durations.add_metric(
+                labels=["target_load_time", job.slug],
+                value=last_job_sync.target_load_time.microseconds,
+            )
 
-        ssot_job_durations.add_metric(
-            labels=["diff_time", job.slug],
-            value=Sync.objects.filter(job_result__job_model_id=job.id).last().diff_time.microseconds,
-        )
+            ssot_job_durations.add_metric(
+                labels=["diff_time", job.slug],
+                value=last_job_sync.diff_time.microseconds,
+            )
 
-        ssot_job_durations.add_metric(
-            labels=["total_sync_time", job.slug],
-            value=Sync.objects.filter(job_result__job_model_id=job.id).last().sync_time.microseconds,
-        )
+            ssot_job_durations.add_metric(
+                labels=["total_sync_time", job.slug],
+                value=last_job_sync.sync_time.microseconds,
+            )
 
     yield ssot_job_durations
 
@@ -79,45 +81,48 @@ def metric_memory_usage():
         "nautobot_ssot_sync_memory_usage", "Nautobot SSoT Sync Memory Usage", labels=["phase"]
     )
 
-    memory_gauge.add_metric(
-        labels=["source_load_memory_final"],
-        value=Sync.objects.filter(source_load_memory_final__isnull=False).last().source_load_memory_final,
-    )
+    last_sync = Sync.objects.filter(source_load_memory_final__isnull=False).last()
 
-    memory_gauge.add_metric(
-        labels=["source_load_memory_peak"],
-        value=Sync.objects.filter(source_load_memory_peak__isnull=False).last().source_load_memory_peak,
-    )
+    if last_sync:
+        memory_gauge.add_metric(
+            labels=["source_load_memory_final"],
+            value=last_sync.source_load_memory_final,
+        )
 
-    memory_gauge.add_metric(
-        labels=["target_load_memory_final"],
-        value=Sync.objects.filter(target_load_memory_final__isnull=False).last().target_load_memory_final,
-    )
+        memory_gauge.add_metric(
+            labels=["source_load_memory_peak"],
+            value=last_sync.source_load_memory_peak,
+        )
 
-    memory_gauge.add_metric(
-        labels=["target_load_memory_peak"],
-        value=Sync.objects.filter(target_load_memory_peak__isnull=False).last().target_load_memory_peak,
-    )
+        memory_gauge.add_metric(
+            labels=["target_load_memory_final"],
+            value=last_sync.target_load_memory_final,
+        )
 
-    memory_gauge.add_metric(
-        labels=["diff_memory_final"],
-        value=Sync.objects.filter(diff_memory_final__isnull=False).last().diff_memory_final,
-    )
+        memory_gauge.add_metric(
+            labels=["target_load_memory_peak"],
+            value=last_sync.target_load_memory_peak,
+        )
 
-    memory_gauge.add_metric(
-        labels=["diff_memory_peak"],
-        value=Sync.objects.filter(diff_memory_peak__isnull=False).last().diff_memory_peak,
-    )
+        memory_gauge.add_metric(
+            labels=["diff_memory_final"],
+            value=last_sync.diff_memory_final,
+        )
 
-    memory_gauge.add_metric(
-        labels=["sync_memory_final"],
-        value=Sync.objects.filter(sync_memory_final__isnull=False).last().sync_memory_final,
-    )
+        memory_gauge.add_metric(
+            labels=["diff_memory_peak"],
+            value=last_sync.diff_memory_peak,
+        )
 
-    memory_gauge.add_metric(
-        labels=["sync_memory_peak"],
-        value=Sync.objects.filter(sync_memory_peak__isnull=False).last().sync_memory_peak,
-    )
+        memory_gauge.add_metric(
+            labels=["sync_memory_final"],
+            value=last_sync.sync_memory_final,
+        )
+
+        memory_gauge.add_metric(
+            labels=["sync_memory_peak"],
+            value=last_sync.sync_memory_peak,
+        )
 
     yield memory_gauge
 
