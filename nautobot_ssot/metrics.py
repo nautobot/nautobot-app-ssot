@@ -69,4 +69,57 @@ def metric_syncs():
     yield sync_gauge
 
 
-metrics = [metric_ssot_jobs, metric_syncs]
+def metric_memory_usage():
+    """Extracts memory usage for latest SSoT Sync where memory profiling was used.
+
+    Yields:
+        GaugeMetricFamily: Prometheus Metrics
+    """
+    memory_gauge = GaugeMetricFamily(
+        "nautobot_ssot_sync_memory_usage", "Nautobot SSoT Sync Memory Usage", labels=["phase"]
+    )
+
+    memory_gauge.add_metric(
+        labels=["source_load_memory_final"],
+        value=Sync.objects.filter(source_load_memory_final__isnull=False).last().source_load_memory_final,
+    )
+
+    memory_gauge.add_metric(
+        labels=["source_load_memory_peak"],
+        value=Sync.objects.filter(source_load_memory_peak__isnull=False).last().source_load_memory_peak,
+    )
+
+    memory_gauge.add_metric(
+        labels=["target_load_memory_final"],
+        value=Sync.objects.filter(target_load_memory_final__isnull=False).last().target_load_memory_final,
+    )
+
+    memory_gauge.add_metric(
+        labels=["target_load_memory_peak"],
+        value=Sync.objects.filter(target_load_memory_peak__isnull=False).last().target_load_memory_peak,
+    )
+
+    memory_gauge.add_metric(
+        labels=["diff_memory_final"],
+        value=Sync.objects.filter(diff_memory_final__isnull=False).last().diff_memory_final,
+    )
+
+    memory_gauge.add_metric(
+        labels=["diff_memory_peak"],
+        value=Sync.objects.filter(diff_memory_peak__isnull=False).last().diff_memory_peak,
+    )
+
+    memory_gauge.add_metric(
+        labels=["sync_memory_final"],
+        value=Sync.objects.filter(sync_memory_final__isnull=False).last().sync_memory_final,
+    )
+
+    memory_gauge.add_metric(
+        labels=["sync_memory_peak"],
+        value=Sync.objects.filter(sync_memory_peak__isnull=False).last().sync_memory_peak,
+    )
+
+    yield memory_gauge
+
+
+metrics = [metric_ssot_jobs, metric_syncs, metric_memory_usage]
