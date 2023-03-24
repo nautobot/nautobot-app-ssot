@@ -2009,14 +2009,14 @@ files = [
 
 [[package]]
 name = "nautobot"
-version = "1.5.11"
+version = "1.5.14"
 description = "Source of truth and network automation platform."
 category = "main"
 optional = false
 python-versions = ">=3.7,<4.0"
 files = [
-    {file = "nautobot-1.5.11-py3-none-any.whl", hash = "sha256:3b059144b78f9a01cac1d63c44fde7655e5f6d6c33697bc58f854d04d8b48715"},
-    {file = "nautobot-1.5.11.tar.gz", hash = "sha256:ae31ea6789e132f304c7848e8315a8c103eb0701020db443d4c9a1730e6cb02f"},
+    {file = "nautobot-1.5.14-py3-none-any.whl", hash = "sha256:8ea60d938b6d746b6791f986d1110aeadea8d70032f46a0ff747994af81250e4"},
+    {file = "nautobot-1.5.14.tar.gz", hash = "sha256:4ead01f85ad9179a3523d233a4da20e8ad15250fa34b93ca49adc8b8318b55ac"},
 ]
 
 [package.dependencies]
@@ -2045,7 +2045,7 @@ django-webserver = ">=1.2.0,<1.3.0"
 djangorestframework = ">=3.14.0,<3.15.0"
 drf-spectacular = {version = ">=0.24.2,<0.25.0", extras = ["sidecar"]}
 drf-yasg = {version = ">=1.20.0,<2.0.0", extras = ["validation"]}
-GitPython = ">=3.1.30,<3.2.0"
+GitPython = ">=3.1.31,<3.2.0"
 graphene-django = ">=2.15.0,<2.16.0"
 graphene-django-optimizer = ">=0.8.0,<0.9.0"
 importlib-metadata = {version = ">=4.4,<5.0", markers = "python_version < \"3.8\""}
@@ -2054,7 +2054,7 @@ jsonschema = ">=4.7.0,<4.8.0"
 Markdown = ">=3.3.7,<3.4.0"
 MarkupSafe = ">=2.1.1,<2.2.0"
 netaddr = ">=0.8.0,<0.9.0"
-netutils = ">=1.4.0,<2.0.0"
+netutils = ">=1.4.1,<2.0.0"
 Pillow = ">=9.3.0,<9.4.0"
 prometheus-client = ">=0.14.1,<0.15.0"
 psycopg2-binary = ">=2.9.5,<2.10.0"
@@ -2071,6 +2071,21 @@ mysql = ["mysqlclient (>=2.1.0,<2.2.0)"]
 napalm = ["napalm (>=3.4.1,<3.5.0)"]
 remote-storage = ["django-storages (>=1.12.3,<1.13.0)"]
 sso = ["social-auth-core[openidconnect,saml] (>=4.3.0,<4.4.0)"]
+
+[[package]]
+name = "nautobot-capacity-metrics"
+version = "2.0.0"
+description = "Plugin to improve the instrumentation of Nautobot and expose additional metrics (Application Metrics, RQ Worker)."
+category = "main"
+optional = false
+python-versions = ">=3.7,<4.0"
+files = [
+    {file = "nautobot-capacity-metrics-2.0.0.tar.gz", hash = "sha256:02fbf65a335047252fbc25b10d8bb74f764501479a5528b2b02d09f24913cccd"},
+    {file = "nautobot_capacity_metrics-2.0.0-py3-none-any.whl", hash = "sha256:f8cb1e70b876cf7c553b58c7336f7e54bfa492ce29f085436919a7d6dd09cddd"},
+]
+
+[package.dependencies]
+nautobot = ">=1.2.0,<2.0.0"
 
 [[package]]
 name = "netaddr"
@@ -3704,4 +3719,4 @@ nautobot = ["nautobot"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.7"
-content-hash = "3ae7dd3a8f17976447e5779ed3a191d8e08a62e318b0e091c96a87714552505a"
+content-hash = "06af98cfb31652cf82c39e200daed591405653a66efeddc4b75061da1ed5691d"

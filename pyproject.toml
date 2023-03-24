@@ -27,10 +27,11 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.7"
-nautobot = "^1.4.0"
+nautobot = "^1.5.13"
 diffsync = "^1.6.0"
 Markdown = "!=3.3.5"
 packaging = "^21.3"
+nautobot-capacity-metrics = "^2.0.0"
 
 [tool.poetry.dev-dependencies]
 bandit = "*"

@@ -1,9 +1,9 @@
 ---
 nautobot_ssot:
   project_name: "nautobot-ssot"
-  nautobot_ver: "1.5.1"
+  nautobot_ver: "latest"
   local: false
-  python_ver: "3.7"
+  python_ver: "3.8"
   compose_dir: "development"
   compose_files:
     - "docker-compose.base.yml"
