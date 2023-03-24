@@ -14,7 +14,7 @@ def metric_ssot_jobs():
         GaugeMetricFamily: Prometheus Metrics
     """
     ssot_job_durations = GaugeMetricFamily(
-        "nautobot_ssot_duration_seconds",
+        "nautobot_ssot_duration_microseconds",
         "Nautobot SSoT Job Phase Duration in microseconds",
         labels=["phase", "job"],
     )
