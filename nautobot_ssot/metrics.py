@@ -1,6 +1,7 @@
 """Nautobot SSoT framework level metrics."""
 from django.conf import settings
 from prometheus_client.core import GaugeMetricFamily
+from nautobot.extras.models.jobs import Job
 from nautobot_ssot.models import Sync
 
 PLUGIN_SETTINGS = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
@@ -13,30 +14,31 @@ def metric_ssot_jobs():
         GaugeMetricFamily: Prometheus Metrics
     """
     ssot_job_durations = GaugeMetricFamily(
-        "nautobot_ssot_duration_seconds", "Nautobot SSoT Job Segment Duration in seconds", labels=["seconds"]
+        "nautobot_ssot_duration_seconds",
+        "Nautobot SSoT Job Phase Duration in microseconds",
+        labels=["phase", "job"],
     )
 
-    last_sync = Sync.objects.last()
+    for job in Job.objects.filter(slug__icontains="ssot"):
+        ssot_job_durations.add_metric(
+            labels=["source_load_time", job.slug],
+            value=Sync.objects.filter(job_result__job_model_id=job.id).last().source_load_time.micoseconds,
+        )
 
-    ssot_job_durations.add_metric(
-        labels=["source_load_time"],
-        value=last_sync.source_load_time,
-    )
+        ssot_job_durations.add_metric(
+            labels=["target_load_time", job.slug],
+            value=Sync.objects.filter(job_result__job_model_id=job.id).last().target_load_time.microseconds,
+        )
 
-    ssot_job_durations.add_metric(
-        labels=["target_load_time"],
-        value=last_sync.target_load_time,
-    )
+        ssot_job_durations.add_metric(
+            labels=["diff_time", job.slug],
+            value=Sync.objects.filter(job_result__job_model_id=job.id).last().diff_time.microseconds,
+        )
 
-    ssot_job_durations.add_metric(
-        labels=["diff_time"],
-        value=last_sync.diff_time,
-    )
-
-    ssot_job_durations.add_metric(
-        labels=["total_sync_time"],
-        value=last_sync.sync_time,
-    )
+        ssot_job_durations.add_metric(
+            labels=["total_sync_time", job.slug],
+            value=Sync.objects.filter(job_result__job_model_id=job.id).last().sync_time.microseconds,
+        )
 
     yield ssot_job_durations
 
@@ -47,7 +49,7 @@ def metric_syncs():
     Yields:
         GaugeMetricFamily: Prometheus Metrics
     """
-    sync_gauge = GaugeMetricFamily("nautobot_ssot_sync_total", "Nautobot SSoT Jobs", labels=["syncs"])
+    sync_gauge = GaugeMetricFamily("nautobot_ssot_sync_totals", "Nautobot SSoT Sync Totals", labels=["sync_type"])
 
     sync_gauge.add_metric(labels=["total_syncs"], value=Sync.objects.all().count())
 
