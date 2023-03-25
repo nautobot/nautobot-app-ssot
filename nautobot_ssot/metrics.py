@@ -83,6 +83,28 @@ def metric_syncs():
     yield sync_gauge
 
 
+def metric_sync_operations():
+    """Extracts the diff summary operations from each Job's last Sync.
+
+    Yields:
+        GuageMetricFamily: Prometheus Metrics
+    """
+    sync_ops = GaugeMetricFamily(
+        "nautobot_ssot_sync_operations", "Nautobot SSoT operations by Job", labels=["job", "operation"]
+    )
+
+    for job in Job.objects.filter(slug__icontains="ssot"):
+        last_job_sync = Sync.objects.filter(job_result__job_model_id=job.id).last()
+        if last_job_sync and last_job_sync.summary:
+            for operation, value in last_job_sync.summary.items():
+                sync_ops.add_metric(
+                    labels=[job.slug, operation],
+                    value=value,
+                )
+
+    yield sync_ops
+
+
 def metric_memory_usage():
     """Extracts memory usage for latest SSoT Sync where memory profiling was used.
 
@@ -139,4 +161,4 @@ def metric_memory_usage():
     yield memory_gauge
 
 
-metrics = [metric_ssot_jobs, metric_syncs, metric_memory_usage]
+metrics = [metric_ssot_jobs, metric_syncs, metric_sync_operations, metric_memory_usage]
