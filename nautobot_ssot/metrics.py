@@ -22,25 +22,37 @@ def metric_ssot_jobs():
     for job in Job.objects.filter(slug__icontains="ssot"):
         last_job_sync = Sync.objects.filter(job_result__job_model_id=job.id).last()
         if last_job_sync:
-            ssot_job_durations.add_metric(
-                labels=["source_load_time", job.slug],
-                value=last_job_sync.source_load_time.microseconds,
-            )
+            if last_job_sync.source_load_time:
+                ssot_job_durations.add_metric(
+                    labels=["source_load_time", job.slug],
+                    value=(last_job_sync.source_load_time.seconds * 100000)
+                    + last_job_sync.source_load_time.microseconds,
+                )
 
-            ssot_job_durations.add_metric(
-                labels=["target_load_time", job.slug],
-                value=last_job_sync.target_load_time.microseconds,
-            )
+            if last_job_sync.target_load_time:
+                ssot_job_durations.add_metric(
+                    labels=["target_load_time", job.slug],
+                    value=(last_job_sync.target_load_time.seconds * 1000000)
+                    + last_job_sync.target_load_time.microseconds,
+                )
 
-            ssot_job_durations.add_metric(
-                labels=["diff_time", job.slug],
-                value=last_job_sync.diff_time.microseconds,
-            )
+            if last_job_sync.diff_time:
+                ssot_job_durations.add_metric(
+                    labels=["diff_time", job.slug],
+                    value=(last_job_sync.diff_time.seconds * 1000000) + last_job_sync.diff_time.microseconds,
+                )
 
-            ssot_job_durations.add_metric(
-                labels=["total_sync_time", job.slug],
-                value=last_job_sync.sync_time.microseconds,
-            )
+            if last_job_sync.sync_time:
+                ssot_job_durations.add_metric(
+                    labels=["sync_time", job.slug],
+                    value=(last_job_sync.sync_time.seconds * 1000000) + last_job_sync.sync_time.microseconds,
+                )
+
+            if last_job_sync.duration:
+                ssot_job_durations.add_metric(
+                    labels=["sync_duration", job.slug],
+                    value=(last_job_sync.duration.seconds * 1000000) + last_job_sync.duration.microseconds,
+                )
 
     yield ssot_job_durations
 
