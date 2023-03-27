@@ -8,6 +8,7 @@ except ImportError:
 
 __version__ = metadata.version(__name__)
 
+from django.conf import settings
 from nautobot.extras.plugins import PluginConfig
 
 
@@ -27,6 +28,26 @@ class NautobotSSOTPluginConfig(PluginConfig):
         "hide_example_jobs": False,
     }
     caching_config = {}
+
+    def ready(self):
+        """Register metric functions when plug-in ready."""
+        super().ready()
+
+        # App metrics are disabled by default
+        if getattr(settings, "METRICS_ENABLED", False):
+            # pylint: disable=import-outside-toplevel
+            from nautobot_capacity_metrics import register_metric_func
+            from nautobot_ssot.metrics import (
+                metric_ssot_jobs,
+                metric_syncs,
+                metric_sync_operations,
+                metric_memory_usage,
+            )
+
+            register_metric_func(metric_ssot_jobs)
+            register_metric_func(metric_syncs)
+            register_metric_func(metric_sync_operations)
+            register_metric_func(metric_memory_usage)
 
 
 config = NautobotSSOTPluginConfig  # pylint:disable=invalid-name
