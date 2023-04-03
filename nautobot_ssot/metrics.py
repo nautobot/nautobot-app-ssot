@@ -67,18 +67,10 @@ def metric_syncs():
 
     sync_gauge.add_metric(labels=["total_syncs"], value=Sync.objects.all().count())
 
-    sync_gauge.add_metric(
-        labels=["completed_syncs"],
-        value=Sync.objects.filter(job_result__status="completed").count(),
-    )
-
-    sync_gauge.add_metric(labels=["failed_syncs"], value=Sync.objects.filter(job_result__status="failed").count())
-
-    sync_gauge.add_metric(labels=["errored_syncs"], value=Sync.objects.filter(job_result__status="errored").count())
-
-    sync_gauge.add_metric(labels=["pending_syncs"], value=Sync.objects.filter(job_result__status="pending").count())
-
-    sync_gauge.add_metric(labels=["running_syncs"], value=Sync.objects.filter(job_result__status="running").count())
+    for status_type in ("completed", "failed", "errored", "pending", "running"):
+        sync_gauge.add_metric(
+            labels=[f"{status_type}_syncs"], value=Sync.objects.filter(job_result__status=status_type).count()
+        )
 
     yield sync_gauge
 
