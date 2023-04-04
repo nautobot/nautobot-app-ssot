@@ -93,7 +93,7 @@ def metric_sync_operations():
                     labels=[job.slug, operation],
                     value=value,
                 )
-    else:
+    if len(Job.objects.filter(slug__icontains="ssot")) == 0:
         sync_ops.add_metric(labels=["", ""], value=0)
 
     yield sync_ops
