@@ -106,7 +106,7 @@ def metric_memory_usage():
         GaugeMetricFamily: Prometheus Metrics
     """
     memory_gauge = GaugeMetricFamily(
-        "nautobot_ssot_sync_memory_usage", "Nautobot SSoT Sync Memory Usage", labels=["phase"]
+        "nautobot_ssot_sync_memory_usage_bytes", "Nautobot SSoT Sync Memory Usage", labels=["phase"]
     )
 
     last_sync = Sync.objects.filter(source_load_memory_final__isnull=False).last()
