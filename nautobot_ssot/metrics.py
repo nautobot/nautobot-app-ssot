@@ -93,6 +93,8 @@ def metric_sync_operations():
                     labels=[job.slug, operation],
                     value=value,
                 )
+    else:
+        sync_ops.add_metric(labels=["", ""], value=0)
 
     yield sync_ops
 
@@ -149,6 +151,8 @@ def metric_memory_usage():
             labels=["sync_memory_peak"],
             value=last_sync.sync_memory_peak,
         )
+    else:
+        memory_gauge.add_metric(labels=["", ""], value=0)
 
     yield memory_gauge
 
