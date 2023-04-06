@@ -1,6 +1,7 @@
 """Nautobot SSoT framework level metrics."""
 from django.conf import settings
 from prometheus_client.core import GaugeMetricFamily
+from nautobot.extras.choices import JobResultStatusChoices
 from nautobot.extras.models.jobs import Job
 from nautobot_ssot.models import Sync
 
@@ -71,7 +72,7 @@ def metric_syncs():
 
     sync_gauge.add_metric(labels=["total_syncs"], value=Sync.objects.all().count())
 
-    for status_type in ("completed", "failed", "errored", "pending", "running"):
+    for status_type in [x[1].lower() for x in JobResultStatusChoices]:
         sync_gauge.add_metric(
             labels=[f"{status_type}_syncs"], value=Sync.objects.filter(job_result__status=status_type).count()
         )
