@@ -110,53 +110,21 @@ def metric_memory_usage():
         GaugeMetricFamily: Prometheus Metrics
     """
     memory_gauge = GaugeMetricFamily(
-        "nautobot_ssot_sync_memory_usage_bytes", "Nautobot SSoT Sync Memory Usage", labels=["phase"]
+        "nautobot_ssot_sync_memory_usage_bytes", "Nautobot SSoT Sync Memory Usage", labels=["phase", "job"]
     )
 
-    last_sync = Sync.objects.filter(source_load_memory_final__isnull=False).last()
-
-    if last_sync:
-        memory_gauge.add_metric(
-            labels=["source_load_memory_final"],
-            value=last_sync.source_load_memory_final,
-        )
-
-        memory_gauge.add_metric(
-            labels=["source_load_memory_peak"],
-            value=last_sync.source_load_memory_peak,
-        )
-
-        memory_gauge.add_metric(
-            labels=["target_load_memory_final"],
-            value=last_sync.target_load_memory_final,
-        )
-
-        memory_gauge.add_metric(
-            labels=["target_load_memory_peak"],
-            value=last_sync.target_load_memory_peak,
-        )
-
-        memory_gauge.add_metric(
-            labels=["diff_memory_final"],
-            value=last_sync.diff_memory_final,
-        )
-
-        memory_gauge.add_metric(
-            labels=["diff_memory_peak"],
-            value=last_sync.diff_memory_peak,
-        )
-
-        memory_gauge.add_metric(
-            labels=["sync_memory_final"],
-            value=last_sync.sync_memory_final,
-        )
-
-        memory_gauge.add_metric(
-            labels=["sync_memory_peak"],
-            value=last_sync.sync_memory_peak,
-        )
-    else:
-        memory_gauge.add_metric(labels=["", ""], value=0)
+    for job in Job.objects.filter(slug__icontains="ssot"):
+        last_job_sync = Sync.objects.filter(
+            job_result__job_model_id=job.id, source_load_memory_final__isnull=False
+        ).last()
+        if last_job_sync and last_job_sync.summary:
+            for operation, value in last_job_sync.summary.items():
+                memory_gauge.add_metric(
+                    labels=[operation, job.slug],
+                    value=value,
+                )
+        else:
+            memory_gauge.add_metric(labels=["", ""], value=0)
 
     yield memory_gauge
 
