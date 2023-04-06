@@ -14,8 +14,8 @@ def metric_ssot_jobs():
         GaugeMetricFamily: Prometheus Metrics
     """
     ssot_job_durations = GaugeMetricFamily(
-        "nautobot_ssot_duration_microseconds",
-        "Nautobot SSoT Job Phase Duration in microseconds",
+        "nautobot_ssot_duration_seconds",
+        "Nautobot SSoT Job Phase Duration in seconds",
         labels=["phase", "job"],
     )
 
@@ -25,33 +25,37 @@ def metric_ssot_jobs():
             if last_job_sync.source_load_time:
                 ssot_job_durations.add_metric(
                     labels=["source_load_time", job.slug],
-                    value=(last_job_sync.source_load_time.seconds * 100000)
-                    + last_job_sync.source_load_time.microseconds,
+                    value=(
+                        (last_job_sync.source_load_time.seconds * 100000) + last_job_sync.source_load_time.microseconds
+                    )
+                    / 1000,
                 )
 
             if last_job_sync.target_load_time:
                 ssot_job_durations.add_metric(
                     labels=["target_load_time", job.slug],
-                    value=(last_job_sync.target_load_time.seconds * 1000000)
-                    + last_job_sync.target_load_time.microseconds,
+                    value=(
+                        (last_job_sync.target_load_time.seconds * 1000000) + last_job_sync.target_load_time.microseconds
+                    )
+                    / 1000,
                 )
 
             if last_job_sync.diff_time:
                 ssot_job_durations.add_metric(
                     labels=["diff_time", job.slug],
-                    value=(last_job_sync.diff_time.seconds * 1000000) + last_job_sync.diff_time.microseconds,
+                    value=((last_job_sync.diff_time.seconds * 1000000) + last_job_sync.diff_time.microseconds) / 1000,
                 )
 
             if last_job_sync.sync_time:
                 ssot_job_durations.add_metric(
                     labels=["sync_time", job.slug],
-                    value=(last_job_sync.sync_time.seconds * 1000000) + last_job_sync.sync_time.microseconds,
+                    value=((last_job_sync.sync_time.seconds * 1000000) + last_job_sync.sync_time.microseconds) / 1000,
                 )
 
             if last_job_sync.duration:
                 ssot_job_durations.add_metric(
                     labels=["sync_duration", job.slug],
-                    value=(last_job_sync.duration.seconds * 1000000) + last_job_sync.duration.microseconds,
+                    value=((last_job_sync.duration.seconds * 1000000) + last_job_sync.duration.microseconds) / 1000,
                 )
 
     yield ssot_job_durations
