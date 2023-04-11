@@ -436,14 +436,10 @@ class NautobotRemote(DiffSync):
             self.job.log_debug(message=f"Loaded {region} from remote Nautobot instance")
 
         for site_entry in self._get_api_data("api/dcim/sites/"):
-            if not site_entry["status"]:
-                self.job.log_debug(message=f"Skipping site with empty status: {site_entry}")
-                continue
-
             site = self.site(
                 name=site_entry["name"],
                 slug=site_entry["slug"],
-                status_slug=site_entry["status"]["value"],
+                status_slug=site_entry["status"]["value"] if site_entry["status"] else "active",
                 region_name=site_entry["region"]["name"] if site_entry["region"] else None,
                 description=site_entry["description"],
                 pk=site_entry["id"],
@@ -452,14 +448,10 @@ class NautobotRemote(DiffSync):
             self.job.log_debug(message=f"Loaded {site} from remote Nautobot instance")
 
         for prefix_entry in self._get_api_data("api/ipam/prefixes/"):
-            if not prefix_entry["status"]:
-                self.job.log_debug(message=f"Skipping prefix with empty status: {prefix_entry}")
-                continue
-
             prefix = self.prefix(
                 prefix=prefix_entry["prefix"],
                 description=prefix_entry["description"],
-                status_slug=prefix_entry["status"]["value"],
+                status_slug=prefix_entry["status"]["value"] if prefix_entry["status"] else "active",
                 tenant_slug=prefix_entry["tenant"]["slug"] if prefix_entry["tenant"] else "",
                 pk=prefix_entry["id"],
             )
