@@ -87,7 +87,7 @@ def metric_sync_operations():
         GuageMetricFamily: Prometheus Metrics
     """
     sync_ops = GaugeMetricFamily(
-        "nautobot_ssot_sync_total", "Nautobot SSoT operations by Job", labels=["job", "operation"]
+        "nautobot_ssot_operation_total", "Nautobot SSoT operations by Job", labels=["job", "operation"]
     )
 
     for job in Job.objects.filter(slug__icontains="ssot"):
