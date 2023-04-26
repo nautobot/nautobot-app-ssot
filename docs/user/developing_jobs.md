@@ -52,7 +52,7 @@ When syncing large amounts of data, job execution time may start to become an is
 
 As an SSoT job typically has lots of database interaction for loading, creating, updating, and deleting objects, this is a common source of performance issues.
 
-The following is an example of an efficient `load` function that can be greatly improved:
+The following is an example of an inefficient `load` function that can be greatly improved:
 
 ```python
 from diffsync import DiffSync
