@@ -48,7 +48,7 @@ In brief, the following general steps can be followed:
 
 When syncing large amounts of data, job execution time may start to become an issue. Fortunately, there are a number of ways you can go about optimizing your jobs performance.
 
-### Optimizing Database Queries
+### Optimizing Nautobot Database Queries
 
 As an SSoT job typically has lots of database interaction for loading, creating, updating, and deleting objects, this is a common source of performance issues.
 
