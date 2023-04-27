@@ -133,14 +133,19 @@ If after optimizing your database access you are still facing performance issues
 - `print` calls
 - other, external frameworks you are using
 
+### Minimizing external IO
+
+In most if not all cases, the side of an SSoT job that interacts with the non-Nautobot system will be accessed through some form of IO as for example HTTP requests via the network. Depending on the amount of requests, request/response size and the latency to the remote system this can take a lot of time. Care should be taken when crafting the IO interaction, using bulk endpoints instead of querying each individual record on the remote system where possible.
+
 ## Analyzing Job Performance
 
 In general there are two different metrics to optimize for when developing SSoT jobs:
 
 - CPU time (maps directly to total execution time)
 - Memory usage
+- IO
 
-We can capture data for both of these to analyze potential problems.
+We can capture data for all of these to analyze potential problems.
 
 The built-in implementation of `sync_data`, which is the SSoT job method that encompasses all the computationally expensive steps, is composed of 4 steps:
 
