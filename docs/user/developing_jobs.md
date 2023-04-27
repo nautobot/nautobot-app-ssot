@@ -50,7 +50,7 @@ When syncing large amounts of data, job execution time may start to become an is
 
 ### Optimizing Nautobot Database Queries
 
-As an SSoT job typically has lots of database interaction for loading, creating, updating, and deleting objects, this is a common source of performance issues.
+As an SSoT job typically has lots of Nautobot database interaction (i.e. Nautobot is always either the source or the destination) for loading, creating, updating, and deleting objects, this is a common source of performance issues.
 
 The following is an example of an inefficient `load` function that can be greatly improved:
 
@@ -113,9 +113,14 @@ def load(self):
             site.add_child(location)
 ```
 
-As an additional bonus, this way the code has less levels of indentation.
+As an additional bonus, this way the code has fewer levels of indentation.
 
 The essence of this is that you should make liberal use of `select_related` to join together the database tables you need into a single, big query rather than a bunch of small queries.
+
+!!! warning
+    If you are using Nautobot 1.4 or lower, `CACHEOPS_ENABLED` is set to `True` by default. As long as this is the case, you should use `select_related`'s cousin `prefetch_related` instead (see [here](https://github.com/Suor/django-cacheops#caveats) for cacheops documentation on that matter). In 1.5 this is disabled by default, but if you explicitly turn it on you will again need to use `prefetch_related` instead.
+    
+    If you are using Nautobot 2.0 or higher, this warning can be ignored as cacheops has been removed from Nautobot. 
 
 !!! note
     Check out the [Django documentation](https://docs.djangoproject.com/en/3.2/topics/db/optimization/) for a more comprehensive source on optimizing database access.
