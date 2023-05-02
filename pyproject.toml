@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nautobot-ssot"
-version = "1.3.0"
+version = "1.3.1"
 description = "Nautobot Single Source of Truth"
 authors = ["Network to Code, LLC <info@networktocode.com>"]
 license = "Apache-2.0"
