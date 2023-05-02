@@ -24,7 +24,7 @@ class SyncLogEntryFilterForm(BootstrapMixin, forms.ModelForm):
     """Form for filtering SyncLogEntry records."""
 
     q = forms.CharField(required=False, label="Search")
-    sync = forms.ModelChoiceField(queryset=Sync.objects.all(), required=False)
+    sync = forms.ModelChoiceField(queryset=Sync.objects.defer("diff").all(), required=False)
     action = forms.ChoiceField(choices=add_blank_choice(SyncLogEntryActionChoices), required=False)
     status = forms.ChoiceField(choices=add_blank_choice(SyncLogEntryStatusChoices), required=False)
 

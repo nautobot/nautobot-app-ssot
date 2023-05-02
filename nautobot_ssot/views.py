@@ -4,15 +4,14 @@ import pprint
 
 from django.contrib.contenttypes.models import ContentType
 from django.http import Http404
-from django.shortcuts import get_object_or_404, render
-from django.views.generic import View
+from django.shortcuts import get_object_or_404
 
 from django_tables2 import RequestConfig
 
+from nautobot.extras.models import Job as JobModel
 from nautobot.extras.jobs import get_job
 from nautobot.core.views.generic import BulkDeleteView, ObjectDeleteView, ObjectListView, ObjectView
 from nautobot.utilities.paginator import EnhancedPaginator
-from nautobot.utilities.views import ContentTypePermissionRequiredMixin
 
 from .filters import SyncFilterSet, SyncLogEntryFilterSet
 from .forms import SyncFilterForm, SyncLogEntryFilterForm
@@ -24,7 +23,7 @@ from .tables import DashboardTable, SyncTable, SyncTableSingleSourceOrTarget, Sy
 class DashboardView(ObjectListView):
     """Dashboard / overview of SSoT."""
 
-    queryset = Sync.objects.all()
+    queryset = Sync.objects.defer("diff").all()
     table = DashboardTable
     action_buttons = []
     template_name = "nautobot_ssot/dashboard.html"
@@ -64,33 +63,37 @@ class DashboardView(ObjectListView):
         return context
 
 
-class DataSourceTargetView(ContentTypePermissionRequiredMixin, View):
+class DataSourceTargetView(ObjectView):
     """Detail view of a given Data Source or Data Target Job."""
 
     additional_permissions = ("nautobot_ssot.view_sync",)
+    queryset = JobModel.objects.all()
+    template_name = "nautobot_ssot/data_source_target.html"
 
     def get_required_permission(self):
         """Permissions required to access this view."""
         return "extras.view_job"
 
+    # pylint: disable-next=arguments-differ
     def get(self, request, class_path):
         """HTTP GET request handler."""
-        job_class = get_job(class_path)
+        job = JobModel.objects.get_for_class_path(class_path)
+        return super().get(request, id=job.id)
+
+    def get_extra_context(self, request, instance):
+        """Return template context extension with job_class, table and source_or_target."""
+        job_class = get_job(instance.class_path)
         if not job_class or not issubclass(job_class, (DataSource, DataTarget)):
             raise Http404
 
         syncs = Sync.annotated_queryset().filter(source=job_class.data_source, target=job_class.data_target)
         table = SyncTableSingleSourceOrTarget(syncs, user=request.user)
 
-        return render(
-            request,
-            "nautobot_ssot/data_source_target.html",
-            {
-                "job_class": job_class,
-                "table": table,
-                "source_or_target": "source" if issubclass(job_class, DataSource) else "target",
-            },
-        )
+        return {
+            "job_class": job_class,
+            "table": table,
+            "source_or_target": "source" if issubclass(job_class, DataSource) else "target",
+        }
 
 
 class SyncListView(ObjectListView):

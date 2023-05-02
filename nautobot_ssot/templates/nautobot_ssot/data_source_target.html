@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'generic/object_detail.html' %}
 {% load helpers %}
 {% load render_table from django_tables2 %}
 
@@ -8,16 +8,16 @@
             <ol class="breadcrumb">
                 <li><a href="{% url 'plugins:nautobot_ssot:dashboard' %}">Single Source of Truth</a></li>
                 <li>Data {{ source_or_target | title }}s</li>
-                <li>{{ job_class }}</li>
+                <li>{{ object }}</li>
             </ol>
         </div>
     </div>
     <div class="pull-right noprint">
-        <a class="btn btn-primary" href="{% url 'extras:job' class_path=job_class.class_path %}">
+        <a class="btn btn-primary" href="{% url 'extras:job' class_path=object.class_path %}">
             <i class="mdi mdi-play"></i> Sync Now
         </a>
     </div>
-    <h1>{% block title %}SSoT - {{ job_class }}{% endblock %}</h1>
+    <h1>{% block title %}SSoT - {{ object }}{% endblock %}</h1>
     <style>
         .mdi-database::before {
             font-size: 200px;
@@ -112,7 +112,7 @@
     <div class="row">
         <div class="col-md-12">
             <h2>Sync History</h2>
-            {% render_table table 'inc/table.html' %}
+            {% include table_template|default:'responsive_table.html' %}
         </div>
     </div>
 {% endblock %}
