@@ -64,6 +64,7 @@ class Sync(BaseModel):
         default=False, help_text="Report what data would be synced but do not make any changes"
     )
     diff = models.JSONField(blank=True)
+    summary = models.JSONField(blank=True, null=True)
 
     job_result = models.ForeignKey(to=JobResult, on_delete=models.PROTECT, blank=True, null=True)
 

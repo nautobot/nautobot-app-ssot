@@ -6,9 +6,9 @@ except ImportError:
     # Python version < 3.8
     import importlib_metadata as metadata
 
-__version__ = metadata.version(__name__)
-
 from nautobot.extras.plugins import PluginConfig
+
+__version__ = metadata.version(__name__)
 
 
 class NautobotSSOTPluginConfig(PluginConfig):
