@@ -1,4 +1,4 @@
-v1.2 Release Notes
+# v1.2 Release Notes
 
 * Dropped Python 3.6 support
 
