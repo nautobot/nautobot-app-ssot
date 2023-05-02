@@ -137,6 +137,20 @@ If after optimizing your database access you are still facing performance issues
 
 In most if not all cases, the side of an SSoT job that interacts with the non-Nautobot system will be accessed through some form of IO as for example HTTP requests via the network. Depending on the amount of requests, request/response size and the latency to the remote system this can take a lot of time. Care should be taken when crafting the IO interaction, using bulk endpoints instead of querying each individual record on the remote system where possible.
 
+Here is an unoptimized high-level workflow:
+- Collect sites
+  - For each site, collect all devices
+    - For each device, collect the interface information
+    - For each device, collect the VLAN information
+
+Similar to the database example further up, this suffers from having to perform a lookup (or in this case two) per instance of the lowest item in the hierarchy. It could be optimized (given the availability of bulk endpoints in the remote system) to look something like the following:
+
+- Collect all Sites
+- Collect all Devices
+- Collect all Interfaces
+- Collect all VLANs
+- Correlate these data points in code
+
 ## Analyzing Job Performance
 
 In general there are two different metrics to optimize for when developing SSoT jobs:
