@@ -151,6 +151,38 @@ Similar to the database example further up, this suffers from having to perform 
 - Collect all VLANs
 - Correlate these data points in code
 
+### Further Possible Optimization Points
+
+Finally, there are a couple of further ideas that could be used to improve performance. These aren't as well analyzed as the prior ones and there might be built-in support in this app for the in the future:
+
+#### Escaping the Atomic Transaction
+
+In Nautobot 1.x, all Jobs are executed in an [atomic transaction](https://en.wikipedia.org/wiki/Atomicity_(database_systems)). Atomic transactions often incur a performance overhead. The following example highlights how to have your sync operation "escape" the atomic transaction:
+
+```python
+class DataSource(DataSource, Job):
+    ...  # Excluded most of the class definition for example brevity
+
+    def execute_sync(self):
+        self.log_info(obj=None, message="The actual sync happens in post_run to escape the atomic transaction.")
+
+    def post_run(self):
+        super().execute_sync()
+```
+
+Using this example, the CRUD (create, update and delete) operations of your job will not happen as part of the atomic database transaction, because `post_run` is run outside of that. This brings with it the following caveats:
+
+- The job result page in Nautobot will show the status of "Completed" _before_ your actual sync runs
+  - You will need to manually update the page to get further job log results
+  - The job result might still go into an erroneous state, updating the job result status
+- If you implement any further logic in `post_run` keep in mind that it doesn't bubble exceptions up to the job result page in Nautobot
+- If any exceptions are encountered during the CRUD operations (i.e. the diffsync models' `create`, `update` and `delete` methods) they will _not_ trigger a rollback of the objects created during this job
+
+Due to these caveats it is recommended that you check carefully whether this optimization actually benefits your use case or not before applying it in production code.
+
+!!! note
+  In Nautobot 2.0, jobs will no longer be atomic by default so this section will not apply anymore.
+
 ## Analyzing Job Performance
 
 In general there are two different metrics to optimize for when developing SSoT jobs:
