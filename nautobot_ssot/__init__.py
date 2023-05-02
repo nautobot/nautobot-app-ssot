@@ -1,14 +1,14 @@
 """Plugin declaration for nautobot_ssot."""
-# flake8: noqa
+# Metadata is inherited from Nautobot. If not including Nautobot in the environment, this should be added
 try:
     from importlib import metadata
 except ImportError:
-    # Running on pre-3.8 Python; use importlib-metadata package
+    # Python version < 3.8
     import importlib_metadata as metadata
 
-__version__ = metadata.version(__name__)
-
 from nautobot.extras.plugins import PluginConfig
+
+__version__ = metadata.version(__name__)
 
 
 class NautobotSSOTPluginConfig(PluginConfig):
@@ -18,10 +18,10 @@ class NautobotSSOTPluginConfig(PluginConfig):
     verbose_name = "Single Source of Truth"
     version = __version__
     author = "Network to Code, LLC"
-    description = "Nautobot Single Source of Truth"
+    description = "Nautobot App that enables Single Source of Truth.  Allows users to aggregate distributed data sources and/or distribute Nautobot data to other data sources such as databases and SDN controllers."
     base_url = "ssot"
     required_settings = []
-    min_version = "1.0.3"
+    min_version = "1.4.0"
     max_version = "1.9999"
     default_settings = {
         "hide_example_jobs": False,

@@ -81,6 +81,7 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         if self.source_adapter is not None and self.target_adapter is not None:
             self.diff = self.source_adapter.diff_to(self.target_adapter, flags=self.diffsync_flags)
             self.sync.diff = self.diff.dict()
+            self.sync.summary = self.diff.summary()
             self.sync.save()
             self.log_info(message=self.diff.summary())
         else:

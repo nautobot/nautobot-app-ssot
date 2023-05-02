@@ -392,7 +392,7 @@ class NautobotRemote(DiffSync):
     prefix = PrefixRemoteModel
 
     # Top-level class labels, i.e. those classes that are handled directly rather than as children of other models
-    top_level = ("region", "site", "prefix")
+    top_level = ["region", "site", "prefix"]
 
     def __init__(self, *args, url=None, token=None, job=None, **kwargs):
         """Instantiate this class, but do not load data immediately from the remote system.
@@ -486,7 +486,7 @@ class NautobotLocal(DiffSync):
     prefix = PrefixLocalModel
 
     # Top-level class labels, i.e. those classes that are handled directly rather than as children of other models
-    top_level = ("region", "site", "prefix")
+    top_level = ["region", "site", "prefix"]
 
     def __init__(self, *args, job=None, **kwargs):
         """Instantiate this class, but do not load data immediately from the local system."""
