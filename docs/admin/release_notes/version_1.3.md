@@ -25,3 +25,9 @@
 - [#80](https://github.com/nautobot/nautobot-plugin-ssot/pull/80) - Documentation Update
 - [#72](https://github.com/nautobot/nautobot-plugin-ssot/pull/72) - Update __init__.py to better describe the app in the UI
 - [#94](https://github.com/nautobot/nautobot-plugin-ssot/pull/94) - Add Justin and Leo as codeowners
+
+## v1.3.1 - 2023-05-02
+
+### Fixes
+
+- [#108](https://github.com/nautobot/nautobot-plugin-ssot/pull/108) - Fix Prometheus Dependency
