@@ -183,6 +183,16 @@ Due to these caveats it is recommended that you check carefully whether this opt
 !!! note
   In Nautobot 2.0, jobs will no longer be atomic by default so this section will not apply anymore.
 
+#### Using Bulk ORM Operations
+
+Bulk ORM operations are available within Django to perform multiple inserts/updates in a single DB query. Take a look at the documentation for [bulk_create](https://docs.djangoproject.com/en/3.2/ref/models/querysets/#bulk-create) for example. These bulk operations should only be used very carefully in Nautobot. The following caveats apply when using them:
+
+- No change log is generated
+- No model validation is performed (you could for example connect a cable to the same interface on both ends, causing UI views to break)
+- No custom `save` methods are called (for the `Device` model for example this causes all device components from the device type not to be created)
+
+Bulk ORM operations can nevertheless be a performance improvement, you just have to be very careful when employing them.
+
 ## Analyzing Job Performance
 
 In general there are two different metrics to optimize for when developing SSoT jobs:
