@@ -184,7 +184,7 @@ Using this example, the CRUD (create, update and delete) operations of your job 
 Due to these caveats it is recommended that you check carefully whether this optimization actually benefits your use case or not before applying it in production code.
 
 !!! note
-  In Nautobot 2.0, jobs will no longer be atomic by default so this section will not apply anymore.
+    In Nautobot 2.0, jobs will no longer be atomic by default so this section will not apply anymore.
 
 #### Using Bulk ORM Operations
 
