@@ -151,6 +151,9 @@ Similar to the database example further up, this suffers from having to perform 
 - Collect all VLANs
 - Correlate these data points in code
 
+!!! note
+    You could also look into parallelizing your HTTP requests using a library like [aiohttp](https://docs.aiohttp.org/en/stable/) to gain additional performance - this way you could for example perform the 4 collect operations from the previous example in parallel. You need to be careful not to overwhelm the remote system though. 
+
 ### Further Possible Optimization Points
 
 Finally, there are a couple of further ideas that could be used to improve performance. These aren't as well analyzed as the prior ones and there might be built-in support in this app for the in the future:
