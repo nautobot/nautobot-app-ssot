@@ -31,3 +31,16 @@
 ### Fixes
 
 - [#108](https://github.com/nautobot/nautobot-plugin-ssot/pull/108) - Fix Prometheus Dependency
+- 
+## v1.3.2 - 2023-05-23
+
+### Fixed
+
+- [#119](https://github.com/nautobot/nautobot-plugin-ssot/pull/119) Fix search bar in SSoT Sync Logs
+- [#112](https://github.com/nautobot/nautobot-plugin-ssot/pull/112) Fix error in documentation
+
+### Changed
+
+- [#120](https://github.com/nautobot/nautobot-plugin-ssot/pull/120) Bump requests from 2.29.0 to 2.31.0
+- [#117](https://github.com/nautobot/nautobot-plugin-ssot/pull/117) Bump pymdown-extensions from 9.11 to 10.0
+- [#116](https://github.com/nautobot/nautobot-plugin-ssot/pull/116) Bump django from 3.2.18 to 3.2.19
