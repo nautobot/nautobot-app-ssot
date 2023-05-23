@@ -17,13 +17,20 @@ The interaction between these models and Nautobot's native JobResult model deser
 JobResult 1<->1 Sync 1-->n SyncLogEntry
 """
 from datetime import timedelta
+import io
+import gzip
+import json
+from typing import Any, Optional, Union
 
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
+from django.db.backends.base.base import BaseDatabaseWrapper
 from django.urls import reverse
 from django.utils.formats import date_format
+from django.utils.text import compress_string
 from django.utils.timezone import now
 
 from nautobot.core.models import BaseModel
@@ -31,6 +38,116 @@ from nautobot.extras.models import JobResult
 from nautobot.extras.utils import extras_features
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
+
+
+class CompressedBinaryField(models.BinaryField):
+    """
+    Compress a binary field.
+
+    This class is adapted from https://gist.github.com/tomfa/665f8a655a9218e0b4e9bd394d459934
+    under the MIT License (https://gist.github.com/tomfa).
+    """
+
+    compress = compress_string
+
+    @staticmethod
+    def uncompress(compressed_value: Union[bytes, bytearray, memoryview]) -> str:
+        """
+        Uncompress stored value for compessed field.
+
+        Args:
+            compressed_value: The compressed data stored in the database.
+
+        Returns:
+            str: The `compressed_value` uncompressed.
+        """
+        zbuf = io.BytesIO(compressed_value)
+        zfile = gzip.GzipFile(fileobj=zbuf)
+        try:
+            uncompressed_value = zfile.read()
+        finally:
+            zfile.close()
+        return uncompressed_value
+
+    def get_db_prep_save(self, value: Optional[str], connection: BaseDatabaseWrapper, prepared: bool = False):
+        """
+        Compress value for field and prepare database for save.
+
+        Args:
+            value: The field's value.
+            connection: The ORM database connection.
+            prepared: Whether the database has already been prepared for save.
+        """
+        if value is not None and prepared is False:
+            value = CompressedBinaryField.compress(value)
+        return super().get_db_prep_save(value, connection)
+
+    @staticmethod
+    def is_binary(value: Any) -> bool:
+        """Check if `value` is binary."""
+        return bool(value and isinstance(value, (bytes, bytearray, memoryview)))
+
+    def _get_val_from_obj(self, obj):
+        """Get value from object, and uncompress if needed."""
+        val = obj and getattr(obj, self.attname)
+        if self.is_binary(val):
+            return CompressedBinaryField.uncompress(val)
+        if val is None:
+            return self.get_default()
+        return val
+
+    def post_init(self, instance=None, **kwargs):
+        """Perform post-init actions."""
+        value = self._get_val_from_obj(instance)
+        setattr(instance, self.attname, value)
+
+    def contribute_to_class(self, cls: BaseModel, name: str, private_only: bool = False) -> None:
+        """
+        Register the field with the Model.
+
+        Args:
+            cls: The Django Model class that the field belongs to.
+            name: The name of the field.
+            private_only: Determine if separate instances of the field is created for each subclass.
+        """
+        super().contribute_to_class(cls, name)
+        models.signals.post_init.connect(self.post_init, sender=cls)
+
+    def get_internal_type(self) -> str:
+        """Provide name of Django's internal type."""
+        return "BinaryField"
+
+
+class CompressedJSONField(CompressedBinaryField):
+    """Compress a JSONField.
+
+    This class is adapted from https://gist.github.com/tomfa/665f8a655a9218e0b4e9bd394d459934
+    under the MIT License (https://gist.github.com/tomfa).
+    """
+
+    encoder = DjangoJSONEncoder
+
+    def get_db_prep_save(self, value: str, connection: BaseDatabaseWrapper = None, prepared: bool = False):
+        """
+        Prepare database for saving field.
+
+        Args:
+            value: The JSON string of the value to save to the database.
+            connection: The ORM database connection.
+            prepared: Whether the database has already been prepared for save.
+        """
+        if value is not None and prepared is False:
+            value = json.dumps(value, cls=self.encoder).encode("utf-8")
+        return super().get_db_prep_save(value, connection, prepared)
+
+    def _get_val_from_obj(self, obj):
+        """Get value from object, and decode into a JSON string."""
+        if obj:
+            val = super()._get_val_from_obj(obj)
+            if self.is_binary(val):
+                return json.loads(val.decode("utf-8"))
+            return val
+        return self.get_default()
 
 
 @extras_features(
@@ -63,7 +180,8 @@ class Sync(BaseModel):
     dry_run = models.BooleanField(
         default=False, help_text="Report what data would be synced but do not make any changes"
     )
-    diff = models.JSONField(blank=True)
+    diff = models.JSONField(blank=True, null=True)
+    compressed_diff = CompressedJSONField(blank=True, default=dict)
     summary = models.JSONField(blank=True, null=True)
 
     job_result = models.ForeignKey(to=JobResult, on_delete=models.PROTECT, blank=True, null=True)
@@ -85,7 +203,7 @@ class Sync(BaseModel):
     def annotated_queryset(cls):
         """Construct an efficient queryset for this model and related data."""
         return (
-            cls.objects.defer("diff")
+            cls.objects.defer("diff", "compressed_diff")
             .select_related("job_result")
             .prefetch_related("logs")
             .annotate(

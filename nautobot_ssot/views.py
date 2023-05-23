@@ -1,7 +1,5 @@
 """Django views for Single Source of Truth (SSoT)."""
 
-import pprint
-
 from django.contrib.contenttypes.models import ContentType
 from django.http import Http404
 from django.shortcuts import get_object_or_404
@@ -23,7 +21,7 @@ from .tables import DashboardTable, SyncTable, SyncTableSingleSourceOrTarget, Sy
 class DashboardView(ObjectListView):
     """Dashboard / overview of SSoT."""
 
-    queryset = Sync.objects.defer("diff").all()
+    queryset = Sync.objects.defer("diff", "compressed_diff").all()
     table = DashboardTable
     action_buttons = []
     template_name = "nautobot_ssot/dashboard.html"
@@ -133,12 +131,6 @@ class SyncView(ObjectView):
 
     queryset = Sync.annotated_queryset()
     template_name = "nautobot_ssot/sync_detail.html"
-
-    def get_extra_context(self, request, instance):
-        """Add additional context to the view."""
-        return {
-            "diff": pprint.pformat(instance.diff, width=180, compact=True),
-        }
 
 
 class SyncJobResultView(ObjectView):

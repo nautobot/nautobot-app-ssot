@@ -2,10 +2,11 @@
 
 from datetime import timedelta
 import time
+from unittest.mock import patch
 import uuid
 
 from django.contrib.contenttypes.models import ContentType
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.utils.timezone import now
 
 from nautobot.extras.choices import JobResultStatusChoices
@@ -82,3 +83,31 @@ class SyncTestCase(TestCase):
         # Source/target is Nautobot, so still None
         self.assertIsNone(self.target_sync.get_source_url())
         self.assertIsNone(self.source_sync.get_target_url())
+
+
+class SyncCompressedTestCase(TransactionTestCase):
+    """Tests for the Sync model."""
+
+    def test_diff_default(self):
+        """Test that diff defaults to empty dict."""
+        sync = Sync.objects.create(
+            source="Nautobot",
+            target="Another system",
+            dry_run=False,
+        )
+        self.assertEqual(sync.diff, None)
+
+    @patch("nautobot_ssot.models.gzip.GzipFile.read")
+    def test_compressed_diff_is_compressed(self, mock_gzip_read):  # pylint: disable=no-self-use
+        """Test that diff defaults to empty dict."""
+        diff = dict(a=1, b=2, c=3)
+        sync = Sync.objects.create(
+            source="Nautobot",
+            target="Another system",
+            dry_run=False,
+            compressed_diff=diff,
+        )
+        mock_gzip_read.assert_not_called()
+        sync_from_db = Sync.objects.get(id=sync.id)
+        sync_from_db.compressed_diff  # pylint: disable=pointless-statement
+        mock_gzip_read.assert_called()

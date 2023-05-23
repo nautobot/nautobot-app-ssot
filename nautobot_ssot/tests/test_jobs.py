@@ -1,6 +1,6 @@
 """Test the Job classes in nautobot_ssot."""
 import os.path
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 import uuid
 from django.contrib.contenttypes.models import ContentType
 
@@ -107,8 +107,18 @@ class BaseJobTestCase(TransactionTestCase):
         self.job.target_adapter = Mock()
         self.job.source_adapter.diff_to().dict.return_value = {}
         self.job.calculate_diff()
-        self.job.source_adapter.diff_to.assert_called()
-        self.job.sync.save.assert_called_once()
+        self.job.sync.save.assert_has_calls([call(), call()])
+
+    def test_calculate_diff_fail_diff_save(self):
+        """Test calculate_diff() method logs failure."""
+        self.job.sync = Mock()
+        self.job.sync.save.side_effect = [None, Exception("Fail")]
+        self.job.source_adapter = Mock()
+        self.job.target_adapter = Mock()
+        self.job.log_info = Mock()
+        self.job.source_adapter.diff_to().dict.return_value = {}
+        self.job.calculate_diff()
+        self.job.log_info.assert_any_call(message="Unable to save JSON Diff to database")
 
 
 class DataSourceTestCase(BaseJobTestCase):
