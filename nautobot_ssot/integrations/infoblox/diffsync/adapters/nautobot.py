@@ -1,4 +1,5 @@
-"""Nautobot Adapter for Infoblox integration with SSoT plugin."""
+"""Nautobot Adapter for Infoblox integration."""
+# pylint: disable=duplicate-code
 from collections import defaultdict
 import datetime
 from itertools import chain
@@ -10,16 +11,16 @@ from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import Relationship, Status, Tag, CustomField
 from nautobot.ipam.models import Aggregate, IPAddress, Prefix, Role, VLAN, VLANGroup
 from nautobot.tenancy.models import Tenant
-from nautobot_ssot_infoblox.diffsync.models import (
+from nautobot_ssot.integrations.infoblox.diffsync.models import (
     NautobotAggregate,
     NautobotNetwork,
     NautobotIPAddress,
     NautobotVlanGroup,
     NautobotVlan,
 )
-from nautobot_ssot_infoblox.constant import TAG_COLOR
-from nautobot_ssot_infoblox.utils.diffsync import nautobot_vlan_status, get_default_custom_fields
-from nautobot_ssot_infoblox.utils.nautobot import build_vlan_map_from_relations, get_prefix_vlans
+from nautobot_ssot.integrations.infoblox.constant import TAG_COLOR
+from nautobot_ssot.integrations.infoblox.utils.diffsync import nautobot_vlan_status, get_default_custom_fields
+from nautobot_ssot.integrations.infoblox.utils.nautobot import build_vlan_map_from_relations, get_prefix_vlans
 
 
 class NautobotMixin:
@@ -28,7 +29,7 @@ class NautobotMixin:
     def tag_involved_objects(self, target):
         """Tag all objects that were successfully synced to the target."""
         # The ssot-synced-to-infoblox tag *should* have been created automatically during plugin installation
-        # (see nautobot_ssot_infoblox/signals.py) but maybe a user deleted it inadvertently, so be safe:
+        # (see nautobot_ssot/integrations/infoblox/signals.py) but maybe a user deleted it inadvertently, so be safe:
         tag, _ = Tag.objects.get_or_create(
             slug="ssot-synced-to-infoblox",
             defaults={

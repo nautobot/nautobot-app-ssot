@@ -28,7 +28,21 @@ class NautobotSSOTPluginConfig(PluginConfig):
     min_version = "1.4.0"
     max_version = "1.9999"
     default_settings = {
+        "enable_infoblox": False,
         "hide_example_jobs": True,
+        "infoblox_default_status": "",
+        "infoblox_enable_rfc1918_network_containers": False,
+        "infoblox_enable_sync_to_infoblox": False,
+        "infoblox_import_objects_ip_addresses": False,
+        "infoblox_import_objects_subnets": False,
+        "infoblox_import_objects_vlan_views": False,
+        "infoblox_import_objects_vlans": False,
+        "infoblox_import_subnets": [],
+        "infoblox_password": "",
+        "infoblox_url": "",
+        "infoblox_username": "",
+        "infoblox_verify_ssl": True,
+        "infoblox_wapi_version": "",
     }
     caching_config = {}
 

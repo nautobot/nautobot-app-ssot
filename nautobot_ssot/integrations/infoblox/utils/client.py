@@ -11,10 +11,10 @@ from requests.exceptions import HTTPError
 from requests.compat import urljoin
 from dns import reversename
 from nautobot.core.settings_funcs import is_truthy
-from nautobot_ssot_infoblox.constant import PLUGIN_CFG
-from nautobot_ssot_infoblox.utils.diffsync import get_ext_attr_dict
+from nautobot_ssot.integrations.infoblox.constant import PLUGIN_CFG
+from nautobot_ssot.integrations.infoblox.utils.diffsync import get_ext_attr_dict
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("nautobot.ssot.infoblox")
 
 
 def parse_url(address):

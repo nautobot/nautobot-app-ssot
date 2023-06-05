@@ -13,10 +13,10 @@ from nautobot.ipam.models import IPAddress as OrmIPAddress
 from nautobot.ipam.models import Prefix as OrmPrefix
 from nautobot.ipam.models import VLAN as OrmVlan
 from nautobot.ipam.models import VLANGroup as OrmVlanGroup
-from nautobot_ssot_infoblox.constant import PLUGIN_CFG
-from nautobot_ssot_infoblox.diffsync.models.base import Aggregate, Network, IPAddress, Vlan, VlanView
-from nautobot_ssot_infoblox.utils.diffsync import create_tag_sync_from_infoblox
-from nautobot_ssot_infoblox.utils.nautobot import get_prefix_vlans
+from nautobot_ssot.integrations.infoblox.constant import PLUGIN_CFG
+from nautobot_ssot.integrations.infoblox.diffsync.models.base import Aggregate, Network, IPAddress, Vlan, VlanView
+from nautobot_ssot.integrations.infoblox.utils.diffsync import create_tag_sync_from_infoblox
+from nautobot_ssot.integrations.infoblox.utils.nautobot import get_prefix_vlans
 
 
 def process_ext_attrs(diffsync, obj: object, extattrs: dict):

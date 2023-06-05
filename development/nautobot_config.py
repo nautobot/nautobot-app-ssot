@@ -147,7 +147,21 @@ PLUGINS = ["nautobot_ssot"]
 # Each key in the dictionary is the name of an installed plugin and its value is a dictionary of settings.
 PLUGINS_CONFIG = {
     "nautobot_ssot": {
+        "enable_infoblox": _get_bool_env("ENABLE_INFOBLOX"),
         "hide_example_jobs": _get_bool_env("HIDE_EXAMPLE_JOBS"),
+        "infoblox_default_status": _get_env("INFOBLOX_DEFAULT_STATUS", "active"),
+        "infoblox_enable_rfc1918_network_containers": _get_bool_env("INFOBLOX_ENABLE_RFC1918_NETWORK_CONTAINERS"),
+        "infoblox_enable_sync_to_infoblox": _get_bool_env("INFOBLOX_ENABLE_SYNC_TO_INFOBLOX"),
+        "infoblox_import_objects_ip_addresses": _get_bool_env("INFOBLOX_IMPORT_OBJECTS_IP_ADDRESSES"),
+        "infoblox_import_objects_subnets": _get_bool_env("INFOBLOX_IMPORT_OBJECTS_SUBNETS"),
+        "infoblox_import_objects_vlan_views": _get_bool_env("INFOBLOX_IMPORT_OBJECTS_VLAN_VIEWS"),
+        "infoblox_import_objects_vlans": _get_bool_env("INFOBLOX_IMPORT_OBJECTS_VLANS"),
+        "infoblox_import_subnets": _get_env("INFOBLOX_IMPORT_SUBNETS").split(","),
+        "infoblox_password": _get_env("INFOBLOX_PASSWORD"),
+        "infoblox_url": _get_env("INFOBLOX_URL"),
+        "infoblox_username": _get_env("INFOBLOX_USERNAME"),
+        "infoblox_verify_ssl": _get_bool_env("INFOBLOX_VERIFY_SSL", True),
+        "infoblox_wapi_version": _get_env("INFOBLOX_WAPI_VERSION", "v2.12"),
     },
 }
 

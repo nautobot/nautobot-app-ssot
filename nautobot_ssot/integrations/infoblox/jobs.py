@@ -1,14 +1,14 @@
 """Jobs for Infoblox integration with SSoT plugin."""
 
+from diffsync import DiffSyncFlags
 from django.templatetags.static import static
 from django.urls import reverse
 from nautobot.extras.jobs import BooleanVar, Job
 from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
 
-from diffsync import DiffSyncFlags
-from nautobot_ssot_infoblox.diffsync.adapters import infoblox, nautobot
-from nautobot_ssot_infoblox.utils.client import InfobloxApi
-from nautobot_ssot_infoblox.constant import PLUGIN_CFG
+from .diffsync.adapters import infoblox, nautobot
+from .utils.client import InfobloxApi
+from .constant import PLUGIN_CFG
 
 
 name = "SSoT - Infoblox DDI"  # pylint: disable=invalid-name

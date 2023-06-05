@@ -5,9 +5,9 @@ import json
 import os
 
 
-from nautobot_ssot_infoblox.utils import client
+from nautobot_ssot.integrations.infoblox.utils import client
 
-FIXTURES = os.environ.get("FIXTURE_DIR", "nautobot_ssot_infoblox/tests/fixtures")
+FIXTURES = os.environ.get("FIXTURE_DIR", "nautobot_ssot/tests/infoblox/fixtures")
 
 LOCALHOST = os.environ.get("TEST_LOCALHOST_URL", "https://localhost:4440/wapi/v2.12")
 

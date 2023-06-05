@@ -2,7 +2,7 @@
 from django.contrib.contenttypes.models import ContentType
 from django.utils.text import slugify
 from nautobot.extras.models import CustomField, Tag
-from nautobot_ssot_infoblox.constant import TAG_COLOR
+from nautobot_ssot.integrations.infoblox.constant import TAG_COLOR
 
 
 def create_tag_sync_from_infoblox():

@@ -1,7 +1,14 @@
-"""Signal handlers for nautobot_ssot_infoblox."""
+"""Signal handlers for Infoblox integration."""
+# pylint: disable=duplicate-code
 
+from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices, RelationshipTypeChoices
-from nautobot_ssot_infoblox.constant import TAG_COLOR
+from nautobot_ssot.integrations.infoblox.constant import TAG_COLOR
+
+
+def register_signals(sender):
+    """Register signals for Infoblox integration."""
+    nautobot_database_ready.connect(nautobot_database_ready_callback, sender=sender)
 
 
 def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disable=unused-argument
