@@ -21,8 +21,7 @@ urlpatterns = [
 
 def _add_integrations():
     for module in each_enabled_integration_module("urls"):
-        for url in module.urlpatterns:
-            urlpatterns.append(url)
+        urlpatterns.extend(module.urlpatterns)
 
 
 _add_integrations()
