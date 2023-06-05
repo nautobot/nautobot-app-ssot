@@ -31,6 +31,8 @@ from nautobot.extras.models import JobResult
 from nautobot.extras.utils import extras_features
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
+from .integrations.utils import each_enabled_integration_module
+from .utils import logger
 
 
 @extras_features(
@@ -188,3 +190,19 @@ class SyncLogEntry(BaseModel):
             SyncLogEntryStatusChoices.STATUS_FAILURE: "warning",
             SyncLogEntryStatusChoices.STATUS_ERROR: "danger",
         }.get(self.status)
+
+
+def _add_integrations(this_module):
+    for module in each_enabled_integration_module("models"):
+        for attr_name in dir(module):
+            attr = getattr(module, attr_name)
+            if isinstance(attr, type) and issubclass(attr, models.Model) and attr is not models.Model:
+                logger.debug("Adding model %s from %s", attr_name, module.__file__)
+                if attr_name in this_module:
+                    raise ValueError(
+                        f"Duplicate model name: {attr_name} from {module.__file__} class {attr.__class__.__name__}"
+                    )
+                this_module[attr_name] = attr
+
+
+_add_integrations(globals())

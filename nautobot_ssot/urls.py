@@ -3,6 +3,7 @@
 from django.urls import path
 
 from . import views
+from .integrations.utils import each_enabled_integration_module
 
 urlpatterns = [
     path("", views.DashboardView.as_view(), name="dashboard"),
@@ -16,3 +17,12 @@ urlpatterns = [
     path("history/<uuid:pk>/logs/", views.SyncLogEntriesView.as_view(), name="sync_logentries"),
     path("logs/", views.SyncLogEntryListView.as_view(), name="synclogentry_list"),
 ]
+
+
+def _add_integrations():
+    for module in each_enabled_integration_module("urls"):
+        for url in module.urlpatterns:
+            urlpatterns.append(url)
+
+
+_add_integrations()

@@ -1,5 +1,6 @@
 """Plugin declaration for nautobot_ssot."""
 # Metadata is inherited from Nautobot. If not including Nautobot in the environment, this should be added
+
 try:
     from importlib import metadata
 except ImportError:
@@ -7,6 +8,9 @@ except ImportError:
     import importlib_metadata as metadata
 
 from nautobot.extras.plugins import PluginConfig
+
+from .integrations.utils import each_enabled_integration_module
+from .utils import logger
 
 __version__ = metadata.version(__name__)
 
@@ -24,9 +28,17 @@ class NautobotSSOTPluginConfig(PluginConfig):
     min_version = "1.4.0"
     max_version = "1.9999"
     default_settings = {
-        "hide_example_jobs": False,
+        "hide_example_jobs": True,
     }
     caching_config = {}
+
+    def ready(self):
+        """Trigger callback when database is ready."""
+        super().ready()
+
+        for module in each_enabled_integration_module("signals"):
+            logger.debug("Registering signals for %s", module.__file__)
+            module.register_signals(self)
 
 
 config = NautobotSSOTPluginConfig  # pylint:disable=invalid-name

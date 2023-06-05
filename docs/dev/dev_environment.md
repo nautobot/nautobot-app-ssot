@@ -362,11 +362,11 @@ Once the dependencies are resolved, stop the existing containers, rebuild the Do
 
 ### Installing Additional Nautobot Plugins
 
-Let's say for example you want the new plugin you're creating to integrate into Slack. To do this, you will want to integrate into the existing Nautobot ChatOps Plugin.
+Let's say for example you want the new plugin you're creating to integrate into Nautobot SSoT. To do this, you will want to integrate into the existing Nautobot SSoT Plugin.
 
 ```bash
 ➜ poetry shell
-➜ poetry add nautobot-chatops
+➜ poetry add nautobot-ssot
 ```
 
 Once you activate the virtual environment via Poetry, you then tell Poetry to install the new plugin.
@@ -382,7 +382,7 @@ Before you continue, you'll need to update the file `development/nautobot_config
 Once the containers are up and running, you should now see the new plugin installed in your Nautobot instance.
 
 !!! note
-    You can even launch an `ngrok` service locally on your laptop, pointing to port 8080 (such as for chatops development), and it will point traffic directly to your Docker images.
+    You can even launch an `ngrok` service locally on your laptop, pointing to port 8080 (such as for SSoT development), and it will point traffic directly to your Docker images.
 
 ### Updating Python Version
 

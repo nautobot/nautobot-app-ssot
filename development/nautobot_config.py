@@ -2,9 +2,18 @@
 # pylint: disable=invalid-envvar-default
 import os
 import sys
+import json
 
 from nautobot.core.settings import *  # noqa: F403
 from nautobot.core.settings_funcs import parse_redis_connection
+
+
+def _get_env(name: str, default="") -> str:
+    return os.getenv(f"NAUTOBOT_SSOT_{name}", default)
+
+
+def _get_bool_env(name: str, default=False) -> bool:
+    return bool(json.loads(_get_env(name, str(default)).lower()))
 
 
 #
@@ -136,11 +145,10 @@ PLUGINS = ["nautobot_ssot"]
 
 # Plugins configuration settings. These settings are used by various plugins that the user may have installed.
 # Each key in the dictionary is the name of an installed plugin and its value is a dictionary of settings.
-# PLUGINS_CONFIG = {
-#     'nautobot_ssot': {
-#         'foo': 'bar',
-#         'buzz': 'bazz'
-#     }
-# }
+PLUGINS_CONFIG = {
+    "nautobot_ssot": {
+        "hide_example_jobs": _get_bool_env("HIDE_EXAMPLE_JOBS"),
+    },
+}
 
 METRICS_ENABLED = True
