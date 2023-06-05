@@ -205,4 +205,6 @@ def _add_integrations(this_module):
                 this_module[attr_name] = attr
 
 
+# Dynamically add all models from enabled integrations to this module.
+# `globals()` is used to pass updatable module `__dict__` to the function.
 _add_integrations(globals())
