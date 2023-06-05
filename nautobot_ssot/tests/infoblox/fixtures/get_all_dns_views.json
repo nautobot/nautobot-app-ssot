@@ -1,0 +1,14 @@
+{
+	"result": [
+            {
+                "_ref": "view/ZG5zLnZpZXckLl9kZWZhdWx0:default/true",
+                "is_default": true,
+                "name": "default"
+            },
+            {
+                "_ref": "view/ZG5zLnZpZXckLjE:default.operations/false",
+                "is_default": false,
+                "name": "default.operations"
+            }
+        ]
+}

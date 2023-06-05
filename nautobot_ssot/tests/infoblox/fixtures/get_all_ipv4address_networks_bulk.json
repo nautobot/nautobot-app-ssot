@@ -1,0 +1,25 @@
+[
+	[
+		{
+			"_ref": "ipv4address/Li5pcHY0X2FkZHJlc3MkMTAuMjIwLjAuMTAwLzA:192.168.0.1",
+			"ip_address": "192.168.0.1",
+			"is_conflict": false,
+			"lease_state": "FREE",
+			"mac_address": "aa:bb:cc:dd:ee:ff",
+			"names": [],
+			"network": "192.168.0.0/23",
+			"network_view": "default",
+			"objects": [
+				"fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMjIwLjAuMTAwLjAuLg:192.168.0.1/default"
+			],
+			"status": "USED",
+			"types": [
+				"FA",
+				"RESERVED_RANGE"
+			],
+			"usage": [
+				"DHCP"
+			]
+		}
+	]
+]

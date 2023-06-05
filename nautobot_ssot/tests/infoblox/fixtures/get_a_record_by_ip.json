@@ -1,0 +1,10 @@
+{
+	"result": [
+            {
+                "_ref": "record:a/ZG5zLmJpbmRfYSQuX2RlZmF1bHQudGVzdCx0ZXN0ZGV2aWNlMSwxMC4yMjAuMC4xMDE:testdevice1.test/default",
+                "ipv4addr": "10.220.0.101",
+                "name": "testdevice1.test",
+                "view": "default"
+            }
+        ]
+}
