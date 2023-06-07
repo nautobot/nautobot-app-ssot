@@ -9,8 +9,8 @@ except ImportError:
 
 from nautobot.extras.plugins import PluginConfig
 
-from .integrations.utils import each_enabled_integration_module
-from .utils import logger
+from nautobot_ssot.integrations.utils import each_enabled_integration_module
+from nautobot_ssot.utils import logger
 
 __version__ = metadata.version(__name__)
 
