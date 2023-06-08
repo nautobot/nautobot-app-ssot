@@ -3,20 +3,27 @@
 from nautobot.apps.ui import NavMenuGroup, NavMenuItem, NavMenuTab
 
 
-menu_items = (
-    PluginMenuItem(
+items = [
+    NavMenuItem(
         link="plugins:nautobot_ssot:dashboard",
-        link_text="Dashboard",
+        name="Dashboard",
         permissions=["nautobot_ssot.view_sync"],
     ),
-    PluginMenuItem(
+    NavMenuItem(
         link="plugins:nautobot_ssot:sync_list",
-        link_text="History",
+        name="History",
         permissions=["nautobot_ssot.view_sync"],
     ),
-    PluginMenuItem(
+    NavMenuItem(
         link="plugins:nautobot_ssot:synclogentry_list",
-        link_text="Logs",
+        name="Logs",
         permissions=["nautobot_ssot.view_synclogentry"],
+    ),
+]
+
+menu_items = (
+    NavMenuTab(
+        name="Automation",
+        groups=(NavMenuGroup(name="Single Source of Truth", weight=1000, items=tuple(items)),),
     ),
 )
