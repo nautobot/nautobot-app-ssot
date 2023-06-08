@@ -15,7 +15,7 @@ from django.utils.functional import classproperty
 from diffsync.enum import DiffSyncFlags
 import structlog
 
-from nautobot.extras.jobs import BaseJob, BooleanVar
+from nautobot.extras.jobs import Job, BooleanVar
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices
 from nautobot_ssot.models import Sync, SyncLogEntry
@@ -35,7 +35,7 @@ and the other system acting as data source/target.
 """
 
 
-class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
+class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
     """Common base class for data synchronization jobs.
 
     Works mostly as per the BaseJob API, with the following changes:
