@@ -8,10 +8,11 @@ from django.contrib.contenttypes.models import ContentType
 from django.templatetags.static import static
 from django.urls import reverse
 
-from nautobot.dcim.models import Region, Site
+from nautobot.core.celery import register_jobs
+from nautobot.dcim.models import Location, LocationType
 from nautobot.ipam.models import Prefix
 from nautobot.tenancy.models import Tenant
-from nautobot.extras.jobs import Job, StringVar
+from nautobot.extras.jobs import StringVar
 from nautobot.extras.models import Status
 
 from diffsync import DiffSync, DiffSyncModel
@@ -229,6 +230,8 @@ class PrefixRemoteModel(PrefixModel):
 class RegionLocalModel(RegionModel):
     """Implementation of Region create/update/delete methods for updating local Nautobot data."""
 
+    region_type = LocationType.objects.get_or_create(name="Region")[0]
+
     @classmethod
     def create(cls, diffsync, ids, attrs):
         """Create a new Region record in local Nautobot.
@@ -238,13 +241,15 @@ class RegionLocalModel(RegionModel):
             ids (dict): Initial values for this model's _identifiers
             attrs (dict): Initial values for this model's _attributes
         """
-        region = Region(
+        region = Location(
             name=ids["name"],
             slug=attrs["slug"],
             description=attrs["description"],
+            location_type=cls.region_type,
+            status=Status.objects.get(name="Active"),
         )
         if attrs["parent_name"]:
-            region.parent = Region.objects.get(name=attrs["parent_name"])
+            region.parent = Location.objects.get(name=attrs["parent_name"], location_type=self.region_type)
         region.validated_save()
         return super().create(diffsync, ids=ids, attrs=attrs)
 
@@ -254,27 +259,29 @@ class RegionLocalModel(RegionModel):
         Args:
             attrs (dict): Updated values for any of this model's _attributes
         """
-        region = Region.objects.get(name=self.name)
+        region = Location.objects.get(name=self.name, location_type=self.region_type)
 
         for attr_name in ("slug", "description"):
             if attr_name in attrs:
                 setattr(region, attr_name, attrs[attr_name])
 
         if "parent_name" in attrs:
-            region.parent = Region.objects.get(name=attrs["parent_name"])
+            region.parent = Location.objects.get(name=attrs["parent_name"], location_type=self.region_type)
 
         region.validated_save()
         return super().update(attrs)
 
     def delete(self):
         """Delete an existing Region record from local Nautobot."""
-        region = Region.objects.get(name=self.name)
+        region = Location.objects.get(name=self.name, location_type=self.region_type)
         region.delete()
         return super().delete()
 
 
 class SiteLocalModel(SiteModel):
     """Implementation of Site create/update/delete methods for updating local Nautobot data."""
+
+    site_type = LocationType.objects.get_or_create(name="Site")[0]
 
     @classmethod
     def create(cls, diffsync, ids, attrs):
@@ -285,10 +292,15 @@ class SiteLocalModel(SiteModel):
             ids (dict): Initial values for this model's _identifiers
             attrs (dict): Initial values for this model's _attributes
         """
-        site = Site(name=ids["name"], slug=attrs["slug"], description=attrs["description"])
+        site = Location(
+            name=ids["name"],
+            slug=attrs["slug"],
+            description=attrs["description"],
+            location_type=cls.site_type,
+        )
         site.status = Status.objects.get(slug=attrs["status_slug"])
         if attrs["region_name"]:
-            site.region = Region.objects.get(name=attrs["region_name"])
+            site.parent = Location.objects.get(name=attrs["region_name"], location_type=cls.site_type)
         site.validated_save()
         return super().create(diffsync, ids=ids, attrs=attrs)
 
@@ -298,7 +310,7 @@ class SiteLocalModel(SiteModel):
         Args:
             attrs (dict): Updated values for any of this model's _attributes
         """
-        site = Site.objects.get(name=self.name)
+        site = Location.objects.get(name=self.name, location_type=self.site_type)
 
         for attr_name in ("slug", "description"):
             if attr_name in attrs:
@@ -308,14 +320,16 @@ class SiteLocalModel(SiteModel):
             site.status = Status.objects.get(slug=attrs["status_slug"])
 
         if "region_name" in attrs:
-            site.region = Region.objects.get(name=attrs["region_name"])
+            site.parent = Location.objects.get(
+                name=attrs["region_name"], location_type=LocationType.objects.get(name="Region")
+            )
 
         site.validated_save()
         return super().update(attrs)
 
     def delete(self):
         """Delete an existing Site record from local Nautobot."""
-        site = Site.objects.get(name=self.name)
+        site = Location.objects.get(name=self.name, location_type=self.site_type)
         site.delete()
         return super().delete()
 
@@ -415,10 +429,10 @@ class NautobotRemote(DiffSync):
 
     def _get_api_data(self, url_path: str) -> Mapping:
         """Returns data from a url_path using pagination."""
-        data = requests.get(f"{self.url}/{url_path}", headers=self.headers, params={"limit": 0}).json()
+        data = requests.get(f"{self.url}/{url_path}", headers=self.headers, params={"limit": 0}, timeout=60).json()
         result_data = data["results"]
         while data["next"]:
-            data = requests.get(data["next"], headers=self.headers, params={"limit": 0}).json()
+            data = requests.get(data["next"], headers=self.headers, params={"limit": 0}, timeout=60).json()
             result_data.extend(data["results"])
         return result_data
 
@@ -460,19 +474,19 @@ class NautobotRemote(DiffSync):
 
     def post(self, path, data):
         """Send an appropriately constructed HTTP POST request."""
-        response = requests.post(f"{self.url}{path}", headers=self.headers, json=data)
+        response = requests.post(f"{self.url}{path}", headers=self.headers, json=data, timeout=60)
         response.raise_for_status()
         return response
 
     def patch(self, path, data):
         """Send an appropriately constructed HTTP PATCH request."""
-        response = requests.patch(f"{self.url}{path}", headers=self.headers, json=data)
+        response = requests.patch(f"{self.url}{path}", headers=self.headers, json=data, timeout=60)
         response.raise_for_status()
         return response
 
     def delete(self, path):
         """Send an appropriately constructed HTTP DELETE request."""
-        response = requests.delete(f"{self.url}{path}", headers=self.headers)
+        response = requests.delete(f"{self.url}{path}", headers=self.headers, timeout=60)
         response.raise_for_status()
         return response
 
@@ -495,28 +509,29 @@ class NautobotLocal(DiffSync):
 
     def load(self):
         """Load Region and Site data from the local Nautobot instance."""
-        for region in Region.objects.all():
-            region_model = self.region(
-                name=region.name,
-                slug=region.slug,
-                description=region.description,
-                parent_name=region.parent.name if region.parent else None,
-                pk=region.pk,
-            )
-            self.add(region_model)
-            self.job.log_debug(message=f"Loaded {region_model} from local Nautobot instance")
+        for location in Location.objects.all():
+            if location.location_type.name == "Region":
+                region_model = self.region(
+                    name=location.name,
+                    slug=location.slug,
+                    description=location.description,
+                    parent_name=location.parent.name if location.parent else None,
+                    pk=location.pk,
+                )
+                self.add(region_model)
+                self.job.log_debug(message=f"Loaded {region_model} from local Nautobot instance")
 
-        for site in Site.objects.all():
-            site_model = self.site(
-                name=site.name,
-                slug=site.slug,
-                status_slug=site.status.slug,
-                region_name=site.region.name if site.region else None,
-                description=site.description,
-                pk=site.pk,
-            )
-            self.add(site_model)
-            self.job.log_debug(message=f"Loaded {site_model} from local Nautobot instance")
+            if location.location_type.name == "Site":
+                site_model = self.site(
+                    name=location.name,
+                    slug=location.slug,
+                    status_slug=location.status.slug,
+                    region_name=location.region.name if location.region else None,
+                    description=location.description,
+                    pk=location.pk,
+                )
+                self.add(site_model)
+                self.job.log_debug(message=f"Loaded {site_model} from local Nautobot instance")
 
         for prefix in Prefix.objects.all():
             prefix_model = self.prefix(
@@ -534,7 +549,7 @@ class NautobotLocal(DiffSync):
 # once you have the above DiffSync scaffolding in place.
 
 
-class ExampleDataSource(DataSource, Job):
+class ExampleDataSource(DataSource):
     """Sync Region and Site data from a remote Nautobot instance into the local Nautobot instance."""
 
     source_url = StringVar(
@@ -559,8 +574,8 @@ class ExampleDataSource(DataSource, Job):
     def data_mappings(cls):
         """This Job maps Region and Site objects from the remote system to the local system."""
         return (
-            DataMapping("Region (remote)", None, "Region (local)", reverse("dcim:region_list")),
-            DataMapping("Site (remote)", None, "Site (local)", reverse("dcim:site_list")),
+            DataMapping("Region (remote)", None, "Region (local)", reverse("dcim:location_list")),
+            DataMapping("Site (remote)", None, "Site (local)", reverse("dcim:location_list")),
             DataMapping("Prefix (remote)", None, "Prefix (local)", reverse("ipam:prefix_list")),
         )
 
@@ -578,13 +593,13 @@ class ExampleDataSource(DataSource, Job):
         """Look up a Nautobot object based on the DiffSync model name and unique ID."""
         if model_name == "region":
             try:
-                return Region.objects.get(name=unique_id)
-            except Region.DoesNotExist:
+                return Location.objects.get(name=unique_id, location_type=LocationType.objects.get(name="Region"))
+            except Location.DoesNotExist:
                 pass
         elif model_name == "site":
             try:
-                return Site.objects.get(name=unique_id)
-            except Site.DoesNotExist:
+                return Location.objects.get(name=unique_id, location_type=LocationType.objects.get(name="Site"))
+            except Location.DoesNotExist:
                 pass
         elif model_name == "prefix":
             try:
@@ -596,7 +611,7 @@ class ExampleDataSource(DataSource, Job):
         return None
 
 
-class ExampleDataTarget(DataTarget, Job):
+class ExampleDataTarget(DataTarget):
     """Sync Region and Site data from the local Nautobot instance to a remote Nautobot instance."""
 
     target_url = StringVar(description="Remote Nautobot instance to update", default="https://demo.nautobot.com")
@@ -619,8 +634,8 @@ class ExampleDataTarget(DataTarget, Job):
     def data_mappings(cls):
         """This Job maps Region and Site objects from the local system to the remote system."""
         return (
-            DataMapping("Region (local)", reverse("dcim:region_list"), "Region (remote)", None),
-            DataMapping("Site (local)", reverse("dcim:site_list"), "Site (remote)", None),
+            DataMapping("Region (local)", reverse("dcim:location_list"), "Region (remote)", None),
+            DataMapping("Site (local)", reverse("dcim:location_list"), "Site (remote)", None),
             DataMapping("Prefix (local)", reverse("ipam:prefix_list"), "Prefix (remote)", None),
         )
 
@@ -638,13 +653,13 @@ class ExampleDataTarget(DataTarget, Job):
         """Look up a Nautobot object based on the DiffSync model name and unique ID."""
         if model_name == "region":
             try:
-                return Region.objects.get(name=unique_id)
-            except Region.DoesNotExist:
+                return Location.objects.get(name=unique_id, location_type=LocationType.objects.get(name="Region"))
+            except Location.DoesNotExist:
                 pass
         elif model_name == "site":
             try:
-                return Site.objects.get(name=unique_id)
-            except Site.DoesNotExist:
+                return Location.objects.get(name=unique_id, location_type=LocationType.objects.get(name="Site"))
+            except Location.DoesNotExist:
                 pass
         elif model_name == "prefix":
             try:
@@ -654,3 +669,7 @@ class ExampleDataTarget(DataTarget, Job):
             except Prefix.DoesNotExist:
                 pass
         return None
+
+
+jobs = [ExampleDataSource, ExampleDataTarget]
+register_jobs(*jobs)
