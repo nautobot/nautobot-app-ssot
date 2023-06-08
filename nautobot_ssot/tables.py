@@ -1,7 +1,7 @@
 """Data tables for Single Source of Truth (SSOT) views."""
 from django_tables2 import Column, DateTimeColumn, JSONColumn, LinkColumn, TemplateColumn
 
-from nautobot.utilities.tables import BaseTable, ToggleColumn
+from nautobot.apps.tables import BaseTable, ToggleColumn
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 from .models import Sync, SyncLogEntry

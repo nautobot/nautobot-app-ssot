@@ -2,7 +2,8 @@
 
 from django import forms
 
-from nautobot.utilities.forms import add_blank_choice, BootstrapMixin, BOOLEAN_WITH_BLANK_CHOICES
+from nautobot.apps.forms import add_blank_choice
+from nautobot.core.forms import BootstrapMixin, BOOLEAN_WITH_BLANK_CHOICES
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 from .models import Sync, SyncLogEntry
