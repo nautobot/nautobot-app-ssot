@@ -2,6 +2,7 @@
 
 from django.conf import settings
 
+from nautobot.core.celery import register_jobs
 from nautobot.extras.models import Job
 from nautobot_ssot.jobs.base import DataSource, DataTarget
 from nautobot_ssot.jobs.examples import ExampleDataSource, ExampleDataTarget
@@ -10,6 +11,7 @@ if settings.PLUGINS_CONFIG["nautobot_ssot"]["hide_example_jobs"]:
     jobs = []
 else:
     jobs = [ExampleDataSource, ExampleDataTarget]
+    register_jobs(*jobs)
 
 
 def _add_integrations():
