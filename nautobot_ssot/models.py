@@ -105,7 +105,7 @@ class Sync(BaseModel):
         )
 
     @property
-    def duration(self):
+    def duration(self):  # pylint: disable=inconsistent-return-statements
         """Total execution time of this Sync."""
         if not self.start_time:
             return timedelta()  # zero
