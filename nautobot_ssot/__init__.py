@@ -29,6 +29,7 @@ class NautobotSSOTPluginConfig(PluginConfig):
     max_version = "1.9999"
     default_settings = {
         "enable_infoblox": False,
+        "enable_ipfabric": False,
         "hide_example_jobs": True,
         "infoblox_default_status": "",
         "infoblox_enable_rfc1918_network_containers": False,
@@ -43,6 +44,11 @@ class NautobotSSOTPluginConfig(PluginConfig):
         "infoblox_username": "",
         "infoblox_verify_ssl": True,
         "infoblox_wapi_version": "",
+        "ipfabric_api_token": "",
+        "ipfabric_host": "",
+        "ipfabric_ssl_verify": True,
+        "ipfabric_timeout": 15,
+        "nautobot_host": "",
     }
     caching_config = {}
 

@@ -21,7 +21,7 @@ from nautobot.ipam.models import VLAN, IPAddress
 from nautobot.utilities.choices import ColorChoices
 from netutils.ip import netmask_to_cidr
 
-CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot_ipfabric", {})
+CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
 ALLOW_DUPLICATE_IPS = CONFIG.get("ALLOW_DUPLICATE_ADDRESSES", True)
 
 

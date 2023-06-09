@@ -15,7 +15,7 @@ from nautobot_ssot.integrations.ipfabric.jobs import IpFabricDataSource
 
 # from nautobot.dcim.models import Site
 
-CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot_ipfabric", {})
+CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
 NAUTOBOT_HOST = CONFIG.get("nautobot_host")
 
 BASE_CMD = "ipfabric"

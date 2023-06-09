@@ -20,7 +20,7 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import Nautob
 from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import DiffSyncExtras
 
-CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot_ipfabric", {})
+CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
 IPFABRIC_HOST = CONFIG["ipfabric_host"]
 IPFABRIC_API_TOKEN = CONFIG["ipfabric_api_token"]
 IPFABRIC_SSL_VERIFY = CONFIG["ipfabric_ssl_verify"]

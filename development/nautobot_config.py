@@ -132,13 +132,28 @@ CACHEOPS_REDIS = parse_redis_connection(redis_database=1)
 #
 
 # Enable installed plugins. Add the name of each plugin to the list.
-PLUGINS = ["nautobot_ssot"]
+PLUGINS = [
+    "nautobot_chatops",
+    "nautobot_chatops_ipfabric",
+    "nautobot_ssot",
+]
 
 # Plugins configuration settings. These settings are used by various plugins that the user may have installed.
 # Each key in the dictionary is the name of an installed plugin and its value is a dictionary of settings.
 PLUGINS_CONFIG = {
+    "nautobot_chatops": {
+        "enable_slack": True,
+        "slack_api_token": os.getenv("SLACK_API_TOKEN"),
+        "slack_signing_secret": os.getenv("SLACK_SIGNING_SECRET"),
+        "session_cache_timeout": 3600,
+    },
+    "nautobot_chatops_ipfabric": {
+        "IPFABRIC_API_TOKEN": os.getenv("IPFABRIC_API_TOKEN"),
+        "IPFABRIC_HOST": os.getenv("IPFABRIC_HOST"),
+    },
     "nautobot_ssot": {
         "enable_infoblox": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_INFOBLOX")),
+        "enable_ipfabric": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_IPFABRIC")),
         "hide_example_jobs": is_truthy(os.getenv("NAUTOBOT_SSOT_HIDE_EXAMPLE_JOBS")),
         "infoblox_default_status": os.getenv("NAUTOBOT_SSOT_INFOBLOX_DEFAULT_STATUS", "active"),
         "infoblox_enable_rfc1918_network_containers": is_truthy(
@@ -157,6 +172,11 @@ PLUGINS_CONFIG = {
         "infoblox_username": os.getenv("NAUTOBOT_SSOT_INFOBLOX_USERNAME"),
         "infoblox_verify_ssl": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_VERIFY_SSL", True)),
         "infoblox_wapi_version": os.getenv("NAUTOBOT_SSOT_INFOBLOX_WAPI_VERSION", "v2.12"),
+        "ipfabric_api_token": os.getenv("IPFABRIC_API_TOKEN"),
+        "ipfabric_host": os.getenv("IPFABRIC_HOST"),
+        "ipfabric_ssl_verify": is_truthy(os.getenv("IPFABRIC_VERIFY", "False")),
+        "ipfabric_timeout": int(os.getenv("IPFABRIC_TIMEOUT", "15")),
+        "nautobot_host": os.getenv("NAUTOBOT_HOST"),
     },
 }
 

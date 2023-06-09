@@ -17,7 +17,7 @@ from netutils.mac import mac_to_format
 
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 
-CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot_ipfabric", {})
+CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
 DEFAULT_INTERFACE_TYPE = CONFIG.get("default_interface_type", "1000base-t")
 DEFAULT_INTERFACE_MTU = CONFIG.get("default_interface_mtu", 1500)
 DEFAULT_INTERFACE_MAC = CONFIG.get("default_interface_mac", "00:00:00:00:00:01")
