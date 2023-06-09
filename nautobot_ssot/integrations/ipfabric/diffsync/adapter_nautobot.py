@@ -1,4 +1,5 @@
-#  pylint: disable=too-many-arguments
+# pylint: disable=duplicate-code
+# pylint: disable=too-many-arguments
 # Load method is packed with conditionals  #  pylint: disable=too-many-branches
 """DiffSync adapter class for Nautobot as source-of-truth."""
 from collections import defaultdict

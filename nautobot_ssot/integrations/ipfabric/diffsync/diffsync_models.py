@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 # Ignore return statements for updates and deletes, #  pylint:disable=R1710
 # Ignore too many args #  pylint:disable=too-many-locals
 """DiffSyncModel subclasses for Nautobot-to-IPFabric data sync."""

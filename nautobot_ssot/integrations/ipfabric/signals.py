@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 """Signal handlers for IPFabric integration."""
 
 from typing import List, Optional

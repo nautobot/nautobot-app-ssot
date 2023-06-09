@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 """Utility functions for Nautobot ORM."""
 import datetime
 from typing import Any, Optional

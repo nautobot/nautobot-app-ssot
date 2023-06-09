@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 """DiffSync adapter class for Ip Fabric."""
 
 import logging
