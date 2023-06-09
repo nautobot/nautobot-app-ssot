@@ -10,7 +10,7 @@ from django.test import override_settings
 # from django.test import TestCase
 
 from nautobot.extras.models import JobResult
-from nautobot.utilities.testing import TransactionTestCase
+from nautobot.core.testing import TransactionTestCase
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 from nautobot_ssot.tests.jobs import DataSyncBaseJob, DataSource, DataTarget
