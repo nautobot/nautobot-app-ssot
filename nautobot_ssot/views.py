@@ -2,7 +2,6 @@
 
 import pprint
 
-from django.contrib.contenttypes.models import ContentType
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 
@@ -49,16 +48,13 @@ class DashboardView(ObjectListView):
             "target": {},
             "table": table,
         }
-        sync_ct = ContentType.objects.get_for_model(Sync)
         for source in context["data_sources"]:
             context["source"][source.name] = self.queryset.filter(
-                job_result__obj_type=sync_ct,
-                job_result__name=source.class_path,
+                job_result__name=source.name,
             )
         for target in context["data_targets"]:
             context["target"][target.name] = self.queryset.filter(
-                job_result__obj_type=sync_ct,
-                job_result__name=target.class_path,
+                job_result__name=target.name,
             )
 
         return context
