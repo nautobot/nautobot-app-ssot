@@ -1,9 +1,15 @@
-"""Signal handlers for nautobot_ssot_ipfabric."""
+"""Signal handlers for IPFabric integration."""
 
 from typing import List, Optional
 
+from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.utilities.choices import ColorChoices
+
+
+def register_signals(sender):
+    """Register signals for IPFabric integration."""
+    nautobot_database_ready.connect(nautobot_database_ready_callback, sender=sender)
 
 
 def create_custom_field(field_name: str, label: str, models: List, apps, cf_type: Optional[str] = "type_date"):
