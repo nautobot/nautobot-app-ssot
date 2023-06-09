@@ -7,14 +7,6 @@ from nautobot.core.settings import *  # noqa: F403
 from nautobot.core.settings_funcs import is_truthy, parse_redis_connection
 
 
-def _get_ssot_env(name: str, default="") -> str:
-    return os.getenv(f"NAUTOBOT_SSOT_{name}", default)
-
-
-def _get_ssot_bool_env(name: str, default=False) -> bool:
-    return is_truthy(_get_ssot_env(name, str(default)))
-
-
 #
 # Misc. settings
 #
@@ -146,21 +138,25 @@ PLUGINS = ["nautobot_ssot"]
 # Each key in the dictionary is the name of an installed plugin and its value is a dictionary of settings.
 PLUGINS_CONFIG = {
     "nautobot_ssot": {
-        "enable_infoblox": _get_ssot_bool_env("ENABLE_INFOBLOX"),
-        "hide_example_jobs": _get_ssot_bool_env("HIDE_EXAMPLE_JOBS"),
-        "infoblox_default_status": _get_ssot_env("INFOBLOX_DEFAULT_STATUS", "active"),
-        "infoblox_enable_rfc1918_network_containers": _get_ssot_bool_env("INFOBLOX_ENABLE_RFC1918_NETWORK_CONTAINERS"),
-        "infoblox_enable_sync_to_infoblox": _get_ssot_bool_env("INFOBLOX_ENABLE_SYNC_TO_INFOBLOX"),
-        "infoblox_import_objects_ip_addresses": _get_ssot_bool_env("INFOBLOX_IMPORT_OBJECTS_IP_ADDRESSES"),
-        "infoblox_import_objects_subnets": _get_ssot_bool_env("INFOBLOX_IMPORT_OBJECTS_SUBNETS"),
-        "infoblox_import_objects_vlan_views": _get_ssot_bool_env("INFOBLOX_IMPORT_OBJECTS_VLAN_VIEWS"),
-        "infoblox_import_objects_vlans": _get_ssot_bool_env("INFOBLOX_IMPORT_OBJECTS_VLANS"),
-        "infoblox_import_subnets": _get_ssot_env("INFOBLOX_IMPORT_SUBNETS").split(","),
-        "infoblox_password": _get_ssot_env("INFOBLOX_PASSWORD"),
-        "infoblox_url": _get_ssot_env("INFOBLOX_URL"),
-        "infoblox_username": _get_ssot_env("INFOBLOX_USERNAME"),
-        "infoblox_verify_ssl": _get_ssot_bool_env("INFOBLOX_VERIFY_SSL", True),
-        "infoblox_wapi_version": _get_ssot_env("INFOBLOX_WAPI_VERSION", "v2.12"),
+        "enable_infoblox": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_INFOBLOX")),
+        "hide_example_jobs": is_truthy(os.getenv("NAUTOBOT_SSOT_HIDE_EXAMPLE_JOBS")),
+        "infoblox_default_status": os.getenv("NAUTOBOT_SSOT_INFOBLOX_DEFAULT_STATUS", "active"),
+        "infoblox_enable_rfc1918_network_containers": is_truthy(
+            os.getenv("NAUTOBOT_SSOT_INFOBLOX_ENABLE_RFC1918_NETWORK_CONTAINERS")
+        ),
+        "infoblox_enable_sync_to_infoblox": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_ENABLE_SYNC_TO_INFOBLOX")),
+        "infoblox_import_objects_ip_addresses": is_truthy(
+            os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_IP_ADDRESSES")
+        ),
+        "infoblox_import_objects_subnets": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_SUBNETS")),
+        "infoblox_import_objects_vlan_views": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_VLAN_VIEWS")),
+        "infoblox_import_objects_vlans": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_VLANS")),
+        "infoblox_import_subnets": os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_SUBNETS", "").split(","),
+        "infoblox_password": os.getenv("NAUTOBOT_SSOT_INFOBLOX_PASSWORD"),
+        "infoblox_url": os.getenv("NAUTOBOT_SSOT_INFOBLOX_URL"),
+        "infoblox_username": os.getenv("NAUTOBOT_SSOT_INFOBLOX_USERNAME"),
+        "infoblox_verify_ssl": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_VERIFY_SSL", True)),
+        "infoblox_wapi_version": os.getenv("NAUTOBOT_SSOT_INFOBLOX_WAPI_VERSION", "v2.12"),
     },
 }
 
