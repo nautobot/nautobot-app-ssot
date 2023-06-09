@@ -9,8 +9,8 @@ from django.urls import reverse
 
 from nautobot.extras.models import Job, JobResult
 from nautobot.users.models import ObjectPermission
-from nautobot.utilities.testing import ViewTestCases
-from nautobot.utilities.testing.utils import disable_warnings
+from nautobot.apps.testing import ViewTestCases
+from nautobot.core.testing.utils import disable_warnings
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 from nautobot_ssot.models import Sync, SyncLogEntry
