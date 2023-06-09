@@ -1,4 +1,6 @@
 """Diffsync Adapter for Cisco ACI."""  # pylint: disable=too-many-lines, too-many-instance-attributes, too-many-arguments
+# pylint: disable=duplicate-code
+
 
 import logging
 import os
@@ -6,18 +8,18 @@ import re
 from ipaddress import ip_network
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectNotFound
-from nautobot_ssot_aci.constant import PLUGIN_CFG
-from nautobot_ssot_aci.diffsync.models import NautobotTenant
-from nautobot_ssot_aci.diffsync.models import NautobotVrf
-from nautobot_ssot_aci.diffsync.models import NautobotDeviceType
-from nautobot_ssot_aci.diffsync.models import NautobotDeviceRole
-from nautobot_ssot_aci.diffsync.models import NautobotDevice
-from nautobot_ssot_aci.diffsync.models import NautobotInterfaceTemplate
-from nautobot_ssot_aci.diffsync.models import NautobotInterface
-from nautobot_ssot_aci.diffsync.models import NautobotIPAddress
-from nautobot_ssot_aci.diffsync.models import NautobotPrefix
-from nautobot_ssot_aci.diffsync.client import AciApi
-from nautobot_ssot_aci.diffsync.utils import load_yamlfile
+from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotTenant
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotVrf
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotDeviceType
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotDeviceRole
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotDevice
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterfaceTemplate
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterface
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotIPAddress
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotPrefix
+from nautobot_ssot.integrations.aci.diffsync.client import AciApi
+from nautobot_ssot.integrations.aci.diffsync.utils import load_yamlfile
 
 
 logger = logging.getLogger("rq.worker")
@@ -98,6 +100,7 @@ class AciAdapter(DiffSync):
             if _vrf["tenant"] not in PLUGIN_CFG.get("ignore_tenants"):
                 self.add(new_vrf)
 
+    # pylint: disable-next=too-many-branches
     def load_ipaddresses(self):
         """Load IPAddresses from ACI. Retrieves controller IPs, OOB Mgmt IP of leaf/spine, and Bridge Domain subnet IPs."""
         node_dict = self.conn.get_nodes()
@@ -147,28 +150,28 @@ class AciAdapter(DiffSync):
                 self.add(new_ipaddress)
         # Bridge domain subnets
         bd_dict = self.conn.get_bds(tenant="all")
-        for bd in bd_dict:
-            if bd_dict[bd].get("subnets"):
-                tenant_name = f"{self.tenant_prefix}:{bd_dict[bd].get('tenant')}"
-                if bd_dict[bd]["vrf_tenant"]:
-                    vrf_tenant = f"{self.tenant_prefix}:{bd_dict[bd]['vrf_tenant']}"
+        for bd_key, bd_value in bd_dict.items():
+            if bd_value.get("subnets"):
+                tenant_name = f"{self.tenant_prefix}:{bd_value.get('tenant')}"
+                if bd_value["vrf_tenant"]:
+                    vrf_tenant = f"{self.tenant_prefix}:{bd_value['vrf_tenant']}"
                 else:
                     vrf_tenant = None
-                for subnet in bd_dict[bd]["subnets"]:
+                for subnet in bd_value["subnets"]:
                     new_ipaddress = self.ip_address(
                         address=subnet[0],
                         status="Active",
-                        description=f"ACI Bridge Domain: {bd}",
+                        description=f"ACI Bridge Domain: {bd_key}",
                         tenant=tenant_name,
-                        vrf=bd_dict[bd]["vrf"],
+                        vrf=bd_value["vrf"],
                         vrf_tenant=vrf_tenant,
                         site=self.site,
                         site_tag=self.site,
                     )
-                    if not bd_dict[bd]["vrf"] or (not bd_dict[bd]["vrf"] and not vrf_tenant):
+                    if not bd_value["vrf"] or (not bd_value["vrf"] and not vrf_tenant):
                         self.job.log_warning(
                             obj=new_ipaddress,
-                            message=f"VRF configured on Bridge Domain {bd} in tenant {tenant_name} is invalid, skipping.",
+                            message=f"VRF configured on Bridge Domain {bd_key} in tenant {tenant_name} is invalid, skipping.",
                         )
                     else:
                         # Using Try/Except to check for an existing loaded object
@@ -187,30 +190,30 @@ class AciAdapter(DiffSync):
     def load_prefixes(self):
         """Load Bridge domain subnets from ACI."""
         bd_dict = self.conn.get_bds(tenant="all")
-        for bd in bd_dict:
-            if bd_dict[bd].get("subnets"):
-                tenant_name = f"{self.tenant_prefix}:{bd_dict[bd].get('tenant')}"
-                if bd_dict[bd]["vrf_tenant"]:
-                    vrf_tenant = f"{self.tenant_prefix}:{bd_dict[bd]['vrf_tenant']}"
+        # pylint: disable-next=too-many-nested-blocks
+        for bd_key, bd_value in bd_dict.items():
+            if bd_value.get("subnets"):
+                tenant_name = f"{self.tenant_prefix}:{bd_value.get('tenant')}"
+                if bd_value["vrf_tenant"]:
+                    vrf_tenant = f"{self.tenant_prefix}:{bd_value['vrf_tenant']}"
                 else:
                     vrf_tenant = None
                 if tenant_name not in PLUGIN_CFG.get("ignore_tenants"):
-                    for subnet in bd_dict[bd]["subnets"]:
-
+                    for subnet in bd_value["subnets"]:
                         new_prefix = self.prefix(
                             prefix=str(ip_network(subnet[0], strict=False)),
                             status="Active",
                             site=self.site,
-                            description=f"ACI Bridge Domain: {bd}",
+                            description=f"ACI Bridge Domain: {bd_key}",
                             tenant=tenant_name,
-                            vrf=bd_dict[bd]["vrf"],
+                            vrf=bd_value["vrf"],
                             vrf_tenant=vrf_tenant,
                             site_tag=self.site,
                         )
-                        if not bd_dict[bd]["vrf"] or (bd_dict[bd]["vrf"] and not vrf_tenant):
+                        if not bd_value["vrf"] or (bd_value["vrf"] and not vrf_tenant):
                             self.job.log_warning(
                                 obj=new_prefix,
-                                message=f"VRF configured on Bridge Domain {bd} in tenant {tenant_name} is invalid, skipping.",
+                                message=f"VRF configured on Bridge Domain {bd_key} in tenant {tenant_name} is invalid, skipping.",
                             )
                         else:
                             # Using Try/Except to check for an existing loaded object
@@ -229,6 +232,7 @@ class AciAdapter(DiffSync):
     def load_devicetypes(self):
         """Load device types from YAML files."""
         devicetype_file_path = os.path.join(os.path.dirname(__file__), "..", "device-types")
+        # pylint: disable-next=invalid-name
         for dt in os.listdir(devicetype_file_path):
             device_specs = load_yamlfile(os.path.join(devicetype_file_path, dt))
             _devicetype = self.device_type(
@@ -242,11 +246,13 @@ class AciAdapter(DiffSync):
 
     def load_interfacetemplates(self):
         """Load interface templates from YAML files."""
-        device_types = {self.devices[key]["model"] for key in self.devices}
+        device_types = {value["model"] for value in self.devices.values()}
         for _devicetype in device_types:
-            if f"{_devicetype}.yaml" in os.listdir("nautobot_ssot_aci/diffsync/device-types"):
+            if f"{_devicetype}.yaml" in os.listdir("nautobot_ssot/integrations/aci/diffsync/device-types"):
                 device_specs = load_yamlfile(
-                    os.path.join(os.getcwd(), "nautobot_ssot_aci", "diffsync", "device-types", f"{_devicetype}.yaml")
+                    os.path.join(
+                        os.getcwd(), "nautobot_ssot/integrations/aci", "diffsync", "device-types", f"{_devicetype}.yaml"
+                    )
                 )
                 for intf in device_specs["interfaces"]:
                     new_interfacetemplate = self.interface_template(
@@ -268,49 +274,55 @@ class AciAdapter(DiffSync):
             nodes=self.devices,
         )
 
-        for node in self.devices:
+        for device_name, device in self.devices.items():
             # Load management and controller interfaces from YAML files
 
+            # pylint: disable-next=invalid-name
             fn = os.path.join(
-                os.getcwd(), "nautobot_ssot_aci", "diffsync", "device-types", f"{self.devices[node]['model']}.yaml"
+                os.getcwd(),
+                "nautobot_ssot/integrations/aci",
+                "diffsync",
+                "device-types",
+                f"{device['model']}.yaml",
             )
             if os.path.exists(fn):
                 device_specs = load_yamlfile(
                     os.path.join(
                         os.getcwd(),
-                        "nautobot_ssot_aci",
+                        "nautobot_ssot/integrations/aci",
                         "diffsync",
                         "device-types",
-                        f"{self.devices[node]['model']}.yaml",
+                        f"{device['model']}.yaml",
                     )
                 )
-                for _interface in interfaces[node]:
+                for interface_name, interface in interfaces[device_name].items():
                     if_list = [
                         intf
                         for intf in device_specs["interfaces"]
-                        if intf["name"] == _interface.replace("eth", "Ethernet")
+                        if intf["name"] == interface_name.replace("eth", "Ethernet")
                     ]
                     if if_list:
                         intf_type = if_list[0]["type"]
                     else:
                         intf_type = "other"
                     new_interface = self.interface(
-                        name=_interface.replace("eth", "Ethernet"),
-                        device=self.devices[node]["name"],
+                        name=interface_name.replace("eth", "Ethernet"),
+                        device=device["name"],
                         site=self.site,
-                        description=interfaces[node][_interface]["descr"],
-                        gbic_vendor=interfaces[node][_interface]["gbic_vendor"],
-                        gbic_type=interfaces[node][_interface]["gbic_type"],
-                        gbic_sn=interfaces[node][_interface]["gbic_sn"],
-                        gbic_model=interfaces[node][_interface]["gbic_model"],
-                        state=interfaces[node][_interface]["state"],
+                        description=interface["descr"],
+                        gbic_vendor=interface["gbic_vendor"],
+                        gbic_type=interface["gbic_type"],
+                        gbic_sn=interface["gbic_sn"],
+                        gbic_model=interface["gbic_model"],
+                        state=interface["state"],
                         type=intf_type,
                         site_tag=self.site,
                     )
                     self.add(new_interface)
             else:
                 logger.warning(
-                    f"No YAML file exists in device-types for model {self.devices[node]['model']}, skipping interface creation"
+                    "No YAML file exists in device-types for model %s, skipping interface creation",
+                    device["model"],
                 )
 
             for _interface in device_specs["interfaces"]:
@@ -322,7 +334,7 @@ class AciAdapter(DiffSync):
                 if re.match("^Eth[0-9]|^mgmt[0-9]", _interface["name"]):
                     new_interface = self.interface(
                         name=_interface["name"],
-                        device=self.devices[node]["name"],
+                        device=device["name"],
                         site=self.site,
                         description="",
                         gbic_vendor="",
@@ -337,35 +349,35 @@ class AciAdapter(DiffSync):
 
     def load_deviceroles(self):
         """Load device roles from ACI device data."""
-        device_roles = {self.devices[key]["role"] for key in self.devices}
+        device_roles = {value["role"] for value in self.devices.values()}
         for _devicerole in device_roles:
             new_devicerole = self.device_role(name=_devicerole, description=PLUGIN_CFG.get("comments", ""))
             self.add(new_devicerole)
 
     def load_devices(self):
         """Load devices from ACI device data."""
-        for key in self.devices:
-            if f"{self.devices[key]['model']}.yaml" in os.listdir("nautobot_ssot_aci/diffsync/device-types"):
+        for key, value in self.devices.items():
+            if f"{value['model']}.yaml" in os.listdir("nautobot_ssot/integrations/aci/diffsync/device-types"):
                 device_specs = load_yamlfile(
                     os.path.join(
                         os.getcwd(),
-                        "nautobot_ssot_aci",
+                        "nautobot_ssot/integrations/aci",
                         "diffsync",
                         "device-types",
-                        f"{self.devices[key]['model']}.yaml",
+                        f"{value['model']}.yaml",
                     )
                 )
                 model = device_specs["model"]
             else:
-                model = self.devices[key]["model"]
+                model = value["model"]
             new_device = self.device(
-                name=self.devices[key]["name"],
+                name=value["name"],
                 device_type=model,
-                device_role=self.devices[key]["role"],
-                serial=self.devices[key]["serial"],
+                device_role=value["role"],
+                serial=value["serial"],
                 comments=PLUGIN_CFG.get("comments", ""),
                 node_id=int(key),
-                pod_id=self.devices[key]["pod_id"],
+                pod_id=value["pod_id"],
                 site=self.site,
                 site_tag=self.site,
             )

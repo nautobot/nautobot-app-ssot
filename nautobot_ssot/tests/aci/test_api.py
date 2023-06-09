@@ -1,8 +1,8 @@
 """Tests for API"""
-# pylint: disable=no-self-use, import-outside-toplevel
+# pylint: disable=no-self-use, import-outside-toplevel, invalid-name
 import unittest
 from unittest.mock import patch, Mock
-from nautobot_ssot_aci.diffsync.client import AciApi, RequestHTTPError
+from nautobot_ssot.integrations.aci.diffsync.client import AciApi, RequestHTTPError
 
 
 class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-methods
@@ -13,7 +13,11 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         self.mock_login = Mock()
         self.mock_login.ok = True
         self.aci_obj = AciApi(
-            username="fakeuser", password="fakepwd", base_uri="fakeuri", verify=False, site="ACI"
+            username="fakeuser",
+            password="fakepwd",  # nosec
+            base_uri="fakeuri",
+            verify=False,
+            site="ACI",
         )  # nosec
 
     @patch.object(AciApi, "_handle_request")
@@ -32,10 +36,13 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         mocked_login.return_value = self.mock_login
         mocked_handle_request.return_value = mock_fvTenant
 
-        assert self.aci_obj.get_tenants() == [
-            {"name": "test_tenant_1", "description": "test_desc_1"},
-            {"name": "test_tenant_2", "description": "test_desc_2"},
-        ]  # nosec
+        self.assertEqual(
+            self.aci_obj.get_tenants(),
+            [
+                {"name": "test_tenant_1", "description": "test_desc_1"},
+                {"name": "test_tenant_2", "description": "test_desc_2"},
+            ],
+        )
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -46,7 +53,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         mocked_login.return_value = self.mock_login
         mocked_handle_request.return_value = mock_fvTenant
 
-        self.assertRaises(RequestHTTPError, self.aci_obj.get_tenants)  # nosec
+        self.assertRaises(RequestHTTPError, self.aci_obj.get_tenants)
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -63,10 +70,13 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         mocked_login.return_value = self.mock_login
         mocked_handle_request.return_value = mock_fvAp
 
-        assert self.aci_obj.get_aps("test-tenant-1") == [
-            {"tenant": "test-tenant-1", "ap": "test-ap-1"},
-            {"tenant": "test-tenant-1", "ap": "test-ap-2"},
-        ]  # nosec
+        self.assertEqual(
+            self.aci_obj.get_aps("test-tenant-1"),
+            [
+                {"tenant": "test-tenant-1", "ap": "test-ap-1"},
+                {"tenant": "test-tenant-1", "ap": "test-ap-2"},
+            ],
+        )
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -102,10 +112,13 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         mocked_login.return_value = self.mock_login
         mocked_handle_request.return_value = mock_fvAEPg
 
-        assert self.aci_obj.get_epgs("test-tenant-1", "test-ap1") == [
-            {"tenant": "test-tenant-1", "ap": "test-ap1", "epg": "test-epg-1"},
-            {"tenant": "test-tenant-1", "ap": "test-ap1", "epg": "test-epg-2"},
-        ]  # nosec
+        self.assertEqual(
+            self.aci_obj.get_epgs("test-tenant-1", "test-ap1"),
+            [
+                {"tenant": "test-tenant-1", "ap": "test-ap1", "epg": "test-epg-1"},
+                {"tenant": "test-tenant-1", "ap": "test-ap1", "epg": "test-epg-2"},
+            ],
+        )
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -115,7 +128,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         mock_fvAEPg.ok = False
         mocked_login.return_value = self.mock_login
         mocked_handle_request.return_value = mock_fvAEPg
-        self.assertRaises(RequestHTTPError, self.aci_obj.get_epgs, "test-tenant-1", "test-ap-1")  # nosec
+        self.assertRaises(RequestHTTPError, self.aci_obj.get_epgs, "test-tenant-1", "test-ap-1")
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -129,7 +142,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         }
         mocked_login.return_value = self.mock_login
         mocked_handle_request.return_value = mock_fvSubnet
-        assert self.aci_obj.get_bd_subnet("test-tenant-1", "bd1") == ["10.1.1.1/24"]  # nosec
+        self.assertEqual(self.aci_obj.get_bd_subnet("test-tenant-1", "bd1"), ["10.1.1.1/24"])
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -139,7 +152,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         mock_fvSubnet.ok = False
         mocked_login.return_value = self.mock_login
         mocked_handle_request.return_value = mock_fvSubnet
-        self.assertRaises(RequestHTTPError, self.aci_obj.get_bd_subnet, "test-tenant-1", "bd-1")  # nosec
+        self.assertRaises(RequestHTTPError, self.aci_obj.get_bd_subnet, "test-tenant-1", "bd-1")
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -173,7 +186,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
 
         expected_data = [{"name": "web", "dstport": 80, "etype": "ip", "prot": "tcp", "action": "permit"}]
 
-        assert self.aci_obj.get_contract_filters("test-tenant", "test-contract") == expected_data  # nosec
+        self.assertEqual(self.aci_obj.get_contract_filters("test-tenant", "test-contract"), expected_data)
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -183,7 +196,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         mock_vzSubj.ok = False
         mocked_login.return_value = self.mock_login
         mocked_handle_request.return_value = mock_vzSubj
-        self.assertRaises(RequestHTTPError, self.aci_obj.get_bd_subnet, "test-tenant-1", "bd-1")  # nosec
+        self.assertRaises(RequestHTTPError, self.aci_obj.get_bd_subnet, "test-tenant-1", "bd-1")
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -213,7 +226,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
 
         expected_data = [{"encap": "vlan-102", "node_id": 102, "intf": "eth1/20", "pathtype": "leaf", "type": "non-PC"}]
 
-        assert self.aci_obj.get_static_path("test-tenant", "test-ap", "test-epg") == expected_data  # nosec
+        self.assertEqual(self.aci_obj.get_static_path("test-tenant", "test-ap", "test-epg"), expected_data)
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -304,7 +317,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
             }
         ]
 
-        assert self.aci_obj.get_static_path("test-tenant", "test-ap", "test-epg") == expected_data  # nosec
+        self.assertEqual(self.aci_obj.get_static_path("test-tenant", "test-ap", "test-epg"), expected_data)
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -315,8 +328,12 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         mocked_login.return_value = self.mock_login
         mocked_handle_request.return_value = mock_response
         self.assertRaises(
-            RequestHTTPError, self.aci_obj.get_static_path, "test-tenant-1", "test-ap", "test-epg"
-        )  # nosec
+            RequestHTTPError,
+            self.aci_obj.get_static_path,
+            "test-tenant-1",
+            "test-ap",
+            "test-epg",
+        )
 
     @patch.object(AciApi, "get_static_path")
     @patch.object(AciApi, "get_contract_filters")
@@ -400,7 +417,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
             "name": "App",
         }
 
-        assert self.aci_obj.get_epg_details("test-tenant", "3-Tier-App", "App") == expected_data  # nosec
+        self.assertEqual(self.aci_obj.get_epg_details("test-tenant", "3-Tier-App", "App"), expected_data)
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -416,10 +433,13 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         mocked_login.return_value = mocked_login
         mocked_handle_request.return_value = mock_fvCtx
 
-        assert self.aci_obj.get_vrfs("ntc-chatops") == [
-            {"tenant": "ntc-chatops", "name": "vrf-1"},
-            {"tenant": "ntc-chatops", "name": "vrf-2"},
-        ]  # nosec
+        self.assertEqual(
+            self.aci_obj.get_vrfs("ntc-chatops"),
+            [
+                {"tenant": "ntc-chatops", "name": "vrf-1"},
+                {"tenant": "ntc-chatops", "name": "vrf-2"},
+            ],
+        )
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -429,7 +449,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         mock_response.ok = False
         mocked_login.return_value = self.mock_login
         mocked_handle_request.return_value = mock_response
-        self.assertRaises(RequestHTTPError, self.aci_obj.get_vrfs, "ntc-chatops")  # nosec
+        self.assertRaises(RequestHTTPError, self.aci_obj.get_vrfs, "ntc-chatops")
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -522,7 +542,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
             },
         }
 
-        assert self.aci_obj.get_bds("ntc-chatops") == expected_data  # nosec
+        self.assertEqual(self.aci_obj.get_bds("ntc-chatops"), expected_data)
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -629,7 +649,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
             },
         }
 
-        assert self.aci_obj.get_nodes() == expected_data  # nosec
+        self.assertEqual(self.aci_obj.get_nodes(), expected_data)
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -645,7 +665,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
 
         mocked_login.return_value = self.mock_login
         mocked_handle_request.side_effect = [mock_fabricNode, mock_topSystem]
-        self.assertRaises(RequestHTTPError, self.aci_obj.get_nodes)  # nosec
+        self.assertRaises(RequestHTTPError, self.aci_obj.get_nodes)
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -704,7 +724,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
             },
         }
 
-        assert self.aci_obj.get_controllers() == expected_data  # nosec
+        self.assertEqual(self.aci_obj.get_controllers(), expected_data)
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -720,7 +740,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
 
         mocked_login.return_value = self.mock_login
         mocked_handle_request.side_effect = [mock_fabricNode, mock_topSystem]
-        self.assertRaises(RequestHTTPError, self.aci_obj.get_controllers)  # nosec
+        self.assertRaises(RequestHTTPError, self.aci_obj.get_controllers)
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -777,7 +797,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
             },
         }
 
-        assert self.aci_obj.get_pending_nodes() == expected_data  # nosec
+        self.assertEqual(self.aci_obj.get_pending_nodes(), expected_data)
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -788,7 +808,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
 
         mocked_login.return_value = self.mock_login
         mocked_handle_request.return_value = mocked_dhcpClient
-        self.assertRaises(RequestHTTPError, self.aci_obj.get_pending_nodes)  # nosec
+        self.assertRaises(RequestHTTPError, self.aci_obj.get_pending_nodes)
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -909,7 +929,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
             }
         }
 
-        assert self.aci_obj.get_interfaces(["101"]) == expected_data  # nosec #E1121
+        self.assertEqual(self.aci_obj.get_interfaces(["101"]), expected_data)
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -927,12 +947,13 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
     def test_register_node(self, mocked_login, mocked_handle_request):
         """Test get_interfaces method."""
         mocked_resp = Mock()
-        mocked_resp.status_code == 200  # pylint: disable=W0104
+        mocked_resp.status_code = 200  # pylint: disable=W0104
         mocked_resp.return_value = True
 
         mocked_login.return_value = self.mock_login
         mocked_handle_request.return_value = mocked_resp
-        assert self.aci_obj.register_node("TEP-1-101", "101", "Leaf101") is True  # noqa: E712
+        self.assertTrue(self.aci_obj.register_node("TEP-1-101", "101", "Leaf101"))
+        # assert        self.aci_obj.register_node("TEP-1-101", "101", "Leaf101") is True
         mocked_handle_request.assert_called_with(
             "fakeuri/api/node/mo/uni/controller/nodeidentpol.json",
             None,

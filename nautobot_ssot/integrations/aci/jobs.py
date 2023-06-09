@@ -1,12 +1,12 @@
 """Jobs for ACI SSoT plugin."""
-from distutils.util import strtobool
 from django.templatetags.static import static
 from django.urls import reverse
+from nautobot.core.settings_funcs import is_truthy
 from nautobot.extras.jobs import BooleanVar, ChoiceVar, Job
 from nautobot_ssot.jobs.base import DataMapping, DataSource
-from nautobot_ssot_aci.diffsync.adapters.aci import AciAdapter
-from nautobot_ssot_aci.diffsync.adapters.nautobot import NautobotAdapter
-from nautobot_ssot_aci.constant import PLUGIN_CFG
+from nautobot_ssot.integrations.aci.diffsync.adapters.aci import AciAdapter
+from nautobot_ssot.integrations.aci.diffsync.adapters.nautobot import NautobotAdapter
+from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
 
 name = "Cisco ACI SSoT"  # pylint: disable=invalid-name, abstract-method
 
@@ -21,7 +21,7 @@ for key in PLUGIN_CFG["apics"]:
     if "URI" in key:
         aci_creds[subkey]["base_uri"] = PLUGIN_CFG["apics"][key]
     if "VERIFY" in key:
-        aci_creds[subkey]["verify"] = bool(strtobool(PLUGIN_CFG["apics"][key]))
+        aci_creds[subkey]["verify"] = is_truthy(PLUGIN_CFG["apics"][key])
     if "SITE" in key:
         aci_creds[subkey]["site"] = PLUGIN_CFG["apics"][key]
     if "STAGE" in key:
@@ -46,10 +46,6 @@ class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method
         data_source = "ACI"
         data_source_icon = static("nautobot_ssot_aci/aci.png")
         description = "Sync information from ACI to Nautobot"
-
-    def __init__(self):
-        """Initialize AciDataSource."""
-        super().__init__()
 
     @classmethod
     def data_mappings(cls):

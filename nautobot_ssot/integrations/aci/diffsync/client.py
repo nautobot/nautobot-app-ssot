@@ -1,4 +1,5 @@
 """All interactions with ACI."""  # pylint: disable=too-many-lines, too-many-instance-attributes, too-many-arguments
+# pylint: disable=invalid-name
 
 import sys
 import logging
@@ -332,29 +333,29 @@ class AciApi:
             bd_dict[data["fvBD"]["attributes"]["name"]]["mac"] = data["fvBD"]["attributes"]["mac"]
             bd_dict[data["fvBD"]["attributes"]["name"]]["l2unicast"] = data["fvBD"]["attributes"]["unkMacUcastAct"]
 
-        for bd in bd_dict:
+        for key, value in bd_dict.items():
             # get the containing VRF
             resp = self._get(
-                f"/api/node/mo/uni/tn-{bd_dict[bd]['tenant']}/BD-{bd}.json?query-target=children&target-subtree-class=fvRsCtx"
+                f"/api/node/mo/uni/tn-{value['tenant']}/BD-{key}.json?query-target=children&target-subtree-class=fvRsCtx"
             )
             for data in resp.json()["imdata"]:
-                bd_dict[bd]["vrf"] = data["fvRsCtx"]["attributes"].get("tnFvCtxName", "default")
+                value["vrf"] = data["fvRsCtx"]["attributes"].get("tnFvCtxName", "default")
                 vrf_tenant = data["fvRsCtx"]["attributes"].get("tDn", None)
                 if vrf_tenant:
-                    bd_dict[bd]["vrf_tenant"] = tenant_from_dn(vrf_tenant)
+                    value["vrf_tenant"] = tenant_from_dn(vrf_tenant)
                 else:
-                    bd_dict[bd]["vrf_tenant"] = None
+                    value["vrf_tenant"] = None
             # get subnets
             resp = self._get(
-                f"/api/node/mo/uni/tn-{bd_dict[bd]['tenant']}/BD-{bd}.json?query-target=children&target-subtree-class=fvSubnet"
+                f"/api/node/mo/uni/tn-{value['tenant']}/BD-{key}.json?query-target=children&target-subtree-class=fvSubnet"
             )
             subnet_list = [
                 (data["fvSubnet"]["attributes"]["ip"], data["fvSubnet"]["attributes"]["scope"])
                 for data in resp.json()["imdata"]
             ]
             for subnet in subnet_list:
-                bd_dict[bd].setdefault("subnets", [])
-                bd_dict[bd]["subnets"].append(subnet)
+                value.setdefault("subnets", [])
+                value["subnets"].append(subnet)
         return bd_dict
 
     def get_nodes(self) -> dict:

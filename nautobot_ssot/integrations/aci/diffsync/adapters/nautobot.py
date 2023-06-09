@@ -1,4 +1,5 @@
 """Diffsync Adapter for Nautobot."""
+# pylint: disable=duplicate-code
 
 import logging
 from collections import defaultdict
@@ -9,16 +10,16 @@ from nautobot.tenancy.models import Tenant
 from nautobot.dcim.models import DeviceType, DeviceRole, Device, InterfaceTemplate, Interface
 from nautobot.ipam.models import IPAddress, Prefix, VRF
 from nautobot.extras.models import Tag
-from nautobot_ssot_aci.diffsync.models import NautobotTenant
-from nautobot_ssot_aci.diffsync.models import NautobotVrf
-from nautobot_ssot_aci.diffsync.models import NautobotDeviceType
-from nautobot_ssot_aci.diffsync.models import NautobotDeviceRole
-from nautobot_ssot_aci.diffsync.models import NautobotDevice
-from nautobot_ssot_aci.diffsync.models import NautobotInterfaceTemplate
-from nautobot_ssot_aci.diffsync.models import NautobotInterface
-from nautobot_ssot_aci.diffsync.models import NautobotIPAddress
-from nautobot_ssot_aci.diffsync.models import NautobotPrefix
-from nautobot_ssot_aci.constant import PLUGIN_CFG
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotTenant
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotVrf
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotDeviceType
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotDeviceRole
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotDevice
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterfaceTemplate
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterface
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotIPAddress
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotPrefix
+from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
 
 logger = logging.getLogger("rq.worker")
 
@@ -83,7 +84,7 @@ class NautobotAdapter(DiffSync):
         ):
             for nautobot_object in self.objects_to_delete[grouping]:
                 try:
-                    logger.warning(f"OBJECT: {nautobot_object}")
+                    logger.warning("OBJECT: %s", nautobot_object)
                     nautobot_object.delete()
                 except ProtectedError:
                     self.job.log_failure(obj=nautobot_object, message="Deletion failed protected object")
@@ -139,7 +140,6 @@ class NautobotAdapter(DiffSync):
     def load_interfaces(self):
         """Method to load Interfaces from Nautobot."""
         for nbinterface in Interface.objects.filter(tags=self.site_tag):
-
             if nbinterface.tags.filter(name=PLUGIN_CFG.get("tag_up")).count() > 0:
                 state = PLUGIN_CFG.get("tag_up").lower().replace(" ", "-")
             else:

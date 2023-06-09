@@ -17,7 +17,7 @@ from nautobot.dcim.models import Manufacturer
 from nautobot.dcim.models import Site
 from nautobot.extras.models import Status
 from nautobot.extras.models import Tag
-from nautobot_ssot_aci.diffsync.models.base import (
+from nautobot_ssot.integrations.aci.diffsync.models.base import (
     Tenant,
     Vrf,
     DeviceType,
@@ -28,7 +28,7 @@ from nautobot_ssot_aci.diffsync.models.base import (
     IPAddress,
     Prefix,
 )
-from nautobot_ssot_aci.constant import PLUGIN_CFG
+from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
 
 
 logger = logging.getLogger("rq.worker")

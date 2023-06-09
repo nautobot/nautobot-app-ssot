@@ -1,11 +1,23 @@
-"""Post Migrate Welcome Wizard Script."""
+"""Signals for ACI integration."""
+# pylint: disable=logging-fstring-interpolation, invalid-name
 import logging
 import random
 from django.utils.text import slugify
+from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices
-from nautobot_ssot_aci.constant import PLUGIN_CFG
 
-logger = logging.getLogger("rq.worker")
+from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
+
+logger = logging.getLogger("nautobot.ssot.aci")
+
+
+def register_signals(sender):
+    """Registers signals."""
+    nautobot_database_ready.connect(aci_create_tag, sender=sender)
+    nautobot_database_ready.connect(aci_create_manufacturer, sender=sender)
+    nautobot_database_ready.connect(aci_create_site, sender=sender)
+    nautobot_database_ready.connect(device_custom_fields, sender=sender)
+    nautobot_database_ready.connect(interface_custom_fields, sender=sender)
 
 
 def aci_create_tag(apps, **kwargs):
