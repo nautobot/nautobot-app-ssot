@@ -8,7 +8,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.templatetags.static import static
 from django.urls import reverse
 
-from nautobot.core.celery import register_jobs
 from nautobot.dcim.models import Location, LocationType
 from nautobot.ipam.models import Prefix
 from nautobot.tenancy.models import Tenant
@@ -669,7 +668,3 @@ class ExampleDataTarget(DataTarget):
             except Prefix.DoesNotExist:
                 pass
         return None
-
-
-jobs = [ExampleDataSource, ExampleDataTarget]
-register_jobs(*jobs)
