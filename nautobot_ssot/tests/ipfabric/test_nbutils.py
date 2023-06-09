@@ -8,7 +8,7 @@ from nautobot.extras.models.statuses import Status
 from nautobot.ipam.models import VLAN, IPAddress
 from nautobot.utilities.choices import ColorChoices
 
-from nautobot_ssot_ipfabric.utilities import (  # create_ip,; create_interface,; create_site,
+from nautobot_ssot.integrations.ipfabric.utilities import (  # create_ip,; create_interface,; create_site,
     create_device_role_object,
     create_device_type_object,
     create_manufacturer,

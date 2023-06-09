@@ -8,7 +8,7 @@ from nautobot.dcim.models import Device
 from nautobot.ipam.models import VLAN
 from netutils.mac import mac_to_format
 
-from nautobot_ssot_ipfabric.diffsync import DiffSyncModelAdapters
+from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 
 logger = logging.getLogger("nautobot.jobs")
 

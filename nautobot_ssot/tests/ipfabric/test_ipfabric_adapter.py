@@ -7,8 +7,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 from nautobot.extras.models import Job, JobResult
 
-from nautobot_ssot_ipfabric.diffsync.adapter_ipfabric import IPFabricDiffSync
-from nautobot_ssot_ipfabric.jobs import IpFabricDataSource
+from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabricDiffSync
+from nautobot_ssot.integrations.ipfabric.jobs import IpFabricDataSource
 
 
 def load_json(path):

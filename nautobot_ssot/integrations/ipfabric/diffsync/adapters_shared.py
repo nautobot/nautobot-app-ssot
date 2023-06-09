@@ -4,7 +4,7 @@ from typing import ClassVar
 
 from diffsync import DiffSync
 
-from nautobot_ssot_ipfabric.diffsync import diffsync_models
+from nautobot_ssot.integrations.ipfabric.diffsync import diffsync_models
 
 
 class DiffSyncModelAdapters(DiffSync):

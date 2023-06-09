@@ -5,7 +5,7 @@ from django.conf import settings
 from django.test import TestCase
 from django.urls import reverse
 
-from nautobot_ssot_ipfabric import jobs
+from nautobot_ssot.integrations.ipfabric import jobs
 
 CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot_ipfabric", {})
 BACKUP_CONFIG = deepcopy(CONFIG)

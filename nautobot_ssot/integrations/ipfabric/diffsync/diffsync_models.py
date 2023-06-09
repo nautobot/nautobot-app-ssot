@@ -15,7 +15,7 @@ from nautobot.extras.models.statuses import Status
 from nautobot.ipam.models import VLAN
 from nautobot.utilities.choices import ColorChoices
 
-import nautobot_ssot_ipfabric.utilities.nbutils as tonb_nbutils
+import nautobot_ssot.integrations.ipfabric.utilities.nbutils as tonb_nbutils
 
 CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot_ipfabric", {})
 DEFAULT_DEVICE_ROLE = CONFIG.get("default_device_role", "Network Device")

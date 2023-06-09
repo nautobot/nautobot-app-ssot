@@ -2,8 +2,8 @@
 
 In your test file, simply import:
 ```
-from nautobot_ssot_ipfabric.utilities import json_fixture
-from nautobot_ssot_ipfabric.tests.fixtures import real_path
+from nautobot_ssot.integrations.ipfabric.utilities import json_fixture
+from nautobot_ssot.integrations.ipfabric.tests.fixtures import real_path
 ```
 Then you can simply load fixtures that you have added to the fixtures directory
 and assign them to your mocks by using the json_fixture utility:

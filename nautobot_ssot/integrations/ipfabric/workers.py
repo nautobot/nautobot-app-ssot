@@ -11,7 +11,7 @@ from nautobot_chatops.choices import CommandStatusChoices
 from nautobot_chatops.dispatchers import Dispatcher
 from nautobot_chatops.workers import handle_subcommands, subcommand_of
 
-from nautobot_ssot_ipfabric.jobs import IpFabricDataSource
+from nautobot_ssot.integrations.ipfabric.jobs import IpFabricDataSource
 
 # from nautobot.dcim.models import Site
 

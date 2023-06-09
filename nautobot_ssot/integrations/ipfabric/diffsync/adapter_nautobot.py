@@ -15,7 +15,7 @@ from nautobot.ipam.models import VLAN, Interface
 from nautobot.utilities.choices import ColorChoices
 from netutils.mac import mac_to_format
 
-from nautobot_ssot_ipfabric.diffsync import DiffSyncModelAdapters
+from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 
 CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot_ipfabric", {})
 DEFAULT_INTERFACE_TYPE = CONFIG.get("default_interface_type", "1000base-t")
