@@ -26,10 +26,10 @@ _add_integrations()
 
 def get_data_jobs():
     """Get all data-source and data-target jobs available."""
-    jobs = Job.objects.all()
+    sync_jobs = Job.objects.all()
     data_sources = []
     data_targets = []
-    for job in jobs:
+    for job in sync_jobs:
         if issubclass(job.job_class, DataSource):
             data_sources.append(job.job_class)
         if issubclass(job.job_class, DataTarget):
