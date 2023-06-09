@@ -7,7 +7,7 @@ from django.urls import reverse
 
 from nautobot_ssot.integrations.ipfabric import jobs
 
-CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot_ipfabric", {})
+CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
 BACKUP_CONFIG = deepcopy(CONFIG)
 
 
@@ -52,7 +52,7 @@ class IPFabricJobTest(TestCase):
 
     # @override_settings(
     #     PLUGINS_CONFIG={
-    #         "nautobot_ssot_ipfabric": {
+    #         "nautobot_ssot": {
     #             "IPFABRIC_HOST": "https://ipfabric.networktocode.com",
     #             "IPFABRIC_API_TOKEN": "1234",
     #         }

@@ -17,10 +17,10 @@ def load_json(path):
         return json.loads(file.read())
 
 
-SITE_FIXTURE = load_json("./nautobot_ssot_ipfabric/tests/fixtures/get_sites.json")
-DEVICE_INVENTORY_FIXTURE = load_json("./nautobot_ssot_ipfabric/tests/fixtures/get_device_inventory.json")
-VLAN_FIXTURE = load_json("./nautobot_ssot_ipfabric/tests/fixtures/get_vlans.json")
-INTERFACE_FIXTURE = load_json("./nautobot_ssot_ipfabric/tests/fixtures/get_interface_inventory.json")
+SITE_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_sites.json")
+DEVICE_INVENTORY_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_device_inventory.json")
+VLAN_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_vlans.json")
+INTERFACE_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_interface_inventory.json")
 
 
 class IPFabricDiffSyncTestCase(TestCase):
