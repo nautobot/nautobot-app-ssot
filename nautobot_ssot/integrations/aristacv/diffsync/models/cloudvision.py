@@ -1,7 +1,7 @@
 """Cloudvision DiffSync models for AristaCV SSoT."""
-from django.conf import settings
-from nautobot_ssot_aristacv.diffsync.models.base import Device, CustomField, IPAddress, Port
-from nautobot_ssot_aristacv.utils.cloudvision import CloudvisionApi
+from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
+from nautobot_ssot.integrations.aristacv.diffsync.models.base import Device, CustomField, IPAddress, Port
+from nautobot_ssot.integrations.aristacv.utils.cloudvision import CloudvisionApi
 
 
 class CloudvisionDevice(Device):
@@ -64,14 +64,13 @@ class CloudvisionCustomField(CustomField):
     @staticmethod
     def connect_cvp():
         """Connect to Cloudvision gRPC endpoint."""
-        PLUGIN_SETTINGS = settings.PLUGINS_CONFIG["nautobot_ssot_aristacv"]
         return CloudvisionApi(
-            cvp_host=PLUGIN_SETTINGS["cvp_host"],
-            cvp_port=PLUGIN_SETTINGS.get("cvp_port", "8443"),
-            verify=PLUGIN_SETTINGS["verify"],
-            username=PLUGIN_SETTINGS["cvp_user"],
-            password=PLUGIN_SETTINGS["cvp_password"],
-            cvp_token=PLUGIN_SETTINGS["cvp_token"],
+            cvp_host=APP_SETTINGS["cvp_host"],
+            cvp_port=APP_SETTINGS.get("cvp_port", "8443"),
+            verify=APP_SETTINGS["verify"],
+            username=APP_SETTINGS["cvp_user"],
+            password=APP_SETTINGS["cvp_password"],
+            cvp_token=APP_SETTINGS["cvp_token"],
         )
 
     @classmethod

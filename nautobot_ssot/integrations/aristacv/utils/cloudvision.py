@@ -11,7 +11,6 @@ from arista.inventory.v1 import models, services
 from arista.tag.v2 import models as tag_models
 from arista.tag.v2 import services as tag_services
 
-from django.conf import settings
 from google.protobuf.wrappers_pb2 import StringValue  # pylint: disable=no-name-in-module
 
 from cvprac.cvp_client import CvpClient
@@ -24,7 +23,7 @@ from cloudvision.Connector.codec import Wildcard
 from cloudvision.Connector.codec.custom_types import FrozenDict
 from cloudvision.Connector.grpc_client.grpcClient import create_query, to_pbts
 
-from nautobot_ssot_aristacv.constant import PORT_TYPE_MAP
+from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS, PORT_TYPE_MAP
 
 RPC_TIMEOUT = 30
 TIME_TYPE = Union[pbts.Timestamp, datetime]
@@ -97,7 +96,7 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
             self.metadata = ((self.AUTH_KEY_PATH, self.cvp_token),)
         # Set up credentials for CVaaS using supplied token.
         else:
-            self.cvp_url = settings.PLUGINS_CONFIG["nautobot_ssot_aristacv"].get("cvaas_url", "www.arista.io:443")
+            self.cvp_url = APP_SETTINGS.get("cvaas_url", "www.arista.io:443")
             call_creds = grpc.access_token_call_credentials(self.cvp_token)
             channel_creds = grpc.ssl_channel_credentials()
         conn_creds = grpc.composite_channel_credentials(channel_creds, call_creds)
@@ -269,7 +268,7 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
 def get_devices(client):
     """Get devices from CloudVision inventory."""
     device_stub = services.DeviceServiceStub(client)
-    if settings.PLUGINS_CONFIG["nautobot_ssot_aristacv"].get("import_active"):
+    if APP_SETTINGS.get("import_active"):
         req = services.DeviceStreamRequest(
             partial_eq_filter=[models.Device(streaming_status=models.STREAMING_STATUS_ACTIVE)]
         )
@@ -668,10 +667,9 @@ def get_cvp_version():
     Returns:
         str: CloudVision version from API or blank string if unable to find.
     """
-    PLUGIN_SETTINGS = settings.PLUGINS_CONFIG["nautobot_ssot_aristacv"]
     client = CvpClient()
     try:
-        client.connect([PLUGIN_SETTINGS["cvp_host"]], PLUGIN_SETTINGS["cvp_user"], PLUGIN_SETTINGS["cvp_password"])
+        client.connect([APP_SETTINGS["cvp_host"]], APP_SETTINGS["cvp_user"], APP_SETTINGS["cvp_password"])
         version = client.api.get_cvp_info()
         if "version" in version:
             return version["version"]

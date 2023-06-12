@@ -2,8 +2,21 @@
 """Nautobot signal handler functions for aristavc_sync."""
 
 from django.apps import apps as global_apps
-from django.conf import settings
+from django.db.models.signals import post_migrate
 from nautobot.extras.choices import CustomFieldTypeChoices, RelationshipTypeChoices
+
+from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
+
+
+# pylint: disable-next=unused-argument
+def register_signals(sender):
+    """Register signals for Arista CloudVision integration."""
+    post_migrate.connect(post_migrate_create_custom_fields)
+    post_migrate.connect(post_migrate_create_manufacturer)
+    post_migrate.connect(post_migrate_create_platform)
+
+    if APP_SETTINGS.get("create_controller"):
+        post_migrate.connect(post_migrate_create_controller_relationship)
 
 
 def post_migrate_create_custom_fields(apps=global_apps, **kwargs):
@@ -113,7 +126,7 @@ def post_migrate_create_platform(apps=global_apps, **kwargs):
         manufacturer=Manufacturer.objects.get(slug="arista"),
     )
 
-    if settings.PLUGINS_CONFIG.get("nautobot_ssot_aristacv").get("create_controller"):
+    if APP_SETTINGS.get("create_controller"):
         Platform.objects.get_or_create(
             name="Arista EOS-CloudVision",
             slug="arista_eos_cloudvision",

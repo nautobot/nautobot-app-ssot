@@ -1,10 +1,9 @@
 """Tests of Cloudvision utility methods."""
 from unittest.mock import MagicMock, patch
-from django.test import override_settings
 from nautobot.dcim.models import DeviceRole, DeviceType, Manufacturer, Site
 from nautobot.extras.models import Relationship, Tag
 from nautobot.utilities.testing import TestCase
-from nautobot_ssot_aristacv.utils import nautobot
+from nautobot_ssot.integrations.aristacv.utils import nautobot
 
 
 class TestNautobotUtils(TestCase):
@@ -97,20 +96,17 @@ class TestNautobotUtils(TestCase):
         mock_import = MagicMock()
         mock_import.LIFECYCLE_MGMT = False
 
-        with patch("nautobot_ssot_aristacv.utils.nautobot.LIFECYCLE_MGMT", mock_import.LIFECYCLE_MGMT):
+        with patch("nautobot_ssot.integrations.aristacv.utils.nautobot.LIFECYCLE_MGMT", mock_import.LIFECYCLE_MGMT):
             result = nautobot.get_device_version(mock_device)
         self.assertEqual(result, "1.0")
 
-    @override_settings(
-        PLUGINS_CONFIG={
-            "nautobot_ssot_aristacv": {
-                "hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
-                "site_mappings": {"ams01": "Amsterdam"},
-                "role_mappings": {
-                    "leaf": "leaf",
-                },
-            }
-        }
+    @patch.dict(
+        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
+        {
+            "hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
+            "site_mappings": {"ams01": "Amsterdam"},
+            "role_mappings": {"leaf": "leaf"},
+        },
     )
     def test_parse_hostname(self):
         """Test the parse_hostname method."""
@@ -119,14 +115,13 @@ class TestNautobotUtils(TestCase):
         expected = ("ams01", "leaf")
         self.assertEqual(results, expected)
 
-    @override_settings(
-        PLUGINS_CONFIG={
-            "nautobot_ssot_aristacv": {
-                "hostname_patterns": [r"(?P<site>\w{2,3}\d+)-.+-\d+"],
-                "site_mappings": {"ams01": "Amsterdam"},
-                "role_mappings": {},
-            }
-        }
+    @patch.dict(
+        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
+        {
+            "hostname_patterns": [r"(?P<site>\w{2,3}\d+)-.+-\d+"],
+            "site_mappings": {"ams01": "Amsterdam"},
+            "role_mappings": {},
+        },
     )
     def test_parse_hostname_only_site(self):
         """Test the parse_hostname method with only site specified."""
@@ -135,14 +130,13 @@ class TestNautobotUtils(TestCase):
         expected = ("ams01", None)
         self.assertEqual(results, expected)
 
-    @override_settings(
-        PLUGINS_CONFIG={
-            "nautobot_ssot_aristacv": {
-                "hostname_patterns": [r".+-(?P<role>\w+)-\d+"],
-                "site_mappings": {},
-                "role_mappings": {"leaf": "leaf"},
-            }
-        }
+    @patch.dict(
+        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
+        {
+            "hostname_patterns": [r".+-(?P<role>\w+)-\d+"],
+            "site_mappings": {},
+            "role_mappings": {"leaf": "leaf"},
+        },
     )
     def test_parse_hostname_only_role(self):
         """Test the parse_hostname method with only role specified."""
@@ -151,13 +145,12 @@ class TestNautobotUtils(TestCase):
         expected = (None, "leaf")
         self.assertEqual(results, expected)
 
-    @override_settings(
-        PLUGINS_CONFIG={
-            "nautobot_ssot_aristacv": {
-                "hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
-                "site_mappings": {"ams01": "Amsterdam"},
-            }
-        }
+    @patch.dict(
+        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
+        {
+            "hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
+            "site_mappings": {"ams01": "Amsterdam"},
+        },
     )
     def test_get_site_from_map_success(self):
         """Test the get_site_from_map method with response."""
@@ -165,13 +158,12 @@ class TestNautobotUtils(TestCase):
         expected = "Amsterdam"
         self.assertEqual(results, expected)
 
-    @override_settings(
-        PLUGINS_CONFIG={
-            "nautobot_ssot_aristacv": {
-                "hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
-                "site_mappings": {},
-            }
-        }
+    @patch.dict(
+        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
+        {
+            "hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
+            "site_mappings": {},
+        },
     )
     def test_get_site_from_map_fail(self):
         """Test the get_site_from_map method with failed response."""
@@ -179,13 +171,12 @@ class TestNautobotUtils(TestCase):
         expected = None
         self.assertEqual(results, expected)
 
-    @override_settings(
-        PLUGINS_CONFIG={
-            "nautobot_ssot_aristacv": {
-                "hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
-                "role_mappings": {"edge": "Edge Router"},
-            }
-        }
+    @patch.dict(
+        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
+        {
+            "hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
+            "role_mappings": {"edge": "Edge Router"},
+        },
     )
     def test_get_role_from_map_success(self):
         """Test the get_role_from_map method with response."""
@@ -193,13 +184,12 @@ class TestNautobotUtils(TestCase):
         expected = "Edge Router"
         self.assertEqual(results, expected)
 
-    @override_settings(
-        PLUGINS_CONFIG={
-            "nautobot_ssot_aristacv": {
-                "hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
-                "role_mappings": {},
-            }
-        }
+    @patch.dict(
+        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
+        {
+            "hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
+            "role_mappings": {},
+        },
     )
     def test_get_role_from_map_fail(self):
         """Test the get_role_from_map method with failed response."""

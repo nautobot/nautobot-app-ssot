@@ -1,5 +1,4 @@
 """DiffSync adapter for Nautobot."""
-from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import Interface as OrmInterface
@@ -9,13 +8,14 @@ from nautobot.ipam.models import IPAddress as OrmIPAddress
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectNotFound, ObjectAlreadyExists
 
-from nautobot_ssot_aristacv.diffsync.models.nautobot import (
+from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
+from nautobot_ssot.integrations.aristacv.diffsync.models.nautobot import (
     NautobotDevice,
     NautobotCustomField,
     NautobotIPAddress,
     NautobotPort,
 )
-from nautobot_ssot_aristacv.utils import nautobot
+from nautobot_ssot.integrations.aristacv.utils import nautobot
 
 
 class NautobotAdapter(DiffSync):
@@ -107,10 +107,8 @@ class NautobotAdapter(DiffSync):
         Args:
             source (DiffSync): Source DiffSync DataSource adapter.
         """
-        PLUGIN_CFG = settings.PLUGINS_CONFIG["nautobot_ssot_aristacv"]
-
         # if Controller is created we need to ensure all imported Devices have RelationshipAssociation to it.
-        if PLUGIN_CFG.get("create_controller"):
+        if APP_SETTINGS.get("create_controller"):
             self.job.log_info(message="Creating Relationships between CloudVision and connected Devices.")
             controller_relation = OrmRelationship.objects.get(name="Controller -> Device")
             device_ct = ContentType.objects.get_for_model(OrmDevice)

@@ -1,14 +1,13 @@
 """Unit tests for the Cloudvision DiffSync adapter class."""
 import uuid
 from unittest.mock import MagicMock, patch
-from django.test import override_settings
 from django.contrib.contenttypes.models import ContentType
 
 from nautobot.extras.models import Job, JobResult
 from nautobot.utilities.testing import TransactionTestCase
-from nautobot_ssot_aristacv.diffsync.adapters.cloudvision import CloudvisionAdapter
-from nautobot_ssot_aristacv.jobs import CloudVisionDataSource
-from nautobot_ssot_aristacv.tests.fixtures import fixtures
+from nautobot_ssot.integrations.aristacv.diffsync.adapters.cloudvision import CloudvisionAdapter
+from nautobot_ssot.integrations.aristacv.jobs import CloudVisionDataSource
+from nautobot_ssot.tests.aristacv.fixtures import fixtures
 
 
 class CloudvisionAdapterTestCase(TransactionTestCase):
@@ -45,13 +44,19 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
         )
         self.cvp = CloudvisionAdapter(job=self.job, conn=self.client)
 
-    @override_settings(PLUGINS_CONFIG={"nautobot_ssot_aristacv": {"create_controller": False}})
+    @patch.dict(
+        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
+        {"create_controller": False},
+    )
     def test_load_devices(self):
         """Test the load_devices() adapter method."""
-        with patch("nautobot_ssot_aristacv.utils.cloudvision.get_devices", self.cloudvision.get_devices):
-            with patch("nautobot_ssot_aristacv.utils.cloudvision.get_device_type", self.cloudvision.get_device_type):
+        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.get_devices", self.cloudvision.get_devices):
+            with patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_device_type",
+                self.cloudvision.get_device_type,
+            ):
                 with patch(
-                    "nautobot_ssot_aristacv.utils.cloudvision.get_interfaces_fixed",
+                    "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interfaces_fixed",
                     self.cloudvision.get_interfaces_fixed,
                 ):
                     self.cvp.load_devices()
@@ -69,19 +74,23 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
         mock_device.device_model = MagicMock()
         mock_device.device_model.return_value = "DCS-7280CR2-60"
 
-        with patch("nautobot_ssot_aristacv.utils.cloudvision.get_device_type", self.cloudvision.get_device_type):
+        with patch(
+            "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_device_type", self.cloudvision.get_device_type
+        ):
             with patch(
-                "nautobot_ssot_aristacv.utils.cloudvision.get_interfaces_fixed", self.cloudvision.get_interfaces_fixed
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interfaces_fixed",
+                self.cloudvision.get_interfaces_fixed,
             ):
                 with patch(
-                    "nautobot_ssot_aristacv.utils.cloudvision.get_interface_mode", self.cloudvision.get_interface_mode
+                    "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_mode",
+                    self.cloudvision.get_interface_mode,
                 ):
                     with patch(
-                        "nautobot_ssot_aristacv.utils.cloudvision.get_interface_transceiver",
+                        "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_transceiver",
                         self.cloudvision.get_interface_transceiver,
                     ):
                         with patch(
-                            "nautobot_ssot_aristacv.utils.cloudvision.get_interface_description",
+                            "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_description",
                             self.cloudvision.get_interface_description,
                         ):
                             self.cvp.load_interfaces(mock_device)
@@ -97,9 +106,12 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
         mock_device.serial = MagicMock()
         mock_device.serial.return_value = "JPE12345678"
 
-        with patch("nautobot_ssot_aristacv.utils.cloudvision.get_ip_interfaces", self.cloudvision.get_ip_interfaces):
+        with patch(
+            "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_ip_interfaces",
+            self.cloudvision.get_ip_interfaces,
+        ):
             with patch(
-                "nautobot_ssot_aristacv.utils.cloudvision.get_interface_description",
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_description",
                 self.cloudvision.get_interface_description,
             ):
                 self.cvp.load_ip_addresses(dev=mock_device)

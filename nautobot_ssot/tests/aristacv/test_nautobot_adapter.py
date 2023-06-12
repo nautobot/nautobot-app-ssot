@@ -6,8 +6,8 @@ from django.contrib.contenttypes.models import ContentType
 from nautobot.dcim.models import Device, DeviceRole, DeviceType, Manufacturer, Site
 from nautobot.extras.models import Job, JobResult, Status
 from nautobot.utilities.testing import TransactionTestCase
-from nautobot_ssot_aristacv.diffsync.adapters.nautobot import NautobotAdapter
-from nautobot_ssot_aristacv.jobs import CloudVisionDataSource
+from nautobot_ssot.integrations.aristacv.diffsync.adapters.nautobot import NautobotAdapter
+from nautobot_ssot.integrations.aristacv.jobs import CloudVisionDataSource
 
 
 class NautobotAdapterTestCase(TransactionTestCase):
@@ -52,7 +52,9 @@ class NautobotAdapterTestCase(TransactionTestCase):
         mock_nautobot.get_device_version = MagicMock()
         mock_nautobot.get_device_version.return_value = "1.0"
 
-        with patch("nautobot_ssot_aristacv.utils.nautobot.get_device_version", mock_nautobot.get_device_version):
+        with patch(
+            "nautobot_ssot.integrations.aristacv.utils.nautobot.get_device_version", mock_nautobot.get_device_version
+        ):
             self.nb_adapter.load_devices()
         self.assertEqual(
             {dev.name for dev in Device.objects.filter(device_type__manufacturer__slug="arista")},

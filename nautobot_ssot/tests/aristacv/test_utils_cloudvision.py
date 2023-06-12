@@ -1,13 +1,12 @@
 """Tests of Cloudvision utility methods."""
 from unittest.mock import MagicMock, patch
-from django.test import override_settings
 from parameterized import parameterized
 
 from nautobot.utilities.testing import TestCase
 from cloudvision.Connector.codec.custom_types import FrozenDict
 
-from nautobot_ssot_aristacv.utils import cloudvision
-from nautobot_ssot_aristacv.tests.fixtures import fixtures
+from nautobot_ssot.integrations.aristacv.utils import cloudvision
+from nautobot_ssot.tests.aristacv.fixtures import fixtures
 
 
 class TestCloudvisionApi(TestCase):
@@ -36,7 +35,10 @@ class TestCloudvisionUtils(TestCase):
         """Setup mock Cloudvision client."""
         self.client = MagicMock()
 
-    @override_settings(PLUGINS_CONFIG={"nautobot_ssot_aristacv": {"import_active": False}})
+    @patch.dict(
+        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
+        {"import_active": False},
+    )
     def test_get_all_devices(self):
         """Test get_devices function for active and inactive devices."""
         device1 = MagicMock()
@@ -62,12 +64,15 @@ class TestCloudvisionUtils(TestCase):
         device_svc_stub = MagicMock()
         device_svc_stub.DeviceServiceStub.return_value.GetAll.return_value = device_list
 
-        with patch("nautobot_ssot_aristacv.utils.cloudvision.services", device_svc_stub):
+        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.services", device_svc_stub):
             results = cloudvision.get_devices(client=self.client)
         expected = fixtures.DEVICE_FIXTURE
         self.assertEqual(results, expected)
 
-    @override_settings(PLUGINS_CONFIG={"nautobot_ssot_aristacv": {"import_active": True}})
+    @patch.dict(
+        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
+        {"import_active": True},
+    )
     def test_get_active_devices(self):
         """Test get_devices function for active devices."""
         device1 = MagicMock()
@@ -84,7 +89,7 @@ class TestCloudvisionUtils(TestCase):
         device_svc_stub = MagicMock()
         device_svc_stub.DeviceServiceStub.return_value.GetAll.return_value = device_list
 
-        with patch("nautobot_ssot_aristacv.utils.cloudvision.services", device_svc_stub):
+        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.services", device_svc_stub):
             results = cloudvision.get_devices(client=self.client)
         expected = [
             {
@@ -110,7 +115,7 @@ class TestCloudvisionUtils(TestCase):
         device_tag_stub = MagicMock()
         device_tag_stub.TagServiceStub.return_value.GetAll.return_value = [mock_tag]
 
-        with patch("nautobot_ssot_aristacv.utils.cloudvision.tag_services", device_tag_stub):
+        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.tag_services", device_tag_stub):
             results = cloudvision.get_tags_by_type(client=self.client)
         expected = [{"label": "test", "value": "test"}]
         self.assertEqual(results, expected)
@@ -125,7 +130,7 @@ class TestCloudvisionUtils(TestCase):
         tag_stub = MagicMock()
         tag_stub.TagAssignmentConfigServiceStub.return_value.GetAll.return_value = [mock_tag]
 
-        with patch("nautobot_ssot_aristacv.utils.cloudvision.tag_services", tag_stub):
+        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.tag_services", tag_stub):
             results = cloudvision.get_device_tags(client=self.client, device_id="JPE12345678")
         expected = [{"label": "ztp", "value": "enabled"}]
         self.assertEqual(results, expected)
@@ -146,7 +151,7 @@ class TestCloudvisionUtils(TestCase):
         mock_query = MagicMock()
         mock_query.return_value = {"fixedSystem": None}
 
-        with patch("nautobot_ssot_aristacv.utils.cloudvision.unfreeze_frozen_dict", mock_query):
+        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.unfreeze_frozen_dict", mock_query):
             results = cloudvision.get_device_type(client=self.client, dId="JPE12345678")
         self.assertEqual(results, "modular")
 
@@ -155,7 +160,7 @@ class TestCloudvisionUtils(TestCase):
         mock_query = MagicMock()
         mock_query.return_value = {"fixedSystem": True}
 
-        with patch("nautobot_ssot_aristacv.utils.cloudvision.unfreeze_frozen_dict", mock_query):
+        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.unfreeze_frozen_dict", mock_query):
             results = cloudvision.get_device_type(client=self.client, dId="JPE12345678")
         self.assertEqual(results, "fixedSystem")
 
@@ -164,7 +169,7 @@ class TestCloudvisionUtils(TestCase):
         mock_query = MagicMock()
         mock_query.return_value = {}
 
-        with patch("nautobot_ssot_aristacv.utils.cloudvision.unfreeze_frozen_dict", mock_query):
+        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.unfreeze_frozen_dict", mock_query):
             results = cloudvision.get_device_type(client=self.client, dId="JPE12345678")
         self.assertEqual(results, "Unknown")
 
@@ -209,7 +214,7 @@ class TestCloudvisionUtils(TestCase):
         mock_lc = MagicMock()
         mock_lc.return_value = {"Linecard1": None}
 
-        with patch("nautobot_ssot_aristacv.utils.cloudvision.unfreeze_frozen_dict", mock_lc):
+        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.unfreeze_frozen_dict", mock_lc):
             self.client.get = MagicMock()
             self.client.get.return_value = fixtures.CHASSIS_INTF_QUERY
             results = cloudvision.get_interfaces_chassis(client=self.client, dId="JPE12345678")

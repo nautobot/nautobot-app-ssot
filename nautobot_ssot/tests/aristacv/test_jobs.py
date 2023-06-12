@@ -1,8 +1,10 @@
 """Test Cloudvision Jobs."""
-from django.test import TestCase, override_settings
+from unittest.mock import patch
+
+from django.test import TestCase
 from django.urls import reverse
 
-from nautobot_ssot_aristacv import jobs
+from nautobot_ssot.integrations.aristacv import jobs
 
 
 class CloudVisionDataSourceJobTest(TestCase):
@@ -99,19 +101,20 @@ class CloudVisionDataSourceJobTest(TestCase):
         self.assertEqual("Topology Type", mappings[15].target_name)
         self.assertIsNone(mappings[15].target_url)
 
-    on_prem_settings = {
-        "cvp_host": "https://localhost",
-        "cvp_user": "admin",
-        "verify": True,
-        "delete_devices_on_sync": True,
-        "from_cloudvision_default_site": "HQ",
-        "from_cloudvision_default_device_role": "Router",
-        "from_cloudvision_default_device_role_color": "ff0000",
-        "apply_import_tag": True,
-        "import_active": True,
-    }
-
-    @override_settings(PLUGINS_CONFIG={"nautobot_ssot_aristacv": on_prem_settings})
+    @patch.dict(
+        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
+        {
+            "cvp_host": "https://localhost",
+            "cvp_user": "admin",
+            "verify": True,
+            "delete_devices_on_sync": True,
+            "from_cloudvision_default_site": "HQ",
+            "from_cloudvision_default_device_role": "Router",
+            "from_cloudvision_default_device_role_color": "ff0000",
+            "apply_import_tag": True,
+            "import_active": True,
+        },
+    )
     def test_config_information_on_prem(self):
         """Verify the config_information() API for on-prem."""
         config_information = jobs.CloudVisionDataSource.config_information()
@@ -127,8 +130,12 @@ class CloudVisionDataSourceJobTest(TestCase):
         self.assertEqual(config_information["Apply import tag"], "True")
         self.assertEqual(config_information["Import Active"], "True")
 
-    @override_settings(
-        PLUGINS_CONFIG={"nautobot_ssot_aristacv": {"cvaas_url": "https://www.arista.io", "cvp_user": "admin"}}
+    @patch.dict(
+        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
+        {
+            "cvaas_url": "https://www.arista.io",
+            "cvp_user": "admin",
+        },
     )
     def test_config_information_cvaas(self):
         """Verify the config_information() API for CVaaS."""

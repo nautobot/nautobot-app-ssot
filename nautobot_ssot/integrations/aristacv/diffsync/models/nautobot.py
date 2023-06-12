@@ -1,7 +1,6 @@
 """Nautobot DiffSync models for AristaCV SSoT."""
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
-from django.conf import settings
 from nautobot.core.settings_funcs import is_truthy
 from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import Interface as OrmInterface
@@ -10,10 +9,11 @@ from nautobot.extras.models import Relationship as OrmRelationship
 from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
 from nautobot.extras.models import Status as OrmStatus
 from nautobot.ipam.models import IPAddress as OrmIPAddress
-from nautobot_ssot_aristacv.constant import ARISTA_PLATFORM, CLOUDVISION_PLATFORM
-from nautobot_ssot_aristacv.diffsync.models.base import Device, CustomField, IPAddress, Port
-from nautobot_ssot_aristacv.utils import nautobot
 import distutils
+
+from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS, ARISTA_PLATFORM, CLOUDVISION_PLATFORM
+from nautobot_ssot.integrations.aristacv.diffsync.models.base import Device, CustomField, IPAddress, Port
+from nautobot_ssot.integrations.aristacv.utils import nautobot
 
 try:
     from nautobot_device_lifecycle_mgmt.models import SoftwareLCM
@@ -24,6 +24,7 @@ except ImportError:
     LIFECYCLE_MGMT = False
 
 
+# TODO: Move to constant.py
 DEFAULT_SITE = "cloudvision_imported"
 DEFAULT_DEVICE_ROLE = "network"
 DEFAULT_DEVICE_ROLE_COLOR = "ff0000"
@@ -40,35 +41,34 @@ class NautobotDevice(Device):
     @classmethod
     def create(cls, diffsync, ids, attrs):
         """Create device object in Nautobot."""
-        PLUGIN_SETTINGS = settings.PLUGINS_CONFIG["nautobot_ssot_aristacv"]
         site_code, role_code = nautobot.parse_hostname(ids["name"].lower())
-        site_map = PLUGIN_SETTINGS.get("site_mappings")
-        role_map = PLUGIN_SETTINGS.get("role_mappings")
+        site_map = APP_SETTINGS.get("site_mappings")
+        role_map = APP_SETTINGS.get("role_mappings")
 
         if site_code and site_code in site_map:
             site = nautobot.verify_site(site_map[site_code])
         elif "CloudVision" in ids["name"]:
-            if PLUGIN_SETTINGS.get("controller_site"):
-                site = nautobot.verify_site(PLUGIN_SETTINGS["controller_site"])
+            if APP_SETTINGS.get("controller_site"):
+                site = nautobot.verify_site(APP_SETTINGS["controller_site"])
             else:
                 site = nautobot.verify_site("CloudVision")
         else:
-            site = nautobot.verify_site(PLUGIN_SETTINGS.get("from_cloudvision_default_site", DEFAULT_SITE))
+            site = nautobot.verify_site(APP_SETTINGS.get("from_cloudvision_default_site", DEFAULT_SITE))
 
         if role_code and role_code in role_map:
             role = nautobot.verify_device_role_object(
                 role_map[role_code],
-                PLUGIN_SETTINGS.get("from_cloudvision_default_device_role_color", DEFAULT_DEVICE_ROLE_COLOR),
+                APP_SETTINGS.get("from_cloudvision_default_device_role_color", DEFAULT_DEVICE_ROLE_COLOR),
             )
         elif "CloudVision" in ids["name"]:
             role = nautobot.verify_device_role_object("Controller", DEFAULT_DEVICE_ROLE_COLOR)
         else:
             role = nautobot.verify_device_role_object(
-                PLUGIN_SETTINGS.get("from_cloudvision_default_device_role", DEFAULT_DEVICE_ROLE),
-                PLUGIN_SETTINGS.get("from_cloudvision_default_device_role_color", DEFAULT_DEVICE_ROLE_COLOR),
+                APP_SETTINGS.get("from_cloudvision_default_device_role", DEFAULT_DEVICE_ROLE),
+                APP_SETTINGS.get("from_cloudvision_default_device_role_color", DEFAULT_DEVICE_ROLE_COLOR),
             )
 
-        if PLUGIN_SETTINGS.get("create_controller") and "CloudVision" in ids["name"]:
+        if APP_SETTINGS.get("create_controller") and "CloudVision" in ids["name"]:
             platform = OrmPlatform.objects.get(slug=CLOUDVISION_PLATFORM)
         else:
             platform = OrmPlatform.objects.get(slug=ARISTA_PLATFORM)
@@ -84,7 +84,7 @@ class NautobotDevice(Device):
             name=ids["name"],
             serial=attrs["serial"] if attrs.get("serial") else "",
         )
-        if PLUGIN_SETTINGS.get("apply_import_tag", APPLY_IMPORT_TAG):
+        if APP_SETTINGS.get("apply_import_tag", APPLY_IMPORT_TAG):
             import_tag = nautobot.verify_import_tag()
             new_device.tags.add(import_tag)
         try:
@@ -121,9 +121,7 @@ class NautobotDevice(Device):
 
     def delete(self):
         """Delete device object in Nautobot."""
-        if settings.PLUGINS_CONFIG["nautobot_ssot_aristacv"].get(
-            "delete_devices_on_sync", DEFAULT_DELETE_DEVICES_ON_SYNC
-        ):
+        if APP_SETTINGS.get("delete_devices_on_sync", DEFAULT_DELETE_DEVICES_ON_SYNC):
             self.diffsync.job.log_warning(message=f"Device {self.name} will be deleted per plugin settings.")
             device = OrmDevice.objects.get(id=self.uuid)
             device.delete()
@@ -224,7 +222,7 @@ class NautobotPort(Port):
 
     def delete(self):
         """Delete Interface in Nautobot."""
-        if settings.PLUGINS_CONFIG["nautobot_ssot_aristacv"].get("delete_devices_on_sync"):
+        if APP_SETTINGS.get("delete_devices_on_sync"):
             super().delete()
             if self.diffsync.job.kwargs.get("debug"):
                 self.diffsync.job.log_warning(message=f"Interface {self.name} for {self.device} will be deleted.")

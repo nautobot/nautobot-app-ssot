@@ -1,18 +1,19 @@
 """DiffSync adapter for Arista CloudVision."""
-from django.conf import settings
 import distutils
 import re
 
 import arista.tag.v2 as TAG
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
-from nautobot_ssot_aristacv.diffsync.models.cloudvision import (
+
+from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
+from nautobot_ssot.integrations.aristacv.diffsync.models.cloudvision import (
     CloudvisionCustomField,
     CloudvisionDevice,
     CloudvisionPort,
     CloudvisionIPAddress,
 )
-from nautobot_ssot_aristacv.utils import cloudvision
+from nautobot_ssot.integrations.aristacv.utils import cloudvision
 
 
 class CloudvisionAdapter(DiffSync):
@@ -33,8 +34,7 @@ class CloudvisionAdapter(DiffSync):
 
     def load_devices(self):
         """Load devices from CloudVision."""
-        PLUGIN_SETTINGS = settings.PLUGINS_CONFIG["nautobot_ssot_aristacv"]
-        if PLUGIN_SETTINGS.get("create_controller"):
+        if APP_SETTINGS.get("create_controller"):
             cvp_version = cloudvision.get_cvp_version()
             cvp_ver_cf = self.cf(name="arista_eos", value=cvp_version, device_name="CloudVision")
             try:
@@ -214,9 +214,8 @@ class CloudvisionAdapter(DiffSync):
 
     def load(self):
         """Load devices and associated data from CloudVision."""
-        PLUGIN_SETTINGS = settings.PLUGINS_CONFIG["nautobot_ssot_aristacv"]
-        if PLUGIN_SETTINGS.get("hostname_patterns") and not (
-            PLUGIN_SETTINGS.get("site_mappings") and PLUGIN_SETTINGS.get("role_mappings")
+        if APP_SETTINGS.get("hostname_patterns") and not (
+            APP_SETTINGS.get("site_mappings") and APP_SETTINGS.get("role_mappings")
         ):
             self.job.log_warning(
                 message="Configuration found for hostname_patterns but no site_mappings or role_mappings. Please ensure your mappings are defined."

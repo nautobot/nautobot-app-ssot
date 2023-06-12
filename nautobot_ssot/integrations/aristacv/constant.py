@@ -1,5 +1,15 @@
 """Storage of data that will not change throughout the life cycle of the application."""
 
+from django.conf import settings
+
+
+def _read_settings() -> dict:
+    config = settings.PLUGINS_CONFIG["nautobot_ssot"]
+    return {key[9:]: value for key, value in config.items() if key.startswith("aristacv_")}
+
+
+APP_SETTINGS = _read_settings()
+
 PORT_TYPE_MAP = {
     "xcvr1000BaseT": "1000base-t",
     "xcvr10GBaseSr": "10gbase-x-xfp",

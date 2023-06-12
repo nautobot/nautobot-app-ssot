@@ -1,6 +1,5 @@
 # pylint: disable=invalid-name,too-few-public-methods
 """Jobs for CloudVision integration with SSoT plugin."""
-from django.conf import settings
 from django.templatetags.static import static
 from django.urls import reverse
 
@@ -9,10 +8,11 @@ from nautobot.extras.jobs import Job, BooleanVar
 from nautobot.utilities.utils import get_route_for_model
 from nautobot_ssot.jobs.base import DataTarget, DataSource, DataMapping
 
-from nautobot_ssot_aristacv.diffsync.adapters.cloudvision import CloudvisionAdapter
-from nautobot_ssot_aristacv.diffsync.adapters.nautobot import NautobotAdapter
-from nautobot_ssot_aristacv.diffsync.models import nautobot
-from nautobot_ssot_aristacv.utils.cloudvision import CloudvisionApi
+from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
+from nautobot_ssot.integrations.aristacv.diffsync.adapters.cloudvision import CloudvisionAdapter
+from nautobot_ssot.integrations.aristacv.diffsync.adapters.nautobot import NautobotAdapter
+from nautobot_ssot.integrations.aristacv.diffsync.models import nautobot
+from nautobot_ssot.integrations.aristacv.utils.cloudvision import CloudvisionApi
 
 
 name = "SSoT - Arista CloudVision"  # pylint: disable=invalid-name
@@ -34,30 +34,29 @@ class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
     @classmethod
     def config_information(cls):
         """Dictionary describing the configuration of this DataSource."""
-        PLUGIN_SETTINGS = settings.PLUGINS_CONFIG["nautobot_ssot_aristacv"]
-        if PLUGIN_SETTINGS.get("cvp_host"):
+        if APP_SETTINGS.get("cvp_host"):
             server_type = "On prem"
-            host = PLUGIN_SETTINGS.get("cvp_host")
+            host = APP_SETTINGS.get("cvp_host")
         else:
             server_type = "CVaaS"
-            host = PLUGIN_SETTINGS.get("cvaas_url")
+            host = APP_SETTINGS.get("cvaas_url")
         return {
             "Server type": server_type,
             "CloudVision host": host,
-            "Username": PLUGIN_SETTINGS.get("cvp_user"),
-            "Verify": str(PLUGIN_SETTINGS.get("verify")),
-            "Delete devices on sync": PLUGIN_SETTINGS.get(
+            "Username": APP_SETTINGS.get("cvp_user"),
+            "Verify": str(APP_SETTINGS.get("verify")),
+            "Delete devices on sync": APP_SETTINGS.get(
                 "delete_devices_on_sync", str(nautobot.DEFAULT_DELETE_DEVICES_ON_SYNC)
             ),
-            "New device default site": PLUGIN_SETTINGS.get("from_cloudvision_default_site", nautobot.DEFAULT_SITE),
-            "New device default role": PLUGIN_SETTINGS.get(
+            "New device default site": APP_SETTINGS.get("from_cloudvision_default_site", nautobot.DEFAULT_SITE),
+            "New device default role": APP_SETTINGS.get(
                 "from_cloudvision_default_device_role", nautobot.DEFAULT_DEVICE_ROLE
             ),
-            "New device default role color": PLUGIN_SETTINGS.get(
+            "New device default role color": APP_SETTINGS.get(
                 "from_cloudvision_default_device_role_color", nautobot.DEFAULT_DEVICE_ROLE_COLOR
             ),
-            "Apply import tag": str(PLUGIN_SETTINGS.get("apply_import_tag", nautobot.APPLY_IMPORT_TAG)),
-            "Import Active": str(PLUGIN_SETTINGS.get("import_active", "True"))
+            "Apply import tag": str(APP_SETTINGS.get("apply_import_tag", nautobot.APPLY_IMPORT_TAG)),
+            "Import Active": str(APP_SETTINGS.get("import_active", "True"))
             # Password and Token are intentionally omitted!
         }
 
@@ -85,9 +84,8 @@ class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
 
     def load_source_adapter(self):
         """Load data from CloudVision into DiffSync models."""
-        PLUGIN_SETTINGS = settings.PLUGINS_CONFIG["nautobot_ssot_aristacv"]
         if self.kwargs.get("debug"):
-            if PLUGIN_SETTINGS.get("delete_devices_on_sync"):
+            if APP_SETTINGS.get("delete_devices_on_sync"):
                 self.log_warning(
                     message="Devices not present in Cloudvision but present in Nautobot will be deleted from Nautobot."
                 )
@@ -97,12 +95,12 @@ class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
                 )
             self.log("Connecting to CloudVision")
         with CloudvisionApi(
-            cvp_host=PLUGIN_SETTINGS["cvp_host"],
-            cvp_port=PLUGIN_SETTINGS.get("cvp_port", "8443"),
-            verify=PLUGIN_SETTINGS["verify"],
-            username=PLUGIN_SETTINGS["cvp_user"],
-            password=PLUGIN_SETTINGS["cvp_password"],
-            cvp_token=PLUGIN_SETTINGS["cvp_token"],
+            cvp_host=APP_SETTINGS["cvp_host"],
+            cvp_port=APP_SETTINGS.get("cvp_port", "8443"),
+            verify=APP_SETTINGS["verify"],
+            username=APP_SETTINGS["cvp_user"],
+            password=APP_SETTINGS["cvp_password"],
+            cvp_token=APP_SETTINGS["cvp_token"],
         ) as client:
             self.log("Loading data from CloudVision")
             self.source_adapter = CloudvisionAdapter(job=self, conn=client)
@@ -131,18 +129,17 @@ class CloudVisionDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
     @classmethod
     def config_information(cls):
         """Dictionary describing the configuration of this DataTarget."""
-        PLUGIN_SETTINGS = settings.PLUGINS_CONFIG["nautobot_ssot_aristacv"]
-        if PLUGIN_SETTINGS.get("cvp_host"):
+        if APP_SETTINGS.get("cvp_host"):
             return {
                 "Server type": "On prem",
-                "CloudVision host": PLUGIN_SETTINGS.get("cvp_host"),
-                "Username": PLUGIN_SETTINGS.get("cvp_user"),
-                "Verify": str(PLUGIN_SETTINGS.get("verify"))
+                "CloudVision host": APP_SETTINGS.get("cvp_host"),
+                "Username": APP_SETTINGS.get("cvp_user"),
+                "Verify": str(APP_SETTINGS.get("verify"))
                 # Password is intentionally omitted!
             }
         return {
             "Server type": "CVaaS",
-            "CloudVision host": PLUGIN_SETTINGS.get("cvaas_url"),
+            "CloudVision host": APP_SETTINGS.get("cvaas_url"),
             # Token is intentionally omitted!
         }
 
@@ -159,9 +156,8 @@ class CloudVisionDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
 
     def load_target_adapter(self):
         """Load data from CloudVision into DiffSync models."""
-        PLUGIN_SETTINGS = settings.PLUGINS_CONFIG["nautobot_ssot_aristacv"]
         if self.kwargs.get("debug"):
-            if PLUGIN_SETTINGS.get("delete_devices_on_sync"):
+            if APP_SETTINGS.get("delete_devices_on_sync"):
                 self.log_warning(
                     message="Devices not present in Cloudvision but present in Nautobot will be deleted from Nautobot."
                 )
@@ -171,12 +167,12 @@ class CloudVisionDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
                 )
             self.log("Connecting to CloudVision")
         with CloudvisionApi(
-            cvp_host=PLUGIN_SETTINGS["cvp_host"],
-            cvp_port=PLUGIN_SETTINGS.get("cvp_port", "8443"),
-            verify=PLUGIN_SETTINGS["verify"],
-            username=PLUGIN_SETTINGS["cvp_user"],
-            password=PLUGIN_SETTINGS["cvp_password"],
-            cvp_token=PLUGIN_SETTINGS["cvp_token"],
+            cvp_host=APP_SETTINGS["cvp_host"],
+            cvp_port=APP_SETTINGS.get("cvp_port", "8443"),
+            verify=APP_SETTINGS["verify"],
+            username=APP_SETTINGS["cvp_user"],
+            password=APP_SETTINGS["cvp_password"],
+            cvp_token=APP_SETTINGS["cvp_token"],
         ) as client:
             self.log("Loading data from CloudVision")
             self.target_adapter = CloudvisionAdapter(job=self, conn=client)

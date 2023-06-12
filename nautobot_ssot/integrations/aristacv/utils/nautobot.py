@@ -1,10 +1,11 @@
 """Utility functions for Nautobot ORM."""
 import re
-from django.conf import settings
 from django.utils.text import slugify
 
 from nautobot.dcim.models import DeviceRole, DeviceType, Manufacturer, Site
 from nautobot.extras.models import Status, Tag, Relationship
+
+from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
 
 try:
     from nautobot_device_lifecycle_mgmt.models import SoftwareLCM  # noqa: F401 # pylint: disable=unused-import
@@ -101,7 +102,7 @@ def parse_hostname(hostname: str):
     Args:
         hostname (str): Device hostname to be parsed for site and role.
     """
-    hostname_patterns = settings.PLUGINS_CONFIG["nautobot_ssot_aristacv"].get("hostname_patterns")
+    hostname_patterns = APP_SETTINGS.get("hostname_patterns")
 
     site, role = None, None
     for pattern in hostname_patterns:
@@ -123,7 +124,7 @@ def get_site_from_map(site_code: str):
     Returns:
         str|None: Name of Site if site code found else None.
     """
-    site_map = settings.PLUGINS_CONFIG["nautobot_ssot_aristacv"].get("site_mappings")
+    site_map = APP_SETTINGS.get("site_mappings")
     site_name = None
     if site_code in site_map:
         site_name = site_map[site_code]
@@ -139,7 +140,7 @@ def get_role_from_map(role_code: str):
     Returns:
         str|None: Name of Device Role if role code found else None.
     """
-    role_map = settings.PLUGINS_CONFIG["nautobot_ssot_aristacv"].get("role_mappings")
+    role_map = APP_SETTINGS.get("role_mappings")
     role_name = None
     if role_code in role_map:
         role_name = role_map[role_code]

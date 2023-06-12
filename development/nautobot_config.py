@@ -132,12 +132,44 @@ CACHEOPS_REDIS = parse_redis_connection(redis_database=1)
 #
 
 # Enable installed plugins. Add the name of each plugin to the list.
-PLUGINS = ["nautobot_ssot"]
+PLUGINS = [
+    "nautobot_ssot",
+    "nautobot_device_lifecycle_mgmt",
+]
 
 # Plugins configuration settings. These settings are used by various plugins that the user may have installed.
 # Each key in the dictionary is the name of an installed plugin and its value is a dictionary of settings.
 PLUGINS_CONFIG = {
     "nautobot_ssot": {
+        "aristacv_apply_import_tag": is_truthy(os.getenv("NAUTOBOT_ARISTACV_IMPORT_TAG", False)),
+        "aristacv_controller_site": os.getenv("NAUTOBOT_ARISTACV_CONTROLLER_SITE", ""),
+        "aristacv_create_controller": is_truthy(os.getenv("NAUTOBOT_ARISTACV_CREATE_CONTROLLER", False)),
+        "aristacv_cvaas_url": os.getenv("NAUTOBOT_ARISTACV_CVAAS_URL", "www.arista.io:443"),
+        "aristacv_cvp_host": os.getenv("NAUTOBOT_ARISTACV_CVP_HOST", ""),
+        "aristacv_cvp_password": os.getenv("NAUTOBOT_ARISTACV_CVP_PASSWORD", ""),
+        "aristacv_cvp_port": os.getenv("NAUTOBOT_ARISTACV_CVP_PORT", "443"),
+        "aristacv_cvp_token": os.getenv("NAUTOBOT_ARISTACV_CVP_TOKEN", ""),
+        "aristacv_cvp_user": os.getenv("NAUTOBOT_ARISTACV_CVP_USERNAME", ""),
+        "aristacv_delete_devices_on_sync": is_truthy(os.getenv("NAUTOBOT_ARISTACV_DELETE_ON_SYNC", False)),
+        "aristacv_from_cloudvision_default_device_role": "network",
+        "aristacv_from_cloudvision_default_device_role_color": "ff0000",
+        "aristacv_from_cloudvision_default_site": "cloudvision_imported",
+        "aristacv_hostname_patterns": [[r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"]],
+        "aristacv_import_active": is_truthy(os.getenv("NAUTOBOT_ARISTACV_IMPORT_ACTIVE", False)),
+        "aristacv_role_mappings": {
+            "bb": "backbone",
+            "edge": "edge",
+            "dist": "distribution",
+            "leaf": "leaf",
+            "rtr": "router",
+            "spine": "spine",
+        },
+        "aristacv_site_mappings": {
+            "ams01": "Amsterdam",
+            "atl01": "Atlanta",
+        },
+        "aristacv_verify": is_truthy(os.getenv("NAUTOBOT_ARISTACV_VERIFY", True)),
+        "enable_aristacv": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ARISTACV")),
         "enable_infoblox": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_INFOBLOX")),
         "hide_example_jobs": is_truthy(os.getenv("NAUTOBOT_SSOT_HIDE_EXAMPLE_JOBS")),
         "infoblox_default_status": os.getenv("NAUTOBOT_SSOT_INFOBLOX_DEFAULT_STATUS", "active"),
