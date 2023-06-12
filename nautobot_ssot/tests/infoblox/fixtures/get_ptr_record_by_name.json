@@ -1,0 +1,9 @@
+{
+    "result": [
+        {
+            "_ref": "record:ptr/ZG5zLmJpbmRfcHRyJC5fZGVmYXVsdC50ZXN0LjEwMS4wLjIyMC4xMC50ZXN0ZGV2aWNlMS50ZXN0:10.220.0.101.test/default",
+            "ptrdname": "testdevice1.test",
+            "view": "default"
+        }
+    ]
+}

@@ -1,0 +1,10 @@
+{
+	"result": [
+		{
+			"_ref": "record:ptr/ZG5zLmJpbmRfcHRyJC5fZGVmYXVsdC5hcnBhLmluLWFkZHIuMTAuMjIzLjkuOTYucjQudGVzdA:96.9.223.10.in-addr.arpa/default",
+			"ipv4addr": "10.223.9.96",
+			"name": "96.9.223.10.in-addr.arpa",
+			"ptrdname": "r4.test"
+		}
+	]
+}

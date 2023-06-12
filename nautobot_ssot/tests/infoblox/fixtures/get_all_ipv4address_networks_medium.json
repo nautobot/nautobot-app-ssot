@@ -1,0 +1,193 @@
+[
+	[
+		{
+			"_ref": "ipv4address/Li5pcHY0X2FkZHJlc3MkMTAuMjIwLjAuMTAwLzA:172.16.0.0",
+			"ip_address": "172.16.0.0",
+			"is_conflict": false,
+			"lease_state": "FREE",
+			"mac_address": "55:55:55:55:55:55",
+			"names": [],
+			"network": "172.16.0.0/29",
+			"network_view": "default",
+			"objects": [
+				"fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMjIwLjAuMTAwLjAuLg:172.16.0.0/default"
+			],
+			"status": "USED",
+			"types": [
+				"FA",
+				"RESERVED_RANGE"
+			],
+			"usage": [
+				"DHCP"
+			]
+		},
+		{
+			"_ref": "ipv4address/Li5pcHY0X2FkZHJlc3MkMTAuMjIwLjAuMTAxLzA:172.16.0.1",
+			"ip_address": "172.16.0.1",
+			"is_conflict": false,
+			"lease_state": "FREE",
+			"mac_address": "11:11:11:11:11:11",
+			"names": [
+				"testdevice1.test"
+			],
+			"network": "172.16.0.0/29",
+			"network_view": "default",
+			"objects": [
+				"record:host/ZG5zLmhvc3QkLl9kZWZhdWx0LnRlc3QudGVzdGRldmljZTE:testdevice1.test/default"
+			],
+			"status": "USED",
+			"types": [
+				"HOST",
+				"RESERVED_RANGE"
+			],
+			"usage": [
+				"DNS",
+				"DHCP"
+			]
+		},
+		{
+			"_ref": "ipv4address/Li5pcHY0X2FkZHJlc3MkMTAuMjIwLjAuMTAxLzA:172.16.0.2",
+			"ip_address": "172.16.0.2",
+			"is_conflict": false,
+			"lease_state": "FREE",
+			"mac_address": "22:22:22:22:22:22",
+			"names": [
+				"testdevice2.test"
+			],
+			"network": "172.16.0.0/29",
+			"network_view": "default",
+			"objects": [
+				"record:host/ZG5zLmhvc3QkLl9kZWZhdWx0LnRlc3QudGVzdGRldmljZTE:testdevice2.test/default"
+			],
+			"status": "USED",
+			"types": [
+				"HOST",
+				"RESERVED_RANGE"
+			],
+			"usage": [
+				"DNS",
+				"DHCP"
+			]
+		},
+		{
+			"_ref": "ipv4address/Li5pcHY0X2FkZHJlc3MkMTAuMjIwLjAuMTAxLzA:172.16.0.3",
+			"ip_address": "172.16.0.3",
+			"is_conflict": false,
+			"lease_state": "FREE",
+			"mac_address": "33:33:33:33:33:33",
+			"names": [
+				"testdevice3.test"
+			],
+			"network": "172.16.0.0/29",
+			"network_view": "default",
+			"objects": [
+				"record:host/ZG5zLmhvc3QkLl9kZWZhdWx0LnRlc3QudGVzdGRldmljZTE:testdevice3.test/default"
+			],
+			"status": "USED",
+			"types": [
+				"HOST",
+				"RESERVED_RANGE"
+			],
+			"usage": [
+				"DNS",
+				"DHCP"
+			]
+		},
+		{
+			"_ref": "ipv4address/Li5pcHY0X2FkZHJlc3MkMTAuMjIwLjAuMTAxLzA:172.16.0.4",
+			"ip_address": "172.16.0.4",
+			"is_conflict": false,
+			"lease_state": "FREE",
+			"mac_address": "44:44:44:44:44:44",
+			"names": [
+				"testdevice4.test"
+			],
+			"network": "172.16.0.0/29",
+			"network_view": "default",
+			"objects": [
+				"record:host/ZG5zLmhvc3QkLl9kZWZhdWx0LnRlc3QudGVzdGRldmljZTE:testdevice4.test/default"
+			],
+			"status": "USED",
+			"types": [
+				"HOST",
+				"RESERVED_RANGE"
+			],
+			"usage": [
+				"DNS",
+				"DHCP"
+			]
+		},
+		{
+			"_ref": "ipv4address/Li5pcHY0X2FkZHJlc3MkMTAuMjIwLjAuMTAxLzA:172.16.0.5",
+			"ip_address": "172.16.0.5",
+			"is_conflict": false,
+			"lease_state": "FREE",
+			"mac_address": "55:55:55:55:55:55",
+			"names": [
+				"testdevice5.test"
+			],
+			"network": "172.16.0.0/29",
+			"network_view": "default",
+			"objects": [
+				"record:host/ZG5zLmhvc3QkLl9kZWZhdWx0LnRlc3QudGVzdGRldmljZTE:testdevice5.test/default"
+			],
+			"status": "USED",
+			"types": [
+				"HOST",
+				"RESERVED_RANGE"
+			],
+			"usage": [
+				"DNS",
+				"DHCP"
+			]
+		},
+		{
+			"_ref": "ipv4address/Li5pcHY0X2FkZHJlc3MkMTAuMjIwLjAuMTAxLzA:172.16.0.6",
+			"ip_address": "172.16.0.6",
+			"is_conflict": false,
+			"lease_state": "FREE",
+			"mac_address": "66:66:66:66:66:66",
+			"names": [
+				"testdevice6.test"
+			],
+			"network": "172.16.0.0/29",
+			"network_view": "default",
+			"objects": [
+				"record:host/ZG5zLmhvc3QkLl9kZWZhdWx0LnRlc3QudGVzdGRldmljZTE:testdevice6.test/default"
+			],
+			"status": "USED",
+			"types": [
+				"HOST",
+				"RESERVED_RANGE"
+			],
+			"usage": [
+				"DNS",
+				"DHCP"
+			]
+		},
+		{
+			"_ref": "ipv4address/Li5pcHY0X2FkZHJlc3MkMTAuMjIwLjAuMTAxLzA:172.16.0.7",
+			"ip_address": "172.16.0.7",
+			"is_conflict": false,
+			"lease_state": "FREE",
+			"mac_address": "77:77:77:77:77:77",
+			"names": [
+				"testdevice7.test"
+			],
+			"network": "172.16.0.0/29",
+			"network_view": "default",
+			"objects": [
+				"record:host/ZG5zLmhvc3QkLl9kZWZhdWx0LnRlc3QudGVzdGRldmljZTE:testdevice7.test/default"
+			],
+			"status": "USED",
+			"types": [
+				"HOST",
+				"RESERVED_RANGE"
+			],
+			"usage": [
+				"DNS",
+				"DHCP"
+			]
+		}
+	]
+]

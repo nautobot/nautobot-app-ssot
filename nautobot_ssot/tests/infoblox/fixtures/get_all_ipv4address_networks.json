@@ -1,0 +1,49 @@
+[
+	[
+		{
+			"_ref": "ipv4address/Li5pcHY0X2FkZHJlc3MkMTAuMjIwLjAuMTAwLzA:10.220.0.100",
+			"ip_address": "10.220.0.100",
+			"is_conflict": false,
+			"lease_state": "FREE",
+			"mac_address": "55:55:55:55:55:55",
+			"names": [],
+			"network": "10.220.0.0/31",
+			"network_view": "default",
+			"objects": [
+				"fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMjIwLjAuMTAwLjAuLg:10.220.0.100/default"
+			],
+			"status": "USED",
+			"types": [
+				"FA",
+				"RESERVED_RANGE"
+			],
+			"usage": [
+				"DHCP"
+			]
+		},
+		{
+			"_ref": "ipv4address/Li5pcHY0X2FkZHJlc3MkMTAuMjIwLjAuMTAxLzA:10.220.0.101",
+			"ip_address": "10.220.0.101",
+			"is_conflict": false,
+			"lease_state": "FREE",
+			"mac_address": "11:11:11:11:11:11",
+			"names": [
+				"testdevice1.test"
+			],
+			"network": "10.220.0.0/31",
+			"network_view": "default",
+			"objects": [
+				"record:host/ZG5zLmhvc3QkLl9kZWZhdWx0LnRlc3QudGVzdGRldmljZTE:testdevice1.test/default"
+			],
+			"status": "USED",
+			"types": [
+				"HOST",
+				"RESERVED_RANGE"
+			],
+			"usage": [
+				"DNS",
+				"DHCP"
+			]
+		}
+	]
+]
