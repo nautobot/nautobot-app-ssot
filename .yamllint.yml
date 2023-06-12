@@ -11,3 +11,4 @@ rules:
 ignore: |
   .venv/
   nautobot_ssot/integrations/aci/diffsync/device-types/
+  compose.yaml
