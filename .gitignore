@@ -236,6 +236,8 @@ invoke.yml
 docs/README.md
 docs/CHANGELOG.md
 public
+/compose.yaml
+/dump.sql
 
 nautobot_backup.dump
 packages/
