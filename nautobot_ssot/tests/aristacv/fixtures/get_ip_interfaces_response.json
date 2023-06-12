@@ -1,0 +1,10 @@
+[
+    {
+        "interface": "Loopback1",
+        "address": "203.0.113.1/24"
+    },
+    {
+        "interface": "Loopback2",
+        "address": "203.0.113.2/24"
+    }
+]

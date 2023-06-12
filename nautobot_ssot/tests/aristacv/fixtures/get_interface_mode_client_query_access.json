@@ -1,0 +1,193 @@
+[
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "timestamp": {
+                    "seconds": 1666161644,
+                    "nanos": 861836218
+                },
+                "deletes": [],
+                "updates": {
+                    "name": "",
+                    "intfId": "Ethernet5",
+                    "source": "cli",
+                    "enabled": true,
+                    "version": 1,
+                    "tapGroup": [
+                        "Sysdb",
+                        "bridging",
+                        "switchIntfConfig",
+                        "switchIntfConfig",
+                        "Ethernet5",
+                        "tapGroup"
+                    ],
+                    "vlanTpid": {
+                        "value": 33024
+                    },
+                    "phoneVlan": {
+                        "value": 0
+                    },
+                    "toolGroup": [
+                        "Sysdb",
+                        "bridging",
+                        "switchIntfConfig",
+                        "switchIntfConfig",
+                        "Ethernet5",
+                        "toolGroup"
+                    ],
+                    "accessVlan": {
+                        "value": 1
+                    },
+                    "phoneTrunk": false,
+                    "tapMplsPop": false,
+                    "tapRawIntf": [
+                        "Sysdb",
+                        "bridging",
+                        "switchIntfConfig",
+                        "switchIntfConfig",
+                        "Ethernet5",
+                        "tapRawIntf"
+                    ],
+                    "trunkGroup": [
+                        "Sysdb",
+                        "bridging",
+                        "switchIntfConfig",
+                        "switchIntfConfig",
+                        "Ethernet5",
+                        "trunkGroup"
+                    ],
+                    "tapGreStrip": false,
+                    "toolBrStrip": false,
+                    "toolMplsPop": false,
+                    "toolVnStrip": false,
+                    "l2SubIntfVlan": {
+                        "vlanId": {
+                            "value": 0
+                        },
+                        "nameOrId": {
+                            "Name": "none",
+                            "Value": 0
+                        },
+                        "vlanName": ""
+                    },
+                    "tapNativeVlan": {
+                        "value": 1
+                    },
+                    "tapVxlanStrip": false,
+                    "switchportMode": {
+                        "Name": "access",
+                        "Value": 1
+                    },
+                    "egressVlanXlate": [
+                        "Sysdb",
+                        "bridging",
+                        "switchIntfConfig",
+                        "switchIntfConfig",
+                        "Ethernet5",
+                        "egressVlanXlate"
+                    ],
+                    "floodingEnabled": true,
+                    "tapAllowedVlans": "100",
+                    "trunkNativeVlan": {
+                        "value": 1
+                    },
+                    "ingressVlanXlate": [
+                        "Sysdb",
+                        "bridging",
+                        "switchIntfConfig",
+                        "switchIntfConfig",
+                        "Ethernet5",
+                        "ingressVlanXlate"
+                    ],
+                    "l3SourceportDrop": false,
+                    "toolAllowedVlans": "100",
+                    "phoneTrunkTagMode": {
+                        "Name": "notSet",
+                        "Value": 0
+                    },
+                    "tapTruncationSize": 0,
+                    "trunkAllowedVlans": "",
+                    "vlanTagFormatDrop": [
+                        "Sysdb",
+                        "bridging",
+                        "switchIntfConfig",
+                        "switchIntfConfig",
+                        "Ethernet5",
+                        "vlanTagFormatDrop"
+                    ],
+                    "macLearningEnabled": true,
+                    "privateVlanMapping": [
+                        "Sysdb",
+                        "bridging",
+                        "switchIntfConfig",
+                        "switchIntfConfig",
+                        "Ethernet5",
+                        "privateVlanMapping"
+                    ],
+                    "toolTruncationSize": 0,
+                    "vlanForwardingMode": {
+                        "Name": "vlanForwardingModeAllowedVlansOnPort",
+                        "Value": 0
+                    },
+                    "blockUnknownUnicast": false,
+                    "tapAllowedGreTunnel": [
+                        "Sysdb",
+                        "bridging",
+                        "switchIntfConfig",
+                        "switchIntfConfig",
+                        "Ethernet5",
+                        "tapAllowedGreTunnel"
+                    ],
+                    "toolIdentityTagging": {
+                        "Name": "none",
+                        "Value": 0
+                    },
+                    "vlanMappingRequired": [
+                        "Sysdb",
+                        "bridging",
+                        "switchIntfConfig",
+                        "switchIntfConfig",
+                        "Ethernet5",
+                        "vlanMappingRequired"
+                    ],
+                    "sourceportFilterMode": {
+                        "Name": "sourceportFilterEnabled",
+                        "Value": 1
+                    },
+                    "toolDot1qRemoveVlans": "",
+                    "blockUnknownMulticast": false,
+                    "egressNativeVlanXlate": {
+                        "value": 0
+                    },
+                    "tapIdentificationVlan": {
+                        "innerVid": {
+                            "value": 0
+                        },
+                        "outerVid": {
+                            "value": 0
+                        }
+                    },
+                    "ingressNativeVlanXlate": {
+                        "value": 0
+                    },
+                    "accessVlanEgressEnabled": false,
+                    "nativeVlanEgressEnabled": false,
+                    "trunkPrivateVlanMapping": false,
+                    "defaultPrivateVlanMapping": true
+                },
+                "retracts": [],
+                "path_elements": [
+                    "Sysdb",
+                    "bridging",
+                    "switchIntfConfig",
+                    "switchIntfConfig",
+                    "Ethernet5"
+                ]
+            }
+        ]
+    }
+]
