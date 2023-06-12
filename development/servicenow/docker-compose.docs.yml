@@ -1,0 +1,11 @@
+---
+version: "3.4"
+services:
+  docs:
+    image: "nautobot-ssot-servicenow/nautobot:${NAUTOBOT_VER}-py${PYTHON_VER}"
+    entrypoint: "mkdocs serve -v -a 0.0.0.0:8080"
+    volumes:
+      - "../docs:/source/docs:ro"
+      - "../mkdocs.yml:/source/mkdocs.yml:ro"
+    ports:
+      - "8001:8080"
