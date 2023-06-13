@@ -117,17 +117,17 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
             source (DiffSync): Source DiffSync adapter data.
         """
         if len(self.objects_to_create["vlangroups"]) > 0:
-            self.job.job_result.log("Performing bulk create of VLAN Groups in Nautobot", level=LogLevelChoices.LOG_INFO)
+            self.job.job_result.log("Performing bulk create of VLAN Groups in Nautobot", level_choice=LogLevelChoices.LOG_INFO)
             VLANGroup.objects.bulk_create(self.objects_to_create["vlangroups"], batch_size=250)
         if len(self.objects_to_create["vlans"]) > 0:
-            self.job.job_result.log("Performing bulk create of VLANs in Nautobot.", level=LogLevelChoices.LOG_INFO)
+            self.job.job_result.log("Performing bulk create of VLANs in Nautobot.", level_choice=LogLevelChoices.LOG_INFO)
             VLAN.objects.bulk_create(self.objects_to_create["vlans"], batch_size=500)
         if len(self.objects_to_create["prefixes"]) > 0:
-            self.job.job_result.log("Performing bulk create of Prefixes in Nautobot", level=LogLevelChoices.LOG_INFO)
+            self.job.job_result.log("Performing bulk create of Prefixes in Nautobot", level_choice=LogLevelChoices.LOG_INFO)
             Prefix.objects.bulk_create(self.objects_to_create["prefixes"], batch_size=500)
         if len(self.objects_to_create["ipaddrs"]) > 0:
             self.job.job_result.log(
-                "Performing bulk create of IP Addresses in Nautobot", level=LogLevelChoices.LOG_INFO
+                "Performing bulk create of IP Addresses in Nautobot", level_choice=LogLevelChoices.LOG_INFO
             )
             IPAddress.objects.bulk_create(self.objects_to_create["ipaddrs"], batch_size=1000)
 
@@ -151,7 +151,7 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
             try:
                 self.add(_prefix)
             except ObjectAlreadyExists:
-                self.job.job_result.log(f"Found duplicate prefix: {prefix.prefix}.", level=LogLevelChoices.LOG_WARNING)
+                self.job.job_result.log(f"Found duplicate prefix: {prefix.prefix}.", level_choice=LogLevelChoices.LOG_WARNING)
 
     def load_ipaddresses(self):
         """Load IP Addresses from Nautobot."""
@@ -166,7 +166,7 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
             if not prefix:
                 self.job.job_result.log(
                     f"IP Address {addr} does not have a parent prefix and will not be synced.",
-                    level=LogLevelChoices.LOG_WARNING,
+                    level_choice=LogLevelChoices.LOG_WARNING,
                 )
                 continue
             # IP address must be part of a prefix that is not a container
@@ -174,7 +174,7 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
             if prefix.status.slug == "container":
                 self.job.job_result.log(
                     f"IP Address {addr}'s parent prefix is a container. The parent prefix status must not be 'container'.",
-                    level=LogLevelChoices.LOG_WARNING,
+                    level_choice=LogLevelChoices.LOG_WARNING,
                 )
                 continue
 
@@ -193,7 +193,7 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
             try:
                 self.add(_ip)
             except ObjectAlreadyExists:
-                self.job.job_result.log(f"Duplicate IP Address detected: {addr}.", level=LogLevelChoices.LOG_WARNING)
+                self.job.job_result.log(f"Duplicate IP Address detected: {addr}.", level_choice=LogLevelChoices.LOG_WARNING)
 
     def load_vlangroups(self):
         """Load VLAN Groups from Nautobot."""
