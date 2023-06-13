@@ -20,7 +20,9 @@ def _add_integrations():
     for module in each_enabled_integration_module("jobs"):
         for job in module.jobs:
             if job in jobs:
-                raise Exception(f"Job {job} already exists in jobs list for integration {module.__file__}.")
+                raise Exception(  # pylint: disable=broad-exception-raised
+                    f"Job {job} already exists in jobs list for integration {module.__file__}."
+                )
             logger.debug("Registering job %s from %s", job, module.__file__)
             jobs.append(job)
 
