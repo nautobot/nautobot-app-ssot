@@ -39,4 +39,4 @@ class SSOTServiceNowConfig(BaseModel):
 
     def get_absolute_url(self):  # pylint: disable=no-self-use
         """Get URL for the associated configuration view."""
-        return reverse("plugins:nautobot_ssot_servicenow:config")
+        return reverse("plugins:nautobot_ssot:servicenow_config")

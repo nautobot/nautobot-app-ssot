@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 """DiffSync adapter for ServiceNow."""
 from base64 import b64encode
 import json

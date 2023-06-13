@@ -5,7 +5,7 @@ import inspect
 import warnings
 
 import requests
-from nautobot_ssot_servicenow.third_party import pysnow
+from nautobot_ssot.integrations.servicenow.third_party import pysnow
 
 from requests.auth import HTTPBasicAuth
 from .legacy_request import LegacyRequest

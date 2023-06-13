@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 """DiffSync adapter class for Nautobot as source-of-truth."""
 
 import datetime
@@ -167,7 +168,7 @@ class NautobotDiffSync(DiffSync):
     def tag_involved_objects(self, target):
         """Tag all objects that were successfully synced to the target."""
         # The ssot-synced-to-servicenow tag *should* have been created automatically during plugin installation
-        # (see nautobot_ssot_servicenow/signals.py) but maybe a user deleted it inadvertently, so be safe:
+        # (see nautobot_ssot/integrations/servicenow/signals.py) but maybe a user deleted it inadvertently, so be safe:
         tag, _ = Tag.objects.get_or_create(
             slug="ssot-synced-to-servicenow",
             defaults={

@@ -7,8 +7,8 @@ from django.contrib.contenttypes.models import ContentType
 from nautobot.extras.models import Job, JobResult
 from nautobot.utilities.testing import TransactionTestCase
 
-from nautobot_ssot_servicenow.jobs import ServiceNowDataTarget
-from nautobot_ssot_servicenow.diffsync.adapter_servicenow import ServiceNowDiffSync
+from nautobot_ssot.integrations.servicenow.jobs import ServiceNowDataTarget
+from nautobot_ssot.integrations.servicenow.diffsync.adapter_servicenow import ServiceNowDiffSync
 
 
 class MockServiceNowClient:

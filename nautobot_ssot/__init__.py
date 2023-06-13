@@ -29,6 +29,7 @@ class NautobotSSOTPluginConfig(PluginConfig):
     max_version = "1.9999"
     default_settings = {
         "enable_infoblox": False,
+        "enable_servicenow": False,
         "hide_example_jobs": True,
         "infoblox_default_status": "",
         "infoblox_enable_rfc1918_network_containers": False,
@@ -43,6 +44,9 @@ class NautobotSSOTPluginConfig(PluginConfig):
         "infoblox_username": "",
         "infoblox_verify_ssl": True,
         "infoblox_wapi_version": "",
+        "servicenow_instance": "",
+        "servicenow_password": "",
+        "servicenow_username": "",
     }
     caching_config = {}
 

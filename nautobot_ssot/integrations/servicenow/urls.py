@@ -3,8 +3,6 @@ from django.urls import path
 
 from . import views
 
-app_name = "nautobot_ssot_servicenow"
-
 urlpatterns = [
-    path("config/", views.SSOTServiceNowConfigView.as_view(), name="config"),
+    path("servicenow/config/", views.SSOTServiceNowConfigView.as_view(), name="servicenow_config"),
 ]

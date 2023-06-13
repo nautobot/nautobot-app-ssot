@@ -9,8 +9,8 @@ from nautobot.dcim.models import Device, DeviceRole, DeviceType, Interface, Manu
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.models import Secret, SecretsGroup, SecretsGroupAssociation, Status
 
-from nautobot_ssot_servicenow.jobs import ServiceNowDataTarget
-from nautobot_ssot_servicenow.models import SSOTServiceNowConfig
+from nautobot_ssot.integrations.servicenow.jobs import ServiceNowDataTarget
+from nautobot_ssot.integrations.servicenow.models import SSOTServiceNowConfig
 
 
 class ServiceNowDataTargetJobTestCase(TestCase):

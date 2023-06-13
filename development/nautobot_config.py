@@ -139,6 +139,7 @@ PLUGINS = ["nautobot_ssot"]
 PLUGINS_CONFIG = {
     "nautobot_ssot": {
         "enable_infoblox": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_INFOBLOX")),
+        "enable_servicenow": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_SERVICENOW")),
         "hide_example_jobs": is_truthy(os.getenv("NAUTOBOT_SSOT_HIDE_EXAMPLE_JOBS")),
         "infoblox_default_status": os.getenv("NAUTOBOT_SSOT_INFOBLOX_DEFAULT_STATUS", "active"),
         "infoblox_enable_rfc1918_network_containers": is_truthy(
@@ -157,6 +158,9 @@ PLUGINS_CONFIG = {
         "infoblox_username": os.getenv("NAUTOBOT_SSOT_INFOBLOX_USERNAME"),
         "infoblox_verify_ssl": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_VERIFY_SSL", True)),
         "infoblox_wapi_version": os.getenv("NAUTOBOT_SSOT_INFOBLOX_WAPI_VERSION", "v2.12"),
+        "servicenow_instance": os.getenv("SERVICENOW_INSTANCE", ""),
+        "servicenow_password": os.getenv("SERVICENOW_PASSWORD", ""),
+        "servicenow_username": os.getenv("SERVICENOW_USERNAME", ""),
     },
 }
 

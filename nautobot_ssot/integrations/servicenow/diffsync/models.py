@@ -6,7 +6,7 @@ from diffsync import DiffSyncModel
 from diffsync.enum import DiffSyncStatus
 
 # import pysnow
-from nautobot_ssot_servicenow.third_party import pysnow
+from nautobot_ssot.integrations.servicenow.third_party import pysnow
 
 
 class ServiceNowCRUDMixin:
@@ -98,7 +98,7 @@ class Company(ServiceNowCRUDMixin, DiffSyncModel):
     name: str
     manufacturer: bool = False
 
-    product_models: List["ProductModel"] = list()
+    product_models: List["ProductModel"] = []
 
     sys_id: Optional[str] = None
     pk: Optional[uuid.UUID] = None
@@ -136,11 +136,11 @@ class Location(ServiceNowCRUDMixin, DiffSyncModel):
     name: str
 
     parent_location_name: Optional[str]
-    contained_locations: List["Location"] = list()
+    contained_locations: List["Location"] = []
     latitude: Union[float, str] = ""  # can't use Optional[float] because an empty string doesn't map to None
     longitude: Union[float, str] = ""
 
-    devices: List["Device"] = list()
+    devices: List["Device"] = []
 
     sys_id: Optional[str] = None
     region_pk: Optional[uuid.UUID] = None
@@ -180,7 +180,7 @@ class Device(ServiceNowCRUDMixin, DiffSyncModel):
     role: Optional[str]
     vendor: Optional[str]
 
-    interfaces: List["Interface"] = list()
+    interfaces: List["Interface"] = []
 
     sys_id: Optional[str] = None
     pk: Optional[uuid.UUID] = None
@@ -217,12 +217,12 @@ class Interface(ServiceNowCRUDMixin, DiffSyncModel):
 
     access_vlan: Optional[int]
     active: Optional[bool]
-    allowed_vlans: List[str] = list()
+    allowed_vlans: List[str] = []
     description: Optional[str]
     is_virtual: Optional[bool]
     is_lag: Optional[bool]
     is_lag_member: Optional[bool]
-    lag_members: List[str] = list()
+    lag_members: List[str] = []
     mode: Optional[str]  # TRUNK, ACCESS, L3, NONE
     mtu: Optional[int]
     parent: Optional[str]
@@ -230,7 +230,7 @@ class Interface(ServiceNowCRUDMixin, DiffSyncModel):
     switchport_mode: Optional[str]
     type: Optional[str]
 
-    ip_addresses: List["IPAddress"] = list()
+    ip_addresses: List["IPAddress"] = []
 
     sys_id: Optional[str] = None
     pk: Optional[uuid.UUID] = None

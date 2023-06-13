@@ -10,8 +10,8 @@ from nautobot.dcim.models import Device, DeviceRole, DeviceType, Interface, Manu
 from nautobot.extras.models import Job, JobResult, Status
 from nautobot.utilities.testing import TransactionTestCase
 
-from nautobot_ssot_servicenow.jobs import ServiceNowDataTarget
-from nautobot_ssot_servicenow.diffsync.adapter_nautobot import NautobotDiffSync
+from nautobot_ssot.integrations.servicenow.jobs import ServiceNowDataTarget
+from nautobot_ssot.integrations.servicenow.diffsync.adapter_nautobot import NautobotDiffSync
 
 
 if "job_logs" in settings.DATABASES:
