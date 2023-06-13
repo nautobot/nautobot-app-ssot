@@ -7,14 +7,12 @@ from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
 from nautobot.extras.models import CustomField as OrmCF
 from nautobot.ipam.choices import IPAddressRoleChoices
-from nautobot.ipam.models import RIR
-from nautobot.ipam.models import Aggregate as OrmAggregate
 from nautobot.ipam.models import IPAddress as OrmIPAddress
 from nautobot.ipam.models import Prefix as OrmPrefix
 from nautobot.ipam.models import VLAN as OrmVlan
 from nautobot.ipam.models import VLANGroup as OrmVlanGroup
 from nautobot_ssot.integrations.infoblox.constant import PLUGIN_CFG
-from nautobot_ssot.integrations.infoblox.diffsync.models.base import Aggregate, Network, IPAddress, Vlan, VlanView
+from nautobot_ssot.integrations.infoblox.diffsync.models.base import Network, IPAddress, Vlan, VlanView
 from nautobot_ssot.integrations.infoblox.utils.diffsync import create_tag_sync_from_infoblox
 from nautobot_ssot.integrations.infoblox.utils.nautobot import get_prefix_vlans
 
@@ -29,16 +27,16 @@ def process_ext_attrs(diffsync, obj: object, extattrs: dict):
     """
     for attr, attr_value in extattrs.items():
         if attr_value:
-            if attr.lower() in ["site", "facility"]:
+            if attr.lower() in ["site", "facility", "location"]:
                 try:
-                    obj.site_id = diffsync.site_map[attr_value]
+                    obj.location_id = diffsync.location_map[attr_value]
                 except KeyError as err:
                     diffsync.job.log_warning(
-                        message=f"Unable to find Site {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
+                        message=f"Unable to find Location {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
                     )
             if attr.lower() == "vrf":
                 try:
-                    obj.vrf = diffsync.vrf_map[attr_value]
+                    obj.vrf_id = diffsync.vrf_map[attr_value]
                 except KeyError as err:
                     diffsync.job.log_warning(
                         message=f"Unable to find VRF {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
@@ -48,7 +46,7 @@ def process_ext_attrs(diffsync, obj: object, extattrs: dict):
                     obj.role = attr_value.lower()
                 else:
                     try:
-                        obj.role = diffsync.role_map[attr_value]
+                        obj.role_id = diffsync.role_map[attr_value]
                     except KeyError as err:
                         diffsync.job.log_warning(
                             message=f"Unable to find Role {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
@@ -56,7 +54,7 @@ def process_ext_attrs(diffsync, obj: object, extattrs: dict):
 
             if attr.lower() in ["tenant", "dept", "department"]:
                 try:
-                    obj.tenant = diffsync.tenant_map[attr_value]
+                    obj.tenant_id = diffsync.tenant_map[attr_value]
                 except KeyError as err:
                     diffsync.job.log_warning(
                         message=f"Unable to find Tenant {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
@@ -316,8 +314,8 @@ class NautobotVlan(Vlan):
             _vlan.description = attrs["description"]
         if "ext_attrs" in attrs:
             process_ext_attrs(diffsync=self.diffsync, obj=_vlan, extattrs=attrs["ext_attrs"])
-        if not _vlan.group.site and _vlan.site:
-            _vlan.group.site = _vlan.site
+        if not _vlan.group.location and _vlan.location:
+            _vlan.group.location = _vlan.location
             _vlan.group.validated_save()
         try:
             _vlan.validated_save()
@@ -332,39 +330,3 @@ class NautobotVlan(Vlan):
         _vlan = OrmVlan.objects.get(id=self.pk)
         _vlan.delete()
         return super().delete()
-
-
-class NautobotAggregate(Aggregate):
-    """Nautobot implementation of the Aggregate Model."""
-
-    @classmethod
-    def create(cls, diffsync, ids, attrs):
-        """Create Aggregate object in Nautobot."""
-        rir, _ = RIR.objects.get_or_create(name="RFC1918", slug="rfc1918", is_private=True)
-        _aggregate = OrmAggregate(
-            prefix=ids["network"],
-            rir=rir,
-            description=attrs["description"] if attrs.get("description") else "",
-        )
-        if "ext_attrs" in attrs["ext_attrs"]:
-            process_ext_attrs(diffsync=diffsync, obj=_aggregate, extattrs=attrs["ext_attrs"])
-        _aggregate.tags.add(create_tag_sync_from_infoblox())
-        _aggregate.validated_save()
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
-
-    def update(self, attrs):
-        """Update Aggregate object in Nautobot."""
-        _aggregate = OrmAggregate.objects.get(id=self.pk)
-        if attrs.get("description"):
-            _aggregate.description = attrs["description"]
-        if "ext_attrs" in attrs["ext_attrs"]:
-            process_ext_attrs(diffsync=self.diffsync, obj=_aggregate, extattrs=attrs["ext_attrs"])
-        _aggregate.validated_save()
-        return super().update(attrs)
-
-    # def delete(self):
-    #     """Delete Aggregate object in Nautobot."""
-    #     self.diffsync.job.log_warning(message=f"Aggregate {self.network} will be deleted.")
-    #     _aggregate = OrmAggregate.objects.get(id=self.pk)
-    #     _aggregate.delete()
-    #     return super().delete()

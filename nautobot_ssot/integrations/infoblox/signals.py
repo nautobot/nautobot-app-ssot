@@ -21,7 +21,6 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     CustomField = apps.get_model("extras", "CustomField")
     Prefix = apps.get_model("ipam", "Prefix")
     IPAddress = apps.get_model("ipam", "IPAddress")
-    Aggregate = apps.get_model("ipam", "Aggregate")
     Tag = apps.get_model("extras", "Tag")
     Relationship = apps.get_model("extras", "Relationship")
     VLAN = apps.get_model("ipam", "VLAN")
@@ -44,7 +43,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     )
     custom_field, _ = CustomField.objects.get_or_create(
         type=CustomFieldTypeChoices.TYPE_DATE,
-        name="ssot-synced-to-infoblox",
+        key="ssot-synced-to-infoblox",
         defaults={
             "label": "Last synced to Infoblox on",
         },
@@ -52,18 +51,17 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     for content_type in [
         ContentType.objects.get_for_model(Prefix),
         ContentType.objects.get_for_model(IPAddress),
-        ContentType.objects.get_for_model(Aggregate),
     ]:
         custom_field.content_types.add(content_type)
 
     # add Prefix -> VLAN Relationship
     relationship_dict = {
-        "name": "Prefix -> VLAN",
-        "slug": "prefix_to_vlan",
+        "label": "Prefix -> VLAN",
+        "key": "prefix_to_vlan",
         "type": RelationshipTypeChoices.TYPE_ONE_TO_MANY,
         "source_type": ContentType.objects.get_for_model(Prefix),
         "source_label": "Prefix",
         "destination_type": ContentType.objects.get_for_model(VLAN),
         "destination_label": "VLAN",
     }
-    Relationship.objects.get_or_create(name=relationship_dict["name"], defaults=relationship_dict)
+    Relationship.objects.get_or_create(label=relationship_dict["label"], defaults=relationship_dict)

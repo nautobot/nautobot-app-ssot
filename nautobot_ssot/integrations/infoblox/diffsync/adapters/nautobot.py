@@ -2,17 +2,15 @@
 # pylint: disable=duplicate-code
 from collections import defaultdict
 import datetime
-from itertools import chain
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
-from nautobot.dcim.models import Site
-from nautobot.extras.choices import CustomFieldTypeChoices
-from nautobot.extras.models import Relationship, Status, Tag, CustomField
-from nautobot.ipam.models import Aggregate, IPAddress, Prefix, Role, VLAN, VLANGroup
+from nautobot.dcim.models import Location
+from nautobot.extras.choices import CustomFieldTypeChoices, LogLevelChoices
+from nautobot.extras.models import Relationship, Role, Status, Tag, CustomField
+from nautobot.ipam.models import IPAddress, Prefix, VLAN, VLANGroup
 from nautobot.tenancy.models import Tenant
 from nautobot_ssot.integrations.infoblox.diffsync.models import (
-    NautobotAggregate,
     NautobotNetwork,
     NautobotIPAddress,
     NautobotVlanGroup,
@@ -46,7 +44,7 @@ class NautobotMixin:
                 "label": "Last synced to Infoblox on",
             },
         )
-        for model in [Aggregate, IPAddress, Prefix]:
+        for model in [IPAddress, Prefix]:
             custom_field.content_types.add(ContentType.objects.get_for_model(model))
 
         for modelname in ["ipaddress", "prefix"]:
@@ -73,9 +71,7 @@ class NautobotMixin:
                 nautobot_object.cf[custom_field.name] = today
             nautobot_object.validated_save()
 
-        if modelname == "aggregate":
-            _tag_object(Aggregate.objects.get(pk=model_instance.pk))
-        elif modelname == "ipaddress":
+        if modelname == "ipaddress":
             _tag_object(IPAddress.objects.get(pk=model_instance.pk))
         elif modelname == "prefix":
             _tag_object(Prefix.objects.get(pk=model_instance.pk))
@@ -92,7 +88,7 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
     top_level = ["vlangroup", "vlan", "prefix", "ipaddress"]
 
     status_map = {}
-    site_map = {}
+    location_map = {}
     relationship_map = {}
     tenant_map = {}
     vrf_map = {}
@@ -121,21 +117,23 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
             source (DiffSync): Source DiffSync adapter data.
         """
         if len(self.objects_to_create["vlangroups"]) > 0:
-            self.job.log_info(message="Performing bulk create of VLAN Groups in Nautobot")
+            self.job.job_result.log("Performing bulk create of VLAN Groups in Nautobot", level=LogLevelChoices.LOG_INFO)
             VLANGroup.objects.bulk_create(self.objects_to_create["vlangroups"], batch_size=250)
         if len(self.objects_to_create["vlans"]) > 0:
-            self.job.log_info(message="Performing bulk create of VLANs in Nautobot.")
+            self.job.job_result.log("Performing bulk create of VLANs in Nautobot.", level=LogLevelChoices.LOG_INFO)
             VLAN.objects.bulk_create(self.objects_to_create["vlans"], batch_size=500)
         if len(self.objects_to_create["prefixes"]) > 0:
-            self.job.log_info(message="Performing bulk create of Prefixes in Nautobot")
+            self.job.job_result.log("Performing bulk create of Prefixes in Nautobot", level=LogLevelChoices.LOG_INFO)
             Prefix.objects.bulk_create(self.objects_to_create["prefixes"], batch_size=500)
         if len(self.objects_to_create["ipaddrs"]) > 0:
-            self.job.log_info(message="Performing bulk create of IP Addresses in Nautobot")
+            self.job.job_result.log(
+                "Performing bulk create of IP Addresses in Nautobot", level=LogLevelChoices.LOG_INFO
+            )
             IPAddress.objects.bulk_create(self.objects_to_create["ipaddrs"], batch_size=1000)
 
     def load_prefixes(self):
         """Load Prefixes from Nautobot."""
-        all_prefixes = list(chain(Prefix.objects.all(), Aggregate.objects.all()))
+        all_prefixes = Prefix.objects.all()
         default_cfs = get_default_custom_fields(cf_contenttype=ContentType.objects.get_for_model(Prefix))
         for prefix in all_prefixes:
             self.prefix_map[str(prefix.prefix)] = prefix.id
@@ -153,7 +151,7 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
             try:
                 self.add(_prefix)
             except ObjectAlreadyExists:
-                self.job.log_warning(_prefix, message=f"Found duplicate prefix: {prefix.prefix}.")
+                self.job.job_result.log(f"Found duplicate prefix: {prefix.prefix}.", level=LogLevelChoices.LOG_WARNING)
 
     def load_ipaddresses(self):
         """Load IP Addresses from Nautobot."""
@@ -166,16 +164,17 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
 
             # The IP address must have a parent prefix
             if not prefix:
-                self.job.log_warning(
-                    ipaddr, message=f"IP Address {addr} does not have a parent prefix and will not be synced."
+                self.job.job_result.log(
+                    f"IP Address {addr} does not have a parent prefix and will not be synced.",
+                    level=LogLevelChoices.LOG_WARNING,
                 )
                 continue
             # IP address must be part of a prefix that is not a container
             # This means the IP cannot be associated with an IPv4 Network within Infoblox
             if prefix.status.slug == "container":
-                self.job.log_warning(
-                    ipaddr,
-                    message=f"IP Address {addr}'s parent prefix is a container. The parent prefix status must not be 'container'.",
+                self.job.job_result.log(
+                    f"IP Address {addr}'s parent prefix is a container. The parent prefix status must not be 'container'.",
+                    level=LogLevelChoices.LOG_WARNING,
                 )
                 continue
 
@@ -194,7 +193,7 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
             try:
                 self.add(_ip)
             except ObjectAlreadyExists:
-                self.job.log_warning(ipaddr, message=f"Duplicate IP Address detected: {addr}.")
+                self.job.job_result.log(f"Duplicate IP Address detected: {addr}.", level=LogLevelChoices.LOG_WARNING)
 
     def load_vlangroups(self):
         """Load VLAN Groups from Nautobot."""
@@ -237,52 +236,18 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
         """Load models with data from Nautobot."""
         self.relationship_map = {r.name: r.id for r in Relationship.objects.only("id", "name")}
         self.status_map = {s.slug: s.id for s in Status.objects.only("id", "slug")}
-        self.site_map = {s.name: s.id for s in Site.objects.only("id", "name")}
+        self.location_map = {loc.name: loc.id for loc in Location.objects.only("id", "name")}
         self.tenant_map = {t.name: t.id for t in Tenant.objects.only("id", "name")}
         self.role_map = {r.name: r.id for r in Role.objects.only("id", "name")}
         self.load_prefixes()
         if "prefix" in self.dict():
-            self.job.log(message=f"Loaded {len(self.dict()['prefix'])} prefixes from Nautobot.")
+            self.job.job_result.log(message=f"Loaded {len(self.dict()['prefix'])} prefixes from Nautobot.")
         self.load_ipaddresses()
         if "ipaddress" in self.dict():
-            self.job.log(message=f"Loaded {len(self.dict()['ipaddress'])} IP addresses from Nautobot.")
+            self.job.job_result.log(message=f"Loaded {len(self.dict()['ipaddress'])} IP addresses from Nautobot.")
         self.load_vlangroups()
         if "vlangroup" in self.dict():
-            self.job.log(message=f"Loaded {len(self.dict()['vlangroup'])} VLAN Groups from Nautobot.")
+            self.job.job_result.log(message=f"Loaded {len(self.dict()['vlangroup'])} VLAN Groups from Nautobot.")
         self.load_vlans()
         if "vlan" in self.dict():
-            self.job.log(message=f"Loaded {len(self.dict()['vlan'])} VLANs from Nautobot.")
-
-
-class NautobotAggregateAdapter(NautobotMixin, DiffSync):
-    """DiffSync adapter using ORM to communicate to Nautobot Aggregrates."""
-
-    aggregate = NautobotAggregate
-
-    top_level = ["aggregate"]
-
-    def __init__(self, *args, job=None, sync=None, **kwargs):
-        """Initialize Nautobot.
-
-        Args:
-            job (object, optional): Nautobot job. Defaults to None.
-            sync (object, optional): Nautobot DiffSync. Defaults to None.
-        """
-        super().__init__(*args, **kwargs)
-        self.job = job
-        self.sync = sync
-
-    def load(self):
-        """Load aggregate models from Nautobot."""
-        for aggregate in Aggregate.objects.all():
-            # Reset CustomFields for Nautobot objects to blank if they failed to get linked originally.
-            if aggregate.tenant is None:
-                aggregate.custom_field_data["tenant"] = ""
-
-            _aggregate = self.aggregate(
-                network=str(aggregate.prefix),
-                description=aggregate.description,
-                ext_attrs=aggregate.custom_field_data,
-                pk=aggregate.id,
-            )
-            self.add(_aggregate)
+            self.job.job_result.log(message=f"Loaded {len(self.dict()['vlan'])} VLANs from Nautobot.")

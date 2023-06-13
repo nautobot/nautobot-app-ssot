@@ -64,16 +64,3 @@ class IPAddress(DiffSyncModel):
     description: Optional[str]
     ext_attrs: Optional[dict]
     pk: Optional[uuid.UUID] = None
-
-
-class Aggregate(DiffSyncModel):
-    """Aggregate model for DiffSync."""
-
-    _modelname = "aggregate"
-    _identifiers = ("network",)
-    _attributes = ("description", "ext_attrs")
-
-    network: str
-    description: Optional[str]
-    ext_attrs: Optional[dict]
-    pk: Optional[uuid.UUID] = None
