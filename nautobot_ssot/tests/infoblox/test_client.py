@@ -112,7 +112,7 @@ class TestInfobloxTest(unittest.TestCase):
             return True
 
         with requests_mock.Mocker() as req:
-            req.get(f"{LOCALHOST}/test_url", additional_matcher=(check_headers))
+            req.get(f"{LOCALHOST}/test_url", additional_matcher=check_headers)
             resp = self.infoblox_client._request("GET", "test_url")
         self.assertEqual(resp.status_code, 200)
 
