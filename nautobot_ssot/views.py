@@ -50,11 +50,11 @@ class DashboardView(ObjectListView):
         }
         for source in context["data_sources"]:
             context["source"][source.name] = self.queryset.filter(
-                job_result__name=source.name,
+                job_result__name=source.class_path,
             )
         for target in context["data_targets"]:
             context["target"][target.name] = self.queryset.filter(
-                job_result__name=target.name,
+                job_result__name=target.class_path,
             )
 
         return context
