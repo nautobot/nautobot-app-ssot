@@ -141,9 +141,6 @@ PLUGINS_CONFIG = {
         "enable_infoblox": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_INFOBLOX")),
         "hide_example_jobs": is_truthy(os.getenv("NAUTOBOT_SSOT_HIDE_EXAMPLE_JOBS")),
         "infoblox_default_status": os.getenv("NAUTOBOT_SSOT_INFOBLOX_DEFAULT_STATUS", "active"),
-        "infoblox_enable_rfc1918_network_containers": is_truthy(
-            os.getenv("NAUTOBOT_SSOT_INFOBLOX_ENABLE_RFC1918_NETWORK_CONTAINERS")
-        ),
         "infoblox_enable_sync_to_infoblox": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_ENABLE_SYNC_TO_INFOBLOX")),
         "infoblox_import_objects_ip_addresses": is_truthy(
             os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_IP_ADDRESSES")
