@@ -43,7 +43,7 @@ class InfobloxAdapter(DiffSync):
         if self.conn in [None, False]:
             self.job.job_result.log(
                 "Improperly configured settings for communicating to Infoblox. Please validate accuracy.",
-                level=LogLevelChoices.LOG_ERROR,
+                level_choice=LogLevelChoices.LOG_ERROR,
             )
             raise PluginImproperlyConfigured
 
@@ -137,7 +137,7 @@ class InfobloxAdapter(DiffSync):
         else:
             self.job.job_result.log(
                 "The `infoblox_import_objects` setting was not found so all objects will be imported.",
-                level=LogLevelChoices.LOG_INFO,
+                level_choice=LogLevelChoices.LOG_INFO,
             )
             self.load_prefixes()
             self.load_ipaddresses()
@@ -146,7 +146,7 @@ class InfobloxAdapter(DiffSync):
         for obj in ["prefix", "ipaddress", "vlangroup", "vlan"]:
             if obj in self.dict():
                 self.job.job_result.log(
-                    f"Loaded {len(self.dict()[obj])} {obj} from Infoblox.", level=LogLevelChoices.LOG_INFO
+                    f"Loaded {len(self.dict()[obj])} {obj} from Infoblox.", level_choice=LogLevelChoices.LOG_INFO
                 )
 
     def sync_complete(self, source, diff, flags=DiffSyncFlags.NONE, logger=None):

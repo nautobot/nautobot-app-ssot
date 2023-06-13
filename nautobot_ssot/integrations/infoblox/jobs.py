@@ -15,7 +15,7 @@ from .constant import PLUGIN_CFG
 name = "SSoT - Infoblox DDI"  # pylint: disable=invalid-name
 
 
-class InfobloxDataSource(DataSource, Job):
+class InfobloxDataSource(DataSource):
     """Infoblox SSoT Data Source."""
 
     debug = BooleanVar(description="Enable for verbose debug logging.")
@@ -45,21 +45,21 @@ class InfobloxDataSource(DataSource, Job):
 
     def load_source_adapter(self):
         """Load Infoblox data."""
-        self.job_result.log("Connecting to Infoblox", level=LogLevelChoices.LOG_INFO)
+        self.job_result.log("Connecting to Infoblox", level_choice=LogLevelChoices.LOG_INFO)
         client = InfobloxApi()
         self.source_adapter = infoblox.InfobloxAdapter(job=self, sync=self.sync, conn=client)
-        self.job_result.log("Loading data from Infoblox...", level=LogLevelChoices.LOG_INFO)
+        self.job_result.log("Loading data from Infoblox...", level_choice=LogLevelChoices.LOG_INFO)
         self.source_adapter.load()
 
     def load_target_adapter(self):
         """Load Nautobot data."""
-        self.job_result.log("Connecting to Nautobot...", level=LogLevelChoices.LOG_INFO)
+        self.job_result.log("Connecting to Nautobot...", level_choice=LogLevelChoices.LOG_INFO)
         self.target_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync)
-        self.job_result.log("Loading data from Nautobot...", level=LogLevelChoices.LOG_INFO)
+        self.job_result.log("Loading data from Nautobot...", level_choice=LogLevelChoices.LOG_INFO)
         self.target_adapter.load()
 
 
-class InfobloxDataTarget(DataTarget, Job):
+class InfobloxDataTarget(DataTarget):
     """Infoblox SSoT Data Target."""
 
     debug = BooleanVar(description="Enable for verbose debug logging.")
@@ -89,17 +89,17 @@ class InfobloxDataTarget(DataTarget, Job):
 
     def load_source_adapter(self):
         """Load Nautobot data."""
-        self.job_result.log("Connecting to Nautobot...", level=LogLevelChoices.LOG_INFO)
+        self.job_result.log("Connecting to Nautobot...", level_choice=LogLevelChoices.LOG_INFO)
         self.source_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync)
-        self.job_result.log("Loading data from Nautobot...", level=LogLevelChoices.LOG_INFO)
+        self.job_result.log("Loading data from Nautobot...", level_choice=LogLevelChoices.LOG_INFO)
         self.source_adapter.load()
 
     def load_target_adapter(self):
         """Load Infoblox data."""
-        self.job_result.log("Connecting to Infoblox", level=LogLevelChoices.LOG_INFO)
+        self.job_result.log("Connecting to Infoblox", level_choice=LogLevelChoices.LOG_INFO)
         client = InfobloxApi()
         self.target_adapter = infoblox.InfobloxAdapter(job=self, sync=self.sync, conn=client)
-        self.job_result.log("Loading data from Infoblox...", level=LogLevelChoices.LOG_INFO)
+        self.job_result.log("Loading data from Infoblox...", level_choice=LogLevelChoices.LOG_INFO)
         self.target_adapter.load()
 
     def run(self, dryrun, memory_profiling, debug, *args, **kwargs):  # pylint: disable=arguments-differ
