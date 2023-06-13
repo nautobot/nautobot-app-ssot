@@ -13,7 +13,6 @@ if settings.PLUGINS_CONFIG["nautobot_ssot"]["hide_example_jobs"]:
     jobs = []
 else:
     jobs = [ExampleDataSource, ExampleDataTarget]
-    register_jobs(*jobs)
 
 
 def _add_integrations():
@@ -28,6 +27,7 @@ def _add_integrations():
 
 
 _add_integrations()
+register_jobs(*jobs)
 
 
 def get_data_jobs():
