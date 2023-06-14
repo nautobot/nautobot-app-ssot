@@ -54,7 +54,6 @@ test_params = [
 ]
 
 
-@unittest.skip("TODO")
 class TestRenderDiff(unittest.TestCase):
     """Tests for render_diff function."""
 
