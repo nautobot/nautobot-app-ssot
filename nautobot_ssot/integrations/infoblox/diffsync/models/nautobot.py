@@ -297,7 +297,7 @@ class NautobotVlan(Vlan):
             vid=ids["vid"],
             name=ids["name"],
             status_id=diffsync.status_map[cls.get_vlan_status(attrs["status"])],
-            group_id=diffsync.vlangroup_map[ids["vlangroup"]],
+            vlan_group_id=diffsync.vlangroup_map[ids["vlangroup"]],
             description=attrs["description"],
         )
         if "ext_attrs" in attrs:
