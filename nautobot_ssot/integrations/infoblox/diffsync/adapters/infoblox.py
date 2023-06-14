@@ -66,7 +66,7 @@ class InfobloxAdapter(DiffSync):
             new_pf = self.prefix(
                 network=_pf["network"],
                 description=_pf.get("comment", ""),
-                status=_pf.get("status", "active"),
+                status=_pf.get("status", "Active"),
                 ext_attrs={**default_ext_attrs, **pf_ext_attrs},
                 vlans=build_vlan_map(vlans=_pf["vlans"]) if _pf.get("vlans") else {},
             )

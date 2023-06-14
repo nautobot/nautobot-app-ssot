@@ -149,7 +149,7 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
             _prefix = self.prefix(
                 network=str(prefix.prefix),
                 description=prefix.description,
-                status=prefix.status.slug if hasattr(prefix, "status") else "container",
+                status=prefix.status.name if hasattr(prefix, "status") else "Container",
                 ext_attrs={**default_cfs, **prefix.custom_field_data},
                 vlans=build_vlan_map_from_relations(vlans=current_vlans),
                 pk=prefix.id,
@@ -179,7 +179,7 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
                 continue
             # IP address must be part of a prefix that is not a container
             # This means the IP cannot be associated with an IPv4 Network within Infoblox
-            if prefix.status.slug == "container":
+            if prefix.status.name == "Container":
                 self.job.job_result.log(
                     f"IP Address {addr}'s parent prefix is a container. The parent prefix status must not be 'container'.",
                     level_choice=LogLevelChoices.LOG_WARNING,
@@ -245,7 +245,7 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
     def load(self):
         """Load models with data from Nautobot."""
         self.relationship_map = {r.label: r.id for r in Relationship.objects.only("id", "label")}
-        self.status_map = {s.slug: s.id for s in Status.objects.only("id", "slug")}
+        self.status_map = {s.name: s.id for s in Status.objects.only("id", "name")}
         self.location_map = {loc.name: loc.id for loc in Location.objects.only("id", "name")}
         self.tenant_map = {t.name: t.id for t in Tenant.objects.only("id", "name")}
         self.role_map = {r.name: r.id for r in Role.objects.only("id", "name")}

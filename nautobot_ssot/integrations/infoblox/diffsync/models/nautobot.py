@@ -83,7 +83,7 @@ class NautobotNetwork(Network):
         try:
             status = diffsync.status_map[attrs["status"]]
         except KeyError:
-            status = diffsync.status_map[slugify(PLUGIN_CFG.get("default_status", "active"))]
+            status = diffsync.status_map[PLUGIN_CFG.get("default_status", "Active")]
 
         _prefix = OrmPrefix(
             prefix=ids["network"],
@@ -131,7 +131,7 @@ class NautobotNetwork(Network):
             _pf.description = attrs["description"]
         if "status" in attrs:
             try:
-                _pf.status_id = self.diffsync.status_map[slugify(attrs["status"])]
+                _pf.status_id = self.diffsync.status_map[attrs["status"]]
             except KeyError:
                 self.diffsync.job.job_result.log(
                     f"Unable to find Status {attrs['status']} to update prefix {_pf.prefix}.",
@@ -198,9 +198,9 @@ class NautobotIPAddress(IPAddress):
         """Create IPAddress object in Nautobot."""
         _pf = ipaddress.ip_network(ids["prefix"])
         try:
-            status = diffsync.status_map[slugify(attrs["status"])]
+            status = diffsync.status_map[attrs["status"]]
         except KeyError:
-            status = diffsync.status_map[slugify(PLUGIN_CFG.get("default_status", "active"))]
+            status = diffsync.status_map[PLUGIN_CFG.get("default_status", "Active")]
         _ip = OrmIPAddress(
             address=f"{ids['address']}/{_pf.prefixlen}",
             status_id=status,
@@ -226,9 +226,9 @@ class NautobotIPAddress(IPAddress):
         _ipaddr = OrmIPAddress.objects.get(id=self.pk)
         if attrs.get("status"):
             try:
-                status = self.diffsync.status_map[slugify(attrs["status"])]
+                status = self.diffsync.status_map[attrs["status"]]
             except KeyError:
-                status = self.diffsync.status_map[slugify(PLUGIN_CFG.get("default_status", "active"))]
+                status = self.diffsync.status_map[PLUGIN_CFG.get("default_status", "Active")]
             _ipaddr.status_id = status
         if attrs.get("description"):
             _ipaddr.description = attrs["description"]
@@ -319,9 +319,9 @@ class NautobotVlan(Vlan):
     def get_vlan_status(status: str) -> str:
         """Return VLAN Status from mapping."""
         statuses = {
-            "ASSIGNED": "active",
-            "UNASSIGNED": "deprecated",
-            "RESERVED": "reserved",
+            "ASSIGNED": "Active",
+            "UNASSIGNED": "Deprecated",
+            "RESERVED": "Reserved",
         }
         return statuses[status]
 
