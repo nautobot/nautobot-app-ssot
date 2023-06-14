@@ -225,17 +225,17 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
         default_cfs = get_default_custom_fields(cf_contenttype=ContentType.objects.get_for_model(VLAN))
         # To ensure we are only dealing with VLANs imported from Infoblox we need to filter to those with a
         # VLAN Group assigned to match how Infoblox requires a VLAN View to be associated to VLANs.
-        for vlan in VLAN.objects.filter(group__isnull=False):
+        for vlan in VLAN.objects.filter(vlan_group__isnull=False):
             if vlan.group.name not in self.vlan_map:
-                self.vlan_map[vlan.group.name] = {}
-            self.vlan_map[vlan.group.name][vlan.vid] = vlan.id
+                self.vlan_map[vlan.vlan_group.name] = {}
+            self.vlan_map[vlan.vlan_group.name][vlan.vid] = vlan.id
             if "ssot-synced-to-infoblox" in vlan.custom_field_data:
                 vlan.custom_field_data.pop("ssot-synced-to-infoblox")
             _vlan = self.vlan(
                 vid=vlan.vid,
                 name=vlan.name,
                 description=vlan.description,
-                vlangroup=vlan.group.name if vlan.group else "",
+                vlangroup=vlan.vlan_group.name if vlan.vlan_group else "",
                 status=nautobot_vlan_status(vlan.status.name),
                 ext_attrs={**default_cfs, **vlan.custom_field_data},
                 pk=vlan.id,
