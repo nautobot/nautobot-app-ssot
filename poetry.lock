@@ -3424,4 +3424,4 @@ infoblox = ["dnspython"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8, <3.11"
-content-hash = "8995fa267ab16a4ba8176ca9d47b8da2fd5153e579922b483d94e78d8be6e842"
+content-hash = "64ef24e23cd98a221bd912be1ba2c2db9ba67871a9d534773a135067b2e261f9"
