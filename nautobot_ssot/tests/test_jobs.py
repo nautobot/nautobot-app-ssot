@@ -107,6 +107,7 @@ class BaseJobTestCase(TransactionTestCase):
         self.job.target_adapter = Mock()
         self.job.source_adapter.diff_to().dict.return_value = {}
         self.job.calculate_diff()
+        self.job.source_adapter.diff_to.assert_called()
         self.job.sync.save.assert_has_calls([call(), call()])
 
     def test_calculate_diff_fail_diff_save(self):
@@ -116,9 +117,10 @@ class BaseJobTestCase(TransactionTestCase):
         self.job.source_adapter = Mock()
         self.job.target_adapter = Mock()
         self.job.log_info = Mock()
+        self.job.log_warning = Mock()
         self.job.source_adapter.diff_to().dict.return_value = {}
         self.job.calculate_diff()
-        self.job.log_info.assert_any_call(message="Unable to save JSON Diff to database")
+        self.job.log_warning.assert_any_call(message="Unable to save JSON Diff to database")
 
 
 class DataSourceTestCase(BaseJobTestCase):

@@ -21,7 +21,7 @@ from .tables import DashboardTable, SyncTable, SyncTableSingleSourceOrTarget, Sy
 class DashboardView(ObjectListView):
     """Dashboard / overview of SSoT."""
 
-    queryset = Sync.objects.defer("diff", "compressed_diff").all()
+    queryset = Sync.objects.defer("diff").all()
     table = DashboardTable
     action_buttons = []
     template_name = "nautobot_ssot/dashboard.html"

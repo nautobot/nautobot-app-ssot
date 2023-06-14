@@ -180,8 +180,7 @@ class Sync(BaseModel):
     dry_run = models.BooleanField(
         default=False, help_text="Report what data would be synced but do not make any changes"
     )
-    diff = models.JSONField(blank=True, null=True)
-    compressed_diff = CompressedJSONField(blank=True, default=dict)
+    diff = CompressedJSONField(blank=True, default=dict)
     summary = models.JSONField(blank=True, null=True)
 
     job_result = models.ForeignKey(to=JobResult, on_delete=models.PROTECT, blank=True, null=True)
@@ -203,7 +202,7 @@ class Sync(BaseModel):
     def annotated_queryset(cls):
         """Construct an efficient queryset for this model and related data."""
         return (
-            cls.objects.defer("diff", "compressed_diff")
+            cls.objects.defer("diff")
             .select_related("job_result")
             .prefetch_related("logs")
             .annotate(

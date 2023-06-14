@@ -95,7 +95,7 @@ class SyncCompressedTestCase(TransactionTestCase):
             target="Another system",
             dry_run=False,
         )
-        self.assertEqual(sync.diff, None)
+        self.assertEqual(sync.diff, {})
 
     @patch("nautobot_ssot.models.gzip.GzipFile.read")
     def test_compressed_diff_is_compressed(self, mock_gzip_read):  # pylint: disable=no-self-use
@@ -105,9 +105,21 @@ class SyncCompressedTestCase(TransactionTestCase):
             source="Nautobot",
             target="Another system",
             dry_run=False,
-            compressed_diff=diff,
+            diff=diff,
         )
         mock_gzip_read.assert_not_called()
         sync_from_db = Sync.objects.get(id=sync.id)
-        sync_from_db.compressed_diff  # pylint: disable=pointless-statement
+        sync_from_db.diff  # pylint: disable=pointless-statement
         mock_gzip_read.assert_called()
+
+    def test_compressed_diff_returns_dict(self):  # pylint: disable=no-self-use
+        """Test that diff defaults to empty dict."""
+        diff = dict(a=1, b=2, c=3)
+        sync = Sync.objects.create(
+            source="Nautobot",
+            target="Another system",
+            dry_run=False,
+            diff=diff,
+        )
+        sync_from_db = Sync.objects.get(id=sync.id)
+        self.assertEqual(sync_from_db.diff, diff)

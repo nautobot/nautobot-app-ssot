@@ -83,10 +83,10 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             self.sync.summary = self.diff.summary()
             self.sync.save()
             try:
-                self.sync.compressed_diff = self.diff.dict()
+                self.sync.diff = self.diff.dict()
                 self.sync.save()
             except Exception:  # pylint: disable=broad-except
-                self.log_info(message="Unable to save JSON Diff to database")
+                self.log_warning(message="Unable to save JSON Diff to database")
             self.log_info(message=self.diff.summary())
         else:
             self.log_warning(message="Not both adapters were properly initialized prior to diff calculation.")
