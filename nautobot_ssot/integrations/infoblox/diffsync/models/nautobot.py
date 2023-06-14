@@ -205,6 +205,7 @@ class NautobotIPAddress(IPAddress):
             status_id=status,
             description=attrs.get("description", ""),
             dns_name=attrs.get("dns_name", ""),
+            parent_id=diffsync.prefix_map[ids["prefix"]],
         )
         _ip.tags.add(create_tag_sync_from_infoblox())
         if attrs.get("ext_attrs"):
