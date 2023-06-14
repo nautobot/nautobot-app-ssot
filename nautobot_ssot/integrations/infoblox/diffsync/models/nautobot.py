@@ -12,7 +12,6 @@ from nautobot.ipam.models import VLAN as OrmVlan
 from nautobot.ipam.models import VLANGroup as OrmVlanGroup
 from nautobot_ssot.integrations.infoblox.constant import PLUGIN_CFG
 from nautobot_ssot.integrations.infoblox.diffsync.models.base import Network, IPAddress, Vlan, VlanView
-from nautobot_ssot.integrations.infoblox.utils.diffsync import create_tag_sync_from_infoblox
 from nautobot_ssot.integrations.infoblox.utils.nautobot import get_prefix_vlans
 
 
@@ -113,7 +112,6 @@ class NautobotNetwork(Network):
 
         if attrs.get("ext_attrs"):
             process_ext_attrs(diffsync=diffsync, obj=_prefix, extattrs=attrs["ext_attrs"])
-        _prefix.tags.add(create_tag_sync_from_infoblox())
         diffsync.objects_to_create["prefixes"].append(_prefix)
         diffsync.prefix_map[ids["network"]] = _prefix.id
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
@@ -205,7 +203,6 @@ class NautobotIPAddress(IPAddress):
             dns_name=attrs.get("dns_name", ""),
             parent_id=diffsync.prefix_map[ids["prefix"]],
         )
-        _ip.tags.add(create_tag_sync_from_infoblox())
         if attrs.get("ext_attrs"):
             process_ext_attrs(diffsync=diffsync, obj=_ip, extattrs=attrs["ext_attrs"])
         try:
@@ -300,7 +297,6 @@ class NautobotVlan(Vlan):
         )
         if "ext_attrs" in attrs:
             process_ext_attrs(diffsync=diffsync, obj=_vlan, extattrs=attrs["ext_attrs"])
-        _vlan.tags.add(create_tag_sync_from_infoblox())
         try:
             diffsync.objects_to_create["vlans"].append(_vlan)
             if ids["vlangroup"] not in diffsync.vlan_map:

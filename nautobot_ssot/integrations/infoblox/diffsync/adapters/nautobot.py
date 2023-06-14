@@ -17,7 +17,11 @@ from nautobot_ssot.integrations.infoblox.diffsync.models import (
     NautobotVlan,
 )
 from nautobot_ssot.integrations.infoblox.constant import TAG_COLOR
-from nautobot_ssot.integrations.infoblox.utils.diffsync import nautobot_vlan_status, get_default_custom_fields
+from nautobot_ssot.integrations.infoblox.utils.diffsync import (
+    create_tag_sync_from_infoblox,
+    nautobot_vlan_status,
+    get_default_custom_fields,
+)
 from nautobot_ssot.integrations.infoblox.utils.nautobot import build_vlan_map_from_relations, get_prefix_vlans
 
 
@@ -136,6 +140,11 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
                 "Performing bulk create of IP Addresses in Nautobot", level_choice=LogLevelChoices.LOG_INFO
             )
             IPAddress.objects.bulk_create(self.objects_to_create["ipaddrs"], batch_size=1000)
+        for obj_type, objs in self.objects_to_create.items():
+            if obj_type != "vlangroups":
+                self.job.job_result.log(f"Adding tags to all imported {obj_type}.")
+                for obj in objs:
+                    obj.tags.add(create_tag_sync_from_infoblox())
 
     def load_prefixes(self):
         """Load Prefixes from Nautobot."""
