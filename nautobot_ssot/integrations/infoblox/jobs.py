@@ -4,7 +4,7 @@ from diffsync.enum import DiffSyncFlags
 from django.templatetags.static import static
 from django.urls import reverse
 from nautobot.extras.choices import LogLevelChoices
-from nautobot.extras.jobs import BooleanVar, Job
+from nautobot.extras.jobs import BooleanVar
 from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
 
 from .diffsync.adapters import infoblox, nautobot
@@ -57,6 +57,13 @@ class InfobloxDataSource(DataSource):
         self.target_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync)
         self.job_result.log("Loading data from Nautobot...", level_choice=LogLevelChoices.LOG_INFO)
         self.target_adapter.load()
+
+    def run(self, dryrun, memory_profiling, debug, *args, **kwargs):  # pylint: disable=arguments-differ
+        """Perform data synchronization."""
+        self.debug = debug
+        self.dryrun = dryrun
+        self.memory_profiling = memory_profiling
+        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 
 class InfobloxDataTarget(DataTarget):
