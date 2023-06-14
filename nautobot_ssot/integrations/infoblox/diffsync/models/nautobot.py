@@ -64,14 +64,13 @@ def process_ext_attrs(diffsync, obj: object, extattrs: dict):
                         level_choice=LogLevelChoices.LOG_WARNING,
                     )
             _cf_dict = {
-                "name": attr,
-                "slug": slugify(attr),
+                "key": slugify(attr),
                 "type": CustomFieldTypeChoices.TYPE_TEXT,
                 "label": attr,
             }
-            field, _ = OrmCF.objects.get_or_create(name=_cf_dict["name"], defaults=_cf_dict)
+            field, _ = OrmCF.objects.get_or_create(key=_cf_dict["key"], defaults=_cf_dict)
             field.content_types.add(ContentType.objects.get_for_model(type(obj)).id)
-            obj.custom_field_data.update({_cf_dict["name"]: str(attr_value)})
+            obj.custom_field_data.update({_cf_dict["key"]: str(attr_value)})
 
 
 class NautobotNetwork(Network):
