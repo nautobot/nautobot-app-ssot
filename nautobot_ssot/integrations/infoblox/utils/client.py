@@ -1253,5 +1253,5 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         logger.info(response)
         results = response.get("result", [])
         for res in results:
-            res.update({"status": "container"})
+            res.update({"status": "Container"})
         return results
