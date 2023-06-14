@@ -1,5 +1,4 @@
 """Nautobot Models for Infoblox integration with SSoT plugin."""
-import ipaddress
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.utils.text import slugify
@@ -195,13 +194,12 @@ class NautobotIPAddress(IPAddress):
     @classmethod
     def create(cls, diffsync, ids, attrs):
         """Create IPAddress object in Nautobot."""
-        _pf = ipaddress.ip_network(ids["prefix"])
         try:
             status = diffsync.status_map[attrs["status"]]
         except KeyError:
             status = diffsync.status_map[PLUGIN_CFG.get("default_status", "Active")]
         _ip = OrmIPAddress(
-            address=f"{ids['address']}/{_pf.prefixlen}",
+            address=f"{ids['address']}/{ids['prefix_length']}",
             status_id=status,
             description=attrs.get("description", ""),
             dns_name=attrs.get("dns_name", ""),
@@ -216,7 +214,7 @@ class NautobotIPAddress(IPAddress):
             return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
         except ValidationError as err:
             diffsync.job.job_result.log(
-                f"Error with validating IP Address {ids['address']}/{_pf.prefixlen}. {err}",
+                f"Error with validating IP Address {ids['address']}/{ids['prefix_length']}. {err}",
                 level_choice=LogLevelChoices.LOG_WARNING,
             )
             return None
