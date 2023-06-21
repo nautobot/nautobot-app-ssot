@@ -5,7 +5,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("nautobot_ssot", "0005_sync_compressed_diff"),
+        ("nautobot_ssot", "0006_copy_diff_to_compressed_diff"),
     ]
 
     operations = [

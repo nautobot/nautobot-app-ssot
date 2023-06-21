@@ -30,5 +30,4 @@ class Migration(migrations.Migration):
             name="compressed_diff",
             field=nautobot_ssot.models.CompressedJSONField(blank=True, default=dict),
         ),
-        migrations.RunPython(copy_diff_to_compressed_diff, undo_diff_copy),
     ]
