@@ -59,7 +59,13 @@ class ServiceNowDataTargetJobTestCase(TestCase):
         self.assertIsNone(mappings[5].target_url)
 
     @override_settings(
-        PLUGINS_CONFIG={"nautobot_ssot_servicenow": {"instance": "dev12345", "username": "admin", "password": ""}}
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "servicenow_instance": "dev12345",
+                "servicenow_username": "admin",
+                "servicenow_password": "",
+            }
+        }
     )
     def test_config_information_settings(self):
         """Verify the config_information() API for configs provided in Django settings."""

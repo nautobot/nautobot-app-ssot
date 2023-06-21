@@ -14,11 +14,11 @@ logger = logging.getLogger(__name__)
 def get_servicenow_parameters():
     """Get a dictionary containing the instance, username, and password for connecting to ServiceNow."""
     db_config = SSOTServiceNowConfig.load()
-    settings_config = settings.PLUGINS_CONFIG.get("nautobot_ssot_servicenow", {})
+    settings_config = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
     result = {
-        "instance": settings_config.get("instance", db_config.servicenow_instance),
-        "username": settings_config.get("username", ""),
-        "password": settings_config.get("password", ""),
+        "instance": settings_config.get("servicenow_instance", db_config.servicenow_instance),
+        "username": settings_config.get("servicenow_username", ""),
+        "password": settings_config.get("servicenow_password", ""),
     }
     if not result["username"]:
         try:
