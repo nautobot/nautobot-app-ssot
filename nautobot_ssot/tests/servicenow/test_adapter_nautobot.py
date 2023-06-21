@@ -39,10 +39,10 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
             name="csr2", device_type=device_type, device_role=device_role, site=site_2, status=status_active
         )
 
-        Interface.objects.create(device=device_1, name="eth1")
-        Interface.objects.create(device=device_1, name="eth2")
-        Interface.objects.create(device=device_2, name="eth1")
-        Interface.objects.create(device=device_2, name="eth2")
+        Interface.objects.create(device=device_1, name="eth1", status=status_active)
+        Interface.objects.create(device=device_1, name="eth2", status=status_active)
+        Interface.objects.create(device=device_2, name="eth1", status=status_active)
+        Interface.objects.create(device=device_2, name="eth2", status=status_active)
 
     def test_data_loading(self):
         """Test the load() function."""

@@ -127,6 +127,7 @@ class ServiceNowDataTargetJobTestCase(TestCase):
 
     def test_lookup_object(self):
         """Validate the lookup_object() API."""
+        status_active = Status.objects.get(slug="active")
         region = Region.objects.create(name="My Region", slug="my-region")
         site = Site.objects.create(name="My Site", slug="my-site", status=Status.objects.get(slug="active"))
         manufacturer = Manufacturer.objects.create(name="Cisco", slug="cisco")
@@ -139,7 +140,7 @@ class ServiceNowDataTargetJobTestCase(TestCase):
             site=site,
             status=Status.objects.get(slug="active"),
         )
-        interface = Interface.objects.create(device=device, name="eth0")
+        interface = Interface.objects.create(device=device, name="eth0", status=status_active)
 
         job = ServiceNowDataTarget()
 
