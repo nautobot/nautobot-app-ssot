@@ -1,5 +1,5 @@
 
-# v1.3 Release Notes
+# v2.0 Release Notes
 
 ## v2.0.0-beta.1 - 2023-06-14
 
