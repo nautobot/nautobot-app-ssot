@@ -1,6 +1,6 @@
 """Plugin declaration for nautobot_ssot."""
 # Metadata is inherited from Nautobot. If not including Nautobot in the environment, this should be added
-import importlib_metadata as metadata
+from importlib import metadata
 
 from nautobot.extras.plugins import PluginConfig
 
