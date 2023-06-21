@@ -4,16 +4,6 @@ from django.db import migrations, models
 import nautobot_ssot.models
 
 
-def copy_diff_to_compressed_diff(apps, schema_editor):
-    for sync in nautobot_ssot.models.Sync.objects.all():
-        sync.compressed_diff = sync.diff
-        sync.validated_save()
-
-
-def undo_diff_copy(apps, schema_editor):
-    pass
-
-
 class Migration(migrations.Migration):
     dependencies = [
         ("nautobot_ssot", "0004_sync_summary"),
