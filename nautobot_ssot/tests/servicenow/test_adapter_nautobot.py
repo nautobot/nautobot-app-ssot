@@ -1,9 +1,7 @@
 """Unit tests for the Nautobot DiffSync adapter."""
 
-from unittest import mock
 import uuid
 
-from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 
 from nautobot.dcim.models import Device, DeviceRole, DeviceType, Interface, Manufacturer, Region, Site
@@ -12,11 +10,6 @@ from nautobot.utilities.testing import TransactionTestCase
 
 from nautobot_ssot.integrations.servicenow.jobs import ServiceNowDataTarget
 from nautobot_ssot.integrations.servicenow.diffsync.adapter_nautobot import NautobotDiffSync
-
-
-if "job_logs" in settings.DATABASES:
-    settings.DATABASES["job_logs"] = settings.DATABASES["job_logs"].copy()
-    settings.DATABASES["job_logs"]["TEST"] = {"MIRROR": "default"}
 
 
 class NautobotDiffSyncTestCase(TransactionTestCase):
@@ -51,10 +44,6 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
         Interface.objects.create(device=device_2, name="eth1")
         Interface.objects.create(device=device_2, name="eth2")
 
-    # Override the JOB_LOGS to None so that the Log Objects are created in the default database.
-    # This change is required as JOB_LOGS is a `fake` database pointed at the default. The django
-    # database cleanup will fail and cause tests to fail as this is not a real database.
-    @mock.patch("nautobot.extras.models.models.JOB_LOGS", None)
     def test_data_loading(self):
         """Test the load() function."""
         job = ServiceNowDataTarget()
