@@ -9,13 +9,22 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name="sync",
-            name="diff",
-        ),
-        migrations.RenameField(
-            model_name="sync",
-            old_name="compressed_diff",
-            new_name="diff",
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunSQL(
+                    sql="ALTER TABLE nautobot_ssot_sync DROP COLUMN json_diff",
+                    reverse_sql=[
+                        "ALTER TABLE nautobot_ssot_sync ADD COLUMN json_diff JSONB",
+                        "UPDATE nautobot_ssot_sync SET json_diff = '{}'",
+                        "ALTER TABLE nautobot_ssot_sync ALTER COLUMN json_diff SET NOT NULL",
+                    ],
+                ),
+            ],
+            state_operations=[
+                migrations.RemoveField(
+                    model_name="sync",
+                    name="json_diff",
+                ),
+            ],
         ),
     ]
