@@ -12,7 +12,17 @@ class Migration(migrations.Migration):
         migrations.SeparateDatabaseAndState(
             database_operations=[
                 migrations.RunSQL(
+                    # Going forward, the column used for data migration needs to be dropped
                     sql="ALTER TABLE nautobot_ssot_sync DROP COLUMN json_diff",
+                    # Going backward, the column used for data migration needs to be created
+                    # This column will become the diff column as it was before migration 0005,
+                    # which is a JSONB column with a NOT NULL constraint and without a default.
+                    # The following order is used in order to create this properly:
+                    #  1) Create JSONB column
+                    #  2) Add an empty JSON object for the new column to every entry, since it is NOT NULL
+                    #  3) Add NOT NULL constraint to new column now that each row has a value for the column
+                    # This column will have its values updated when migration 0006 is reversed
+                    # with the contents currently in the diff field, converted from BYTEA to JSONB
                     reverse_sql=[
                         "ALTER TABLE nautobot_ssot_sync ADD COLUMN json_diff JSONB",
                         "UPDATE nautobot_ssot_sync SET json_diff = '{}'",
@@ -20,6 +30,8 @@ class Migration(migrations.Migration):
                     ],
                 ),
             ],
+            # Handle Django model state for field used for data migration
+            # Otherwise Django will think there is a missing migration
             state_operations=[
                 migrations.RemoveField(
                     model_name="sync",

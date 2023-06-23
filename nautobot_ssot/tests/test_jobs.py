@@ -4,7 +4,7 @@ from unittest.mock import Mock, call
 import uuid
 
 from django.contrib.contenttypes.models import ContentType
-from django.db.utils import IntegrityError,OperationalError
+from django.db.utils import IntegrityError, OperationalError
 from django.forms import HiddenInput
 from django.test import override_settings
 
@@ -121,7 +121,9 @@ class BaseJobTestCase(TransactionTestCase):
         self.job.log_warning = Mock()
         self.job.source_adapter.diff_to().dict.return_value = {}
         self.job.calculate_diff()
-        self.job.log_warning.assert_any_call(message="Unable to save JSON Diff to database, likely because the diff was too large")
+        self.job.log_warning.assert_any_call(
+            message="Unable to save JSON Diff to database, likely because the diff was too large"
+        )
 
     def test_calculate_diff_fail_diff_save_generic(self):
         """Test calculate_diff() method logs failure."""
