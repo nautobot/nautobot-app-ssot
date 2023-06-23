@@ -6,6 +6,7 @@ import tracemalloc
 from typing import Iterable
 from packaging.version import Version
 
+from django.db.utils import OperationalError
 from django.forms import HiddenInput
 from django.templatetags.static import static
 from django.utils import timezone
@@ -85,8 +86,8 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             try:
                 self.sync.diff = self.diff.dict()
                 self.sync.save()
-            except Exception:  # pylint: disable=broad-except
-                self.log_warning(message="Unable to save JSON Diff to database")
+            except OperationalError:
+                self.log_warning(message="Unable to save JSON Diff to database because the diff was too large")
             self.log_info(message=self.diff.summary())
         else:
             self.log_warning(message="Not both adapters were properly initialized prior to diff calculation.")
