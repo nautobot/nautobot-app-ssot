@@ -5,7 +5,7 @@ from nautobot_ssot.api import views
 
 
 router = OrderedDefaultRouter()
-router.APIRootView = views.SsotRootView
+router.APIRootView = views.SSOTRootView
 router.register("syncs", views.SyncViewSet)
 router.register("logs", views.SyncLogEntryViewSet)
 urlpatterns = router.urls

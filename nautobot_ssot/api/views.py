@@ -8,7 +8,7 @@ from nautobot_ssot import filters
 from nautobot_ssot import models
 
 
-class SsotRootView(APIRootView):
+class SSOTRootView(APIRootView):
     """SSoT API root view."""
 
     def get_view_name(self):
