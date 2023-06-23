@@ -87,7 +87,7 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 self.sync.diff = self.diff.dict()
                 self.sync.save()
             except OperationalError:
-                self.log_warning(message="Unable to save JSON Diff to database because the diff was too large")
+                self.log_warning(message="Unable to save JSON Diff to database, likely because the diff was too large")
             self.log_info(message=self.diff.summary())
         else:
             self.log_warning(message="Not both adapters were properly initialized prior to diff calculation.")
