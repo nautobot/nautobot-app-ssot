@@ -32,6 +32,7 @@ cvprac = { version = "^1.2.2", optional = true }
 diffsync = "^1.6.0"
 dnspython = { version = "^2.1.0", optional = true }
 nautobot = "^1.4.0"
+nautobot-device-lifecycle-mgmt = { version = "^1.0.2", optional = true }
 packaging = ">=21.3, <24"
 prometheus-client = "~0.14.1"
 python = "^3.7"
@@ -65,7 +66,6 @@ mkdocs-version-annotations = "1.0.0"
 mkdocstrings = "0.20"
 mkdocstrings-python = "0.8.3"
 requests-mock = "^1.10.0"
-nautobot-device-lifecycle-mgmt = "^1.0.2"
 parameterized = "^0.8.1"
 
 [tool.poetry.plugins."nautobot_ssot.data_sources"]
@@ -79,6 +79,7 @@ all = [
     "cloudvision",
     "cvprac",
     "dnspython",
+    "nautobot-device-lifecycle-mgmt",
 ]
 aristacv = [
     "cloudvision",
@@ -86,6 +87,9 @@ aristacv = [
 ]
 infoblox = [
     "dnspython",
+]
+nautobot-device-lifecycle-mgmt = [
+    "nautobot-device-lifecycle-mgmt",
 ]
 
 [tool.black]

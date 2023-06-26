@@ -688,7 +688,7 @@ dev = ["check-manifest", "coverage", "pep8", "pyflakes", "pylint", "pyyaml"]
 name = "cycler"
 version = "0.11.0"
 description = "Composable style cycles"
-optional = false
+optional = true
 python-versions = ">=3.6"
 files = [
     {file = "cycler-0.11.0-py3-none-any.whl", hash = "sha256:3a27e95f763a428a739d2add979fa7494c912a32c17c4c38c4d5f082cad165a3"},
@@ -1284,7 +1284,7 @@ pyflakes = ">=2.3.0,<2.4.0"
 name = "fonttools"
 version = "4.38.0"
 description = "Tools to manipulate font files"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "fonttools-4.38.0-py3-none-any.whl", hash = "sha256:820466f43c8be8c3009aef8b87e785014133508f0de64ec469e4efb643ae54fb"},
@@ -1738,7 +1738,7 @@ format-nongpl = ["fqdn", "idna", "isoduration", "jsonpointer (>1.13)", "rfc3339-
 name = "kiwisolver"
 version = "1.4.4"
 description = "A fast implementation of the Cassowary constraint solver"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "kiwisolver-1.4.4-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:2f5e60fabb7343a836360c4f0919b8cd0d6dbf08ad2ca6b9cf90bf0c76a3c4f6"},
@@ -2014,7 +2014,7 @@ files = [
 name = "matplotlib"
 version = "3.5.3"
 description = "Python plotting package"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "matplotlib-3.5.3-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:a206a1b762b39398efea838f528b3a6d60cdb26fe9d58b48265787e29cd1d693"},
@@ -2389,7 +2389,7 @@ sso = ["social-auth-core[openidconnect,saml] (>=4.3.0,<4.4.0)"]
 name = "nautobot-device-lifecycle-mgmt"
 version = "1.2.0"
 description = "Manages device lifecycles for platforms and software."
-optional = false
+optional = true
 python-versions = ">=3.7,<4.0"
 files = [
     {file = "nautobot_device_lifecycle_mgmt-1.2.0-py3-none-any.whl", hash = "sha256:98a195405dddad8ea15f85ff7a1d815e76a9cf57057e40811819cbd50ad2ab86"},
@@ -2430,7 +2430,7 @@ optionals = ["napalm (>=4.0.0,<5.0.0)"]
 name = "numpy"
 version = "1.21.1"
 description = "NumPy is the fundamental package for array computing with Python."
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "numpy-1.21.1-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:38e8648f9449a549a7dfe8d8755a5979b45b3538520d1e735637ef28e8c2dc50"},
@@ -2848,7 +2848,7 @@ files = [
 name = "pycountry"
 version = "22.3.5"
 description = "ISO country, subdivision, language, currency and script definitions and their translations"
-optional = false
+optional = true
 python-versions = ">=3.6, <4"
 files = [
     {file = "pycountry-22.3.5.tar.gz", hash = "sha256:b2163a246c585894d808f18783e19137cb70a0c18fb36748dc01fc6f109c1646"},
@@ -3095,7 +3095,7 @@ pyyaml = "*"
 name = "pyparsing"
 version = "3.0.9"
 description = "pyparsing module - Classes and methods to define and execute parsing grammars"
-optional = false
+optional = true
 python-versions = ">=3.6.8"
 files = [
     {file = "pyparsing-3.0.9-py3-none-any.whl", hash = "sha256:5026bae9a10eeaefb61dab2f09052b9f4307d44aee4eda64b309723d8d206bbc"},
@@ -3601,7 +3601,8 @@ files = [
     {file = "ruamel.yaml.clib-0.2.7-cp310-cp310-win32.whl", hash = "sha256:763d65baa3b952479c4e972669f679fe490eee058d5aa85da483ebae2009d231"},
     {file = "ruamel.yaml.clib-0.2.7-cp310-cp310-win_amd64.whl", hash = "sha256:d000f258cf42fec2b1bbf2863c61d7b8918d31ffee905da62dede869254d3b8a"},
     {file = "ruamel.yaml.clib-0.2.7-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:045e0626baf1c52e5527bd5db361bc83180faaba2ff586e763d3d5982a876a9e"},
-    {file = "ruamel.yaml.clib-0.2.7-cp311-cp311-macosx_12_6_arm64.whl", hash = "sha256:721bc4ba4525f53f6a611ec0967bdcee61b31df5a56801281027a3a6d1c2daf5"},
+    {file = "ruamel.yaml.clib-0.2.7-cp311-cp311-macosx_13_0_arm64.whl", hash = "sha256:1a6391a7cabb7641c32517539ca42cf84b87b667bad38b78d4d42dd23e957c81"},
+    {file = "ruamel.yaml.clib-0.2.7-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:9c7617df90c1365638916b98cdd9be833d31d337dbcd722485597b43c4a215bf"},
     {file = "ruamel.yaml.clib-0.2.7-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl", hash = "sha256:41d0f1fa4c6830176eef5b276af04c89320ea616655d01327d5ce65e50575c94"},
     {file = "ruamel.yaml.clib-0.2.7-cp311-cp311-win32.whl", hash = "sha256:f6d3d39611ac2e4f62c3128a9eed45f19a6608670c5a2f4f07f24e8de3441d38"},
     {file = "ruamel.yaml.clib-0.2.7-cp311-cp311-win_amd64.whl", hash = "sha256:da538167284de58a52109a9b89b8f6a53ff8437dd6dc26d33b57bf6699153122"},
@@ -4171,11 +4172,12 @@ docs = ["furo", "jaraco.packaging (>=9)", "jaraco.tidelift (>=1.4)", "rst.linker
 testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more-itertools", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=1.3)", "pytest-flake8", "pytest-mypy (>=0.9.1)"]
 
 [extras]
-all = ["cloudvision", "cvprac", "dnspython"]
+all = ["cloudvision", "cvprac", "dnspython", "nautobot-device-lifecycle-mgmt"]
 aristacv = ["cloudvision", "cvprac"]
 infoblox = ["dnspython"]
+nautobot-device-lifecycle-mgmt = ["nautobot-device-lifecycle-mgmt"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.7"
-content-hash = "6a5381c96f77dfdee605f3125c43d855f551df51481d3a296fb98b18a2aed14a"
+content-hash = "0eee57386adaedb1725c7ec497af9398bb6cbb3151158cbcfdfe03fc39d39e79"
