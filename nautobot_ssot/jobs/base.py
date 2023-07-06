@@ -15,7 +15,6 @@ from django.utils.functional import classproperty
 from diffsync.enum import DiffSyncFlags
 import structlog
 
-from nautobot.extras.choices import LogLevelChoices
 from nautobot.extras.jobs import DryRunVar, Job, BooleanVar
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices
@@ -79,12 +78,9 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             self.sync.diff = self.diff.dict()
             self.sync.summary = self.diff.summary()
             self.sync.save()
-            self.job_result.log(self.diff.summary(), level_choice=LogLevelChoices.LOG_INFO)
+            self.logger.info(self.diff.summary())
         else:
-            self.job_result.log(
-                "Not both adapters were properly initialized prior to diff calculation.",
-                level_choice=LogLevelChoices.LOG_WARNING,
-            )
+            self.logger.warning("Not both adapters were properly initialized prior to diff calculation.")
 
     def execute_sync(self):
         """Method to synchronize the difference from `self.diff`, from SOURCE to TARGET adapter.
@@ -94,10 +90,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         if self.source_adapter is not None and self.target_adapter is not None:
             self.source_adapter.sync_to(self.target_adapter, flags=self.diffsync_flags)
         else:
-            self.job_result.log(
-                "Not both adapters were properly initialized prior to synchronization.",
-                level_choice=LogLevelChoices.LOG_WARNING,
-            )
+            self.logger.warning("Not both adapters were properly initialized prior to synchronization.")
 
     def sync_data(self, memory_profiling):
         """Method to load data from adapters, calculate diffs and sync (if not dry-run).
@@ -121,10 +114,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             setattr(self.sync, f"{step}_memory_final", memory_final)
             setattr(self.sync, f"{step}_memory_peak", memory_peak)
             self.sync.save()
-            self.job_result.log(
-                f"Traced memory for {step} (Final, Peak): {memory_final} bytes, {memory_peak} bytes",
-                level_choice=LogLevelChoices.LOG_INFO,
-            )
+            self.logger.info("Traced memory for %s (Final, Peak): %s bytes, %s bytes", step, memory_final, memory_peak)
             tracemalloc.clear_traces()
 
         if not self.sync:
@@ -135,55 +125,43 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
 
         start_time = datetime.now()
 
-        self.job_result.log("Loading current data from source adapter...", level_choice=LogLevelChoices.LOG_INFO)
+        self.logger.info("Loading current data from source adapter...")
         self.load_source_adapter()
         load_source_adapter_time = datetime.now()
         self.sync.source_load_time = load_source_adapter_time - start_time
         self.sync.save()
-        self.job_result.log(
-            f"Source Load Time from {self.source_adapter}: {self.sync.source_load_time}",
-            level_choice=LogLevelChoices.LOG_INFO,
-        )
+        self.logger.info("Source Load Time from %s: %s", self.source_adapter, self.sync.source_load_time)
         if memory_profiling:
             record_memory_trace("source_load")
 
-        self.job_result.log("Loading current data from target adapter...", level_choice=LogLevelChoices.LOG_INFO)
+        self.logger.info("Loading current data from target adapter...")
         self.load_target_adapter()
         load_target_adapter_time = datetime.now()
         self.sync.target_load_time = load_target_adapter_time - load_source_adapter_time
         self.sync.save()
-        self.job_result.log(
-            f"Target Load Time from {self.target_adapter}: {self.sync.target_load_time}",
-            level_choice=LogLevelChoices.LOG_INFO,
-        )
+        self.logger.info("Target Load Time from %s: %s", self.target_adapter, self.sync.target_load_time)
         if memory_profiling:
             record_memory_trace("target_load")
 
-        self.job_result.log("Calculating diffs...", level_choice=LogLevelChoices.LOG_INFO)
+        self.logger.info("Calculating diffs...")
         self.calculate_diff()
         calculate_diff_time = datetime.now()
         self.sync.diff_time = calculate_diff_time - load_target_adapter_time
         self.sync.save()
-        self.job_result.log(f"Diff Calculation Time: {self.sync.diff_time}", level_choice=LogLevelChoices.LOG_INFO)
+        self.logger.info("Diff Calculation Time: %s", self.sync.diff_time)
         if memory_profiling:
             record_memory_trace("diff")
 
         if self.dryrun:
-            self.job_result.log(
-                "As `dryrun` is set, skipping the actual data sync.",
-                level_choice=LogLevelChoices.LOG_INFO,
-            )
+            self.logger.info("As `dryrun` is set, skipping the actual data sync.")
         else:
-            self.job_result.log(
-                f"Syncing from {self.source_adapter} to {self.target_adapter}...",
-                level_choice=LogLevelChoices.LOG_INFO,
-            )
+            self.logger.info("Syncing from %s to %s...", self.source_adapter, self.target_adapter)
             self.execute_sync()
             execute_sync_time = datetime.now()
             self.sync.sync_time = execute_sync_time - calculate_diff_time
             self.sync.save()
-            self.job_result.log("Sync complete", level_choice=LogLevelChoices.LOG_INFO)
-            self.job_result.log(f"Sync Time: {self.sync.sync_time}", level_choice=LogLevelChoices.LOG_INFO)
+            self.logger.info("Sync complete")
+            self.logger.info("Sync Time: %s", self.sync.sync_time)
             if memory_profiling:
                 record_memory_trace("sync")
 
@@ -336,10 +314,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             self.sync_data(memory_profiling)
         except Exception as exc:  # pylint: disable=broad-except
             stacktrace = traceback.format_exc()
-            self.job_result.log(
-                f"An exception occurred: `{type(exc).__name__}: {exc}`\n```\n{stacktrace}\n```",
-                level_choice=LogLevelChoices.LOG_ERROR,
-            )
+            self.logger.error(f"An exception occurred: `{type(exc).__name__}: {exc}`\n```\n{stacktrace}\n```")
 
 
 # pylint: disable=abstract-method

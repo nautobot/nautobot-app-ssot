@@ -6,7 +6,7 @@ from diffsync import DiffSync
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
 from nautobot.dcim.models import Location
-from nautobot.extras.choices import CustomFieldTypeChoices, LogLevelChoices
+from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import Relationship, Role, Status, Tag, CustomField
 from nautobot.ipam.models import IPAddress, Prefix, VLAN, VLANGroup
 from nautobot.tenancy.models import Tenant
@@ -121,28 +121,20 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
             source (DiffSync): Source DiffSync adapter data.
         """
         if len(self.objects_to_create["vlangroups"]) > 0:
-            self.job.job_result.log(
-                "Performing bulk create of VLAN Groups in Nautobot", level_choice=LogLevelChoices.LOG_INFO
-            )
+            self.job.logger.info("Performing bulk create of VLAN Groups in Nautobot")
             VLANGroup.objects.bulk_create(self.objects_to_create["vlangroups"], batch_size=250)
         if len(self.objects_to_create["vlans"]) > 0:
-            self.job.job_result.log(
-                "Performing bulk create of VLANs in Nautobot.", level_choice=LogLevelChoices.LOG_INFO
-            )
+            self.job.logger.info("Performing bulk create of VLANs in Nautobot.")
             VLAN.objects.bulk_create(self.objects_to_create["vlans"], batch_size=500)
         if len(self.objects_to_create["prefixes"]) > 0:
-            self.job.job_result.log(
-                "Performing bulk create of Prefixes in Nautobot", level_choice=LogLevelChoices.LOG_INFO
-            )
+            self.job.logger.info("Performing bulk create of Prefixes in Nautobot")
             Prefix.objects.bulk_create(self.objects_to_create["prefixes"], batch_size=500)
         if len(self.objects_to_create["ipaddrs"]) > 0:
-            self.job.job_result.log(
-                "Performing bulk create of IP Addresses in Nautobot", level_choice=LogLevelChoices.LOG_INFO
-            )
+            self.job.logger.info("Performing bulk create of IP Addresses in Nautobot")
             IPAddress.objects.bulk_create(self.objects_to_create["ipaddrs"], batch_size=1000)
         for obj_type, objs in self.objects_to_create.items():
             if obj_type != "vlangroups":
-                self.job.job_result.log(f"Adding tags to all imported {obj_type}.")
+                self.job.logger.info(f"Adding tags to all imported {obj_type}.")
                 for obj in objs:
                     obj.tags.add(create_tag_sync_from_infoblox())
 
@@ -166,9 +158,7 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
             try:
                 self.add(_prefix)
             except ObjectAlreadyExists:
-                self.job.job_result.log(
-                    f"Found duplicate prefix: {prefix.prefix}.", level_choice=LogLevelChoices.LOG_WARNING
-                )
+                self.job.logger.warning(f"Found duplicate prefix: {prefix.prefix}.")
 
     def load_ipaddresses(self):
         """Load IP Addresses from Nautobot."""
@@ -181,17 +171,13 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
 
             # The IP address must have a parent prefix
             if not prefix:
-                self.job.job_result.log(
-                    f"IP Address {addr} does not have a parent prefix and will not be synced.",
-                    level_choice=LogLevelChoices.LOG_WARNING,
-                )
+                self.job.logger.warning(f"IP Address {addr} does not have a parent prefix and will not be synced.")
                 continue
             # IP address must be part of a prefix that is not a container
             # This means the IP cannot be associated with an IPv4 Network within Infoblox
             if prefix.status.name == "Container":
-                self.job.job_result.log(
-                    f"IP Address {addr}'s parent prefix is a container. The parent prefix status must not be 'container'.",
-                    level_choice=LogLevelChoices.LOG_WARNING,
+                self.job.logger.warning(
+                    f"IP Address {addr}'s parent prefix is a container. The parent prefix status must not be 'container'."
                 )
                 continue
 
@@ -210,9 +196,7 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
             try:
                 self.add(_ip)
             except ObjectAlreadyExists:
-                self.job.job_result.log(
-                    f"Duplicate IP Address detected: {addr}.", level_choice=LogLevelChoices.LOG_WARNING
-                )
+                self.job.logger.warning(f"Duplicate IP Address detected: {addr}.")
 
     def load_vlangroups(self):
         """Load VLAN Groups from Nautobot."""
@@ -260,23 +244,13 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
         self.role_map = {r.name: r.id for r in Role.objects.only("id", "name")}
         self.load_prefixes()
         if "prefix" in self.dict():
-            self.job.job_result.log(
-                f"Loaded {len(self.dict()['prefix'])} prefixes from Nautobot.", level_choice=LogLevelChoices.LOG_INFO
-            )
+            self.job.logger.info(f"Loaded {len(self.dict()['prefix'])} prefixes from Nautobot.")
         self.load_ipaddresses()
         if "ipaddress" in self.dict():
-            self.job.job_result.log(
-                f"Loaded {len(self.dict()['ipaddress'])} IP addresses from Nautobot.",
-                level_choice=LogLevelChoices.LOG_INFO,
-            )
+            self.job.logger.info(f"Loaded {len(self.dict()['ipaddress'])} IP addresses from Nautobot.")
         self.load_vlangroups()
         if "vlangroup" in self.dict():
-            self.job.job_result.log(
-                f"Loaded {len(self.dict()['vlangroup'])} VLAN Groups from Nautobot.",
-                level_choice=LogLevelChoices.LOG_INFO,
-            )
+            self.job.logger.info(f"Loaded {len(self.dict()['vlangroup'])} VLAN Groups from Nautobot.")
         self.load_vlans()
         if "vlan" in self.dict():
-            self.job.job_result.log(
-                f"Loaded {len(self.dict()['vlan'])} VLANs from Nautobot.", level_choice=LogLevelChoices.LOG_INFO
-            )
+            self.job.logger.info(f"Loaded {len(self.dict()['vlan'])} VLANs from Nautobot.")

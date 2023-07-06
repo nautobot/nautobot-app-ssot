@@ -10,7 +10,6 @@ from django.urls import reverse
 
 from nautobot.circuits.models import CircuitTermination
 from nautobot.dcim.models import Device, DeviceRedundancyGroup, Location, LocationType, PowerPanel, Rack, RackGroup
-from nautobot.extras.choices import LogLevelChoices
 from nautobot.extras.jobs import StringVar
 from nautobot.extras.models import Status
 from nautobot.ipam.models import Namespace, Prefix, VLAN, VLANGroup
@@ -284,7 +283,7 @@ class SiteLocalModel(SiteModel):
             ids (dict): Initial values for this model's _identifiers
             attrs (dict): Initial values for this model's _attributes
         """
-        diffsync.job.job_result.log(f"Creating Site {ids['name']} with ids: {ids} attrs: {attrs}")
+        diffsync.job.logger.info(f"Creating Site {ids['name']} with ids: {ids} attrs: {attrs}")
         site_type, created = LocationType.objects.update_or_create(
             name="Site", nestable=False, parent=LocationType.objects.get(name="Region")
         )
@@ -348,7 +347,7 @@ class PrefixLocalModel(PrefixModel):
             ids (dict): Initial values for this model's _identifiers
             attrs (dict): Initial values for this model's _attributes
         """
-        diffsync.job.job_result.log(f"Creating Prefix {ids['prefix']} with ids: {ids} attrs: {attrs}")
+        diffsync.job.logger.info(f"Creating Prefix {ids['prefix']} with ids: {ids} attrs: {attrs}")
         prefix = Prefix(prefix=ids["prefix"], description=attrs["description"])
         if ids["tenant"]:
             tenant_obj, _ = Tenant.objects.get_or_create(
@@ -455,9 +454,7 @@ class NautobotRemote(DiffSync):
                 pk=region_entry["id"],
             )
             self.add(region)
-            self.job.job_result.log(
-                f"Loaded {region} from remote Nautobot instance", level_choice=LogLevelChoices.LOG_DEBUG
-            )
+            self.job.logger.debug(f"Loaded {region} from remote Nautobot instance")
 
         for site_entry in self._get_api_data("api/dcim/sites/"):
             site = self.site(
@@ -468,9 +465,7 @@ class NautobotRemote(DiffSync):
                 pk=site_entry["id"],
             )
             self.add(site)
-            self.job.job_result.log(
-                f"Loaded {site} from remote Nautobot instance", level_choice=LogLevelChoices.LOG_DEBUG
-            )
+            self.job.logger.debug(f"Loaded {site} from remote Nautobot instance")
             if site.region_name == "Global":
                 try:
                     self.get(self.region, "Global")
@@ -492,9 +487,7 @@ class NautobotRemote(DiffSync):
                 pk=prefix_entry["id"],
             )
             self.add(prefix)
-            self.job.job_result.log(
-                f"Loaded {prefix} from remote Nautobot instance", level_choice=LogLevelChoices.LOG_DEBUG
-            )
+            self.job.logger.debug(f"Loaded {prefix} from remote Nautobot instance")
 
     def post(self, path, data):
         """Send an appropriately constructed HTTP POST request."""
@@ -542,10 +535,7 @@ class NautobotLocal(DiffSync):
                     pk=location.pk,
                 )
                 self.add(region_model)
-                self.job.job_result.log(
-                    f"Loaded {region_model} from local Nautobot instance",
-                    level_choice=LogLevelChoices.LOG_DEBUG,
-                )
+                self.job.logger.debug(f"Loaded {region_model} from local Nautobot instance")
 
             if location.location_type.name == "Site":
                 site_model = self.site(
@@ -556,10 +546,7 @@ class NautobotLocal(DiffSync):
                     pk=location.pk,
                 )
                 self.add(site_model)
-                self.job.job_result.log(
-                    f"Loaded {site_model} from local Nautobot instance",
-                    level_choice=LogLevelChoices.LOG_DEBUG,
-                )
+                self.job.logger.debug(f"Loaded {site_model} from local Nautobot instance")
 
         for prefix in Prefix.objects.all():
             prefix_model = self.prefix(
@@ -570,10 +557,7 @@ class NautobotLocal(DiffSync):
                 pk=prefix.pk,
             )
             self.add(prefix_model)
-            self.job.job_result.log(
-                f"Loaded {prefix_model} from local Nautobot instance",
-                level_choice=LogLevelChoices.LOG_DEBUG,
-            )
+            self.job.logger.debug(f"Loaded {prefix_model} from local Nautobot instance")
 
 
 # The actual Data Source and Data Target Jobs are relatively simple to implement

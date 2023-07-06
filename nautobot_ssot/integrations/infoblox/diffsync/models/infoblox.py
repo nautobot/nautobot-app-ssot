@@ -1,6 +1,5 @@
 """Infoblox Models for Infoblox integration with SSoT plugin."""
 from requests.exceptions import HTTPError
-from nautobot.extras.choices import LogLevelChoices
 from nautobot_ssot.integrations.infoblox.diffsync.models.base import Network, IPAddress, Vlan, VlanView
 
 
@@ -17,10 +16,7 @@ class InfobloxNetwork(Network):
             else:
                 diffsync.conn.create_network_container(prefix=ids["network"], comment=attrs.get("description", ""))
         except HTTPError as err:
-            diffsync.job.job_result.log(
-                f"Failed to create {ids['network']} due to {err.response.text}",
-                level_choice=LogLevelChoices.LOG_WARNING,
-            )
+            diffsync.job.logger.warning(f"Failed to create {ids['network']} due to {err.response.text}")
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
     def update(self, attrs):

@@ -3,7 +3,6 @@ import re
 
 from diffsync import DiffSync
 from diffsync.enum import DiffSyncFlags
-from nautobot.extras.choices import LogLevelChoices
 from nautobot.extras.plugins.exceptions import PluginImproperlyConfigured
 from nautobot_ssot.integrations.infoblox.constant import PLUGIN_CFG
 from nautobot_ssot.integrations.infoblox.utils.client import get_default_ext_attrs, get_dns_name
@@ -41,9 +40,8 @@ class InfobloxAdapter(DiffSync):
         self.subnets = []
 
         if self.conn in [None, False]:
-            self.job.job_result.log(
-                "Improperly configured settings for communicating to Infoblox. Please validate accuracy.",
-                level_choice=LogLevelChoices.LOG_ERROR,
+            self.job.logger.error(
+                "Improperly configured settings for communicating to Infoblox. Please validate accuracy."
             )
             raise PluginImproperlyConfigured
 
@@ -135,19 +133,14 @@ class InfobloxAdapter(DiffSync):
             if PLUGIN_CFG["infoblox_import_objects"].get("vlans"):
                 self.load_vlans()
         else:
-            self.job.job_result.log(
-                "The `infoblox_import_objects` setting was not found so all objects will be imported.",
-                level_choice=LogLevelChoices.LOG_INFO,
-            )
+            self.job.logger.info("The `infoblox_import_objects` setting was not found so all objects will be imported.")
             self.load_prefixes()
             self.load_ipaddresses()
             self.load_vlanviews()
             self.load_vlans()
         for obj in ["prefix", "ipaddress", "vlangroup", "vlan"]:
             if obj in self.dict():
-                self.job.job_result.log(
-                    f"Loaded {len(self.dict()[obj])} {obj} from Infoblox.", level_choice=LogLevelChoices.LOG_INFO
-                )
+                self.job.logger.info(f"Loaded {len(self.dict()[obj])} {obj} from Infoblox.")
 
     def sync_complete(self, source, diff, flags=DiffSyncFlags.NONE, logger=None):
         """Add tags and custom fields to synced objects."""

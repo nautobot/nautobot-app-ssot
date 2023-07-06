@@ -3,7 +3,6 @@
 from diffsync.enum import DiffSyncFlags
 from django.templatetags.static import static
 from django.urls import reverse
-from nautobot.extras.choices import LogLevelChoices
 from nautobot.extras.jobs import BooleanVar
 from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
 
@@ -45,17 +44,17 @@ class InfobloxDataSource(DataSource):
 
     def load_source_adapter(self):
         """Load Infoblox data."""
-        self.job_result.log("Connecting to Infoblox", level_choice=LogLevelChoices.LOG_INFO)
+        self.logger.info("Connecting to Infoblox")
         client = InfobloxApi()
         self.source_adapter = infoblox.InfobloxAdapter(job=self, sync=self.sync, conn=client)
-        self.job_result.log("Loading data from Infoblox...", level_choice=LogLevelChoices.LOG_INFO)
+        self.logger.info("Loading data from Infoblox...")
         self.source_adapter.load()
 
     def load_target_adapter(self):
         """Load Nautobot data."""
-        self.job_result.log("Connecting to Nautobot...", level_choice=LogLevelChoices.LOG_INFO)
+        self.logger.info("Connecting to Nautobot...")
         self.target_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync)
-        self.job_result.log("Loading data from Nautobot...", level_choice=LogLevelChoices.LOG_INFO)
+        self.logger.info("Loading data from Nautobot...")
         self.target_adapter.load()
 
     def run(self, dryrun, memory_profiling, debug, *args, **kwargs):  # pylint: disable=arguments-differ
@@ -96,17 +95,17 @@ class InfobloxDataTarget(DataTarget):
 
     def load_source_adapter(self):
         """Load Nautobot data."""
-        self.job_result.log("Connecting to Nautobot...", level_choice=LogLevelChoices.LOG_INFO)
+        self.logger.info("Connecting to Nautobot...")
         self.source_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync)
-        self.job_result.log("Loading data from Nautobot...", level_choice=LogLevelChoices.LOG_INFO)
+        self.logger.info("Loading data from Nautobot...")
         self.source_adapter.load()
 
     def load_target_adapter(self):
         """Load Infoblox data."""
-        self.job_result.log("Connecting to Infoblox", level_choice=LogLevelChoices.LOG_INFO)
+        self.logger.info("Connecting to Infoblox")
         client = InfobloxApi()
         self.target_adapter = infoblox.InfobloxAdapter(job=self, sync=self.sync, conn=client)
-        self.job_result.log("Loading data from Infoblox...", level_choice=LogLevelChoices.LOG_INFO)
+        self.logger.info("Loading data from Infoblox...")
         self.target_adapter.load()
 
     def run(self, dryrun, memory_profiling, debug, *args, **kwargs):  # pylint: disable=arguments-differ
