@@ -28,7 +28,19 @@ class NautobotSSOTPluginConfig(PluginConfig):
     min_version = "1.4.0"
     max_version = "1.9999"
     default_settings = {
+        "aci_apics": [],
+        "aci_tag": "",
+        "aci_tag_color": "",
+        "aci_tag_up": "",
+        "aci_tag_up_color": "",
+        "aci_tag_down": "",
+        "aci_tag_down_color": "",
+        "aci_manufacturer_name": "",
+        "aci_ignore_tenants": [],
+        "aci_comments": "",
+        "aci_site": "",
         "enable_infoblox": False,
+        "enable_aci": False,
         "hide_example_jobs": True,
         "infoblox_default_status": "",
         "infoblox_enable_rfc1918_network_containers": False,
