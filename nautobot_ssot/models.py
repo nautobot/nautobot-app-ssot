@@ -21,6 +21,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.urls import reverse
 from django.utils.formats import date_format
@@ -65,7 +66,7 @@ class Sync(BaseModel):
     dry_run = models.BooleanField(
         default=False, help_text="Report what data would be synced but do not make any changes"
     )
-    diff = models.JSONField(blank=True)
+    diff = models.JSONField(blank=True, encoder=DjangoJSONEncoder)
     summary = models.JSONField(blank=True, null=True)
 
     job_result = models.ForeignKey(to=JobResult, on_delete=models.PROTECT, blank=True, null=True)
@@ -153,7 +154,7 @@ class SyncLogEntry(BaseModel):
 
     action = models.CharField(max_length=32, choices=SyncLogEntryActionChoices)
     status = models.CharField(max_length=32, choices=SyncLogEntryStatusChoices)
-    diff = models.JSONField(blank=True, null=True)
+    diff = models.JSONField(blank=True, null=True, encoder=DjangoJSONEncoder)
 
     synced_object_type = models.ForeignKey(
         to=ContentType,

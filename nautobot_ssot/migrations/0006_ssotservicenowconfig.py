@@ -43,7 +43,7 @@ def _move_data(apps, schema_editor):
 class Migration(migrations.Migration):
     dependencies = [
         ("extras", "0053_relationship_required_on"),
-        ("nautobot_ssot", "0004_sync_summary"),
+        ("nautobot_ssot", "0005_django_json_encoder"),
     ]
 
     operations = [
