@@ -141,6 +141,24 @@ PLUGINS = [
 # Each key in the dictionary is the name of an installed plugin and its value is a dictionary of settings.
 PLUGINS_CONFIG = {
     "nautobot_ssot": {
+        # URL and credentials should be configured as environment variables on the host system
+        "aci_apics": {x: os.environ[x] for x in os.environ if "APIC" in x},
+        # Tag which will be created and applied to all synchronized objects.
+        "aci_tag": os.getenv("NAUTOBOT_SSOT_ACI_TAG"),
+        "aci_tag_color": os.getenv("NAUTOBOT_SSOT_ACI_TAG_COLOR"),
+        # Tags indicating state applied to synchronized interfaces.
+        "aci_tag_up": os.getenv("NAUTOBOT_SSOT_ACI_TAG_UP"),
+        "aci_tag_up_color": os.getenv("NAUTOBOT_SSOT_ACI_TAG_UP_COLOR"),
+        "aci_tag_down": os.getenv("NAUTOBOT_SSOT_ACI_TAG_DOWN"),
+        "aci_tag_down_color": os.getenv("NAUTOBOT_SSOT_ACI_TAG_DOWN_COLOR"),
+        # Manufacturer name. Specify existing, or a new one with this name will be created.
+        "aci_manufacturer_name": os.getenv("NAUTOBOT_SSOT_ACI_MANUFACTURER_NAME"),
+        # Exclude any tenants you would not like to bring over from ACI.
+        "aci_ignore_tenants": os.getenv("NAUTOBOT_SSOT_ACI_IGNORE_TENANTS", "").split(","),
+        # The below value will appear in the Comments field on objects created in Nautobot
+        "aci_comments": os.getenv("NAUTOBOT_SSOT_ACI_COMMENTS"),
+        # Site to associate objects. Specify existing, or a new site with this name will be created.
+        "aci_site": os.getenv("NAUTOBOT_SSOT_ACI_SITE"),
         "aristacv_apply_import_tag": is_truthy(os.getenv("NAUTOBOT_ARISTACV_IMPORT_TAG", False)),
         "aristacv_controller_site": os.getenv("NAUTOBOT_ARISTACV_CONTROLLER_SITE", ""),
         "aristacv_create_controller": is_truthy(os.getenv("NAUTOBOT_ARISTACV_CREATE_CONTROLLER", False)),
@@ -169,6 +187,7 @@ PLUGINS_CONFIG = {
             "atl01": "Atlanta",
         },
         "aristacv_verify": is_truthy(os.getenv("NAUTOBOT_ARISTACV_VERIFY", True)),
+        "enable_aci": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ACI")),
         "enable_aristacv": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ARISTACV")),
         "enable_infoblox": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_INFOBLOX")),
         "hide_example_jobs": is_truthy(os.getenv("NAUTOBOT_SSOT_HIDE_EXAMPLE_JOBS")),

@@ -28,6 +28,17 @@ class NautobotSSOTPluginConfig(PluginConfig):
     min_version = "1.4.0"
     max_version = "1.9999"
     default_settings = {
+        "aci_apics": [],
+        "aci_tag": "",
+        "aci_tag_color": "",
+        "aci_tag_up": "",
+        "aci_tag_up_color": "",
+        "aci_tag_down": "",
+        "aci_tag_down_color": "",
+        "aci_manufacturer_name": "",
+        "aci_ignore_tenants": [],
+        "aci_comments": "",
+        "aci_site": "",
         "aristacv_apply_import_tag": False,
         "aristacv_controller_site": "",
         "aristacv_create_controller": False,
@@ -46,6 +57,7 @@ class NautobotSSOTPluginConfig(PluginConfig):
         "aristacv_role_mappings": {},
         "aristacv_site_mappings": {},
         "aristacv_verify": True,
+        "enable_aci": False,
         "enable_aristacv": False,
         "enable_infoblox": False,
         "hide_example_jobs": True,
