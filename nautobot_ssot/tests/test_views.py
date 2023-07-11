@@ -163,3 +163,7 @@ class SyncLogEntryViewsTestCase(ViewTestCases.ListObjectsViewTestCase):  # pylin
     @skip("Not implemented")
     def test_list_objects_with_constrained_permission(self):
         pass
+
+    @skip("Not implemented")
+    def test_list_objects_unknown_filter_no_strict_filtering(self):
+        pass
