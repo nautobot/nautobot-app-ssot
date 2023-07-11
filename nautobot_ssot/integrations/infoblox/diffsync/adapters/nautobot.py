@@ -150,7 +150,7 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
             _prefix = self.prefix(
                 network=str(prefix.prefix),
                 description=prefix.description,
-                status=prefix.type.name,
+                network_type=prefix.type,
                 ext_attrs={**default_cfs, **prefix.custom_field_data},
                 vlans=build_vlan_map_from_relations(vlans=current_vlans),
                 pk=prefix.id,
@@ -175,7 +175,7 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
                 continue
             # IP address must be part of a prefix that is not a container
             # This means the IP cannot be associated with an IPv4 Network within Infoblox
-            if prefix.type.name == "Container":
+            if prefix.type == "container":
                 self.job.logger.warning(
                     f"IP Address {addr}'s parent prefix is a container. The parent prefix type must not be 'container'."
                 )

@@ -80,7 +80,7 @@ class NautobotNetwork(Network):
 
         _prefix = OrmPrefix(
             prefix=ids["network"],
-            status_id=status,
+            type=attrs["network_type"],
             description=attrs.get("description", ""),
         )
         if attrs.get("vlans"):
@@ -118,13 +118,8 @@ class NautobotNetwork(Network):
             self.diffsync.job.logger.debug(f"Attempting to update Prefix {_pf.prefix} with {attrs}.")
         if "description" in attrs:
             _pf.description = attrs["description"]
-        if "status" in attrs:
-            try:
-                _pf.status_id = self.diffsync.status_map[attrs["status"]]
-            except KeyError:
-                self.diffsync.job.logger.warning(
-                    f"Unable to find Status {attrs['status']} to update prefix {_pf.prefix}."
-                )
+        if "network_type" in attrs:
+            _pf.type = attrs["network_type"]
         if "ext_attrs" in attrs:
             process_ext_attrs(diffsync=self.diffsync, obj=_pf, extattrs=attrs["ext_attrs"])
         if "vlans" in attrs:  # pylint: disable=too-many-nested-blocks
