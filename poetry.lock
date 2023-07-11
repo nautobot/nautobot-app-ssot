@@ -1864,13 +1864,13 @@ files = [
 
 [[package]]
 name = "nautobot"
-version = "2.0.0b1"
+version = "2.0.0b2"
 description = "Source of truth and network automation platform."
 optional = false
 python-versions = ">=3.8,<3.11"
 files = [
-    {file = "nautobot-2.0.0b1-py3-none-any.whl", hash = "sha256:ed534116aee2f141f301f354401e1a3b962d1bc785b8d61fa9d08799859624f9"},
-    {file = "nautobot-2.0.0b1.tar.gz", hash = "sha256:3b2d5bcea0afffcd79ee3a69547b52c55b5eeb8463ea52ae042662dec4c9d8ac"},
+    {file = "nautobot-2.0.0b2-py3-none-any.whl", hash = "sha256:9b0334f241f252ea04d9ee6c0e53ded0caa25b9aa95e65e775d82cfa7aeb7a8f"},
+    {file = "nautobot-2.0.0b2.tar.gz", hash = "sha256:7434b553e6cc840577e84a684fb85f3f0df68c9ac75143cfbe71a02f737e83a6"},
 ]
 
 [package.dependencies]
@@ -3424,4 +3424,4 @@ infoblox = ["dnspython"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8, <3.11"
-content-hash = "8995fa267ab16a4ba8176ca9d47b8da2fd5153e579922b483d94e78d8be6e842"
+content-hash = "9054cfd54c97580297422d80c32bf9376c4374baae4691b15c533496b5c5a7fe"
