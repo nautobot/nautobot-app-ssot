@@ -73,13 +73,9 @@ class NautobotNetwork(Network):
     @classmethod
     def create(cls, diffsync, ids, attrs):
         """Create Prefix object in Nautobot."""
-        try:
-            status = diffsync.status_map[attrs["status"]]
-        except KeyError:
-            status = diffsync.status_map[PLUGIN_CFG.get("default_status", "Active")]
-
         _prefix = OrmPrefix(
             prefix=ids["network"],
+            status_id=diffsync.status_map["Active"],
             type=attrs["network_type"],
             description=attrs.get("description", ""),
         )
