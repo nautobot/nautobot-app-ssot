@@ -26,7 +26,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     VLAN = apps.get_model("ipam", "VLAN")
 
     Tag.objects.get_or_create(
-        slug="ssot-synced-from-infoblox",
+        name="SSoT Synced from Infoblox",
         defaults={
             "name": "SSoT Synced from Infoblox",
             "description": "Object synced at some point from Infoblox",
@@ -34,7 +34,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         },
     )
     Tag.objects.get_or_create(
-        slug="ssot-synced-to-infoblox",
+        name="SSoT Synced to Infoblox",
         defaults={
             "name": "SSoT Synced to Infoblox",
             "description": "Object synced at some point to Infoblox",
