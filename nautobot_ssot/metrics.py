@@ -29,7 +29,7 @@ def metric_ssot_jobs():
             if last_job_sync:
                 if last_job_sync.source_load_time:
                     ssot_job_durations.add_metric(
-                        labels=["source_load_time", job.natural_key_slug],
+                        labels=["source_load_time", ".".join(job.natural_key())],
                         value=(
                             (last_job_sync.source_load_time.seconds * 100000)
                             + last_job_sync.source_load_time.microseconds
@@ -39,7 +39,7 @@ def metric_ssot_jobs():
 
                 if last_job_sync.target_load_time:
                     ssot_job_durations.add_metric(
-                        labels=["target_load_time", job.natural_key_slug],
+                        labels=["target_load_time", ".".join(job.natural_key())],
                         value=(
                             (last_job_sync.target_load_time.seconds * 1000000)
                             + last_job_sync.target_load_time.microseconds
@@ -49,21 +49,21 @@ def metric_ssot_jobs():
 
                 if last_job_sync.diff_time:
                     ssot_job_durations.add_metric(
-                        labels=["diff_time", job.natural_key_slug],
+                        labels=["diff_time", ".".join(job.natural_key())],
                         value=((last_job_sync.diff_time.seconds * 1000000) + last_job_sync.diff_time.microseconds)
                         / 1000,
                     )
 
                 if last_job_sync.sync_time:
                     ssot_job_durations.add_metric(
-                        labels=["sync_time", job.natural_key_slug],
+                        labels=["sync_time", ".".join(job.natural_key())],
                         value=((last_job_sync.sync_time.seconds * 1000000) + last_job_sync.sync_time.microseconds)
                         / 1000,
                     )
 
                 if last_job_sync.duration:
                     ssot_job_durations.add_metric(
-                        labels=["sync_duration", job.natural_key_slug],
+                        labels=["sync_duration", ".".join(job.natural_key())],
                         value=((last_job_sync.duration.seconds * 1000000) + last_job_sync.duration.microseconds) / 1000,
                     )
 
@@ -104,7 +104,7 @@ def metric_sync_operations():
             if last_job_sync and last_job_sync.summary:
                 for operation, value in last_job_sync.summary.items():
                     sync_ops.add_metric(
-                        labels=[job.natural_key_slug, operation],
+                        labels=[".".join(job.natural_key()), operation],
                         value=value,
                     )
     data_sources, data_targets = get_data_jobs()
@@ -132,7 +132,7 @@ def metric_memory_usage():
             if last_job_sync and last_job_sync.summary:
                 for operation, value in last_job_sync.summary.items():
                     memory_gauge.add_metric(
-                        labels=[operation, job.natural_key_slug],
+                        labels=[operation, ".".join(job.natural_key())],
                         value=value,
                     )
             else:
