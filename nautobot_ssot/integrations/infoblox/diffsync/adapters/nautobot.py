@@ -33,7 +33,7 @@ class NautobotMixin:
         # The ssot-synced-to-infoblox tag *should* have been created automatically during plugin installation
         # (see nautobot_ssot/integrations/infoblox/signals.py) but maybe a user deleted it inadvertently, so be safe:
         tag, _ = Tag.objects.get_or_create(
-            slug="ssot-synced-to-infoblox",
+            name="SSoT Synced to Infoblox",
             defaults={
                 "name": "SSoT Synced to Infoblox",
                 "description": "Object synced at some point to Infoblox",
