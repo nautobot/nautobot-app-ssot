@@ -130,7 +130,7 @@ class ServiceNowDataTargetJobTestCase(TestCase):
         status_active = Status.objects.get(slug="active")
         region = Region.objects.create(name="My Region", slug="my-region")
         site = Site.objects.create(name="My Site", slug="my-site", status=Status.objects.get(slug="active"))
-        manufacturer = Manufacturer.objects.create(name="Cisco", slug="cisco")
+        manufacturer, _ = Manufacturer.objects.get_or_create(name="Cisco", slug="cisco")
         device_type = DeviceType.objects.create(manufacturer=manufacturer, model="CSR 1000v", slug="csr1000v")
         device_role = DeviceRole.objects.create(name="Router", slug="router")
         device = Device.objects.create(
