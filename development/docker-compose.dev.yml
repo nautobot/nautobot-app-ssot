@@ -7,6 +7,16 @@ version: "3.8"
 services:
   nautobot:
     command: "nautobot-server runserver 0.0.0.0:8080"
+    healthcheck:
+      interval: 5s
+      timeout: 5s
+      start_period: 10m  # intentionally conservative upper bound for `npm install` time in a fresh setup
+      retries: 3
+      test:
+        - "CMD"
+        - "curl"
+        - "-f"
+        - "http://localhost:8080/health/"
     ports:
       - "8080:8080"
     volumes:
