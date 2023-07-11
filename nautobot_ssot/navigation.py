@@ -23,7 +23,7 @@ items = [
 
 menu_items = (
     NavMenuTab(
-        name="Automation",
+        name="Plugins",
         groups=(NavMenuGroup(name="Single Source of Truth", weight=1000, items=tuple(items)),),
     ),
 )
