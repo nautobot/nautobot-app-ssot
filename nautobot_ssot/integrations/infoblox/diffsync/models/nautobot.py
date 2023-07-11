@@ -231,7 +231,6 @@ class NautobotVlanGroup(VlanView):
         """Create VLANGroup object in Nautobot."""
         _vg = OrmVlanGroup(
             name=ids["name"],
-            slug=slugify(ids["name"]),
             description=attrs["description"],
         )
         if attrs.get("ext_attrs"):
