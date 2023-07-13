@@ -108,7 +108,6 @@ ignore=".venv"
 
 [tool.pylint-nautobot]
 supported_nautobot_versions = [
-  "1",  # Supporting 1.x.y
   "2",  # Supporting 2.x.y
 ]
 
