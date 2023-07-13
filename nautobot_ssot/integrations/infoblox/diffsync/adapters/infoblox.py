@@ -1,5 +1,4 @@
 """Infoblox Adapter for Infoblox integration with SSoT plugin."""
-import ipaddress
 import re
 
 from diffsync import DiffSync
@@ -9,7 +8,6 @@ from nautobot_ssot.integrations.infoblox.constant import PLUGIN_CFG
 from nautobot_ssot.integrations.infoblox.utils.client import get_default_ext_attrs, get_dns_name
 from nautobot_ssot.integrations.infoblox.utils.diffsync import get_ext_attr_dict, build_vlan_map
 from nautobot_ssot.integrations.infoblox.diffsync.models.infoblox import (
-    InfobloxAggregate,
     InfobloxIPAddress,
     InfobloxNetwork,
     InfobloxVLANView,
@@ -42,8 +40,8 @@ class InfobloxAdapter(DiffSync):
         self.subnets = []
 
         if self.conn in [None, False]:
-            self.job.log_failure(
-                message="Improperly configured settings for communicating to Infoblox. Please validate accuracy."
+            self.job.logger.error(
+                "Improperly configured settings for communicating to Infoblox. Please validate accuracy."
             )
             raise PluginImproperlyConfigured
 
@@ -66,7 +64,7 @@ class InfobloxAdapter(DiffSync):
             new_pf = self.prefix(
                 network=_pf["network"],
                 description=_pf.get("comment", ""),
-                status=_pf.get("status", "active"),
+                network_type="network" if _pf in subnets else "container",
                 ext_attrs={**default_ext_attrs, **pf_ext_attrs},
                 vlans=build_vlan_map(vlans=_pf["vlans"]) if _pf.get("vlans") else {},
             )
@@ -135,59 +133,15 @@ class InfobloxAdapter(DiffSync):
             if PLUGIN_CFG["infoblox_import_objects"].get("vlans"):
                 self.load_vlans()
         else:
-            self.job.log_info(
-                message="The `infoblox_import_objects` setting was not found so all objects will be imported."
-            )
+            self.job.logger.info("The `infoblox_import_objects` setting was not found so all objects will be imported.")
             self.load_prefixes()
             self.load_ipaddresses()
             self.load_vlanviews()
             self.load_vlans()
         for obj in ["prefix", "ipaddress", "vlangroup", "vlan"]:
             if obj in self.dict():
-                self.job.log(message=f"Loaded {len(self.dict()[obj])} {obj} from Infoblox.")
+                self.job.logger.info(f"Loaded {len(self.dict()[obj])} {obj} from Infoblox.")
 
     def sync_complete(self, source, diff, flags=DiffSyncFlags.NONE, logger=None):
         """Add tags and custom fields to synced objects."""
         source.tag_involved_objects(target=self)
-
-
-class InfobloxAggregateAdapter(DiffSync):
-    """DiffSync adapter using requests to communicate to Infoblox server."""
-
-    aggregate = InfobloxAggregate
-
-    top_level = ["aggregate"]
-
-    def __init__(self, *args, job=None, sync=None, conn=None, **kwargs):
-        """Initialize Infoblox.
-
-        Args:
-            job (object, optional): Infoblox job. Defaults to None.
-            sync (object, optional): Infoblox DiffSync. Defaults to None.
-            conn (object): InfobloxAPI connection.
-        """
-        super().__init__(*args, **kwargs)
-        self.job = job
-        self.sync = sync
-        self.conn = conn
-
-        if self.conn in [None, False]:
-            self.job.log_failure(
-                message="Improperly configured settings for communicating to Infoblox. Please validate accuracy."
-            )
-            raise PluginImproperlyConfigured
-
-    def load(self):
-        """Load aggregate models."""
-        containers = self.conn.get_network_containers()
-        default_ext_attrs = get_default_ext_attrs(review_list=containers)
-        for container in containers:
-            network = ipaddress.ip_network(container["network"])
-            container_ext_attrs = get_ext_attr_dict(extattrs=container.get("extattrs", {}))
-            if network.is_private and container["network"] in ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]:
-                new_aggregate = self.aggregate(
-                    network=container["network"],
-                    description=container["comment"] if container.get("comment") else "",
-                    ext_attrs={**default_ext_attrs, **container_ext_attrs},
-                )
-                self.add(new_aggregate)

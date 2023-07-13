@@ -27,6 +27,7 @@ from django.utils.formats import date_format
 from django.utils.timezone import now
 
 from nautobot.core.models import BaseModel
+from nautobot.extras.choices import JobResultStatusChoices
 from nautobot.extras.models import JobResult
 from nautobot.extras.utils import extras_features
 
@@ -46,7 +47,7 @@ class Sync(BaseModel):
     target = models.CharField(max_length=64, help_text="System data is written to")
 
     start_time = models.DateTimeField(blank=True, null=True)
-    # end_time is represented by the job_result.completed field
+    # end_time is represented by the job_result.date_done field
     source_load_time = models.DurationField(blank=True, null=True)
     target_load_time = models.DurationField(blank=True, null=True)
     diff_time = models.DurationField(blank=True, null=True)
@@ -77,7 +78,7 @@ class Sync(BaseModel):
         """String representation of a Sync instance."""
         return f"{self.source} → {self.target}, {date_format(self.start_time, format=settings.SHORT_DATETIME_FORMAT)}"
 
-    def get_absolute_url(self):
+    def get_absolute_url(self, api=False):
         """Get the detail-view URL for this instance."""
         return reverse("plugins:nautobot_ssot:sync", kwargs={"pk": self.pk})
 
@@ -104,13 +105,14 @@ class Sync(BaseModel):
         )
 
     @property
-    def duration(self):
+    def duration(self):  # pylint: disable=inconsistent-return-statements
         """Total execution time of this Sync."""
         if not self.start_time:
             return timedelta()  # zero
-        if not self.job_result or not self.job_result.completed:
+        if not self.job_result or self.job_result.status == JobResultStatusChoices.STATUS_PENDING:
             return now() - self.start_time
-        return self.job_result.completed - self.start_time
+        if self.job_result and self.job_result.date_done:
+            return self.job_result.date_done - self.start_time
 
     def get_source_url(self):
         """Get the absolute url of the source worker associated with this instance."""
