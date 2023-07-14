@@ -40,8 +40,8 @@ class CloudvisionAdapter(DiffSync):
             try:
                 self.add(cvp_ver_cf)
             except ObjectAlreadyExists as err:
-                self.job.log_warning(
-                    message=f"Unable to add CustomField for EOS Version for CloudVision device as already exists. {err}"
+                self.job.logger.warning(
+                    f"Unable to add CustomField for EOS Version for CloudVision device as already exists. {err}"
                 )
             new_cvp = self.device(
                 name="CloudVision",
@@ -54,7 +54,7 @@ class CloudvisionAdapter(DiffSync):
             try:
                 self.add(new_cvp)
             except ObjectAlreadyExists as err:
-                self.job.log_warning(message=f"Error attempting to add CloudVision device. {err}")
+                self.job.logger.warning(f"Error attempting to add CloudVision device. {err}")
         for dev in cloudvision.get_devices(client=self.conn.comm_channel):
             if dev["hostname"] != "":
                 new_device = self.device(
@@ -68,37 +68,37 @@ class CloudvisionAdapter(DiffSync):
                 try:
                     self.add(new_device)
                 except ObjectAlreadyExists as err:
-                    self.job.log_warning(
-                        message=f"Duplicate device {dev['hostname']} {dev['device_id']} found and ignored. {err}"
+                    self.job.logger.warning(
+                        f"Duplicate device {dev['hostname']} {dev['device_id']} found and ignored. {err}"
                     )
                     continue
                 self.load_interfaces(device=new_device)
                 self.load_ip_addresses(dev=new_device)
                 self.load_device_tags(device=new_device)
             else:
-                self.job.log_warning(message=f"Device {dev} is missing hostname so won't be imported.")
+                self.job.logger.warning(f"Device {dev} is missing hostname so won't be imported.")
                 continue
 
     def load_interfaces(self, device):
         """Load device interface from CloudVision."""
         chassis_type = cloudvision.get_device_type(client=self.conn, dId=device.serial)
-        if self.job.kwargs.get("debug"):
-            self.job.log_debug(message=f"Chassis type for {device.name} is {chassis_type}.")
+        if self.job.debug:
+            self.job.logger.debug(f"Chassis type for {device.name} is {chassis_type}.")
         port_info = []
         if chassis_type == "modular":
             port_info = cloudvision.get_interfaces_chassis(client=self.conn, dId=device.serial)
         elif chassis_type == "fixedSystem":
             port_info = cloudvision.get_interfaces_fixed(client=self.conn, dId=device.serial)
         elif chassis_type == "Unknown":
-            self.job.log_warning(
-                message=f"Unable to determine chassis type for {device.name} so will be unable to retrieve interfaces."
+            self.job.logger.warning(
+                f"Unable to determine chassis type for {device.name} so will be unable to retrieve interfaces."
             )
             return None
-        if self.job.kwargs.get("debug"):
-            self.job.log_debug(message=f"Device being loaded: {device.name}. Port: {port_info}.")
+        if self.job.debug:
+            self.job.logger.debug(f"Device being loaded: {device.name}. Port: {port_info}.")
         for port in port_info:
-            if self.job.kwargs.get("debug"):
-                self.job.log_debug(message=f"Port {port['interface']} being loaded for {device.name}.")
+            if self.job.debug:
+                self.job.logger.debug(f"Port {port['interface']} being loaded for {device.name}.")
             port_mode = cloudvision.get_interface_mode(client=self.conn, dId=device.serial, interface=port)
             transceiver = cloudvision.get_interface_transceiver(client=self.conn, dId=device.serial, interface=port)
             if transceiver == "Unknown":
@@ -129,16 +129,16 @@ class CloudvisionAdapter(DiffSync):
                     self.add(new_port)
                     device.add_child(new_port)
                 except ObjectAlreadyExists as err:
-                    self.job.log_warning(
-                        message=f"Duplicate port {port['interface']} found for {device.name} and ignored. {err}"
+                    self.job.logger.warning(
+                        f"Duplicate port {port['interface']} found for {device.name} and ignored. {err}"
                     )
 
     def load_ip_addresses(self, dev: device):
         """Load IP addresses from CloudVision."""
         dev_ip_intfs = cloudvision.get_ip_interfaces(client=self.conn, dId=dev.serial)
         for intf in dev_ip_intfs:
-            if self.job.kwargs.get("debug"):
-                self.job.log(message=f"Loading interface {intf['interface']} on {dev.name} for {intf['address']}.")
+            if self.job.debug:
+                self.job.logger.info(f"Loading interface {intf['interface']} on {dev.name} for {intf['address']}.")
             try:
                 _ = self.get(self.port, {"name": intf["interface"], "device": dev.name})
             except ObjectNotFound:
@@ -161,13 +161,13 @@ class CloudvisionAdapter(DiffSync):
                     device = self.get(self.device, dev.name)
                     device.add_child(new_port)
                 except ObjectNotFound as err:
-                    self.job.log_warning(
-                        message=f"Unable to find device {dev.name} to assign port {intf['interface']}. {err}"
+                    self.job.logger.warning(
+                        f"Unable to find device {dev.name} to assign port {intf['interface']}. {err}"
                     )
 
-            if self.job.kwargs.get("debug"):
-                self.job.log(
-                    message=f"Attempting to load IP Address {intf['address']} for {intf['interface']} on {dev.name}."
+            if self.job.debug:
+                self.job.logger.info(
+                    f"Attempting to load IP Address {intf['address']} for {intf['interface']} on {dev.name}."
                 )
             if intf["address"] and intf["address"] != "none":
                 new_ip = self.ipaddr(
@@ -179,8 +179,8 @@ class CloudvisionAdapter(DiffSync):
                 try:
                     self.add(new_ip)
                 except ObjectAlreadyExists as err:
-                    self.job.log_warning(
-                        message=f"Unable to load {intf['address']} for {dev.name} on {intf['interface']}. {err}"
+                    self.job.logger.warning(
+                        f"Unable to load {intf['address']} for {dev.name} on {intf['interface']}. {err}"
                     )
                     continue
 
@@ -210,14 +210,14 @@ class CloudvisionAdapter(DiffSync):
             try:
                 self.add(new_cf)
             except ObjectAlreadyExists:
-                self.job.log_warning(message=f"Duplicate tag encountered for {tag['label']} on device {device.name}")
+                self.job.logger.warning(f"Duplicate tag encountered for {tag['label']} on device {device.name}")
 
     def load(self):
         """Load devices and associated data from CloudVision."""
         if APP_SETTINGS.get("hostname_patterns") and not (
             APP_SETTINGS.get("site_mappings") and APP_SETTINGS.get("role_mappings")
         ):
-            self.job.log_warning(
-                message="Configuration found for hostname_patterns but no site_mappings or role_mappings. Please ensure your mappings are defined."
+            self.job.logger.warning(
+                "Configuration found for hostname_patterns but no site_mappings or role_mappings. Please ensure your mappings are defined."
             )
         self.load_devices()

@@ -6,17 +6,15 @@ from django.utils.text import slugify
 from django.contrib.contenttypes.models import ContentType
 from nautobot.tenancy.models import Tenant as OrmTenant
 from nautobot.dcim.models import DeviceType as OrmDeviceType
-from nautobot.dcim.models import DeviceRole as OrmDeviceRole
 from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import InterfaceTemplate as OrmInterfaceTemplate
 from nautobot.dcim.models import Interface as OrmInterface
 from nautobot.ipam.models import IPAddress as OrmIPAddress
+from nautobot.dcim.models import Location, LocationType
 from nautobot.ipam.models import Prefix as OrmPrefix
 from nautobot.ipam.models import VRF as OrmVrf
 from nautobot.dcim.models import Manufacturer
-from nautobot.dcim.models import Site
-from nautobot.extras.models import Status
-from nautobot.extras.models import Tag
+from nautobot.extras.models import Role, Status, Tag
 from nautobot_ssot.integrations.aci.diffsync.models.base import (
     Tenant,
     Vrf,
@@ -58,7 +56,7 @@ class NautobotTenant(Tenant):
 
     def delete(self):
         """Delete Tenant object in Nautobot."""
-        self.diffsync.job.log_warning(f"Tenant {self.name} will be deleted.")
+        self.diffsync.job.logger.warning(f"Tenant {self.name} will be deleted.")
         super().delete()
         _tenant = OrmTenant.objects.get(name=self.get_identifiers()["name"])
         self.diffsync.objects_to_delete["tenant"].append(_tenant)
@@ -84,18 +82,16 @@ class NautobotVrf(Vrf):
         _vrf = OrmVrf.objects.get(name=self.name, tenant=_tenant)
         if attrs.get("description"):
             _vrf.description = attrs["description"]
-            self.diffsync.job.log_success(
-                obj=_vrf, message=f"VRF Update tenant: {_tenant} vrf: {_vrf} desc: {_vrf.description}"
-            )
+            self.diffsync.job.logger.info(f"VRF Update tenant: {_tenant} vrf: {_vrf} desc: {_vrf.description}")
         if attrs.get("rd"):
             _vrf.rd = attrs["rd"]
         _vrf.validated_save()
-        self.diffsync.job.log_success(obj=_vrf, message=f"VRF updated for tenant: {_tenant}")
+        self.diffsync.job.logger.info(f"VRF updated for tenant: {_tenant}")
         return super().update(attrs)
 
     def delete(self):
         """Delete VRF object in Nautobot."""
-        self.diffsync.job.log_warning(f"VRF {self.name} will be deleted.")
+        self.diffsync.job.logger.warning(f"VRF {self.name} will be deleted.")
         super().delete()
         _tenant = OrmTenant.objects.get(name=self.tenant)
         _vrf = OrmVrf.objects.get(name=self.name, tenant=_tenant)
@@ -116,7 +112,7 @@ class NautobotDeviceType(DeviceType):
             u_height=attrs["u_height"],
             comments=attrs["comments"],
         )
-        _tag = Tag.objects.get(slug=slugify(PLUGIN_CFG.get("tag")))
+        _tag = Tag.objects.get(name=PLUGIN_CFG.get("tag"))
         _devicetype.tags.add(_tag)
         _devicetype.validated_save()
 
@@ -136,7 +132,7 @@ class NautobotDeviceType(DeviceType):
 
     def delete(self):
         """Delete DeviceType object in Nautobot."""
-        self.diffsync.job.log_warning(f"Device Type {self.model} will be deleted.")
+        self.diffsync.job.logger.warning(f"Device Type {self.model} will be deleted.")
         _devicetype = OrmDeviceType.objects.get(model=self.get_identifiers()["model"])
         _devicetype.delete()
         return super().delete()
@@ -149,13 +145,13 @@ class NautobotDeviceRole(DeviceRole):
     def create(cls, diffsync, ids, attrs):
         """Create DeviceRole object in Nautobot."""
         _ids_name = ids["name"]
-        _devicerole = OrmDeviceRole(name=_ids_name, slug=f"{_ids_name}-ssot-aci", description=attrs["description"])
+        _devicerole = Role(name=_ids_name, slug=f"{_ids_name}-ssot-aci", description=attrs["description"])
         _devicerole.validated_save()
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
     def update(self, attrs):
         """Update DeviceRole object in Nautobot."""
-        _devicerole = OrmDeviceRole.objects.get(name=self.name)
+        _devicerole = Role.objects.get(name=self.name)
         if attrs.get("description"):
             _devicerole.description = attrs["description"]
         _devicerole.validated_save()
@@ -163,8 +159,8 @@ class NautobotDeviceRole(DeviceRole):
 
     def delete(self):
         """Delete DeviceRole object in Nautobot."""
-        self.diffsync.job.log_warning(f"Device Role {self.name} will be deleted.")
-        _devicerole = OrmDeviceRole.objects.get(name=self.get_identifiers()["name"])
+        self.diffsync.job.logger.warning(f"Device Role {self.name} will be deleted.")
+        _devicerole = Role.objects.get(name=self.get_identifiers()["name"])
         _devicerole.delete()
         return super().delete()
 
@@ -177,11 +173,11 @@ class NautobotDevice(Device):
         """Create Device object in Nautobot."""
         _device = OrmDevice(
             name=ids["name"],
-            device_role=OrmDeviceRole.objects.get(name=attrs["device_role"]),
+            device_role=Role.objects.get(name=attrs["device_role"]),
             device_type=OrmDeviceType.objects.get(model=attrs["device_type"]),
             serial=attrs["serial"],
             comments=attrs["comments"],
-            site=Site.objects.get(name=ids["site"]),
+            site=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
             status=Status.objects.get(name="Active"),
         )
 
@@ -194,13 +190,18 @@ class NautobotDevice(Device):
 
     def update(self, attrs):
         """Update Device object in Nautobot."""
-        _device = OrmDevice.objects.get(name=self.name, site=Site.objects.get(name=self.get_identifiers()["site"]))
+        _device = OrmDevice.objects.get(
+            name=self.name,
+            site=Location.objects.get(
+                name=self.get_identifiers()["site"], location_type=LocationType.objects.get(name="Site")
+            ),
+        )
         if attrs.get("serial"):
             _device.serial = attrs["serial"]
         if attrs.get("device_type"):
             _device.device_type = OrmDeviceType.objects.get(model=attrs["device_type"])
         if attrs.get("device_role"):
-            _device.device_role = OrmDeviceRole.objects.get(name=attrs["device_role"])
+            _device.device_role = Role.objects.get(name=attrs["device_role"])
         if attrs.get("comments"):
             _device.comments = attrs["comments"]
         if attrs.get("node_id"):
@@ -212,9 +213,12 @@ class NautobotDevice(Device):
 
     def delete(self):
         """Delete Device object in Nautobot."""
-        self.diffsync.job.log_warning(f"Device {self.name} will be deleted.")
+        self.diffsync.job.logger.warning(f"Device {self.name} will be deleted.")
         super().delete()
-        _device = OrmDevice.objects.get(name=self.name, site=Site.objects.get(name=self.site))
+        _device = OrmDevice.objects.get(
+            name=self.name,
+            site=Location.objects.get(name=self.site, location_type=LocationType.objects.get(name="Site")),
+        )
         self.diffsync.objects_to_delete["device"].append(_device)  # pylint: disable=protected-access
         return self
 
@@ -248,7 +252,7 @@ class NautobotInterfaceTemplate(InterfaceTemplate):
 
     def delete(self):
         """Delete InterfaceTemplate object in Nautobot."""
-        self.diffsync.job.log_warning(f"Interface Template {self.name} will be deleted.")
+        self.diffsync.job.logger.warning(f"Interface Template {self.name} will be deleted.")
         _interfacetemplate = OrmInterfaceTemplate.objects.get(
             name=self.get_identifiers()["name"],
             device_type=OrmDeviceType.objects.get(model=self.get_identifiers()["device_type"]),
@@ -265,7 +269,10 @@ class NautobotInterface(Interface):
         """Create Interface object in Nautobot."""
         _interface = OrmInterface(
             name=ids["name"],
-            device=OrmDevice.objects.get(name=ids["device"], site=Site.objects.get(name=ids["site"])),
+            device=OrmDevice.objects.get(
+                name=ids["device"],
+                site=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
+            ),
             description=attrs["description"],
             type=attrs["type"],
         )
@@ -286,7 +293,10 @@ class NautobotInterface(Interface):
         _interface = OrmInterface.objects.get(
             name=self.get_identifiers()["name"],
             device=OrmDevice.objects.get(
-                name=self.get_identifiers()["device"], site=Site.objects.get(name=self.get_identifiers()["site"])
+                name=self.get_identifiers()["device"],
+                site=Location.objects.get(
+                    name=self.get_identifiers()["site"], location_type=LocationType.objects.get(name="Site")
+                ),
             ),
         )
         if attrs.get("description"):
@@ -312,13 +322,16 @@ class NautobotInterface(Interface):
 
     def delete(self):
         """Delete Interface object in Nautobot."""
-        self.diffsync.job.log_warning(f"Interface {self.name} will be deleted.")
+        self.diffsync.job.logger.warning(f"Interface {self.name} will be deleted.")
         try:
             device = OrmDevice.objects.get(
-                name=self.get_identifiers()["device"], site=Site.objects.get(name=self.get_identifiers()["site"])
+                name=self.get_identifiers()["device"],
+                site=Location.objects.get(
+                    name=self.get_identifiers()["site"], location_type=LocationType.objects.get(name="Site")
+                ),
             )
         except OrmDevice.DoesNotExist:
-            self.diffsync.job.log_warning(
+            self.diffsync.job.logger.warning(
                 f"Device {self.get_identifiers()['device']} does not exist, skipping deletion of interface {self.name}"
             )
         else:
@@ -339,12 +352,17 @@ class NautobotIPAddress(IPAddress):
             obj_type = ContentType.objects.get(model="interface")
             try:
                 obj_id = (
-                    OrmDevice.objects.get(name=attrs["device"], site=Site.objects.get(name=ids["site"]))
+                    OrmDevice.objects.get(
+                        name=attrs["device"],
+                        site=Location.objects.get(
+                            name=ids["site"], location_type=LocationType.objects.get(name="Site")
+                        ),
+                    )
                     .interfaces.get(name=attrs["interface"])
                     .id
                 )
             except ObjectNotCreated:
-                diffsync.job.log_warning(message=f"{_device} creating interface {_interface}")
+                diffsync.job.logger.warning(f"{_device} creating interface {_interface}")
         else:
             obj_type = None
             obj_id = None
@@ -355,14 +373,14 @@ class NautobotIPAddress(IPAddress):
         try:
             vrf_tenant = OrmTenant.objects.get(name=attrs["vrf_tenant"])
         except OrmTenant.DoesNotExist:
-            diffsync.job.log_warning(message=f"Tenant {attrs['vrf_tenant']} not found for VRF {ids['vrf']}")
+            diffsync.job.logger.warning(f"Tenant {attrs['vrf_tenant']} not found for VRF {ids['vrf']}")
             vrf_tenant = None
 
         if ids["vrf"] and vrf_tenant:
             try:
                 vrf_name = OrmVrf.objects.get(name=ids["vrf"], tenant=OrmTenant.objects.get(name=vrf_tenant))
             except OrmVrf.DoesNotExist:
-                diffsync.job.log_warning(message=f"VRF {ids['vrf']} not found to associate IP Address {ids['address']}")
+                diffsync.job.logger.warning(f"VRF {ids['vrf']} not found to associate IP Address {ids['address']}")
                 vrf_name = None
 
         else:
@@ -377,12 +395,15 @@ class NautobotIPAddress(IPAddress):
             assigned_object_id=obj_id,
             vrf=vrf_name,
         )
-        _ipaddress.tags.add(Tag.objects.get(slug=PLUGIN_CFG.get("tag").lower().replace(" ", "-")))
+        _ipaddress.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _ipaddress.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _ipaddress.validated_save()
         # Update device with newly created address in the "Primary IPv4 field"
         if attrs["device"]:
-            device = OrmDevice.objects.get(name=attrs["device"], site=Site.objects.get(name=ids["site"]))
+            device = OrmDevice.objects.get(
+                name=attrs["device"],
+                site=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
+            )
             device.primary_ip4 = OrmIPAddress.objects.get(address=ids["address"])
             device.save()
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
@@ -415,7 +436,7 @@ class NautobotIPAddress(IPAddress):
 
     def delete(self):
         """Delete IPAddress object in Nautobot."""
-        self.diffsync.job.log_warning(f"IP Address {self.address} will be deleted.")
+        self.diffsync.job.logger.warning(f"IP Address {self.address} will be deleted.")
         super().delete()
         _ipaddress = OrmIPAddress.objects.get(
             address=self.get_identifiers()["address"],
@@ -435,14 +456,14 @@ class NautobotPrefix(Prefix):
         try:
             vrf_tenant = OrmTenant.objects.get(name=attrs["vrf_tenant"])
         except OrmTenant.DoesNotExist:
-            diffsync.job.log_warning(message=f"Tenant {attrs['vrf_tenant']} not found for VRF {attrs['vrf']}")
+            diffsync.job.logger.warning(f"Tenant {attrs['vrf_tenant']} not found for VRF {attrs['vrf']}")
             vrf_tenant = None
 
         if ids["vrf"] and vrf_tenant:
             try:
                 vrf = OrmVrf.objects.get(name=ids["vrf"], tenant=OrmTenant.objects.get(name=attrs["vrf_tenant"]))
             except OrmVrf.DoesNotExist:
-                diffsync.job.log_warning(message=f"VRF {ids['vrf']} not found to associate prefix {ids['prefix']}")
+                diffsync.job.logger.warning(f"VRF {ids['vrf']} not found to associate prefix {ids['prefix']}")
                 vrf = None
         else:
             vrf = None
@@ -451,7 +472,7 @@ class NautobotPrefix(Prefix):
             status=Status.objects.get(name=attrs["status"]),
             description=attrs["description"],
             tenant=OrmTenant.objects.get(name=ids["tenant"]),
-            site=Site.objects.get(name=ids["site"]),
+            site=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
             vrf=vrf,
         )
         _prefix.tags.add(Tag.objects.get(slug=PLUGIN_CFG.get("tag").lower().replace(" ", "-")))
@@ -479,7 +500,7 @@ class NautobotPrefix(Prefix):
 
     def delete(self):
         """Delete Prefix object in Nautobot."""
-        self.diffsync.job.log_warning(f"Prefix {self.prefix} will be deleted.")
+        self.diffsync.job.logger.warning(f"Prefix {self.prefix} will be deleted.")
         super().delete()
         _prefix = OrmPrefix.objects.get(
             prefix=self.get_identifiers()["prefix"],

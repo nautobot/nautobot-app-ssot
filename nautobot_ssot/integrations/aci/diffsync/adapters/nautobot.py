@@ -7,7 +7,8 @@ from diffsync import DiffSync
 from django.db.models import ProtectedError
 from django.utils.text import slugify
 from nautobot.tenancy.models import Tenant
-from nautobot.dcim.models import DeviceType, DeviceRole, Device, InterfaceTemplate, Interface
+from nautobot.dcim.models import DeviceType, Device, InterfaceTemplate, Interface
+from nautobot.extras.models import Role
 from nautobot.ipam.models import IPAddress, Prefix, VRF
 from nautobot.extras.models import Tag
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotTenant
@@ -161,7 +162,7 @@ class NautobotAdapter(DiffSync):
 
     def load_deviceroles(self):
         """Method to load Device Roles from Nautobot."""
-        for nbdevicerole in DeviceRole.objects.filter(slug__contains="-ssot-aci"):
+        for nbdevicerole in Role.objects.filter(slug__contains="-ssot-aci"):
             _devicerole = self.device_role(
                 name=nbdevicerole.name,
                 description=nbdevicerole.description,

@@ -127,9 +127,7 @@ class AciAdapter(DiffSync):
                 except ObjectNotFound:
                     self.add(new_ipaddress)
                 else:
-                    self.job.log_warning(
-                        obj=new_ipaddress, message="Duplicate DiffSync IPAddress Object found and has not been loaded."
-                    )
+                    self.job.logger.warning("Duplicate DiffSync IPAddress Object found and has not been loaded.")
 
         controller_dict = self.conn.get_controllers()
         # Controller IP addresses

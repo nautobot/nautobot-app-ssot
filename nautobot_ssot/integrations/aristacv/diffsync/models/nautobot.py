@@ -94,7 +94,7 @@ class NautobotDevice(Device):
                 cls._assign_version_to_device(diffsync=diffsync, device=new_device, software_lcm=software_lcm)
             return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
         except ValidationError as err:
-            diffsync.job.log_warning(message=f"Unable to create Device {ids['name']}. {err}")
+            diffsync.job.logger.warning(f"Unable to create Device {ids['name']}. {err}")
             return None
 
     def update(self, attrs):
@@ -116,13 +116,13 @@ class NautobotDevice(Device):
             dev.validated_save()
             return super().update(attrs)
         except ValidationError as err:
-            self.diffsync.job.log_warning(message=f"Unable to update Device {self.name}. {err}")
+            self.diffsync.job.logger.warning(f"Unable to update Device {self.name}. {err}")
             return None
 
     def delete(self):
         """Delete device object in Nautobot."""
         if APP_SETTINGS.get("delete_devices_on_sync", DEFAULT_DELETE_DEVICES_ON_SYNC):
-            self.diffsync.job.log_warning(message=f"Device {self.name} will be deleted per plugin settings.")
+            self.diffsync.job.logger.warning(f"Device {self.name} will be deleted per plugin settings.")
             device = OrmDevice.objects.get(id=self.uuid)
             device.delete()
             super().delete()
@@ -150,9 +150,9 @@ class NautobotDevice(Device):
         for _, relationships in relations.items():
             for relationship, queryset in relationships.items():
                 if relationship == software_relation:
-                    if diffsync.job.kwargs.get("debug"):
-                        diffsync.job.log_warning(
-                            message=f"Deleting Software Version Relationships for {device.name} to assign a new version."
+                    if diffsync.job.debug:
+                        diffsync.job.logger.warning(
+                            f"Deleting Software Version Relationships for {device.name} to assign a new version."
                         )
                     queryset.delete()
 
@@ -188,7 +188,7 @@ class NautobotPort(Port):
             new_port.validated_save()
             return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
         except ValidationError as err:
-            diffsync.job.log_warning(message=err)
+            diffsync.job.logger.warning(err)
             return None
 
     def update(self, attrs):
@@ -215,17 +215,15 @@ class NautobotPort(Port):
             _port.validated_save()
             return super().update(attrs)
         except ValidationError as err:
-            self.diffsync.job.log_warning(
-                message=f"Unable to update port {self.name} for {self.device} with {attrs}: {err}"
-            )
+            self.diffsync.job.logger.warning(f"Unable to update port {self.name} for {self.device} with {attrs}: {err}")
             return None
 
     def delete(self):
         """Delete Interface in Nautobot."""
         if APP_SETTINGS.get("delete_devices_on_sync"):
             super().delete()
-            if self.diffsync.job.kwargs.get("debug"):
-                self.diffsync.job.log_warning(message=f"Interface {self.name} for {self.device} will be deleted.")
+            if self.diffsync.job.debug:
+                self.diffsync.job.logger.warning(f"Interface {self.name} for {self.device} will be deleted.")
             _port = OrmInterface.objects.get(id=self.uuid)
             _port.delete()
         return self
@@ -257,7 +255,7 @@ class NautobotIPAddress(IPAddress):
                     dev.primary_ip4 = new_ip
                 dev.validated_save()
         except OrmInterface.DoesNotExist as err:
-            diffsync.job.log_warning(message=f"Unable to find Interface {ids['interface']} for {ids['device']}. {err}")
+            diffsync.job.logger.warning(f"Unable to find Interface {ids['interface']} for {ids['device']}. {err}")
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
 
@@ -278,8 +276,8 @@ class NautobotCustomField(CustomField):
             device.validated_save()
         except ValidationError:
             if ids["name"] not in MISSING_CUSTOM_FIELDS:
-                diffsync.job.log_warning(
-                    message=f"Custom field {ids['name']} is not defined. You can create the custom field in the Admin UI."
+                diffsync.job.logger.warning(
+                    f"Custom field {ids['name']} is not defined. You can create the custom field in the Admin UI."
                 )
             MISSING_CUSTOM_FIELDS.append(ids["name"])
 

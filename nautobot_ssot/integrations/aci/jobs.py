@@ -62,13 +62,24 @@ class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method
 
     def load_source_adapter(self):
         """Method to instantiate and load the ACI adapter into `self.source_adapter`."""
-        self.source_adapter = AciAdapter(job=self, sync=self.sync, client=aci_creds[self.kwargs["apic"]])
+        self.source_adapter = AciAdapter(job=self, sync=self.sync, client=aci_creds[self.apic])
         self.source_adapter.load()
 
     def load_target_adapter(self):
         """Method to instantiate and load the Nautobot adapter into `self.target_adapter`."""
-        self.target_adapter = NautobotAdapter(job=self, sync=self.sync, client=aci_creds[self.kwargs["apic"]])
+        self.target_adapter = NautobotAdapter(job=self, sync=self.sync, client=aci_creds[self.apic])
         self.target_adapter.load()
+
+    def run(
+        self, dryrun, memory_profiling, apic_choices, apic, debug, *args, **kwargs
+    ):  # pylint: disable=arguments-differ
+        """Perform data synchronization."""
+        self.apic_choices = apic_choices
+        self.apic = apic
+        self.debug = debug
+        self.dryrun = dryrun
+        self.memory_profiling = memory_profiling
+        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 
 jobs = [AciDataSource]

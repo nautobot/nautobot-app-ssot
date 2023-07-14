@@ -2,7 +2,7 @@
 # pylint: disable=logging-fstring-interpolation, invalid-name
 import logging
 import random
-from django.utils.text import slugify
+
 from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices
 
@@ -27,17 +27,14 @@ def aci_create_tag(apps, **kwargs):
 
     tag.objects.update_or_create(
         name=PLUGIN_CFG.get("tag"),
-        slug=slugify(PLUGIN_CFG.get("tag")),
         color=PLUGIN_CFG.get("tag_color"),
     )
     tag.objects.update_or_create(
         name=PLUGIN_CFG.get("tag_up"),
-        slug=slugify(PLUGIN_CFG.get("tag_up")),
         color=PLUGIN_CFG.get("tag_up_color"),
     )
     tag.objects.update_or_create(
         name=PLUGIN_CFG.get("tag_down"),
-        slug=slugify(PLUGIN_CFG.get("tag_down")),
         color=PLUGIN_CFG.get("tag_down_color"),
     )
     apics = PLUGIN_CFG.get("apics")
@@ -45,7 +42,6 @@ def aci_create_tag(apps, **kwargs):
         if ("SITE" in key or "STAGE" in key) and not tag.objects.filter(name=apics[key]).exists():
             tag.objects.update_or_create(
                 name=apics[key],
-                slug=slugify(apics[key]),
                 color="".join([random.choice("ABCDEF0123456789") for i in range(6)]),  # nosec
             )
 
@@ -61,12 +57,13 @@ def aci_create_manufacturer(apps, **kwargs):
 
 def aci_create_site(apps, **kwargs):
     """Add site."""
-    site = apps.get_model("dcim", "Site")
+    site = apps.get_model("dcim", "Location")
+    location_type = apps.get_model("dcim", "LocationType")
     apics = PLUGIN_CFG.get("apics")
     for key in apics:
         if "SITE" in key:
             logger.info(f"Creating Site: {apics[key]}")
-            site.objects.update_or_create(name=apics[key])
+            site.objects.update_or_create(name=apics[key], location_type=location_type)
 
 
 def device_custom_fields(apps, **kwargs):
@@ -78,21 +75,21 @@ def device_custom_fields(apps, **kwargs):
 
     for device_cf_dict in [
         {
-            "name": "aci_pod_id",
+            "key": "aci_pod_id",
             "type": CustomFieldTypeChoices.TYPE_INTEGER,
             "label": "Cisco ACI Pod ID",
             "filter_logic": "loose",
             "description": "PodID added by SSoT plugin",
         },
         {
-            "name": "aci_node_id",
+            "key": "aci_node_id",
             "type": CustomFieldTypeChoices.TYPE_INTEGER,
             "label": "Cisco ACI Node ID",
             "filter_logic": "loose",
             "description": "NodeID added by SSoT plugin",
         },
     ]:
-        field, _ = CustomField.objects.get_or_create(name=device_cf_dict["name"], defaults=device_cf_dict)
+        field, _ = CustomField.objects.get_or_create(key=device_cf_dict["key"], defaults=device_cf_dict)
         field.content_types.set([ContentType.objects.get_for_model(Device)])
 
 
@@ -105,33 +102,33 @@ def interface_custom_fields(apps, **kwargs):
 
     for interface_cf_dict in [
         {
-            "name": "gbic_vendor",
+            "key": "gbic_vendor",
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "Optic Vendor",
             "filter_logic": "loose",
             "description": "Optic vendor added by SSoT plugin",
         },
         {
-            "name": "gbic_type",
+            "key": "gbic_type",
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "Optic Type",
             "filter_logic": "loose",
             "description": "Optic type added by SSoT plugin",
         },
         {
-            "name": "gbic_sn",
+            "key": "gbic_sn",
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "Optic S/N",
             "filter_logic": "loose",
             "description": "Optic S/N added by SSoT plugin",
         },
         {
-            "name": "gbic_model",
+            "key": "gbic_model",
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "Optic Model",
             "filter_logic": "loose",
             "description": "Optic Model added by SSoT plugin",
         },
     ]:
-        field, _ = CustomField.objects.get_or_create(name=interface_cf_dict["name"], defaults=interface_cf_dict)
+        field, _ = CustomField.objects.get_or_create(key=interface_cf_dict["key"], defaults=interface_cf_dict)
         field.content_types.set([ContentType.objects.get_for_model(Interface)])

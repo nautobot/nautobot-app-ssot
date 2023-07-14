@@ -47,7 +47,7 @@ class NautobotAdapter(DiffSync):
                 )
                 self.add(new_device)
             except ObjectAlreadyExists as err:
-                self.job.log_warning(message=f"Unable to load {dev.name} as it appears to be a duplicate. {err}")
+                self.job.logger.warning(f"Unable to load {dev.name} as it appears to be a duplicate. {err}")
                 continue
 
             self.load_custom_fields(dev=dev)
@@ -60,7 +60,7 @@ class NautobotAdapter(DiffSync):
                     new_cf = self.cf(name=cf_name, value=cf_value if cf_value is not None else "", device_name=dev.name)
                     self.add(new_cf)
                 except AttributeError as err:
-                    self.job.log_warning(message=f"Unable to load {cf_name}. {err}")
+                    self.job.logger.warning(f"Unable to load {cf_name}. {err}")
                     continue
 
     def load_interfaces(self):
@@ -83,8 +83,8 @@ class NautobotAdapter(DiffSync):
                 dev = self.get(self.device, intf.device.name)
                 dev.add_child(new_port)
             except ObjectNotFound as err:
-                self.job.log_warning(
-                    message=f"Unable to find Device {intf.device.name} in diff to assign to port {intf.name}. {err}"
+                self.job.logger.warning(
+                    f"Unable to find Device {intf.device.name} in diff to assign to port {intf.name}. {err}"
                 )
 
     def load_ip_addresses(self):
@@ -99,7 +99,7 @@ class NautobotAdapter(DiffSync):
             try:
                 self.add(new_ip)
             except ObjectAlreadyExists as err:
-                self.job.log_warning(message=f"Unable to load {ipaddr.address} as appears to be a duplicate. {err}")
+                self.job.logger.warning(f"Unable to load {ipaddr.address} as appears to be a duplicate. {err}")
 
     def sync_complete(self, source: DiffSync, *args, **kwargs):
         """Perform actions after sync is completed.
@@ -109,7 +109,7 @@ class NautobotAdapter(DiffSync):
         """
         # if Controller is created we need to ensure all imported Devices have RelationshipAssociation to it.
         if APP_SETTINGS.get("create_controller"):
-            self.job.log_info(message="Creating Relationships between CloudVision and connected Devices.")
+            self.job.logger.info("Creating Relationships between CloudVision and connected Devices.")
             controller_relation = OrmRelationship.objects.get(name="Controller -> Device")
             device_ct = ContentType.objects.get_for_model(OrmDevice)
             cvp = OrmDevice.objects.get(name="CloudVision")
@@ -129,8 +129,8 @@ class NautobotAdapter(DiffSync):
                             )
                             new_assoc.validated_save()
                     except OrmDevice.DoesNotExist:
-                        self.job.log_info(
-                            message=f"Unable to find Device {dev['name']} to create Relationship to Controller."
+                        self.job.logger.info(
+                            f"Unable to find Device {dev['name']} to create Relationship to Controller."
                         )
 
     def load(self):

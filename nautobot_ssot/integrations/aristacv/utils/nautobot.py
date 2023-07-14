@@ -2,8 +2,8 @@
 import re
 from django.utils.text import slugify
 
-from nautobot.dcim.models import DeviceRole, DeviceType, Manufacturer, Site
-from nautobot.extras.models import Status, Tag, Relationship
+from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer
+from nautobot.extras.models import Role, Status, Tag, Relationship
 
 from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
 
@@ -23,9 +23,14 @@ def verify_site(site_name):
         site_name (str): Name of the site.
     """
     try:
-        site_obj = Site.objects.get(name=site_name)
-    except Site.DoesNotExist:
-        site_obj = Site(name=site_name, slug=slugify(site_name), status=Status.objects.get(name="Staging"))
+        site_obj = Location.objects.get(name=site_name, location_type=LocationType.objects.get(name="Site"))
+    except Location.DoesNotExist:
+        site_obj = Location(
+            name=site_name,
+            slug=slugify(site_name),
+            status=Status.objects.get(name="Staging"),
+            location_type=LocationType.objects.get(name="Site"),
+        )
         site_obj.validated_save()
     return site_obj
 
@@ -54,9 +59,9 @@ def verify_device_role_object(role_name, role_color):
         role_color (str): Role color.
     """
     try:
-        role_obj = DeviceRole.objects.get(name=role_name)
-    except DeviceRole.DoesNotExist:
-        role_obj = DeviceRole(name=role_name, slug=slugify(role_name), color=role_color)
+        role_obj = Role.objects.get(name=role_name)
+    except Role.DoesNotExist:
+        role_obj = Role(name=role_name, slug=slugify(role_name), color=role_color)
         role_obj.validated_save()
     return role_obj
 
