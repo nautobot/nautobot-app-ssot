@@ -134,7 +134,7 @@ CACHEOPS_REDIS = parse_redis_connection(redis_database=1)
 # Enable installed plugins. Add the name of each plugin to the list.
 PLUGINS = [
     "nautobot_ssot",
-    "nautobot_device_lifecycle_mgmt",
+    # "nautobot_device_lifecycle_mgmt",
 ]
 
 # Plugins configuration settings. These settings are used by various plugins that the user may have installed.
