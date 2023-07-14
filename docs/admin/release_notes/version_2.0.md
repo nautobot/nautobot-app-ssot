@@ -1,7 +1,7 @@
 
 # v2.0 Release Notes
 
-## v2.0.0-beta.2 - 2023-07-13
+## v2.0.0-beta.1 - 2023-07-13
 
 ### Added
 
