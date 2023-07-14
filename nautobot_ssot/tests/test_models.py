@@ -2,7 +2,7 @@
 
 import datetime
 import time
-
+import uuid
 from django.test import TestCase
 from django.utils.timezone import now
 

@@ -3,9 +3,9 @@ import uuid
 from unittest.mock import MagicMock, patch
 from django.contrib.contenttypes.models import ContentType
 
-from nautobot.dcim.models import Device, DeviceRole, DeviceType, Manufacturer, Site
-from nautobot.extras.models import Job, JobResult, Status
-from nautobot.utilities.testing import TransactionTestCase
+from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Manufacturer
+from nautobot.extras.models import Job, JobResult, Role, Status
+from nautobot.core.testing import TransactionTestCase
 from nautobot_ssot.integrations.aristacv.diffsync.adapters.nautobot import NautobotAdapter
 from nautobot_ssot.integrations.aristacv.jobs import CloudVisionDataSource
 
@@ -18,12 +18,12 @@ class NautobotAdapterTestCase(TransactionTestCase):
         status_active, _ = Status.objects.get_or_create(name="Active", slug="active")
         arista_manu, _ = Manufacturer.objects.get_or_create(name="Arista", slug="arista")
 
-        hq_site, _ = Site.objects.get_or_create(name="HQ")
+        hq_site, _ = Location.objects.get_or_create(name="HQ", location_type=LocationType.objects.get(name="Site"))
 
         csr_devicetype, _ = DeviceType.objects.get_or_create(
             model="CSR1000v", slug="csr1000v", manufacturer=arista_manu
         )
-        rtr_devicerole, _ = DeviceRole.objects.get_or_create(name="Router", slug="rtr")
+        rtr_devicerole, _ = Role.objects.get_or_create(name="Router", slug="rtr")
 
         Device.objects.get_or_create(
             name="ams01-rtr-01",

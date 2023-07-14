@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 from django.contrib.contenttypes.models import ContentType
 
 from nautobot.extras.models import Job, JobResult
-from nautobot.utilities.testing import TransactionTestCase
+from nautobot.core.testing import TransactionTestCase
 from nautobot_ssot.integrations.aristacv.diffsync.adapters.cloudvision import CloudvisionAdapter
 from nautobot_ssot.integrations.aristacv.jobs import CloudVisionDataSource
 from nautobot_ssot.tests.aristacv.fixtures import fixtures

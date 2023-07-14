@@ -70,9 +70,9 @@ class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method
         self.target_adapter = NautobotAdapter(job=self, sync=self.sync, client=aci_creds[self.apic])
         self.target_adapter.load()
 
-    def run(
+    def run(  # pylint: disable=arguments-differ, too-many-arguments
         self, dryrun, memory_profiling, apic_choices, apic, debug, *args, **kwargs
-    ):  # pylint: disable=arguments-differ
+    ):
         """Perform data synchronization."""
         self.apic_choices = apic_choices
         self.apic = apic

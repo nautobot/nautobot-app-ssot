@@ -1,8 +1,8 @@
 """Tests of Cloudvision utility methods."""
 from unittest.mock import MagicMock, patch
-from nautobot.dcim.models import DeviceRole, DeviceType, Manufacturer, Site
-from nautobot.extras.models import Relationship, Tag
-from nautobot.utilities.testing import TestCase
+from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer
+from nautobot.extras.models import Relationship, Role, Tag
+from nautobot.core.testing import TestCase
 from nautobot_ssot.integrations.aristacv.utils import nautobot
 
 
@@ -13,7 +13,7 @@ class TestNautobotUtils(TestCase):
 
     def test_verify_site_success(self):
         """Test the verify_site method for existing Site."""
-        test_site, _ = Site.objects.get_or_create(name="Test")
+        test_site, _ = Location.objects.get_or_create(name="Test", location_type=LocationType.objects.get(name="Site"))
         result = nautobot.verify_site(site_name="Test")
         self.assertEqual(result, test_site)
 
@@ -22,12 +22,12 @@ class TestNautobotUtils(TestCase):
         result = nautobot.verify_site(site_name="Test2")
         self.assertEqual(result.name, "Test2")
         self.assertEqual(result.slug, "test2")
-        self.assertTrue(isinstance(result, Site))
+        self.assertTrue(isinstance(result, Location))
 
     def test_verify_device_type_object_success(self):
         """Test the verify_device_type_object for existing DeviceType."""
         new_dt, _ = DeviceType.objects.get_or_create(
-            model="DCS-7150S-24", slug="dcs-7150s-24", manufacturer=Manufacturer.objects.get(slug="arista")
+            model="DCS-7150S-24", slug="dcs-7150s-24", manufacturer=Manufacturer.objects.get(name="Arista")
         )
         result = nautobot.verify_device_type_object(device_type="DCS-7150S-24")
         self.assertEqual(result, new_dt)
@@ -41,7 +41,7 @@ class TestNautobotUtils(TestCase):
 
     def test_verify_device_role_object_success(self):
         """Test the verify_device_role_object method for existing DeviceRole."""
-        new_dr, _ = DeviceRole.objects.get_or_create(name="Edge Router", slug="edge-router")
+        new_dr, _ = Role.objects.get_or_create(name="Edge Router", slug="edge-router")
         result = nautobot.verify_device_role_object(role_name="Edge Router", role_color="ff0000")
         self.assertEqual(result, new_dr)
 
