@@ -1,0 +1,190 @@
+[
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "deletes": [],
+                "path_elements": [
+                    "Sysdb",
+                    "ip",
+                    "config",
+                    "ipIntfConfig",
+                    "Loopback1"
+                ],
+                "retracts": [],
+                "timestamp": {
+                    "seconds": 1666161641,
+                    "nanos": 192093825
+                },
+                "updates": {
+                    "addrSource": {
+                        "Name": "manual",
+                        "Value": 0
+                    },
+                    "addrWithMask": "203.0.113.1/24",
+                    "attachedRoutes": true,
+                    "configSource": "00cli",
+                    "defaultRouteSource": {
+                        "Name": "manual",
+                        "Value": 0
+                    },
+                    "directedBroadcastEnabled": false,
+                    "forceDpRoutingEnabled": false,
+                    "forwarding": true,
+                    "gratuitousArpAccepted": false,
+                    "intfId": "Loopback1",
+                    "l3Config": [
+                        "Sysdb",
+                        "l3",
+                        "intf",
+                        "config",
+                        "intfConfig",
+                        "Loopback1"
+                    ],
+                    "localProxyArpEnabled": false,
+                    "mergeAddrsWithWinner": false,
+                    "name": "",
+                    "noArp": {
+                        "Name": "isInvalid",
+                        "Value": 0
+                    },
+                    "proxyArpEnabled": false,
+                    "scope": {
+                        "Name": "universe",
+                        "Value": 0
+                    },
+                    "secondaryWithMask": [
+                        "Sysdb",
+                        "ip",
+                        "config",
+                        "ipIntfConfig",
+                        "Loopback1",
+                        "secondaryWithMask"
+                    ],
+                    "tcpMssConfig": [
+                        "Sysdb",
+                        "ip",
+                        "config",
+                        "ipIntfConfig",
+                        "Loopback1",
+                        "tcpMssConfig"
+                    ],
+                    "unnumberedIntfId": "",
+                    "urpf": {
+                        "acl": "",
+                        "mode": {
+                            "Name": "disable",
+                            "Value": 0
+                        }
+                    },
+                    "virtualAddrWithMask": "0.0.0.0/0",
+                    "virtualSecondaryWithMask": [
+                        "Sysdb",
+                        "ip",
+                        "config",
+                        "ipIntfConfig",
+                        "Loopback1",
+                        "virtualSecondaryWithMask"
+                    ]
+                }
+            }
+        ]
+    },
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "deletes": [],
+                "path_elements": [
+                    "Sysdb",
+                    "ip",
+                    "config",
+                    "ipIntfConfig",
+                    "Loopback2"
+                ],
+                "retracts": [],
+                "timestamp": {
+                    "seconds": 1666161641,
+                    "nanos": 192093825
+                },
+                "updates": {
+                    "addrSource": {
+                        "Name": "manual",
+                        "Value": 0
+                    },
+                    "addrWithMask": "203.0.113.2/24",
+                    "attachedRoutes": true,
+                    "configSource": "00cli",
+                    "defaultRouteSource": {
+                        "Name": "manual",
+                        "Value": 0
+                    },
+                    "directedBroadcastEnabled": false,
+                    "forceDpRoutingEnabled": false,
+                    "forwarding": true,
+                    "gratuitousArpAccepted": false,
+                    "intfId": "Loopback2",
+                    "l3Config": [
+                        "Sysdb",
+                        "l3",
+                        "intf",
+                        "config",
+                        "intfConfig",
+                        "Loopback2"
+                    ],
+                    "localProxyArpEnabled": false,
+                    "mergeAddrsWithWinner": false,
+                    "name": "",
+                    "noArp": {
+                        "Name": "isInvalid",
+                        "Value": 0
+                    },
+                    "proxyArpEnabled": false,
+                    "scope": {
+                        "Name": "universe",
+                        "Value": 0
+                    },
+                    "secondaryWithMask": [
+                        "Sysdb",
+                        "ip",
+                        "config",
+                        "ipIntfConfig",
+                        "Loopback2",
+                        "secondaryWithMask"
+                    ],
+                    "tcpMssConfig": [
+                        "Sysdb",
+                        "ip",
+                        "config",
+                        "ipIntfConfig",
+                        "Loopback2",
+                        "tcpMssConfig"
+                    ],
+                    "unnumberedIntfId": "",
+                    "urpf": {
+                        "acl": "",
+                        "mode": {
+                            "Name": "disable",
+                            "Value": 0
+                        }
+                    },
+                    "virtualAddrWithMask": "0.0.0.0/0",
+                    "virtualSecondaryWithMask": [
+                        "Sysdb",
+                        "ip",
+                        "config",
+                        "ipIntfConfig",
+                        "Loopback2",
+                        "virtualSecondaryWithMask"
+                    ]
+                }
+            }
+        ]
+    }
+]

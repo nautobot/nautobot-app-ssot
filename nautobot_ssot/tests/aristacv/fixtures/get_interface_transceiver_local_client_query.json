@@ -1,0 +1,212 @@
+[
+    {
+        "dataset": {
+            "name": "JPE12345679",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "deletes": [],
+                "path_elements": [
+                    "Sysdb",
+                    "hardware",
+                    "archer",
+                    "xcvr",
+                    "status",
+                    "all",
+                    "Ethernet1"
+                ],
+                "retracts": [],
+                "updates": {
+                    "adapterPresent": false,
+                    "attnTable": [
+                        "Sysdb",
+                        "hardware",
+                        "xcvr",
+                        "attenuation"
+                    ],
+                    "capabilitiesChanged": 0,
+                    "channel": 0,
+                    "domThresholdOverridden": false,
+                    "enhancedDomMapping": [
+                        "Sysdb",
+                        "hardware",
+                        "archer",
+                        "xcvr",
+                        "status",
+                        "all",
+                        "Ethernet1",
+                        "enhancedDomMapping"
+                    ],
+                    "enhancedDomValuesAvailable": false,
+                    "eventStatsValid": false,
+                    "frequency": 0,
+                    "fruGenerationId": 0,
+                    "generationId": 1,
+                    "grid": 0,
+                    "idEepromChecksumValid": [
+                        "Sysdb",
+                        "hardware",
+                        "archer",
+                        "xcvr",
+                        "status",
+                        "all",
+                        "Ethernet1",
+                        "idEepromChecksumValid"
+                    ],
+                    "idEepromDumpTimestamp": 0.0,
+                    "idEepromValid": false,
+                    "inAdapter": false,
+                    "interruptCountValid": false,
+                    "ituTuningConfig": {
+                        "grid": 0,
+                        "channel": 0,
+                        "frequency": 0,
+                        "laserEnabled": true
+                    },
+                    "laneStats": [
+                        "Sysdb",
+                        "hardware",
+                        "archer",
+                        "xcvr",
+                        "status",
+                        "all",
+                        "Ethernet1",
+                        "laneStats"
+                    ],
+                    "laneStatsEnt": [
+                        "Sysdb",
+                        "hardware",
+                        "archer",
+                        "xcvr",
+                        "status",
+                        "all",
+                        "Ethernet1",
+                        "laneStatsEnt"
+                    ],
+                    "laneStatus": [
+                        "Sysdb",
+                        "hardware",
+                        "archer",
+                        "xcvr",
+                        "status",
+                        "all",
+                        "Ethernet1",
+                        "laneStatus"
+                    ],
+                    "lastDomThresholdsUpdateTime": 0.0,
+                    "lastDomUpdateTime": 0.0,
+                    "lastEnhancedDomPMPeriodUpdateTime": 0.0,
+                    "lastEnhancedDomThresholdsUpdateTime": 0.0,
+                    "lastEnhancedDomUpdateTime": 0.0,
+                    "lastPresenceChange": 0.0,
+                    "localMediaType": {
+                        "Name": "xcvr1000BaseT",
+                        "Value": 34
+                    },
+                    "localVendorInfo": {
+                        "vendorPn": "",
+                        "vendorSn": "",
+                        "vendorRev": "",
+                        "vendorName": "Arista Networks",
+                        "vendorDateCode": ""
+                    },
+                    "mediaTypeChanged": 0,
+                    "name": "Ethernet1",
+                    "overrideMediaType": {
+                        "Name": "xcvrUnknown",
+                        "Value": 0
+                    },
+                    "presence": {
+                        "Name": "xcvrPresent",
+                        "Value": 2
+                    },
+                    "presenceChanges": 0,
+                    "preventSfpHighPowerEnable": false,
+                    "qsa28": false,
+                    "ready": true,
+                    "resetCountValid": false,
+                    "resolvedTuningStatus": {
+                        "configuredGrid": 0,
+                        "operationalGrid": 0,
+                        "computedFrequency": 0,
+                        "configuredChannel": 0,
+                        "computedWavelength": 0.0,
+                        "operationalChannel": 0,
+                        "configuredFrequency": 0,
+                        "operationalFrequency": 0,
+                        "operationalWavelength": 0.0,
+                        "gridSpacingCapabilities": {
+                            "gridSpacing3125M": false,
+                            "gridSpacing6250M": false,
+                            "gridSpacing12500M": false,
+                            "gridSpacing25000M": false,
+                            "gridSpacing33000M": false,
+                            "gridSpacing50000M": false,
+                            "gridSpacing75000M": false,
+                            "gridSpacing100000M": false
+                        }
+                    },
+                    "smbusFailCountValid": false,
+                    "swappability": {
+                        "Name": "fixed",
+                        "Value": 0
+                    },
+                    "swizzled": false,
+                    "unresponsiveToSmbus": false,
+                    "vendorInfoChanged": 0,
+                    "warm": false,
+                    "xcvrConfig": [
+                        "Sysdb",
+                        "hardware",
+                        "xcvr",
+                        "config",
+                        "rj45",
+                        "cell",
+                        "1",
+                        "xcvrConfig",
+                        "Ethernet1"
+                    ],
+                    "xcvrMgrCapabilities": {
+                        "domThresholds": false,
+                        "domDynamicValues": false
+                    },
+                    "xcvrOverheating": false,
+                    "xcvrState": {
+                        "reason": {
+                            "Name": "presumedAuthentic",
+                            "Value": 3
+                        },
+                        "enabled": true
+                    },
+                    "xcvrStateChanges": 1,
+                    "xcvrStats": {
+                        "presence": {
+                            "Name": "xcvrPresenceUnknown",
+                            "Value": 0
+                        },
+                        "lastReset": 0.0,
+                        "resetCount": 0,
+                        "lastInterrupt": 0.0,
+                        "lastSmbusFail": 0.0,
+                        "interruptCount": 0,
+                        "smbusFailCount": 0,
+                        "presenceChanges": 0,
+                        "lastPresenceChange": 0.0,
+                        "badEepromChecksumEvents": 0,
+                        "lastBadEepromChecksumEvent": 0.0
+                    },
+                    "xcvrTuningParamCapabilities": {
+                        "rxAmplitudeSupported": false,
+                        "rxPreEmphasisSupported": false,
+                        "txInputEqualizationSupported": false
+                    },
+                    "xcvrType": {
+                        "Name": "unknown",
+                        "Value": 0
+                    }
+                }
+            }
+        ]
+    }
+]

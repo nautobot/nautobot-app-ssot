@@ -1,0 +1,245 @@
+[
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "timestamp": {
+                    "seconds": 1657780598,
+                    "nanos": 759853684
+                },
+                "deletes": [],
+                "updates": {
+                    "mtu": 1500,
+                    "addr": "00:00:00:00:00:00",
+                    "name": "",
+                    "l2Mru": 0,
+                    "l2Mtu": 0,
+                    "intfId": "Ethernet1",
+                    "fecBypass": {
+                        "Name": "fecBypassDisabled",
+                        "Value": 0
+                    },
+                    "requestor": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "phy",
+                        "slice",
+                        "1",
+                        "intfConfig",
+                        "Ethernet1",
+                        "requestor"
+                    ],
+                    "description": "Uplink to DC1",
+                    "loadInterval": {
+                        "val": 300.0,
+                        "useDefault": true
+                    },
+                    "loopbackMode": {
+                        "Name": "loopbackNone",
+                        "Value": 0
+                    },
+                    "defaultConfig": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "phy",
+                        "default",
+                        "defaultIntfConfig",
+                        "DefaultEthSwitchedPort2"
+                    ],
+                    "linkModeLocal": {
+                        "Name": "linkModeForced10GbpsFull",
+                        "Value": 9
+                    },
+                    "timestampMode": {
+                        "Name": "timestampModeDisabled",
+                        "Value": 0
+                    },
+                    "enabledDefault": true,
+                    "l3MtuConfigured": false,
+                    "fecEncodingConfig": {
+                        "fecEncodingDisabled": false,
+                        "fecEncodingFireCode": false,
+                        "fecEncodingReedSolomon": false,
+                        "fecEncodingReedSolomon544": false
+                    },
+                    "linkStatusLogging": {
+                        "Name": "useGlobal",
+                        "Value": 2
+                    },
+                    "rxFlowcontrolLocal": {
+                        "Name": "flowControlConfigUnknown",
+                        "Value": 0
+                    },
+                    "txFlowcontrolLocal": {
+                        "Name": "flowControlConfigUnknown",
+                        "Value": 0
+                    },
+                    "routerMacConfigured": false,
+                    "adminShutdownDelayed": false,
+                    "advertisedModesLocal": {
+                        "mode1GbpsFull": false,
+                        "mode1GbpsHalf": false,
+                        "mode5GbpsFull": false,
+                        "mode10GbpsFull": false,
+                        "mode10MbpsFull": false,
+                        "mode10MbpsHalf": false,
+                        "mode25GbpsFull": false,
+                        "mode40GbpsFull": false,
+                        "mode50GbpsFull": false,
+                        "mode100GbpsFull": false,
+                        "mode100MbpsFull": false,
+                        "mode100MbpsHalf": false,
+                        "mode2p5GbpsFull": false,
+                        "mode50GbpsFull1Lane": false,
+                        "mode100GbpsFull1Lane": false,
+                        "mode100GbpsFull2Lane": false,
+                        "mode200GbpsFull2Lane": false,
+                        "mode200GbpsFull4Lane": false,
+                        "mode200GbpsFull8Lane": false,
+                        "mode400GbpsFull4Lane": false,
+                        "mode400GbpsFull8Lane": false,
+                        "mode800GbpsFull8Lane": false,
+                        "modeHg11GbpsFull1Lane": false,
+                        "modeHg21GbpsFull2Lane": false,
+                        "modeHg27GbpsFull1Lane": false,
+                        "modeHg42GbpsFull4Lane": false,
+                        "modeHg53GbpsFull2Lane": false,
+                        "modeHg106GbpsFull4Lane": false
+                    },
+                    "legacySpeedCmdSyntax": false,
+                    "linkUpDebouncePeriod": 0,
+                    "adminShutdownDelayable": false,
+                    "linkDownDebouncePeriod": 0,
+                    "unidirectionalLinkMode": {
+                        "Name": "uniLinkModeDisabled",
+                        "Value": 0
+                    },
+                    "isCoherentFecConfigured": false,
+                    "negotiation25gModeConfig": {
+                        "ieee25g": true,
+                        "consortium25g": true
+                    },
+                    "congestionDropsLoggingMode": {
+                        "Name": "useGlobal",
+                        "Value": 2
+                    },
+                    "advertisedModesConfiguredLocal": false,
+                    "advertisedModesConfiguredForSfp1000BaseT": false
+                },
+                "retracts": [],
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "config",
+                    "eth",
+                    "phy",
+                    "slice",
+                    "1",
+                    "intfConfig",
+                    "Ethernet1"
+                ]
+            },
+            {
+                "timestamp": {
+                    "seconds": 1661837581,
+                    "nanos": 636543313
+                },
+                "deletes": [],
+                "updates": {
+                    "globalIntfConfig": []
+                },
+                "retracts": [],
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "config",
+                    "eth",
+                    "phy",
+                    "slice",
+                    "1",
+                    "intfConfig",
+                    "Ethernet1"
+                ]
+            },
+            {
+                "timestamp": {
+                    "seconds": 1657781481,
+                    "nanos": 609437412
+                },
+                "deletes": [],
+                "updates": {
+                    "enabledStateLocal": {
+                        "Name": "enabled",
+                        "Value": 1
+                    }
+                },
+                "retracts": [],
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "config",
+                    "eth",
+                    "phy",
+                    "slice",
+                    "1",
+                    "intfConfig",
+                    "Ethernet1"
+                ]
+            },
+            {
+                "timestamp": {
+                    "seconds": 1657781481,
+                    "nanos": 609445674
+                },
+                "deletes": [],
+                "updates": {
+                    "enabledStateReason": ""
+                },
+                "retracts": [],
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "config",
+                    "eth",
+                    "phy",
+                    "slice",
+                    "1",
+                    "intfConfig",
+                    "Ethernet1"
+                ]
+            },
+            {
+                "timestamp": {
+                    "seconds": 1661837581,
+                    "nanos": 636560560
+                },
+                "deletes": [],
+                "updates": {
+                    "adminEnabledStateLocal": {
+                        "Name": "enabled",
+                        "Value": 1
+                    }
+                },
+                "retracts": [],
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "config",
+                    "eth",
+                    "phy",
+                    "slice",
+                    "1",
+                    "intfConfig",
+                    "Ethernet1"
+                ]
+            }
+        ]
+    }
+]
