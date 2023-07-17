@@ -64,9 +64,10 @@ class TestNautobotUtils(TestCase):
         result = nautobot.verify_import_tag()
         self.assertEqual(result.name, "cloudvision_imported")
 
+    @skip("DLC App disabled")
     def test_get_device_version_dlc_success(self):
         """Test the get_device_version method pulling from Device Lifecycle plugin."""
-        software_relation = Relationship.objects.get(name="Software on Device")
+        software_relation = Relationship.objects.get(label="Software on Device")
 
         mock_version = MagicMock()
         mock_version.source.version = MagicMock()
@@ -79,6 +80,7 @@ class TestNautobotUtils(TestCase):
         result = nautobot.get_device_version(mock_device)
         self.assertEqual(result, "1.0")
 
+    @skip("DLC App disabled")
     def test_get_device_version_dlc_fail(self):
         """Test the get_device_version method pulling from Device Lifecycle plugin but failing."""
         mock_device = MagicMock()
