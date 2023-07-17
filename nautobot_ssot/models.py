@@ -31,6 +31,8 @@ from nautobot.core.models import BaseModel
 from nautobot.extras.models import JobResult
 from nautobot.extras.utils import extras_features
 
+from nautobot_ssot.integrations.servicenow.models import SSOTServiceNowConfig
+
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 
 
@@ -189,3 +191,10 @@ class SyncLogEntry(BaseModel):
             SyncLogEntryStatusChoices.STATUS_FAILURE: "warning",
             SyncLogEntryStatusChoices.STATUS_ERROR: "danger",
         }.get(self.status)
+
+
+__all__ = (
+    "SSOTServiceNowConfig",
+    "Sync",
+    "SyncLogEntry",
+)
