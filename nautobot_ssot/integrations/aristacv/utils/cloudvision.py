@@ -604,15 +604,15 @@ def get_interface_status(port_info: dict) -> str:
     Returns:
         str: The status of a port: active|decommissioned|maintenance|planned.
     """
-    status = "decommissioning"
+    status = "Decommissioning"
     if port_info["oper_status"] == "up" and port_info["link_status"] == "up":
-        status = "active"
+        status = "Active"
 
     if port_info["oper_status"] == "up" and port_info["link_status"] == "down":
-        status = "planned"
+        status = "Planned"
 
     if port_info["oper_status"] == "down" and port_info["link_status"] == "down":
-        status = "maintenance"
+        status = "Maintenance"
     return status
 
 

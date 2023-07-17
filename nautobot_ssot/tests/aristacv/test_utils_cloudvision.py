@@ -326,10 +326,10 @@ class TestCloudvisionUtils(TestCase):
         )
 
     port_statuses = [
-        ("active_port", {"link_status": "up", "oper_status": "up"}, "active"),
-        ("planned_port", {"link_status": "down", "oper_status": "up"}, "planned"),
-        ("maintenance_port", {"link_status": "down", "oper_status": "down"}, "maintenance"),
-        ("decommissioning_port", {"link_status": "up", "oper_status": "down"}, "decommissioning"),
+        ("active_port", {"link_status": "up", "oper_status": "up"}, "Active"),
+        ("planned_port", {"link_status": "down", "oper_status": "up"}, "Planned"),
+        ("maintenance_port", {"link_status": "down", "oper_status": "down"}, "Maintenance"),
+        ("decommissioning_port", {"link_status": "up", "oper_status": "down"}, "Decommissioning"),
     ]
 
     @parameterized.expand(port_statuses, skip_on_empty=True)

@@ -1,6 +1,5 @@
 """Utility functions for Nautobot ORM."""
 import re
-from django.utils.text import slugify
 
 from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer
 from nautobot.extras.models import Role, Status, Tag, Relationship
@@ -22,14 +21,14 @@ def verify_site(site_name):
     Args:
         site_name (str): Name of the site.
     """
+    loc_type = LocationType.objects.get_or_create(name="Site")[0]
     try:
-        site_obj = Location.objects.get(name=site_name, location_type=LocationType.objects.get(name="Site"))
+        site_obj = Location.objects.get(name=site_name, location_type=loc_type)
     except Location.DoesNotExist:
         site_obj = Location(
             name=site_name,
-            slug=slugify(site_name),
             status=Status.objects.get(name="Staging"),
-            location_type=LocationType.objects.get(name="Site"),
+            location_type=loc_type,
         )
         site_obj.validated_save()
     return site_obj
@@ -44,9 +43,7 @@ def verify_device_type_object(device_type):
     try:
         device_type_obj = DeviceType.objects.get(model=device_type)
     except DeviceType.DoesNotExist:
-        device_type_obj = DeviceType(
-            manufacturer=Manufacturer.objects.get(name="Arista"), model=device_type, slug=slugify(device_type)
-        )
+        device_type_obj = DeviceType(manufacturer=Manufacturer.objects.get(name="Arista"), model=device_type)
         device_type_obj.validated_save()
     return device_type_obj
 
@@ -61,7 +58,7 @@ def verify_device_role_object(role_name, role_color):
     try:
         role_obj = Role.objects.get(name=role_name)
     except Role.DoesNotExist:
-        role_obj = Role(name=role_name, slug=slugify(role_name), color=role_color)
+        role_obj = Role(name=role_name, color=role_color)
         role_obj.validated_save()
     return role_obj
 
@@ -71,7 +68,7 @@ def verify_import_tag():
     try:
         import_tag = Tag.objects.get(name="cloudvision_imported")
     except Tag.DoesNotExist:
-        import_tag = Tag(name="cloudvision_imported", slug="cloudvision_imported", color="ff0000")
+        import_tag = Tag(name="cloudvision_imported", color="ff0000")
         import_tag.validated_save()
     return import_tag
 
