@@ -60,10 +60,11 @@ def aci_create_site(apps, **kwargs):
     site = apps.get_model("dcim", "Location")
     location_type = apps.get_model("dcim", "LocationType")
     apics = PLUGIN_CFG.get("apics")
+    loc_type = location_type.objects.update_or_create(name="Site")[0]
     for key in apics:
         if "SITE" in key:
             logger.info(f"Creating Site: {apics[key]}")
-            site.objects.update_or_create(name=apics[key], location_type=location_type)
+            site.objects.update_or_create(name=apics[key], location_type=loc_type)
 
 
 def device_custom_fields(apps, **kwargs):
