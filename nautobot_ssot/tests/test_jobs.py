@@ -108,12 +108,12 @@ class BaseJobTestCase(TransactionTestCase):
         self.job.sync.save.side_effect = [None, OperationalError("Fail")]
         self.job.source_adapter = Mock()
         self.job.target_adapter = Mock()
-        self.job.log_info = Mock()
-        self.job.log_warning = Mock()
+        self.job.logger.info = Mock()
+        self.job.logger.warning = Mock()
         self.job.source_adapter.diff_to().dict.return_value = {}
         self.job.calculate_diff()
-        self.job.log_warning.assert_any_call(
-            message="Unable to save JSON diff to the database; likely the diff is too large."
+        self.job.logger.warning.assert_any_call(
+            "Unable to save JSON diff to the database; likely the diff is too large."
         )
 
     def test_calculate_diff_fail_diff_save_generic(self):
@@ -122,8 +122,8 @@ class BaseJobTestCase(TransactionTestCase):
         self.job.sync.save.side_effect = [None, IntegrityError("Fail")]
         self.job.source_adapter = Mock()
         self.job.target_adapter = Mock()
-        self.job.log_info = Mock()
-        self.job.log_warning = Mock()
+        self.job.logger.info = Mock()
+        self.job.logger.warning = Mock()
         self.job.source_adapter.diff_to().dict.return_value = {}
         with self.assertRaises(IntegrityError):
             self.job.calculate_diff()

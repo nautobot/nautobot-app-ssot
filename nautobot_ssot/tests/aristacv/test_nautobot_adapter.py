@@ -11,6 +11,12 @@ from nautobot_ssot.integrations.aristacv.jobs import CloudVisionDataSource
 class NautobotAdapterTestCase(TransactionTestCase):
     """Test the NautobotAdapter class."""
 
+    job_class = CloudVisionDataSource
+    databases = (
+        "default",
+        "job_logs",
+    )
+
     def setUp(self):
         """Create Nautobot objects to test with."""
         status_active, _ = Status.objects.get_or_create(name="Active")
@@ -37,9 +43,9 @@ class NautobotAdapterTestCase(TransactionTestCase):
             location=hq_site,
         )
 
-        self.job = CloudVisionDataSource()
+        self.job = self.job_class()
         self.job.job_result = JobResult.objects.create(
-            name=self.job.class_path, obj_type=ContentType.objects.get_for_model(Job), user=None, job_id=uuid.uuid4()
+            name=self.job.class_path, task_name="fake task", worker="default"
         )
         self.nb_adapter = NautobotAdapter(job=self.job)
 
