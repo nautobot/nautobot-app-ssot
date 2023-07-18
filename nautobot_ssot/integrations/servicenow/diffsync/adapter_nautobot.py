@@ -40,7 +40,7 @@ class NautobotDiffSync(DiffSync):
     def load_manufacturers(self):
         """Add Manufacturers and their descendant DeviceTypes as DiffSyncModel instances."""
         for mfr_record in Manufacturer.objects.all():
-            mfr = self.company(diffsync=self, name=mfr_record.name, manufacturer=True, pk=mfr_record.pk)
+            mfr = self.company(diffsync=self, name=mfr_record.name, manufacturer=True, pk=mfr_record.id)
             self.add(mfr)
             for dtype_record in DeviceType.objects.filter(manufacturer=mfr_record):
                 dtype = self.product_model(
@@ -48,7 +48,7 @@ class NautobotDiffSync(DiffSync):
                     manufacturer_name=mfr.name,
                     model_name=dtype_record.model,
                     model_number=dtype_record.model,
-                    pk=dtype_record.pk,
+                    pk=dtype_record.id,
                 )
                 self.add(dtype)
                 mfr.add_child(dtype)
@@ -89,7 +89,7 @@ class NautobotDiffSync(DiffSync):
             name=interface_record.name,
             device_name=device_model.name,
             description=interface_record.description,
-            pk=interface_record.pk,
+            pk=interface_record.id,
         )
         self.add(interface)
         device_model.add_child(interface)
@@ -101,9 +101,9 @@ class NautobotDiffSync(DiffSync):
         self.load_locations()
 
         for location in self.get_all(self.location):
-            if location.site_pk is None:
+            if location.pk is None:
                 continue
-            for device_record in Device.objects.filter(site__pk=location.site_pk):
+            for device_record in Device.objects.filter(location__id=location.pk):
                 device = self.device(
                     diffsync=self,
                     name=device_record.name,
@@ -112,7 +112,7 @@ class NautobotDiffSync(DiffSync):
                     manufacturer_name=device_record.device_type.manufacturer.name,
                     model_name=device_record.device_type.model,
                     serial=device_record.serial,
-                    pk=device_record.pk,
+                    pk=device_record.id,
                 )
                 self.add(device)
                 location.add_child(device)
