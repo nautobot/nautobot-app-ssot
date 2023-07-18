@@ -11,7 +11,7 @@ from django.contrib.contenttypes.models import ContentType
 from nautobot.dcim.models import Device, DeviceType, Interface, Manufacturer, Region, Site
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Tag
-from nautobot.utilities.choices import ColorChoices
+from nautobot.core.choices import ColorChoices
 
 from . import models
 

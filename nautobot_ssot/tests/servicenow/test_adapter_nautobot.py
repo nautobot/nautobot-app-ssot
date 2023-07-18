@@ -1,12 +1,6 @@
 """Unit tests for the Nautobot DiffSync adapter."""
 
-import uuid
-
-from django.contrib.contenttypes.models import ContentType
-
-from nautobot.dcim.models import Device, DeviceRole, DeviceType, Interface, Manufacturer, Region, Site
-from nautobot.extras.models import Job, JobResult, Status
-from nautobot.utilities.testing import TransactionTestCase
+from nautobot.core.testing import TransactionTestCase
 
 from nautobot_ssot.integrations.servicenow.jobs import ServiceNowDataTarget
 from nautobot_ssot.integrations.servicenow.diffsync.adapter_nautobot import NautobotDiffSync

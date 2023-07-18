@@ -3,7 +3,7 @@
 
 from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices
-from nautobot.utilities.choices import ColorChoices
+from nautobot.core.choices import ColorChoices
 
 
 def register_signals(sender):
