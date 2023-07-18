@@ -89,8 +89,8 @@ class ServiceNowDiffSync(DiffSync):
                             self.load_record(entry["table"], record, self.location, entry["mappings"])
                     ancestor = ancestor.parent
 
-                self.job.log_info(
-                    message=f"Loaded a total of {len(self.get_all('location'))} location records from ServiceNow."
+                self.job.logger.info(
+                    f"Loaded a total of {len(self.get_all('location'))} location records from ServiceNow."
                 )
 
             else:
@@ -126,7 +126,7 @@ class ServiceNowDiffSync(DiffSync):
             - parent (dict): Dict of {"modelname": ..., "field": ...} used to link table records back to their parents
         """
         model_cls = getattr(self, modelname)
-        self.job.log_info(message=f"Loading ServiceNow table `{table}` into {modelname} instances...")
+        self.job.logger.info(f"Loading ServiceNow table `{table}` into {modelname} instances...")
 
         if "parent" not in kwargs:
             # Load the entire table
@@ -140,8 +140,8 @@ class ServiceNowDiffSync(DiffSync):
                 for record in self.client.all_table_entries(table, {kwargs["parent"]["column"]: parent.sys_id}):
                     self.load_record(table, record, model_cls, mappings, **kwargs)
 
-        self.job.log_info(
-            message=f"Loaded {len(self.get_all(modelname))} {modelname} records from ServiceNow table `{table}`."
+        self.job.logger.info(
+            f"Loaded {len(self.get_all(modelname))} {modelname} records from ServiceNow table `{table}`."
         )
 
     def load_record(self, table, record, model_cls, mappings, **kwargs):
@@ -157,15 +157,13 @@ class ServiceNowDiffSync(DiffSync):
         except ObjectAlreadyExists:
             # The baseline data in a standard ServiceNow developer instance has a number of duplicate Location entries.
             # For now, ignore the duplicate entry and continue
-            self.job.log_warning(
-                message=f'Ignoring apparent duplicate record for {modelname} "{model.get_unique_id()}".'
-            )
+            self.job.logger.warning(f'Ignoring apparent duplicate record for {modelname} "{model.get_unique_id()}".')
 
         if "parent" in kwargs:
             parent_uid = getattr(model, kwargs["parent"]["field"])
             if parent_uid is None:
-                self.job.log_warning(
-                    message=f'Model {modelname} "{model.get_unique_id}" does not have a parent uid value '
+                self.job.logger.warning(
+                    f'Model {modelname} "{model.get_unique_id}" does not have a parent uid value '
                     f"in field {kwargs['parent']['field']}"
                 )
             else:
@@ -187,7 +185,7 @@ class ServiceNowDiffSync(DiffSync):
                 if "key" in mapping["reference"]:
                     key = mapping["reference"]["key"]
                     if key not in record:
-                        self.job.log_warning(message=f"Key `{key}` is not present in record `{record}`")
+                        self.job.logger.warning(f"Key `{key}` is not present in record `{record}`")
                     else:
                         sys_id = record[key]
                 else:
@@ -197,8 +195,8 @@ class ServiceNowDiffSync(DiffSync):
                     if sys_id not in self.sys_ids.get(table, {}):
                         referenced_record = self.client.get_by_sys_id(table, sys_id)
                         if referenced_record is None:
-                            self.job.log_warning(
-                                message=f"Record `{record.get('name', record)}` field `{mapping['field']}` "
+                            self.job.logger.warning(
+                                f"Record `{record.get('name', record)}` field `{mapping['field']}` "
                                 f"references sys_id `{sys_id}`, but that was not found in table `{table}`"
                             )
                         else:
@@ -218,7 +216,7 @@ class ServiceNowDiffSync(DiffSync):
         if not self.interfaces_to_create_per_device:
             return
 
-        self.job.log_info(message="Beginning bulk creation of interfaces in ServiceNow for newly added devices...")
+        self.job.logger.info("Beginning bulk creation of interfaces in ServiceNow for newly added devices...")
 
         sn_resource = self.client.resource(api_path="/v1/batch")
         sn_mapping_entry = self.mapping_data["interface"]
@@ -226,7 +224,7 @@ class ServiceNowDiffSync(DiffSync):
         # One batch API request per new device, consisting of requests to create each interface that the device has
         for request_id, device_name in enumerate(self.interfaces_to_create_per_device.keys()):
             if not self.interfaces_to_create_per_device[device_name]:
-                self.job.log_info(obj=device, message="No interfaces to create for this device, continuing")
+                self.job.logger.info("No interfaces to create for this device, continuing")
                 continue
 
             request_data = {
@@ -253,7 +251,7 @@ class ServiceNowDiffSync(DiffSync):
                 }
                 request_data["rest_requests"].append(inner_request_data)
 
-            self.job.log_debug(
+            self.job.logger.debug(
                 f'Sending bulk API request to ServiceNow to create interfaces for device "{device_name}":'
                 f"\n```\n{json.dumps(request_data, indent=4)}\n```"
             )
@@ -269,24 +267,22 @@ class ServiceNowDiffSync(DiffSync):
             response_data = response.json()
 
             if response.status_code != 200:
-                self.job.log_failure(
-                    obj=device,
-                    message=f"Got status code {response.status_code} from ServiceNow when bulk-creating interfaces:"
+                self.job.logger.error(
+                    f"Got status code {response.status_code} from ServiceNow when bulk-creating interfaces:"
                     f"\n```\n{json.dumps(response_data, indent=4)}\n```",
                 )
             elif response_data["unserviced_requests"]:
-                self.job.log_warning(
-                    obj=device,
-                    message="ServiceNow indicated that parts of the bulk request for interface creation "
+                self.job.logger.warning(
+                    "ServiceNow indicated that parts of the bulk request for interface creation "
                     f"were not serviced:\n```\n{json.dumps(response_data['unserviced_requests'], indent=4)}\n```",
                 )
             else:
-                self.job.log_debug(
+                self.job.logger.debug(
                     f"ServiceNow response: {response.status_code}\n```\n{json.dumps(response_data, indent=4)}\n```"
                 )
-                self.job.log_success(obj=device, message="Interfaces successfully bulk-created.")
+                self.job.logger.info("Interfaces successfully bulk-created.")
 
-        self.job.log_info(message="Bulk creation of interfaces completed.")
+        self.job.logger.info("Bulk creation of interfaces completed.")
 
     def sync_complete(self, source, diff, flags=DiffSyncFlags.NONE, logger=None):
         """Callback after the `sync_from` operation has completed and updated this instance.

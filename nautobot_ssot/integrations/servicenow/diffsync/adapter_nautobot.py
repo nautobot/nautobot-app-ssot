@@ -53,8 +53,8 @@ class NautobotDiffSync(DiffSync):
                 self.add(dtype)
                 mfr.add_child(dtype)
 
-        self.job.log_info(
-            message=f"Loaded {len(self.get_all('company'))} manufacturer records and "
+        self.job.logger.info(
+            f"Loaded {len(self.get_all('company'))} manufacturer records and "
             f"{len(self.get_all('product_model'))} device-type records from Nautobot."
         )
 
@@ -120,8 +120,8 @@ class NautobotDiffSync(DiffSync):
                 for interface_record in Interface.objects.filter(device=device_record):
                     self.load_interface(interface_record, device)
 
-        self.job.log_info(
-            message=f"Loaded {len(self.get_all('device'))} device records and "
+        self.job.logger.info(
+            f"Loaded {len(self.get_all('device'))} device records and "
             f"{len(self.get_all('interface'))} interface records from Nautobot."
         )
 
