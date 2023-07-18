@@ -64,8 +64,8 @@ class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
             # Password is intentionally omitted!
         }
 
-    def sync_data(self):
-        """Sync a slew of Nautobot data into ServiceNow."""
+    def load_source_adapter(self):
+        """Load ServiceNow adapter."""
         configs = get_servicenow_parameters()
         snc = ServiceNowClient(
             instance=configs.get("instance"),
@@ -74,36 +74,22 @@ class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
             worker=self,
         )
 
-        self.log_info(message="Loading current data from ServiceNow...")
-        servicenow_diffsync = ServiceNowDiffSync(
-            client=snc, job=self, sync=self.sync, site_filter=self.kwargs.get("site_filter")
-        )
-        servicenow_diffsync.load()
+        self.logger.info("Loading current data from ServiceNow...")
+        self.source_adapter = ServiceNowDiffSync(client=snc, job=self, sync=self.sync, site_filter=self.site_filter)
+        self.source_adapter.load()
 
-        self.log_info(message="Loading current data from Nautobot...")
-        nautobot_diffsync = NautobotDiffSync(job=self, sync=self.sync, site_filter=self.kwargs.get("site_filter"))
-        nautobot_diffsync.load()
+    def load_target_adapter(self):
+        """Load Nautobot adapter."""
+        self.logger.info("Loading current data from Nautobot...")
+        self.target_adapter = NautobotDiffSync(job=self, sync=self.sync, site_filter=self.site_filter)
+        self.target_adapter.load()
 
-        diffsync_flags = DiffSyncFlags.CONTINUE_ON_FAILURE
-        if self.kwargs.get("log_unchanged"):
-            diffsync_flags |= DiffSyncFlags.LOG_UNCHANGED_RECORDS
-        if not self.kwargs.get("delete_records"):
-            diffsync_flags |= DiffSyncFlags.SKIP_UNMATCHED_DST
-
-        self.log_info(message="Calculating diffs...")
-        diff = servicenow_diffsync.diff_from(nautobot_diffsync, flags=diffsync_flags)
-        self.sync.diff = diff.dict()
-        self.sync.save()
-
-        if not self.kwargs["dry_run"]:
-            self.log_info(message="Syncing from Nautobot to ServiceNow...")
-            servicenow_diffsync.sync_from(nautobot_diffsync, flags=diffsync_flags)
-            self.log_info(message="Sync complete")
-
-    def log_debug(self, message):
-        """Conditionally log a debug message."""
-        if self.kwargs.get("debug"):
-            super().log_debug(message)
+    def run(self, dryrun, memory_profiling, site_filter, *args, **kwargs):  # pylint:disable=arguments-differ
+        """Run sync."""
+        self.dryrun = dryrun
+        self.memory_profiling = memory_profiling
+        self.site_filter = site_filter
+        super().run(dryrun, memory_profiling, *args, **kwargs)
 
     def lookup_object(self, model_name, unique_id):
         """Look up a Nautobot object based on the DiffSync model name and unique ID."""
