@@ -9,11 +9,11 @@ from nautobot_ssot.integrations.servicenow.diffsync.adapter_servicenow import Se
 class MockServiceNowClient:
     """Mock version of the ServiceNowClient class using canned data."""
 
-    def get_by_sys_id(self, table, sys_id):  # pylint: disable=unused-argument,no-self-use
+    def get_by_sys_id(self, table, sys_id):  # pylint: disable=unused-argument
         """Get a record with a given sys_id from a given table."""
         return None
 
-    def all_table_entries(self, table, query=None):  # pylint: disable=no-self-use
+    def all_table_entries(self, table, query=None):
         """Iterator over all records in a given table."""
 
         if table == "cmn_location":
