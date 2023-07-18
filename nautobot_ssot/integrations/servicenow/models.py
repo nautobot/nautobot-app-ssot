@@ -37,6 +37,6 @@ class SSOTServiceNowConfig(BaseModel):
         """String representation of singleton instance."""
         return "SSoT ServiceNow Configuration"
 
-    def get_absolute_url(self):  # pylint: disable=no-self-use
+    def get_absolute_url(self, api=False):  # pylint: disable=unused-argument
         """Get URL for the associated configuration view."""
         return reverse("plugins:nautobot_ssot:servicenow_config")
