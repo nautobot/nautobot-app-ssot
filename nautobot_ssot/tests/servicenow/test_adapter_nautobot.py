@@ -11,6 +11,7 @@ from nautobot_ssot.integrations.servicenow.diffsync.adapter_nautobot import Naut
 class NautobotDiffSyncTestCase(TransactionTestCase):
     """Test the NautobotDiffSync adapter class."""
 
+    job_class = ServiceNowDataTarget
     databases = ("default", "job_logs")
 
     def setUp(self):
@@ -52,10 +53,8 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
 
     def test_data_loading(self):
         """Test the load() function."""
-        job = ServiceNowDataTarget()
-        job.job_result = JobResult.objects.create(
-            name=job.class_path, obj_type=ContentType.objects.get_for_model(Job), user=None, job_id=uuid.uuid4()
-        )
+        job = self.job_class()
+        job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
         nds = NautobotDiffSync(job=job, sync=None)
         nds.load()
 
