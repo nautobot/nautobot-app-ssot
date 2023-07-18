@@ -136,7 +136,7 @@ class Location(ServiceNowCRUDMixin, DiffSyncModel):
     name: str
 
     parent_location_name: Optional[str]
-    contained_locations: List["Location"] = []
+    # contained_locations: List["Location"] = []
     latitude: Union[float, str] = ""  # can't use Optional[float] because an empty string doesn't map to None
     longitude: Union[float, str] = ""
 
@@ -175,9 +175,9 @@ class Device(ServiceNowCRUDMixin, DiffSyncModel):
     model_name: Optional[str]
     serial: Optional[str]
 
-    platform: Optional[str]
-    role: Optional[str]
-    vendor: Optional[str]
+    # platform: Optional[str]
+    # role: Optional[str]
+    # vendor: Optional[str]
 
     interfaces: List["Interface"] = []
 
@@ -214,20 +214,20 @@ class Interface(ServiceNowCRUDMixin, DiffSyncModel):
     name: str
     device_name: str
 
-    access_vlan: Optional[int]
-    active: Optional[bool]
+    # access_vlan: Optional[int]
+    # active: Optional[bool]
     allowed_vlans: List[str] = []
     description: Optional[str]
-    is_virtual: Optional[bool]
-    is_lag: Optional[bool]
-    is_lag_member: Optional[bool]
+    # is_virtual: Optional[bool]
+    # is_lag: Optional[bool]
+    # is_lag_member: Optional[bool]
     lag_members: List[str] = []
-    mode: Optional[str]  # TRUNK, ACCESS, L3, NONE
-    mtu: Optional[int]
-    parent: Optional[str]
-    speed: Optional[int]
-    switchport_mode: Optional[str]
-    type: Optional[str]
+    # mode: Optional[str]  # TRUNK, ACCESS, L3, NONE
+    # mtu: Optional[int]
+    # parent: Optional[str]
+    # speed: Optional[int]
+    # switchport_mode: Optional[str]
+    # port_type: Optional[str]
 
     ip_addresses: List["IPAddress"] = []
 
