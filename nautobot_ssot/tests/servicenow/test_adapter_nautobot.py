@@ -15,7 +15,7 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
 
     def setUp(self):
         """Per-test-case data setup."""
-        status_active, _ = Status.objects.get_or_create(name="Active", slug="active")
+        status_active, _ = Status.objects.get_or_create(name="Active")
 
         reg_loctype = LocationType.objects.update_or_create(name="Region")[0]
         region_1 = Location.objects.create(name="Region 1", location_type=reg_loctype, status=status_active)
@@ -34,9 +34,9 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
             parent=region_3, name="Site 2", location_type=site_loctype, status=status_active
         )
 
-        manufacturer, _ = Manufacturer.objects.get_or_create(name="Cisco", slug="cisco")
-        device_type = DeviceType.objects.create(manufacturer=manufacturer, model="CSR 1000v", slug="csr1000v")
-        device_role = DeviceRole.objects.create(name="Router", slug="router")
+        manufacturer, _ = Manufacturer.objects.get_or_create(name="Cisco")
+        device_type = DeviceType.objects.create(manufacturer=manufacturer, model="CSR 1000v")
+        device_role = Role.objects.create(name="Router")
 
         device_1 = Device.objects.create(
             name="csr1", device_type=device_type, role=device_role, location=site_1, status=status_active

@@ -24,7 +24,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     Tag = apps.get_model("extras", "Tag")
 
     Tag.objects.get_or_create(
-        slug="ssot-synced-to-servicenow",
+        name="SSoT Synced to ServiceNow",
         defaults={
             "name": "SSoT Synced to ServiceNow",
             "description": "Object synced at some point from Nautobot to ServiceNow",
@@ -33,7 +33,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     )
     custom_field, _ = CustomField.objects.get_or_create(
         type=CustomFieldTypeChoices.TYPE_DATE,
-        name="ssot-synced-to-servicenow",
+        key="ssot-synced-to-servicenow",
         defaults={
             "label": "Last synced to ServiceNow on",
         },

@@ -82,28 +82,25 @@ class ServiceNowDataTargetJobTestCase(TestCase):
         db_config.servicenow_instance = "dev98765"
         user_secret = Secret.objects.create(
             name="ServiceNow Username",
-            slug="servicenow-username",
             provider="environment-variable",
             parameters={"variable": "SNOW_USERNAME"},
         )
         password_secret = Secret.objects.create(
             name="ServiceNow Password",
-            slug="servicenow-password",
             provider="environment-variable",
             parameters={"variable": "SNOW_PASSWORD"},
         )
         db_config.servicenow_secrets = SecretsGroup.objects.create(
             name="ServiceNow Secrets",
-            slug="servicenow-secrets",
         )
         SecretsGroupAssociation.objects.create(
-            group=db_config.servicenow_secrets,
+            secrets_group=db_config.servicenow_secrets,
             secret=user_secret,
             access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
             secret_type=SecretsGroupSecretTypeChoices.TYPE_USERNAME,
         )
         SecretsGroupAssociation.objects.create(
-            group=db_config.servicenow_secrets,
+            secrets_group=db_config.servicenow_secrets,
             secret=password_secret,
             access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
             secret_type=SecretsGroupSecretTypeChoices.TYPE_PASSWORD,
@@ -122,11 +119,13 @@ class ServiceNowDataTargetJobTestCase(TestCase):
 
     def test_lookup_object(self):
         """Validate the lookup_object() API."""
+        status_active = Status.objects.get(name="Active")
         reg_loctype = LocationType.objects.update_or_create(name="Region")[0]
         region = Location.objects.create(name="My Region", location_type=reg_loctype, status=status_active)
         site_loctype = LocationType.objects.update_or_create(name="Site")[0]
         site = Location.objects.create(name="My Site", location_type=site_loctype, status=status_active)
         manufacturer, _ = Manufacturer.objects.get_or_create(name="Cisco")
+        device_type = DeviceType.objects.create(manufacturer=manufacturer, model="CSR 1000v")
         device_role = Role.objects.create(name="Router")
         device = Device.objects.create(
             name="mydevice",

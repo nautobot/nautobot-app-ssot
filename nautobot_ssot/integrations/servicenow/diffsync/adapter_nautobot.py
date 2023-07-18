@@ -130,7 +130,7 @@ class NautobotDiffSync(DiffSync):
         # The ssot-synced-to-servicenow tag *should* have been created automatically during plugin installation
         # (see nautobot_ssot/integrations/servicenow/signals.py) but maybe a user deleted it inadvertently, so be safe:
         tag, _ = Tag.objects.get_or_create(
-            slug="ssot-synced-to-servicenow",
+            name="SSoT Synced to ServiceNow",
             defaults={
                 "name": "SSoT Synced to ServiceNow",
                 "description": "Object synced at some point from Nautobot to ServiceNow",
@@ -140,7 +140,7 @@ class NautobotDiffSync(DiffSync):
         # Ensure that the "ssot-synced-to-servicenow" custom field is present; as above, it *should* already exist.
         custom_field, _ = CustomField.objects.get_or_create(
             type=CustomFieldTypeChoices.TYPE_DATE,
-            name="ssot-synced-to-servicenow",
+            key="ssot-synced-to-servicenow",
             defaults={
                 "label": "Last synced to ServiceNow on",
             },
