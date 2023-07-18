@@ -22,11 +22,6 @@ class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
 
     debug = BooleanVar(description="Enable for more verbose logging.")
 
-    log_unchanged = BooleanVar(
-        description="Create log entries even for unchanged objects",
-        default=False,
-    )
-
     # TODO: not yet implemented
     # delete_records = BooleanVar(
     #     description="Delete records from ServiceNow if not present in Nautobot",
