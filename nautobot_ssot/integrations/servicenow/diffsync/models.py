@@ -143,8 +143,7 @@ class Location(ServiceNowCRUDMixin, DiffSyncModel):
     devices: List["Device"] = []
 
     sys_id: Optional[str] = None
-    region_pk: Optional[uuid.UUID] = None
-    site_pk: Optional[uuid.UUID] = None
+    pk: Optional[uuid.UUID] = None
 
     full_name: Optional[str] = None
 

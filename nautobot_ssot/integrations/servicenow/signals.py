@@ -20,8 +20,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     DeviceType = apps.get_model("dcim", "DeviceType")
     Interface = apps.get_model("dcim", "Interface")
     Manufacturer = apps.get_model("dcim", "Manufacturer")
-    Region = apps.get_model("dcim", "Region")
-    Site = apps.get_model("dcim", "Site")
+    Location = apps.get_model("dcim", "Location")
     Tag = apps.get_model("extras", "Tag")
 
     Tag.objects.get_or_create(
@@ -44,7 +43,6 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         ContentType.objects.get_for_model(DeviceType),
         ContentType.objects.get_for_model(Interface),
         ContentType.objects.get_for_model(Manufacturer),
-        ContentType.objects.get_for_model(Region),
-        ContentType.objects.get_for_model(Site),
+        ContentType.objects.get_for_model(Location),
     ]:
         custom_field.content_types.add(content_type)

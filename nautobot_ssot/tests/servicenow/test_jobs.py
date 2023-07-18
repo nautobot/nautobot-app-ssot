@@ -5,9 +5,9 @@ from unittest import mock
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from nautobot.dcim.models import Device, DeviceRole, DeviceType, Interface, Manufacturer, Region, Site
+from nautobot.dcim.models import Device, DeviceType, Interface, Manufacturer, Location, LocationType
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
-from nautobot.extras.models import Secret, SecretsGroup, SecretsGroupAssociation, Status
+from nautobot.extras.models import Role, Secret, SecretsGroup, SecretsGroupAssociation, Status
 
 from nautobot_ssot.integrations.servicenow.jobs import ServiceNowDataTarget
 from nautobot_ssot.integrations.servicenow.models import SSOTServiceNowConfig
@@ -48,15 +48,10 @@ class ServiceNowDataTargetJobTestCase(TestCase):
         self.assertEqual("Company", mappings[3].target_name)
         self.assertIsNone(mappings[3].target_url)
 
-        self.assertEqual("Region", mappings[4].source_name)
-        self.assertEqual(reverse("dcim:region_list"), mappings[4].source_url)
+        self.assertEqual("Location", mappings[4].source_name)
+        self.assertEqual(reverse("dcim:location_list"), mappings[4].source_url)
         self.assertEqual("Location", mappings[4].target_name)
         self.assertIsNone(mappings[4].target_url)
-
-        self.assertEqual("Site", mappings[5].source_name)
-        self.assertEqual(reverse("dcim:site_list"), mappings[5].source_url)
-        self.assertEqual("Location", mappings[5].target_name)
-        self.assertIsNone(mappings[5].target_url)
 
     @override_settings(
         PLUGINS_CONFIG={
@@ -127,18 +122,18 @@ class ServiceNowDataTargetJobTestCase(TestCase):
 
     def test_lookup_object(self):
         """Validate the lookup_object() API."""
-        status_active = Status.objects.get(slug="active")
-        region = Region.objects.create(name="My Region", slug="my-region")
-        site = Site.objects.create(name="My Site", slug="my-site", status=Status.objects.get(slug="active"))
-        manufacturer, _ = Manufacturer.objects.get_or_create(name="Cisco", slug="cisco")
-        device_type = DeviceType.objects.create(manufacturer=manufacturer, model="CSR 1000v", slug="csr1000v")
-        device_role = DeviceRole.objects.create(name="Router", slug="router")
+        reg_loctype = LocationType.objects.update_or_create(name="Region")[0]
+        region = Location.objects.create(name="My Region", location_type=reg_loctype, status=status_active)
+        site_loctype = LocationType.objects.update_or_create(name="Site")[0]
+        site = Location.objects.create(name="My Site", location_type=site_loctype, status=status_active)
+        manufacturer, _ = Manufacturer.objects.get_or_create(name="Cisco")
+        device_role = Role.objects.create(name="Router")
         device = Device.objects.create(
             name="mydevice",
-            device_role=device_role,
+            role=device_role,
             device_type=device_type,
-            site=site,
-            status=Status.objects.get(slug="active"),
+            location=site,
+            status=status_active,
         )
         interface = Interface.objects.create(device=device, name="eth0", status=status_active)
 

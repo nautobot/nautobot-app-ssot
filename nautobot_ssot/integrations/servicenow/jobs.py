@@ -3,9 +3,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.templatetags.static import static
 from django.urls import reverse
 
-from diffsync.enum import DiffSyncFlags
-
-from nautobot.dcim.models import Device, DeviceType, Interface, Manufacturer, Region, Site
+from nautobot.dcim.models import Device, DeviceType, Interface, Manufacturer, Location
 from nautobot.extras.jobs import Job, BooleanVar, ObjectVar
 
 from nautobot_ssot.jobs.base import DataMapping, DataTarget
@@ -37,7 +35,7 @@ class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
 
     site_filter = ObjectVar(
         description="Only sync records belonging to a single Site.",
-        model=Site,
+        model=Location,
         default=None,
         required=False,
     )
@@ -58,8 +56,7 @@ class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
             DataMapping("Device Type", reverse("dcim:devicetype_list"), "Hardware Product Model", None),
             DataMapping("Interface", reverse("dcim:interface_list"), "Interface", None),
             DataMapping("Manufacturer", reverse("dcim:manufacturer_list"), "Company", None),
-            DataMapping("Region", reverse("dcim:region_list"), "Location", None),
-            DataMapping("Site", reverse("dcim:site_list"), "Location", None),
+            DataMapping("Location", reverse("dcim:location_list"), "Location", None),
         )
 
     @classmethod
@@ -125,10 +122,7 @@ class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
                 device_name, interface_name = unique_id.split("__")
                 obj = Interface.objects.get(device__name=device_name, name=interface_name)
             elif model_name == "location":
-                try:
-                    obj = Site.objects.get(name=unique_id)
-                except Site.DoesNotExist:
-                    obj = Region.objects.get(name=unique_id)
+                obj = Location.objects.get(name=unique_id)
             elif model_name == "product_model":
                 manufacturer, model, _ = unique_id.split("__")
                 obj = DeviceType.objects.get(manufacturer__name=manufacturer, model=model)
