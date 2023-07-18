@@ -225,7 +225,6 @@ class ServiceNowDiffSync(DiffSync):
 
         # One batch API request per new device, consisting of requests to create each interface that the device has
         for request_id, device_name in enumerate(self.interfaces_to_create_per_device.keys()):
-            device = self.job.lookup_object("device", device_name)
             if not self.interfaces_to_create_per_device[device_name]:
                 self.job.log_info(obj=device, message="No interfaces to create for this device, continuing")
                 continue
