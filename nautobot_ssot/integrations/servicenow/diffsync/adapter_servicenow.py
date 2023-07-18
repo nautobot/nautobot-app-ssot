@@ -237,7 +237,7 @@ class ServiceNowDiffSync(DiffSync):
 
             for inner_request_id, interface in enumerate(self.interfaces_to_create_per_device[device_name]):
                 inner_request_payload = interface.map_data_to_sn_record(
-                    data=dict(**interface.get_identifiers(), **interface.get_attrs()),
+                    data={**interface.get_identifiers(), **interface.get_attrs()},
                     mapping_entry=sn_mapping_entry,
                 )
                 inner_request_body = b64encode(json.dumps(inner_request_payload).encode("utf-8")).decode("utf-8")
