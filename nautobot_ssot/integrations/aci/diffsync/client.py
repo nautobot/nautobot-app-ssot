@@ -6,8 +6,10 @@ import logging
 from datetime import datetime
 from datetime import timedelta
 import re
+from ipaddress import ip_network
 import requests
 import urllib3
+
 from .utils import tenant_from_dn, ap_from_dn, node_from_dn, pod_from_dn, fex_id_from_dn, interface_from_dn
 
 
@@ -382,8 +384,24 @@ class AciApi:
         resp = self._get('/api/class/topSystem.json?query-target-filter=ne(topSystem.role,"controller")')
 
         for node in resp.json()["imdata"]:
+            if node["topSystem"]["attributes"]["oobMgmtAddr"] != "0.0.0.0":  # nosec: B104
+                mgmt_addr = f"{node['topSystem']['attributes']['oobMgmtAddr']}/{node['topSystem']['attributes']['oobMgmtAddrMask']}"
+            elif (
+                node["topSystem"]["attributes"]["address"] != "0.0.0.0"  # nosec: B104
+                and node["topSystem"]["attributes"]["tepPool"]
+            ):
+                mgmt_addr = f"{node['topSystem']['attributes']['address']}/{ip_network(node['topSystem']['attributes']['tepPool'], strict=False).prefixlen}"
+            else:
+                mgmt_addr = ""
+            if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
+                subnet = node["topSystem"]["attributes"]["tepPool"]
+            elif mgmt_addr:
+                subnet = ip_network(mgmt_addr, strict=False).with_prefixlen
+            else:
+                subnet = ""
             node_id = node["topSystem"]["attributes"]["id"]
-            node_dict[node_id]["oob_ip"] = node["topSystem"]["attributes"]["oobMgmtAddr"]
+            node_dict[node_id]["oob_ip"] = mgmt_addr
+            node_dict[node_id]["subnet"] = subnet
             node_dict[node_id]["uptime"] = node["topSystem"]["attributes"]["systemUpTime"]
 
         resp = self._get("/api/node/class/eqptExtCh.json")
@@ -419,9 +437,25 @@ class AciApi:
             node_dict[node_id]["site"] = self.site
         resp = self._get('/api/class/topSystem.json?query-target-filter=eq(topSystem.role,"controller")')
         for node in resp.json()["imdata"]:
+            if node["topSystem"]["attributes"]["oobMgmtAddr"] != "0.0.0.0":  # nosec: B104
+                mgmt_addr = f"{node['topSystem']['attributes']['oobMgmtAddr']}/{node['topSystem']['attributes']['oobMgmtAddrMask']}"
+            elif (
+                node["topSystem"]["attributes"]["address"] != "0.0.0.0"  # nosec: B104
+                and node["topSystem"]["attributes"]["tepPool"]
+            ):
+                mgmt_addr = f"{node['topSystem']['attributes']['address']}/{ip_network(node['topSystem']['attributes']['tepPool'], strict=False).prefixlen}"
+            else:
+                mgmt_addr = ""
+            if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
+                subnet = node["topSystem"]["attributes"]["tepPool"]
+            elif mgmt_addr:
+                subnet = ip_network(mgmt_addr, strict=False).with_prefixlen
+            else:
+                subnet = ""
             node_id = node["topSystem"]["attributes"]["id"]
             node_dict[node_id]["pod_id"] = node["topSystem"]["attributes"]["podId"]
-            node_dict[node_id]["oob_ip"] = node["topSystem"]["attributes"]["oobMgmtAddr"]
+            node_dict[node_id]["oob_ip"] = mgmt_addr
+            node_dict[node_id]["subnet"] = subnet
             node_dict[node_id]["uptime"] = node["topSystem"]["attributes"]["systemUpTime"]
         return node_dict
 

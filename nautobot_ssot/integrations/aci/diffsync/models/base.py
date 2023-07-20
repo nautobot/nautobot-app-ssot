@@ -121,9 +121,10 @@ class IPAddress(DiffSyncModel):
         "vrf",
         "tenant",
     )
-    _attributes = ("status", "description", "device", "interface", "vrf_tenant", "site_tag")
+    _attributes = ("prefix", "status", "description", "device", "interface", "vrf_tenant", "site_tag")
 
     address: str
+    prefix: str
     status: str
     site: str
     vrf: Optional[str]

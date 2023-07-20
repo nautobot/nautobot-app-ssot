@@ -106,9 +106,14 @@ class AciAdapter(DiffSync):
         node_dict = self.conn.get_nodes()
         # Leaf/Spine management IP addresses
         for node in node_dict.values():
-            if node["oob_ip"] and not node["oob_ip"] == "0.0.0.0":  # nosec
+            if node.get("oob_ip"):  # nosec
+                if node.get("subnet"):
+                    subnet = node["subnet"]
+                else:
+                    subnet = ""
                 new_ipaddress = self.ip_address(
-                    address=f"{node['oob_ip']}/32",
+                    address=node["oob_ip"],
+                    prefix=subnet,
                     device=node["name"],
                     status="Active",
                     description=f"ACI {node['role']}: {node['name']}",
@@ -132,9 +137,14 @@ class AciAdapter(DiffSync):
         controller_dict = self.conn.get_controllers()
         # Controller IP addresses
         for controller in controller_dict.values():
-            if controller["oob_ip"] and not controller["oob_ip"] == "0.0.0.0":  # nosec
+            if controller.get("oob_ip"):  # nosec
+                if controller.get("subnet"):
+                    subnet = controller["subnet"]
+                else:
+                    subnet = ""
                 new_ipaddress = self.ip_address(
-                    address=f"{controller['oob_ip']}/32",
+                    address=f"{controller['oob_ip']}",
+                    prefix=subnet,
                     device=controller["name"],
                     status="Active",
                     description=f"ACI {controller['role']}: {controller['name']}",
@@ -158,6 +168,7 @@ class AciAdapter(DiffSync):
                 for subnet in bd_value["subnets"]:
                     new_ipaddress = self.ip_address(
                         address=subnet[0],
+                        prefix=ip_network(subnet[0], strict=False).with_prefixlen,
                         status="Active",
                         description=f"ACI Bridge Domain: {bd_key}",
                         tenant=tenant_name,

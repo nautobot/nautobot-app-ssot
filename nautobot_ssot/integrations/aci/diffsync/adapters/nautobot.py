@@ -209,6 +209,7 @@ class NautobotAdapter(DiffSync):
                 vrf_tenant = None
             _ipaddress = self.ip_address(
                 address=str(nbipaddr.address),
+                prefix=str(nbipaddr.parent.prefix),
                 status=nbipaddr.status.name,
                 description=nbipaddr.description,
                 tenant=tenant_name,
