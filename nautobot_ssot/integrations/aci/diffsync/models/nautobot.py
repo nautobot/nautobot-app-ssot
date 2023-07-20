@@ -38,7 +38,7 @@ class NautobotTenant(Tenant):
     def create(cls, diffsync, ids, attrs):
         """Create Tenant object in Nautobot."""
         _tenant = OrmTenant(name=ids["name"], description=attrs["description"], comments=attrs["comments"])
-        _tenant.tags.add(Tag.objects.get(slug=PLUGIN_CFG.get("tag").lower().replace(" ", "-")))
+        _tenant.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _tenant.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _tenant.validated_save()
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
@@ -70,7 +70,7 @@ class NautobotVrf(Vrf):
         """Create VRF object in Nautobot."""
         _tenant = OrmTenant.objects.get(name=ids["tenant"])
         _vrf = OrmVrf(name=ids["name"], tenant=_tenant)
-        _vrf.tags.add(Tag.objects.get(slug=PLUGIN_CFG.get("tag").lower().replace(" ", "-")))
+        _vrf.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _vrf.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _vrf.validated_save()
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
@@ -143,8 +143,8 @@ class NautobotDeviceRole(DeviceRole):
     @classmethod
     def create(cls, diffsync, ids, attrs):
         """Create DeviceRole object in Nautobot."""
-        _ids_name = ids["name"]
-        _devicerole = Role(name=_ids_name, slug=f"{_ids_name}-ssot-aci", description=attrs["description"])
+        _devicerole = Role.objects.create(name=ids["name"], description=attrs["description"])
+        _devicerole.content_types.add(ContentType.objects.get_for_model(OrmDevice))
         _devicerole.validated_save()
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
@@ -159,7 +159,7 @@ class NautobotDeviceRole(DeviceRole):
     def delete(self):
         """Delete DeviceRole object in Nautobot."""
         self.diffsync.job.logger.warning(f"Device Role {self.name} will be deleted.")
-        _devicerole = Role.objects.get(name=self.get_identifiers()["name"])
+        _devicerole = Role.objects.get(name=self.name)
         _devicerole.delete()
         return super().delete()
 
@@ -172,17 +172,17 @@ class NautobotDevice(Device):
         """Create Device object in Nautobot."""
         _device = OrmDevice(
             name=ids["name"],
-            device_role=Role.objects.get(name=attrs["device_role"]),
+            role=Role.objects.get(name=attrs["device_role"]),
             device_type=OrmDeviceType.objects.get(model=attrs["device_type"]),
             serial=attrs["serial"],
             comments=attrs["comments"],
-            site=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
+            location=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
             status=Status.objects.get(name="Active"),
         )
 
         _device.custom_field_data["aci_node_id"] = attrs["node_id"]
         _device.custom_field_data["aci_pod_id"] = attrs["pod_id"]
-        _device.tags.add(Tag.objects.get(slug=PLUGIN_CFG.get("tag").lower().replace(" ", "-")))
+        _device.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _device.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _device.validated_save()
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
@@ -191,7 +191,7 @@ class NautobotDevice(Device):
         """Update Device object in Nautobot."""
         _device = OrmDevice.objects.get(
             name=self.name,
-            site=Location.objects.get(
+            location=Location.objects.get(
                 name=self.get_identifiers()["site"], location_type=LocationType.objects.get(name="Site")
             ),
         )
@@ -200,7 +200,7 @@ class NautobotDevice(Device):
         if attrs.get("device_type"):
             _device.device_type = OrmDeviceType.objects.get(model=attrs["device_type"])
         if attrs.get("device_role"):
-            _device.device_role = Role.objects.get(name=attrs["device_role"])
+            _device.role = Role.objects.get(name=attrs["device_role"])
         if attrs.get("comments"):
             _device.comments = attrs["comments"]
         if attrs.get("node_id"):
@@ -216,7 +216,7 @@ class NautobotDevice(Device):
         super().delete()
         _device = OrmDevice.objects.get(
             name=self.name,
-            site=Location.objects.get(name=self.site, location_type=LocationType.objects.get(name="Site")),
+            location=Location.objects.get(name=self.site, location_type=LocationType.objects.get(name="Site")),
         )
         self.diffsync.objects_to_delete["device"].append(_device)  # pylint: disable=protected-access
         return self
@@ -270,9 +270,10 @@ class NautobotInterface(Interface):
             name=ids["name"],
             device=OrmDevice.objects.get(
                 name=ids["device"],
-                site=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
+                location=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
             ),
             description=attrs["description"],
+            status=Status.objects.get(name="Active") if attrs["state"] == "up" else Status.objects.get(name="Failed"),
             type=attrs["type"],
         )
         _interface.custom_field_data["gbic_vendor"] = attrs["gbic_vendor"]
@@ -280,9 +281,9 @@ class NautobotInterface(Interface):
         _interface.custom_field_data["gbic_type"] = attrs["gbic_type"]
         _interface.custom_field_data["gbic_model"] = attrs["gbic_model"]
         if attrs.get("state") == "up":
-            _interface.tags.add(Tag.objects.get(slug=PLUGIN_CFG.get("tag_up").lower().replace(" ", "-")))
+            _interface.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag_up")))
         else:
-            _interface.tags.add(Tag.objects.get(slug=PLUGIN_CFG.get("tag_down").lower().replace(" ", "-")))
+            _interface.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag_down")))
         _interface.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _interface.validated_save()
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
@@ -293,7 +294,7 @@ class NautobotInterface(Interface):
             name=self.get_identifiers()["name"],
             device=OrmDevice.objects.get(
                 name=self.get_identifiers()["device"],
-                site=Location.objects.get(
+                location=Location.objects.get(
                     name=self.get_identifiers()["site"], location_type=LocationType.objects.get(name="Site")
                 ),
             ),
@@ -311,11 +312,11 @@ class NautobotInterface(Interface):
         if attrs.get("gbic_model"):
             _interface.custom_field_data["gbic_model"] = attrs["gbic_model"]
         if attrs.get("state") == "up":
-            _interface.tags.add(Tag.objects.get(slug=PLUGIN_CFG.get("tag_up").lower().replace(" ", "-")))
-            _interface.tags.remove(Tag.objects.get(slug=PLUGIN_CFG.get("tag_down").lower().replace(" ", "-")))
+            _interface.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag_up")))
+            _interface.tags.remove(Tag.objects.get(name=PLUGIN_CFG.get("tag_down")))
         else:
-            _interface.tags.add(Tag.objects.get(slug=PLUGIN_CFG.get("tag_down").lower().replace(" ", "-")))
-            _interface.tags.remove(Tag.objects.get(slug=PLUGIN_CFG.get("tag_up").lower().replace(" ", "-")))
+            _interface.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag_down")))
+            _interface.tags.remove(Tag.objects.get(name=PLUGIN_CFG.get("tag_up")))
         _interface.validated_save()
         return super().update(attrs)
 
@@ -325,7 +326,7 @@ class NautobotInterface(Interface):
         try:
             device = OrmDevice.objects.get(
                 name=self.get_identifiers()["device"],
-                site=Location.objects.get(
+                location=Location.objects.get(
                     name=self.get_identifiers()["site"], location_type=LocationType.objects.get(name="Site")
                 ),
             )
@@ -334,7 +335,7 @@ class NautobotInterface(Interface):
                 f"Device {self.get_identifiers()['device']} does not exist, skipping deletion of interface {self.name}"
             )
         else:
-            _interface = OrmInterface.objects.get(name=self.get_identifiers()["name"], device=device)
+            _interface = OrmInterface.objects.get(name=self.name, device=device)
             _interface.delete()
         return super().delete()
 
@@ -463,15 +464,15 @@ class NautobotPrefix(Prefix):
                 vrf = None
         else:
             vrf = None
-        _prefix = OrmPrefix(
+        _prefix = OrmPrefix.objects.create(
             prefix=ids["prefix"],
             status=Status.objects.get(name=attrs["status"]),
             description=attrs["description"],
             tenant=OrmTenant.objects.get(name=ids["tenant"]),
-            site=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
-            vrf=vrf,
+            location=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
         )
-        _prefix.tags.add(Tag.objects.get(slug=PLUGIN_CFG.get("tag").lower().replace(" ", "-")))
+        _prefix.vrfs.add(vrf)
+        _prefix.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _prefix.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _prefix.validated_save()
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
@@ -484,7 +485,7 @@ class NautobotPrefix(Prefix):
         if attrs.get("description"):
             _prefix.description = attrs["description"]
         if attrs.get("tenant"):
-            _prefix.tenant = OrmTenant.objects.get(name=self.get_identifiers()["tenant"])
+            _prefix.tenant = OrmTenant.objects.get(name=self.tenant)
         if attrs.get("status"):
             _prefix.status = Status.objects.get(name=attrs["status"])
         if self.get_identifiers().get("vrf") and attrs.get("vrf_tenant"):

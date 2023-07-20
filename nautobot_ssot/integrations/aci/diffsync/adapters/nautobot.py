@@ -4,8 +4,8 @@
 import logging
 from collections import defaultdict
 from diffsync import DiffSync
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import ProtectedError
-from django.utils.text import slugify
 from nautobot.tenancy.models import Tenant
 from nautobot.dcim.models import DeviceType, Device, InterfaceTemplate, Interface
 from nautobot.extras.models import Role
@@ -115,7 +115,7 @@ class NautobotAdapter(DiffSync):
 
     def load_devicetypes(self):
         """Method to load Device Types from Nautobot."""
-        _tag = Tag.objects.get(slug=slugify(PLUGIN_CFG.get("tag")))
+        _tag = Tag.objects.get(name=PLUGIN_CFG.get("tag"))
         for nbdevicetype in DeviceType.objects.filter(tags=_tag):
             _devicetype = self.device_type(
                 model=nbdevicetype.model,
@@ -148,7 +148,7 @@ class NautobotAdapter(DiffSync):
             _interface = self.interface(
                 name=nbinterface.name,
                 device=nbinterface.device.name,
-                site=nbinterface.device.site.name,
+                site=nbinterface.device.location.name,
                 description=nbinterface.description,
                 gbic_vendor=nbinterface.custom_field_data.get("gbic_vendor", ""),
                 gbic_type=nbinterface.custom_field_data.get("gbic_type", ""),
@@ -162,7 +162,7 @@ class NautobotAdapter(DiffSync):
 
     def load_deviceroles(self):
         """Method to load Device Roles from Nautobot."""
-        for nbdevicerole in Role.objects.filter(slug__contains="-ssot-aci"):
+        for nbdevicerole in Role.objects.filter(content_types=ContentType.objects.get_for_model(Device)):
             _devicerole = self.device_role(
                 name=nbdevicerole.name,
                 description=nbdevicerole.description,
@@ -175,10 +175,10 @@ class NautobotAdapter(DiffSync):
             _device = self.device(
                 name=nbdevice.name,
                 device_type=nbdevice.device_type.model,
-                device_role=nbdevice.device_role.name,
+                device_role=nbdevice.role.name,
                 serial=nbdevice.serial,
                 comments=nbdevice.comments,
-                site=nbdevice.site.name,
+                site=nbdevice.location.name,
                 node_id=nbdevice.custom_field_data["aci_node_id"],
                 pod_id=nbdevice.custom_field_data["aci_pod_id"],
                 site_tag=self.site,
@@ -188,9 +188,10 @@ class NautobotAdapter(DiffSync):
     def load_ipaddresses(self):
         """Method to load IPAddress objects from Nautobot."""
         for nbipaddr in IPAddress.objects.filter(tags=self.site_tag):
-            if nbipaddr.assigned_object:
-                device_name = nbipaddr.assigned_object.parent.name
-                interface_name = nbipaddr.assigned_object.name
+            if nbipaddr.interfaces.first():
+                intf = nbipaddr.interfaces.first()
+                device_name = intf.parent.name
+                interface_name = intf.name
             else:
                 device_name = None
                 interface_name = None
@@ -198,10 +199,10 @@ class NautobotAdapter(DiffSync):
                 tenant_name = nbipaddr.tenant.name
             else:
                 tenant_name = None
-            if nbipaddr.vrf:
-                vrf_name = nbipaddr.vrf.name
-                if nbipaddr.vrf.tenant.name:
-                    vrf_tenant = nbipaddr.vrf.tenant.name
+            if nbipaddr.parent.vrfs.first():
+                vrf_name = nbipaddr.parent.vrfs.first().name
+                if nbipaddr.parent.vrfs.first().tenant:
+                    vrf_tenant = nbipaddr.parent.vrfs.first().tenant.name
                 else:
                     vrf_tenant = None
             else:
@@ -225,10 +226,10 @@ class NautobotAdapter(DiffSync):
     def load_prefixes(self):
         """Method to load Prefix objects from Nautobot."""
         for nbprefix in Prefix.objects.filter(tags=self.site_tag):
-            if nbprefix.vrf:
-                vrf = nbprefix.vrf.name
-                if nbprefix.vrf.tenant.name:
-                    vrf_tenant = nbprefix.vrf.tenant.name
+            if nbprefix.vrfs.first():
+                vrf = nbprefix.vrfs.first().name
+                if nbprefix.vrfs.first().tenant:
+                    vrf_tenant = nbprefix.vrfs.first().tenant.name
                 else:
                     vrf_tenant = None
             else:

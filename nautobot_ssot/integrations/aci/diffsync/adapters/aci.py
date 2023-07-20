@@ -171,6 +171,8 @@ class AciAdapter(DiffSync):
                         prefix=ip_network(subnet[0], strict=False).with_prefixlen,
                         status="Active",
                         description=f"ACI Bridge Domain: {bd_key}",
+                        device=None,
+                        interface=None,
                         tenant=tenant_name,
                         vrf=bd_value["vrf"],
                         vrf_tenant=vrf_tenant,
