@@ -71,10 +71,9 @@ class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method
         self.target_adapter.load()
 
     def run(  # pylint: disable=arguments-differ, too-many-arguments
-        self, dryrun, memory_profiling, apic_choices, apic, debug, *args, **kwargs
+        self, dryrun, memory_profiling, apic, debug, *args, **kwargs
     ):
         """Perform data synchronization."""
-        self.apic_choices = apic_choices
         self.apic = apic
         self.debug = debug
         self.dryrun = dryrun
