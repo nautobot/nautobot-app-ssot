@@ -22,7 +22,7 @@ from nautobot_ssot.integrations.aci.diffsync.client import AciApi
 from nautobot_ssot.integrations.aci.diffsync.utils import load_yamlfile
 
 
-logger = logging.getLogger("rq.worker")
+logger = logging.getLogger(__name__)
 
 
 class AciAdapter(DiffSync):

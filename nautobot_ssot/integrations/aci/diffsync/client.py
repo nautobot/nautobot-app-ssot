@@ -13,7 +13,7 @@ from .utils import tenant_from_dn, ap_from_dn, node_from_dn, pod_from_dn, fex_id
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-logger = logging.getLogger("rq.worker")
+logger = logging.getLogger(__name__)
 
 
 class RequestConnectError(Exception):
