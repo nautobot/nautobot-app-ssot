@@ -34,7 +34,7 @@ def process_ext_attrs(diffsync, obj: object, extattrs: dict):
                     )
             if attr.lower() == "vrf":
                 try:
-                    obj.vrf_id = diffsync.vrf_map[attr_value]
+                    obj.vrfs.add(diffsync.vrf_map[attr_value])
                 except KeyError as err:
                     diffsync.job.logger.warning(
                         f"Unable to find VRF {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
