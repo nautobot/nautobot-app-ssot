@@ -9,6 +9,7 @@ from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import InterfaceTemplate as OrmInterfaceTemplate
 from nautobot.dcim.models import Interface as OrmInterface
 from nautobot.ipam.models import IPAddress as OrmIPAddress
+from nautobot.ipam.models import Namespace
 from nautobot.dcim.models import Location, LocationType
 from nautobot.ipam.models import Prefix as OrmPrefix
 from nautobot.ipam.models import VRF as OrmVrf
@@ -348,58 +349,43 @@ class NautobotIPAddress(IPAddress):
         """Create IPAddress object in Nautobot."""
         _device = attrs["device"]
         _interface = attrs["interface"]
+        obj_id = None
         if attrs["device"] and attrs["interface"]:
-            obj_type = ContentType.objects.get(model="interface")
             try:
-                obj_id = (
-                    OrmDevice.objects.get(
-                        name=attrs["device"],
-                        site=Location.objects.get(
-                            name=ids["site"], location_type=LocationType.objects.get(name="Site")
-                        ),
-                    )
-                    .interfaces.get(name=attrs["interface"])
-                    .id
-                )
+                obj_id = OrmDevice.objects.get(
+                    name=_device,
+                    location=Location.objects.get(
+                        name=ids["site"], location_type=LocationType.objects.get(name="Site")
+                    ),
+                ).interfaces.get(name=_interface)
             except ObjectNotCreated:
                 diffsync.job.logger.warning(f"{_device} missing interface {_interface} to assign {ids['address']}")
         if ids["tenant"]:
             tenant_name = OrmTenant.objects.get(name=ids["tenant"])
         else:
             tenant_name = None
-        try:
-            vrf_tenant = OrmTenant.objects.get(name=attrs["vrf_tenant"])
-        except OrmTenant.DoesNotExist:
-            diffsync.job.logger.warning(f"Tenant {attrs['vrf_tenant']} not found for VRF {ids['vrf']}")
-            vrf_tenant = None
 
-        if ids["vrf"] and vrf_tenant:
-            try:
-                vrf_name = OrmVrf.objects.get(name=ids["vrf"], tenant=OrmTenant.objects.get(name=vrf_tenant))
-            except OrmVrf.DoesNotExist:
-                diffsync.job.logger.warning(f"VRF {ids['vrf']} not found to associate IP Address {ids['address']}")
-                vrf_name = None
-
-        else:
-            vrf_name = None
-
-        _ipaddress = OrmIPAddress(
+        namespace = Namespace.objects.get(name="Global")
+        _ipaddress = OrmIPAddress.objects.create(
             address=ids["address"],
             status=Status.objects.get(name=attrs["status"]),
             description=attrs["description"],
+            namespace=namespace,
+            parent=OrmPrefix.objects.get_or_create(
+                prefix=attrs["prefix"], namespace=namespace, status=Status.objects.get(name="Active")
+            )[0],
             tenant=tenant_name,
-            assigned_object_type=obj_type,
-            assigned_object_id=obj_id,
-            vrf=vrf_name,
         )
+        if obj_id:
+            _ipaddress.interfaces.add(obj_id)
         _ipaddress.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _ipaddress.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _ipaddress.validated_save()
         # Update device with newly created address in the "Primary IPv4 field"
         if attrs["device"]:
             device = OrmDevice.objects.get(
-                name=attrs["device"],
-                site=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
+                name=_device,
+                location=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
             )
             device.primary_ip4 = OrmIPAddress.objects.get(address=ids["address"])
             device.save()
@@ -411,22 +397,21 @@ class NautobotIPAddress(IPAddress):
         if attrs.get("description"):
             _ipaddress.description = attrs["description"]
         if attrs.get("tenant"):
-            _ipaddress.tenant = OrmTenant.objects.get(name=self.get_identifiers()["tenant"])
+            _ipaddress.tenant = OrmTenant.objects.get(name=self.tenant)
         if attrs.get("device") and attrs.get("interface"):
-            _ipaddress.assigned_object_type = ContentType.objects.get(model="interface")
-            _ipaddress.assigned_object_id = (
-                OrmDevice.objects.get(name=attrs["device"], site=self.get_identifiers()["site"])
-                .interfaces.get(name=attrs["interface"])
-                .id
+            _ipaddress.interfaces.add(
+                OrmDevice.objects.get(name=attrs["device"], location=self.site).interfaces.get(name=attrs["interface"])
             )
         if attrs.get("status"):
             _ipaddress.status = Status.objects.get(name=attrs["status"])
         if attrs.get("tenant"):
             _ipaddress.tenant = OrmTenant.objects.get(name=self.get_identifiers()["tenant"])
         if attrs.get("vrf") and attrs.get("vrf_tenant"):
-            _ipaddress.vrf = OrmVrf.objects.get(
-                name=self.get_identifiers()["vrf"],
-                tenant=OrmTenant.objects.get(name=self.get_identifiers()["vrf_tenant"]),
+            _ipaddress.vrfs.add(
+                OrmVrf.objects.get(
+                    name=self.get_identifiers()["vrf"],
+                    tenant=OrmTenant.objects.get(name=self.get_identifiers()["vrf_tenant"]),
+                )
             )
         _ipaddress.validated_save()
         return super().update(attrs)
