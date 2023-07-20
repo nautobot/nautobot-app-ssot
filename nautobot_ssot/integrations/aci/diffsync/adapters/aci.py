@@ -178,9 +178,8 @@ class AciAdapter(DiffSync):
                         site_tag=self.site,
                     )
                     if not bd_value["vrf"] or (not bd_value["vrf"] and not vrf_tenant):
-                        self.job.log_warning(
-                            obj=new_ipaddress,
-                            message=f"VRF configured on Bridge Domain {bd_key} in tenant {tenant_name} is invalid, skipping.",
+                        self.job.logger.warning(
+                            f"VRF configured on Bridge Domain {bd_key} in tenant {tenant_name} is invalid, skipping.",
                         )
                     else:
                         # Using Try/Except to check for an existing loaded object
@@ -191,9 +190,8 @@ class AciAdapter(DiffSync):
                         except ObjectNotFound:
                             self.add(new_ipaddress)
                         else:
-                            self.job.log_warning(
-                                obj=new_ipaddress,
-                                message="Duplicate DiffSync IPAddress Object found and has not been loaded.",
+                            self.job.logger.warning(
+                                "Duplicate DiffSync IPAddress Object found and has not been loaded.",
                             )
 
     def load_prefixes(self):
@@ -220,9 +218,8 @@ class AciAdapter(DiffSync):
                             site_tag=self.site,
                         )
                         if not bd_value["vrf"] or (bd_value["vrf"] and not vrf_tenant):
-                            self.job.log_warning(
-                                obj=new_prefix,
-                                message=f"VRF configured on Bridge Domain {bd_key} in tenant {tenant_name} is invalid, skipping.",
+                            self.job.logger.warning(
+                                f"VRF configured on Bridge Domain {bd_key} in tenant {tenant_name} is invalid, skipping.",
                             )
                         else:
                             # Using Try/Except to check for an existing loaded object
@@ -233,9 +230,8 @@ class AciAdapter(DiffSync):
                             except ObjectNotFound:
                                 self.add(new_prefix)
                             else:
-                                self.job.log_warning(
-                                    obj=new_prefix,
-                                    message="Duplicate DiffSync Prefix Object found and has not been loaded.",
+                                self.job.logger.warning(
+                                    "Duplicate DiffSync Prefix Object found and has not been loaded.",
                                 )
 
     def load_devicetypes(self):
@@ -273,8 +269,8 @@ class AciAdapter(DiffSync):
                     )
                     self.add(new_interfacetemplate)
             else:
-                self.job.log_info(
-                    message=f"No YAML descriptor file for device type {_devicetype}, skipping interface template creation."
+                self.job.logger.info(
+                    f"No YAML descriptor file for device type {_devicetype}, skipping interface template creation."
                 )
 
     def load_interfaces(self):

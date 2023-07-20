@@ -361,10 +361,7 @@ class NautobotIPAddress(IPAddress):
                     .id
                 )
             except ObjectNotCreated:
-                diffsync.job.logger.warning(f"{_device} creating interface {_interface}")
-        else:
-            obj_type = None
-            obj_id = None
+                diffsync.job.logger.warning(f"{_device} missing interface {_interface} to assign {ids['address']}")
         if ids["tenant"]:
             tenant_name = OrmTenant.objects.get(name=ids["tenant"])
         else:
