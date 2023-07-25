@@ -106,9 +106,9 @@ class NautobotAdapter(DiffSync):
         for nbvrf in VRF.objects.filter(tags=self.site_tag):
             _vrf = self.vrf(
                 name=nbvrf.name,
+                namespace=nbvrf.namespace.name,
                 tenant=nbvrf.tenant.name,
                 description=nbvrf.description if not None else "",
-                rd=nbvrf.rd,
                 site_tag=self.site,
             )
             self.add(_vrf)
@@ -199,25 +199,15 @@ class NautobotAdapter(DiffSync):
                 tenant_name = nbipaddr.tenant.name
             else:
                 tenant_name = None
-            if nbipaddr.parent.vrfs.first():
-                vrf_name = nbipaddr.parent.vrfs.first().name
-                if nbipaddr.parent.vrfs.first().tenant:
-                    vrf_tenant = nbipaddr.parent.vrfs.first().tenant.name
-                else:
-                    vrf_tenant = None
-            else:
-                vrf_name = None
-                vrf_tenant = None
             _ipaddress = self.ip_address(
                 address=str(nbipaddr.address),
+                namespace=nbipaddr.parent.namespace.name,
                 prefix=str(nbipaddr.parent.prefix),
                 status=nbipaddr.status.name,
                 description=nbipaddr.description,
                 tenant=tenant_name,
                 device=device_name,
                 interface=interface_name,
-                vrf=vrf_name,
-                vrf_tenant=vrf_tenant,
                 site=self.site,
                 site_tag=self.site,
             )
@@ -238,6 +228,7 @@ class NautobotAdapter(DiffSync):
 
             _prefix = self.prefix(
                 prefix=str(nbprefix.prefix),
+                namespace=nbprefix.namespace.name,
                 status=nbprefix.status.name,
                 site=self.site,
                 description=nbprefix.description,

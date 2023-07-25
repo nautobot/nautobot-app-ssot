@@ -42,6 +42,8 @@ class NautobotTenant(Tenant):
         _tenant.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _tenant.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _tenant.validated_save()
+
+        Namespace.objects.create(name=ids["name"])
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
     def update(self, attrs):
@@ -70,7 +72,7 @@ class NautobotVrf(Vrf):
     def create(cls, diffsync, ids, attrs):
         """Create VRF object in Nautobot."""
         _tenant = OrmTenant.objects.get(name=ids["tenant"])
-        _vrf = OrmVrf(name=ids["name"], tenant=_tenant)
+        _vrf = OrmVrf(name=ids["name"], tenant=_tenant, namespace=Namespace.objects.get(name=attrs["namespace"]))
         _vrf.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _vrf.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _vrf.validated_save()
@@ -365,15 +367,13 @@ class NautobotIPAddress(IPAddress):
         else:
             tenant_name = None
 
-        namespace = Namespace.objects.get(name="Global")
+        namespace = Namespace.objects.get(name=ids["namespace"])
         _ipaddress = OrmIPAddress.objects.create(
             address=ids["address"],
             status=Status.objects.get(name=attrs["status"]),
             description=attrs["description"],
             namespace=namespace,
-            parent=OrmPrefix.objects.get_or_create(
-                prefix=attrs["prefix"], namespace=namespace, status=Status.objects.get(name="Active")
-            )[0],
+            parent=OrmPrefix.objects.get(prefix=attrs["prefix"], namespace=namespace),
             tenant=tenant_name,
         )
         if obj_id:
@@ -405,14 +405,7 @@ class NautobotIPAddress(IPAddress):
         if attrs.get("status"):
             _ipaddress.status = Status.objects.get(name=attrs["status"])
         if attrs.get("tenant"):
-            _ipaddress.tenant = OrmTenant.objects.get(name=self.get_identifiers()["tenant"])
-        if attrs.get("vrf") and attrs.get("vrf_tenant"):
-            _ipaddress.vrfs.add(
-                OrmVrf.objects.get(
-                    name=self.get_identifiers()["vrf"],
-                    tenant=OrmTenant.objects.get(name=self.get_identifiers()["vrf_tenant"]),
-                )
-            )
+            _ipaddress.tenant = OrmTenant.objects.get(name=self.tenant)
         _ipaddress.validated_save()
         return super().update(attrs)
 
@@ -423,7 +416,6 @@ class NautobotIPAddress(IPAddress):
         _ipaddress = OrmIPAddress.objects.get(
             address=self.get_identifiers()["address"],
             tenant=OrmTenant.objects.get(name=self.tenant),
-            vrf=OrmVrf.objects.get(name=self.vrf, tenant=OrmTenant.objects.get(name=self.vrf_tenant)),
         )
         self.diffsync.objects_to_delete["ipaddress"].append(_ipaddress)  # pylint: disable=protected-access
         return self
@@ -453,10 +445,12 @@ class NautobotPrefix(Prefix):
             prefix=ids["prefix"],
             status=Status.objects.get(name=attrs["status"]),
             description=attrs["description"],
-            tenant=OrmTenant.objects.get(name=ids["tenant"]),
+            namespace=Namespace.objects.get(name=attrs["namespace"]),
+            tenant=OrmTenant.objects.get(name=attrs["vrf_tenant"]),
             location=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
         )
-        _prefix.vrfs.add(vrf)
+        if vrf:
+            _prefix.vrfs.add(vrf)
         _prefix.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _prefix.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _prefix.validated_save()

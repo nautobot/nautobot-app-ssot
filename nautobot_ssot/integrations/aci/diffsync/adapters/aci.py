@@ -5,6 +5,7 @@
 import logging
 import os
 import re
+from typing import Optional
 from ipaddress import ip_network
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectNotFound
@@ -96,21 +97,57 @@ class AciAdapter(DiffSync):
             vrf_name = _vrf["name"]
             vrf_tenant = f"{self.tenant_prefix}:{_vrf['tenant']}"
             vrf_description = _vrf.get("description", "")
-            new_vrf = self.vrf(name=vrf_name, tenant=vrf_tenant, description=vrf_description, site_tag=self.site)
+            if vrf_name in ["inb", "oob"]:
+                namespace = "Global"
+            else:
+                namespace = vrf_tenant
+            new_vrf = self.vrf(
+                name=vrf_name, namespace=namespace, tenant=vrf_tenant, description=vrf_description, site_tag=self.site
+            )
             if _vrf["tenant"] not in PLUGIN_CFG.get("ignore_tenants"):
                 self.add(new_vrf)
+
+    def load_subnet_as_prefix(
+        self, prefix: str, namespace: str, site: str, vrf: str, vrf_tenant: str, tenant: Optional[str] = None
+    ):
+        """Load Subnet into prefix DiffSync model."""
+        try:
+            self.get(self.prefix, {"prefix": prefix, "site": site, "vrf": vrf, "tenant": tenant})
+        except ObjectNotFound:
+            new_pf = self.prefix(
+                prefix=prefix,
+                namespace=namespace,
+                status="Active",
+                site=site,
+                tenant=tenant,
+                description="",
+                vrf=vrf if vrf else None,
+                vrf_tenant=vrf_tenant if vrf_tenant else None,
+                site_tag=self.site,
+            )
+            self.add(new_pf)
 
     # pylint: disable-next=too-many-branches
     def load_ipaddresses(self):
         """Load IPAddresses from ACI. Retrieves controller IPs, OOB Mgmt IP of leaf/spine, and Bridge Domain subnet IPs."""
         node_dict = self.conn.get_nodes()
         # Leaf/Spine management IP addresses
+        mgmt_tenant = f"{self.tenant_prefix}:mgmt"
         for node in node_dict.values():
             if node.get("oob_ip"):  # nosec
                 if node.get("subnet"):
                     subnet = node["subnet"]
                 else:
                     subnet = ""
+                if subnet:
+                    self.load_subnet_as_prefix(
+                        prefix=subnet,
+                        namespace="Global",
+                        site=self.site,
+                        vrf="oob",
+                        vrf_tenant=mgmt_tenant,
+                        tenant=mgmt_tenant,
+                    )
                 new_ipaddress = self.ip_address(
                     address=node["oob_ip"],
                     prefix=subnet,
@@ -118,9 +155,8 @@ class AciAdapter(DiffSync):
                     status="Active",
                     description=f"ACI {node['role']}: {node['name']}",
                     interface="mgmt0",
-                    tenant=None,
-                    vrf=None,
-                    vrf_tenant=None,
+                    tenant=mgmt_tenant,
+                    namespace="Global",
                     site=self.site,
                     site_tag=self.site,
                 )
@@ -142,6 +178,15 @@ class AciAdapter(DiffSync):
                     subnet = controller["subnet"]
                 else:
                     subnet = ""
+                if subnet:
+                    self.load_subnet_as_prefix(
+                        prefix=subnet,
+                        namespace="Global",
+                        site=self.site,
+                        vrf="oob",
+                        vrf_tenant=mgmt_tenant,
+                        tenant=mgmt_tenant,
+                    )
                 new_ipaddress = self.ip_address(
                     address=f"{controller['oob_ip']}",
                     prefix=subnet,
@@ -149,9 +194,8 @@ class AciAdapter(DiffSync):
                     status="Active",
                     description=f"ACI {controller['role']}: {controller['name']}",
                     interface="mgmt0",
-                    tenant=None,
-                    vrf=None,
-                    vrf_tenant=None,
+                    tenant=mgmt_tenant,
+                    namespace="Global",
                     site=self.site,
                     site_tag=self.site,
                 )
@@ -161,40 +205,43 @@ class AciAdapter(DiffSync):
         for bd_key, bd_value in bd_dict.items():
             if bd_value.get("subnets"):
                 tenant_name = f"{self.tenant_prefix}:{bd_value.get('tenant')}"
-                if bd_value["vrf_tenant"]:
+                if bd_value.get("vrf_tenant"):
                     vrf_tenant = f"{self.tenant_prefix}:{bd_value['vrf_tenant']}"
                 else:
                     vrf_tenant = None
                 for subnet in bd_value["subnets"]:
+                    prefix = ip_network(subnet[0], strict=False).with_prefixlen
+                    self.load_subnet_as_prefix(
+                        prefix=prefix,
+                        namespace=tenant_name,
+                        site=self.site,
+                        vrf=bd_value["vrf"],
+                        vrf_tenant=vrf_tenant,
+                        tenant=tenant_name,
+                    )
                     new_ipaddress = self.ip_address(
                         address=subnet[0],
-                        prefix=ip_network(subnet[0], strict=False).with_prefixlen,
+                        prefix=prefix,
                         status="Active",
                         description=f"ACI Bridge Domain: {bd_key}",
                         device=None,
                         interface=None,
                         tenant=tenant_name,
-                        vrf=bd_value["vrf"],
-                        vrf_tenant=vrf_tenant,
+                        namespace=tenant_name,
                         site=self.site,
                         site_tag=self.site,
                     )
-                    if not bd_value["vrf"] or (not bd_value["vrf"] and not vrf_tenant):
-                        self.job.logger.warning(
-                            f"VRF configured on Bridge Domain {bd_key} in tenant {tenant_name} is invalid, skipping.",
-                        )
+                    # Using Try/Except to check for an existing loaded object
+                    # If the object doesn't exist we can create it
+                    # Otherwise we log a message warning the user of the duplicate.
+                    try:
+                        self.get(obj=new_ipaddress, identifier=new_ipaddress.get_unique_id())
+                    except ObjectNotFound:
+                        self.add(new_ipaddress)
                     else:
-                        # Using Try/Except to check for an existing loaded object
-                        # If the object doesn't exist we can create it
-                        # Otherwise we log a message warning the user of the duplicate.
-                        try:
-                            self.get(obj=new_ipaddress, identifier=new_ipaddress.get_unique_id())
-                        except ObjectNotFound:
-                            self.add(new_ipaddress)
-                        else:
-                            self.job.logger.warning(
-                                "Duplicate DiffSync IPAddress Object found and has not been loaded.",
-                            )
+                        self.job.logger.warning(
+                            "Duplicate DiffSync IPAddress Object found and has not been loaded.",
+                        )
 
     def load_prefixes(self):
         """Load Bridge domain subnets from ACI."""
@@ -211,11 +258,12 @@ class AciAdapter(DiffSync):
                     for subnet in bd_value["subnets"]:
                         new_prefix = self.prefix(
                             prefix=str(ip_network(subnet[0], strict=False)),
+                            namespace=tenant_name,
                             status="Active",
                             site=self.site,
                             description=f"ACI Bridge Domain: {bd_key}",
                             tenant=tenant_name,
-                            vrf=bd_value["vrf"],
+                            vrf=bd_value["vrf"] if bd_value.get("vrf") != "" else None,
                             vrf_tenant=vrf_tenant,
                             site_tag=self.site,
                         )
