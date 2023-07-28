@@ -8,8 +8,6 @@ from django.db.utils import IntegrityError, OperationalError
 from django.forms import HiddenInput
 from django.test import override_settings
 
-# from django.test import TestCase
-
 from nautobot.extras.models import JobResult
 from nautobot.utilities.testing import TransactionTestCase
 
@@ -30,6 +28,7 @@ class BaseJobTestCase(TransactionTestCase):
 
     def setUp(self):
         """Per-test setup."""
+        super().setUp()
         self.job = self.job_class()
 
         self.job.job_result = JobResult.objects.create(
@@ -37,8 +36,6 @@ class BaseJobTestCase(TransactionTestCase):
             obj_type=ContentType.objects.get(app_label="extras", model="job"),
             job_id=uuid.uuid4(),
         )
-
-        # name=self.job.class_path,
 
         self.job.load_source_adapter = lambda *x, **y: None
         self.job.load_target_adapter = lambda *x, **y: None

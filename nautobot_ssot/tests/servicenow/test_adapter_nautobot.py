@@ -19,6 +19,7 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
 
     def setUp(self):
         """Per-test-case data setup."""
+        super().setUp()
         status_active, _ = Status.objects.get_or_create(name="Active", slug="active")
 
         region_1 = Region.objects.create(name="Region 1", slug="region-1")
