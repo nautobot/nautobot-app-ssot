@@ -1,0 +1,10 @@
+[
+    {
+        "interface": "Ethernet1/1",
+        "link_status": "up",
+        "oper_status": "up",
+        "enabled": true,
+        "mac_addr": "ab:cd:ef:12:34:56",
+        "mtu": 1500
+    }
+]

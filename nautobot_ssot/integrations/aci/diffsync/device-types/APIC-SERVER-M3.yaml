@@ -1,0 +1,52 @@
+---
+manufacturer: Cisco
+model: APIC-SERVER-M3
+slug: apic-server-m3
+part_number: APIC-SERVER-M3
+u_height: 1
+is_full_depth: true
+subdevice_role: parent
+comments: ""
+console-ports:
+  - name: Con
+    type: rj-45
+power-outlets:
+  - name: PSU-1
+    type: iec-60309-p-n-e-4h
+    power_port: null
+    feed_leg: ""
+  - name: PSU-2
+    type: ""
+    power_port: null
+    feed_leg: ""
+interfaces:
+  - name: ETH1-1
+    type: 10gbase-x-sfpp
+    mgmt_only: false
+  - name: ETH1-2
+    type: 8gfc-sfpp
+    mgmt_only: false
+  - name: ETH2-1
+    type: 8gfc-sfpp
+    mgmt_only: false
+  - name: ETH2-2
+    type: 8gfc-sfpp
+    mgmt_only: false
+  - name: ILO
+    type: 1000base-t
+    mgmt_only: true
+  - name: LAN-1
+    type: 10gbase-t
+    mgmt_only: true
+  - name: LAN-2
+    type: 10gbase-t
+    mgmt_only: true
+  - name: USB-01
+    type: other
+    mgmt_only: false
+  - name: USB-02
+    type: other
+    mgmt_only: false
+  - name: VGA
+    type: other
+    mgmt_only: false

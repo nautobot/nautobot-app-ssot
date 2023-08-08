@@ -4,3 +4,4 @@
 ignore = E501, W503
 exclude =
     .venv
+    nautobot_ssot/integrations/servicenow/third_party
