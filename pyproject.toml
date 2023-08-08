@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nautobot-ssot"
-version = "1.3.1"
+version = "1.3.2"
 description = "Nautobot Single Source of Truth"
 authors = ["Network to Code, LLC <info@networktocode.com>"]
 license = "Apache-2.0"
@@ -26,16 +26,28 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
+Jinja2 = { version = ">=2.11.3", optional = true }
 Markdown = "!=3.3.5"
+PyYAML = { version = ">=6", optional = true }
+cloudvision = { version = "^1.9.0", optional = true }
+cvprac = { version = "^1.2.2", optional = true }
 diffsync = "^1.6.0"
-dnspython = { version = "^2.1.0", optional = true }
+dnspython = { version = ">=2.1.0", optional = true }
+ijson = { version = ">=2.5.1", optional = true }
 ipfabric = { version = "~6.0.9", optional = true }
 ipfabric-diagrams = { version = "~6.0.2", optional = true }
 nautobot = "^1.4.0"
+nautobot-device-lifecycle-mgmt = { version = "^1.0.2", optional = true }
 netutils = { version = "^1.0.0", optional = true }
+oauthlib = { version = ">=3.1.0", optional = true }
 packaging = ">=21.3, <24"
 prometheus-client = "~0.14.1"
-python = "^3.7.1"
+python = "^3.7.2"
+python-magic = { version = ">=0.4.15", optional = true }
+pytz = { version = ">=2019.3", optional = true }
+requests = { version = ">=2.21.0", optional = true }
+requests-oauthlib = { version = ">=1.3.0", optional = true }
+six = { version = ">=1.13.0", optional = true }
 
 [tool.poetry.dev-dependencies]
 bandit = "*"
@@ -53,8 +65,9 @@ pydocstyle = "*"
 pylint = "*"
 pylint-django = "*"
 pytest = "*"
+python-dotenv = "^0.21.1"
 yamllint = "*"
-Markdown = "*"
+markdown-include = "*"
 toml = "*"
 # Rendering docs to HTML
 mkdocs = "1.4.2"
@@ -66,13 +79,10 @@ mkdocs-version-annotations = "1.0.0"
 mkdocstrings = "0.20"
 mkdocstrings-python = "0.8.3"
 requests-mock = "^1.10.0"
-responses = "^0.14.0"
-Sphinx = "^4.3.1"
+parameterized = "^0.8.1"
 myst-parser = "^0.15.2"
-sphinx-autoapi = "^1.8.4"
-sphinx-rtd-theme = "^1.0.0"
-nautobot-chatops = "^1.5.1"
-nautobot-chatops-ipfabric = "^3.0.0"
+nautobot-chatops = "^2.0.0"
+responses = "^0.14.0"
 
 [tool.poetry.plugins."nautobot_ssot.data_sources"]
 "example" = "nautobot_ssot.sync.example:ExampleSyncWorker"
@@ -84,11 +94,30 @@ nautobot-chatops-ipfabric = "^3.0.0"
 "ipfabric" = "nautobot_ssot.integrations.ipfabric.workers:ipfabric"
 
 [tool.poetry.extras]
+aci = [
+    "PyYAML",
+]
 all = [
+    "Jinja2",
+    "PyYAML",
+    "cloudvision",
+    "cvprac",
     "dnspython",
+    "ijson",
     "ipfabric",
     "ipfabric-diagrams",
+    "nautobot-device-lifecycle-mgmt",
     "netutils",
+    "oauthlib",
+    "python-magic",
+    "pytz",
+    "requests",
+    "requests-oauthlib",
+    "six",
+]
+aristacv = [
+    "cloudvision",
+    "cvprac",
 ]
 infoblox = [
     "dnspython",
@@ -97,6 +126,34 @@ ipfabric = [
     "ipfabric",
     "ipfabric-diagrams",
     "netutils",
+]
+# pysnow = "^0.7.17"
+# PySNow is currently pinned to an older version of pytz as a dependency, which blocks compatibility with newer
+# versions of Nautobot. See https://github.com/rbw/pysnow/pull/186
+# For now, we have embedded a copy of PySNow under nautobot_ssot/integrations/servicenow/third_party/pysnow;
+# here are its direct packaging dependencies:
+pysnow = [
+    "requests",
+    "oauthlib",
+    "python-magic",
+    "requests-oauthlib",
+    "six",
+    "ijson",
+    "pytz",
+]
+servicenow = [
+    "Jinja2",
+    "PyYAML",
+    "ijson",
+    "oauthlib",
+    "python-magic",
+    "pytz",
+    "requests",
+    "requests-oauthlib",
+    "six",
+]
+nautobot-device-lifecycle-mgmt = [
+    "nautobot-device-lifecycle-mgmt",
 ]
 
 [tool.black]
@@ -116,6 +173,7 @@ exclude = '''
     | buck-out
     | build
     | dist
+    | nautobot_ssot/integrations/servicenow/third_party
   )/
   | settings.py     # This is where you define files that should not be stylized by black
                      # the root of the project

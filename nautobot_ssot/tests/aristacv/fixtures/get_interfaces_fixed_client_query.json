@@ -1,0 +1,482 @@
+[
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "updates": {
+                    "mtu": 1500,
+                    "addr": "ab:cd:ef:12:34:56",
+                    "name": "",
+                    "genId": 0,
+                    "l2Mru": 0,
+                    "l2Mtu": 0,
+                    "duplex": {
+                        "Name": "duplexUnknown",
+                        "Value": 0
+                    },
+                    "intfId": "Ethernet1/1",
+                    "maxMtu": 9214,
+                    "portId": {
+                        "value": 210
+                    },
+                    "ifIndex": 1,
+                    "l2MruMax": 0,
+                    "l2MruMin": 0,
+                    "fecStatus": {
+                        "Name": "fecEncodingUnknown",
+                        "Value": 0
+                    },
+                    "macActive": true,
+                    "speedEnum": {
+                        "Name": "speedUnknown",
+                        "Value": 0
+                    },
+                    "speedMbps": 0,
+                    "counterVal": [
+                        "Sysdb",
+                        "interface",
+                        "status",
+                        "eth",
+                        "phy",
+                        "slice",
+                        "1",
+                        "intfStatus",
+                        "Ethernet1/1",
+                        "counterVal"
+                    ],
+                    "deviceName": "",
+                    "intfConfig": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "phy",
+                        "slice",
+                        "1",
+                        "intfConfig",
+                        "Ethernet1/1"
+                    ],
+                    "linkStatus": {
+                        "Name": "linkUp",
+                        "Value": 2
+                    },
+                    "operStatus": {
+                        "Name": "intfOperUp",
+                        "Value": 1
+                    },
+                    "routedAddr": "ab:cd:ef:12:34:56",
+                    "burnedInAddr": "ab:cd:ef:12:34:56",
+                    "enabledState": {
+                        "Name": "enabled",
+                        "Value": 1
+                    },
+                    "loopbackMode": {
+                        "Name": "loopbackNone",
+                        "Value": 0
+                    },
+                    "speedAutoAdj": true,
+                    "autonegStatus": {
+                        "mode": {
+                            "Name": "anegModeUnknown",
+                            "Value": 0
+                        },
+                        "speed": {
+                            "Name": "speedUnknown",
+                            "Value": 0
+                        },
+                        "state": {
+                            "Name": "anegStateUnknown",
+                            "Value": 0
+                        },
+                        "duplex": {
+                            "Name": "duplexUnknown",
+                            "Value": 0
+                        },
+                        "laneCount": {
+                            "Name": "laneCountUnknown",
+                            "Value": 0
+                        },
+                        "fecEncoding": {
+                            "Name": "fecEncodingUnknown",
+                            "Value": 0
+                        },
+                        "advertisement": {
+                            "pause": {
+                                "Name": "pauseUnknown",
+                                "Value": 0
+                            },
+                            "linkModes": {
+                                "mode1GbpsFull": false,
+                                "mode1GbpsHalf": false,
+                                "mode5GbpsFull": false,
+                                "mode10GbpsFull": false,
+                                "mode10MbpsFull": false,
+                                "mode10MbpsHalf": false,
+                                "mode25GbpsFull": false,
+                                "mode40GbpsFull": false,
+                                "mode50GbpsFull": false,
+                                "mode100GbpsFull": false,
+                                "mode100MbpsFull": false,
+                                "mode100MbpsHalf": false,
+                                "mode2p5GbpsFull": false,
+                                "mode50GbpsFull1Lane": false,
+                                "mode100GbpsFull1Lane": false,
+                                "mode100GbpsFull2Lane": false,
+                                "mode200GbpsFull2Lane": false,
+                                "mode200GbpsFull4Lane": false,
+                                "mode200GbpsFull8Lane": false,
+                                "mode400GbpsFull4Lane": false,
+                                "mode400GbpsFull8Lane": false,
+                                "mode800GbpsFull8Lane": false,
+                                "modeHg11GbpsFull1Lane": false,
+                                "modeHg21GbpsFull2Lane": false,
+                                "modeHg27GbpsFull1Lane": false,
+                                "modeHg42GbpsFull4Lane": false,
+                                "modeHg53GbpsFull2Lane": false,
+                                "modeHg106GbpsFull4Lane": false
+                            },
+                            "technologyAbilities": {
+                                "techAbility25gCr": false,
+                                "techAbility25gCrS": false,
+                                "techAbility40gCr4": false,
+                                "techAbility50gCr1": false,
+                                "techAbility100gCr1": false,
+                                "techAbility100gCr2": false,
+                                "techAbility100gCr4": false,
+                                "techAbility200gCr2": false,
+                                "techAbility200gCr4": false,
+                                "techAbility400gCr4": false,
+                                "techAbilityUnknown": false,
+                                "techAbilityEthCon25gCr": false,
+                                "techAbilityEthCon50gCr2": false,
+                                "techAbilityEthCon400gCr8": false
+                            }
+                        },
+                        "rxFlowcontrol": {
+                            "Name": "flowControlStatusUnknown",
+                            "Value": 0
+                        },
+                        "txFlowcontrol": {
+                            "Name": "flowControlStatusUnknown",
+                            "Value": 0
+                        },
+                        "technologyType": {
+                            "Name": "techAbilityUnknown",
+                            "Value": 0
+                        },
+                        "partnerAdvertisement": {
+                            "pause": {
+                                "Name": "pauseUnknown",
+                                "Value": 0
+                            },
+                            "linkModes": {
+                                "mode1GbpsFull": false,
+                                "mode1GbpsHalf": false,
+                                "mode5GbpsFull": false,
+                                "mode10GbpsFull": false,
+                                "mode10MbpsFull": false,
+                                "mode10MbpsHalf": false,
+                                "mode25GbpsFull": false,
+                                "mode40GbpsFull": false,
+                                "mode50GbpsFull": false,
+                                "mode100GbpsFull": false,
+                                "mode100MbpsFull": false,
+                                "mode100MbpsHalf": false,
+                                "mode2p5GbpsFull": false,
+                                "mode50GbpsFull1Lane": false,
+                                "mode100GbpsFull1Lane": false,
+                                "mode100GbpsFull2Lane": false,
+                                "mode200GbpsFull2Lane": false,
+                                "mode200GbpsFull4Lane": false,
+                                "mode200GbpsFull8Lane": false,
+                                "mode400GbpsFull4Lane": false,
+                                "mode400GbpsFull8Lane": false,
+                                "mode800GbpsFull8Lane": false,
+                                "modeHg11GbpsFull1Lane": false,
+                                "modeHg21GbpsFull2Lane": false,
+                                "modeHg27GbpsFull1Lane": false,
+                                "modeHg42GbpsFull4Lane": false,
+                                "modeHg53GbpsFull2Lane": false,
+                                "modeHg106GbpsFull4Lane": false
+                            },
+                            "technologyAbilities": {
+                                "techAbility25gCr": false,
+                                "techAbility25gCrS": false,
+                                "techAbility40gCr4": false,
+                                "techAbility50gCr1": false,
+                                "techAbility100gCr1": false,
+                                "techAbility100gCr2": false,
+                                "techAbility100gCr4": false,
+                                "techAbility200gCr2": false,
+                                "techAbility200gCr4": false,
+                                "techAbility400gCr4": false,
+                                "techAbilityUnknown": false,
+                                "techAbilityEthCon25gCr": false,
+                                "techAbilityEthCon50gCr2": false,
+                                "techAbilityEthCon400gCr8": false
+                            }
+                        }
+                    },
+                    "defaultConfig": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "phy",
+                        "default",
+                        "defaultIntfConfig",
+                        "DefaultEthSwitchedPort2"
+                    ],
+                    "macActivePrev": true,
+                    "rxFlowcontrol": {
+                        "Name": "flowControlStatusUnknown",
+                        "Value": 0
+                    },
+                    "timestampMode": {
+                        "Name": "timestampModeDisabled",
+                        "Value": 0
+                    },
+                    "txFlowcontrol": {
+                        "Name": "flowControlStatusUnknown",
+                        "Value": 0
+                    },
+                    "linkModeStatus": {
+                        "Name": "linkModeUnknown",
+                        "Value": 0
+                    },
+                    "aneg25gModeCaps": {
+                        "ieee25g": true,
+                        "consortium25g": true
+                    },
+                    "fecBypassStatus": {
+                        "Name": "fecBypassDisabled",
+                        "Value": 0
+                    },
+                    "macRxLocalFault": false,
+                    "phySignalStatus": {
+                        "Name": "phySignalStatusNotReady",
+                        "Value": 1
+                    },
+                    "relativeIfindex": {
+                        "value": 0
+                    },
+                    "autonegAdvConfig": [
+                        "Sysdb",
+                        "interface",
+                        "status",
+                        "eth",
+                        "phy",
+                        "slice",
+                        "1",
+                        "intfStatus",
+                        "Ethernet1/1",
+                        "autonegAdvConfig"
+                    ],
+                    "macActiveChanges": 0,
+                    "macRxRemoteFault": false,
+                    "operStatusChange": {
+                        "time": 0.0,
+                        "count": 0
+                    },
+                    "rawPhyLinkStatus": {
+                        "Name": "linkUnknown",
+                        "Value": 0
+                    },
+                    "linkStatusChanges": 0,
+                    "phyFecCapabilities": [
+                        "Sysdb",
+                        "interface",
+                        "status",
+                        "eth",
+                        "phy",
+                        "slice",
+                        "1",
+                        "intfStatus",
+                        "Ethernet1/1",
+                        "phyFecCapabilities"
+                    ],
+                    "activeStatusChanges": 0,
+                    "autonegCapabilities": {
+                        "mode": {
+                            "Name": "anegModeUnknown",
+                            "Value": 0
+                        },
+                        "rxPause": false,
+                        "txPause": false,
+                        "linkModes": {
+                            "mode1GbpsFull": false,
+                            "mode1GbpsHalf": false,
+                            "mode5GbpsFull": false,
+                            "mode10GbpsFull": false,
+                            "mode10MbpsFull": false,
+                            "mode10MbpsHalf": false,
+                            "mode25GbpsFull": false,
+                            "mode40GbpsFull": false,
+                            "mode50GbpsFull": false,
+                            "mode100GbpsFull": false,
+                            "mode100MbpsFull": false,
+                            "mode100MbpsHalf": false,
+                            "mode2p5GbpsFull": false,
+                            "mode50GbpsFull1Lane": false,
+                            "mode100GbpsFull1Lane": false,
+                            "mode100GbpsFull2Lane": false,
+                            "mode200GbpsFull2Lane": false,
+                            "mode200GbpsFull4Lane": false,
+                            "mode200GbpsFull8Lane": false,
+                            "mode400GbpsFull4Lane": false,
+                            "mode400GbpsFull8Lane": false,
+                            "mode800GbpsFull8Lane": false,
+                            "modeHg11GbpsFull1Lane": false,
+                            "modeHg21GbpsFull2Lane": false,
+                            "modeHg27GbpsFull1Lane": false,
+                            "modeHg42GbpsFull4Lane": false,
+                            "modeHg53GbpsFull2Lane": false,
+                            "modeHg106GbpsFull4Lane": false
+                        }
+                    },
+                    "debouncedLinkStatus": {
+                        "Name": "linkUnknown",
+                        "Value": 0
+                    },
+                    "lastMacActiveChange": 0.0,
+                    "limitedSpeedAutoAdj": {
+                        "mode1GbpsFull": false,
+                        "mode1GbpsHalf": false,
+                        "mode5GbpsFull": false,
+                        "mode10GbpsFull": false,
+                        "mode10MbpsFull": false,
+                        "mode10MbpsHalf": false,
+                        "mode25GbpsFull": false,
+                        "mode40GbpsFull": false,
+                        "mode50GbpsFull": false,
+                        "mode100GbpsFull": false,
+                        "mode100MbpsFull": false,
+                        "mode100MbpsHalf": false,
+                        "mode2p5GbpsFull": false,
+                        "mode50GbpsFull1Lane": false,
+                        "mode100GbpsFull1Lane": false,
+                        "mode100GbpsFull2Lane": false,
+                        "mode200GbpsFull2Lane": false,
+                        "mode200GbpsFull4Lane": false,
+                        "mode200GbpsFull8Lane": false,
+                        "mode400GbpsFull4Lane": false,
+                        "mode400GbpsFull8Lane": false,
+                        "mode800GbpsFull8Lane": false,
+                        "modeHg11GbpsFull1Lane": false,
+                        "modeHg21GbpsFull2Lane": false,
+                        "modeHg27GbpsFull1Lane": false,
+                        "modeHg42GbpsFull4Lane": false,
+                        "modeHg53GbpsFull2Lane": false,
+                        "modeHg106GbpsFull4Lane": false
+                    },
+                    "fecBypassCapabilities": {
+                        "fecBypassCorrection": false,
+                        "fecBypassIndication": false
+                    },
+                    "loopbackModeSupported": [
+                        "Sysdb",
+                        "interface",
+                        "status",
+                        "eth",
+                        "phy",
+                        "slice",
+                        "1",
+                        "intfStatus",
+                        "Ethernet1/1",
+                        "loopbackModeSupported"
+                    ],
+                    "macRxLocalFaultChanges": 0,
+                    "unidirectionalLinkMode": {
+                        "Name": "uniLinkModeDisabled",
+                        "Value": 0
+                    },
+                    "macRxRemoteFaultChanges": 0,
+                    "phyLinkModeCapabilities": {
+                        "mode1GbpsFull": false,
+                        "mode1GbpsHalf": false,
+                        "mode5GbpsFull": false,
+                        "mode10GbpsFull": false,
+                        "mode10MbpsFull": false,
+                        "mode10MbpsHalf": false,
+                        "mode25GbpsFull": false,
+                        "mode40GbpsFull": false,
+                        "mode50GbpsFull": false,
+                        "mode100GbpsFull": false,
+                        "mode100MbpsFull": false,
+                        "mode100MbpsHalf": false,
+                        "mode2p5GbpsFull": false,
+                        "mode50GbpsFull1Lane": false,
+                        "mode100GbpsFull1Lane": false,
+                        "mode100GbpsFull2Lane": false,
+                        "mode200GbpsFull2Lane": false,
+                        "mode200GbpsFull4Lane": false,
+                        "mode200GbpsFull8Lane": false,
+                        "mode400GbpsFull4Lane": false,
+                        "mode400GbpsFull8Lane": false,
+                        "mode800GbpsFull8Lane": false,
+                        "modeHg11GbpsFull1Lane": false,
+                        "modeHg21GbpsFull2Lane": false,
+                        "modeHg27GbpsFull1Lane": false,
+                        "modeHg42GbpsFull4Lane": false,
+                        "modeHg53GbpsFull2Lane": false,
+                        "modeHg106GbpsFull4Lane": false
+                    },
+                    "lastLinkStatusChangeTime": 0.0,
+                    "macLayerAdditionalStatus": [
+                        "Sysdb",
+                        "interface",
+                        "status",
+                        "eth",
+                        "phy",
+                        "slice",
+                        "1",
+                        "intfStatus",
+                        "Ethernet1/1",
+                        "macLayerAdditionalStatus"
+                    ],
+                    "negotiation25gModeStatus": {
+                        "ieee25g": false,
+                        "consortium25g": false
+                    },
+                    "lastMacRxLocalFaultChange": 0.0,
+                    "lastMacRxRemoteFaultChange": 0.0,
+                    "unidirectionalLinkSupported": false,
+                    "autonegAdvConfigGenerationId": 0,
+                    "modifiedLinkModeCapabilities": {
+                        "mode1GbpsFull": false,
+                        "mode1GbpsHalf": false,
+                        "mode5GbpsFull": false,
+                        "mode10GbpsFull": false,
+                        "mode10MbpsFull": false,
+                        "mode10MbpsHalf": false,
+                        "mode25GbpsFull": false,
+                        "mode40GbpsFull": false,
+                        "mode50GbpsFull": false,
+                        "mode100GbpsFull": false,
+                        "mode100MbpsFull": false,
+                        "mode100MbpsHalf": false,
+                        "mode2p5GbpsFull": false,
+                        "mode50GbpsFull1Lane": false,
+                        "mode100GbpsFull1Lane": false,
+                        "mode100GbpsFull2Lane": false,
+                        "mode200GbpsFull2Lane": false,
+                        "mode200GbpsFull4Lane": false,
+                        "mode200GbpsFull8Lane": false,
+                        "mode400GbpsFull4Lane": false,
+                        "mode400GbpsFull8Lane": false,
+                        "mode800GbpsFull8Lane": false,
+                        "modeHg11GbpsFull1Lane": false,
+                        "modeHg21GbpsFull2Lane": false,
+                        "modeHg27GbpsFull1Lane": false,
+                        "modeHg42GbpsFull4Lane": false,
+                        "modeHg53GbpsFull2Lane": false,
+                        "modeHg106GbpsFull4Lane": false
+                    }
+                }
+            }
+        ]
+    }
+]
