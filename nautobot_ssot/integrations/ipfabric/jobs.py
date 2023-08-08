@@ -163,7 +163,7 @@ class IpFabricDataSource(DataSource, Job):
         if cls.client is None:
             cls.client = cls._init_ipf_client()
         else:
-            cls.client.update()        
+            cls.client.update()
 
         formatted_snapshots = get_formatted_snapshots(cls.client)
         if formatted_snapshots:
