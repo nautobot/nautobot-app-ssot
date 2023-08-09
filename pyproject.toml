@@ -81,7 +81,7 @@ mkdocstrings-python = "0.8.3"
 requests-mock = "^1.10.0"
 parameterized = "^0.8.1"
 myst-parser = "^0.15.2"
-nautobot-chatops = "^2.0.0"
+nautobot-chatops = { version = "^2.0.2", extras = ["ipfabric"] }
 responses = "^0.14.0"
 
 [tool.poetry.plugins."nautobot_ssot.data_sources"]
