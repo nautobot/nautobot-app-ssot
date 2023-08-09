@@ -7,7 +7,6 @@ from typing import Any, ClassVar, List
 
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectAlreadyExists
-from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError, Q
 from nautobot.dcim.models import Device, Site
@@ -18,11 +17,12 @@ from netutils.mac import mac_to_format
 
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 
-CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
-DEFAULT_INTERFACE_TYPE = CONFIG.get("default_interface_type", "1000base-t")
-DEFAULT_INTERFACE_MTU = CONFIG.get("default_interface_mtu", 1500)
-DEFAULT_INTERFACE_MAC = CONFIG.get("default_interface_mac", "00:00:00:00:00:01")
-DEFAULT_DEVICE_ROLE = CONFIG.get("default_device_role", "Network Device")
+from nautobot_ssot.integrations.ipfabric.constants import (
+    DEFAULT_INTERFACE_TYPE,
+    DEFAULT_INTERFACE_MTU,
+    DEFAULT_INTERFACE_MAC,
+    DEFAULT_DEVICE_ROLE,
+)
 
 
 class NautobotDiffSync(DiffSyncModelAdapters):

@@ -3,7 +3,6 @@
 import datetime
 from typing import Any, Optional
 
-from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db import IntegrityError
 from django.utils.text import slugify
@@ -22,8 +21,7 @@ from nautobot.ipam.models import VLAN, IPAddress
 from nautobot.utilities.choices import ColorChoices
 from netutils.ip import netmask_to_cidr
 
-CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
-ALLOW_DUPLICATE_IPS = CONFIG.get("ALLOW_DUPLICATE_ADDRESSES", True)
+from nautobot_ssot.integrations.ipfabric.constants import ALLOW_DUPLICATE_ADDRESSES
 
 
 def create_site(site_name, site_id=None):
@@ -121,7 +119,7 @@ def create_ip(ip_address, subnet_mask, status="Active", object_pk=None):
     """
     status_obj = Status.objects.get_for_model(IPAddress).get(slug=slugify(status))
     cidr = netmask_to_cidr(subnet_mask)
-    if ALLOW_DUPLICATE_IPS:
+    if ALLOW_DUPLICATE_ADDRESSES:
         addr = IPAddress.objects.filter(host=ip_address)
         data = {"address": f"{ip_address}/{cidr}", "status": status_obj}
         if addr.exists():

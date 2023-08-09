@@ -6,7 +6,6 @@ from typing import Any, ClassVar, List, Optional
 from uuid import UUID
 
 from diffsync import DiffSyncModel
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from nautobot.dcim.models import Device as NautobotDevice
@@ -17,17 +16,17 @@ from nautobot.ipam.models import VLAN
 from nautobot.utilities.choices import ColorChoices
 
 import nautobot_ssot.integrations.ipfabric.utilities.nbutils as tonb_nbutils
-
-CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
-DEFAULT_DEVICE_ROLE = CONFIG.get("default_device_role", "Network Device")
-DEFAULT_DEVICE_ROLE_COLOR = CONFIG.get("default_device_role_color", "ff0000")
-DEFAULT_DEVICE_STATUS = CONFIG.get("default_device_status", "Active")
-DEFAULT_DEVICE_STATUS_COLOR = CONFIG.get("default_device_status_color", "ff0000")
-DEFAULT_INTERFACE_MAC = CONFIG.get("default_interface_mac", "00:00:00:00:00:01")
-SAFE_DELETE_SITE_STATUS = CONFIG.get("safe_delete_site_status", "Decommissioning")
-SAFE_DELETE_DEVICE_STATUS = CONFIG.get("safe_delete_device_status", "Offline")
-SAFE_DELETE_IPADDRESS_STATUS = CONFIG.get("safe_ipaddress_interfaces_status", "Deprecated")
-SAFE_DELETE_VLAN_STATUS = CONFIG.get("safe_delete_vlan_status", "Deprecated")
+from nautobot_ssot.integrations.ipfabric.constants import (
+    DEFAULT_DEVICE_ROLE,
+    DEFAULT_DEVICE_ROLE_COLOR,
+    DEFAULT_DEVICE_STATUS,
+    DEFAULT_DEVICE_STATUS_COLOR,
+    DEFAULT_INTERFACE_MAC,
+    SAFE_DELETE_SITE_STATUS,
+    SAFE_DELETE_DEVICE_STATUS,
+    SAFE_DELETE_IPADDRESS_STATUS,
+    SAFE_DELETE_VLAN_STATUS,
+)
 
 
 class DiffSyncExtras(DiffSyncModel):

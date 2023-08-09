@@ -19,6 +19,7 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabr
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
 from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import DiffSyncExtras
+from nautobot_ssot.integrations.ipfabric import constants
 
 CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
 IPFABRIC_HOST = CONFIG["ipfabric_host"]
@@ -199,17 +200,17 @@ class IpFabricDataSource(DataSource, Job):
         """Dictionary describing the configuration of this DataSource."""
         return {
             "IP Fabric host": CONFIG["ipfabric_host"],
-            "Default MAC Address": CONFIG.get("default_interface_mac", "00:00:00:00:00:01"),
-            "Default Device Role": CONFIG.get("default_device_role", "Network Device"),
-            "Default Interface Type": CONFIG.get("default_interface_type", "1000base-t"),
-            "Default Device Status": CONFIG.get("default_device_status", "Active"),
-            "Allow Duplicate Addresses": CONFIG.get("allow_duplicate_addresses", True),
-            "Default MTU": CONFIG.get("default_interface_mtu", 1500),
             "Nautobot Host URL": CONFIG.get("nautobot_host"),
-            "Safe Delete Device Status": CONFIG.get("safe_delete_device_status", "Deprecated"),
-            "Safe Delete Site Status": CONFIG.get("safe_delete_site_status", "Decommissioning"),
-            "Safe Delete IPAddress Status": CONFIG.get("safe_ipaddress_interfaces_status", "Deprecated"),
-            "Safe Delete VLAN status": CONFIG.get("safe_delete_vlan_status", "Inventory"),
+            "Default MAC Address": constants.DEFAULT_INTERFACE_MAC,
+            "Default Device Role": constants.DEFAULT_DEVICE_ROLE,
+            "Default Interface Type": constants.DEFAULT_INTERFACE_TYPE,
+            "Default Device Status": constants.DEFAULT_DEVICE_STATUS,
+            "Allow Duplicate Addresses": constants.ALLOW_DUPLICATE_ADDRESSES,
+            "Default MTU": constants.DEFAULT_INTERFACE_MTU,
+            "Safe Delete Device Status": constants.SAFE_DELETE_DEVICE_STATUS,
+            "Safe Delete Site Status": constants.SAFE_DELETE_SITE_STATUS,
+            "Safe Delete IPAddress Status": constants.SAFE_IPADDRESS_INTERFACES_STATUS,
+            "Safe Delete VLAN status": constants.SAFE_DELETE_VLAN_STATUS,
         }
 
     def log_debug(self, message):
