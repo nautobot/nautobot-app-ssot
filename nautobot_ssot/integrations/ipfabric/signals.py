@@ -79,3 +79,4 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     create_custom_field("ssot-synced-from-ipfabric", "Last synced from IPFabric on", synced_from_models, apps=apps)
     site_model = [Site]
     create_custom_field("ipfabric-site-id", "IPFabric Site ID", site_model, apps=apps, cf_type="type_text")
+    create_custom_field("ipfabric_type", "IPFabric Type", [DeviceRole], apps=apps, cf_type="type_text")
