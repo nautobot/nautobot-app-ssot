@@ -1,10 +1,10 @@
 # Cisco ACI SSoT Integration
 
-Cisco ACI SSoT integration is built as part of the [Nautobot Single Source of Truth (SSoT)](https://github.com/nautobot/nautobot-plugin-ssot) App. SSoT App enables Nautobot to be the aggregation point for data coming from multiple systems of record (SoR).
+The Cisco ACI SSoT integration is built as part of the [Nautobot Single Source of Truth (SSoT)](https://github.com/nautobot/nautobot-plugin-ssot) App. The SSoT App enables Nautobot to be the aggregation point for data coming from multiple systems of record (SoR).
 
 To accomplish the synchronization of data, the SSoT ACI integrations communicates with the Cisco ACI controller, the Application Policy Infrastructure Controller (APIC). The APIC provides a central point of administration for the ACI fabric via a web dashboard or REST API.
 
-The SSoT ACI integration eliminates the need for manually adding objects to Nautobot that have been automatically discovered by the Cisco APIC controller.  This includes information such as device model/serial numbers, node management IP addressing, and more.
+The SSoT ACI integration eliminates the need for manually adding objects to Nautobot that have been automatically discovered by the Cisco APIC controller. This includes information such as device model/serial numbers, node management IP addressing, and more.
 
 In addition, any changes to the ACI fabric are reflected in Nautobot when the synchronization process is executed.
 
@@ -39,7 +39,7 @@ From the **Cisco ACI Data Source** page you can click **Sync Now** to begin a sy
 
 ![SSoT ACI Dashboard](../images/aci-dashboard.png)
 
-After clicking **Sync Now**, you can select whether you would like to do a dry-run as well as schedule when you would like the job to run.  With a dry-run, you can see what information will be brought from ACI into Nautobot without actually performing the synchronization. The job can be run immediately, scheduled to run at a later date/time, or configured to run hourly, daily, or weekly at a specified date/time. 
+After clicking **Sync Now**, you can select whether you would like to do a dry-run as well as schedule when you would like the job to run. With a dry-run, you can see what information will be brought from ACI into Nautobot without actually performing the synchronization. The job can be run immediately, scheduled to run at a later date/time, or configured to run hourly, daily, or weekly at a specified date/time. 
 
 ![SSoT ACI Job Options](../images/aci-job-options.png)
 

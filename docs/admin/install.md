@@ -93,7 +93,7 @@ The plugin behavior can be controlled with the following list of settings:
 
 The `nautobot-ssot` package includes multiple integrations. Each requires extra dependencies defined in `pyproject.toml`. See the [installation guide](#installation-guide) for instructions on installing these dependencies.
 
-Set up integrations using the specific guides:
+Set up each integration using the specific guides:
 
 - [Cisco ACI](./aci_setup.md)
 - [Arista CloudVision](./aristacv_setup.md)

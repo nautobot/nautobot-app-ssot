@@ -24,7 +24,7 @@ The nautobot-ssot plugin builds atop the [DiffSync](https://github.com/networkto
 
 ### Integrations
 
-This plugin supports following integrations:
+This plugin supports the following integrations:
 
 - Cisco ACI
 - Arista CloudVision
@@ -32,9 +32,7 @@ This plugin supports following integrations:
 - IPFabric
 - ServiceNow
 
-Read more about integrations [here](https://docs.nautobot.com/projects/ssot/en/latest/user/integrations).
-
-To install integrations follow [this guide](https://docs.nautobot.com/projects/ssot/en/latest/admin/install/#integrations-configuration).
+Read more about integrations [here](https://docs.nautobot.com/projects/ssot/en/latest/user/integrations). To enable and configure integrations follow the instructions from [the install guide](https://docs.nautobot.com/projects/ssot/en/latest/admin/install/#integrations-configuration).
 
 ### Screenshots
 

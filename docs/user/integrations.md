@@ -1,6 +1,6 @@
 # Integrations
 
-This plugin supports following integrations:
+This plugin supports the following integrations:
 
 - [Cisco ACI](./aci.md)
 - [Arista CloudVision](./aristacv.md)
