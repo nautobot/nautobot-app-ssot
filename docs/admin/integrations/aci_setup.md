@@ -4,7 +4,7 @@ This guide will walk you through steps to set up Cisco ACI integration with the 
 
 ## Prerequisites
 
-Before configuring the integration, please ensure, that `nautobot-ssot` App was [installed with integration extra dependencies](./install.md#install-guide).
+Before configuring the integration, please ensure, that `nautobot-ssot` App was [installed with integration extra dependencies](../install.md#install-guide).
 
 ```shell
 pip install nautobot-ssot[aci]
@@ -71,7 +71,7 @@ export NAUTOBOT_APIC_TENANT_PREFIX_NTC="NTC_ACI"
 
 The identifier is used to select APIC from the SSoT dashboard when initiating a synchronization job:
 
-![image](../images/aci-dashboard-apic.png)
+![image](../../images/aci-dashboard-apic.png)
 
 ## Nautobot Objects Affected by Settings
 
@@ -87,14 +87,14 @@ The YAML files need to be placed in the `nautobot_ssot/integrations/aci/diffsync
 
 For example, given a Model name of `N9K-C9396PX` as shown below, the YAML file should be named `N9K-C9396PX.yaml`.
 
-![APIC Fabric Dashboard](../images/aci-apic-fabric-dashboard.png)
+![APIC Fabric Dashboard](../../images/aci-apic-fabric-dashboard.png)
 
 There are example YAML files for a few common switch models in `nautobot_ssot/integrations/aci/diffsync/device-types`, and additional ones can be downloaded [here](https://github.com/netbox-community/devicetype-library/tree/master/device-types/Cisco).
 
 ## Upgrading from `nautobot-plugin-ssot-aci` App
 
 !!! warning
-    When upgrading from `nautobot-plugin-ssot-aci` App, it's necessary to [avoid conflicts](install.md#potential-apps-conflicts).
+    When upgrading from `nautobot-plugin-ssot-aci` App, it's necessary to [avoid conflicts](../install.md#potential-apps-conflicts).
 
 - Uninstall the old App:
     ```shell
