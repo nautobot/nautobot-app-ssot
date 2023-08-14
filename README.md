@@ -81,3 +81,14 @@ Any PRs with fixes or improvements are very welcome!
 ## Questions
 
 For any questions or comments, please check the [FAQ](https://docs.nautobot.com/projects/ssot/en/latest/user/faq/) first. Feel free to also swing by the [Network to Code Slack](https://networktocode.slack.com/) (channel `#nautobot`), sign up [here](http://slack.networktocode.com/) if you don't have an account.
+
+## Acknowledgements
+
+This project includes code originally written in separate plugins, which have been merged into this project:
+
+- [nautobot-plugin-ssot-aci](https://github.com/nautobot/nautobot-plugin-ssot-aci):
+    Thanks
+    [@chadell](https://github.com/chadell),
+    [@dnewood](https://github.com/dnewood),
+    [@progala](https://github.com/progala),
+    [@ubajze](https://github.com/ubajze),
