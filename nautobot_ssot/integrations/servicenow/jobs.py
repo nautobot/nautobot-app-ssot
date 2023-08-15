@@ -65,6 +65,12 @@ class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
         }
 
     def load_source_adapter(self):
+        """Load Nautobot adapter."""
+        self.logger.info("Loading current data from Nautobot...")
+        self.source_adapter = NautobotDiffSync(job=self, sync=self.sync, site_filter=self.site_filter)
+        self.source_adapter.load()
+
+    def load_target_adapter(self):
         """Load ServiceNow adapter."""
         configs = get_servicenow_parameters()
         snc = ServiceNowClient(
@@ -75,13 +81,7 @@ class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
         )
 
         self.logger.info("Loading current data from ServiceNow...")
-        self.source_adapter = ServiceNowDiffSync(client=snc, job=self, sync=self.sync, site_filter=self.site_filter)
-        self.source_adapter.load()
-
-    def load_target_adapter(self):
-        """Load Nautobot adapter."""
-        self.logger.info("Loading current data from Nautobot...")
-        self.target_adapter = NautobotDiffSync(job=self, sync=self.sync, site_filter=self.site_filter)
+        self.target_adapter = ServiceNowDiffSync(client=snc, job=self, sync=self.sync, site_filter=self.site_filter)
         self.target_adapter.load()
 
     def run(self, dryrun, memory_profiling, site_filter, *args, **kwargs):  # pylint:disable=arguments-differ
