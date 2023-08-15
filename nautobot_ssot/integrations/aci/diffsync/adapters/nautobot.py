@@ -88,7 +88,7 @@ class NautobotAdapter(DiffSync):
                     logger.warning("OBJECT: %s", nautobot_object)
                     nautobot_object.delete()
                 except ProtectedError:
-                    self.job.log_failure(obj=nautobot_object, message="Deletion failed protected object")
+                    self.job.logger.error("Deletion failed protected object")
             self.objects_to_delete[grouping] = []
 
         return super().sync_complete(source, *args, **kwargs)

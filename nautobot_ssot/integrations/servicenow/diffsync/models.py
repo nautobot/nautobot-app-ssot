@@ -36,7 +36,7 @@ class ServiceNowCRUDMixin:
                     if not sys_id:
                         target = self.diffsync.client.get_by_query(tablename, {mapping["reference"]["column"]: value})
                         if target is None:
-                            self.diffsync.job.log_warning(message=f"Unable to find reference target in {tablename}")
+                            self.diffsync.job.logger.warning(f"Unable to find reference target in {tablename}")
                         else:
                             sys_id = target["sys_id"]
                             self._sys_id_cache.setdefault(tablename, {}).setdefault(column_name, {})[value] = sys_id
@@ -45,7 +45,7 @@ class ServiceNowCRUDMixin:
             else:
                 raise NotImplementedError
 
-        self.diffsync.job.log_debug(f"Mapped data {data} to record {record}")
+        self.diffsync.job.logger.debug(f"Mapped data {data} to record {record}")
         return record
 
     @classmethod
@@ -70,8 +70,8 @@ class ServiceNowCRUDMixin:
         try:
             record = sn_resource.get(query=query).one()
         except pysnow.exceptions.MultipleResults:
-            self.diffsync.job.log_failure(
-                message=f"Unsure which record to update, as query {query} matched more than one item "
+            self.diffsync.job.logger.error(
+                f"Unsure which record to update, as query {query} matched more than one item "
                 f"in table {entry['table']}"
             )
             return None
@@ -189,7 +189,9 @@ class Device(ServiceNowCRUDMixin, DiffSyncModel):
         """Create a new Device instance, and set things up for eventual bulk-creation of its child Interfaces."""
         model = super().create(diffsync, ids=ids, attrs=attrs)
 
-        diffsync.job.log_debug(f'New Device "{ids["name"]}" is being created, will bulk-create its interfaces later.')
+        diffsync.job.logger.debug(
+            f'New Device "{ids["name"]}" is being created, will bulk-create its interfaces later.'
+        )
         diffsync.interfaces_to_create_per_device[ids["name"]] = []
 
         return model
@@ -238,7 +240,7 @@ class Interface(ServiceNowCRUDMixin, DiffSyncModel):
     def create(cls, diffsync, ids, attrs):
         """Create an interface in isolation, or if the parent Device is new as well, defer for later bulk-creation."""
         if ids["device_name"] in diffsync.interfaces_to_create_per_device:
-            diffsync.job.log_debug(
+            diffsync.job.logger.debug(
                 f'Device "{ids["device_name"]}" was just created; deferring creation of interface "{ids["name"]}"'
             )
             # copy-paste of DiffSyncModel's create() classmethod;
