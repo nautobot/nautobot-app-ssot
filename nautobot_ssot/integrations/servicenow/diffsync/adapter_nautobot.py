@@ -175,7 +175,7 @@ class NautobotDiffSync(DiffSync):
             if hasattr(nautobot_object, "tags"):
                 nautobot_object.tags.add(tag)
             if hasattr(nautobot_object, "cf"):
-                nautobot_object.cf[custom_field.name] = today
+                nautobot_object.cf[custom_field.key] = today
             nautobot_object.validated_save()
 
         if modelname == "company":
