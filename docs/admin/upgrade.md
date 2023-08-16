@@ -20,7 +20,7 @@ Conflicting Apps list:
 To prevent conflicts during `nautobot-ssot` upgrade:
 
 - Remove conflicting applications from the `PLUGINS` section in your Nautobot configuration before enabling the latest `nautobot-ssot` version.
-- Transfer the configuration for conflicting apps to the `PLUGIN_CONFIG["nautobot_ssot"]` section of your Nautobot configuration. See `development/nautobot_config.py` for an example. Each [integration set up guide](#integrations-configuration) contains a chapter with upgrade instructions.
+- Transfer the configuration for conflicting apps to the `PLUGIN_CONFIG["nautobot_ssot"]` section of your Nautobot configuration. See `development/nautobot_config.py` for an example. Each [integration set up guide](../integrations/) contains a chapter with upgrade instructions.
 - Remove conflicting applications from your project's requirements.
 
 These steps will help prevent issues during `nautobot-ssot` upgrades. Always back up your data and thoroughly test your configuration after these changes.

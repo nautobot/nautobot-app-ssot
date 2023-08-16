@@ -91,4 +91,4 @@ This project includes code originally written in separate plugins, which have be
     [@chadell](https://github.com/chadell),
     [@dnewood](https://github.com/dnewood),
     [@progala](https://github.com/progala),
-    [@ubajze](https://github.com/ubajze),
+    [@ubajze](https://github.com/ubajze)

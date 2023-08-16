@@ -94,7 +94,7 @@ There are example YAML files for a few common switch models in `nautobot_ssot/in
 ## Upgrading from `nautobot-plugin-ssot-aci` App
 
 !!! warning
-    When upgrading from `nautobot-plugin-ssot-aci` App, it's necessary to [avoid conflicts](../install.md#potential-apps-conflicts).
+    When upgrading from `nautobot-plugin-ssot-aci` App, it's necessary to [avoid conflicts](../upgrade.md#potential-apps-conflicts).
 
 - Uninstall the old App:
     ```shell

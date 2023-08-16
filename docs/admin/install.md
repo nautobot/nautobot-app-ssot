@@ -28,7 +28,7 @@ To use specific integrations, add them as extra dependencies:
 pip install nautobot-ssot[aci]
 ```
 
-To ensure Single Source of Truth is automatically re-installed during future upgrades, create a file named `local_requirements.txt` (if not already existing) in the Nautobot root directory (alongside `requirements.txt`) and list the `nautobot-ssot` package:
+To ensure Single Source of Truth is automatically re-installed during future upgrades, create a file named `local_requirements.txt` (if not already existing) in the Nautobot root directory (alongside `requirements.txt`) and list the `nautobot-ssot` package and any of the extras:
 
 ```shell
 echo nautobot-ssot >> local_requirements.txt
@@ -76,7 +76,7 @@ The plugin behavior can be controlled with the following list of settings:
 
 ## Integrations Configuration
 
-The `nautobot-ssot` package includes multiple integrations. Each requires extra dependencies defined in `pyproject.toml`. See the [install guide](#install-guide) for instructions on installing these dependencies.
+The `nautobot-ssot` package includes multiple integrations. Each requires extra dependencies defined in `pyproject.toml`.
 
 Set up each integration using the specific guides:
 
