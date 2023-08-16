@@ -33,13 +33,13 @@ def fex_id_from_dn(dn):
 
 def tenant_from_dn(dn):
     """Match an ACI tenant in the Distiguished Name (DN)."""
-    pattern = "tn-(.+?)\/"  # noqa: W605  # pylint: disable=anomalous-backslash-in-string
+    pattern = r"tn-(.+?)\/"
     return re.search(pattern, dn).group().replace("tn-", "", 1).rstrip("/")
 
 
 def ap_from_dn(dn):
     """Match an ACI Application Profile in the Distinguished Name (DN)."""
-    pattern = "ap-[A-Za-z0-9\-]+"  # noqa: W605 # pylint: disable=anomalous-backslash-in-string
+    pattern = r"ap-[A-Za-z0-9\-]+"
     return re.search(pattern, dn).group().replace("ap-", "", 1).rstrip("/")
 
 
