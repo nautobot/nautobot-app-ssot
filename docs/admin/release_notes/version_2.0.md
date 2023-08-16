@@ -19,3 +19,16 @@
 - Updated logging in example Jobs to use new logger on JobResult.
 - Updated Infoblox integration to work with Nautobot 2.0.
 - Refactored Infoblox integration to have tags applied to imported objects after sync is complete.
+
+
+## v2.0.0-beta.2 - 2023-08-16
+
+### Added
+
+- Added Cisco ACI, Arista CloudVision, and ServiceNow integrations
+
+### Changed
+
+- Updated Cisco ACI, Arista CloudVision, and ServiceNow integrations to work with Nautobot 2.0
+- Updated ServiceNow Job to use load_source_adapter() and load_target_adapter() pattern
+- Fixed Infoblox assignment of VRFs to Prefixes
