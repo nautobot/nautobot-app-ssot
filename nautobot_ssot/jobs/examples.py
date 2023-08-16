@@ -284,19 +284,27 @@ class SiteLocalModel(SiteModel):
             attrs (dict): Initial values for this model's _attributes
         """
         diffsync.job.logger.info(f"Creating Site {ids['name']} with ids: {ids} attrs: {attrs}")
-        site_type, created = LocationType.objects.update_or_create(
-            name="Site", nestable=False, parent=LocationType.objects.get(name="Region")
-        )
-        if created:
-            site_type.content_types.add(ContentType.objects.get_for_model(Rack))
-            site_type.content_types.add(ContentType.objects.get_for_model(RackGroup))
-            site_type.content_types.add(ContentType.objects.get_for_model(Device))
-            site_type.content_types.add(ContentType.objects.get_for_model(DeviceRedundancyGroup))
-            site_type.content_types.add(ContentType.objects.get_for_model(CircuitTermination))
-            site_type.content_types.add(ContentType.objects.get_for_model(PowerPanel))
-            site_type.content_types.add(ContentType.objects.get_for_model(VLAN))
-            site_type.content_types.add(ContentType.objects.get_for_model(VLANGroup))
-            site_type.content_types.add(ContentType.objects.get_for_model(Cluster))
+        reg_type = LocationType.objects.get(name="Region")
+        try:
+            site_type = LocationType.objects.get(name="Site")
+            if not site_type.parent:
+                site_type.parent = reg_type
+                site_type.validated_save()
+        except LocationType.DoesNotExist:
+            site_type, _ = LocationType.objects.update_or_create(name="Site", nestable=False, parent=reg_type)
+        for obj_type in [
+            Rack,
+            RackGroup,
+            Device,
+            DeviceRedundancyGroup,
+            CircuitTermination,
+            PowerPanel,
+            VLAN,
+            VLANGroup,
+            Cluster,
+        ]:
+            if ContentType.objects.get_for_model(obj_type) not in site_type.content_types.all():
+                site_type.content_types.add(ContentType.objects.get_for_model(obj_type))
         site = Location(name=ids["name"], description=attrs["description"], location_type=site_type, parent=None)
         site.status = Status.objects.get(name=attrs["status"])
         if attrs["region_name"]:

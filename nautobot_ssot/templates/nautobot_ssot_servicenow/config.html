@@ -1,0 +1,13 @@
+{% extends "generic/object_edit.html" %}
+
+{% block header %}
+    {% if settings.PLUGINS_CONFIG.nautobot_ssot.servicenow_instance or settings.PLUGINS_CONFIG.nautobot_ssot.servicenow_username or settings.PLUGINS_CONFIG.nautobot_ssot.servicenow_password %}
+        <div class="alert alert-warning" role="alert">
+            Some configuration of this plugin has been defined in <code>{{ settings.SETTINGS_PATH }}</code>,
+            which takes precedence over any settings specified via this form.
+            If you want to use this form to configure Nautobot SSoT ServiceNow, please remove entries starting with
+            <code>"servicenow_"</code> from the <code>PLUGINS_CONFIG["nautobot_ssot"]</code> definition from
+            <code>{{ settings.SETTINGS_PATH }}</code>.
+        </div>
+    {% endif %}
+{% endblock header %}

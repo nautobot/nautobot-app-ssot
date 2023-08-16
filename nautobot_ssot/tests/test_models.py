@@ -1,8 +1,8 @@
 """Model test cases for nautobot_ssot."""
 
-from datetime import timedelta
+import datetime
 import time
-
+import uuid
 from django.test import TestCase
 from django.utils.timezone import now
 
@@ -37,10 +37,10 @@ class SyncTestCase(TestCase):
     def test_duration(self):
         """Test the duration property."""
         # Hasn't started yet, so no applicable duration
-        self.assertEqual(self.source_sync.duration, timedelta())
+        self.assertEqual(self.source_sync.duration, datetime.timedelta())
         self.source_sync.start_time = now()
         time.sleep(1)
-        self.assertGreater(self.source_sync.duration, timedelta())
+        self.assertGreater(self.source_sync.duration, datetime.timedelta())
         self.source_sync.job_result = JobResult(
             name="ExampleDataSource",
             task_name="nautobot_ssot.jobs.examples.ExampleDataSource",
@@ -48,7 +48,7 @@ class SyncTestCase(TestCase):
         )
         # Still running
         time.sleep(1)
-        self.assertGreater(self.source_sync.duration, timedelta(seconds=1))
+        self.assertGreater(self.source_sync.duration, datetime.timedelta(seconds=1))
         # Completed
         self.source_sync.job_result.set_status(JobResultStatusChoices.STATUS_SUCCESS)
         duration = self.source_sync.duration
@@ -80,3 +80,22 @@ class SyncTestCase(TestCase):
         # Source/target is Nautobot, so still None
         self.assertIsNone(self.target_sync.get_source_url())
         self.assertIsNone(self.source_sync.get_target_url())
+
+    def test_diff_with_datetime(self):
+        """Test datetime objects in diff are serializable."""
+        earliest_datetime = datetime.datetime(1, 1, 1)
+        self.source_sync.diff = {"datetime": earliest_datetime}
+        self.source_sync.validated_save()
+        self.source_sync.refresh_from_db()
+        actual = self.source_sync.diff["datetime"]
+        expected = earliest_datetime.isoformat()
+        self.assertEqual(actual, expected)
+
+    def test_diff_with_uuid(self):
+        """Test UUID objects in diff are serializable."""
+        expected = "12345678-1234-5678-1234-567812345678"
+        self.source_sync.diff = {"uuid": uuid.UUID(expected)}
+        self.source_sync.validated_save()
+        self.source_sync.refresh_from_db()
+        actual = self.source_sync.diff["uuid"]
+        self.assertEqual(actual, expected)

@@ -1,0 +1,114 @@
+[
+    {
+        "interface": "Ethernet8/36",
+        "link_status": "down",
+        "oper_status": "down",
+        "enabled": false,
+        "mac_addr": "ab:cd:ef:12:34:56",
+        "mtu": 10178
+    },
+    {
+        "interface": "Ethernet8/49/3",
+        "link_status": "down",
+        "oper_status": "down",
+        "enabled": false,
+        "mac_addr": "0a:bf:45:7a:11:2a",
+        "mtu": 9214
+    },
+    {
+        "interface": "Ethernet8/27",
+        "link_status": "down",
+        "oper_status": "down",
+        "enabled": false,
+        "mac_addr": "de:c8:38:15:9a:e8",
+        "mtu": 10178
+    },
+    {
+        "interface": "Ethernet8/40",
+        "link_status": "down",
+        "oper_status": "down",
+        "enabled": false,
+        "mac_addr": "7e:ba:e6:cd:f2:6e",
+        "mtu": 10178
+    },
+    {
+        "interface": "Ethernet8/37",
+        "link_status": "down",
+        "oper_status": "down",
+        "enabled": false,
+        "mac_addr": "6a:8f:36:eb:bd:84",
+        "mtu": 10178
+    },
+    {
+        "interface": "Ethernet8/38",
+        "link_status": "down",
+        "oper_status": "down",
+        "enabled": false,
+        "mac_addr": "c2:6c:2e:ad:fc:8a",
+        "mtu": 10178
+    },
+    {
+        "interface": "Ethernet8/50/1",
+        "link_status": "down",
+        "oper_status": "down",
+        "enabled": false,
+        "mac_addr": "82:63:7d:40:82:6e",
+        "mtu": 10178
+    },
+    {
+        "interface": "Ethernet8/50/2",
+        "link_status": "down",
+        "oper_status": "down",
+        "enabled": false,
+        "mac_addr": "92:4f:6f:26:44:39",
+        "mtu": 9214
+    },
+    {
+        "interface": "Ethernet8/45",
+        "link_status": "down",
+        "oper_status": "down",
+        "enabled": false,
+        "mac_addr": "32:8d:de:d2:66:36",
+        "mtu": 10178
+    },
+    {
+        "interface": "Ethernet8/49/4",
+        "link_status": "down",
+        "oper_status": "down",
+        "enabled": false,
+        "mac_addr": "da:9a:6f:30:c7:54",
+        "mtu": 9214
+    },
+    {
+        "interface": "Ethernet8/41",
+        "link_status": "down",
+        "oper_status": "down",
+        "enabled": false,
+        "mac_addr": "4e:86:55:c5:f9:20",
+        "mtu": 10178
+    },
+    {
+        "interface": "Ethernet8/9",
+        "link_status": "down",
+        "oper_status": "down",
+        "enabled": false,
+        "mac_addr": "92:fb:e5:30:09:d8",
+        "mtu": 10178
+    },
+    {
+        "interface": "Ethernet8/8",
+        "link_status": "down",
+        "oper_status": "down",
+        "enabled": false,
+        "mac_addr": "74:83:ef:0c:ed:0f",
+        "mtu": 10178
+    },
+    {
+        "interface": "Ethernet8/26",
+        "link_status": "down",
+        "oper_status": "down",
+        "enabled": false,
+        "mac_addr": "f6:2d:ff:83:63:01",
+        "mtu": 10178
+    }
+]
