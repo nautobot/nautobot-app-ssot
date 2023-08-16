@@ -109,6 +109,9 @@ nav:
       - External Interactions: "user/external_interactions.md"
   - Administrator Guide:
       - Install and Configure: "admin/install.md"
+      - Integrations Installation:
+          - "user/integrations/index.md"
+          - Cisco ACI: "user/integrations/aci.md"
       - Upgrade: "admin/upgrade.md"
       - Uninstall: "admin/uninstall.md"
       - Compatibility Matrix: "admin/compatibility_matrix.md"
