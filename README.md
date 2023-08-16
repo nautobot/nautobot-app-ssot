@@ -59,6 +59,17 @@ Full documentation for this App can be found over on the [Nautobot Docs](https:/
 - [Developer Guide](https://docs.nautobot.com/projects/ssot/en/latest/dev/contributing/) - Extending the App, Code Reference, Contribution Guide.
 - [Release Notes / Changelog](https://docs.nautobot.com/projects/ssot/en/latest/admin/release_notes/).
 
+## Note On Integration Compatability
+
+The SSoT framework includes a number of integrations with external Systems of Record:
+
+-Cisco ACI
+-Arista CloudVision
+-Infoblox
+-ServiceNow
+
+> Note that the Arista CloudVision integration is currently incompatible with the [Arista Labs](https://labs.arista.com/) environment due to a TLS issue. It has been confirmed to work in on-prem environments previously.
+
 ### Contributing to the Documentation
 
 You can find all the Markdown source for the App documentation under the [`docs`](https://github.com/nautobot/nautobot-plugin-ssot//tree/develop/docs) folder in this repository. For simple edits, a Markdown capable editor is sufficient: clone the repository and edit away.
