@@ -92,3 +92,12 @@ This project includes code originally written in separate plugins, which have be
     [@dnewood](https://github.com/dnewood),
     [@progala](https://github.com/progala),
     [@ubajze](https://github.com/ubajze)
+- [nautobot-plugin-ssot-arista-cloudvision](https://github.com/nautobot/nautobot-plugin-ssot-arista-cloudvision):
+    Thanks
+    [@burnyd](https://github.com/burnyd),
+    [@chipn](https://github.com/chipn),
+    [@jdrew82](https://github.com/jdrew82),
+    [@jvanderaa](https://github.com/jvanderaa),
+    [@nniehoff](https://github.com/nniehoff),
+    [@qduk](https://github.com/qduk),
+    [@ubajze](https://github.com/ubajze)
