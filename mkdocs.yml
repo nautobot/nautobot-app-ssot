@@ -104,14 +104,16 @@ nav:
       - Integrations:
           - "user/integrations/index.md"
           - Cisco ACI: "user/integrations/aci.md"
+          - Arista CloudVision: "user/integrations/aristacv.md"
       - Developing Jobs: "user/developing_jobs.md"
       - Frequently Asked Questions: "user/faq.md"
       - External Interactions: "user/external_interactions.md"
   - Administrator Guide:
       - Install and Configure: "admin/install.md"
       - Integrations Installation:
-          - "user/integrations/index.md"
-          - Cisco ACI: "user/integrations/aci.md"
+          - "admin/integrations/index.md"
+          - Cisco ACI: "admin/integrations/aci_setup.md"
+          - Arista CloudVision: "admin/integrations/aristacv_setup.md"
       - Upgrade: "admin/upgrade.md"
       - Uninstall: "admin/uninstall.md"
       - Compatibility Matrix: "admin/compatibility_matrix.md"
