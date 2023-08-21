@@ -25,7 +25,14 @@ pip install nautobot-ssot
 To use specific integrations, add them as extra dependencies:
 
 ```shell
+# To install Cisco ACI integration:
 pip install nautobot-ssot[aci]
+
+# To install Arista CloudVision integration:
+pip install nautobot-ssot[aristacv]
+
+# To install all integrations:
+pip install nautobot-ssot[all]
 ```
 
 To ensure Single Source of Truth is automatically re-installed during future upgrades, create a file named `local_requirements.txt` (if not already existing) in the Nautobot root directory (alongside `requirements.txt`) and list the `nautobot-ssot` package and any of the extras:
