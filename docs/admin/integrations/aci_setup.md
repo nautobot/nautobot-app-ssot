@@ -4,7 +4,7 @@ This guide will walk you through steps to set up Cisco ACI integration with the 
 
 ## Prerequisites
 
-Before configuring the integration, please ensure, that `nautobot-ssot` App was [installed with integration extra dependencies](../install.md#install-guide).
+Before configuring the integration, please ensure, that `nautobot-ssot` App was [installed with the ACI integration extra dependencies](../install.md#install-guide).
 
 ```shell
 pip install nautobot-ssot[aci]

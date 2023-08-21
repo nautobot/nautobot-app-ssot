@@ -24,7 +24,7 @@ The nautobot-ssot plugin builds atop the [DiffSync](https://github.com/networkto
 
 ### Integrations
 
-This plugin supports the following integrations:
+This Nautobot application framework includes the following integrations:
 
 - Cisco ACI
 - Arista CloudVision
@@ -84,7 +84,7 @@ For any questions or comments, please check the [FAQ](https://docs.nautobot.com/
 
 ## Acknowledgements
 
-This project includes code originally written in separate plugins, which have been merged into this project:
+This project includes code originally written in separate Nautobot apps, which have been merged into this project:
 
 - [nautobot-plugin-ssot-aci](https://github.com/nautobot/nautobot-plugin-ssot-aci):
     Thanks
