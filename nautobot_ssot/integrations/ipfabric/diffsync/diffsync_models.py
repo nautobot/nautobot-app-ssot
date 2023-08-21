@@ -168,13 +168,16 @@ class Device(DiffSyncExtras):
             device_type_object = tonb_nbutils.create_device_type_object(
                 device_type=attrs["model"], vendor_name=attrs["vendor"]
             )
-        # Get DeviceRole
-        device_role_filter = DeviceRole.objects.filter(name=DEFAULT_DEVICE_ROLE)
+        # Get DeviceRole, update if missing cf and create otherwise
+        role_name = attrs.get("role", DEFAULT_DEVICE_ROLE)
+        device_role_filter = DeviceRole.objects.filter(name=role_name)
         if device_role_filter.exists():
             device_role_object = device_role_filter.first()
+            device_role_object.cf["ipfabric_type"] = role_name
+            device_role_object.validated_save()
         else:
-            device_role_object = tonb_nbutils.create_device_role_object(
-                role_name=DEFAULT_DEVICE_ROLE, role_color=DEFAULT_DEVICE_ROLE_COLOR
+            device_role_object = tonb_nbutils.get_or_create_device_role_object(
+                role_name=role_name, role_color=DEFAULT_DEVICE_ROLE_COLOR
             )
         # Get Status
         device_status_filter = Status.objects.filter(name=DEFAULT_DEVICE_STATUS)
@@ -220,7 +223,7 @@ class Device(DiffSyncExtras):
             self.diffsync.job.log_warning(f"Unable to match device by name, {self.name}")
 
     def update(self, attrs):
-        """Update devices in Nautbot based on Source."""
+        """Update devices in Nautobot based on Source."""
         try:
             _device = NautobotDevice.objects.get(name=self.name)
             if attrs.get("status") == "Active":
@@ -242,7 +245,7 @@ class Device(DiffSyncExtras):
             if attrs.get("serial_number"):
                 _device.serial = attrs.get("serial_number")
             if attrs.get("role"):
-                device_role_object = tonb_nbutils.create_device_role_object(
+                device_role_object = tonb_nbutils.get_or_create_device_role_object(
                     role_name=attrs.get("role", DEFAULT_DEVICE_ROLE), role_color=DEFAULT_DEVICE_ROLE_COLOR
                 )
                 _device.device_role = device_role_object

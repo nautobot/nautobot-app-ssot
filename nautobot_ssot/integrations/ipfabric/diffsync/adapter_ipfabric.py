@@ -136,7 +136,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                         model=device.get("model") if device.get("model") else f"Default-{device.get('vendor')}",
                         vendor=device.get("vendor").capitalize(),
                         serial_number=serial_number,
-                        role=DEFAULT_DEVICE_ROLE,
+                        role=device.get("devType") if device.get("devType") else DEFAULT_DEVICE_ROLE,
                         status=DEFAULT_DEVICE_STATUS,
                     )
                     self.add(device_model)

@@ -9,7 +9,7 @@ from nautobot.ipam.models import VLAN, IPAddress
 from nautobot.utilities.choices import ColorChoices
 
 from nautobot_ssot.integrations.ipfabric.utilities import (  # create_ip,; create_interface,; create_site,
-    create_device_role_object,
+    get_or_create_device_role_object,
     create_device_type_object,
     create_manufacturer,
     create_status,
@@ -34,6 +34,8 @@ class TestNautobotUtils(TestCase):
             model="Test-DeviceType", slug="test-devicetype", manufacturer=self.manufacturer
         )
         self.device_role = DeviceRole.objects.create(name="Test-Role", slug="test-role", color=ColorChoices.COLOR_RED)
+        self.device_role.cf["ipfabric_type"] = "Test-Role"
+        self.device_role.validated_save()
         self.content_type = ContentType.objects.get(app_label="dcim", model="device")
         self.status = Status.objects.create(
             name="Test-Status",
@@ -93,9 +95,9 @@ class TestNautobotUtils(TestCase):
         test_manufacturer = create_manufacturer(vendor_name="Test-Manufacturer")
         self.assertEqual(test_manufacturer.id, self.manufacturer.id)
 
-    def test_create_device_role(self):
-        """Test `create_device_role` Utility."""
-        test_device_role = create_device_role_object("Test-Role", role_color=ColorChoices.COLOR_RED)
+    def test_get_or_create_device_role(self):
+        """Test `get_or_create_device_role` Utility."""
+        test_device_role = get_or_create_device_role_object("Test-Role", role_color=ColorChoices.COLOR_RED)
         self.assertEqual(test_device_role.id, self.device_role.id)
 
     def test_create_status(self):

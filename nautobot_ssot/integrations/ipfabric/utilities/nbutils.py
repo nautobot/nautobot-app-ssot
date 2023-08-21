@@ -70,15 +70,21 @@ def create_device_type_object(device_type, vendor_name):
     return device_type_obj
 
 
-def create_device_role_object(role_name, role_color):
+def get_or_create_device_role_object(role_name, role_color):
     """Create specified device role in Nautobot.
 
     Args:
         role_name (str): Role name.
         role_color (str): Role color.
     """
-    role_obj, _ = DeviceRole.objects.get_or_create(name=role_name, slug=slugify(role_name), color=role_color)
-    tag_object(nautobot_object=role_obj, custom_field="ssot-synced-from-ipfabric")
+    # adds custom field to map custom role names to ipfabric type names
+    try:
+        role_obj = DeviceRole.objects.get(_custom_field_data__ipfabric_type=role_name)
+    except DeviceRole.DoesNotExist:
+        role_obj = DeviceRole.objects.create(name=role_name, slug=slugify(role_name), color=role_color)
+        role_obj.cf["ipfabric_type"] = role_name
+        role_obj.validated_save()
+        tag_object(nautobot_object=role_obj, custom_field="ssot-synced-from-ipfabric")
     return role_obj
 
 
