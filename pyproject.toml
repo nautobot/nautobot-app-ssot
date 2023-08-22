@@ -91,8 +91,9 @@ responses = "^0.14.0"
 [tool.poetry.plugins."nautobot_ssot.data_targets"]
 "example" = "nautobot_ssot.sync.example:ExampleSyncWorker"
 
-[tool.poetry.plugins."nautobot.workers"]
-"ipfabric" = "nautobot_ssot.integrations.ipfabric.workers:ipfabric"
+# Enable chatops after dropping Python 3.7 support
+# [tool.poetry.plugins."nautobot.workers"]
+# "ipfabric" = "nautobot_ssot.integrations.ipfabric.workers:ipfabric"
 
 [tool.poetry.extras]
 aci = [
