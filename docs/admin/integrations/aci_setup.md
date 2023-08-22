@@ -1,10 +1,10 @@
 # Cisco ACI Integration Setup
 
-This guide will walk you through steps to set up Cisco ACI integration with the `nautobot_ssot` App.
+This guide will walk you through steps to set up Cisco ACI integration with the `nautobot_ssot` app.
 
 ## Prerequisites
 
-Before configuring the integration, please ensure, that `nautobot-ssot` App was [installed with the ACI integration extra dependencies](../install.md#install-guide).
+Before configuring the integration, please ensure, that `nautobot-ssot` app was [installed with the ACI integration extra dependencies](../install.md#install-guide).
 
 ```shell
 pip install nautobot-ssot[aci]
@@ -48,7 +48,7 @@ PLUGINS_CONFIG = {
         # Exclude any tenants you would not like to bring over from ACI.
         "aci_ignore_tenants": ["common", "mgmt", "infra"],
         # The below value will appear in the Comments field on objects created in Nautobot
-        "aci_comments": "Created by ACI SSoT Plugin",
+        "aci_comments": "Created by ACI SSoT Integration",
     }
 ```
 
@@ -75,7 +75,7 @@ The identifier is used to select APIC from the SSoT dashboard when initiating a 
 
 ## Nautobot Objects Affected by Settings
 
-A Site will be created in Nautobot with the name specified in the `NAUTOBOT_APIC_SITE` environment variable and resources created by the plugin will be assigned to this site.
+A Site will be created in Nautobot with the name specified in the `NAUTOBOT_APIC_SITE` environment variable and resources created by the integration will be assigned to this site.
 
 Tenants imported from ACI will be prepended with the unique name specified by the corresponding `TENANT_PREFIX` variable. This uniquely identifies tenants which might have the same name, but belong to two different APIC clusters.
 
@@ -94,17 +94,17 @@ There are example YAML files for a few common switch models in `nautobot_ssot/in
 ## Upgrading from `nautobot-plugin-ssot-aci` App
 
 !!! warning
-    When upgrading from `nautobot-plugin-ssot-aci` App, it's necessary to [avoid conflicts](../upgrade.md#potential-apps-conflicts).
+    When upgrading from `nautobot-plugin-ssot-aci` app, it's necessary to [avoid conflicts](../upgrade.md#potential-apps-conflicts).
 
-- Uninstall the old App:
+- Uninstall the old app:
     ```shell
     pip uninstall nautobot-plugin-ssot-aci
     ```
-- Upgrade the App with required extras:
+- Upgrade the app with required extras:
     ```shell
     pip install --upgrade nautobot-ssot[aci]
     ```
-- Fix `nautobot_config.py` by removing `nautobot_plugin_ssot_aci` from `PLUGINS` and merging App configuration into `nautobot_ssot`:
+- Fix `nautobot_config.py` by removing `nautobot_plugin_ssot_aci` from `PLUGINS` and merging app configuration into `nautobot_ssot`:
     ```python
     PLUGINS = [
         "nautobot_ssot",

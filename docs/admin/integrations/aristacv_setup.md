@@ -1,10 +1,10 @@
 # Arista CloudVision Integration Setup
 
-This guide will walk you through steps to set up Arista CloudVision integration with the `nautobot_ssot` App.
+This guide will walk you through steps to set up Arista CloudVision integration with the `nautobot_ssot` app.
 
 ## Prerequisites
 
-Before configuring the integration, please ensure, that `nautobot-ssot` App was [installed with integration extra dependencies](../install.md#install-guide).
+Before configuring the integration, please ensure, that `nautobot-ssot` app was [installed with Arista CloudVision integration extra dependencies](../install.md#install-guide).
 
 ```shell
 pip install nautobot-ssot[aristacv]
@@ -37,7 +37,7 @@ When syncing from CloudVis integration will create new Arista devices that do no
 | aristacv_from_cloudvision_default_device_role       | string | Default role created when syncing new devices to Nautobot. | network              |
 | aristacv_from_cloudvision_default_device_role_color | string | Default role color used for default role.                  | ff0000               |
 
-> When these variables are not defined in the App settings, the integration will use the default values mentioned.
+> When these variables are not defined in the app settings, the integration will use the default values mentioned.
 
 When an Arista device exists in Nautobot but not in CloudVision, this integration can either delete or leave the device in Nautobot. That behavior can be set with the following variable in the `nautobot_config.py` file.
 
@@ -45,7 +45,7 @@ When an Arista device exists in Nautobot but not in CloudVision, this integratio
 | ------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- |
 | aristacv_delete_devices_on_sync | boolean | If true, devices in Nautobot with device type manufacturer name set to Arista that do not exist in CloudVision but do exist in Nautobot upon sync will be deleted. | False   |
 
-> When this variable is not defined in the App settings, the integration will default to using `False`.
+> When this variable is not defined in the app settings, the integration will default to using `False`.
 
 Optionally, an import tag with the name `cloudvision_imported` can be applied to devices that are imported from CloudVision.
 
@@ -133,17 +133,17 @@ Other custom fields may need to be created by the user. When a sync is run and a
 ## Upgrading from `nautobot-plugin-ssot-aristacv` App
 
 !!! warning
-    When upgrading from `nautobot-plugin-ssot-aristacv` App, it's necessary to [avoid conflicts](../upgrade.md#potential-apps-conflicts).
+    When upgrading from `nautobot-plugin-ssot-aristacv` app, it's necessary to [avoid conflicts](../upgrade.md#potential-apps-conflicts).
 
-- Uninstall the old App:
+- Uninstall the old app:
     ```shell
     pip uninstall nautobot-plugin-ssot-aristacv
     ```
-- Upgrade the App with required extras:
+- Upgrade the app with required extras:
     ```shell
     pip install --upgrade nautobot-ssot[aristacv]
     ```
-- Fix `nautobot_config.py` by removing `aristacv` from `PLUGINS` and merging App configuration into `nautobot_ssot`:
+- Fix `nautobot_config.py` by removing `aristacv` from `PLUGINS` and merging app configuration into `nautobot_ssot`:
     ```python
     PLUGINS = [
         "nautobot_ssot",

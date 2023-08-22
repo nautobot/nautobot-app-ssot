@@ -22,7 +22,7 @@ class NautobotSSOTPluginConfig(PluginConfig):
     verbose_name = "Single Source of Truth"
     version = __version__
     author = "Network to Code, LLC"
-    description = "Nautobot App that enables Single Source of Truth.  Allows users to aggregate distributed data sources and/or distribute Nautobot data to other data sources such as databases and SDN controllers."
+    description = "Nautobot app that enables Single Source of Truth.  Allows users to aggregate distributed data sources and/or distribute Nautobot data to other data sources such as databases and SDN controllers."
     base_url = "ssot"
     required_settings = []
     min_version = "1.4.0"

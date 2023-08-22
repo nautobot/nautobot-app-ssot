@@ -1,6 +1,6 @@
 # Uninstall the App from Nautobot
 
-Here you will find any steps necessary to cleanly remove the App from your Nautobot environment.
+Here you will find any steps necessary to cleanly remove the app from your Nautobot environment.
 
 ## Uninstall Guide
 
@@ -14,4 +14,4 @@ $ pip3 uninstall nautobot-ssot
 
 ## Database Cleanup
 
-Drop all tables from the plugin: `nautobot_plugin_ssot*`.
+Drop all tables from the app: `nautobot_plugin_ssot*`.

@@ -1,10 +1,10 @@
 # Infoblox Integration Setup
 
-This guide will walk you through steps to set up Infoblox integration with the `nautobot_ssot` App.
+This guide will walk you through steps to set up Infoblox integration with the `nautobot_ssot` app.
 
 ## Prerequisites
 
-Before configuring the integration, please ensure, that `nautobot-ssot` App was [installed with integration extra dependencies](../install.md#install-guide).
+Before configuring the integration, please ensure, that `nautobot-ssot` app was [installed with the Infoblox integration extra dependencies](../install.md#install-guide).
 
 ```shell
 pip install nautobot-ssot[infoblox]
@@ -63,17 +63,17 @@ PLUGINS_CONFIG = {
 ## Upgrading from `nautobot-plugin-ssot-infoblox` App
 
 !!! warning
-    When upgrading from `nautobot-plugin-ssot-infoblox` App, it's necessary to [avoid conflicts](../upgrade.md#potential-apps-conflicts).
+    When upgrading from `nautobot-plugin-ssot-infoblox` app, it's necessary to [avoid conflicts](../upgrade.md#potential-apps-conflicts).
 
-- Uninstall the old App:
+- Uninstall the old app:
     ```shell
     pip uninstall nautobot-plugin-ssot-infoblox
     ```
-- Upgrade the App with required extras:
+- Upgrade the app with required extras:
     ```shell
     pip install --upgrade nautobot-ssot[infoblox]
     ```
-- Fix `nautobot_config.py` by removing `infoblox` from `PLUGINS` and merging App configuration into `nautobot_ssot`:
+- Fix `nautobot_config.py` by removing `infoblox` from `PLUGINS` and merging app configuration into `nautobot_ssot`:
     ```python
     PLUGINS = [
         "nautobot_ssot",

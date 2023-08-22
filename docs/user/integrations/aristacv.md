@@ -1,6 +1,6 @@
 # Arista CloudVision SSoT Integration
 
-The Arista CloudVision SSoT integration is built as part of the [Nautobot Single Source of Truth (SSoT)](../..tps://github.com/nautobot/nautobot-plugin-ssot) App. The SSoT App enables Nautobot to be the aggregation point for data coming from multiple systems of record (SoR).
+The Arista CloudVision SSoT integration is built as part of the [Nautobot Single Source of Truth (SSoT)](../..tps://github.com/nautobot/nautobot-plugin-ssot) app. The SSoT app enables Nautobot to be the aggregation point for data coming from multiple systems of record (SoR).
 
 From Nautobot into CloudVision, it synchronizes user device tags. From CloudVision into Nautobot, it synchronizes devices, their interfaces, associated IP addresses, and their system tags. Here is a table showing the data mappings when syncing from CloudVision.
 
@@ -25,7 +25,7 @@ From Nautobot into CloudVision, it synchronizes user device tags. From CloudVisi
 
 `*` The model system tag is mapped to the device type model in Nautobot.
 
-`**` If the [Device Lifecycle plug-in](https://github.com/nautobot/nautobot-plugin-device-lifecycle-mgmt) is found to be installed, a matching Version will be created with a RelationshipAssociation connecting the device and that Version.
+`**` If the [Device Lifecycle Nautobot app](https://github.com/nautobot/nautobot-plugin-device-lifecycle-mgmt) is found to be installed, a matching Version will be created with a RelationshipAssociation connecting the device and that Version.
 
 When syncing User tags from Nautobot to CloudVision the data mappings are as follows:
 
@@ -37,7 +37,7 @@ When syncing User tags from Nautobot to CloudVision the data mappings are as fol
 
 ## Usage
 
-This integration can sync data both `to` and `from` Nautobot. Once the integration has been installed successfully two new options are available under the [Nautobot Single Source of Truth (SSoT)](https://github.com/nautobot/nautobot-plugin-ssot) App.
+This integration can sync data both `to` and `from` Nautobot. Once the integration has been installed successfully two new options are available under the [Nautobot Single Source of Truth (SSoT)](https://github.com/nautobot/nautobot-plugin-ssot) app.
 
 ![Arista Integration](../../images/aristacv-integration.png)
 

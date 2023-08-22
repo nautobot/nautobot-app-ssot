@@ -1,6 +1,6 @@
 # Integrations
 
-This plugin supports the following integrations:
+This Nautobot app supports the following integrations:
 
 - [Cisco ACI](./aci_setup.md)
 - [Arista CloudVision](./aristacv_setup.md)

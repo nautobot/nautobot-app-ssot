@@ -2,14 +2,14 @@
 
 ## Upgrade Guide
 
-When a new release comes out it may be necessary to run a migration of the database to account for any changes in the data models used by this plugin. Execute the command `nautobot-server post-upgrade` within the runtime environment of your Nautobot installation after updating the `nautobot-ssot` package via `pip`.
+When a new release comes out it may be necessary to run a migration of the database to account for any changes in the data models used by this Nautobot app. Execute the command `nautobot-server post-upgrade` within the runtime environment of your Nautobot installation after updating the `nautobot-ssot` package via `pip`.
 
 ### Potential Apps Conflicts
 
 !!! warning
-    If upgrading from `1.x` version to `2.x` version of `nautobot-ssot` App, note that it now incorporates features previously provided by individual apps.
+    If upgrading from `1.x` version to `2.x` version of `nautobot-ssot` app, note that it now incorporates features previously provided by individual apps.
 
-Conflicting Apps list:
+Conflicting apps list:
 
 - `nautobot_plugin_ssot_aci`
 - `nautobot_plugin_ssot_arista_cloudvision`
@@ -26,4 +26,4 @@ To prevent conflicts during `nautobot-ssot` upgrade:
 These steps will help prevent issues during `nautobot-ssot` upgrades. Always back up your data and thoroughly test your configuration after these changes.
 
 !!! warning
-    If conflicting Apps remain in `PLUGINS`, the `nautobot-ssot` App will raise an exception during startup to prevent potential conflicts.
+    If conflicting apps remain in `PLUGINS`, the `nautobot-ssot` app will raise an exception during startup to prevent potential conflicts.

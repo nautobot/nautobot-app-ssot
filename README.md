@@ -14,9 +14,9 @@
 
 ## Overview
 
-A plugin for [Nautobot](https://github.com/nautobot/nautobot). This plugin facilitates integration and data synchronization between various "source of truth" (SoT) systems, with Nautobot acting as a central clearinghouse for data - a Single Source of Truth, if you will.
+An app for [Nautobot](https://github.com/nautobot/nautobot). This Nautobot app facilitates integration and data synchronization between various "source of truth" (SoT) systems, with Nautobot acting as a central clearinghouse for data - a Single Source of Truth, if you will.
 
-The nautobot-ssot plugin builds atop the [DiffSync](https://github.com/networktocode/diffsync) Python library and Nautobot's Jobs feature. This enables the rapid development and integration of Jobs that can be run within Nautobot to pull data from other systems ("Data Sources") into Nautobot and/or push data from Nautobot into other systems ("Data Targets") as desired. Key features include the following:
+The `nautobot-ssot` app builds atop the [DiffSync](https://github.com/networktocode/diffsync) Python library and Nautobot's Jobs feature. This enables the rapid development and integration of Jobs that can be run within Nautobot to pull data from other systems ("Data Sources") into Nautobot and/or push data from Nautobot into other systems ("Data Targets") as desired. Key features include the following:
 
 * A dashboard UI lists all registered Data Sources and Data Targets and provides a summary of the synchronization history.
 * The outcome of executing of a data synchronization Job is automatically saved to Nautobot's database for later review.
@@ -57,22 +57,22 @@ More screenshots can be found in the [Using the App](https://docs.nautobot.com/p
 
 ## Try it out!
 
-This App is installed in the Nautobot Community Sandbox found over at [demo.nautobot.com](https://demo.nautobot.com/)!
+This Nautobot app is installed in the Nautobot Community Sandbox found over at [demo.nautobot.com](https://demo.nautobot.com/)!
 
 > For a full list of all the available always-on sandbox environments, head over to the main page on [networktocode.com](https://www.networktocode.com/nautobot/sandbox-environments/).
 
 ## Documentation
 
-Full documentation for this App can be found over on the [Nautobot Docs](https://docs.nautobot.com) website:
+Full documentation for this app can be found over on the [Nautobot Docs](https://docs.nautobot.com) website:
 
-- [User Guide](https://docs.nautobot.com/projects/ssot/en/latest/user/app_overview/) - Overview, Using the App, Getting Started, Developing Jobs.
-- [Administrator Guide](https://docs.nautobot.com/projects/ssot/en/latest/admin/install/) - How to Install, Configure, Upgrade, or Uninstall the App.
-- [Developer Guide](https://docs.nautobot.com/projects/ssot/en/latest/dev/contributing/) - Extending the App, Code Reference, Contribution Guide.
+- [User Guide](https://docs.nautobot.com/projects/ssot/en/latest/user/app_overview/) - Overview, Using the app, Getting Started.
+- [Administrator Guide](https://docs.nautobot.com/projects/ssot/en/latest/admin/install/) - How to Install, Configure, Upgrade, or Uninstall the app.
+- [Developer Guide](https://docs.nautobot.com/projects/ssot/en/latest/dev/contributing/) - Extending the app, Developing Jobs, Code Reference, Contribution Guide.
 - [Release Notes / Changelog](https://docs.nautobot.com/projects/ssot/en/latest/admin/release_notes/).
 
 ### Contributing to the Documentation
 
-You can find all the Markdown source for the App documentation under the [`docs`](https://github.com/nautobot/nautobot-plugin-ssot//tree/develop/docs) folder in this repository. For simple edits, a Markdown capable editor is sufficient: clone the repository and edit away.
+You can find all the Markdown source for the app documentation under the [`docs`](https://github.com/nautobot/nautobot-plugin-ssot//tree/develop/docs) folder in this repository. For simple edits, a Markdown capable editor is sufficient: clone the repository and edit away.
 
 If you need to view the fully-generated documentation site, you can build it with [MkDocs](https://www.mkdocs.org/). A container hosting the documentation can be started using the `invoke` commands (details in the [Development Environment Guide](https://docs.nautobot.com/projects/ssot/en/latest/dev/dev_environment/#docker-development-environment)) on [http://localhost:8001](http://localhost:8001). Using this container, as your changes to the documentation are saved, they will be automatically rebuilt and any pages currently being viewed will be reloaded in your browser.
 
