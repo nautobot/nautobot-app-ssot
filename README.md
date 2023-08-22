@@ -101,3 +101,13 @@ This project includes code originally written in separate Nautobot apps, which h
     [@nniehoff](https://github.com/nniehoff),
     [@qduk](https://github.com/qduk),
     [@ubajze](https://github.com/ubajze)
+- [nautobot-plugin-ssot-infoblox](https://github.com/nautobot/nautobot-plugin-ssot-infoblox):
+    Thanks
+    [@jdrew82](https://github.com/jdrew82),
+    [@smk4664](https://github.com/smk4664),
+    [@jtdub](https://github.com/jtdub),
+    [@FragmentedPacket](https://github.com/FragmentedPacket),
+    [@ubajze](https://github.com/ubajze)
+    [@whitej6](https://github.com/whitej6),
+    [@chadell](https://github.com/chadell),
+    [@pkelly](https://github.com/pkelly),
