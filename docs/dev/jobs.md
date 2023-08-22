@@ -1,6 +1,6 @@
 # Developing Data Source and Data Target Jobs
 
-A goal of this plugin is to make it relatively quick and straightforward to develop and integrate your own system-specific Data Sources and Data Targets into Nautobot with a common UI and user experience.
+A goal of this Nautobot app is to make it relatively quick and straightforward to develop and integrate your own system-specific Data Sources and Data Targets into Nautobot with a common UI and user experience.
 
 Familiarity with [DiffSync](https://diffsync.readthedocs.io/en/latest/) and with developing [Nautobot Jobs](https://nautobot.readthedocs.io/en/latest/additional-features/jobs/) is recommended.
 
@@ -9,15 +9,12 @@ Familiarity with [DiffSync](https://diffsync.readthedocs.io/en/latest/) and with
 In brief, the following general steps can be followed:
 
 1. Define one or more `DiffSyncModel` data model class(es) representing the common data record(s) to be synchronized between the two systems.
-
    - Define your models based on the data you want to sync. For example, if you are syncing specific attributes (e.g. tags) of a device, but not the devices themselves, your parent model
      should be the tags. This approach prevents unnecessary `create`, `update`, and `delete` calls for models that are not sync'd.
    - For each model class, implement the `create`, `update`, and `delete` DiffSyncModel APIs for writing data to the Data Target system.
-
 2. Define a `DiffSync` adapter class for loading initial data from Nautobot and constructing instances of each `DiffSyncModel` class to represent that data.
 3. Define a `DiffSync` adapter class for loading initial data from the Data Source or Data Target system and constructing instances of the `DiffSyncModel` classes to represent that data.
-
-4. Develop a Job class, derived from either the `DataSource` or `DataTarget` classes provided by this plugin, and implement the adapters to populate the `self.source_adapter` and `self.target_adapter` that are used by the built-in implementation of `sync_data`. This `sync_data` method is an opinionated way of running the process including some performance data, more in [next section](#analyze-job-performance), but you could overwrite it completely or any of the key hooks that it calls:
+4. Develop a Job class, derived from either the `DataSource` or `DataTarget` classes provided by this Nautobot app, and implement the adapters to populate the `self.source_adapter` and `self.target_adapter` that are used by the built-in implementation of `sync_data`. This `sync_data` method is an opinionated way of running the process including some performance data, more in [next section](#analyze-job-performance), but you could overwrite it completely or any of the key hooks that it calls:
 
    - `self.load_source_adapter`: This is mandatory to be implemented. As an example:
 
@@ -41,8 +38,8 @@ In brief, the following general steps can be followed:
 
    - `self.execute_sync`: This method is implemented by default, using the output from load_adapter methods. Only executed if it's not a `dry-run` execution.
 
-5. Optionally, on your Job class, also implement the `lookup_object`, `data_mappings`, and/or `config_information` APIs (to provide more information to the end user about the details of this Job), as well as the various metadata properties on your Job's `Meta` inner class. Refer to the example Jobs provided in this plugin for examples and further details.
-6. Install your Job via any of the supported Nautobot methods (installation into the `JOBS_ROOT` directory, inclusion in a Git repository, or packaging as part of a plugin) and it should automatically become available!
+5. Optionally, on your Job class, also implement the `lookup_object`, `data_mappings`, and/or `config_information` APIs (to provide more information to the end user about the details of this Job), as well as the various metadata properties on your Job's `Meta` inner class. Refer to the example Jobs provided in this Nautobot app for examples and further details.
+6. Install your Job via any of the supported Nautobot methods (installation into the `JOBS_ROOT` directory, inclusion in a Git repository, or packaging as part of a Nautobot app) and it should automatically become available!
 
 ## Optimizing for Execution Time
 

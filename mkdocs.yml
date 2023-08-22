@@ -107,7 +107,6 @@ nav:
           - Arista CloudVision: "user/integrations/aristacv.md"
           - Infoblox: "user/integrations/infoblox.md"
           - ServiceNow: "user/integrations/servicenow.md"
-      - Developing Jobs: "user/developing_jobs.md"
       - Frequently Asked Questions: "user/faq.md"
       - External Interactions: "user/external_interactions.md"
   - Administrator Guide:
@@ -129,6 +128,7 @@ nav:
           - v1.0: "admin/release_notes/version_1.0.md"
   - Developer Guide:
       - Extending the App: "dev/extending.md"
+      - Developing Jobs: "dev/jobs.md"
       - Contributing to the App: "dev/contributing.md"
       - Development Environment: "dev/dev_environment.md"
       - Code Reference:
