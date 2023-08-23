@@ -7,7 +7,7 @@ An app for Nautobot. This Nautobot app facilitates integration and data synchron
 
 ## Description
 
-The nautobot-ssot app builds atop the [DiffSync](https://github.com/networktocode/diffsync) Python library and Nautobot's Jobs feature. This enables the rapid development and integration of Jobs that can be run within Nautobot to pull data from other systems ("Data Sources") into Nautobot and/or push data from Nautobot into other systems ("Data Targets") as desired. Key features include the following:
+The Nautobot SSoT app builds atop the [DiffSync](https://github.com/networktocode/diffsync) Python library and Nautobot's Jobs feature. This enables the rapid development and integration of Jobs that can be run within Nautobot to pull data from other systems ("Data Sources") into Nautobot and/or push data from Nautobot into other systems ("Data Targets") as desired. Key features include the following:
 
 * A dashboard UI lists all registered Data Sources and Data Targets and provides a summary of the synchronization history.
 * The outcome of executing of a data synchronization Job is automatically saved to Nautobot's database for later review.

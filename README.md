@@ -16,7 +16,7 @@
 
 An app for [Nautobot](https://github.com/nautobot/nautobot). This Nautobot app facilitates integration and data synchronization between various "source of truth" (SoT) systems, with Nautobot acting as a central clearinghouse for data - a Single Source of Truth, if you will.
 
-The `nautobot-ssot` app builds atop the [DiffSync](https://github.com/networktocode/diffsync) Python library and Nautobot's Jobs feature. This enables the rapid development and integration of Jobs that can be run within Nautobot to pull data from other systems ("Data Sources") into Nautobot and/or push data from Nautobot into other systems ("Data Targets") as desired. Key features include the following:
+The Nautobot SSoT app builds atop the [DiffSync](https://github.com/networktocode/diffsync) Python library and Nautobot's Jobs feature. This enables the rapid development and integration of Jobs that can be run within Nautobot to pull data from other systems ("Data Sources") into Nautobot and/or push data from Nautobot into other systems ("Data Targets") as desired. Key features include the following:
 
 * A dashboard UI lists all registered Data Sources and Data Targets and provides a summary of the synchronization history.
 * The outcome of executing of a data synchronization Job is automatically saved to Nautobot's database for later review.
@@ -65,9 +65,9 @@ This Nautobot app is installed in the Nautobot Community Sandbox found over at [
 
 Full documentation for this app can be found over on the [Nautobot Docs](https://docs.nautobot.com) website:
 
-- [User Guide](https://docs.nautobot.com/projects/ssot/en/latest/user/app_overview/) - Overview, Using the app, Getting Started.
-- [Administrator Guide](https://docs.nautobot.com/projects/ssot/en/latest/admin/install/) - How to Install, Configure, Upgrade, or Uninstall the app.
-- [Developer Guide](https://docs.nautobot.com/projects/ssot/en/latest/dev/contributing/) - Extending the app, Developing Jobs, Code Reference, Contribution Guide.
+- [User Guide](https://docs.nautobot.com/projects/ssot/en/latest/user/app_overview/) - Overview, Using the App, Getting Started.
+- [Administrator Guide](https://docs.nautobot.com/projects/ssot/en/latest/admin/install/) - How to Install, Configure, Upgrade, or Uninstall the App.
+- [Developer Guide](https://docs.nautobot.com/projects/ssot/en/latest/dev/contributing/) - Extending the App, Developing Jobs, Code Reference, Contribution Guide.
 - [Release Notes / Changelog](https://docs.nautobot.com/projects/ssot/en/latest/admin/release_notes/).
 
 ### Contributing to the Documentation
