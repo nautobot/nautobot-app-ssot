@@ -1,4 +1,4 @@
-"""Diffsync Adapter for Cisco ACI."""  # pylint: disable=too-many-lines, too-many-instance-attributes, too-many-arguments
+"""DiffSync Adapter for Cisco ACI."""  # pylint: disable=too-many-lines, too-many-instance-attributes, too-many-arguments
 # pylint: disable=duplicate-code
 
 

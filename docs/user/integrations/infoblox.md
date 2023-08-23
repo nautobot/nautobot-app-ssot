@@ -52,8 +52,8 @@ Extensibility Attributes in Infoblox are a method of adding additional contextua
 
 ![Infoblox SSoT Logs](../../images/infoblox-ssot-logs.png)
 
-![Diffsync Model - Network](../../images/infoblox-diffsyncmodel-network.png)
+![DiffSync Model - Network](../../images/infoblox-diffsyncmodel-network.png)
 
-![Diffsync Model - IPAddress](../../images/infoblox-diffsyncmodel-ipaddress.png)
+![DiffSync Model - IPAddress](../../images/infoblox-diffsyncmodel-ipaddress.png)
 
-![Diffsync Model - Aggregate](../../images/infoblox-diffsyncmodel-aggregate.png)
+![DiffSync Model - Aggregate](../../images/infoblox-diffsyncmodel-aggregate.png)
