@@ -103,11 +103,29 @@ This project includes code originally written in separate Nautobot apps, which h
     [@ubajze](https://github.com/ubajze)
 - [nautobot-plugin-ssot-infoblox](https://github.com/nautobot/nautobot-plugin-ssot-infoblox):
     Thanks
-    [@jdrew82](https://github.com/jdrew82),
-    [@smk4664](https://github.com/smk4664),
-    [@jtdub](https://github.com/jtdub),
     [@FragmentedPacket](https://github.com/FragmentedPacket),
+    [@chadell](https://github.com/chadell),
+    [@jdrew82](https://github.com/jdrew82),
+    [@jtdub](https://github.com/jtdub),
+    [@pke11y](https://github.com/pke11y),
+    [@smk4664](https://github.com/smk4664),
     [@ubajze](https://github.com/ubajze)
     [@whitej6](https://github.com/whitej6),
+- [nautobot-plugin-ssot-ipfabric](https://github.com/nautobot/nautobot-plugin-ssot-ipfabric):
+    Thanks
+    [@FragmentedPacket](https://github.com/FragmentedPacket),
+    [@armartirosyan](https://github.com/armartirosyan),
     [@chadell](https://github.com/chadell),
-    [@pkelly](https://github.com/pkelly),
+    [@grelleum](https://github.com/grelleum),
+    [@h4ndzdatm0ld](https://github.com/h4ndzdatm0ld),
+    [@jdrew82](https://github.com/jdrew82),
+    [@justinjeffery-ipf](https://github.com/justinjeffery-ipf),
+    [@pke11y](https://github.com/pke11y),
+    [@ubajze](https://github.com/ubajze)
+    [@whitej6](https://github.com/whitej6),
+- [nautobot-plugin-ssot-servicenow](https://github.com/nautobot/nautobot-plugin-ssot-servicenow):
+    Thanks
+    [@chadell](https://github.com/chadell),
+    [@glennmatthews](https://github.com/glennmatthews),
+    [@qduk](https://github.com/qduk),
+    [@ubajze](https://github.com/ubajze)
