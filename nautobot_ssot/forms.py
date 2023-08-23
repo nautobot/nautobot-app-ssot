@@ -36,7 +36,7 @@ class SyncLogEntryFilterForm(BootstrapMixin, forms.ModelForm):
         fields = ["sync", "action", "status"]
 
 
-class SyncForm(BootstrapMixin, forms.Form):
+class SyncForm(BootstrapMixin, forms.Form):  # pylint: disable=nb-incorrect-base-class
     """Base class for dynamic form generation for a SyncWorker."""
 
     dry_run = forms.BooleanField(

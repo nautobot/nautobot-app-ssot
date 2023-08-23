@@ -6,7 +6,7 @@ from django.shortcuts import reverse
 from nautobot.core.models import BaseModel
 
 
-class SSOTServiceNowConfig(BaseModel):
+class SSOTServiceNowConfig(BaseModel):  # pylint: disable=nb-string-field-blank-null
     """Singleton data model describing the configuration of this plugin."""
 
     def delete(self, *args, **kwargs):
