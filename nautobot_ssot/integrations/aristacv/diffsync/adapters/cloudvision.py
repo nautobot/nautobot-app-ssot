@@ -46,7 +46,7 @@ class CloudvisionAdapter(DiffSync):
             new_cvp = self.device(
                 name="CloudVision",
                 serial="",
-                status="active",
+                status="Active",
                 device_model="CloudVision",
                 version=cvp_version,
                 uuid=None,

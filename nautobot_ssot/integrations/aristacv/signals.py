@@ -120,9 +120,10 @@ def post_migrate_create_platform(apps=global_apps, **kwargs):
     """Callback function for post_migrate() -- create Arista Platform."""
     Platform = apps.get_model("dcim", "Platform")
     Manufacturer = apps.get_model("dcim", "Manufacturer")
-    Platform.objects.get_or_create(
+    Platform.objects.update_or_create(
         name="arista.eos.eos",
         napalm_driver="eos",
+        network_driver="arista_eos",
         manufacturer=Manufacturer.objects.get(name="Arista"),
     )
 
