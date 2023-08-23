@@ -7,12 +7,33 @@ except ImportError:
     # Python version < 3.8
     import importlib_metadata as metadata
 
+from django.conf import settings
 from nautobot.extras.plugins import PluginConfig
 
 from nautobot_ssot.integrations.utils import each_enabled_integration_module
 from nautobot_ssot.utils import logger
 
 __version__ = metadata.version(__name__)
+
+
+_CONFLICTING_APP_NAMES = [
+    "nautobot_ssot_aci",
+    "nautobot_ssot_aristacv",
+    "nautobot_ssot_infoblox",
+    "nautobot_ssot_ipfabric",
+    "nautobot_ssot_servicenow",
+]
+
+
+def _check_for_conflicting_apps():
+    intersection = set(_CONFLICTING_APP_NAMES).intersection(set(settings.PLUGINS))
+    if intersection:
+        raise RuntimeError(
+            f"The following apps are installed and conflict with `nautobot-ssot`: {', '.join(intersection)}."
+        )
+
+
+_check_for_conflicting_apps()
 
 
 class NautobotSSOTPluginConfig(PluginConfig):
