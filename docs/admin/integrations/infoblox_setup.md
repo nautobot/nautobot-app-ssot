@@ -73,7 +73,7 @@ PLUGINS_CONFIG = {
     ```shell
     pip install --upgrade nautobot-ssot[infoblox]
     ```
-- Fix `nautobot_config.py` by removing `infoblox` from `PLUGINS` and merging app configuration into `nautobot_ssot`:
+- Fix `nautobot_config.py` by removing `nautobot_ssot_infoblox` from `PLUGINS` and merging app configuration into `nautobot_ssot`:
     ```python
     PLUGINS = [
         "nautobot_ssot",
@@ -81,7 +81,7 @@ PLUGINS_CONFIG = {
     ]
 
     PLUGINS_CONFIG = {
-        # "infoblox": {  REMOVE THIS APP CONFIGURATION
+        # "nautobot_ssot_infoblox": {  REMOVE THIS APP CONFIGURATION
         #      MOVE CONFIGURATION TO `nautobot_ssot` SECTION AND UPDATE KEYS
         #     "NAUTOBOT_INFOBLOX_URL": os.getenv("NAUTOBOT_INFOBLOX_URL", ""),
         #     "NAUTOBOT_INFOBLOX_USERNAME": os.getenv("NAUTOBOT_INFOBLOX_USERNAME", ""),
@@ -102,7 +102,7 @@ PLUGINS_CONFIG = {
         "nautobot_ssot": {
             # Enable Infoblox integration
             "enable_infoblox": True,
-            # Following lines are moved from `infoblox` and prefixed with `infoblox_`
+            # Following lines are moved from `nautobot_ssot_infoblox` and prefixed with `infoblox_`
             "infoblox_default_status": os.getenv("NAUTOBOT_SSOT_INFOBLOX_DEFAULT_STATUS", "active"),
             "infoblox_enable_rfc1918_network_containers": is_truthy(
                 os.getenv("NAUTOBOT_SSOT_INFOBLOX_ENABLE_RFC1918_NETWORK_CONTAINERS")

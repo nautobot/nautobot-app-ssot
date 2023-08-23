@@ -53,7 +53,7 @@ PLUGINS_CONFIG = {
     ```shell
     pip install --upgrade nautobot-ssot[servicenow]
     ```
-- Fix `nautobot_config.py` by removing `servicenow` from `PLUGINS` and merging app configuration into `nautobot_ssot`:
+- Fix `nautobot_config.py` by removing `nautobot_ssot_servicenow` from `PLUGINS` and merging app configuration into `nautobot_ssot`:
     ```python
     PLUGINS = [
         "nautobot_ssot",
@@ -61,7 +61,7 @@ PLUGINS_CONFIG = {
     ]
 
     PLUGINS_CONFIG = {
-        # "servicenow": {  REMOVE THIS APP CONFIGURATION
+        # "nautobot_ssot_servicenow": {  REMOVE THIS APP CONFIGURATION
         #      MOVE CONFIGURATION TO `nautobot_ssot` SECTION AND UPDATE KEYS
         #     "instance": os.getenv("SERVICENOW_INSTANCE"),
         #     "username": os.getenv("SERVICENOW_USERNAME"),
@@ -70,7 +70,7 @@ PLUGINS_CONFIG = {
         "nautobot_ssot": {
             # Enable ServiceNow integration
             "enable_servicenow": True,
-            # Following lines are moved from `servicenow` and prefixed with `servicenow_`
+            # Following lines are moved from `nautobot_ssot_servicenow` and prefixed with `servicenow_`
             "servicenow_instance": "",
             "servicenow_password": "",
             "servicenow_username": "",

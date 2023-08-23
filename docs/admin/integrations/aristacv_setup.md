@@ -143,7 +143,7 @@ Other custom fields may need to be created by the user. When a sync is run and a
     ```shell
     pip install --upgrade nautobot-ssot[aristacv]
     ```
-- Fix `nautobot_config.py` by removing `aristacv` from `PLUGINS` and merging app configuration into `nautobot_ssot`:
+- Fix `nautobot_config.py` by removing `nautobot_ssot_aristacv` from `PLUGINS` and merging app configuration into `nautobot_ssot`:
     ```python
     PLUGINS = [
         "nautobot_ssot",
@@ -151,7 +151,7 @@ Other custom fields may need to be created by the user. When a sync is run and a
     ]
 
     PLUGINS_CONFIG = {
-        # "aristacv": {  REMOVE THIS APP CONFIGURATION
+        # "nautobot_ssot_aristacv": {  REMOVE THIS APP CONFIGURATION
         #     MOVE CONFIGURATION TO `nautobot_ssot` SECTION
         #     "cvp_token": os.getenv("NAUTOBOT_ARISTACV_TOKEN", ""),
         #     "cvp_host": os.getenv("NAUTOBOT_ARISTACV_HOST", ""),
@@ -174,7 +174,7 @@ Other custom fields may need to be created by the user. When a sync is run and a
         "nautobot_ssot": {
             # Enable Arista CloudVision integration
             "enable_aristacv": True,
-            # Following lines are moved from `aristacv` and prefixed with `aristacv_`
+            # Following lines are moved from `nautobot_ssot_aristacv` and prefixed with `aristacv_`
             "aristacv_cvp_token": os.getenv("NAUTOBOT_ARISTACV_TOKEN", ""),
             "aristacv_cvp_host": os.getenv("NAUTOBOT_ARISTACV_HOST", ""),
             "aristacv_cvp_port": os.getenv("NAUTOBOT_ARISTACV_PORT", 443),
