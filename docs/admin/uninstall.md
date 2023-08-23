@@ -14,4 +14,4 @@ $ pip3 uninstall nautobot-ssot
 
 ## Database Cleanup
 
-Drop all tables from the app: `nautobot_plugin_ssot*`.
+Drop all tables from the app: `nautobot_ssot*`.

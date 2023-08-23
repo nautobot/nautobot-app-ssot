@@ -11,11 +11,11 @@ When a new release comes out it may be necessary to run a migration of the datab
 
 Conflicting apps list:
 
-- `nautobot_plugin_ssot_aci`
-- `nautobot_plugin_ssot_arista_cloudvision`
-- `nautobot_plugin_ssot_infoblox`
-- `nautobot_plugin_ssot_ipfabric`
-- `nautobot_plugin_ssot_servicenow`
+- `nautobot_ssot_aci`
+- `nautobot_ssot_arista_cloudvision`
+- `nautobot_ssot_infoblox`
+- `nautobot_ssot_ipfabric`
+- `nautobot_ssot_servicenow`
 
 To prevent conflicts during `nautobot-ssot` upgrade:
 

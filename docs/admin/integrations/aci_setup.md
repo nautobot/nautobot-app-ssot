@@ -104,15 +104,15 @@ There are example YAML files for a few common switch models in `nautobot_ssot/in
     ```shell
     pip install --upgrade nautobot-ssot[aci]
     ```
-- Fix `nautobot_config.py` by removing `nautobot_plugin_ssot_aci` from `PLUGINS` and merging app configuration into `nautobot_ssot`:
+- Fix `nautobot_config.py` by removing `nautobot_ssot_aci` from `PLUGINS` and merging app configuration into `nautobot_ssot`:
     ```python
     PLUGINS = [
         "nautobot_ssot",
-        # "nautobot_plugin_ssot_aci"  # REMOVE THIS LINE
+        # "nautobot_ssot_aci"  # REMOVE THIS LINE
     ]
 
     PLUGINS_CONFIG = {
-        # "nautobot_plugin_ssot_aci": {  REMOVE THIS APP CONFIGURATION
+        # "nautobot_ssot_aci": {  REMOVE THIS APP CONFIGURATION
         #     MOVE CONFIGURATION TO `nautobot_ssot` SECTION
         #     "apics": {x: os.environ[x] for x in os.environ if "NAUTOBOT_APIC" in x},
         #     "tag": "ACI",
@@ -121,7 +121,7 @@ There are example YAML files for a few common switch models in `nautobot_ssot/in
         "nautobot_ssot": {
             # Enable Cisco ACI integration
             "enable_aci": True,
-            # Following lines are moved from `nautobot_plugin_ssot_aci` and prefixed with `aci_`
+            # Following lines are moved from `nautobot_ssot_aci` and prefixed with `aci_`
             "aci_apics": {x: os.environ[x] for x in os.environ if "NAUTOBOT_APIC" in x},
             "aci_tag": "ACI",
             ...
