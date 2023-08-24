@@ -122,9 +122,11 @@ def post_migrate_create_platform(apps=global_apps, **kwargs):
     Manufacturer = apps.get_model("dcim", "Manufacturer")
     Platform.objects.update_or_create(
         name="arista.eos.eos",
-        napalm_driver="eos",
-        network_driver="arista_eos",
-        manufacturer=Manufacturer.objects.get(name="Arista"),
+        defaults={
+            "napalm_driver": "eos",
+            "network_driver": "arista_eos",
+            "manufacturer": Manufacturer.objects.get(name="Arista"),
+        },
     )
 
     if APP_SETTINGS.get("create_controller"):
