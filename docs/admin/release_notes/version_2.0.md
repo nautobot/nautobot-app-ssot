@@ -32,3 +32,14 @@
 - Updated Cisco ACI, Arista CloudVision, and ServiceNow integrations to work with Nautobot 2.0
 - Updated ServiceNow Job to use load_source_adapter() and load_target_adapter() pattern
 - Fixed Infoblox assignment of VRFs to Prefixes
+
+## v2.0.0-rc.1 - 2023-08-24
+
+### Added
+
+- Added `network_driver` definition to Arista EOS Platform
+
+### Changed
+
+- Updated everything to support Nautobot 2.0.0rc1
+- Fixed use of slug on Platform in Arista CVP integration.
