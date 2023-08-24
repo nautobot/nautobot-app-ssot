@@ -69,14 +69,14 @@ class NautobotDevice(Device):
             )
 
         if APP_SETTINGS.get("create_controller") and "CloudVision" in ids["name"]:
-            platform = OrmPlatform.objects.get(slug=CLOUDVISION_PLATFORM)
+            platform = OrmPlatform.objects.get(name=CLOUDVISION_PLATFORM)
         else:
-            platform = OrmPlatform.objects.get(slug=ARISTA_PLATFORM)
+            platform = OrmPlatform.objects.get(name=ARISTA_PLATFORM)
 
         device_type_object = nautobot.verify_device_type_object(attrs["device_model"])
 
         new_device = OrmDevice(
-            status=OrmStatus.objects.get(slug=attrs["status"]),
+            status=OrmStatus.objects.get(name=attrs["status"]),
             device_type=device_type_object,
             device_role=role,
             platform=platform,
@@ -90,7 +90,7 @@ class NautobotDevice(Device):
         try:
             new_device.validated_save()
             if LIFECYCLE_MGMT and attrs.get("version"):
-                software_lcm = cls._add_software_lcm(platform=platform.slug, version=attrs["version"])
+                software_lcm = cls._add_software_lcm(platform=platform.name, version=attrs["version"])
                 cls._assign_version_to_device(diffsync=diffsync, device=new_device, software_lcm=software_lcm)
             return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
         except ValidationError as err:
@@ -102,15 +102,15 @@ class NautobotDevice(Device):
         dev = OrmDevice.objects.get(id=self.uuid)
         if not dev.platform:
             if dev.name != "CloudVision":
-                dev.platform = OrmPlatform.objects.get(slug="arista_eos")
+                dev.platform = OrmPlatform.objects.get(name=ARISTA_PLATFORM)
             else:
-                dev.platform = OrmPlatform.objects.get(slug="arista_eos_cloudvision")
+                dev.platform = OrmPlatform.objects.get(name=CLOUDVISION_PLATFORM)
         if "device_model" in attrs:
             dev.device_type = nautobot.verify_device_type_object(attrs["device_model"])
         if "serial" in attrs:
             dev.serial = attrs["serial"]
         if "version" in attrs and LIFECYCLE_MGMT:
-            software_lcm = self._add_software_lcm(platform=dev.platform.slug, version=attrs["version"])
+            software_lcm = self._add_software_lcm(platform=dev.platform.name, version=attrs["version"])
             self._assign_version_to_device(diffsync=self.diffsync, device=dev, software_lcm=software_lcm)
         try:
             dev.validated_save()
@@ -131,7 +131,7 @@ class NautobotDevice(Device):
     @staticmethod
     def _add_software_lcm(platform: str, version: str):
         """Add OS Version as SoftwareLCM if Device Lifecycle Plugin found."""
-        _platform = OrmPlatform.objects.get(slug=platform)
+        _platform = OrmPlatform.objects.get(name=platform)
         try:
             os_ver = SoftwareLCM.objects.get(device_platform=_platform, version=version)
         except SoftwareLCM.DoesNotExist:
@@ -181,7 +181,7 @@ class NautobotPort(Port):
             mac_address=attrs["mac_addr"],
             mtu=attrs["mtu"],
             mode=attrs["mode"],
-            status=OrmStatus.objects.get(slug=attrs["status"]),
+            status=OrmStatus.objects.get(name=attrs["status"]),
             type=attrs["port_type"],
         )
         try:
@@ -208,7 +208,7 @@ class NautobotPort(Port):
         if "mtu" in attrs:
             _port.mtu = attrs["mtu"]
         if "status" in attrs:
-            _port.status = OrmStatus.objects.get(slug=attrs["status"])
+            _port.status = OrmStatus.objects.get(name=attrs["status"])
         if "port_type" in attrs:
             _port.type = attrs["port_type"]
         try:

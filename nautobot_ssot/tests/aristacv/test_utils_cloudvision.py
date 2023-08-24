@@ -96,7 +96,7 @@ class TestCloudvisionUtils(TestCase):
                 "device_id": "JPE12345678",
                 "hostname": "ams01-edge-01.ntc.com",
                 "fqdn": "ams01-edge-01.ntc.com",
-                "status": "active",
+                "status": "Active",
                 "sw_ver": "4.26.5M",
                 "model": "DCS-7280CR2-60",
                 "system_mac_address": "12:34:56:78:ab:cd",

@@ -40,7 +40,7 @@ from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 @extras_features(
     "custom_links",
 )
-class Sync(BaseModel):
+class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
     """High-level overview of a data sync event/process/attempt.
 
     Essentially an extension of the JobResult model to add a few additional fields.
@@ -136,7 +136,7 @@ class Sync(BaseModel):
         )
 
 
-class SyncLogEntry(BaseModel):
+class SyncLogEntry(BaseModel):  # pylint: disable=nb-string-field-blank-null
     """Record of a single event during a data sync operation.
 
     Detailed sync logs are recorded in this model, rather than in JobResult.data, because
