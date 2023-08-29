@@ -7,7 +7,7 @@ When a new release comes out it may be necessary to run a migration of the datab
 ### Potential Apps Conflicts
 
 !!! warning
-    If upgrading from `1.x` version to `2.x` version of `nautobot-ssot` app, note that it now incorporates features previously provided by individual apps.
+    If upgrading from versions prior to 1.4 of the `nautobot-ssot` app, note that it now incorporates features previously provided by individual apps.
 
 Conflicting apps list:
 

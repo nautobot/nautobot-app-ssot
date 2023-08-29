@@ -29,7 +29,7 @@ To connect to a cloud instance of CloudVision you must set the following variabl
 | ---------------------- | ------ | ------------------------------------------- | ----------------- |
 | aristacv_cvaas_url     | string | URL used to connect to your CvaaS instance. | www.arista.io:443 |
 
-When syncing from CloudVis integration will create new Arista devices that do not exist in Nautobot. When creating new devices in Nautobot, a site, device role, device role color, device status, and device are required. You may define which values to use by configuring the following values in your `nautobot_config.py` file. If you define a `default_device_role` and `default_device_status` that already exist, the default color value for both of those will be ignored as it will pull that information from Nautobot.
+When syncing from CloudVision, integration will create new Arista devices that do not exist in Nautobot. When creating new devices in Nautobot, a site, device role, device role color, device status, and device are required. You may define which values to use by configuring the following values in your `nautobot_config.py` file. If you define a `default_device_role` and `default_device_status` that already exist, the default color value for both of those will be ignored as it will pull that information from Nautobot.
 
 | Configuration Variable                              | Type   | Usage                                                      | Default              |
 | --------------------------------------------------- | ------ | ---------------------------------------------------------- | -------------------- |
