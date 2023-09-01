@@ -34,12 +34,15 @@ cvprac = { version = "^1.2.2", optional = true }
 diffsync = "^1.6.0"
 dnspython = { version = ">=2.1.0", optional = true }
 ijson = { version = ">=2.5.1", optional = true }
+ipfabric = { version = "~6.0.9", optional = true }
+ipfabric-diagrams = { version = "~6.0.2", optional = true }
 nautobot = "^1.4.0"
 nautobot-device-lifecycle-mgmt = { version = "^1.0.2", optional = true }
+netutils = { version = "^1.0.0", optional = true }
 oauthlib = { version = ">=3.1.0", optional = true }
 packaging = ">=21.3, <24"
 prometheus-client = "~0.14.1"
-python = "^3.7"
+python = ">=3.7.2,<=3.11"
 python-magic = { version = ">=0.4.15", optional = true }
 pytz = { version = ">=2019.3", optional = true }
 requests = { version = ">=2.21.0", optional = true }
@@ -51,18 +54,19 @@ bandit = "*"
 black = "*"
 coverage = "*"
 django-debug-toolbar = "*"
+django-extensions = "*"
 # we need to pin flake8 because of package dependencies that cause it to downgrade and
 # therefore cause issues with linting since older versions do not take .flake8 as config
 flake8 = "^3.9.2"
 invoke = "*"
 ipython = "*"
+jedi = "^0.17.2"
 pydocstyle = "*"
 pylint = "*"
 pylint-django = "*"
 pytest = "*"
 python-dotenv = "^0.21.1"
 yamllint = "*"
-Markdown = "*"
 markdown-include = "*"
 toml = "*"
 # Rendering docs to HTML
@@ -76,12 +80,20 @@ mkdocstrings = "0.20"
 mkdocstrings-python = "0.8.3"
 requests-mock = "^1.10.0"
 parameterized = "^0.8.1"
+myst-parser = "^0.15.2"
+# Enable chatops after dropping Python 3.7 support
+# nautobot-chatops = { version = "^2.0.2", extras = ["ipfabric"] }
+responses = "^0.14.0"
 
 [tool.poetry.plugins."nautobot_ssot.data_sources"]
 "example" = "nautobot_ssot.sync.example:ExampleSyncWorker"
 
 [tool.poetry.plugins."nautobot_ssot.data_targets"]
 "example" = "nautobot_ssot.sync.example:ExampleSyncWorker"
+
+# Enable chatops after dropping Python 3.7 support
+# [tool.poetry.plugins."nautobot.workers"]
+# "ipfabric" = "nautobot_ssot.integrations.ipfabric.workers:ipfabric"
 
 [tool.poetry.extras]
 aci = [
@@ -94,7 +106,10 @@ all = [
     "cvprac",
     "dnspython",
     "ijson",
+    "ipfabric",
+    "ipfabric-diagrams",
     "nautobot-device-lifecycle-mgmt",
+    "netutils",
     "oauthlib",
     "python-magic",
     "pytz",
@@ -108,6 +123,11 @@ aristacv = [
 ]
 infoblox = [
     "dnspython",
+]
+ipfabric = [
+    "ipfabric",
+    "ipfabric-diagrams",
+    "netutils",
 ]
 # pysnow = "^0.7.17"
 # PySNow is currently pinned to an older version of pytz as a dependency, which blocks compatibility with newer

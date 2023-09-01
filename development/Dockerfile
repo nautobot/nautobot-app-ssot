@@ -68,11 +68,13 @@ RUN sort poetry_freeze_base.txt poetry_freeze_all.txt | uniq -u > poetry_freeze_
 
 # Install all local project as editable, constrained on Nautobot version, to get any additional
 #   direct dependencies of the app
-RUN pip install -c constraints.txt -e .[all]
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -c constraints.txt -e .[all]
 
 # Install any dev dependencies frozen from Poetry
 # Can be improved in Poetry 1.2 which allows `poetry install --only dev`
-RUN pip install -c constraints.txt -r poetry_freeze_dev.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -c constraints.txt -r poetry_freeze_dev.txt
 
 COPY development/nautobot_config.py ${NAUTOBOT_ROOT}/nautobot_config.py
 # !!! USE CAUTION WHEN MODIFYING LINES ABOVE
