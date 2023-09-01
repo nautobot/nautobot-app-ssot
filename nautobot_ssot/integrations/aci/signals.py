@@ -62,11 +62,12 @@ def aci_create_manufacturer(apps, **kwargs):
 def aci_create_site(apps, **kwargs):
     """Add site."""
     site = apps.get_model("dcim", "Site")
+    status = apps.get_model("extras", "Status")
     apics = PLUGIN_CFG.get("apics")
     for key in apics:
         if "SITE" in key:
             logger.info(f"Creating Site: {apics[key]}")
-            site.objects.update_or_create(name=apics[key])
+            site.objects.update_or_create(name=apics[key], defaults={"status": status.objects.get(name="Active")})
 
 
 def device_custom_fields(apps, **kwargs):

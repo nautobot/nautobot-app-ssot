@@ -5,11 +5,11 @@ import time
 import uuid
 
 from django.contrib.contenttypes.models import ContentType
-from django.test import TestCase
 from django.utils.timezone import now
 
 from nautobot.extras.choices import JobResultStatusChoices
 from nautobot.extras.models import Job, JobResult
+from nautobot.utilities.testing import TestCase
 
 from nautobot_ssot.models import Sync
 

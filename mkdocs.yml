@@ -102,8 +102,11 @@ nav:
       - Getting Started: "user/app_getting_started.md"
       - Using the App: "user/app_use_cases.md"
       - Developing Jobs: "user/developing_jobs.md"
+      - Modeling: "user/modeling.md"
+      - Performance: "user/performance.md"
       - Frequently Asked Questions: "user/faq.md"
       - External Interactions: "user/external_interactions.md"
+      - Code Reference: "user/reference.md"
   - Administrator Guide:
       - Install and Configure: "admin/install.md"
       - Upgrade: "admin/upgrade.md"

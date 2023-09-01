@@ -6,6 +6,7 @@ from django.contrib.contenttypes.models import ContentType
 from nautobot.dcim.models import Device, DeviceRole, DeviceType, Manufacturer, Site
 from nautobot.extras.models import Job, JobResult, Status
 from nautobot.utilities.testing import TransactionTestCase
+
 from nautobot_ssot.integrations.aristacv.diffsync.adapters.nautobot import NautobotAdapter
 from nautobot_ssot.integrations.aristacv.jobs import CloudVisionDataSource
 
@@ -15,6 +16,7 @@ class NautobotAdapterTestCase(TransactionTestCase):
 
     def setUp(self):
         """Create Nautobot objects to test with."""
+        super().setUp()
         status_active, _ = Status.objects.get_or_create(name="Active", slug="active")
         arista_manu, _ = Manufacturer.objects.get_or_create(name="Arista", slug="arista")
 

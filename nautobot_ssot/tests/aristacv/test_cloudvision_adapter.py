@@ -5,6 +5,7 @@ from django.contrib.contenttypes.models import ContentType
 
 from nautobot.extras.models import Job, JobResult
 from nautobot.utilities.testing import TransactionTestCase
+
 from nautobot_ssot.integrations.aristacv.diffsync.adapters.cloudvision import CloudvisionAdapter
 from nautobot_ssot.integrations.aristacv.jobs import CloudVisionDataSource
 from nautobot_ssot.tests.aristacv.fixtures import fixtures
@@ -17,6 +18,7 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
 
     def setUp(self):
         """Method to initialize test case."""
+        super().setUp()
         self.client = MagicMock()
         self.client.comm_channel = MagicMock()
 
