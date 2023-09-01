@@ -392,7 +392,6 @@ class NautobotLocal(NautobotAdapter):
     # Top-level class labels, i.e. those classes that are handled directly rather than as children of other models
     top_level = ["region", "site", "tenant"]
 
-
 # The actual Data Source and Data Target Jobs are relatively simple to implement
 # once you have the above DiffSync scaffolding in place.
 
