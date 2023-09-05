@@ -108,8 +108,11 @@ nav:
           - Infoblox: "user/integrations/infoblox.md"
           - IPFabric: "user/integrations/ipfabric.md"
           - ServiceNow: "user/integrations/servicenow.md"
+      - Modeling: "user/modeling.md"
+      - Performance: "user/performance.md"
       - Frequently Asked Questions: "user/faq.md"
       - External Interactions: "user/external_interactions.md"
+      - Code Reference: "user/reference.md"
   - Administrator Guide:
       - Install and Configure: "admin/install.md"
       - Integrations Installation:
