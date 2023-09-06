@@ -250,11 +250,7 @@ class AciAdapter(DiffSync):
         device_types = {value["model"] for value in self.devices.values()}
         for _devicetype in device_types:
             if f"{_devicetype}.yaml" in os.listdir(devicetype_file_path):
-                device_specs = load_yamlfile(
-                    os.path.join(
-                        devicetype_file_path, f"{_devicetype}.yaml"
-                    )
-                )
+                device_specs = load_yamlfile(os.path.join(devicetype_file_path, f"{_devicetype}.yaml"))
                 for intf in device_specs["interfaces"]:
                     new_interfacetemplate = self.interface_template(
                         name=intf["name"],
@@ -280,7 +276,7 @@ class AciAdapter(DiffSync):
             # Load management and controller interfaces from YAML files
 
             # pylint: disable-next=invalid-name
-            fn = os.path.join(devicetype_file_path, f"{self.devices[node]['model']}.yaml")
+            fn = os.path.join(devicetype_file_path, f"{device['model']}.yaml")
             if os.path.exists(fn):
                 device_specs = load_yamlfile(fn)
                 for interface_name, interface in interfaces[device_name].items():
@@ -348,7 +344,10 @@ class AciAdapter(DiffSync):
         for key, value in self.devices.items():
             if f"{self.devices[key]['model']}.yaml" in os.listdir(devicetype_file_path):
                 device_specs = load_yamlfile(
-                    os.path.join(devicetype_file_path, f"{self.devices[key]['model']}.yaml",)
+                    os.path.join(
+                        devicetype_file_path,
+                        f"{value['model']}.yaml",
+                    )
                 )
                 model = device_specs["model"]
             else:
