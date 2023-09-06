@@ -342,7 +342,7 @@ class AciAdapter(DiffSync):
         """Load devices from ACI device data."""
         devicetype_file_path = os.path.join(os.path.dirname(__file__), "..", "device-types")
         for key, value in self.devices.items():
-            if f"{self.devices[key]['model']}.yaml" in os.listdir(devicetype_file_path):
+            if f"{value['model']}.yaml" in os.listdir(devicetype_file_path):
                 device_specs = load_yamlfile(
                     os.path.join(
                         devicetype_file_path,
