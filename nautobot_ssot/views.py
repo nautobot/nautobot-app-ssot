@@ -50,11 +50,11 @@ class DashboardView(ObjectListView):
         }
         for source in context["data_sources"]:
             context["source"][source.name] = self.queryset.filter(
-                job_result__name=source.class_path,
+                job_result__task_name=source.class_path,
             )
         for target in context["data_targets"]:
             context["target"][target.name] = self.queryset.filter(
-                job_result__name=target.class_path,
+                job_result__task_name=target.class_path,
             )
 
         return context
@@ -79,7 +79,7 @@ class DataSourceTargetView(ObjectView):
 
     def get_extra_context(self, request, instance):
         """Return template context extension with job_class, table and source_or_target."""
-        job_class = get_job(instance.class_path)
+        job_class = instance.job_class
         if not job_class or not issubclass(job_class, (DataSource, DataTarget)):
             raise Http404
 
