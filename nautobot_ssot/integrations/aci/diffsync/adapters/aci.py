@@ -246,14 +246,11 @@ class AciAdapter(DiffSync):
 
     def load_interfacetemplates(self):
         """Load interface templates from YAML files."""
+        devicetype_file_path = os.path.join(os.path.dirname(__file__), "..", "device-types")
         device_types = {value["model"] for value in self.devices.values()}
         for _devicetype in device_types:
-            if f"{_devicetype}.yaml" in os.listdir("nautobot_ssot/integrations/aci/diffsync/device-types"):
-                device_specs = load_yamlfile(
-                    os.path.join(
-                        os.getcwd(), "nautobot_ssot/integrations/aci", "diffsync", "device-types", f"{_devicetype}.yaml"
-                    )
-                )
+            if f"{_devicetype}.yaml" in os.listdir(devicetype_file_path):
+                device_specs = load_yamlfile(os.path.join(devicetype_file_path, f"{_devicetype}.yaml"))
                 for intf in device_specs["interfaces"]:
                     new_interfacetemplate = self.interface_template(
                         name=intf["name"],
@@ -270,6 +267,7 @@ class AciAdapter(DiffSync):
 
     def load_interfaces(self):
         """Load interfaces from ACI."""
+        devicetype_file_path = os.path.join(os.path.dirname(__file__), "..", "device-types")
         interfaces = self.conn.get_interfaces(
             nodes=self.devices,
         )
@@ -278,23 +276,9 @@ class AciAdapter(DiffSync):
             # Load management and controller interfaces from YAML files
 
             # pylint: disable-next=invalid-name
-            fn = os.path.join(
-                os.getcwd(),
-                "nautobot_ssot/integrations/aci",
-                "diffsync",
-                "device-types",
-                f"{device['model']}.yaml",
-            )
+            fn = os.path.join(devicetype_file_path, f"{device['model']}.yaml")
             if os.path.exists(fn):
-                device_specs = load_yamlfile(
-                    os.path.join(
-                        os.getcwd(),
-                        "nautobot_ssot/integrations/aci",
-                        "diffsync",
-                        "device-types",
-                        f"{device['model']}.yaml",
-                    )
-                )
+                device_specs = load_yamlfile(fn)
                 for interface_name, interface in interfaces[device_name].items():
                     if_list = [
                         intf
@@ -356,14 +340,12 @@ class AciAdapter(DiffSync):
 
     def load_devices(self):
         """Load devices from ACI device data."""
+        devicetype_file_path = os.path.join(os.path.dirname(__file__), "..", "device-types")
         for key, value in self.devices.items():
-            if f"{value['model']}.yaml" in os.listdir("nautobot_ssot/integrations/aci/diffsync/device-types"):
+            if f"{value['model']}.yaml" in os.listdir(devicetype_file_path):
                 device_specs = load_yamlfile(
                     os.path.join(
-                        os.getcwd(),
-                        "nautobot_ssot/integrations/aci",
-                        "diffsync",
-                        "device-types",
+                        devicetype_file_path,
                         f"{value['model']}.yaml",
                     )
                 )
