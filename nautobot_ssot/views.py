@@ -8,7 +8,6 @@ from django.shortcuts import get_object_or_404
 from django_tables2 import RequestConfig
 
 from nautobot.extras.models import Job as JobModel
-from nautobot.extras.jobs import get_job
 from nautobot.core.views.generic import BulkDeleteView, ObjectDeleteView, ObjectListView, ObjectView
 from nautobot.core.views.paginator import EnhancedPaginator
 
