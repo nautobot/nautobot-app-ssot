@@ -43,3 +43,9 @@
 
 - Updated everything to support Nautobot 2.0.0rc1
 - Fixed use of slug on Platform in Arista CVP integration.
+
+## v2.0.0-rc.2 - 2023-09-8
+
+### Changed
+
+- Updated everything to support Nautobot 2.0.0rc2
