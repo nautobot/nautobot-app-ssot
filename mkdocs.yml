@@ -112,7 +112,6 @@ nav:
       - Performance: "user/performance.md"
       - Frequently Asked Questions: "user/faq.md"
       - External Interactions: "user/external_interactions.md"
-      - Code Reference: "user/reference.md"
   - Administrator Guide:
       - Install and Configure: "admin/install.md"
       - Integrations Installation:
@@ -139,4 +138,5 @@ nav:
       - Code Reference:
           - "dev/code_reference/index.md"
           - Models: "dev/code_reference/models.md"
+          - Other classes: "dev/other_classes_reference.md"
   - Nautobot Docs Home ↗︎: "https://docs.nautobot.com"
