@@ -3,8 +3,9 @@ from collections import namedtuple
 from datetime import datetime
 import traceback
 import tracemalloc
-from typing import Iterable
+from typing import Iterable, Union
 
+from django.db import models
 from django.db.utils import OperationalError
 from django.forms import HiddenInput
 from django.templatetags.static import static
@@ -179,7 +180,8 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             if self.kwargs["memory_profiling"]:
                 record_memory_trace("sync")
 
-    def lookup_object(self, model_name, unique_id):  # pylint: disable=no-self-use,unused-argument
+    # pylint: disable-next=no-self-use,unused-argument
+    def lookup_object(self, model_name: str, unique_id: str) -> Union[models.Model, None]:
         """Look up the Nautobot record, if any, identified by the args.
 
         Optional helper method used to build more detailed/accurate SyncLogEntry records from DiffSync logs.
@@ -189,7 +191,7 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             unique_id (str): DiffSyncModel unique_id or similar unique identifier.
 
         Returns:
-            models.Model: Nautobot model instance, or None
+            Union[models.Model, None]: Nautobot model instance, or None
         """
         return None
 

@@ -1,6 +1,6 @@
 # Developing Data Source and Data Target Jobs
 
-A goal of this plugin is to make it relatively quick and straightforward to develop and integrate your own system-specific Data Sources and Data Targets into Nautobot with a common UI and user experience.
+A goal of this Nautobot app is to make it relatively quick and straightforward to develop and integrate your own system-specific Data Sources and Data Targets into Nautobot with a common UI and user experience.
 
 Familiarity with [DiffSync](https://diffsync.readthedocs.io/en/latest/) and with developing [Nautobot Jobs](https://nautobot.readthedocs.io/en/latest/additional-features/jobs/) is recommended.
 
@@ -110,7 +110,7 @@ class DiffSyncTenant(NautobotModel):
 
 As you can see when looking at the [source code](https://github.com/nautobot/nautobot/blob/develop/nautobot/tenancy/models.py#L81) of the `nautobot.tenancy.models.Tenant` model, the fields on this model (`name` and `description`) match the names of the fields on the Nautobot model exactly. This enables the base class `NautobotModel` to dynamically load, create, update and delete your tenants without you needing to implement this functionality yourself.
 
-The above example shows the simplest field type (an attribute on the model), however, to build a production implementation you will need to understand how to identify different variants of fields by following the [modeling docs](modeling.md).
+The above example shows the simplest field type (an attribute on the model), however, to build a production implementation you will need to understand how to identify different variants of fields by following the [modeling docs](../user/modeling.md).
 
 ### Step 2.1 - Creating the Nautobot Adapter
 
@@ -130,7 +130,7 @@ class YourSSoTNautobotAdapter(NautobotAdapter):
     ip_address = DiffSyncIPAddress  # Not in the `top_level` tuple, since it's a child of the prefix model
 ```
 
-The `load` function is already implemented on this adapter and will automatically and recursively traverse any children relationships for you, provided the models are [defined correctly](./modeling.md).
+The `load` function is already implemented on this adapter and will automatically and recursively traverse any children relationships for you, provided the models are [defined correctly](../user/modeling.md).
 
 ### Step 2.2 - Creating the Remote Adapter
 
@@ -141,12 +141,12 @@ Regardless of which direction you are synchronizing data in, you need to write t
 
 ### Step 3 - The Job
 
-Develop a Job class, derived from either the `nautobot_ssot.jobs.base.DataSource` or `nautobot_ssot.jobs.base.DataTarget` classes provided by this plugin, and implement the methods to populate the `self.source_adapter` and `self.target_adapter` attributes that are used by the built-in implementation of `sync_data`. This `sync_data` method is an opinionated way of running the process including some performance data (more about this in the next section), but you could overwrite it completely or any of the key hooks that it calls.
+Develop a Job class, derived from either the `nautobot_ssot.jobs.base.DataSource` or `nautobot_ssot.jobs.base.DataTarget` classes provided by this Nautobot app, and implement the methods to populate the `self.source_adapter` and `self.target_adapter` attributes that are used by the built-in implementation of `sync_data`. This `sync_data` method is an opinionated way of running the process including some performance data (more about this in the next section), but you could overwrite it completely or any of the key hooks that it calls.
 
 The methods [`calculate_diff`][nautobot_ssot.jobs.base.DataSyncBaseJob.calculate_diff] and [`execute_sync`][nautobot_ssot.jobs.base.DataSyncBaseJob.execute_sync] are both implemented by default, using the data that is loaded into the adapters through the respective methods. Note that `execute_sync` will _only_ execute when dry-run is set to false.
 
-Optionally, on your Job class, also implement the [`lookup_object`][nautobot_ssot.jobs.base.DataSyncBaseJob.lookup_object], [`data_mapping`][nautobot_ssot.jobs.base.DataSyncBaseJob.data_mapping], and/or [`config_information`][nautobot_ssot.jobs.base.DataSyncBaseJob.config_information] APIs (to provide more information to the end user about the details of this Job), as well as the various metadata properties on your Job's Meta inner class. Refer to the example Jobs provided in this plugin for examples and further details.
-Install your Job via any of the supported Nautobot methods (installation into the `JOBS_ROOT` directory, inclusion in a Git repository, or packaging as part of a plugin) and it should automatically become available!
+Optionally, on your Job class, also implement the [`lookup_object`][nautobot_ssot.jobs.base.DataSyncBaseJob.lookup_object], [`data_mapping`][nautobot_ssot.jobs.base.DataSyncBaseJob.data_mappings], and/or [`config_information`][nautobot_ssot.jobs.base.DataSyncBaseJob.config_information] APIs (to provide more information to the end user about the details of this Job), as well as the various metadata properties on your Job's Meta inner class. Refer to the example Jobs provided in this Nautobot app for examples and further details.
+Install your Job via any of the supported Nautobot methods (installation into the `JOBS_ROOT` directory, inclusion in a Git repository, or packaging as part of an app) and it should automatically become available!
 
 ### Extra Step: Implementing `create`, `update` and `delete`
 
@@ -155,4 +155,4 @@ If you are synchronizing data _to_ Nautobot and not _from_ Nautobot, you can ent
 If you need to perform the `create`, `update` and `delete` operations on the remote system however, it will be up to you to implement those on your model.
 
 !!! note
-    You still want your models to adhere to the [modeling guide](modeling.md), since it provides you the auto-generated `load` function for the diffsync adapter on the Nautobot side.
+    You still want your models to adhere to the [modeling guide](../user/modeling.md), since it provides you the auto-generated `load` function for the diffsync adapter on the Nautobot side.

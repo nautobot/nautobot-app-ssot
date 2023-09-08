@@ -4,7 +4,7 @@
 
 ### Dashboard
 
-The plugin dashboard UI can be accessed from the **Plugins > Single Source of Truth > Dashboard** menu item in Nautobot.
+The dashboard UI can be accessed from the **Plugins > Single Source of Truth > Dashboard** menu item in Nautobot.
 
 ![Dashboard](../images/dashboard_initial.png)
 
@@ -48,7 +48,7 @@ The **Sync Logs** tab shows the logs captured from DiffSync regarding the indivi
 
 ## Screenshots
 
-Here is a consolidated view of all the pages within the SSoT plugin.
+Here is a consolidated view of all the pages within the SSoT Nautobot app.
 
 ---
 
