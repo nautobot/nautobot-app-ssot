@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.utils.timezone import now
 
 from nautobot.extras.choices import JobResultStatusChoices
-from nautobot.extras.models import JobResult
+from nautobot.extras.models import Job, JobResult
 
 from nautobot_ssot.models import Sync
 
@@ -66,11 +66,13 @@ class SyncTestCase(TestCase):
 
         self.source_sync.job_result = JobResult(
             name="ExampleDataSource",
+            job_model=Job.objects.get(module_name="nautobot_ssot.jobs.examples", job_class_name="ExampleDataSource"),
             task_name="nautobot_ssot.jobs.examples.ExampleDataSource",
             worker="default",
         )
         self.target_sync.job_result = JobResult(
             name="ExampleDataTarget",
+            job_model=Job.objects.get(module_name="nautobot_ssot.jobs.examples", job_class_name="ExampleDataTarget"),
             task_name="nautobot_ssot.jobs.examples.ExampleDataTarget",
             worker="default",
         )

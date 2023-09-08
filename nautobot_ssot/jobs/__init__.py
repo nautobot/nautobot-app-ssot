@@ -37,8 +37,8 @@ def get_data_jobs():
     data_targets = []
     for job in sync_jobs:
         if issubclass(job.job_class, DataSource):
-            data_sources.append(job.job_class)
+            data_sources.append(job)
         if issubclass(job.job_class, DataTarget):
-            data_targets.append(job.job_class)
+            data_targets.append(job)
 
     return (data_sources, data_targets)

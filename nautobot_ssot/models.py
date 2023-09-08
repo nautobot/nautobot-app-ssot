@@ -123,7 +123,7 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
             return None
         return reverse(
             "plugins:nautobot_ssot:data_source",
-            kwargs={"class_path": self.job_result.name},
+            kwargs={"class_path": self.job_result.job_model.class_path},
         )
 
     def get_target_url(self):
@@ -132,7 +132,7 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
             return None
         return reverse(
             "plugins:nautobot_ssot:data_target",
-            kwargs={"class_path": self.job_result.name},
+            kwargs={"class_path": self.job_result.job_model.class_path},
         )
 
 

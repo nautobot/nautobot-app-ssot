@@ -31,6 +31,9 @@ class SyncViewsTestCase(  # pylint: disable=too-many-ancestors
         for i in range(0, 3):
             job_result = JobResult.objects.create(
                 name="ExampleDataSource",
+                job_model=Job.objects.get(
+                    module_name="nautobot_ssot.jobs.examples", job_class_name="ExampleDataSource"
+                ),
                 task_name="nautobot_ssot.jobs.examples.ExampleDataSource",
                 worker="default",
             )
