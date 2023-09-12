@@ -307,12 +307,14 @@ def get_tags_by_type(client, creator_type: int = tag_models.CREATOR_TYPE_USER):
 
 def get_device_tags(client, device_id: str):
     """Get tags for specific device."""
-    tag_stub = tag_services.TagAssignmentConfigServiceStub(client)
+    tag_stub = tag_services.TagAssignmentServiceStub(client)
     req = tag_services.TagAssignmentConfigStreamRequest(
         partial_eq_filter=[
             tag_models.TagAssignmentConfig(
                 key=tag_models.TagAssignmentKey(
                     device_id=StringValue(value=device_id),
+                    element_type=tag_models.ELEMENT_TYPE_DEVICE,
+                    workspace_id=StringValue(value=""),
                 )
             )
         ]
