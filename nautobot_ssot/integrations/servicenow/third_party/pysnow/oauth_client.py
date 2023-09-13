@@ -95,7 +95,7 @@ class OAuthClient(Client):
             )
 
         # Set sanitized token
-        self.token = dict((k, v) for k, v in token.items() if k in expected_keys)
+        self.token = {(k, v) for k, v in token.items() if k in expected_keys}
 
     def _legacy_request(self, *args, **kwargs):
         """Makes sure token has been set, then calls parent to create a new :class:`pysnow.LegacyRequest` object
@@ -154,14 +154,12 @@ class OAuthClient(Client):
         )
 
         try:
-            return dict(
-                session.fetch_token(
-                    token_url=self.token_url,
-                    username=user,
-                    password=password,
-                    client_id=self.client_id,
-                    client_secret=self.client_secret,
-                )
+            return session.fetch_token(
+                token_url=self.token_url,
+                username=user,
+                password=password,
+                client_id=self.client_id,
+                client_secret=self.client_secret,
             )
         except OAuth2Error as exception:
             raise TokenCreateError(
