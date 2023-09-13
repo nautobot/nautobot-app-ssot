@@ -180,7 +180,7 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             if self.kwargs["memory_profiling"]:
                 record_memory_trace("sync")
 
-    # pylint: disable-next=no-self-use,unused-argument
+    # pylint: disable=unused-argument
     def lookup_object(self, model_name: str, unique_id: str) -> Union[models.Model, None]:
         """Look up the Nautobot record, if any, identified by the args.
 
