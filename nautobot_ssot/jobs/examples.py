@@ -308,12 +308,12 @@ class NautobotRemote(DiffSync):
 
     def _get_api_data(self, url_path: str) -> Mapping:
         """Returns data from a url_path using pagination."""
-        response = requests.get(f"{self.url}/{url_path}", headers=self.headers, params={"limit": 0})
+        response = requests.get(f"{self.url}/{url_path}", headers=self.headers, params={"limit": 0}, timeout=60)
         response.raise_for_status()
         data = response.json()
         result_data = data["results"]
         while data["next"]:
-            data = requests.get(data["next"], headers=self.headers, params={"limit": 0}).json()
+            data = requests.get(data["next"], headers=self.headers, params={"limit": 0}, timeout=60).json()
             result_data.extend(data["results"])
         return result_data
 
@@ -363,19 +363,19 @@ class NautobotRemote(DiffSync):
 
     def post(self, path, data):
         """Send an appropriately constructed HTTP POST request."""
-        response = requests.post(f"{self.url}{path}", headers=self.headers, json=data)
+        response = requests.post(f"{self.url}{path}", headers=self.headers, timeout=60, json=data)
         response.raise_for_status()
         return response
 
     def patch(self, path, data):
         """Send an appropriately constructed HTTP PATCH request."""
-        response = requests.patch(f"{self.url}{path}", headers=self.headers, json=data)
+        response = requests.patch(f"{self.url}{path}", headers=self.headers, timeout=60, json=data)
         response.raise_for_status()
         return response
 
     def delete(self, path):
         """Send an appropriately constructed HTTP DELETE request."""
-        response = requests.delete(f"{self.url}{path}", headers=self.headers)
+        response = requests.delete(f"{self.url}{path}", headers=self.headers, timeout=60)
         response.raise_for_status()
         return response
 
