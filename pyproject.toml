@@ -77,8 +77,9 @@ mkdocs-material = "9.0.11"
 # Render custom markdown for version added/changed/remove notes
 mkdocs-version-annotations = "1.0.0"
 # Automatic documentation from sources, for MkDocs
-mkdocstrings = "0.20"
-mkdocstrings-python = "0.8.3"
+mkdocstrings = "0.22.0"         # Last version with python 3.7 support
+mkdocstrings-python = "1.1.2"   # Last version with python 3.7 support
+griffe = "0.30.1"               # Last version with python 3.7 support
 requests-mock = "^1.10.0"
 parameterized = "^0.8.1"
 myst-parser = "^0.15.2"
