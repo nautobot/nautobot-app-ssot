@@ -13,9 +13,10 @@ classifiers = [
     "Intended Audience :: Developers",
     "Development Status :: 5 - Production/Stable",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
 ]
 include = [
     "LICENSE",
@@ -42,7 +43,7 @@ netutils = { version = "^1.0.0", optional = true }
 oauthlib = { version = ">=3.1.0", optional = true }
 packaging = ">=21.3, <24"
 prometheus-client = "~0.14.1"
-python = ">=3.7.2,<=3.11"
+python = ">=3.8,<3.12"
 python-magic = { version = ">=0.4.15", optional = true }
 pytz = { version = ">=2019.3", optional = true }
 requests = { version = ">=2.21.0", optional = true }
@@ -162,7 +163,7 @@ nautobot-device-lifecycle-mgmt = [
 
 [tool.black]
 line-length = 120
-target-version = ['py37']
+target-version = ['py38', 'py39', 'py310', 'py311']
 include = '\.pyi?$'
 exclude = '''
 (
