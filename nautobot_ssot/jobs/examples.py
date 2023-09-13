@@ -408,7 +408,9 @@ class ExampleDataSource(DataSource, Job):
     def __init__(self):
         """Initialize ExampleDataSource."""
         super().__init__()
-        self.diffsync_flags = self.diffsync_flags | DiffSyncFlags.SKIP_UNMATCHED_DST
+        self.diffsync_flags = (
+            self.diffsync_flags | DiffSyncFlags.SKIP_UNMATCHED_DST  # pylint: disable=unsupported-binary-operation
+        )
 
     class Meta:
         """Metaclass attributes of ExampleDataSource."""
@@ -469,7 +471,9 @@ class ExampleDataTarget(DataTarget, Job):
     def __init__(self):
         """Initialize ExampleDataTarget."""
         super().__init__()
-        self.diffsync_flags = self.diffsync_flags | DiffSyncFlags.SKIP_UNMATCHED_DST
+        self.diffsync_flags = (
+            self.diffsync_flags | DiffSyncFlags.SKIP_UNMATCHED_DST  # pylint: disable=unsupported-binary-operation
+        )
 
     class Meta:
         """Metaclass attributes of ExampleDataTarget."""
