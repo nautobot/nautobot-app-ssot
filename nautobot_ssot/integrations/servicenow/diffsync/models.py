@@ -56,7 +56,7 @@ class ServiceNowCRUDMixin:
         model = super().create(diffsync, ids=ids, attrs=attrs)
 
         sn_resource = diffsync.client.resource(api_path=f"/table/{entry['table']}")
-        sn_record = model.map_data_to_sn_record(data=dict(**ids, **attrs), mapping_entry=entry)
+        sn_record = model.map_data_to_sn_record(data={**ids, **attrs}, mapping_entry=entry)
         sn_resource.create(payload=sn_record)
 
         return model

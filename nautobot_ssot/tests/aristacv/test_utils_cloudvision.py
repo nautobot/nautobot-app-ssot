@@ -143,7 +143,7 @@ class TestCloudvisionUtils(TestCase):
         frozen_result = cloudvision.unfreeze_frozen_dict(frozen_dict=(test_dict, test_frozen))
         self.assertEqual(frozen_result, [{"test": "test"}, {"test2": "test2"}])
 
-        set_result = cloudvision.unfreeze_frozen_dict(frozen_dict=("test"))
+        set_result = cloudvision.unfreeze_frozen_dict(frozen_dict="test")
         self.assertEqual(set_result, ("test"))
 
     def test_get_device_type_modular(self):

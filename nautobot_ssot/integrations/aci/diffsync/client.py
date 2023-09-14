@@ -216,7 +216,7 @@ class AciApi:
         )
         sp_list = []
         for obj in resp.json()["imdata"]:
-            sp_dict = dict(encap=obj["fvRsPathAtt"]["attributes"]["encap"])
+            sp_dict = {"encap": obj["fvRsPathAtt"]["attributes"]["encap"]}
             tDn = obj["fvRsPathAtt"]["attributes"]["tDn"]
             if "paths" in tDn and "protpaths" not in tDn:
                 # port on a single node
@@ -278,7 +278,14 @@ class AciApi:
     def get_epg_details(self, tenant: str, ap: str, epg: str) -> dict:
         """Return EPG configuration details."""
         resp = self._get(f"/api/node/mo/uni/tn-{tenant}/ap-{ap}/epg-{epg}.json?query-target=children")
-        epg_dict = dict(bd=None, subnets=[], provided_contracts=[], consumed_contracts=[], domains=[], static_paths=[])
+        epg_dict = {
+            "bd": None,
+            "subnets": [],
+            "provided_contracts": [],
+            "consumed_contracts": [],
+            "domains": [],
+            "static_paths": [],
+        }
         epg_dict["name"] = epg
         for obj in resp.json()["imdata"]:
             if "fvRsBd" in obj:
@@ -286,17 +293,17 @@ class AciApi:
                 epg_dict["subnets"] = self.get_bd_subnet(tenant, epg_dict["bd"])
             if "fvRsCons" in obj:
                 epg_dict["consumed_contracts"].append(
-                    dict(
-                        name=obj["fvRsCons"]["attributes"]["tnVzBrCPName"],
-                        filters=self.get_contract_filters(tenant, obj["fvRsCons"]["attributes"]["tnVzBrCPName"]),
-                    )
+                    {
+                        "name": obj["fvRsCons"]["attributes"]["tnVzBrCPName"],
+                        "filters": self.get_contract_filters(tenant, obj["fvRsCons"]["attributes"]["tnVzBrCPName"]),
+                    }
                 )
             if "fvRsProv" in obj:
                 epg_dict["provided_contracts"].append(
-                    dict(
-                        name=obj["fvRsProv"]["attributes"]["tnVzBrCPName"],
-                        filters=self.get_contract_filters(tenant, obj["fvRsProv"]["attributes"]["tnVzBrCPName"]),
-                    )
+                    {
+                        "name": obj["fvRsProv"]["attributes"]["tnVzBrCPName"],
+                        "filters": self.get_contract_filters(tenant, obj["fvRsProv"]["attributes"]["tnVzBrCPName"]),
+                    }
                 )
             if "fvRsDomAtt" in obj:
                 resp = self._get(f"/api/node/mo/{obj['fvRsDomAtt']['attributes']['tDn']}.json")

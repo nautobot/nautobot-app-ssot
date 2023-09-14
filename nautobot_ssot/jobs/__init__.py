@@ -16,11 +16,20 @@ else:
     jobs = [ExampleDataSource, ExampleDataTarget]
 
 
+class JobException(Exception):
+    """Exception raised when failure loading integration Job."""
+
+    def __init__(self, message):
+        """Populate exception information."""
+        self.message = message
+        super().__init__(self.message)
+
+
 def _add_integrations():
     for module in each_enabled_integration_module("jobs"):
         for job in module.jobs:
             if job in jobs:
-                raise Exception(f"Job {job} already exists in jobs list for integration {module.__file__}.")
+                raise JobException(message=f"Job {job} already exists in jobs list for integration {module.__file__}.")
             logger.debug("Registering job %s from %s", job, module.__file__)
             jobs.append(job)
 
