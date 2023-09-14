@@ -1,4 +1,4 @@
-# v1.3 Release Notes
+# v1.4 Release Notes
 
 ## v1.4.0 - 2023-09-8
 
