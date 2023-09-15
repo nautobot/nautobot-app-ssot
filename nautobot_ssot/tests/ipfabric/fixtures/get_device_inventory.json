@@ -1,0 +1,68 @@
+[
+  {
+    "hostname": "nyc-spine-02",
+    "siteName": "NYC-SPINE-02",
+    "vendor": "arista",
+    "platform": "veos",
+    "model": "CVX",
+    "memoryUtilization": 40.11,
+    "version": "4.22.4M",
+    "sn": "5254.00d3.a91d",
+    "loginIp": "172.18.0.22"
+  },
+  {
+    "hostname": "jcy-spine-01.infra.ntc.com",
+    "siteName": "JCY-SPINE-01.INFRA.NTC.COM_1",
+    "vendor": "cisco",
+    "platform": "nx9000",
+    "model": "N9K-C9300v",
+    "memoryUtilization": 58.22,
+    "version": "9.3(3)",
+    "sn": "a000a04",
+    "loginIp": "172.18.0.9"
+  },
+  {
+    "hostname": "jcy-rtr-01",
+    "siteName": "JCY-RTR-01_1",
+    "vendor": "cisco",
+    "platform": "csr1000",
+    "model": "CSR1000V",
+    "memoryUtilization": 11.97,
+    "version": "17.1.1",
+    "sn": "a000a01",
+    "loginIp": "172.18.0.3"
+  },
+  {
+    "hostname": "nyc-rtr-01",
+    "siteName": "NYC-RTR-01",
+    "vendor": "juniper",
+    "platform": "vmx",
+    "model": "",
+    "memoryUtilization": 15,
+    "version": "18.2R1.9",
+    "sn": "VM60D5EE2211",
+    "loginIp": "172.18.0.14"
+  },
+  {
+    "hostname": "nyc-leaf-01",
+    "siteName": "NYC-LEAF-01",
+    "vendor": "arista",
+    "platform": "veos",
+    "model": "CVX",
+    "memoryUtilization": 39.6,
+    "version": "4.22.4M",
+    "sn": "5254.0029.fbf2",
+    "loginIp": "172.18.0.25"
+  },
+  {
+    "hostname": "jcy-rtr-02",
+    "siteName": "JCY-RTR-02_1",
+    "vendor": "cisco",
+    "platform": "csr1000",
+    "model": "CSR1000V",
+    "memoryUtilization": 11.97,
+    "version": "17.1.1",
+    "sn": "a000a02",
+    "loginIp": "172.18.0.5"
+  }
+]

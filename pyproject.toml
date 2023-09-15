@@ -39,6 +39,9 @@ dnspython = { version = "^2.1.0", optional = true }
 packaging = ">=21.3, <24"
 prometheus-client = "~0.17.1"
 ijson = { version = ">=2.5.1", optional = true }
+ipfabric = { version = "~6.0.9", optional = true }
+ipfabric-diagrams = { version = "~6.0.2", optional = true }
+netutils = { version = "^1.0.0", optional = true }
 oauthlib = { version = ">=3.1.0", optional = true }
 python-magic = { version = ">=0.4.15", optional = true }
 pytz = { version = ">=2019.3", optional = true }
@@ -79,12 +82,18 @@ mkdocstrings = "0.22.0"
 mkdocstrings-python = "1.1.2"
 requests-mock = "^1.10.0"
 parameterized = "^0.8.1"
+# Enable chatops after dropping Python 3.7 support
+# nautobot-chatops = { version = "^2.0.2", extras = ["ipfabric"] }
 
 [tool.poetry.plugins."nautobot_ssot.data_sources"]
 "example" = "nautobot_ssot.sync.example:ExampleSyncWorker"
 
 [tool.poetry.plugins."nautobot_ssot.data_targets"]
 "example" = "nautobot_ssot.sync.example:ExampleSyncWorker"
+
+# Enable chatops after dropping Python 3.7 support
+# [tool.poetry.plugins."nautobot.workers"]
+# "ipfabric" = "nautobot_ssot.integrations.ipfabric.workers:ipfabric"
 
 [tool.poetry.extras]
 aci = [
@@ -97,7 +106,10 @@ all = [
     "cvprac",
     "dnspython",
     "ijson",
+    "ipfabric",
+    "ipfabric-diagrams",
     "nautobot-device-lifecycle-mgmt",
+    "netutils",
     "oauthlib",
     "python-magic",
     "pytz",
@@ -111,6 +123,11 @@ aristacv = [
 ]
 infoblox = [
     "dnspython",
+]
+ipfabric = [
+    "ipfabric",
+    "ipfabric-diagrams",
+    "netutils",
 ]
 # pysnow = "^0.7.17"
 # PySNow is currently pinned to an older version of pytz as a dependency, which blocks compatibility with newer

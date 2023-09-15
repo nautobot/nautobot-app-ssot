@@ -135,6 +135,8 @@ CACHEOPS_REDIS = parse_redis_connection(redis_database=1)
 PLUGINS = [
     "nautobot_ssot",
     # "nautobot_device_lifecycle_mgmt",
+    # Enable chatops after Nautobot v2 compatible release
+    # "nautobot_chatops",
 ]
 
 # Plugins configuration settings. These settings are used by various plugins that the user may have installed.
