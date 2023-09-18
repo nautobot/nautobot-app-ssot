@@ -436,7 +436,7 @@ class NautobotPrefix(Prefix):
         try:
             vrf_tenant = OrmTenant.objects.get(name=attrs["vrf_tenant"])
         except OrmTenant.DoesNotExist:
-            diffsync.job.log_warning(message=f"Tenant {attrs['vrf_tenant']} not found for VRF {attrs['vrf']}")
+            diffsync.job.log_warning(message=f"Tenant {attrs['vrf_tenant']} not found for VRF {ids['vrf']}")
             vrf_tenant = None
 
         if ids["vrf"] and vrf_tenant:
