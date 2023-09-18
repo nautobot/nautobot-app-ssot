@@ -349,10 +349,12 @@ class NautobotIPAddress(IPAddress):
         else:
             obj_type = None
             obj_id = None
-        if ids["tenant"]:
-            tenant_name = OrmTenant.objects.get(name=ids["tenant"])
-        else:
-            tenant_name = None
+
+        try:
+            tenant = OrmTenant.objects.get(name=ids["tenant"])
+        except OrmTenant.DoesNotExist:
+            tenant = None
+
         try:
             vrf_tenant = OrmTenant.objects.get(name=attrs["vrf_tenant"])
         except OrmTenant.DoesNotExist:
@@ -373,7 +375,7 @@ class NautobotIPAddress(IPAddress):
             address=ids["address"],
             status=Status.objects.get(name=attrs["status"]),
             description=attrs["description"],
-            tenant=tenant_name,
+            tenant=tenant,
             assigned_object_type=obj_type,
             assigned_object_id=obj_id,
             vrf=vrf_name,
@@ -418,9 +420,15 @@ class NautobotIPAddress(IPAddress):
         """Delete IPAddress object in Nautobot."""
         self.diffsync.job.log_warning(f"IP Address {self.address} will be deleted.")
         super().delete()
+
+        try:
+            tenant = OrmTenant.objects.get(name=self.tenant)
+        except OrmTenant.DoesNotExist:
+            tenant= None
+
         _ipaddress = OrmIPAddress.objects.get(
             address=self.get_identifiers()["address"],
-            tenant=OrmTenant.objects.get(name=self.tenant),
+            tenant=tenant,
             vrf=OrmVrf.objects.get(name=self.vrf, tenant=OrmTenant.objects.get(name=self.vrf_tenant)),
         )
         self.diffsync.objects_to_delete["ipaddress"].append(_ipaddress)  # pylint: disable=protected-access
@@ -447,11 +455,17 @@ class NautobotPrefix(Prefix):
                 vrf = None
         else:
             vrf = None
+
+        try:
+            prefix_tenant = OrmTenant.objects.get(name=ids["tenant"])
+        except OrmTenant.DoesNotExist:
+            prefix_tenant = None
+
         _prefix = OrmPrefix(
             prefix=ids["prefix"],
             status=Status.objects.get(name=attrs["status"]),
             description=attrs["description"],
-            tenant=OrmTenant.objects.get(name=ids["tenant"]),
+            tenant=prefix_tenant,
             site=Site.objects.get(name=ids["site"]),
             vrf=vrf,
         )
@@ -482,9 +496,15 @@ class NautobotPrefix(Prefix):
         """Delete Prefix object in Nautobot."""
         self.diffsync.job.log_warning(f"Prefix {self.prefix} will be deleted.")
         super().delete()
+
+        try:
+            tenant = OrmTenant.objects.get(name=self.tenant)
+        except OrmTenant.DoesNotExist:
+            tenant= None
+
         _prefix = OrmPrefix.objects.get(
             prefix=self.get_identifiers()["prefix"],
-            tenant=OrmTenant.objects.get(name=self.tenant),
+            tenant=tenant,
             vrf=OrmVrf.objects.get(name=self.vrf, tenant=OrmTenant.objects.get(name=self.vrf_tenant)),
         )
         self.diffsync.objects_to_delete["prefix"].append(_prefix)  # pylint: disable=protected-access

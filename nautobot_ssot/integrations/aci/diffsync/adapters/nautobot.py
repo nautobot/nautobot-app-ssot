@@ -240,7 +240,7 @@ class NautobotAdapter(DiffSync):
                 status=nbprefix.status.name,
                 site=self.site,
                 description=nbprefix.description,
-                tenant=nbprefix.tenant.name,
+                tenant=nbprefix.tenant.name if nbprefix.tenant else None,
                 vrf=vrf,
                 vrf_tenant=vrf_tenant,
                 site_tag=self.site,

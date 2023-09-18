@@ -1,6 +1,7 @@
 """Jobs for ACI SSoT plugin."""
 from django.templatetags.static import static
 from django.urls import reverse
+from diffsync import DiffSyncFlags
 from nautobot.core.settings_funcs import is_truthy
 from nautobot.extras.jobs import BooleanVar, ChoiceVar, Job
 from nautobot_ssot.jobs.base import DataMapping, DataSource
@@ -38,6 +39,8 @@ class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method
     apic = ChoiceVar(choices=apic_choices, label="Select APIC")
 
     debug = BooleanVar(description="Enable for verbose debug logging.")
+
+    diffsync_flags = DiffSyncFlags.SKIP_UNMATCHED_DST
 
     class Meta:  # pylint: disable=too-few-public-methods
         """Information about the Job."""
