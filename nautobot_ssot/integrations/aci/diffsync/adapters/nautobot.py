@@ -161,7 +161,7 @@ class NautobotAdapter(DiffSync):
 
     def load_deviceroles(self):
         """Method to load Device Roles from Nautobot."""
-        for nbdevicerole in DeviceRole.objects.filter(slug__contains="-ssot-aci"):
+        for nbdevicerole in DeviceRole.objects.all():
             _devicerole = self.device_role(
                 name=nbdevicerole.name,
                 description=nbdevicerole.description,
