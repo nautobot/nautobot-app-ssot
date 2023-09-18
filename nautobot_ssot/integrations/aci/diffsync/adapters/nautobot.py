@@ -6,6 +6,7 @@ from collections import defaultdict
 from diffsync import DiffSync
 from django.db.models import ProtectedError
 from django.utils.text import slugify
+from diffsync.enum import DiffSyncModelFlags
 from nautobot.tenancy.models import Tenant
 from nautobot.dcim.models import DeviceType, DeviceRole, Device, InterfaceTemplate, Interface
 from nautobot.ipam.models import IPAddress, Prefix, VRF
@@ -166,6 +167,7 @@ class NautobotAdapter(DiffSync):
                 name=nbdevicerole.name,
                 description=nbdevicerole.description,
             )
+            _devicerole.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
             self.add(_devicerole)
 
     def load_devices(self):
