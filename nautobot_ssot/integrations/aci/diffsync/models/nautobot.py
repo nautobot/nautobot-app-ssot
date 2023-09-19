@@ -426,10 +426,15 @@ class NautobotIPAddress(IPAddress):
         except OrmTenant.DoesNotExist:
             tenant= None
 
+        try:
+            vrf_tenant = OrmTenant.objects.get(name=self.vrf_tenant)
+        except OrmTenant.DoesNotExist:
+            vrf_tenant= None
+
         _ipaddress = OrmIPAddress.objects.get(
             address=self.get_identifiers()["address"],
             tenant=tenant,
-            vrf=OrmVrf.objects.get(name=self.vrf, tenant=OrmTenant.objects.get(name=self.vrf_tenant)),
+            vrf=OrmVrf.objects.get(name=self.vrf, tenant=vrf_tenant),
         )
         self.diffsync.objects_to_delete["ipaddress"].append(_ipaddress)  # pylint: disable=protected-access
         return self
@@ -502,10 +507,15 @@ class NautobotPrefix(Prefix):
         except OrmTenant.DoesNotExist:
             tenant= None
 
+        try:
+            vrf_tenant = OrmTenant.objects.get(name=self.vrf_tenant)
+        except OrmTenant.DoesNotExist:
+            vrf_tenant= None
+
         _prefix = OrmPrefix.objects.get(
             prefix=self.get_identifiers()["prefix"],
             tenant=tenant,
-            vrf=OrmVrf.objects.get(name=self.vrf, tenant=OrmTenant.objects.get(name=self.vrf_tenant)),
+            vrf=OrmVrf.objects.get(name=self.vrf, tenant=vrf_tenant),
         )
         self.diffsync.objects_to_delete["prefix"].append(_prefix)  # pylint: disable=protected-access
         return self

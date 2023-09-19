@@ -106,7 +106,7 @@ class AciAdapter(DiffSync):
         node_dict = self.conn.get_nodes()
         # Leaf/Spine management IP addresses
         for node in node_dict.values():
-            if node["oob_ip"] and not node["oob_ip"] == "0.0.0.0":  # nosec
+            if "oob_ip" in node and node["oob_ip"] and not node["oob_ip"] == "0.0.0.0":  # nosec
                 new_ipaddress = self.ip_address(
                     address=f"{node['oob_ip']}/32",
                     device=node["name"],
@@ -342,6 +342,7 @@ class AciAdapter(DiffSync):
         """Load devices from ACI device data."""
         devicetype_file_path = os.path.join(os.path.dirname(__file__), "..", "device-types")
         for key, value in self.devices.items():
+            model = ""
             if f"{value['model']}.yaml" in os.listdir(devicetype_file_path):
                 device_specs = load_yamlfile(
                     os.path.join(
@@ -350,12 +351,25 @@ class AciAdapter(DiffSync):
                     )
                 )
                 model = device_specs["model"]
-            else:
+
+            if not model:
+                try:
+                    self.get("device_type", {"model": value['model'], "part_nbr": ""})
+                except ObjectNotFound:
+                    _devicetype = self.device_type(
+                        model=value["model"],
+                        manufacturer="Cisco",
+                        part_nbr="",
+                        u_height=1,
+                        comments="",
+                    )
+                    self.add(_devicetype)
                 model = value["model"]
+
             new_device = self.device(
                 name=value["name"],
                 device_type=model,
-                device_role=value["role"],
+                device_role=value["model"],
                 serial=value["serial"],
                 comments=PLUGIN_CFG.get("comments", ""),
                 node_id=int(key),
