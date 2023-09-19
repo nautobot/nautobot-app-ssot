@@ -369,7 +369,7 @@ class AciAdapter(DiffSync):
             new_device = self.device(
                 name=value["name"],
                 device_type=model,
-                device_role=value["model"],
+                device_role=value["role"],
                 serial=value["serial"],
                 comments=PLUGIN_CFG.get("comments", ""),
                 node_id=int(key),
