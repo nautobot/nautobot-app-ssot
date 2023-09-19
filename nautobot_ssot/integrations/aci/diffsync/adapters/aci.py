@@ -353,7 +353,11 @@ class AciAdapter(DiffSync):
                 model = device_specs["model"]
 
             if not model:
-                self.get_or_instantiate("device_type", ids={"model": value["model"], "part_nbr": ""}, attrs={"manufacturer": "Cisco", "u_height": 1, "comments": ""})
+                self.get_or_instantiate(
+                    "device_type",
+                    ids={"model": value["model"], "part_nbr": ""},
+                    attrs={"manufacturer": "Cisco", "u_height": 1, "comments": ""},
+                )
                 model = value["model"]
 
             new_device = self.device(
