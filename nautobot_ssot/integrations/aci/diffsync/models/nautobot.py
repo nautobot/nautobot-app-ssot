@@ -424,12 +424,12 @@ class NautobotIPAddress(IPAddress):
         try:
             tenant = OrmTenant.objects.get(name=self.tenant)
         except OrmTenant.DoesNotExist:
-            tenant= None
+            tenant = None
 
         try:
             vrf_tenant = OrmTenant.objects.get(name=self.vrf_tenant)
         except OrmTenant.DoesNotExist:
-            vrf_tenant= None
+            vrf_tenant = None
 
         _ipaddress = OrmIPAddress.objects.get(
             address=self.get_identifiers()["address"],
@@ -505,12 +505,12 @@ class NautobotPrefix(Prefix):
         try:
             tenant = OrmTenant.objects.get(name=self.tenant)
         except OrmTenant.DoesNotExist:
-            tenant= None
+            tenant = None
 
         try:
             vrf_tenant = OrmTenant.objects.get(name=self.vrf_tenant)
         except OrmTenant.DoesNotExist:
-            vrf_tenant= None
+            vrf_tenant = None
 
         _prefix = OrmPrefix.objects.get(
             prefix=self.get_identifiers()["prefix"],

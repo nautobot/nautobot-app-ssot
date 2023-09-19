@@ -354,7 +354,7 @@ class AciAdapter(DiffSync):
 
             if not model:
                 try:
-                    self.get("device_type", {"model": value['model'], "part_nbr": ""})
+                    self.get("device_type", {"model": value["model"], "part_nbr": ""})
                 except ObjectNotFound:
                     _devicetype = self.device_type(
                         model=value["model"],
