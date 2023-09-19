@@ -1,0 +1,418 @@
+[
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "deletes": [],
+                "path_elements": [
+                    "Sysdb",
+                    "hardware",
+                    "archer",
+                    "xcvr",
+                    "status",
+                    "all",
+                    "Ethernet1"
+                ],
+                "retracts": [],
+                "updates": {
+                    "actualIdEepromContents": {
+                        "encoding": 5,
+                        "connector": 12,
+                        "lengthOm1": 0,
+                        "lengthOm2": 0,
+                        "lengthOm3": 0,
+                        "lengthSmf": 10,
+                        "mediaType": "40GBASE-PLR4",
+                        "deviceTech": 64,
+                        "identifier": 13,
+                        "vendorName": "Arista Networks ",
+                        "maxCaseTemp": 70,
+                        "vendorRevNum": "20",
+                        "vendorPartNum": "QSFP-40G-PLR4   ",
+                        "bitrateNominal": 103,
+                        "vendorDateCode": "200103  ",
+                        "laserWavelength": 1310,
+                        "vendorSerialNum": "ABC111011013    ",
+                        "txPowerSupported": false,
+                        "extendedCompliance": 0,
+                        "identifierExtended": 192,
+                        "lengthCableAssembly": 0,
+                        "complianceEth10And40G": 34,
+                        "rateSelectImplemented": false,
+                        "laserWavelengthTolerance": 9500,
+                        "cdrTxRxControlImplemented": false,
+                        "laserWavelengthFractional": 0,
+                        "rxOutputEmphasisSupported": false,
+                        "rxOutputAmplitudeSupported": true,
+                        "extendedRateSelectSupported": false,
+                        "extendedRateSelectCompliance": 0,
+                        "txInputEqualizationAutoSupported": false,
+                        "txInputEqualizationFixedSupported": false
+                    },
+                    "adapterPresent": false,
+                    "attnTable": [
+                        "Sysdb",
+                        "hardware",
+                        "xcvr",
+                        "attenuation"
+                    ],
+                    "cableConfigurationData": {
+                        "configData": "\\x 00"
+                    },
+                    "capabilitiesChanged": 0,
+                    "cdrControlSupportedOverride": false,
+                    "channel": 0,
+                    "curRxOutputAmplitude": [
+                        "Sysdb",
+                        "hardware",
+                        "archer",
+                        "xcvr",
+                        "status",
+                        "all",
+                        "Ethernet1",
+                        "curRxOutputAmplitude"
+                    ],
+                    "curRxOutputPreEmphasis": [
+                        "Sysdb",
+                        "hardware",
+                        "archer",
+                        "xcvr",
+                        "status",
+                        "all",
+                        "Ethernet1",
+                        "curRxOutputPreEmphasis"
+                    ],
+                    "curTxInputEqualization": [
+                        "Sysdb",
+                        "hardware",
+                        "archer",
+                        "xcvr",
+                        "status",
+                        "all",
+                        "Ethernet1",
+                        "curTxInputEqualization"
+                    ],
+                    "defaultRxOutputAmplitude": [
+                        "Sysdb",
+                        "hardware",
+                        "archer",
+                        "xcvr",
+                        "status",
+                        "all",
+                        "Ethernet1",
+                        "defaultRxOutputAmplitude"
+                    ],
+                    "defaultRxOutputPreEmphasis": [
+                        "Sysdb",
+                        "hardware",
+                        "archer",
+                        "xcvr",
+                        "status",
+                        "all",
+                        "Ethernet1",
+                        "defaultRxOutputPreEmphasis"
+                    ],
+                    "defaultTuningValuesRead": false,
+                    "defaultTxInputEqualization": [
+                        "Sysdb",
+                        "hardware",
+                        "archer",
+                        "xcvr",
+                        "status",
+                        "all",
+                        "Ethernet1",
+                        "defaultTxInputEqualization"
+                    ],
+                    "detectedDomThresholdData": "P\\x 00�\\x 00K\\x 00�\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00��u0��y\\x 18\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00\\x 00i#\\x 01\r",
+                    "detectedMediaTypeData": {
+                        "Name": "xcvr40GBasePlr4",
+                        "Value": 53
+                    },
+                    "domCapabilitiesData": {
+                        "txBias": true,
+                        "rxPower": true,
+                        "txPower": false,
+                        "voltage": true,
+                        "aggRxPower": false,
+                        "aggTxPower": false,
+                        "temperature": true,
+                        "totalRxPower": false
+                    },
+                    "domNonzeroTxPower": false,
+                    "domThresholdOverridden": false,
+                    "domThresholdRegisterData": {
+                        "txBiasLowWarn": 6.5,
+                        "rxPowerLowWarn": -14.698003017969185,
+                        "txBiasHighWarn": 95.0,
+                        "txBiasLowAlarm": 6.0,
+                        "txPowerLowWarn": -5.999803649348422,
+                        "voltageLowWarn": 3.1,
+                        "rxPowerHighWarn": 3.300077008727591,
+                        "rxPowerLowAlarm": -15.702477199975917,
+                        "txBiasHighAlarm": 100.0,
+                        "txPowerHighWarn": 1.4998845649147619,
+                        "txPowerLowAlarm": -7.000570999772329,
+                        "voltageHighWarn": 3.5,
+                        "voltageLowAlarm": 3.0,
+                        "rxPowerHighAlarm": 4.2999438415170665,
+                        "txPowerHighAlarm": 2.5000502848689585,
+                        "voltageHighAlarm": 3.6,
+                        "temperatureLowWarn": -10.0,
+                        "temperatureHighWarn": 75.0,
+                        "temperatureLowAlarm": -15.0,
+                        "temperatureHighAlarm": 80.0
+                    },
+                    "enhancedDomMapping": [
+                        "Sysdb",
+                        "hardware",
+                        "archer",
+                        "xcvr",
+                        "status",
+                        "all",
+                        "Ethernet1",
+                        "enhancedDomMapping"
+                    ],
+                    "enhancedDomParamConfigRegisterData": [
+                        "Sysdb",
+                        "hardware",
+                        "archer",
+                        "xcvr",
+                        "status",
+                        "all",
+                        "Ethernet1",
+                        "enhancedDomParamConfigRegisterData"
+                    ],
+                    "enhancedDomRegisterData": {
+                        "extMonData": ""
+                    },
+                    "enhancedDomSupportedOverriden": {
+                        "Name": "overrideConfigDefault",
+                        "Value": 0
+                    },
+                    "enhancedDomThresholdRegisterData": [
+                        "Sysdb",
+                        "hardware",
+                        "archer",
+                        "xcvr",
+                        "status",
+                        "all",
+                        "Ethernet1",
+                        "enhancedDomThresholdRegisterData"
+                    ],
+                    "enhancedDomValuesAvailable": false,
+                    "eventStatsValid": true,
+                    "extRateSelectSupportedOverride": false,
+                    "frequency": 0,
+                    "fruGenerationId": 0,
+                    "generationId": 3,
+                    "goVendorInfo": {
+                        "vendorPn": "QSFP-40G-PLR4   ",
+                        "vendorSn": "ABC111011013    ",
+                        "vendorRev": "20",
+                        "vendorName": "Arista Networks ",
+                        "vendorDateCode": "200103  "
+                    },
+                    "goodSignalResetCompleted": false,
+                    "grid": 0,
+                    "idEepromChecksumValid": [
+                        "Sysdb",
+                        "hardware",
+                        "archer",
+                        "xcvr",
+                        "status",
+                        "all",
+                        "Ethernet1",
+                        "idEepromChecksumValid"
+                    ],
+                    "idEepromDumpTimestamp": 0.0,
+                    "idEepromValid": false,
+                    "inAdapter": false,
+                    "initComplete": true,
+                    "interruptCountValid": true,
+                    "ituTuningConfig": {
+                        "grid": 0,
+                        "channel": 0,
+                        "frequency": 0,
+                        "laserEnabled": true
+                    },
+                    "laneStats": [
+                        "Sysdb",
+                        "hardware",
+                        "archer",
+                        "xcvr",
+                        "status",
+                        "all",
+                        "Ethernet1",
+                        "laneStats"
+                    ],
+                    "laneStatsEnt": [
+                        "Sysdb",
+                        "hardware",
+                        "archer",
+                        "xcvr",
+                        "status",
+                        "all",
+                        "Ethernet1",
+                        "laneStatsEnt"
+                    ],
+                    "laneStatus": [
+                        "Sysdb",
+                        "hardware",
+                        "archer",
+                        "xcvr",
+                        "status",
+                        "all",
+                        "Ethernet1",
+                        "laneStatus"
+                    ],
+                    "lastDomThresholdsUpdateTime": 1666161535.9100049,
+                    "lastEnhancedDomPMPeriodUpdateTime": 0.0,
+                    "lastEnhancedDomThresholdsUpdateTime": 0.0,
+                    "lastEnhancedDomUpdateTime": 0.0,
+                    "lastPresenceChange": 1666161535.388839,
+                    "mediaTypeChanged": 0,
+                    "name": "Ethernet1",
+                    "overrideMediaType": {
+                        "Name": "xcvrUnknown",
+                        "Value": 0
+                    },
+                    "performanceMonitoring": {
+                        "currentPeriod": {
+                            "isValid": false,
+                            "parameter": {},
+                            "startTime": 0.0,
+                            "updateTime": 0.0
+                        },
+                        "previousPeriod": {
+                            "isValid": false,
+                            "parameter": {},
+                            "startTime": 0.0,
+                            "updateTime": 0.0
+                        }
+                    },
+                    "presence": {
+                        "Name": "xcvrPresent",
+                        "Value": 2
+                    },
+                    "presenceChanges": 2,
+                    "preventSfpHighPowerEnable": false,
+                    "qsa28": false,
+                    "qsaTypeInUse": {
+                        "Name": "qsaUnknown",
+                        "Value": 0
+                    },
+                    "qsfpSlotCapabilities": {
+                        "maxPowerSupported": {
+                            "value": 0.0
+                        },
+                        "whisperPortCapable": false,
+                        "hitfullOnSpeedChange": false,
+                        "treatPhySignalStatusUnknownAsNotReady": false
+                    },
+                    "ready": true,
+                    "resetCountValid": true,
+                    "resolvedTuningStatus": {
+                        "configuredGrid": 0,
+                        "operationalGrid": 0,
+                        "computedFrequency": 0,
+                        "configuredChannel": 0,
+                        "computedWavelength": 0.0,
+                        "operationalChannel": 0,
+                        "configuredFrequency": 0,
+                        "operationalFrequency": 0,
+                        "operationalWavelength": 0.0,
+                        "gridSpacingCapabilities": {
+                            "gridSpacing3125M": false,
+                            "gridSpacing6250M": false,
+                            "gridSpacing12500M": false,
+                            "gridSpacing25000M": false,
+                            "gridSpacing33000M": false,
+                            "gridSpacing50000M": false,
+                            "gridSpacing75000M": false,
+                            "gridSpacing100000M": false
+                        }
+                    },
+                    "smbusFailCountValid": true,
+                    "swappability": {
+                        "Name": "hotSwappable",
+                        "Value": 1
+                    },
+                    "swizzled": false,
+                    "tenGSerdesConfigurableOverride": false,
+                    "unresponsiveToSmbus": false,
+                    "vendorInfoChanged": 0,
+                    "warm": true,
+                    "xcvrConfig": [
+                        "Sysdb",
+                        "hardware",
+                        "xcvr",
+                        "config",
+                        "qsfp",
+                        "cell",
+                        "1",
+                        "xcvrConfig",
+                        "Ethernet1"
+                    ],
+                    "xcvrMgrCapabilities": {
+                        "domThresholds": true,
+                        "domDynamicValues": true
+                    },
+                    "xcvrOverheating": false,
+                    "xcvrState": {
+                        "reason": {
+                            "Name": "presumedAuthentic",
+                            "Value": 3
+                        },
+                        "enabled": true
+                    },
+                    "xcvrStateChanges": 3,
+                    "xcvrStats": {
+                        "presence": {
+                            "Name": "xcvrPresent",
+                            "Value": 2
+                        },
+                        "lastReset": 0.0,
+                        "resetCount": 0,
+                        "lastInterrupt": 155.3263622,
+                        "lastSmbusFail": 0.0,
+                        "interruptCount": 1,
+                        "smbusFailCount": 0,
+                        "presenceChanges": 2,
+                        "lastPresenceChange": 1666161525.9255366,
+                        "badEepromChecksumEvents": 0,
+                        "lastBadEepromChecksumEvent": 0.0
+                    },
+                    "xcvrStatsEnt": [
+                        "Sysdb",
+                        "hardware",
+                        "archer",
+                        "xcvr",
+                        "status",
+                        "all",
+                        "Ethernet1",
+                        "xcvrStatsEnt"
+                    ],
+                    "xcvrTuningParamCapabilities": {
+                        "rxAmplitudeSupported": false,
+                        "rxPreEmphasisSupported": false,
+                        "txInputEqualizationSupported": false
+                    },
+                    "xcvrType": {
+                        "Name": "unknown",
+                        "Value": 0
+                    },
+                    "xgc": [
+                        "Sysdb",
+                        "hardware",
+                        "xcvr",
+                        "xgc"
+                    ],
+                    "xum": 0
+                }
+            }
+        ]
+    }
+]

@@ -1,13 +1,13 @@
 # App Overview
 
-A plugin for Nautobot. This plugin facilitates integration and data synchronization between various "source of truth" (SoT) systems, with Nautobot acting as a central clearinghouse for data - a Single Source of Truth, if you will.
+An app for Nautobot. This Nautobot app facilitates integration and data synchronization between various "source of truth" (SoT) systems, with Nautobot acting as a central clearinghouse for data - a Single Source of Truth, if you will.
 
 !!! note
     Throughout this documentation, the terms "app" and "plugin" will be used interchangeably.
 
 ## Description
 
-The nautobot-ssot plugin builds atop the [DiffSync](https://github.com/networktocode/diffsync) Python library and Nautobot's Jobs feature. This enables the rapid development and integration of Jobs that can be run within Nautobot to pull data from other systems ("Data Sources") into Nautobot and/or push data from Nautobot into other systems ("Data Targets") as desired. Key features include the following:
+The Nautobot SSoT app builds atop the [DiffSync](https://github.com/networktocode/diffsync) Python library and Nautobot's Jobs feature. This enables the rapid development and integration of Jobs that can be run within Nautobot to pull data from other systems ("Data Sources") into Nautobot and/or push data from Nautobot into other systems ("Data Targets") as desired. Key features include the following:
 
 * A dashboard UI lists all registered Data Sources and Data Targets and provides a summary of the synchronization history.
 * The outcome of executing of a data synchronization Job is automatically saved to Nautobot's database for later review.
@@ -15,7 +15,7 @@ The nautobot-ssot plugin builds atop the [DiffSync](https://github.com/networkto
 
 ## Audience (User Personas) - Who should use this App?
 
-* Plugin developers looking to sync data from an outside source into Nautobot and/or vice-versa.
+* Nautobot app developers looking to sync data from an outside source into Nautobot and/or vice-versa.
 
 ## Authors and Maintainers
 

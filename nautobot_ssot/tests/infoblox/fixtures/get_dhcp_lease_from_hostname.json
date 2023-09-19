@@ -1,0 +1,10 @@
+{
+    "result": [
+        {
+            "_ref": "lease/ZG5zLmxlYXNlJC8xOTIuMTY4LjQuMy8wLzE3:192.168.4.3/Company%201",
+            "binding_state": "STATIC",
+            "client_hostname": "test",
+            "hardware": "12:34:56:78:91:23"
+        }
+    ]
+}

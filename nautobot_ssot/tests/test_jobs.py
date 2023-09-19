@@ -1,13 +1,12 @@
 """Test the Job classes in nautobot_ssot."""
 import os.path
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 import uuid
-from django.contrib.contenttypes.models import ContentType
 
+from django.contrib.contenttypes.models import ContentType
+from django.db.utils import IntegrityError, OperationalError
 from django.forms import HiddenInput
 from django.test import override_settings
-
-# from django.test import TestCase
 
 from nautobot.extras.models import JobResult
 from nautobot.utilities.testing import TransactionTestCase
@@ -29,6 +28,7 @@ class BaseJobTestCase(TransactionTestCase):
 
     def setUp(self):
         """Per-test setup."""
+        super().setUp()
         self.job = self.job_class()
 
         self.job.job_result = JobResult.objects.create(
@@ -36,8 +36,6 @@ class BaseJobTestCase(TransactionTestCase):
             obj_type=ContentType.objects.get(app_label="extras", model="job"),
             job_id=uuid.uuid4(),
         )
-
-        # name=self.job.class_path,
 
         self.job.load_source_adapter = lambda *x, **y: None
         self.job.load_target_adapter = lambda *x, **y: None
@@ -108,7 +106,33 @@ class BaseJobTestCase(TransactionTestCase):
         self.job.source_adapter.diff_to().dict.return_value = {}
         self.job.calculate_diff()
         self.job.source_adapter.diff_to.assert_called()
-        self.job.sync.save.assert_called_once()
+        self.job.sync.save.assert_has_calls([call(), call()])
+
+    def test_calculate_diff_fail_diff_save_too_large(self):
+        """Test calculate_diff() method logs failure."""
+        self.job.sync = Mock()
+        self.job.sync.save.side_effect = [None, OperationalError("Fail")]
+        self.job.source_adapter = Mock()
+        self.job.target_adapter = Mock()
+        self.job.log_info = Mock()
+        self.job.log_warning = Mock()
+        self.job.source_adapter.diff_to().dict.return_value = {}
+        self.job.calculate_diff()
+        self.job.log_warning.assert_any_call(
+            message="Unable to save JSON diff to the database; likely the diff is too large."
+        )
+
+    def test_calculate_diff_fail_diff_save_generic(self):
+        """Test calculate_diff() method logs failure."""
+        self.job.sync = Mock()
+        self.job.sync.save.side_effect = [None, IntegrityError("Fail")]
+        self.job.source_adapter = Mock()
+        self.job.target_adapter = Mock()
+        self.job.log_info = Mock()
+        self.job.log_warning = Mock()
+        self.job.source_adapter.diff_to().dict.return_value = {}
+        with self.assertRaises(IntegrityError):
+            self.job.calculate_diff()
 
 
 class DataSourceTestCase(BaseJobTestCase):

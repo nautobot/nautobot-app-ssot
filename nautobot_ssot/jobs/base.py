@@ -3,9 +3,10 @@ from collections import namedtuple
 from datetime import datetime
 import traceback
 import tracemalloc
-from typing import Iterable
-from packaging.version import Version
+from typing import Iterable, Union
 
+from django.db import models
+from django.db.utils import OperationalError
 from django.forms import HiddenInput
 from django.templatetags.static import static
 from django.utils import timezone
@@ -17,7 +18,6 @@ from django.utils.functional import classproperty
 from diffsync.enum import DiffSyncFlags
 import structlog
 
-from nautobot import __version__ as nautobot_version
 from nautobot.extras.jobs import BaseJob, BooleanVar
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices
@@ -80,9 +80,15 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         """
         if self.source_adapter is not None and self.target_adapter is not None:
             self.diff = self.source_adapter.diff_to(self.target_adapter, flags=self.diffsync_flags)
-            self.sync.diff = self.diff.dict()
+            self.sync.diff = {}
             self.sync.summary = self.diff.summary()
             self.sync.save()
+            try:
+                self.sync.diff = self.diff.dict()
+                self.sync.save()
+            except OperationalError:
+                self.log_warning(message="Unable to save JSON diff to the database; likely the diff is too large.")
+                self.sync.refresh_from_db()
             self.log_info(message=self.diff.summary())
         else:
             self.log_warning(message="Not both adapters were properly initialized prior to diff calculation.")
@@ -174,7 +180,8 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             if self.kwargs["memory_profiling"]:
                 record_memory_trace("sync")
 
-    def lookup_object(self, model_name, unique_id):  # pylint: disable=no-self-use,unused-argument
+    # pylint: disable=unused-argument
+    def lookup_object(self, model_name: str, unique_id: str) -> Union[models.Model, None]:
         """Look up the Nautobot record, if any, identified by the args.
 
         Optional helper method used to build more detailed/accurate SyncLogEntry records from DiffSync logs.
@@ -184,7 +191,7 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             unique_id (str): DiffSyncModel unique_id or similar unique identifier.
 
         Returns:
-            models.Model: Nautobot model instance, or None
+            Union[models.Model, None]: Nautobot model instance, or None
         """
         return None
 
@@ -273,10 +280,7 @@ class DataSyncBaseJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
     def as_form(self, data=None, files=None, initial=None, approval_view=False):
         """Render this instance as a Django form for user inputs, including a "Dry run" field."""
-        if Version(nautobot_version) < Version("1.2"):
-            form = super().as_form(data=data, files=files, initial=initial)
-        else:
-            form = super().as_form(data=data, files=files, initial=initial, approval_view=approval_view)
+        form = super().as_form(data=data, files=files, initial=initial, approval_view=approval_view)
         # Set the "dry_run" widget's initial value based on our Meta attribute, if any
         form.fields["dry_run"].initial = getattr(self.Meta, "dry_run_default", True)
         # Hide the "commit" widget to reduce user confusion

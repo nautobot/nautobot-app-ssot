@@ -1,0 +1,10 @@
+{
+    "result": [
+        {
+            "_ref": "lease/ZG5zLmxlYXNlJDQvMTcyLjE2LjIwMC4xMDEvMC8:172.26.1.250/default1",
+            "binding_state": "ACTIVE",
+            "fingerprint": "Cisco/Linksys SPA series IP Phone",
+            "hardware": "16:55:a4:1b:98:c9"
+        }
+    ]
+}

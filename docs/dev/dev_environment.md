@@ -296,9 +296,9 @@ This will safely shut down all of your running Docker containers for this projec
 
 Your environment should now be fully setup, all necessary Docker containers are created and running, and you're logged into Nautobot in your web browser. Now what?
 
-Now you can start developing your plugin in the project folder!
+Now you can start developing your Nautobot app in the project folder!
 
-The magic here is the root directory is mounted inside your Docker containers when built and ran, so **any** changes made to the files in here are directly updated to the Nautobot plugin code running in Docker. This means that as you modify the code in your plugin folder, the changes will be instantly updated in Nautobot.
+The magic here is the root directory is mounted inside your Docker containers when built and ran, so **any** changes made to the files in here are directly updated to the Nautobot app code running in Docker. This means that as you modify the code in your Nautobot app folder, the changes will be instantly updated in Nautobot.
 
 !!! warning
 	There are a few exceptions to this, as outlined in the section [To Rebuild or Not To Rebuild](#to-rebuild-or-not-to-rebuild).
@@ -319,7 +319,7 @@ When trying to debug an issue, one helpful thing you can look at are the logs wi
 !!! note
 	The `-f` tag will keep the logs open, and output them in realtime as they are generated.
 
-So for example, our plugin is named `nautobot-ssot`, the command would most likely be `docker logs nautobot_ssot_nautobot_1 -f`. You can find the name of all running containers via `docker ps`.
+So for example, our app is named `nautobot-ssot`, the command would most likely be `docker logs nautobot_ssot_nautobot_1 -f`. You can find the name of all running containers via `docker ps`.
 
 If you want to view the logs specific to the worker container, simply use the name of that container instead.
 
@@ -345,7 +345,7 @@ Once completed, the new/updated environment variables should now be live.
 
 ### Installing Additional Python Packages
 
-If you want your plugin to leverage another available Nautobot plugin or another Python package, you can easily add them into your Docker environment.
+If you want your Nautobot app to leverage another available Nautobot app or another Python package, you can easily add them into your Docker environment.
 
 ```bash
 ➜ poetry shell
@@ -360,18 +360,18 @@ Once the dependencies are resolved, stop the existing containers, rebuild the Do
 ➜ invoke start
 ```
 
-### Installing Additional Nautobot Plugins
+### Installing Additional Nautobot Apps
 
-Let's say for example you want the new plugin you're creating to integrate into Slack. To do this, you will want to integrate into the existing Nautobot ChatOps Plugin.
+Let's say for example you want the new Nautobot app you're creating to integrate into Nautobot SSoT. To do this, you will want to integrate into the existing Nautobot SSoT app.
 
 ```bash
 ➜ poetry shell
-➜ poetry add nautobot-chatops
+➜ poetry add nautobot-ssot
 ```
 
-Once you activate the virtual environment via Poetry, you then tell Poetry to install the new plugin.
+Once you activate the virtual environment via Poetry, you then tell Poetry to install the new Nautobot app.
 
-Before you continue, you'll need to update the file `development/nautobot_config.py` accordingly with the name of the new plugin under `PLUGINS` and any relevant settings as necessary for the plugin under `PLUGINS_CONFIG`. Since you're modifying the underlying OS (not just Django files), you need to rebuild the image. This is a similar process to updating environment variables, which was explained earlier.
+Before you continue, you'll need to update the file `development/nautobot_config.py` accordingly with the name of the new Nautobot app under `PLUGINS` and any relevant settings as necessary for the Nautobot app under `PLUGINS_CONFIG`. Since you're modifying the underlying OS (not just Django files), you need to rebuild the image. This is a similar process to updating environment variables, which was explained earlier.
 
 ```bash
 ➜ invoke stop
@@ -379,10 +379,10 @@ Before you continue, you'll need to update the file `development/nautobot_config
 ➜ invoke start
 ```
 
-Once the containers are up and running, you should now see the new plugin installed in your Nautobot instance.
+Once the containers are up and running, you should now see the new Nautobot app installed in your Nautobot instance.
 
 !!! note
-    You can even launch an `ngrok` service locally on your laptop, pointing to port 8080 (such as for chatops development), and it will point traffic directly to your Docker images.
+    You can even launch an `ngrok` service locally on your laptop, pointing to port 8080 (such as for SSoT development), and it will point traffic directly to your Docker images.
 
 ### Updating Python Version
 

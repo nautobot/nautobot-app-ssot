@@ -1,0 +1,34 @@
+{
+    "result": [
+        {
+            "_ref": "zone_auth/ZG5zLnpvbmUkLl9kZWZhdWx0LnRlc3Qtc2l0ZS1pbm5hdXRvYm90:test-site-innautobot/default",
+            "fqdn": "test-site-innautobot",
+            "view": "default"
+        },
+        {
+            "_ref": "zone_auth/ZG5zLnpvbmUkLl9kZWZhdWx0LnRlc3Qtc2l0ZQ:test-site/default",
+            "fqdn": "test-site",
+            "view": "default"
+        },
+        {
+            "_ref": "zone_auth/ZG5zLnpvbmUkLl9kZWZhdWx0LmNvbS5uZXR3b3JrdG9jb2Rl:networktocode.com/default",
+            "fqdn": "networktocode.com",
+            "view": "default"
+        },
+        {
+            "_ref": "zone_auth/ZG5zLnpvbmUkLl9kZWZhdWx0LmNvbS5uZXR3b3JrdG9jb2RlLm5ldHdvcms:network.networktocode.com/default",
+            "fqdn": "network.networktocode.com",
+            "view": "default"
+        },
+        {
+            "_ref": "zone_auth/ZG5zLnpvbmUkLl9kZWZhdWx0LmNvbS5uZXR3b3JrdG9jb2RlLm5ldHdvcmsudGVzdC1zaXRl:test-site.network.networktocode.com/default",
+            "fqdn": "test-site.network.networktocode.com",
+            "view": "default"
+        },
+        {
+            "_ref": "zone_auth/ZG5zLnpvbmUkLl9kZWZhdWx0LmFycGEuaW4tYWRkci4xMA:10.0.0.0%2F8/default",
+            "fqdn": "10.0.0.0/8",
+            "view": "default"
+        }
+    ]
+}

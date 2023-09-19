@@ -26,6 +26,7 @@ ENV NAUTOBOT_ROOT ${NAUTOBOT_ROOT}
 # and CI and local development may have a newer version of Poetry
 # Since this is only used for development and we don't ship this container, pinning Poetry back is not expressly necessary
 # We also don't need virtual environments in container
+ENV POETRY_VERSION=1.5.1
 RUN curl -sSL https://install.python-poetry.org | python3 - && \
   poetry config virtualenvs.create false
 
@@ -62,17 +63,19 @@ RUN pip show nautobot | grep "^Version: " | sed -e 's/Version: /nautobot==/' > c
 #
 # We can't use the entire freeze as it takes forever to resolve with rigidly fixed non-direct dependencies,
 #   especially those that are only direct to Nautobot but the container included versions slightly mismatch
-RUN poetry export -f requirements.txt --without-hashes --output poetry_freeze_base.txt
-RUN poetry export -f requirements.txt --with dev --without-hashes --output poetry_freeze_all.txt
+RUN poetry export -f requirements.txt --without-hashes --extras all --output poetry_freeze_base.txt
+RUN poetry export -f requirements.txt --without-hashes --extras all --with dev --output poetry_freeze_all.txt
 RUN sort poetry_freeze_base.txt poetry_freeze_all.txt | uniq -u > poetry_freeze_dev.txt
 
 # Install all local project as editable, constrained on Nautobot version, to get any additional
 #   direct dependencies of the app
-RUN pip install -c constraints.txt -e .
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -c constraints.txt -e .[all]
 
 # Install any dev dependencies frozen from Poetry
 # Can be improved in Poetry 1.2 which allows `poetry install --only dev`
-RUN pip install -c constraints.txt -r poetry_freeze_dev.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -c constraints.txt -r poetry_freeze_dev.txt
 
 COPY development/nautobot_config.py ${NAUTOBOT_ROOT}/nautobot_config.py
 # !!! USE CAUTION WHEN MODIFYING LINES ABOVE

@@ -1,0 +1,9 @@
+{
+	"result": [
+		{
+			"_ref": "network/ZG5zLm5ldHdvcmskMTAuMjIwLjAuMC8yMi8w:10.220.0.0/22/default",
+			"network": "10.220.0.0/22",
+			"network_view": "default"
+		}
+	]
+}

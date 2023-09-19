@@ -1,0 +1,27 @@
+{
+	"result": [
+		{
+			"_ref": "record:host/ZG5zLmhvc3QkLl9kZWZhdWx0LnRlc3Qtc2l0ZS1pbm5hdXRvYm90LnRlc3QtZGV2aWNl:test-device.test-site-innautobot/default",
+			"ipv4addrs": [
+				{
+					"_ref": "record:host_ipv4addr/ZG5zLmhvc3RfYWRkcmVzcyQuX2RlZmF1bHQudGVzdC1zaXRlLWlubmF1dG9ib3QudGVzdC1kZXZpY2UuMTAuMjIzLjAuNDIu:10.223.0.42/test-device.test-site-innautobot/default",
+					"configure_for_dhcp": false,
+					"host": "test-device.test-site-innautobot",
+					"ipv4addr": "10.223.0.42"
+				}
+			],
+			"name": "test-device.test-site-innautobot",
+			"view": "default"
+		},
+		{
+			"_ref": "networkcontainer/ZG5zLm5ldHdvcmtfY29udGFpbmVyJDEwLjIyMy4wLjAvMTYvMA:10.223.0.0/16/default",
+			"network": "10.223.0.0/16",
+			"network_view": "default"
+		},
+		{
+			"_ref": "network/ZG5zLm5ldHdvcmskMTAuMjIzLjAuMC8yMS8w:10.223.0.0/21/default",
+			"network": "10.223.0.0/21",
+			"network_view": "default"
+		}
+	]
+}
