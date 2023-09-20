@@ -40,8 +40,6 @@ class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method
 
     debug = BooleanVar(description="Enable for verbose debug logging.")
 
-    diffsync_flags = DiffSyncFlags.SKIP_UNMATCHED_DST
-
     class Meta:  # pylint: disable=too-few-public-methods
         """Information about the Job."""
 
@@ -49,6 +47,13 @@ class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method
         data_source = "ACI"
         data_source_icon = static("nautobot_ssot_aci/aci.png")
         description = "Sync information from ACI to Nautobot"
+
+    def __init__(self):
+        """Initialize ExampleYAMLDataSource."""
+        super().__init__()
+        self.diffsync_flags = (
+            self.diffsync_flags | DiffSyncFlags.SKIP_UNMATCHED_DST
+        )
 
     @classmethod
     def data_mappings(cls):
