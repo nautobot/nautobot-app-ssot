@@ -4,6 +4,7 @@
 
 from collections import defaultdict
 from dataclasses import dataclass
+from typing import Dict, FrozenSet, Tuple, Hashable, Type, DefaultDict
 
 import pydantic
 from diffsync import DiffSyncModel, DiffSync
@@ -44,12 +45,53 @@ class CustomFieldAnnotation:
     name: str
 
 
+# This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
+# and therefore a frozenset rather than a normal set or a list.
+#
+# The following is an example of a parameter set that describes a tenant based on its name and group:
+# frozenset(
+#  [
+#   ("name", "ABC Inc."),
+#   ("group__name", "Customers"),
+#  ]
+# )
+ParameterSet = FrozenSet[Tuple[str, Hashable]]
+
+
 class NautobotAdapter(DiffSync):
     """
     Adapter for loading data from Nautobot through the ORM.
 
     This adapter is able to infer how to load data from Nautobot based on how the models attached to it are defined.
     """
+
+    # This dictionary acts as an opt-in ORM cache.
+    _cache: DefaultDict[str, Dict[ParameterSet, Model]]
+    _cache_hits: DefaultDict[str, int] = defaultdict(int)
+
+    def __init__(self, *args, **kwargs):
+        """Invalidate cache in __init__."""
+        super().__init__(*args, **kwargs)
+        self.invalidate_cache()
+
+    def invalidate_cache(self, zero_out_hits=True):
+        """Invalidates all the objects in the ORM cache."""
+        self._cache = defaultdict(dict)
+        if zero_out_hits:
+            self._cache_hits = defaultdict(int)
+
+    def get_from_orm_cache(self, parameters: Dict, model_class: Type[Model]):
+        """Retrieve an object from the ORM or the cache."""
+        parameter_set = frozenset(parameters.items())
+        content_type = ContentType.objects.get_for_model(model_class)
+        model_cache_key = f"{content_type.app_label}.{content_type.model}"
+        if cached_object := self._cache[model_cache_key].get(parameter_set):
+            self._cache_hits[model_cache_key] += 1
+            return cached_object
+        # As we are using `get` here, this will error if there is not exactly one object that corresponds to the
+        # parameter set. We intentionally pass these errors through.
+        self._cache[model_cache_key][parameter_set] = model_class.objects.get(**dict(parameter_set))
+        return self._cache[model_cache_key][parameter_set]
 
     @staticmethod
     def _get_parameter_names(diffsync_model):
@@ -265,12 +307,12 @@ class NautobotModel(DiffSyncModel):
 
     def get_from_db(self):
         """Get the ORM object for this diffsync object from the database using the identifiers."""
-        return self._model.objects.get(**self.get_identifiers())
+        return self.diffsync.get_from_orm_cache(self.get_identifiers(), self._model)
 
     def update(self, attrs):
         """Update the ORM object corresponding to this diffsync object."""
         obj = self.get_from_db()
-        self._update_obj_with_parameters(obj, attrs)
+        self._update_obj_with_parameters(obj, attrs, self.diffsync)
 
     def delete(self):
         """Delete the ORM object corresponding to this diffsync object."""
@@ -287,12 +329,12 @@ class NautobotModel(DiffSyncModel):
         # This is in fact callable, because it is a model
         obj = cls._model()  # pylint: disable=not-callable
 
-        cls._update_obj_with_parameters(obj, parameters)
+        cls._update_obj_with_parameters(obj, parameters, diffsync)
 
         return super().create(diffsync, ids, attrs)
 
     @classmethod
-    def _update_obj_with_parameters(cls, obj, parameters):
+    def _update_obj_with_parameters(cls, obj, parameters, diffsync):
         """Update a given Nautobot ORM object with the given parameters."""
         # Example: {"group": {"name": "Group Name", "_model_class": TenantGroup}}
         foreign_keys = defaultdict(dict)
@@ -337,7 +379,7 @@ class NautobotModel(DiffSyncModel):
             # we get all the related objects here to later set them once the object has been saved.
             if django_field.many_to_many or django_field.one_to_many:
                 many_to_many_fields[field] = [
-                    django_field.related_model.objects.get(**parameters) for parameters in value
+                    diffsync.get_from_orm_cache(parameters, django_field.related_model) for parameters in value
                 ]
                 continue
 
@@ -345,7 +387,7 @@ class NautobotModel(DiffSyncModel):
             setattr(obj, field, value)
 
         # Set foreign keys
-        cls._lookup_and_set_foreign_keys(foreign_keys, obj)
+        cls._lookup_and_set_foreign_keys(foreign_keys, obj, diffsync)
 
         # Save the object to the database
         try:
@@ -374,7 +416,7 @@ class NautobotModel(DiffSyncModel):
             many_to_many_field.set(related_objects)
 
     @classmethod
-    def _lookup_and_set_foreign_keys(cls, foreign_keys, obj):
+    def _lookup_and_set_foreign_keys(cls, foreign_keys, obj, diffsync):
         """
         Given a list of foreign keys as dictionaries, look up and set foreign keys on an object.
 
@@ -404,7 +446,7 @@ class NautobotModel(DiffSyncModel):
                 setattr(obj, field_name, None)
                 continue
             try:
-                related_object = related_model.objects.get(**related_model_dict)
+                related_object = diffsync.get_from_orm_cache(related_model_dict, related_model)
             except related_model.DoesNotExist as error:
                 raise ValueError(f"Couldn't find {field_name} instance with: {related_model_dict}.") from error
             except MultipleObjectsReturned as error:

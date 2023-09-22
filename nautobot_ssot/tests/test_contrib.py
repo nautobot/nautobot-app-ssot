@@ -3,6 +3,8 @@ from typing import Optional, List
 
 from diffsync.exceptions import ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from nautobot.circuits.models import Provider
 from nautobot.dcim.choices import InterfaceTypeChoices
 from nautobot.dcim.models import LocationType, Location, DeviceRole, Manufacturer, DeviceType, Device, Site, Interface
@@ -310,6 +312,41 @@ class NautobotAdapterTests(TestCase):
         )
 
 
+class CacheTests(TestCase):
+    """Tests caching functionality between the nautobot adapter and model base classes."""
+
+    def test_caching(self):
+        """Test the cache mechanism built into the Nautobot adapter."""
+        initial_tenant_group = TenantGroup.objects.create(name="Old tenants")
+        updated_tenant_group = TenantGroup.objects.create(name="New tenants")
+        for i in range(3):
+            Tenant.objects.create(name=f"Tenant {i}", group=initial_tenant_group)
+
+        adapter = TestAdapter()
+        adapter.load()
+
+        with CaptureQueriesContext(connection) as ctx:
+            for i, tenant in enumerate(adapter.get_all("tenant")):
+                tenant.update({"group__name": updated_tenant_group.name})
+            tenant_group_queries = [
+                query["sql"] for query in ctx.captured_queries if 'FROM "tenancy_tenantgroup"' in query["sql"]
+            ]
+            # One query to get the tenant group into the cache and another query per tenant during `clean`.
+            self.assertEqual(4, len(tenant_group_queries))
+        # As a consequence there should be two cache hits for 'tenancy.tenantgroup'.
+        self.assertEqual(2, adapter._cache_hits["tenancy.tenantgroup"])
+
+        with CaptureQueriesContext(connection) as ctx:
+            for i, tenant in enumerate(adapter.get_all("tenant")):
+                adapter.invalidate_cache()
+                tenant.update({"group__name": updated_tenant_group.name})
+            tenant_group_queries = [
+                query["sql"] for query in ctx.captured_queries if 'FROM "tenancy_tenantgroup"' in query["sql"]
+            ]
+            # One query per tenant to re-populate the cache and another query per tenant during `clean`.
+            self.assertEqual(6, len(tenant_group_queries))
+
+
 class BaseModelTests(TestCase):
     """Testing basic operations through 'NautobotModel'."""
 
@@ -318,7 +355,7 @@ class BaseModelTests(TestCase):
 
     def test_basic_creation(self):
         """Test whether a basic create of an object works."""
-        NautobotTenant.create(diffsync=None, ids={"name": self.tenant_name}, attrs={})
+        NautobotTenant.create(diffsync=NautobotAdapter(), ids={"name": self.tenant_name}, attrs={})
         try:
             Tenant.objects.get(name=self.tenant_name)
         except Tenant.DoesNotExist:
@@ -329,6 +366,7 @@ class BaseModelTests(TestCase):
         tenant = Tenant.objects.create(name=self.tenant_name)
         description = "An updated description"
         diffsync_tenant = NautobotTenant(name=self.tenant_name)
+        diffsync_tenant.diffsync = NautobotAdapter()
         diffsync_tenant.update(attrs={"description": description})
         tenant.refresh_from_db()
         self.assertEqual(
@@ -340,6 +378,7 @@ class BaseModelTests(TestCase):
         Tenant.objects.create(name=self.tenant_name)
 
         diffsync_tenant = NautobotTenant(name=self.tenant_name)
+        diffsync_tenant.diffsync = NautobotAdapter()
         diffsync_tenant.delete()
 
         try:
@@ -373,6 +412,7 @@ class BaseModelCustomFieldTest(TestCase):
         provider = Provider.objects.create(name=provider_name)
 
         diffsync_provider = ProviderModel(name=provider_name)
+        diffsync_provider.diffsync = NautobotAdapter()
         updated_custom_field_value = True
         diffsync_provider.update(attrs={"is_global": updated_custom_field_value})
 
@@ -390,12 +430,17 @@ class BaseModelForeignKeyTest(TestCase):
     tenant_name = "Test Tenant"
     tenant_group_name = "Test Tenant Group"
 
+    def setUp(self):
+        self.adapter = NautobotAdapter()
+        self.adapter.invalidate_cache()
+
     def test_foreign_key_add(self):
         """Test whether setting a foreign key works."""
         group = TenantGroup.objects.create(name=self.tenant_group_name)
         tenant = Tenant.objects.create(name=self.tenant_name)
 
         diffsync_tenant = NautobotTenant(name=self.tenant_name)
+        diffsync_tenant.diffsync = self.adapter
         diffsync_tenant.update(attrs={"group__name": self.tenant_group_name})
 
         tenant.refresh_from_db()
@@ -407,6 +452,7 @@ class BaseModelForeignKeyTest(TestCase):
         tenant = Tenant.objects.create(name=self.tenant_name, group=group)
 
         diffsync_tenant = NautobotTenant(name=self.tenant_name, group__name=self.tenant_group_name)
+        diffsync_tenant.diffsync = self.adapter
         diffsync_tenant.update(attrs={"group__name": None})
 
         tenant.refresh_from_db()
@@ -445,6 +491,7 @@ class BaseModelForeignKeyTest(TestCase):
             location__name=location_a.name,
             location__location_type__name=location_a.location_type.name,
         )
+        prefix_diffsync.diffsync = self.adapter
 
         prefix_diffsync.update(
             attrs={"location__name": location_b.name, "location__location_type__name": location_b.location_type.name}
@@ -464,6 +511,7 @@ class BaseModelGenericRelationTest(TestCaseWithDeviceData):
         diffsync_interface = NautobotInterface(
             name=self.interface_name, device__name=self.device_name, type=InterfaceTypeChoices.TYPE_VIRTUAL
         )
+        diffsync_interface.diffsync = NautobotAdapter()
         diffsync_interface.update(
             attrs={
                 "ip_addresses": [
@@ -477,7 +525,7 @@ class BaseModelGenericRelationTest(TestCaseWithDeviceData):
 
     def test_generic_relation_add_backwards(self):
         diffsync_ip_address = NautobotIPAddress.create(
-            diffsync=None,
+            diffsync=NautobotAdapter(),
             ids={"host": "192.0.2.1", "prefix_length": 24},
             attrs={
                 "status__name": "Active",
@@ -508,6 +556,7 @@ class BaseModelManyToManyTest(TestCase):
         tenant.tags.add(self.tags[0])
 
         diffsync_tenant = NautobotTenant(name=self.tenant_name, tags=[{"name": self.tags[0].name}])
+        diffsync_tenant.diffsync = NautobotAdapter()
         diffsync_tenant.update(attrs={"tags": [{"name": tag.name} for tag in self.tags]})
 
         tenant.refresh_from_db()
@@ -523,6 +572,7 @@ class BaseModelManyToManyTest(TestCase):
         tenant.tags.set(self.tags)
 
         diffsync_tenant = NautobotTenant(name=self.tenant_name, tags=[{"name": tag.name} for tag in self.tags])
+        diffsync_tenant.diffsync = NautobotAdapter()
         diffsync_tenant.update(attrs={"tags": [{"name": self.tags[0].name}]})
 
         tenant.refresh_from_db()
@@ -538,6 +588,7 @@ class BaseModelManyToManyTest(TestCase):
         tenant.tags.set(self.tags)
 
         diffsync_tenant = NautobotTenant(name=self.tenant_name, tags=[{"name": tag.name} for tag in self.tags])
+        diffsync_tenant.diffsync = NautobotAdapter()
         diffsync_tenant.update(attrs={"tags": []})
 
         tenant.refresh_from_db()
@@ -554,6 +605,7 @@ class BaseModelManyToManyTest(TestCase):
 
         content_types = [{"app_label": "dcim", "model": "device"}, {"app_label": "circuits", "model": "provider"}]
         tag_diffsync = TagModel(name=name)
+        tag_diffsync.diffsync = NautobotAdapter()
         tag_diffsync.update(attrs={"content_types": content_types})
 
         tag.refresh_from_db()
@@ -572,6 +624,7 @@ class BaseModelManyToManyTest(TestCase):
         tag.content_types.set([ContentType.objects.get(**parameters) for parameters in content_types])
 
         tag_diffsync = TagModel(name=name)
+        tag_diffsync.diffsync = NautobotAdapter()
         tag_diffsync.update(attrs={"content_types": []})
 
         tag.refresh_from_db()
