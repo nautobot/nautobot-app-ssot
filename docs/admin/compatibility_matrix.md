@@ -8,3 +8,5 @@ While that last supported version will not be strictly enforced--via the max_ver
 | 1.1.X                          | 1.0.3                          | 1.99.99                       |
 | 1.2.X                          | 1.0.3                          | 1.99.99                       |
 | 1.3.X                          | 1.4.0                          | 1.99.99                       |
+| 1.4.X                          | 1.4.0                          | 1.99.99                       |
+| 1.5.X                          | 1.4.0                          | 1.99.99                       |
