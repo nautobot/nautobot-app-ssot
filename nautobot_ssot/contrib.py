@@ -271,10 +271,12 @@ class NautobotModel(DiffSyncModel):
         """Update the ORM object corresponding to this diffsync object."""
         obj = self.get_from_db()
         self._update_obj_with_parameters(obj, attrs)
+        return super().update(attrs)
 
     def delete(self):
         """Delete the ORM object corresponding to this diffsync object."""
         self.get_from_db().delete()
+        return super().delete()
 
     @classmethod
     def create(cls, diffsync, ids, attrs):
