@@ -12,7 +12,7 @@ from nautobot_ssot.integrations.device42.diffsync.adapters.nautobot import Nauto
 from nautobot_ssot.integrations.device42.utils.device42 import Device42API
 
 
-name = "Device42 SSoT"  # pylint: disable=invalid-name
+name = "SSoT - Device42"  # pylint: disable=invalid-name
 
 
 class Device42DataSource(DataSource, Job):
