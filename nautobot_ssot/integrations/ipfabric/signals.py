@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices
-from nautobot.utilities.choices import ColorChoices
+from nautobot.core.choices import ColorChoices
 
 
 def register_signals(sender):
@@ -28,7 +28,7 @@ def create_custom_field(field_name: str, label: str, models: List, apps, cf_type
     if cf_type == "type_date":
         custom_field, _ = CustomField.objects.get_or_create(
             type=CustomFieldTypeChoices.TYPE_DATE,
-            name=field_name,
+            label=field_name,
             defaults={
                 "label": label,
             },
@@ -36,7 +36,7 @@ def create_custom_field(field_name: str, label: str, models: List, apps, cf_type
     else:
         custom_field, _ = CustomField.objects.get_or_create(
             type=CustomFieldTypeChoices.TYPE_TEXT,
-            name=field_name,
+            label=field_name,
             defaults={
                 "label": label,
             },
@@ -51,16 +51,15 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     # pylint: disable=invalid-name
     Device = apps.get_model("dcim", "Device")
     DeviceType = apps.get_model("dcim", "DeviceType")
-    DeviceRole = apps.get_model("dcim", "DeviceRole")
+    Role = apps.get_model("extras", "Role")
     Interface = apps.get_model("dcim", "Interface")
     IPAddress = apps.get_model("ipam", "IPAddress")
     Manufacturer = apps.get_model("dcim", "Manufacturer")
-    Site = apps.get_model("dcim", "Site")
+    Location = apps.get_model("dcim", "Location")
     VLAN = apps.get_model("ipam", "VLAN")
     Tag = apps.get_model("extras", "Tag")
 
     Tag.objects.get_or_create(
-        slug="ssot-synced-from-ipfabric",
         name="SSoT Synced from IPFabric",
         defaults={
             "description": "Object synced at some point from IPFabric to Nautobot",
@@ -68,15 +67,14 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         },
     )
     Tag.objects.get_or_create(
-        slug="ssot-safe-delete",
         name="SSoT Safe Delete",
         defaults={
             "description": "Safe Delete Mode tag to flag an object, but not delete from Nautobot.",
             "color": ColorChoices.COLOR_RED,
         },
     )
-    synced_from_models = [Device, DeviceType, Interface, Manufacturer, Site, VLAN, DeviceRole, IPAddress]
+    synced_from_models = [Device, DeviceType, Interface, Manufacturer, Location, VLAN, Role, IPAddress]
     create_custom_field("ssot-synced-from-ipfabric", "Last synced from IPFabric on", synced_from_models, apps=apps)
-    site_model = [Site]
-    create_custom_field("ipfabric-site-id", "IPFabric Site ID", site_model, apps=apps, cf_type="type_text")
-    create_custom_field("ipfabric_type", "IPFabric Type", [DeviceRole], apps=apps, cf_type="type_text")
+    location_model = [Location]
+    create_custom_field("ipfabric-site-id", "IPFabric Location ID", location_model, apps=apps, cf_type="type_text")
+    create_custom_field("ipfabric_type", "IPFabric Type", [Role], apps=apps, cf_type="type_text")

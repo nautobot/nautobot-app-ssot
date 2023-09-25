@@ -3,16 +3,16 @@
 # Load method is packed with conditionals  #  pylint: disable=too-many-branches
 """DiffSync adapter class for Nautobot as source-of-truth."""
 from collections import defaultdict
-from typing import Any, ClassVar, List
+from typing import Any, ClassVar, List, Optional
 
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectAlreadyExists
 from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError, Q
-from nautobot.dcim.models import Device, Site
+from nautobot.dcim.models import Device, Location
 from nautobot.extras.models import Tag
 from nautobot.ipam.models import VLAN, Interface
-from nautobot.utilities.choices import ColorChoices
+from nautobot.core.choices import ColorChoices
 from netutils.mac import mac_to_format
 
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
@@ -31,7 +31,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
 
     _vlan: ClassVar[Any] = VLAN
     _device: ClassVar[Any] = Device
-    _site: ClassVar[Any] = Site
+    _location: ClassVar[Any] = Location
     _interface: ClassVar[Any] = Interface
 
     def __init__(
@@ -39,7 +39,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         job,
         sync,
         sync_ipfabric_tagged_only: bool,
-        site_filter: Site,
+        location_filter: Optional[Location],
         *args,
         **kwargs,
     ):
@@ -48,7 +48,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         self.job = job
         self.sync = sync
         self.sync_ipfabric_tagged_only = sync_ipfabric_tagged_only
-        self.site_filter = site_filter
+        self.location_filter = location_filter
 
     def sync_complete(self, source: DiffSync, *args, **kwargs):
         """Clean up function for DiffSync sync.
@@ -63,7 +63,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             "_vlan",
             "_interface",
             "_device",
-            "_site",
+            "_location",
         ):
             for nautobot_object in self.objects_to_delete[grouping]:
                 if NautobotDiffSync.safe_delete_mode:
@@ -125,7 +125,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 role=str(device_record.device_role.cf.get("ipfabric_type"))
                 if str(device_record.device_role.cf.get("ipfabric_type"))
                 else str(device_record.device_role),
-                location_name=device_record.site.name,
+                location_name=device_record.location.name,
                 vendor=str(device_record.device_type.manufacturer),
                 status=device_record.status.name,
                 serial_number=device_record.serial if device_record.serial else "",
@@ -147,7 +147,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             vlan = self.vlan(
                 diffsync=self,
                 name=vlan_record.name,
-                site=vlan_record.site.name,
+                location=vlan_record.location.name,
                 status=vlan_record.status.name if vlan_record.status else "Active",
                 vid=vlan_record.vid,
                 vlan_pk=vlan_record.pk,
@@ -160,74 +160,77 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 continue
             location.add_child(vlan)
 
-    def get_initial_site(self, ssot_tag: Tag):
-        """Identify the site objects based on user defined job inputs.
+    def get_initial_location(self, ssot_tag: Tag):
+        """Identify the location objects based on user defined job inputs.
 
         Args:
             ssot_tag (Tag): Tag used for filtering
         """
         # Simple check / validate Tag is present.
         if self.sync_ipfabric_tagged_only:
-            site_objects = Site.objects.filter(tags__slug=ssot_tag.slug)
-            if self.site_filter:
-                site_objects = Site.objects.filter(Q(name=self.site_filter.name) & Q(tags__slug=ssot_tag.slug))
-                if not site_objects:
+            location_objects = Location.objects.filter(tags__name=ssot_tag.name)
+            if self.location_filter:
+                location_objects = Location.objects.filter(
+                    Q(name=self.location_filter.name) & Q(tags__name=ssot_tag.name)
+                )
+                if not location_objects:
                     self.job.log_warning(
-                        message=f"{self.site_filter.name} was used to filter, alongside SSoT Tag. {self.site_filter.name} is not tagged."
+                        message=f"{self.location_filter.name} was used to filter, alongside SSoT Tag. {self.location_filter.name} is not tagged."
                     )
         elif not self.sync_ipfabric_tagged_only:
-            if self.site_filter:
-                site_objects = Site.objects.filter(name=self.site_filter.name)
+            if self.location_filter:
+                location_objects = Location.objects.filter(name=self.location_filter.name)
             else:
-                site_objects = Site.objects.all()
-        return site_objects
+                location_objects = Location.objects.all()
+        return location_objects
 
     @transaction.atomic
     def load_data(self):
-        """Add Nautobot Site objects as DiffSync Location models."""
+        """Add Nautobot Location objects as DiffSync Location models."""
         ssot_tag, _ = Tag.objects.get_or_create(
-            slug="ssot-synced-from-ipfabric",
             name="SSoT Synced from IPFabric",
             defaults={
                 "description": "Object synced at some point from IPFabric to Nautobot",
                 "color": ColorChoices.COLOR_LIGHT_GREEN,
             },
         )
-        site_objects = self.get_initial_site(ssot_tag)
-        # The parent object that stores all children, is the Site.
-        self.job.log_debug(message=f"Found {site_objects.count()} Nautobot Site objects to start sync from")
+        location_objects = self.get_initial_location(ssot_tag)
+        # The parent object that stores all children, is the Location.
+        self.job.log_debug(message=f"Found {location_objects.count()} Nautobot Location objects to start sync from")
 
-        if site_objects:
-            for site_record in site_objects:
+        if location_objects:
+            for location_record in location_objects:
                 try:
                     location = self.location(
                         diffsync=self,
-                        name=site_record.name,
-                        site_id=site_record.custom_field_data.get("ipfabric-site-id"),
-                        status=site_record.status.name,
+                        name=location_record.name,
+                        site_id=location_record.custom_field_data.get("ipfabric-site-id"),
+                        status=location_record.status.name,
                     )
                 except AttributeError:
                     self.job.log_debug(
-                        message=f"Error loading {site_record}, invalid or missing attributes on object. Skipping..."
+                        message=f"Error loading {location_record}, invalid or missing attributes on object. Skipping..."
                     )
                     continue
                 self.add(location)
                 try:
-                    # Load Site's Children - Devices with Interfaces, if any.
+                    # Load Location's Children - Devices with Interfaces, if any.
                     if self.sync_ipfabric_tagged_only:
-                        nautobot_site_devices = Device.objects.filter(Q(site=site_record) & Q(tags__slug=ssot_tag.slug))
+                        nautobot_location_devices = Device.objects.filter(
+                            Q(location=location_record) & Q(tags__name=ssot_tag.name)
+                        )
                     else:
-                        nautobot_site_devices = Device.objects.filter(site=site_record)
-                    if nautobot_site_devices.exists():
-                        self.load_device(nautobot_site_devices, location)
+                        nautobot_location_devices = Device.objects.filter(location=location_record)
+                    if nautobot_location_devices.exists():
+                        self.load_device(nautobot_location_devices, location)
 
-                    # Load Site Children - Vlans, if any.
-                    nautobot_site_vlans = VLAN.objects.filter(site=site_record)
-                    if not nautobot_site_vlans.exists():
+                    # Load Location Children - Vlans, if any.
+                    nautobot_location_vlans = VLAN.objects.filter(location=location_record)
+                    if not nautobot_location_vlans.exists():
                         continue
-                    self.load_vlans(nautobot_site_vlans, location)
-                except Site.DoesNotExist:
-                    self.job.log_info(message=f"Unable to find Site, {site_record}.")
+                    self.load_vlans(nautobot_location_vlans, location)
+                except Location.DoesNotExist:
+                    self.job.log_info(message=f"Unable to find Location, {location_record}.")
         else:
             self.job.log_warning(message="No Nautobot records to load.")
 

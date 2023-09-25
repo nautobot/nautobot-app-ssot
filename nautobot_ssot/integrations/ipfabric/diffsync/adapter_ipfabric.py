@@ -34,14 +34,14 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         self.client = client
 
     def load_sites(self):
-        """Add IP Fabric Site objects as DiffSync Location models."""
+        """Add IP Fabric Location objects as DiffSync Location models."""
         sites = self.client.inventory.sites.all()
         for site in sites:
             try:
                 location = self.location(diffsync=self, name=site["siteName"], site_id=site["id"], status="Active")
                 self.add(location)
             except ObjectAlreadyExists:
-                self.job.log_debug(message=f"Duplicate Site discovered, {site}")
+                self.job.log_debug(message=f"Duplicate Location discovered, {site}")
 
     def load_device_interfaces(self, device_model, interfaces, device_primary_ip):
         """Create and load DiffSync Interface model objects for a specific device."""

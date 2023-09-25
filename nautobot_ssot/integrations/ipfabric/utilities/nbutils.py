@@ -5,47 +5,44 @@ from typing import Any, Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import IntegrityError
-from django.utils.text import slugify
 from nautobot.dcim.models import (
     Device,
-    DeviceRole,
     DeviceType,
     Interface,
     Manufacturer,
-    Site,
+    Location,
 )
 from nautobot.extras.choices import CustomFieldTypeChoices
-from nautobot.extras.models import CustomField, Tag
+from nautobot.extras.models import CustomField, Role, Tag
 from nautobot.extras.models.statuses import Status
 from nautobot.ipam.models import VLAN, IPAddress
-from nautobot.utilities.choices import ColorChoices
+from nautobot.core.choices import ColorChoices
 from netutils.ip import netmask_to_cidr
 
 from nautobot_ssot.integrations.ipfabric.constants import ALLOW_DUPLICATE_ADDRESSES
 
 
-def create_site(site_name, site_id=None):
-    """Creates a specified site in Nautobot.
+def create_location(location_name, location_id=None):
+    """Creates a specified location in Nautobot.
 
     Args:
-        site_name (str): Name of the site.
-        site_id (str): ID of the site.
+        location_name (str): Name of the location.
+        location_id (str): ID of the location.
     """
-    site_obj, _ = Site.objects.get_or_create(name=site_name)
-    site_obj.slug = slugify(site_name)
-    site_obj.status = Status.objects.get(name="Active")
-    if site_id:
+    location_obj, _ = Location.objects.get_or_create(name=location_name)
+    location_obj.status = Status.objects.get(name="Active")
+    if location_id:
         # Ensure custom field is available
         custom_field_obj, _ = CustomField.objects.get_or_create(
             type=CustomFieldTypeChoices.TYPE_TEXT,
-            name="ipfabric-site-id",
-            defaults={"label": "IPFabric Site ID"},
+            label="ipfabric-site-id",
+            defaults={"label": "IPFabric Location ID"},
         )
-        custom_field_obj.content_types.add(ContentType.objects.get_for_model(Site))
-        site_obj.cf["ipfabric-site-id"] = site_id
-        site_obj.validated_save()
-    tag_object(nautobot_object=site_obj, custom_field="ssot-synced-from-ipfabric")
-    return site_obj
+        custom_field_obj.content_types.add(ContentType.objects.get_for_model(Location))
+        location_obj.cf["ipfabric-site-id"] = location_id
+        location_obj.validated_save()
+    tag_object(nautobot_object=location_obj, custom_field="ssot-synced-from-ipfabric")
+    return location_obj
 
 
 def create_manufacturer(vendor_name):
@@ -63,9 +60,7 @@ def create_device_type_object(device_type, vendor_name):
         vendor_name (str): Vendor Name
     """
     mf_name = create_manufacturer(vendor_name)
-    device_type_obj, _ = DeviceType.objects.get_or_create(
-        manufacturer=mf_name, model=device_type, slug=slugify(device_type)
-    )
+    device_type_obj, _ = DeviceType.objects.get_or_create(manufacturer=mf_name, model=device_type)
     tag_object(nautobot_object=device_type_obj, custom_field="ssot-synced-from-ipfabric")
     return device_type_obj
 
@@ -79,11 +74,12 @@ def get_or_create_device_role_object(role_name, role_color):
     """
     # adds custom field to map custom role names to ipfabric type names
     try:
-        role_obj = DeviceRole.objects.get(_custom_field_data__ipfabric_type=role_name)
-    except DeviceRole.DoesNotExist:
-        role_obj = DeviceRole.objects.create(name=role_name, slug=slugify(role_name), color=role_color)
+        role_obj = Role.objects.get(_custom_field_data__ipfabric_type=role_name)
+    except Role.DoesNotExist:
+        role_obj = Role.objects.create(name=role_name, color=role_color)
         role_obj.cf["ipfabric_type"] = role_name
         role_obj.validated_save()
+        role_obj.content_types.set([ContentType.objects.get_for_model(Device)])
         tag_object(nautobot_object=role_obj, custom_field="ssot-synced-from-ipfabric")
     return role_obj
 
@@ -104,7 +100,6 @@ def create_status(status_name, status_color, description="", app_label="dcim", m
         content_type = ContentType.objects.get(app_label=app_label, model=model)
         status_obj = Status.objects.create(
             name=status_name,
-            slug=slugify(status_name),
             color=status_color,
             description=description,
         )
@@ -123,7 +118,7 @@ def create_ip(ip_address, subnet_mask, status="Active", object_pk=None):
         status (str): Status to assign to IP Address.
         object_pk: Object primary key
     """
-    status_obj = Status.objects.get_for_model(IPAddress).get(slug=slugify(status))
+    status_obj = Status.objects.get_for_model(IPAddress).get(name=status)
     cidr = netmask_to_cidr(subnet_mask)
     if ALLOW_DUPLICATE_ADDRESSES:
         addr = IPAddress.objects.filter(host=ip_address)
@@ -179,20 +174,20 @@ def create_interface(device_obj, interface_details):
     return interface_obj
 
 
-def create_vlan(vlan_name: str, vlan_id: int, vlan_status: str, site_obj: Site, description: str):
+def create_vlan(vlan_name: str, vlan_id: int, vlan_status: str, location_obj: Location, description: str):
     """Creates or obtains VLAN object.
 
     Args:
         vlan_name (str): VLAN Name
         vlan_id (int): VLAN ID
         vlan_status (str): VLAN Status
-        site_obj (Site): Site Django Model
+        location_obj (Location): Location Django Model
         description (str): VLAN Description
 
     Returns:
         (VLAN): Returns created or obtained VLAN object.
     """
-    vlan_obj, _ = site_obj.vlans.get_or_create(
+    vlan_obj, _ = location_obj.vlans.get_or_create(
         name=vlan_name, vid=vlan_id, status=Status.objects.get(name=vlan_status), description=description
     )
     tag_object(nautobot_object=vlan_obj, custom_field="ssot-synced-from-ipfabric")
@@ -209,7 +204,6 @@ def tag_object(nautobot_object: Any, custom_field: str, tag_name: Optional[str] 
     """
     if tag_name == "SSoT Synced from IPFabric":
         tag, _ = Tag.objects.get_or_create(
-            slug="ssot-synced-from-ipfabric",
             name="SSoT Synced from IPFabric",
             defaults={
                 "description": "Object synced at some point from IPFabric to Nautobot",
@@ -227,10 +221,10 @@ def tag_object(nautobot_object: Any, custom_field: str, tag_name: Optional[str] 
             nautobot_object.tags.add(tag)
         if hasattr(nautobot_object, "cf"):
             # Ensure that the "ssot-synced-from-ipfabric" custom field is present
-            if not any(cfield for cfield in CustomField.objects.all() if cfield.name == "ssot-synced-from-ipfabric"):
+            if not any(cfield for cfield in CustomField.objects.all() if cfield.label == "ssot-synced-from-ipfabric"):
                 custom_field_obj, _ = CustomField.objects.get_or_create(
                     type=CustomFieldTypeChoices.TYPE_DATE,
-                    name="ssot-synced-from-ipfabric",
+                    label="ssot-synced-from-ipfabric",
                     defaults={
                         "label": "Last synced from IPFabric on",
                     },
@@ -240,9 +234,9 @@ def tag_object(nautobot_object: Any, custom_field: str, tag_name: Optional[str] 
                     DeviceType,
                     Interface,
                     Manufacturer,
-                    Site,
+                    Location,
                     VLAN,
-                    DeviceRole,
+                    Role,
                     IPAddress,
                 ]
                 for model in synced_from_models:

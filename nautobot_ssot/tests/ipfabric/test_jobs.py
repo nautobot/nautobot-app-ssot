@@ -30,10 +30,10 @@ class IPFabricJobTest(TestCase):
         self.assertEqual("Device", mappings[0].target_name)
         self.assertEqual(reverse("dcim:device_list"), mappings[0].target_url)
 
-        self.assertEqual("Site", mappings[1].source_name)
+        self.assertEqual("Location", mappings[1].source_name)
         self.assertIsNone(mappings[1].source_url)
-        self.assertEqual("Site", mappings[1].target_name)
-        self.assertEqual(reverse("dcim:site_list"), mappings[1].target_url)
+        self.assertEqual("Location", mappings[1].target_name)
+        self.assertEqual(reverse("dcim:location_list"), mappings[1].target_url)
 
         self.assertEqual("Interfaces", mappings[2].source_name)
         self.assertIsNone(mappings[2].source_url)

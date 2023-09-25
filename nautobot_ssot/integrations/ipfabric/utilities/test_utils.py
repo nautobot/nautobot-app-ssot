@@ -1,8 +1,8 @@
 """Test Utils."""
 import json
 
-from nautobot.dcim.models.sites import Site
-from nautobot.ipam.models import VLAN, Device
+from nautobot.dcim.models import Device, Location
+from nautobot.ipam.models import VLAN
 
 
 def json_fixture(json_file_path):
@@ -18,4 +18,4 @@ def clean_slate():
     """
     VLAN.objects.all().delete()
     Device.objects.all().delete()
-    Site.objects.all().delete()
+    Location.objects.all().delete()

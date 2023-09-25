@@ -4131,7 +4131,7 @@ aci = ["PyYAML"]
 all = ["Jinja2", "PyYAML", "cloudvision", "cvprac", "dnspython", "ijson", "ipfabric", "ipfabric-diagrams", "netutils", "oauthlib", "python-magic", "pytz", "requests", "requests-oauthlib", "six"]
 aristacv = ["cloudvision", "cvprac"]
 infoblox = ["dnspython"]
-ipfabric = ["ipfabric", "ipfabric-diagrams", "netutils"]
+ipfabric = ["httpx", "ipfabric", "ipfabric-diagrams", "netutils"]
 nautobot-device-lifecycle-mgmt = []
 pysnow = ["ijson", "oauthlib", "python-magic", "pytz", "requests", "requests-oauthlib", "six"]
 servicenow = ["Jinja2", "PyYAML", "ijson", "oauthlib", "python-magic", "pytz", "requests", "requests-oauthlib", "six"]
@@ -4139,4 +4139,4 @@ servicenow = ["Jinja2", "PyYAML", "ijson", "oauthlib", "python-magic", "pytz", "
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8,<3.12"
-content-hash = "74bb9f18d7c7ca540f53cab1d8f0168ae3c5140ce27abb47554aa68998becbe2"
+content-hash = "814f81470e03cc59f97b56eb8d33760113e3b2ffd011c6ebd135adec74b75b39"
