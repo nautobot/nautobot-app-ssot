@@ -1,0 +1,17 @@
+{
+    "Test Custom Field": {
+        "key": "Test Custom Field",
+        "value": null,
+        "notes": null
+    },
+    "Environment": {
+        "key": "Environment",
+        "value": null,
+        "notes": null
+    },
+    "Department": {
+        "key": "Department",
+        "value": null,
+        "notes": null
+    }
+}

@@ -1,0 +1,26 @@
+{
+    "172.16.0.0/12": {
+        "Department": {
+            "key": "Department",
+            "value": "Billing",
+            "notes": null
+        },
+        "Public Subnet": {
+            "key": "Public Subnet",
+            "value": "Yes",
+            "notes": null
+        }
+    },
+    "172.16.0.0/24": {
+        "Department": {
+            "key": "Department",
+            "value": "Billing",
+            "notes": null
+        },
+        "Public Subnet": {
+            "key": "Public Subnet",
+            "value": "Yes",
+            "notes": null
+        }
+    }
+}

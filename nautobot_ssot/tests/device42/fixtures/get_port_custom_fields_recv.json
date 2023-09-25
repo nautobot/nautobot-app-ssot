@@ -1,0 +1,16 @@
+{
+    "core-router.testexample.com": {
+        "Ethernet1/1": {
+            "Software Version": {
+                "key": "Software Version",
+                "value": "10R.2D.2",
+                "notes": null
+            },
+            "EOL Date": {
+                "key": "EOL Date",
+                "value": "12/31/2999",
+                "notes": null
+            }
+        }
+    }
+}

@@ -1,0 +1,47 @@
+[
+    {
+        "room_pk": 1,
+        "name": "AUS Primary IDF",
+        "building_fk": 1,
+        "notes": "",
+        "grid_cols": 5,
+        "grid_rows": 11,
+        "height": null,
+        "height_units": "m",
+        "grid_size": null,
+        "raised_floor": true,
+        "raised_floor_height": null,
+        "tags": "",
+        "last_changed": "2000-12-12T00:12:00.123456+00:00"
+    },
+    {
+        "room_pk": 2,
+        "name": "SFO Primary IDF",
+        "building_fk": 2,
+        "notes": "",
+        "grid_cols": 5,
+        "grid_rows": 11,
+        "height": null,
+        "height_units": "m",
+        "grid_size": null,
+        "raised_floor": true,
+        "raised_floor_height": null,
+        "tags": "",
+        "last_changed": "2000-12-12T00:12:00.123456+00:00"
+    },
+    {
+        "room_pk": 3,
+        "name": "SEA Primary IDF",
+        "building_fk": 3,
+        "notes": "",
+        "grid_cols": 0,
+        "grid_rows": 0,
+        "height": null,
+        "height_units": "m",
+        "grid_size": null,
+        "raised_floor": true,
+        "raised_floor_height": null,
+        "tags": "",
+        "last_changed": "2000-12-12T00:12:00.123456+00:00"
+    }
+]

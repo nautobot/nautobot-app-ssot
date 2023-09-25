@@ -1,0 +1,14 @@
+[
+    {
+        "name": "core-router.testexample.com",
+        "device_pk": 1
+    },
+    {
+        "name": "aggr-switch.testexample.com",
+        "device_pk": 2
+    },
+    {
+        "name": "distro-switch.testexample.com",
+        "device_pk": 3
+    }
+]

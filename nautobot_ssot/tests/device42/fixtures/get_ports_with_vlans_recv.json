@@ -1,0 +1,19 @@
+[
+    {
+        "vlan_ids": [
+            "1"
+        ],
+        "netport_pk": 4,
+        "port_name": "GigabitEthernet1/0/1",
+        "description": "GigabitEthernet1/0/1",
+        "up": true,
+        "up_admin": true,
+        "discovered_type": "ethernetCsmacd",
+        "hwaddress": "abcdef012345",
+        "port_type": "physical",
+        "port_speed": "1.0 Gbps",
+        "mtu": 1518,
+        "tags": "first-tag,second-tag",
+        "device_name": "core-router.testexample.com"
+    }
+]

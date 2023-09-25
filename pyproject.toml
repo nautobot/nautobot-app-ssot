@@ -124,6 +124,9 @@ aristacv = [
     "cloudvision",
     "cvprac",
 ]
+device42 = [
+    "requests",
+]
 infoblox = [
     "dnspython",
 ]

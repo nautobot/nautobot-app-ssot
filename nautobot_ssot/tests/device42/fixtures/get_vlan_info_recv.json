@@ -1,0 +1,28 @@
+{
+    "1": {
+        "name": "Public",
+        "vid": 100,
+        "custom_fields": {
+            "Owner": {
+                "key": "Owner",
+                "value": "IT",
+                "notes": null
+            }
+        }
+    },
+    "2": {
+        "name": "DMZ",
+        "vid": 200,
+        "custom_fields": {
+            "Purpose": {
+                "key": "Purpose",
+                "value": "Servers",
+                "notes": null
+            }
+        }
+    },
+    "3": {
+        "name": "App",
+        "vid": 300
+    }
+}

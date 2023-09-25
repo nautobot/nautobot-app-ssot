@@ -1,0 +1,28 @@
+[
+    {
+        "netport_pk": 1,
+        "port_name": "FortyGigabitEthernet1/1/1",
+        "description": "Fo1/1/1",
+        "up_admin": true,
+        "discovered_type": "ethernetCsmacd",
+        "hwaddress": "012345678abc",
+        "port_type": "physical",
+        "port_speed": "40 Gbps",
+        "mtu": 1500,
+        "tags": "first-tag,second-tag",
+        "device_name": "core-router.testexample.com"
+    },
+    {
+        "netport_pk": 2,
+        "port_name": "FortyGigabitEthernet1/1/2",
+        "description": "Fo1/1/2",
+        "up_admin": true,
+        "discovered_type": "ethernetCsmacd",
+        "hwaddress": "012345678abd",
+        "port_type": "physical",
+        "port_speed": "40 Gbps",
+        "mtu": 1500,
+        "tags": "",
+        "device_name": "core-router.testexample.com"
+    }
+]

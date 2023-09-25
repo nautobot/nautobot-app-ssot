@@ -1,0 +1,18 @@
+[
+    {
+        "key": "Public Subnet",
+        "value": "Yes",
+        "notes": null,
+        "subnet_name": "Public",
+        "network": "172.16.0.0",
+        "mask_bits": 12
+    },
+    {
+        "key": "Department",
+        "value": "Billing",
+        "notes": null,
+        "subnet_name": "Billing",
+        "network": "172.16.0.0",
+        "mask_bits": 24
+    }
+]
