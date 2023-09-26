@@ -30,6 +30,7 @@ def _check_for_conflicting_apps():
     if intersection:
         raise RuntimeError(
             f"The following apps are installed and conflict with `nautobot-ssot`: {', '.join(intersection)}."
+            "See: https://docs.nautobot.com/projects/ssot/en/latest/admin/upgrade/#potential-apps-conflicts"
         )
 
 
