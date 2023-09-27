@@ -19,6 +19,7 @@ __version__ = metadata.version(__name__)
 _CONFLICTING_APP_NAMES = [
     "nautobot_ssot_aci",
     "nautobot_ssot_aristacv",
+    "nautobot_ssot_device42",
     "nautobot_ssot_infoblox",
     "nautobot_ssot_ipfabric",
     "nautobot_ssot_servicenow",
