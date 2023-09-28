@@ -55,6 +55,10 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
         """Test the load() function."""
         job = self.job_class()
         job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
+        # Get rid of the automatically created 'site' type locations from the ACI integration.
+        # TODO: I am not in love with this approach, there should rather be a way to disable automatic creation of
+        #  objects from the different integrations.
+        Location.objects.filter(location_type__name="Site").exclude(name__contains="Site").delete()
         nds = NautobotDiffSync(job=job, sync=None)
         nds.load()
 
