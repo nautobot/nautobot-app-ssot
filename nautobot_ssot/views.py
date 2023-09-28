@@ -122,6 +122,7 @@ class SyncBulkDeleteView(BulkDeleteView):
 
     queryset = Sync.objects.all()
     table = SyncTable
+    filterset = SyncFilterSet
 
 
 class SyncView(ObjectView):
