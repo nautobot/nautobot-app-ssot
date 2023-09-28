@@ -4,6 +4,7 @@
 """DiffSync adapter class for Nautobot as source-of-truth."""
 from collections import defaultdict
 from typing import Any, ClassVar, List, Optional
+import logging
 
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectAlreadyExists
@@ -22,6 +23,8 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_INTERFACE_MTU,
     DEFAULT_INTERFACE_MAC,
 )
+
+logger = logging.getLogger("nautobot.ssot.ipfabric")
 
 
 class NautobotDiffSync(DiffSyncModelAdapters):
@@ -71,11 +74,9 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 try:
                     nautobot_object.delete()
                 except ProtectedError:
-                    self.job.log_failure(obj=nautobot_object, message="Deletion failed protected object")
+                    logger.warning("Deletion failed protected object", extra={"object": nautobot_object})
                 except IntegrityError:
-                    self.job.log_failure(
-                        obj=nautobot_object, message=f"Deletion failed due to IntegrityError with {nautobot_object}"
-                    )
+                    logger.warning(f"Deletion failed due to IntegrityError with {nautobot_object}")
 
             self.objects_to_delete[grouping] = []
         return super().sync_complete(source, *args, **kwargs)
@@ -117,14 +118,15 @@ class NautobotDiffSync(DiffSyncModelAdapters):
     def load_device(self, filtered_devices: List, location):
         """Load Devices from Nautobot."""
         for device_record in filtered_devices:
-            self.job.log_debug(message=f"Loading Nautobot Device: {device_record.name}")
+            if self.job.debug:
+                logger.debug(f"Loading Nautobot Device: {device_record.name}")
             device = self.device(
                 diffsync=self,
                 name=device_record.name,
                 model=str(device_record.device_type),
-                role=str(device_record.device_role.cf.get("ipfabric_type"))
-                if str(device_record.device_role.cf.get("ipfabric_type"))
-                else str(device_record.device_role),
+                role=str(device_record.role.cf.get("ipfabric_type"))
+                if str(device_record.role.cf.get("ipfabric_type"))
+                else str(device_record.role),
                 location_name=device_record.location.name,
                 vendor=str(device_record.device_type.manufacturer),
                 status=device_record.status.name,
@@ -133,7 +135,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             try:
                 self.add(device)
             except ObjectAlreadyExists:
-                self.job.log_debug(message=f"Duplicate device discovered, {device_record.name}")
+                logger.warning(f"Duplicate device discovered, {device_record.name}")
                 continue
 
             location.add_child(device)
@@ -156,7 +158,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             try:
                 self.add(vlan)
             except ObjectAlreadyExists:
-                self.job.log_debug(message=f"Duplicate VLAN discovered, {vlan_record.name}")
+                logger.warning(f"Duplicate VLAN discovered, {vlan_record.name}")
                 continue
             location.add_child(vlan)
 
@@ -174,8 +176,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                     Q(name=self.location_filter.name) & Q(tags__name=ssot_tag.name)
                 )
                 if not location_objects:
-                    self.job.log_warning(
-                        message=f"{self.location_filter.name} was used to filter, alongside SSoT Tag. {self.location_filter.name} is not tagged."
+                    logger.warning(
+                        f"{self.location_filter.name} was used to filter, alongside SSoT Tag. {self.location_filter.name} is not tagged."
                     )
         elif not self.sync_ipfabric_tagged_only:
             if self.location_filter:
@@ -196,7 +198,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         )
         location_objects = self.get_initial_location(ssot_tag)
         # The parent object that stores all children, is the Location.
-        self.job.log_debug(message=f"Found {location_objects.count()} Nautobot Location objects to start sync from")
+        if self.job.debug:
+            logger.debug(f"Found {location_objects.count()} Nautobot Location objects to start sync from")
 
         if location_objects:
             for location_record in location_objects:
@@ -208,8 +211,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                         status=location_record.status.name,
                     )
                 except AttributeError:
-                    self.job.log_debug(
-                        message=f"Error loading {location_record}, invalid or missing attributes on object. Skipping..."
+                    logger.error(
+                        f"Error loading {location_record}, invalid or missing attributes on object. Skipping..."
                     )
                     continue
                 self.add(location)
@@ -230,9 +233,9 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                         continue
                     self.load_vlans(nautobot_location_vlans, location)
                 except Location.DoesNotExist:
-                    self.job.log_info(message=f"Unable to find Location, {location_record}.")
+                    logger.error(f"Unable to find Location, {location_record}.")
         else:
-            self.job.log_warning(message="No Nautobot records to load.")
+            logger.warning("No Nautobot records to load.")
 
     def load(self):
         """Load data from Nautobot."""

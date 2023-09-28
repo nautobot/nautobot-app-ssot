@@ -41,7 +41,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 location = self.location(diffsync=self, name=site["siteName"], site_id=site["id"], status="Active")
                 self.add(location)
             except ObjectAlreadyExists:
-                self.job.log_debug(message=f"Duplicate Location discovered, {site}")
+                logger.warning(f"Duplicate Location discovered, {site}")
 
     def load_device_interfaces(self, device_model, interfaces, device_primary_ip):
         """Create and load DiffSync Interface model objects for a specific device."""
@@ -76,7 +76,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 self.add(interface)
                 device_model.add_child(interface)
             except ObjectAlreadyExists:
-                self.job.log_debug(message=f"Duplicate Interface discovered, {iface}")
+                logger.warning(f"Duplicate Interface discovered, {iface}")
 
     def load(self):
         """Load data from IP Fabric."""
@@ -91,14 +91,14 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             location_vlans = [vlan for vlan in vlans if vlan["siteName"] == location.name]
             for vlan in location_vlans:
                 if not vlan["vlanId"] or (vlan["vlanId"] < 1 or vlan["vlanId"] > 4094):
-                    self.job.log_warning(
-                        message=f"Not syncing VLAN, NAME: {vlan.get('vlanName')} due to invalid VLAN ID: {vlan.get('vlanId')}."
+                    logger.warning(
+                        f"Not syncing VLAN, NAME: {vlan.get('vlanName')} due to invalid VLAN ID: {vlan.get('vlanId')}."
                     )
                     continue
                 description = vlan.get("dscr") if vlan.get("dscr") else f"VLAN ID: {vlan['vlanId']}"
                 vlan_name = vlan.get("vlanName") if vlan.get("vlanName") else f"{vlan['siteName']}:{vlan['vlanId']}"
                 if len(vlan_name) > name_max_length:
-                    self.job.log_warning(
+                    logger.warning(
                         message=f"Not syncing VLAN, {vlan_name} due to character limit exceeding {name_max_length}."
                     )
                     continue
@@ -114,7 +114,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     self.add(vlan)
                     location.add_child(vlan)
                 except ObjectAlreadyExists:
-                    self.job.log_debug(message=f"Duplicate VLAN discovered, {vlan}")
+                    logger.warning(message=f"Duplicate VLAN discovered, {vlan}")
 
             location_devices = [device for device in devices if device["siteName"] == location.name]
             for device in location_devices:
@@ -122,7 +122,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 sn_length = len(device["sn"])
                 serial_number = device["sn"] if sn_length < device_serial_max_length else ""
                 if not serial_number:
-                    self.job.log_warning(
+                    logger.warning(
                         message=(
                             f"Serial Number will not be recorded for {device['hostname']} due to character limit. "
                             f"{sn_length} exceeds {device_serial_max_length}"
@@ -143,7 +143,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     location.add_child(device_model)
                     self.load_device_interfaces(device_model, interfaces, device_primary_ip)
                 except ObjectAlreadyExists:
-                    self.job.log_debug(message=f"Duplicate Device discovered, {device}")
+                    logger.warning(message=f"Duplicate Device discovered, {device}")
 
 
 def pseudo_management_interface(hostname, device_interfaces, device_primary_ip):

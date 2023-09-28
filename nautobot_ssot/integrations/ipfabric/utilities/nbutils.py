@@ -11,11 +11,12 @@ from nautobot.dcim.models import (
     Interface,
     Manufacturer,
     Location,
+    LocationType,
 )
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Role, Tag
 from nautobot.extras.models.statuses import Status
-from nautobot.ipam.models import VLAN, IPAddress
+from nautobot.ipam.models import VLAN, IPAddress, Namespace
 from nautobot.core.choices import ColorChoices
 from netutils.ip import netmask_to_cidr
 
@@ -29,8 +30,7 @@ def create_location(location_name, location_id=None):
         location_name (str): Name of the location.
         location_id (str): ID of the location.
     """
-    location_obj, _ = Location.objects.get_or_create(name=location_name)
-    location_obj.status = Status.objects.get(name="Active")
+    location_obj, _ = Location.objects.get_or_create(name=location_name, location_type=LocationType.objects.get(name="Site"), status=Status.objects.get(name="Active"))
     if location_id:
         # Ensure custom field is available
         custom_field_obj, _ = CustomField.objects.get_or_create(
@@ -119,6 +119,7 @@ def create_ip(ip_address, subnet_mask, status="Active", object_pk=None):
         object_pk: Object primary key
     """
     status_obj = Status.objects.get_for_model(IPAddress).get(name=status)
+    namespace_obj = Namespace.objects.get(name="Global")
     cidr = netmask_to_cidr(subnet_mask)
     if ALLOW_DUPLICATE_ADDRESSES:
         addr = IPAddress.objects.filter(host=ip_address)
@@ -157,9 +158,11 @@ def create_interface(device_obj, interface_details):
         "mtu",
         "type",
         "mgmt_only",
+        "status",
     )
     fields = {k: v for k, v in interface_details.items() if k in interface_fields and v}
     try:
+        fields["status"] = Status.objects.get_for_model(Interface).get(name=fields.get(fields["status"], "Active"))
         interface_obj, _ = device_obj.interfaces.get_or_create(**fields)
     except IntegrityError:
         interface_obj, _ = device_obj.interfaces.get_or_create(name=fields["name"])
@@ -169,6 +172,7 @@ def create_interface(device_obj, interface_details):
         interface_obj.mtu = fields.get("mtu")
         interface_obj.type = fields.get("type")
         interface_obj.mgmt_only = fields.get("mgmt_only", False)
+        interface_obj.status = Status.objects.get_for_model(Interface).get(name=fields.get("status", "Active"))
         interface_obj.validated_save()
     tag_object(nautobot_object=interface_obj, custom_field="ssot-synced-from-ipfabric")
     return interface_obj

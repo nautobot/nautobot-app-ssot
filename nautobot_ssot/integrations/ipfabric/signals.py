@@ -13,11 +13,11 @@ def register_signals(sender):
     nautobot_database_ready.connect(nautobot_database_ready_callback, sender=sender)
 
 
-def create_custom_field(field_name: str, label: str, models: List, apps, cf_type: Optional[str] = "type_date"):
+def create_custom_field(key: str, label: str, models: List, apps, cf_type: Optional[str] = "type_date"):
     """Create custom field on a given model instance type.
 
     Args:
-        field_name (str): Field Name
+        key (str): Natural key
         label (str): Label description
         models (List): List of Django Models
         apps: Django Apps
@@ -27,19 +27,15 @@ def create_custom_field(field_name: str, label: str, models: List, apps, cf_type
     CustomField = apps.get_model("extras", "CustomField")  # pylint:disable=invalid-name
     if cf_type == "type_date":
         custom_field, _ = CustomField.objects.get_or_create(
+            key=key,
             type=CustomFieldTypeChoices.TYPE_DATE,
-            label=field_name,
-            defaults={
-                "label": label,
-            },
+            label=label,
         )
     else:
         custom_field, _ = CustomField.objects.get_or_create(
+            key=key,
             type=CustomFieldTypeChoices.TYPE_TEXT,
-            label=field_name,
-            defaults={
-                "label": label,
-            },
+            label=label,
         )
     for model in models:
         custom_field.content_types.add(ContentType.objects.get_for_model(model))
@@ -75,6 +71,5 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     )
     synced_from_models = [Device, DeviceType, Interface, Manufacturer, Location, VLAN, Role, IPAddress]
     create_custom_field("ssot-synced-from-ipfabric", "Last synced from IPFabric on", synced_from_models, apps=apps)
-    location_model = [Location]
-    create_custom_field("ipfabric-site-id", "IPFabric Location ID", location_model, apps=apps, cf_type="type_text")
+    create_custom_field("ipfabric_site_id", "IPFabric Location ID", [Location], apps=apps, cf_type="type_text")
     create_custom_field("ipfabric_type", "IPFabric Type", [Role], apps=apps, cf_type="type_text")
