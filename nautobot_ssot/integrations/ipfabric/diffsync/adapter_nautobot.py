@@ -94,7 +94,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 status=device_record.status.name,
                 name=interface_record.name,
                 device_name=device_record.name,
-                description=interface_record.description if interface_record.description else "",
+                description=interface_record.description if interface_record.description else None,
                 enabled=True,
                 mac_address=mac_to_format(str(interface_record.mac_address), "MAC_COLON_TWO").upper()
                 if interface_record.mac_address

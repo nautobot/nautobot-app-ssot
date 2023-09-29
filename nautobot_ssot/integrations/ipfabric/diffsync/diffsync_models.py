@@ -301,7 +301,7 @@ class Interface(DiffSyncExtras):
             attrs["mac_address"] = DEFAULT_INTERFACE_MAC
         interface_obj = tonb_nbutils.create_interface(
             device_obj=device_obj,
-            interface_details=dict(**ids, **attrs),
+            interface_details={**ids, **attrs},
         )
         ip_address = attrs["ip_address"]
         if ip_address:

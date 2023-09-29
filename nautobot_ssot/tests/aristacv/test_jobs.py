@@ -1,8 +1,8 @@
 """Test Cloudvision Jobs."""
 from unittest.mock import patch
 
-from django.test import TestCase
 from django.urls import reverse
+from nautobot.utilities.testing import TestCase
 
 from nautobot_ssot.integrations.aristacv import jobs
 

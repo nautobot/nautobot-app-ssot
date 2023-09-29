@@ -29,8 +29,12 @@ class SyncLogEntryFilterSet(BaseFilterSet):
         model = SyncLogEntry
         fields = ["sync", "action", "status", "synced_object_type"]
 
-    def search(self, queryset, _name, value):  # pylint: disable=no-self-use
+    def search(self, queryset, _name, value):
         """String search of SyncLogEntry records."""
         if not value.strip():
             return queryset
-        return queryset.filter(Q(diff__icontains=value) | Q(message__icontains=value) | Q(object_repr__icontains=value))
+        return queryset.filter(
+            Q(diff__icontains=value)  # pylint: disable=unsupported-binary-operation
+            | Q(message__icontains=value)
+            | Q(object_repr__icontains=value)
+        )

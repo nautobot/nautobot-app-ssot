@@ -2,12 +2,13 @@
 import os
 from unittest import mock
 
-from django.test import TestCase, override_settings
+from django.test import override_settings
 from django.urls import reverse
 
 from nautobot.dcim.models import Device, DeviceRole, DeviceType, Interface, Manufacturer, Region, Site
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.models import Secret, SecretsGroup, SecretsGroupAssociation, Status
+from nautobot.utilities.testing import TestCase
 
 from nautobot_ssot.integrations.servicenow.jobs import ServiceNowDataTarget
 from nautobot_ssot.integrations.servicenow.models import SSOTServiceNowConfig

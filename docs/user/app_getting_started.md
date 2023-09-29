@@ -6,15 +6,15 @@ To install the App, please follow the instructions detailed in the [Installation
 
 ## First steps with the App
 
-By default this plugin provides an example Data Source Job and example Data Target Job. You can run this example job to get a feel for the capabilities of the plugin.
+By default this Nautobot app provides an example Data Source Job and example Data Target Job. You can run this example job to get a feel for the capabilities of the Nautobot app.
 
 ---
 ![Example Jobs](../images/example_jobs.png)
 
 
-However, to get the most out of this plugin you will want to find other existing Jobs and/or [create your own Jobs](./developing_jobs.md). Such Jobs can be installed like any other Nautobot Job:
+However, to get the most out of this Nautobot app you will want to find other existing Jobs and/or [create your own Jobs](../dev/jobs.md). Such Jobs can be installed like any other Nautobot Job:
 
-* by [packaging into a Nautobot plugin](https://nautobot.readthedocs.io/en/stable/plugins/development/#including-jobs) which can then be installed into Nautobot's virtual environment
+* by [packaging into a Nautobot Nautobot app](https://nautobot.readthedocs.io/en/stable/plugins/development/#including-jobs) which can then be installed into Nautobot's virtual environment
 * by [inclusion in a Git repository](https://nautobot.readthedocs.io/en/stable/models/extras/gitrepository/#jobs) which can be configured in Nautobot and refreshed on demand
 * by [manual installation of individual Job source files](https://nautobot.readthedocs.io/en/stable/additional-features/jobs/#writing-jobs) to Nautobot's `JOBS_ROOT` directory
 
