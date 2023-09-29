@@ -60,10 +60,6 @@ class NautobotAdapter(DiffSync):
         """Given a diffsync model class, load a list of models from the database and return them."""
         parameter_names = self._get_parameter_names(diffsync_model)
 
-        # Here we identify any foreign keys (i.e. fields with '__' in them) so that we can load them directly in the
-        # first query.
-        prefetch_related_parameters = [parameter.split("__")[0] for parameter in parameter_names if "__" in parameter]
-
         for database_object in diffsync_model.get_queryset():
             self._load_single_object(database_object, diffsync_model, parameter_names)
 
@@ -260,6 +256,9 @@ class NautobotModel(DiffSyncModel):
     def get_queryset(cls):
         """Get the queryset used to load the models data from Nautobot."""
         parameter_names = list(cls._identifiers) + list(cls._attributes)
+
+        # Here we identify any foreign keys (i.e. fields with '__' in them) so that we can load them directly in the
+        # first query if this function hasn't been overridden.
         prefetch_related_parameters = [parameter.split("__")[0] for parameter in parameter_names if "__" in parameter]
         return cls._model.objects.prefetch_related(*prefetch_related_parameters).all()
 
