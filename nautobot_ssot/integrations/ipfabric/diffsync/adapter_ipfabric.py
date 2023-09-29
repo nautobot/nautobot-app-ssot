@@ -99,14 +99,14 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 vlan_name = vlan.get("vlanName") if vlan.get("vlanName") else f"{vlan['siteName']}:{vlan['vlanId']}"
                 if len(vlan_name) > name_max_length:
                     logger.warning(
-                        message=f"Not syncing VLAN, {vlan_name} due to character limit exceeding {name_max_length}."
+                        f"Not syncing VLAN, {vlan_name} due to character limit exceeding {name_max_length}."
                     )
                     continue
                 try:
                     vlan = self.vlan(
                         diffsync=self,
                         name=vlan_name,
-                        site=vlan["siteName"],
+                        location=vlan["siteName"],
                         vid=vlan["vlanId"],
                         status="Active",
                         description=description,
@@ -114,7 +114,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     self.add(vlan)
                     location.add_child(vlan)
                 except ObjectAlreadyExists:
-                    logger.warning(message=f"Duplicate VLAN discovered, {vlan}")
+                    logger.warning(f"Duplicate VLAN discovered, {vlan}")
 
             location_devices = [device for device in devices if device["siteName"] == location.name]
             for device in location_devices:
@@ -123,7 +123,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 serial_number = device["sn"] if sn_length < device_serial_max_length else ""
                 if not serial_number:
                     logger.warning(
-                        message=(
+                        (
                             f"Serial Number will not be recorded for {device['hostname']} due to character limit. "
                             f"{sn_length} exceeds {device_serial_max_length}"
                         )
@@ -143,7 +143,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     location.add_child(device_model)
                     self.load_device_interfaces(device_model, interfaces, device_primary_ip)
                 except ObjectAlreadyExists:
-                    logger.warning(message=f"Duplicate Device discovered, {device}")
+                    logger.warning(f"Duplicate Device discovered, {device}")
 
 
 def pseudo_management_interface(hostname, device_interfaces, device_primary_ip):
