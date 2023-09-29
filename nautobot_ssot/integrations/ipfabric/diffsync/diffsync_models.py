@@ -46,9 +46,7 @@ class DiffSyncExtras(DiffSyncModel):
         """
         update = False
         if not self.safe_delete_mode:  # This could just check self, refactor.
-            logger.warning(
-                f"{nautobot_object} will be deleted as safe delete mode is not enabled."
-            )
+            logger.warning(f"{nautobot_object} will be deleted as safe delete mode is not enabled.")
             # This allows private class naming of nautobot objects to be ordered for delete()
             # Example definition in adapter class var: _site = Location
             self.diffsync.objects_to_delete[f"_{nautobot_object.__class__.__name__.lower()}"].append(
@@ -61,9 +59,7 @@ class DiffSyncExtras(DiffSyncModel):
                 if hasattr(nautobot_object, "status"):
                     if not nautobot_object.status == safe_delete_status:
                         nautobot_object.status = safe_delete_status
-                        logger.warning(
-                            f"{nautobot_object} has changed status to {safe_delete_status}."
-                        )
+                        logger.warning(f"{nautobot_object} has changed status to {safe_delete_status}.")
                         update = True
                 else:
                     # Not everything has a status. This may come in handy once more models are synced.
@@ -85,9 +81,7 @@ class DiffSyncExtras(DiffSyncModel):
             if update:
                 tonb_nbutils.tag_object(nautobot_object=nautobot_object, custom_field="ssot-synced-from-ipfabric")
             else:
-                logger.warning(
-                    f"{nautobot_object} has previously been tagged with `ssot-safe-delete`. Skipping..."
-                )
+                logger.warning(f"{nautobot_object} has previously been tagged with `ssot-safe-delete`. Skipping...")
 
         return self
 

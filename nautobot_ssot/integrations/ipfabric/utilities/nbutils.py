@@ -30,7 +30,11 @@ def create_location(location_name, location_id=None):
         location_name (str): Name of the location.
         location_id (str): ID of the location.
     """
-    location_obj, _ = Location.objects.get_or_create(name=location_name, location_type=LocationType.objects.get(name="Site"), status=Status.objects.get(name="Active"))
+    location_obj, _ = Location.objects.get_or_create(
+        name=location_name,
+        location_type=LocationType.objects.get(name="Site"),
+        status=Status.objects.get(name="Active"),
+    )
     if location_id:
         # Ensure custom field is available
         custom_field_obj, _ = CustomField.objects.get_or_create(
@@ -124,7 +128,13 @@ def create_ip(ip_address, subnet_mask, status="Active", object_pk=None):
     try:
         ip_obj, _ = IPAddress.objects.get_or_create(address=f"{ip_address}/{cidr}", status=status_obj)
     except ValidationError:
-        parent, _ = Prefix.objects.get_or_create(network="0.0.0.0", prefix_length=0, type=PrefixTypeChoices.TYPE_NETWORK, status=Status.objects.get_for_model(Prefix).get(name="Active"), namespace=namespace_obj)
+        parent, _ = Prefix.objects.get_or_create(
+            network="0.0.0.0",
+            prefix_length=0,
+            type=PrefixTypeChoices.TYPE_NETWORK,
+            status=Status.objects.get_for_model(Prefix).get(name="Active"),
+            namespace=namespace_obj,
+        )
         ip_obj, _ = IPAddress.objects.get_or_create(address=f"{ip_address}/{cidr}", status=status_obj, parent=parent)
 
     if object_pk:

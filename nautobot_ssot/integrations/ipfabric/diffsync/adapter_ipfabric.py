@@ -98,9 +98,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 description = vlan.get("dscr") if vlan.get("dscr") else f"VLAN ID: {vlan['vlanId']}"
                 vlan_name = vlan.get("vlanName") if vlan.get("vlanName") else f"{vlan['siteName']}:{vlan['vlanId']}"
                 if len(vlan_name) > name_max_length:
-                    logger.warning(
-                        f"Not syncing VLAN, {vlan_name} due to character limit exceeding {name_max_length}."
-                    )
+                    logger.warning(f"Not syncing VLAN, {vlan_name} due to character limit exceeding {name_max_length}.")
                     continue
                 try:
                     vlan = self.vlan(
