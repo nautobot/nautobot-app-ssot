@@ -5,6 +5,7 @@ from typing import Any, Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import IntegrityError
+from django.core.exceptions import ValidationError
 from nautobot.dcim.models import (
     Device,
     DeviceType,
@@ -16,11 +17,10 @@ from nautobot.dcim.models import (
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Role, Tag
 from nautobot.extras.models.statuses import Status
-from nautobot.ipam.models import VLAN, IPAddress, Namespace
+from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix
+from nautobot.ipam.choices import PrefixTypeChoices
 from nautobot.core.choices import ColorChoices
 from netutils.ip import netmask_to_cidr
-
-from nautobot_ssot.integrations.ipfabric.constants import ALLOW_DUPLICATE_ADDRESSES
 
 
 def create_location(location_name, location_id=None):
@@ -121,16 +121,11 @@ def create_ip(ip_address, subnet_mask, status="Active", object_pk=None):
     status_obj = Status.objects.get_for_model(IPAddress).get(name=status)
     namespace_obj = Namespace.objects.get(name="Global")
     cidr = netmask_to_cidr(subnet_mask)
-    if ALLOW_DUPLICATE_ADDRESSES:
-        addr = IPAddress.objects.filter(host=ip_address)
-        data = {"address": f"{ip_address}/{cidr}", "status": status_obj}
-        if addr.exists():
-            data["description"] = "Duplicate by IPFabric SSoT"
-
-        ip_obj = IPAddress.objects.create(**data)
-
-    else:
+    try:
         ip_obj, _ = IPAddress.objects.get_or_create(address=f"{ip_address}/{cidr}", status=status_obj)
+    except ValidationError:
+        parent, _ = Prefix.objects.get_or_create(network="0.0.0.0", prefix_length=0, type=PrefixTypeChoices.TYPE_NETWORK, status=Status.objects.get_for_model(Prefix).get(name="Active"), namespace=namespace_obj)
+        ip_obj, _ = IPAddress.objects.get_or_create(address=f"{ip_address}/{cidr}", status=status_obj, parent=parent)
 
     if object_pk:
         ip_obj.assigned_object_id = object_pk.pk
@@ -225,13 +220,9 @@ def tag_object(nautobot_object: Any, custom_field: str, tag_name: Optional[str] 
             nautobot_object.tags.add(tag)
         if hasattr(nautobot_object, "cf"):
             # Ensure that the "ssot-synced-from-ipfabric" custom field is present
-            if not any(cfield for cfield in CustomField.objects.all() if cfield.label == "ssot-synced-from-ipfabric"):
-                custom_field_obj, _ = CustomField.objects.get_or_create(
-                    type=CustomFieldTypeChoices.TYPE_DATE,
-                    label="ssot-synced-from-ipfabric",
-                    defaults={
-                        "label": "Last synced from IPFabric on",
-                    },
+            if not any(cfield for cfield in CustomField.objects.all() if cfield.key == "ssot-synced-from-ipfabric"):
+                custom_field_obj, _ = CustomField.objects.get(
+                    key="ssot-synced-from-ipfabric",
                 )
                 synced_from_models = [
                     Device,
