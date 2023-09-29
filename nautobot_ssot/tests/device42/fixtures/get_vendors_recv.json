@@ -1,0 +1,41 @@
+[
+    {
+        "escalation_1": "",
+        "name": "Cisco Systems Inc",
+        "contact_info": "",
+        "escalation_2": "",
+        "notes": "",
+        "vendor_id": 1,
+        "home_page": "",
+        "tags": [],
+        "account_no": "",
+        "custom_fields": [],
+        "aliases": ""
+    },
+    {
+        "escalation_1": "",
+        "name": "Palo Alto",
+        "contact_info": "",
+        "escalation_2": "",
+        "notes": "",
+        "vendor_id": 2,
+        "home_page": "",
+        "tags": [],
+        "account_no": "",
+        "custom_fields": [],
+        "aliases": ""
+    },
+    {
+        "escalation_1": "",
+        "name": "Juniper",
+        "contact_info": "",
+        "escalation_2": "",
+        "notes": "",
+        "vendor_id": 3,
+        "home_page": "",
+        "tags": [],
+        "account_no": "",
+        "custom_fields": [],
+        "aliases": ""
+    }
+]

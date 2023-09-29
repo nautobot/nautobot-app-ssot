@@ -1,0 +1,65 @@
+[
+    {
+        "name": "Dell - Round Rock 2",
+        "tags": [
+            "AUS",
+            "sitecode-aus"
+        ],
+        "notes": "",
+        "longitude": null,
+        "address": "501 Dell Way, Round Rock, TX 78682",
+        "latitude": null,
+        "contact_name": "John Smith",
+        "building_pk": 1,
+        "contact_phone": "1-800-GET-HELP",
+        "custom_fields": [
+            {
+                "notes": null,
+                "key": "Security System",
+                "value": "RFID Cards"
+            }
+        ]
+    },
+    {
+        "name": "Apple Park",
+        "tags": [
+            "SFO",
+            "sitecode-sfo"
+        ],
+        "notes": "",
+        "longitude": null,
+        "address": "One Apple Park Way, Cupertino, CA 95014",
+        "latitude": null,
+        "contact_name": "Jon Gotti",
+        "building_pk": 2,
+        "contact_phone": "1-555-867-5309",
+        "custom_fields": [
+            {
+                "notes": null,
+                "key": "Security System",
+                "value": "Eye Scanner"
+            }
+        ]
+    },
+    {
+        "name": "Microsoft HQ",
+        "tags": [
+            "SEA",
+            "sitecode-sea"
+        ],
+        "notes": "",
+        "longitude": null,
+        "address": "One Microsoft Way, Redmond, WA 98052",
+        "latitude": null,
+        "contact_name": "John Doe",
+        "building_pk": 3,
+        "contact_phone": "use the batsignal!",
+        "custom_fields": [
+            {
+                "notes": null,
+                "key": "Security System",
+                "value": "RFID Card"
+            }
+        ]
+    }
+]

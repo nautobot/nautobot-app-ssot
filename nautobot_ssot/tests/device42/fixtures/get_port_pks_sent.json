@@ -1,0 +1,14 @@
+[
+    {
+        "port": "Management0",
+        "netport_pk": 1,
+        "hwaddress": "1234567890ab",
+        "device": "core-router.testexample.com"
+    },
+    {
+        "port": "Ethernet1/1",
+        "netport_pk": 2,
+        "hwaddress": "abcdef012345",
+        "device": "distro-switch.testexample.com"
+    }
+]

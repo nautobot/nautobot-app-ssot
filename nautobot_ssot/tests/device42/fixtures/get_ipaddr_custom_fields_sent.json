@@ -1,0 +1,16 @@
+[
+    {
+        "key": "Visibility",
+        "value": "Public",
+        "notes": null,
+        "ip_address": "1.1.1.1",
+        "mask_bits": 32
+    },
+    {
+        "key": "Owner",
+        "value": "AT&T",
+        "notes": null,
+        "ip_address": "1.1.1.1",
+        "mask_bits": 32
+    }
+]

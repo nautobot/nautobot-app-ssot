@@ -133,8 +133,7 @@ CACHEOPS_REDIS = parse_redis_connection(redis_database=1)
 
 # Enable installed plugins. Add the name of each plugin to the list.
 PLUGINS = [
-    # Enable chatops after dropping Python 3.7 support
-    # "nautobot_chatops",
+    "nautobot_chatops",
     "nautobot_device_lifecycle_mgmt",
     "nautobot_ssot",
 ]
@@ -142,15 +141,14 @@ PLUGINS = [
 # Plugins configuration settings. These settings are used by various plugins that the user may have installed.
 # Each key in the dictionary is the name of an installed plugin and its value is a dictionary of settings.
 PLUGINS_CONFIG = {
-    # Enable chatops after dropping Python 3.7 support
-    # "nautobot_chatops": {
-    #     "enable_slack": True,
-    #     "slack_api_token": os.getenv("SLACK_API_TOKEN"),
-    #     "slack_signing_secret": os.getenv("SLACK_SIGNING_SECRET"),
-    #     "session_cache_timeout": 3600,
-    #     "ipfabric_api_token": os.getenv("IPFABRIC_API_TOKEN"),
-    #     "ipfabric_host": os.getenv("IPFABRIC_HOST"),
-    # },
+    "nautobot_chatops": {
+        "enable_slack": True,
+        "slack_api_token": os.getenv("SLACK_API_TOKEN"),
+        "slack_signing_secret": os.getenv("SLACK_SIGNING_SECRET"),
+        "session_cache_timeout": 3600,
+        "ipfabric_api_token": os.getenv("IPFABRIC_API_TOKEN"),
+        "ipfabric_host": os.getenv("IPFABRIC_HOST"),
+    },
     "nautobot_ssot": {
         # URL and credentials should be configured as environment variables on the host system
         "aci_apics": {x: os.environ[x] for x in os.environ if "APIC" in x},
@@ -200,10 +198,27 @@ PLUGINS_CONFIG = {
         "aristacv_verify": is_truthy(os.getenv("NAUTOBOT_ARISTACV_VERIFY", True)),
         "enable_aci": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ACI")),
         "enable_aristacv": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ARISTACV")),
+        "enable_device42": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_DEVICE42")),
         "enable_infoblox": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_INFOBLOX")),
         "enable_ipfabric": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_IPFABRIC")),
         "enable_servicenow": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_SERVICENOW")),
         "hide_example_jobs": is_truthy(os.getenv("NAUTOBOT_SSOT_HIDE_EXAMPLE_JOBS")),
+        "device42_host": os.getenv("NAUTOBOT_SSOT_DEVICE42_HOST", ""),
+        "device42_username": os.getenv("NAUTOBOT_SSOT_DEVICE42_USERNAME", ""),
+        "device42_password": os.getenv("NAUTOBOT_SSOT_DEVICE42_PASSWORD", ""),
+        "device42_verify_ssl": False,
+        "device42_defaults": {
+            "site_status": "Active",
+            "rack_status": "Active",
+            "device_role": "Unknown",
+        },
+        "device42_delete_on_sync": False,
+        "device42_use_dns": True,
+        "device42_customer_is_facility": True,
+        "device42_facility_prepend": "sitecode-",
+        "device42_role_prepend": "nautobot-",
+        "device42_ignore_tag": "",
+        "device42_hostname_mapping": [],
         "infoblox_default_status": os.getenv("NAUTOBOT_SSOT_INFOBLOX_DEFAULT_STATUS", "active"),
         "infoblox_enable_rfc1918_network_containers": is_truthy(
             os.getenv("NAUTOBOT_SSOT_INFOBLOX_ENABLE_RFC1918_NETWORK_CONTAINERS")

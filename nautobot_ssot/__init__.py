@@ -1,6 +1,8 @@
 """Plugin declaration for nautobot_ssot."""
 # Metadata is inherited from Nautobot. If not including Nautobot in the environment, this should be added
 
+from os import getenv
+
 try:
     from importlib import metadata
 except ImportError:
@@ -9,6 +11,7 @@ except ImportError:
 
 from django.conf import settings
 from nautobot.extras.plugins import PluginConfig
+from nautobot.core.settings_funcs import is_truthy
 
 from nautobot_ssot.integrations.utils import each_enabled_integration_module
 from nautobot_ssot.utils import logger
@@ -19,6 +22,7 @@ __version__ = metadata.version(__name__)
 _CONFLICTING_APP_NAMES = [
     "nautobot_ssot_aci",
     "nautobot_ssot_aristacv",
+    "nautobot_ssot_device42",
     "nautobot_ssot_infoblox",
     "nautobot_ssot_ipfabric",
     "nautobot_ssot_servicenow",
@@ -30,10 +34,12 @@ def _check_for_conflicting_apps():
     if intersection:
         raise RuntimeError(
             f"The following apps are installed and conflict with `nautobot-ssot`: {', '.join(intersection)}."
+            "See: https://docs.nautobot.com/projects/ssot/en/latest/admin/upgrade/#potential-apps-conflicts"
         )
 
 
-_check_for_conflicting_apps()
+if not is_truthy(getenv("NAUTOBOT_SSOT_ALLOW_CONFLICTING_APPS", "False")):
+    _check_for_conflicting_apps()
 
 
 class NautobotSSOTPluginConfig(PluginConfig):

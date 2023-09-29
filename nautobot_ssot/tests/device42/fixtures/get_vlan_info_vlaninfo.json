@@ -1,0 +1,17 @@
+[
+    {
+        "vlan_pk": 1,
+        "name": "Public",
+        "vid": 100
+    },
+    {
+        "vlan_pk": 2,
+        "name": "DMZ",
+        "vid": 200
+    },
+    {
+        "vlan_pk": 3,
+        "name": "App",
+        "vid": 300
+    }
+]

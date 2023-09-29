@@ -1,0 +1,16 @@
+[
+    {
+        "key": "Software Version",
+        "value": "10R.2D.2",
+        "notes": null,
+        "port_name": "Ethernet1/1",
+        "device_name": "core-router.testexample.com"
+    },
+    {
+        "key": "EOL Date",
+        "value": "12/31/2999",
+        "notes": null,
+        "port_name": "Ethernet1/1",
+        "device_name": "core-router.testexample.com"
+    }
+]

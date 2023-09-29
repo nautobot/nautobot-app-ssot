@@ -1,0 +1,23 @@
+{
+    "corea.testcluster.com": {
+        "members": [
+            "corea.testcluster.com - Switch 1",
+            "corea.testcluster.com - Switch 2"
+        ],
+        "is_network": true,
+        "hardware": "Nexus 9000V",
+        "os": "nxos",
+        "customer": "DFW",
+        "tags": []
+    },
+    "stack01.testexample.com": {
+        "members": [
+            "stack01.testexample.com - Switch 1"
+        ],
+        "is_network": true,
+        "hardware": "WS-C2960S-48TS-L",
+        "os": "ios",
+        "customer": "AUS",
+        "tags": []
+    }
+}

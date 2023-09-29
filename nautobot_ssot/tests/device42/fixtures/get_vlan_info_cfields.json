@@ -1,0 +1,14 @@
+[
+    {
+        "key": "Owner",
+        "value": "IT",
+        "notes": null,
+        "vlan_pk": 1
+    },
+    {
+        "key": "Purpose",
+        "value": "Servers",
+        "notes": null,
+        "vlan_pk": 2
+    }
+]

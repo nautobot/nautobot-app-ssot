@@ -128,7 +128,9 @@ class TestCloudvisionUtils(TestCase):
         mock_tag.value.device_id.value = "JPE12345678"
 
         tag_stub = MagicMock()
-        tag_stub.TagAssignmentConfigServiceStub.return_value.GetAll.return_value = [mock_tag]
+        tag_stub.TagAssignmentServiceStub.return_value.GetAll.return_value = [
+            mock_tag
+        ]  # credit to @Eric-Jckson in https://github.com/nautobot/nautobot-plugin-ssot-arista-cloudvision/pull/164 for update to get_device_tags()
 
         with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.tag_services", tag_stub):
             results = cloudvision.get_device_tags(client=self.client, device_id="JPE12345678")

@@ -1,0 +1,58 @@
+[
+    {
+        "port_name": "Ethernet1/1.100",
+        "netport_pk": 1,
+        "description": "Ethernet1/0/1",
+        "up_admin": true,
+        "discovered_type": "l2vlan",
+        "hwaddress": "",
+        "port_type": "logical",
+        "port_speed": "40 Gbps",
+        "mtu": 9150,
+        "tags": "",
+        "second_device_fk": null,
+        "device_name": "core-router.testexample.com"
+    },
+    {
+        "port_name": "Management0",
+        "netport_pk": 2,
+        "description": "",
+        "up_admin": true,
+        "discovered_type": "static",
+        "hwaddress": "1234567890ab",
+        "port_type": "physical",
+        "port_speed": null,
+        "mtu": null,
+        "tags": "",
+        "second_device_fk": null,
+        "device_name": "core-router.testexample.com"
+    },
+    {
+        "port_name": "Ethernet1/1",
+        "netport_pk": 3,
+        "description": "",
+        "up_admin": true,
+        "discovered_type": "ethernetCsmacd",
+        "hwaddress": "abcdef012345",
+        "port_type": "physical",
+        "port_speed": "10 Gbps",
+        "mtu": 1500,
+        "tags": "",
+        "second_device_fk": null,
+        "device_name": "core-router.testexample.com"
+    },
+    {
+        "port_name": "GigabitEthernet1/0/1",
+        "netport_pk": 4,
+        "description": "GigabitEthernet1/0/1",
+        "up": true,
+        "up_admin": true,
+        "discovered_type": "ethernetCsmacd",
+        "hwaddress": "abcdef012345",
+        "port_type": "physical",
+        "port_speed": "1.0 Gbps",
+        "mtu": 1518,
+        "tags": "first-tag,second-tag",
+        "device_name": "core-router.testexample.com"
+    }
+]

@@ -1,0 +1,14 @@
+{
+    "1.1.1.1/32": {
+        "Owner": {
+            "key": "Owner",
+            "value": "AT&T",
+            "notes": null
+        },
+        "Visibility": {
+            "key": "Visibility",
+            "value": "Public",
+            "notes": null
+        }
+    }
+}

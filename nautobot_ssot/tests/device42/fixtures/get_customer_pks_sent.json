@@ -1,0 +1,32 @@
+[
+    {
+        "customer_pk": 1,
+        "name": "SFO",
+        "contact_info": "",
+        "notes": "",
+        "tags": "",
+        "type_id": 2,
+        "type": "Customer",
+        "manager": ""
+    },
+    {
+        "customer_pk": 2,
+        "name": "AUS",
+        "contact_info": "",
+        "notes": "",
+        "tags": "",
+        "type_id": 2,
+        "type": "Customer",
+        "manager": ""
+    },
+    {
+        "customer_pk": 3,
+        "name": "SEA",
+        "contact_info": "",
+        "notes": "",
+        "tags": "",
+        "type_id": 2,
+        "type": "Customer",
+        "manager": ""
+    }
+]

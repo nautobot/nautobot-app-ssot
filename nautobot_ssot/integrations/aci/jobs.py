@@ -1,6 +1,7 @@
 """Jobs for ACI SSoT plugin."""
 from django.templatetags.static import static
 from django.urls import reverse
+from diffsync import DiffSyncFlags
 from nautobot.core.settings_funcs import is_truthy
 from nautobot.extras.jobs import BooleanVar, ChoiceVar, Job
 from nautobot_ssot.jobs.base import DataMapping, DataSource
@@ -46,6 +47,13 @@ class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method
         data_source = "ACI"
         data_source_icon = static("nautobot_ssot_aci/aci.png")
         description = "Sync information from ACI to Nautobot"
+
+    def __init__(self):
+        """Initialize ExampleYAMLDataSource."""
+        super().__init__()
+        self.diffsync_flags = (
+            self.diffsync_flags | DiffSyncFlags.SKIP_UNMATCHED_DST  # pylint: disable=unsupported-binary-operation
+        )
 
     @classmethod
     def data_mappings(cls):

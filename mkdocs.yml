@@ -105,6 +105,7 @@ nav:
           - "user/integrations/index.md"
           - Cisco ACI: "user/integrations/aci.md"
           - Arista CloudVision: "user/integrations/aristacv.md"
+          - Device42: "user/integrations/device42.md"
           - Infoblox: "user/integrations/infoblox.md"
           - IPFabric: "user/integrations/ipfabric.md"
           - ServiceNow: "user/integrations/servicenow.md"
@@ -118,6 +119,7 @@ nav:
           - "admin/integrations/index.md"
           - Cisco ACI: "admin/integrations/aci_setup.md"
           - Arista CloudVision: "admin/integrations/aristacv_setup.md"
+          - Device42: "admin/integrations/device42_setup.md"
           - Infoblox: "admin/integrations/infoblox_setup.md"
           - IPFabric: "admin/integrations/ipfabric_setup.md"
           - ServiceNow: "admin/integrations/servicenow_setup.md"
@@ -126,6 +128,7 @@ nav:
       - Compatibility Matrix: "admin/compatibility_matrix.md"
       - Release Notes:
           - "admin/release_notes/index.md"
+          - v1.6: "admin/release_notes/version_1.5.md"
           - v1.5: "admin/release_notes/version_1.5.md"
           - v1.4: "admin/release_notes/version_1.4.md"
           - v1.3: "admin/release_notes/version_1.3.md"

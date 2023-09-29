@@ -1,0 +1,26 @@
+[
+    {
+        "ip_address": "10.0.10.1",
+        "available": false,
+        "label": "gateway",
+        "tags": "",
+        "port_name": "Ethernet1",
+        "hwaddress": "aabbccddeeff",
+        "subnet": "10.0.10.0",
+        "netmask": 24,
+        "vrf": "default",
+        "device": "core-router.testexample.com"
+    },
+    {
+        "ip_address": "1.1.1.1",
+        "available": false,
+        "label": "internet",
+        "tags": "",
+        "port_name": "1/0/1",
+        "hwaddress": "aabbccddeef1",
+        "subnet": "1.1.1.0",
+        "netmask": 28,
+        "vrf": "public",
+        "device": "core-router.testexample.com"
+    }
+]
