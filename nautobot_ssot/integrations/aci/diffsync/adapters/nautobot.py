@@ -4,6 +4,7 @@
 import logging
 from collections import defaultdict
 from diffsync import DiffSync
+from diffsync.enum import DiffSyncModelFlags
 from django.db.models import ProtectedError
 from django.utils.text import slugify
 from nautobot.tenancy.models import Tenant
@@ -161,11 +162,12 @@ class NautobotAdapter(DiffSync):
 
     def load_deviceroles(self):
         """Method to load Device Roles from Nautobot."""
-        for nbdevicerole in DeviceRole.objects.filter(slug__contains="-ssot-aci"):
+        for nbdevicerole in DeviceRole.objects.all():
             _devicerole = self.device_role(
                 name=nbdevicerole.name,
                 description=nbdevicerole.description,
             )
+            _devicerole.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
             self.add(_devicerole)
 
     def load_devices(self):
@@ -238,7 +240,7 @@ class NautobotAdapter(DiffSync):
                 status=nbprefix.status.name,
                 site=self.site,
                 description=nbprefix.description,
-                tenant=nbprefix.tenant.name,
+                tenant=nbprefix.tenant.name if nbprefix.tenant else None,
                 vrf=vrf,
                 vrf_tenant=vrf_tenant,
                 site_tag=self.site,
