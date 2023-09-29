@@ -49,7 +49,7 @@ pytz = { version = ">=2019.3", optional = true }
 requests = { version = ">=2.21.0", optional = true }
 requests-oauthlib = { version = ">=1.3.0", optional = true }
 six = { version = ">=1.13.0", optional = true }
-typing-extensions = {version = "^4.0.0", python = "<3.9"}
+typing-extensions = { version = "^4.0.0", python = "<3.9" }
 
 [tool.poetry.dev-dependencies]
 bandit = "*"
@@ -84,8 +84,7 @@ griffe = "0.30.1"               # Last version with python 3.7 support
 requests-mock = "^1.10.0"
 parameterized = "^0.8.1"
 myst-parser = "^0.15.2"
-# Enable chatops after dropping Python 3.7 support
-# nautobot-chatops = { version = "^2.0.2", extras = ["ipfabric"] }
+nautobot-chatops = { version = "^2.0.2", extras = ["ipfabric"] }
 responses = "^0.14.0"
 
 [tool.poetry.plugins."nautobot_ssot.data_sources"]
@@ -94,9 +93,8 @@ responses = "^0.14.0"
 [tool.poetry.plugins."nautobot_ssot.data_targets"]
 "example" = "nautobot_ssot.sync.example:ExampleSyncWorker"
 
-# Enable chatops after dropping Python 3.7 support
-# [tool.poetry.plugins."nautobot.workers"]
-# "ipfabric" = "nautobot_ssot.integrations.ipfabric.workers:ipfabric"
+[tool.poetry.plugins."nautobot.workers"]
+"ipfabric" = "nautobot_ssot.integrations.ipfabric.workers:ipfabric"
 
 [tool.poetry.extras]
 aci = [
