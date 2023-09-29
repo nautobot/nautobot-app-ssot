@@ -54,6 +54,10 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     Location = apps.get_model("dcim", "Location")
     VLAN = apps.get_model("ipam", "VLAN")
     Tag = apps.get_model("extras", "Tag")
+    ContentType = apps.get_model("contenttypes", "ContentType")
+    Device = apps.get_model("dcim", "Device")
+    Prefix = apps.get_model("ipam", "Prefix")
+    location_type = apps.get_model("dcim", "LocationType")
 
     Tag.objects.get_or_create(
         name="SSoT Synced from IPFabric",
@@ -69,7 +73,11 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
             "color": ColorChoices.COLOR_RED,
         },
     )
+    loc_type, _ = location_type.objects.update_or_create(name="Site")
+    loc_type.content_types.add(ContentType.objects.get_for_model(Device))
+    loc_type.content_types.add(ContentType.objects.get_for_model(Prefix))
+    loc_type.content_types.add(ContentType.objects.get_for_model(VLAN))
     synced_from_models = [Device, DeviceType, Interface, Manufacturer, Location, VLAN, Role, IPAddress]
     create_custom_field("ssot-synced-from-ipfabric", "Last synced from IPFabric on", synced_from_models, apps=apps)
-    create_custom_field("ipfabric_site_id", "IPFabric Location ID", [Location], apps=apps, cf_type="type_text")
+    create_custom_field("ipfabric-site-id", "IPFabric Location ID", [Location], apps=apps, cf_type="type_text")
     create_custom_field("ipfabric_type", "IPFabric Type", [Role], apps=apps, cf_type="type_text")
