@@ -65,7 +65,8 @@ class NautobotAdapter(DiffSync):
         prefetch_related_parameters = [parameter.split("__")[0] for parameter in parameter_names if "__" in parameter]
 
         # TODO: Allow for filtering, i.e. not getting all models from a table but just some.
-        for database_object in diffsync_model._model.objects.prefetch_related(*prefetch_related_parameters).all():
+        # for database_object in diffsync_model._model.objects.prefetch_related(*prefetch_related_parameters).all():
+        for database_object in diffsync_model.get_queryset():
             self._load_single_object(database_object, diffsync_model, parameter_names)
 
     def _load_single_object(self, database_object, diffsync_model, parameter_names):
@@ -256,6 +257,11 @@ class NautobotModel(DiffSyncModel):
     """
 
     _model: Model
+
+    @classmethod
+    def get_queryset(cls):
+        """Get the queryset used to load the models data from Nautobot. This can be overridden in subclasses."""
+        return cls._model.objects.all()
 
     @classmethod
     def _check_field(cls, name):

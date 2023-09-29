@@ -7,12 +7,12 @@ This page describes how to model various kinds of fields on a `nautobot_ssot.con
 The following table describes in brief the different types of model fields and how they are handled.
 
 | Type of field                                      | Field name                | Notes                                                                                                                                            | Applies to                                                                                                                                                                                                              |
-|----------------------------------------------------|---------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Normal fields](#normal-fields)                    | Has to match ORM exactly  | Make sure that the name matches the name in the ORM model.                                                                                       | Fields that are neither custom fields nor relations                                                                                                                                                              |
+| -------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Normal fields](#normal-fields)                    | Has to match ORM exactly  | Make sure that the name matches the name in the ORM model.                                                                                       | Fields that are neither custom fields nor relations                                                                                                                                                                     |
 | [Custom fields](#custom-fields)                    | Field name doesn't matter | Use `nautobot_ssot.contrib.CustomFieldAnnotation`                                                                                                | [Nautobot custom fields](https://docs.nautobot.com/projects/core/en/stable/user-guides/custom-fields/?h=custom+fields)                                                                                                  |
 | [*-to-one relationships](#-to-one-relationships)   | Django lookup syntax      | See [here](https://docs.djangoproject.com/en/3.2/topics/db/queries/#lookups-that-span-relationships) - your model fields need to use this syntax | `django.db.models.OneToOneField`, `django.db.models.ForeignKey`, `django.contrib.contenttypes.fields.GenericForeignKey`                                                                                                 |
 | [*-to-many relationships](#-to-many-relationships) | Has to match ORM exactly  | In case of a generic foreign key see [here](#special-case-generic-foreign-key)                                                                   | `django.db.models.ManyToManyField`, `django.contrib.contenttypes.fields.GenericRelation`, `django.db.models.ForeignKey` [backwards](https://docs.djangoproject.com/en/3.2/topics/db/queries/#backwards-related-objects) |
-| Custom Relationships | n/a | Not yet supported | https://docs.nautobot.com/projects/core/en/stable/models/extras/relationship/ |
+| Custom Relationships                               | n/a                       | Not yet supported                                                                                                                                | https://docs.nautobot.com/projects/core/en/stable/models/extras/relationship/                                                                                                                                           |
 
 
 ## Normal Fields
@@ -156,3 +156,26 @@ Through us defining the model, Nautobot will now be able to dynamically load IP 
 
 !!! note
     Although `Interface.ip_addresses` is a generic relation, there is only one content type (i.e. `ipam.ipaddress`) that may be related through this relation, therefore we don't have to specific this in any way.
+
+
+## Model Querysets
+
+By default, the builtin NautobotAdapter will load all objects of a given model. However, you can provide your own queryset by overriding the `get_queryset` method. Here is an example where the adapter would only load Tenant objects whose name starts with an "s".
+
+```python
+from nautobot.tenancy.models import Tenant
+from nautobot_ssot.contrib import NautobotModel
+
+class TenantModel(NautobotModel):
+    _model = Tenant
+    _modelname = "tenant"
+    _identifiers = ("name",)
+    _attributes = ("description",)
+
+    name: str
+    description: str
+
+    @classmethod
+    def get_queryset(cls):
+        return Tenant.objects.filter(name__starts="s")
+```
