@@ -71,7 +71,7 @@ class IPFabricDiffSyncTestCase(TestCase):
             self.assertTrue(hasattr(vlan, "name"))
             self.assertTrue(hasattr(vlan, "vid"))
             self.assertTrue(hasattr(vlan, "status"))
-            self.assertTrue(hasattr(vlan, "site"))
+            self.assertTrue(hasattr(vlan, "location"))
             self.assertTrue(hasattr(vlan, "description"))
 
         # Assert each interface has the necessary attributes
