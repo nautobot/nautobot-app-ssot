@@ -75,7 +75,7 @@ class NautobotSSOTPluginConfig(PluginConfig):
         "ipfabric_host": "",
         "ipfabric_ssl_verify": True,
         "ipfabric_timeout": 15,
-        "nautobot_host": "",
+        "ipfabric_nautobot_host": "",
         "servicenow_instance": "",
         "servicenow_password": "",
         "servicenow_username": "",
