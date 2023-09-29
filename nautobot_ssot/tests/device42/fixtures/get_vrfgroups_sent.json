@@ -1,0 +1,41 @@
+{
+    "total_count": 3,
+    "offset": 0,
+    "limit": 1000,
+    "vrfgroup": [
+        {
+            "buildings": [],
+            "description": "",
+            "tags": [
+                "tag-one",
+                "tag-two"
+            ],
+            "groups": "",
+            "id": 1,
+            "custom_fields": [],
+            "name": "Default"
+        },
+        {
+            "buildings": [],
+            "description": "Production environment",
+            "tags": [
+                "test"
+            ],
+            "groups": "",
+            "id": 2,
+            "custom_fields": [],
+            "name": "Production"
+        },
+        {
+            "buildings": [],
+            "description": "Development environment",
+            "tags": [
+                "dev"
+            ],
+            "groups": "",
+            "id": 2,
+            "custom_fields": [],
+            "name": "Development"
+        }
+    ]
+}

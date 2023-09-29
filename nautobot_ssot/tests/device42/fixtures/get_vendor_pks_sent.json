@@ -1,0 +1,50 @@
+[
+    {
+        "vendor_pk": 1,
+        "name": "Cisco Systems Inc",
+        "account_no": "12345",
+        "home_page": "https://www.cisco.com/",
+        "contact_info": "",
+        "escalation_1": "",
+        "escalation_2": "",
+        "notes": "",
+        "tags": "",
+        "last_changed": "2001-12-31T12:00:00.123456+00:00"
+    },
+    {
+        "vendor_pk": 2,
+        "name": "Juniper",
+        "account_no": "AB123.5-67",
+        "home_page": "https://junipernetworks.com/",
+        "contact_info": "",
+        "escalation_1": "",
+        "escalation_2": "",
+        "notes": "",
+        "tags": "",
+        "last_changed": "2001-12-31T12:00:00.123456+00:00"
+    },
+    {
+        "vendor_pk": 3,
+        "name": "Palo Alto",
+        "account_no": "PA1234",
+        "home_page": "https://www.paloaltonetworks.com/",
+        "contact_info": "",
+        "escalation_1": "",
+        "escalation_2": "",
+        "notes": "",
+        "tags": "",
+        "last_changed": "2001-12-31T12:00:00.123456+00:00"
+    },
+    {
+        "vendor_pk": 4,
+        "name": "Arista",
+        "account_no": "",
+        "home_page": "",
+        "contact_info": "",
+        "escalation_1": "",
+        "escalation_2": "",
+        "notes": "",
+        "tags": "",
+        "last_changed": "2001-12-31T12:00:00.123456+00:00"
+    }
+]

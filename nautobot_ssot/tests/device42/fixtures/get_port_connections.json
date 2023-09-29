@@ -1,0 +1,14 @@
+[
+    {
+        "src_port": 1,
+        "src_device": 1,
+        "dst_device": 2,
+        "dst_port": 2
+    },
+    {
+        "src_port": 3,
+        "src_device": 1,
+        "dst_device": 2,
+        "dst_port": 4
+    }
+]

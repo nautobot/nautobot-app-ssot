@@ -1,0 +1,17 @@
+[
+    {
+        "key": "Test Custom Field",
+        "value": "Success",
+        "notes": null
+    },
+    {
+        "key": "Environment",
+        "value": "test",
+        "notes": null
+    },
+    {
+        "key": "Department",
+        "value": "HR",
+        "notes": null
+    }
+]

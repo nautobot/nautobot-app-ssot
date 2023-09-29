@@ -1,0 +1,78 @@
+[
+    {
+        "building": "Dell - Round Rock 2",
+        "reverse_yaxis": "no",
+        "name": "Network Closet",
+        "notes": "",
+        "room_id": 1,
+        "reverse_xaxis": "no",
+        "building_id": 1,
+        "custom_fields": [
+            {
+                "notes": null,
+                "key": "Monitoring ID",
+                "value": null
+            }
+        ],
+        "tags": [
+            "sitecode-aus", "AUS"
+        ]
+    },
+    {
+        "building": "Apple Park",
+        "reverse_yaxis": "no",
+        "name": "Server Room",
+        "notes": "",
+        "room_id": 2,
+        "reverse_xaxis": "no",
+        "building_id": 2,
+        "custom_fields": [
+            {
+                "notes": null,
+                "key": "Monitoring ID",
+                "value": null
+            }
+        ],
+        "tags": [
+            "sitecode-sfo", "SFO"
+        ]
+    },
+    {
+        "building": "Microsoft HQ",
+        "reverse_yaxis": "no",
+        "name": "Main IDF",
+        "notes": "",
+        "room_id": 3,
+        "reverse_xaxis": "no",
+        "building_id": 2,
+        "custom_fields": [
+            {
+                "notes": null,
+                "key": "Monitoring ID",
+                "value": null
+            }
+        ],
+        "tags": [
+            "sitecode-sea", "SEA"
+        ]
+    },
+    {
+        "building": "Microsoft HQ",
+        "reverse_yaxis": "no",
+        "name": "Secondary IDF",
+        "notes": "",
+        "room_id": 4,
+        "reverse_xaxis": "no",
+        "building_id": 1,
+        "custom_fields": [
+            {
+                "notes": null,
+                "key": "Monitoring ID",
+                "value": null
+            }
+        ],
+        "tags": [
+            "sitecode-sea", "SEA"
+        ]
+    }
+]

@@ -1,0 +1,12 @@
+{
+    "Department": {
+        "key": "Department",
+        "value": null,
+        "notes": null
+    },
+    "Public Subnet": {
+        "key": "Public Subnet",
+        "value": null,
+        "notes": null
+    }
+}

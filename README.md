@@ -28,6 +28,7 @@ This Nautobot application framework includes the following integrations:
 
 - Cisco ACI
 - Arista CloudVision
+- Device42
 - Infoblox
 - IPFabric
 - ServiceNow

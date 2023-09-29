@@ -1,0 +1,23 @@
+[
+    {
+        "name": "Management",
+        "network": "192.168.0.0",
+        "mask_bits": 16,
+        "tags": "",
+        "vrf": "Management"
+    },
+    {
+        "name": "Webservers",
+        "network": "172.16.0.0",
+        "mask_bits": 12,
+        "tags": "",
+        "vrf": "DMZ"
+    },
+    {
+        "name": "AppServers",
+        "network": "10.0.0.0",
+        "mask_bits": 8,
+        "tags": "",
+        "vrf": "App"
+    }
+]
