@@ -313,6 +313,8 @@ class NautobotAdapterTests(TestCase):
         """Test default 'get_queryset' method."""
 
         class TenantModel(NautobotModel):
+            """Test model for testing default 'get_queryset' method."""
+
             _model = Tenant
             _modelname = "tenant"
             _identifiers = ("name",)
@@ -322,7 +324,7 @@ class NautobotAdapterTests(TestCase):
             description: str
 
         class Adapter(NautobotAdapter):
-            """Test default 'get_queryset' method."""
+            """Test adapter for testing default 'get_queryset' method."""
 
             top_level = ("tenant",)
             tenant = TenantModel
@@ -341,6 +343,8 @@ class NautobotAdapterTests(TestCase):
         """Test overriding 'get_queryset' method."""
 
         class TenantModel(NautobotModel):
+            """Test model for testing overridden 'get_queryset' method."""
+
             _model = Tenant
             _modelname = "tenant"
             _identifiers = ("name",)
