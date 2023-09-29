@@ -9,7 +9,7 @@ import uuid
 
 
 _APP_LABEL = "nautobot_ssot"
-_OLD_APP_LABEL = "nautobot_plugin_ssot_servicenow"
+_OLD_APP_LABEL = "nautobot_plugin_servicenow"
 _MODEL_NAME = "SSOTServiceNowConfig"
 
 
