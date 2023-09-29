@@ -3,8 +3,7 @@
 import datetime
 import time
 import uuid
-
-from django.contrib.contenttypes.models import ContentType
+from django.test import TestCase
 from django.utils.timezone import now
 
 from nautobot.extras.choices import JobResultStatusChoices
@@ -44,15 +43,15 @@ class SyncTestCase(TestCase):
         time.sleep(1)
         self.assertGreater(self.source_sync.duration, datetime.timedelta())
         self.source_sync.job_result = JobResult(
-            name="/plugins/nautobot_ssot.jobs.examples/ExampleDataSource",
-            obj_type=ContentType.objects.get_for_model(Job),
-            job_id=uuid.uuid4(),
+            name="ExampleDataSource",
+            task_name="nautobot_ssot.jobs.examples.ExampleDataSource",
+            worker="default",
         )
         # Still running
         time.sleep(1)
         self.assertGreater(self.source_sync.duration, datetime.timedelta(seconds=1))
         # Completed
-        self.source_sync.job_result.set_status(JobResultStatusChoices.STATUS_COMPLETED)
+        self.source_sync.job_result.set_status(JobResultStatusChoices.STATUS_SUCCESS)
         duration = self.source_sync.duration
         time.sleep(1)
         self.assertEqual(duration, self.source_sync.duration)
@@ -67,14 +66,16 @@ class SyncTestCase(TestCase):
         self.assertIsNone(self.source_sync.get_target_url())
 
         self.source_sync.job_result = JobResult(
-            name="/plugins/nautobot_ssot.jobs.examples/ExampleDataSource",
-            obj_type=ContentType.objects.get_for_model(Job),
-            job_id=uuid.uuid4(),
+            name="ExampleDataSource",
+            job_model=Job.objects.get(module_name="nautobot_ssot.jobs.examples", job_class_name="ExampleDataSource"),
+            task_name="nautobot_ssot.jobs.examples.ExampleDataSource",
+            worker="default",
         )
         self.target_sync.job_result = JobResult(
-            name="/plugins/nautobot_ssot.jobs.examples/ExampleDataTarget",
-            obj_type=ContentType.objects.get_for_model(Job),
-            job_id=uuid.uuid4(),
+            name="ExampleDataTarget",
+            job_model=Job.objects.get(module_name="nautobot_ssot.jobs.examples", job_class_name="ExampleDataTarget"),
+            task_name="nautobot_ssot.jobs.examples.ExampleDataTarget",
+            worker="default",
         )
 
         self.assertIsNotNone(self.source_sync.get_source_url())

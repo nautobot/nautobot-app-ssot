@@ -28,7 +28,7 @@
                                     </a>
                                 </h4>
                                 <span class="pull-right">
-                                    <a class="btn btn-xs btn-primary" href="{% url 'extras:job' class_path=data_source.class_path %}">
+                                    <a class="btn btn-xs btn-primary" href="{% url 'extras:job_run' pk=data_source.pk %}">
                                         <i class="mdi mdi-play"></i> Sync
                                     </a>
                                 </span>
@@ -57,7 +57,7 @@
                                     </a>
                                 </h4>
                                 <span class="pull-right">
-                                    <a class="btn btn-xs btn-primary" href="{% url 'extras:job' class_path=data_target.class_path %}">
+                                    <a class="btn btn-xs btn-primary" href="{% url 'extras:job_run' pk=data_target.pk %}">
                                         <i class="mdi mdi-play"></i> Sync
                                     </a>
                                 </span>

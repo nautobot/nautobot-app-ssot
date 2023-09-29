@@ -2,7 +2,8 @@
 
 from django import forms
 
-from nautobot.utilities.forms import add_blank_choice, BootstrapMixin, BOOLEAN_WITH_BLANK_CHOICES
+from nautobot.apps.forms import add_blank_choice
+from nautobot.core.forms import BootstrapMixin, BOOLEAN_WITH_BLANK_CHOICES
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 from .models import Sync, SyncLogEntry
@@ -35,7 +36,7 @@ class SyncLogEntryFilterForm(BootstrapMixin, forms.ModelForm):
         fields = ["sync", "action", "status"]
 
 
-class SyncForm(BootstrapMixin, forms.Form):
+class SyncForm(BootstrapMixin, forms.Form):  # pylint: disable=nb-incorrect-base-class
     """Base class for dynamic form generation for a SyncWorker."""
 
     dry_run = forms.BooleanField(

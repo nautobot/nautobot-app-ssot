@@ -3,7 +3,10 @@ from django.conf import settings
 from prometheus_client.core import GaugeMetricFamily
 from nautobot.extras.choices import JobResultStatusChoices
 from nautobot.extras.models.jobs import Job
+from nautobot_ssot.jobs import get_data_jobs
+from nautobot_ssot.jobs.base import DataSource, DataTarget
 from nautobot_ssot.models import Sync
+
 
 PLUGIN_SETTINGS = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
 
@@ -20,44 +23,49 @@ def metric_ssot_jobs():
         labels=["phase", "job"],
     )
 
-    for job in Job.objects.filter(slug__icontains="ssot"):
-        last_job_sync = Sync.objects.filter(job_result__job_model_id=job.id).last()
-        if last_job_sync:
-            if last_job_sync.source_load_time:
-                ssot_job_durations.add_metric(
-                    labels=["source_load_time", job.slug],
-                    value=(
-                        (last_job_sync.source_load_time.seconds * 100000) + last_job_sync.source_load_time.microseconds
+    for job in Job.objects.all():
+        if issubclass(job.job_class, (DataSource, DataTarget)):
+            last_job_sync = Sync.objects.filter(job_result__job_model_id=job.id).last()
+            if last_job_sync:
+                if last_job_sync.source_load_time:
+                    ssot_job_durations.add_metric(
+                        labels=["source_load_time", ".".join(job.natural_key())],
+                        value=(
+                            (last_job_sync.source_load_time.seconds * 100000)
+                            + last_job_sync.source_load_time.microseconds
+                        )
+                        / 1000,
                     )
-                    / 1000,
-                )
 
-            if last_job_sync.target_load_time:
-                ssot_job_durations.add_metric(
-                    labels=["target_load_time", job.slug],
-                    value=(
-                        (last_job_sync.target_load_time.seconds * 1000000) + last_job_sync.target_load_time.microseconds
+                if last_job_sync.target_load_time:
+                    ssot_job_durations.add_metric(
+                        labels=["target_load_time", ".".join(job.natural_key())],
+                        value=(
+                            (last_job_sync.target_load_time.seconds * 1000000)
+                            + last_job_sync.target_load_time.microseconds
+                        )
+                        / 1000,
                     )
-                    / 1000,
-                )
 
-            if last_job_sync.diff_time:
-                ssot_job_durations.add_metric(
-                    labels=["diff_time", job.slug],
-                    value=((last_job_sync.diff_time.seconds * 1000000) + last_job_sync.diff_time.microseconds) / 1000,
-                )
+                if last_job_sync.diff_time:
+                    ssot_job_durations.add_metric(
+                        labels=["diff_time", ".".join(job.natural_key())],
+                        value=((last_job_sync.diff_time.seconds * 1000000) + last_job_sync.diff_time.microseconds)
+                        / 1000,
+                    )
 
-            if last_job_sync.sync_time:
-                ssot_job_durations.add_metric(
-                    labels=["sync_time", job.slug],
-                    value=((last_job_sync.sync_time.seconds * 1000000) + last_job_sync.sync_time.microseconds) / 1000,
-                )
+                if last_job_sync.sync_time:
+                    ssot_job_durations.add_metric(
+                        labels=["sync_time", ".".join(job.natural_key())],
+                        value=((last_job_sync.sync_time.seconds * 1000000) + last_job_sync.sync_time.microseconds)
+                        / 1000,
+                    )
 
-            if last_job_sync.duration:
-                ssot_job_durations.add_metric(
-                    labels=["sync_duration", job.slug],
-                    value=((last_job_sync.duration.seconds * 1000000) + last_job_sync.duration.microseconds) / 1000,
-                )
+                if last_job_sync.duration:
+                    ssot_job_durations.add_metric(
+                        labels=["sync_duration", ".".join(job.natural_key())],
+                        value=((last_job_sync.duration.seconds * 1000000) + last_job_sync.duration.microseconds) / 1000,
+                    )
 
     yield ssot_job_durations
 
@@ -90,15 +98,17 @@ def metric_sync_operations():
         "nautobot_ssot_operation_total", "Nautobot SSoT operations by Job", labels=["job", "operation"]
     )
 
-    for job in Job.objects.filter(slug__icontains="ssot"):
-        last_job_sync = Sync.objects.filter(job_result__job_model_id=job.id).last()
-        if last_job_sync and last_job_sync.summary:
-            for operation, value in last_job_sync.summary.items():
-                sync_ops.add_metric(
-                    labels=[job.slug, operation],
-                    value=value,
-                )
-    if len(Job.objects.filter(slug__icontains="ssot")) == 0:
+    for job in Job.objects.all():
+        if issubclass(job.job_class, (DataSource, DataTarget)):
+            last_job_sync = Sync.objects.filter(job_result__job_model_id=job.id).last()
+            if last_job_sync and last_job_sync.summary:
+                for operation, value in last_job_sync.summary.items():
+                    sync_ops.add_metric(
+                        labels=[".".join(job.natural_key()), operation],
+                        value=value,
+                    )
+    data_sources, data_targets = get_data_jobs()
+    if len(data_sources + data_targets) == 0:
         sync_ops.add_metric(labels=["", ""], value=0)
 
     yield sync_ops
@@ -114,18 +124,19 @@ def metric_memory_usage():
         "nautobot_ssot_sync_memory_usage_bytes", "Nautobot SSoT Sync Memory Usage", labels=["phase", "job"]
     )
 
-    for job in Job.objects.filter(slug__icontains="ssot"):
-        last_job_sync = Sync.objects.filter(
-            job_result__job_model_id=job.id, source_load_memory_final__isnull=False
-        ).last()
-        if last_job_sync and last_job_sync.summary:
-            for operation, value in last_job_sync.summary.items():
-                memory_gauge.add_metric(
-                    labels=[operation, job.slug],
-                    value=value,
-                )
-        else:
-            memory_gauge.add_metric(labels=["", ""], value=0)
+    for job in Job.objects.all():
+        if issubclass(job.job_class, (DataSource, DataTarget)):
+            last_job_sync = Sync.objects.filter(
+                job_result__job_model_id=job.id, source_load_memory_final__isnull=False
+            ).last()
+            if last_job_sync and last_job_sync.summary:
+                for operation, value in last_job_sync.summary.items():
+                    memory_gauge.add_metric(
+                        labels=[operation, ".".join(job.natural_key())],
+                        value=value,
+                    )
+            else:
+                memory_gauge.add_metric(labels=["", ""], value=0)
 
     yield memory_gauge
 

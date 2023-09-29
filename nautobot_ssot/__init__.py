@@ -1,13 +1,6 @@
 """Plugin declaration for nautobot_ssot."""
 # Metadata is inherited from Nautobot. If not including Nautobot in the environment, this should be added
-
-from os import getenv
-
-try:
-    from importlib import metadata
-except ImportError:
-    # Python version < 3.8
-    import importlib_metadata as metadata
+from importlib import metadata
 
 from django.conf import settings
 from nautobot.extras.plugins import PluginConfig
@@ -52,8 +45,8 @@ class NautobotSSOTPluginConfig(PluginConfig):
     description = "Nautobot app that enables Single Source of Truth.  Allows users to aggregate distributed data sources and/or distribute Nautobot data to other data sources such as databases and SDN controllers."
     base_url = "ssot"
     required_settings = []
-    min_version = "1.4.0"
-    max_version = "1.9999"
+    min_version = "2.0.0"
+    max_version = "2.9999"
     default_settings = {
         "aci_apics": [],
         "aci_tag": "",
@@ -107,7 +100,7 @@ class NautobotSSOTPluginConfig(PluginConfig):
         "ipfabric_host": "",
         "ipfabric_ssl_verify": True,
         "ipfabric_timeout": 15,
-        "nautobot_host": "",
+        "ipfabric_nautobot_host": "",
         "servicenow_instance": "",
         "servicenow_password": "",
         "servicenow_username": "",

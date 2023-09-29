@@ -79,3 +79,5 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 COPY development/nautobot_config.py ${NAUTOBOT_ROOT}/nautobot_config.py
 # !!! USE CAUTION WHEN MODIFYING LINES ABOVE
+
+USER root

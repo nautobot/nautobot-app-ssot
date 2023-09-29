@@ -1,11 +1,9 @@
 """Unit tests for the IPFabric DiffSync adapter class."""
 import json
-import uuid
 from unittest.mock import MagicMock
 
-from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
-from nautobot.extras.models import Job, JobResult
+from nautobot.extras.models import JobResult
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabricDiffSync
 from nautobot_ssot.integrations.ipfabric.jobs import IpFabricDataSource
@@ -39,9 +37,7 @@ class IPFabricDiffSyncTestCase(TestCase):
         ipfabric_client.inventory.interfaces.all.return_value = INTERFACE_FIXTURE
 
         job = IpFabricDataSource()
-        job.job_result = JobResult.objects.create(
-            name=job.class_path, obj_type=ContentType.objects.get_for_model(Job), user=None, job_id=uuid.uuid4()
-        )
+        job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
         ipfabric = IPFabricDiffSync(job=job, sync=None, client=ipfabric_client)
         ipfabric.load()
         self.assertEqual(
@@ -75,7 +71,7 @@ class IPFabricDiffSyncTestCase(TestCase):
             self.assertTrue(hasattr(vlan, "name"))
             self.assertTrue(hasattr(vlan, "vid"))
             self.assertTrue(hasattr(vlan, "status"))
-            self.assertTrue(hasattr(vlan, "site"))
+            self.assertTrue(hasattr(vlan, "location"))
             self.assertTrue(hasattr(vlan, "description"))
 
         # Assert each interface has the necessary attributes

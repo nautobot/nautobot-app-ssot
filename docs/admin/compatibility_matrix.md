@@ -10,3 +10,7 @@ While that last supported version will not be strictly enforced--via the max_ver
 | 1.3.X                          | 1.4.0                          | 1.99.99                       |
 | 1.4.X                          | 1.4.0                          | 1.99.99                       |
 | 1.5.X                          | 1.4.0                          | 1.99.99                       |
+| 2.0.0-beta.1                   | 2.0.0b2                        | 2.0.0b2                       |
+| 2.0.0-beta.2                   | 2.0.0b2                        | 2.0.0b2                       |
+| 2.0.0-rc.1                     | 2.0.0rc1                       | 2.0.0rc1                      |
+| 2.0.0-rc.1                     | 2.0.0                          | 2.99.99                       |

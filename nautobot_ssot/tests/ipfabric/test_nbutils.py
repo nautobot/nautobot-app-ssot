@@ -1,14 +1,14 @@
 """Test Nautobot Utilities."""
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
-from django.utils.text import slugify
-from nautobot.dcim.models import DeviceRole, DeviceType, Manufacturer, Site
+from nautobot.dcim.models import DeviceType, Manufacturer, Location, LocationType
 from nautobot.dcim.models.devices import Device
 from nautobot.extras.models.statuses import Status
-from nautobot.ipam.models import VLAN, IPAddress
-from nautobot.utilities.choices import ColorChoices
+from nautobot.ipam.models import VLAN, IPAddress, Prefix, get_default_namespace
+from nautobot.core.choices import ColorChoices
+from nautobot.extras.models import Role
 
-from nautobot_ssot.integrations.ipfabric.utilities import (  # create_ip,; create_interface,; create_site,
+from nautobot_ssot.integrations.ipfabric.utilities import (  # create_ip,; create_interface,; create_location,
     get_or_create_device_role_object,
     create_device_type_object,
     create_manufacturer,
@@ -23,39 +23,46 @@ class TestNautobotUtils(TestCase):
 
     def setUp(self):
         """Setup."""
-        self.site = Site.objects.create(
-            name="Test-Site",
-            slug="test-site",
+        reg_loctype = LocationType.objects.update_or_create(name="Region")[0]
+        reg_loctype.content_types.set([ContentType.objects.get_for_model(VLAN)])
+        self.location = Location.objects.create(
+            name="Test-Location",
             status=Status.objects.get(name="Active"),
+            location_type=reg_loctype,
         )
 
-        self.manufacturer = Manufacturer.objects.create(name="Test-Manufacturer", slug="test-manufacturer")
-        self.device_type = DeviceType.objects.create(
-            model="Test-DeviceType", slug="test-devicetype", manufacturer=self.manufacturer
-        )
-        self.device_role = DeviceRole.objects.create(name="Test-Role", slug="test-role", color=ColorChoices.COLOR_RED)
+        status_active = Status.objects.get(name="Active")
+
+        self.manufacturer = Manufacturer.objects.create(name="Test-Manufacturer")
+        self.device_type = DeviceType.objects.create(model="Test-DeviceType", manufacturer=self.manufacturer)
+        self.content_type = ContentType.objects.get_for_model(Device)
+        self.device_role = Role.objects.create(name="Test-Role", color=ColorChoices.COLOR_RED)
+        self.device_role.content_types.set([self.content_type])
         self.device_role.cf["ipfabric_type"] = "Test-Role"
         self.device_role.validated_save()
-        self.content_type = ContentType.objects.get(app_label="dcim", model="device")
         self.status = Status.objects.create(
             name="Test-Status",
-            slug=slugify("Test-Status"),
             color=ColorChoices.COLOR_AMBER,
             description="Test-Description",
         )
         self.status.content_types.set([self.content_type])
-        self.status_obj = Status.objects.get_for_model(IPAddress).get(slug=slugify("Active"))
-        self.ip_address = IPAddress.objects.create(address="192.168.0.1/32", status=self.status_obj)
+        prefix = Prefix.objects.get_or_create(
+            prefix="192.168.0.0/16", namespace=get_default_namespace(), status=status_active
+        )[0]
+        self.ip_address = IPAddress.objects.create(address="192.168.0.1/32", status=status_active, parent=prefix)
 
         self.device = Device.objects.create(
-            name="Test-Device", site=self.site, device_type=self.device_type, device_role=self.device_role
+            name="Test-Device",
+            location=self.location,
+            device_type=self.device_type,
+            role=self.device_role,
+            status=status_active,
         )
 
-        self.device.interfaces.create(name="Test-Interface")
+        self.device.interfaces.create(name="Test-Interface", status=status_active)
         self.vlan_content_type = ContentType.objects.get(app_label="ipam", model="vlan")
         self.vlan_status = Status.objects.create(
             name="Test-Vlan-Status",
-            slug=slugify("Test-Vlan-Status"),
             color=ColorChoices.COLOR_AMBER,
             description="Test-Description",
         )
@@ -67,23 +74,23 @@ class TestNautobotUtils(TestCase):
             vlan_name="Test-Vlan",
             vlan_id=100,
             vlan_status="Test-Vlan-Status",
-            site_obj=self.site,
+            location_obj=self.location,
             description="Test-Vlan",
         )
         self.assertEqual(VLAN.objects.get(name="Test-Vlan").pk, vlan.pk)
 
-    # def test_create_site(self):
-    #     """Test `create_site` Utility."""
-    #     test_site = create_site(site_name="Test-Site")
-    #     self.assertEqual(test_site.id, self.site.id)
+    # def test_create_location(self):
+    #     """Test `create_location` Utility."""
+    #     test_location = create_location(location_name="Test-Location")
+    #     self.assertEqual(test_location.id, self.location.id)
 
-    # def test_create_site_exception(self):
-    #     """Test `create_site` Utility exception."""
-    #     site = create_site(
-    #         site_name="Test-Site-100",
-    #         site_id=123456,
+    # def test_create_location_exception(self):
+    #     """Test `create_location` Utility exception."""
+    #     location = create_location(
+    #         location_name="Test-Location-100",
+    #         location_id=123456,
     #     )
-    #     self.assertEqual(Site.objects.get(name="Test-Site-100").pk, site.pk)
+    #     self.assertEqual(Location.objects.get(name="Test-Location-100").pk, location.pk)
 
     def test_create_device_type_object(self):
         """Test `create_device_type_object` Utility."""

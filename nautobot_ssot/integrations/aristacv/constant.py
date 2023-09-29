@@ -83,6 +83,6 @@ PORT_TYPE_MAP = {
     "400GBASE-ZR": "400gbase-x-qsfpdd",
 }
 
-CLOUDVISION_PLATFORM = "arista_eos_cloudvision"
+CLOUDVISION_PLATFORM = "Arista EOS-CloudVision"
 
-ARISTA_PLATFORM = "arista_eos"
+ARISTA_PLATFORM = "arista.eos.eos"

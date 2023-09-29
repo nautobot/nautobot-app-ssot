@@ -27,5 +27,5 @@ def get_prefix_vlans(prefix: Prefix) -> list:
         list: List of VLAN objects with RelationshipAssociation to passed Prefix.
     """
     pf_relations = prefix.get_relationships()
-    pf_vlan_relationship = Relationship.objects.get(name="Prefix -> VLAN")
+    pf_vlan_relationship = Relationship.objects.get(label="Prefix -> VLAN")
     return [x.destination for x in pf_relations["source"][pf_vlan_relationship]]

@@ -36,7 +36,7 @@ class ServiceNowCRUDMixin:
                     if not sys_id:
                         target = self.diffsync.client.get_by_query(tablename, {mapping["reference"]["column"]: value})
                         if target is None:
-                            self.diffsync.job.log_warning(message=f"Unable to find reference target in {tablename}")
+                            self.diffsync.job.logger.warning(f"Unable to find reference target in {tablename}")
                         else:
                             sys_id = target["sys_id"]
                             self._sys_id_cache.setdefault(tablename, {}).setdefault(column_name, {})[value] = sys_id
@@ -45,7 +45,7 @@ class ServiceNowCRUDMixin:
             else:
                 raise NotImplementedError
 
-        self.diffsync.job.log_debug(f"Mapped data {data} to record {record}")
+        self.diffsync.job.logger.debug(f"Mapped data {data} to record {record}")
         return record
 
     @classmethod
@@ -70,8 +70,8 @@ class ServiceNowCRUDMixin:
         try:
             record = sn_resource.get(query=query).one()
         except pysnow.exceptions.MultipleResults:
-            self.diffsync.job.log_failure(
-                message=f"Unsure which record to update, as query {query} matched more than one item "
+            self.diffsync.job.logger.error(
+                f"Unsure which record to update, as query {query} matched more than one item "
                 f"in table {entry['table']}"
             )
             return None
@@ -136,15 +136,14 @@ class Location(ServiceNowCRUDMixin, DiffSyncModel):
     name: str
 
     parent_location_name: Optional[str]
-    contained_locations: List["Location"] = []
+    # contained_locations: List["Location"] = []
     latitude: Union[float, str] = ""  # can't use Optional[float] because an empty string doesn't map to None
     longitude: Union[float, str] = ""
 
     devices: List["Device"] = []
 
     sys_id: Optional[str] = None
-    region_pk: Optional[uuid.UUID] = None
-    site_pk: Optional[uuid.UUID] = None
+    pk: Optional[uuid.UUID] = None
 
     full_name: Optional[str] = None
 
@@ -176,9 +175,9 @@ class Device(ServiceNowCRUDMixin, DiffSyncModel):
     model_name: Optional[str]
     serial: Optional[str]
 
-    platform: Optional[str]
-    role: Optional[str]
-    vendor: Optional[str]
+    # platform: Optional[str]
+    # role: Optional[str]
+    # vendor: Optional[str]
 
     interfaces: List["Interface"] = []
 
@@ -190,7 +189,9 @@ class Device(ServiceNowCRUDMixin, DiffSyncModel):
         """Create a new Device instance, and set things up for eventual bulk-creation of its child Interfaces."""
         model = super().create(diffsync, ids=ids, attrs=attrs)
 
-        diffsync.job.log_debug(f'New Device "{ids["name"]}" is being created, will bulk-create its interfaces later.')
+        diffsync.job.logger.debug(
+            f'New Device "{ids["name"]}" is being created, will bulk-create its interfaces later.'
+        )
         diffsync.interfaces_to_create_per_device[ids["name"]] = []
 
         return model
@@ -215,20 +216,20 @@ class Interface(ServiceNowCRUDMixin, DiffSyncModel):
     name: str
     device_name: str
 
-    access_vlan: Optional[int]
-    active: Optional[bool]
+    # access_vlan: Optional[int]
+    # active: Optional[bool]
     allowed_vlans: List[str] = []
     description: Optional[str]
-    is_virtual: Optional[bool]
-    is_lag: Optional[bool]
-    is_lag_member: Optional[bool]
+    # is_virtual: Optional[bool]
+    # is_lag: Optional[bool]
+    # is_lag_member: Optional[bool]
     lag_members: List[str] = []
-    mode: Optional[str]  # TRUNK, ACCESS, L3, NONE
-    mtu: Optional[int]
-    parent: Optional[str]
-    speed: Optional[int]
-    switchport_mode: Optional[str]
-    type: Optional[str]
+    # mode: Optional[str]  # TRUNK, ACCESS, L3, NONE
+    # mtu: Optional[int]
+    # parent: Optional[str]
+    # speed: Optional[int]
+    # switchport_mode: Optional[str]
+    # port_type: Optional[str]
 
     ip_addresses: List["IPAddress"] = []
 
@@ -239,7 +240,7 @@ class Interface(ServiceNowCRUDMixin, DiffSyncModel):
     def create(cls, diffsync, ids, attrs):
         """Create an interface in isolation, or if the parent Device is new as well, defer for later bulk-creation."""
         if ids["device_name"] in diffsync.interfaces_to_create_per_device:
-            diffsync.job.log_debug(
+            diffsync.job.logger.debug(
                 f'Device "{ids["device_name"]}" was just created; deferring creation of interface "{ids["name"]}"'
             )
             # copy-paste of DiffSyncModel's create() classmethod;

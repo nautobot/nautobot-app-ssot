@@ -1,15 +1,12 @@
 """Test the Job classes in nautobot_ssot."""
 import os.path
 from unittest.mock import Mock, call
-import uuid
 
-from django.contrib.contenttypes.models import ContentType
 from django.db.utils import IntegrityError, OperationalError
-from django.forms import HiddenInput
 from django.test import override_settings
 
 from nautobot.extras.models import JobResult
-from nautobot.utilities.testing import TransactionTestCase
+from nautobot.core.testing import TransactionTestCase
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 from nautobot_ssot.tests.jobs import DataSyncBaseJob, DataSource, DataTarget
@@ -33,8 +30,8 @@ class BaseJobTestCase(TransactionTestCase):
 
         self.job.job_result = JobResult.objects.create(
             name="fake job",
-            obj_type=ContentType.objects.get(app_label="extras", model="job"),
-            job_id=uuid.uuid4(),
+            task_name="fake job",
+            worker="default",
         )
 
         self.job.load_source_adapter = lambda *x, **y: None
@@ -42,7 +39,7 @@ class BaseJobTestCase(TransactionTestCase):
 
     def test_sync_log(self):
         """Test the sync_log() method."""
-        self.job.run(data={"dry_run": True, "memory_profiling": False}, commit=True)
+        self.job.run(dryrun=True, memory_profiling=False)
         self.assertIsNotNone(self.job.sync)
         # Minimal parameters
         self.job.sync_log(
@@ -65,9 +62,7 @@ class BaseJobTestCase(TransactionTestCase):
         """Test the as_form() method."""
         form = self.job.as_form()
         # Dry run flag defaults to true unless configured otherwise
-        self.assertTrue(form.fields["dry_run"].initial)
-        # Commit field is hidden to reduce user confusion
-        self.assertIsInstance(form.fields["_commit"].widget, HiddenInput)
+        self.assertTrue(form.fields["dryrun"].initial)
 
     def test_data_source(self):
         """Test the data_source property."""
@@ -87,7 +82,7 @@ class BaseJobTestCase(TransactionTestCase):
 
     def test_run(self):
         """Test the run() method."""
-        self.job.run(data={"dry_run": True, "memory_profiling": False}, commit=True)
+        self.job.run(dryrun=True, memory_profiling=False)
         self.assertIsNotNone(self.job.sync)
         self.assertIsNotNone(self.job.sync.source_load_time)
         self.assertIsNotNone(self.job.sync.target_load_time)
@@ -95,7 +90,7 @@ class BaseJobTestCase(TransactionTestCase):
         self.assertIsNone(self.job.sync.sync_time)
         self.assertEqual(self.job.sync.source, self.job.data_source)
         self.assertEqual(self.job.sync.target, self.job.data_target)
-        self.assertTrue(self.job.sync.dry_run)
+        self.assertTrue(self.job.dryrun)
         self.assertEqual(self.job.job_result, self.job.sync.job_result)
 
     def test_calculate_diff(self):
@@ -114,12 +109,12 @@ class BaseJobTestCase(TransactionTestCase):
         self.job.sync.save.side_effect = [None, OperationalError("Fail")]
         self.job.source_adapter = Mock()
         self.job.target_adapter = Mock()
-        self.job.log_info = Mock()
-        self.job.log_warning = Mock()
+        self.job.logger.info = Mock()
+        self.job.logger.warning = Mock()
         self.job.source_adapter.diff_to().dict.return_value = {}
         self.job.calculate_diff()
-        self.job.log_warning.assert_any_call(
-            message="Unable to save JSON diff to the database; likely the diff is too large."
+        self.job.logger.warning.assert_any_call(
+            "Unable to save JSON diff to the database; likely the diff is too large."
         )
 
     def test_calculate_diff_fail_diff_save_generic(self):
@@ -128,8 +123,8 @@ class BaseJobTestCase(TransactionTestCase):
         self.job.sync.save.side_effect = [None, IntegrityError("Fail")]
         self.job.source_adapter = Mock()
         self.job.target_adapter = Mock()
-        self.job.log_info = Mock()
-        self.job.log_warning = Mock()
+        self.job.logger.info = Mock()
+        self.job.logger.warning = Mock()
         self.job.source_adapter.diff_to().dict.return_value = {}
         with self.assertRaises(IntegrityError):
             self.job.calculate_diff()

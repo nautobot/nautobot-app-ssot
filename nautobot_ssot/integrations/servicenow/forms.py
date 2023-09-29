@@ -2,7 +2,7 @@
 from django import forms
 
 from nautobot.extras.models import SecretsGroup
-from nautobot.utilities.forms import DynamicModelChoiceField
+from nautobot.core.forms import DynamicModelChoiceField
 
 from .models import SSOTServiceNowConfig
 

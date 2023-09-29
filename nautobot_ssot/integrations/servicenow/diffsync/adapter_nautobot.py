@@ -8,10 +8,10 @@ from diffsync.exceptions import ObjectNotFound
 
 from django.contrib.contenttypes.models import ContentType
 
-from nautobot.dcim.models import Device, DeviceType, Interface, Manufacturer, Region, Site
+from nautobot.dcim.models import Device, DeviceType, Interface, Manufacturer, Location
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Tag
-from nautobot.utilities.choices import ColorChoices
+from nautobot.core.choices import ColorChoices
 
 from . import models
 
@@ -40,7 +40,7 @@ class NautobotDiffSync(DiffSync):
     def load_manufacturers(self):
         """Add Manufacturers and their descendant DeviceTypes as DiffSyncModel instances."""
         for mfr_record in Manufacturer.objects.all():
-            mfr = self.company(diffsync=self, name=mfr_record.name, manufacturer=True, pk=mfr_record.pk)
+            mfr = self.company(diffsync=self, name=mfr_record.name, manufacturer=True, pk=mfr_record.id)
             self.add(mfr)
             for dtype_record in DeviceType.objects.filter(manufacturer=mfr_record):
                 dtype = self.product_model(
@@ -48,76 +48,39 @@ class NautobotDiffSync(DiffSync):
                     manufacturer_name=mfr.name,
                     model_name=dtype_record.model,
                     model_number=dtype_record.model,
-                    pk=dtype_record.pk,
+                    pk=dtype_record.id,
                 )
                 self.add(dtype)
                 mfr.add_child(dtype)
 
-        self.job.log_info(
-            message=f"Loaded {len(self.get_all('company'))} manufacturer records and "
+        self.job.logger.info(
+            f"Loaded {len(self.get_all('company'))} manufacturer records and "
             f"{len(self.get_all('product_model'))} device-type records from Nautobot."
         )
 
-    def load_regions(self, parent_location=None):
-        """Recursively add Nautobot Region objects as DiffSync Location models."""
+    def load_locations(self):
+        """Load Nautobot Location objects as DiffSync Location models."""
         if self.site_filter is not None:
             # Load only direct ancestors of the given Site
-            regions = []
-            ancestor = self.site_filter.region
+            locations = []
+            ancestor = self.site_filter.parent
             while ancestor is not None:
-                regions.insert(0, ancestor)
-                ancestor = ancestor.parent
+                locations.insert(0, ancestor)
         else:
-            parent_pk = parent_location.region_pk if parent_location else None
-            regions = Region.objects.filter(parent=parent_pk)
+            locations = Location.objects.all()
 
-        for region_record in regions:
+        for location_record in locations:
             location = self.location(
                 diffsync=self,
-                name=region_record.name,
-                region_pk=region_record.pk,
+                name=location_record.name,
+                pk=location_record.id,
+                parent_location_name=None,
             )
-            if region_record.parent:
-                location.parent_location_name = region_record.parent.name
-                if not parent_location:
-                    parent_location = self.get(self.location, region_record.parent.name)
-                if parent_location:
-                    parent_location.contained_locations.append(location)
+            if location_record.parent:
+                location.parent_location_name = location_record.parent.name
             self.add(location)
-            if self.site_filter is None:
-                # Recursively load children of the given Region
-                self.load_regions(parent_location=location)
 
-    def load_sites(self):
-        """Add Nautobot Site objects as DiffSync Location models."""
-        for location in self.get_all(self.location):
-            self.job.log_debug(f"Getting Sites associated with {location}")
-            for site_record in Site.objects.filter(region__name=location.name):
-                if self.site_filter is not None and site_record != self.site_filter:
-                    self.job.log_debug(f"Skipping site {site_record} due to site filter")
-                    continue
-                # A Site and a Region may share the same name; if so they become part of the same Location record.
-                try:
-                    region_location = self.get(self.location, site_record.name)
-                    region_location.site_pk = site_record.pk
-                except ObjectNotFound:
-                    site_location = self.location(
-                        diffsync=self,
-                        name=site_record.name,
-                        latitude=site_record.latitude or "",
-                        longitude=site_record.longitude or "",
-                        site_pk=site_record.pk,
-                    )
-                    self.add(site_location)
-                    if site_record.region:
-                        if site_record.name != site_record.region.name:
-                            region_location = self.get(self.location, site_record.region.name)
-                            region_location.contained_locations.append(site_location)
-                        site_location.parent_location_name = site_record.region.name
-
-        self.job.log_info(
-            message=f"Loaded {len(self.get_all('location'))} aggregated site and region records from Nautobot."
-        )
+        self.job.logger.info(f"Loaded {len(self.get_all('location'))} location records from Nautobot.")
 
     def load_interface(self, interface_record, device_model):
         """Import a single Nautobot Interface object as a DiffSync Interface model."""
@@ -126,7 +89,7 @@ class NautobotDiffSync(DiffSync):
             name=interface_record.name,
             device_name=device_model.name,
             description=interface_record.description,
-            pk=interface_record.pk,
+            pk=interface_record.id,
         )
         self.add(interface)
         device_model.add_child(interface)
@@ -134,16 +97,13 @@ class NautobotDiffSync(DiffSync):
     def load(self):
         """Load data from Nautobot."""
         self.load_manufacturers()
-        # Import all Nautobot Region records as Locations
-        self.load_regions()
-
-        # Import all Nautobot Site records as Locations
-        self.load_sites()
+        # Import all Nautobot Location records as Locations
+        self.load_locations()
 
         for location in self.get_all(self.location):
-            if location.site_pk is None:
+            if location.pk is None:
                 continue
-            for device_record in Device.objects.filter(site__pk=location.site_pk):
+            for device_record in Device.objects.filter(location__id=location.pk):
                 device = self.device(
                     diffsync=self,
                     name=device_record.name,
@@ -152,7 +112,7 @@ class NautobotDiffSync(DiffSync):
                     manufacturer_name=device_record.device_type.manufacturer.name,
                     model_name=device_record.device_type.model,
                     serial=device_record.serial,
-                    pk=device_record.pk,
+                    pk=device_record.id,
                 )
                 self.add(device)
                 location.add_child(device)
@@ -160,8 +120,8 @@ class NautobotDiffSync(DiffSync):
                 for interface_record in Interface.objects.filter(device=device_record):
                     self.load_interface(interface_record, device)
 
-        self.job.log_info(
-            message=f"Loaded {len(self.get_all('device'))} device records and "
+        self.job.logger.info(
+            f"Loaded {len(self.get_all('device'))} device records and "
             f"{len(self.get_all('interface'))} interface records from Nautobot."
         )
 
@@ -170,7 +130,7 @@ class NautobotDiffSync(DiffSync):
         # The ssot-synced-to-servicenow tag *should* have been created automatically during plugin installation
         # (see nautobot_ssot/integrations/servicenow/signals.py) but maybe a user deleted it inadvertently, so be safe:
         tag, _ = Tag.objects.get_or_create(
-            slug="ssot-synced-to-servicenow",
+            name="SSoT Synced to ServiceNow",
             defaults={
                 "name": "SSoT Synced to ServiceNow",
                 "description": "Object synced at some point from Nautobot to ServiceNow",
@@ -180,12 +140,12 @@ class NautobotDiffSync(DiffSync):
         # Ensure that the "ssot-synced-to-servicenow" custom field is present; as above, it *should* already exist.
         custom_field, _ = CustomField.objects.get_or_create(
             type=CustomFieldTypeChoices.TYPE_DATE,
-            name="ssot-synced-to-servicenow",
+            key="ssot-synced-to-servicenow",
             defaults={
                 "label": "Last synced to ServiceNow on",
             },
         )
-        for model in [Device, DeviceType, Interface, Manufacturer, Region, Site]:
+        for model in [Device, DeviceType, Interface, Manufacturer, Location]:
             custom_field.content_types.add(ContentType.objects.get_for_model(model))
 
         for modelname in [
@@ -215,7 +175,7 @@ class NautobotDiffSync(DiffSync):
             if hasattr(nautobot_object, "tags"):
                 nautobot_object.tags.add(tag)
             if hasattr(nautobot_object, "cf"):
-                nautobot_object.cf[custom_field.name] = today
+                nautobot_object.cf[custom_field.key] = today
             nautobot_object.validated_save()
 
         if modelname == "company":
@@ -225,9 +185,7 @@ class NautobotDiffSync(DiffSync):
         elif modelname == "interface":
             _tag_object(Interface.objects.get(pk=model_instance.pk))
         elif modelname == "location":
-            if model_instance.region_pk is not None:
-                _tag_object(Region.objects.get(pk=model_instance.region_pk))
-            if model_instance.site_pk is not None:
-                _tag_object(Site.objects.get(pk=model_instance.site_pk))
+            if model_instance.pk is not None:
+                _tag_object(Location.objects.get(pk=model_instance.pk))
         elif modelname == "product_model":
             _tag_object(DeviceType.objects.get(pk=model_instance.pk))
