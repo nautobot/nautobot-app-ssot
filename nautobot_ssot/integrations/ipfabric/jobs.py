@@ -3,7 +3,6 @@
 #  pylint: disable=too-many-locals
 """IP Fabric Data Target Job."""
 import uuid
-from diffsync.enum import DiffSyncFlags
 from diffsync.exceptions import ObjectNotCreated
 from django.conf import settings
 from django.templatetags.static import static
@@ -11,7 +10,7 @@ from django.urls import reverse
 from httpx import ConnectError
 from ipfabric import IPFClient
 from nautobot.dcim.models import Location
-from nautobot.extras.jobs import BooleanVar, Job, ScriptVariable, ChoiceVar
+from nautobot.extras.jobs import BooleanVar, ScriptVariable, ChoiceVar
 from nautobot.core.forms import DynamicModelChoiceField
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 
@@ -103,7 +102,7 @@ class OptionalObjectVar(ScriptVariable):
 
 
 # pylint:disable=too-few-public-methods
-class IpFabricDataSource(DataSource, Job):
+class IpFabricDataSource(DataSource):
     """Job syncing data from IP Fabric to Nautobot."""
 
     client = None
@@ -220,11 +219,11 @@ class IpFabricDataSource(DataSource, Job):
         self,
         dryrun,
         memory_profiling,
+        debug,
         snapshot=None,
         safe_delete_mode=True,
         sync_ipfabric_tagged_only=True,
         location_filter=None,
-        debug=False,
         *args,
         **kwargs,
     ):
@@ -285,13 +284,12 @@ class IpFabricDataSource(DataSource, Job):
 
         self.logger.info("Loading current data from Nautobot...")
         dest.load()
-
         self.logger.info("Calculating diffs...")
-        flags = DiffSyncFlags.CONTINUE_ON_FAILURE
 
-        diff = dest.diff_from(ipfabric_source, flags=flags)
+        diff = dest.diff_from(ipfabric_source)
         # pylint: disable-next=logging-fstring-interpolation
-        self.logger.debug(f"Diff: {diff.dict()}")
+        if debug_mode:
+            self.logger.debug(f"Diff: {diff.dict()}")
 
         self.sync.diff = diff.dict()
         self.sync.save()
