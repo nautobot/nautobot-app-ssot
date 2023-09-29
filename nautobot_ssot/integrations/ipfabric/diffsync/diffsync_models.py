@@ -319,10 +319,10 @@ class Interface(DiffSyncExtras):
             )
             interface_obj.ip_addresses.add(ip_address_obj)
             if attrs.get("ip_is_primary"):
-                if ip_address_obj.family == 4:
+                if ip_address_obj.ip_version == 4:
                     device_obj.primary_ip4 = ip_address_obj
                     device_obj.save()
-                if ip_address_obj.family == 6:
+                if ip_address_obj.ip_version == 6:
                     device_obj.primary_ip6 = ip_address_obj
                     device_obj.save()
         interface_obj.save()
@@ -384,10 +384,10 @@ class Interface(DiffSyncExtras):
             if attrs.get("ip_is_primary"):
                 interface_obj = interface.ip_addresses.first()
                 if interface_obj:
-                    if interface_obj.family == 4:
+                    if interface_obj.ip_version == 4:
                         device.primary_ip4 = interface_obj
                         device.save()
-                    if interface_obj.family == 6:
+                    if interface_obj.ip_version == 6:
                         device.primary_ip6 = interface_obj
                         device.save()
             interface.save()
@@ -402,14 +402,14 @@ class Vlan(DiffSyncExtras):
     """VLAN model."""
 
     _modelname = "vlan"
-    _identifiers = ("name", "site")
+    _identifiers = ("name", "location")
     _shortname = ("name",)
     _attributes = ("vid", "status", "description")
 
     name: str
     vid: int
     status: str
-    site: str
+    location: str
     description: Optional[str]
     vlan_pk: Optional[UUID]
 
@@ -417,7 +417,7 @@ class Vlan(DiffSyncExtras):
     def create(cls, diffsync, ids, attrs):
         """Create VLANs in Nautobot under the site."""
         status = attrs["status"].lower().capitalize()
-        location = NautobotLocation.objects.get(name=ids["site"])
+        location = NautobotLocation.objects.get(name=ids["location"])
         name = ids["name"] if ids["name"] else f"VLAN{attrs['vid']}"
         description = attrs["description"] if attrs["description"] else None
         if diffsync.job.debug:
