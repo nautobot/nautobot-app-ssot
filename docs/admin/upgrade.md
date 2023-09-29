@@ -26,7 +26,7 @@ To prevent conflicts during `nautobot-ssot` upgrade:
 These steps will help prevent issues during `nautobot-ssot` upgrades. Always back up your data and thoroughly test your configuration after these changes.
 
 !!! note
-    It's possible to allow conflicting apps to remain in `PLUGINS` during the upgrade process. You can specify the following environment variable in `development/development.env` to allow conflicting apps:
+    It's possible to allow conflicting apps to remain in `PLUGINS` during the upgrade process. You can specify the following environment variable to allow conflicting apps (see `development/development.env` for an example):
 
     ```bash
     NAUTOBOT_SSOT_ALLOW_CONFLICTING_APPS=True
