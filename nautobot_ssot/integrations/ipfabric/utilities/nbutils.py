@@ -5,21 +5,22 @@ from typing import Any, Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import IntegrityError
+from django.core.exceptions import ValidationError
 from nautobot.dcim.models import (
     Device,
     DeviceType,
     Interface,
     Manufacturer,
     Location,
+    LocationType,
 )
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Role, Tag
 from nautobot.extras.models.statuses import Status
-from nautobot.ipam.models import VLAN, IPAddress
+from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix
+from nautobot.ipam.choices import PrefixTypeChoices
 from nautobot.core.choices import ColorChoices
 from netutils.ip import netmask_to_cidr
-
-from nautobot_ssot.integrations.ipfabric.constants import ALLOW_DUPLICATE_ADDRESSES
 
 
 def create_location(location_name, location_id=None):
@@ -29,8 +30,11 @@ def create_location(location_name, location_id=None):
         location_name (str): Name of the location.
         location_id (str): ID of the location.
     """
-    location_obj, _ = Location.objects.get_or_create(name=location_name)
-    location_obj.status = Status.objects.get(name="Active")
+    location_obj, _ = Location.objects.get_or_create(
+        name=location_name,
+        location_type=LocationType.objects.get(name="Site"),
+        status=Status.objects.get(name="Active"),
+    )
     if location_id:
         # Ensure custom field is available
         custom_field_obj, _ = CustomField.objects.get_or_create(
@@ -119,17 +123,19 @@ def create_ip(ip_address, subnet_mask, status="Active", object_pk=None):
         object_pk: Object primary key
     """
     status_obj = Status.objects.get_for_model(IPAddress).get(name=status)
+    namespace_obj = Namespace.objects.get(name="Global")
     cidr = netmask_to_cidr(subnet_mask)
-    if ALLOW_DUPLICATE_ADDRESSES:
-        addr = IPAddress.objects.filter(host=ip_address)
-        data = {"address": f"{ip_address}/{cidr}", "status": status_obj}
-        if addr.exists():
-            data["description"] = "Duplicate by IPFabric SSoT"
-
-        ip_obj = IPAddress.objects.create(**data)
-
-    else:
+    try:
         ip_obj, _ = IPAddress.objects.get_or_create(address=f"{ip_address}/{cidr}", status=status_obj)
+    except ValidationError:
+        parent, _ = Prefix.objects.get_or_create(
+            network="0.0.0.0",  # nosec B104
+            prefix_length=0,
+            type=PrefixTypeChoices.TYPE_NETWORK,
+            status=Status.objects.get_for_model(Prefix).get(name="Active"),
+            namespace=namespace_obj,
+        )
+        ip_obj, _ = IPAddress.objects.get_or_create(address=f"{ip_address}/{cidr}", status=status_obj, parent=parent)
 
     if object_pk:
         ip_obj.assigned_object_id = object_pk.pk
@@ -157,9 +163,11 @@ def create_interface(device_obj, interface_details):
         "mtu",
         "type",
         "mgmt_only",
+        "status",
     )
     fields = {k: v for k, v in interface_details.items() if k in interface_fields and v}
     try:
+        fields["status"] = Status.objects.get_for_model(Interface).get(name=fields.get(fields["status"], "Active"))
         interface_obj, _ = device_obj.interfaces.get_or_create(**fields)
     except IntegrityError:
         interface_obj, _ = device_obj.interfaces.get_or_create(name=fields["name"])
@@ -169,6 +177,7 @@ def create_interface(device_obj, interface_details):
         interface_obj.mtu = fields.get("mtu")
         interface_obj.type = fields.get("type")
         interface_obj.mgmt_only = fields.get("mgmt_only", False)
+        interface_obj.status = Status.objects.get_for_model(Interface).get(name=fields.get("status", "Active"))
         interface_obj.validated_save()
     tag_object(nautobot_object=interface_obj, custom_field="ssot-synced-from-ipfabric")
     return interface_obj
@@ -221,13 +230,9 @@ def tag_object(nautobot_object: Any, custom_field: str, tag_name: Optional[str] 
             nautobot_object.tags.add(tag)
         if hasattr(nautobot_object, "cf"):
             # Ensure that the "ssot-synced-from-ipfabric" custom field is present
-            if not any(cfield for cfield in CustomField.objects.all() if cfield.label == "ssot-synced-from-ipfabric"):
-                custom_field_obj, _ = CustomField.objects.get_or_create(
-                    type=CustomFieldTypeChoices.TYPE_DATE,
-                    label="ssot-synced-from-ipfabric",
-                    defaults={
-                        "label": "Last synced from IPFabric on",
-                    },
+            if not any(cfield for cfield in CustomField.objects.all() if cfield.key == "ssot-synced-from-ipfabric"):
+                custom_field_obj, _ = CustomField.objects.get(
+                    key="ssot-synced-from-ipfabric",
                 )
                 synced_from_models = [
                     Device,

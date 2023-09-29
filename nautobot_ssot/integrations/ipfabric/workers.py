@@ -116,6 +116,7 @@ def ssot_sync_to_nautobot(
         safe_delete_mode=is_truthy(safe_delete_mode),
         sync_ipfabric_tagged_only=is_truthy(sync_ipfabric_tagged_only),
         location_filter=location_filter,
+        debug=False,
     )
     sync_job.job_result.validated_save()
 
