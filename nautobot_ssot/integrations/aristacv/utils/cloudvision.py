@@ -304,6 +304,7 @@ def get_tags_by_type(client, creator_type: int = tag_models.CREATOR_TYPE_USER):
         tags.append(dev_tag)
     return tags
 
+
 # credit to @Eric-Jckson in https://github.com/nautobot/nautobot-plugin-ssot-arista-cloudvision/pull/164 for update to get_device_tags()
 def get_device_tags(client, device_id: str):
     """Get tags for specific device."""
