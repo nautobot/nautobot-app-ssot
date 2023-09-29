@@ -1,0 +1,80 @@
+[
+    {
+        "id": "55467784",
+        "siteName": "JCY-RTR-01_1",
+        "siteKey": "55467784",
+        "devicesCount": 1,
+        "usersCount": 0,
+        "stpDCount": 0,
+        "switchesCount": 0,
+        "vlanCount": 0,
+        "rDCount": 1,
+        "routersCount": 1,
+        "networksCount": 5
+    },
+    {
+        "id": "55467890",
+        "siteName": "JCY-RTR-02_1",
+        "siteKey": "55467890",
+        "devicesCount": 1,
+        "usersCount": 0,
+        "stpDCount": 0,
+        "switchesCount": 0,
+        "vlanCount": 0,
+        "rDCount": 1,
+        "routersCount": 1,
+        "networksCount": 5
+    },
+    {
+        "id": "55467964",
+        "siteName": "JCY-SPINE-01.INFRA.NTC.COM_1",
+        "siteKey": "55467964",
+        "devicesCount": 1,
+        "usersCount": 3,
+        "stpDCount": 0,
+        "switchesCount": 1,
+        "vlanCount": 11,
+        "rDCount": 1,
+        "routersCount": 1,
+        "networksCount": 7
+    },
+    {
+        "id": "55467605",
+        "siteName": "NYC-LEAF-01",
+        "siteKey": "55467605",
+        "devicesCount": 1,
+        "usersCount": 0,
+        "stpDCount": 0,
+        "switchesCount": 1,
+        "vlanCount": 1,
+        "rDCount": 1,
+        "routersCount": 1,
+        "networksCount": 4
+    },
+    {
+        "id": "55468036",
+        "siteName": "NYC-RTR-01",
+        "siteKey": "55468036",
+        "devicesCount": 1,
+        "usersCount": 0,
+        "stpDCount": 0,
+        "switchesCount": 0,
+        "vlanCount": 0,
+        "rDCount": 1,
+        "routersCount": 1,
+        "networksCount": 7
+    },
+    {
+        "id": "55467678",
+        "siteName": "NYC-SPINE-02",
+        "siteKey": "55467678",
+        "devicesCount": 1,
+        "usersCount": 0,
+        "stpDCount": 0,
+        "switchesCount": 1,
+        "vlanCount": 1,
+        "rDCount": 1,
+        "routersCount": 1,
+        "networksCount": 5
+    }
+]
