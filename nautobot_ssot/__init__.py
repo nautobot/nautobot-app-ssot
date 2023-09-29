@@ -20,7 +20,7 @@ class NautobotSSOTPluginConfig(PluginConfig):
     description = "Nautobot App that enables Single Source of Truth.  Allows users to aggregate distributed data sources and/or distribute Nautobot data to other data sources such as databases and SDN controllers."
     base_url = "ssot"
     required_settings = []
-    min_version = "2.0.0b1"
+    min_version = "2.0.0"
     max_version = "2.9999"
     default_settings = {
         "aci_apics": [],
