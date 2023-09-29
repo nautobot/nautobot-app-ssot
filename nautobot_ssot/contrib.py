@@ -259,7 +259,9 @@ class NautobotModel(DiffSyncModel):
     @classmethod
     def get_queryset(cls):
         """Get the queryset used to load the models data from Nautobot."""
-        return cls._model.objects.all()
+        parameter_names = list(cls._identifiers) + list(cls._attributes)
+        prefetch_related_parameters = [parameter.split("__")[0] for parameter in parameter_names if "__" in parameter]
+        return cls._model.objects.prefetch_related(*prefetch_related_parameters).all()
 
     @classmethod
     def _check_field(cls, name):

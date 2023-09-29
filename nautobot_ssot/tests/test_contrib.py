@@ -351,7 +351,6 @@ class NautobotAdapterTests(TestCase):
 
             @classmethod
             def get_queryset(cls):
-                # return Tenant.objects.filter(name="NASA")
                 return Tenant.objects.filter(name__startswith="N")
 
         class Adapter(NautobotAdapter):
