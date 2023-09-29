@@ -129,7 +129,7 @@ def create_ip(ip_address, subnet_mask, status="Active", object_pk=None):
         ip_obj, _ = IPAddress.objects.get_or_create(address=f"{ip_address}/{cidr}", status=status_obj)
     except ValidationError:
         parent, _ = Prefix.objects.get_or_create(
-            network="0.0.0.0",
+            network="0.0.0.0",  # nosec B104
             prefix_length=0,
             type=PrefixTypeChoices.TYPE_NETWORK,
             status=Status.objects.get_for_model(Prefix).get(name="Active"),

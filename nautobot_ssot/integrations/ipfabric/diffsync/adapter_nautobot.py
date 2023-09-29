@@ -119,7 +119,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         """Load Devices from Nautobot."""
         for device_record in filtered_devices:
             if self.job.debug:
-                logger.debug(f"Loading Nautobot Device: {device_record.name}")
+                logger.debug("Loading Nautobot Device: %s", device_record.name)
             device = self.device(
                 diffsync=self,
                 name=device_record.name,
@@ -199,7 +199,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         location_objects = self.get_initial_location(ssot_tag)
         # The parent object that stores all children, is the Location.
         if self.job.debug:
-            logger.debug(f"Found {location_objects.count()} Nautobot Location objects to start sync from")
+            logger.debug("Found %s Nautobot Location objects to start sync from", location_objects.count())
 
         if location_objects:
             for location_record in location_objects:
@@ -212,7 +212,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                     )
                 except AttributeError:
                     logger.error(
-                        f"Error loading {location_record}, invalid or missing attributes on object. Skipping..."
+                        "Error loading %s, invalid or missing attributes on object. Skipping...", location_record
                     )
                     continue
                 self.add(location)
@@ -233,7 +233,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                         continue
                     self.load_vlans(nautobot_location_vlans, location)
                 except Location.DoesNotExist:
-                    logger.error(f"Unable to find Location, {location_record}.")
+                    logger.error("Unable to find Location, %s.", location_record)
         else:
             logger.warning("No Nautobot records to load.")
 

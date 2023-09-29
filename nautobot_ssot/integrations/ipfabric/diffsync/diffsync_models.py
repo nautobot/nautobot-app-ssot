@@ -204,7 +204,6 @@ class Device(DiffSyncExtras):
             if diffsync.job.debug:
                 logger.debug(error)
             logger.error(message)
-            raise Exception("A validation error occured.")
 
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
@@ -415,7 +414,7 @@ class Vlan(DiffSyncExtras):
         name = ids["name"] if ids["name"] else f"VLAN{attrs['vid']}"
         description = attrs["description"] if attrs["description"] else None
         if diffsync.job.debug:
-            logger.debug(f"Creating VLAN: {name} description: {description}")
+            logger.debug("Creating VLAN: %s description: %s", name, description)
         tonb_nbutils.create_vlan(
             vlan_name=name,
             vlan_id=attrs["vid"],
@@ -436,7 +435,7 @@ class Vlan(DiffSyncExtras):
 
     def update(self, attrs):
         """Update VLAN object in Nautobot."""
-        vlan = VLAN.objects.get(name=self.name, vid=self.vid, location=NautobotLocation.objects.get(name=self.site))
+        vlan = VLAN.objects.get(name=self.name, vid=self.vid, location=NautobotLocation.objects.get(name=self.location))
 
         if attrs.get("status") == "Active":
             safe_delete_tag, _ = Tag.objects.get_or_create(name="SSoT Safe Delete")

@@ -214,7 +214,7 @@ class IpFabricDataSource(DataSource):
             "Safe Delete VLAN status": constants.SAFE_DELETE_VLAN_STATUS,
         }
 
-    # pylint: disable-next=too-many-arguments
+    # pylint: disable-next=too-many-arguments, arguments-differ
     def run(
         self,
         dryrun,
@@ -289,7 +289,7 @@ class IpFabricDataSource(DataSource):
         diff = dest.diff_from(ipfabric_source)
         # pylint: disable-next=logging-fstring-interpolation
         if debug_mode:
-            self.logger.debug(f"Diff: {diff.dict()}")
+            self.logger.debug("Diff: %s", diff.dict())
 
         self.sync.diff = diff.dict()
         self.sync.save()
