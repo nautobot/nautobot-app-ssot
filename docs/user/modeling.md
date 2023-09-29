@@ -15,7 +15,6 @@ The following table describes in brief the different types of model fields and h
 | Custom Relationships | n/a | Not yet supported | https://docs.nautobot.com/projects/core/en/stable/models/extras/relationship/ |
 
 
-
 ## Normal Fields
 
 For normal, non-relationship, non-custom fields on a model, all you need to do is to ensure that field name on your SSoT model class matches that of the Nautobot model class. To ensure this is the case, you can check out the model either by reading the corresponding source code on [GitHub](https://github.com/nautobot/nautobot) or through the [Nautobot Shell](https://docs.nautobot.com/projects/core/en/stable/administration/nautobot-shell/) - in there you can use commands like `dir(Tenant)` to get an overview of available fields for the different models.
