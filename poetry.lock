@@ -3118,13 +3118,13 @@ nautobot = ">=2.0.0,<3.0.0"
 
 [[package]]
 name = "nautobot-chatops"
-version = "2.0.2"
+version = "3.0.0"
 description = "A plugin providing chatbot capabilities for Nautobot"
 optional = false
-python-versions = ">=3.8.0,<4.0.0"
+python-versions = ">=3.8,<3.12"
 files = [
-    {file = "nautobot_chatops-2.0.2-py3-none-any.whl", hash = "sha256:f2ab1b341288079be2a18a5a1d88eee35aa4de4d1effc09752ea2ce86373649f"},
-    {file = "nautobot_chatops-2.0.2.tar.gz", hash = "sha256:8208d2633671290fc0c4227fa1ee0d84ba6909100101440efe43e8526c53fcb1"},
+    {file = "nautobot_chatops-3.0.0-py3-none-any.whl", hash = "sha256:30998a4f9e0e664a8430daf6646b886ca89bddf73d8afacbe21629c26089c77e"},
+    {file = "nautobot_chatops-3.0.0.tar.gz", hash = "sha256:7087a9a0da326cf3c860c89a08a8d4bb5c79fcb8d8ddb79118dc1dbc7763e9bf"},
 ]
 
 [package.dependencies]
@@ -3134,7 +3134,7 @@ asgiref = ">=3.4.1,<4.0.0"
 ipfabric = {version = ">=6.0.9,<6.1.0", optional = true, markers = "extra == \"all\" or extra == \"ipfabric\""}
 ipfabric-diagrams = {version = ">=6.0.2,<6.1.0", optional = true, markers = "extra == \"all\" or extra == \"ipfabric\""}
 Markdown = "!=3.3.5"
-nautobot-capacity-metrics = "*"
+nautobot-capacity-metrics = ">=3.0.0,<4.0.0"
 netutils = {version = ">=1.1.0,<2.0.0", optional = true, markers = "extra == \"all\" or extra == \"ipfabric\" or extra == \"panorama\""}
 PyJWT = ">=2.1.0,<3.0.0"
 requests = ">=2.25.1"
@@ -3144,14 +3144,14 @@ webexteamssdk = ">=1.3,<2.0"
 
 [package.extras]
 aci = ["prettytable (>=2.1.0,<3.0.0)"]
-all = ["PyYAML (>=6.0,<7.0)", "certifi (>=2021.5.30)", "cloudvision (>=1.1,<2.0)", "cvprac (>=1.0.6,<2.0.0)", "defusedxml (>=0.7.1,<0.8.0)", "diffsync (>=1.3.0,<2.0.0)", "ipaddr (>=2.2.0,<3.0.0)", "ipfabric (>=6.0.9,<6.1.0)", "ipfabric-diagrams (>=6.0.2,<6.1.0)", "isodate (>=0.6.1,<0.7.0)", "meraki (>=1.7.2,<2.0.0)", "netmiko (>=3.4.0,<4.0.0)", "netutils (>=1.1.0,<2.0.0)", "pan-os-python (>=1.3.0,<2.0.0)", "prettytable (>=2.1.0,<3.0.0)", "protobuf (>=3.17,<4.0)", "pydantic (>=1.8.2,<2.0.0)", "schema-enforcer (>=1.2.1,<2.0.0)", "termcolor (==1.1.0)"]
+all = ["PyYAML (>=6.0,<7.0)", "certifi (>=2021.5.30)", "cloudvision (>=1.1,<2.0)", "cvprac (>=1.0.6,<2.0.0)", "defusedxml (>=0.7.1,<0.8.0)", "diffsync (>=1.3.0,<2.0.0)", "ipaddr (>=2.2.0,<3.0.0)", "ipfabric (>=6.0.9,<6.1.0)", "ipfabric-diagrams (>=6.0.2,<6.1.0)", "isodate (>=0.6.1,<0.7.0)", "meraki (>=1.7.2,<2.0.0)", "netmiko (>=4.0.0,<5.0.0)", "netutils (>=1.1.0,<2.0.0)", "pan-os-python (>=1.3.0,<2.0.0)", "prettytable (>=2.1.0,<3.0.0)", "protobuf (>=3.17,<4.0)", "pydantic (>=1.8.2,<2.0.0)", "schema-enforcer (>=1.2.1,<2.0.0)", "termcolor (==1.1.0)"]
 ansible = ["PyYAML (>=6.0,<7.0)"]
 aristacv = ["certifi (>=2021.5.30)", "cloudvision (>=1.1,<2.0)", "cvprac (>=1.0.6,<2.0.0)", "protobuf (>=3.17,<4.0)"]
 grafana = ["diffsync (>=1.3.0,<2.0.0)", "isodate (>=0.6.1,<0.7.0)", "pydantic (>=1.8.2,<2.0.0)", "schema-enforcer (>=1.2.1,<2.0.0)", "termcolor (==1.1.0)"]
 ipfabric = ["ipfabric (>=6.0.9,<6.1.0)", "ipfabric-diagrams (>=6.0.2,<6.1.0)", "netutils (>=1.1.0,<2.0.0)"]
 meraki = ["meraki (>=1.7.2,<2.0.0)"]
-nautobot = ["nautobot (>=1.5.4,<2.0.0)"]
-panorama = ["defusedxml (>=0.7.1,<0.8.0)", "ipaddr (>=2.2.0,<3.0.0)", "netmiko (>=3.4.0,<4.0.0)", "netutils (>=1.1.0,<2.0.0)", "pan-os-python (>=1.3.0,<2.0.0)"]
+nautobot = ["nautobot (>=2.0.0,<3.0.0)"]
+panorama = ["defusedxml (>=0.7.1,<0.8.0)", "ipaddr (>=2.2.0,<3.0.0)", "netmiko (>=4.0.0,<5.0.0)", "netutils (>=1.1.0,<2.0.0)", "pan-os-python (>=1.3.0,<2.0.0)"]
 
 [[package]]
 name = "nautobot-device-lifecycle-mgmt"
@@ -5314,4 +5314,4 @@ servicenow = ["Jinja2", "PyYAML", "ijson", "oauthlib", "python-magic", "pytz", "
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8,<3.12"
-content-hash = "f7bdc48c6d0404ca8d741189608cc6d6653df5d46e08f7280c464f8fc6b3bc0b"
+content-hash = "7a3b8eec8a66ae04de3d8b508c443ced88c8ad64ec5132b81351f2fb21fb8031"
