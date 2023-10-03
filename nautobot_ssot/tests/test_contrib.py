@@ -309,36 +309,6 @@ class NautobotAdapterTests(TestCase):
             "Custom fields aren't properly loaded through 'BaseAdapter'.",
         )
 
-    def test_default_get_queryset(self):
-        """Test default 'get_queryset' method."""
-
-        class TenantModel(NautobotModel):
-            """Test model for testing default 'get_queryset' method."""
-
-            _model = Tenant
-            _modelname = "tenant"
-            _identifiers = ("name",)
-            _attributes = ("description",)
-
-            name: str
-            description: str
-
-        class Adapter(NautobotAdapter):
-            """Test adapter for testing default 'get_queryset' method."""
-
-            top_level = ("tenant",)
-            tenant = TenantModel
-
-        new_tenant_name = "NASA"
-        Tenant.objects.create(name=new_tenant_name)
-        adapter = Adapter()
-        adapter.load()
-        diffsync_tenant_1 = adapter.get(TenantModel, new_tenant_name)
-        diffsync_tenant_2 = adapter.get(TenantModel, "Test")
-
-        self.assertEqual(new_tenant_name, diffsync_tenant_1.name)
-        self.assertEqual("Test", diffsync_tenant_2.name)
-
     def test_overwrite_get_queryset(self):
         """Test overriding 'get_queryset' method."""
 
@@ -365,6 +335,7 @@ class NautobotAdapterTests(TestCase):
 
         new_tenant_name = "NASA"
         Tenant.objects.create(name=new_tenant_name)
+        Tenant.objects.create(name="Air Force")
         adapter = Adapter()
         adapter.load()
         diffsync_tenant = adapter.get(TenantModel, new_tenant_name)
