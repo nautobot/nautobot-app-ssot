@@ -177,5 +177,5 @@ class TenantModel(NautobotModel):
 
     @classmethod
     def get_queryset(cls):
-        return Tenant.objects.filter(name__starts="s")
+        return Tenant.objects.filter(name__startswith="s")
 ```
