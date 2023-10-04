@@ -158,7 +158,7 @@ Through us defining the model, Nautobot will now be able to dynamically load IP 
     Although `Interface.ip_addresses` is a generic relation, there is only one content type (i.e. `ipam.ipaddress`) that may be related through this relation, therefore we don't have to specific this in any way.
 
 
-## Filtering Object Loaded From Nautobot
+## Filtering Objects Loaded From Nautobot
 
 
 If you'd like to filter the objects loaded from the Nautobot, you can do so creating a `get_queryset` function in your model class and return your own queryset. Here is an example where the adapter would only load Tenant objects whose name starts with an "s".
