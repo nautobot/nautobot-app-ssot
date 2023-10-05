@@ -81,7 +81,6 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
                     auth=(self.username, self.password),
                     timeout=60,
                     verify=self.verify,
-                    timeout=60,
                 )
                 session_id = response.json().get("sessionId")
                 if not session_id:

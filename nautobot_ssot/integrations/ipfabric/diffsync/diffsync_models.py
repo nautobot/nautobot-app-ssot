@@ -245,7 +245,7 @@ class Device(DiffSyncExtras):
                 device_role_object = tonb_nbutils.get_or_create_device_role_object(
                     role_name=attrs.get("role", DEFAULT_DEVICE_ROLE), role_color=DEFAULT_DEVICE_ROLE_COLOR
                 )
-                _device.device_role = device_role_object
+                _device.role = device_role_object
             tonb_nbutils.tag_object(nautobot_object=_device, custom_field="ssot-synced-from-ipfabric")
             # Call the super().update() method to update the in-memory DiffSyncModel instance
             return super().update(attrs)

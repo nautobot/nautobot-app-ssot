@@ -44,17 +44,18 @@ class IPAddress(DiffSyncModel):
     """Base IP Address model."""
 
     _modelname = "ipaddr"
-    _identifiers = ("address", "vrf")
-    _attributes = ("available", "label", "device", "interface", "primary", "tags", "custom_fields")
+    _identifiers = ("address", "subnet")
+    _attributes = ("namespace", "available", "label", "device", "interface", "primary", "tags", "custom_fields")
     _children = {}
 
     address: str
+    subnet: str
+    namespace: str
     available: bool
     label: Optional[str]
     device: Optional[str]
     interface: Optional[str]
     primary: Optional[bool]
-    vrf: Optional[str]
     tags: Optional[List[str]]
     custom_fields: Optional[dict]
     uuid: Optional[UUID]

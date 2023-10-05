@@ -134,7 +134,7 @@ jobs:
             nautobot-version: "stable"
           - python-version: "3.11"
             db-backend: "mysql"
-            nautobot-version: "ltm-1.6"
+            nautobot-version: "2.0.0"
     runs-on: "ubuntu-20.04"
     env:
       INVOKE_NAUTOBOT_SSOT_PYTHON_VER: "${{ matrix.python-version }}"

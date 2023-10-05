@@ -1,5 +1,5 @@
 """Plugin declaration for nautobot_ssot."""
-# Metadata is inherited from Nautobot. If not including Nautobot in the environment, this should be added
+import os
 from importlib import metadata
 
 from django.conf import settings
@@ -31,7 +31,7 @@ def _check_for_conflicting_apps():
         )
 
 
-if not is_truthy(getenv("NAUTOBOT_SSOT_ALLOW_CONFLICTING_APPS", "False")):
+if not is_truthy(os.getenv("NAUTOBOT_SSOT_ALLOW_CONFLICTING_APPS", "False")):
     _check_for_conflicting_apps()
 
 

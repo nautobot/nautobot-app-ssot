@@ -120,18 +120,6 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
         Args:
             source (DiffSync): Source DiffSync adapter data.
         """
-        if len(self.objects_to_create["vlangroups"]) > 0:
-            self.job.logger.info("Performing bulk create of VLAN Groups in Nautobot")
-            VLANGroup.objects.bulk_create(self.objects_to_create["vlangroups"], batch_size=250)
-        if len(self.objects_to_create["vlans"]) > 0:
-            self.job.logger.info("Performing bulk create of VLANs in Nautobot.")
-            VLAN.objects.bulk_create(self.objects_to_create["vlans"], batch_size=500)
-        if len(self.objects_to_create["prefixes"]) > 0:
-            self.job.logger.info("Performing bulk create of Prefixes in Nautobot")
-            Prefix.objects.bulk_create(self.objects_to_create["prefixes"], batch_size=500)
-        if len(self.objects_to_create["ipaddrs"]) > 0:
-            self.job.logger.info("Performing bulk create of IP Addresses in Nautobot")
-            IPAddress.objects.bulk_create(self.objects_to_create["ipaddrs"], batch_size=1000)
         for obj_type, objs in self.objects_to_create.items():
             if obj_type != "vlangroups":
                 self.job.logger.info(f"Adding tags to all imported {obj_type}.")

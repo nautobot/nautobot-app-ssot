@@ -119,7 +119,7 @@ The essence of this is that you should make liberal use of `select_related` to j
 
 !!! warning
     If you are using Nautobot 1.4 or lower, `CACHEOPS_ENABLED` is set to `True` by default. As long as this is the case, you should use `select_related`'s cousin `prefetch_related` instead (see [here](https://github.com/Suor/django-cacheops#caveats) for cacheops documentation on that matter). In 1.5 this is disabled by default, but if you explicitly turn it on you will again need to use `prefetch_related` instead.
-    
+
     If you are using Nautobot 2.0 or higher, this warning can be ignored as cacheops has been removed from Nautobot. 
 
 !!! note
@@ -138,6 +138,7 @@ If after optimizing your database access you are still facing performance issues
 In most if not all cases, the side of an SSoT job that interacts with the non-Nautobot system will be accessed through some form of IO as for example HTTP requests via the network. Depending on the amount of requests, request/response size and the latency to the remote system this can take a lot of time. Care should be taken when crafting the IO interaction, using bulk endpoints instead of querying each individual record on the remote system where possible.
 
 Here is an unoptimized high-level workflow:
+
 - Collect sites
   - For each site, collect all devices
     - For each device, collect the interface information
@@ -152,7 +153,7 @@ Similar to the database example further up, this suffers from having to perform 
 - Correlate these data points in code
 
 !!! note
-    You could also look into parallelizing your HTTP requests using a library like [aiohttp](https://docs.aiohttp.org/en/stable/) to gain additional performance - this way you could for example perform the 4 collect operations from the previous example in parallel. You need to be careful not to overwhelm the remote system though. 
+    You could also look into parallelizing your HTTP requests using a library like [aiohttp](https://docs.aiohttp.org/en/stable/) to gain additional performance - this way you could for example perform the 4 collect operations from the previous example in parallel. You need to be careful not to overwhelm the remote system though.
 
 ### Further Possible Optimization Points
 
@@ -167,7 +168,7 @@ class DataSource(DataSource, Job):
     ...  # Excluded most of the class definition for example brevity
 
     def execute_sync(self):
-        self.log_info(obj=None, message="The actual sync happens in post_run to escape the atomic transaction.")
+        self.logger.info("The actual sync happens in post_run to escape the atomic transaction.")
 
     def post_run(self):
         super().execute_sync()

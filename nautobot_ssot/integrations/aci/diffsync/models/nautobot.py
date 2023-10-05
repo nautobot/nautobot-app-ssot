@@ -179,7 +179,9 @@ class NautobotDevice(Device):
             device_type=OrmDeviceType.objects.get(model=attrs["device_type"]),
             serial=attrs["serial"],
             comments=attrs["comments"],
-            location=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
+            location=Location.objects.get(
+                name=ids["site"], location_type=LocationType.objects.get_or_create(name="Site")
+            ),
             status=Status.objects.get(name="Active"),
         )
 
@@ -195,7 +197,7 @@ class NautobotDevice(Device):
         _device = OrmDevice.objects.get(
             name=self.name,
             location=Location.objects.get(
-                name=self.get_identifiers()["site"], location_type=LocationType.objects.get(name="Site")
+                name=self.get_identifiers()["site"], location_type=LocationType.objects.get_or_create(name="Site")
             ),
         )
         if attrs.get("serial"):
@@ -219,7 +221,9 @@ class NautobotDevice(Device):
         super().delete()
         _device = OrmDevice.objects.get(
             name=self.name,
-            location=Location.objects.get(name=self.site, location_type=LocationType.objects.get(name="Site")),
+            location=Location.objects.get(
+                name=self.site, location_type=LocationType.objects.get_or_create(name="Site")
+            ),
         )
         self.diffsync.objects_to_delete["device"].append(_device)  # pylint: disable=protected-access
         return self
@@ -273,12 +277,13 @@ class NautobotInterface(Interface):
             name=ids["name"],
             device=OrmDevice.objects.get(
                 name=ids["device"],
-                location=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
+                location=Location.objects.get(
+                    name=ids["site"], location_type=LocationType.objects.get_or_create(name="Site")
+                ),
             ),
             description=attrs["description"],
             status=Status.objects.get(name="Active") if attrs["state"] == "up" else Status.objects.get(name="Failed"),
             type=attrs["type"],
-            status=Status.objects.get(name="Active"),
         )
         _interface.custom_field_data["gbic_vendor"] = attrs["gbic_vendor"]
         _interface.custom_field_data["gbic_sn"] = attrs["gbic_sn"]
@@ -299,7 +304,7 @@ class NautobotInterface(Interface):
             device=OrmDevice.objects.get(
                 name=self.get_identifiers()["device"],
                 location=Location.objects.get(
-                    name=self.get_identifiers()["site"], location_type=LocationType.objects.get(name="Site")
+                    name=self.get_identifiers()["site"], location_type=LocationType.objects.get_or_create(name="Site")
                 ),
             ),
         )
@@ -331,7 +336,7 @@ class NautobotInterface(Interface):
             device = OrmDevice.objects.get(
                 name=self.get_identifiers()["device"],
                 location=Location.objects.get(
-                    name=self.get_identifiers()["site"], location_type=LocationType.objects.get(name="Site")
+                    name=self.get_identifiers()["site"], location_type=LocationType.objects.get_or_create(name="Site")
                 ),
             )
         except OrmDevice.DoesNotExist:
@@ -358,7 +363,7 @@ class NautobotIPAddress(IPAddress):
                 obj_id = OrmDevice.objects.get(
                     name=_device,
                     location=Location.objects.get(
-                        name=ids["site"], location_type=LocationType.objects.get(name="Site")
+                        name=ids["site"], location_type=LocationType.objects.get_or_create(name="Site")
                     ),
                 ).interfaces.get(name=_interface)
             except ObjectNotCreated:
@@ -386,7 +391,9 @@ class NautobotIPAddress(IPAddress):
         if attrs["device"]:
             device = OrmDevice.objects.get(
                 name=_device,
-                location=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
+                location=Location.objects.get(
+                    name=ids["site"], location_type=LocationType.objects.get_or_create(name="Site")
+                ),
             )
             device.primary_ip4 = OrmIPAddress.objects.get(address=ids["address"])
             device.save()
@@ -414,17 +421,6 @@ class NautobotIPAddress(IPAddress):
         """Delete IPAddress object in Nautobot."""
         self.diffsync.job.logger.warning(f"IP Address {self.address} will be deleted.")
         super().delete()
-
-        try:
-            tenant = OrmTenant.objects.get(name=self.tenant)
-        except OrmTenant.DoesNotExist:
-            tenant = None
-
-        try:
-            vrf_tenant = OrmTenant.objects.get(name=self.vrf_tenant)
-        except OrmTenant.DoesNotExist:
-            vrf_tenant = None
-
         _ipaddress = OrmIPAddress.objects.get(
             address=self.get_identifiers()["address"],
             tenant=OrmTenant.objects.get(name=self.tenant),
@@ -459,7 +455,9 @@ class NautobotPrefix(Prefix):
             description=attrs["description"],
             namespace=Namespace.objects.get(name=attrs["namespace"]),
             tenant=OrmTenant.objects.get(name=attrs["vrf_tenant"]),
-            location=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
+            location=Location.objects.get(
+                name=ids["site"], location_type=LocationType.objects.get_or_create(name="Site")
+            ),
         )
         if vrf:
             _prefix.vrfs.add(vrf)

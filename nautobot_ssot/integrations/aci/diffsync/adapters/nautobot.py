@@ -4,6 +4,7 @@
 import logging
 from collections import defaultdict
 from diffsync import DiffSync
+from diffsync.enum import DiffSyncModelFlags
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import ProtectedError
 from nautobot.tenancy.models import Tenant

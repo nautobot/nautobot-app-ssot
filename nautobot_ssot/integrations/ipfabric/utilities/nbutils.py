@@ -17,7 +17,7 @@ from nautobot.dcim.models import (
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Role, Tag
 from nautobot.extras.models.statuses import Status
-from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix
+from nautobot.ipam.models import VLAN, IPAddress, IPAddressToInterface, Namespace, Prefix
 from nautobot.ipam.choices import PrefixTypeChoices
 from nautobot.core.choices import ColorChoices
 from netutils.ip import netmask_to_cidr
@@ -138,8 +138,8 @@ def create_ip(ip_address, subnet_mask, status="Active", object_pk=None):
         ip_obj, _ = IPAddress.objects.get_or_create(address=f"{ip_address}/{cidr}", status=status_obj, parent=parent)
 
     if object_pk:
-        ip_obj.assigned_object_id = object_pk.pk
-        ip_obj.assigned_object_type = ContentType.objects.get_for_model(type(object_pk))
+        assign_ip = IPAddressToInterface(ip_address=ip_obj, interface_id=object_pk.pk)
+        assign_ip.validated_save()
         # Tag Interface (object_pk)
         tag_object(nautobot_object=object_pk, custom_field="ssot-synced-from-ipfabric")
 

@@ -5,7 +5,6 @@ import traceback
 import tracemalloc
 from typing import Iterable
 
-from django.db import models
 from django.db.utils import OperationalError
 from django.templatetags.static import static
 from django.utils import timezone

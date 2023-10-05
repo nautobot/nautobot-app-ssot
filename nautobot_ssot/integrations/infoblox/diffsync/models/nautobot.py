@@ -103,7 +103,7 @@ class NautobotNetwork(Network):
 
         if attrs.get("ext_attrs"):
             process_ext_attrs(diffsync=diffsync, obj=_prefix, extattrs=attrs["ext_attrs"])
-        diffsync.objects_to_create["prefixes"].append(_prefix)
+        _prefix.validated_save()
         diffsync.prefix_map[ids["network"]] = _prefix.id
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
@@ -174,8 +174,10 @@ class NautobotIPAddress(IPAddress):
             status = diffsync.status_map[attrs["status"]]
         except KeyError:
             status = diffsync.status_map[PLUGIN_CFG.get("default_status", "Active")]
+        addr = f"{ids['address']}/{ids['prefix_length']}"
+        diffsync.job.logger.debug(f"Creating IP Address {addr}")
         _ip = OrmIPAddress(
-            address=f"{ids['address']}/{ids['prefix_length']}",
+            address=addr,
             status_id=status,
             description=attrs.get("description", ""),
             dns_name=attrs.get("dns_name", ""),
@@ -184,7 +186,7 @@ class NautobotIPAddress(IPAddress):
         if attrs.get("ext_attrs"):
             process_ext_attrs(diffsync=diffsync, obj=_ip, extattrs=attrs["ext_attrs"])
         try:
-            diffsync.objects_to_create["ipaddrs"].append(_ip)
+            _ip.validated_save()
             diffsync.ipaddr_map[_ip.address] = _ip.id
             return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
         except ValidationError as err:
@@ -235,7 +237,7 @@ class NautobotVlanGroup(VlanView):
         )
         if attrs.get("ext_attrs"):
             process_ext_attrs(diffsync=diffsync, obj=_vg, extattrs=attrs["ext_attrs"])
-        diffsync.objects_to_create["vlangroups"].append(_vg)
+        _vg.validated_save()
         diffsync.vlangroup_map[ids["name"]] = _vg.id
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
@@ -270,7 +272,7 @@ class NautobotVlan(Vlan):
         if "ext_attrs" in attrs:
             process_ext_attrs(diffsync=diffsync, obj=_vlan, extattrs=attrs["ext_attrs"])
         try:
-            diffsync.objects_to_create["vlans"].append(_vlan)
+            _vlan.validated_save()
             if ids["vlangroup"] not in diffsync.vlan_map:
                 diffsync.vlan_map[ids["vlangroup"]] = {}
             diffsync.vlan_map[ids["vlangroup"]][_vlan.vid] = _vlan.id

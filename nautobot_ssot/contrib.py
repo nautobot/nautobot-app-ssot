@@ -51,6 +51,12 @@ class NautobotAdapter(DiffSync):
     This adapter is able to infer how to load data from Nautobot based on how the models attached to it are defined.
     """
 
+    def __init__(self, *args, job, sync=None, **kwargs):
+        """Instantiate this class, but do not load data immediately from the local system."""
+        super().__init__(*args, **kwargs)
+        self.job = job
+        self.sync = sync
+
     @staticmethod
     def _get_parameter_names(diffsync_model):
         """Ignore the differences between identifiers and attributes, because at this point they don't matter to us."""

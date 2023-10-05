@@ -4,6 +4,7 @@
 
 from typing import Optional, Mapping, List
 from uuid import UUID
+from django.contrib.contenttypes.models import ContentType
 from django.templatetags.static import static
 from django.urls import reverse
 
@@ -17,7 +18,6 @@ from nautobot.virtualization.models import Cluster
 
 from diffsync import DiffSync
 from diffsync.enum import DiffSyncFlags
-from diffsync.exceptions import ObjectNotFound
 
 import requests
 
@@ -30,38 +30,40 @@ from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
 name = "SSoT Examples"  # pylint: disable=invalid-name
 
 
-class RegionModel(NautobotModel):
-    """Shared data model representing a Region in either of the local or remote Nautobot instances."""
+class LocationTypeModel(NautobotModel):
+    """Shared data model representing a LocationType in either of the local or remote Nautobot instances."""
 
     # Metadata about this model
-    _model = Region
-    _modelname = "region"
+    _model = LocationType
+    _modelname = "locationtype"
     _identifiers = ("name",)
-    _attributes = ("description", "parent_name")
+    # To keep this example simple, we don't include **all** attributes of a Location here. But you could!
+    _attributes = ("description", "nestable")
 
     # Data type declarations for all identifiers and attributes
     name: str
     description: str
-    parent__name: Optional[str]  # may be None
+    nestable: bool
 
     # Not in _attributes or _identifiers, hence not included in diff calculations
     pk: Optional[UUID]
 
 
-class SiteModel(NautobotModel):
-    """Shared data model representing a Site in either of the local or remote Nautobot instances."""
+class LocationModel(NautobotModel):
+    """Shared data model representing a Location in either of the local or remote Nautobot instances."""
 
     # Metadata about this model
-    _model = Site
-    _modelname = "site"
+    _model = Location
+    _modelname = "location"
     _identifiers = ("name",)
-    # To keep this example simple, we don't include **all** attributes of a Site here. But you could!
-    _attributes = ("status", "region_name", "description")
+    # To keep this example simple, we don't include **all** attributes of a Location here. But you could!
+    _attributes = ("location_type", "status", "parent__name", "description")
 
     # Data type declarations for all identifiers and attributes
     name: str
+    location_type: str
     status: str
-    region_name: str
+    parent__name: Optional[str]
     description: str
 
     # Not in _attributes or _identifiers, hence not included in diff calculations
@@ -74,13 +76,13 @@ class PrefixModel(NautobotModel):
     # Metadata about this model
     _model = Prefix
     _modelname = "prefix"
-    _identifiers = ("prefix", "tenant")
+    _identifiers = ("prefix", "tenant__name")
     # To keep this example simple, we don't include **all** attributes of a Prefix here. But you could!
     _attributes = ("description", "status")
 
     # Data type declarations for all identifiers and attributes
     prefix: str
-    tenant: str
+    tenant__name: Optional[str]
     status: str
     description: str
 
@@ -103,57 +105,12 @@ class TenantModel(NautobotModel):
     pk: Optional[UUID]
 
 
-class RegionRemoteModel(RegionModel):
-    """Implementation of Region create/update/delete methods for updating remote Nautobot data."""
+class LocationRemoteModel(LocationModel):
+    """Implementation of Location create/update/delete methods for updating remote Nautobot data."""
 
     @classmethod
     def create(cls, diffsync, ids, attrs):
-        """Create a new Region record in remote Nautobot.
-
-        Args:
-            diffsync (NautobotRemote): DiffSync adapter owning this Region
-            ids (dict): Initial values for this model's _identifiers
-            attrs (dict): Initial values for this model's _attributes
-        """
-        diffsync.post(
-            "/api/dcim/regions/",
-            {
-                "name": ids["name"],
-                "description": attrs["description"],
-                "parent": {"name": attrs["parent__name"]} if attrs["parent__name"] else None,
-            },
-        )
-        return super().create(diffsync, ids=ids, attrs=attrs)
-
-    def update(self, attrs):
-        """Update an existing Region record in remote Nautobot.
-
-        Args:
-            attrs (dict): Updated values for this record's _attributes
-        """
-        data = {}
-        if "description" in attrs:
-            data["description"] = attrs["description"]
-        if "parent__name" in attrs:
-            if attrs["parent__name"]:
-                data["parent"] = {"name": attrs["parent__name"]}
-            else:
-                data["parent"] = None
-        self.diffsync.patch(f"/api/dcim/regions/{self.pk}/", data)
-        return super().update(attrs)
-
-    def delete(self):
-        """Delete an existing Region record from remote Nautobot."""
-        self.diffsync.delete(f"/api/dcim/regions/{self.pk}/")
-        return super().delete()
-
-
-class SiteRemoteModel(SiteModel):
-    """Implementation of Site create/update/delete methods for updating remote Nautobot data."""
-
-    @classmethod
-    def create(cls, diffsync, ids, attrs):
-        """Create a new Site in remote Nautobot.
+        """Create a new Location in remote Nautobot.
 
         Args:
             diffsync (NautobotRemote): DiffSync adapter owning this Site
@@ -161,12 +118,12 @@ class SiteRemoteModel(SiteModel):
             attrs (dict): Initial values for this model's _attributes
         """
         diffsync.post(
-            "/api/dcim/sites/",
+            "/api/dcim/locations/",
             {
                 "name": ids["name"],
                 "description": attrs["description"],
                 "status": attrs["status"],
-                "region": {"name": attrs["region_name"]} if attrs["region_name"] else None,
+                "parent": {"name": attrs["parent__name"]} if attrs["parent__name"] else None,
             },
         )
         return super().create(diffsync, ids=ids, attrs=attrs)
@@ -182,17 +139,17 @@ class SiteRemoteModel(SiteModel):
             data["description"] = attrs["description"]
         if "status" in attrs:
             data["status"] = attrs["status"]
-        if "region_name" in attrs:
-            if attrs["region_name"]:
-                data["region"] = {"name": attrs["region_name"]}
+        if "parent__name" in attrs:
+            if attrs["parent__name"]:
+                data["parent"] = {"name": attrs["parent__name"]}
             else:
-                data["region"] = None
-        self.diffsync.patch(f"/api/dcim/sites/{self.pk}/", data)
+                data["parent"] = None
+        self.diffsync.patch(f"/api/dcim/locations/{self.pk}/", data)
         return super().update(attrs)
 
     def delete(self):
         """Delete an existing Site record from remote Nautobot."""
-        self.diffsync.delete(f"/api/dcim/sites/{self.pk}/")
+        self.diffsync.delete(f"/api/dcim/locations/{self.pk}/")
         return super().delete()
 
 
@@ -236,7 +193,7 @@ class PrefixRemoteModel(PrefixModel):
             "/api/ipam/prefixes/",
             {
                 "prefix": ids["prefix"],
-                "tenant": {"name": ids["tenant"]} if ids["tenant"] else None,
+                "tenant": {"name": ids["tenant__name"]} if ids["tenant__name"] else None,
                 "description": attrs["description"],
                 "status": attrs["status"],
             },
@@ -254,86 +211,34 @@ class PrefixRemoteModel(PrefixModel):
             data["description"] = attrs["description"]
         if "status" in attrs:
             data["status"] = attrs["status"]
-        self.diffsync.patch(f"/api/dcim/sites/{self.pk}/", data)
+        self.diffsync.patch(f"/api/dcim/locations/{self.pk}/", data)
         return super().update(attrs)
 
     def delete(self):
         """Delete an existing Site record from remote Nautobot."""
-        self.diffsync.delete(f"/api/dcim/sites/{self.pk}/")
+        self.diffsync.delete(f"/api/dcim/locations/{self.pk}/")
         return super().delete()
 
 
-class RegionLocalModel(RegionModel):
-    """Implementation of Region create/update/delete methods for updating local Nautobot data."""
+class LocationTypeLocalModel(LocationTypeModel):
+    """Implementation of LocationType create/update/delete methods for updating local Nautobot data."""
 
     @classmethod
     def create(cls, diffsync, ids, attrs):
-        """Create a new Region record in local Nautobot.
+        """Create a new LocationType record in local Nautobot.
 
         Args:
-            diffsync (NautobotLocal): DiffSync adapter owning this Region
+            diffsync (NautobotLocal): DiffSync adapter owning this Location
             ids (dict): Initial values for this model's _identifiers
             attrs (dict): Initial values for this model's _attributes
         """
-        reg_type, _ = LocationType.objects.update_or_create(name="Region", nestable=True)
-        region = Location(
-            name=ids["name"],
-            description=attrs["description"],
-            location_type=LocationType.objects.get(name="Region"),
-            status=Status.objects.get(name="Active"),
-        )
-        if attrs["parent_name"]:
-            region.parent = Location.objects.get(name=attrs["parent_name"], location_type=reg_type)
-        region.validated_save()
-        return super().create(diffsync, ids=ids, attrs=attrs)
-
-    def update(self, attrs):
-        """Update an existing Region record in local Nautobot.
-
-        Args:
-            attrs (dict): Updated values for any of this model's _attributes
-        """
-        region = Location.objects.get(name=self.name, location_type=LocationType.objects.get(name="Region"))
-
-        if "description" in attrs:
-            region.description = attrs["description"]
-
-        if "parent_name" in attrs:
-            region.parent = Location.objects.get(
-                name=attrs["parent_name"], location_type=LocationType.objects.get(name="Region")
-            )
-
-        region.validated_save()
-        return super().update(attrs)
-
-    def delete(self):
-        """Delete an existing Region record from local Nautobot."""
-        region = Location.objects.get(name=self.name, location_type=LocationType.objects.get(name="Region"))
-        region.delete()
-        return super().delete()
-
-
-class SiteLocalModel(SiteModel):
-    """Implementation of Site create/update/delete methods for updating local Nautobot data."""
-
-    @classmethod
-    def create(cls, diffsync, ids, attrs):
-        """Create a new Site record in local Nautobot.
-
-        Args:
-            diffsync (NautobotLocal): DiffSync adapter owning this Site
-            ids (dict): Initial values for this model's _identifiers
-            attrs (dict): Initial values for this model's _attributes
-        """
-        diffsync.job.logger.info(f"Creating Site {ids['name']} with ids: {ids} attrs: {attrs}")
-        reg_type = LocationType.objects.get(name="Region")
+        diffsync.job.logger.info(f"Creating LocationType {ids['name']} with ids: {ids} attrs: {attrs}")
         try:
-            site_type = LocationType.objects.get(name="Site")
-            if not site_type.parent:
-                site_type.parent = reg_type
-                site_type.validated_save()
+            loc_type = LocationType.objects.get_or_create(name=ids["name"])[0]
         except LocationType.DoesNotExist:
-            site_type, _ = LocationType.objects.update_or_create(name="Site", nestable=False, parent=reg_type)
+            loc_type, _ = LocationType.objects.update_or_create(
+                name=ids["name"], description=attrs["description"], nestable=attrs["nestable"]
+            )
         for obj_type in [
             Rack,
             RackGroup,
@@ -345,14 +250,37 @@ class SiteLocalModel(SiteModel):
             VLANGroup,
             Cluster,
         ]:
-            if ContentType.objects.get_for_model(obj_type) not in site_type.content_types.all():
-                site_type.content_types.add(ContentType.objects.get_for_model(obj_type))
-        site = Location(name=ids["name"], description=attrs["description"], location_type=site_type, parent=None)
-        site.status = Status.objects.get(name=attrs["status"])
-        if attrs["region_name"]:
-            site.parent = Location.objects.get(
-                name=attrs["region_name"], location_type=LocationType.objects.get(name="Region")
-            )
+            if ContentType.objects.get_for_model(obj_type) not in loc_type.content_types.all():
+                loc_type.content_types.add(ContentType.objects.get_for_model(obj_type))
+
+
+class LocationLocalModel(LocationModel):
+    """Implementation of Location create/update/delete methods for updating local Nautobot data."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create a new Location record in local Nautobot.
+
+        Args:
+            diffsync (NautobotLocal): DiffSync adapter owning this Location
+            ids (dict): Initial values for this model's _identifiers
+            attrs (dict): Initial values for this model's _attributes
+        """
+        diffsync.job.logger.info(f"Creating Location {ids['name']} with ids: {ids} attrs: {attrs}")
+        try:
+            loc_type = LocationType.objects.get_or_create(name=attrs["location_type"])[0]
+        except LocationType.DoesNotExist:
+            diffsync.job.logger.error(f"Unable to find LocationType {attrs['location_type']}")
+            return None
+        site = Location(
+            name=ids["name"],
+            description=attrs["description"],
+            location_type=loc_type,
+            parent=None,
+            status=Status.objects.get(name=attrs["status"]),
+        )
+        if attrs["parent__name"]:
+            site.parent = Location.objects.get(name=attrs["parent__name"])
         site.validated_save()
         return super().create(diffsync, ids=ids, attrs=attrs)
 
@@ -362,7 +290,7 @@ class SiteLocalModel(SiteModel):
         Args:
             attrs (dict): Updated values for any of this model's _attributes
         """
-        site = Location.objects.get(name=self.name, location_type=LocationType.objects.get(name="Site"))
+        site = Location.objects.get(id=self.pk)
 
         if "description" in attrs:
             site.description = attrs["description"]
@@ -370,17 +298,15 @@ class SiteLocalModel(SiteModel):
         if "status" in attrs:
             site.status = Status.objects.get(name=attrs["status"])
 
-        if "region_name" in attrs:
-            site.parent = Location.objects.get(
-                name=attrs["region_name"], location_type=LocationType.objects.get(name="Region")
-            )
+        if "parent__name" in attrs:
+            site.parent = Location.objects.get(name=attrs["parent__name"])
 
         site.validated_save()
         return super().update(attrs)
 
     def delete(self):
         """Delete an existing Site record from local Nautobot."""
-        site = Location.objects.get(name=self.name, location_type=LocationType.objects.get_or_create(name="Site")[0])
+        site = Location.objects.get(id=self.pk)
         site.delete()
         return super().delete()
 
@@ -426,7 +352,7 @@ class PrefixLocalModel(PrefixModel):
         Args:
             attrs (dict): Updated values for any of this model's _attributes
         """
-        prefix = Prefix.objects.get(prefix=self.prefix, tenant__name=self.tenant)
+        prefix = Prefix.objects.get(id=self.pk)
         if "description" in attrs:
             prefix.description = attrs["description"]
 
@@ -441,7 +367,7 @@ class PrefixLocalModel(PrefixModel):
 
     def delete(self):
         """Delete an existing Prefix record from local Nautobot."""
-        prefix = Prefix.objects.get(prefix=self.prefix, tenant__name=self.tenant)
+        prefix = Prefix.objects.get(id=self.pk)
         prefix.delete()
         return super().delete()
 
@@ -457,13 +383,13 @@ class NautobotRemote(DiffSync):
     """
 
     # Model classes used by this adapter class
-    region = RegionRemoteModel
-    site = SiteRemoteModel
+    locationtype = LocationTypeModel
+    location = LocationRemoteModel
     tenant = TenantRemoteModel
     prefix = PrefixRemoteModel
 
     # Top-level class labels, i.e. those classes that are handled directly rather than as children of other models
-    top_level = ["region", "site", "tenant"]
+    top_level = ["locationtype", "location", "tenant"]
 
     def __init__(self, *args, url=None, token=None, job=None, **kwargs):
         """Instantiate this class, but do not load data immediately from the remote system.
@@ -497,44 +423,34 @@ class NautobotRemote(DiffSync):
 
     def load(self):
         """Load Region and Site data from the remote Nautobot instance."""
-        for region_entry in self._get_api_data("api/dcim/regions/"):
-            region = self.region(
-                name=region_entry["name"],
-                description=region_entry["description"],
-                parent__name=region_entry["parent"]["name"] if region_entry["parent"] else None,
-                pk=region_entry["id"],
+        for lt_entry in self._get_api_data("api/dcim/location-types/"):
+            location_type = self.locationtype(
+                name=lt_entry["name"],
+                description=lt_entry["description"],
+                nestable=lt_entry["nestable"],
+                pk=lt_entry["id"],
             )
-            self.add(region)
-            self.job.logger.debug(f"Loaded {region} from remote Nautobot instance")
+            self.add(location_type)
+            self.job.logger.debug(f"Loaded {location_type} LocationType from remote Nautobot instance")
 
-        for site_entry in self._get_api_data("api/dcim/sites/"):
-            site = self.site(
-                name=site_entry["name"],
-                status=site_entry["status"]["label"] if site_entry.get("status") else "Active",
-                region_name=site_entry["region"]["name"] if site_entry["region"] else "Global",
-                description=site_entry["description"],
-                pk=site_entry["id"],
+        for loc_entry in self._get_api_data("api/dcim/locations/"):
+            new_location = self.location(
+                name=loc_entry["name"],
+                status=loc_entry["status"]["label"] if loc_entry.get("status") else "Active",
+                location_type=loc_entry["location_type"]["name"],
+                parent__name=loc_entry["parent"]["name"] if loc_entry["parent"] else "Global",
+                description=loc_entry["description"],
+                pk=loc_entry["id"],
             )
-            self.add(site)
-            self.job.logger.debug(f"Loaded {site} from remote Nautobot instance")
-            if site.region_name == "Global":
-                try:
-                    self.get(self.region, "Global")
-                except ObjectNotFound:
-                    global_region = self.region(
-                        name="Global",
-                        description="Region created for Sites without assigned Region from SSoT import.",
-                        parent_name=None,
-                        pk=None,
-                    )
-                    self.add(global_region)
+            self.add(new_location)
+            self.job.logger.debug(f"Loaded {new_location} Location from remote Nautobot instance")
 
         for prefix_entry in self._get_api_data("api/ipam/prefixes/"):
             prefix = self.prefix(
                 prefix=prefix_entry["prefix"],
                 description=prefix_entry["description"],
                 status=prefix_entry["status"]["label"] if prefix_entry.get("status") else "Active",
-                tenant=prefix_entry["tenant"]["name"] if prefix_entry["tenant"] else "",
+                tenant__name=prefix_entry["tenant"]["name"] if prefix_entry["tenant"] else "",
                 pk=prefix_entry["id"],
             )
             self.add(prefix)
@@ -563,49 +479,44 @@ class NautobotLocal(NautobotAdapter):
     """DiffSync adapter class for loading data from the local Nautobot instance."""
 
     # Model classes used by this adapter class
-    region = RegionModel
-    site = SiteModel
+    locationtype = LocationTypeModel
+    location = LocationModel
     tenant = TenantModel
     prefix = PrefixModel
 
     # Top-level class labels, i.e. those classes that are handled directly rather than as children of other models
-    top_level = ["region", "site", "prefix"]
-
-    def __init__(self, *args, job=None, **kwargs):
-        """Instantiate this class, but do not load data immediately from the local system."""
-        super().__init__(*args, **kwargs)
-        self.job = job
+    top_level = ["locationtype", "location", "prefix"]
 
     def load(self):
-        """Load Region and Site data from the local Nautobot instance."""
-        for location in Location.objects.all():
-            if location.location_type.name == "Region":
-                region_model = self.region(
-                    name=location.name,
-                    description=location.description,
-                    parent_name=location.parent.name if location.parent else None,
-                    pk=location.pk,
-                )
-                self.add(region_model)
-                self.job.logger.debug(f"Loaded {region_model} from local Nautobot instance")
+        """Load LocationType and Location data from the local Nautobot instance."""
+        for loc_type in LocationType.objects.all():
+            new_lt = self.locationtype(
+                name=loc_type.name,
+                description=loc_type.description,
+                nestable=loc_type.nestable,
+                pk=loc_type.pk,
+            )
+            self.add(new_lt)
+            self.job.logger.debug(f"Loaded {new_lt} LocationType from local Nautobot instance")
 
-            if location.location_type.name == "Site":
-                site_model = self.site(
-                    name=location.name,
-                    status=location.status.name,
-                    region_name=location.parent.name if location.parent else "",
-                    description=location.description,
-                    pk=location.pk,
-                )
-                self.add(site_model)
-                self.job.logger.debug(f"Loaded {site_model} from local Nautobot instance")
+        for location in Location.objects.all():
+            loc_model = self.location(
+                name=location.name,
+                status=location.status.name,
+                location_type=location.location_type.name,
+                parent__name=location.parent.name if location.parent else "",
+                description=location.description,
+                pk=location.pk,
+            )
+            self.add(loc_model)
+            self.job.logger.debug(f"Loaded {loc_model} Location from local Nautobot instance")
 
         for prefix in Prefix.objects.all():
             prefix_model = self.prefix(
                 prefix=str(prefix.prefix),
                 description=prefix.description,
                 status=prefix.status.name,
-                tenant=prefix.tenant.name if prefix.tenant else "",
+                tenant__name=prefix.tenant.name if prefix.tenant else "",
                 pk=prefix.pk,
             )
             self.add(prefix_model)
@@ -665,20 +576,24 @@ class ExampleDataSource(DataSource):
 
     def load_target_adapter(self):
         """Method to instantiate and load the TARGET adapter into `self.target_adapter`."""
-        self.target_adapter = NautobotLocal()
+        self.target_adapter = NautobotLocal(job=self, sync=self.sync)
         self.target_adapter.load()
-        self.log_info(obj=None, message=f"Found {self.target_adapter.count('region')} regions")
+        self.logger.info(f"Found {self.target_adapter.count('region')} regions")
 
     def lookup_object(self, model_name, unique_id):
         """Look up a Nautobot object based on the DiffSync model name and unique ID."""
         if model_name == "region":
             try:
-                return Location.objects.get(name=unique_id, location_type=LocationType.objects.get(name="Region"))
+                return Location.objects.get(
+                    name=unique_id, location_type=LocationType.objects.get_or_create(name="Region")[0]
+                )
             except Location.DoesNotExist:
                 pass
         elif model_name == "site":
             try:
-                return Location.objects.get(name=unique_id, location_type=LocationType.objects.get(name="Site"))
+                return Location.objects.get(
+                    name=unique_id, location_type=LocationType.objects.get_or_create(name="Site")[0]
+                )
             except Location.DoesNotExist:
                 pass
         elif model_name == "prefix":
@@ -723,7 +638,7 @@ class ExampleDataTarget(DataTarget):
 
     def load_source_adapter(self):
         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""
-        self.source_adapter = NautobotLocal()
+        self.source_adapter = NautobotLocal(job=self, sync=self.sync)
         self.source_adapter.load()
 
     def load_target_adapter(self):
@@ -735,12 +650,16 @@ class ExampleDataTarget(DataTarget):
         """Look up a Nautobot object based on the DiffSync model name and unique ID."""
         if model_name == "region":
             try:
-                return Location.objects.get(name=unique_id, location_type=LocationType.objects.get(name="Region"))
+                return Location.objects.get(
+                    name=unique_id, location_type=LocationType.objects.get_or_create(name="Region")[0]
+                )
             except Location.DoesNotExist:
                 pass
         elif model_name == "site":
             try:
-                return Location.objects.get(name=unique_id, location_type=LocationType.objects.get(name="Site"))
+                return Location.objects.get(
+                    name=unique_id, location_type=LocationType.objects.get_or_create(name="Site")
+                )
             except Location.DoesNotExist:
                 pass
         elif model_name == "prefix":

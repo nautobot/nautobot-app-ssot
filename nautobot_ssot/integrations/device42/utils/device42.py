@@ -112,16 +112,16 @@ def get_intf_status(port: dict):
     Args:
         port (dict): Dictionary containing port `up` and `up_admin` keys.
     """
-    _status = "planned"
+    _status = "Planned"
     if "up" in port and "up_admin" in port:
         if not is_truthy(port["up"]) and not is_truthy(port["up_admin"]):
-            _status = "decommissioning"
+            _status = "Decommissioning"
         elif not is_truthy(port["up"]) and is_truthy(port["up_admin"]):
-            _status = "failed"
+            _status = "Failed"
         elif is_truthy(port["up"]) and is_truthy(port["up_admin"]):
-            _status = "active"
+            _status = "Active"
     elif port.get("up_admin"):
-        _status = "active"
+        _status = "Active"
     return _status
 
 
@@ -160,14 +160,12 @@ def find_device_role_from_tags(tag_list: List[str]) -> str:
     return DEFAULTS.get("device_role")
 
 
-def get_facility(tags: List[str], diffsync=None):  # pylint: disable=inconsistent-return-statements
+def get_facility(tags: List[str]):  # pylint: disable=inconsistent-return-statements
     """Determine Site facility from a specified Tag."""
-    if not PLUGIN_CFG.get("device42_facility_prepend"):
-        diffsync.log_failure(message="The `facility_prepend` setting is missing or invalid.")
-        raise MissingConfigSetting("device42_facility_prepend")
-    for _tag in tags:
-        if re.search(PLUGIN_CFG.get("device42_facility_prepend"), _tag):
-            return re.sub(PLUGIN_CFG.get("device42_facility_prepend"), "", _tag)
+    if PLUGIN_CFG.get("device42_facility_prepend"):
+        for _tag in tags:
+            if re.search(PLUGIN_CFG.get("device42_facility_prepend"), _tag):
+                return re.sub(PLUGIN_CFG.get("device42_facility_prepend"), "", _tag)
 
 
 def get_custom_field_dict(cfields: List[dict]) -> dict:
@@ -197,7 +195,7 @@ def load_vlan(  # pylint: disable=dangerous-default-value, too-many-arguments
     """Find or create specified Site VLAN.
 
     Args:
-        diffsync (obj): DiffSync adapter with logger and get method.
+        diffsync (Device42Adapter): Device42Adapter with logger and get method.
         vlan_id (int): VLAN ID for site.
         site_name (str): Site name for associated VLAN.
         vlan_name (str): Name of VLAN to be created.
@@ -207,9 +205,9 @@ def load_vlan(  # pylint: disable=dangerous-default-value, too-many-arguments
     """
     try:
         diffsync.get(VLAN, {"vlan_id": vlan_id, "building": site_name})
-        diffsync.job.log_warning(message=f"Duplicate VLAN attempted to be loaded: {vlan_id} {site_name}")
+        diffsync.job.logger.warning(f"Duplicate VLAN attempted to be loaded: {vlan_id} {site_name}")
     except ObjectNotFound:
-        diffsync.job.log_info(message=f"Loading VLAN {vlan_id} {vlan_name} for {site_name}")
+        diffsync.job.logger.info(f"Loading VLAN {vlan_id} {vlan_name} for {site_name}")
         new_vlan = VLAN(
             name=f"VLAN{vlan_id:04d}" if not vlan_name else vlan_name,
             vlan_id=vlan_id,
