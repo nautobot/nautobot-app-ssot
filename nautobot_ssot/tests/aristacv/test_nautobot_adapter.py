@@ -1,12 +1,9 @@
 """Unit tests for the Nautoobt DiffSync adapter class."""
-import uuid
 from unittest.mock import MagicMock, patch
-from django.contrib.contenttypes.models import ContentType
 
-from nautobot.dcim.models import Device, DeviceRole, DeviceType, Manufacturer, Site
-from nautobot.extras.models import Job, JobResult, Status
-from nautobot.utilities.testing import TransactionTestCase
-
+from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Manufacturer
+from nautobot.extras.models import JobResult, Role, Status
+from nautobot.core.testing import TransactionTestCase
 from nautobot_ssot.integrations.aristacv.diffsync.adapters.nautobot import NautobotAdapter
 from nautobot_ssot.integrations.aristacv.jobs import CloudVisionDataSource
 
@@ -14,37 +11,41 @@ from nautobot_ssot.integrations.aristacv.jobs import CloudVisionDataSource
 class NautobotAdapterTestCase(TransactionTestCase):
     """Test the NautobotAdapter class."""
 
+    job_class = CloudVisionDataSource
+    databases = (
+        "default",
+        "job_logs",
+    )
+
     def setUp(self):
         """Create Nautobot objects to test with."""
-        super().setUp()
-        status_active, _ = Status.objects.get_or_create(name="Active", slug="active")
-        arista_manu, _ = Manufacturer.objects.get_or_create(name="Arista", slug="arista")
+        status_active, _ = Status.objects.get_or_create(name="Active")
+        arista_manu, _ = Manufacturer.objects.get_or_create(name="Arista")
 
-        hq_site, _ = Site.objects.get_or_create(name="HQ")
+        loc_type = LocationType.objects.get_or_create(name="Site")[0]
+        hq_site, _ = Location.objects.get_or_create(name="HQ", status=status_active, location_type=loc_type)
 
-        csr_devicetype, _ = DeviceType.objects.get_or_create(
-            model="CSR1000v", slug="csr1000v", manufacturer=arista_manu
-        )
-        rtr_devicerole, _ = DeviceRole.objects.get_or_create(name="Router", slug="rtr")
+        csr_devicetype, _ = DeviceType.objects.get_or_create(model="CSR1000v", manufacturer=arista_manu)
+        rtr_devicerole, _ = Role.objects.get_or_create(name="Router")
 
         Device.objects.get_or_create(
             name="ams01-rtr-01",
             device_type=csr_devicetype,
             status=status_active,
-            device_role=rtr_devicerole,
-            site=hq_site,
+            role=rtr_devicerole,
+            location=hq_site,
         )
         Device.objects.get_or_create(
             name="ams01-rtr-02",
             device_type=csr_devicetype,
             status=status_active,
-            device_role=rtr_devicerole,
-            site=hq_site,
+            role=rtr_devicerole,
+            location=hq_site,
         )
 
-        self.job = CloudVisionDataSource()
+        self.job = self.job_class()
         self.job.job_result = JobResult.objects.create(
-            name=self.job.class_path, obj_type=ContentType.objects.get_for_model(Job), user=None, job_id=uuid.uuid4()
+            name=self.job.class_path, task_name="fake task", worker="default"
         )
         self.nb_adapter = NautobotAdapter(job=self.job)
 
@@ -59,6 +60,6 @@ class NautobotAdapterTestCase(TransactionTestCase):
         ):
             self.nb_adapter.load_devices()
         self.assertEqual(
-            {dev.name for dev in Device.objects.filter(device_type__manufacturer__slug="arista")},
+            {dev.name for dev in Device.objects.filter(device_type__manufacturer__name="Arista")},
             {dev.get_unique_id() for dev in self.nb_adapter.get_all("device")},
         )

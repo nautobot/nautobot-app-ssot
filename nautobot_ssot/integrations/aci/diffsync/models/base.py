@@ -21,12 +21,12 @@ class Vrf(DiffSyncModel):
 
     _modelname = "vrf"
     _identifiers = ("name", "tenant")
-    _attributes = ("description", "rd", "site_tag")
+    _attributes = ("description", "namespace", "site_tag")
 
     name: str
     tenant: str
     description: Optional[str]
-    rd: Optional[str]
+    namespace: str
     site_tag: str
 
 
@@ -118,20 +118,20 @@ class IPAddress(DiffSyncModel):
     _identifiers = (
         "address",
         "site",
-        "vrf",
+        "namespace",
         "tenant",
     )
-    _attributes = ("status", "description", "device", "interface", "vrf_tenant", "site_tag")
+    _attributes = ("prefix", "status", "description", "device", "interface", "site_tag")
 
     address: str
+    prefix: str
     status: str
     site: str
-    vrf: Optional[str]
+    namespace: str
     description: Optional[str]
     device: Optional[str]
     interface: Optional[str]
     tenant: Optional[str]
-    vrf_tenant: Optional[str]
     site_tag: str
 
 
@@ -145,9 +145,10 @@ class Prefix(DiffSyncModel):
         "vrf",
         "tenant",
     )
-    _attributes = ("status", "description", "vrf_tenant", "site_tag")
+    _attributes = ("namespace", "status", "description", "vrf_tenant", "site_tag")
 
     prefix: str
+    namespace: str
     status: str
     site: str
     tenant: Optional[str]

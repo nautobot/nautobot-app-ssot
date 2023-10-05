@@ -3,16 +3,15 @@
 #  pylint: disable=too-many-locals
 """IP Fabric Data Target Job."""
 import uuid
-from diffsync.enum import DiffSyncFlags
 from diffsync.exceptions import ObjectNotCreated
 from django.conf import settings
 from django.templatetags.static import static
 from django.urls import reverse
 from httpx import ConnectError
 from ipfabric import IPFClient
-from nautobot.dcim.models import Site
-from nautobot.extras.jobs import BooleanVar, Job, ScriptVariable, ChoiceVar
-from nautobot.utilities.forms import DynamicModelChoiceField
+from nautobot.dcim.models import Location
+from nautobot.extras.jobs import BooleanVar, ScriptVariable, ChoiceVar
+from nautobot.core.forms import DynamicModelChoiceField
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabricDiffSync
@@ -73,6 +72,7 @@ class OptionalObjectVar(ScriptVariable):
     An object primary key is returned and accessible in job kwargs.
     """
 
+    kwargs = {}
     form_field = DynamicModelChoiceField
 
     def __init__(
@@ -102,7 +102,7 @@ class OptionalObjectVar(ScriptVariable):
 
 
 # pylint:disable=too-few-public-methods
-class IpFabricDataSource(DataSource, Job):
+class IpFabricDataSource(DataSource):
     """Job syncing data from IP Fabric to Nautobot."""
 
     client = None
@@ -118,11 +118,12 @@ class IpFabricDataSource(DataSource, Job):
         label="Sync Tagged Only",
         description="Only sync objects that have the 'ssot-synced-from-ipfabric' tag.",
     )
-    site_filter = OptionalObjectVar(
-        description="Only sync Nautobot records belonging to a single Site. This does not filter IPFabric data.",
-        model=Site,
+    location_filter = OptionalObjectVar(
+        description="Only sync Nautobot records belonging to a single Location. This does not filter IPFabric data.",
+        model=Location,
         required=False,
     )
+    kwargs = {}
 
     class Meta:
         """Metadata about this Job."""
@@ -136,7 +137,7 @@ class IpFabricDataSource(DataSource, Job):
             "snapshot",
             "safe_delete_mode",
             "sync_ipfabric_tagged_only",
-            "dry_run",
+            "dryrun",
         )
 
     @staticmethod
@@ -189,7 +190,7 @@ class IpFabricDataSource(DataSource, Job):
         """List describing the data mappings involved in this DataSource."""
         return (
             DataMapping("Device", None, "Device", reverse("dcim:device_list")),
-            DataMapping("Site", None, "Site", reverse("dcim:site_list")),
+            DataMapping("Location", None, "Location", reverse("dcim:location_list")),
             DataMapping("Interfaces", None, "Interfaces", reverse("dcim:interface_list")),
             DataMapping("IP Addresses", None, "IP Addresses", reverse("ipam:ipaddress_list")),
             DataMapping("VLANs", None, "VLANs", reverse("ipam:vlan_list")),
@@ -208,15 +209,35 @@ class IpFabricDataSource(DataSource, Job):
             "Allow Duplicate Addresses": constants.ALLOW_DUPLICATE_ADDRESSES,
             "Default MTU": constants.DEFAULT_INTERFACE_MTU,
             "Safe Delete Device Status": constants.SAFE_DELETE_DEVICE_STATUS,
-            "Safe Delete Site Status": constants.SAFE_DELETE_SITE_STATUS,
+            "Safe Delete Location Status": constants.SAFE_DELETE_LOCATION_STATUS,
             "Safe Delete IPAddress Status": constants.SAFE_IPADDRESS_INTERFACES_STATUS,
             "Safe Delete VLAN status": constants.SAFE_DELETE_VLAN_STATUS,
         }
 
-    def log_debug(self, message):
-        """Conditionally log a debug message."""
-        if self.kwargs.get("debug"):
-            super().log_debug(message)
+    # pylint: disable-next=too-many-arguments, arguments-differ
+    def run(
+        self,
+        dryrun,
+        memory_profiling,
+        debug,
+        snapshot=None,
+        safe_delete_mode=True,
+        sync_ipfabric_tagged_only=True,
+        location_filter=None,
+        *args,
+        **kwargs,
+    ):
+        """Run the job."""
+        self.kwargs = {
+            "snapshot": snapshot,
+            "dryrun": dryrun,
+            "safe_delete_mode": safe_delete_mode,
+            "sync_ipfabric_tagged_only": sync_ipfabric_tagged_only,
+            "location_filter": location_filter,
+            "debug": debug,
+        }
+
+        super().run(dryrun=dryrun, memory_profiling=memory_profiling, *args, **kwargs)
 
     def load_source_adapter(self):
         """Not used."""
@@ -224,30 +245,30 @@ class IpFabricDataSource(DataSource, Job):
     def load_target_adapter(self):
         """Not used."""
 
-    def sync_data(self):
+    def sync_data(self, *_args, **_kwargs):
         """Sync a device data from IP Fabric into Nautobot."""
         if self.client is None:
             self.client = self._init_ipf_client()
         if self.client is None:
-            self.log_failure(message="IPFabric client is not ready. Check your config.")
+            self.logger.error("IPFabric client is not ready. Check your config.")
             return
 
         self.client.snapshot_id = self.kwargs["snapshot"]
-        dry_run = self.kwargs["dry_run"]
+        dryrun = self.kwargs["dryrun"]
         safe_mode = self.kwargs["safe_delete_mode"]
         tagged_only = self.kwargs["sync_ipfabric_tagged_only"]
-        site_filter = self.kwargs["site_filter"]
+        location_filter = self.kwargs["location_filter"]
         debug_mode = self.kwargs["debug"]
 
-        if site_filter:
-            site_filter_object = Site.objects.get(pk=site_filter)
+        if location_filter:
+            location_filter_object = Location.objects.get(pk=location_filter)
         else:
-            site_filter_object = None
-        options = f"`Snapshot_id`: {self.client.snapshot_id}.`Debug`: {debug_mode}, `Dry Run`: {dry_run}, `Safe Delete Mode`: {safe_mode}, `Sync Tagged Only`: {tagged_only}, `Site Filter`: {site_filter_object}"
-        self.log_info(message=f"Starting job with the following options: {options}")
+            location_filter_object = None
+        options = f"`Snapshot_id`: {self.client.snapshot_id}.`Debug`: {debug_mode}, `Dry Run`: {dryrun}, `Safe Delete Mode`: {safe_mode}, `Sync Tagged Only`: {tagged_only}, `Location Filter`: {location_filter_object}"
+        self.logger.info(f"Starting job with the following options: {options}")
 
         ipfabric_source = IPFabricDiffSync(job=self, sync=self.sync, client=self.client)
-        self.log_info(message="Loading current data from IP Fabric...")
+        self.logger.info("Loading current data from IP Fabric...")
         ipfabric_source.load()
 
         # Set safe mode either way (Defaults to True)
@@ -258,17 +279,17 @@ class IpFabricDataSource(DataSource, Job):
             job=self,
             sync=self.sync,
             sync_ipfabric_tagged_only=tagged_only,
-            site_filter=site_filter_object,
+            location_filter=location_filter_object,
         )
 
-        self.log_info(message="Loading current data from Nautobot...")
+        self.logger.info("Loading current data from Nautobot...")
         dest.load()
+        self.logger.info("Calculating diffs...")
 
-        self.log_info(message="Calculating diffs...")
-        flags = DiffSyncFlags.CONTINUE_ON_FAILURE
-
-        diff = dest.diff_from(ipfabric_source, flags=flags)
-        self.log_debug(message=f"Diff: {diff.dict()}")
+        diff = dest.diff_from(ipfabric_source)
+        # pylint: disable-next=logging-fstring-interpolation
+        if debug_mode:
+            self.logger.debug("Diff: %s", diff.dict())
 
         self.sync.diff = diff.dict()
         self.sync.save()
@@ -276,17 +297,17 @@ class IpFabricDataSource(DataSource, Job):
         update = diff.summary().get("update")
         delete = diff.summary().get("delete")
         no_change = diff.summary().get("no-change")
-        self.log_info(
-            message=f"DiffSync Summary: Create: {create}, Update: {update}, Delete: {delete}, No Change: {no_change}"
+        self.logger.info(
+            f"DiffSync Summary: Create: {create}, Update: {update}, Delete: {delete}, No Change: {no_change}"
         )
-        if not dry_run:
-            self.log_info(message="Syncing from IP Fabric to Nautobot")
+        if not dryrun:
+            self.logger.info("Syncing from IP Fabric to Nautobot")
             try:
                 dest.sync_from(ipfabric_source)
-            except ObjectNotCreated as err:
-                self.log_debug(f"Unable to create object. {err}")
+            except ObjectNotCreated:
+                self.logger.debug("Unable to create object.", exc_info=True)
 
-        self.log_success(message="Sync complete.")
+        self.logger.info("Sync complete.")
 
 
 jobs = [IpFabricDataSource]

@@ -4,11 +4,16 @@ import uuid
 
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
-from django_rq import job
 from nautobot.core.settings_funcs import is_truthy
 from nautobot.extras.models import JobResult
+
+# pylint: disable-next=import-error
 from nautobot_chatops.choices import CommandStatusChoices
+
+# pylint: disable-next=import-error
 from nautobot_chatops.dispatchers import Dispatcher
+
+# pylint: disable-next=import-error
 from nautobot_chatops.workers import handle_subcommands, subcommand_of
 
 from nautobot_ssot.integrations.ipfabric.jobs import IpFabricDataSource
@@ -46,7 +51,6 @@ def ipfabric_logo(dispatcher):
     return dispatcher.image_element(dispatcher.static_url(IPFABRIC_LOGO_PATH), alt_text=IPFABRIC_LOGO_ALT)
 
 
-@job("default")
 def ipfabric(subcommand, **kwargs):
     """Interact with ipfabric plugin."""
     return handle_subcommands("ipfabric", subcommand, **kwargs)
@@ -78,7 +82,7 @@ def ssot_sync_to_nautobot(
         )
         return (CommandStatusChoices.STATUS_SUCCEEDED, "Success")
 
-    # if site_filter is None:
+    # if location_filter is None:
     #     prompt_for_site(
     #         dispatcher,
     #         f"{BASE_CMD} ssot-sync-to-nautobot {dry_run} {safe_delete_mode} {sync_ipfabric_tagged_only}",
@@ -87,15 +91,7 @@ def ssot_sync_to_nautobot(
     #     return (CommandStatusChoices.STATUS_SUCCEEDED, "Success")
 
     # Implement filter in future release
-    site_filter = False
-
-    data = {
-        "debug": False,
-        "dry_run": is_truthy(dry_run),
-        "safe_delete_mode": is_truthy(safe_delete_mode),
-        "sync_ipfabric_tagged_only": is_truthy(sync_ipfabric_tagged_only),
-        "site_filter": site_filter,
-    }
+    location_filter = False
 
     sync_job = IpFabricDataSource()
 
@@ -114,9 +110,14 @@ def ssot_sync_to_nautobot(
         ephemeral=True,
     )
 
-    sync_job.run(data, commit=True)
-    sync_job.post_run()
-    sync_job.job_result.set_status(status="completed" if not sync_job.failed else "failed")
+    sync_job.run(
+        dryrun=is_truthy(dry_run),
+        memory_profiling=False,
+        safe_delete_mode=is_truthy(safe_delete_mode),
+        sync_ipfabric_tagged_only=is_truthy(sync_ipfabric_tagged_only),
+        location_filter=location_filter,
+        debug=False,
+    )
     sync_job.job_result.validated_save()
 
     blocks = [

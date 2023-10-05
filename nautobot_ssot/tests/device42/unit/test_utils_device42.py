@@ -1,11 +1,10 @@
 """Tests of Device42 utility methods."""
 
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import responses
-from django.conf import settings
-from nautobot.utilities.testing import TestCase
+from nautobot.core.testing import TestCase
 from parameterized import parameterized
 from nautobot_ssot.integrations.device42.jobs import Device42DataSource
 from nautobot_ssot.integrations.device42.utils import device42
@@ -148,11 +147,11 @@ class TestUtilsDevice42(TestCase):
         self.assertEqual(device42.get_intf_type(intf_record=port_channel_intf), "lag")
 
     port_statuses = [
-        ("active", {"up": True, "up_admin": True}, "active"),
-        ("decommissioning", {"up": False, "up_admin": False}, "decommissioning"),
-        ("failed", {"up": False, "up_admin": True}, "failed"),
-        ("planned", {}, "planned"),
-        ("up_admin", {"up_admin": True}, "active"),
+        ("Active", {"up": True, "up_admin": True}, "Active"),
+        ("Decommissioning", {"up": False, "up_admin": False}, "Decommissioning"),
+        ("Failed", {"up": False, "up_admin": True}, "Failed"),
+        ("Planned", {}, "Planned"),
+        ("up_admin", {"up_admin": True}, "Active"),
     ]
 
     @parameterized.expand(port_statuses, skip_on_empty=True)
@@ -174,6 +173,10 @@ class TestUtilsDevice42(TestCase):
     def test_get_netmiko_platform(self, name, sent, received):  # pylint: disable=unused-argument
         self.assertEqual(device42.get_netmiko_platform(sent), received)
 
+    @patch(
+        "nautobot_ssot.integrations.device42.diffsync.adapters.device42.PLUGIN_CFG",
+        {"device42_role_prepend": "nautobot-"},
+    )
     def test_find_device_role_from_tags(self):
         tags_w_role = [
             "core-router",
@@ -185,23 +188,13 @@ class TestUtilsDevice42(TestCase):
         ]
         self.assertEqual(device42.find_device_role_from_tags(tag_list=tags_missing_role), "Unknown")
 
+    @patch(
+        "nautobot_ssot.integrations.device42.diffsync.adapters.device42.PLUGIN_CFG",
+        {"device42_facility_prepend": "sitecode-"},
+    )
     def test_get_facility(self):
         tags = ["core-router", "nautobot-core-router", "sitecode-DFW"]
         self.assertEqual(device42.get_facility(tags=tags), "DFW")
-
-    def test_get_facility_exception(self):
-        """Test that get_facility throws Exception if setting is missing."""
-        tags = ["core-router", "nautobot-core-router", "sitecode-DFW"]
-        configs = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
-        original = configs["device42_facility_prepend"]
-        configs.pop("device42_facility_prepend")
-        dsync = MagicMock()
-        dsync.log_failure = MagicMock()
-        with self.assertRaises(device42.MissingConfigSetting):
-            device42.get_facility(tags=tags, diffsync=dsync)
-        dsync.log_failure.assert_called_once_with(message="The `facility_prepend` setting is missing or invalid.")
-        # restore setting to what it was before
-        configs["device42_facility_prepend"] = original
 
     def test_get_custom_field_dict(self):
         """Test the get_custom_field_dict method."""

@@ -8,7 +8,7 @@ from nautobot_ssot.integrations.infoblox.constant import TAG_COLOR
 def create_tag_sync_from_infoblox():
     """Create tag for tagging objects that have been created by Infoblox."""
     tag, _ = Tag.objects.get_or_create(
-        slug="ssot-synced-from-infoblox",
+        name="SSoT Synced from Infoblox",
         defaults={
             "name": "SSoT Synced from Infoblox",
             "description": "Object synced at some point from Infoblox",
@@ -89,7 +89,7 @@ def get_default_custom_fields(cf_contenttype: ContentType) -> dict:
     customfields = CustomField.objects.filter(content_types=cf_contenttype)
     default_cfs = {}
     for customfield in customfields:
-        if customfield.name != "ssot-synced-to-infoblox":
-            if customfield.name not in default_cfs:
-                default_cfs[customfield.name] = None
+        if customfield.key != "ssot-synced-to-infoblox":
+            if customfield.key not in default_cfs:
+                default_cfs[customfield.key] = None
     return default_cfs

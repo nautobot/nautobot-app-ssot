@@ -1,12 +1,9 @@
 """Unit tests for the Device42 DiffSync adapter class."""
 import json
-import uuid
 from unittest.mock import MagicMock, patch
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
-from django.contrib.contenttypes.models import ContentType
-from django.utils.text import slugify
-from nautobot.utilities.testing import TransactionTestCase
-from nautobot.extras.models import Job, JobResult
+from nautobot.core.testing import TransactionTestCase
+from nautobot.extras.models import JobResult
 from parameterized import parameterized
 from nautobot_ssot.integrations.device42.diffsync.adapters.device42 import (
     Device42Adapter,
@@ -47,6 +44,7 @@ IPADDRESS_CF_FIXTURE = load_json("./nautobot_ssot/tests/device42/fixtures/get_ip
 class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-public-methods
     """Test the Device42Adapter class."""
 
+    job_class = Device42DataSource
     databases = ("default", "job_logs")
 
     def setUp(self):
@@ -71,12 +69,13 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         self.d42_client.get_ip_addrs.return_value = IPADDRESS_FIXTURE
         self.d42_client.get_ipaddr_custom_fields.return_value = IPADDRESS_CF_FIXTURE
 
-        self.job = Device42DataSource()
-        self.job.log_info = MagicMock()
-        self.job.log_warning = MagicMock()
-        self.job.kwargs["debug"] = True
+        self.job = self.job_class()
+        self.job.logger = MagicMock()
+        self.job.logger.info = MagicMock()
+        self.job.logger.warning = MagicMock()
+        self.job.debug = True
         self.job.job_result = JobResult.objects.create(
-            name=self.job.class_path, obj_type=ContentType.objects.get_for_model(Job), user=None, job_id=uuid.uuid4()
+            name=self.job.class_path, task_name="fake task", worker="default"
         )
         self.device42 = Device42Adapter(job=self.job, sync=None, client=self.d42_client)
         self.mock_device = MagicMock()
@@ -90,7 +89,7 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
 
     @patch(
         "nautobot_ssot.integrations.device42.diffsync.adapters.device42.PLUGIN_CFG",
-        {"customer_is_facility": True},
+        {"device42_customer_is_facility": True, "device42_hostname_mapping": [{"AUS": "Austin"}]},
     )
     def test_data_loading(self):
         """Test the load() function."""
@@ -109,16 +108,6 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
             {f"{rack['name']}__{rack['building']}__{rack['room']}" for rack in RACK_FIXTURE},
             {rack.get_unique_id() for rack in self.device42.get_all("rack")},
         )
-        self.device42.load_vendors()
-        self.assertEqual(
-            {vendor["name"] for vendor in VENDOR_FIXTURE},
-            {vendor.get_unique_id() for vendor in self.device42.get_all("vendor")},
-        )
-        self.device42.load_hardware_models()
-        self.assertEqual(
-            {model["name"] for model in HARDWARE_FIXTURE},
-            {model.get_unique_id() for model in self.device42.get_all("hardware")},
-        )
         self.device42.load_vrfgroups()
         self.assertEqual(
             {vrf["name"] for vrf in VRFGROUP_FIXTURE},
@@ -126,10 +115,7 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         )
         self.device42.load_vlans()
         self.assertEqual(
-            {
-                f"{vlan['vid']}__{slugify(self.device42.d42_building_sitecode_map[vlan['customer']])}"
-                for vlan in VLAN_FIXTURE
-            },
+            {f"{vlan['vid']}__{self.device42.d42_building_sitecode_map[vlan['customer']]}" for vlan in VLAN_FIXTURE},
             {vlan.get_unique_id() for vlan in self.device42.get_all("vlan")},
         )
         self.device42.load_subnets()
@@ -149,7 +135,10 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         )
         self.device42.load_ip_addresses()
         self.assertEqual(
-            {f"{ipaddr['ip_address']}/{ipaddr['netmask']}__{ipaddr['vrf']}" for ipaddr in IPADDRESS_FIXTURE},
+            {
+                f"{ipaddr['ip_address']}/{ipaddr['netmask']}__{ipaddr['subnet']}/{ipaddr['netmask']}"
+                for ipaddr in IPADDRESS_FIXTURE
+            },
             {ipaddr.get_unique_id() for ipaddr in self.device42.get_all("ipaddr")},
         )
 
@@ -157,8 +146,8 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         """Validate functionality of the load_buildings() function when duplicate site is loaded."""
         self.device42.load_buildings()
         self.device42.load_buildings()
-        self.job.log_warning.assert_called_with(
-            message="Microsoft HQ is already loaded. ('Object Microsoft HQ already present', building \"Microsoft HQ\")"
+        self.job.logger.warning.assert_called_with(
+            "Microsoft HQ is already loaded. ('Object Microsoft HQ already present', building \"Microsoft HQ\")"
         )
 
     def test_load_rooms_duplicate_room(self):
@@ -166,8 +155,8 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         self.device42.load_buildings()
         self.device42.load_rooms()
         self.device42.load_rooms()
-        self.job.log_warning.assert_called_with(
-            message="Secondary IDF is already loaded. ('Object Secondary IDF__Microsoft HQ already present', room \"Secondary IDF__Microsoft HQ\")"
+        self.job.logger.warning.assert_called_with(
+            "Secondary IDF is already loaded. ('Object Secondary IDF__Microsoft HQ already present', room \"Secondary IDF__Microsoft HQ\")"
         )
 
     def test_load_rooms_missing_building(self):
@@ -175,7 +164,7 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         ROOM_FIXTURE[0]["building"] = ""
         self.device42.load_buildings()
         self.device42.load_rooms()
-        self.job.log_warning.assert_called_with(message="Network Closet is missing Building and won't be imported.")
+        self.job.logger.warning.assert_called_with("Network Closet is missing Building and won't be imported.")
 
     def test_load_racks_duplicate_rack(self):
         """Validate the functionality of the load_racks() function when duplicate rack is loaded."""
@@ -183,8 +172,8 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         self.device42.load_rooms()
         self.device42.load_racks()
         self.device42.load_racks()
-        self.job.log_warning.assert_called_with(
-            message="Rack Rack A already exists. ('Object Rack A__Microsoft HQ__Main IDF already present', rack \"Rack A__Microsoft HQ__Main IDF\")"
+        self.job.logger.warning.assert_called_with(
+            "Rack Rack A already exists. ('Object Rack A__Microsoft HQ__Main IDF already present', rack \"Rack A__Microsoft HQ__Main IDF\")"
         )
 
     def test_load_racks_missing_building_and_room(self):
@@ -194,43 +183,32 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         self.device42.load_buildings()
         self.device42.load_rooms()
         self.device42.load_racks()
-        self.job.log_warning.assert_called_with(message="Rack 1 is missing Building and Room and won't be imported.")
-
-    def test_load_hardware_models_duplicate_model(self):
-        """Validate functionality of the load_hardware_models() function with duplicate model."""
-        self.device42.load_hardware_models()
-        self.device42.load_hardware_models()
-        self.job.log_warning.assert_called_with(
-            message="Hardware model already exists. ('Object FPR-2130 already present', hardware \"FPR-2130\")"
-        )
+        self.job.logger.warning.assert_called_with("Rack 1 is missing Building and Room and won't be imported.")
 
     def test_load_cluster_duplicate_cluster(self):
         """Validate functionality of the load_cluster() function when cluster loaded with duplicate cluster."""
         self.device42.get = MagicMock()
-        self.device42.get.side_effect = ObjectAlreadyExists(message="Duplicate object found.", existing_object=None)
+        self.device42.get.side_effect = ObjectAlreadyExists("Duplicate object found.", existing_object=None)
         self.device42.load_cluster(cluster_info=DEVICE_FIXTURE[3])
-        self.job.log_warning.assert_called_with(
-            message="Cluster stack01.testexample.com already has been added. ('Duplicate object found.', None)"
+        self.job.logger.warning.assert_called_with(
+            "Cluster stack01.testexample.com already has been added. ('Duplicate object found.', None)"
         )
 
     @patch(
         "nautobot_ssot.integrations.device42.diffsync.adapters.device42.PLUGIN_CFG",
-        {"ignore_tag": "TEST"},
+        {"device42_ignore_tag": "TEST"},
     )
     def test_load_cluster_ignore_tag(self):
         """Validate functionality of the load_cluster() function when cluster has ignore tag."""
         self.device42.load_cluster(cluster_info=DEVICE_FIXTURE[3])
-        self.job.log_info.assert_called_once_with(message="Cluster stack01.testexample.com being loaded from Device42.")
-        self.job.log_warning.assert_called_once_with(
-            message="Cluster stack01.testexample.com has ignore tag so skipping."
-        )
+        self.job.logger.info.assert_called_once_with("Cluster stack01.testexample.com being loaded from Device42.")
+        self.job.logger.warning.assert_called_once_with("Cluster stack01.testexample.com has ignore tag so skipping.")
 
     def test_load_devices_with_blank_building(self):
         """Validate functionality of the load_devices_and_clusters() function when device has a blank building."""
-        self.device42.load_hardware_models()
         self.device42.load_devices_and_clusters()
-        self.job.log_warning.assert_called_with(
-            message="Device stack01.testexample.com can't be loaded as we're unable to find associated Building."
+        self.job.logger.warning.assert_called_with(
+            "Device stack01.testexample.com can't be loaded as we're unable to find associated Building."
         )
 
     def test_assign_version_to_master_devices_with_valid_os_version(self):
@@ -245,7 +223,7 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         self.device42.assign_version_to_master_devices()
 
         self.assertEqual(self.master_dev.os_version, "1.0")
-        self.job.log_info.assert_called_once_with(message="Assigning 1.0 version to cluster1.")
+        self.job.logger.info.assert_called_once_with("Assigning 1.0 version to cluster1.")
 
     def test_assign_version_to_master_devices_with_blank_os_version(self):
         """Validate functionality of the assign_version_to_master_devices() function with blank os_version."""
@@ -261,8 +239,8 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         self.device42.assign_version_to_master_devices()
 
         self.assertEqual(self.master_dev.os_version, "")
-        self.job.log_info.assert_called_once_with(
-            message="Software version for cluster1 - Switch 1 is blank so will not assign version to cluster1."
+        self.job.logger.info.assert_called_once_with(
+            "Software version for cluster1 - Switch 1 is blank so will not assign version to cluster1."
         )
 
     def test_assign_version_to_master_devices_with_missing_cluster_host(self):
@@ -274,8 +252,8 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         self.device42.get.return_value = KeyError
 
         self.device42.assign_version_to_master_devices()
-        self.job.log_warning.assert_called_once_with(
-            message="Unable to find cluster host in device42_clusters dictionary. 'cluster1'"
+        self.job.logger.warning.assert_called_once_with(
+            "Unable to find cluster host in device42_clusters dictionary. 'cluster1'"
         )
 
     def test_assign_version_to_master_devices_with_missing_master_device(self):
@@ -288,9 +266,7 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         self.device42.get.side_effect = [self.mock_device, ObjectNotFound]
 
         self.device42.assign_version_to_master_devices()
-        self.job.log_warning.assert_called_once_with(
-            message="Unable to find VC Master Device cluster1 to assign version."
-        )
+        self.job.logger.warning.assert_called_once_with("Unable to find VC Master Device cluster1 to assign version.")
 
     statuses = [
         ("Production", "Production", "Active"),
@@ -307,7 +283,7 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
 
     @patch(
         "nautobot_ssot.integrations.device42.diffsync.adapters.device42.PLUGIN_CFG",
-        {"hostname_mapping": [{"^aus.+|AUS.+": "austin"}]},
+        {"device42_hostname_mapping": [{"^aus.+|AUS.+": "austin"}]},
     )
     def test_get_site_from_mapping(self):
         """Test the get_site_from_mapping method."""
@@ -316,7 +292,7 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
 
     @patch(
         "nautobot_ssot.integrations.device42.diffsync.adapters.device42.PLUGIN_CFG",
-        {"hostname_mapping": [{"^aus.+|AUS.+": "austin"}]},
+        {"device42_hostname_mapping": [{"^aus.+|AUS.+": "austin"}]},
     )
     def test_get_site_from_mapping_missing_site(self):
         """Test the get_site_from_mapping method with missing site."""
@@ -343,7 +319,7 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
 
     @patch(
         "nautobot_ssot.integrations.device42.diffsync.adapters.device42.PLUGIN_CFG",
-        {"hostname_mapping": [{"^nyc.+|NYC.+": "new-york-city"}]},
+        {"device42_hostname_mapping": [{"^nyc.+|NYC.+": "new-york-city"}]},
     )
     def test_get_building_for_device_from_mapping(self):
         """Test the get_building_for_device method using site_mapping."""
@@ -395,7 +371,9 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         mock_find_ipaddr.assert_called_once_with(address="10.0.0.1")
         mock_get_mgmt_intf.assert_called_once_with(dev_name=dev_name)
         mock_add_mgmt_intf.assert_not_called()
-        mock_add_ipaddr.assert_called_once_with(address="10.0.0.1/32", dev_name=dev_name, interface="eth0")
+        mock_add_ipaddr.assert_called_once_with(
+            address="10.0.0.1/32", dev_name=dev_name, interface="eth0", namespace="Global"
+        )
         self.assertEqual(mock_ip.device, "router.test-example.com")
         self.assertEqual(mock_ip.interface, "eth0")
         self.assertTrue(mock_ip.primary)
@@ -411,7 +389,7 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         """Method to test the set_primary_from_dns functionality with invalid FQDN."""
         mock_dns_a_record.return_value = ""
         dev_name = "router.test-example.com"
-        self.job.log_warning = MagicMock()
+        self.job.logger.warning = MagicMock()
         self.device42.set_primary_from_dns(dev_name=dev_name)
 
         mock_dns_a_record.assert_called_once_with(dev_name=dev_name)
@@ -419,4 +397,4 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         mock_get_mgmt_intf.assert_not_called()
         mock_add_mgmt_intf.assert_not_called()
         mock_add_ipaddr.assert_not_called()
-        self.job.log_warning.assert_called_once()
+        self.job.logger.warning.assert_called_once()

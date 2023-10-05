@@ -4,7 +4,7 @@ import logging
 import re
 import yaml
 
-logger = logging.getLogger("rq.worker")
+logger = logging.getLogger(__name__)
 
 
 def pod_from_dn(dn):

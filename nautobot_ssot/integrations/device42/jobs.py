@@ -3,7 +3,7 @@
 
 from django.templatetags.static import static
 from django.urls import reverse
-from nautobot.extras.jobs import BooleanVar, Job
+from nautobot.extras.jobs import BooleanVar
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 
 from nautobot_ssot.integrations.device42.constant import PLUGIN_CFG
@@ -15,7 +15,7 @@ from nautobot_ssot.integrations.device42.utils.device42 import Device42API
 name = "SSoT - Device42"  # pylint: disable=invalid-name
 
 
-class Device42DataSource(DataSource, Job):
+class Device42DataSource(DataSource):  # pylint: disable=too-many-instance-attributes
     """Device42 SSoT Data Source."""
 
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
@@ -112,8 +112,8 @@ class Device42DataSource(DataSource, Job):
 
     def load_source_adapter(self):
         """Load data from Device42 into DiffSync models."""
-        if self.kwargs["debug"]:
-            self.log_info(message="Connecting to Device42...")
+        if self.debug:
+            self.logger.info("Connecting to Device42...")
         client = Device42API(
             base_url=PLUGIN_CFG["device42_host"],
             username=PLUGIN_CFG["device42_username"],
@@ -121,29 +121,26 @@ class Device42DataSource(DataSource, Job):
             verify=PLUGIN_CFG["device42_verify_ssl"],
         )
         self.source_adapter = Device42Adapter(job=self, sync=self.sync, client=client)
-        if self.kwargs["debug"]:
-            self.log_info(message="Loading data from Device42...")
+        if self.debug:
+            self.logger.info("Loading data from Device42...")
         self.source_adapter.load()
 
     def load_target_adapter(self):
         """Load data from Nautobot into DiffSync models."""
         self.target_adapter = NautobotAdapter(job=self, sync=self.sync)
-        if self.kwargs["debug"]:
-            self.log_info(message="Loading data from Nautobot...")
+        if self.debug:
+            self.logger.info("Loading data from Nautobot...")
         self.target_adapter.load()
 
-    def execute_sync(self):
-        """Execute the synchronization of data from Device42 to Nautobot."""
-
-    def post_run(self):
-        """Execute sync after Job is complete so the transactions are not atomic."""
-        if not self.kwargs["dry_run"]:
-            self.log_info(message="Beginning synchronization of data from Device42 into Nautobot.")
-            if self.source_adapter is not None and self.target_adapter is not None:
-                self.source_adapter.sync_to(self.target_adapter, flags=self.diffsync_flags)
-            else:
-                self.log_warning(message="Not both adapters were properly initialized prior to synchronization.")
-        self.log_info(message="Synchronization from Device42 into Nautobot is complete.")
+    def run(  # pylint: disable=arguments-differ, too-many-arguments
+        self, dryrun, memory_profiling, debug, bulk_import, *args, **kwargs
+    ):
+        """Perform data synchronization."""
+        self.bulk_import = bulk_import
+        self.debug = debug
+        self.dryrun = dryrun
+        self.memory_profiling = memory_profiling
+        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 
 jobs = [Device42DataSource]

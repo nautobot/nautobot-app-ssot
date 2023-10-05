@@ -284,7 +284,7 @@ def get_devices(client):
             "fqdn": resp.value.fqdn.value,
             "sw_ver": resp.value.software_version.value,
             "model": resp.value.model_name.value,
-            "status": "active" if resp.value.streaming_status == 2 else "offline",
+            "status": "Active" if resp.value.streaming_status == 2 else "Offline",
             "system_mac_address": resp.value.system_mac_address.value,
         }
         devices.append(device)
@@ -607,15 +607,15 @@ def get_interface_status(port_info: dict) -> str:
     Returns:
         str: The status of a port: active|decommissioned|maintenance|planned.
     """
-    status = "decommissioning"
+    status = "Decommissioning"
     if port_info["oper_status"] == "up" and port_info["link_status"] == "up":
-        status = "active"
+        status = "Active"
 
     if port_info["oper_status"] == "up" and port_info["link_status"] == "down":
-        status = "planned"
+        status = "Planned"
 
     if port_info["oper_status"] == "down" and port_info["link_status"] == "down":
-        status = "maintenance"
+        status = "Maintenance"
     return status
 
 

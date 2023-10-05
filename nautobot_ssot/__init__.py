@@ -1,13 +1,6 @@
 """Plugin declaration for nautobot_ssot."""
-# Metadata is inherited from Nautobot. If not including Nautobot in the environment, this should be added
-
-from os import getenv
-
-try:
-    from importlib import metadata
-except ImportError:
-    # Python version < 3.8
-    import importlib_metadata as metadata
+import os
+from importlib import metadata
 
 from django.conf import settings
 from nautobot.extras.plugins import PluginConfig
@@ -38,7 +31,7 @@ def _check_for_conflicting_apps():
         )
 
 
-if not is_truthy(getenv("NAUTOBOT_SSOT_ALLOW_CONFLICTING_APPS", "False")):
+if not is_truthy(os.getenv("NAUTOBOT_SSOT_ALLOW_CONFLICTING_APPS", "False")):
     _check_for_conflicting_apps()
 
 
@@ -52,8 +45,8 @@ class NautobotSSOTPluginConfig(PluginConfig):
     description = "Nautobot app that enables Single Source of Truth.  Allows users to aggregate distributed data sources and/or distribute Nautobot data to other data sources such as databases and SDN controllers."
     base_url = "ssot"
     required_settings = []
-    min_version = "1.4.0"
-    max_version = "1.9999"
+    min_version = "2.0.0"
+    max_version = "2.9999"
     default_settings = {
         "aci_apics": [],
         "aci_tag": "",
@@ -84,8 +77,20 @@ class NautobotSSOTPluginConfig(PluginConfig):
         "aristacv_role_mappings": {},
         "aristacv_site_mappings": {},
         "aristacv_verify": True,
+        "device42_host": "",
+        "device42_username": "",
+        "device42_password": "",
+        "device42_defaults": {},
+        "device42_delete_on_sync": False,
+        "device42_use_dns": True,
+        "device42_customer_is_facility": True,
+        "device42_facility_prepend": "",
+        "device42_role_prepend": "",
+        "device42_ignore_tag": "",
+        "device42_hostname_mapping": [],
         "enable_aci": False,
         "enable_aristacv": False,
+        "enable_device42": False,
         "enable_infoblox": False,
         "enable_ipfabric": False,
         "enable_servicenow": False,
@@ -107,7 +112,7 @@ class NautobotSSOTPluginConfig(PluginConfig):
         "ipfabric_host": "",
         "ipfabric_ssl_verify": True,
         "ipfabric_timeout": 15,
-        "nautobot_host": "",
+        "ipfabric_nautobot_host": "",
         "servicenow_instance": "",
         "servicenow_password": "",
         "servicenow_username": "",
