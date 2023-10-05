@@ -603,7 +603,9 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
                             "id": "101",
                             "podId": "1",
                             "oobMgmtAddr": "10.1.1.101",
+                            "oobMgmtAddrMask": 24,
                             "systemUpTime": "05:22:43:18.000",
+                            "tepPool": "10.1.1.0/24",
                         }
                     }
                 },
@@ -613,7 +615,9 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
                             "id": "102",
                             "podId": "1",
                             "oobMgmtAddr": "10.1.1.102",
+                            "oobMgmtAddrMask": 24,
                             "systemUpTime": "05:25:45:54.000",
+                            "tepPool": "10.1.1.0/24",
                         }
                     }
                 },
@@ -634,7 +638,8 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
                 "serial": "TEP-1-101",
                 "fabric_ip": "10.0.160.66",
                 "pod_id": "1",
-                "oob_ip": "10.1.1.101",
+                "oob_ip": "10.1.1.101/24",
+                "subnet": "10.1.1.0/24",
                 "uptime": "05:22:43:18.000",
             },
             "102": {
@@ -644,7 +649,8 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
                 "serial": "TEP-1-102",
                 "fabric_ip": "10.0.160.67",
                 "pod_id": "1",
-                "oob_ip": "10.1.1.102",
+                "oob_ip": "10.1.1.102/24",
+                "subnet": "10.1.1.0/24",
                 "uptime": "05:25:45:54.000",
             },
         }
@@ -701,7 +707,9 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
                             "id": "1",
                             "podId": "1",
                             "oobMgmtAddr": "10.1.1.1",
+                            "oobMgmtAddrMask": 24,
                             "systemUpTime": "05:22:43:18.000",
+                            "tepPool": "10.0.0.0/24",
                         }
                     }
                 }
@@ -719,7 +727,8 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
                 "fabric_ip": "10.0.0.1",
                 "site": "ACI",
                 "pod_id": "1",
-                "oob_ip": "10.1.1.1",
+                "subnet": "10.0.0.0/24",
+                "oob_ip": "10.1.1.1/24",
                 "uptime": "05:22:43:18.000",
             },
         }

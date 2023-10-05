@@ -1,10 +1,12 @@
 {% for sync in syncs %}
     <a href="{% url 'plugins:nautobot_ssot:sync' pk=sync.pk %}" class="label
-        {% if sync.job_result.status == 'completed' %}label-success
-        {% elif sync.job_result.status == 'failed' %}label-danger
-        {% elif sync.job_result.status == 'errored' %}label-danger
-        {% elif sync.job_result.status == 'pending' %}label-default
-        {% elif sync.job_result.status == 'running' %}label-warning
+        {% if sync.job_result.status == 'SUCCESS' %}label-success
+        {% elif sync.job_result.status == 'FAILURE' %}label-danger
+        {% elif sync.job_result.status == 'RECEIVED' %}label-default
+        {% elif sync.job_result.status == 'REVOKED' %}label-danger
+        {% elif sync.job_result.status == 'RETRY' %}label-warning
+        {% elif sync.job_result.status == 'PENDING' %}label-default
+        {% elif sync.job_result.status == 'STARTED' %}label-warning
         {% endif %}"
         title="{{ sync }}">
     </a>

@@ -1,7 +1,6 @@
 """View test cases for nautobot_ssot."""
 
 from datetime import datetime
-import uuid
 from unittest import skip
 
 from django.contrib.contenttypes.models import ContentType
@@ -9,8 +8,8 @@ from django.urls import reverse
 
 from nautobot.extras.models import Job, JobResult
 from nautobot.users.models import ObjectPermission
-from nautobot.utilities.testing import ViewTestCases
-from nautobot.utilities.testing.utils import disable_warnings
+from nautobot.apps.testing import ViewTestCases
+from nautobot.core.testing.utils import disable_warnings
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 from nautobot_ssot.models import Sync, SyncLogEntry
@@ -31,10 +30,12 @@ class SyncViewsTestCase(  # pylint: disable=too-many-ancestors
         """One-time setup of test data for this class."""
         for i in range(0, 3):
             job_result = JobResult.objects.create(
-                name="plugins/nautobot_ssot.jobs.examples/ExampleDataSource",
-                obj_type=ContentType.objects.get_for_model(Job),
-                data={},
-                job_id=uuid.uuid4(),
+                name="ExampleDataSource",
+                job_model=Job.objects.get(
+                    module_name="nautobot_ssot.jobs.examples", job_class_name="ExampleDataSource"
+                ),
+                task_name="nautobot_ssot.jobs.examples.ExampleDataSource",
+                worker="default",
             )
             Sync.objects.create(
                 source="Example Data Source",
@@ -83,7 +84,7 @@ class SyncViewsTestCase(  # pylint: disable=too-many-ancestors
                 self.client.get(
                     reverse(
                         "plugins:nautobot_ssot:data_source",
-                        kwargs={"class_path": "plugins/nautobot_ssot.jobs.examples/ExampleDataSource"},
+                        kwargs={"class_path": "nautobot_ssot.jobs.examples.ExampleDataSource"},
                     )
                 ),
                 403,
@@ -100,7 +101,7 @@ class SyncViewsTestCase(  # pylint: disable=too-many-ancestors
             self.client.get(
                 reverse(
                     "plugins:nautobot_ssot:data_source",
-                    kwargs={"class_path": "plugins/nautobot_ssot.jobs.examples/ExampleDataSource"},
+                    kwargs={"class_path": "nautobot_ssot.jobs.examples.ExampleDataSource"},
                 )
             ),
             200,
@@ -123,10 +124,9 @@ class SyncLogEntryViewsTestCase(ViewTestCases.ListObjectsViewTestCase):  # pylin
     def setUpTestData(cls):
         """One-time setup of test data for this class."""
         job_result = JobResult.objects.create(
-            name="plugins/nautobot_ssot.jobs.examples/ExampleDataSource",
-            obj_type=ContentType.objects.get_for_model(Job),
-            data={},
-            job_id=uuid.uuid4(),
+            name="ExampleDataSource",
+            task_name="nautobot_ssot.jobs.examples.ExampleDataSource",
+            worker="default",
         )
         sync = Sync.objects.create(
             source="Example Data Source",
@@ -153,4 +153,20 @@ class SyncLogEntryViewsTestCase(ViewTestCases.ListObjectsViewTestCase):  # pylin
 
     @skip("Not implemented")
     def test_list_objects_with_permission(self):
+        pass
+
+    @skip("Not implemented")
+    def test_list_objects_anonymous(self):
+        pass
+
+    @skip("Not implemented")
+    def test_list_objects_filtered(self):
+        pass
+
+    @skip("Not implemented")
+    def test_list_objects_with_constrained_permission(self):
+        pass
+
+    @skip("Not implemented")
+    def test_list_objects_unknown_filter_no_strict_filtering(self):
         pass

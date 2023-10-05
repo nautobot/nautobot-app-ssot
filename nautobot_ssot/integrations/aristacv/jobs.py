@@ -5,7 +5,7 @@ from django.urls import reverse
 
 from nautobot.dcim.models import DeviceType
 from nautobot.extras.jobs import Job, BooleanVar
-from nautobot.utilities.utils import get_route_for_model
+from nautobot.core.utils.lookup import get_route_for_model
 from nautobot_ssot.jobs.base import DataTarget, DataSource, DataMapping
 
 from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
@@ -84,16 +84,16 @@ class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
 
     def load_source_adapter(self):
         """Load data from CloudVision into DiffSync models."""
-        if self.kwargs.get("debug"):
+        if self.debug:
             if APP_SETTINGS.get("delete_devices_on_sync"):
-                self.log_warning(
-                    message="Devices not present in Cloudvision but present in Nautobot will be deleted from Nautobot."
+                self.logger.warning(
+                    "Devices not present in Cloudvision but present in Nautobot will be deleted from Nautobot."
                 )
             else:
-                self.log_warning(
-                    message="Devices not present in Cloudvision but present in Nautobot will not be deleted from Nautobot."
+                self.logger.warning(
+                    "Devices not present in Cloudvision but present in Nautobot will not be deleted from Nautobot."
                 )
-            self.log("Connecting to CloudVision")
+            self.logger.info("Connecting to CloudVision")
         with CloudvisionApi(
             cvp_host=APP_SETTINGS["cvp_host"],
             cvp_port=APP_SETTINGS.get("cvp_port", "8443"),
@@ -102,13 +102,13 @@ class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
             password=APP_SETTINGS["cvp_password"],
             cvp_token=APP_SETTINGS["cvp_token"],
         ) as client:
-            self.log("Loading data from CloudVision")
+            self.logger.info("Loading data from CloudVision")
             self.source_adapter = CloudvisionAdapter(job=self, conn=client)
             self.source_adapter.load()
 
     def load_target_adapter(self):
         """Load data from Nautobot into DiffSync models."""
-        self.log("Loading data from Nautobot")
+        self.logger.info("Loading data from Nautobot")
         self.target_adapter = NautobotAdapter(job=self)
         self.target_adapter.load()
 
@@ -150,22 +150,22 @@ class CloudVisionDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
 
     def load_source_adapter(self):
         """Load data from Nautobot into DiffSync models."""
-        self.log("Loading data from Nautobot")
+        self.logger.info("Loading data from Nautobot")
         self.source_adapter = NautobotAdapter(job=self)
         self.source_adapter.load()
 
     def load_target_adapter(self):
         """Load data from CloudVision into DiffSync models."""
-        if self.kwargs.get("debug"):
+        if self.debug:
             if APP_SETTINGS.get("delete_devices_on_sync"):
-                self.log_warning(
-                    message="Devices not present in Cloudvision but present in Nautobot will be deleted from Nautobot."
+                self.logger.warning(
+                    "Devices not present in Cloudvision but present in Nautobot will be deleted from Nautobot."
                 )
             else:
-                self.log_warning(
-                    message="Devices not present in Cloudvision but present in Nautobot will not be deleted from Nautobot."
+                self.logger.warning(
+                    "Devices not present in Cloudvision but present in Nautobot will not be deleted from Nautobot."
                 )
-            self.log("Connecting to CloudVision")
+            self.logger.info("Connecting to CloudVision")
         with CloudvisionApi(
             cvp_host=APP_SETTINGS["cvp_host"],
             cvp_port=APP_SETTINGS.get("cvp_port", "8443"),
@@ -174,7 +174,7 @@ class CloudVisionDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
             password=APP_SETTINGS["cvp_password"],
             cvp_token=APP_SETTINGS["cvp_token"],
         ) as client:
-            self.log("Loading data from CloudVision")
+            self.logger.info("Loading data from CloudVision")
             self.target_adapter = CloudvisionAdapter(job=self, conn=client)
             self.target_adapter.load()
 

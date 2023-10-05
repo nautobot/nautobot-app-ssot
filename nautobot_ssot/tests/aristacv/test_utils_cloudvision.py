@@ -2,7 +2,7 @@
 from unittest.mock import MagicMock, patch
 from parameterized import parameterized
 
-from nautobot.utilities.testing import TestCase
+from nautobot.core.testing import TestCase
 from cloudvision.Connector.codec.custom_types import FrozenDict
 
 from nautobot_ssot.integrations.aristacv.utils import cloudvision
@@ -96,7 +96,7 @@ class TestCloudvisionUtils(TestCase):
                 "device_id": "JPE12345678",
                 "hostname": "ams01-edge-01.ntc.com",
                 "fqdn": "ams01-edge-01.ntc.com",
-                "status": "active",
+                "status": "Active",
                 "sw_ver": "4.26.5M",
                 "model": "DCS-7280CR2-60",
                 "system_mac_address": "12:34:56:78:ab:cd",
@@ -328,10 +328,10 @@ class TestCloudvisionUtils(TestCase):
         )
 
     port_statuses = [
-        ("active_port", {"link_status": "up", "oper_status": "up"}, "active"),
-        ("planned_port", {"link_status": "down", "oper_status": "up"}, "planned"),
-        ("maintenance_port", {"link_status": "down", "oper_status": "down"}, "maintenance"),
-        ("decommissioning_port", {"link_status": "up", "oper_status": "down"}, "decommissioning"),
+        ("active_port", {"link_status": "up", "oper_status": "up"}, "Active"),
+        ("planned_port", {"link_status": "down", "oper_status": "up"}, "Planned"),
+        ("maintenance_port", {"link_status": "down", "oper_status": "down"}, "Maintenance"),
+        ("decommissioning_port", {"link_status": "up", "oper_status": "down"}, "Decommissioning"),
     ]
 
     @parameterized.expand(port_statuses, skip_on_empty=True)

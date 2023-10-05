@@ -6,7 +6,7 @@ from django.shortcuts import reverse
 from nautobot.core.models import BaseModel
 
 
-class SSOTServiceNowConfig(BaseModel):
+class SSOTServiceNowConfig(BaseModel):  # pylint: disable=nb-string-field-blank-null
     """Singleton data model describing the configuration of this plugin."""
 
     def delete(self, *args, **kwargs):
@@ -37,6 +37,6 @@ class SSOTServiceNowConfig(BaseModel):
         """String representation of singleton instance."""
         return "SSoT ServiceNow Configuration"
 
-    def get_absolute_url(self):
+    def get_absolute_url(self, api=False):  # pylint: disable=unused-argument
         """Get URL for the associated configuration view."""
         return reverse("plugins:nautobot_ssot:servicenow_config")

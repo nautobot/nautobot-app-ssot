@@ -1,11 +1,8 @@
 """Unit tests for the Cloudvision DiffSync adapter class."""
-import uuid
 from unittest.mock import MagicMock, patch
-from django.contrib.contenttypes.models import ContentType
 
-from nautobot.extras.models import Job, JobResult
-from nautobot.utilities.testing import TransactionTestCase
-
+from nautobot.extras.models import JobResult
+from nautobot.core.testing import TransactionTestCase
 from nautobot_ssot.integrations.aristacv.diffsync.adapters.cloudvision import CloudvisionAdapter
 from nautobot_ssot.integrations.aristacv.jobs import CloudVisionDataSource
 from nautobot_ssot.tests.aristacv.fixtures import fixtures
@@ -14,6 +11,7 @@ from nautobot_ssot.tests.aristacv.fixtures import fixtures
 class CloudvisionAdapterTestCase(TransactionTestCase):
     """Test the CloudvisionAdapter class."""
 
+    job_class = CloudVisionDataSource
     databases = ("default", "job_logs")
 
     def setUp(self):
@@ -40,9 +38,9 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
         self.cloudvision.get_ip_interfaces = MagicMock()
         self.cloudvision.get_ip_interfaces.return_value = fixtures.IP_INTF_FIXTURE
 
-        self.job = CloudVisionDataSource()
+        self.job = self.job_class()
         self.job.job_result = JobResult.objects.create(
-            name=self.job.class_path, obj_type=ContentType.objects.get_for_model(Job), user=None, job_id=uuid.uuid4()
+            name=self.job.class_path, task_name="fake task", worker="default"
         )
         self.cvp = CloudvisionAdapter(job=self.job, conn=self.client)
 

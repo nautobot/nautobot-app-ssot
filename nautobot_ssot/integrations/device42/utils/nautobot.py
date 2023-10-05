@@ -6,13 +6,11 @@ from uuid import UUID
 
 from diffsync.exceptions import ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
-from django.utils.text import slugify
 from nautobot.circuits.models import CircuitType
-from nautobot.dcim.models import Device, DeviceRole, Interface, Platform
+from nautobot.dcim.models import Device, Interface, Platform
 from nautobot.extras.choices import CustomFieldTypeChoices
-from nautobot.extras.models import CustomField, Relationship, Tag
+from nautobot.extras.models import CustomField, Relationship, Role, Tag
 from nautobot.ipam.models import IPAddress
-from nautobot.utilities.utils import slugify_dashes_to_underscores
 from netutils.lib_mapper import ANSIBLE_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER_REVERSE
 from taggit.managers import TaggableManager
 from nautobot_ssot.integrations.device42.diffsync.models.base.dcim import Device as NautobotDevice
@@ -49,11 +47,12 @@ def verify_device_role(diffsync, role_name: str, role_color: str = "") -> UUID:
     if not role_color:
         role_color = get_random_color()
     try:
-        role_obj = diffsync.devicerole_map[slugify(role_name)]
+        role_obj = diffsync.role_map[role_name]
     except KeyError:
-        role_obj = DeviceRole(name=role_name, slug=slugify(role_name), color=role_color)
-        diffsync.objects_to_create["deviceroles"].append(role_obj)
-        diffsync.devicerole_map[slugify(role_name)] = role_obj.id
+        role_obj = Role.objects.create(name=role_name, color=role_color)
+        role_obj.content_types.add(ContentType.objects.get_for_model(Device))
+        role_obj.validated_save()
+        diffsync.role_map[role_name] = role_obj.id
         role_obj = role_obj.id
     return role_obj
 
@@ -78,16 +77,16 @@ def verify_platform(diffsync, platform_name: str, manu: UUID) -> UUID:
     else:
         napalm_driver = platform_name
     try:
-        platform_obj = diffsync.platform_map[slugify(platform_name)]
+        platform_obj = diffsync.platform_map[_name]
     except KeyError:
         platform_obj = Platform(
             name=_name,
-            slug=slugify(platform_name),
             manufacturer_id=manu,
             napalm_driver=napalm_driver[:50],
+            network_driver=platform_name,
         )
-        diffsync.objects_to_create["platforms"].append(platform_obj)
-        diffsync.platform_map[slugify(platform_name)] = platform_obj.id
+        platform_obj.validated_save()
+        diffsync.platform_map[_name] = platform_obj.id
         platform_obj = platform_obj.id
     return platform_obj
 
@@ -131,11 +130,10 @@ def get_or_create_tag(tag_name: str) -> Tag:
         Tag: Tag object that was found or created.
     """
     try:
-        _tag = Tag.objects.get(slug=slugify(tag_name))
+        _tag = Tag.objects.get(name=tag_name)
     except Tag.DoesNotExist:
         new_tag = Tag(
             name=tag_name,
-            slug=slugify(tag_name),
             color=get_random_color(),
         )
         new_tag.validated_save()
@@ -226,14 +224,13 @@ def update_custom_fields(new_cfields: dict, update_obj: object):
     for new_cf, new_cf_dict in new_cfields.items():
         if new_cf not in current_cf:
             _cf_dict = {
-                "name": slugify_dashes_to_underscores(new_cf_dict["key"]),
-                "slug": slugify_dashes_to_underscores(new_cf_dict["key"]),
+                "key": new_cf_dict["key"],
                 "type": CustomFieldTypeChoices.TYPE_TEXT,
                 "label": new_cf_dict["key"],
             }
-            field, _ = CustomField.objects.get_or_create(name=_cf_dict["name"], defaults=_cf_dict)
+            field, _ = CustomField.objects.get_or_create(key=_cf_dict["key"], defaults=_cf_dict)
             field.content_types.add(ContentType.objects.get_for_model(type(update_obj)).id)
-        update_obj.custom_field_data.update({slugify_dashes_to_underscores(new_cf_dict["key"]): new_cf_dict["value"]})
+        update_obj.custom_field_data.update({new_cf_dict["key"]: new_cf_dict["value"]})
 
 
 def verify_circuit_type(circuit_type: str) -> CircuitType:
@@ -246,11 +243,10 @@ def verify_circuit_type(circuit_type: str) -> CircuitType:
         CircuitType: CircuitType object found or created.
     """
     try:
-        _ct = CircuitType.objects.get(slug=slugify(circuit_type))
+        _ct = CircuitType.objects.get(name=circuit_type)
     except CircuitType.DoesNotExist:
         _ct = CircuitType(
             name=circuit_type,
-            slug=slugify(circuit_type),
         )
         _ct.validated_save()
     return _ct
@@ -267,7 +263,7 @@ def get_software_version_from_lcm(relations: dict):
     """
     version = ""
     if LIFECYCLE_MGMT:
-        _softwarelcm = Relationship.objects.get(name="Software on Device")
+        _softwarelcm = Relationship.objects.get(label="Software on Device")
         if _softwarelcm in relations["destination"]:
             if len(relations["destination"][_softwarelcm]) > 0:
                 if hasattr(relations["destination"][_softwarelcm][0].source, "version"):
@@ -307,9 +303,9 @@ def get_dlc_version_map():
     """
     version_map = {}
     for ver in SoftwareLCM.objects.only("id", "device_platform", "version"):
-        if ver.device_platform.slug not in version_map:
-            version_map[ver.device_platform.slug] = {}
-        version_map[ver.device_platform.slug][ver.version] = ver.id
+        if ver.device_platform.network_driver not in version_map:
+            version_map[ver.device_platform.network_driver] = {}
+        version_map[ver.device_platform.network_driver][ver.version] = ver.id
     return version_map
 
 
@@ -323,10 +319,10 @@ def get_cf_version_map():
     """
     version_map = {}
     for dev in Device.objects.only("id", "platform", "_custom_field_data"):
-        if dev.platform.slug not in version_map:
-            version_map[dev.platform.slug] = {}
+        if dev.platform.name not in version_map:
+            version_map[dev.platform.name] = {}
         if "os-version" in dev.custom_field_data:
-            version_map[dev.platform.slug][dev.custom_field_data["os-version"]] = dev.id
+            version_map[dev.platform.name][dev.custom_field_data["OS Version"]] = dev.id
     return version_map
 
 
@@ -342,9 +338,9 @@ def apply_vlans_to_port(diffsync, device_name: str, mode: str, vlans: list, port
     """
     try:
         dev = diffsync.get(NautobotDevice, device_name)
-        site_name = slugify(dev.building)
+        site_name = dev.building
     except ObjectNotFound:
-        site_name = "global"
+        site_name = "Global"
     if mode == "access" and len(vlans) == 1:
         _vlan = vlans[0]
         port.untagged_vlan_id = diffsync.vlan_map[site_name][_vlan]
@@ -354,7 +350,8 @@ def apply_vlans_to_port(diffsync, device_name: str, mode: str, vlans: list, port
             tagged_vlan = diffsync.vlan_map[site_name][_vlan]
             if tagged_vlan:
                 tagged_vlans.append(tagged_vlan)
-        diffsync.objects_to_create["tagged_vlans"].append((port, tagged_vlans))
+        port.tagged_vlans.set(tagged_vlans)
+        port.validated_save()
 
 
 def unassign_primary(ipaddr: IPAddress):

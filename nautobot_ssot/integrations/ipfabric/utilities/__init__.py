@@ -5,14 +5,14 @@ from .nbutils import (
     create_interface,
     create_ip,
     create_manufacturer,
-    create_site,
+    create_location,
     create_status,
     create_vlan,
 )
 from .test_utils import clean_slate, json_fixture
 
 __all__ = (
-    "create_site",
+    "create_location",
     "create_device_type_object",
     "create_manufacturer",
     "get_or_create_device_role_object",

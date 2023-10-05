@@ -3,9 +3,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.templatetags.static import static
 from django.urls import reverse
 
-from diffsync.enum import DiffSyncFlags
-
-from nautobot.dcim.models import Device, DeviceType, Interface, Manufacturer, Region, Site
+from nautobot.dcim.models import Device, DeviceType, Interface, Manufacturer, Location
 from nautobot.extras.jobs import Job, BooleanVar, ObjectVar
 
 from nautobot_ssot.jobs.base import DataMapping, DataTarget
@@ -24,11 +22,6 @@ class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
 
     debug = BooleanVar(description="Enable for more verbose logging.")
 
-    log_unchanged = BooleanVar(
-        description="Create log entries even for unchanged objects",
-        default=False,
-    )
-
     # TODO: not yet implemented
     # delete_records = BooleanVar(
     #     description="Delete records from ServiceNow if not present in Nautobot",
@@ -37,7 +30,7 @@ class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
 
     site_filter = ObjectVar(
         description="Only sync records belonging to a single Site.",
-        model=Site,
+        model=Location,
         default=None,
         required=False,
     )
@@ -58,8 +51,7 @@ class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
             DataMapping("Device Type", reverse("dcim:devicetype_list"), "Hardware Product Model", None),
             DataMapping("Interface", reverse("dcim:interface_list"), "Interface", None),
             DataMapping("Manufacturer", reverse("dcim:manufacturer_list"), "Company", None),
-            DataMapping("Region", reverse("dcim:region_list"), "Location", None),
-            DataMapping("Site", reverse("dcim:site_list"), "Location", None),
+            DataMapping("Location", reverse("dcim:location_list"), "Location", None),
         )
 
     @classmethod
@@ -72,8 +64,14 @@ class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
             # Password is intentionally omitted!
         }
 
-    def sync_data(self):
-        """Sync a slew of Nautobot data into ServiceNow."""
+    def load_source_adapter(self):
+        """Load Nautobot adapter."""
+        self.logger.info("Loading current data from Nautobot...")
+        self.source_adapter = NautobotDiffSync(job=self, sync=self.sync, site_filter=self.site_filter)
+        self.source_adapter.load()
+
+    def load_target_adapter(self):
+        """Load ServiceNow adapter."""
         configs = get_servicenow_parameters()
         snc = ServiceNowClient(
             instance=configs.get("instance"),
@@ -82,36 +80,16 @@ class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
             worker=self,
         )
 
-        self.log_info(message="Loading current data from ServiceNow...")
-        servicenow_diffsync = ServiceNowDiffSync(
-            client=snc, job=self, sync=self.sync, site_filter=self.kwargs.get("site_filter")
-        )
-        servicenow_diffsync.load()
+        self.logger.info("Loading current data from ServiceNow...")
+        self.target_adapter = ServiceNowDiffSync(client=snc, job=self, sync=self.sync, site_filter=self.site_filter)
+        self.target_adapter.load()
 
-        self.log_info(message="Loading current data from Nautobot...")
-        nautobot_diffsync = NautobotDiffSync(job=self, sync=self.sync, site_filter=self.kwargs.get("site_filter"))
-        nautobot_diffsync.load()
-
-        diffsync_flags = DiffSyncFlags.CONTINUE_ON_FAILURE
-        if self.kwargs.get("log_unchanged"):
-            diffsync_flags |= DiffSyncFlags.LOG_UNCHANGED_RECORDS
-        if not self.kwargs.get("delete_records"):
-            diffsync_flags |= DiffSyncFlags.SKIP_UNMATCHED_DST
-
-        self.log_info(message="Calculating diffs...")
-        diff = servicenow_diffsync.diff_from(nautobot_diffsync, flags=diffsync_flags)
-        self.sync.diff = diff.dict()
-        self.sync.save()
-
-        if not self.kwargs["dry_run"]:
-            self.log_info(message="Syncing from Nautobot to ServiceNow...")
-            servicenow_diffsync.sync_from(nautobot_diffsync, flags=diffsync_flags)
-            self.log_info(message="Sync complete")
-
-    def log_debug(self, message):
-        """Conditionally log a debug message."""
-        if self.kwargs.get("debug"):
-            super().log_debug(message)
+    def run(self, dryrun, memory_profiling, site_filter, *args, **kwargs):  # pylint:disable=arguments-differ
+        """Run sync."""
+        self.dryrun = dryrun
+        self.memory_profiling = memory_profiling
+        self.site_filter = site_filter
+        super().run(dryrun, memory_profiling, *args, **kwargs)
 
     def lookup_object(self, model_name, unique_id):
         """Look up a Nautobot object based on the DiffSync model name and unique ID."""
@@ -125,10 +103,7 @@ class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
                 device_name, interface_name = unique_id.split("__")
                 obj = Interface.objects.get(device__name=device_name, name=interface_name)
             elif model_name == "location":
-                try:
-                    obj = Site.objects.get(name=unique_id)
-                except Site.DoesNotExist:
-                    obj = Region.objects.get(name=unique_id)
+                obj = Location.objects.get(name=unique_id)
             elif model_name == "product_model":
                 manufacturer, model, _ = unique_id.split("__")
                 obj = DeviceType.objects.get(manufacturer__name=manufacturer, model=model)

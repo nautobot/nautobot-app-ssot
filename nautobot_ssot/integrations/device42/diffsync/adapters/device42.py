@@ -3,14 +3,12 @@
 import re
 from decimal import Decimal
 from typing import List
-
+import ipaddress
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
-from django.utils.text import slugify
 from nautobot.core.settings_funcs import is_truthy
 from netutils.bandwidth import name_to_bits
 from netutils.dns import fqdn_to_ip, is_fqdn_resolvable
-from nautobot.extras.jobs import Job
 from nautobot_ssot.integrations.device42.constant import PLUGIN_CFG
 from nautobot_ssot.integrations.device42.diffsync.models.base import assets, circuits, dcim, ipam
 from nautobot_ssot.integrations.device42.utils.device42 import (
@@ -61,11 +59,11 @@ def get_site_from_mapping(device_name: str) -> str:
     Returns:
         str: The Site slug of the associated Site for the Device in the mapping. Returns blank string if match not found.
     """
-    for _entry in PLUGIN_CFG["hostname_mapping"]:
-        for _mapping, _slug in _entry.items():
+    for _entry in PLUGIN_CFG["device42_hostname_mapping"]:
+        for _mapping, _name in _entry.items():
             site_match = re.match(_mapping, device_name)
             if site_match:
-                return _slug
+                return _name
     return ""
 
 
@@ -124,11 +122,11 @@ class Device42Adapter(DiffSync):
         "conn",
     ]
 
-    def __init__(self, *args, job: Job, sync=None, client, **kwargs):
+    def __init__(self, *args, job, sync=None, client, **kwargs):
         """Initialize Device42Adapter.
 
         Args:
-            job (Job): Nautobot Job.
+            job (Device42DataSource): Nautobot Job.
             sync (object, optional): Nautobot DiffSync. Defaults to None.
             client (object): Device42API client connection object.
         """
@@ -157,9 +155,14 @@ class Device42Adapter(DiffSync):
         # mapping of Port PK to Port name
         self.d42_port_map = self.device42.get_port_pks()
         # mapping of Vendor PK to Vendor info
-        self.d42_vendor_map = self.device42.get_vendor_pks()
+        self.d42_vendor_map = {vendor["name"]: vendor for vendor in self.device42.get_vendors()}
+        self.d42_hardware_map = {
+            sanitize_string(hwmodel["name"]): hwmodel for hwmodel in self.device42.get_hardware_models()
+        }
         # default custom fields for IP Address
         self.d42_ipaddr_default_cfs = self.device42.get_ipaddr_default_custom_fields()
+        # mapping of Subnet PK to Subnet info
+        self.d42_subnet_map = self.device42.get_subnets()
 
     def get_building_for_device(self, dev_record: dict) -> str:
         """Method to determine the Building (Site) for a Device.
@@ -171,12 +174,12 @@ class Device42Adapter(DiffSync):
             str: Slugified version of the Building (Site) for a Device.
         """
         _building = False
-        if PLUGIN_CFG.get("hostname_mapping") and len(PLUGIN_CFG["hostname_mapping"]) > 0:
+        if PLUGIN_CFG.get("device42_hostname_mapping") and len(PLUGIN_CFG["device42_hostname_mapping"]) > 0:
             _building = get_site_from_mapping(device_name=dev_record["name"])
 
         if not _building:
             if (
-                PLUGIN_CFG.get("customer_is_facility")
+                PLUGIN_CFG.get("device42_customer_is_facility")
                 and dev_record.get("customer")
                 and dev_record["customer"] in self.d42_building_sitecode_map
             ):
@@ -184,13 +187,13 @@ class Device42Adapter(DiffSync):
             else:
                 _building = dev_record.get("building")
         if _building is not None:
-            return slugify(_building)
+            return _building
         return ""
 
     def load_buildings(self):
         """Load Device42 buildings."""
         for record in self.device42.get_buildings():
-            self.job.log_info(message=f"Loading {record['name']} building from Device42.")
+            self.job.logger.info(f"Loading {record['name']} building from Device42.")
             _tags = record["tags"] if record.get("tags") else []
             if len(_tags) > 1:
                 _tags.sort()
@@ -206,19 +209,19 @@ class Device42Adapter(DiffSync):
                 tags=_tags,
                 uuid=None,
             )
-            _facility = get_facility(diffsync=self, tags=_tags)
+            _facility = get_facility(tags=_tags)
             if _facility:
                 self.d42_building_sitecode_map[_facility.upper()] = record["name"]
             try:
                 self.add(building)
             except ObjectAlreadyExists as err:
-                if self.job.kwargs.get("debug"):
-                    self.job.log_warning(message=f"{record['name']} is already loaded. {err}")
+                if self.job.debug:
+                    self.job.logger.warning(f"{record['name']} is already loaded. {err}")
 
     def load_rooms(self):
         """Load Device42 rooms."""
         for record in self.device42.get_rooms():
-            self.job.log_info(message=f"Loading {record['name']} room from Device42.")
+            self.job.logger.info(f"Loading {record['name']} room from Device42.")
             _tags = record["tags"] if record.get("tags") else []
             if len(_tags) > 1:
                 _tags.sort()
@@ -240,15 +243,15 @@ class Device42Adapter(DiffSync):
                     _site = self.get(self.building, record.get("building"))
                     _site.add_child(child=room)
                 except ObjectAlreadyExists as err:
-                    if self.job.kwargs.get("debug"):
-                        self.job.log_warning(message=f"{record['name']} is already loaded. {err}")
+                    if self.job.debug:
+                        self.job.logger.warning(f"{record['name']} is already loaded. {err}")
             else:
-                self.job.log_warning(message=f"{record['name']} is missing Building and won't be imported.")
+                self.job.logger.warning(f"{record['name']} is missing Building and won't be imported.")
                 continue
 
     def load_racks(self):
         """Load Device42 racks."""
-        self.job.log_info(message="Loading racks from Device42.")
+        self.job.logger.info("Loading racks from Device42.")
         for record in self.device42.get_racks():
             _tags = record["tags"] if record.get("tags") else []
             if len(_tags) > 1:
@@ -274,43 +277,11 @@ class Device42Adapter(DiffSync):
                     )
                     _room.add_child(child=rack)
                 except ObjectAlreadyExists as err:
-                    if self.job.kwargs.get("debug"):
-                        self.job.log_warning(message=f"Rack {record['name']} already exists. {err}")
+                    if self.job.debug:
+                        self.job.logger.warning(f"Rack {record['name']} already exists. {err}")
             else:
-                self.job.log_warning(message=f"{record['name']} is missing Building and Room and won't be imported.")
+                self.job.logger.warning(f"{record['name']} is missing Building and Room and won't be imported.")
                 continue
-
-    def load_vendors(self):
-        """Load Device42 vendors."""
-        for _vendor in self.device42.get_vendors():
-            self.job.log_info(message=f"Loading vendor {_vendor['name']} from Device42.")
-            vendor = self.vendor(
-                name=_vendor["name"],
-                custom_fields=get_custom_field_dict(_vendor["custom_fields"]),
-                uuid=None,
-            )
-            self.add(vendor)
-
-    def load_hardware_models(self):
-        """Load Device42 hardware models."""
-        for _model in self.device42.get_hardware_models():
-            self.job.log_info(message=f"Loading hardware model {_model['name']} from Device42.")
-            if _model.get("manufacturer"):
-                model = self.hardware(
-                    name=sanitize_string(_model["name"]),
-                    manufacturer=_model["manufacturer"] if _model.get("manufacturer") else "Unknown",
-                    size=float(round(_model["size"])) if _model.get("size") else 1.0,
-                    depth=_model["depth"] if _model.get("depth") else "Half Depth",
-                    part_number=_model["part_no"] if _model.get("part_no") else "",
-                    custom_fields=get_custom_field_dict(_model["custom_fields"]),
-                    uuid=None,
-                )
-                try:
-                    self.add(model)
-                except ObjectAlreadyExists as err:
-                    if self.job.kwargs.get("debug"):
-                        self.job.log_warning(message=f"Hardware model already exists. {err}")
-                    continue
 
     def get_cluster_host(self, device: str) -> str:
         """Get name of cluster host if device is in a cluster.
@@ -338,14 +309,14 @@ class Device42Adapter(DiffSync):
         try:
             _cluster = self.get(self.cluster, cluster_info["name"][:64])
         except ObjectAlreadyExists as err:
-            if self.job.kwargs.get("debug"):
-                self.job.log_warning(message=f"Cluster {cluster_info['name']} already has been added. {err}")
+            if self.job.debug:
+                self.job.logger.warning(f"Cluster {cluster_info['name']} already has been added. {err}")
         except ObjectNotFound:
-            self.job.log_info(message=f"Cluster {cluster_info['name']} being loaded from Device42.")
+            self.job.logger.info(f"Cluster {cluster_info['name']} being loaded from Device42.")
             _clus = self.device42_clusters[cluster_info["name"]]
             _tags = cluster_info["tags"] if cluster_info.get("tags") else []
-            if PLUGIN_CFG.get("ignore_tag") and PLUGIN_CFG["ignore_tag"] in _tags:
-                self.job.log_warning(message=f"Cluster {cluster_info['name']} has ignore tag so skipping.")
+            if PLUGIN_CFG.get("device42_ignore_tag") and PLUGIN_CFG["device42_ignore_tag"] in _tags:
+                self.job.logger.warning(f"Cluster {cluster_info['name']} has ignore tag so skipping.")
                 return
             if len(_tags) > 1:
                 _tags.sort()
@@ -382,7 +353,7 @@ class Device42Adapter(DiffSync):
 
     def load_devices_and_clusters(self):
         """Load Device42 devices."""
-        self.job.log_info(message="Retrieving devices from Device42.")
+        self.job.logger.info("Retrieving devices from Device42.")
         _devices = self.device42.get_devices()
 
         # Add all Clusters first
@@ -393,27 +364,22 @@ class Device42Adapter(DiffSync):
         # Then iterate through again and add Devices
         for _record in _devices:
             rack_position, model = None, None
-            self.job.log_info(message=f"Device {_record['name']} being loaded.")
+            self.job.logger.info(f"Device {_record['name']} being loaded.")
             _building = self.get_building_for_device(dev_record=_record)
             # only consider devices that have a Building
             if _building == "":
-                self.job.log_warning(
-                    message=f"Device {_record['name']} can't be loaded as we're unable to find associated Building."
+                self.job.logger.warning(
+                    f"Device {_record['name']} can't be loaded as we're unable to find associated Building."
                 )
                 continue
             if _record.get("type") != "cluster" and _record.get("hw_model"):
-                try:
-                    model = self.get(self.hardware, sanitize_string(_record["hw_model"]))
-                except ObjectNotFound as err:
-                    self.job.log_warning(
-                        message=f"Unable to find hardware model {_record['hw_model']} for {_record['name']} so it will not be loaded. {err}"
-                    )
-                    continue
+                hwmodel_name = sanitize_string(_record["hw_model"])
+                manuf = self.d42_hardware_map[hwmodel_name]["manufacturer"]
+                self.job.logger.info(f"Loading hardware model {manuf} {hwmodel_name} from Device42.")
+                model = self.load_vendor_and_model(hwmodel_name, manuf)
                 _tags = _record["tags"] if _record.get("tags") else []
-                if PLUGIN_CFG.get("ignore_tag") and PLUGIN_CFG["ignore_tag"] in _tags:
-                    self.job.log_warning(
-                        message=f"Skipping loading {_record['name']} as it has the specified ignore tag."
-                    )
+                if PLUGIN_CFG.get("device42_ignore_tag") and PLUGIN_CFG["device42_ignore_tag"] in _tags:
+                    self.job.logger.warning(f"Skipping loading {_record['name']} as it has the specified ignore tag.")
                     continue
                 if len(_tags) > 1:
                     _tags.sort()
@@ -471,10 +437,53 @@ class Device42Adapter(DiffSync):
                 try:
                     self.add(_device)
                 except ObjectAlreadyExists as err:
-                    self.job.log_warning(message=f"Duplicate device attempting to be added. {err}")
+                    self.job.logger.warning(f"Duplicate device attempting to be added. {err}")
                     continue
             elif _record.get("type") != "cluster" and not _record.get("hw_model"):
-                self.job.log_warning(message=f"Device {_record['name']}'s hardware isn't specified so won't be loaded.")
+                self.job.logger.warning(f"Device {_record['name']}'s hardware isn't specified so won't be loaded.")
+
+    def load_vendor_and_model(self, hwmodel_name: str, manuf: str):
+        """Load Vendor and Hardware DiffSync models with information from other functions.
+
+        Args:
+            hwmodel_name (str): Hardware model name.
+            manuf (str): Hardware model manufacturer/vendor.
+
+        Returns:
+            dcim.Hardware: DiffSync model for Hardware that was loaded.
+        """
+        hwmodel_name = sanitize_string(hwmodel_name)
+        try:
+            self.get(self.vendor, manuf)
+        except ObjectNotFound:
+            vendor = self.vendor(
+                name=manuf,
+                custom_fields=get_custom_field_dict(self.d42_vendor_map[manuf]["custom_fields"]),
+                uuid=None,
+            )
+            self.add(vendor)
+        try:
+            hwmodel = self.get(self.hardware, hwmodel_name)
+        except ObjectNotFound:
+            hwmodel = self.hardware(
+                name=hwmodel_name,
+                manufacturer=manuf,
+                size=float(round(self.d42_hardware_map[hwmodel_name]["size"]))
+                if self.d42_hardware_map.get(hwmodel_name) and self.d42_hardware_map[hwmodel_name].get("size")
+                else 1.0,
+                depth=self.d42_hardware_map[hwmodel_name]["depth"]
+                if self.d42_hardware_map.get(hwmodel_name) and self.d42_hardware_map[hwmodel_name].get("depth")
+                else "Half Depth",
+                part_number=self.d42_hardware_map[hwmodel_name]["part_no"]
+                if self.d42_hardware_map.get(hwmodel_name) and self.d42_hardware_map[hwmodel_name].get("part_no")
+                else "",
+                custom_fields=get_custom_field_dict(self.d42_hardware_map[hwmodel_name]["custom_fields"])
+                if self.d42_hardware_map.get(hwmodel_name)
+                else {},
+                uuid=None,
+            )
+            self.add(hwmodel)
+        return hwmodel
 
     def assign_cluster_host(self, _record, _device):
         """Assign cluster host to loaded Device if found.
@@ -486,8 +495,8 @@ class Device42Adapter(DiffSync):
         cluster_host = self.get_cluster_host(_record["name"])
         if cluster_host:
             if not is_truthy(self.device42_clusters[cluster_host]["is_network"]):
-                self.job.log_warning(
-                    message=f"{cluster_host} has network device members but isn't marked as network device. This should be corrected in Device42."
+                self.job.logger.warning(
+                    f"{cluster_host} has network device members but isn't marked as network device. This should be corrected in Device42."
                 )
             _device.cluster_host = cluster_host
             if _device.name == cluster_host:
@@ -506,18 +515,20 @@ class Device42Adapter(DiffSync):
                 try:
                     master_device = self.get(self.device, cluster.name)
                     if first_in_stack.os_version != "":
-                        self.job.log_info(
-                            message=f"Assigning {first_in_stack.os_version} version to {master_device.name}."
-                        )
+                        self.job.logger.info(f"Assigning {first_in_stack.os_version} version to {master_device.name}.")
                         master_device.os_version = first_in_stack.os_version
                     else:
-                        self.job.log_info(
-                            message=f"Software version for {first_in_stack.name} is blank so will not assign version to {master_device.name}."
+                        self.job.logger.info(
+                            f"Software version for {first_in_stack.name} is blank so will not assign version to {master_device.name}."
                         )
                 except ObjectNotFound:
-                    self.job.log_warning(message=f"Unable to find VC Master Device {cluster.name} to assign version.")
+                    self.job.logger.warning(f"Unable to find VC Master Device {cluster.name} to assign version.")
             except KeyError as err:
-                self.job.log_warning(message=f"Unable to find cluster host in device42_clusters dictionary. {err}")
+                self.job.logger.warning(f"Unable to find cluster host in device42_clusters dictionary. {err}")
+            except ObjectNotFound as err:
+                self.job.logger.warning(
+                    f"Unable to find cluster member {self.device42_clusters[cluster.name]['members'][0]}. {err}"
+                )
 
     def load_ports(self):
         """Load Device42 ports."""
@@ -538,13 +549,13 @@ class Device42Adapter(DiffSync):
             try:
                 _dev = self.get(self.device, _device_name)
             except ObjectNotFound:
-                if self.job.kwargs.get("debug"):
-                    self.job.log_warning(
-                        message=f"Skipping loading of Port {_port_name} for Device {_device_name} as device was not loaded."
+                if self.job.debug:
+                    self.job.logger.warning(
+                        f"Skipping loading of Port {_port_name} for Device {_device_name} as device was not loaded."
                     )
                 continue
-            if self.job.kwargs.get("debug"):
-                self.job.log_info(message=f"Loading Port {_port_name} for Device {_device_name}")
+            if self.job.debug:
+                self.job.logger.info(f"Loading Port {_port_name} for Device {_device_name}")
             _tags = _port["tags"].split(",") if _port.get("tags") else []
             if len(_tags) > 1:
                 _tags.sort()
@@ -569,15 +580,21 @@ class Device42Adapter(DiffSync):
                 )
                 if _port.get("vlan_pks"):
                     _vlans = []
+                    if _dev.building == "":
+                        building = "Unknown"
+                    else:
+                        building = _dev.building
                     for _pk in _port["vlan_pks"]:
                         if _pk in self.d42_vlan_map and self.d42_vlan_map[_pk]["vid"] != 0:
                             # Need to ensure that there's a VLAN loaded for every one that's being tagged.
                             try:
-                                self.get(
-                                    self.vlan, {"vlan_id": self.d42_vlan_map[_pk]["vid"], "building": _dev.building}
-                                )
+                                self.get(self.vlan, {"vlan_id": self.d42_vlan_map[_pk]["vid"], "building": building})
                             except ObjectNotFound:
-                                load_vlan(diffsync=self, vlan_id=self.d42_vlan_map[_pk]["vid"], site_name=_dev.building)
+                                load_vlan(
+                                    diffsync=self,
+                                    vlan_id=self.d42_vlan_map[_pk]["vid"],
+                                    site_name=building,
+                                )
                             _vlans.append(self.d42_vlan_map[_pk]["vid"])
                     new_port.vlans = sorted(set(_vlans))
                     if len(_vlans) > 1:
@@ -610,7 +627,7 @@ class Device42Adapter(DiffSync):
     def load_vrfgroups(self):
         """Load Device42 VRFGroups."""
         for _grp in self.device42.get_vrfgroups():
-            self.job.log_info(message=f"Loading VRF group {_grp['name']} from Device42.")
+            self.job.logger.info(f"Loading VRF group {_grp['name']} from Device42.")
             try:
                 _tags = _grp["tags"] if _grp.get("tags") else []
                 if len(_tags) > 1:
@@ -624,47 +641,40 @@ class Device42Adapter(DiffSync):
                 )
                 self.add(new_vrf)
             except ObjectAlreadyExists as err:
-                if self.job.kwargs.get("debug"):
-                    self.job.log_warning(message=f"VRF Group {_grp['name']} already exists. {err}")
+                if self.job.debug:
+                    self.job.logger.warning(f"VRF Group {_grp['name']} already exists. {err}")
                 continue
 
     def load_subnets(self):
         """Load Device42 Subnets."""
-        self.job.log_info(message="Loading Subnets from Device42.")
+        self.job.logger.info("Loading Subnets from Device42.")
         default_cfs = self.device42.get_subnet_default_custom_fields()
         _cfs = self.device42.get_subnet_custom_fields()
-        for _pf in self.device42.get_subnets():
+        for _pf in self.d42_subnet_map:
             _tags = _pf["tags"].split(",") if _pf.get("tags") else []
             if len(_tags) > 1:
                 _tags.sort()
-            if _pf["mask_bits"] != 0:
-                try:
-                    new_pf = self.subnet(
-                        network=_pf["network"],
-                        mask_bits=_pf["mask_bits"],
-                        description=_pf["name"],
-                        vrf=_pf["vrf"],
-                        tags=_tags,
-                        custom_fields=default_cfs,
-                        uuid=None,
-                    )
-                    if _cfs.get(f"{_pf['network']}/{_pf['mask_bits']}"):
-                        new_pf.custom_fields = _cfs[f"{_pf['network']}/{_pf['mask_bits']}"]
-                    self.add(new_pf)
-                except ObjectAlreadyExists as err:
-                    if self.job.kwargs.get("debug"):
-                        self.job.log_warning(message=f"Subnet {_pf['network']} {_pf['mask_bits']} {_pf['vrf']} {err}")
-                    continue
-            else:
-                if self.job.kwargs.get("debug"):
-                    self.job.log_warning(
-                        message=f"Unable to import Subnet with a 0 mask bits. {_pf['network']} {_pf['name']}."
-                    )
+            try:
+                new_pf = self.subnet(
+                    network=_pf["network"],
+                    mask_bits=_pf["mask_bits"],
+                    description=_pf["name"],
+                    vrf=_pf["vrf"],
+                    tags=_tags,
+                    custom_fields=default_cfs,
+                    uuid=None,
+                )
+                if _cfs.get(f"{_pf['network']}/{_pf['mask_bits']}"):
+                    new_pf.custom_fields = _cfs[f"{_pf['network']}/{_pf['mask_bits']}"]
+                self.add(new_pf)
+            except ObjectAlreadyExists as err:
+                if self.job.debug:
+                    self.job.logger.warning(f"Subnet {_pf['network']} {_pf['mask_bits']} {_pf['vrf']} {err}")
                 continue
 
     def load_ip_addresses(self):
         """Load Device42 IP Addresses."""
-        self.job.log_info(message="Loading IP Addresses from Device42.")
+        self.job.logger.info("Loading IP Addresses from Device42.")
         _cfs = self.device42.get_ipaddr_custom_fields()
         for _ip in self.device42.get_ip_addrs():
             _ipaddr = f"{_ip['ip_address']}/{str(_ip['netmask'])}"
@@ -675,8 +685,8 @@ class Device42Adapter(DiffSync):
                     if self.d42_port_map[port_pk].get("second_device_fk"):
                         secondary_device_fk = self.d42_port_map[port_pk]["second_device_fk"]
                         _device_name = self.d42_device_map[secondary_device_fk]["name"]
-                        self.job.log_info(
-                            message=f"Primary: {self.d42_port_map[port_pk]['device']}/Secondary: {_device_name} found for {_ipaddr}."
+                        self.job.logger.info(
+                            f"Primary: {self.d42_port_map[port_pk]['device']}/Secondary: {_device_name} found for {_ipaddr}."
                         )
                     else:
                         _device_name = self.d42_port_map[port_pk]["device"]
@@ -692,12 +702,13 @@ class Device42Adapter(DiffSync):
                 _tags = sorted(_ip["tags"].split(",")) if _ip.get("tags") != "" else []
                 new_ip = self.ipaddr(
                     address=_ipaddr,
+                    subnet=f"{_ip['subnet']}/{str(_ip['netmask'])}",
+                    namespace=_ip["vrf"] if _ip.get("vrf") else "Global",
                     available=_ip["available"],
                     label=_ip["label"] if _ip.get("label") else "",
                     device=_device_name,
                     interface=_port_name,
                     primary=False,
-                    vrf=_ip["vrf"],
                     tags=_tags,
                     custom_fields=self.d42_ipaddr_default_cfs,
                     uuid=None,
@@ -706,8 +717,8 @@ class Device42Adapter(DiffSync):
                     new_ip.custom_fields = _cfs[_ipaddr]
                 self.add(new_ip)
             except ObjectAlreadyExists as err:
-                if self.job.kwargs.get("debug"):
-                    self.job.log_warning(message=f"IP Address {_ipaddr} already exists.{err}")
+                if self.job.debug:
+                    self.job.logger.warning(f"IP Address {_ipaddr} already exists.{err}")
                 continue
 
     def load_vlans(self):
@@ -721,14 +732,18 @@ class Device42Adapter(DiffSync):
             else:
                 _cfs = {}
             tags = _info["tags"].split(",").sort() if _info.get("tags") else []
-            if is_truthy(PLUGIN_CFG.get("customer_is_facility")) and _info.get("customer"):
+            if (
+                PLUGIN_CFG.get("device42_customer_is_facility")
+                and is_truthy(PLUGIN_CFG.get("device42_customer_is_facility"))
+                and _info.get("customer")
+            ):
                 building = self.d42_building_sitecode_map[_info["customer"].upper()]
             elif _info.get("building"):
                 building = _info["building"]
             load_vlan(
                 diffsync=self,
                 vlan_id=int(_info["vid"]),
-                site_name=slugify(building) if building else "Unknown",
+                site_name=building if building else "Unknown",
                 vlan_name=_vlan_name,
                 description=_info["description"] if _info.get("description") else "",
                 custom_fields=_cfs,
@@ -762,13 +777,13 @@ class Device42Adapter(DiffSync):
                 )
                 self.add(new_conn)
             except ObjectAlreadyExists as err:
-                if self.job.kwargs.get("debug"):
-                    self.job.log_warning(message=err)
+                if self.job.debug:
+                    self.job.logger.warning(err)
                 continue
 
     def load_provider(self, provider_info: dict):
         """Load Device42 Providers."""
-        _prov = self.d42_vendor_map[provider_info["vendor_fk"]]
+        _prov = self.d42_vendor_map[provider_info["name"]]
         try:
             self.get(self.provider, _prov.get("name"))
         except ObjectNotFound:
@@ -862,7 +877,7 @@ class Device42Adapter(DiffSync):
             ):
                 self.set_primary_from_dns(dev_name=_device.name)
             else:
-                self.job.log_warning(message=f"Skipping {_device.name} due to invalid Device name.")
+                self.job.logger.warning(f"Skipping {_device.name} due to invalid Device name.")
                 continue
 
     def get_management_intf(self, dev_name: str):
@@ -906,7 +921,7 @@ class Device42Adapter(DiffSync):
             mac_addr="",
             custom_fields=self.device42.get_port_default_custom_fields(),
             tags=[],
-            status="active",
+            status="Active",
             uuid=None,
         )
         try:
@@ -915,7 +930,7 @@ class Device42Adapter(DiffSync):
             _device.add_child(_intf)
             return _intf
         except ObjectAlreadyExists as err:
-            self.job.log_warning(message=f"Management interface for {dev_name} already exists. {err}")
+            self.job.logger.warning(f"Management interface for {dev_name} already exists. {err}")
 
     def set_primary_from_dns(self, dev_name: str):
         """Method to resolve Device FQDNs A records into an IP and set primary IP for that Device to it if found.
@@ -932,13 +947,15 @@ class Device42Adapter(DiffSync):
             return ""
         _a_record = get_dns_a_record(dev_name=_devname)
         if _a_record:
-            self.job.log_info(message=f"A record found for {_devname} {_a_record}.")
+            self.job.logger.info(f"A record found for {_devname} {_a_record}.")
             _ip = self.find_ipaddr(address=_a_record)
             mgmt_intf = self.get_management_intf(dev_name=dev_name)
             if not mgmt_intf:
                 mgmt_intf = self.add_management_interface(dev_name=dev_name)
             if not _ip:
-                _ip = self.add_ipaddr(address=f"{_a_record}/32", dev_name=dev_name, interface=mgmt_intf.name)
+                _ip = self.add_ipaddr(
+                    address=f"{_a_record}/32", dev_name=dev_name, interface=mgmt_intf.name, namespace="Global"
+                )
             if mgmt_intf and _ip.device != dev_name:
                 _ip.device = dev_name
                 _ip.interface = mgmt_intf.name
@@ -946,41 +963,36 @@ class Device42Adapter(DiffSync):
             else:
                 _ip.primary = True
         else:
-            self.job.log_warning(message=f"A record not found for {_devname}.")
+            self.job.logger.warning(f"A record not found for {_devname}.")
 
     def find_ipaddr(self, address: str):
         """Method to find IPAddress DiffSyncModel object."""
-        if ":" in address:
-            bits = 128
-        else:
-            bits = 32
+        for prefix in self.d42_subnet_map:
+            subnet = ipaddress.ip_network(f"{prefix['network']}/{prefix['mask_bits']}")
+            addr = ipaddress.ip_address(address)
 
-        while bits > 0:
-            _addr = f"{address}/{bits}"
-            for _vrf in self.get_all("vrf"):
+            if addr in subnet:
+                _addr = f"{addr}/{subnet.prefixlen}"
                 try:
-                    return self.get(self.ipaddr, {"address": _addr, "vrf": _vrf.name})
+                    return self.get(self.ipaddr, {"address": _addr, "subnet": subnet.with_prefixlen})
                 except ObjectNotFound:
                     pass
-            try:
-                return self.get(self.ipaddr, {"address": _addr, "vrf": None})
-            except ObjectNotFound:
-                bits = bits - 1
         return False
 
-    def add_ipaddr(self, address: str, dev_name: str, interface: str):
+    def add_ipaddr(self, address: str, dev_name: str, interface: str, namespace: str):
         """Method to add IPAddress DiffSyncModel object if one isn't found.
 
-        Used in conjunction with the `use_dns` feature.
+        Used in conjunction with the `device42_use_dns` feature.
         """
         _ip = self.ipaddr(
             address=address,
+            subnet=address if address != "" else "Global",
+            namespace=namespace,
             available=False,
             device=dev_name,
             interface=interface,
             primary=True,
             label="",
-            vrf=None,
             tags=[],
             custom_fields=self.d42_ipaddr_default_cfs,
             uuid=None,
@@ -993,14 +1005,14 @@ class Device42Adapter(DiffSync):
         panels = self.device42.get_patch_panels()
         for panel in panels:
             _building, _room, _rack = None, None, None
-            if PLUGIN_CFG.get("hostname_mapping") and len(PLUGIN_CFG["hostname_mapping"]) > 0:
+            if PLUGIN_CFG.get("device42_hostname_mapping") and len(PLUGIN_CFG["device42_hostname_mapping"]) > 0:
                 _building = get_site_from_mapping(device_name=panel["name"])
-            if not _building and PLUGIN_CFG.get("customer_is_facility") and panel["customer_fk"] is not None:
-                _building = slugify(self.d42_customer_map[panel["customer_fk"]]["name"])
+            if not _building and PLUGIN_CFG.get("device42_customer_is_facility") and panel["customer_fk"] is not None:
+                _building = self.d42_customer_map[panel["customer_fk"]]["name"]
             if not _building and panel["building_fk"] is not None:
-                _building = slugify(self.d42_building_map[panel["building_fk"]]["name"])
+                _building = self.d42_building_map[panel["building_fk"]]["name"]
             if not _building and panel["calculated_building_fk"] is not None:
-                _building = slugify(self.d42_building_map[panel["calculated_building_fk"]]["name"])
+                _building = self.d42_building_map[panel["calculated_building_fk"]]["name"]
             if panel["room_fk"] is not None:
                 _room = self.d42_room_map[panel["room_fk"]]["name"]
             if not _room and panel["calculated_room_fk"] is not None:
@@ -1010,24 +1022,12 @@ class Device42Adapter(DiffSync):
             if not _rack and panel["calculated_rack_fk"] is not None:
                 _rack = self.d42_rack_map[panel["calculated_rack_fk"]]["name"]
             if _building is None and _room is None and _rack is None:
-                if self.job.kwargs.get("debug"):
-                    self.job.log_debug(
-                        message=f"Unable to determine Site, Room, or Rack for patch panel {panel['name']} so it will NOT be imported."
+                if self.job.debug:
+                    self.job.logger.debug(
+                        f"Unable to determine Site, Room, or Rack for patch panel {panel['name']} so it will NOT be imported."
                     )
                 continue
-            try:
-                new_hw = self.get(self.hardware, panel["model_name"])
-            except ObjectNotFound:
-                new_hw = self.hardware(
-                    name=panel["model_name"],
-                    manufacturer=panel["vendor"],
-                    size=panel["size"] if panel.get("size") else 1.0,
-                    depth="Full Depth" if panel["depth"] == 1 else "Half Depth",
-                    part_number="",
-                    custom_fields={},
-                    uuid=None,
-                )
-                self.add(new_hw)
+            self.load_vendor_and_model(hwmodel_name=panel["model_name"], manuf=panel["vendor"])
             try:
                 new_pp = self.get(self.patchpanel, panel["name"])
             except ObjectNotFound:
@@ -1036,7 +1036,6 @@ class Device42Adapter(DiffSync):
                     in_service=panel["in_service"],
                     vendor=panel["vendor"],
                     model=panel["model_name"],
-                    size=panel["size"] if panel.get("size") else 1.0,
                     position=panel["position"],
                     orientation="front" if panel.get("orientation") == "Front" else "rear",
                     num_ports=panel["number_of_ports"],
@@ -1071,9 +1070,9 @@ class Device42Adapter(DiffSync):
                         self.add(front_intf)
                         self.add(rear_intf)
                     except ObjectAlreadyExists as err:
-                        if self.job.kwargs.get("debug"):
-                            self.job.log_warning(
-                                message=f"Patch panel port {ind} for {panel['name']} is already loaded. {err}"
+                        if self.job.debug:
+                            self.job.logger.warning(
+                                f"Patch panel port {ind} for {panel['name']} is already loaded. {err}"
                             )
                     ind = ind + 1
 
@@ -1082,8 +1081,6 @@ class Device42Adapter(DiffSync):
         self.load_buildings()
         self.load_rooms()
         self.load_racks()
-        self.load_vendors()
-        self.load_hardware_models()
         self.load_vrfgroups()
         self.load_vlans()
         self.load_subnets()
@@ -1091,8 +1088,8 @@ class Device42Adapter(DiffSync):
         self.assign_version_to_master_devices()
         self.load_ports()
         self.load_ip_addresses()
-        if is_truthy(PLUGIN_CFG.get("use_dns")):
-            self.job.log_info(message="Checking DNS entries for all loaded Devices.")
+        if "device42_use_dns" in PLUGIN_CFG and is_truthy(PLUGIN_CFG.get("device42_use_dns")):
+            self.job.logger.info("Checking DNS entries for all loaded Devices.")
             self.check_dns()
         self.load_providers_and_circuits()
         self.load_patch_panels_and_ports()

@@ -1,6 +1,6 @@
 """ChoiceSet classes for Single Source of Truth (SSoT)."""
 
-from nautobot.utilities.choices import ChoiceSet
+from nautobot.apps.choices import ChoiceSet
 
 
 class SyncLogEntryActionChoices(ChoiceSet):

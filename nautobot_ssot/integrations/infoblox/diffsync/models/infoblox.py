@@ -1,6 +1,6 @@
 """Infoblox Models for Infoblox integration with SSoT plugin."""
 from requests.exceptions import HTTPError
-from nautobot_ssot.integrations.infoblox.diffsync.models.base import Aggregate, Network, IPAddress, Vlan, VlanView
+from nautobot_ssot.integrations.infoblox.diffsync.models.base import Network, IPAddress, Vlan, VlanView
 
 
 class InfobloxNetwork(Network):
@@ -16,7 +16,7 @@ class InfobloxNetwork(Network):
             else:
                 diffsync.conn.create_network_container(prefix=ids["network"], comment=attrs.get("description", ""))
         except HTTPError as err:
-            diffsync.job.log_warning(f"Failed to create {ids['network']} due to {err.response.text}")
+            diffsync.job.logger.warning(f"Failed to create {ids['network']} due to {err.response.text}")
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
     def update(self, attrs):
@@ -85,27 +85,3 @@ class InfobloxIPAddress(IPAddress):
     #     """Delete an IP Address from Infoblox."""
     #     self.diffsync.conn.delete_host_record(self.get_identifiers()["address"])
     #     return super().delete()
-
-
-class InfobloxAggregate(Aggregate):
-    """Infoblox implementation of the Aggregate Model."""
-
-    @classmethod
-    def create(cls, diffsync, ids, attrs):
-        """Create Network Container object in Infoblox."""
-        diffsync.conn.create_network_container(
-            prefix=ids["network"], comment=attrs["description"] if attrs.get("description") else ""
-        )
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
-
-    def update(self, attrs):
-        """Update Network Container object in Infoblox."""
-        self.diffsync.conn.update_network_container(
-            prefix=self.get_identifiers()["network"], comment=attrs["description"] if attrs.get("description") else ""
-        )
-        return super().update(attrs)
-
-    def delete(self):
-        """Delete Network Container object in Infoblox."""
-        self.diffsync.conn.delete_network_container(self.get_identifiers()["network"])
-        return super().delete()

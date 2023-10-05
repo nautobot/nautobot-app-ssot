@@ -66,10 +66,22 @@ This Nautobot app is installed in the Nautobot Community Sandbox found over at [
 
 Full documentation for this app can be found over on the [Nautobot Docs](https://docs.nautobot.com) website:
 
-- [User Guide](https://docs.nautobot.com/projects/ssot/en/latest/user/app_overview/) - Overview, Using the App, Getting Started.
-- [Administrator Guide](https://docs.nautobot.com/projects/ssot/en/latest/admin/install/) - How to Install, Configure, Upgrade, or Uninstall the App.
-- [Developer Guide](https://docs.nautobot.com/projects/ssot/en/latest/dev/contributing/) - Extending the App, Developing Jobs, Code Reference, Contribution Guide.
-- [Release Notes / Changelog](https://docs.nautobot.com/projects/ssot/en/latest/admin/release_notes/).
+* [User Guide](https://docs.nautobot.com/projects/ssot/en/latest/user/app_overview/) - Overview, Using the App, Getting Started, Developing Jobs.
+* [Administrator Guide](https://docs.nautobot.com/projects/ssot/en/latest/admin/install/) - How to Install, Configure, Upgrade, or Uninstall the App.
+* [Developer Guide](https://docs.nautobot.com/projects/ssot/en/latest/dev/contributing/) - Extending the App, Code Reference, Contribution Guide.
+* [Release Notes / Changelog](https://docs.nautobot.com/projects/ssot/en/latest/admin/release_notes/).
+
+## Note On Integration Compatability
+
+The SSoT framework includes a number of integrations with external Systems of Record:
+
+* Cisco ACI
+* Arista CloudVision
+* Device42
+* Infoblox
+* ServiceNow
+
+> Note that the Arista CloudVision integration is currently incompatible with the [Arista Labs](https://labs.arista.com/) environment due to a TLS issue. It has been confirmed to work in on-prem environments previously.
 
 ### Contributing to the Documentation
 

@@ -1,9 +1,9 @@
 """Jobs for Infoblox integration with SSoT plugin."""
 
-from diffsync import DiffSyncFlags
+from diffsync.enum import DiffSyncFlags
 from django.templatetags.static import static
 from django.urls import reverse
-from nautobot.extras.jobs import BooleanVar, Job
+from nautobot.extras.jobs import BooleanVar
 from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
 
 from .diffsync.adapters import infoblox, nautobot
@@ -14,7 +14,7 @@ from .constant import PLUGIN_CFG
 name = "SSoT - Infoblox DDI"  # pylint: disable=invalid-name
 
 
-class InfobloxDataSource(DataSource, Job):
+class InfobloxDataSource(DataSource):
     """Infoblox SSoT Data Source."""
 
     debug = BooleanVar(description="Enable for verbose debug logging.")
@@ -44,21 +44,28 @@ class InfobloxDataSource(DataSource, Job):
 
     def load_source_adapter(self):
         """Load Infoblox data."""
-        self.log_info(message="Connecting to Infoblox")
+        self.logger.info("Connecting to Infoblox")
         client = InfobloxApi()
         self.source_adapter = infoblox.InfobloxAdapter(job=self, sync=self.sync, conn=client)
-        self.log_info(message="Loading data from Infoblox...")
+        self.logger.info("Loading data from Infoblox...")
         self.source_adapter.load()
 
     def load_target_adapter(self):
         """Load Nautobot data."""
-        self.log_info(message="Connecting to Nautobot...")
+        self.logger.info("Connecting to Nautobot...")
         self.target_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync)
-        self.log_info(message="Loading data from Nautobot...")
+        self.logger.info("Loading data from Nautobot...")
         self.target_adapter.load()
 
+    def run(self, dryrun, memory_profiling, debug, *args, **kwargs):  # pylint: disable=arguments-differ
+        """Perform data synchronization."""
+        self.debug = debug
+        self.dryrun = dryrun
+        self.memory_profiling = memory_profiling
+        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
-class InfobloxDataTarget(DataTarget, Job):
+
+class InfobloxDataTarget(DataTarget):
     """Infoblox SSoT Data Target."""
 
     debug = BooleanVar(description="Enable for verbose debug logging.")
@@ -88,63 +95,28 @@ class InfobloxDataTarget(DataTarget, Job):
 
     def load_source_adapter(self):
         """Load Nautobot data."""
-        self.log_info(message="Connecting to Nautobot...")
+        self.logger.info("Connecting to Nautobot...")
         self.source_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync)
-        self.log_info(message="Loading data from Nautobot...")
+        self.logger.info("Loading data from Nautobot...")
         self.source_adapter.load()
 
     def load_target_adapter(self):
         """Load Infoblox data."""
-        self.log_info(message="Connecting to Infoblox")
+        self.logger.info("Connecting to Infoblox")
         client = InfobloxApi()
         self.target_adapter = infoblox.InfobloxAdapter(job=self, sync=self.sync, conn=client)
-        self.log_info(message="Loading data from Infoblox...")
+        self.logger.info("Loading data from Infoblox...")
         self.target_adapter.load()
 
-
-class InfobloxNetworkContainerSource(DataSource, Job):
-    """Infoblox SSoT Network Container Source."""
-
-    debug = BooleanVar(description="Enable for verbose debug logging.")
-
-    def __init__(self):
-        """Initialize InfobloxNetworkContainerSource."""
-        super().__init__()
-        self.diffsync_flags = DiffSyncFlags.CONTINUE_ON_FAILURE
-
-    class Meta:  # pylint: disable=too-few-public-methods
-        """Information about the Job."""
-
-        name = "Infoblox ⟹ Nautobot -  Network Containers"
-        data_source = "InfobloxNetworkContainers"
-        data_source_icon = static("nautobot_ssot_infoblox/infoblox_logo.png")
-        description = "Sync Network Container (Aggregate) infomation from Infoblox to Nautobot"
-
-    @classmethod
-    def data_mappings(cls):
-        """Show mapping of models between Infoblox and Nautobot."""
-        return (DataMapping("networkcontainer", None, "Aggregate", reverse("ipam:aggregate_list")),)
-
-    def load_source_adapter(self):
-        """Load Infoblox data."""
-        self.log_info(message="Connecting to Infoblox")
-        client = InfobloxApi()
-        self.source_adapter = infoblox.InfobloxAggregateAdapter(job=self, sync=self.sync, conn=client)
-        self.log_info(message="Loading data from Infoblox...")
-        self.source_adapter.load()
-
-    def load_target_adapter(self):
-        """Load Nautobot data."""
-        self.log_info(message="Connecting to Nautobot...")
-        self.target_adapter = nautobot.NautobotAggregateAdapter(job=self, sync=self.sync)
-        self.log_info(message="Loading data from Nautobot...")
-        self.target_adapter.load()
+    def run(self, dryrun, memory_profiling, debug, *args, **kwargs):  # pylint: disable=arguments-differ
+        """Perform data synchronization."""
+        self.debug = debug
+        self.dryrun = dryrun
+        self.memory_profiling = memory_profiling
+        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 
 jobs = [InfobloxDataSource]
 
 if PLUGIN_CFG["enable_sync_to_infoblox"]:
     jobs.append(InfobloxDataTarget)
-
-if PLUGIN_CFG["enable_rfc1918_network_containers"]:
-    jobs.append(InfobloxNetworkContainerSource)

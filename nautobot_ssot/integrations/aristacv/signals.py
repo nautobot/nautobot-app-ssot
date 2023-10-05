@@ -27,84 +27,85 @@ def post_migrate_create_custom_fields(apps=global_apps, **kwargs):
 
     for device_cf_dict in [
         {
-            "name": "arista_eostrain",
+            "key": "arista_eostrain",
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "EOS Train",
         },
         {
-            "name": "arista_eos",
+            "key": "arista_eos",
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "EOS Version",
         },
         {
-            "name": "arista_ztp",
+            "key": "arista_ztp",
             "type": CustomFieldTypeChoices.TYPE_BOOLEAN,
             "label": "ztp",
         },
         {
-            "name": "arista_pimbidir",
+            "key": "arista_pimbidir",
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "pimbidir",
         },
         {
-            "name": "arista_pim",
+            "key": "arista_pim",
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "pim",
         },
         {
-            "name": "arista_bgp",
+            "key": "arista_bgp",
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "bgp",
         },
         {
-            "name": "arista_mpls",
+            "key": "arista_mpls",
             "type": CustomFieldTypeChoices.TYPE_BOOLEAN,
             "label": "mpls",
         },
         {
-            "name": "arista_systype",
+            "key": "arista_systype",
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "systype",
         },
         {
-            "name": "arista_mlag",
+            "key": "arista_mlag",
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "mlag",
         },
         {
-            "name": "arista_tapagg",
+            "key": "arista_tapagg",
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "TAP Aggregation",
         },
         {
-            "name": "arista_sflow",
+            "key": "arista_sflow",
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "sFlow",
         },
         {
-            "name": "arista_terminattr",
+            "key": "arista_terminattr",
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "TerminAttr Version",
         },
         {
-            "name": "arista_topology_network_type",
+            "key": "arista_topology_network_type",
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "Topology Network Type",
         },
-        {"name": "arista_topology_type", "type": CustomFieldTypeChoices.TYPE_TEXT, "label": "Topology Type"},
+        {"key": "arista_topology_type", "type": CustomFieldTypeChoices.TYPE_TEXT, "label": "Topology Type"},
         {
-            "name": "arista_topology_rack",
+            "key": "arista_topology_rack",
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "Topology Rack",
         },
         {
-            "name": "arista_topology_pod",
+            "key": "arista_topology_pod",
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "Topology Pod",
         },
     ]:
         field, _ = CustomField.objects.update_or_create(
-            name=device_cf_dict["name"], defaults=device_cf_dict, slug=device_cf_dict["name"]
+            key=device_cf_dict["key"],
+            defaults=device_cf_dict,
         )
         field.content_types.set([ContentType.objects.get_for_model(Device)])
 
@@ -112,25 +113,26 @@ def post_migrate_create_custom_fields(apps=global_apps, **kwargs):
 def post_migrate_create_manufacturer(apps=global_apps, **kwargs):
     """Callback function for post_migrate() -- create Arista Manufacturer."""
     Manufacturer = apps.get_model("dcim", "Manufacturer")
-    Manufacturer.objects.update_or_create(name="Arista", slug="arista")
+    Manufacturer.objects.update_or_create(name="Arista")
 
 
 def post_migrate_create_platform(apps=global_apps, **kwargs):
     """Callback function for post_migrate() -- create Arista Platform."""
     Platform = apps.get_model("dcim", "Platform")
     Manufacturer = apps.get_model("dcim", "Manufacturer")
-    Platform.objects.get_or_create(
+    Platform.objects.update_or_create(
         name="arista.eos.eos",
-        slug="arista_eos",
-        napalm_driver="eos",
-        manufacturer=Manufacturer.objects.get(slug="arista"),
+        defaults={
+            "napalm_driver": "eos",
+            "network_driver": "arista_eos",
+            "manufacturer": Manufacturer.objects.get(name="Arista"),
+        },
     )
 
     if APP_SETTINGS.get("create_controller"):
         Platform.objects.get_or_create(
             name="Arista EOS-CloudVision",
-            slug="arista_eos_cloudvision",
-            manufacturer=Manufacturer.objects.get(slug="arista"),
+            manufacturer=Manufacturer.objects.get(name="Arista"),
         )
 
 
@@ -140,12 +142,12 @@ def post_migrate_create_controller_relationship(apps=global_apps, **kwargs):
     Relationship = apps.get_model("extras", "Relationship")
     ContentType = apps.get_model("contenttypes", "ContentType")
     relationship_dict = {
-        "name": "Controller -> Device",
-        "slug": "controller_to_device",
+        "label": "Controller -> Device",
+        "key": "controller_to_device",
         "type": RelationshipTypeChoices.TYPE_ONE_TO_MANY,
         "source_type": ContentType.objects.get_for_model(Device),
         "source_label": "Controller",
         "destination_type": ContentType.objects.get_for_model(Device),
         "destination_label": "Device",
     }
-    Relationship.objects.update_or_create(name=relationship_dict["name"], defaults=relationship_dict)
+    Relationship.objects.update_or_create(label=relationship_dict["label"], defaults=relationship_dict)

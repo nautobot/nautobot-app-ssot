@@ -2,20 +2,19 @@
 
 import pprint
 
-from django.contrib.contenttypes.models import ContentType
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 
 from django_tables2 import RequestConfig
 
 from nautobot.extras.models import Job as JobModel
-from nautobot.extras.jobs import get_job
 from nautobot.core.views.generic import BulkDeleteView, ObjectDeleteView, ObjectListView, ObjectView
-from nautobot.utilities.paginator import EnhancedPaginator
+from nautobot.core.views.paginator import EnhancedPaginator
 
 from .filters import SyncFilterSet, SyncLogEntryFilterSet
 from .forms import SyncFilterForm, SyncLogEntryFilterForm
-from .jobs import get_data_jobs, DataSource, DataTarget
+from .jobs.base import DataSource, DataTarget
+from .jobs import get_data_jobs
 from .models import Sync, SyncLogEntry
 from .tables import DashboardTable, SyncTable, SyncTableSingleSourceOrTarget, SyncLogEntryTable
 
@@ -48,16 +47,13 @@ class DashboardView(ObjectListView):
             "target": {},
             "table": table,
         }
-        sync_ct = ContentType.objects.get_for_model(Sync)
         for source in context["data_sources"]:
             context["source"][source.name] = self.queryset.filter(
-                job_result__obj_type=sync_ct,
-                job_result__name=source.class_path,
+                job_result__task_name=source.class_path,
             )
         for target in context["data_targets"]:
             context["target"][target.name] = self.queryset.filter(
-                job_result__obj_type=sync_ct,
-                job_result__name=target.class_path,
+                job_result__task_name=target.class_path,
             )
 
         return context
@@ -82,7 +78,7 @@ class DataSourceTargetView(ObjectView):
 
     def get_extra_context(self, request, instance):
         """Return template context extension with job_class, table and source_or_target."""
-        job_class = get_job(instance.class_path)
+        job_class = instance.job_class
         if not job_class or not issubclass(job_class, (DataSource, DataTarget)):
             raise Http404
 
@@ -126,6 +122,7 @@ class SyncBulkDeleteView(BulkDeleteView):
 
     queryset = Sync.objects.all()
     table = SyncTable
+    filterset = SyncFilterSet
 
 
 class SyncView(ObjectView):

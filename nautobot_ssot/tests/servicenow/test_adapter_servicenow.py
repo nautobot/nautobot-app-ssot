@@ -1,11 +1,7 @@
 """Unit tests for the ServiceNowDiffSync adapter class."""
 
-import uuid
-
-from django.contrib.contenttypes.models import ContentType
-
-from nautobot.extras.models import Job, JobResult
-from nautobot.utilities.testing import TransactionTestCase
+from nautobot.extras.models import JobResult
+from nautobot.core.testing import TransactionTestCase
 
 from nautobot_ssot.integrations.servicenow.jobs import ServiceNowDataTarget
 from nautobot_ssot.integrations.servicenow.diffsync.adapter_servicenow import ServiceNowDiffSync
@@ -575,14 +571,13 @@ class MockServiceNowClient:
 class ServiceNowDiffSyncTestCase(TransactionTestCase):
     """Test the ServiceNowDiffSync adapter class."""
 
+    job_class = ServiceNowDataTarget
     databases = ("default", "job_logs")
 
     def test_data_loading(self):
         """Test the load() function."""
-        job = ServiceNowDataTarget()
-        job.job_result = JobResult.objects.create(
-            name=job.class_path, obj_type=ContentType.objects.get_for_model(Job), user=None, job_id=uuid.uuid4()
-        )
+        job = self.job_class()
+        job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
         snds = ServiceNowDiffSync(job=job, sync=None, client=MockServiceNowClient())
         snds.load()
 
