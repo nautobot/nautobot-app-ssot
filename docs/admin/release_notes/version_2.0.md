@@ -41,11 +41,20 @@
 
 ### Changed
 
-- Updated everything to support Nautobot 2.0.0rc1
+- [168](https://github.com/nautobot/nautobot-plugin-ssot/pull/168) - Update for Nautobot 2.0.0.rc1 Support by @jdrew82 in #168
 - Fixed use of slug on Platform in Arista CVP integration.
 
 ## v2.0.0-rc.2 - 2023-09-8
 
 ### Changed
 
-- Updated everything to support Nautobot 2.0.0rc2
+- [200](https://github.com/nautobot/nautobot-plugin-ssot/pull/200) - Enable RC2 Support by @jdrew82
+
+## v2.0.0 - 2023-10-5
+
+### Changed
+
+
+- [228](https://github.com/nautobot/nautobot-plugin-ssot/pull/228) - Merge Main Back to Dev for 1.6.0 by @jdrew82
+- [231](https://github.com/nautobot/nautobot-plugin-ssot/pull/231) - Update Device42 Integration for Nautobot 2.0 by @jdrew82
+- [230](https://github.com/nautobot/nautobot-plugin-ssot/pull/230) - Update to Nautobot 2.0 by @jdrew82
