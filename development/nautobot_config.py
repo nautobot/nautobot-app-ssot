@@ -215,36 +215,10 @@ PLUGINS_CONFIG = {
         "device42_delete_on_sync": False,
         "device42_use_dns": True,
         "device42_customer_is_facility": True,
-        "device42_facility_prepend": "sitecode-",
-        "device42_role_prepend": "nautobot-",
+        "device42_facility_prepend": "",
+        "device42_role_prepend": "",
         "device42_ignore_tag": "",
-        "device42_hostname_mapping": [
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        ],
+        "device42_hostname_mapping": [],
         "infoblox_default_status": os.getenv("NAUTOBOT_SSOT_INFOBLOX_DEFAULT_STATUS", "active"),
         "infoblox_enable_sync_to_infoblox": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_ENABLE_SYNC_TO_INFOBLOX")),
         "infoblox_import_objects_ip_addresses": is_truthy(
