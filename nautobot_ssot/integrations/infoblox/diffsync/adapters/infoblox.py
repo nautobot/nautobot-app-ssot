@@ -47,9 +47,9 @@ class InfobloxAdapter(DiffSync):
 
     def load_prefixes(self):
         """Load InfobloxNetwork DiffSync model."""
-        if PLUGIN_CFG.get("import_subnets"):
+        if PLUGIN_CFG.get("infoblox_import_subnets"):
             subnets = []
-            for prefix in PLUGIN_CFG["import_subnets"]:
+            for prefix in PLUGIN_CFG["infoblox_import_subnets"]:
                 subnets.extend(self.conn.get_all_subnets(prefix=prefix))
             all_networks = subnets
         else:
