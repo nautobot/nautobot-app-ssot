@@ -54,7 +54,7 @@ PLUGINS_CONFIG = {
 | `ipfabric_default_interface_mtu` | The MTU used for an interface when no MTU is found in IPFabric. | `1500` |
 | `ipfabric_default_interface_type` | The Interface type used for interfaces synced. | `1000base-t` |
 | `ipfabric_safe_delete_device_status` | The status that is set for a Device when the `Safe Delete Mode` flag is set in the Job. | `Offline` |
-| `ipfabric_safe_delete_site_status` | The status that is set for a Site when the `Safe Delete Mode` flag is set in the Job. | `Decommissioning` |
+| `ipfabric_safe_delete_location_status` | The status that is set for a Location when the `Safe Delete Mode` flag is set in the Job. | `Decommissioning` |
 | `ipfabric_safe_delete_vlan_status` | The status that is set for a VLAN when the `Safe Delete Mode` flag is set in the Job. | `Deprecated` |
 | `ipfabric_safe_delete_ipaddress_status` | The status that is set for an IP Address when the `Safe Delete Mode` flag is set in the Job. | `Deprecated` |
 
@@ -77,7 +77,7 @@ PLUGINS_CONFIG = {
         "ipfabric_default_interface_mtu": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_INTERFACE_MTU"),
         "ipfabric_default_interface_type": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_INTERFACE_TYPE"),
         "ipfabric_safe_delete_device_status": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_DEVICE_DELETE_STATUS"),
-        "ipfabric_safe_delete_site_status": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_SITE_DELETE_STATUS"),
+        "ipfabric_safe_delete_location_status": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_LOCATION_DELETE_STATUS"),
         "ipfabric_safe_delete_vlan_status": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_VLAN_DELETE_STATUS"),
         "ipfabric_safe_delete_ipaddress_status": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_IPADDRESS_DELETE_STATUS"),
     }
