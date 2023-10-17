@@ -174,7 +174,7 @@ class TestUtilsDevice42(TestCase):
         self.assertEqual(device42.get_netmiko_platform(sent), received)
 
     @patch(
-        "nautobot_ssot.integrations.device42.diffsync.adapters.device42.PLUGIN_CFG",
+        "nautobot_ssot.integrations.device42.utils.device42.PLUGIN_CFG",
         {"device42_role_prepend": "nautobot-"},
     )
     def test_find_device_role_from_tags(self):
@@ -189,7 +189,7 @@ class TestUtilsDevice42(TestCase):
         self.assertEqual(device42.find_device_role_from_tags(tag_list=tags_missing_role), "Unknown")
 
     @patch(
-        "nautobot_ssot.integrations.device42.diffsync.adapters.device42.PLUGIN_CFG",
+        "nautobot_ssot.integrations.device42.utils.device42.PLUGIN_CFG",
         {"device42_facility_prepend": "sitecode-"},
     )
     def test_get_facility(self):

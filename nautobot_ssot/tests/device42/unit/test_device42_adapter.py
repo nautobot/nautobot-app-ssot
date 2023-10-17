@@ -88,8 +88,12 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         self.master_dev.os_version = ""
 
     @patch(
-        "nautobot_ssot.integrations.device42.diffsync.adapters.device42.PLUGIN_CFG",
-        {"device42_customer_is_facility": True, "device42_hostname_mapping": [{"AUS": "Austin"}]},
+        "nautobot_ssot.integrations.device42.utils.device42.PLUGIN_CFG",
+        {
+            "device42_customer_is_facility": True,
+            "device42_facility_prepend": "sitecode-",
+            "device42_hostname_mapping": [{"AUS": "Austin"}],
+        },
     )
     def test_data_loading(self):
         """Test the load() function."""
