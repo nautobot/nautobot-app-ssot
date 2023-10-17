@@ -1224,7 +1224,33 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         logger.info("Infoblox IP Address updated: %s", response.json())
         return response.json()
 
-    # credit to @Eric-Jckson for this code: https://github.com/nautobot/nautobot-plugin-ssot-infoblox/pull/143
+    def get_tree_from_container(self, root_container: str) -> list:
+        """Returns the list of all child containers from a given root container."""
+        flattened_tree = []
+        stack = []
+        root_containers = self.get_network_containers(prefix=root_container)
+        if root_containers:
+            stack = [root_containers[0]]
+
+        while stack:
+            current_node = stack.pop()
+            flattened_tree.append(current_node)
+            children = self.get_child_network_containers(prefix=current_node["network"])
+            stack.extend(children)
+
+        return flattened_tree
+
+    def remove_duplicates(self, network_list: list) -> list:
+        """Removes duplicate networks from a list of networks."""
+        seen_networks = set()
+        new_list = []
+        for network in network_list:
+            if network["network"] not in seen_networks:
+                new_list.append(network)
+                seen_networks.add(network["network"])
+
+        return new_list
+
     def get_network_containers(self, prefix: str = ""):
         """Get all Network Containers.
 
@@ -1345,5 +1371,6 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         except HTTPError as err:
             logger.info(err.response.text)
             return []
-        logger.info(response.json())
-        return response.json().get("result")
+        response = response.json()
+        logger.info(response)
+        return response.get("result")
