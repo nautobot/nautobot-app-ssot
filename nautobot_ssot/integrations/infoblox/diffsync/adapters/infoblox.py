@@ -27,13 +27,13 @@ class InfobloxAdapter(DiffSync):
 
     top_level = ["vlangroup", "vlan", "prefix", "ipaddress"]
 
-    def __init__(self, *args, job=None, sync=None, conn=None, **kwargs):
+    def __init__(self, *args, job=None, sync=None, conn, **kwargs):
         """Initialize Infoblox.
 
         Args:
             job (object, optional): Infoblox job. Defaults to None.
             sync (object, optional): Infoblox DiffSync. Defaults to None.
-            conn (object, optional): InfobloxAPI connection. Defaults to None.
+            conn (object): InfobloxAPI connection.
         """
         super().__init__(*args, **kwargs)
         self.job = job
@@ -49,11 +49,25 @@ class InfobloxAdapter(DiffSync):
 
     def load_prefixes(self):
         """Load InfobloxNetwork DiffSync model."""
-        if PLUGIN_CFG.get("import_subnets"):
+        if PLUGIN_CFG.get("infoblox_import_subnets"):
             subnets = []
-            for prefix in PLUGIN_CFG["import_subnets"]:
-                subnets.extend(self.conn.get_all_subnets(prefix=prefix))
-            all_networks = subnets
+            containers = []
+            for prefix in PLUGIN_CFG["infoblox_import_subnets"]:
+                # Get all child containers and subnets
+                tree = self.conn.get_tree_from_container(prefix)
+                containers.extend(tree)
+
+                # Need to check if the container has children. If it does, we need to get all subnets from the children
+                # If it doesn't, we can just get all subnets from the container
+                if tree:
+                    for subnet in tree:
+                        subnets.extend(self.conn.get_child_subnets_from_container(prefix=subnet["network"]))
+                else:
+                    subnets.extend(self.conn.get_all_subnets(prefix=prefix))
+
+            # Remove duplicates if a child subnet is included infoblox_import_subnets config
+            subnets = self.conn.remove_duplicates(subnets)
+            all_networks = self.conn.remove_duplicates(containers) + subnets
         else:
             # Need to load containers here to prevent duplicates when syncing back to Infoblox
             containers = self.conn.get_network_containers()
