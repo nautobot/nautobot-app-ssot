@@ -2,6 +2,12 @@
 
 Here you will find any steps necessary to cleanly remove the App from your Nautobot environment.
 
+## Uninstall the package
+
+```bash
+$ pip3 uninstall nautobot-ssot
+```
+
 ## Database Cleanup
 
 Prior to removing the plugin from the `nautobot_config.py`, run the following command to roll back any migration specific to this plugin.
@@ -9,9 +15,6 @@ Prior to removing the plugin from the `nautobot_config.py`, run the following co
 ```shell
 nautobot-server migrate nautobot_plugin_ssot zero
 ```
-
-!!! warning "Developer Note - Remove Me!"
-    Any other cleanup operations to ensure the database is clean after the app is removed. Is there anything else that needs cleaning up, such as CFs, relationships, etc. if they're no longer desired?
 
 ## Remove App configuration
 

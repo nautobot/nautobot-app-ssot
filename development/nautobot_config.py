@@ -129,13 +129,116 @@ if not _TESTING:
 #
 
 # Enable installed Apps. Add the name of each App to the list.
-PLUGINS = ["nautobot_ssot"]
+PLUGINS = [
+    "nautobot_chatops",
+    "nautobot_device_lifecycle_mgmt",
+    "nautobot_ssot",
+]
 
 # Apps configuration settings. These settings are used by various Apps that the user may have installed.
 # Each key in the dictionary is the name of an installed App and its value is a dictionary of settings.
-# PLUGINS_CONFIG = {
-#     'nautobot_ssot': {
-#         'foo': 'bar',
-#         'buzz': 'bazz'
-#     }
-# }
+PLUGINS_CONFIG = {
+    "nautobot_chatops": {
+        "enable_slack": True,
+        "slack_api_token": os.getenv("SLACK_API_TOKEN"),
+        "slack_signing_secret": os.getenv("SLACK_SIGNING_SECRET"),
+        "session_cache_timeout": 3600,
+        "ipfabric_api_token": os.getenv("IPFABRIC_API_TOKEN"),
+        "ipfabric_host": os.getenv("IPFABRIC_HOST"),
+    },
+    "nautobot_ssot": {
+        # URL and credentials should be configured as environment variables on the host system
+        "aci_apics": {x: os.environ[x] for x in os.environ if "APIC" in x},
+        # Tag which will be created and applied to all synchronized objects.
+        "aci_tag": os.getenv("NAUTOBOT_SSOT_ACI_TAG"),
+        "aci_tag_color": os.getenv("NAUTOBOT_SSOT_ACI_TAG_COLOR"),
+        # Tags indicating state applied to synchronized interfaces.
+        "aci_tag_up": os.getenv("NAUTOBOT_SSOT_ACI_TAG_UP"),
+        "aci_tag_up_color": os.getenv("NAUTOBOT_SSOT_ACI_TAG_UP_COLOR"),
+        "aci_tag_down": os.getenv("NAUTOBOT_SSOT_ACI_TAG_DOWN"),
+        "aci_tag_down_color": os.getenv("NAUTOBOT_SSOT_ACI_TAG_DOWN_COLOR"),
+        # Manufacturer name. Specify existing, or a new one with this name will be created.
+        "aci_manufacturer_name": os.getenv("NAUTOBOT_SSOT_ACI_MANUFACTURER_NAME"),
+        # Exclude any tenants you would not like to bring over from ACI.
+        "aci_ignore_tenants": os.getenv("NAUTOBOT_SSOT_ACI_IGNORE_TENANTS", "").split(","),
+        # The below value will appear in the Comments field on objects created in Nautobot
+        "aci_comments": os.getenv("NAUTOBOT_SSOT_ACI_COMMENTS"),
+        # Site to associate objects. Specify existing, or a new site with this name will be created.
+        "aci_site": os.getenv("NAUTOBOT_SSOT_ACI_SITE"),
+        "aristacv_apply_import_tag": is_truthy(os.getenv("NAUTOBOT_ARISTACV_IMPORT_TAG", False)),
+        "aristacv_controller_site": os.getenv("NAUTOBOT_ARISTACV_CONTROLLER_SITE", ""),
+        "aristacv_create_controller": is_truthy(os.getenv("NAUTOBOT_ARISTACV_CREATE_CONTROLLER", False)),
+        "aristacv_cvaas_url": os.getenv("NAUTOBOT_ARISTACV_CVAAS_URL", "www.arista.io:443"),
+        "aristacv_cvp_host": os.getenv("NAUTOBOT_ARISTACV_CVP_HOST", ""),
+        "aristacv_cvp_password": os.getenv("NAUTOBOT_ARISTACV_CVP_PASSWORD", ""),
+        "aristacv_cvp_port": os.getenv("NAUTOBOT_ARISTACV_CVP_PORT", "443"),
+        "aristacv_cvp_token": os.getenv("NAUTOBOT_ARISTACV_CVP_TOKEN", ""),
+        "aristacv_cvp_user": os.getenv("NAUTOBOT_ARISTACV_CVP_USERNAME", ""),
+        "aristacv_delete_devices_on_sync": is_truthy(os.getenv("NAUTOBOT_ARISTACV_DELETE_ON_SYNC", False)),
+        "aristacv_from_cloudvision_default_device_role": "network",
+        "aristacv_from_cloudvision_default_device_role_color": "ff0000",
+        "aristacv_from_cloudvision_default_site": "cloudvision_imported",
+        "aristacv_hostname_patterns": [[r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"]],
+        "aristacv_import_active": is_truthy(os.getenv("NAUTOBOT_ARISTACV_IMPORT_ACTIVE", False)),
+        "aristacv_role_mappings": {
+            "bb": "backbone",
+            "edge": "edge",
+            "dist": "distribution",
+            "leaf": "leaf",
+            "rtr": "router",
+            "spine": "spine",
+        },
+        "aristacv_site_mappings": {
+            "ams01": "Amsterdam",
+            "atl01": "Atlanta",
+        },
+        "aristacv_verify": is_truthy(os.getenv("NAUTOBOT_ARISTACV_VERIFY", True)),
+        "enable_aci": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ACI")),
+        "enable_aristacv": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ARISTACV")),
+        "enable_device42": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_DEVICE42")),
+        "enable_infoblox": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_INFOBLOX")),
+        "enable_ipfabric": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_IPFABRIC")),
+        "enable_servicenow": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_SERVICENOW")),
+        "hide_example_jobs": is_truthy(os.getenv("NAUTOBOT_SSOT_HIDE_EXAMPLE_JOBS")),
+        "device42_host": os.getenv("NAUTOBOT_SSOT_DEVICE42_HOST", ""),
+        "device42_username": os.getenv("NAUTOBOT_SSOT_DEVICE42_USERNAME", ""),
+        "device42_password": os.getenv("NAUTOBOT_SSOT_DEVICE42_PASSWORD", ""),
+        "device42_verify_ssl": False,
+        "device42_defaults": {
+            "site_status": "Active",
+            "rack_status": "Active",
+            "device_role": "Unknown",
+        },
+        "device42_delete_on_sync": False,
+        "device42_use_dns": True,
+        "device42_customer_is_facility": True,
+        "device42_facility_prepend": "",
+        "device42_role_prepend": "",
+        "device42_ignore_tag": "",
+        "device42_hostname_mapping": [],
+        "infoblox_default_status": os.getenv("NAUTOBOT_SSOT_INFOBLOX_DEFAULT_STATUS", "active"),
+        "infoblox_enable_sync_to_infoblox": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_ENABLE_SYNC_TO_INFOBLOX")),
+        "infoblox_import_objects_ip_addresses": is_truthy(
+            os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_IP_ADDRESSES")
+        ),
+        "infoblox_import_objects_subnets": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_SUBNETS")),
+        "infoblox_import_objects_vlan_views": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_VLAN_VIEWS")),
+        "infoblox_import_objects_vlans": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_VLANS")),
+        "infoblox_import_subnets": os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_SUBNETS", "").split(","),
+        "infoblox_password": os.getenv("NAUTOBOT_SSOT_INFOBLOX_PASSWORD"),
+        "infoblox_url": os.getenv("NAUTOBOT_SSOT_INFOBLOX_URL"),
+        "infoblox_username": os.getenv("NAUTOBOT_SSOT_INFOBLOX_USERNAME"),
+        "infoblox_verify_ssl": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_VERIFY_SSL", True)),
+        "infoblox_wapi_version": os.getenv("NAUTOBOT_SSOT_INFOBLOX_WAPI_VERSION", "v2.12"),
+        "ipfabric_api_token": os.getenv("IPFABRIC_API_TOKEN"),
+        "ipfabric_host": os.getenv("IPFABRIC_HOST"),
+        "ipfabric_ssl_verify": is_truthy(os.getenv("IPFABRIC_VERIFY", "False")),
+        "ipfabric_timeout": int(os.getenv("IPFABRIC_TIMEOUT", "15")),
+        "nautobot_host": os.getenv("NAUTOBOT_HOST"),
+        "servicenow_instance": os.getenv("SERVICENOW_INSTANCE", ""),
+        "servicenow_password": os.getenv("SERVICENOW_PASSWORD", ""),
+        "servicenow_username": os.getenv("SERVICENOW_USERNAME", ""),
+    },
+}
+
+METRICS_ENABLED = True

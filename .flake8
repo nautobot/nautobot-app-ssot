@@ -8,3 +8,4 @@ exclude =
   manage.py,
   settings.py,
   .venv
+  nautobot_ssot/integrations/servicenow/third_party
