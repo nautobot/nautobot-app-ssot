@@ -12,16 +12,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from distutils.util import strtobool
-from invoke import Collection, task as invoke_task
 import os
 
-from dotenv import load_dotenv
-
-
-def _load_dotenv():
-    load_dotenv("./development/development.env")
-    load_dotenv("./development/creds.env")
+from invoke.collection import Collection
+from invoke.tasks import task as invoke_task
 
 
 def is_truthy(arg):
@@ -36,7 +30,14 @@ def is_truthy(arg):
     """
     if isinstance(arg, bool):
         return arg
-    return bool(strtobool(arg))
+
+    val = str(arg).lower()
+    if val in ("y", "yes", "t", "true", "on", "1"):
+        return True
+    elif val in ("n", "no", "f", "false", "off", "0"):
+        return False
+    else:
+        raise ValueError(f"Invalid truthy value: `{arg}`")
 
 
 # Use pyinvoke configuration for default values, see http://docs.pyinvoke.org/en/stable/concepts/configuration.html
@@ -46,8 +47,8 @@ namespace.configure(
     {
         "nautobot_ssot": {
             "nautobot_ver": "2.0.0",
-            "project_name": "nautobot_ssot",
-            "python_ver": "3.8",
+            "project_name": "nautobot-ssot",
+            "python_ver": "3.11",
             "local": False,
             "compose_dir": os.path.join(os.path.dirname(__file__), "development"),
             "compose_files": [
@@ -60,6 +61,10 @@ namespace.configure(
         }
     }
 )
+
+
+def _is_compose_included(context, name):
+    return f"docker-compose.{name}.yml" in context.nautobot_ssot.compose_files
 
 
 def task(function=None, *args, **kwargs):
@@ -167,10 +172,17 @@ def generate_packages(context):
     run_command(context, command)
 
 
-@task
-def lock(context):
+@task(
+    help={
+        "check": (
+            "If enabled, check for outdated dependencies in the poetry.lock file, "
+            "instead of generating a new one. (default: disabled)"
+        )
+    }
+)
+def lock(context, check=False):
     """Generate poetry.lock inside the Nautobot container."""
-    run_command(context, "poetry lock --no-update")
+    run_command(context, f"poetry {'check' if check else 'lock --no-update'}")
 
 
 # ------------------------------------------------------------------------------
@@ -358,158 +370,164 @@ def exec(context, service="nautobot", command="bash", file=""):
 
 @task(
     help={
+        "db-name": "Database name (default: Nautobot database)",
+        "input-file": "SQL file to execute and quit (default: empty, start interactive CLI)",
+        "output-file": "Ouput file, overwrite if exists (default: empty, output to stdout)",
         "query": "SQL command to execute and quit (default: empty)",
-        "input": "SQL file to execute and quit (default: empty)",
-        "output": "Ouput file, overwrite if exists (default: empty)",
     }
 )
-def dbshell(context, query="", input="", output=""):
+def dbshell(context, db_name="", input_file="", output_file="", query=""):
     """Start database CLI inside the running `db` container.
 
     Doesn't use `nautobot-server dbshell`, using started `db` service container only.
     """
-    if input and query:
-        raise ValueError("Cannot specify both, `input` and `query` arguments")
-    if output and not (input or query):
-        raise ValueError("`output` argument requires `input` or `query` argument")
+    if input_file and query:
+        raise ValueError("Cannot specify both, `input_file` and `query` arguments")
+    if output_file and not (input_file or query):
+        raise ValueError("`output_file` argument requires `input_file` or `query` argument")
 
-    _load_dotenv()
+    env = {}
+    if query:
+        env["_SQL_QUERY"] = query
 
-    service = "db"
-    env_vars = {}
-    command = ["exec"]
+    command = [
+        "exec",
+        "--env=_SQL_QUERY" if query else "",
+        "-- db sh -c '",
+    ]
 
-    if "docker-compose.mysql.yml" in context.nautobot_ssot.compose_files:
-        env_vars["MYSQL_PWD"] = os.getenv("MYSQL_PASSWORD")
+    if _is_compose_included(context, "mysql"):
         command += [
-            "--env=MYSQL_PWD",
-            "--",
-            service,
             "mysql",
-            f"--user='{os.getenv('MYSQL_USER')}'",
-            f"--database='{os.getenv('MYSQL_DATABASE')}'",
+            "--user=$MYSQL_USER",
+            "--password=$MYSQL_PASSWORD",
+            f"--database={db_name or '$MYSQL_DATABASE'}",
         ]
-        if query:
-            command += [f"--execute='{query}'"]
-    elif "docker-compose.postgres.yml" in context.nautobot_ssot.compose_files:
+    elif _is_compose_included(context, "postgres"):
         command += [
-            "--",
-            service,
             "psql",
-            f"--username='{os.getenv('POSTGRES_USER')}'",
-            f"--dbname='{os.getenv('POSTGRES_DB')}'",
+            "--username=$POSTGRES_USER",
+            f"--dbname={db_name or '$POSTGRES_DB'}",
         ]
-        if query:
-            command += [f"--command='{query}'"]
     else:
         raise ValueError("Unsupported database backend.")
 
-    if input:
-        command += [f"< '{input}'"]
-    if output:
-        command += [f"> '{output}'"]
+    command += [
+        "'",
+        '<<<"$_SQL_QUERY"' if query else "",
+        f"< '{input_file}'" if input_file else "",
+        f"> '{output_file}'" if output_file else "",
+    ]
 
-    docker_compose(context, " ".join(command), env=env_vars, pty=not (input or output or query))
+    docker_compose(context, " ".join(command), env=env, pty=not (input_file or output_file or query))
 
 
 @task(
     help={
-        "input": "SQL dump file to replace the existing database with. This can be generated using `invoke backup-db` (default: `dump.sql`).",
+        "input-file": "SQL dump file to replace the existing database with. This can be generated using `invoke backup-db` (default: `dump.sql`).",
     }
 )
-def import_db(context, input="dump.sql"):
+def import_db(context, input_file="dump.sql"):
     """Stop Nautobot containers and replace the current database with the dump into the running `db` container."""
     docker_compose(context, "stop -- nautobot worker")
 
-    _load_dotenv()
+    command = ["exec -- db sh -c '"]
 
-    service = "db"
-    env_vars = {}
-    command = ["exec"]
-
-    if "docker-compose.mysql.yml" in context.nautobot_ssot.compose_files:
-        env_vars["MYSQL_PWD"] = os.getenv("MYSQL_PASSWORD")
+    if _is_compose_included(context, "mysql"):
         command += [
-            "--env=MYSQL_PWD",
-            "--",
-            service,
             "mysql",
-            f"--user='{os.getenv('MYSQL_USER')}'",
-            f"--database='{os.getenv('MYSQL_DATABASE')}'",
+            "--database=$MYSQL_DATABASE",
+            "--user=$MYSQL_USER",
+            "--password=$MYSQL_PASSWORD",
         ]
-    elif "docker-compose.postgres.yml" in context.nautobot_ssot.compose_files:
+    elif _is_compose_included(context, "postgres"):
         command += [
-            "--",
-            service,
             "psql",
-            f"--username='{os.getenv('POSTGRES_USER')}'",
+            "--username=$POSTGRES_USER",
             "postgres",
         ]
     else:
         raise ValueError("Unsupported database backend.")
 
-    command += [f"< '{input}'"]
+    command += [
+        "'",
+        f"< '{input_file}'",
+    ]
 
-    docker_compose(context, " ".join(command), env=env_vars, pty=False)
+    docker_compose(context, " ".join(command), pty=False)
 
     print("Database import complete, you can start Nautobot now: `invoke start`")
 
 
 @task(
     help={
-        "output": "Ouput file, overwrite if exists (default: `dump.sql`)",
+        "db-name": "Database name to backup (default: Nautobot database)",
+        "output-file": "Ouput file, overwrite if exists (default: `dump.sql`)",
         "readable": "Flag to dump database data in more readable format (default: `True`)",
     }
 )
-def backup_db(context, output="dump.sql", readable=True):
-    """Dump database into `output` file from running `db` container."""
-    _load_dotenv()
+def backup_db(context, db_name="", output_file="dump.sql", readable=True):
+    """Dump database into `output_file` file from running `db` container."""
+    command = ["exec -- db sh -c '"]
 
-    service = "db"
-    env_vars = {}
-    command = ["exec"]
-
-    if "docker-compose.mysql.yml" in context.nautobot_ssot.compose_files:
-        env_vars["MYSQL_PWD"] = os.getenv("MYSQL_ROOT_PASSWORD")
+    if _is_compose_included(context, "mysql"):
         command += [
-            "--env=MYSQL_PWD",
-            "--",
-            service,
             "mysqldump",
             "--user=root",
+            "--password=$MYSQL_ROOT_PASSWORD",
             "--add-drop-database",
             "--skip-extended-insert" if readable else "",
             "--databases",
-            os.getenv("MYSQL_DATABASE", ""),
+            db_name if db_name else "$MYSQL_DATABASE",
         ]
-    elif "docker-compose.postgres.yml" in context.nautobot_ssot.compose_files:
+    elif _is_compose_included(context, "postgres"):
         command += [
-            "--",
-            service,
             "pg_dump",
             "--clean",
             "--create",
             "--if-exists",
-            f"--username='{os.getenv('POSTGRES_USER')}'",
-            f"--dbname='{os.getenv('POSTGRES_DB')}'",
+            "--username=$POSTGRES_USER",
+            f"--dbname={db_name or '$POSTGRES_DB'}",
+            "--inserts" if readable else "",
         ]
-
-        if readable:
-            command += ["--inserts"]
     else:
         raise ValueError("Unsupported database backend.")
 
-    if output:
-        command += [f"> '{output}'"]
+    command += [
+        "'",
+        f"> '{output_file}'",
+    ]
 
-    docker_compose(context, " ".join(command), env=env_vars, pty=False)
+    docker_compose(context, " ".join(command), pty=False)
 
     print(50 * "=")
-    print("The database backup has been successfully completed and saved to the file:")
-    print(output)
-    print("If you want to import this database backup, please execute the following command:")
-    print(f"invoke import-db --input '{output}'")
+    print("The database backup has been successfully completed and saved to the following file:")
+    print(output_file)
+    print("You can import this database backup with the following command:")
+    print(f"invoke import-db --input-file '{output_file}'")
     print(50 * "=")
+
+
+# ------------------------------------------------------------------------------
+# DOCS
+# ------------------------------------------------------------------------------
+@task
+def docs(context):
+    """Build and serve docs locally for development."""
+    command = "mkdocs serve -v"
+
+    if is_truthy(context.nautobot_ssot.local):
+        print(">>> Serving Documentation at http://localhost:8001")
+        run_command(context, command)
+    else:
+        start(context, service="docs")
+
+
+@task
+def build_and_check_docs(context):
+    """Build documentation to be available within Nautobot."""
+    command = "mkdocs build --no-directory-urls --strict"
+    run_command(context, command)
 
 
 @task(name="help")
@@ -522,21 +540,6 @@ def help_task(context):
         print(50 * "-")
         print(f"invoke {task_name} --help")
         context.run(f"invoke {task_name} --help")
-
-
-# ------------------------------------------------------------------------------
-# DOCS
-# ------------------------------------------------------------------------------
-@task
-def docs(context):
-    """Build and serve docs locally for development."""
-    command = "mkdocs serve -v"
-
-    if is_truthy(context.nautobot_ssot.local):
-        print("Serving Documentation...")
-        run_command(context, command)
-    else:
-        print("Only used when developing locally (i.e. context.nautobot_ssot.local=True)!")
 
 
 # ------------------------------------------------------------------------------
@@ -597,7 +600,7 @@ def bandit(context):
 
 @task
 def yamllint(context):
-    """Run yamllint to validate formating adheres to NTC defined YAML standards.
+    """Run yamllint to validate formatting adheres to NTC defined YAML standards.
 
     Args:
         context (obj): Used to run specific commands
@@ -609,7 +612,7 @@ def yamllint(context):
 @task
 def check_migrations(context):
     """Check for missing migrations."""
-    command = "nautobot-server --config=nautobot/core/tests/nautobot_config.py makemigrations --dry-run --check"
+    command = "nautobot-server makemigrations --dry-run --check"
 
     run_command(context, command)
 
@@ -621,9 +624,18 @@ def check_migrations(context):
         "failfast": "fail as soon as a single test fails don't run the entire test suite",
         "buffer": "Discard output from passing tests",
         "pattern": "Run specific test methods, classes, or modules instead of all tests",
+        "verbose": "Enable verbose test output.",
     }
 )
-def unittest(context, keepdb=False, label="nautobot_ssot", failfast=False, buffer=True, pattern=""):
+def unittest(
+    context,
+    keepdb=False,
+    label="nautobot_ssot",
+    failfast=False,
+    buffer=True,
+    pattern="",
+    verbose=False,
+):
     """Run Nautobot unit tests."""
     command = f"coverage run --module nautobot.core.cli test {label}"
 
@@ -635,6 +647,9 @@ def unittest(context, keepdb=False, label="nautobot_ssot", failfast=False, buffe
         command += " --buffer"
     if pattern:
         command += f" -k='{pattern}'"
+    if verbose:
+        command += " --verbosity 2"
+
     run_command(context, command)
 
 
@@ -648,10 +663,12 @@ def unittest_coverage(context):
 
 @task(
     help={
-        "failfast": "fail as soon as a single test fails don't run the entire test suite",
+        "failfast": "fail as soon as a single test fails don't run the entire test suite. (default: False)",
+        "keepdb": "Save and re-use test database between test runs for faster re-testing. (default: False)",
+        "lint-only": "Only run linters; unit tests will be excluded. (default: False)",
     }
 )
-def tests(context, failfast=False):
+def tests(context, failfast=False, keepdb=False, lint_only=False):
     """Run all tests for this plugin."""
     # If we are not running locally, start the docker containers so we don't have to for each test
     if not is_truthy(context.nautobot_ssot.local):
@@ -668,9 +685,16 @@ def tests(context, failfast=False):
     pydocstyle(context)
     print("Running yamllint...")
     yamllint(context)
+    print("Running poetry check...")
+    lock(context, check=True)
+    print("Running migrations check...")
+    check_migrations(context)
     print("Running pylint...")
     pylint(context)
-    print("Running unit tests...")
-    unittest(context, failfast=failfast)
+    print("Running mkdocs...")
+    build_and_check_docs(context)
+    if not lint_only:
+        print("Running unit tests...")
+        unittest(context, failfast=failfast, keepdb=keepdb)
+        unittest_coverage(context)
     print("All tests have passed!")
-    unittest_coverage(context)

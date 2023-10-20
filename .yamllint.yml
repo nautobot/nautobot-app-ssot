@@ -10,5 +10,4 @@ rules:
     quote-type: "double"
 ignore: |
   .venv/
-  nautobot_ssot/integrations/aci/diffsync/device-types/
   compose.yaml

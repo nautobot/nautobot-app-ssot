@@ -1,47 +1,41 @@
 # Installing the App in Nautobot
 
+Here you will find detailed instructions on how to **install** and **configure** the App within your Nautobot environment.
+
+!!! warning "Developer Note - Remove Me!"
+    Detailed instructions on installing the App. You will need to update this section based on any additional dependencies or prerequisites.
+
 ## Prerequisites
 
-- The app is compatible with Nautobot 1.4.0 and higher.
+- The plugin is compatible with Nautobot 2.0.0 and higher.
 - Databases supported: PostgreSQL, MySQL
 
 !!! note
     Please check the [dedicated page](compatibility_matrix.md) for a full compatibility matrix and the deprecation policy.
 
-!!! warning
-    If upgrading from `1.x` version to `2.x` version of `nautobot-ssot` app, note that it now incorporates features previously provided by individual apps. For details, see the [upgrade guide](../admin/upgrade.md).
+### Access Requirements
+
+!!! warning "Developer Note - Remove Me!"
+    What external systems (if any) it needs access to in order to work.
 
 ## Install Guide
 
 !!! note
-    Nautobot apps can be installed manually or using Python's `pip`. See the [nautobot documentation](https://nautobot.readthedocs.io/en/latest/plugins/#install-the-package) for more details. The pip package name for this Nautobot app is [`nautobot-ssot`](https://pypi.org/project/nautobot-ssot/).
+    Plugins can be installed manually or using Python's `pip`. See the [nautobot documentation](https://nautobot.readthedocs.io/en/latest/plugins/#install-the-package) for more details. The pip package name for this plugin is [`nautobot-ssot`](https://pypi.org/project/nautobot-ssot/).
 
-The app is available as a Python package via PyPI and can be installed with `pip`:
+The plugin is available as a Python package via PyPI and can be installed with `pip`:
 
 ```shell
 pip install nautobot-ssot
 ```
 
-To use specific integrations, add them as extra dependencies:
-
-```shell
-# To install Cisco ACI integration:
-pip install nautobot-ssot[aci]
-
-# To install Arista CloudVision integration:
-pip install nautobot-ssot[aristacv]
-
-# To install all integrations:
-pip install nautobot-ssot[all]
-```
-
-To ensure Single Source of Truth is automatically re-installed during future upgrades, create a file named `local_requirements.txt` (if not already existing) in the Nautobot root directory (alongside `requirements.txt`) and list the `nautobot-ssot` package and any of the extras:
+To ensure Single Source of Truth is automatically re-installed during future upgrades, create a file named `local_requirements.txt` (if not already existing) in the Nautobot root directory (alongside `requirements.txt`) and list the `nautobot-ssot` package:
 
 ```shell
 echo nautobot-ssot >> local_requirements.txt
 ```
 
-Once installed, the Nautobot app needs to be enabled in your Nautobot configuration. The following block of code below shows the additional configuration required to be added to your `nautobot_config.py` file:
+Once installed, the plugin needs to be enabled in your Nautobot configuration. The following block of code below shows the additional configuration required to be added to your `nautobot_config.py` file:
 
 - Append `"nautobot_ssot"` to the `PLUGINS` list.
 - Append the `"nautobot_ssot"` dictionary to the `PLUGINS_CONFIG` dictionary and override any defaults.
@@ -52,7 +46,7 @@ PLUGINS = ["nautobot_ssot"]
 
 # PLUGINS_CONFIG = {
 #   "nautobot_ssot": {
-#     "hide_example_jobs": True
+#     ADD YOUR SETTINGS HERE
 #   }
 # }
 ```
@@ -75,20 +69,13 @@ sudo systemctl restart nautobot nautobot-worker nautobot-scheduler
 
 ## App Configuration
 
-The app behavior can be controlled with the following list of settings:
+!!! warning "Developer Note - Remove Me!"
+    Any configuration required to get the App set up. Edit the table below as per the examples provided.
 
-| Key                 | Example | Default | Description                                                |
-| ------------------- | ------- | ------- | ---------------------------------------------------------- |
-| `hide_example_jobs` | `True`  | `False` | A boolean to represent whether or display the example job. |
+The plugin behavior can be controlled with the following list of settings:
 
-## Integrations Configuration
-
-The `nautobot-ssot` package includes multiple integrations. Each requires extra dependencies defined in `pyproject.toml`.
-
-Set up each integration using the specific guides:
-
-- [Cisco ACI](./integrations/aci_setup.md)
-- [Arista CloudVision](./integrations/aristacv_setup.md)
-- [Infoblox](./integrations/infoblox_setup.md)
-- [IPFabric](./integrations/ipfabric_setup.md)
-- [ServiceNow](./integrations/servicenow_setup.md)
+| Key     | Example | Default | Description                          |
+| ------- | ------ | -------- | ------------------------------------- |
+| `enable_backup` | `True` | `True` | A boolean to represent whether or not to run backup configurations within the plugin. |
+| `platform_slug_map` | `{"cisco_wlc": "cisco_aireos"}` | `None` | A dictionary in which the key is the platform slug and the value is what netutils uses in any "network_os" parameter. |
+| `per_feature_bar_width` | `0.15` | `0.15` | The width of the table bar within the overview report |
