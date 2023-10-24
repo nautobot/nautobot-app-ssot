@@ -1,6 +1,8 @@
 # App Overview
 
-An app for Nautobot. This Nautobot app facilitates integration and data synchronization between various "source of truth" (SoT) systems, with Nautobot acting as a central clearinghouse for data - a Single Source of Truth, if you will.
+This document provides an overview of the App including critical information and import considerations when applying it to your Nautobot environment.
+
+This Nautobot app facilitates integration and data synchronization between various "source of truth" (SoT) systems, with Nautobot acting as a central clearinghouse for data - a Single Source of Truth, if you will.
 
 !!! note
     Throughout this documentation, the terms "app" and "plugin" will be used interchangeably.

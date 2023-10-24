@@ -6,7 +6,6 @@ from os import path
 
 import unittest
 from unittest.mock import patch
-import pytest
 from requests.models import HTTPError
 import requests_mock
 
@@ -207,10 +206,10 @@ class TestInfobloxTest(unittest.TestCase):
 
         with requests_mock.Mocker() as req:
             req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=404)
-            with pytest.raises(HTTPError) as err:
+            with self.assertRaises(HTTPError) as context:
                 self.infoblox_client.get_host_record_by_name(mock_fqdn)
 
-        self.assertEqual(err.value.response.status_code, 404)
+        self.assertEqual(context.exception.response.status_code, 404)
 
     def test_get_host_record_by_ip_success(self):
         """Test get_host_by_ip success."""
@@ -232,10 +231,10 @@ class TestInfobloxTest(unittest.TestCase):
 
         with requests_mock.Mocker() as req:
             req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=404)
-            with pytest.raises(HTTPError) as err:
+            with self.assertRaises(HTTPError) as context:
                 self.infoblox_client.get_host_record_by_ip(mock_ip)
 
-        self.assertEqual(err.value.response.status_code, 404)
+        self.assertEqual(context.exception.response.status_code, 404)
 
     def test_get_a_record_by_name_success(self):
         """Test get_a_record_by_name success."""
@@ -257,10 +256,10 @@ class TestInfobloxTest(unittest.TestCase):
 
         with requests_mock.Mocker() as req:
             req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=404)
-            with pytest.raises(HTTPError) as err:
+            with self.assertRaises(HTTPError) as context:
                 self.infoblox_client.get_a_record_by_name(mock_fqdn)
 
-        self.assertEqual(err.value.response.status_code, 404)
+        self.assertEqual(context.exception.response.status_code, 404)
 
     def test_get_a_record_by_ip_success(self):
         """Test get_a_record_by_ip success."""
@@ -282,10 +281,10 @@ class TestInfobloxTest(unittest.TestCase):
 
         with requests_mock.Mocker() as req:
             req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=404)
-            with pytest.raises(HTTPError) as err:
+            with self.assertRaises(HTTPError) as context:
                 self.infoblox_client.get_a_record_by_ip(mock_ip)
 
-        self.assertEqual(err.value.response.status_code, 404)
+        self.assertEqual(context.exception.response.status_code, 404)
 
     def test_get_all_dns_views_success(self):
         """Test get_all_dns_views success."""
@@ -305,10 +304,10 @@ class TestInfobloxTest(unittest.TestCase):
 
         with requests_mock.Mocker() as req:
             req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=404)
-            with pytest.raises(HTTPError) as err:
+            with self.assertRaises(HTTPError) as context:
                 self.infoblox_client.get_all_dns_views()
 
-        self.assertEqual(err.value.response.status_code, 404)
+        self.assertEqual(context.exception.response.status_code, 404)
 
     def test_get_dhcp_lease_from_ipv4_success(self):
         """Test get_dhcp_lease_from_ipv4 success."""
@@ -330,10 +329,10 @@ class TestInfobloxTest(unittest.TestCase):
 
         with requests_mock.Mocker() as req:
             req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=404)
-            with pytest.raises(HTTPError) as err:
+            with self.assertRaises(HTTPError) as context:
                 self.infoblox_client.get_dhcp_lease_from_ipv4(mock_ip)
 
-        self.assertEqual(err.value.response.status_code, 404)
+        self.assertEqual(context.exception.response.status_code, 404)
 
     def test_get_dhcp_lease_from_hostname_success(self):
         """Test get_dhcp_lease_from_hostname success."""
@@ -355,10 +354,10 @@ class TestInfobloxTest(unittest.TestCase):
 
         with requests_mock.Mocker() as req:
             req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=404)
-            with pytest.raises(HTTPError) as err:
+            with self.assertRaises(HTTPError) as context:
                 self.infoblox_client.get_dhcp_lease_from_hostname(mock_host)
 
-        self.assertEqual(err.value.response.status_code, 404)
+        self.assertEqual(context.exception.response.status_code, 404)
 
     def test_get_all_subnets_success(self):
         """Test get_all_subnets success."""
@@ -400,10 +399,10 @@ class TestInfobloxTest(unittest.TestCase):
 
         with requests_mock.Mocker() as req:
             req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=404)
-            with pytest.raises(HTTPError) as err:
+            with self.assertRaises(HTTPError) as context:
                 self.infoblox_client.get_authoritative_zone()
 
-        self.assertEqual(err.value.response.status_code, 404)
+        self.assertEqual(context.exception.response.status_code, 404)
 
     def test_create_ptr_record_success(self):
         mock_uri = "record:ptr"
@@ -427,10 +426,10 @@ class TestInfobloxTest(unittest.TestCase):
         with requests_mock.Mocker() as req:
             req.post(f"{LOCALHOST}/{mock_uri}", json=mock_payload, status_code=404)
 
-            with pytest.raises(HTTPError) as err:
+            with self.assertRaises(HTTPError) as context:
                 self.infoblox_client.create_ptr_record(mock_fqdn, mock_ip_address)
 
-        self.assertEqual(err.value.response.status_code, 404)
+        self.assertEqual(context.exception.response.status_code, 404)
 
     def test_create_a_record_success(self):
         mock_uri = "record:a"
@@ -453,10 +452,10 @@ class TestInfobloxTest(unittest.TestCase):
         with requests_mock.Mocker() as req:
             req.post(f"{LOCALHOST}/{mock_uri}", json="", status_code=404)
 
-            with pytest.raises(HTTPError) as err:
+            with self.assertRaises(HTTPError) as context:
                 self.infoblox_client.create_a_record(mock_fqdn, mock_ip_address)
 
-        self.assertEqual(err.value.response.status_code, 404)
+        self.assertEqual(context.exception.response.status_code, 404)
 
     def test_create_host_record_success(self):
         mock_uri = "record:host"
@@ -574,10 +573,10 @@ class TestInfobloxTest(unittest.TestCase):
         with requests_mock.Mocker() as req:
             req.get(f"{LOCALHOST}/{mock_uri}", json="", status_code=404)
 
-            with pytest.raises(HTTPError) as err:
+            with self.assertRaises(HTTPError) as context:
                 self.infoblox_client._find_network_reference(mock_network)
 
-        self.assertEqual(err.value.response.status_code, 404)
+        self.assertEqual(context.exception.response.status_code, 404)
 
     def test_get_ptr_record_by_name_success(self):
         """Test get_ptr_record_by_name success."""
@@ -611,10 +610,10 @@ class TestInfobloxTest(unittest.TestCase):
         with requests_mock.Mocker() as req:
             req.get(f"{LOCALHOST}/{mock_uri}", json="", status_code=404)
 
-            with pytest.raises(HTTPError) as err:
+            with self.assertRaises(HTTPError) as context:
                 self.infoblox_client.get_ptr_record_by_name(mock_fqdn)
 
-        self.assertEqual(err.value.response.status_code, 404)
+        self.assertEqual(context.exception.response.status_code, 404)
 
     def test_search_ipv4_address_success(self):
         """Test search_ipv4_address success."""
@@ -636,7 +635,7 @@ class TestInfobloxTest(unittest.TestCase):
 
         with requests_mock.Mocker() as req:
             req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=404)
-            with pytest.raises(HTTPError) as err:
+            with self.assertRaises(HTTPError) as context:
                 self.infoblox_client.search_ipv4_address(mock_ip)
 
-        self.assertEqual(err.value.response.status_code, 404)
+        self.assertEqual(context.exception.response.status_code, 404)

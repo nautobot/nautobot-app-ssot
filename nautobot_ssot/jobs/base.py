@@ -3,7 +3,7 @@ from collections import namedtuple
 from datetime import datetime
 import traceback
 import tracemalloc
-from typing import Iterable
+from typing import Iterable, Optional
 
 from django.db.utils import OperationalError
 from django.templatetags.static import static
@@ -19,7 +19,7 @@ import structlog
 from nautobot.extras.jobs import DryRunVar, Job, BooleanVar
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices
-from nautobot_ssot.models import Sync, SyncLogEntry
+from nautobot_ssot.models import BaseModel, Sync, SyncLogEntry
 
 
 DataMapping = namedtuple("DataMapping", ["source_name", "source_url", "target_name", "target_url"])
@@ -172,7 +172,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             if memory_profiling:
                 record_memory_trace("sync")
 
-    def lookup_object(self, model_name, unique_id):  # pylint: disable=unused-argument
+    def lookup_object(self, model_name, unique_id) -> Optional[BaseModel]:  # pylint: disable=unused-argument
         """Look up the Nautobot record, if any, identified by the args.
 
         Optional helper method used to build more detailed/accurate SyncLogEntry records from DiffSync logs.
@@ -182,7 +182,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             unique_id (str): DiffSyncModel unique_id or similar unique identifier.
 
         Returns:
-            Union[models.Model, None]: Nautobot model instance, or None
+            Optional[BaseModel]: Nautobot model instance, or None
         """
         return None
 

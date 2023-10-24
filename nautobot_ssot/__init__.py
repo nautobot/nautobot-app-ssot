@@ -3,7 +3,7 @@ import os
 from importlib import metadata
 
 from django.conf import settings
-from nautobot.extras.plugins import PluginConfig
+from nautobot.extras.plugins import NautobotAppConfig
 from nautobot.core.settings_funcs import is_truthy
 
 from nautobot_ssot.integrations.utils import each_enabled_integration_module
@@ -35,7 +35,7 @@ if not is_truthy(os.getenv("NAUTOBOT_SSOT_ALLOW_CONFLICTING_APPS", "False")):
     _check_for_conflicting_apps()
 
 
-class NautobotSSOTPluginConfig(PluginConfig):
+class NautobotSSOTPluginConfig(NautobotAppConfig):
     """Plugin configuration for the nautobot_ssot plugin."""
 
     name = "nautobot_ssot"
