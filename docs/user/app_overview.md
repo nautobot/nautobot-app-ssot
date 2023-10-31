@@ -24,3 +24,4 @@ The Nautobot SSoT app builds atop the [DiffSync](https://github.com/networktocod
 * Glenn Matthew (@glennmatthews)
 * Christian Adell (@chadell)
 * Justin Drew (@jdrew82)
+* Leo Kirchener (@Kircheneer)
