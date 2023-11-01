@@ -15,6 +15,7 @@ Conflicting apps list:
 
 - `nautobot_ssot_aci`
 - `nautobot_ssot_arista_cloudvision`
+- `nautobot_ssot_device42`
 - `nautobot_ssot_infoblox`
 - `nautobot_ssot_ipfabric`
 - `nautobot_ssot_servicenow`

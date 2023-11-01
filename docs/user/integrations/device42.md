@@ -1,4 +1,4 @@
-# Arista CloudVision SSoT Integration
+# Device42 SSoT Integration
 
 The Device42 SSoT integration is built as part of the [Nautobot Single Source of Truth (SSoT)](../..tps://github.com/nautobot/nautobot-plugin-ssot) app. The SSoT app enables Nautobot to be the aggregation point for data coming from multiple systems of record (SoR).
 
