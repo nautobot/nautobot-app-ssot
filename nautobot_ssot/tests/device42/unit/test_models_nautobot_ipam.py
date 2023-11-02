@@ -39,11 +39,10 @@ class TestNautobotVRFGroup(TransactionTestCase):
         test_vrf = ipam.NautobotVRFGroup(
             name="Test", description="Test VRF", tags=["test"], custom_fields={}, uuid=self.vrf.id
         )
-        test_vrf.diffsync = MagicMock()
-        test_vrf.diffsync.job.logger.info = MagicMock()
+        test_vrf.diffsync = self.diffsync
         update_attrs = {"description": "Test VRF Update", "custom_fields": {"test": {"key": "test", "value": "test"}}}
         actual = ipam.NautobotVRFGroup.update(self=test_vrf, attrs=update_attrs)
-        test_vrf.diffsync.job.logger.info.assert_called_once_with("Updating VRF Test.")
+        self.diffsync.job.logger.info.assert_called_once_with("Updating VRF Test.")
         self.vrf.refresh_from_db()
         self.assertEqual(self.vrf.description, update_attrs["description"])
         self.assertEqual(self.vrf.custom_field_data["test"], "test")
@@ -77,12 +76,13 @@ class TestNautobotSubnet(TransactionTestCase):
 
     def setUp(self):
         super().setUp()
+        self.status_active = Status.objects.get(name="Active")
         self.test_ns = Namespace.objects.get_or_create(name="Test")[0]
         self.test_vrf = VRF.objects.get_or_create(name="Test", namespace=self.test_ns)[0]
         self.diffsync = DiffSync()
         self.diffsync.namespace_map = {"Test": self.test_ns.id}
         self.diffsync.vrf_map = {"Test": self.test_vrf.id}
-        self.diffsync.status_map = {"Active": Status.objects.get(name="Active").id}
+        self.diffsync.status_map = {"Active": self.status_active.id}
         self.diffsync.prefix_map = {}
         self.diffsync.job = MagicMock()
         self.diffsync.job.logger.info = MagicMock()
@@ -98,3 +98,21 @@ class TestNautobotSubnet(TransactionTestCase):
         self.assertEqual(str(subnet.prefix), f"{ids['network']}/{ids['mask_bits']}")
         self.assertEqual(self.diffsync.prefix_map["Test"][f"{ids['network']}/{ids['mask_bits']}"], subnet.id)
         self.assertEqual(subnet.vrfs.all().first(), self.test_vrf)
+
+    def test_update(self):
+        """Validate the NautobotSubnet update() method updates a Prefix."""
+        prefix = Prefix.objects.create(prefix="10.0.0.0/24", namespace=self.test_ns, status=self.status_active)
+        test_pf = ipam.NautobotSubnet(
+            network="10.0.0.0", mask_bits=24, description=None, vrf="Test", tags=[], custom_fields={}, uuid=prefix.id
+        )
+        test_pf.diffsync = self.diffsync
+        update_attrs = {
+            "description": "Test Prefix",
+            "tags": ["test"],
+            "custom_fields": {"test": {"key": "test", "value": "test"}},
+        }
+        actual = ipam.NautobotSubnet.update(self=test_pf, attrs=update_attrs)
+        self.diffsync.job.logger.info.assert_called_once_with("Updating Prefix 10.0.0.0/24.")
+        prefix.refresh_from_db()
+        self.assertEqual(prefix.description, "Test Prefix")
+        self.assertEqual(actual, test_pf)
