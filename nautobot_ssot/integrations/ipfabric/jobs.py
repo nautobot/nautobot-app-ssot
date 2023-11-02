@@ -4,7 +4,6 @@
 """IP Fabric Data Target Job."""
 import uuid
 from diffsync.exceptions import ObjectNotCreated
-from django.conf import settings
 from django.templatetags.static import static
 from django.urls import reverse
 from httpx import ConnectError
@@ -20,11 +19,7 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyn
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import DiffSyncExtras
 from nautobot_ssot.integrations.ipfabric import constants
 
-CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
-IPFABRIC_HOST = CONFIG["ipfabric_host"]
-IPFABRIC_API_TOKEN = CONFIG["ipfabric_api_token"]
-IPFABRIC_SSL_VERIFY = CONFIG["ipfabric_ssl_verify"]
-IPFABRIC_TIMEOUT = CONFIG["ipfabric_timeout"]
+
 LAST = "$last"
 PREV = "$prev"
 LAST_LOCKED = "$lastLocked"
@@ -144,10 +139,10 @@ class IpFabricDataSource(DataSource):
     def _init_ipf_client():
         try:
             return IPFClient(
-                base_url=IPFABRIC_HOST,
-                token=IPFABRIC_API_TOKEN,
-                verify=IPFABRIC_SSL_VERIFY,
-                timeout=IPFABRIC_TIMEOUT,
+                base_url=constants.IPFABRIC_HOST,
+                token=constants.IPFABRIC_API_TOKEN,
+                verify=constants.IPFABRIC_SSL_VERIFY,
+                timeout=constants.IPFABRIC_TIMEOUT,
                 unloaded=False,
             )
         except (RuntimeError, ConnectError) as error:
@@ -200,17 +195,19 @@ class IpFabricDataSource(DataSource):
     def config_information(cls):
         """Dictionary describing the configuration of this DataSource."""
         return {
-            "IP Fabric host": CONFIG["ipfabric_host"],
-            "Nautobot Host URL": CONFIG.get("nautobot_host"),
-            "Default MAC Address": constants.DEFAULT_INTERFACE_MAC,
+            "IP Fabric host": constants.IPFABRIC_HOST,
+            "Nautobot Host URL": constants.NAUTOBOT_HOST,
             "Default Device Role": constants.DEFAULT_DEVICE_ROLE,
-            "Default Interface Type": constants.DEFAULT_INTERFACE_TYPE,
+            "Default Device Role Color": constants.DEFAULT_DEVICE_ROLE_COLOR,
             "Default Device Status": constants.DEFAULT_DEVICE_STATUS,
-            "Allow Duplicate Addresses": constants.ALLOW_DUPLICATE_ADDRESSES,
+            "Default Device Status Color": constants.DEFAULT_DEVICE_STATUS_COLOR,
+            "Default Interface Type": constants.DEFAULT_INTERFACE_TYPE,
+            "Default MAC Address": constants.DEFAULT_INTERFACE_MAC,
             "Default MTU": constants.DEFAULT_INTERFACE_MTU,
+            "Allow Duplicate Addresses": constants.ALLOW_DUPLICATE_ADDRESSES,
             "Safe Delete Device Status": constants.SAFE_DELETE_DEVICE_STATUS,
             "Safe Delete Location Status": constants.SAFE_DELETE_LOCATION_STATUS,
-            "Safe Delete IPAddress Status": constants.SAFE_IPADDRESS_INTERFACES_STATUS,
+            "Safe Delete IPAddress Status": constants.SAFE_DELETE_IPADDRESS_STATUS,
             "Safe Delete VLAN status": constants.SAFE_DELETE_VLAN_STATUS,
         }
 

@@ -2,7 +2,6 @@
 """Chat Ops Worker."""
 import uuid
 
-from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from nautobot.core.settings_funcs import is_truthy
 from nautobot.extras.models import JobResult
@@ -17,11 +16,11 @@ from nautobot_chatops.dispatchers import Dispatcher
 from nautobot_chatops.workers import handle_subcommands, subcommand_of
 
 from nautobot_ssot.integrations.ipfabric.jobs import IpFabricDataSource
+from nautobot_ssot.integrations.ipfabric import constants
 
 # from nautobot.dcim.models import Site
 
-CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
-NAUTOBOT_HOST = CONFIG.get("nautobot_host")
+NAUTOBOT_HOST = constants.NAUTOBOT_HOST
 
 BASE_CMD = "ipfabric"
 IPFABRIC_LOGO_PATH = "nautobot_ssot_ipfabric/ipfabric_logo.png"
