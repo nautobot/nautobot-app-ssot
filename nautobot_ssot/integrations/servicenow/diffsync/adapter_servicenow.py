@@ -17,6 +17,10 @@ from . import models
 class ServiceNowDiffSync(Adapter):
     """DiffSync adapter using pysnow to communicate with a ServiceNow server."""
 
+    # create defaultdict object to store objects that should be deleted from ServiceNow if they do not
+    # exist in Nautobot
+    objects_to_delete = defaultdict(list)
+
     company = models.Company
     device = models.Device  # child of location
     interface = models.Interface  # child of device
@@ -294,3 +298,23 @@ class ServiceNowDiffSync(Adapter):
         self.bulk_create_interfaces()
 
         source.tag_involved_objects(target=self)
+
+        # If there are objects inside any of the lists in objects_to_delete then iterate over those objects
+        # and remove them from ServiceNow
+        if (
+            self.objects_to_delete["interface"]
+            or self.objects_to_delete["device"]
+            or self.objects_to_delete["product_model"]
+            or self.objects_to_delete["location"]
+            or self.objects_to_delete["company"]
+        ):
+            for grouping in (
+                "interface",
+                "device",
+                "product_model",
+                "location",
+                "company",
+            ):
+                for sn_object in self.objects_to_delete[grouping]:
+                    sn_object.delete()
+                self.objects_to_delete[grouping] = []
