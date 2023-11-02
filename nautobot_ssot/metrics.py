@@ -99,14 +99,14 @@ def metric_sync_operations():
         # Skip any jobs that aren't SSoT jobs
         if job.job_class is None or not issubclass(job.job_class, (DataSource, DataTarget)):
             continue
-        else:
-            last_job_sync = Sync.objects.filter(job_result__job_model_id=job.id).last()
-            if last_job_sync and last_job_sync.summary:
-                for operation, value in last_job_sync.summary.items():
-                    sync_ops.add_metric(
-                        labels=[".".join(job.natural_key()), operation],
-                        value=value,
-                    )
+
+        last_job_sync = Sync.objects.filter(job_result__job_model_id=job.id).last()
+        if last_job_sync and last_job_sync.summary:
+            for operation, value in last_job_sync.summary.items():
+                sync_ops.add_metric(
+                    labels=[".".join(job.natural_key()), operation],
+                    value=value,
+                )
     data_sources, data_targets = get_data_jobs()
     if len(data_sources + data_targets) == 0:
         sync_ops.add_metric(labels=["", ""], value=0)
@@ -128,18 +128,17 @@ def metric_memory_usage():
         # Skip any jobs that aren't SSoT jobs
         if job.job_class is None or not issubclass(job.job_class, (DataSource, DataTarget)):
             continue
+        last_job_sync = Sync.objects.filter(
+            job_result__job_model_id=job.id, source_load_memory_final__isnull=False
+        ).last()
+        if last_job_sync and last_job_sync.summary:
+            for operation, value in last_job_sync.summary.items():
+                memory_gauge.add_metric(
+                    labels=[operation, ".".join(job.natural_key())],
+                    value=value,
+                )
         else:
-            last_job_sync = Sync.objects.filter(
-                job_result__job_model_id=job.id, source_load_memory_final__isnull=False
-            ).last()
-            if last_job_sync and last_job_sync.summary:
-                for operation, value in last_job_sync.summary.items():
-                    memory_gauge.add_metric(
-                        labels=[operation, ".".join(job.natural_key())],
-                        value=value,
-                    )
-            else:
-                memory_gauge.add_metric(labels=["", ""], value=0)
+            memory_gauge.add_metric(labels=["", ""], value=0)
 
     yield memory_gauge
 
