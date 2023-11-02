@@ -79,6 +79,7 @@ class TestNautobotSubnet(TransactionTestCase):
         self.status_active = Status.objects.get(name="Active")
         self.test_ns = Namespace.objects.get_or_create(name="Test")[0]
         self.test_vrf = VRF.objects.get_or_create(name="Test", namespace=self.test_ns)[0]
+        self.prefix = Prefix.objects.create(prefix="10.0.0.0/24", namespace=self.test_ns, status=self.status_active)
         self.diffsync = DiffSync()
         self.diffsync.namespace_map = {"Test": self.test_ns.id}
         self.diffsync.vrf_map = {"Test": self.test_vrf.id}
@@ -89,6 +90,7 @@ class TestNautobotSubnet(TransactionTestCase):
 
     def test_create(self):
         """Validate the NautobotSubnet create() method creates a Prefix."""
+        self.prefix.delete()
         ids = {"network": "10.0.0.0", "mask_bits": "24", "vrf": "Test"}
         attrs = {"description": "", "tags": [], "custom_fields": {}}
         result = ipam.NautobotSubnet.create(self.diffsync, ids, attrs)
@@ -101,9 +103,14 @@ class TestNautobotSubnet(TransactionTestCase):
 
     def test_update(self):
         """Validate the NautobotSubnet update() method updates a Prefix."""
-        prefix = Prefix.objects.create(prefix="10.0.0.0/24", namespace=self.test_ns, status=self.status_active)
         test_pf = ipam.NautobotSubnet(
-            network="10.0.0.0", mask_bits=24, description=None, vrf="Test", tags=[], custom_fields={}, uuid=prefix.id
+            network="10.0.0.0",
+            mask_bits=24,
+            description=None,
+            vrf="Test",
+            tags=[],
+            custom_fields={},
+            uuid=self.prefix.id,
         )
         test_pf.diffsync = self.diffsync
         update_attrs = {
@@ -113,6 +120,32 @@ class TestNautobotSubnet(TransactionTestCase):
         }
         actual = ipam.NautobotSubnet.update(self=test_pf, attrs=update_attrs)
         self.diffsync.job.logger.info.assert_called_once_with("Updating Prefix 10.0.0.0/24.")
-        prefix.refresh_from_db()
-        self.assertEqual(prefix.description, "Test Prefix")
+        self.prefix.refresh_from_db()
+        self.assertEqual(self.prefix.description, "Test Prefix")
         self.assertEqual(actual, test_pf)
+
+    @patch(
+        "nautobot_ssot.integrations.device42.diffsync.models.nautobot.ipam.PLUGIN_CFG",
+        {"device42_delete_on_sync": True},
+    )
+    @patch("nautobot_ssot.integrations.device42.diffsync.models.nautobot.ipam.OrmPrefix.objects.get")
+    def test_delete(self, mock_vrf):
+        """Validate the NautobotVRFGroup delete() deletes a Prefix."""
+        test_pf = ipam.NautobotSubnet(
+            network="10.0.0.0",
+            mask_bits=24,
+            description=None,
+            vrf="Test",
+            tags=None,
+            custom_fields=None,
+            uuid=self.prefix.id,
+        )
+        test_pf.diffsync = self.diffsync
+        mock_vrf.return_value = self.prefix
+        self.diffsync.objects_to_delete = {"subnet": []}
+
+        test_pf.delete()
+
+        self.diffsync.job.logger.info.assert_called_once_with("Prefix 10.0.0.0/24 will be deleted.")
+        self.assertEqual(len(self.diffsync.objects_to_delete["subnet"]), 1)
+        self.assertEqual(self.diffsync.objects_to_delete["subnet"][0].id, self.prefix.id)
