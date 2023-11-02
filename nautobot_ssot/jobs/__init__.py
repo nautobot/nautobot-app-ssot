@@ -43,6 +43,8 @@ def get_data_jobs():
     data_sources = []
     data_targets = []
     for job in sync_jobs:
+        if job.job_class is None or not issubclass(job.job_class, (DataSource, DataTarget)):
+            continue
         if issubclass(job.job_class, DataSource):
             data_sources.append(job)
         if issubclass(job.job_class, DataTarget):
