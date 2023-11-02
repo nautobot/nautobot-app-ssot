@@ -29,17 +29,18 @@ class ServiceNowCRUDMixin:
                 sys_id = None
                 if "column" not in mapping["reference"]:
                     raise NotImplementedError
-                column_name = mapping["reference"]["column"]
+                # column_name = mapping["reference"]["column"]
                 if value is not None:
+                    # Cacheing disabled as it was introducing instability and unpredictable results during delete method testing
                     # Look in the cache first
-                    sys_id = self._sys_id_cache.get(tablename, {}).get(column_name, {}).get(value, None)
-                    if not sys_id:
-                        target = self.diffsync.client.get_by_query(tablename, {mapping["reference"]["column"]: value})
-                        if target is None:
-                            self.diffsync.job.logger.warning(f"Unable to find reference target in {tablename}")
-                        else:
-                            sys_id = target["sys_id"]
-                            self._sys_id_cache.setdefault(tablename, {}).setdefault(column_name, {})[value] = sys_id
+                    # sys_id = self._sys_id_cache.get(tablename, {}).get(column_name, {}).get(value, None)
+                    # if not sys_id:
+                    target = self.diffsync.client.get_by_query(tablename, {mapping["reference"]["column"]: value})
+                    if target is None:
+                        self.diffsync.job.logger.warning(f"Unable to find reference target in {tablename}")
+                    else:
+                        sys_id = target["sys_id"]
+                        # self._sys_id_cache.setdefault(tablename, {}).setdefault(column_name, {})[value] = sys_id
 
                 record[mapping["reference"]["key"]] = sys_id
             else:
@@ -82,7 +83,29 @@ class ServiceNowCRUDMixin:
         super().update(attrs)
         return self
 
-    # TODO delete() method
+    def delete(self):
+        """Delete an existing instance in ServiceNow if it does not exist in Nautobot. This code adds the ServiceNow object to the objects_to_delete[object_class] list. The actual delete occurs in the post-run method of adapter_servicenow.py."""
+        entry = self.diffsync.mapping_data[self.get_type()]
+        sn_resource = self.diffsync.client.resource(api_path=f"/table/{entry['table']}")
+        query = self.map_data_to_sn_record(data=self.get_identifiers(), mapping_entry=entry)
+        try:
+            sn_resource.get(query=query).one()
+        except pysnow.exceptions.MultipleResults:
+            self.diffsync.job.logger.error(
+                f"Unsure which record to update, as query {query} matched more than one item "
+                f"in table {entry['table']}"
+            )
+            return None
+        try:
+            self.diffsync.job.logger.warning(f"{self._modelname} {self.get_identifiers()} will be deleted.")
+            _object = sn_resource.get(query=query)
+            self.diffsync.objects_to_delete[self._modelname].append(_object)
+            print(self.diffsync.objects_to_delete[self._modelname])
+            super().delete()
+        except Exception as exception:
+            print(f"Issue with deleting {query}. Moving on to next entry.")
+            print(f"Error code is: {exception}")
+        return self
 
 
 class Company(ServiceNowCRUDMixin, DiffSyncModel):
@@ -96,7 +119,7 @@ class Company(ServiceNowCRUDMixin, DiffSyncModel):
     }
 
     name: str
-    manufacturer: bool = False
+    manufacturer: bool = True
 
     product_models: List["ProductModel"] = []
 
@@ -110,7 +133,7 @@ class ProductModel(ServiceNowCRUDMixin, DiffSyncModel):
     _modelname = "product_model"
     _identifiers = ("manufacturer_name", "model_name", "model_number")
 
-    manufacturer_name: Optional[str]  # some ServiceNow products have no associated manufacturer?
+    manufacturer_name: str
     # Nautobot has only one combined "model" field, but ServiceNow has both name and number
     model_name: str
     model_number: str
@@ -196,8 +219,6 @@ class Device(ServiceNowCRUDMixin, DiffSyncModel):
 
         return model
 
-    # TODO delete() method
-
 
 class Interface(ServiceNowCRUDMixin, DiffSyncModel):
     """ServiceNow Interface model."""
@@ -252,8 +273,6 @@ class Interface(ServiceNowCRUDMixin, DiffSyncModel):
         else:
             model = super().create(diffsync, ids=ids, attrs=attrs)
         return model
-
-    # TODO delete() method
 
 
 class IPAddress(ServiceNowCRUDMixin, DiffSyncModel):
