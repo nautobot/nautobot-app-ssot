@@ -96,7 +96,10 @@ def metric_sync_operations():
     )
 
     for job in Job.objects.all():
-        if issubclass(job.job_class, (DataSource, DataTarget)):
+        # Skip any jobs that aren't SSoT jobs
+        if job.job_class is None or not issubclass(job.job_class, (DataSource, DataTarget)):
+            continue
+        else:
             last_job_sync = Sync.objects.filter(job_result__job_model_id=job.id).last()
             if last_job_sync and last_job_sync.summary:
                 for operation, value in last_job_sync.summary.items():
@@ -122,7 +125,10 @@ def metric_memory_usage():
     )
 
     for job in Job.objects.all():
-        if issubclass(job.job_class, (DataSource, DataTarget)):
+        # Skip any jobs that aren't SSoT jobs
+        if job.job_class is None or not issubclass(job.job_class, (DataSource, DataTarget)):
+            continue
+        else:
             last_job_sync = Sync.objects.filter(
                 job_result__job_model_id=job.id, source_load_memory_final__isnull=False
             ).last()
