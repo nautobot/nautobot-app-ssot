@@ -203,12 +203,12 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         self.diffsync.prefix_map = {"10.0.0.0/24": self.prefix.id}
         self.diffsync.device_map = {"Test Device": self.test_dev.id}
         self.diffsync.port_map = {"Test Device": {"eth0": self.dev_eth0.id}}
+        self.diffsync.ipaddr_map = {}
         self.diffsync.job = MagicMock()
         self.diffsync.job.logger.info = MagicMock()
 
     def test_create_with_existing_interface(self):
         """Validate the NautobotIPAddress.create() functionality with existing Interface."""
-        self.diffsync.ipaddr_map = {}
         result = ipam.NautobotIPAddress.create(self.diffsync, self.ids, self.attrs)
         self.assertIsInstance(result, ipam.NautobotIPAddress)
         self.diffsync.job.logger.info.assert_called_once_with("Creating IPAddress 10.0.0.1/24.")
@@ -222,7 +222,7 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         self.assertEqual(self.test_dev.primary_ip4, ipaddr)
 
     def test_create_with_missing_prefix(self):
-        """Validate the NautobotIPAddress.create() functionality with existing Interface."""
+        """Validate the NautobotIPAddress.create() functionality with missing Prefix."""
         self.prefix.delete()
         self.diffsync.job.logger.error = MagicMock()
         result = ipam.NautobotIPAddress.create(self.diffsync, self.ids, self.attrs)
@@ -230,3 +230,11 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
             "Unable to find prefix 10.0.0.0/24 to create IPAddress 10.0.0.1/24 for."
         )
         self.assertIsNone(result)
+
+    def test_create_with_missing_interface(self):
+        """Validate the NautobotIPAddress.create() functionality with missing Interface."""
+        self.diffsync.port_map = {}
+        self.diffsync.job.logger.debug = MagicMock()
+        result = ipam.NautobotIPAddress.create(self.diffsync, self.ids, self.attrs)
+        self.diffsync.job.logger.debug.assert_called_once_with("Unable to find Interface eth0 for Test Device.")
+        self.assertIsInstance(result, ipam.NautobotIPAddress)
