@@ -1,9 +1,11 @@
 """Test DiffSync IPAM models for Nautobot."""
 from unittest.mock import MagicMock, patch
+from django.contrib.contenttypes.models import ContentType
 from diffsync import DiffSync
 from nautobot.core.testing import TransactionTestCase
-from nautobot.extras.models import Status
-from nautobot.ipam.models import Namespace, Prefix, VRF
+from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer, Platform
+from nautobot.extras.models import Role, Status
+from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix, VRF
 from nautobot_ssot.integrations.device42.diffsync.models.nautobot import ipam
 
 
@@ -149,3 +151,71 @@ class TestNautobotSubnet(TransactionTestCase):
         self.diffsync.job.logger.info.assert_called_once_with("Prefix 10.0.0.0/24 will be deleted.")
         self.assertEqual(len(self.diffsync.objects_to_delete["subnet"]), 1)
         self.assertEqual(self.diffsync.objects_to_delete["subnet"][0].id, self.prefix.id)
+
+
+class TestNautobotIPAddress(TransactionTestCase):
+    """Test the NautobotIPAddress class."""
+
+    def setUp(self):
+        super().setUp()
+        self.status_active = Status.objects.get(name="Active")
+        loc_type = LocationType.objects.get_or_create(name="Site")[0]
+        loc_type.content_types.add(ContentType.objects.get_for_model(Device))
+        loc = Location.objects.get_or_create(name="Test Site", location_type=loc_type, status=self.status_active)[0]
+        cisco_manu = Manufacturer.objects.get_or_create(name="Cisco")[0]
+        csr1000v = DeviceType.objects.get_or_create(model="CSR1000v", manufacturer=cisco_manu)[0]
+        ios_platform = Platform.objects.create(name="Cisco IOS", manufacturer=cisco_manu)
+        router_role = Role.objects.create(name="Router")
+        router_role.content_types.add(ContentType.objects.get_for_model(Device))
+        self.test_dev = Device.objects.create(
+            name="Test Device",
+            device_type=csr1000v,
+            location=loc,
+            platform=ios_platform,
+            role=router_role,
+            status=self.status_active,
+        )
+        self.dev_eth0 = Interface.objects.create(
+            name="eth0", type="virtual", device=self.test_dev, status=self.status_active, mgmt_only=True
+        )
+        self.test_ns = Namespace.objects.get_or_create(name="Test")[0]
+        self.prefix = Prefix.objects.create(
+            prefix="10.0.0.0/24",
+            location=loc,
+            namespace=self.test_ns,
+            status=self.status_active,
+        )
+        self.diffsync = DiffSync()
+        self.diffsync.namespace_map = {"Test": self.test_ns.id}
+        self.diffsync.status_map = {"Active": self.status_active.id}
+        self.diffsync.prefix_map = {"10.0.0.0/24": self.prefix.id}
+        self.diffsync.device_map = {"Test Device": self.test_dev.id}
+        self.diffsync.port_map = {"Test Device": {"eth0": self.dev_eth0.id}}
+        self.diffsync.job = MagicMock()
+        self.diffsync.job.logger.info = MagicMock()
+
+    def test_create_with_existing_interface(self):
+        """Validate the NautobotIPAddress.create() functionality with existing Interface."""
+        ids = {"address": "10.0.0.1/24", "subnet": "10.0.0.0/24"}
+        attrs = {
+            "namespace": "Test",
+            "available": False,
+            "label": "Test",
+            "device": "Test Device",
+            "interface": "eth0",
+            "primary": True,
+            "tags": [],
+            "custom_fields": {},
+        }
+        self.diffsync.ipaddr_map = {}
+        result = ipam.NautobotIPAddress.create(self.diffsync, ids, attrs)
+        self.assertIsInstance(result, ipam.NautobotIPAddress)
+        self.diffsync.job.logger.info.assert_called_once_with("Creating IPAddress 10.0.0.1/24.")
+        ipaddr = IPAddress.objects.get(address="10.0.0.1/24")
+        self.assertEqual(ipaddr.parent, self.prefix)
+        self.assertEqual(str(ipaddr.address), ids["address"])
+        ipaddr_to_intf = IPAddressToInterface(ip_address=ipaddr, interface=self.dev_eth0)
+        self.assertEqual(ipaddr_to_intf.interface, self.dev_eth0)
+        self.assertEqual(self.diffsync.ipaddr_map["Test"]["10.0.0.1/24"], ipaddr.id)
+        self.test_dev.refresh_from_db()
+        self.assertEqual(self.test_dev.primary_ip4, ipaddr)
