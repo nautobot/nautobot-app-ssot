@@ -220,3 +220,13 @@ class TestNautobotIPAddress(TransactionTestCase):
         self.assertEqual(self.diffsync.ipaddr_map["Test"][self.ids["address"]], ipaddr.id)
         self.test_dev.refresh_from_db()
         self.assertEqual(self.test_dev.primary_ip4, ipaddr)
+
+    def test_create_with_missing_prefix(self):
+        """Validate the NautobotIPAddress.create() functionality with existing Interface."""
+        self.prefix.delete()
+        self.diffsync.job.logger.error = MagicMock()
+        result = ipam.NautobotIPAddress.create(self.diffsync, self.ids, self.attrs)
+        self.diffsync.job.logger.error.assert_called_once_with(
+            "Unable to find prefix 10.0.0.0/24 to create IPAddress 10.0.0.1/24 for."
+        )
+        self.assertIsNone(result)
