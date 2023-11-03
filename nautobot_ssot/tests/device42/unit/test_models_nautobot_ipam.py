@@ -185,6 +185,18 @@ class TestNautobotIPAddress(TransactionTestCase):
             namespace=self.test_ns,
             status=self.status_active,
         )
+        self.ids = {"address": "10.0.0.1/24", "subnet": "10.0.0.0/24"}
+        self.attrs = {
+            "namespace": "Test",
+            "available": False,
+            "label": "Test",
+            "device": "Test Device",
+            "interface": "eth0",
+            "primary": True,
+            "tags": [],
+            "custom_fields": {},
+        }
+
         self.diffsync = DiffSync()
         self.diffsync.namespace_map = {"Test": self.test_ns.id}
         self.diffsync.status_map = {"Active": self.status_active.id}
@@ -196,26 +208,15 @@ class TestNautobotIPAddress(TransactionTestCase):
 
     def test_create_with_existing_interface(self):
         """Validate the NautobotIPAddress.create() functionality with existing Interface."""
-        ids = {"address": "10.0.0.1/24", "subnet": "10.0.0.0/24"}
-        attrs = {
-            "namespace": "Test",
-            "available": False,
-            "label": "Test",
-            "device": "Test Device",
-            "interface": "eth0",
-            "primary": True,
-            "tags": [],
-            "custom_fields": {},
-        }
         self.diffsync.ipaddr_map = {}
-        result = ipam.NautobotIPAddress.create(self.diffsync, ids, attrs)
+        result = ipam.NautobotIPAddress.create(self.diffsync, self.ids, self.attrs)
         self.assertIsInstance(result, ipam.NautobotIPAddress)
         self.diffsync.job.logger.info.assert_called_once_with("Creating IPAddress 10.0.0.1/24.")
-        ipaddr = IPAddress.objects.get(address="10.0.0.1/24")
+        ipaddr = IPAddress.objects.get(address=self.ids["address"])
         self.assertEqual(ipaddr.parent, self.prefix)
-        self.assertEqual(str(ipaddr.address), ids["address"])
+        self.assertEqual(str(ipaddr.address), self.ids["address"])
         ipaddr_to_intf = IPAddressToInterface(ip_address=ipaddr, interface=self.dev_eth0)
         self.assertEqual(ipaddr_to_intf.interface, self.dev_eth0)
-        self.assertEqual(self.diffsync.ipaddr_map["Test"]["10.0.0.1/24"], ipaddr.id)
+        self.assertEqual(self.diffsync.ipaddr_map["Test"][self.ids["address"]], ipaddr.id)
         self.test_dev.refresh_from_db()
         self.assertEqual(self.test_dev.primary_ip4, ipaddr)
