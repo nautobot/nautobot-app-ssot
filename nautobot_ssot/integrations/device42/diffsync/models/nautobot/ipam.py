@@ -154,7 +154,7 @@ class NautobotIPAddress(IPAddress):
                 assign_ip = IPAddressToInterface.objects.create(ip_address=_ip, interface_id=intf, vm_interface=None)
                 assign_ip.validated_save()
                 if attrs.get("primary"):
-                    if _ip.family == 4:
+                    if _ip.ip_version == 4:
                         assign_ip.interface.device.primary_ip4 = _ip
                     else:
                         assign_ip.interface.device.primary_ip6 = _ip
