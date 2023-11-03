@@ -153,7 +153,7 @@ class TestNautobotSubnet(TransactionTestCase):
         self.assertEqual(self.diffsync.objects_to_delete["subnet"][0].id, self.prefix.id)
 
 
-class TestNautobotIPAddress(TransactionTestCase):
+class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-instance-attributes
     """Test the NautobotIPAddress class."""
 
     def setUp(self):
