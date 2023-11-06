@@ -143,7 +143,7 @@ class NautobotIPAddress(IPAddress):
         _ip = OrmIPAddress(
             address=_address,
             parent_id=prefix.id,
-            status_id=diffsync.status_map["Active"] if not attrs.get("available") else diffsync.status_map["Reserved"],
+            status_id=diffsync.status_map["Active"] if attrs.get("available") else diffsync.status_map["Reserved"],
             description=attrs["label"] if attrs.get("label") else "",
         )
         _ip.validated_save()
@@ -189,9 +189,7 @@ class NautobotIPAddress(IPAddress):
         self.diffsync.job.logger.info(f"Updating IPAddress {_ipaddr.address}")
         if "available" in attrs:
             _ipaddr.status = (
-                OrmStatus.objects.get(name="Active")
-                if not attrs["available"]
-                else OrmStatus.objects.get(name="Reserved")
+                OrmStatus.objects.get(name="Active") if attrs["available"] else OrmStatus.objects.get(name="Reserved")
             )
         if "label" in attrs:
             _ipaddr.description = attrs["label"] if attrs.get("label") else ""
