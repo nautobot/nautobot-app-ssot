@@ -131,7 +131,7 @@ class TestNautobotSubnet(TransactionTestCase):
         {"device42_delete_on_sync": True},
     )
     @patch("nautobot_ssot.integrations.device42.diffsync.models.nautobot.ipam.OrmPrefix.objects.get")
-    def test_delete(self, mock_vrf):
+    def test_delete(self, mock_subnet):
         """Validate the NautobotVRFGroup delete() deletes a Prefix."""
         test_pf = ipam.NautobotSubnet(
             network="10.0.0.0",
@@ -143,7 +143,7 @@ class TestNautobotSubnet(TransactionTestCase):
             uuid=self.prefix.id,
         )
         test_pf.diffsync = self.diffsync
-        mock_vrf.return_value = self.prefix
+        mock_subnet.return_value = self.prefix
         self.diffsync.objects_to_delete = {"subnet": []}
 
         test_pf.delete()
@@ -175,8 +175,19 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
             role=router_role,
             status=self.status_active,
         )
+        self.test_dev2 = Device.objects.create(
+            name="Device2",
+            device_type=csr1000v,
+            location=loc,
+            platform=ios_platform,
+            role=router_role,
+            status=self.status_active,
+        )
         self.dev_eth0 = Interface.objects.create(
             name="eth0", type="virtual", device=self.test_dev, status=self.status_active, mgmt_only=True
+        )
+        self.dev2_mgmt = Interface.objects.create(
+            name="mgmt0", type="virtual", device=self.test_dev2, status=self.status_active, mgmt_only=True
         )
         self.test_ns = Namespace.objects.get_or_create(name="Test")[0]
         self.prefix = Prefix.objects.create(
@@ -238,3 +249,44 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         result = ipam.NautobotIPAddress.create(self.diffsync, self.ids, self.attrs)
         self.diffsync.job.logger.debug.assert_called_once_with("Unable to find Interface eth0 for Test Device.")
         self.assertIsInstance(result, ipam.NautobotIPAddress)
+
+    def test_update_changing_available(self):
+        """Validate the NautobotIPAddress.update() functionality with changing available status."""
+        mock_addr = ipam.NautobotIPAddress(**self.ids, **self.attrs)
+        mock_addr.diffsync = self.diffsync
+        mock_addr.create(diffsync=self.diffsync, ids=self.ids, attrs=self.attrs)
+        addr = IPAddress.objects.get(address="10.0.0.1/24")
+        mock_addr.uuid = addr.id
+        update_attrs = {"available": True}
+        ipam.NautobotIPAddress.update(self=mock_addr, attrs=update_attrs)
+        addr.refresh_from_db()
+        self.assertEqual(addr.status, self.status_active)
+
+    def test_update_changing_label(self):
+        """Validate the NautobotIPAddress.update() functionality with changing label."""
+        mock_addr = ipam.NautobotIPAddress(**self.ids, **self.attrs)
+        mock_addr.diffsync = self.diffsync
+        mock_addr.create(diffsync=self.diffsync, ids=self.ids, attrs=self.attrs)
+        addr = IPAddress.objects.get(address="10.0.0.1/24")
+        mock_addr.uuid = addr.id
+        update_attrs = {"label": "Test Update"}
+        ipam.NautobotIPAddress.update(self=mock_addr, attrs=update_attrs)
+        addr.refresh_from_db()
+        self.assertEqual(addr.description, update_attrs["label"])
+
+    def test_update_changing_interface(self):
+        """Validate the NautobotIPAddress.update() functionality with changing Interface."""
+        mock_addr = ipam.NautobotIPAddress(**self.ids, **self.attrs)
+        mock_addr.diffsync = self.diffsync
+        mock_addr.create(diffsync=self.diffsync, ids=self.ids, attrs=self.attrs)
+        addr = IPAddress.objects.get(address="10.0.0.1/24")
+        mock_addr.uuid = addr.id
+        update_attrs = {
+            "device": "Device2",
+            "interface": "mgmt0",
+            "primary": True,
+        }
+        result = ipam.NautobotIPAddress.update(self=mock_addr, attrs=update_attrs)
+        self.assertIsInstance(result, ipam.NautobotIPAddress)
+        self.test_dev2.refresh_from_db()
+        self.assertEqual(self.test_dev2.primary_ip4, addr)
