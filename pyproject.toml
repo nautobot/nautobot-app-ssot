@@ -1,13 +1,12 @@
 [tool.poetry]
 name = "nautobot-ssot"
-version = "2.0.0"
+version = "2.0.1"
 description = "Nautobot Single Source of Truth"
-authors = ["Network to Code, LLC <info@networktocode.com>"]
+authors = ["Network to Code, LLC <opensource@networktocode.com>"]
 license = "Apache-2.0"
 readme = "README.md"
-homepage = "https://github.com/nautobot/nautobot-plugin-ssot"
-repository = "https://github.com/nautobot/nautobot-plugin-ssot"
-documentation = "https://nautobot-plugin-ssot.readthedocs.io"
+homepage = "https://github.com/nautobot/nautobot-plugin-ssot/"
+repository = "https://github.com/nautobot/nautobot-plugin-ssot/"
 keywords = ["nautobot", "nautobot-plugin"]
 classifiers = [
     "Intended Audience :: Developers",
@@ -27,7 +26,8 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8,<3.12"
+python = ">=3.8,<3.12"
+# Used for local development
 nautobot = "^2.0.0"
 diffsync = "^1.6.0"
 Jinja2 = { version = ">=2.11.3", optional = true }
@@ -52,15 +52,13 @@ six = { version = ">=1.13.0", optional = true }
 drf-spectacular = "0.26.3"
 httpx = { version = ">=0.23.3", optional = true }
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 bandit = "*"
 black = "*"
 coverage = "*"
 django-debug-toolbar = "*"
 django-extensions = "*"
-# we need to pin flake8 because of package dependencies that cause it to downgrade and
-# therefore cause issues with linting since older versions do not take .flake8 as config
-flake8 = "^3.9.2"
+flake8 = "*"
 invoke = "*"
 ipython = "*"
 jedi = "^0.17.2"
@@ -68,21 +66,19 @@ pydocstyle = "*"
 pylint = "*"
 pylint-django = "*"
 pylint-nautobot = "*"
-pytest = "*"
-python-dotenv = "^0.21.1"
 yamllint = "*"
 markdown-include = "*"
 toml = "*"
+Markdown = "*"
 # Rendering docs to HTML
-mkdocs = "1.4.2"
+mkdocs = "1.5.2"
 # Material for MkDocs theme
-mkdocs-material = "9.0.11"
+mkdocs-material = "9.1.15"
 # Render custom markdown for version added/changed/remove notes
 mkdocs-version-annotations = "1.0.0"
 # Automatic documentation from sources, for MkDocs
-griffe = "0.30.1"
 mkdocstrings = "0.22.0"
-mkdocstrings-python = "1.1.2"
+mkdocstrings-python = "1.5.2"
 requests-mock = "^1.10.0"
 parameterized = "^0.8.1"
 myst-parser = "^0.15.2"
@@ -191,13 +187,8 @@ exclude = '''
 
 [tool.pylint.master]
 # Include the pylint_django plugin to avoid spurious warnings about Django patterns
-load-plugins="pylint_django,pylint_nautobot"
+load-plugins="pylint_django, pylint_nautobot"
 ignore=".venv"
-
-[tool.pylint-nautobot]
-supported_nautobot_versions = [
-  "2",  # Supporting 2.x.y
-]
 
 [tool.pylint.basic]
 # No docstrings required for private methods (Pylint default), or for test_ functions, or for inner Meta classes.
@@ -218,6 +209,11 @@ notes = """,
     XXX,
     """
 
+[tool.pylint-nautobot]
+supported_nautobot_versions = [
+    "2.0.0"
+]
+
 [tool.pydocstyle]
 convention = "google"
 inherit = false
@@ -233,9 +229,3 @@ add_ignore = "D212"
 [build-system]
 requires = ["poetry_core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
-
-[tool.pytest.ini_options]
-testpaths = [
-    "tests"
-]
-addopts = "-vv --doctest-modules"

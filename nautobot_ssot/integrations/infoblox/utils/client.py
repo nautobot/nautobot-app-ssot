@@ -1224,7 +1224,34 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         logger.info("Infoblox IP Address updated: %s", response.json())
         return response.json()
 
-    def get_network_containers(self):
+    def get_tree_from_container(self, root_container: str) -> list:
+        """Returns the list of all child containers from a given root container."""
+        flattened_tree = []
+        stack = []
+        root_containers = self.get_network_containers(prefix=root_container)
+        if root_containers:
+            stack = [root_containers[0]]
+
+        while stack:
+            current_node = stack.pop()
+            flattened_tree.append(current_node)
+            children = self.get_child_network_containers(prefix=current_node["network"])
+            stack.extend(children)
+
+        return flattened_tree
+
+    def remove_duplicates(self, network_list: list) -> list:
+        """Removes duplicate networks from a list of networks."""
+        seen_networks = set()
+        new_list = []
+        for network in network_list:
+            if network["network"] not in seen_networks:
+                new_list.append(network)
+                seen_networks.add(network["network"])
+
+        return new_list
+
+    def get_network_containers(self, prefix: str = ""):
         """Get all Network Containers.
 
         Returns:
@@ -1248,10 +1275,102 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             "_return_fields": "network,comment,network_view,extattrs,rir_organization,rir",
             "_max_results": 100000,
         }
+        if prefix:
+            params.update({"network": prefix})
         response = self._request("GET", url_path, params=params)
         response = response.json()
         logger.info(response)
         results = response.get("result", [])
         for res in results:
-            res.update({"status": "Container"})
+            res.update({"status": "container"})
         return results
+
+    def get_child_network_containers(self, prefix: str):
+        """Get all Child Network Containers for Container.
+
+        Returns:
+            (list) of record dicts
+
+        Return Response:
+        [
+            {
+                "_ref": "networkcontainer/ZG5zLm5ldHdvcmtfY29udGFpbmVyJDE5Mi4xNjguMi4wLzI0LzA:192.168.2.0/23/default",
+                "comment": "Campus LAN",
+                "extattrs": {},
+                "network": "192.168.2.0/24",
+                "network_view": "default",
+                "rir": "NONE",
+            },
+            {
+                "_ref": "networkcontainer/ZG5zLm5ldHdvcmtfY29udGFpbmVyJDE5Mi4xNjguMi4wLzI0LzA:192.168.2.0/23/default",
+                "comment": "Campus LAN 2",
+                "extattrs": {},
+                "network": "192.168.3.0/24",
+                "network_view": "default",
+                "rir": "NONE",
+            }
+        ]
+        """
+        url_path = "networkcontainer"
+        params = {
+            "_return_as_object": 1,
+            "_return_fields": "network,comment,network_view,extattrs,rir_organization,rir",
+            "_max_results": 100000,
+        }
+        params.update({"network_container": prefix})
+        response = self._request("GET", url_path, params=params)
+        response = response.json()
+        logger.info(response)
+        results = response.get("result", [])
+        for res in results:
+            res.update({"status": "container"})
+        return results
+
+    def get_child_subnets_from_container(self, prefix: str):
+        """Get child subnets from container.
+
+        Args:
+            prefix (str): Network prefix - '10.220.0.0/22'
+
+        Returns:
+            (list) of record dicts
+
+        Return Response:
+        [
+            {
+                "_ref": "network/ZG5zLm5ldHdvcmskMTAuMjIzLjAuMC8yMS8w:10.220.0.0/24/default",
+                "comment": "Campus 1",
+                "extattrs": {},
+                "network": "10.220.0.0/24",
+                "network_view": "default",
+                "rir": "NONE",
+                "vlans": [],
+            },
+            {
+                "_ref": "network/ZG5zLm5ldHdvcmskMTAuMjIzLjAuMC8yMS8w:10.220.1.0/24/default",
+                "comment": "Campus 2",
+                "extattrs": {},
+                "network": "10.220.1.0/24",
+                "network_view": "default",
+                "rir": "NONE",
+                "vlans": [],
+            },
+        ]
+        """
+        url_path = "network"
+        params = {
+            "_return_as_object": 1,
+            "_return_fields": "network,network_view,comment,extattrs,rir_organization,rir,vlans",
+            "_max_results": 10000,
+        }
+
+        params.update({"network_container": prefix})
+
+        try:
+            response = self._request("GET", url_path, params=params)
+        except HTTPError as err:
+            logger.info(err.response.text)
+            return []
+        response = response.json()
+        logger.info(response)
+        return response.get("result")

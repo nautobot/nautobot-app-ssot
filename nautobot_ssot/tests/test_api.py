@@ -11,9 +11,9 @@ User = get_user_model()
 
 
 class PlaceholderAPITest(TestCase):
-    """Test the nautobot_ssot API."""
+    """Test the NautobotSSOTPlugin API."""
 
-    def setUp(self):  # pylint: disable=invalid-name
+    def setUp(self):
         """Create a superuser and token for API calls."""
         self.user = User.objects.create(username="testuser", is_superuser=True)
         self.token = Token.objects.create(user=self.user)

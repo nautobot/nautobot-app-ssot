@@ -1,8 +1,10 @@
 # Installing the App in Nautobot
 
+Here you will find detailed instructions on how to **install** and **configure** the App within your Nautobot environment.
+
 ## Prerequisites
 
-- The app is compatible with Nautobot 1.4.0 and higher.
+- The app is compatible with Nautobot 2.0.0 and higher.
 - Databases supported: PostgreSQL, MySQL
 
 !!! note
@@ -89,6 +91,7 @@ Set up each integration using the specific guides:
 
 - [Cisco ACI](./integrations/aci_setup.md)
 - [Arista CloudVision](./integrations/aristacv_setup.md)
+- [Device42](./integrations//device42_setup.md)
 - [Infoblox](./integrations/infoblox_setup.md)
 - [IPFabric](./integrations/ipfabric_setup.md)
 - [ServiceNow](./integrations/servicenow_setup.md)
