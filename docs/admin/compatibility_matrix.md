@@ -15,3 +15,4 @@ While that last supported version will not be strictly enforced--via the max_ver
 | 2.0.0-rc.1                     | 2.0.0rc1                       | 2.0.0rc1                      |
 | 2.0.0-rc.2                     | 2.0.0rc2                       | 2.0.0rc99                     |
 | 2.0.0                          | 2.0.0                          | 2.99.09                       |
+| 2.0.1                          | 2.0.0                          | 2.99.09                       |

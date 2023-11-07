@@ -58,3 +58,16 @@
 - [228](https://github.com/nautobot/nautobot-plugin-ssot/pull/228) - Merge Main Back to Dev for 1.6.0 by @jdrew82
 - [231](https://github.com/nautobot/nautobot-plugin-ssot/pull/231) - Update Device42 Integration for Nautobot 2.0 by @jdrew82
 - [230](https://github.com/nautobot/nautobot-plugin-ssot/pull/230) - Update to Nautobot 2.0 by @jdrew82
+
+## v2.0.1 - 2023-11-6
+
+## Changed
+
+- [242](https://github.com/nautobot/nautobot-plugin-ssot/pull/242) - Fix Infoblox import_subnets setting by @jdrew82
+- [252](https://github.com/nautobot/nautobot-plugin-ssot/pull/252) - Add CODEOWNERS for the various integrations by @jdrew82
+- [254](https://github.com/nautobot/nautobot-plugin-ssot/pull/254) - Add plugin-ssot as integration code owners by @jdrew82
+- [251](https://github.com/nautobot/nautobot-plugin-ssot/pull/251) - Cookie initialy baked by NetworkToCode Cookie Drift Manager Tool by @snaselj
+- [250](https://github.com/nautobot/nautobot-plugin-ssot/pull/250) - fixes possible error state in nautobot_ssot_duration_seconds metric by @Kircheneer
+- [260](https://github.com/nautobot/nautobot-plugin-ssot/pull/260) - Fix Documentation for Device42 by @jdrew82
+- [246](https://github.com/nautobot/nautobot-plugin-ssot/pull/246) - IPFabric integration settings updates for 2.0 by @alhogan
+- [264](https://github.com/nautobot/nautobot-plugin-ssot/pull/264) - Add check for missing job_class attribute on 1.x Jobs by @jdrew82
