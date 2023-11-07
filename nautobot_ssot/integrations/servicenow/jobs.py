@@ -21,12 +21,9 @@ name = "SSoT - ServiceNow"  # pylint: disable=invalid-name
 class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
     """Job syncing data from Nautobot to ServiceNow."""
 
-    debug = BooleanVar(description="Enable for more verbose logging.", default=True)
+    debug = BooleanVar(description="Enable for more verbose logging.")
 
-    delete_records = BooleanVar(
-        description="Delete synced records from ServiceNow if not present in Nautobot",
-        default=False,
-    )
+    delete_records = BooleanVar(description="Delete synced records from ServiceNow if not present in Nautobot")
 
     site_filter = ObjectVar(
         description="Only sync records belonging to a single Site.",
