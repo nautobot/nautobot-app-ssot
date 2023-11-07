@@ -15,7 +15,7 @@ class ServiceNowCRUDMixin:
     _sys_id_cache = {}
     """Dict of table -> column_name -> value -> sys_id."""
 
-    def map_data_to_sn_record(self, data, mapping_entry, existing_record=None):
+    def map_data_to_sn_record(self, data, mapping_entry, existing_record=None, clear_cache=False):
         """Map create/update data from DiffSync to a corresponding ServiceNow data record."""
         record = existing_record or {}
         for mapping in mapping_entry.get("mappings", []):
@@ -29,19 +29,20 @@ class ServiceNowCRUDMixin:
                 sys_id = None
                 if "column" not in mapping["reference"]:
                     raise NotImplementedError
-                # column_name = mapping["reference"]["column"]
+                column_name = mapping["reference"]["column"]
                 if value is not None:
-                    # Cacheing disabled as it was introducing instability and unpredictable results during delete method testing
+                    # if clear_cache is set to True then clear the cache for the object
+                    if clear_cache==True:
+                        self._sys_id_cache.setdefault(tablename, {}).setdefault(column_name, {})[value] = {}
                     # Look in the cache first
-                    # sys_id = self._sys_id_cache.get(tablename, {}).get(column_name, {}).get(value, None)
-                    # if not sys_id:
-                    target = self.diffsync.client.get_by_query(tablename, {mapping["reference"]["column"]: value})
-                    if target is None:
-                        self.diffsync.job.logger.warning(f"Unable to find reference target in {tablename}")
-                    else:
-                        sys_id = target["sys_id"]
-                        # self._sys_id_cache.setdefault(tablename, {}).setdefault(column_name, {})[value] = sys_id
-
+                    sys_id = self._sys_id_cache.get(tablename, {}).get(column_name, {}).get(value, None)
+                    if not sys_id:
+                        target = self.diffsync.client.get_by_query(tablename, {mapping["reference"]["column"]: value})
+                        if target is None:
+                            self.diffsync.job.logger.warning(f"Unable to find reference target in {tablename}")
+                        else:
+                            sys_id = target["sys_id"]
+                            self._sys_id_cache.setdefault(tablename, {}).setdefault(column_name, {})[value] = sys_id
                 record[mapping["reference"]["key"]] = sys_id
             else:
                 raise NotImplementedError
@@ -96,15 +97,11 @@ class ServiceNowCRUDMixin:
                 f"in table {entry['table']}"
             )
             return None
-        try:
-            self.diffsync.job.logger.warning(f"{self._modelname} {self.get_identifiers()} will be deleted.")
-            _object = sn_resource.get(query=query)
-            self.diffsync.objects_to_delete[self._modelname].append(_object)
-            print(self.diffsync.objects_to_delete[self._modelname])
-            super().delete()
-        except Exception as exception:
-            print(f"Issue with deleting {query}. Moving on to next entry.")
-            print(f"Error code is: {exception}")
+        self.diffsync.job.logger.warning(f"{self._modelname} {self.get_identifiers()} will be deleted.")
+        _object = sn_resource.get(query=query)
+        self.diffsync.objects_to_delete[self._modelname].append(_object)
+        self.map_data_to_sn_record(data=self.get_identifiers(), mapping_entry=entry, clear_cache=True) # remove device cache
+        super().delete()
         return self
 
 
