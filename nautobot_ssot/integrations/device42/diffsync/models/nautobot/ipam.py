@@ -213,7 +213,7 @@ class NautobotIPAddress(IPAddress):
                 )
         elif attrs.get("device"):
             try:
-                intf = self.diffsync.port_map[attrs["device"]][attrs["interface"]]
+                intf = self.diffsync.port_map[attrs["device"]][self.interface]
                 assign_ip = IPAddressToInterface.objects.create(
                     ip_address=_ipaddr, interface_id=intf, vm_interface=None
                 )
