@@ -318,8 +318,6 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         """Validate the NautobotIPAddress.update() functionality with changing Interface."""
         self.mock_addr.device = "Device2"
         self.create_mock_ipaddress_and_assign()
-        self.addr = IPAddress.objects.get(address="10.0.0.1/24")
-        self.mock_addr.uuid = self.addr.id
 
         update_attrs = {"interface": "mgmt0"}
         result = ipam.NautobotIPAddress.update(self=self.mock_addr, attrs=update_attrs)
@@ -332,8 +330,6 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         """Validate the NautobotIPAddress.update() functionality with making an IPAddress primary."""
         self.mock_addr.primary = False
         self.create_mock_ipaddress_and_assign()
-        self.addr = IPAddress.objects.get(address="10.0.0.1/24")
-        self.mock_addr.uuid = self.addr.id
 
         update_attrs = {"primary": True}
         result = ipam.NautobotIPAddress.update(self=self.mock_addr, attrs=update_attrs)
@@ -345,11 +341,19 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
     def test_update_changing_tags(self):
         """Validate the NautobotIPAddress.update() functionality with updating Tags on IPAddress."""
         self.create_mock_ipaddress_and_assign()
-        self.addr = IPAddress.objects.get(address="10.0.0.1/24")
-        self.mock_addr.uuid = self.addr.id
 
         update_attrs = {"tags": ["Test", "Test2"]}
         result = ipam.NautobotIPAddress.update(self=self.mock_addr, attrs=update_attrs)
         self.assertIsInstance(result, ipam.NautobotIPAddress)
         self.addr.refresh_from_db()
         self.assertEqual(list(self.addr.tags.names()), update_attrs["tags"])
+
+    def test_update_changing_custom_fields(self):
+        """Validate the NautobotIPAddress.update() functionality with changing CustomFields on IPAddress."""
+        self.create_mock_ipaddress_and_assign()
+
+        update_attrs = {"custom_fields": {"New CF": {"key": "New CF", "value": "Test"}}}
+        result = ipam.NautobotIPAddress.update(self=self.mock_addr, attrs=update_attrs)
+        self.assertIsInstance(result, ipam.NautobotIPAddress)
+        self.addr.refresh_from_db()
+        self.assertEqual(self.addr.custom_field_data["New CF"], "Test")
