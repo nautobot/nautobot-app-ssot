@@ -12,7 +12,6 @@ from nautobot.circuits.models import CircuitType
 from nautobot.dcim.models import Device, Interface, Platform
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Relationship, Role, Tag
-from nautobot.ipam.models import IPAddress
 from netutils.lib_mapper import ANSIBLE_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER_REVERSE
 from taggit.managers import TaggableManager
 from nautobot_ssot.integrations.device42.diffsync.models.base.dcim import Device as NautobotDevice
