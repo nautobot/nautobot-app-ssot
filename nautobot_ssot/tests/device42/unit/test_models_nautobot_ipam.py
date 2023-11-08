@@ -218,6 +218,7 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         }
 
         self.diffsync = DiffSync()
+        self.diffsync.objects_to_create = {"ports": []}
         self.diffsync.namespace_map = {"Test": self.test_ns.id}
         self.diffsync.status_map = {"Active": self.status_active.id, "Reserved": status_reserved.id}
         self.diffsync.prefix_map = {"10.0.0.0/24": self.prefix.id}
@@ -312,3 +313,17 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         self.assertEqual(self.test_dev2.primary_ip4, self.addr)
         ip_to_intf = IPAddressToInterface.objects.filter(ip_address=self.addr, interface=self.dev2_eth0)
         self.assertEqual(len(ip_to_intf), 1)
+
+    def test_update_changing_interface(self):
+        """Validate the NautobotIPAddress.update() functionality with changing Interface."""
+        self.mock_addr.device = "Device2"
+        self.create_mock_ipaddress_and_assign()
+        self.addr = IPAddress.objects.get(address="10.0.0.1/24")
+        self.mock_addr.uuid = self.addr.id
+
+        update_attrs = {"interface": "mgmt0"}
+        result = ipam.NautobotIPAddress.update(self=self.mock_addr, attrs=update_attrs)
+        self.assertIsInstance(result, ipam.NautobotIPAddress)
+        self.addr.refresh_from_db()
+        self.dev2_mgmt.refresh_from_db()
+        self.assertEqual(self.addr.interfaces.first(), self.dev2_mgmt)
