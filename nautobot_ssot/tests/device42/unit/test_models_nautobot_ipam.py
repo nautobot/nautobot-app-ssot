@@ -300,3 +300,15 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         self.assertEqual(self.test_dev2.primary_ip4, self.addr)
         ip_to_intfs = IPAddressToInterface.objects.filter(ip_address=self.addr, interface=self.dev2_mgmt)
         self.assertEqual(len(ip_to_intfs), 1)
+
+    def test_update_changing_device(self):
+        """Validate the NautobotIPAddress.update() functionality with changing Device."""
+        self.create_mock_ipaddress_and_assign()
+        update_attrs = {"device": "Device2"}
+        result = ipam.NautobotIPAddress.update(self=self.mock_addr, attrs=update_attrs)
+        self.assertIsInstance(result, ipam.NautobotIPAddress)
+        self.addr.refresh_from_db()
+        self.test_dev2.refresh_from_db()
+        self.assertEqual(self.test_dev2.primary_ip4, self.addr)
+        ip_to_intf = IPAddressToInterface.objects.filter(ip_address=self.addr, interface=self.dev2_eth0)
+        self.assertEqual(len(ip_to_intf), 1)
