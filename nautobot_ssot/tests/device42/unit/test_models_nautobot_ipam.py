@@ -286,8 +286,8 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         self.addr.refresh_from_db()
         self.assertEqual(self.addr.description, update_attrs["label"])
 
-    def test_update_changing_interface(self):
-        """Validate the NautobotIPAddress.update() functionality with changing Interface."""
+    def test_update_changing_device_and_interface(self):
+        """Validate the NautobotIPAddress.update() functionality with changing Device and Interface."""
         self.create_mock_ipaddress_and_assign()
         update_attrs = {
             "device": "Device2",
