@@ -341,3 +341,15 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         self.addr.refresh_from_db()
         self.test_dev.refresh_from_db()
         self.assertEqual(self.test_dev.primary_ip4, self.addr)
+
+    def test_update_changing_tags(self):
+        """Validate the NautobotIPAddress.update() functionality with updating Tags on IPAddress."""
+        self.create_mock_ipaddress_and_assign()
+        self.addr = IPAddress.objects.get(address="10.0.0.1/24")
+        self.mock_addr.uuid = self.addr.id
+
+        update_attrs = {"tags": ["Test", "Test2"]}
+        result = ipam.NautobotIPAddress.update(self=self.mock_addr, attrs=update_attrs)
+        self.assertIsInstance(result, ipam.NautobotIPAddress)
+        self.addr.refresh_from_db()
+        self.assertEqual(list(self.addr.tags.names()), update_attrs["tags"])
