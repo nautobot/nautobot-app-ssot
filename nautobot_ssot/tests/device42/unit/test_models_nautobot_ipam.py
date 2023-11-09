@@ -251,7 +251,7 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         """Validate the NautobotIPAddress.create() functionality with missing Prefix."""
         self.prefix.delete()
         self.diffsync.job.logger.error = MagicMock()
-        result = ipam.NautobotIPAddress.create(self.diffsync, self.ids, self.attrs)
+        result = self.mock_addr.create(self.diffsync, self.ids, self.attrs)
         self.diffsync.job.logger.error.assert_called_once_with(
             "Unable to find prefix 10.0.0.0/24 to create IPAddress 10.0.0.1/24 for."
         )
@@ -261,7 +261,7 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         """Validate the NautobotIPAddress.create() functionality with missing Interface."""
         self.diffsync.port_map = {}
         self.diffsync.job.logger.debug = MagicMock()
-        result = ipam.NautobotIPAddress.create(self.diffsync, self.ids, self.attrs)
+        result = self.mock_addr.create(self.diffsync, self.ids, self.attrs)
         self.diffsync.job.logger.debug.assert_called_once_with("Unable to find Interface eth0 for Test Device.")
         self.assertIsInstance(result, ipam.NautobotIPAddress)
 
@@ -275,7 +275,7 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         """Validate the NautobotIPAddress.update() functionality with changing available status."""
         self.create_mock_ipaddress_and_assign()
         update_attrs = {"available": True}
-        ipam.NautobotIPAddress.update(self=self.mock_addr, attrs=update_attrs)
+        self.mock_addr.update(attrs=update_attrs)
         self.addr.refresh_from_db()
         self.assertEqual(self.addr.status, self.status_active)
 
@@ -306,7 +306,7 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         """Validate the NautobotIPAddress.update() functionality with changing Device."""
         self.create_mock_ipaddress_and_assign()
         update_attrs = {"device": "Device2"}
-        result = ipam.NautobotIPAddress.update(self=self.mock_addr, attrs=update_attrs)
+        result = self.mock_addr.update(attrs=update_attrs)
         self.assertIsInstance(result, ipam.NautobotIPAddress)
         self.addr.refresh_from_db()
         self.test_dev2.refresh_from_db()
@@ -320,7 +320,7 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         self.create_mock_ipaddress_and_assign()
 
         update_attrs = {"interface": "mgmt0"}
-        result = ipam.NautobotIPAddress.update(self=self.mock_addr, attrs=update_attrs)
+        result = self.mock_addr.update(attrs=update_attrs)
         self.assertIsInstance(result, ipam.NautobotIPAddress)
         self.addr.refresh_from_db()
         self.dev2_mgmt.refresh_from_db()
@@ -332,7 +332,7 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         self.create_mock_ipaddress_and_assign()
 
         update_attrs = {"primary": True}
-        result = ipam.NautobotIPAddress.update(self=self.mock_addr, attrs=update_attrs)
+        result = self.mock_addr.update(attrs=update_attrs)
         self.assertIsInstance(result, ipam.NautobotIPAddress)
         self.addr.refresh_from_db()
         self.test_dev.refresh_from_db()
@@ -343,7 +343,7 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         self.create_mock_ipaddress_and_assign()
 
         update_attrs = {"tags": ["Test", "Test2"]}
-        result = ipam.NautobotIPAddress.update(self=self.mock_addr, attrs=update_attrs)
+        result = self.mock_addr.update(attrs=update_attrs)
         self.assertIsInstance(result, ipam.NautobotIPAddress)
         self.addr.refresh_from_db()
         self.assertEqual(list(self.addr.tags.names()), update_attrs["tags"])
@@ -353,7 +353,7 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         self.create_mock_ipaddress_and_assign()
 
         update_attrs = {"custom_fields": {"New CF": {"key": "New CF", "value": "Test"}}}
-        result = ipam.NautobotIPAddress.update(self=self.mock_addr, attrs=update_attrs)
+        result = self.mock_addr.update(attrs=update_attrs)
         self.assertIsInstance(result, ipam.NautobotIPAddress)
         self.addr.refresh_from_db()
         self.assertEqual(self.addr.custom_field_data["New CF"], "Test")
