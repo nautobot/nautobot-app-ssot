@@ -1,6 +1,7 @@
 """Test DiffSync IPAM models for Nautobot."""
 from unittest.mock import MagicMock, patch
 from django.contrib.contenttypes.models import ContentType
+from django.forms import ValidationError
 from diffsync import DiffSync
 from nautobot.core.testing import TransactionTestCase
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer, Platform
@@ -235,7 +236,7 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
 
     def test_create_with_existing_interface(self):
         """Validate the NautobotIPAddress.create() functionality with existing Interface."""
-        result = ipam.NautobotIPAddress.create(self.diffsync, self.ids, self.attrs)
+        result = self.mock_addr.create(self.diffsync, self.ids, self.attrs)
         self.assertIsInstance(result, ipam.NautobotIPAddress)
         self.diffsync.job.logger.info.assert_called_once_with("Creating IPAddress 10.0.0.1/24.")
         ipaddr = IPAddress.objects.get(address=self.ids["address"])
@@ -357,3 +358,19 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         self.assertIsInstance(result, ipam.NautobotIPAddress)
         self.addr.refresh_from_db()
         self.assertEqual(self.addr.custom_field_data["New CF"], "Test")
+
+    @patch("nautobot_ssot.integrations.device42.diffsync.models.nautobot.ipam.OrmIPAddress.objects.get")
+    def test_update_handling_validation_error(self, mock_ip_get):
+        """Validate how the NautobotIPAddress.update() handles a ValidationError."""
+        mock_ip = MagicMock()
+        mock_ip.address = "10.0.0.1/24"
+        self.mock_addr.primary = False
+        mock_ip.validated_save = MagicMock()
+        mock_ip.validated_save.side_effect = ValidationError(message="Error")
+        mock_ip_get.return_value = mock_ip
+        self.diffsync.job.logger.warning = MagicMock()
+        result = self.mock_addr.update(attrs={})
+        self.assertIsNone(result)
+        self.diffsync.job.logger.warning.assert_called_once_with(
+            "Unable to update IP Address 10.0.0.1/24 with {}. ['Error']"
+        )
