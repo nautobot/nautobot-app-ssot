@@ -379,6 +379,11 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
 class TestNautobotVLAN(TransactionTestCase):
     """Test the NautobotVLAN class."""
 
+    def __init__(self, *args, **kwargs):
+        """Initialize shared variables."""
+        super().__init__(*args, **kwargs)
+        self.vlan = None
+
     def setUp(self):
         super().setUp()
         self.status_active = Status.objects.get(name="Active")
@@ -429,3 +434,19 @@ class TestNautobotVLAN(TransactionTestCase):
         self.assertEqual(vlan.name, self.attrs["name"])
         self.assertEqual(vlan.description, self.attrs["description"])
         self.assertEqual(self.diffsync.vlan_map["HQ"][1], vlan.id)
+
+    def create_mock_vlan_and_assign(self):
+        """Create IPAddress from mock_addr object and assign ID from IPAddress object that's created."""
+        self.mock_vlan.create(diffsync=self.diffsync, ids=self.ids, attrs=self.attrs)
+        self.vlan = VLAN.objects.get(vid=1)
+        self.mock_vlan.uuid = self.vlan.id
+
+    def test_update_vlan_name(self):
+        """Validate the NautobotVLAN.update() functionality with a new VLAN name."""
+        self.create_mock_vlan_and_assign()
+        update_attrs = {"name": "Test2"}
+        result = self.mock_vlan.update(attrs=update_attrs)
+        self.assertIsInstance(result, ipam.NautobotVLAN)
+        self.diffsync.job.logger.info.assert_called_with("Updating VLAN Test 1 for Global.")
+        vlan = VLAN.objects.get(vid=1)
+        self.assertEqual(vlan.name, "Test2")
