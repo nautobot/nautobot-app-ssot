@@ -307,7 +307,7 @@ class NautobotVLAN(VLAN):
     @classmethod
     def create(cls, diffsync, ids, attrs):
         """Create VLAN object in Nautobot."""
-        _site_name = None, None
+        _site_name = None
         if ids["building"] != "Unknown":
             _site_name = ids["building"]
         else:
