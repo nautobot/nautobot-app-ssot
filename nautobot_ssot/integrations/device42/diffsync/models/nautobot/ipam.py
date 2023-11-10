@@ -33,7 +33,7 @@ class NautobotVRFGroup(VRFGroup):
         _vrf.validated_save()
         diffsync.vrf_map[ids["name"]] = _vrf.id
         diffsync.namespace_map[ids["name"]] = _namespace.id
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(diffsync, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update VRF object in Nautobot."""
@@ -93,7 +93,7 @@ class NautobotSubnet(Subnet):
         if ids["vrf"] not in diffsync.prefix_map:
             diffsync.prefix_map[ids["vrf"]] = {}
         diffsync.prefix_map[ids["vrf"]][prefix] = _pf.id
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(diffsync, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Prefix object in Nautobot."""
@@ -174,7 +174,7 @@ class NautobotIPAddress(IPAddress):
         if attrs["namespace"] not in diffsync.ipaddr_map:
             diffsync.ipaddr_map[attrs["namespace"]] = {}
         diffsync.ipaddr_map[attrs["namespace"]][_address] = _ip.id
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(diffsync, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update IPAddress object in Nautobot."""
@@ -331,7 +331,7 @@ class NautobotVLAN(VLAN):
         if _site_name not in diffsync.vlan_map:
             diffsync.vlan_map[_site_name] = {}
         diffsync.vlan_map[_site_name][ids["vlan_id"]] = new_vlan.id
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(diffsync, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update VLAN object in Nautobot."""

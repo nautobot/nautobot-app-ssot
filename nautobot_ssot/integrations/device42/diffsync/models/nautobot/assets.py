@@ -76,7 +76,7 @@ class NautobotPatchPanel(PatchPanel):
             try:
                 patch_panel.validated_save()
                 diffsync.device_map[ids["name"]] = patch_panel.id
-                return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+                return super().create(diffsync, ids=ids, attrs=attrs)
             except ValidationError as err:
                 if diffsync.job.debug:
                     diffsync.job.logger.warning(f"Unable to create {ids['name']} patch panel. {err}")
@@ -165,7 +165,7 @@ class NautobotPatchPanelRearPort(PatchPanelRearPort):
                 if ids["patchpanel"] not in diffsync.rp_map:
                     diffsync.rp_map[ids["patchpanel"]] = {}
                 diffsync.rp_map[ids["patchpanel"]][ids["name"]] = rear_port.id
-                return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+                return super().create(diffsync, ids=ids, attrs=attrs)
             except ValidationError as err:
                 if diffsync.job.debug:
                     diffsync.job.logger.debug(f"Unable to create patch panel {ids['name']}. {err}")
@@ -216,7 +216,7 @@ class NautobotPatchPanelFrontPort(PatchPanelFrontPort):
                 if ids["patchpanel"] not in diffsync.fp_map:
                     diffsync.fp_map[ids["patchpanel"]] = {}
                 diffsync.fp_map[ids["patchpanel"]][ids["name"]] = front_port.id
-                return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+                return super().create(diffsync, ids=ids, attrs=attrs)
             except ValidationError as err:
                 diffsync.job.logger.debug(f"Unable to create patch panel front port {ids['name']}. {err}")
                 return None
