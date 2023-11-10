@@ -383,11 +383,16 @@ class TestNautobotVLAN(TransactionTestCase):
         super().setUp()
         self.status_active = Status.objects.get(name="Active")
 
+        site_type = LocationType.objects.get(name="Site")
+        site_type.content_types.add(ContentType.objects.get_for_model(Device))
+
+        self.test_site = Location.objects.create(name="HQ", location_type=site_type, status=self.status_active)
         self.diffsync = DiffSync()
         self.diffsync.job = MagicMock()
         self.diffsync.job.logger.info = MagicMock()
         self.diffsync.status_map = {"Active": self.status_active.id}
-        self.diffsync.vlan_map = {}
+        self.diffsync.site_map = {"HQ": self.test_site.id}
+        self.diffsync.vlan_map = {"HQ": {}}
         self.ids = {
             "vlan_id": 1,
             "building": None,
@@ -406,7 +411,21 @@ class TestNautobotVLAN(TransactionTestCase):
         self.diffsync.site_map = {}
         result = self.mock_vlan.create(diffsync=self.diffsync, ids=self.ids, attrs=self.attrs)
         self.assertIsInstance(result, ipam.NautobotVLAN)
+        self.diffsync.job.logger.info.assert_called_once_with("Creating VLAN 1 Test for Global")
         vlan = VLAN.objects.get(vid=1)
         self.assertIsNone(vlan.location)
         self.assertEqual(vlan.name, self.attrs["name"])
         self.assertEqual(vlan.description, self.attrs["description"])
+        self.assertEqual(self.diffsync.vlan_map["Global"][1], vlan.id)
+
+    def test_create_with_defined_building(self):
+        """Validate the NautobotVLAN.create() functionality with a defined building."""
+        self.ids["building"] = "HQ"
+        result = self.mock_vlan.create(diffsync=self.diffsync, ids=self.ids, attrs=self.attrs)
+        self.assertIsInstance(result, ipam.NautobotVLAN)
+        self.diffsync.job.logger.info.assert_called_once_with("Creating VLAN 1 Test for HQ")
+        vlan = VLAN.objects.get(vid=1)
+        self.assertEqual(vlan.location, self.test_site)
+        self.assertEqual(vlan.name, self.attrs["name"])
+        self.assertEqual(vlan.description, self.attrs["description"])
+        self.assertEqual(self.diffsync.vlan_map["HQ"][1], vlan.id)
