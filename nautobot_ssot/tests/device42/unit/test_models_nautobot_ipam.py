@@ -6,7 +6,7 @@ from diffsync import DiffSync
 from nautobot.core.testing import TransactionTestCase
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer, Platform
 from nautobot.extras.models import Role, Status
-from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix, VRF
+from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix, VLAN, VRF
 from nautobot_ssot.integrations.device42.diffsync.models.nautobot import ipam
 
 
@@ -374,3 +374,39 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         self.diffsync.job.logger.warning.assert_called_once_with(
             "Unable to update IP Address 10.0.0.1/24 with {}. ['Error']"
         )
+
+
+class TestNautobotVLAN(TransactionTestCase):
+    """Test the NautobotVLAN class."""
+
+    def setUp(self):
+        super().setUp()
+        self.status_active = Status.objects.get(name="Active")
+
+        self.diffsync = DiffSync()
+        self.diffsync.job = MagicMock()
+        self.diffsync.job.logger.info = MagicMock()
+        self.diffsync.status_map = {"Active": self.status_active.id}
+        self.diffsync.vlan_map = {}
+        self.ids = {
+            "vlan_id": 1,
+            "building": None,
+        }
+        self.attrs = {
+            "name": "Test",
+            "description": "Test VLAN",
+            "tags": [],
+            "custom_fields": {},
+        }
+        self.mock_vlan = ipam.NautobotVLAN(**self.ids, **self.attrs)
+        self.mock_vlan.diffsync = self.diffsync
+
+    def test_create_with_undefined_building(self):
+        """Validate the NautobotVLAN.create() functionality with an undefined building."""
+        self.diffsync.site_map = {}
+        result = self.mock_vlan.create(diffsync=self.diffsync, ids=self.ids, attrs=self.attrs)
+        self.assertIsInstance(result, ipam.NautobotVLAN)
+        vlan = VLAN.objects.get(vid=1)
+        self.assertIsNone(vlan.location)
+        self.assertEqual(vlan.name, self.attrs["name"])
+        self.assertEqual(vlan.description, self.attrs["description"])
