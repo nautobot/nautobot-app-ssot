@@ -26,7 +26,7 @@ class TestNautobotVRFGroup(TransactionTestCase):
         """Validate the NautobotVRFGroup create() method creates a VRF."""
         self.vrf.delete()
         ids = {"name": "Test"}
-        attrs = {"description": "Test VRF", "tags": ["test"], "custom_fields": {}}
+        attrs = {"description": "Test VRF", "tags": ["test"], "custom_fields": {"Dept": {"key": "Dept", "value": "IT"}}}
         result = ipam.NautobotVRFGroup.create(self.diffsync, ids, attrs)
         self.assertIsInstance(result, ipam.NautobotVRFGroup)
         self.diffsync.job.logger.info.assert_called_once_with("Creating VRF Test.")
@@ -36,14 +36,20 @@ class TestNautobotVRFGroup(TransactionTestCase):
         vrf = VRF.objects.get(name=ids["name"])
         self.assertEqual(self.diffsync.vrf_map[ids["name"]], vrf.id)
         self.assertEqual(vrf.namespace.name, ids["name"])
+        self.assertEqual(list(vrf.tags.names()), attrs["tags"])
+        self.assertEqual(vrf.custom_field_data["Dept"], "IT")
 
     def test_update(self):
         """Validate the NautobotVRFGroup update() updates a VRF."""
         test_vrf = ipam.NautobotVRFGroup(
-            name="Test", description="Test VRF", tags=["test"], custom_fields={}, uuid=self.vrf.id
+            name="Test", description="Test VRF", tags=[], custom_fields={}, uuid=self.vrf.id
         )
         test_vrf.diffsync = self.diffsync
-        update_attrs = {"description": "Test VRF Update", "custom_fields": {"test": {"key": "test", "value": "test"}}}
+        update_attrs = {
+            "description": "Test VRF Update",
+            "tags": ["Test"],
+            "custom_fields": {"test": {"key": "test", "value": "test"}},
+        }
         actual = ipam.NautobotVRFGroup.update(self=test_vrf, attrs=update_attrs)
         self.diffsync.job.logger.info.assert_called_once_with("Updating VRF Test.")
         self.vrf.refresh_from_db()
@@ -51,6 +57,7 @@ class TestNautobotVRFGroup(TransactionTestCase):
         self.assertEqual(self.vrf.custom_field_data["test"], "test")
         self.assertEqual(actual, test_vrf)
         self.assertEqual(self.vrf.description, "Test VRF Update")
+        self.assertEqual(list(self.vrf.tags.names()), update_attrs["tags"])
         self.assertEqual(self.vrf.custom_field_data["test"], "test")
 
     @patch(
