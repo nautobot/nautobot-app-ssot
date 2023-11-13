@@ -60,6 +60,18 @@ class TestNautobotVRFGroup(TransactionTestCase):
         self.assertEqual(list(self.vrf.tags.names()), update_attrs["tags"])
         self.assertEqual(self.vrf.custom_field_data["test"], "test")
 
+    def test_update_clear_tags(self):
+        """Validate the NautobotVRFGroup.update() clears tags."""
+        test_vrf = ipam.NautobotVRFGroup(name="Test", description="", tags=[], custom_fields={}, uuid=self.vrf.id)
+        test_vrf.diffsync = self.diffsync
+        update_attrs = {
+            "tags": [],
+        }
+        result = test_vrf.update(attrs=update_attrs)
+        self.assertIsInstance(result, ipam.NautobotVRFGroup)
+        self.vrf.refresh_from_db()
+        self.assertEqual(list(self.vrf.tags.names()), [])
+
     @patch(
         "nautobot_ssot.integrations.device42.diffsync.models.nautobot.ipam.PLUGIN_CFG",
         {"device42_delete_on_sync": True},
