@@ -450,3 +450,12 @@ class TestNautobotVLAN(TransactionTestCase):
         self.diffsync.job.logger.info.assert_called_with("Updating VLAN Test 1 for Global.")
         vlan = VLAN.objects.get(vid=1)
         self.assertEqual(vlan.name, "Test2")
+
+    def test_update_vlan_desscription(self):
+        """Validate the NautobotVLAN.update() functionality with a new description."""
+        self.create_mock_vlan_and_assign()
+        update_attrs = {"description": "DMZ VLAN"}
+        result = self.mock_vlan.update(attrs=update_attrs)
+        self.assertIsInstance(result, ipam.NautobotVLAN)
+        vlan = VLAN.objects.get(vid=1)
+        self.assertEqual(vlan.description, "DMZ VLAN")
