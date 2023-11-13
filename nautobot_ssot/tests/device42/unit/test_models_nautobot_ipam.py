@@ -468,3 +468,12 @@ class TestNautobotVLAN(TransactionTestCase):
         self.assertIsInstance(result, ipam.NautobotVLAN)
         vlan = VLAN.objects.get(vid=1)
         self.assertEqual(vlan.custom_field_data["Test"], "test")
+
+    def test_update_vlan_tags(self):
+        """Validate the NautobotVLAN.update() functionality with adding tags."""
+        self.create_mock_vlan_and_assign()
+        update_attrs = {"tags": ["Test", "Test2"]}
+        result = self.mock_vlan.update(attrs=update_attrs)
+        self.assertIsInstance(result, ipam.NautobotVLAN)
+        vlan = VLAN.objects.get(vid=1)
+        self.assertEqual(list(vlan.tags.names()), update_attrs["tags"])
