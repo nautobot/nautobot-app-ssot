@@ -26,7 +26,7 @@ class TestNautobotVRFGroup(TransactionTestCase):
         """Validate the NautobotVRFGroup create() method creates a VRF."""
         self.vrf.delete()
         ids = {"name": "Test"}
-        attrs = {"description": "Test VRF", "tags": ["test"], "custom_fields": {"Dept": {"key": "Dept", "value": "IT"}}}
+        attrs = {"description": "Test VRF", "tags": ["est"], "custom_fields": {"Dept": {"key": "Dept", "value": "IT"}}}
         result = ipam.NautobotVRFGroup.create(self.diffsync, ids, attrs)
         self.assertIsInstance(result, ipam.NautobotVRFGroup)
         self.diffsync.job.logger.info.assert_called_once_with("Creating VRF Test.")
@@ -114,7 +114,7 @@ class TestNautobotSubnet(TransactionTestCase):
         """Validate the NautobotSubnet create() method creates a Prefix."""
         self.prefix.delete()
         ids = {"network": "10.0.0.0", "mask_bits": "24", "vrf": "Test"}
-        attrs = {"description": "", "tags": [], "custom_fields": {}}
+        attrs = {"description": "", "tags": ["Test"], "custom_fields": {"Test": {"key": "Test", "value": "test"}}}
         result = ipam.NautobotSubnet.create(self.diffsync, ids, attrs)
         self.assertIsInstance(result, ipam.NautobotSubnet)
         self.diffsync.job.logger.info.assert_called_once_with("Creating Prefix 10.0.0.0/24 in VRF Test.")
@@ -122,6 +122,8 @@ class TestNautobotSubnet(TransactionTestCase):
         self.assertEqual(str(subnet.prefix), f"{ids['network']}/{ids['mask_bits']}")
         self.assertEqual(self.diffsync.prefix_map["Test"][f"{ids['network']}/{ids['mask_bits']}"], subnet.id)
         self.assertEqual(subnet.vrfs.all().first(), self.test_vrf)
+        self.assertEqual(list(subnet.tags.names()), attrs["tags"])
+        self.assertEqual(subnet.custom_field_data["Test"], "test")
 
     def test_update(self):
         """Validate the NautobotSubnet update() method updates a Prefix."""
