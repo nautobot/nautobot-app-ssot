@@ -113,7 +113,7 @@ class TestNautobotSubnet(TransactionTestCase):
     def test_create(self):
         """Validate the NautobotSubnet create() method creates a Prefix."""
         self.prefix.delete()
-        ids = {"network": "10.0.0.0", "mask_bits": "24", "vrf": "Test"}
+        ids = {"network": "10.0.0.0", "mask_bits": 24, "vrf": "Test"}
         attrs = {"description": "", "tags": ["Test"], "custom_fields": {"Test": {"key": "Test", "value": "test"}}}
         result = ipam.NautobotSubnet.create(self.diffsync, ids, attrs)
         self.assertIsInstance(result, ipam.NautobotSubnet)
@@ -124,6 +124,16 @@ class TestNautobotSubnet(TransactionTestCase):
         self.assertEqual(subnet.vrfs.all().first(), self.test_vrf)
         self.assertEqual(list(subnet.tags.names()), attrs["tags"])
         self.assertEqual(subnet.custom_field_data["Test"], "test")
+
+    def test_create_container_type(self):
+        """Validate the NautobotSubnet.create() functionality with setting Prefix to container type."""
+        self.prefix.delete()
+        ids = {"network": "0.0.0.0", "mask_bits": 0, "vrf": "Test"}  # nosec
+        attrs = {"description": "", "tags": [], "custom_fields": {}}
+        result = ipam.NautobotSubnet.create(self.diffsync, ids, attrs)
+        self.assertIsInstance(result, ipam.NautobotSubnet)
+        subnet = Prefix.objects.get(prefix=f"{ids['network']}/{ids['mask_bits']}", namespace=self.test_ns)
+        self.assertEqual(subnet.type, "container")
 
     def test_update(self):
         """Validate the NautobotSubnet update() method updates a Prefix."""
