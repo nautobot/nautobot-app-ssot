@@ -39,7 +39,7 @@ def create_custom_field(key: str, label: str, models: List, apps, cf_type: Optio
         )
     for model in models:
         custom_field.content_types.add(ContentType.objects.get_for_model(model))
-    custom_field.validated_save()
+    custom_field.save()
 
 
 def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disable=unused-argument
