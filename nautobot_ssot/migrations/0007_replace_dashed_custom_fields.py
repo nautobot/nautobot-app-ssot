@@ -23,7 +23,7 @@ def replace_dashed_custom_fields(apps, schema_editor):
             custom_field.save()
 
     for ct in ContentType.objects.filter(FeatureQuery("custom_fields").get_query()):
-        relevant_custom_fields = CustomField.objects.filter(content_types=ct)
+        relevant_custom_fields = CustomField.objects.filter(content_types=ct, key__in=CF_KEY_CHANGE_MAP.values())
         if not relevant_custom_fields.exists():
             continue
         model = apps.get_model(ct.app_label, ct.model)
