@@ -7,7 +7,7 @@ from nautobot.core.choices import ColorChoices
 
 
 def register_signals(sender):
-    """Register signals for Infoblox integration."""
+    """Register signals for ServiceNow integration."""
     nautobot_database_ready.connect(nautobot_database_ready_callback, sender=sender)
 
 
@@ -33,9 +33,9 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     )
     custom_field, _ = CustomField.objects.get_or_create(
         type=CustomFieldTypeChoices.TYPE_DATE,
-        key="ssot-synced-to-servicenow",
+        key="servicenow_last_synchronized",
         defaults={
-            "label": "Last synced to ServiceNow on",
+            "label": "Last synced to ServiceNow",
         },
     )
     for content_type in [

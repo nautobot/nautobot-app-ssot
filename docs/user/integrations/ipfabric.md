@@ -36,7 +36,7 @@ There are several options available.
 
 - **Debug**: Enables more verbose logging that can be useful for troubleshooting synchronization issues.
 - **Safe Delete Mode**: Delete operations changes the object status to a predefined value (configurable via settings) and tags the object with `ssot-safe-delete` tag.
-- **Sync Tagged Only**: Only load Nautobot data into DiffSync adapters that's been tagged with `ssot-synced-from-ipfabric` tag.
+- **Sync Tagged Only**: Only load Nautobot data into DiffSync adapters that's been tagged with `ssot_last_synchronized` tag.
 - **Dry run**: This will only report the difference between the source and destination without synchronization.
 - **Site Filter**: Filter the data loaded into DiffSync by a top level location of a specified Site.
 
@@ -118,7 +118,7 @@ If you would like to change the default status change value, ensure you provide 
 
 ![Safe Delete](../../images/ipfabric-safe-delete.png)
 
-An example object that's been modified by SSoT App and tagged as `ssot-safe-delete` and `ssot-synced-from-ipfabric`. Notice the Status and child object, IPAddress has also changed to Deprecated and, it's status changed and tagged as well.
+An example object that's been modified by SSoT App and tagged as `ssot-safe-delete` and `ssot_last_synchronized`. Notice the Status and child object, IPAddress has also changed to Deprecated and, it's status changed and tagged as well.
 
 ![Safe Delete Address](../../images/ipfabric-safe-delete-ipaddress.png)
 
