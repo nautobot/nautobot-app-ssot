@@ -39,7 +39,7 @@ def migrate_dashed_custom_fields_to_underscored(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("extras", "0006_ssotservicenowconfig"),
+        ("nautobot_ssot", "0006_ssotservicenowconfig"),
     ]
 
     operations = [
