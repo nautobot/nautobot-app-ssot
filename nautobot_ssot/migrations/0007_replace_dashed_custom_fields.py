@@ -5,6 +5,7 @@ CF_KEY_CHANGE_MAP = {
     "servicenow_last_synchronized": "ssot-synced-to-servicenow",
     "ssot_last_synchronized": "ssot-synced-from-ipfabric",
     "ipfabric_site_id": "ipfabric-site-id",
+    "ssot_synced_to_infoblox": "ssot-synced-to-infoblox",
 }
 
 

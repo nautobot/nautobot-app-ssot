@@ -89,7 +89,7 @@ def get_default_custom_fields(cf_contenttype: ContentType) -> dict:
     customfields = CustomField.objects.filter(content_types=cf_contenttype)
     default_cfs = {}
     for customfield in customfields:
-        if customfield.key != "ssot-synced-to-infoblox":
+        if customfield.key != "ssot_synced_to_infoblox":
             if customfield.key not in default_cfs:
                 default_cfs[customfield.key] = None
     return default_cfs
