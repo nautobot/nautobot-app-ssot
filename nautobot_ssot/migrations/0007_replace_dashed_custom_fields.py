@@ -8,7 +8,7 @@ CF_KEY_CHANGE_MAP = {
 }
 
 
-def migrate_dashed_custom_fields_to_underscored(apps, schema_editor):
+def replace_dashed_custom_fields(apps, schema_editor):
     CustomField = apps.get_model("extras", "customfield")
     ContentType = apps.get_model("contenttypes", "ContentType")
 
@@ -44,7 +44,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunPython(
-            code=migrate_dashed_custom_fields_to_underscored,
+            code=replace_dashed_custom_fields,
             reverse_code=migrations.operations.special.RunPython.noop,
         )
     ]
