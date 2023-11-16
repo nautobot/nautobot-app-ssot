@@ -22,4 +22,4 @@ SAFE_DELETE_DEVICE_STATUS = CONFIG.get("ipfabric_safe_delete_device_status", "Of
 SAFE_DELETE_LOCATION_STATUS = CONFIG.get("ipfabric_safe_delete_location_status", "Decommissioning")
 SAFE_DELETE_VLAN_STATUS = CONFIG.get("ipfabric_safe_delete_vlan_status", "Deprecated")
 SAFE_DELETE_IPADDRESS_STATUS = CONFIG.get("ipfabric_safe_delete_ipaddress_status", "Deprecated")
-LAST_SYNCHRONIZED_CF_NAME = "last_synced_from_ssot"
+LAST_SYNCHRONIZED_CF_NAME = "last_synced_from_sor"
