@@ -76,12 +76,12 @@ class DiffSyncExtras(DiffSyncModel):
                 # No exception raised for empty iterator, safe to do this any
                 if not any(obj_tag for obj_tag in object_tags if obj_tag.name == ssot_safe_tag.name):
                     nautobot_object.tags.add(ssot_safe_tag)
-                    logger.warning(f"Tagging {nautobot_object} with `ssot-safe-delete`.")
+                    logger.warning(f"Tagging {nautobot_object} with `SSoT Safe Delete`.")
                     update = True
             if update:
                 tonb_nbutils.tag_object(nautobot_object=nautobot_object, custom_field="ssot_last_synchronized")
             else:
-                logger.warning(f"{nautobot_object} has previously been tagged with `ssot-safe-delete`. Skipping...")
+                logger.warning(f"{nautobot_object} has previously been tagged with `SSoT Safe Delete`. Skipping...")
 
         return self
 
