@@ -14,29 +14,30 @@ def replace_dashed_custom_fields(apps, schema_editor):
     ContentType = apps.get_model("contenttypes", "ContentType")
 
     for new_key, old_key in CF_KEY_CHANGE_MAP.items():
-        for custom_field in CustomField.objects.filter(key=old_key):
-            original_key = custom_field.key
-            updated_key = CF_KEY_CHANGE_MAP[new_key]
-            print(
-                f'CustomField instance "{custom_field.label}" key attribute "{original_key}" is being changed to "{updated_key}".'
-            )
-            custom_field.key = updated_key
-            custom_field.save()
+        if not CustomField.objects.filter(key=new_key).exists():
+            for custom_field in CustomField.objects.filter(key=old_key):
+                original_key = custom_field.key
+                print(
+                    f'   CustomField instance "{custom_field.label}" key attribute "{original_key}" is being changed to "{new_key}".'
+                )
+                custom_field.key = new_key
+                custom_field.save()
 
     for ct in ContentType.objects.filter(FeatureQuery("custom_fields").get_query()):
-        relevant_custom_fields = CustomField.objects.filter(content_types=ct, key__in=CF_KEY_CHANGE_MAP.values())
-        if not relevant_custom_fields.exists():
-            continue
         model = apps.get_model(ct.app_label, ct.model)
         cf_list = []
         for instance in model.objects.all():
-            new_custom_field_data = instance._custom_field_data.copy()
-            for cf in relevant_custom_fields:
-                if cf.key not in new_custom_field_data:
-                    new_custom_field_data[cf.key] = instance._custom_field_data.pop(CF_KEY_CHANGE_MAP.get(cf.key), None)
-            instance._custom_field_data = new_custom_field_data
+            for new_cf, old_cf in CF_KEY_CHANGE_MAP.items():
+                if old_cf in instance._custom_field_data and new_cf in instance._custom_field_data:
+                    print(f"CustomField {new_cf} on {instance} is being set to {instance._custom_field_data[old_cf]}.")
+                    instance._custom_field_data[new_cf] = instance._custom_field_data.pop(old_cf)
             cf_list.append(instance)
         model.objects.bulk_update(cf_list, ["_custom_field_data"], 1000)
+
+    for old_cf in CF_KEY_CHANGE_MAP.values():
+        for custom_field in CustomField.objects.filter(key=old_cf):
+            print(f"Deleting CustomField {custom_field.key}.")
+            custom_field.delete()
 
 
 class Migration(migrations.Migration):
