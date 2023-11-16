@@ -153,7 +153,7 @@ class TestNautobotUtils(TransactionTestCase):  # pylint: disable=too-many-instan
         test_site = Location.objects.create(
             name="Test", location_type=LocationType.objects.get_or_create(name="Site")[0], status=self.status_active
         )
-        self.assertEqual(len(test_site.get_custom_fields()), 3)
+        self.assertEqual(len(test_site.get_custom_fields()), 4)
         mock_cfs = {
             "Test Custom Field": {"key": "Test Custom Field", "value": None, "notes": None},
         }
