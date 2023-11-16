@@ -6,6 +6,8 @@ from typing import Any, Optional
 from django.contrib.contenttypes.models import ContentType
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
+from netutils.ip import netmask_to_cidr
+from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import (
     Device,
     DeviceType,
@@ -19,9 +21,7 @@ from nautobot.extras.models import CustomField, Role, Tag
 from nautobot.extras.models.statuses import Status
 from nautobot.ipam.models import VLAN, IPAddress, IPAddressToInterface, Namespace, Prefix
 from nautobot.ipam.choices import PrefixTypeChoices
-from nautobot.core.choices import ColorChoices
 from nautobot_ssot.integrations.ipfabric.constants import LAST_SYNCHRONIZED_CF_NAME
-from netutils.ip import netmask_to_cidr
 
 
 def create_location(location_name, location_id=None):
