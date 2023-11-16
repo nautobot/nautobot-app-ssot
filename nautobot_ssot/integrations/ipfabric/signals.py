@@ -77,6 +77,6 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     loc_type.content_types.add(ContentType.objects.get_for_model(VLAN))
     synced_from_models = [Device, DeviceType, Interface, Manufacturer, Location, VLAN, Role, IPAddress]
     create_custom_field("system_of_record", "System of Record", synced_from_models, apps=apps, cf_type="type_text")
-    create_custom_field("ssot_last_synchronized", "Last sync from System of Record", synced_from_models, apps=apps)
+    create_custom_field("last_synced_from_ssot", "Last sync from System of Record", synced_from_models, apps=apps)
     create_custom_field("ipfabric_site_id", "IPFabric Location ID", [Location], apps=apps, cf_type="type_text")
     create_custom_field("ipfabric_type", "IPFabric Type", [Role], apps=apps, cf_type="type_text")
