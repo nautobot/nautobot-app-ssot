@@ -91,13 +91,8 @@ class NautobotAdapter(DiffSync):
             metadata_for_this_field = getattr(type_hints[parameter_name], "__metadata__", [])
             for metadata in metadata_for_this_field:
                 if isinstance(metadata, CustomFieldAnnotation):
-                    try:
+                    if metadata.name in database_object.cf:
                         parameters[parameter_name] = database_object.cf[metadata.name]
-                    except KeyError:
-                        # Custom field not in values passed, field should be skipped and value removed from object if set
-                        # To skip or remove value, simply don't set the key in the parameters dict
-                        pass
-                    parameters[parameter_name] = database_object.cf[metadata.name]
                     is_custom_field = True
                     break
             if is_custom_field:
