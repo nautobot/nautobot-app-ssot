@@ -222,15 +222,16 @@ def update_custom_fields(new_cfields: dict, update_obj: object):
             )
             removed_cf.delete()
     for new_cf, new_cf_dict in new_cfields.items():
+        new_key = new_cf_dict["key"].replace(" ", "_").replace("-", "_")
         if new_cf not in current_cf:
             _cf_dict = {
-                "key": new_cf_dict["key"],
+                "key": new_key,
                 "type": CustomFieldTypeChoices.TYPE_TEXT,
                 "label": new_cf_dict["key"],
             }
             field, _ = CustomField.objects.get_or_create(key=_cf_dict["key"], defaults=_cf_dict)
             field.content_types.add(ContentType.objects.get_for_model(type(update_obj)).id)
-        update_obj.custom_field_data.update({new_cf_dict["key"]: new_cf_dict["value"]})
+        update_obj.custom_field_data.update({new_key: new_cf_dict["value"]})
 
 
 def verify_circuit_type(circuit_type: str) -> CircuitType:
