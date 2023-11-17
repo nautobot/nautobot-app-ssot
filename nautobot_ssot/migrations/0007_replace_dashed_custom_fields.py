@@ -2,7 +2,7 @@ from django.db import migrations
 from nautobot.extras.utils import FeatureQuery
 
 CF_KEY_CHANGE_MAP = {
-    "servicenow_last_synchronized": "ssot-synced-to-servicenow",
+    "ssot_synced_to_servicenow": "ssot-synced-to-servicenow",
     "last_synced_from_sor": "ssot-synced-from-ipfabric",
     "ipfabric_site_id": "ipfabric-site-id",
     "ssot_synced_to_infoblox": "ssot-synced-to-infoblox",

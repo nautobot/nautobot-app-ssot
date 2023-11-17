@@ -33,7 +33,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     )
     custom_field, _ = CustomField.objects.get_or_create(
         type=CustomFieldTypeChoices.TYPE_DATE,
-        key="servicenow_last_synchronized",
+        key="ssot_synced_to_servicenow",
         defaults={
             "label": "Last synced to ServiceNow",
         },

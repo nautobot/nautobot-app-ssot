@@ -127,7 +127,7 @@ class NautobotDiffSync(DiffSync):
 
     def tag_involved_objects(self, target):
         """Tag all objects that were successfully synced to the target."""
-        # The servicenow_last_synchronized tag *should* have been created automatically during plugin installation
+        # The SSoT Synced to ServiceNow Tag *should* have been created automatically during plugin installation
         # (see nautobot_ssot/integrations/servicenow/signals.py) but maybe a user deleted it inadvertently, so be safe:
         tag, _ = Tag.objects.get_or_create(
             name="SSoT Synced to ServiceNow",
@@ -137,10 +137,10 @@ class NautobotDiffSync(DiffSync):
                 "color": ColorChoices.COLOR_LIGHT_GREEN,
             },
         )
-        # Ensure that the "servicenow_last_synchronized" custom field is present; as above, it *should* already exist.
+        # Ensure that the "ssot_synced_to_servicenow" CustomField is present; as above, it *should* already exist.
         custom_field, _ = CustomField.objects.get_or_create(
             type=CustomFieldTypeChoices.TYPE_DATE,
-            key="servicenow_last_synchronized",
+            key="ssot_synced_to_servicenow",
             defaults={
                 "label": "Last synced to ServiceNow",
             },
