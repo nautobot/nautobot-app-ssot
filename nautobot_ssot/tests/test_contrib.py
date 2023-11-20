@@ -311,6 +311,39 @@ class NautobotAdapterTests(TestCase):
             "Custom fields aren't properly loaded through 'BaseAdapter'.",
         )
 
+    def test_overwrite_get_queryset(self):
+        """Test overriding 'get_queryset' method."""
+
+        class TenantModel(NautobotModel):
+            """Test model for testing overridden 'get_queryset' method."""
+
+            _model = Tenant
+            _modelname = "tenant"
+            _identifiers = ("name",)
+            _attributes = ("description",)
+
+            name: str
+            description: str
+
+            @classmethod
+            def get_queryset(cls):
+                return Tenant.objects.filter(name__startswith="N")
+
+        class Adapter(NautobotAdapter):
+            """Test overriding 'get_queryset' method."""
+
+            top_level = ("tenant",)
+            tenant = TenantModel
+
+        new_tenant_name = "NASA"
+        Tenant.objects.create(name=new_tenant_name)
+        Tenant.objects.create(name="Air Force")
+        adapter = Adapter()
+        adapter.load()
+        diffsync_tenant = adapter.get(TenantModel, new_tenant_name)
+
+        self.assertEqual(new_tenant_name, diffsync_tenant.name)
+
 
 class BaseModelTests(TestCase):
     """Testing basic operations through 'NautobotModel'."""
