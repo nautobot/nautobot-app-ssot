@@ -59,13 +59,7 @@ class NautobotAdapter(DiffSync):
     def _load_objects(self, diffsync_model):
         """Given a diffsync model class, load a list of models from the database and return them."""
         parameter_names = self._get_parameter_names(diffsync_model)
-
-        # Here we identify any foreign keys (i.e. fields with '__' in them) so that we can load them directly in the
-        # first query.
-        prefetch_related_parameters = [parameter.split("__")[0] for parameter in parameter_names if "__" in parameter]
-
-        # TODO: Allow for filtering, i.e. not getting all models from a table but just some.
-        for database_object in diffsync_model._model.objects.prefetch_related(*prefetch_related_parameters).all():
+        for database_object in diffsync_model._get_queryset():
             self._load_single_object(database_object, diffsync_model, parameter_names)
 
     def _load_single_object(self, database_object, diffsync_model, parameter_names):
@@ -257,6 +251,21 @@ class NautobotModel(DiffSyncModel):
     """
 
     _model: Model
+
+    @classmethod
+    def _get_queryset(cls):
+        """Get the queryset used to load the models data from Nautobot."""
+        parameter_names = list(cls._identifiers) + list(cls._attributes)
+        # Here we identify any foreign keys (i.e. fields with '__' in them) so that we can load them directly in the
+        # first query if this function hasn't been overridden.
+        prefetch_related_parameters = [parameter.split("__")[0] for parameter in parameter_names if "__" in parameter]
+        qs = cls.get_queryset()
+        return qs.prefetch_related(*prefetch_related_parameters)
+
+    @classmethod
+    def get_queryset(cls):
+        """Get the queryset used to load the models data from Nautobot."""
+        return cls._model.objects.all()
 
     @classmethod
     def _check_field(cls, name):
