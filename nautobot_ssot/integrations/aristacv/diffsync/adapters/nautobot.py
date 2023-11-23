@@ -89,7 +89,7 @@ class NautobotAdapter(DiffSync):
 
     def load_ip_addresses(self):
         """Add Nautobot IPAddress objects as DiffSync IPAddress models."""
-        for ipaddr in OrmIPAddress.objects.filter(interface__device__device_type__manufacturer__name="Arista"):
+        for ipaddr in OrmIPAddress.objects.filter(interfaces__device__device_type__manufacturer__name__in=["Arista"]):
             new_ip = self.ipaddr(
                 address=str(ipaddr.address),
                 interface=ipaddr.assigned_object.name,
