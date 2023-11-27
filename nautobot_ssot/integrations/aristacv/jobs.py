@@ -112,7 +112,7 @@ class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
         self.target_adapter = NautobotAdapter(job=self)
         self.target_adapter.load()
 
-    def run(  # pylint: disable=arguments-differ, too-many-arguments
+    def run(  # pylint: disable=arguments-differ, too-many-arguments, duplicate-code
         self, dryrun, memory_profiling, debug, *args, **kwargs
     ):
         """Perform data synchronization."""
@@ -187,7 +187,7 @@ class CloudVisionDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
             self.target_adapter = CloudvisionAdapter(job=self, conn=client)
             self.target_adapter.load()
 
-    def run(  # pylint: disable=arguments-differ, too-many-arguments
+    def run(  # pylint: disable=arguments-differ, too-many-arguments, duplicate-code
         self, dryrun, memory_profiling, debug, *args, **kwargs
     ):
         """Perform data synchronization."""
