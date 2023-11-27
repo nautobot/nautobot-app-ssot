@@ -338,7 +338,7 @@ class NautobotAdapterTests(TestCase):
         new_tenant_name = "NASA"
         Tenant.objects.create(name=new_tenant_name)
         Tenant.objects.create(name="Air Force")
-        adapter = Adapter()
+        adapter = Adapter(job=MagicMock())
         adapter.load()
         diffsync_tenant = adapter.get(TenantModel, new_tenant_name)
 
