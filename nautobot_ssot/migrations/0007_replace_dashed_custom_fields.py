@@ -25,18 +25,15 @@ def replace_dashed_custom_fields(apps, schema_editor):
                 custom_field.key = new_key
                 custom_field.save()
 
-    for ct in ContentType.objects.filter(FeatureQuery("custom_fields").get_query()):
-        for model in [Device, DeviceType, Interface, Manufacturer, Location, VLAN, Role, IPAddress]:
-            cf_list = []
-            for instance in model.objects.all():
-                for new_cf, old_cf in CF_KEY_CHANGE_MAP.items():
-                    if old_cf in instance._custom_field_data and new_cf in instance._custom_field_data:
-                        print(
-                            f"CustomField {new_cf} on {instance} is being set to {instance._custom_field_data[old_cf]}."
-                        )
-                        instance._custom_field_data[new_cf] = instance._custom_field_data.pop(old_cf)
-                cf_list.append(instance)
-            model.objects.bulk_update(cf_list, ["_custom_field_data"], 1000)
+    for model in [Device, DeviceType, Interface, Manufacturer, Location, VLAN, Role, IPAddress]:
+        cf_list = []
+        for instance in model.objects.all():
+            for new_cf, old_cf in CF_KEY_CHANGE_MAP.items():
+                if old_cf in instance._custom_field_data and new_cf in instance._custom_field_data:
+                    print(f"CustomField {new_cf} on {instance} is being set to {instance._custom_field_data[old_cf]}.")
+                    instance._custom_field_data[new_cf] = instance._custom_field_data.pop(old_cf)
+            cf_list.append(instance)
+        model.objects.bulk_update(cf_list, ["_custom_field_data"], 1000)
 
     for old_cf in CF_KEY_CHANGE_MAP.values():
         for custom_field in CustomField.objects.filter(key=old_cf):
