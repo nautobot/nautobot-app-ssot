@@ -230,25 +230,6 @@ def tag_object(nautobot_object: Any, custom_field: str, tag_name: Optional[str] 
         if hasattr(nautobot_object, "tags"):
             nautobot_object.tags.add(tag)
         if hasattr(nautobot_object, "cf"):
-            # Ensure that the LAST_SYNCHRONIZED_CF_NAME custom field is present
-            if not any(cfield for cfield in CustomField.objects.all() if cfield.key == LAST_SYNCHRONIZED_CF_NAME):
-                custom_field_obj = CustomField.objects.get(
-                    key=LAST_SYNCHRONIZED_CF_NAME,
-                )
-                synced_from_models = [
-                    Device,
-                    DeviceType,
-                    Interface,
-                    Manufacturer,
-                    Location,
-                    VLAN,
-                    Role,
-                    IPAddress,
-                ]
-                for model in synced_from_models:
-                    custom_field_obj.content_types.add(ContentType.objects.get_for_model(model))
-                custom_field_obj.validated_save()
-
             # Update custom field date stamp
             nautobot_object.cf["system_of_record"] = "IPFabric"
             nautobot_object.cf[custom_field] = today
