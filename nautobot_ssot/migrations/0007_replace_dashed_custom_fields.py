@@ -14,7 +14,6 @@ CF_KEY_CHANGE_MAP = {
 
 def replace_dashed_custom_fields(apps, schema_editor):
     CustomField = apps.get_model("extras", "customfield")
-    ContentType = apps.get_model("contenttypes", "ContentType")
 
     for new_key, old_key in CF_KEY_CHANGE_MAP.items():
         if not CustomField.objects.filter(key=new_key).exists():
