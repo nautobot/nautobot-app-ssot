@@ -19,9 +19,8 @@ def replace_dashed_custom_fields(apps, schema_editor):
     for new_key, old_key in CF_KEY_CHANGE_MAP.items():
         if not CustomField.objects.filter(key=new_key).exists():
             for custom_field in CustomField.objects.filter(key=old_key):
-                original_key = custom_field.key
                 print(
-                    f'   CustomField instance "{custom_field.label}" key attribute "{original_key}" is being changed to "{new_key}".'
+                    f'   CustomField instance "{custom_field.label}" key attribute "{old_key}" is being changed to "{new_key}".'
                 )
                 custom_field.key = new_key
                 custom_field.save()
