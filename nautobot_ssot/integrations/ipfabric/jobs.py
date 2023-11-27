@@ -111,7 +111,7 @@ class IpFabricDataSource(DataSource):
     sync_ipfabric_tagged_only = BooleanVar(
         default=True,
         label="Sync Tagged Only",
-        description="Only sync objects that have the 'ssot-synced-from-ipfabric' tag.",
+        description="Only sync objects that have the 'SSoT Synced from IPFabric' Tag.",
     )
     location_filter = OptionalObjectVar(
         description="Only sync Nautobot records belonging to a single Location. This does not filter IPFabric data.",
