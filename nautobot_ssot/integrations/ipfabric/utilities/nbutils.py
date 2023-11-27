@@ -19,7 +19,7 @@ from nautobot.dcim.models import (
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Role, Tag
 from nautobot.extras.models.statuses import Status
-from nautobot.ipam.models import VLAN, IPAddress, IPAddressToInterface, Namespace, Prefix
+from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix
 from nautobot.ipam.choices import PrefixTypeChoices
 from nautobot_ssot.integrations.ipfabric.constants import LAST_SYNCHRONIZED_CF_NAME
 
