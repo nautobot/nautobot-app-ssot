@@ -15,7 +15,7 @@ from nautobot.extras.models import Role, Tag
 from nautobot.extras.models.statuses import Status
 from nautobot.ipam.models import VLAN
 from nautobot.core.choices import ColorChoices
-
+from nautobot_ssot.integrations.ipfabric.constants import LAST_SYNCHRONIZED_CF_NAME
 import nautobot_ssot.integrations.ipfabric.utilities.nbutils as tonb_nbutils
 from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_DEVICE_ROLE,
@@ -76,12 +76,12 @@ class DiffSyncExtras(DiffSyncModel):
                 # No exception raised for empty iterator, safe to do this any
                 if not any(obj_tag for obj_tag in object_tags if obj_tag.name == ssot_safe_tag.name):
                     nautobot_object.tags.add(ssot_safe_tag)
-                    logger.warning(f"Tagging {nautobot_object} with `ssot-safe-delete`.")
+                    logger.warning(f"Tagging {nautobot_object} with `SSoT Safe Delete`.")
                     update = True
             if update:
-                tonb_nbutils.tag_object(nautobot_object=nautobot_object, custom_field="ssot-synced-from-ipfabric")
+                tonb_nbutils.tag_object(nautobot_object=nautobot_object, custom_field=LAST_SYNCHRONIZED_CF_NAME)
             else:
-                logger.warning(f"{nautobot_object} has previously been tagged with `ssot-safe-delete`. Skipping...")
+                logger.warning(f"{nautobot_object} has previously been tagged with `SSoT Safe Delete`. Skipping...")
 
         return self
 
@@ -120,7 +120,7 @@ class Location(DiffSyncExtras):
         """Update Location Object in Nautobot."""
         location = NautobotLocation.objects.get(name=self.name)
         if attrs.get("site_id"):
-            location.custom_field_data["ipfabric-site-id"] = attrs.get("site_id")
+            location.custom_field_data["ipfabric_site_id"] = attrs.get("site_id")
             location.validated_save()
         if attrs.get("status") == "Active":
             safe_delete_tag, _ = Tag.objects.get_or_create(name="SSoT Safe Delete")
@@ -129,7 +129,7 @@ class Location(DiffSyncExtras):
             device_tags = location.tags.filter(pk=safe_delete_tag.pk)
             if device_tags.exists():
                 location.tags.remove(safe_delete_tag)
-        tonb_nbutils.tag_object(nautobot_object=location, custom_field="ssot-synced-from-ipfabric")
+        tonb_nbutils.tag_object(nautobot_object=location, custom_field=LAST_SYNCHRONIZED_CF_NAME)
         return super().update(attrs)
 
 
@@ -198,7 +198,7 @@ class Device(DiffSyncExtras):
         )
         try:
             # Validated save happens inside of tag_objet
-            tonb_nbutils.tag_object(nautobot_object=new_device, custom_field="ssot-synced-from-ipfabric")
+            tonb_nbutils.tag_object(nautobot_object=new_device, custom_field=LAST_SYNCHRONIZED_CF_NAME)
         except ValidationError as error:
             message = f"Unable to create device: {ids['name']}. A validation error occured. Enable debug for more information."
             if diffsync.job.debug:
@@ -246,7 +246,7 @@ class Device(DiffSyncExtras):
                     role_name=attrs.get("role", DEFAULT_DEVICE_ROLE), role_color=DEFAULT_DEVICE_ROLE_COLOR
                 )
                 _device.role = device_role_object
-            tonb_nbutils.tag_object(nautobot_object=_device, custom_field="ssot-synced-from-ipfabric")
+            tonb_nbutils.tag_object(nautobot_object=_device, custom_field=LAST_SYNCHRONIZED_CF_NAME)
             # Call the super().update() method to update the in-memory DiffSyncModel instance
             return super().update(attrs)
         except NautobotDevice.DoesNotExist:
@@ -384,7 +384,7 @@ class Interface(DiffSyncExtras):
                         device.primary_ip6 = interface_obj
                         device.save()
             interface.save()
-            tonb_nbutils.tag_object(nautobot_object=interface, custom_field="ssot-synced-from-ipfabric")
+            tonb_nbutils.tag_object(nautobot_object=interface, custom_field=LAST_SYNCHRONIZED_CF_NAME)
             return super().update(attrs)
 
         except NautobotDevice.DoesNotExist:
@@ -447,7 +447,7 @@ class Vlan(DiffSyncExtras):
         if attrs.get("description"):
             vlan.description = vlan.description
 
-        tonb_nbutils.tag_object(nautobot_object=vlan, custom_field="ssot-synced-from-ipfabric")
+        tonb_nbutils.tag_object(nautobot_object=vlan, custom_field=LAST_SYNCHRONIZED_CF_NAME)
 
 
 Location.update_forward_refs()

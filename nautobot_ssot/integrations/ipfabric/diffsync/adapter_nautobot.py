@@ -207,7 +207,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                     location = self.location(
                         diffsync=self,
                         name=location_record.name,
-                        site_id=location_record.custom_field_data.get("ipfabric-site-id"),
+                        site_id=location_record.custom_field_data.get("ipfabric_site_id"),
                         status=location_record.status.name,
                     )
                 except AttributeError:

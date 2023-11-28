@@ -81,7 +81,7 @@ def get_device_version(device):
     """
     version = ""
     if LIFECYCLE_MGMT:
-        software_relation = Relationship.objects.get(name="Software on Device")
+        software_relation = Relationship.objects.get(label="Software on Device")
         relations = device.get_relationships()
         try:
             assigned_versions = relations["destination"][software_relation]

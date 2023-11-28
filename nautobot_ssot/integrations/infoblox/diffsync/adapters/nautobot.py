@@ -30,7 +30,7 @@ class NautobotMixin:
 
     def tag_involved_objects(self, target):
         """Tag all objects that were successfully synced to the target."""
-        # The ssot-synced-to-infoblox tag *should* have been created automatically during plugin installation
+        # The ssot_synced_to_infoblox tag *should* have been created automatically during plugin installation
         # (see nautobot_ssot/integrations/infoblox/signals.py) but maybe a user deleted it inadvertently, so be safe:
         tag, _ = Tag.objects.get_or_create(
             name="SSoT Synced to Infoblox",
@@ -40,10 +40,10 @@ class NautobotMixin:
                 "color": TAG_COLOR,
             },
         )
-        # Ensure that the "ssot-synced-to-infoblox" custom field is present; as above, it *should* already exist.
+        # Ensure that the "ssot_synced_to_infoblox" custom field is present; as above, it *should* already exist.
         custom_field, _ = CustomField.objects.get_or_create(
             type=CustomFieldTypeChoices.TYPE_DATE,
-            name="ssot-synced-to-infoblox",
+            name="ssot_synced_to_infoblox",
             defaults={
                 "label": "Last synced to Infoblox on",
             },
@@ -132,8 +132,8 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
         default_cfs = get_default_custom_fields(cf_contenttype=ContentType.objects.get_for_model(Prefix))
         for prefix in all_prefixes:
             self.prefix_map[str(prefix.prefix)] = prefix.id
-            if "ssot-synced-to-infoblox" in prefix.custom_field_data:
-                prefix.custom_field_data.pop("ssot-synced-to-infoblox")
+            if "ssot_synced_to_infoblox" in prefix.custom_field_data:
+                prefix.custom_field_data.pop("ssot_synced_to_infoblox")
             current_vlans = get_prefix_vlans(prefix=prefix)
             _prefix = self.prefix(
                 network=str(prefix.prefix),
@@ -169,8 +169,8 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
                 )
                 continue
 
-            if "ssot-synced-to-infoblox" in ipaddr.custom_field_data:
-                ipaddr.custom_field_data.pop("ssot-synced-to-infoblox")
+            if "ssot_synced_to_infoblox" in ipaddr.custom_field_data:
+                ipaddr.custom_field_data.pop("ssot_synced_to_infoblox")
             _ip = self.ipaddress(
                 address=addr,
                 prefix=str(prefix),
@@ -191,8 +191,8 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
         default_cfs = get_default_custom_fields(cf_contenttype=ContentType.objects.get_for_model(VLANGroup))
         for grp in VLANGroup.objects.all():
             self.vlangroup_map[grp.name] = grp.id
-            if "ssot-synced-to-infoblox" in grp.custom_field_data:
-                grp.custom_field_data.pop("ssot-synced-to-infoblox")
+            if "ssot_synced_to_infoblox" in grp.custom_field_data:
+                grp.custom_field_data.pop("ssot_synced_to_infoblox")
             _vg = self.vlangroup(
                 name=grp.name,
                 description=grp.description,
@@ -210,8 +210,8 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
             if vlan.group.name not in self.vlan_map:
                 self.vlan_map[vlan.vlan_group.name] = {}
             self.vlan_map[vlan.vlan_group.name][vlan.vid] = vlan.id
-            if "ssot-synced-to-infoblox" in vlan.custom_field_data:
-                vlan.custom_field_data.pop("ssot-synced-to-infoblox")
+            if "ssot_synced_to_infoblox" in vlan.custom_field_data:
+                vlan.custom_field_data.pop("ssot_synced_to_infoblox")
             _vlan = self.vlan(
                 vid=vlan.vid,
                 name=vlan.name,
