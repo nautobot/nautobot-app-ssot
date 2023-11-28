@@ -43,7 +43,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     )
     custom_field, _ = CustomField.objects.get_or_create(
         type=CustomFieldTypeChoices.TYPE_DATE,
-        key="ssot-synced-to-infoblox",
+        key="ssot_synced_to_infoblox",
         defaults={
             "label": "Last synced to Infoblox on",
         },

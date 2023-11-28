@@ -153,13 +153,13 @@ class TestNautobotUtils(TransactionTestCase):  # pylint: disable=too-many-instan
         test_site = Location.objects.create(
             name="Test", location_type=LocationType.objects.get_or_create(name="Site")[0], status=self.status_active
         )
-        self.assertEqual(len(test_site.get_custom_fields()), 3)
+        self.assertEqual(len(test_site.get_custom_fields()), 4)
         mock_cfs = {
             "Test Custom Field": {"key": "Test Custom Field", "value": None, "notes": None},
         }
         update_custom_fields(new_cfields=mock_cfs, update_obj=test_site)
         self.assertEqual(len(test_site.get_custom_fields()), 1)
-        self.assertEqual(test_site.custom_field_data["Test Custom Field"], None)
+        self.assertEqual(test_site.custom_field_data["Test_Custom_Field"], None)
 
     def test_update_custom_fields_remove_cf(self):
         """Test the update_custom_fields method removes a CustomField."""
