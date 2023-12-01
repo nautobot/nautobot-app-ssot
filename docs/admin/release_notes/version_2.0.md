@@ -71,3 +71,14 @@
 - [260](https://github.com/nautobot/nautobot-plugin-ssot/pull/260) - Fix Documentation for Device42 by @jdrew82
 - [246](https://github.com/nautobot/nautobot-plugin-ssot/pull/246) - IPFabric integration settings updates for 2.0 by @alhogan
 - [264](https://github.com/nautobot/nautobot-plugin-ssot/pull/264) - Add check for missing job_class attribute on 1.x Jobs by @jdrew82
+
+## v2.0.2 - 2023-11-28
+
+##  Changed
+
+- [229](https://github.com/nautobot/nautobot-plugin-ssot/pull/229) - Add the ability to customize queryset used on NautobotModels by @qduk
+- [259](https://github.com/nautobot/nautobot-plugin-ssot/pull/259) - add fix for issue #257 by @Renrut5
+- [280](https://github.com/nautobot/nautobot-plugin-ssot/pull/280) - fixes tests / pylint warning by @Kircheneer
+- [275](https://github.com/nautobot/nautobot-plugin-ssot/pull/275) - Fix CustomField Bug by @jdrew82
+- [282](https://github.com/nautobot/nautobot-plugin-ssot/pull/282) - Fix CloudVision SSoT Jobs by @jdrew82
+- [279](https://github.com/nautobot/nautobot-plugin-ssot/pull/279) - bug #266 by @gerardocastaldo
