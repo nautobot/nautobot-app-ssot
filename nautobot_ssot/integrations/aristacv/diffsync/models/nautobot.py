@@ -78,7 +78,7 @@ class NautobotDevice(Device):
         new_device = OrmDevice(
             status=OrmStatus.objects.get(name=attrs["status"]),
             device_type=device_type_object,
-            device_role=role,
+            role=role,
             platform=platform,
             site=site,
             name=ids["name"],

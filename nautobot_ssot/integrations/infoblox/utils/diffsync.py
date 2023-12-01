@@ -58,7 +58,7 @@ def get_ext_attr_dict(extattrs: dict):
     """
     fixed_dict = {}
     for key, value in extattrs.items():
-        fixed_dict[slugify(key)] = value["value"]
+        fixed_dict[slugify(key).replace("-", "_")] = value["value"]
     return fixed_dict
 
 
