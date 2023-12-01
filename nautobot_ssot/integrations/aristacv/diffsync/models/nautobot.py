@@ -80,7 +80,7 @@ class NautobotDevice(Device):
             device_type=device_type_object,
             role=role,
             platform=platform,
-            site=site,
+            location=site,
             name=ids["name"],
             serial=attrs["serial"] if attrs.get("serial") else "",
         )
