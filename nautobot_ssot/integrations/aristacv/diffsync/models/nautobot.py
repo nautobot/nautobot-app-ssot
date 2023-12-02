@@ -235,7 +235,7 @@ class NautobotIPAddress(IPAddress):
     @classmethod
     def create(cls, diffsync, ids, attrs):
         """Create IPAddress in Nautobot."""
-        dev = OrmDevice.objects.get(name=ids["name"])
+        dev = OrmDevice.objects.get(name=ids["device"])
         new_ip = OrmIPAddress(
             address=ids["address"],
             status=OrmStatus.objects.get(name="Active"),
