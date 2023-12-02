@@ -230,6 +230,7 @@ PLUGINS_CONFIG = {
         "infoblox_username": os.getenv("NAUTOBOT_SSOT_INFOBLOX_USERNAME"),
         "infoblox_verify_ssl": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_VERIFY_SSL", True)),
         "infoblox_wapi_version": os.getenv("NAUTOBOT_SSOT_INFOBLOX_WAPI_VERSION", "v2.12"),
+        "infoblox_network_view": os.getenv("NAUTOBOT_SSOT_INFOBLOX_NETWORK_VIEW", ""),
         "ipfabric_api_token": os.getenv("NAUTOBOT_SSOT_IPFABRIC_API_TOKEN"),
         "ipfabric_host": os.getenv("NAUTOBOT_SSOT_IPFABRIC_HOST"),
         "ipfabric_ssl_verify": is_truthy(os.getenv("NAUTOBOT_SSOT_IPFABRIC_SSL_VERIFY", "False")),

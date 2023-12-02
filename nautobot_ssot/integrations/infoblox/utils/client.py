@@ -791,7 +791,8 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             "_return_fields": "network,network_view,comment,extattrs,rir_organization,rir,vlans",
             "_max_results": 10000,
         }
-
+        if PLUGIN_CFG.get("NAUTOBOT_INFOBLOX_NETWORK_VIEW"):
+            params.update({"network_view": PLUGIN_CFG.get("NAUTOBOT_INFOBLOX_NETWORK_VIEW")})
         if prefix:
             params.update({"network": prefix})
         try:
@@ -1275,6 +1276,8 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             "_return_fields": "network,comment,network_view,extattrs,rir_organization,rir",
             "_max_results": 100000,
         }
+        if PLUGIN_CFG.get("NAUTOBOT_INFOBLOX_NETWORK_VIEW"):
+            params.update({"network_view": PLUGIN_CFG["NAUTOBOT_INFOBLOX_NETWORK_VIEW"]})
         if prefix:
             params.update({"network": prefix})
         response = self._request("GET", url_path, params=params)
@@ -1317,6 +1320,8 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             "_return_fields": "network,comment,network_view,extattrs,rir_organization,rir",
             "_max_results": 100000,
         }
+        if PLUGIN_CFG.get("NAUTOBOT_INFOBLOX_NETWORK_VIEW"):
+            params.update({"network_view": PLUGIN_CFG["NAUTOBOT_INFOBLOX_NETWORK_VIEW"]})
         params.update({"network_container": prefix})
         response = self._request("GET", url_path, params=params)
         response = response.json()
@@ -1363,9 +1368,9 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             "_return_fields": "network,network_view,comment,extattrs,rir_organization,rir,vlans",
             "_max_results": 10000,
         }
-
+        if PLUGIN_CFG.get("NAUTOBOT_INFOBLOX_NETWORK_VIEW"):
+            params.update({"network_view": PLUGIN_CFG["NAUTOBOT_INFOBLOX_NETWORK_VIEW"]})
         params.update({"network_container": prefix})
-
         try:
             response = self._request("GET", url_path, params=params)
         except HTTPError as err:
