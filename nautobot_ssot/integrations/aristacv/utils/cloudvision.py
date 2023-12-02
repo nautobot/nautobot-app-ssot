@@ -277,7 +277,7 @@ def get_devices(client):
         req = services.DeviceStreamRequest()
     responses = device_stub.GetAll(req)
     devices = []
-    for resp in responses:
+    for resp in responses[:5]:
         device = {
             "device_id": resp.value.key.device_id.value,
             "hostname": resp.value.hostname.value,
