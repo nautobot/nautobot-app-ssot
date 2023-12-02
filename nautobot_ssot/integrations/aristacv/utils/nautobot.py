@@ -41,7 +41,7 @@ def verify_device_type_object(device_type):
         device_type (str): Device model gathered from Cloudvision.
     """
     try:
-        device_type_obj = DeviceType.objects.get(model=device_type)
+        device_type_obj = DeviceType.objects.get(model=device_type)[0]
     except DeviceType.DoesNotExist:
         device_type_obj = DeviceType(manufacturer=Manufacturer.objects.get(name="Arista"), model=device_type)
         device_type_obj.validated_save()
