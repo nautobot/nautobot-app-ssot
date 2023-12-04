@@ -280,8 +280,25 @@ class NautobotModel(DiffSyncModel):
             raise ValueError(f"Field {name} is not defined on the model.")
 
     def get_from_db(self):
-        """Get the ORM object for this diffsync object from the database using the identifiers."""
-        return self._model.objects.get(**self.get_identifiers())
+        """Get the ORM object for this diffsync object from the database using the identifiers.
+
+        TODO: Currently this does not support many to many relationships.
+        """
+        parameters = {}
+        custom_field_lookup = {}
+        type_hints = get_type_hints(self, include_extras=True)
+        is_custom_field = False
+        for key, value in self.get_identifiers().items():
+            metadata_for_this_field = getattr(type_hints[key], "__metadata__", [])
+            for metadata in metadata_for_this_field:
+                if isinstance(metadata, CustomFieldAnnotation):
+                    custom_field_lookup[metadata.name] = value
+                    is_custom_field = True
+            if not is_custom_field:
+                parameters[key] = value
+        if custom_field_lookup:
+            parameters["_custom_field_data__contains"] = custom_field_lookup
+        return self._model.objects.get(**parameters)
 
     def update(self, attrs):
         """Update the ORM object corresponding to this diffsync object."""

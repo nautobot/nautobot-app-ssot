@@ -387,11 +387,34 @@ class BaseModelTests(TestCase):
 class BaseModelCustomFieldTest(TestCase):
     """Test for manipulating custom field content through the shared case model code."""
 
+    @classmethod
+    def setUpTestData(cls):
+        cls.custom_field_name = "Is Global"
+        cls.custom_field = CustomField.objects.create(
+            key=cls.custom_field_name, label=cls.custom_field_name, type="boolean"
+        )
+        cls.custom_field.content_types.set([ContentType.objects.get_for_model(Provider)])
+
+    def test_custom_field_get(self):
+        """Test whether loading a model with a custom field set as the identifier works."""
+
+        class ProviderModel(NautobotModel):
+            """Test model for testing custom field functionality."""
+
+            _model = Provider
+            _identifiers = (
+                "name",
+                "is_global",
+            )
+
+            name: str
+            is_global: Annotated[bool, CustomFieldAnnotation(name="Is Global")] = False
+
+        provider = Provider.objects.create(name="Test", _custom_field_data={"Is Global": True})
+        self.assertEqual(provider, ProviderModel(name="Test", is_global=True).get_from_db())
+
     def test_custom_field_set(self):
         """Test whether setting a custom field value works."""
-        custom_field_name = "Is Global"
-        custom_field = CustomField.objects.create(key=custom_field_name, label=custom_field_name, type="boolean")
-        custom_field.content_types.set([ContentType.objects.get_for_model(Provider)])
 
         class ProviderModel(NautobotModel):
             """Test model for testing custom field functionality."""
@@ -402,7 +425,7 @@ class BaseModelCustomFieldTest(TestCase):
 
             name: str
 
-            is_global: Annotated[bool, CustomFieldAnnotation(name=custom_field_name)] = False
+            is_global: Annotated[bool, CustomFieldAnnotation(name="Is Global")] = False
 
         provider_name = "Test Provider"
         provider = Provider.objects.create(name=provider_name)
@@ -413,7 +436,7 @@ class BaseModelCustomFieldTest(TestCase):
 
         provider.refresh_from_db()
         self.assertEqual(
-            provider.cf[custom_field_name],
+            provider.cf[self.custom_field_name],
             updated_custom_field_value,
             "Setting a custom field through 'NautobotModel' does not work.",
         )
