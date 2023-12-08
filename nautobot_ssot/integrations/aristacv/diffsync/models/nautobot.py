@@ -146,7 +146,7 @@ class NautobotDevice(Device):
     @staticmethod
     def _assign_version_to_device(diffsync, device, software_lcm):
         """Add Relationship between Device and SoftwareLCM."""
-        software_relation = OrmRelationship.objects.get(name="Software on Device")
+        software_relation = OrmRelationship.objects.get(label="Software on Device")
         relations = device.get_relationships()
         for _, relationships in relations.items():
             for relationship, queryset in relationships.items():
