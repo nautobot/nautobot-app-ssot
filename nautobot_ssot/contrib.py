@@ -119,10 +119,6 @@ class NautobotAdapter(DiffSync):
         self._handle_children(database_object, diffsync_model)
         return diffsync_model
 
-    def load_param_time_zone(self, parameter_name, database_object):
-        """Default loader for `time_zone` parameter."""
-        return str(getattr(database_object, parameter_name))
-
     def _handle_children(self, database_object, diffsync_model):
         """Recurse through all the children for this model."""
         for children_parameter, children_field in diffsync_model._children.items():
