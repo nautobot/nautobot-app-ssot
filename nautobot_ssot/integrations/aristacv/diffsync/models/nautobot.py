@@ -182,7 +182,7 @@ class NautobotPort(Port):
             mac_address=attrs["mac_addr"],
             mtu=attrs["mtu"],
             mode=attrs["mode"],
-            status=OrmStatus.objects.get(label=attrs["status"]),
+            status=OrmStatus.objects.get(name=attrs["status"]),
             type=attrs["port_type"],
         )
         try:
