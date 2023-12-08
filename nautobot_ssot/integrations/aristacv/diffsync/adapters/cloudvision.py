@@ -125,6 +125,8 @@ class CloudvisionAdapter(DiffSync):
                     port_type=port_type,
                     uuid=None,
                 )
+                if self.job.debug:
+                    self.job.logger.debug(f"Device: {device.name}. Port: {new_port}")
                 try:
                     self.add(new_port)
                     device.add_child(new_port)
@@ -153,7 +155,7 @@ class CloudvisionAdapter(DiffSync):
                     mode="access",
                     mtu=65535,
                     port_type=cloudvision.get_port_type(port_info={"interface": intf["interface"]}, transceiver=""),
-                    status="active",
+                    status="Active",
                     uuid=None,
                 )
                 self.add(new_port)
