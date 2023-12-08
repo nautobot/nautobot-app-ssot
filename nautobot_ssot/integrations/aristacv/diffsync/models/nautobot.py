@@ -243,6 +243,7 @@ class NautobotIPAddress(IPAddress):
         )
         if "loopback" in ids["interface"]:
             new_ip.role = "loopback"
+        new_ip.validated_save()
         try:
             intf = OrmInterface.objects.get(device=dev, name=ids["interface"])
             new_ip.assigned_object_type = ContentType.objects.get(app_label="dcim", model="interface")
