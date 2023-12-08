@@ -59,7 +59,7 @@ def verify_device_role_object(role_name, role_color):
     try:
         role_obj = Role.objects.get(name=role_name)
     except Role.DoesNotExist:
-        role_obj = Role(name=role_name, color=role_color)
+        role_obj = Role.objects.create(name=role_name, color=role_color)
         role_obj.content_types.add(ContentType.objects.get_for_model(Device))
         role_obj.validated_save()
     return role_obj
@@ -70,7 +70,7 @@ def verify_import_tag():
     try:
         import_tag = Tag.objects.get(name="cloudvision_imported")
     except Tag.DoesNotExist:
-        import_tag = Tag(name="cloudvision_imported", color="ff0000")
+        import_tag = Tag.objects.create(name="cloudvision_imported", color="ff0000")
         import_tag.content_types.add(ContentType.objects.get_for_model(Device))
         import_tag.validated_save()
     return import_tag
