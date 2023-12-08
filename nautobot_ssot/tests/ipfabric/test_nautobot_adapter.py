@@ -27,10 +27,10 @@
 #         device_role = DeviceRole.objects.create(name="Router", slug="router")
 
 #         Device.objects.create(
-#             name="csr1", device_type=device_type, device_role=device_role, site=site_1, status=status_active
+#             name="csr1", device_type=device_type, role=device_role, site=site_1, status=status_active
 #         )
 #         Device.objects.create(
-#             name="csr2", device_type=device_type, device_role=device_role, site=site_2, status=status_active
+#             name="csr2", device_type=device_type, role=device_role, site=site_2, status=status_active
 #         )
 
 #         VLAN.objects.create(name="VLAN101", vid=101, status=status_active, site=site_1)

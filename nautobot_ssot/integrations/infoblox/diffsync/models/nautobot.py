@@ -58,7 +58,7 @@ def process_ext_attrs(diffsync, obj: object, extattrs: dict):
                         f"Unable to find Tenant {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
                     )
             _cf_dict = {
-                "key": slugify(attr),
+                "key": slugify(attr).replace("-", "_"),
                 "type": CustomFieldTypeChoices.TYPE_TEXT,
                 "label": attr,
             }
