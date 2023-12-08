@@ -125,8 +125,6 @@ class CloudvisionAdapter(DiffSync):
                     port_type=port_type,
                     uuid=None,
                 )
-                if self.job.debug:
-                    self.job.logger.debug(f"Device: {device.name}. Port: {new_port}")
                 try:
                     self.add(new_port)
                     device.add_child(new_port)
