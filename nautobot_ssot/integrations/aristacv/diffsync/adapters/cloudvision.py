@@ -55,7 +55,7 @@ class CloudvisionAdapter(DiffSync):
                 self.add(new_cvp)
             except ObjectAlreadyExists as err:
                 self.job.logger.warning(f"Error attempting to add CloudVision device. {err}")
-        for dev in cloudvision.get_devices(client=self.conn.comm_channel)[:3]:
+        for dev in cloudvision.get_devices(client=self.conn.comm_channel):
             if dev["hostname"] != "":
                 new_device = self.device(
                     name=dev["hostname"],
