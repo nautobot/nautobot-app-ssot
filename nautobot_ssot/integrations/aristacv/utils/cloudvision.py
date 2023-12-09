@@ -548,8 +548,8 @@ def get_interface_transceiver(client: CloudvisionApi, dId: str, interface: str):
                 "mediaType"
             ):
                 return notif["updates"]["actualIdEepromContents"]["mediaType"]
-            if notif["updates"].get("localMediaType"):
-                return notif["updates"]["localMediaType"]["Name"]
+            if notif["updates"].get("MediaType"):
+                return notif["updates"]["MediaType"]["Name"]
     return "Unknown"
 
 
