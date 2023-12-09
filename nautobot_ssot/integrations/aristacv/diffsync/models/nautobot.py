@@ -84,7 +84,7 @@ class NautobotDevice(Device):
             name=ids["name"],
             serial=attrs["serial"] if attrs.get("serial") else "",
         )
-        
+
         if APP_SETTINGS.get("apply_import_tag", APPLY_IMPORT_TAG):
             import_tag = nautobot.verify_import_tag()
             new_device.tags.add(import_tag)
