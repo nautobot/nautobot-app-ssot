@@ -95,7 +95,7 @@ class NautobotDevice(Device):
                 cls._assign_version_to_device(diffsync=diffsync, device=new_device, software_lcm=software_lcm)
             return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
         except ValidationError as err:
-            diffsync.job.logger.warning(f"Unable to create Device {ids['name']}. {new_device} - {err}")
+            diffsync.job.logger.warning(f"Unable to create Device {ids['name']}. {err}")
             return None
 
     def update(self, attrs):
