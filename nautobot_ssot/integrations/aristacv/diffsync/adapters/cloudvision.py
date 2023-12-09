@@ -134,6 +134,7 @@ class CloudvisionAdapter(DiffSync):
                                               description: {port_description}
                                               enabled: {port['enabled']}
                                               status: {port_status}
+                                              transceiver: {transceiver}
                                               port_type: {port_type}
                                               mode: {port_mode}''')
                 except ObjectAlreadyExists as err:
