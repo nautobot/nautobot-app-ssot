@@ -139,6 +139,7 @@ nav:
   - Developer Guide:
       - Extending the App: "dev/extending.md"
       - Developing Jobs: "dev/jobs.md"
+      - Debugging Jobs: "dev/debugging.md"
       - Contributing to the App: "dev/contributing.md"
       - Development Environment: "dev/dev_environment.md"
       - Code Reference:
