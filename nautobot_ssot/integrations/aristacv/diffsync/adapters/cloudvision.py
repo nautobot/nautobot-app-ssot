@@ -94,16 +94,18 @@ class CloudvisionAdapter(DiffSync):
                 f"Unable to determine chassis type for {device.name} so will be unable to retrieve interfaces."
             )
             return None
-        
+
         if self.job.debug:
             self.job.logger.debug(f"Device being loaded: {device.name}. Port: {port_info}.")
-        
+
         for port in port_info:
             if self.job.debug:
                 self.job.logger.debug(f"Port {port['interface']} being loaded for {device.name}.")
 
             port_mode = cloudvision.get_interface_mode(client=self.conn, dId=device.serial, interface=port["interface"])
-            transceiver = cloudvision.get_interface_transceiver(client=self.conn, dId=device.serial, interface=port["interface"])
+            transceiver = cloudvision.get_interface_transceiver(
+                client=self.conn, dId=device.serial, interface=port["interface"]
+            )
 
             if transceiver == "Unknown":
                 # Breakout transceivers, ie 40G -> 4x10G, shows up as 4 interfaces and requires looking at base interface to find transceiver, ie Ethernet1 if Ethernet1/1
@@ -133,7 +135,9 @@ class CloudvisionAdapter(DiffSync):
                     self.add(new_port)
                     device.add_child(new_port)
                     if self.job.debug:
-                        self.job.logger.debug(f"""Added {port['interface']} for {device.name}. \n description: {port_description}\n enabled: {port['enabled']}\n status: {port_status}\n transceiver: {transceiver}\n port_type: {port_type}\n mode: {port_mode}""")
+                        self.job.logger.debug(
+                            f"""Added {port['interface']} for {device.name}. \n description: {port_description}\n enabled: {port['enabled']}\n status: {port_status}\n transceiver: {transceiver}\n port_type: {port_type}\n mode: {port_mode}"""
+                        )
                 except ObjectAlreadyExists as err:
                     self.job.logger.warning(
                         f"Duplicate port {port['interface']} found for {device.name} and ignored. {err}"
