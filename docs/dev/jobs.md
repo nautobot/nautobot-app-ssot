@@ -132,6 +132,22 @@ class YourSSoTNautobotAdapter(NautobotAdapter):
 
 The `load` function is already implemented on this adapter and will automatically and recursively traverse any children relationships for you, provided the models are [defined correctly](../user/modeling.md).
 
+Developers are able to override the default loading of basic parameters to control how that parameter is loaded from Nautobot. 
+
+This only works with basic parameters belonging to the model and does not override more complex parameters (foreign keys, custom fields, custom relationships, etc.).
+
+To override a parameter, simply add a method with the name `load_param_{param_key}` to your adapter class inheriting from `NautobotAdapter`:
+
+```python
+from nautobot_ssot.contrib import NautobotAdapter
+
+class YourSSoTNautobotAdapter(NautobotAdapter):
+    ...    
+    def load_param_time_zone(self, parameter_name, database_object):
+        """Custom loader for `time_zone` parameter."""
+        return str(getattr(database_object, parameter_name))
+```
+
 ### Step 2.2 - Creating the Remote Adapter
 
 Regardless of which direction you are synchronizing data in, you need to write the `load` method for the remote adapter yourself. You can find many examples of how this can be done in the `nautobot_ssot.integrations` module, which contains pre-existing integrations with remote systems.
