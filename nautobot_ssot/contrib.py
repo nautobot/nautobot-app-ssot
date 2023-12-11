@@ -204,7 +204,10 @@ class NautobotAdapter(DiffSync):
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
         for related_object in getattr(database_object, parameter_name).all():
             dictionary_representation = {
-                field_name: getattr(related_object, field_name) for field_name in inner_type.__annotations__
+                field_name: NautobotAdapter._handle_foreign_key(related_object, field_name)
+                if "__" in field_name
+                else getattr(related_object, field_name)
+                for field_name in inner_type.__annotations__
             }
             # Only use those where there is a single field defined, all 'None's will not help us.
             if any(dictionary_representation.values()):

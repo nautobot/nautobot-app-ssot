@@ -132,6 +132,7 @@ class IPAddressDict(TypedDict):
 
     host: str
     mask_length: int
+    status__name: str
 
 
 class NautobotInterface(NautobotModel):
@@ -215,7 +216,10 @@ class NautobotAdapterGenericRelationTests(TestCaseWithDeviceData):
 
         self.assertEqual(
             diffsync_interface.ip_addresses,
-            [{"host": "192.0.2.1", "mask_length": 24}, {"host": "192.0.2.2", "mask_length": 24}],
+            [
+                {"host": "192.0.2.1", "mask_length": 24, "status__name": "Active"},
+                {"host": "192.0.2.2", "mask_length": 24, "status__name": "Active"},
+            ],
         )
 
     @skip("TODO: Update for 2.0")
