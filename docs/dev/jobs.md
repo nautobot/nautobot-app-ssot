@@ -121,6 +121,7 @@ from nautobot_ssot.contrib import NautobotAdapter
 
 from your_ssot_app.models import DiffSyncDevice, DiffSyncPrefix, DiffSyncIPAddress
 
+
 class YourSSoTNautobotAdapter(NautobotAdapter):
     top_level = ("device", "prefix")
 
