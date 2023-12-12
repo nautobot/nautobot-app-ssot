@@ -54,12 +54,6 @@ def process_ext_attrs(diffsync, obj: object, extattrs: dict):  # pylint: disable
                         diffsync.job.logger.warning(
                             f"Unable to find VRF {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
                         )
-                    except TypeError as err:
-                        diffsync.job.logger.warning(
-                            f"Cannot set vrf values {attr_value} for {obj}. Multiple vrfs are assigned "
-                            f"in Extensibility Attributes '{attr}', but multiple vrf assignments are not "
-                            f"supported by Nautobot. {err}"
-                        )
             if "role" in attr.lower():
                 if isinstance(obj, OrmIPAddress) and attr_value.lower() in IPAddressRoleChoices.as_dict():
                     obj.role = attr_value.lower()
