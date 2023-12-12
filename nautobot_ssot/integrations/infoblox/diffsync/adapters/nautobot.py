@@ -175,6 +175,7 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
                 address=addr,
                 prefix=str(prefix),
                 status=ipaddr.status.name if ipaddr.status else None,
+                ip_addr_type=ipaddr.type,
                 prefix_length=prefix.prefix_length if prefix else ipaddr.prefix_length,
                 dns_name=ipaddr.dns_name,
                 description=ipaddr.description,

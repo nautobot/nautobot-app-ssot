@@ -53,13 +53,14 @@ class IPAddress(DiffSyncModel):
 
     _modelname = "ipaddress"
     _identifiers = ("address", "prefix", "prefix_length")
-    _attributes = ("description", "dns_name", "status", "ext_attrs")
+    _attributes = ("description", "dns_name", "status", "ip_addr_type", "ext_attrs")
 
     address: str
     dns_name: str
     prefix: str
     prefix_length: int
     status: Optional[str]
+    ip_addr_type: Optional[str]
     description: Optional[str]
     ext_attrs: Optional[dict]
     pk: Optional[uuid.UUID] = None

@@ -792,7 +792,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             "_max_results": 10000,
         }
         if PLUGIN_CFG.get("NAUTOBOT_INFOBLOX_NETWORK_VIEW"):
-            params.update({"network_view": PLUGIN_CFG.get("NAUTOBOT_INFOBLOX_NETWORK_VIEW")})
+            params.update({"network_view": PLUGIN_CFG["NAUTOBOT_INFOBLOX_NETWORK_VIEW"]})
         if prefix:
             params.update({"network": prefix})
         try:
@@ -1173,10 +1173,19 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
 
     @staticmethod
     def get_ipaddr_status(ip_record: dict) -> str:
-        """Determine the IPAddress status based upon types and usage keys."""
+        """Determine the IPAddress status based on the status key."""
+        if "USED" in ip_record["status"]:
+            return "Active"
+        return "Reserved"
+
+    @staticmethod
+    def get_ipaddr_type(ip_record: dict) -> str:
+        """Determine the IPAddress type based on the usage key."""
         if "DHCP" in ip_record["usage"]:
-            return "DHCP"
-        return "Active"
+            return "dhcp"
+        if "SLAAC" in ip_record["usage"]:
+            return "slaac"
+        return "host"
 
     def _find_resource(self, resource, **params):
         """Find the resource for given parameters.
@@ -1371,6 +1380,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         if PLUGIN_CFG.get("NAUTOBOT_INFOBLOX_NETWORK_VIEW"):
             params.update({"network_view": PLUGIN_CFG["NAUTOBOT_INFOBLOX_NETWORK_VIEW"]})
         params.update({"network_container": prefix})
+
         try:
             response = self._request("GET", url_path, params=params)
         except HTTPError as err:

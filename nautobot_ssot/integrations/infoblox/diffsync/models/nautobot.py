@@ -5,7 +5,7 @@ from django.utils.text import slugify
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
 from nautobot.extras.models import CustomField as OrmCF
-from nautobot.ipam.choices import IPAddressRoleChoices
+from nautobot.ipam.choices import IPAddressRoleChoices, IPAddressTypeChoices
 from nautobot.ipam.models import IPAddress as OrmIPAddress
 from nautobot.ipam.models import Prefix as OrmPrefix
 from nautobot.ipam.models import VLAN as OrmVlan
@@ -15,7 +15,7 @@ from nautobot_ssot.integrations.infoblox.diffsync.models.base import Network, IP
 from nautobot_ssot.integrations.infoblox.utils.nautobot import get_prefix_vlans
 
 
-def process_ext_attrs(diffsync, obj: object, extattrs: dict):
+def process_ext_attrs(diffsync, obj: object, extattrs: dict):  # pylint: disable=too-many-branches
     """Process Extensibility Attributes into Custom Fields or link to found objects.
 
     Args:
@@ -32,12 +32,24 @@ def process_ext_attrs(diffsync, obj: object, extattrs: dict):
                     diffsync.job.logger.warning(
                         f"Unable to find Location {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
                     )
+                except TypeError as err:
+                    diffsync.job.logger.warning(
+                        f"Cannot set location values {attr_value} for {obj}. Multiple locations are assigned "
+                        f"in Extensibility Attributes '{attr}', but multiple location assignments are not "
+                        f"supported by Nautobot. {err}"
+                    )
             if attr.lower() == "vrf":
                 try:
                     obj.vrfs.add(diffsync.vrf_map[attr_value])
                 except KeyError as err:
                     diffsync.job.logger.warning(
                         f"Unable to find VRF {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
+                    )
+                except TypeError as err:
+                    diffsync.job.logger.warning(
+                        f"Cannot set vrf values {attr_value} for {obj}. Multiple vrfs are assigned "
+                        f"in Extensibility Attributes '{attr}', but multiple vrf assignments are not "
+                        f"supported by Nautobot. {err}"
                     )
             if "role" in attr.lower():
                 if isinstance(obj, OrmIPAddress) and attr_value.lower() in IPAddressRoleChoices.as_dict():
@@ -49,13 +61,24 @@ def process_ext_attrs(diffsync, obj: object, extattrs: dict):
                         diffsync.job.logger.warning(
                             f"Unable to find Role {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
                         )
-
+                    except TypeError as err:
+                        diffsync.job.logger.warning(
+                            f"Cannot set role values {attr_value} for {obj}. Multiple roles are assigned "
+                            f"in Extensibility Attributes '{attr}', but multiple role assignments are not "
+                            f"supported by Nautobot. {err}"
+                        )
             if attr.lower() in ["tenant", "dept", "department"]:
                 try:
                     obj.tenant_id = diffsync.tenant_map[attr_value]
                 except KeyError as err:
                     diffsync.job.logger.warning(
                         f"Unable to find Tenant {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
+                    )
+                except TypeError as err:
+                    diffsync.job.logger.warning(
+                        f"Cannot set tenant values {attr_value} for {obj}. Multiple tenants are assigned "
+                        f"in Extensibility Attributes '{attr}', but multiple tenant assignments are not "
+                        f"supported by Nautobot. {err}"
                     )
             _cf_dict = {
                 "key": slugify(attr).replace("-", "_"),
@@ -175,10 +198,18 @@ class NautobotIPAddress(IPAddress):
         except KeyError:
             status = diffsync.status_map[PLUGIN_CFG.get("default_status", "Active")]
         addr = f"{ids['address']}/{ids['prefix_length']}"
-        diffsync.job.logger.debug(f"Creating IP Address {addr}")
+        if attrs.get("ip_addr_type"):
+            if attrs["ip_addr_type"].lower() in IPAddressTypeChoices.as_dict():
+                ip_addr_type = attrs["ip_addr_type"].lower()
+            else:
+                diffsync.logger.warning(f"unable to determine IPAddress Type for {addr}, defaulting to 'Host'")
+                ip_addr_type = "host"
+        if diffsync.job.debug:
+            diffsync.job.logger.debug(f"Creating IP Address {addr}")
         _ip = OrmIPAddress(
             address=addr,
             status_id=status,
+            type=ip_addr_type,
             description=attrs.get("description", ""),
             dns_name=attrs.get("dns_name", ""),
             parent_id=diffsync.prefix_map[ids["prefix"]],
@@ -204,6 +235,11 @@ class NautobotIPAddress(IPAddress):
             except KeyError:
                 status = self.diffsync.status_map[PLUGIN_CFG.get("default_status", "Active")]
             _ipaddr.status_id = status
+        if attrs.get("ip_addr_type"):
+            if attrs["ip_addr_type"].lower() in IPAddressTypeChoices.as_dict():
+                _ipaddr.type = attrs["ip_addr_type"].lower()
+            else:
+                _ipaddr.type = "host"
         if attrs.get("description"):
             _ipaddr.description = attrs["description"]
         if attrs.get("dns_name"):

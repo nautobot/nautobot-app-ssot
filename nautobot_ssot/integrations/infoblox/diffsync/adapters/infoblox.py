@@ -100,6 +100,7 @@ class InfobloxAdapter(DiffSync):
                 prefix_length=prefix_length,
                 dns_name=dns_name,
                 status=self.conn.get_ipaddr_status(_ip),
+                ip_addr_type=self.conn.get_ipaddr_type(_ip),
                 description=_ip["comment"],
                 ext_attrs={**default_ext_attrs, **ip_ext_attrs},
             )
