@@ -39,18 +39,27 @@ def process_ext_attrs(diffsync, obj: object, extattrs: dict):  # pylint: disable
                         f"supported by Nautobot. {err}"
                     )
             if attr.lower() == "vrf":
-                try:
-                    obj.vrfs.add(diffsync.vrf_map[attr_value])
-                except KeyError as err:
-                    diffsync.job.logger.warning(
-                        f"Unable to find VRF {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
-                    )
-                except TypeError as err:
-                    diffsync.job.logger.warning(
-                        f"Cannot set vrf values {attr_value} for {obj}. Multiple vrfs are assigned "
-                        f"in Extensibility Attributes '{attr}', but multiple vrf assignments are not "
-                        f"supported by Nautobot. {err}"
-                    )
+                if type(attr_value) is list:
+                    for vrf in attr_value:
+                        try:
+                            obj.vrfs.add(diffsync.vrf_map[vrf])
+                        except KeyError as err:
+                            diffsync.job.logger.warning(
+                                f"Unable to find VRF {vrf} for {obj} found in Extensibility Attributes '{attr}'. {err}"
+                            )
+                else:
+                    try:
+                        obj.vrfs.add(diffsync.vrf_map[attr_value])
+                    except KeyError as err:
+                        diffsync.job.logger.warning(
+                            f"Unable to find VRF {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
+                        )
+                    except TypeError as err:
+                        diffsync.job.logger.warning(
+                            f"Cannot set vrf values {attr_value} for {obj}. Multiple vrfs are assigned "
+                            f"in Extensibility Attributes '{attr}', but multiple vrf assignments are not "
+                            f"supported by Nautobot. {err}"
+                        )
             if "role" in attr.lower():
                 if isinstance(obj, OrmIPAddress) and attr_value.lower() in IPAddressRoleChoices.as_dict():
                     obj.role = attr_value.lower()
