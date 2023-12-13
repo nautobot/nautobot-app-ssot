@@ -1317,13 +1317,13 @@ pytz = "*"
 
 [[package]]
 name = "django-tree-queries"
-version = "0.15.0"
+version = "0.16.1"
 description = "Tree queries with explicit opt-in, without configurability"
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.8"
 files = [
-    {file = "django_tree_queries-0.15.0-py3-none-any.whl", hash = "sha256:cf11340de59d3122919fde46e99966bad40ff942df768d683383b111554134a1"},
-    {file = "django_tree_queries-0.15.0.tar.gz", hash = "sha256:0e994c2a4601c021a115a397ec8d0ff7d5e614fae95947f72126e6a419c60f08"},
+    {file = "django_tree_queries-0.16.1-py3-none-any.whl", hash = "sha256:b57cebd85136897dc2d7d1da50f3944b13d4713009af655ae221c8202146c2f5"},
+    {file = "django_tree_queries-0.16.1.tar.gz", hash = "sha256:5a7765bdbc78742ae7b206348aa674a7e39ef38069ac3854a51b330d25081c43"},
 ]
 
 [package.extras]
@@ -3043,13 +3043,13 @@ testing = ["beautifulsoup4", "coverage", "docutils (>=0.17.0,<0.18.0)", "pytest 
 
 [[package]]
 name = "nautobot"
-version = "2.0.5"
+version = "2.0.6"
 description = "Source of truth and network automation platform."
 optional = false
 python-versions = ">=3.8,<3.12"
 files = [
-    {file = "nautobot-2.0.5-py3-none-any.whl", hash = "sha256:f8e7e77717c681376305862b63590b2346efb158b8e98cce2525be786a50bbdc"},
-    {file = "nautobot-2.0.5.tar.gz", hash = "sha256:169ccadffa907b5f6124248efd90354d01ad3c9b0e25f738432e87e127c9aff6"},
+    {file = "nautobot-2.0.6-py3-none-any.whl", hash = "sha256:7cd46a2f54cfd7d4e6cf840173fa53018d12afe39e8ed12e41562e7077fdb416"},
+    {file = "nautobot-2.0.6.tar.gz", hash = "sha256:c054003960153ee1051464125258140f033143b351c0a71214523a60c642f089"},
 ]
 
 [package.dependencies]
@@ -3070,7 +3070,7 @@ django-redis = ">=5.3.0,<5.4.0"
 django-tables2 = ">=2.6.0,<2.7.0"
 django-taggit = ">=4.0.0,<4.1.0"
 django-timezone-field = ">=5.1,<5.2"
-django-tree-queries = ">=0.15.0,<0.16.0"
+django-tree-queries = ">=0.16.1,<0.17.0"
 django-webserver = ">=1.2.0,<1.3.0"
 djangorestframework = ">=3.14.0,<3.15.0"
 drf-react-template-framework = ">=0.0.17,<0.0.18"
