@@ -23,7 +23,7 @@ def process_ext_attrs(diffsync, obj: object, extattrs: dict):  # pylint: disable
         obj (object): The object that's being created or updated and needs processing.
         extattrs (dict): The Extensibility Attributes to be analyzed and applied to passed `prefix`.
     """
-    for attr, attr_value in extattrs.items():
+    for attr, attr_value in extattrs.items():  # pylint: disable=too-many-nested-blocks
         if attr_value:
             if attr.lower() in ["site", "facility", "location"]:
                 try:
@@ -39,7 +39,7 @@ def process_ext_attrs(diffsync, obj: object, extattrs: dict):  # pylint: disable
                         f"supported by Nautobot. {err}"
                     )
             if attr.lower() == "vrf":
-                if type(attr_value) is list:
+                if isinstance(attr_value, list):
                     for vrf in attr_value:
                         try:
                             obj.vrfs.add(diffsync.vrf_map[vrf])
