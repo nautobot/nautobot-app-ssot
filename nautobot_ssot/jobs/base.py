@@ -296,7 +296,12 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         return getattr(cls.Meta, "data_target_icon", None)
 
     def run(self, dryrun, memory_profiling, *args, **kwargs):  # pylint:disable=arguments-differ
-        """Job entry point from Nautobot - do not override!"""
+        """Job entry point from Nautobot.
+
+        Overwrite this to set your own job variables, but don't forget to call super().run.
+        """
+        self.dryrun = dryrun
+        self.memory_profiling = memory_profiling
         self.sync = Sync.objects.create(
             source=self.data_source,
             target=self.data_target,
