@@ -80,10 +80,11 @@ class NautobotDevice(Device):
             device_type=device_type_object,
             role=role,
             platform=platform,
-            site=site,
+            location=site,
             name=ids["name"],
             serial=attrs["serial"] if attrs.get("serial") else "",
         )
+
         if APP_SETTINGS.get("apply_import_tag", APPLY_IMPORT_TAG):
             import_tag = nautobot.verify_import_tag()
             new_device.tags.add(import_tag)
@@ -145,7 +146,7 @@ class NautobotDevice(Device):
     @staticmethod
     def _assign_version_to_device(diffsync, device, software_lcm):
         """Add Relationship between Device and SoftwareLCM."""
-        software_relation = OrmRelationship.objects.get(name="Software on Device")
+        software_relation = OrmRelationship.objects.get(label="Software on Device")
         relations = device.get_relationships()
         for _, relationships in relations.items():
             for relationship, queryset in relationships.items():
