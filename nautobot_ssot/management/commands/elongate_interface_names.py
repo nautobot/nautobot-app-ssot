@@ -11,7 +11,7 @@ class Command(BaseCommand):
 
     help = (
         "Elongate DCIM.Interface names in Nautobot based off of netutils: "
-        "https://github.com/networktocode/netutils/blob/main/netutils/interface.py#L97"
+        "https://netutils.readthedocs.io/en/latest/dev/code_reference/interface/#netutils.interface.canonical_interface_name"
     )
 
     def add_arguments(self, parser):  # noqa: D102
