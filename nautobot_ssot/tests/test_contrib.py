@@ -390,7 +390,7 @@ class BaseModelCustomFieldTest(TestCase):
     def test_custom_field_set(self):
         """Test whether setting a custom field value works."""
         custom_field_name = "Is Global"
-        custom_field = CustomField.objects.create(key=custom_field_name, label=custom_field_name, type="boolean")
+        custom_field = CustomField.objects.create(key="is_global", label=custom_field_name, type="boolean")
         custom_field.content_types.set([ContentType.objects.get_for_model(Provider)])
 
         class ProviderModel(NautobotModel):
@@ -402,7 +402,7 @@ class BaseModelCustomFieldTest(TestCase):
 
             name: str
 
-            is_global: Annotated[bool, CustomFieldAnnotation(name=custom_field_name)] = False
+            is_global: Annotated[bool, CustomFieldAnnotation(name="is_global")] = False
 
         provider_name = "Test Provider"
         provider = Provider.objects.create(name=provider_name)
@@ -413,7 +413,7 @@ class BaseModelCustomFieldTest(TestCase):
 
         provider.refresh_from_db()
         self.assertEqual(
-            provider.cf[custom_field_name],
+            provider.cf["is_global"],
             updated_custom_field_value,
             "Setting a custom field through 'NautobotModel' does not work.",
         )

@@ -3,6 +3,7 @@ import re
 
 from diffsync import DiffSync
 from diffsync.enum import DiffSyncFlags
+from diffsync.exceptions import ObjectAlreadyExists
 from nautobot.extras.plugins.exceptions import PluginImproperlyConfigured
 from nautobot_ssot.integrations.infoblox.constant import PLUGIN_CFG
 from nautobot_ssot.integrations.infoblox.utils.client import get_default_ext_attrs, get_dns_name
@@ -82,7 +83,14 @@ class InfobloxAdapter(DiffSync):
                 ext_attrs={**default_ext_attrs, **pf_ext_attrs},
                 vlans=build_vlan_map(vlans=_pf["vlans"]) if _pf.get("vlans") else {},
             )
-            self.add(new_pf)
+            try:
+                self.add(new_pf)
+            except ObjectAlreadyExists:
+                self.job.logger.warning(
+                    f"Duplicate prefix found: {new_pf}. Duplicate prefixes are not supported, "
+                    "and only the first occurrence will be included in the sync. To load data "
+                    "from a single Network View, use the 'infoblox_network_view' setting."
+                )
 
     def load_ipaddresses(self):
         """Load InfobloxIPAddress DiffSync model."""
@@ -100,6 +108,7 @@ class InfobloxAdapter(DiffSync):
                 prefix_length=prefix_length,
                 dns_name=dns_name,
                 status=self.conn.get_ipaddr_status(_ip),
+                ip_addr_type=self.conn.get_ipaddr_type(_ip),
                 description=_ip["comment"],
                 ext_attrs={**default_ext_attrs, **ip_ext_attrs},
             )
