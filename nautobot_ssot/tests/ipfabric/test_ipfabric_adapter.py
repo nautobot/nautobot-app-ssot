@@ -84,7 +84,7 @@ class IPFabricDiffSyncTestCase(TestCase):
             self.assertTrue(hasattr(interface, "subnet_mask"))
             self.assertTrue(hasattr(interface, "type"))
 
-    @patch("nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_ELONGATE_INTERFACE_NAME", True)
+    @patch("nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME", True)
     def test_data_loading_elongate_interface_names(self):
         """Test the load() function with using long form interface names."""
 

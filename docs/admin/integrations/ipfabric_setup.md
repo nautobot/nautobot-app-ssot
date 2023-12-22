@@ -57,7 +57,7 @@ PLUGINS_CONFIG = {
 | `ipfabric_safe_delete_location_status` | The status that is set for a Location when the `Safe Delete Mode` flag is set in the Job. | `Decommissioning` |
 | `ipfabric_safe_delete_vlan_status` | The status that is set for a VLAN when the `Safe Delete Mode` flag is set in the Job. | `Deprecated` |
 | `ipfabric_safe_delete_ipaddress_status` | The status that is set for an IP Address when the `Safe Delete Mode` flag is set in the Job. | `Deprecated` |
-| `ipfabric_elongate_interface_name` | Whether to attempt to elongate interface names as found in IP Fabric. | `False` |
+| `ipfabric_use_canonical_interface_name` | Whether to attempt to elongate interface names as found in IP Fabric. | `False` |
 
 
 Below is an example snippet from `nautobot_config.py` that demonstrates how to enable and configure the IPFabric SSoT integration along with the optional settings:
@@ -81,7 +81,7 @@ PLUGINS_CONFIG = {
         "ipfabric_safe_delete_location_status": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_LOCATION_DELETE_STATUS"),
         "ipfabric_safe_delete_vlan_status": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_VLAN_DELETE_STATUS"),
         "ipfabric_safe_delete_ipaddress_status": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_IPADDRESS_DELETE_STATUS"),
-        "ipfabric_elongate_interface_name": True,
+        "ipfabric_use_canonical_interface_name": True,
     }
 }
 ```

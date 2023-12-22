@@ -23,4 +23,4 @@ SAFE_DELETE_LOCATION_STATUS = CONFIG.get("ipfabric_safe_delete_location_status",
 SAFE_DELETE_VLAN_STATUS = CONFIG.get("ipfabric_safe_delete_vlan_status", "Deprecated")
 SAFE_DELETE_IPADDRESS_STATUS = CONFIG.get("ipfabric_safe_delete_ipaddress_status", "Deprecated")
 LAST_SYNCHRONIZED_CF_NAME = "last_synced_from_sor"
-IP_FABRIC_ELONGATE_INTERFACE_NAME = CONFIG.get("ipfabric_elongate_interface_name", False)
+IP_FABRIC_USE_CANONICAL_INTERFACE_NAME = CONFIG.get("ipfabric_use_canonical_interface_name", False)

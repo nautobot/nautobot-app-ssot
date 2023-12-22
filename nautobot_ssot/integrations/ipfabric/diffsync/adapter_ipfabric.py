@@ -7,7 +7,7 @@ from diffsync import ObjectAlreadyExists
 from nautobot.dcim.models import Device
 from nautobot.ipam.models import VLAN
 from netutils.mac import mac_to_format
-from netutils.interface import canonical_interface_name as netutils_elongate_interface_name
+from netutils.interface import canonical_interface_name
 
 from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_INTERFACE_TYPE,
@@ -15,7 +15,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_INTERFACE_MAC,
     DEFAULT_DEVICE_ROLE,
     DEFAULT_DEVICE_STATUS,
-    IP_FABRIC_ELONGATE_INTERFACE_NAME,
+    IP_FABRIC_USE_CANONICAL_INTERFACE_NAME,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 
@@ -57,8 +57,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         for iface in device_interfaces:
             ip_address = iface.get("primaryIp")
             iface_name = iface["intName"]
-            if IP_FABRIC_ELONGATE_INTERFACE_NAME:
-                iface_name = netutils_elongate_interface_name(iface_name)
+            if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
+                iface_name = canonical_interface_name(iface_name)
             try:
                 interface = self.interface(
                     diffsync=self,

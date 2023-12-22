@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand
 
 from nautobot.dcim.models import Device
 
-from netutils.interface import canonical_interface_name as netutils_elongate_interface_name
+from netutils.interface import canonical_interface_name
 
 
 class Command(BaseCommand):
@@ -40,11 +40,11 @@ class Command(BaseCommand):
             devices = Device.objects.all()
         for device in devices:
             for interface in device.interfaces.all():
-                new_name = netutils_elongate_interface_name(interface.name)
+                new_name = canonical_interface_name(interface.name)
                 if interface.name != new_name:
                     self.stdout.write(
                         self.style.WARNING(f"Updating {device.name}.{interface.name} >> ")
                         + self.style.SUCCESS(f"{new_name}")
                     )
-                    interface.name = netutils_elongate_interface_name(new_name)
+                    interface.name = canonical_interface_name(new_name)
                     interface.validated_save()
