@@ -1,5 +1,5 @@
 # pylint: disable=invalid-name,too-few-public-methods
-"""Jobs for CloudVision integration with SSoT plugin."""
+"""Jobs for CloudVision integration with SSoT app."""
 from django.templatetags.static import static
 from django.urls import reverse
 

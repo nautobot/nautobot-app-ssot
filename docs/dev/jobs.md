@@ -21,7 +21,7 @@ It contains 3 steps:
 - Nautobot Job
 
 ```python
-# example_ssot_plugin/jobs.py
+# example_ssot_app/jobs.py
 from typing import Optional
 
 from diffsync import DiffSync

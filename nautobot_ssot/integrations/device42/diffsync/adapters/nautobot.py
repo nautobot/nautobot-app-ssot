@@ -33,7 +33,7 @@ try:
 
     LIFECYCLE_MGMT = True
 except ImportError:
-    print("Device Lifecycle plugin isn't installed so will revert to CustomField for OS version.")
+    print("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
     LIFECYCLE_MGMT = False
 
 

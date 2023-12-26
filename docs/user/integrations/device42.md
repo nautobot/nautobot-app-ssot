@@ -1,6 +1,6 @@
 # Device42 SSoT Integration
 
-The Device42 SSoT integration is built as part of the [Nautobot Single Source of Truth (SSoT)](../..tps://github.com/nautobot/nautobot-plugin-ssot) app. The SSoT app enables Nautobot to be the aggregation point for data coming from multiple systems of record (SoR).
+The Device42 SSoT integration is built as part of the [Nautobot Single Source of Truth (SSoT)](https://github.com/nautobot/nautobot-app-ssot) app. The SSoT app enables Nautobot to be the aggregation point for data coming from multiple systems of record (SoR).
 
 From Device42 into Nautobot, it synchronizes the following objects:
 
@@ -20,11 +20,11 @@ From Device42 into Nautobot, it synchronizes the following objects:
 | Vendors                 | Providers                    |
 | Telco Circuits          | Circuits                     |
 
-`**` If the [Device Lifecycle Nautobot app](https://github.com/nautobot/nautobot-plugin-device-lifecycle-mgmt) is found to be installed, a matching Version will be created with a RelationshipAssociation connecting the Device and that Version.
+`**` If the [Device Lifecycle Nautobot app](https://github.com/nautobot/nautobot-app-device-lifecycle-mgmt) is found to be installed, a matching Version will be created with a RelationshipAssociation connecting the Device and that Version.
 
 ## Usage
 
-Once the plugin is installed and configured, you will be able to perform a data import from Device42 into Nautobot. From the Nautobot SSoT Dashboard view (`/plugins/ssot/`), Device42 will show as a Data Source.
+Once the app is installed and configured, you will be able to perform a data import from Device42 into Nautobot. From the Nautobot SSoT Dashboard view (`/plugins/ssot/`), Device42 will show as a Data Source.
 
 ![Dashboard View](../../images/device42_dashboard.png)
 

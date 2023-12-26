@@ -4,15 +4,15 @@
 
 ### Changed
 
-- [#8](https://github.com/nautobot/nautobot-plugin-ssot/pull/8) - Switched from Travis CI to GitHub Actions.
+- [#8](https://github.com/nautobot/nautobot-app-ssot/pull/8) - Switched from Travis CI to GitHub Actions.
 
 ### Fixed
 
-- [#9](https://github.com/nautobot/nautobot-plugin-ssot/pull/9) - Added missing `name` string to `jobs/examples.py`.
+- [#9](https://github.com/nautobot/nautobot-app-ssot/pull/9) - Added missing `name` string to `jobs/examples.py`.
 
 ### Removed
 
-- [#7](https://github.com/nautobot/nautobot-plugin-ssot/pull/7) - Removed unnecessary `markdown-include` development/documentation dependency.
+- [#7](https://github.com/nautobot/nautobot-app-ssot/pull/7) - Removed unnecessary `markdown-include` development/documentation dependency.
 
 ## [v1.0.0] - 2021-08-03
 

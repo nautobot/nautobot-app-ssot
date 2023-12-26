@@ -20,7 +20,7 @@ try:
 
     LIFECYCLE_MGMT = True
 except ImportError:
-    print("Device Lifecycle plugin isn't installed so will revert to CustomField for OS version.")
+    print("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
     LIFECYCLE_MGMT = False
 
 
@@ -297,7 +297,7 @@ def determine_vc_position(vc_map: dict, virtual_chassis: str, device_name: str) 
 def get_dlc_version_map():
     """Method to create nested dictionary of Software versions mapped to their ID along with Platform.
 
-    This should only be used if the Device Lifecycle plugin is found to be installed.
+    This should only be used if the Device Lifecycle app is found to be installed.
 
     Returns:
         dict: Nested dictionary of versions mapped to their ID and to their Platform.
@@ -313,7 +313,7 @@ def get_dlc_version_map():
 def get_cf_version_map():
     """Method to create nested dictionary of Software versions mapped to their ID along with Platform.
 
-    This should only be used if the Device Lifecycle plugin is not found. It will instead use custom field "OS Version".
+    This should only be used if the Device Lifecycle app is not found. It will instead use custom field "OS Version".
 
     Returns:
         dict: Nested dictionary of versions mapped to their ID and to their Platform.

@@ -1,4 +1,4 @@
-"""Nautobot Models for Cisco ACI integration with SSoT plugin."""
+"""Nautobot Models for Cisco ACI integration with SSoT app."""
 
 import logging
 from diffsync.exceptions import ObjectNotCreated

@@ -11,12 +11,12 @@ try:
 
     LIFECYCLE_MGMT = True
 except ImportError:
-    print("Device Lifecycle plugin isn't installed so will revert to CustomField for OS version.")
+    print("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
     LIFECYCLE_MGMT = False
 
 
 def verify_site(site_name):
-    """Verifies whether site in plugin config is created. If not, creates site.
+    """Verifies whether site in app config is created. If not, creates site.
 
     Args:
         site_name (str): Name of the site.

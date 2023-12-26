@@ -1,1 +1,1 @@
-"""Unit tests for aristacv_sync plugin."""
+"""Unit tests for aristacv_sync app."""

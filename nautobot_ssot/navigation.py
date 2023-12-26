@@ -1,4 +1,4 @@
-"""Plugin additions to the Nautobot navigation menu."""
+"""App additions to the Nautobot navigation menu."""
 
 from nautobot.apps.ui import NavMenuGroup, NavMenuItem, NavMenuTab
 

@@ -1,5 +1,5 @@
 # pylint: disable=too-few-public-methods
-"""Jobs for Device42 integration with SSoT plugin."""
+"""Jobs for Device42 integration with SSoT app."""
 
 from django.templatetags.static import static
 from django.urls import reverse

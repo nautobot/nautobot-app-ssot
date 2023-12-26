@@ -4,7 +4,7 @@ edit_uri: "blob/develop/docs"
 site_dir: "nautobot_ssot/static/nautobot_ssot/docs"
 site_name: "Single Source of Truth Documentation"
 site_url: "https://docs.nautobot.com/projects/ssot/en/latest/"
-repo_url: "https://github.com/nautobot/nautobot-plugin-ssot/"
+repo_url: "https://github.com/nautobot/nautobot-app-ssot/"
 copyright: "Copyright &copy; The Authors"
 theme:
   name: "material"
@@ -129,7 +129,7 @@ nav:
       - Release Notes:
           - "admin/release_notes/index.md"
           - v2.0: "admin/release_notes/version_2.0.md"
-          - v1.6: "admin/release_notes/version_1.5.md"
+          - v1.6: "admin/release_notes/version_1.6.md"
           - v1.5: "admin/release_notes/version_1.5.md"
           - v1.4: "admin/release_notes/version_1.4.md"
           - v1.3: "admin/release_notes/version_1.3.md"
@@ -144,6 +144,8 @@ nav:
       - Development Environment: "dev/dev_environment.md"
       - Code Reference:
           - "dev/code_reference/index.md"
+          - Package: "dev/code_reference/package.md"
+          - API: "dev/code_reference/api.md"
           - Models: "dev/code_reference/models.md"
           - Other classes: "dev/other_classes_reference.md"
   - Nautobot Docs Home ↗︎: "https://docs.nautobot.com"

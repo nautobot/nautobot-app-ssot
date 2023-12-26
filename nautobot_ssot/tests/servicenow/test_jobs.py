@@ -1,4 +1,4 @@
-"""Test the Job class in this plugin."""
+"""Test the Job class in this app."""
 import os
 from unittest import mock
 

@@ -66,7 +66,7 @@ class TestNautobotUtils(TestCase):
 
     @skip("DLC App disabled")
     def test_get_device_version_dlc_success(self):
-        """Test the get_device_version method pulling from Device Lifecycle plugin."""
+        """Test the get_device_version method pulling from Device Lifecycle app."""
         software_relation = Relationship.objects.get(label="Software on Device")
 
         mock_version = MagicMock()
@@ -82,7 +82,7 @@ class TestNautobotUtils(TestCase):
 
     @skip("DLC App disabled")
     def test_get_device_version_dlc_fail(self):
-        """Test the get_device_version method pulling from Device Lifecycle plugin but failing."""
+        """Test the get_device_version method pulling from Device Lifecycle app but failing."""
         mock_device = MagicMock()
         mock_device.get_relationships = MagicMock()
         mock_device.get_relationships.return_value = {}

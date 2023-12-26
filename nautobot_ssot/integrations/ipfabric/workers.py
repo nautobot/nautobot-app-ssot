@@ -51,7 +51,7 @@ def ipfabric_logo(dispatcher):
 
 
 def ipfabric(subcommand, **kwargs):
-    """Interact with ipfabric plugin."""
+    """Interact with ipfabric app."""
     return handle_subcommands("ipfabric", subcommand, **kwargs)
 
 
