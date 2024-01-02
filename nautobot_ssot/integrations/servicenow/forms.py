@@ -8,7 +8,7 @@ from .models import SSOTServiceNowConfig
 
 
 class SSOTServiceNowConfigForm(forms.ModelForm):
-    """Plugin configuration form for nautobot-ssot-servicenow."""
+    """App configuration form for nautobot-ssot-servicenow."""
 
     servicenow_instance = forms.CharField(
         required=True,

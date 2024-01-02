@@ -1,4 +1,4 @@
-"""Jobs for ACI SSoT plugin."""
+"""Jobs for ACI SSoT app."""
 from django.templatetags.static import static
 from django.urls import reverse
 from diffsync import DiffSyncFlags

@@ -1,4 +1,4 @@
-"""Base Shared Models for Infoblox integration with SSoT plugin."""
+"""Base Shared Models for Infoblox integration with SSoT app."""
 import uuid
 from typing import Optional
 from diffsync import DiffSyncModel

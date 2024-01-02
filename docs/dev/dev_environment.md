@@ -127,8 +127,8 @@ Each command can be executed with `invoke <command>`. All commands support the a
   flake8           Run flake8 to check that Python files adhere to its style standards.
   pydocstyle       Run pydocstyle to validate docstring formatting adheres to NTC defined standards.
   pylint           Run pylint code analysis.
-  tests            Run all tests for this plugin.
-  unittest         Run Django unit tests for the plugin.
+  tests            Run all tests for this app.
+  unittest         Run Django unit tests for the app.
 ```
 
 ## Project Overview

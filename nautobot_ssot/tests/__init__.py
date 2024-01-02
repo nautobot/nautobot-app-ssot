@@ -1,4 +1,4 @@
-"""Unit tests for nautobot_ssot plugin."""
+"""Unit tests for nautobot_ssot app."""
 
 from django.conf import settings
 

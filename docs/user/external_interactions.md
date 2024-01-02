@@ -8,7 +8,7 @@ This document describes external dependencies and prerequisites for this App to 
 
 ## Prometheus Metrics
 
-Nautobot SSoT will add Prometheus metrics for multiple pieces of data that might be of interest in your environment to the `/api/plugins/capacity-metrics/app-metrics` output if the [Nautobot Capacity Metrics](https://github.com/nautobot/nautobot-plugin-capacity-metrics) app is installed and configured. The following metrics are added:
+Nautobot SSoT will add Prometheus metrics for multiple pieces of data that might be of interest in your environment to the `/api/plugins/capacity-metrics/app-metrics` output if the [Nautobot Capacity Metrics](https://github.com/nautobot/nautobot-app-capacity-metrics) app is installed and configured. The following metrics are added:
 
 The Nautobot SSoT app has the Nautobot Capacity Metrics app as a dependency, but it is up to the admin to enable it in the `nautobot_config.py` configuration.
 

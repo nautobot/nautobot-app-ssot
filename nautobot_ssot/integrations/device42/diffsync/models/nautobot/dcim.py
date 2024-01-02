@@ -41,7 +41,7 @@ try:
 
     LIFECYCLE_MGMT = True
 except ImportError:
-    print("Device Lifecycle plugin isn't installed so will revert to CustomField for OS version.")
+    print("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
     LIFECYCLE_MGMT = False
 
 
@@ -612,7 +612,7 @@ class NautobotDevice(Device):
 
     @staticmethod
     def _add_software_lcm(diffsync: DataSource, os: str, version: str, manufacturer: UUID):
-        """Add OS Version as SoftwareLCM if Device Lifecycle Plugin found."""
+        """Add OS Version as SoftwareLCM if Device Lifecycle App found."""
         _platform = nautobot.verify_platform(diffsync=diffsync, platform_name=os, manu=manufacturer)
         try:
             os_ver = diffsync.softwarelcm_map[os][version]

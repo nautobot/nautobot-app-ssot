@@ -1,4 +1,4 @@
-"""Plugin declaration for nautobot_ssot."""
+"""App declaration for nautobot_ssot."""
 import os
 from importlib import metadata
 
@@ -35,8 +35,8 @@ if not is_truthy(os.getenv("NAUTOBOT_SSOT_ALLOW_CONFLICTING_APPS", "False")):
     _check_for_conflicting_apps()
 
 
-class NautobotSSOTPluginConfig(NautobotAppConfig):
-    """Plugin configuration for the nautobot_ssot plugin."""
+class NautobotSSOTAppConfig(NautobotAppConfig):
+    """App configuration for the nautobot_ssot app."""
 
     name = "nautobot_ssot"
     verbose_name = "Single Source of Truth"
@@ -128,4 +128,4 @@ class NautobotSSOTPluginConfig(NautobotAppConfig):
             module.register_signals(self)
 
 
-config = NautobotSSOTPluginConfig  # pylint:disable=invalid-name
+config = NautobotSSOTAppConfig  # pylint:disable=invalid-name

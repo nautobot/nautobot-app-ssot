@@ -1,4 +1,4 @@
-"""Infoblox Models for Infoblox integration with SSoT plugin."""
+"""Infoblox Models for Infoblox integration with SSoT app."""
 from requests.exceptions import HTTPError
 from nautobot_ssot.integrations.infoblox.diffsync.models.base import Network, IPAddress, Vlan, VlanView
 

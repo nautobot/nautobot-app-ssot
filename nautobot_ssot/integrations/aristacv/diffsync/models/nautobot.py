@@ -20,7 +20,7 @@ try:
 
     LIFECYCLE_MGMT = True
 except ImportError:
-    print("Device Lifecycle plugin isn't installed so will revert to CustomField for OS version.")
+    print("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
     LIFECYCLE_MGMT = False
 
 
@@ -123,7 +123,7 @@ class NautobotDevice(Device):
     def delete(self):
         """Delete device object in Nautobot."""
         if APP_SETTINGS.get("delete_devices_on_sync", DEFAULT_DELETE_DEVICES_ON_SYNC):
-            self.diffsync.job.logger.warning(f"Device {self.name} will be deleted per plugin settings.")
+            self.diffsync.job.logger.warning(f"Device {self.name} will be deleted per app settings.")
             device = OrmDevice.objects.get(id=self.uuid)
             device.delete()
             super().delete()
@@ -131,7 +131,7 @@ class NautobotDevice(Device):
 
     @staticmethod
     def _add_software_lcm(platform: str, version: str):
-        """Add OS Version as SoftwareLCM if Device Lifecycle Plugin found."""
+        """Add OS Version as SoftwareLCM if Device Lifecycle App found."""
         _platform = OrmPlatform.objects.get(name=platform)
         try:
             os_ver = SoftwareLCM.objects.get(device_platform=_platform, version=version)

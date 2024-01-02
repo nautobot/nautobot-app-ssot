@@ -1,4 +1,4 @@
-"""Nautobot Models for Infoblox integration with SSoT plugin."""
+"""Nautobot Models for Infoblox integration with SSoT app."""
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.utils.text import slugify

@@ -4,15 +4,15 @@
         "full_name": "Network to Code, LLC",
         "email": "opensource@networktocode.com",
         "github_org": "nautobot",
-        "plugin_name": "nautobot_ssot",
+        "app_name": "nautobot_ssot",
         "verbose_name": "Single Source of Truth",
-        "plugin_slug": "nautobot-ssot",
-        "project_slug": "nautobot-plugin-ssot",
-        "repo_url": "https://github.com/nautobot/nautobot-plugin-ssot/",
+        "app_slug": "nautobot-ssot",
+        "project_slug": "nautobot-app-ssot",
+        "repo_url": "https://github.com/nautobot/nautobot-app-ssot/",
         "base_url": "ssot",
         "min_nautobot_version": "2.0.0",
         "max_nautobot_version": "2.9999",
-        "camel_name": "NautobotSSOTPlugin",
+        "camel_name": "NautobotSSOTApp",
         "project_short_description": "Nautobot Single Source of Truth",
         "model_class_name": "None",
         "open_source_license": "Apache-2.0",
@@ -33,3 +33,4 @@
         }
     }
 }
+

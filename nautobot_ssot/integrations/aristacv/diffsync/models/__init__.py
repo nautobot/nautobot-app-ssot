@@ -1,1 +1,1 @@
-"""DiffSync models and adapters for the AristaCV SSoT plugin."""
+"""DiffSync models and adapters for the AristaCV SSoT app."""
