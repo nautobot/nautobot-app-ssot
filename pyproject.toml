@@ -168,12 +168,72 @@ ignore=".venv"
 # No docstrings required for private methods (Pylint default), or for test_ functions, or for inner Meta classes.
 no-docstring-rgx="^(_|test_|Meta$)"
 
-[tool.pylint.messages_control]
-# Line length is enforced by Black, so pylint doesn't need to check it.
-# Pylint and Black disagree about how to format multi-line arrays; Black wins.
-disable = """,
+[tool.pylint.message_control]
+# TODO: re-enable and fix these as time permits
+# unused-import is already covered by ruff
+disable=""",
+    abstract-method,
+    arguments-differ,
+    arguments-renamed,
+    attribute-defined-outside-init,
+    broad-except,
+    consider-iterating-dictionary,
+    consider-using-from-import,
+    consider-using-in,
+    consider-using-generator,
+    cyclic-import,
+    duplicate-code,
+    empty-docstring,
+    exec-used,
+    fixme,
+    global-statement,
+    global-variable-not-assigned,
+    hard-coded-auth-user,
+    import-outside-toplevel,
+    invalid-name,
+    keyword-arg-before-vararg,
     line-too-long,
+    logging-format-interpolation,
+    logging-fstring-interpolation,
+    missing-class-docstring,
+    missing-function-docstring,
+    missing-module-docstring,
+    modelform-uses-exclude,
+    no-else-raise,
+    no-else-return,
+    no-member,
+    not-callable,
+    pointless-statement,
+    pointless-string-statement,
+    protected-access,
+    raise-missing-from,
+    self-assigning-variable,
+    signature-differs,
+    super-init-not-called,
+    super-with-arguments,
+    superfluous-parens,
     too-few-public-methods,
+    too-many-ancestors,
+    too-many-arguments,
+    too-many-boolean-expressions,
+    too-many-branches,
+    too-many-instance-attributes,
+    too-many-lines,
+    too-many-locals,
+    too-many-nested-blocks,
+    too-many-public-methods,
+    too-many-return-statements,
+    too-many-statements,
+    ungrouped-imports,
+    unnecessary-dunder-call,
+    unspecified-encoding,
+    unused-argument,
+    unused-import,
+    unused-wildcard-import,
+    use-maxsplit-arg,
+    wildcard-import,
+    wrong-import-order,
+    wrong-import-position,
     """
 
 [tool.pylint.miscellaneous]
@@ -188,17 +248,30 @@ supported_nautobot_versions = [
     "2.0.0"
 ]
 
-[tool.pydocstyle]
-convention = "google"
-inherit = false
-match = "(?!__init__).*\\.py"
-match-dir = "(?!tests|migrations|development)[^\\.].*"
-# D212 is enabled by default in google convention, and complains if we have a docstring like:
-# """
-# My docstring is on the line after the opening quotes instead of on the same line as them.
-# """
-# We've discussed and concluded that we consider this to be a valid style choice.
-add_ignore = "D212"
+[tool.ruff]
+line-length = 120
+target-version = "py38"
+
+[tool.ruff.lint]
+select = [
+    "DJ",  # flake8-django
+    "E",  # pycodestyle
+    "F",  # pyflakes
+    # "I",  # isort
+    "PIE",  # flake8-pie
+    "RUF",  # ruff itself
+    "S",  # flake8-bandit
+    "W",  # pycodestyle
+]
+ignore = [
+    "E501",  # pycodestyle: line-too-long
+    "PIE808",  # unnecessary-range-start
+    "RUF012",  # mutable-class-default - see https://github.com/astral-sh/ruff/issues/5243
+]
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
+force-sort-within-sections = true
 
 [build-system]
 requires = ["poetry_core>=1.0.0"]
