@@ -564,13 +564,6 @@ def pylint(context):
     run_command(context, command)
 
 
-@task
-def bandit(context):
-    """Run bandit to validate basic static code security analysis."""
-    command = "bandit --recursive . --configfile .bandit.yml"
-    run_command(context, command)
-
-
 @task(
     help={
         "action": "One of 'lint', 'format', or 'both'",
@@ -672,8 +665,6 @@ def tests(context, failfast=False, keepdb=False, lint_only=False):
         print("Starting Docker Containers...")
         start(context)
     # Sorted loosely from fastest to slowest
-    print("Running bandit...")
-    bandit(context)
     print("Running yamllint...")
     yamllint(context)
     print("Running ruff...")

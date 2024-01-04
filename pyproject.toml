@@ -53,7 +53,6 @@ drf-spectacular = "0.26.3"
 httpx = { version = ">=0.23.3", optional = true }
 
 [tool.poetry.group.dev.dependencies]
-bandit = "*"
 coverage = "*"
 django-debug-toolbar = "*"
 django-extensions = "*"
