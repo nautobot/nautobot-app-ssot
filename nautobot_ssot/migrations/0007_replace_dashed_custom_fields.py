@@ -1,7 +1,6 @@
 from django.db import migrations
 from nautobot.dcim.models import Device, DeviceType, Interface, Manufacturer, Location
 from nautobot.extras.models import Role
-from nautobot.extras.utils import FeatureQuery
 from nautobot.ipam.models import IPAddress, VLAN
 
 CF_KEY_CHANGE_MAP = {
