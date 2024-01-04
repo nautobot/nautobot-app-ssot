@@ -30,7 +30,7 @@ def get_random_color() -> str:
     Returns:
         str: Hex code value for a color with hash stripped.
     """
-    return f"{random.randint(0, 0xFFFFFF):06x}"  # nosec: B311
+    return f"{random.randint(0, 0xFFFFFF):06x}"  # noqa: S311
 
 
 def verify_device_role(diffsync, role_name: str, role_color: str = "") -> UUID:

@@ -87,7 +87,7 @@ class TestNautobotUtils(TransactionTestCase):  # pylint: disable=too-many-instan
             from nautobot_device_lifecycle_mgmt.models import (  # noqa: F401 # pylint: disable=import-outside-toplevel, unused-import
                 SoftwareLCM,
             )
-            from nautobot_ssot.integrations.device42.utils.nautobot import (  # noqa: F401 # pylint: disable=import-outside-toplevel, unused-import
+            from nautobot_ssot.integrations.device42.utils.nautobot import (  # pylint: disable=import-outside-toplevel, unused-import
                 LIFECYCLE_MGMT,
             )
 

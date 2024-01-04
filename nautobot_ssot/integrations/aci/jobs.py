@@ -13,7 +13,7 @@ name = "Cisco ACI SSoT"  # pylint: disable=invalid-name, abstract-method
 
 aci_creds = {}
 for key in PLUGIN_CFG["apics"]:
-    subkey = key[key.rfind("_") + 1 :].lower()  # noqa: E203
+    subkey = key[key.rfind("_") + 1 :].lower()
     aci_creds.setdefault(subkey, {})
     if "USERNAME" in key:
         aci_creds[subkey]["username"] = PLUGIN_CFG["apics"][key]

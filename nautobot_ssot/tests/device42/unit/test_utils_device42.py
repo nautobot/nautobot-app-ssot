@@ -219,7 +219,7 @@ class TestDevice42Api(TestCase):  # pylint: disable=too-many-public-methods
         """Setup Device42API instance."""
         self.uri = "https://device42.testexample.com"
         self.username = "testuser"
-        self.password = "testpassword"  # nosec B105
+        self.password = "testpassword"  # noqa: S105
         self.verify = False
         self.dev42 = device42.Device42API(self.uri, self.username, self.password, self.verify)
 

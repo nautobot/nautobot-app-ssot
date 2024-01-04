@@ -21,7 +21,7 @@ class TestCloudvisionApi(TestCase):
 
     def test_auth_cvass_with_token(self):
         """Test that authentication against CVaaS with token works."""
-        client = cloudvision.CloudvisionApi(cvp_host=None, cvp_token="1234567890abcdef")  # nosec
+        client = cloudvision.CloudvisionApi(cvp_host=None, cvp_token="1234567890abcdef")  # noqa: S106
         self.assertEqual(client.cvp_url, "www.arista.io:443")
         self.assertEqual(client.cvp_token, "1234567890abcdef")
 

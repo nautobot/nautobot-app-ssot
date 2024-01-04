@@ -384,16 +384,16 @@ class AciApi:
         resp = self._get('/api/class/topSystem.json?query-target-filter=ne(topSystem.role,"controller")')
 
         for node in resp.json()["imdata"]:
-            if node["topSystem"]["attributes"]["oobMgmtAddr"] != "0.0.0.0":  # nosec: B104
+            if node["topSystem"]["attributes"]["oobMgmtAddr"] != "0.0.0.0":  # noqa: S104
                 mgmt_addr = f"{node['topSystem']['attributes']['oobMgmtAddr']}/{node['topSystem']['attributes']['oobMgmtAddrMask']}"
             elif (
-                node["topSystem"]["attributes"]["address"] != "0.0.0.0"  # nosec: B104
+                node["topSystem"]["attributes"]["address"] != "0.0.0.0"  # noqa: S104
                 and node["topSystem"]["attributes"]["tepPool"]
             ):
                 mgmt_addr = f"{node['topSystem']['attributes']['address']}/{ip_network(node['topSystem']['attributes']['tepPool'], strict=False).prefixlen}"
             else:
                 mgmt_addr = ""
-            if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
+            if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # noqa: S104
                 subnet = node["topSystem"]["attributes"]["tepPool"]
             elif mgmt_addr:
                 subnet = ip_network(mgmt_addr, strict=False).with_prefixlen
@@ -437,16 +437,16 @@ class AciApi:
             node_dict[node_id]["site"] = self.site
         resp = self._get('/api/class/topSystem.json?query-target-filter=eq(topSystem.role,"controller")')
         for node in resp.json()["imdata"]:
-            if node["topSystem"]["attributes"]["oobMgmtAddr"] != "0.0.0.0":  # nosec: B104
+            if node["topSystem"]["attributes"]["oobMgmtAddr"] != "0.0.0.0":  # noqa: S104
                 mgmt_addr = f"{node['topSystem']['attributes']['oobMgmtAddr']}/{node['topSystem']['attributes']['oobMgmtAddrMask']}"
             elif (
-                node["topSystem"]["attributes"]["address"] != "0.0.0.0"  # nosec: B104
+                node["topSystem"]["attributes"]["address"] != "0.0.0.0"  # noqa: S104
                 and node["topSystem"]["attributes"]["tepPool"]
             ):
                 mgmt_addr = f"{node['topSystem']['attributes']['address']}/{ip_network(node['topSystem']['attributes']['tepPool'], strict=False).prefixlen}"
             else:
                 mgmt_addr = ""
-            if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
+            if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # noqa: S104
                 subnet = node["topSystem"]["attributes"]["tepPool"]
             elif mgmt_addr:
                 subnet = ip_network(mgmt_addr, strict=False).with_prefixlen

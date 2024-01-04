@@ -677,7 +677,7 @@ class Device42Adapter(DiffSync):
         self.job.logger.info("Loading IP Addresses from Device42.")
         _cfs = self.device42.get_ipaddr_custom_fields()
         for _ip in self.device42.get_ip_addrs():
-            _ipaddr = f"{_ip['ip_address']}/{str(_ip['netmask'])}"
+            _ipaddr = f"{_ip['ip_address']}/{_ip['netmask']}"
             try:
                 _device_name, _port_name = "", ""
                 if _ip.get("netport_pk") and _ip["netport_pk"] in self.d42_port_map:
@@ -702,7 +702,7 @@ class Device42Adapter(DiffSync):
                 _tags = sorted(_ip["tags"].split(",")) if _ip.get("tags") != "" else []
                 new_ip = self.ipaddr(
                     address=_ipaddr,
-                    subnet=f"{_ip['subnet']}/{str(_ip['netmask'])}",
+                    subnet=f"{_ip['subnet']}/{_ip['netmask']}",
                     namespace=_ip["vrf"] if _ip.get("vrf") else "Global",
                     available=_ip["available"],
                     label=_ip["label"] if _ip.get("label") else "",
