@@ -70,7 +70,7 @@ class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
                 "from_cloudvision_default_device_role_color", nautobot.DEFAULT_DEVICE_ROLE_COLOR
             ),
             "Apply import tag": str(APP_SETTINGS.get("apply_import_tag", nautobot.APPLY_IMPORT_TAG)),
-            "Import Active": str(APP_SETTINGS.get("import_active", "True"))
+            "Import Active": str(APP_SETTINGS.get("import_active", "True")),
             # Password and Token are intentionally omitted!
         }
 
@@ -167,7 +167,7 @@ class CloudVisionDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
                 "Server type": "On prem",
                 "CloudVision host": APP_SETTINGS.get("cvp_host"),
                 "Username": APP_SETTINGS.get("cvp_user"),
-                "Verify": str(APP_SETTINGS.get("verify"))
+                "Verify": str(APP_SETTINGS.get("verify")),
                 # Password is intentionally omitted!
             }
         return {

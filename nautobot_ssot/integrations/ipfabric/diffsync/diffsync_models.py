@@ -49,9 +49,7 @@ class DiffSyncExtras(DiffSyncModel):
             logger.warning(f"{nautobot_object} will be deleted as safe delete mode is not enabled.")
             # This allows private class naming of nautobot objects to be ordered for delete()
             # Example definition in adapter class var: _site = Location
-            self.diffsync.objects_to_delete[f"_{nautobot_object.__class__.__name__.lower()}"].append(
-                nautobot_object
-            )  # pylint: disable=protected-access
+            self.diffsync.objects_to_delete[f"_{nautobot_object.__class__.__name__.lower()}"].append(nautobot_object)  # pylint: disable=protected-access
             super().delete()
         else:
             if safe_delete_status:

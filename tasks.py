@@ -419,7 +419,12 @@ def dbshell(context, db_name="", input_file="", output_file="", query=""):
         f"> '{output_file}'" if output_file else "",
     ]
 
-    docker_compose(context, " ".join(command), env=env, pty=not (input_file or output_file or query))
+    docker_compose(
+        context,
+        " ".join(command),
+        env=env,
+        pty=not (input_file or output_file or query),
+    )
 
 
 @task(

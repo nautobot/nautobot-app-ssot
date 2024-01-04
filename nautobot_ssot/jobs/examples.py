@@ -559,9 +559,7 @@ class ExampleDataSource(DataSource):
             DataMapping("Prefix (remote)", None, "Prefix (local)", reverse("ipam:prefix_list")),
         )
 
-    def run(
-        self, dryrun, memory_profiling, source_url, source_token, *args, **kwargs
-    ):  # pylint:disable=arguments-differ
+    def run(self, dryrun, memory_profiling, source_url, source_token, *args, **kwargs):  # pylint:disable=arguments-differ
         """Run sync."""
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
