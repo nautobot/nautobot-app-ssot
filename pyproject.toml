@@ -54,11 +54,9 @@ httpx = { version = ">=0.23.3", optional = true }
 
 [tool.poetry.group.dev.dependencies]
 bandit = "*"
-black = "*"
 coverage = "*"
 django-debug-toolbar = "*"
 django-extensions = "*"
-flake8 = "*"
 invoke = "*"
 ipython = "*"
 jedi = "^0.17.2"
@@ -84,6 +82,7 @@ parameterized = "^0.8.1"
 myst-parser = "^0.15.2"
 nautobot-chatops = { version = "^3.0.0", extras = ["ipfabric"] }
 responses = "^0.14.0"
+ruff = "^0.1.11"
 
 [tool.poetry.plugins."nautobot_ssot.data_sources"]
 "example" = "nautobot_ssot.sync.example:ExampleSyncWorker"
@@ -160,30 +159,6 @@ servicenow = [
 nautobot-device-lifecycle-mgmt = [
     "nautobot-device-lifecycle-mgmt",
 ]
-
-[tool.black]
-line-length = 120
-target-version = ['py38', 'py39', 'py310', 'py311']
-include = '\.pyi?$'
-exclude = '''
-(
-  /(
-      \.eggs         # exclude a few common directories in the
-    | \.git          # root of the project
-    | \.hg
-    | \.mypy_cache
-    | \.tox
-    | \.venv
-    | _build
-    | buck-out
-    | build
-    | dist
-    | nautobot_ssot/integrations/servicenow/third_party
-  )/
-  | settings.py     # This is where you define files that should not be stylized by black
-                     # the root of the project
-)
-'''
 
 [tool.pylint.master]
 # Include the pylint_django plugin to avoid spurious warnings about Django patterns
