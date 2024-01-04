@@ -80,7 +80,7 @@ class AciAdapter(DiffSync):
         """Load tenants from ACI."""
         tenant_list = self.conn.get_tenants()
         for _tenant in tenant_list:
-            if not _tenant["name"] in PLUGIN_CFG.get("ignore_tenants"):
+            if _tenant["name"] not in PLUGIN_CFG.get("ignore_tenants"):
                 tenant_name = f"{self.tenant_prefix}:{_tenant['name']}"
                 new_tenant = self.tenant(
                     name=tenant_name,
