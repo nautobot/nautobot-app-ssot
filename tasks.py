@@ -545,30 +545,6 @@ def help_task(context):
 # ------------------------------------------------------------------------------
 # TESTS
 # ------------------------------------------------------------------------------
-@task(
-    help={
-        "autoformat": "Apply formatting recommendations automatically, rather than failing if formatting is incorrect.",
-    }
-)
-def black(context, autoformat=False):
-    """Check Python code style with Black."""
-    if autoformat:
-        black_command = "black"
-    else:
-        black_command = "black --check --diff"
-
-    command = f"{black_command} ."
-
-    run_command(context, command)
-
-
-@task
-def flake8(context):
-    """Check for PEP8 compliance and other style issues."""
-    command = "flake8 . --config .flake8"
-    run_command(context, command)
-
-
 @task
 def hadolint(context):
     """Check Dockerfile for hadolint compliance and other style issues."""
@@ -675,10 +651,6 @@ def tests(context, failfast=False, keepdb=False, lint_only=False):
         print("Starting Docker Containers...")
         start(context)
     # Sorted loosely from fastest to slowest
-    print("Running black...")
-    black(context)
-    print("Running flake8...")
-    flake8(context)
     print("Running bandit...")
     bandit(context)
     print("Running pydocstyle...")
