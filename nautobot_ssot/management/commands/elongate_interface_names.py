@@ -14,7 +14,7 @@ class Command(BaseCommand):
         "https://netutils.readthedocs.io/en/latest/dev/code_reference/interface/#netutils.interface.canonical_interface_name"
     )
 
-    def add_arguments(self, parser):  # noqa: D102
+    def add_arguments(self, parser):
         parser.add_argument(
             "-d",
             "--devices",
@@ -35,7 +35,7 @@ class Command(BaseCommand):
             help="Limits DCIM.Devices in scope to those that have a custom_field.system_of_record value to what is passed.",
         )
 
-    def handle(self, *args, **options):  # noqa: D102
+    def handle(self, *args, **options):
         device_limit = options.get("devices")
         location_limit = options.get("locations")
         if device_limit and location_limit:
