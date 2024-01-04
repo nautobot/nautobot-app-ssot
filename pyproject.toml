@@ -250,7 +250,20 @@ supported_nautobot_versions = [
 [tool.ruff]
 line-length = 120
 target-version = "py38"
-exclude = ["nautobot_ssot/integrations/servicenow/third_party"]
+
+exclude = [
+    ".eggs",         # exclude a few common directories in the
+    ".git",          # root of the project
+    ".hg",
+    ".mypy_cache",
+    ".tox",
+    ".venv",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "nautobot_ssot/integrations/servicenow/third_party"
+]
 
 [tool.ruff.lint]
 select = [
