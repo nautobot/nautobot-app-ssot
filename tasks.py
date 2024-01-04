@@ -580,13 +580,13 @@ def ruff(context, action="both", autoformat=False, fix=False, output_format="tex
         command = "ruff format"
         if not autoformat:
             command += " --check"
-        command += " development/ examples/ nautobot/ tasks.py"
+        command += " development/ nautobot_ssot/ tasks.py"
         run_command(context, command)
     if action != "format":
         command = "ruff check"
         if fix:
             command += " --fix"
-        command += f" --output-format {output_format} development/ examples/ nautobot/ tasks.py"
+        command += f" --output-format {output_format} development/ nautobot_ssot/ tasks.py"
         run_command(context, command)
 
 
