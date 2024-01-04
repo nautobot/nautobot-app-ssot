@@ -251,6 +251,7 @@ supported_nautobot_versions = [
 [tool.ruff]
 line-length = 120
 target-version = "py38"
+exclude = ["nautobot_ssot/integrations/servicenow/third_party"]
 
 [tool.ruff.lint]
 select = [
