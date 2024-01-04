@@ -566,6 +566,30 @@ def bandit(context):
     run_command(context, command)
 
 
+@task(
+    help={
+        "action": "One of 'lint', 'format', or 'both'",
+        "autoformat": "Automatically apply formatting recommendations, rather than failing if formatting is incorrect.",
+        "fix": "Automatically apply linting recommendations where possible. May not be able to fix all.",
+        "output_format": "see https://docs.astral.sh/ruff/settings/#output-format",
+    },
+)
+def ruff(context, action="both", autoformat=False, fix=False, output_format="text"):
+    """Run ruff to perform code formatting and/or linting."""
+    if action != "lint":
+        command = "ruff format"
+        if not autoformat:
+            command += " --check"
+        command += " development/ examples/ nautobot/ tasks.py"
+        run_command(context, command)
+    if action != "format":
+        command = "ruff check"
+        if fix:
+            command += " --fix"
+        command += f" --output-format {output_format} development/ examples/ nautobot/ tasks.py"
+        run_command(context, command)
+
+
 @task
 def yamllint(context):
     """Run yamllint to validate formatting adheres to NTC defined YAML standards.
@@ -647,6 +671,8 @@ def tests(context, failfast=False, keepdb=False, lint_only=False):
     bandit(context)
     print("Running yamllint...")
     yamllint(context)
+    print("Running ruff...")
+    ruff(context)
     print("Running poetry check...")
     lock(context, check=True)
     print("Running migrations check...")
