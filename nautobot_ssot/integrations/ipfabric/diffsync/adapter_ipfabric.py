@@ -20,7 +20,6 @@ from nautobot_ssot.integrations.ipfabric.constants import (
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.utilities import utils as ipfabric_utils
 
-
 logger = logging.getLogger("nautobot.jobs")
 
 device_serial_max_length = Device._meta.get_field("serial").max_length
