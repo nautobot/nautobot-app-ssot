@@ -30,6 +30,8 @@ from .fixtures_infoblox import (
     get_dhcp_lease_from_hostname,
     get_all_subnets,
     get_authoritative_zone,
+    get_network_containers,
+    get_network_containers_ipv6,
     find_network_reference,
     find_next_available_ip,
     search_ipv4_address,
@@ -639,3 +641,25 @@ class TestInfobloxTest(unittest.TestCase):
                 self.infoblox_client.search_ipv4_address(mock_ip)
 
         self.assertEqual(context.exception.response.status_code, 404)
+
+    def test_get_network_containers(self):
+        """Test get_network_containers success."""
+        mock_response = get_network_containers()
+        mock_uri = "networkcontainer"
+
+        with requests_mock.Mocker() as req:
+            req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=200)
+            resp = self.infoblox_client.get_network_containers()
+
+        self.assertEqual(resp, mock_response["result"])
+
+    def test_get_network_containers_ipv6(self):
+        """Test get_network_containers IPv6 success."""
+        mock_response = get_network_containers_ipv6()
+        mock_uri = "ipv6networkcontainer"
+
+        with requests_mock.Mocker() as req:
+            req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=200)
+            resp = self.infoblox_client.get_network_containers(ipv6=True)
+
+        self.assertEqual(resp, mock_response["result"])
