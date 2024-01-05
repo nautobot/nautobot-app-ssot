@@ -61,6 +61,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):
 
         Args:
             source (DiffSync): DiffSync
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
         """
         for grouping in (
             "_vlan",

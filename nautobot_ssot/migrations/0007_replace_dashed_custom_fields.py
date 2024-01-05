@@ -1,3 +1,4 @@
+"""Migration to ensure CustomField keys do not use dashes."""
 from django.db import migrations
 
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, Manufacturer
@@ -13,6 +14,12 @@ CF_KEY_CHANGE_MAP = {
 
 
 def replace_dashed_custom_fields(apps, schema_editor):
+    """Update CustomField key to replace dashes with underscore.
+
+    Args:
+        apps (obj): Django apps accessor.
+        schema_editor (obj): DB schema editor.
+    """
     CustomField = apps.get_model("extras", "customfield")
 
     for new_key, old_key in CF_KEY_CHANGE_MAP.items():
@@ -41,6 +48,8 @@ def replace_dashed_custom_fields(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    """Migration class."""
+
     dependencies = [
         ("nautobot_ssot", "0006_ssotservicenowconfig"),
     ]

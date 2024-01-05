@@ -108,6 +108,8 @@ class NautobotAdapter(DiffSync):
 
         Args:
             source (DiffSync): Source DiffSync DataSource adapter.
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
         """
         # if Controller is created we need to ensure all imported Devices have RelationshipAssociation to it.
         if APP_SETTINGS.get("create_controller"):

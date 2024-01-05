@@ -61,6 +61,8 @@ class AciAdapter(DiffSync):
             job (object, optional): Aci job. Defaults to None.
             sync (object, optional): Aci DiffSync. Defaults to None.
             client (object): Aci credentials.
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
         """
         super().__init__(*args, **kwargs)
         self.job = job

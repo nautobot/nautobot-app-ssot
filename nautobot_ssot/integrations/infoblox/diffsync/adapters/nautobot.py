@@ -111,6 +111,8 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
         Args:
             job (object, optional): Nautobot job. Defaults to None.
             sync (object, optional): Nautobot DiffSync. Defaults to None.
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
         """
         super().__init__(*args, **kwargs)
         self.job = job
@@ -122,6 +124,8 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
 
         Args:
             source (DiffSync): Source DiffSync adapter data.
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
         """
         for obj_type, objs in self.objects_to_create.items():
             if obj_type != "vlangroups":

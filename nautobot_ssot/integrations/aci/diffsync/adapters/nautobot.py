@@ -64,6 +64,8 @@ class NautobotAdapter(DiffSync):
             job (object, optional): Nautobot job. Defaults to None.
             sync (object, optional): Nautobot DiffSync. Defaults to None.
             client (object): ACI credentials.
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
         """
         super().__init__(*args, **kwargs)
         self.job = job
@@ -80,6 +82,8 @@ class NautobotAdapter(DiffSync):
 
         Args:
             source (DiffSync): DiffSync
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
         """
         for grouping in (
             "ipaddress",

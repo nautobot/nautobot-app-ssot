@@ -1,7 +1,7 @@
 """Utility functions for Device42 API."""
 
 import re
-from typing import List
+from typing import List, Optional
 
 from diffsync.exceptions import ObjectNotFound
 from netutils.lib_mapper import PYATS_LIB_MAPPER
@@ -245,7 +245,7 @@ class Device42API:  # pylint: disable=too-many-public-methods
             return full_path
         return full_path
 
-    def api_call(self, path: str, method: str = "GET", params: dict = None, payload: dict = None):
+    def api_call(self, path: str, method: str = "GET", params: Optional[dict] = None, payload: Optional[dict] = None):
         """Method to send Request to Device42 of type `method`. Defaults to GET request.
 
         Args:

@@ -27,7 +27,6 @@ class IPFabricDiffSyncTestCase(TestCase):
 
     def test_data_loading(self):
         """Test the load() function."""
-
         # Create a mock client
         ipfabric_client = MagicMock()
         ipfabric_client.inventory.sites.all.return_value = SITE_FIXTURE
@@ -88,7 +87,6 @@ class IPFabricDiffSyncTestCase(TestCase):
     @patch("nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME", True)
     def test_data_loading_elongate_interface_names(self):
         """Test the load() function with using long form interface names."""
-
         # Create a mock client
         ipfabric_client = MagicMock()
         ipfabric_client.inventory.sites.all.return_value = SITE_FIXTURE

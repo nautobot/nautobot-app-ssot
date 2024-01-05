@@ -14,6 +14,11 @@ class Command(BaseCommand):
     )
 
     def add_arguments(self, parser):
+        """Add parser arguments.
+
+        Args:
+            parser (obj): Management command parser.
+        """
         parser.add_argument(
             "-d",
             "--devices",
@@ -35,6 +40,11 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        """Handle the managment command actions.
+
+        Raises:
+            ValueError: Error if multiple options attempted.
+        """
         device_limit = options.get("devices")
         location_limit = options.get("locations")
         if device_limit and location_limit:

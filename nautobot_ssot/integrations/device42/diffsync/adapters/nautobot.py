@@ -108,6 +108,8 @@ class NautobotAdapter(DiffSync):
         Args:
             job (Device42DataSource): Nautobot Job.
             sync (object, optional): Nautobot DiffSync. Defaults to None.
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
         """
         super().__init__(*args, **kwargs)
         self.job = job
@@ -123,6 +125,8 @@ class NautobotAdapter(DiffSync):
 
         Args:
             source (DiffSync): DiffSync
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
         """
         if PLUGIN_CFG.get("device42_delete_on_sync"):
             for grouping in (

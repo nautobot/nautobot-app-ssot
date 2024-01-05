@@ -396,6 +396,8 @@ class NautobotRemote(DiffSync):
             url (str): URL of the remote Nautobot system
             token (str): REST API authentication token
             job (Job): The running Job instance that owns this DiffSync adapter instance
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
         """
         super().__init__(*args, **kwargs)
         if not url or not token:

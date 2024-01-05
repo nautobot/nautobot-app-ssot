@@ -35,6 +35,8 @@ class InfobloxAdapter(DiffSync):
             job (object, optional): Infoblox job. Defaults to None.
             sync (object, optional): Infoblox DiffSync. Defaults to None.
             conn (object): InfobloxAPI connection.
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
         """
         super().__init__(*args, **kwargs)
         self.job = job

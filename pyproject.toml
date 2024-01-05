@@ -189,6 +189,7 @@ supported_nautobot_versions = [
 line-length = 120
 target-version = "py38"
 
+extend-exclude = ["tests"]
 exclude = [
     ".eggs",         # exclude a few common directories in the
     ".git",          # root of the project
@@ -205,6 +206,7 @@ exclude = [
 
 [tool.ruff.lint]
 select = [
+    "D",  # pydocstyle
     "DJ",  # flake8-django
     "E",  # pycodestyle
     "F",  # pyflakes
@@ -215,10 +217,15 @@ select = [
     "W",  # pycodestyle
 ]
 ignore = [
+# D212 is enabled by default in google convention, and complains if we have a docstring like:
+# """
+# My docstring is on the line after the opening quotes instead of on the same line as them.
+# """
+# We've discussed and concluded that we consider this to be a valid style choice.
+    "D212",  # pydocstyle
     "E501",  # pycodestyle: line-too-long
     "PIE808",  # unnecessary-range-start
     "RUF012",  # mutable-class-default - see https://github.com/astral-sh/ruff/issues/5243
-    "RUF013",  # prohibits implicit "Optional"
 ]
 
 [tool.ruff.lint.isort]
@@ -229,6 +236,9 @@ section-order = ["future", "standard-library", "third-party", "nautobot", "first
 
 [tool.ruff.lint.isort.sections]
 "nautobot" = ["nautobot"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [build-system]
 requires = ["poetry_core>=1.0.0"]

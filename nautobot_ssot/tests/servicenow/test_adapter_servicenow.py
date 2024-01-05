@@ -16,7 +16,6 @@ class MockServiceNowClient:
 
     def all_table_entries(self, table, query=None):
         """Iterator over all records in a given table."""
-
         if table == "cmn_location":
             yield from [
                 {

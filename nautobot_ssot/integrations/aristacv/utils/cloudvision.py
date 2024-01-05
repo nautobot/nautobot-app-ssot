@@ -45,11 +45,11 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
     def __init__(
         self,
         cvp_host: str,
-        cvp_port: str = None,
+        cvp_port: Optional[str] = None,
         verify: bool = True,
-        username: str = None,
-        password: str = None,
-        cvp_token: str = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        cvp_token: Optional[str] = None,
     ):
         """Create Cloudvision API connection."""
         self.metadata = None
@@ -577,6 +577,7 @@ def get_port_type(port_info: dict, transceiver: str) -> str:
 
     Args:
         port_info (dict): Data required to determine the port type.
+        transceiver (str): Defined transceiver type.
 
     Returns:
         str: The Nautobot string for port type.

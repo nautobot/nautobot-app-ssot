@@ -107,7 +107,6 @@ class TestCloudvisionUtils(TestCase):
 
     def test_get_tags_by_type(self):
         """Test get_tags_by_type method."""
-
         mock_tag = MagicMock()
         mock_tag.value.key.label.value = "test"
         mock_tag.value.key.value.value = "test"

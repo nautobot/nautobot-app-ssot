@@ -6,6 +6,7 @@ from ipaddress import ip_network
 import logging
 import re
 import sys
+from typing import Optional
 
 import requests
 import urllib3
@@ -58,7 +59,9 @@ class AciApi:
             self.refresh_timeout = int(resp.json()["imdata"][0]["aaaLogin"]["attributes"]["refreshTimeoutSeconds"])
         return resp
 
-    def _handle_request(self, url: str, params: dict = None, request_type: str = "get", data: dict = None) -> object:
+    def _handle_request(
+        self, url: str, params: Optional[dict] = None, request_type: str = "get", data: Optional[dict] = None
+    ) -> object:
         """Send a REST API call to the APIC."""
         try:
             resp = requests.request(
@@ -91,7 +94,7 @@ class AciApi:
             f"Error: {response.status_code}, Reason: {response.reason}"
         )
 
-    def _get(self, uri: str, params: dict = None) -> object:
+    def _get(self, uri: str, params: Optional[dict] = None) -> object:
         """Method to retrieve data from the ACI fabric."""
         url = self.base_uri + uri
         if self._refresh_token():
@@ -107,7 +110,7 @@ class AciApi:
             return resp
         return self._handle_error(resp)
 
-    def _post(self, uri: str, params: dict = None, data=None) -> object:
+    def _post(self, uri: str, params: Optional[dict] = None, data=None) -> object:
         """Method to post data to the ACI fabric."""
         url = self.base_uri + uri
         if self._refresh_token():

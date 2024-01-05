@@ -132,6 +132,8 @@ class Device42Adapter(DiffSync):
             job (Device42DataSource): Nautobot Job.
             sync (object, optional): Nautobot DiffSync. Defaults to None.
             client (object): Device42API client connection object.
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
         """
         super().__init__(*args, **kwargs)
         self.job = job

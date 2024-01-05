@@ -1,0 +1,1 @@
+"""ACI integration DiffSync adapters."""

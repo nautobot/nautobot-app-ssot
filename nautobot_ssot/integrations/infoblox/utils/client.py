@@ -5,6 +5,7 @@ import ipaddress
 import json
 import logging
 import re
+from typing import Optional
 import urllib.parse
 
 from dns import reversename
@@ -131,6 +132,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         Args:
             method (str): Request HTTP method to call with requests.
             path (str): URL path to call.
+            **kwargs: Arbitrary keyword arguments.
 
         Returns:
             :class:`~requests.Response`: Response from the API.
@@ -366,6 +368,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
 
         Args:
             prefix (str): IP network to create.
+            comment (str): IPv4 prefix creation comment.
 
         Returns:
             (str) of reference network
@@ -406,7 +409,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         """Update a network.
 
         Args:
-            (str): IPv4 prefix to update.
+            prefix (str): IPv4 prefix to update.
             comment (str): IPv4 prefix update comment.
 
         Returns:
@@ -431,6 +434,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
 
         Args:
             prefix (str): IP network to create.
+            comment (str): IPv4 network creation comment.
 
         Returns:
             (str) of reference network
@@ -471,7 +475,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         """Update a network container.
 
         Args:
-            (str): IPv4 prefix to update.
+            prefix (str): IPv4 prefix to update.
             comment (str): IPv4 prefix update comment.
 
         Returns:
@@ -734,7 +738,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         """Get a DHCP lease for the hostname passed in.
 
         Args:
-            hostnames (str): "testdevice1.test"
+            hostname (str): "testdevice1.test"
 
         Returns:
             (list) of record dicts
@@ -759,7 +763,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         logger.info(response.json)
         return response.json()
 
-    def get_all_subnets(self, prefix: str = None):
+    def get_all_subnets(self, prefix: Optional[str] = None):
         """Get all Subnets.
 
         Args:
@@ -1207,10 +1211,10 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
 
     # TODO: See if we should accept params dictionary and extended to both host record and fixed address
     def update_ipaddress(self, ip_address, **data):  # pylint: disable=inconsistent-return-statements
-        """Update a Network object with a given prefix.
+        """Update a Network object with a given IP Address.
 
         Args:
-            prefix (str): Valid IP prefix
+            ip_address (str): Valid IP address
             data (dict): keyword args used to update the object e.g. comment="updateme"
 
         Returns:
