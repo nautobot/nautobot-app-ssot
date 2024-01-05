@@ -32,7 +32,7 @@ def render_diff_recursive(diff):
     """
     result = ""
     for record_type, children in diff.items():
-        child_result = ""
+        child_result = mark_safe("")  # noqa: S308
         for child, child_diffs in children.items():
             if "+" in child_diffs and "-" not in child_diffs:
                 child_class = "diff-added"
@@ -54,7 +54,7 @@ def render_diff_recursive(diff):
                 child_result += render_diff_recursive(child_diffs)
 
             child_result += "</ul></li>"
-        result += format_html("<li>{}<ul>{}</ul></li>", record_type, mark_safe(child_result))  # noqa: S308
+        result += format_html("<li>{}<ul>{}</ul></li>", record_type, child_result)
     return result
 
 
@@ -62,4 +62,4 @@ def render_diff_recursive(diff):
 def render_diff(diff):
     """Render a DiffSync diff dict to HTML."""
     html_text = render_diff_recursive(diff)
-    return format_html("<ul>{}</ul>", mark_safe(html_text))  # noqa: S308
+    return format_html("<ul>{}</ul>", html_text)
