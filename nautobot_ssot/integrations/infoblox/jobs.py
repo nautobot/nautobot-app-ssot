@@ -1,4 +1,4 @@
-"""Jobs for Infoblox integration with SSoT plugin."""
+"""Jobs for Infoblox integration with SSoT app."""
 
 from diffsync.enum import DiffSyncFlags
 from django.templatetags.static import static

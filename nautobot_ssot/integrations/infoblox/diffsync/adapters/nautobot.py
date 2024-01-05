@@ -30,7 +30,7 @@ class NautobotMixin:
 
     def tag_involved_objects(self, target):
         """Tag all objects that were successfully synced to the target."""
-        # The ssot_synced_to_infoblox tag *should* have been created automatically during plugin installation
+        # The ssot_synced_to_infoblox tag *should* have been created automatically during app installation
         # (see nautobot_ssot/integrations/infoblox/signals.py) but maybe a user deleted it inadvertently, so be safe:
         tag, _ = Tag.objects.get_or_create(
             name="SSoT Synced to Infoblox",
@@ -175,6 +175,7 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
                 address=addr,
                 prefix=str(prefix),
                 status=ipaddr.status.name if ipaddr.status else None,
+                ip_addr_type=ipaddr.type,
                 prefix_length=prefix.prefix_length if prefix else ipaddr.prefix_length,
                 dns_name=ipaddr.dns_name,
                 description=ipaddr.description,

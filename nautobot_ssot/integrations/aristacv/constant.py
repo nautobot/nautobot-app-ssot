@@ -14,6 +14,7 @@ PORT_TYPE_MAP = {
     "xcvr1000BaseT": "1000base-t",
     "xcvr10GBaseSr": "10gbase-x-xfp",
     "xcvr10GBaseLr": "10gbase-x-xfp",
+    "xcvr10GBaseT": "10gbase-t",
     "1000BASE-SX": "1000base-x-gbic",
     "1000BASE-LX": "1000base-x-gbic",
     "1000BASE-T": "1000base-t",

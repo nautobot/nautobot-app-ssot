@@ -104,7 +104,12 @@ class NautobotAdapter(DiffSync):
                 continue
 
             # Handling of normal fields - as this is the default case, set the attribute directly.
-            parameters[parameter_name] = getattr(database_object, parameter_name)
+            if hasattr(self, f"load_param_{parameter_name}"):
+                parameters[parameter_name] = getattr(self, f"load_param_{parameter_name}")(
+                    parameter_name, database_object
+                )
+            else:
+                parameters[parameter_name] = getattr(database_object, parameter_name)
         try:
             diffsync_model = diffsync_model(**parameters)
         except pydantic.ValidationError as error:

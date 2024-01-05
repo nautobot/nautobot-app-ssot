@@ -17,3 +17,4 @@ While that last supported version will not be strictly enforced--via the max_ver
 | 2.0.0                          | 2.0.0                          | 2.99.09                       |
 | 2.0.1                          | 2.0.0                          | 2.99.09                       |
 | 2.0.2                          | 2.0.0                          | 2.99.09                       |
+| 2.1.0                          | 2.0.0                          | 2.99.09                       |

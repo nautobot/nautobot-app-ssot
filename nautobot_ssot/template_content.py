@@ -1,4 +1,4 @@
-"""Plugin template content extensions of base Nautobot views."""
+"""App template content extensions of base Nautobot views."""
 
 from django.urls import reverse
 

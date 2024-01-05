@@ -127,7 +127,7 @@ class NautobotDiffSync(DiffSync):
 
     def tag_involved_objects(self, target):
         """Tag all objects that were successfully synced to the target."""
-        # The SSoT Synced to ServiceNow Tag *should* have been created automatically during plugin installation
+        # The SSoT Synced to ServiceNow Tag *should* have been created automatically during app installation
         # (see nautobot_ssot/integrations/servicenow/signals.py) but maybe a user deleted it inadvertently, so be safe:
         tag, _ = Tag.objects.get_or_create(
             name="SSoT Synced to ServiceNow",

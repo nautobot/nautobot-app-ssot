@@ -7,15 +7,18 @@ from diffsync import ObjectAlreadyExists
 from nautobot.dcim.models import Device
 from nautobot.ipam.models import VLAN
 from netutils.mac import mac_to_format
+from netutils.interface import canonical_interface_name
 
 from nautobot_ssot.integrations.ipfabric.constants import (
-    DEFAULT_INTERFACE_TYPE,
     DEFAULT_INTERFACE_MTU,
     DEFAULT_INTERFACE_MAC,
     DEFAULT_DEVICE_ROLE,
     DEFAULT_DEVICE_STATUS,
+    IP_FABRIC_USE_CANONICAL_INTERFACE_NAME,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
+from nautobot_ssot.integrations.ipfabric.utilities import utils as ipfabric_utils
+
 
 logger = logging.getLogger("nautobot.jobs")
 
@@ -54,10 +57,13 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
 
         for iface in device_interfaces:
             ip_address = iface.get("primaryIp")
+            iface_name = iface["intName"]
+            if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
+                iface_name = canonical_interface_name(iface_name)
             try:
                 interface = self.interface(
                     diffsync=self,
-                    name=iface.get("intName"),
+                    name=iface_name,
                     device_name=iface.get("hostname"),
                     description=iface.get("dscr", ""),
                     enabled=True,
@@ -65,7 +71,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     if iface.get("mac")
                     else DEFAULT_INTERFACE_MAC,
                     mtu=iface.get("mtu") if iface.get("mtu") else DEFAULT_INTERFACE_MTU,
-                    type=DEFAULT_INTERFACE_TYPE,
+                    type=ipfabric_utils.convert_media_type(iface.get("media") or ""),
                     mgmt_only=iface.get("mgmt_only", False),
                     ip_address=ip_address,
                     # TODO: why is only IPv4? and why /32?

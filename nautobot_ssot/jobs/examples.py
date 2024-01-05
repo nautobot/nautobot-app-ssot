@@ -379,7 +379,7 @@ class NautobotRemote(DiffSync):
     """DiffSync adapter class for loading data from a remote Nautobot instance using Python requests.
 
     In a more realistic example, you'd probably use PyNautobot here instead of raw requests,
-    but we didn't want to add PyNautobot as a dependency of this plugin just to make an example more realistic.
+    but we didn't want to add PyNautobot as a dependency of this app just to make an example more realistic.
     """
 
     # Model classes used by this adapter class

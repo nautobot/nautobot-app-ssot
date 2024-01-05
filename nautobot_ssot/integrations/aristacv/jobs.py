@@ -1,5 +1,5 @@
 # pylint: disable=invalid-name,too-few-public-methods
-"""Jobs for CloudVision integration with SSoT plugin."""
+"""Jobs for CloudVision integration with SSoT app."""
 from django.templatetags.static import static
 from django.urls import reverse
 
@@ -16,6 +16,20 @@ from nautobot_ssot.integrations.aristacv.utils.cloudvision import CloudvisionApi
 
 
 name = "SSoT - Arista CloudVision"  # pylint: disable=invalid-name
+
+
+class MissingConfigSetting(Exception):
+    """Exception raised for missing configuration settings.
+
+    Attributes:
+        message (str): Returned explanation of Error.
+    """
+
+    def __init__(self, setting):
+        """Initialize Exception with Setting that is missing and message."""
+        self.setting = setting
+        self.message = f"Missing configuration setting - {setting}!"
+        super().__init__(self.message)
 
 
 class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
@@ -84,6 +98,16 @@ class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
 
     def load_source_adapter(self):
         """Load data from CloudVision into DiffSync models."""
+        if not APP_SETTINGS.get("from_cloudvision_default_site"):
+            self.logger.error(
+                "App setting `aristacv_from_cloudvision_default_site` is not defined. This setting is required for the App to function."
+            )
+            raise MissingConfigSetting(setting="aristacv_from_cloudvision_default_site")
+        if not APP_SETTINGS.get("from_cloudvision_default_device_role"):
+            self.logger.error(
+                "App setting `aristacv_from_cloudvision_default_device_role` is not defined. This setting is required for the App to function."
+            )
+            raise MissingConfigSetting(setting="aristacv_from_cloudvision_default_device_role")
         if self.debug:
             if APP_SETTINGS.get("delete_devices_on_sync"):
                 self.logger.warning(

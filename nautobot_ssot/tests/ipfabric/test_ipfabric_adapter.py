@@ -1,6 +1,6 @@
 """Unit tests for the IPFabric DiffSync adapter class."""
 import json
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
 from nautobot.extras.models import JobResult
@@ -83,3 +83,28 @@ class IPFabricDiffSyncTestCase(TestCase):
             self.assertTrue(hasattr(interface, "ip_address"))
             self.assertTrue(hasattr(interface, "subnet_mask"))
             self.assertTrue(hasattr(interface, "type"))
+
+    @patch("nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME", True)
+    def test_data_loading_elongate_interface_names(self):
+        """Test the load() function with using long form interface names."""
+
+        # Create a mock client
+        ipfabric_client = MagicMock()
+        ipfabric_client.inventory.sites.all.return_value = SITE_FIXTURE
+        ipfabric_client.inventory.devices.all.return_value = DEVICE_INVENTORY_FIXTURE
+        ipfabric_client.fetch_all = MagicMock(
+            side_effect=(lambda x: VLAN_FIXTURE if x == "tables/vlan/site-summary" else "")
+        )
+        ipfabric_client.inventory.interfaces.all.return_value = INTERFACE_FIXTURE
+
+        job = IpFabricDataSource()
+        job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
+        ipfabric = IPFabricDiffSync(job=job, sync=None, client=ipfabric_client)
+        ipfabric.load()
+
+        # Validate long interface names were created by not raising an exception
+        # when performing `DiffSync.get()`
+        ipfabric.get("interface", {"name": "ipip", "device_name": "nyc-rtr-01"})
+        ipfabric.get("interface", {"name": "Ethernet15", "device_name": "nyc-leaf-01"})
+        ipfabric.get("interface", {"name": "GigabitEthernet4", "device_name": "jcy-rtr-02"})
+        ipfabric.get("interface", {"name": "Ethernet1", "device_name": "nyc-rtr-01"})

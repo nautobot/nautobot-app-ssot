@@ -1,8 +1,8 @@
-"""Constants for use with the Infoblox SSoT plugin."""
+"""Constants for use with the Infoblox SSoT app."""
 from django.conf import settings
 
 
-def _read_plugin_config():
+def _read_app_config():
     """Provides backward compatible object after integrating into `nautobot_ssot` App."""
     config = settings.PLUGINS_CONFIG["nautobot_ssot"]
 
@@ -12,6 +12,7 @@ def _read_plugin_config():
         "NAUTOBOT_INFOBLOX_PASSWORD": config["infoblox_password"],
         "NAUTOBOT_INFOBLOX_VERIFY_SSL": config["infoblox_verify_ssl"],
         "NAUTOBOT_INFOBLOX_WAPI_VERSION": config["infoblox_wapi_version"],
+        "NAUTOBOT_INFOBLOX_NETWORK_VIEW": config["infoblox_network_view"],
         "enable_sync_to_infoblox": config["infoblox_enable_sync_to_infoblox"],
         "enable_rfc1918_network_containers": config["infoblox_enable_rfc1918_network_containers"],
         "default_status": config["infoblox_default_status"],
@@ -26,5 +27,5 @@ def _read_plugin_config():
 
 
 # Import config vars from nautobot_config.py
-PLUGIN_CFG = _read_plugin_config()
+PLUGIN_CFG = _read_app_config()
 TAG_COLOR = "40bfae"

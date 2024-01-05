@@ -9,7 +9,7 @@ from .models import SSOTServiceNowConfig
 
 
 class SSOTServiceNowConfigView(UpdateView):
-    """Plugin-level configuration view for nautobot-ssot-servicenow."""
+    """App configuration view for nautobot-ssot-servicenow."""
 
     form_class = SSOTServiceNowConfigForm
     template_name = "nautobot_ssot_servicenow/config.html"

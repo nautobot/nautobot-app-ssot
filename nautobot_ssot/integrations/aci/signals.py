@@ -87,14 +87,14 @@ def device_custom_fields(apps, **kwargs):
             "type": CustomFieldTypeChoices.TYPE_INTEGER,
             "label": "Cisco ACI Pod ID",
             "filter_logic": "loose",
-            "description": "PodID added by SSoT plugin",
+            "description": "PodID added by SSoT app",
         },
         {
             "key": "aci_node_id",
             "type": CustomFieldTypeChoices.TYPE_INTEGER,
             "label": "Cisco ACI Node ID",
             "filter_logic": "loose",
-            "description": "NodeID added by SSoT plugin",
+            "description": "NodeID added by SSoT app",
         },
     ]:
         field, _ = CustomField.objects.get_or_create(key=device_cf_dict["key"], defaults=device_cf_dict)
@@ -114,28 +114,28 @@ def interface_custom_fields(apps, **kwargs):
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "Optic Vendor",
             "filter_logic": "loose",
-            "description": "Optic vendor added by SSoT plugin",
+            "description": "Optic vendor added by SSoT app",
         },
         {
             "key": "gbic_type",
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "Optic Type",
             "filter_logic": "loose",
-            "description": "Optic type added by SSoT plugin",
+            "description": "Optic type added by SSoT app",
         },
         {
             "key": "gbic_sn",
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "Optic S/N",
             "filter_logic": "loose",
-            "description": "Optic S/N added by SSoT plugin",
+            "description": "Optic S/N added by SSoT app",
         },
         {
             "key": "gbic_model",
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "Optic Model",
             "filter_logic": "loose",
-            "description": "Optic Model added by SSoT plugin",
+            "description": "Optic Model added by SSoT app",
         },
     ]:
         field, _ = CustomField.objects.get_or_create(key=interface_cf_dict["key"], defaults=interface_cf_dict)

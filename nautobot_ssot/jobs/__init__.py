@@ -1,4 +1,4 @@
-"""Plugin provision of Nautobot Job subclasses."""
+"""App provision of Nautobot Job subclasses."""
 
 from django.conf import settings
 
