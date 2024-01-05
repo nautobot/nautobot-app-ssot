@@ -570,21 +570,26 @@ def pylint(context):
         "autoformat": "Automatically apply formatting recommendations, rather than failing if formatting is incorrect.",
         "fix": "Automatically apply linting recommendations where possible. May not be able to fix all.",
         "output_format": "see https://docs.astral.sh/ruff/settings/#output-format",
+        "target": "File or directory to inspect, repeatable",
     },
+    iterable=["target"],
 )
-def ruff(context, action="both", autoformat=False, fix=False, output_format="text"):
+def ruff(context, action="both", autoformat=False, fix=False, output_format="text", target=None):
     """Run ruff to perform code formatting and/or linting."""
+    if not target:
+        target = ["development", "nautobot_ssot", "tasks.py"]
     if action != "lint":
-        command = "ruff format"
+        command = "ruff format "
         if not autoformat:
-            command += " --check"
-        command += " development/ nautobot_ssot/ tasks.py"
+            command += "--check "
+        command += " ".join(target)
         run_command(context, command)
     if action != "format":
-        command = "ruff check"
+        command = "ruff check "
         if fix:
-            command += " --fix"
-        command += f" --output-format {output_format} development/ nautobot_ssot/ tasks.py"
+            command += "--fix "
+        command += f"--output-format {output_format} "
+        command += " ".join(target)
         run_command(context, command)
 
 
