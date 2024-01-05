@@ -3,6 +3,7 @@
 
 from django.apps import apps as global_apps
 from django.db.models.signals import post_migrate
+
 from nautobot.extras.choices import CustomFieldTypeChoices, RelationshipTypeChoices
 
 from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS

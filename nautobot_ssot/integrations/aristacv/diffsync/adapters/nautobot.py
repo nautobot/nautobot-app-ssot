@@ -1,17 +1,19 @@
 """DiffSync adapter for Nautobot."""
-from django.contrib.contenttypes.models import ContentType
-from nautobot.dcim.models import Device as OrmDevice
-from nautobot.dcim.models import Interface as OrmInterface
-from nautobot.extras.models import Relationship as OrmRelationship
-from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
-from nautobot.ipam.models import IPAddress as OrmIPAddress
 from diffsync import DiffSync
-from diffsync.exceptions import ObjectNotFound, ObjectAlreadyExists
+from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
+from django.contrib.contenttypes.models import ContentType
+
+from nautobot.dcim.models import Device as OrmDevice, Interface as OrmInterface
+from nautobot.extras.models import (
+    Relationship as OrmRelationship,
+    RelationshipAssociation as OrmRelationshipAssociation,
+)
+from nautobot.ipam.models import IPAddress as OrmIPAddress
 
 from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
 from nautobot_ssot.integrations.aristacv.diffsync.models.nautobot import (
-    NautobotDevice,
     NautobotCustomField,
+    NautobotDevice,
     NautobotIPAddress,
     NautobotPort,
 )

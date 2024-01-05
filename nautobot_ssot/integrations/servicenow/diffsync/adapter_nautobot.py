@@ -5,13 +5,12 @@ import datetime
 
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectNotFound
-
 from django.contrib.contenttypes.models import ContentType
 
-from nautobot.dcim.models import Device, DeviceType, Interface, Manufacturer, Location
+from nautobot.core.choices import ColorChoices
+from nautobot.dcim.models import Device, DeviceType, Interface, Location, Manufacturer
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Tag
-from nautobot.core.choices import ColorChoices
 
 from . import models
 

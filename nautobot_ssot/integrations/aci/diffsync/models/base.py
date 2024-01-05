@@ -1,5 +1,6 @@
 """Base Shared Models for Cisco ACI integration with SSoT app."""
 from typing import List, Optional
+
 from diffsync import DiffSyncModel
 
 

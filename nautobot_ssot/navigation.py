@@ -2,7 +2,6 @@
 
 from nautobot.apps.ui import NavMenuGroup, NavMenuItem, NavMenuTab
 
-
 items = [
     NavMenuItem(
         link="plugins:nautobot_ssot:dashboard",

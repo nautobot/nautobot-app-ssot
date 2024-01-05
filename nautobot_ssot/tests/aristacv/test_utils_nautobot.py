@@ -1,9 +1,11 @@
 """Tests of Cloudvision utility methods."""
 from unittest import skip
 from unittest.mock import MagicMock, patch
+
+from nautobot.core.testing import TestCase
 from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer
 from nautobot.extras.models import Relationship, Role, Status, Tag
-from nautobot.core.testing import TestCase
+
 from nautobot_ssot.integrations.aristacv.utils import nautobot
 
 

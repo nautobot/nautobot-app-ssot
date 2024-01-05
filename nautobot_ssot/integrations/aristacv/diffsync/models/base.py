@@ -1,8 +1,9 @@
 """DiffSyncModel subclasses for Nautobot-to-AristaCV data sync."""
+from typing import List, Optional
 from uuid import UUID
+
 from diffsync import DiffSyncModel
 from diffsync.enum import DiffSyncModelFlags
-from typing import List, Optional
 
 
 class Device(DiffSyncModel):

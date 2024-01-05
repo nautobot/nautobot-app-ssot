@@ -1,14 +1,17 @@
 """Unit tests for the Device42 DiffSync adapter class."""
 import json
 from unittest.mock import MagicMock, patch
+
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
+from parameterized import parameterized
+
 from nautobot.core.testing import TransactionTestCase
 from nautobot.extras.models import JobResult
-from parameterized import parameterized
+
 from nautobot_ssot.integrations.device42.diffsync.adapters.device42 import (
     Device42Adapter,
-    get_dns_a_record,
     get_circuit_status,
+    get_dns_a_record,
     get_site_from_mapping,
 )
 from nautobot_ssot.integrations.device42.jobs import Device42DataSource

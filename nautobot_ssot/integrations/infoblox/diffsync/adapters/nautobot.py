@@ -2,25 +2,28 @@
 # pylint: disable=duplicate-code
 from collections import defaultdict
 import datetime
+
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
+
 from nautobot.dcim.models import Location
 from nautobot.extras.choices import CustomFieldTypeChoices
-from nautobot.extras.models import Relationship, Role, Status, Tag, CustomField
+from nautobot.extras.models import CustomField, Relationship, Role, Status, Tag
 from nautobot.ipam.models import IPAddress, Prefix, VLAN, VLANGroup
 from nautobot.tenancy.models import Tenant
-from nautobot_ssot.integrations.infoblox.diffsync.models import (
-    NautobotNetwork,
-    NautobotIPAddress,
-    NautobotVlanGroup,
-    NautobotVlan,
-)
+
 from nautobot_ssot.integrations.infoblox.constant import TAG_COLOR
+from nautobot_ssot.integrations.infoblox.diffsync.models import (
+    NautobotIPAddress,
+    NautobotNetwork,
+    NautobotVlan,
+    NautobotVlanGroup,
+)
 from nautobot_ssot.integrations.infoblox.utils.diffsync import (
     create_tag_sync_from_infoblox,
-    nautobot_vlan_status,
     get_default_custom_fields,
+    nautobot_vlan_status,
 )
 from nautobot_ssot.integrations.infoblox.utils.nautobot import build_vlan_map_from_relations, get_prefix_vlans
 

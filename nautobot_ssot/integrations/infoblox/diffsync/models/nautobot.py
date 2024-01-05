@@ -2,16 +2,19 @@
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.utils.text import slugify
+
 from nautobot.extras.choices import CustomFieldTypeChoices
-from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
-from nautobot.extras.models import CustomField as OrmCF
+from nautobot.extras.models import CustomField as OrmCF, RelationshipAssociation as OrmRelationshipAssociation
 from nautobot.ipam.choices import IPAddressRoleChoices, IPAddressTypeChoices
-from nautobot.ipam.models import IPAddress as OrmIPAddress
-from nautobot.ipam.models import Prefix as OrmPrefix
-from nautobot.ipam.models import VLAN as OrmVlan
-from nautobot.ipam.models import VLANGroup as OrmVlanGroup
+from nautobot.ipam.models import (
+    IPAddress as OrmIPAddress,
+    Prefix as OrmPrefix,
+    VLAN as OrmVlan,
+    VLANGroup as OrmVlanGroup,
+)
+
 from nautobot_ssot.integrations.infoblox.constant import PLUGIN_CFG
-from nautobot_ssot.integrations.infoblox.diffsync.models.base import Network, IPAddress, Vlan, VlanView
+from nautobot_ssot.integrations.infoblox.diffsync.models.base import IPAddress, Network, Vlan, VlanView
 from nautobot_ssot.integrations.infoblox.utils.nautobot import get_prefix_vlans
 
 

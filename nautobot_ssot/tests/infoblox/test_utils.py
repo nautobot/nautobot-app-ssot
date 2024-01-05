@@ -2,9 +2,9 @@
 import unittest
 
 from nautobot_ssot.integrations.infoblox.utils.diffsync import (
+    get_ext_attr_dict,
     get_vlan_view_name,
     nautobot_vlan_status,
-    get_ext_attr_dict,
 )
 
 

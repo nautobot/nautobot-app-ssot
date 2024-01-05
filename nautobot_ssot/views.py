@@ -4,19 +4,18 @@ import pprint
 
 from django.http import Http404
 from django.shortcuts import get_object_or_404
-
 from django_tables2 import RequestConfig
 
-from nautobot.extras.models import Job as JobModel
 from nautobot.core.views.generic import BulkDeleteView, ObjectDeleteView, ObjectListView, ObjectView
 from nautobot.core.views.paginator import EnhancedPaginator
+from nautobot.extras.models import Job as JobModel
 
 from .filters import SyncFilterSet, SyncLogEntryFilterSet
 from .forms import SyncFilterForm, SyncLogEntryFilterForm
-from .jobs.base import DataSource, DataTarget
 from .jobs import get_data_jobs
+from .jobs.base import DataSource, DataTarget
 from .models import Sync, SyncLogEntry
-from .tables import DashboardTable, SyncTable, SyncTableSingleSourceOrTarget, SyncLogEntryTable
+from .tables import DashboardTable, SyncLogEntryTable, SyncTable, SyncTableSingleSourceOrTarget
 
 
 class DashboardView(ObjectListView):

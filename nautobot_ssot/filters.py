@@ -1,7 +1,7 @@
 """Filtering logic for Sync and SyncLogEntry records."""
 
-import django_filters
 from django.db.models import Q
+import django_filters
 
 from nautobot.apps.filters import BaseFilterSet
 

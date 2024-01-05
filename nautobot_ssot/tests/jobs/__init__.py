@@ -1,5 +1,6 @@
 """Override of classes."""
 from nautobot.extras.jobs import Job
+
 from nautobot_ssot.jobs import DataSource as _DataSource, DataTarget as _DataTarget
 from nautobot_ssot.jobs.base import DataSyncBaseJob as _DataSyncBaseJob
 

@@ -2,32 +2,33 @@
 # Ignore return statements for updates and deletes, #  pylint:disable=R1710
 # Ignore too many args #  pylint:disable=too-many-locals
 """DiffSyncModel subclasses for Nautobot-to-IPFabric data sync."""
+import logging
 from typing import Any, ClassVar, List, Optional
 from uuid import UUID
-import logging
 
 from diffsync import DiffSyncModel
 from django.core.exceptions import ValidationError
 from django.db.models import Q
-from nautobot.dcim.models import Device as NautobotDevice
-from nautobot.dcim.models import DeviceType, Location as NautobotLocation
+
+from nautobot.core.choices import ColorChoices
+from nautobot.dcim.models import Device as NautobotDevice, DeviceType, Location as NautobotLocation
 from nautobot.extras.models import Role, Tag
 from nautobot.extras.models.statuses import Status
 from nautobot.ipam.models import VLAN
-from nautobot.core.choices import ColorChoices
-from nautobot_ssot.integrations.ipfabric.constants import LAST_SYNCHRONIZED_CF_NAME
-import nautobot_ssot.integrations.ipfabric.utilities.nbutils as tonb_nbutils
+
 from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_DEVICE_ROLE,
     DEFAULT_DEVICE_ROLE_COLOR,
     DEFAULT_DEVICE_STATUS,
     DEFAULT_DEVICE_STATUS_COLOR,
     DEFAULT_INTERFACE_MAC,
-    SAFE_DELETE_LOCATION_STATUS,
+    LAST_SYNCHRONIZED_CF_NAME,
     SAFE_DELETE_DEVICE_STATUS,
     SAFE_DELETE_IPADDRESS_STATUS,
+    SAFE_DELETE_LOCATION_STATUS,
     SAFE_DELETE_VLAN_STATUS,
 )
+import nautobot_ssot.integrations.ipfabric.utilities.nbutils as tonb_nbutils
 
 logger = logging.getLogger(__name__)
 

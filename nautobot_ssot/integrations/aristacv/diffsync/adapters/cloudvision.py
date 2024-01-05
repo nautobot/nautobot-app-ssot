@@ -10,8 +10,8 @@ from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
 from nautobot_ssot.integrations.aristacv.diffsync.models.cloudvision import (
     CloudvisionCustomField,
     CloudvisionDevice,
-    CloudvisionPort,
     CloudvisionIPAddress,
+    CloudvisionPort,
 )
 from nautobot_ssot.integrations.aristacv.utils import cloudvision
 

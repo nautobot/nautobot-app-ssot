@@ -1,16 +1,19 @@
 """All interactions with infoblox."""  # pylint: disable=too-many-lines
 
 import copy
-import json
 import ipaddress
+import json
 import logging
 import re
 import urllib.parse
-import requests
-from requests.exceptions import HTTPError
-from requests.compat import urljoin
+
 from dns import reversename
+import requests
+from requests.compat import urljoin
+from requests.exceptions import HTTPError
+
 from nautobot.core.settings_funcs import is_truthy
+
 from nautobot_ssot.integrations.infoblox.constant import PLUGIN_CFG
 from nautobot_ssot.integrations.infoblox.utils.diffsync import get_ext_attr_dict
 

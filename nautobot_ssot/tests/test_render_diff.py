@@ -1,7 +1,7 @@
 """Test Render_diff templatetags."""
 import unittest
-from nautobot_ssot.templatetags.render_diff import render_diff
 
+from nautobot_ssot.templatetags.render_diff import render_diff
 
 test_params = [
     (

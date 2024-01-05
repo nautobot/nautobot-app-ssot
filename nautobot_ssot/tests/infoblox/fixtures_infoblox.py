@@ -4,7 +4,6 @@
 import json
 import os
 
-
 from nautobot_ssot.integrations.infoblox.utils import client
 
 FIXTURES = os.environ.get("FIXTURE_DIR", "nautobot_ssot/tests/infoblox/fixtures")

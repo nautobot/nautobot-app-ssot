@@ -1,7 +1,6 @@
 """Initialize models for Nautobot and Infoblox."""
-from .nautobot import NautobotNetwork, NautobotIPAddress, NautobotVlanGroup, NautobotVlan
-from .infoblox import InfobloxNetwork, InfobloxIPAddress, InfobloxVLANView, InfobloxVLAN
-
+from .infoblox import InfobloxIPAddress, InfobloxNetwork, InfobloxVLAN, InfobloxVLANView
+from .nautobot import NautobotIPAddress, NautobotNetwork, NautobotVlan, NautobotVlanGroup
 
 __all__ = [
     "NautobotNetwork",

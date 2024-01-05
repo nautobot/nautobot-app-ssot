@@ -1,9 +1,10 @@
 """Tests of Cloudvision utility methods."""
 from unittest.mock import MagicMock, patch
+
+from cloudvision.Connector.codec.custom_types import FrozenDict
 from parameterized import parameterized
 
 from nautobot.core.testing import TestCase
-from cloudvision.Connector.codec.custom_types import FrozenDict
 
 from nautobot_ssot.integrations.aristacv.utils import cloudvision
 from nautobot_ssot.tests.aristacv.fixtures import fixtures

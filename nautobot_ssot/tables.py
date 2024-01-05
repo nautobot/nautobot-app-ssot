@@ -6,7 +6,6 @@ from nautobot.apps.tables import BaseTable, ToggleColumn
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 from .models import Sync, SyncLogEntry
 
-
 ACTION_LOGS_LINK = """
 <a class="{{ link_class }}"
    href="{% url 'plugins:nautobot_ssot:synclogentry_list' %}?overview={{ record.id }}&action={{ action }}">

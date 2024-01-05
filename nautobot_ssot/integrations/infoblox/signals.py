@@ -3,6 +3,7 @@
 
 from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices, RelationshipTypeChoices
+
 from nautobot_ssot.integrations.infoblox.constant import TAG_COLOR
 
 

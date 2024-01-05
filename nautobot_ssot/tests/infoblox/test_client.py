@@ -3,37 +3,37 @@
 # pylint: disable=too-many-public-methods
 from collections import namedtuple
 from os import path
-
 import unittest
 from unittest.mock import patch
+
 from requests.models import HTTPError
 import requests_mock
 
-from nautobot_ssot.integrations.infoblox.utils.client import InvalidUrlScheme, get_dns_name
+from nautobot_ssot.integrations.infoblox.utils.client import get_dns_name, InvalidUrlScheme
 
 from .fixtures_infoblox import (
-    get_ptr_record_by_name,
-    localhost_client_infoblox,
-    get_all_ipv4address_networks,
-    get_all_ipv4address_networks_medium,
-    get_all_ipv4address_networks_large,
-    get_all_ipv4address_networks_bulk,
-    create_ptr_record,
     create_a_record,
     create_host_record,
-    get_host_by_ip,
-    get_a_record_by_ip,
-    get_a_record_by_name,
-    get_host_record_by_name,
-    get_all_dns_views,
-    get_dhcp_lease_from_ipv4,
-    get_dhcp_lease_from_hostname,
-    get_all_subnets,
-    get_authoritative_zone,
+    create_ptr_record,
     find_network_reference,
     find_next_available_ip,
-    search_ipv4_address,
+    get_a_record_by_ip,
+    get_a_record_by_name,
+    get_all_dns_views,
+    get_all_ipv4address_networks,
+    get_all_ipv4address_networks_bulk,
+    get_all_ipv4address_networks_large,
+    get_all_ipv4address_networks_medium,
+    get_all_subnets,
+    get_authoritative_zone,
+    get_dhcp_lease_from_hostname,
+    get_dhcp_lease_from_ipv4,
+    get_host_by_ip,
+    get_host_record_by_name,
+    get_ptr_record_by_name,
     LOCALHOST,
+    localhost_client_infoblox,
+    search_ipv4_address,
 )
 
 Origin = namedtuple("Origin", ["name", "slug"])

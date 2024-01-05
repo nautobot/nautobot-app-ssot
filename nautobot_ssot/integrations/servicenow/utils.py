@@ -7,7 +7,6 @@ from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupS
 
 from .models import SSOTServiceNowConfig
 
-
 logger = logging.getLogger(__name__)
 
 

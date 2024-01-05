@@ -1,7 +1,8 @@
 """Tests for API"""
 # pylint: disable=import-outside-toplevel, invalid-name
 import unittest
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
+
 from nautobot_ssot.integrations.aci.diffsync.client import AciApi, RequestHTTPError
 
 

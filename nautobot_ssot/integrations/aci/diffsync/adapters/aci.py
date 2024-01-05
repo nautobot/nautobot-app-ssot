@@ -2,26 +2,29 @@
 # pylint: disable=duplicate-code
 
 
+from ipaddress import ip_network
 import logging
 import os
 import re
 from typing import Optional
-from ipaddress import ip_network
+
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectNotFound
-from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotTenant
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotVrf
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotDeviceType
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotDeviceRole
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotDevice
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterfaceTemplate
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterface
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotIPAddress
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotPrefix
-from nautobot_ssot.integrations.aci.diffsync.client import AciApi
-from nautobot_ssot.integrations.aci.diffsync.utils import load_yamlfile
 
+from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
+from nautobot_ssot.integrations.aci.diffsync.client import AciApi
+from nautobot_ssot.integrations.aci.diffsync.models import (
+    NautobotDevice,
+    NautobotDeviceRole,
+    NautobotDeviceType,
+    NautobotInterface,
+    NautobotInterfaceTemplate,
+    NautobotIPAddress,
+    NautobotPrefix,
+    NautobotTenant,
+    NautobotVrf,
+)
+from nautobot_ssot.integrations.aci.diffsync.utils import load_yamlfile
 
 logger = logging.getLogger(__name__)
 

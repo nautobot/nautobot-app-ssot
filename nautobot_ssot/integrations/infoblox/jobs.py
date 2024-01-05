@@ -3,13 +3,14 @@
 from diffsync.enum import DiffSyncFlags
 from django.templatetags.static import static
 from django.urls import reverse
+
 from nautobot.extras.jobs import BooleanVar
+
 from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
 
+from .constant import PLUGIN_CFG
 from .diffsync.adapters import infoblox, nautobot
 from .utils.client import InfobloxApi
-from .constant import PLUGIN_CFG
-
 
 name = "SSoT - Infoblox DDI"  # pylint: disable=invalid-name
 

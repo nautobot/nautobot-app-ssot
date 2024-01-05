@@ -1,16 +1,16 @@
 """Test the Job classes in nautobot_ssot."""
 import os.path
-from unittest.mock import Mock, call
+from unittest.mock import call, Mock
 
 from django.db.utils import IntegrityError, OperationalError
 from django.test import override_settings
 
-from nautobot.extras.models import JobResult
 from nautobot.core.testing import TransactionTestCase
+from nautobot.extras.models import JobResult
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
-from nautobot_ssot.tests.jobs import DataSyncBaseJob, DataSource, DataTarget
 from nautobot_ssot.models import SyncLogEntry
+from nautobot_ssot.tests.jobs import DataSource, DataSyncBaseJob, DataTarget
 
 
 @override_settings(JOBS_ROOT=os.path.join(os.path.dirname(__file__), "jobs"))

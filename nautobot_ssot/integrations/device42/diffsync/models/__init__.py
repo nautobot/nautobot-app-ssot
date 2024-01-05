@@ -17,7 +17,7 @@ from nautobot_ssot.integrations.device42.diffsync.models.base.dcim import (
     Room,
     Vendor,
 )
-from nautobot_ssot.integrations.device42.diffsync.models.base.ipam import VLAN, IPAddress, Subnet, VRFGroup
+from nautobot_ssot.integrations.device42.diffsync.models.base.ipam import IPAddress, Subnet, VLAN, VRFGroup
 from nautobot_ssot.integrations.device42.diffsync.models.nautobot.assets import (
     NautobotPatchPanel,
     NautobotPatchPanelFrontPort,

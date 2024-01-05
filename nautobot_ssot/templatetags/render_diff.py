@@ -1,9 +1,8 @@
 """Template tag for rendering a DiffSync diff dictionary in a more human-readable form."""
 
 from django import template
-from django.utils.safestring import mark_safe
 from django.utils.html import format_html
-
+from django.utils.safestring import mark_safe
 
 register = template.Library()
 

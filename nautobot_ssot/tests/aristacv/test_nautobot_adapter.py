@@ -1,9 +1,10 @@
 """Unit tests for the Nautoobt DiffSync adapter class."""
 from unittest.mock import MagicMock, patch
 
+from nautobot.core.testing import TransactionTestCase
 from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Manufacturer
 from nautobot.extras.models import JobResult, Role, Status
-from nautobot.core.testing import TransactionTestCase
+
 from nautobot_ssot.integrations.aristacv.diffsync.adapters.nautobot import NautobotAdapter
 from nautobot_ssot.integrations.aristacv.jobs import CloudVisionDataSource
 

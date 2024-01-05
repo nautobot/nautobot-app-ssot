@@ -4,7 +4,6 @@ import logging
 
 from django import template
 
-
 logger = logging.getLogger(__name__)
 
 

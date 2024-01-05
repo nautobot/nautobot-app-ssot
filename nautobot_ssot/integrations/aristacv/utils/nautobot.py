@@ -1,8 +1,10 @@
 """Utility functions for Nautobot ORM."""
 import re
+
 from django.contrib.contenttypes.models import ContentType
+
 from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Manufacturer
-from nautobot.extras.models import Role, Status, Tag, Relationship
+from nautobot.extras.models import Relationship, Role, Status, Tag
 
 from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
 

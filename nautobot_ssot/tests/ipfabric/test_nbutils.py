@@ -1,19 +1,20 @@
 """Test Nautobot Utilities."""
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
-from nautobot.dcim.models import DeviceType, Manufacturer, Location, LocationType
-from nautobot.dcim.models.devices import Device
-from nautobot.extras.models.statuses import Status
-from nautobot.ipam.models import VLAN, IPAddress, Prefix, get_default_namespace
+
 from nautobot.core.choices import ColorChoices
+from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer
+from nautobot.dcim.models.devices import Device
 from nautobot.extras.models import Role
+from nautobot.extras.models.statuses import Status
+from nautobot.ipam.models import get_default_namespace, IPAddress, Prefix, VLAN
 
 from nautobot_ssot.integrations.ipfabric.utilities import (  # create_ip,; create_interface,; create_location,
-    get_or_create_device_role_object,
     create_device_type_object,
     create_manufacturer,
     create_status,
     create_vlan,
+    get_or_create_device_role_object,
 )
 
 

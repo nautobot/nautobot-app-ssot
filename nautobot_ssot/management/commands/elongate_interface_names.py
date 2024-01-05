@@ -1,9 +1,8 @@
 """Django Management command to update DCIM.Interface names."""
 from django.core.management.base import BaseCommand
+from netutils.interface import canonical_interface_name
 
 from nautobot.dcim.models import Device
-
-from netutils.interface import canonical_interface_name
 
 
 class Command(BaseCommand):

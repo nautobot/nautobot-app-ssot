@@ -3,9 +3,11 @@
 import json
 from unittest.mock import patch
 
-import responses
-from nautobot.core.testing import TestCase
 from parameterized import parameterized
+import responses
+
+from nautobot.core.testing import TestCase
+
 from nautobot_ssot.integrations.device42.jobs import Device42DataSource
 from nautobot_ssot.integrations.device42.utils import device42
 

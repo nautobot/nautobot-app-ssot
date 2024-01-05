@@ -2,11 +2,15 @@
 # Skip colon check for multiple statements on one line.
 # flake8: noqa: E701
 
-from typing import Optional, Mapping, List
+from typing import List, Mapping, Optional
 from uuid import UUID
+
+from diffsync import DiffSync
+from diffsync.enum import DiffSyncFlags
 from django.contrib.contenttypes.models import ContentType
 from django.templatetags.static import static
 from django.urls import reverse
+import requests
 
 from nautobot.circuits.models import CircuitTermination
 from nautobot.dcim.models import Device, DeviceRedundancyGroup, Location, LocationType, PowerPanel, Rack, RackGroup
@@ -16,14 +20,8 @@ from nautobot.ipam.models import Namespace, Prefix, VLAN, VLANGroup
 from nautobot.tenancy.models import Tenant
 from nautobot.virtualization.models import Cluster
 
-from diffsync import DiffSync
-from diffsync.enum import DiffSyncFlags
-
-import requests
-
-from nautobot_ssot.contrib import NautobotModel, NautobotAdapter
+from nautobot_ssot.contrib import NautobotAdapter, NautobotModel
 from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
-
 
 # In a more complex Job, you would probably want to move the DiffSyncModel subclasses into a separate Python module(s).
 

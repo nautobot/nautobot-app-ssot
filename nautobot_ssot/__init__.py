@@ -1,10 +1,11 @@
 """App declaration for nautobot_ssot."""
-import os
 from importlib import metadata
+import os
 
 from django.conf import settings
-from nautobot.extras.plugins import NautobotAppConfig
+
 from nautobot.core.settings_funcs import is_truthy
+from nautobot.extras.plugins import NautobotAppConfig
 
 from nautobot_ssot.integrations.utils import each_enabled_integration_module
 from nautobot_ssot.utils import logger

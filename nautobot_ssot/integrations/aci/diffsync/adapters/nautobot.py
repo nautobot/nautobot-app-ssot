@@ -1,27 +1,31 @@
 """DiffSync Adapter for Nautobot."""
 # pylint: disable=duplicate-code
 
-import logging
 from collections import defaultdict
+import logging
+
 from diffsync import DiffSync
 from diffsync.enum import DiffSyncModelFlags
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import ProtectedError
-from nautobot.tenancy.models import Tenant
-from nautobot.dcim.models import DeviceType, Device, InterfaceTemplate, Interface
-from nautobot.extras.models import Role
+
+from nautobot.dcim.models import Device, DeviceType, Interface, InterfaceTemplate
+from nautobot.extras.models import Role, Tag
 from nautobot.ipam.models import IPAddress, Prefix, VRF
-from nautobot.extras.models import Tag
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotTenant
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotVrf
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotDeviceType
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotDeviceRole
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotDevice
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterfaceTemplate
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterface
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotIPAddress
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotPrefix
+from nautobot.tenancy.models import Tenant
+
 from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
+from nautobot_ssot.integrations.aci.diffsync.models import (
+    NautobotDevice,
+    NautobotDeviceRole,
+    NautobotDeviceType,
+    NautobotInterface,
+    NautobotInterfaceTemplate,
+    NautobotIPAddress,
+    NautobotPrefix,
+    NautobotTenant,
+    NautobotVrf,
+)
 
 logger = logging.getLogger(__name__)
 

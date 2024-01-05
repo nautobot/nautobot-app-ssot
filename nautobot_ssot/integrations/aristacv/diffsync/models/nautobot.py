@@ -1,18 +1,20 @@
 """Nautobot DiffSync models for AristaCV SSoT."""
-from django.contrib.contenttypes.models import ContentType
-from django.core.exceptions import ValidationError
-from nautobot.core.settings_funcs import is_truthy
-from nautobot.dcim.models import Device as OrmDevice
-from nautobot.dcim.models import Interface as OrmInterface
-from nautobot.dcim.models import Platform as OrmPlatform
-from nautobot.extras.models import Relationship as OrmRelationship
-from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
-from nautobot.extras.models import Status as OrmStatus
-from nautobot.ipam.models import IPAddress as OrmIPAddress
 import distutils
 
+from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
+
+from nautobot.core.settings_funcs import is_truthy
+from nautobot.dcim.models import Device as OrmDevice, Interface as OrmInterface, Platform as OrmPlatform
+from nautobot.extras.models import (
+    Relationship as OrmRelationship,
+    RelationshipAssociation as OrmRelationshipAssociation,
+    Status as OrmStatus,
+)
+from nautobot.ipam.models import IPAddress as OrmIPAddress
+
 from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS, ARISTA_PLATFORM, CLOUDVISION_PLATFORM
-from nautobot_ssot.integrations.aristacv.diffsync.models.base import Device, CustomField, IPAddress, Port
+from nautobot_ssot.integrations.aristacv.diffsync.models.base import CustomField, Device, IPAddress, Port
 from nautobot_ssot.integrations.aristacv.utils import nautobot
 
 try:

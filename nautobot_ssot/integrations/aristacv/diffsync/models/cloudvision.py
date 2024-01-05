@@ -1,6 +1,6 @@
 """Cloudvision DiffSync models for AristaCV SSoT."""
 from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
-from nautobot_ssot.integrations.aristacv.diffsync.models.base import Device, CustomField, IPAddress, Port
+from nautobot_ssot.integrations.aristacv.diffsync.models.base import CustomField, Device, IPAddress, Port
 from nautobot_ssot.integrations.aristacv.utils.cloudvision import CloudvisionApi
 
 

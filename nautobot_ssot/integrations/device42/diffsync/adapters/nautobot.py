@@ -4,6 +4,8 @@ from collections import defaultdict
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.db.models import ProtectedError
+from netutils.lib_mapper import ANSIBLE_LIB_MAPPER
+
 from nautobot.circuits.models import Circuit, CircuitTermination, Provider
 from nautobot.dcim.models import (
     Cable,
@@ -21,8 +23,7 @@ from nautobot.dcim.models import (
     VirtualChassis,
 )
 from nautobot.extras.models import Relationship, Role, Status
-from nautobot.ipam.models import VLAN, VRF, IPAddress, IPAddressToInterface, Prefix, Namespace
-from netutils.lib_mapper import ANSIBLE_LIB_MAPPER
+from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix, VLAN, VRF
 
 from nautobot_ssot.integrations.device42.constant import PLUGIN_CFG
 from nautobot_ssot.integrations.device42.diffsync.models.nautobot import assets, circuits, dcim, ipam

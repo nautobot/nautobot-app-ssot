@@ -208,7 +208,7 @@ select = [
     "DJ",  # flake8-django
     "E",  # pycodestyle
     "F",  # pyflakes
-    # "I",  # isort
+    "I",  # isort
     "PIE",  # flake8-pie
     "RUF",  # ruff itself
     "S",  # flake8-bandit
@@ -222,8 +222,13 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-lines-after-imports = 2
+combine-as-imports = true
 force-sort-within-sections = true
+order-by-type = false
+section-order = ["future", "standard-library", "third-party", "nautobot", "first-party", "local-folder"]
+
+[tool.ruff.lint.isort.sections]
+"nautobot" = ["nautobot"]
 
 [build-system]
 requires = ["poetry_core>=1.0.0"]

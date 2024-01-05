@@ -1,13 +1,13 @@
 """Interactions with ServiceNow APIs."""
 import logging
 
+import requests  # pylint: disable=wrong-import-order
+
 # from pysnow import Client
 from nautobot_ssot.integrations.servicenow.third_party.pysnow import Client
 
 # from pysnow.exceptions import MultipleResults
 from nautobot_ssot.integrations.servicenow.third_party.pysnow.exceptions import MultipleResults
-import requests  # pylint: disable=wrong-import-order
-
 
 logger = logging.getLogger(__name__)
 

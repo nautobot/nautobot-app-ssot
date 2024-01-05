@@ -4,16 +4,17 @@
 import logging
 
 from diffsync import ObjectAlreadyExists
+from netutils.interface import canonical_interface_name
+from netutils.mac import mac_to_format
+
 from nautobot.dcim.models import Device
 from nautobot.ipam.models import VLAN
-from netutils.mac import mac_to_format
-from netutils.interface import canonical_interface_name
 
 from nautobot_ssot.integrations.ipfabric.constants import (
-    DEFAULT_INTERFACE_MTU,
-    DEFAULT_INTERFACE_MAC,
     DEFAULT_DEVICE_ROLE,
     DEFAULT_DEVICE_STATUS,
+    DEFAULT_INTERFACE_MAC,
+    DEFAULT_INTERFACE_MTU,
     IP_FABRIC_USE_CANONICAL_INTERFACE_NAME,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters

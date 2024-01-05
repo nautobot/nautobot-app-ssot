@@ -5,11 +5,11 @@
 from collections import defaultdict
 from dataclasses import dataclass
 
-import pydantic
-from diffsync import DiffSyncModel, DiffSync
+from diffsync import DiffSync, DiffSyncModel
 from django.contrib.contenttypes.models import ContentType
-from django.core.exceptions import ValidationError, MultipleObjectsReturned
+from django.core.exceptions import MultipleObjectsReturned, ValidationError
 from django.db.models import Model
+import pydantic
 from typing_extensions import get_type_hints
 
 

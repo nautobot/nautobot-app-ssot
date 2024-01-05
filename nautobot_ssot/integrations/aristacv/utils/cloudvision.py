@@ -1,27 +1,23 @@
 # pylint: disable=invalid-name, no-member
 """Utility functions for CloudVision Resource API."""
-import ssl
 from datetime import datetime
+import ssl
 from typing import Any, Iterable, List, Optional, Tuple, Union
 
-import google.protobuf.timestamp_pb2 as pbts
-import grpc
-import requests
 from arista.inventory.v1 import models, services
-from arista.tag.v2 import models as tag_models
-from arista.tag.v2 import services as tag_services
-
-from google.protobuf.wrappers_pb2 import StringValue  # pylint: disable=no-name-in-module
-
-from cvprac.cvp_client import CvpClient
-from cvprac.cvp_client import CvpLoginError
-import cloudvision.Connector.gen.notification_pb2 as ntf
-import cloudvision.Connector.gen.router_pb2 as rtr
-import cloudvision.Connector.gen.router_pb2_grpc as rtr_client
+from arista.tag.v2 import models as tag_models, services as tag_services
 from cloudvision.Connector import codec
 from cloudvision.Connector.codec import Wildcard
 from cloudvision.Connector.codec.custom_types import FrozenDict
+import cloudvision.Connector.gen.notification_pb2 as ntf
+import cloudvision.Connector.gen.router_pb2 as rtr
+import cloudvision.Connector.gen.router_pb2_grpc as rtr_client
 from cloudvision.Connector.grpc_client.grpcClient import create_query, to_pbts
+from cvprac.cvp_client import CvpClient, CvpLoginError
+import google.protobuf.timestamp_pb2 as pbts
+from google.protobuf.wrappers_pb2 import StringValue  # pylint: disable=no-name-in-module
+import grpc
+import requests
 
 from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS, PORT_TYPE_MAP
 

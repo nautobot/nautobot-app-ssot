@@ -1,13 +1,13 @@
 """Utilities."""
 from .nbutils import (
-    get_or_create_device_role_object,
     create_device_type_object,
     create_interface,
     create_ip,
-    create_manufacturer,
     create_location,
+    create_manufacturer,
     create_status,
     create_vlan,
+    get_or_create_device_role_object,
 )
 from .test_utils import clean_slate, json_fixture
 

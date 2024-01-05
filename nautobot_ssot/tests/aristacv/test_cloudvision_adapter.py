@@ -1,8 +1,9 @@
 """Unit tests for the Cloudvision DiffSync adapter class."""
 from unittest.mock import MagicMock, patch
 
-from nautobot.extras.models import JobResult
 from nautobot.core.testing import TransactionTestCase
+from nautobot.extras.models import JobResult
+
 from nautobot_ssot.integrations.aristacv.diffsync.adapters.cloudvision import CloudvisionAdapter
 from nautobot_ssot.integrations.aristacv.jobs import CloudVisionDataSource
 from nautobot_ssot.tests.aristacv.fixtures import fixtures

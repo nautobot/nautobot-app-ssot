@@ -1,22 +1,24 @@
 """Test code for generic base adapters/models."""
-from typing import Optional, List
+from typing import List, Optional
 from unittest import skip
 from unittest.mock import MagicMock
+
 from diffsync.exceptions import ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
+from typing_extensions import Annotated, TypedDict
+
 from nautobot.circuits.models import Provider
-from nautobot.dcim.choices import InterfaceTypeChoices
-from nautobot.dcim.models import LocationType, Location, Manufacturer, DeviceType, Device, Interface
-from nautobot.extras.models import Tag, Status, CustomField, Role
-from nautobot.ipam.models import Prefix, IPAddress, Namespace
-from nautobot.tenancy.models import Tenant, TenantGroup
 from nautobot.core.testing import TestCase
-from typing_extensions import TypedDict, Annotated
+from nautobot.dcim.choices import InterfaceTypeChoices
+from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer
+from nautobot.extras.models import CustomField, Role, Status, Tag
+from nautobot.ipam.models import IPAddress, Namespace, Prefix
+from nautobot.tenancy.models import Tenant, TenantGroup
 
 from nautobot_ssot.contrib import (
-    NautobotModel,
-    NautobotAdapter,
     CustomFieldAnnotation,
+    NautobotAdapter,
+    NautobotModel,
 )
 
 

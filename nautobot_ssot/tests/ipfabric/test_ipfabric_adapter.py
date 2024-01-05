@@ -3,6 +3,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
+
 from nautobot.extras.models import JobResult
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabricDiffSync

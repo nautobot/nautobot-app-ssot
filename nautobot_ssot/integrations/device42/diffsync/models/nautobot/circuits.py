@@ -2,10 +2,10 @@
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
-from nautobot.circuits.models import Circuit as OrmCircuit
-from nautobot.circuits.models import CircuitTermination as OrmCT
-from nautobot.circuits.models import Provider as OrmProvider
+
+from nautobot.circuits.models import Circuit as OrmCircuit, CircuitTermination as OrmCT, Provider as OrmProvider
 from nautobot.dcim.models import Cable as OrmCable
+
 from nautobot_ssot.integrations.device42.constant import INTF_SPEED_MAP, PLUGIN_CFG
 from nautobot_ssot.integrations.device42.diffsync.models.base.circuits import Circuit, Provider
 from nautobot_ssot.integrations.device42.diffsync.models.nautobot.dcim import NautobotDevice
