@@ -3,6 +3,7 @@
 import logging
 import random
 
+from nautobot.core.choices import ColorChoices
 from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices
 
@@ -42,7 +43,7 @@ def aci_create_tag(apps, **kwargs):
         if ("SITE" in key or "STAGE" in key) and not tag.objects.filter(name=apics[key]).exists():
             tag.objects.update_or_create(
                 name=apics[key],
-                color="".join([random.choice("ABCDEF0123456789") for i in range(6)]),  # noqa: S311
+                color=random.choice(ColorChoices.values()),  # noqa: S311
             )
 
 
