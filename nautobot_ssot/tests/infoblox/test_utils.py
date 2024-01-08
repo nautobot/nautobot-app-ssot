@@ -1,11 +1,15 @@
 """Util tests that do not require Django."""
 import unittest
 
+from nautobot.extras.models import Status
+from nautobot.ipam.models import VLAN, VLANGroup
+
 from nautobot_ssot.integrations.infoblox.utils.diffsync import (
     get_vlan_view_name,
     nautobot_vlan_status,
     get_ext_attr_dict,
 )
+from nautobot_ssot.integrations.infoblox.utils.nautobot import build_vlan_map_from_relations
 
 
 class TestUtils(unittest.TestCase):
@@ -29,3 +33,58 @@ class TestUtils(unittest.TestCase):
         expected = {"site": "HQ", "region": "Central"}
         standardized_dict = get_ext_attr_dict(test_dict)
         self.assertEqual(standardized_dict, expected)
+
+
+class TestNautobotUtils(unittest.TestCase):
+    """Test infoblox.utils.nautobot.py."""
+
+    def setUp(self):
+        """Setup Test Cases."""
+        active_status = Status.objects.get(name="Active")
+        self.vlan_group_1 = VLANGroup.objects.create(name="one")
+        self.vlan_group_2 = VLANGroup.objects.create(name="two")
+        self.vlan_10 = VLAN.objects.create(
+            vid=10,
+            name="ten",
+            status=active_status,
+            vlan_group=self.vlan_group_1,
+        )
+        self.vlan_20 = VLAN.objects.create(
+            vid=20,
+            name="twenty",
+            status=active_status,
+            vlan_group=self.vlan_group_1,
+        )
+        self.vlan_30 = VLAN.objects.create(
+            vid=30,
+            name="thirty",
+            status=active_status,
+            vlan_group=self.vlan_group_2,
+        )
+
+    def tearDown(self):
+        for obj in [self.vlan_10, self.vlan_20, self.vlan_30, self.vlan_group_1, self.vlan_group_2]:
+            obj.delete()
+
+    def test_build_vlan_map_from_relations(self):
+        """Test VLAN map is built correctly."""
+
+        actual = build_vlan_map_from_relations([self.vlan_10, self.vlan_20, self.vlan_30])
+        expected = {
+            10: {
+                "vid": 10,
+                "name": "ten",
+                "group": "one",
+            },
+            20: {
+                "vid": 20,
+                "name": "twenty",
+                "group": "one",
+            },
+            30: {
+                "vid": 30,
+                "name": "thirty",
+                "group": "two",
+            },
+        }
+        self.assertEqual(actual, expected)

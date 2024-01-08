@@ -149,7 +149,7 @@ class NautobotNetwork(Network):
             if len(current_vlans) < len(attrs["vlans"]):
                 for _, item in attrs["vlans"].items():
                     try:
-                        vlan = OrmVlan.objects.get(vid=item["vid"], name=item["name"], group__name=item["group"])
+                        vlan = OrmVlan.objects.get(vid=item["vid"], name=item["name"], vlan_group__name=item["group"])
                         if vlan not in current_vlans:
                             if self.diffsync.job.get("debug"):
                                 self.diffsync.job.logger.debug(f"Adding VLAN {vlan.vid} to {_pf.prefix}.")
@@ -339,9 +339,9 @@ class NautobotVlan(Vlan):
             _vlan.description = attrs["description"]
         if "ext_attrs" in attrs:
             process_ext_attrs(diffsync=self.diffsync, obj=_vlan, extattrs=attrs["ext_attrs"])
-        if not _vlan.group.location and _vlan.location:
-            _vlan.group.location = _vlan.location
-            _vlan.group.validated_save()
+        if not _vlan.vlan_group.location and _vlan.location:
+            _vlan.vlan_group.location = _vlan.location
+            _vlan.vlan_group.validated_save()
         try:
             _vlan.validated_save()
         except ValidationError as err:
