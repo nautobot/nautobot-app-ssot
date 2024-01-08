@@ -8,7 +8,7 @@ from nautobot.extras.models import JobResult
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import InfobloxAdapter
 from nautobot_ssot.integrations.infoblox.diffsync.models.infoblox import InfobloxNetwork
 from nautobot_ssot.integrations.infoblox.jobs import InfobloxDataSource
-from nautobot_ssot.integrations.infoblox.utils.client import InfobloxApi
+from nautobot_ssot.integrations.infoblox.constant import PLUGIN_CFG
 
 
 def load_json(path):
@@ -27,8 +27,20 @@ SUBNET_FIXTURE = load_json("./nautobot_ssot/tests/infoblox/fixtures/get_all_subn
 class InfobloxDiffSyncTestCase(TestCase):
     """Test the InfobloxDiffSync adapter class."""
 
-    def setUp(self) -> None:
-        # Create a mock client
+    # def setUp(self) -> None:
+    #     # Create a mock client
+    #     self.conn = MagicMock()
+
+    #     self.job = InfobloxDataSource()
+    #     self.job.job_result = JobResult.objects.create(
+    #         name=self.job.class_path, task_name="fake task", worker="default"
+    #     )
+    #     self.infoblox = InfobloxAdapter(job=self.job, sync=None, conn=self.conn)
+    #     return super().setUp()
+
+    @patch("PLUGIN_CFG", {"infoblox_import_subnets": False})
+    def test_load_prefixes(self):
+        """Test the load_prefixes function."""
         self.conn = MagicMock()
 
         self.job = InfobloxDataSource()
@@ -36,18 +48,15 @@ class InfobloxDiffSyncTestCase(TestCase):
             name=self.job.class_path, task_name="fake task", worker="default"
         )
         self.infoblox = InfobloxAdapter(job=self.job, sync=None, conn=self.conn)
-        return super().setUp()
-
-    def test_load_prefixes(self):
-        """Test the load_prefixes function."""
         self.conn.get_all_subnets.return_value = SUBNET_FIXTURE
         self.conn.get_network_containers.return_value = CONTAINER_FIXTURE
-        with patch.object(InfobloxApi, "get_all_subnets", self.conn.get_all_subnets):
-            with patch.object(InfobloxApi, "get_network_containers", self.conn.get_network_containers):
-                self.infoblox.load_prefixes()
-                # print(self.infoblox.get(InfobloxNetwork, {"network": "10.61.15.0/24"}))
-                print(self.infoblox.dict())
-                self.assertEqual(True, False)
+        # print(self.conn.get_network_containers())
+        # with patch.object(InfobloxApi, "get_all_subnets", self.conn.get_all_subnets):
+        #     with patch.object(InfobloxApi, "get_network_containers", self.conn.get_network_containers):
+        # with patch.object(PLUGIN_CFG, {"infoblox_import_subnets": False}):
+        self.infoblox.load_prefixes()
+        # # print(self.infoblox.get(InfobloxNetwork, {"network": "10.61.15.0/24"}))
+        # self.assertEqual(True, False)
 
         # self.ipfabric.load()
         # self.assertEqual(
