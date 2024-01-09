@@ -31,7 +31,7 @@ class NautobotAdapter(DiffSync):
     ipassignment = NautobotIPAssignment
     cf = NautobotCustomField
 
-    top_level = ["device", "prefix", "ipaddr", "ipassigment", "cf"]
+    top_level = ["device", "prefix", "ipaddr", "ipassignment", "cf"]
 
     def __init__(self, *args, job=None, **kwargs):
         """Initialize the Nautobot DiffSync adapter."""
