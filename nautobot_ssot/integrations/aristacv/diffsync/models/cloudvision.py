@@ -109,10 +109,16 @@ class CloudvisionCustomField(CustomField):
         for device in attrs["devices"]:
             # Exclude devices that are inactive in CloudVision
             if device in device_ids:
-                cvp.assign_tag_to_device(device_ids[device], ids["name"], attrs["value"])
+                cvp.assign_tag_to_device(
+                    device_ids[device], ids["name"], attrs["value"]
+                )
             else:
-                tag = f"{ids['name']}:{attrs['value']}" if attrs["value"] else ids["name"]
-                diffsync.job.logger.warning(f"{device} is inactive or missing in CloudVision - skipping for tag: {tag}")
+                tag = (
+                    f"{ids['name']}:{attrs['value']}" if attrs["value"] else ids["name"]
+                )
+                diffsync.job.logger.warning(
+                    f"{device} is inactive or missing in CloudVision - skipping for tag: {tag}"
+                )
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
     def update(self, attrs):
