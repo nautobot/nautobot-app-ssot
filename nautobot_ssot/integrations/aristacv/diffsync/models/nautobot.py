@@ -10,7 +10,7 @@ from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAss
 from nautobot.extras.models import Status as OrmStatus
 from nautobot.ipam.models import IPAddress as OrmIPAddress
 from nautobot.ipam.models import Prefix as OrmPrefix
-from nautobot.ipam.models import Namespace
+from nautobot.ipam.models import Namespace, IPAddressToInterface
 import distutils
 
 from nautobot_ssot.integrations.aristacv.constant import (
@@ -22,6 +22,7 @@ from nautobot_ssot.integrations.aristacv.diffsync.models.base import (
     Device,
     CustomField,
     IPAddress,
+    IPAssignment,
     Port,
     Prefix,
 )
@@ -300,7 +301,6 @@ class NautobotIPAddress(IPAddress):
     @classmethod
     def create(cls, diffsync, ids, attrs):
         """Create IPAddress in Nautobot."""
-        dev = OrmDevice.objects.get(name=ids["device"])
         new_ip = OrmIPAddress(
             address=ids["address"],
             status=OrmStatus.objects.get(name="Active"),
@@ -308,24 +308,51 @@ class NautobotIPAddress(IPAddress):
         if "loopback" in ids["interface"]:
             new_ip.role = "loopback"
         new_ip.validated_save()
+        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+
+
+class NautobotIPAssignment(IPAssignment):
+    """Nautobot IPAssignment model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create IPAddressToInterface in Nautobot."""
         try:
-            intf = OrmInterface.objects.get(device=dev, name=ids["interface"])
-            new_ip.assigned_object_type = ContentType.objects.get(
-                app_label="dcim", model="interface"
+            ipaddr = OrmIPAddress.objects.get(address=ids["address"])
+            intf = OrmInterface.objects.get(
+                name=ids["interface"], device__name=ids["device"]
             )
-            new_ip.assigned_object = intf
-            new_ip.validated_save()
-            if "Management" in ids["interface"]:
+            new_map = IPAddressToInterface(ip_address=ipaddr, interface=intf)
+            new_map.validated_save()
+            if attrs.get("primary"):
                 if ":" in ids["address"]:
-                    dev.primary_ip6 = new_ip
+                    intf.device.primary_ip6 = ipaddr
                 else:
-                    dev.primary_ip4 = new_ip
-                dev.validated_save()
+                    intf.device.primary_ip4 = ipaddr
+                intf.device.validated_save()
+            return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
         except OrmInterface.DoesNotExist as err:
             diffsync.job.logger.warning(
                 f"Unable to find Interface {ids['interface']} for {ids['device']}. {err}"
             )
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+
+    def update(self, attrs):
+        """Update IPAddressToInterface in Nautobot."""
+        map = IPAddressToInterface.objects.get(id=self.uuid)
+        if attrs.get("primary"):
+            if ":" in map.ip_address.address:
+                map.interface.device.primary_ip6 = map.ip_address
+            else:
+                map.interface.device.primary_ip4 = map.ip_address
+            map.interface.device.validated_save()
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete IPAddressToInterface in Nautobot."""
+        super().delete()
+        mapping = IPAddressToInterface.objects.get(id=self.uuid)
+        mapping.delete()
+        return self
 
 
 class NautobotCustomField(CustomField):

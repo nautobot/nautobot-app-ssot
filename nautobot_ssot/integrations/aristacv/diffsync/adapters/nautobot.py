@@ -5,6 +5,7 @@ from nautobot.dcim.models import Interface as OrmInterface
 from nautobot.extras.models import Relationship as OrmRelationship
 from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
 from nautobot.ipam.models import IPAddress as OrmIPAddress
+from nautobot.ipam.models import IPAddressToInterface
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectNotFound, ObjectAlreadyExists
 
@@ -14,6 +15,7 @@ from nautobot_ssot.integrations.aristacv.diffsync.models.nautobot import (
     NautobotCustomField,
     NautobotPrefix,
     NautobotIPAddress,
+    NautobotIPAssignment,
     NautobotPort,
 )
 from nautobot_ssot.integrations.aristacv.utils import nautobot
@@ -26,9 +28,10 @@ class NautobotAdapter(DiffSync):
     port = NautobotPort
     prefix = NautobotPrefix
     ipaddr = NautobotIPAddress
+    ipassignment = NautobotIPAssignment
     cf = NautobotCustomField
 
-    top_level = ["device", "prefix", "ipaddr", "cf"]
+    top_level = ["device", "prefix", "ipaddr", "ipassigment", "cf"]
 
     def __init__(self, *args, job=None, **kwargs):
         """Initialize the Nautobot DiffSync adapter."""
@@ -113,8 +116,6 @@ class NautobotAdapter(DiffSync):
             new_ip = self.ipaddr(
                 address=str(ipaddr.address),
                 prefix=ipaddr.parent.prefix.with_prefixlen,
-                interface=ipaddr.assigned_object.name,
-                device=ipaddr.assigned_object.device.name,
                 uuid=ipaddr.id,
             )
             try:
@@ -123,6 +124,17 @@ class NautobotAdapter(DiffSync):
                 self.job.logger.warning(
                     f"Unable to load {ipaddr.address} as appears to be a duplicate. {err}"
                 )
+            ip_to_intfs = IPAddressToInterface.objects.filter(ip_address=ipaddr)
+            for mapping in ip_to_intfs:
+                new_map = self.ipassignment(
+                    address=str(ipaddr.address),
+                    device=mapping.device.name,
+                    interface=mapping.interface.name,
+                    primary=len(mapping.ip_address.primary_ip4_for.all()) > 0
+                    or len(mapping.ip_address.primary_ip6_for.all()) > 0,
+                    uuid=mapping.id,
+                )
+                self.add(new_map)
 
     def sync_complete(self, source: DiffSync, *args, **kwargs):
         """Perform actions after sync is completed.

@@ -5,6 +5,7 @@ from nautobot_ssot.integrations.aristacv.diffsync.models.base import (
     CustomField,
     Prefix,
     IPAddress,
+    IPAssignment,
     Port,
 )
 from nautobot_ssot.integrations.aristacv.utils.cloudvision import CloudvisionApi
@@ -80,6 +81,26 @@ class CloudvisionIPAddress(IPAddress):
 
     def delete(self):
         """Delete IPAddress in AristaCV from IPAddress object."""
+        ...
+        return self
+
+
+class CloudvisionIPAssignment(IPAssignment):
+    """Cloudvision IPAssignment model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create IPAssignment in AristaCV from IPAssignment object."""
+        ...
+        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+
+    def update(self, attrs):
+        """Update IPAssignment in AristaCV from IPAssignment object."""
+        ...
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete IPAssignment in AristaCV from IPAssignment object."""
         ...
         return self
 

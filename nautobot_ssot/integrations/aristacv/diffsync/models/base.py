@@ -81,16 +81,31 @@ class IPAddress(DiffSyncModel):
     _identifiers = (
         "address",
         "prefix",
-        "device",
-        "interface",
     )
     _attributes = ()
     _children = {}
 
     address: str
     prefix: str
+    uuid: Optional[UUID]
+
+
+class IPAssignment(DiffSyncModel):
+    """IPAssignment Model."""
+
+    _modelname = "ipassignment"
+    _identifiers = (
+        "address",
+        "device",
+        "interface",
+    )
+    _attributes = ("primary",)
+    _children = {}
+
+    address: str
     device: str
     interface: str
+    primary: bool
     uuid: Optional[UUID]
 
 

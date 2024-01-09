@@ -14,6 +14,7 @@ from nautobot_ssot.integrations.aristacv.diffsync.models.cloudvision import (
     CloudvisionPort,
     CloudvisionPrefix,
     CloudvisionIPAddress,
+    CloudvisionIPAssignment,
 )
 from nautobot_ssot.integrations.aristacv.utils import cloudvision
 
@@ -25,9 +26,10 @@ class CloudvisionAdapter(DiffSync):
     port = CloudvisionPort
     prefix = CloudvisionPrefix
     ipaddr = CloudvisionIPAddress
+    ipassignment = CloudvisionIPAssignment
     cf = CloudvisionCustomField
 
-    top_level = ["device", "prefix", "ipaddr", "cf"]
+    top_level = ["device", "prefix", "ipaddr", "ipassignment", "cf"]
 
     def __init__(self, *args, job=None, conn: cloudvision.CloudvisionApi, **kwargs):
         """Initialize the CloudVision DiffSync adapter."""
@@ -217,8 +219,6 @@ class CloudvisionAdapter(DiffSync):
                 new_ip = self.ipaddr(
                     address=intf["address"],
                     prefix=prefix,
-                    interface=intf["interface"],
-                    device=dev.name,
                     uuid=None,
                 )
                 try:
@@ -228,6 +228,15 @@ class CloudvisionAdapter(DiffSync):
                         f"Unable to load {intf['address']} for {dev.name} on {intf['interface']}. {err}"
                     )
                     continue
+                self.get_or_instantiate(
+                    self.ipassignment,
+                    ids={
+                        "address": intf["address"],
+                        "device": dev.name,
+                        "interface": intf["interface"],
+                    },
+                    attrs={"primary": bool("Management" in intf["interface"])},
+                )
 
     def load_device_tags(self, device):
         """Load device tags from CloudVision."""
@@ -267,10 +276,11 @@ class CloudvisionAdapter(DiffSync):
 
     def load(self):
         """Load devices and associated data from CloudVision."""
-        if APP_SETTINGS.get("hostname_patterns") and not (
-            APP_SETTINGS.get("site_mappings") and APP_SETTINGS.get("role_mappings")
+        if APP_SETTINGS.get("aristacv_hostname_patterns") and not (
+            APP_SETTINGS.get("aristacv_site_mappings")
+            and APP_SETTINGS.get("aristacv_role_mappings")
         ):
             self.job.logger.warning(
-                "Configuration found for hostname_patterns but no site_mappings or role_mappings. Please ensure your mappings are defined."
+                "Configuration found for aristacv_hostname_patterns but no aristacv_site_mappings or aristacv_role_mappings. Please ensure your mappings are defined."
             )
         self.load_devices()
