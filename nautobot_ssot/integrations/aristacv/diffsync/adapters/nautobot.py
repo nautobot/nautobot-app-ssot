@@ -52,9 +52,7 @@ class NautobotAdapter(DiffSync):
                 )
                 self.add(new_device)
             except ObjectAlreadyExists as err:
-                self.job.logger.warning(
-                    f"Unable to load {dev.name} as it appears to be a duplicate. {err}"
-                )
+                self.job.logger.warning(f"Unable to load {dev.name} as it appears to be a duplicate. {err}")
                 continue
 
             self.load_custom_fields(dev=dev)
@@ -76,9 +74,7 @@ class NautobotAdapter(DiffSync):
 
     def load_interfaces(self):
         """Add Nautobot Interface objects as DiffSync Port models."""
-        for intf in OrmInterface.objects.filter(
-            device__device_type__manufacturer__name="Arista"
-        ):
+        for intf in OrmInterface.objects.filter(device__device_type__manufacturer__name="Arista"):
             new_port = self.port(
                 name=intf.name,
                 device=intf.device.name,
@@ -102,9 +98,7 @@ class NautobotAdapter(DiffSync):
 
     def load_ip_addresses(self):
         """Add Nautobot IPAddress objects as DiffSync IPAddress models."""
-        for ipaddr in OrmIPAddress.objects.filter(
-            interfaces__device__device_type__manufacturer__name__in=["Arista"]
-        ):
+        for ipaddr in OrmIPAddress.objects.filter(interfaces__device__device_type__manufacturer__name__in=["Arista"]):
             try:
                 self.get(self.prefix, ipaddr.parent.prefix.with_prefixlen)
             except ObjectNotFound:
@@ -121,9 +115,7 @@ class NautobotAdapter(DiffSync):
             try:
                 self.add(new_ip)
             except ObjectAlreadyExists as err:
-                self.job.logger.warning(
-                    f"Unable to load {ipaddr.address} as appears to be a duplicate. {err}"
-                )
+                self.job.logger.warning(f"Unable to load {ipaddr.address} as appears to be a duplicate. {err}")
             ip_to_intfs = IPAddressToInterface.objects.filter(ip_address=ipaddr)
             for mapping in ip_to_intfs:
                 new_map = self.ipassignment(
@@ -144,12 +136,8 @@ class NautobotAdapter(DiffSync):
         """
         # if Controller is created we need to ensure all imported Devices have RelationshipAssociation to it.
         if APP_SETTINGS.get("create_controller"):
-            self.job.logger.info(
-                "Creating Relationships between CloudVision and connected Devices."
-            )
-            controller_relation = OrmRelationship.objects.get(
-                name="Controller -> Device"
-            )
+            self.job.logger.info("Creating Relationships between CloudVision and connected Devices.")
+            controller_relation = OrmRelationship.objects.get(name="Controller -> Device")
             device_ct = ContentType.objects.get_for_model(OrmDevice)
             cvp = OrmDevice.objects.get(name="CloudVision")
             loaded_devices = source.dict()["device"]

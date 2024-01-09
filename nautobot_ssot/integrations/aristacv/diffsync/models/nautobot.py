@@ -33,9 +33,7 @@ try:
 
     LIFECYCLE_MGMT = True
 except ImportError:
-    print(
-        "Device Lifecycle app isn't installed so will revert to CustomField for OS version."
-    )
+    print("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
     LIFECYCLE_MGMT = False
 
 
@@ -68,9 +66,7 @@ class NautobotDevice(Device):
             else:
                 site = nautobot.verify_site("CloudVision")
         else:
-            site = nautobot.verify_site(
-                APP_SETTINGS.get("aristacv_from_cloudvision_default_site", DEFAULT_SITE)
-            )
+            site = nautobot.verify_site(APP_SETTINGS.get("aristacv_from_cloudvision_default_site", DEFAULT_SITE))
 
         if role_code and role_code in role_map:
             role = nautobot.verify_device_role_object(
@@ -81,24 +77,17 @@ class NautobotDevice(Device):
                 ),
             )
         elif "CloudVision" in ids["name"]:
-            role = nautobot.verify_device_role_object(
-                "Controller", DEFAULT_DEVICE_ROLE_COLOR
-            )
+            role = nautobot.verify_device_role_object("Controller", DEFAULT_DEVICE_ROLE_COLOR)
         else:
             role = nautobot.verify_device_role_object(
-                APP_SETTINGS.get(
-                    "aristacv_from_cloudvision_default_device_role", DEFAULT_DEVICE_ROLE
-                ),
+                APP_SETTINGS.get("aristacv_from_cloudvision_default_device_role", DEFAULT_DEVICE_ROLE),
                 APP_SETTINGS.get(
                     "aristacv_from_cloudvision_default_device_role_color",
                     DEFAULT_DEVICE_ROLE_COLOR,
                 ),
             )
 
-        if (
-            APP_SETTINGS.get("aristacv_create_controller")
-            and "CloudVision" in ids["name"]
-        ):
+        if APP_SETTINGS.get("aristacv_create_controller") and "CloudVision" in ids["name"]:
             platform = OrmPlatform.objects.get(name=CLOUDVISION_PLATFORM)
         else:
             platform = OrmPlatform.objects.get(name=ARISTA_PLATFORM)
@@ -121,12 +110,8 @@ class NautobotDevice(Device):
         try:
             new_device.validated_save()
             if LIFECYCLE_MGMT and attrs.get("version"):
-                software_lcm = cls._add_software_lcm(
-                    platform=platform.name, version=attrs["version"]
-                )
-                cls._assign_version_to_device(
-                    diffsync=diffsync, device=new_device, software_lcm=software_lcm
-                )
+                software_lcm = cls._add_software_lcm(platform=platform.name, version=attrs["version"])
+                cls._assign_version_to_device(diffsync=diffsync, device=new_device, software_lcm=software_lcm)
             return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
         except ValidationError as err:
             diffsync.job.logger.warning(f"Unable to create Device {ids['name']}. {err}")
@@ -145,29 +130,19 @@ class NautobotDevice(Device):
         if "serial" in attrs:
             dev.serial = attrs["serial"]
         if "version" in attrs and LIFECYCLE_MGMT:
-            software_lcm = self._add_software_lcm(
-                platform=dev.platform.name, version=attrs["version"]
-            )
-            self._assign_version_to_device(
-                diffsync=self.diffsync, device=dev, software_lcm=software_lcm
-            )
+            software_lcm = self._add_software_lcm(platform=dev.platform.name, version=attrs["version"])
+            self._assign_version_to_device(diffsync=self.diffsync, device=dev, software_lcm=software_lcm)
         try:
             dev.validated_save()
             return super().update(attrs)
         except ValidationError as err:
-            self.diffsync.job.logger.warning(
-                f"Unable to update Device {self.name}. {err}"
-            )
+            self.diffsync.job.logger.warning(f"Unable to update Device {self.name}. {err}")
             return None
 
     def delete(self):
         """Delete device object in Nautobot."""
-        if APP_SETTINGS.get(
-            "aristacv_delete_devices_on_sync", DEFAULT_DELETE_DEVICES_ON_SYNC
-        ):
-            self.diffsync.job.logger.warning(
-                f"Device {self.name} will be deleted per app settings."
-            )
+        if APP_SETTINGS.get("aristacv_delete_devices_on_sync", DEFAULT_DELETE_DEVICES_ON_SYNC):
+            self.diffsync.job.logger.warning(f"Device {self.name} will be deleted per app settings.")
             device = OrmDevice.objects.get(id=self.uuid)
             device.delete()
             super().delete()
@@ -260,9 +235,7 @@ class NautobotPort(Port):
             _port.validated_save()
             return super().update(attrs)
         except ValidationError as err:
-            self.diffsync.job.logger.warning(
-                f"Unable to update port {self.name} for {self.device} with {attrs}: {err}"
-            )
+            self.diffsync.job.logger.warning(f"Unable to update port {self.name} for {self.device} with {attrs}: {err}")
             return None
 
     def delete(self):
@@ -270,9 +243,7 @@ class NautobotPort(Port):
         if APP_SETTINGS.get("delete_devices_on_sync"):
             super().delete()
             if self.diffsync.job.debug:
-                self.diffsync.job.logger.warning(
-                    f"Interface {self.name} for {self.device} will be deleted."
-                )
+                self.diffsync.job.logger.warning(f"Interface {self.name} for {self.device} will be deleted.")
             _port = OrmInterface.objects.get(id=self.uuid)
             _port.delete()
         return self
@@ -319,9 +290,7 @@ class NautobotIPAssignment(IPAssignment):
         """Create IPAddressToInterface in Nautobot."""
         try:
             ipaddr = OrmIPAddress.objects.get(address=ids["address"])
-            intf = OrmInterface.objects.get(
-                name=ids["interface"], device__name=ids["device"]
-            )
+            intf = OrmInterface.objects.get(name=ids["interface"], device__name=ids["device"])
             new_map = IPAddressToInterface(ip_address=ipaddr, interface=intf)
             new_map.validated_save()
             if attrs.get("primary"):
@@ -332,9 +301,7 @@ class NautobotIPAssignment(IPAssignment):
                 intf.device.validated_save()
             return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
         except OrmInterface.DoesNotExist as err:
-            diffsync.job.logger.warning(
-                f"Unable to find Interface {ids['interface']} for {ids['device']}. {err}"
-            )
+            diffsync.job.logger.warning(f"Unable to find Interface {ids['interface']} for {ids['device']}. {err}")
 
     def update(self, attrs):
         """Update IPAddressToInterface in Nautobot."""
