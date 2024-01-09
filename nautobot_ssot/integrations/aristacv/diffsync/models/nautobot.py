@@ -260,7 +260,7 @@ class NautobotPrefix(Prefix):
         _pf = OrmPrefix(
             prefix=ids["prefix"],
             namespace=Namespace.objects.get(name="Global"),
-            status_id=OrmStatus.objects.get(name="Active"),
+            status=OrmStatus.objects.get(name="Active"),
         )
         _pf.validated_save()
         return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
