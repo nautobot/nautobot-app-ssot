@@ -12,6 +12,7 @@ from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
 from nautobot_ssot.integrations.aristacv.diffsync.models.nautobot import (
     NautobotDevice,
     NautobotCustomField,
+    NautobotPrefix,
     NautobotIPAddress,
     NautobotPort,
 )
@@ -23,10 +24,11 @@ class NautobotAdapter(DiffSync):
 
     device = NautobotDevice
     port = NautobotPort
+    prefix = NautobotPrefix
     ipaddr = NautobotIPAddress
     cf = NautobotCustomField
 
-    top_level = ["device", "ipaddr", "cf"]
+    top_level = ["device", "prefix", "ipaddr", "cf"]
 
     def __init__(self, *args, job=None, **kwargs):
         """Initialize the Nautobot DiffSync adapter."""
@@ -89,9 +91,20 @@ class NautobotAdapter(DiffSync):
 
     def load_ip_addresses(self):
         """Add Nautobot IPAddress objects as DiffSync IPAddress models."""
-        for ipaddr in OrmIPAddress.objects.filter(interfaces__device__device_type__manufacturer__name__in=["Arista"]):
+        for ipaddr in OrmIPAddress.objects.filter(
+            interfaces__device__device_type__manufacturer__name__in=["Arista"]
+        ):
+            try:
+                self.get(self.prefix, ipaddr.parent.prefix.with_prefixlen)
+            except ObjectNotFound:
+                new_pf = self.prefix(
+                    prefix=ipaddr.parent.prefix.with_prefixlen,
+                    uuid=ipaddr.parent.prefix.id,
+                )
+                self.add(new_pf)
             new_ip = self.ipaddr(
                 address=str(ipaddr.address),
+                prefix=ipaddr.parent.prefix.with_prefixlen,
                 interface=ipaddr.assigned_object.name,
                 device=ipaddr.assigned_object.device.name,
                 uuid=ipaddr.id,

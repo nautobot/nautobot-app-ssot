@@ -58,6 +58,20 @@ class Port(DiffSyncModel):
     uuid: Optional[UUID]
 
 
+class Prefix(DiffSyncModel):
+    """DiffSync Model for Ringhealth nodes management network."""
+
+    model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+
+    _modelname = "prefix"
+    _identifiers = ("prefix",)
+    _attributes = ()
+    _children = {}
+
+    prefix: str
+    uuid: Optional[UUID]
+
+
 class IPAddress(DiffSyncModel):
     """IPAddress Model."""
 
@@ -66,6 +80,7 @@ class IPAddress(DiffSyncModel):
     _modelname = "ipaddr"
     _identifiers = (
         "address",
+        "prefix",
         "device",
         "interface",
     )
@@ -73,6 +88,7 @@ class IPAddress(DiffSyncModel):
     _children = {}
 
     address: str
+    prefix: str
     device: str
     interface: str
     uuid: Optional[UUID]

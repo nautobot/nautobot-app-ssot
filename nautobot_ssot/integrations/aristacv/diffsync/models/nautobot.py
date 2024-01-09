@@ -9,6 +9,8 @@ from nautobot.extras.models import Relationship as OrmRelationship
 from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
 from nautobot.extras.models import Status as OrmStatus
 from nautobot.ipam.models import IPAddress as OrmIPAddress
+from nautobot.ipam.models import Prefix as OrmPrefix
+from nautobot.ipam.models import Namespace
 import distutils
 
 from nautobot_ssot.integrations.aristacv.constant import (
@@ -21,6 +23,7 @@ from nautobot_ssot.integrations.aristacv.diffsync.models.base import (
     CustomField,
     IPAddress,
     Port,
+    Prefix,
 )
 from nautobot_ssot.integrations.aristacv.utils import nautobot
 
@@ -272,6 +275,23 @@ class NautobotPort(Port):
             _port = OrmInterface.objects.get(id=self.uuid)
             _port.delete()
         return self
+
+
+class NautobotPrefix(Prefix):
+    """Nautobot Prefix model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create Prefix in Nautobot from NautobotPrefix objects."""
+        if diffsync.job.debug:
+            diffsync.job.logger.info(f"Creating Prefix {ids['prefix']}.")
+        _pf = OrmPrefix(
+            prefix=ids["prefix"],
+            namespace=Namespace.objects.get(name="Global"),
+            status_id=OrmStatus.objects.get(name="Active"),
+        )
+        _pf.validated_save()
+        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
 
 
 class NautobotIPAddress(IPAddress):

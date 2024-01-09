@@ -1,5 +1,6 @@
 """DiffSync adapter for Arista CloudVision."""
 import distutils
+import ipaddress
 import re
 
 import arista.tag.v2 as TAG
@@ -11,6 +12,7 @@ from nautobot_ssot.integrations.aristacv.diffsync.models.cloudvision import (
     CloudvisionCustomField,
     CloudvisionDevice,
     CloudvisionPort,
+    CloudvisionPrefix,
     CloudvisionIPAddress,
 )
 from nautobot_ssot.integrations.aristacv.utils import cloudvision
@@ -21,10 +23,11 @@ class CloudvisionAdapter(DiffSync):
 
     device = CloudvisionDevice
     port = CloudvisionPort
+    prefix = CloudvisionPrefix
     ipaddr = CloudvisionIPAddress
     cf = CloudvisionCustomField
 
-    top_level = ["device", "ipaddr", "cf"]
+    top_level = ["device", "prefix", "ipaddr", "cf"]
 
     def __init__(self, *args, job=None, conn: cloudvision.CloudvisionApi, **kwargs):
         """Initialize the CloudVision DiffSync adapter."""
@@ -182,8 +185,14 @@ class CloudvisionAdapter(DiffSync):
                     f"Attempting to load IP Address {intf['address']} for {intf['interface']} on {dev.name}."
                 )
             if intf["address"] and intf["address"] != "none":
+                prefix = ipaddress.ip_interface(intf["address"]).network.with_prefixlen
+                self.get_or_instantiate(
+                    self.prefix,
+                    ids={"prefix": prefix},
+                )
                 new_ip = self.ipaddr(
                     address=intf["address"],
+                    prefix=prefix,
                     interface=intf["interface"],
                     device=dev.name,
                     uuid=None,

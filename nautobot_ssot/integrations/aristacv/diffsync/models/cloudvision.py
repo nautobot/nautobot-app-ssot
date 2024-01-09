@@ -1,6 +1,12 @@
 """Cloudvision DiffSync models for AristaCV SSoT."""
 from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
-from nautobot_ssot.integrations.aristacv.diffsync.models.base import Device, CustomField, IPAddress, Port
+from nautobot_ssot.integrations.aristacv.diffsync.models.base import (
+    Device,
+    CustomField,
+    Prefix,
+    IPAddress,
+    Port,
+)
 from nautobot_ssot.integrations.aristacv.utils.cloudvision import CloudvisionApi
 
 
@@ -35,6 +41,26 @@ class CloudvisionPort(Port):
 
     def delete(self):
         """Delete Interface in AristaCV from Port object."""
+        return self
+
+
+class CloudvisionPrefix(Prefix):
+    """Cloudvision IPAdress model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create Prefix in AristaCV from Prefix object."""
+        ...
+        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+
+    def update(self, attrs):
+        """Update Prefix in AristaCV from Prefix object."""
+        ...
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete Prefix in AristaCV from Prefix object."""
+        ...
         return self
 
 
