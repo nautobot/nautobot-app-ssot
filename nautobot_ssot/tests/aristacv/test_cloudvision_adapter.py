@@ -1,9 +1,12 @@
 """Unit tests for the Cloudvision DiffSync adapter class."""
+import ipaddress
 from unittest.mock import MagicMock, patch
 
 from nautobot.extras.models import JobResult
 from nautobot.core.testing import TransactionTestCase
-from nautobot_ssot.integrations.aristacv.diffsync.adapters.cloudvision import CloudvisionAdapter
+from nautobot_ssot.integrations.aristacv.diffsync.adapters.cloudvision import (
+    CloudvisionAdapter,
+)
 from nautobot_ssot.integrations.aristacv.jobs import CloudVisionDataSource
 from nautobot_ssot.tests.aristacv.fixtures import fixtures
 
@@ -50,7 +53,10 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
     )
     def test_load_devices(self):
         """Test the load_devices() adapter method."""
-        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.get_devices", self.cloudvision.get_devices):
+        with patch(
+            "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_devices",
+            self.cloudvision.get_devices,
+        ):
             with patch(
                 "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_device_type",
                 self.cloudvision.get_device_type,
@@ -75,7 +81,8 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
         mock_device.device_model.return_value = "DCS-7280CR2-60"
 
         with patch(
-            "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_device_type", self.cloudvision.get_device_type
+            "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_device_type",
+            self.cloudvision.get_device_type,
         ):
             with patch(
                 "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interfaces_fixed",
@@ -116,6 +123,9 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
             ):
                 self.cvp.load_ip_addresses(dev=mock_device)
         self.assertEqual(
-            {f"{ipaddr['address']}__mock_device__{ipaddr['interface']}" for ipaddr in fixtures.IP_INTF_FIXTURE},
+            {
+                f"{ipaddr['address']}__{ipaddress.ip_interface(ipaddr['address']).network.with_prefixlen}"
+                for ipaddr in fixtures.IP_INTF_FIXTURE
+            },
             {ipaddr.get_unique_id() for ipaddr in self.cvp.get_all("ipaddr")},
         )
