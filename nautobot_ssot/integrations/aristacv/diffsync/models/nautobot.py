@@ -274,6 +274,7 @@ class NautobotIPAddress(IPAddress):
         """Create IPAddress in Nautobot."""
         new_ip = OrmIPAddress(
             address=ids["address"],
+            parent=OrmPrefix.objects.get(prefix=ids["prefix"], namespace=Namespace.objects.get(name="Global")),
             status=OrmStatus.objects.get(name="Active"),
         )
         if "loopback" in ids["interface"]:
