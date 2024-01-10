@@ -5,20 +5,19 @@ import nautobot_ssot.models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('nautobot_ssot', '0007_replace_dashed_custom_fields'),
+        ("nautobot_ssot", "0007_replace_dashed_custom_fields"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='sync',
-            name='diff',
+            model_name="sync",
+            name="diff",
             field=models.JSONField(blank=True, encoder=nautobot_ssot.models.DiffJSONEncoder),
         ),
         migrations.AlterField(
-            model_name='synclogentry',
-            name='diff',
+            model_name="synclogentry",
+            name="diff",
             field=models.JSONField(blank=True, encoder=nautobot_ssot.models.DiffJSONEncoder, null=True),
         ),
     ]
