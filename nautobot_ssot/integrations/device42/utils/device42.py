@@ -150,7 +150,7 @@ def find_device_role_from_tags(tag_list: List[str]) -> str:
         tag_list (List[str]): List of Tags as strings to search.
 
     Returns:
-        str: The Default device role defined in plugin settings.
+        str: The Default device role defined in app settings.
     """
     _prepend = PLUGIN_CFG.get("device42_role_prepend")
     if _prepend:

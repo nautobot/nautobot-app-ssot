@@ -168,7 +168,7 @@ class Device42Adapter(DiffSync):
         """Method to determine the Building (Site) for a Device.
 
         Args:
-            dev_record (dict): Dictionary of Device information from Device42. Needs to have name, customer, and building keys depending upon enabled plugin settings.
+            dev_record (dict): Dictionary of Device information from Device42. Needs to have name, customer, and building keys depending upon enabled app settings.
 
         Returns:
             str: Slugified version of the Building (Site) for a Device.

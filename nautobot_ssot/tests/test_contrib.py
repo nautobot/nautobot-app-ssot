@@ -7,7 +7,8 @@ from django.contrib.contenttypes.models import ContentType
 from nautobot.circuits.models import Provider
 from nautobot.dcim.choices import InterfaceTypeChoices
 from nautobot.dcim.models import LocationType, Location, Manufacturer, DeviceType, Device, Interface
-from nautobot.extras.models import Tag, Status, CustomField, Role
+from nautobot.extras.choices import RelationshipTypeChoices
+from nautobot.extras.models import Tag, Status, CustomField, Role, Relationship, RelationshipAssociation
 from nautobot.ipam.models import Prefix, IPAddress, Namespace
 from nautobot.tenancy.models import Tenant, TenantGroup
 from nautobot.core.testing import TestCase
@@ -17,6 +18,8 @@ from nautobot_ssot.contrib import (
     NautobotModel,
     NautobotAdapter,
     CustomFieldAnnotation,
+    CustomRelationshipAnnotation,
+    RelationshipSideEnum,
 )
 
 
@@ -555,6 +558,142 @@ class BaseModelGenericRelationTest(TestCaseWithDeviceData):
         # The 'get_from_db' function comes from NautobotModel, I don't see why this pylint warning occurs.
         nautobot_ip_address = diffsync_ip_address.get_from_db()  # pylint: disable=no-member
         self.assertEqual(self.prefix, nautobot_ip_address.parent)
+
+
+class TenantModelCustomRelationship(NautobotModel):
+    """Tenant model for testing custom relationship support."""
+
+    _model = Tenant
+    _modelname = "tenant"
+    _identifiers = ("name",)
+    _attributes = ("provider__name",)
+
+    name: str
+    provider__name: Annotated[
+        Optional[str], CustomRelationshipAnnotation(name="Test Relationship", side=RelationshipSideEnum.SOURCE)
+    ] = None
+
+
+class TenantDict(TypedDict):
+    """Many-to-many relationship typed dict explaining which fields are interesting."""
+
+    name: str
+
+
+class ProviderModelCustomRelationship(NautobotModel):
+    """Provider model for testing custom relationship support."""
+
+    _model = Provider
+    _modelname = "provider"
+    _identifiers = ("name",)
+    _attributes = ("tenants",)
+
+    name: str
+    tenants: Annotated[
+        List[TenantDict], CustomRelationshipAnnotation(name="Test Relationship", side=RelationshipSideEnum.DESTINATION)
+    ] = []
+
+
+class CustomRelationShipTestAdapterSource(NautobotAdapter):
+    """Adapter for testing custom relationship support."""
+
+    top_level = ["tenant"]
+    tenant = TenantModelCustomRelationship
+
+
+class CustomRelationShipTestAdapterDestination(NautobotAdapter):
+    """Adapter for testing custom relationship support."""
+
+    top_level = ["provider"]
+    provider = ProviderModelCustomRelationship
+
+
+class AdapterCustomRelationshipTest(TestCase):
+    """Test case for custom relationships."""
+
+    def setUp(self):
+        self.relationship = Relationship.objects.create(
+            label="Test Relationship",
+            source_type=ContentType.objects.get_for_model(Tenant),
+            destination_type=ContentType.objects.get_for_model(Provider),
+            type=RelationshipTypeChoices.TYPE_ONE_TO_MANY,
+        )
+        self.tenant = Tenant.objects.create(name="Test Tenant")
+        self.provider = Provider.objects.create(name="Test Provider")
+        RelationshipAssociation.objects.create(
+            relationship=self.relationship,
+            source=self.tenant,
+            destination=self.provider,
+        )
+
+    def test_load_source(self):
+        """Test loading a single custom relationship from the source side."""
+        adapter = CustomRelationShipTestAdapterSource(job=MagicMock())
+        adapter.load()
+        self.assertEqual(adapter.get_all("tenant")[0].provider__name, self.provider.name)
+
+    def test_load_destination(self):
+        """Test loading a single custom relationship from the destination side."""
+        adapter = CustomRelationShipTestAdapterDestination(job=MagicMock())
+        adapter.load()
+        message = "Loading custom relationships through the destination side doesn't work."
+        try:
+            diffsync_provider = adapter.get_all("provider")[0]
+            tenant_name = diffsync_provider.tenants[0]["name"]
+        except IndexError:
+            self.fail(message)
+        self.assertEqual(tenant_name, self.tenant.name, msg=message)
+
+
+class BaseModelCustomRelationshipTest(TestCase):
+    """Tests for manipulating custom relationships through the shared base model code."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.relationship = Relationship.objects.create(
+            label="Test Relationship",
+            source_type=ContentType.objects.get_for_model(Tenant),
+            destination_type=ContentType.objects.get_for_model(Provider),
+        )
+        cls.tenant_one = Tenant.objects.create(name="Test Tenant 1")
+        cls.tenant_two = Tenant.objects.create(name="Test Tenant 2")
+        cls.provider_one = Provider.objects.create(name="Test Provider 1")
+        cls.provider_two = Provider.objects.create(name="Test Provider 2")
+
+    def test_custom_relationship_add_foreign_key(self):
+        diffsync_tenant = TenantModelCustomRelationship(
+            name=self.tenant_one.name,
+        )
+        diffsync_tenant.diffsync = CustomRelationShipTestAdapterSource(job=MagicMock())
+        diffsync_tenant.update({"provider__name": self.provider_one.name})
+        self.assertEqual(RelationshipAssociation.objects.count(), 1)
+
+    def test_custom_relationship_update_foreign_key(self):
+        diffsync_tenant = TenantModelCustomRelationship(
+            name=self.tenant_one.name,
+        )
+        diffsync_tenant.diffsync = CustomRelationShipTestAdapterSource(job=MagicMock())
+        diffsync_tenant.update({"provider__name": self.provider_one.name})
+        diffsync_tenant.update({"provider__name": self.provider_two.name})
+        self.assertEqual(RelationshipAssociation.objects.first().destination, self.provider_two)
+
+    def test_custom_relationship_add_to_many(self):
+        diffsync_provider = ProviderModelCustomRelationship(
+            name=self.provider_one.name,
+        )
+        diffsync_provider.diffsync = CustomRelationShipTestAdapterDestination(job=MagicMock())
+        diffsync_provider.update({"tenants": [{"name": self.tenant_one.name}, {"name": self.tenant_two.name}]})
+        self.assertEqual(RelationshipAssociation.objects.count(), 2)
+
+    def test_custom_relationship_update_to_many(self):
+        diffsync_provider = ProviderModelCustomRelationship(
+            name=self.provider_one.name,
+        )
+        diffsync_provider.diffsync = CustomRelationShipTestAdapterDestination(job=MagicMock())
+        diffsync_provider.update({"tenants": [{"name": self.tenant_one.name}]})
+        diffsync_provider.update({"tenants": [{"name": self.tenant_two.name}]})
+        self.assertEqual(RelationshipAssociation.objects.count(), 1)
+        self.assertEqual(RelationshipAssociation.objects.first().source, self.tenant_two)
 
 
 class BaseModelManyToManyTest(TestCase):

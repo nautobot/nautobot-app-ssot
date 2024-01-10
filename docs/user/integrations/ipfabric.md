@@ -132,7 +132,7 @@ If an object has already been updated with the tag, a warning message will be di
 
 ## ChatOps
 
-As part of the SSoT synchronization capabilities with IP Fabric, this integration extends the [Nautobot ChatOps app](https://github.com/nautobot/nautobot-plugin-chatops) by providing users with the ability to begin the sync job from a ChatOps command (Slack).
+As part of the SSoT synchronization capabilities with IP Fabric, this integration extends the [Nautobot ChatOps app](https://github.com/nautobot/nautobot-app-chatops) by providing users with the ability to begin the sync job from a ChatOps command (Slack).
 
 ![ssot-chatops-sync](../../images/ipfabric-chatops-ssot.png)
 

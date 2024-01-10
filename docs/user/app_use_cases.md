@@ -48,6 +48,14 @@ The **Sync Logs** tab shows the logs captured from DiffSync regarding the indivi
 
 ![Sync logs view](../images/sync_logs.png)
 
+## Management Commands
+
+### Elongate Interface Names
+
+This adds a command to the `nautobot-server` management commands to update DCIM.Interface names in Nautobot to their long form using [netutils](https://github.com/networktocode/netutils).
+This command should only be ran when the loading of the interface names in integrations system will match the long form name.
+For example, running this command, and then performing a sync from a system into Nautobot where the integration system uses different names will result in deleting the interfaces in Nautobot, and creating new ones with the name matching what is in the integration system.
+
 ## Screenshots
 
 Here is a consolidated view of all the pages within the SSoT Nautobot app.

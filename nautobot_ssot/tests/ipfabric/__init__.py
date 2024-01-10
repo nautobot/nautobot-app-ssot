@@ -1,1 +1,1 @@
-"""Unit tests for nautobot_ssot.integrations.ipfabric plugin."""
+"""Unit tests for nautobot_ssot.integrations.ipfabric app."""

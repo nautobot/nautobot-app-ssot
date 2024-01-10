@@ -20,7 +20,7 @@ try:
 
     LIFECYCLE_MGMT = True
 except ImportError:
-    print("Device Lifecycle plugin isn't installed so will revert to CustomField for OS version.")
+    print("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
     LIFECYCLE_MGMT = False
 
 
@@ -80,10 +80,11 @@ class NautobotDevice(Device):
             device_type=device_type_object,
             role=role,
             platform=platform,
-            site=site,
+            location=site,
             name=ids["name"],
             serial=attrs["serial"] if attrs.get("serial") else "",
         )
+
         if APP_SETTINGS.get("apply_import_tag", APPLY_IMPORT_TAG):
             import_tag = nautobot.verify_import_tag()
             new_device.tags.add(import_tag)
@@ -122,7 +123,7 @@ class NautobotDevice(Device):
     def delete(self):
         """Delete device object in Nautobot."""
         if APP_SETTINGS.get("delete_devices_on_sync", DEFAULT_DELETE_DEVICES_ON_SYNC):
-            self.diffsync.job.logger.warning(f"Device {self.name} will be deleted per plugin settings.")
+            self.diffsync.job.logger.warning(f"Device {self.name} will be deleted per app settings.")
             device = OrmDevice.objects.get(id=self.uuid)
             device.delete()
             super().delete()
@@ -130,7 +131,7 @@ class NautobotDevice(Device):
 
     @staticmethod
     def _add_software_lcm(platform: str, version: str):
-        """Add OS Version as SoftwareLCM if Device Lifecycle Plugin found."""
+        """Add OS Version as SoftwareLCM if Device Lifecycle App found."""
         _platform = OrmPlatform.objects.get(name=platform)
         try:
             os_ver = SoftwareLCM.objects.get(device_platform=_platform, version=version)
@@ -145,7 +146,7 @@ class NautobotDevice(Device):
     @staticmethod
     def _assign_version_to_device(diffsync, device, software_lcm):
         """Add Relationship between Device and SoftwareLCM."""
-        software_relation = OrmRelationship.objects.get(name="Software on Device")
+        software_relation = OrmRelationship.objects.get(label="Software on Device")
         relations = device.get_relationships()
         for _, relationships in relations.items():
             for relationship, queryset in relationships.items():

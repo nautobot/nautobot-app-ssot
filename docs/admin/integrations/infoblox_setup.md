@@ -29,6 +29,7 @@ Integration behavior can be controlled with the following settings:
 | infoblox_import_objects_vlan_views         | False   | Import VLAN views from Infoblox to Nautobot.                             |
 | infoblox_import_objects_vlans              | False   | Import VLANs from Infoblox to Nautobot.                                  |
 | infoblox_import_subnets                    | N/A     | List of Subnets in CIDR string notation to filter import to.             |
+| infoblox_network_view                      | N/A     | Only load IPAddresses from a specific Infoblox Network View.             |
 
 Below is an example snippet from `nautobot_config.py` that demonstrates how to enable and configure Infoblox integration:
 

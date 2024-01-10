@@ -1,13 +1,13 @@
 [tool.poetry]
 name = "nautobot-ssot"
-version = "2.0.2"
+version = "2.1.0"
 description = "Nautobot Single Source of Truth"
 authors = ["Network to Code, LLC <opensource@networktocode.com>"]
 license = "Apache-2.0"
 readme = "README.md"
-homepage = "https://github.com/nautobot/nautobot-plugin-ssot/"
-repository = "https://github.com/nautobot/nautobot-plugin-ssot/"
-keywords = ["nautobot", "nautobot-plugin"]
+homepage = "https://github.com/nautobot/nautobot-app-ssot/"
+repository = "https://github.com/nautobot/nautobot-app-ssot/"
+keywords = ["nautobot", "nautobot-plugin", "nautobot-app"]
 classifiers = [
     "Intended Audience :: Developers",
     "Development Status :: 5 - Production/Stable",

@@ -6,7 +6,7 @@ The interaction between these models and Nautobot's native JobResult model deser
 - A JobResult is created each time a data sync is requested.
   - This stores a reference to the specific sync operation requested (JobResult.name),
     much as a Job-related JobResult would reference the name of the Job.
-  - This stores a 'job_id', which this plugin uses to reference the specific sync instance.
+  - This stores a 'job_id', which this app uses to reference the specific sync instance.
   - This stores the 'created' and 'completed' timestamps, and the requesting user (if any)
   - This stores the overall 'status' of the job (pending, running, completed, failed, errored.)
   - This stores a 'data' field which, in theory can store arbitrary JSON data, but in practice
@@ -141,7 +141,7 @@ class SyncLogEntry(BaseModel):  # pylint: disable=nb-string-field-blank-null
 
     Detailed sync logs are recorded in this model, rather than in JobResult.data, because
     JobResult.data imposes fairly strict expectations about the structure of its contents
-    that do not align well with the requirements of this plugin. Also, storing log entries as individual
+    that do not align well with the requirements of this app. Also, storing log entries as individual
     database records rather than a single JSON blob allows us to filter, query, sort, etc. as desired.
 
     This model somewhat "shadows" Nautobot's built-in ObjectChange model; the key distinction to

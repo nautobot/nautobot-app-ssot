@@ -1,4 +1,4 @@
-"""Constants for use with the ACI SSoT plugin."""
+"""Constants for use with the ACI SSoT app."""
 from django.conf import settings
 
 

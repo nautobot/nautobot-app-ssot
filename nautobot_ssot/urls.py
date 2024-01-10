@@ -1,4 +1,4 @@
-"""Django urlpatterns declaration for nautobot_ssot plugin."""
+"""Django urlpatterns declaration for nautobot_ssot app."""
 
 from django.urls import path
 
