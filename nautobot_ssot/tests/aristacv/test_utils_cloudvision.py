@@ -37,7 +37,7 @@ class TestCloudvisionUtils(TestCase):
 
     @patch.dict(
         "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
-        {"import_active": False},
+        {"aristacv_import_active": False},
     )
     def test_get_all_devices(self):
         """Test get_devices function for active and inactive devices."""
@@ -71,7 +71,7 @@ class TestCloudvisionUtils(TestCase):
 
     @patch.dict(
         "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
-        {"import_active": True},
+        {"aristacv_import_active": True},
     )
     def test_get_active_devices(self):
         """Test get_devices function for active devices."""

@@ -112,12 +112,12 @@ class CloudvisionCustomField(CustomField):
     def connect_cvp():
         """Connect to Cloudvision gRPC endpoint."""
         return CloudvisionApi(
-            cvp_host=APP_SETTINGS["cvp_host"],
-            cvp_port=APP_SETTINGS.get("cvp_port", "8443"),
-            verify=APP_SETTINGS["verify"],
-            username=APP_SETTINGS["cvp_user"],
-            password=APP_SETTINGS["cvp_password"],
-            cvp_token=APP_SETTINGS["cvp_token"],
+            cvp_host=APP_SETTINGS["aristacv_cvp_host"],
+            cvp_port=APP_SETTINGS.get("aristacv_cvp_port", "8443"),
+            verify=APP_SETTINGS["aristacv_verify"],
+            username=APP_SETTINGS["aristacv_cvp_user"],
+            password=APP_SETTINGS["aristacv_cvp_password"],
+            cvp_token=APP_SETTINGS["aristacv_cvp_token"],
         )
 
     @classmethod

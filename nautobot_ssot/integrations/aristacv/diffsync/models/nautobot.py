@@ -240,7 +240,7 @@ class NautobotPort(Port):
 
     def delete(self):
         """Delete Interface in Nautobot."""
-        if APP_SETTINGS.get("delete_devices_on_sync"):
+        if APP_SETTINGS.get("aristacv_delete_devices_on_sync"):
             super().delete()
             if self.diffsync.job.debug:
                 self.diffsync.job.logger.warning(f"Interface {self.name} for {self.device} will be deleted.")

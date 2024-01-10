@@ -49,7 +49,7 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
 
     @patch.dict(
         "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
-        {"create_controller": False},
+        {"aristacv_create_controller": False},
     )
     def test_load_devices(self):
         """Test the load_devices() adapter method."""

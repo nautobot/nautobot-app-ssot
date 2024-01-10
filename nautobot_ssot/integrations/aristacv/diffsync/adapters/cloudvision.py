@@ -39,7 +39,7 @@ class CloudvisionAdapter(DiffSync):
 
     def load_devices(self):
         """Load devices from CloudVision."""
-        if APP_SETTINGS.get("create_controller"):
+        if APP_SETTINGS.get("aristacv_create_controller"):
             cvp_version = cloudvision.get_cvp_version()
             cvp_ver_cf = self.cf(name="arista_eos", value=cvp_version, device_name="CloudVision")
             try:

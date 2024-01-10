@@ -135,7 +135,7 @@ class NautobotAdapter(DiffSync):
             source (DiffSync): Source DiffSync DataSource adapter.
         """
         # if Controller is created we need to ensure all imported Devices have RelationshipAssociation to it.
-        if APP_SETTINGS.get("create_controller"):
+        if APP_SETTINGS.get("aristacv_create_controller"):
             self.job.logger.info("Creating Relationships between CloudVision and connected Devices.")
             controller_relation = OrmRelationship.objects.get(name="Controller -> Device")
             device_ct = ContentType.objects.get_for_model(OrmDevice)

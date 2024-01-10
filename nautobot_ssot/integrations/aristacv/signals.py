@@ -15,7 +15,7 @@ def register_signals(sender):
     post_migrate.connect(post_migrate_create_manufacturer)
     post_migrate.connect(post_migrate_create_platform)
 
-    if APP_SETTINGS.get("create_controller"):
+    if APP_SETTINGS.get("aristacv_create_controller"):
         post_migrate.connect(post_migrate_create_controller_relationship)
 
 
@@ -129,7 +129,7 @@ def post_migrate_create_platform(apps=global_apps, **kwargs):
         },
     )
 
-    if APP_SETTINGS.get("create_controller"):
+    if APP_SETTINGS.get("aristacv_create_controller"):
         Platform.objects.get_or_create(
             name="Arista EOS-CloudVision",
             manufacturer=Manufacturer.objects.get(name="Arista"),

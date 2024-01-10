@@ -97,7 +97,7 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
             self.metadata = ((self.AUTH_KEY_PATH, self.cvp_token),)
         # Set up credentials for CVaaS using supplied token.
         else:
-            self.cvp_url = APP_SETTINGS.get("cvaas_url", "www.arista.io:443")
+            self.cvp_url = APP_SETTINGS.get("aristacv_cvaas_url", "www.arista.io:443")
             call_creds = grpc.access_token_call_credentials(self.cvp_token)
             channel_creds = grpc.ssl_channel_credentials()
         conn_creds = grpc.composite_channel_credentials(channel_creds, call_creds)
@@ -269,7 +269,7 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
 def get_devices(client):
     """Get devices from CloudVision inventory."""
     device_stub = services.DeviceServiceStub(client)
-    if APP_SETTINGS.get("import_active"):
+    if APP_SETTINGS.get("aristacv_import_active"):
         req = services.DeviceStreamRequest(
             partial_eq_filter=[models.Device(streaming_status=models.STREAMING_STATUS_ACTIVE)]
         )
@@ -675,7 +675,11 @@ def get_cvp_version():
     """
     client = CvpClient()
     try:
-        client.connect([APP_SETTINGS["cvp_host"]], APP_SETTINGS["cvp_user"], APP_SETTINGS["cvp_password"])
+        client.connect(
+            [APP_SETTINGS["aristacv_cvp_host"]],
+            APP_SETTINGS["aristacv_cvp_user"],
+            APP_SETTINGS["aristacv_cvp_password"],
+        )
         version = client.api.get_cvp_info()
         if "version" in version:
             return version["version"]
