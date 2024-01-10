@@ -277,8 +277,6 @@ class NautobotIPAddress(IPAddress):
             parent=OrmPrefix.objects.get(prefix=ids["prefix"], namespace=Namespace.objects.get(name="Global")),
             status=OrmStatus.objects.get(name="Active"),
         )
-        if "loopback" in ids["interface"]:
-            new_ip.role = "loopback"
         new_ip.validated_save()
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
@@ -293,6 +291,9 @@ class NautobotIPAssignment(IPAssignment):
             ipaddr = OrmIPAddress.objects.get(address=ids["address"])
             intf = OrmInterface.objects.get(name=ids["interface"], device__name=ids["device"])
             new_map = IPAddressToInterface(ip_address=ipaddr, interface=intf)
+            if "loopback" in ids["interface"]:
+                ipaddr.role = "loopback"
+                ipaddr.validated_save()
             new_map.validated_save()
             if attrs.get("primary"):
                 if ":" in ids["address"]:
