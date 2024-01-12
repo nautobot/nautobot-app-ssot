@@ -30,7 +30,7 @@ class TestNautobotUtils(TransactionTestCase):  # pylint: disable=too-many-instan
         self.site = Location.objects.create(
             name="Test Site",
             status=self.status_active,
-            location_type=LocationType.objects.get_or_create(name="Site")[0],
+            location_type=LocationType.objects.get(name="Site"),
         )
         self.site.validated_save()
         _dt = DeviceType.objects.create(model="CSR1000v", manufacturer=self.cisco_manu)
