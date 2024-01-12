@@ -40,6 +40,8 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
         self.cloudvision.get_interface_description.return_value = "Uplink to DC1"
         self.cloudvision.get_ip_interfaces = MagicMock()
         self.cloudvision.get_ip_interfaces.return_value = fixtures.IP_INTF_FIXTURE
+        self.cloudvision.get_interface_vrf = MagicMock()
+        self.cloudvision.get_interface_vrf.return_value = "Global"
 
         self.job = self.job_class()
         self.job.job_result = JobResult.objects.create(
@@ -121,10 +123,14 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
                 "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_description",
                 self.cloudvision.get_interface_description,
             ):
-                self.cvp.load_ip_addresses(dev=mock_device)
+                with patch(
+                    "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_vrf",
+                    self.cloudvision.get_interface_vrf,
+                ):
+                    self.cvp.load_ip_addresses(dev=mock_device)
         self.assertEqual(
             {
-                f"{ipaddr['address']}__{ipaddress.ip_interface(ipaddr['address']).network.with_prefixlen}"
+                f"{ipaddr['address']}__{ipaddress.ip_interface(ipaddr['address']).network.with_prefixlen}__Global"
                 for ipaddr in fixtures.IP_INTF_FIXTURE
             },
             {ipaddr.get_unique_id() for ipaddr in self.cvp.get_all("ipaddr")},
