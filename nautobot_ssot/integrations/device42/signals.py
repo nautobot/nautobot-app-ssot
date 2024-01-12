@@ -26,3 +26,4 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):
     loc_type = LocationType.objects.update_or_create(name="Site")[0]
     for obj_type in [Site, RackGroup, Rack, Device, VirtualChassis, Prefix, VLAN]:
         loc_type.content_types.add(ContentType.objects.get_for_model(obj_type))
+    loc_type.save()
