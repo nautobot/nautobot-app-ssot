@@ -115,7 +115,7 @@ class NautobotAdapter(DiffSync):
                 new_pf = self.prefix(
                     prefix=str(ipaddr.parent.prefix),
                     namespace=ipaddr.parent.namespace.name,
-                    uuid=ipaddr.parent.prefix.id,
+                    uuid=ipaddr.parent.id,
                 )
                 self.add(new_pf)
             new_ip = self.ipaddr(
