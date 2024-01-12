@@ -10,7 +10,8 @@ from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAss
 from nautobot.extras.models import Status as OrmStatus
 from nautobot.ipam.models import IPAddress as OrmIPAddress
 from nautobot.ipam.models import Prefix as OrmPrefix
-from nautobot.ipam.models import Namespace, IPAddressToInterface
+from nautobot.ipam.models import Namespace as OrmNamespace
+from nautobot.ipam.models import IPAddressToInterface
 import distutils
 
 from nautobot_ssot.integrations.aristacv.constant import (
@@ -23,6 +24,7 @@ from nautobot_ssot.integrations.aristacv.diffsync.models.base import (
     CustomField,
     IPAddress,
     IPAssignment,
+    Namespace,
     Port,
     Prefix,
 )
@@ -249,6 +251,28 @@ class NautobotPort(Port):
         return self
 
 
+class NautobotNamespace(Namespace):
+    """Nautobot Prefix model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create Prefix in Nautobot from NautobotPrefix objects."""
+        if diffsync.job.debug:
+            diffsync.job.logger.info(f"Creating Namespace {ids['name']}.")
+        _ns = OrmNamespace(
+            name=ids["name"],
+        )
+        _ns.validated_save()
+        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+
+    def delete(self):
+        """Delete Namespace in Nautobot."""
+        super().delete()
+        _ns = OrmNamespace.objects.get(id=self.uuid)
+        _ns.delete()
+        return self
+
+
 class NautobotPrefix(Prefix):
     """Nautobot Prefix model."""
 
@@ -259,7 +283,7 @@ class NautobotPrefix(Prefix):
             diffsync.job.logger.info(f"Creating Prefix {ids['prefix']}.")
         _pf = OrmPrefix(
             prefix=ids["prefix"],
-            namespace=Namespace.objects.get(name="Global"),
+            namespace=OrmNamespace.objects.get(name=ids["namespace"]),
             status=OrmStatus.objects.get(name="Active"),
         )
         _pf.validated_save()
@@ -274,7 +298,9 @@ class NautobotIPAddress(IPAddress):
         """Create IPAddress in Nautobot."""
         new_ip = OrmIPAddress(
             address=ids["address"],
-            parent=OrmPrefix.objects.get(prefix=ids["prefix"], namespace=Namespace.objects.get(name="Global")),
+            parent=OrmPrefix.objects.get(
+                prefix=ids["prefix"], namespace=OrmNamespace.objects.get(name=ids["namespace"])
+            ),
             status=OrmStatus.objects.get(name="Active"),
         )
         new_ip.validated_save()
@@ -288,7 +314,9 @@ class NautobotIPAssignment(IPAssignment):
     def create(cls, diffsync, ids, attrs):
         """Create IPAddressToInterface in Nautobot."""
         try:
-            ipaddr = OrmIPAddress.objects.get(address=ids["address"])
+            ipaddr = OrmIPAddress.objects.get(
+                address=ids["address"], parent__namespace=OrmNamespace.objects.get(name=ids["namespace"])
+            )
             intf = OrmInterface.objects.get(name=ids["interface"], device__name=ids["device"])
             new_map = IPAddressToInterface(ip_address=ipaddr, interface=intf)
             if "loopback" in ids["interface"]:

@@ -3,6 +3,7 @@ from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
 from nautobot_ssot.integrations.aristacv.diffsync.models.base import (
     Device,
     CustomField,
+    Namespace,
     Prefix,
     IPAddress,
     IPAssignment,
@@ -42,6 +43,26 @@ class CloudvisionPort(Port):
 
     def delete(self):
         """Delete Interface in AristaCV from Port object."""
+        return self
+
+
+class CloudvisionNamespace(Namespace):
+    """Cloudvision Namespace model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create Namespace in AristaCV from Namespace object."""
+        ...
+        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+
+    def update(self, attrs):
+        """Update Namespace in AristaCV from Namespace object."""
+        ...
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete Namespace in AristaCV from Namespace object."""
+        ...
         return self
 
 

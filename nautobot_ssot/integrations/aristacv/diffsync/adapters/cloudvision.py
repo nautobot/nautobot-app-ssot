@@ -11,6 +11,7 @@ from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
 from nautobot_ssot.integrations.aristacv.diffsync.models.cloudvision import (
     CloudvisionCustomField,
     CloudvisionDevice,
+    CloudvisionNamespace,
     CloudvisionPort,
     CloudvisionPrefix,
     CloudvisionIPAddress,
@@ -24,12 +25,13 @@ class CloudvisionAdapter(DiffSync):
 
     device = CloudvisionDevice
     port = CloudvisionPort
+    namespace = CloudvisionNamespace
     prefix = CloudvisionPrefix
     ipaddr = CloudvisionIPAddress
     ipassignment = CloudvisionIPAssignment
     cf = CloudvisionCustomField
 
-    top_level = ["device", "prefix", "ipaddr", "ipassignment", "cf"]
+    top_level = ["device", "namespace", "prefix", "ipaddr", "ipassignment", "cf"]
 
     def __init__(self, *args, job=None, conn: cloudvision.CloudvisionApi, **kwargs):
         """Initialize the CloudVision DiffSync adapter."""
@@ -188,13 +190,15 @@ class CloudvisionAdapter(DiffSync):
                 )
             if intf["address"] and intf["address"] != "none":
                 prefix = ipaddress.ip_interface(intf["address"]).network.with_prefixlen
+                self.get_or_instantiate(self.namespace, ids={"name": intf_vrf})
                 self.get_or_instantiate(
                     self.prefix,
-                    ids={"prefix": prefix},
+                    ids={"prefix": prefix, "namespace": intf_vrf},
                 )
                 new_ip = self.ipaddr(
                     address=intf["address"],
                     prefix=prefix,
+                    namespace=intf_vrf,
                     uuid=None,
                 )
                 try:
@@ -208,6 +212,7 @@ class CloudvisionAdapter(DiffSync):
                     self.ipassignment,
                     ids={
                         "address": intf["address"],
+                        "namespace": intf_vrf,
                         "device": dev.name,
                         "interface": intf["interface"],
                     },
