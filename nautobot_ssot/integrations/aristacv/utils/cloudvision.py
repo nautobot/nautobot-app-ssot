@@ -640,6 +640,25 @@ def get_interface_description(client: CloudvisionApi, dId: str, interface: str):
     return ""
 
 
+def get_interface_vrf(client: CloudvisionApi, dId: str, interface: str) -> str:
+    """Gets interface VRF.
+
+    Args:
+        client (CloudvisionApi): Cloudvision connection.
+        dId (str): Device ID to determine type for.
+        interface (str): Name of interface to get mode information for.
+    """
+    pathElts = ["Sysdb", "l3", "intf", "config", "intfConfig", interface]
+    query = [create_query([(pathElts, [])], dId)]
+    query = unfreeze_frozen_dict(query)
+
+    for batch in client.get(query):
+        for notif in batch["notifications"]:
+            if notif["updates"].get("vrf"):
+                return notif["updates"]["vrf"]["value"]
+    return "Global"
+
+
 def get_ip_interfaces(client: CloudvisionApi, dId: str):
     """Gets interfaces with IP Addresses configured from specified device.
 

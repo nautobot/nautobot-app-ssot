@@ -188,6 +188,7 @@ class CloudvisionAdapter(DiffSync):
                 self.job.logger.info(
                     f"Attempting to load IP Address {intf['address']} for {intf['interface']} on {dev.name}."
                 )
+            intf_vrf = cloudvision.get_interface_vrf(client=self.conn, dId=dev.serial, interface=intf["interface"])
             if intf["address"] and intf["address"] != "none":
                 prefix = ipaddress.ip_interface(intf["address"]).network.with_prefixlen
                 self.get_or_instantiate(self.namespace, ids={"name": intf_vrf})
