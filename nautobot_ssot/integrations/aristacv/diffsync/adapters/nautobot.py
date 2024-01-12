@@ -132,7 +132,7 @@ class NautobotAdapter(DiffSync):
             for mapping in ip_to_intfs:
                 new_map = self.ipassignment(
                     address=str(ipaddr.address),
-                    namespace=mapping.ip_address.namespace.name,
+                    namespace=mapping.ip_address.parent.namespace.name,
                     device=mapping.device.name,
                     interface=mapping.interface.name,
                     primary=len(mapping.ip_address.primary_ip4_for.all()) > 0
