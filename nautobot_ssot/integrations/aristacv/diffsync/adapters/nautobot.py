@@ -110,17 +110,17 @@ class NautobotAdapter(DiffSync):
                 )
                 self.add(new_ns)
             try:
-                self.get(self.prefix, ipaddr.parent.prefix.with_prefixlen)
+                self.get(self.prefix, str(ipaddr.parent.prefix))
             except ObjectNotFound:
                 new_pf = self.prefix(
-                    prefix=ipaddr.parent.prefix.with_prefixlen,
+                    prefix=str(ipaddr.parent.prefix),
                     namespace=ipaddr.parent.namespace.name,
                     uuid=ipaddr.parent.prefix.id,
                 )
                 self.add(new_pf)
             new_ip = self.ipaddr(
                 address=str(ipaddr.address),
-                prefix=ipaddr.parent.prefix.with_prefixlen,
+                prefix=str(ipaddr.parent.prefix),
                 namespace=ipaddr.parent.namespace.name,
                 uuid=ipaddr.id,
             )
