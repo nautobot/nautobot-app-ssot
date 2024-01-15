@@ -1,0 +1,36 @@
+[
+    {
+        "_ref": "networkcontainer/ZG5zLm5ldHdvcmtfY29udGFpbmVyJDEwLjYxLjE1LjAvMjQvMA:10.61.15.0/24/NAT",
+        "comment": "NAT",
+        "extattrs": {
+            "IPPlan Last Modified": {
+                "value": "2011-09-28T11:01:00Z"
+            },
+            "IPPlan UserID": {
+                "value": "admin"
+            }
+        },
+        "network": "10.61.15.0/24",
+        "network_view": "default",
+        "rir": "NONE",
+        "status": "container"
+    },
+    {
+        "_ref": "networkcontainer/ZG5zLm5ldHdvcmtfY29udGFpbmVyJDE3Mi4zMC4zMi4wLzIyLzA:172.30.32.0/22/2%20NAT",
+        "comment": "NAT",
+        "extattrs": {},
+        "network": "172.30.32.0/22",
+        "network_view": "default",
+        "rir": "NONE",
+        "status": "container"
+    },
+    {
+        "_ref": "networkcontainer/ZG5zLm5ldHdvcmtfY29udGFpbmVyJDE3Mi4xOS42NS4wLzI0LzA:172.19.65.0/24/3%20NAT",
+        "comment": "NAT",
+        "extattrs": {},
+        "network": "172.19.65.0/24",
+        "network_view": "default",
+        "rir": "NONE",
+        "status": "container"
+    }
+]

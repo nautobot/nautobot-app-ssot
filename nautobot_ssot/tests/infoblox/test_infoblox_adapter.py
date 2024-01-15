@@ -2,15 +2,13 @@
 import json
 from unittest.mock import MagicMock, patch
 
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from nautobot.extras.models import JobResult
+from diffsync.exceptions import ObjectNotFound
 
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import InfobloxAdapter
 from nautobot_ssot.integrations.infoblox.diffsync.models.infoblox import InfobloxNetwork
 from nautobot_ssot.integrations.infoblox.jobs import InfobloxDataSource
-from nautobot_ssot.integrations.infoblox.constant import PLUGIN_CFG
-
-from diffsync.exceptions import ObjectNotFound
 
 
 def load_json(path):
@@ -19,10 +17,9 @@ def load_json(path):
         return json.loads(file.read())
 
 
-CONTAINER_FIXTURE = load_json("./nautobot_ssot/tests/infoblox/fixtures/get_network_containers.json")
-SUBNET_FIXTURE = load_json("./nautobot_ssot/tests/infoblox/fixtures/get_all_subnets.json")
-IPV6_CONTAINER_FIXTURE = load_json("./nautobot_ssot/tests/infoblox/fixtures/get_network_containers_ipv6.json")
-IPV6_SUBNET_FIXTURE = load_json("./nautobot_ssot/tests/infoblox/fixtures/get_all_subnets.json")
+CONTAINER_FIXTURE = load_json("./nautobot_ssot/tests/infoblox/fixtures/get_network_containers_list.json")
+SUBNET_FIXTURE = load_json("./nautobot_ssot/tests/infoblox/fixtures/get_all_subnets_list.json")
+IPV6_CONTAINER_FIXTURE = load_json("./nautobot_ssot/tests/infoblox/fixtures/get_network_containers_ipv6_list.json")
 
 
 class InfobloxDiffSyncTestCase(TestCase):
@@ -62,8 +59,7 @@ class InfobloxDiffSyncTestCase(TestCase):
         def mock_get_network_containers(ipv6=False):
             if ipv6:
                 return IPV6_CONTAINER_FIXTURE
-            else:
-                return CONTAINER_FIXTURE
+            return CONTAINER_FIXTURE
 
         self.conn.get_network_containers.side_effect = mock_get_network_containers
         self.conn.get_all_subnets.return_value = SUBNET_FIXTURE
