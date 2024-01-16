@@ -20,11 +20,11 @@ logger = logging.getLogger("nautobot.ssot.infoblox")
 def parse_url(address):
     """Handle outside case where protocol isn't included in URL address.
 
-    Args:
-        address (str): URL set by end user for Infoblox instance.
+        Args:
+            address (str): URL set by end user for Infoblox instance.
 
-    Returns:
-        ParseResult: The parsed results from urllib.
+    get    Returns:
+            ParseResult: The parsed results from urllib.
     """
     if not re.search(r"^[A-Za-z0-9+.\-]+://", address):
         address = f"https://{address}"
@@ -1270,7 +1270,8 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         """Get all Network Containers.
 
         Args:
-            prefix (Str): Specific prefix (192.168.0.1/24)
+            prefix (str): Specific prefix (192.168.0.1/24)
+            ipv6 (bool): Whether the call should be made for IPv6 network containers.
 
         Returns:
             (list) of record dicts

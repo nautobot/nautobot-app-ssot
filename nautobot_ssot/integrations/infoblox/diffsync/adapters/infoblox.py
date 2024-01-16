@@ -70,7 +70,6 @@ class InfobloxAdapter(DiffSync):
         else:
             # Need to load containers here to prevent duplicates when syncing back to Infoblox
             containers = self.conn.get_network_containers()
-            # raise Exception("Hello")
             subnets = self.conn.get_all_subnets()
             if PLUGIN_CFG.get("infoblox_import_objects_subnets_ipv6"):
                 containers += self.conn.get_network_containers(ipv6=True)
