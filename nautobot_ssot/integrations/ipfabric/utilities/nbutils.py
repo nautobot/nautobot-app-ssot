@@ -40,7 +40,7 @@ def create_location(location_name, location_id=None):
         # Ensure custom field is available
         custom_field_obj, _ = CustomField.objects.get_or_create(
             type=CustomFieldTypeChoices.TYPE_TEXT,
-            label="ipfabric_site_id",
+            key="ipfabric_site_id",
             defaults={"label": "IPFabric Location ID"},
         )
         custom_field_obj.content_types.add(ContentType.objects.get_for_model(Location))

@@ -11,6 +11,7 @@ from nautobot.extras.models import Role
 from nautobot_ssot.integrations.ipfabric.utilities import (  # create_ip,; create_interface,; create_location,
     get_or_create_device_role_object,
     create_device_type_object,
+    create_location,
     create_manufacturer,
     create_status,
     create_vlan,
@@ -23,12 +24,12 @@ class TestNautobotUtils(TestCase):
 
     def setUp(self):
         """Setup."""
-        reg_loctype = LocationType.objects.update_or_create(name="Region")[0]
-        reg_loctype.content_types.set([ContentType.objects.get_for_model(VLAN)])
+        site_location_type = LocationType.objects.update_or_create(name="Site")[0]
+        site_location_type.content_types.set([ContentType.objects.get_for_model(VLAN)])
         self.location = Location.objects.create(
             name="Test-Location",
             status=Status.objects.get(name="Active"),
-            location_type=reg_loctype,
+            location_type=site_location_type,
         )
 
         status_active = Status.objects.get(name="Active")
@@ -79,10 +80,29 @@ class TestNautobotUtils(TestCase):
         )
         self.assertEqual(VLAN.objects.get(name="Test-Vlan").pk, vlan.pk)
 
-    # def test_create_location(self):
-    #     """Test `create_location` Utility."""
-    #     test_location = create_location(location_name="Test-Location")
-    #     self.assertEqual(test_location.id, self.location.id)
+    def test_create_location_existing_location_no_location_id(self):
+        """Test `create_location` Utility."""
+        test_location = create_location(location_name="Test-Location")
+        self.assertEqual(test_location.id, self.location.id)
+
+    def test_create_location_existing_location_with_location_id(self):
+        """Test `create_location` Utility."""
+        self.assertFalse(self.location.cf.get("ipfabric_site_id"))
+        test_location = create_location(location_name="Test-Location", location_id="Test-Location")
+        self.assertEqual(test_location.id, self.location.id)
+        self.assertEqual(test_location.cf["ipfabric_site_id"], "Test-Location")
+
+    def test_create_location_no_location_id(self):
+        """Test `create_location` Utility."""
+        test_location = create_location(location_name="Test-Location-new")
+        self.assertEqual(test_location.name, "Test-Location-new")
+
+    def test_create_location_with_location_id(self):
+        """Test `create_location` Utility."""
+        self.assertFalse(Location.objects.filter(name="Test-Location-new"))
+        test_location = create_location(location_name="Test-Location-new", location_id="Test-Location-new")
+        self.assertEqual(test_location.name, "Test-Location-new")
+        self.assertEqual(test_location.cf["ipfabric_site_id"], "Test-Location-new")
 
     # def test_create_location_exception(self):
     #     """Test `create_location` Utility exception."""
