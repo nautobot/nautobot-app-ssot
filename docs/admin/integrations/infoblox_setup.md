@@ -1,6 +1,6 @@
 # Infoblox Integration Setup
 
-This guide will walk you through steps to set up Infoblox integration with the `nautobot_ssot` app.
+This guide will walk you through the steps to set up Infoblox integration with the `nautobot_ssot` app.
 
 ## Prerequisites
 
@@ -14,22 +14,23 @@ pip install nautobot-ssot[infoblox]
 
 Integration behavior can be controlled with the following settings:
 
-| Setting                                    | Default | Description                                                              |
-| ------------------------------------------ | ------- | ------------------------------------------------------------------------ |
-| infoblox_url                               | N/A     | URL of the Infoblox instance to sync with.                               |
-| infoblox_username                          | N/A     | The username to authenticate against Infoblox with.                      |
-| infoblox_password                          | N/A     | The password to authenticate against Infblox with.                       |
-| infoblox_verify_ssl                        | True    | Toggle SSL verification when syncing data with Infoblox.                 |
-| infoblox_wapi_version                      | v2.12   | The version of the Infoblox API.                                         |
-| infoblox_enable_sync_to_infoblox           | False   | Add job to sync data from Nautobot into Infoblox.                        |
-| infoblox_enable_rfc1918_network_containers | False   | Add job to sync network containers to Nautobot (top level aggregates).   |
-| infoblox_default_status                    | active  | Default Status to be assigned to imported objects.                       |
-| infoblox_import_objects_ip_addresses       | False   | Import IP addresses from Infoblox to Nautobot.                           |
-| infoblox_import_objects_subnets            | False   | Import subnets from Infoblox to Nautobot.                                |
-| infoblox_import_objects_vlan_views         | False   | Import VLAN views from Infoblox to Nautobot.                             |
-| infoblox_import_objects_vlans              | False   | Import VLANs from Infoblox to Nautobot.                                  |
-| infoblox_import_subnets                    | N/A     | List of Subnets in CIDR string notation to filter import to.             |
-| infoblox_network_view                      | N/A     | Only load IPAddresses from a specific Infoblox Network View.             |
+| Setting                                    | Default | Description                                                            |
+| ------------------------------------------ | ------- | ---------------------------------------------------------------------- |
+| infoblox_url                               | N/A     | URL of the Infoblox instance to sync with.                             |
+| infoblox_username                          | N/A     | The username to authenticate against Infoblox with.                    |
+| infoblox_password                          | N/A     | The password to authenticate against Infblox with.                     |
+| infoblox_verify_ssl                        | True    | Toggle SSL verification when syncing data with Infoblox.               |
+| infoblox_wapi_version                      | v2.12   | The version of the Infoblox API.                                       |
+| infoblox_enable_sync_to_infoblox           | False   | Add job to sync data from Nautobot into Infoblox.                      |
+| infoblox_enable_rfc1918_network_containers | False   | Add job to sync network containers to Nautobot (top level aggregates). |
+| infoblox_default_status                    | active  | Default Status to be assigned to imported objects.                     |
+| infoblox_import_objects_ip_addresses       | False   | Import IP addresses from Infoblox to Nautobot.                         |
+| infoblox_import_objects_subnets            | False   | Import subnets from Infoblox to Nautobot.                              |
+| infoblox_import_objects_subnets_ipv6       | False   | Import IPv6 subnets from Infoblox to Nautobot.                         |
+| infoblox_import_objects_vlan_views         | False   | Import VLAN views from Infoblox to Nautobot.                           |
+| infoblox_import_objects_vlans              | False   | Import VLANs from Infoblox to Nautobot.                                |
+| infoblox_import_subnets                    | N/A     | List of Subnets in CIDR string notation to filter import to.           |
+| infoblox_network_view                      | N/A     | Only load IPAddresses from a specific Infoblox Network View.           |
 
 Below is an example snippet from `nautobot_config.py` that demonstrates how to enable and configure Infoblox integration:
 
@@ -46,6 +47,7 @@ PLUGINS_CONFIG = {
             os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_IP_ADDRESSES")
         ),
         "infoblox_import_objects_subnets": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_SUBNETS")),
+        "infoblox_import_objects_subnets_ipv6": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_SUBNETS_IPV6")),
         "infoblox_import_objects_vlan_views": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_VLAN_VIEWS")),
         "infoblox_import_objects_vlans": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_VLANS")),
         "infoblox_import_subnets": os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_SUBNETS", "").split(","),
@@ -113,6 +115,7 @@ PLUGINS_CONFIG = {
                 os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_IP_ADDRESSES")
             ),
             "infoblox_import_objects_subnets": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_SUBNETS")),
+            "infoblox_import_objects_subnets_ipv6": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_SUBNETS_IPV6")),
             "infoblox_import_objects_vlan_views": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_VLAN_VIEWS")),
             "infoblox_import_objects_vlans": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_VLANS")),
             "infoblox_import_subnets": os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_SUBNETS", "").split(","),

@@ -1,0 +1,50 @@
+[
+    {
+        "_ref": "ipv6networkcontainer/ZG5zLm5ldHdvcmtfY29udGFpbmVyJDIwMDE6NWIwOjQxMDA6Oi80MC8w:2001%3A5b0%3A4100%3A%3A/40/Gateway%201",
+        "comment": "Gateway 1",
+        "extattrs": {
+            "GWID": {
+                "value": "ABC"
+            },
+            "GWType": {
+                "value": "Test"
+            }
+        },
+        "network": "2001:5b0:4100::/40",
+        "network_view": "default",
+        "rir": "NONE",
+        "status": "container"
+    },
+    {
+        "_ref": "ipv6networkcontainer/ZG5zLm5ldHdvcmtfY29udGFpbmVyJDIwMDE6NWIwOjQyMDA6Oi80MC8w:2001%3A5b0%3A4200%3A%3A/40/Gateway%202",
+        "comment": "Gateway 2",
+        "extattrs": {
+            "GWID": {
+                "value": "ABC"
+            },
+            "GWType": {
+                "value": "Test"
+            }
+        },
+        "network": "2001:5b0:4200::/40",
+        "network_view": "default",
+        "rir": "NONE",
+        "status": "container"
+    },
+    {
+        "_ref": "ipv6networkcontainer/ZG5zLm5ldHdvcmtfY29udGFpbmVyJDIwMDE6NWIwOjQzMDA6Oi80MC8w:2001%3A5b0%3A4300%3A%3A/40/Gateway%203",
+        "comment": "Gateway 3",
+        "extattrs": {
+            "GWID": {
+                "value": "XYZ"
+            },
+            "GWType": {
+                "value": "Test"
+            }
+        },
+        "network": "2001:5b0:4300::/40",
+        "network_view": "default",
+        "rir": "NONE",
+        "status": "container"
+    }
+]
