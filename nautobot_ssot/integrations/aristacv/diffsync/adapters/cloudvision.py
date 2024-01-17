@@ -243,6 +243,9 @@ class CloudvisionAdapter(DiffSync):
             if tag["label"] == "mpls" or tag["label"] == "ztp":
                 tag["value"] = bool(distutils.util.strtobool(tag["value"]))
 
+            if tag["value"] in ["true", "false"]:
+                tag["value"] = bool(distutils.util.strtobool(tag["value"]))
+
             new_cf = self.cf(
                 name=f"arista_{tag['label']}",
                 value=tag["value"],
