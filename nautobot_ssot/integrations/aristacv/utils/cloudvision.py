@@ -694,14 +694,24 @@ def get_cvp_version():
     """
     client = CvpClient()
     try:
-        client.connect(
-            [APP_SETTINGS["aristacv_cvp_host"]],
-            APP_SETTINGS["aristacv_cvp_user"],
-            APP_SETTINGS["aristacv_cvp_password"],
-        )
-        version = client.api.get_cvp_info()
-        if "version" in version:
-            return version["version"]
+        if APP_SETTINGS.get("aristacv_cvp_token") and not APP_SETTINGS.get("aristacv_cvp_host"):
+            client.connect(
+                nodes=[APP_SETTINGS["aristacv_cvaas_url"]],
+                username="",
+                password="",
+                is_cvaas=True,
+                api_token=APP_SETTINGS.get("aristacv_cvp_token"),
+            )
+        else:
+            client.connect(
+                nodes=[APP_SETTINGS["aristacv_cvp_host"]],
+                username=APP_SETTINGS.get("aristacv_cvp_user"),
+                password=APP_SETTINGS.get("aristacv_cvp_password"),
+                is_cvaas=False,
+            )
     except CvpLoginError as err:
         raise AuthFailure(error_code="Failed Login", message=f"Unable to login to CloudVision Portal. {err}") from err
+    version = client.api.get_cvp_info()
+    if "version" in version:
+        return version["version"]
     return ""
