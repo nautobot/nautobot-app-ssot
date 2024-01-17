@@ -150,7 +150,7 @@ class NautobotAdapter(DiffSync):
         # if Controller is created we need to ensure all imported Devices have RelationshipAssociation to it.
         if APP_SETTINGS.get("aristacv_create_controller"):
             self.job.logger.info("Creating Relationships between CloudVision and connected Devices.")
-            controller_relation = OrmRelationship.objects.get(name="Controller -> Device")
+            controller_relation = OrmRelationship.objects.get(label="Controller -> Device")
             device_ct = ContentType.objects.get_for_model(OrmDevice)
             cvp = OrmDevice.objects.get(name="CloudVision")
             loaded_devices = source.dict()["device"]
