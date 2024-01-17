@@ -110,7 +110,7 @@ class NautobotAdapter(DiffSync):
                 )
                 self.add(new_ns)
             try:
-                self.get(self.prefix, str(ipaddr.parent.prefix))
+                self.get(self.prefix, {"prefix": str(ipaddr.parent.prefix), "namespace": ipaddr.parent.namespace.name})
             except ObjectNotFound:
                 new_pf = self.prefix(
                     prefix=str(ipaddr.parent.prefix),
