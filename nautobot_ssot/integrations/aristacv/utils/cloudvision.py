@@ -49,11 +49,11 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
     def __init__(
         self,
         cvp_host: str,
-        cvp_port: str = None,
+        cvp_port: str = "",
         verify: bool = True,
-        username: str = None,
-        password: str = None,
-        cvp_token: str = None,
+        username: str = "",
+        password: str = "",
+        cvp_token: str = "",
     ):
         """Create Cloudvision API connection."""
         self.metadata = None
