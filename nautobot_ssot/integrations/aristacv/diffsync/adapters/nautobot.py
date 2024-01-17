@@ -1,5 +1,7 @@
 """DiffSync adapter for Nautobot."""
+from collections import defaultdict
 from django.contrib.contenttypes.models import ContentType
+from django.db.models import ProtectedError
 from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import Interface as OrmInterface
 from nautobot.extras.models import Relationship as OrmRelationship
@@ -39,6 +41,7 @@ class NautobotAdapter(DiffSync):
         """Initialize the Nautobot DiffSync adapter."""
         super().__init__(*args, **kwargs)
         self.job = job
+        self.objects_to_delete = defaultdict(list)
 
     def load_devices(self):
         """Add Nautobot Device objects as DiffSync Device models."""
@@ -147,6 +150,22 @@ class NautobotAdapter(DiffSync):
         Args:
             source (DiffSync): Source DiffSync DataSource adapter.
         """
+        for grouping in (
+            "ipaddresses",
+            "prefixes",
+            "namespaces",
+            "interfaces",
+            "devices",
+        ):
+            for nautobot_object in self.objects_to_delete[grouping]:
+                try:
+                    if self.job.debug:
+                        self.job.logger.info(f"Deleting {nautobot_object}.")
+                    nautobot_object.delete()
+                except ProtectedError as err:
+                    self.job.logger.warning(f"Deletion failed for protected object: {nautobot_object}. {err}")
+            self.objects_to_delete[grouping] = []
+
         # if Controller is created we need to ensure all imported Devices have RelationshipAssociation to it.
         if APP_SETTINGS.get("aristacv_create_controller"):
             self.job.logger.info("Creating Relationships between CloudVision and connected Devices.")

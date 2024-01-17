@@ -146,7 +146,7 @@ class NautobotDevice(Device):
         if APP_SETTINGS.get("aristacv_delete_devices_on_sync", DEFAULT_DELETE_DEVICES_ON_SYNC):
             self.diffsync.job.logger.warning(f"Device {self.name} will be deleted per app settings.")
             device = OrmDevice.objects.get(id=self.uuid)
-            device.delete()
+            self.diffsync.objects_to_delete["devices"].append(device)
             super().delete()
         return self
 
@@ -247,7 +247,7 @@ class NautobotPort(Port):
             if self.diffsync.job.debug:
                 self.diffsync.job.logger.warning(f"Interface {self.name} for {self.device} will be deleted.")
             _port = OrmInterface.objects.get(id=self.uuid)
-            _port.delete()
+            self.diffsync.objects_to_delete["interfaces"].append(_port)
         return self
 
 
@@ -269,7 +269,7 @@ class NautobotNamespace(Namespace):
         """Delete Namespace in Nautobot."""
         super().delete()
         _ns = OrmNamespace.objects.get(id=self.uuid)
-        _ns.delete()
+        self.diffsync.objects_to_delete["namespaces"].append(_ns)
         return self
 
 
@@ -289,6 +289,13 @@ class NautobotPrefix(Prefix):
         _pf.validated_save()
         return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
 
+    def delete(self):
+        """Delete Prefix in Nautobot."""
+        super().delete()
+        _pf = OrmPrefix.objects.get(id=self.uuid)
+        self.diffsync.objects_to_delete["prefixes"].append(_pf)
+        return self
+
 
 class NautobotIPAddress(IPAddress):
     """Nautobot IPAddress model."""
@@ -305,6 +312,13 @@ class NautobotIPAddress(IPAddress):
         )
         new_ip.validated_save()
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+
+    def delete(self):
+        """Delete IPAddress in Nautobot."""
+        super().delete()
+        ipaddr = OrmIPAddress.objects.get(id=self.uuid)
+        self.diffsync.objects_to_delete["ipaddresses"].append(ipaddr)
+        return self
 
 
 class NautobotIPAssignment(IPAssignment):

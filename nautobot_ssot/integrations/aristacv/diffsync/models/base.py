@@ -73,8 +73,6 @@ class Namespace(DiffSyncModel):
 class Prefix(DiffSyncModel):
     """Prefix Model."""
 
-    model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
-
     _modelname = "prefix"
     _identifiers = ("prefix", "namespace")
     _attributes = ()
@@ -87,8 +85,6 @@ class Prefix(DiffSyncModel):
 
 class IPAddress(DiffSyncModel):
     """IPAddress Model."""
-
-    model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
 
     _modelname = "ipaddr"
     _identifiers = (
