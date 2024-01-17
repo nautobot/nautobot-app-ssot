@@ -698,7 +698,7 @@ def get_cvp_version():
             client.connect(
                 nodes=[APP_SETTINGS["aristacv_cvaas_url"]],
                 username="",
-                password="",
+                password="",  # nosec: B106
                 is_cvaas=True,
                 api_token=APP_SETTINGS.get("aristacv_cvp_token"),
             )
