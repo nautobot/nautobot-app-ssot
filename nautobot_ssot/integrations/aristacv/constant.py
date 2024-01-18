@@ -5,7 +5,7 @@ from django.conf import settings
 
 def _read_settings() -> dict:
     config = settings.PLUGINS_CONFIG["nautobot_ssot"]
-    return {key[9:]: value for key, value in config.items() if key.startswith("aristacv_")}
+    return config
 
 
 APP_SETTINGS = _read_settings()

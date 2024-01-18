@@ -15,7 +15,7 @@ def register_signals(sender):
     post_migrate.connect(post_migrate_create_manufacturer)
     post_migrate.connect(post_migrate_create_platform)
 
-    if APP_SETTINGS.get("create_controller"):
+    if APP_SETTINGS.get("aristacv_create_controller"):
         post_migrate.connect(post_migrate_create_controller_relationship)
 
 
@@ -102,6 +102,11 @@ def post_migrate_create_custom_fields(apps=global_apps, **kwargs):
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "Topology Pod",
         },
+        {
+            "key": "arista_vxlanConfigured",
+            "type": CustomFieldTypeChoices.TYPE_BOOLEAN,
+            "label": "VXLAN Configured",
+        },
     ]:
         field, _ = CustomField.objects.update_or_create(
             key=device_cf_dict["key"],
@@ -129,7 +134,7 @@ def post_migrate_create_platform(apps=global_apps, **kwargs):
         },
     )
 
-    if APP_SETTINGS.get("create_controller"):
+    if APP_SETTINGS.get("aristacv_create_controller"):
         Platform.objects.get_or_create(
             name="Arista EOS-CloudVision",
             manufacturer=Manufacturer.objects.get(name="Arista"),

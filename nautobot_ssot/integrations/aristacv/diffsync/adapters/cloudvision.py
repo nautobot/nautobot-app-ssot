@@ -1,5 +1,6 @@
 """DiffSync adapter for Arista CloudVision."""
 import distutils
+import ipaddress
 import re
 
 import arista.tag.v2 as TAG
@@ -10,8 +11,11 @@ from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
 from nautobot_ssot.integrations.aristacv.diffsync.models.cloudvision import (
     CloudvisionCustomField,
     CloudvisionDevice,
+    CloudvisionNamespace,
     CloudvisionPort,
+    CloudvisionPrefix,
     CloudvisionIPAddress,
+    CloudvisionIPAssignment,
 )
 from nautobot_ssot.integrations.aristacv.utils import cloudvision
 
@@ -21,10 +25,13 @@ class CloudvisionAdapter(DiffSync):
 
     device = CloudvisionDevice
     port = CloudvisionPort
+    namespace = CloudvisionNamespace
+    prefix = CloudvisionPrefix
     ipaddr = CloudvisionIPAddress
+    ipassignment = CloudvisionIPAssignment
     cf = CloudvisionCustomField
 
-    top_level = ["device", "ipaddr", "cf"]
+    top_level = ["device", "namespace", "prefix", "ipaddr", "ipassignment", "cf"]
 
     def __init__(self, *args, job=None, conn: cloudvision.CloudvisionApi, **kwargs):
         """Initialize the CloudVision DiffSync adapter."""
@@ -34,7 +41,7 @@ class CloudvisionAdapter(DiffSync):
 
     def load_devices(self):
         """Load devices from CloudVision."""
-        if APP_SETTINGS.get("create_controller"):
+        if APP_SETTINGS.get("aristacv_create_controller"):
             cvp_version = cloudvision.get_cvp_version()
             cvp_ver_cf = self.cf(name="arista_eos", value=cvp_version, device_name="CloudVision")
             try:
@@ -57,7 +64,8 @@ class CloudvisionAdapter(DiffSync):
                 self.job.logger.warning(f"Error attempting to add CloudVision device. {err}")
 
         for index, dev in enumerate(cloudvision.get_devices(client=self.conn.comm_channel), start=1):
-            self.job.logger.info(f"Loading {index}° device")
+            if self.job.debug:
+                self.job.logger.info(f"Loading {index}° device")
             if dev["hostname"] != "":
                 new_device = self.device(
                     name=dev["hostname"],
@@ -181,11 +189,18 @@ class CloudvisionAdapter(DiffSync):
                 self.job.logger.info(
                     f"Attempting to load IP Address {intf['address']} for {intf['interface']} on {dev.name}."
                 )
+            intf_vrf = cloudvision.get_interface_vrf(client=self.conn, dId=dev.serial, interface=intf["interface"])
             if intf["address"] and intf["address"] != "none":
+                prefix = ipaddress.ip_interface(intf["address"]).network.with_prefixlen
+                self.get_or_instantiate(self.namespace, ids={"name": intf_vrf})
+                self.get_or_instantiate(
+                    self.prefix,
+                    ids={"prefix": prefix, "namespace": intf_vrf},
+                )
                 new_ip = self.ipaddr(
                     address=intf["address"],
-                    interface=intf["interface"],
-                    device=dev.name,
+                    prefix=prefix,
+                    namespace=intf_vrf,
                     uuid=None,
                 )
                 try:
@@ -195,6 +210,16 @@ class CloudvisionAdapter(DiffSync):
                         f"Unable to load {intf['address']} for {dev.name} on {intf['interface']}. {err}"
                     )
                     continue
+                self.get_or_instantiate(
+                    self.ipassignment,
+                    ids={
+                        "address": intf["address"],
+                        "namespace": intf_vrf,
+                        "device": dev.name,
+                        "interface": intf["interface"],
+                    },
+                    attrs={"primary": bool("Management" in intf["interface"])},
+                )
 
     def load_device_tags(self, device):
         """Load device tags from CloudVision."""
@@ -218,7 +243,14 @@ class CloudvisionAdapter(DiffSync):
             if tag["label"] == "mpls" or tag["label"] == "ztp":
                 tag["value"] = bool(distutils.util.strtobool(tag["value"]))
 
-            new_cf = self.cf(name=f"arista_{tag['label']}", value=tag["value"], device_name=device.name)
+            if tag["value"] in ["true", "false"]:
+                tag["value"] = bool(distutils.util.strtobool(tag["value"]))
+
+            new_cf = self.cf(
+                name=f"arista_{tag['label']}",
+                value=tag["value"],
+                device_name=device.name,
+            )
             try:
                 self.add(new_cf)
             except ObjectAlreadyExists:
@@ -226,10 +258,10 @@ class CloudvisionAdapter(DiffSync):
 
     def load(self):
         """Load devices and associated data from CloudVision."""
-        if APP_SETTINGS.get("hostname_patterns") and not (
-            APP_SETTINGS.get("site_mappings") and APP_SETTINGS.get("role_mappings")
+        if APP_SETTINGS.get("aristacv_hostname_patterns") and not (
+            APP_SETTINGS.get("aristacv_site_mappings") and APP_SETTINGS.get("aristacv_role_mappings")
         ):
             self.job.logger.warning(
-                "Configuration found for hostname_patterns but no site_mappings or role_mappings. Please ensure your mappings are defined."
+                "Configuration found for aristacv_hostname_patterns but no aristacv_site_mappings or aristacv_role_mappings. Please ensure your mappings are defined."
             )
         self.load_devices()

@@ -9,10 +9,25 @@ from nautobot.extras.models import Relationship as OrmRelationship
 from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
 from nautobot.extras.models import Status as OrmStatus
 from nautobot.ipam.models import IPAddress as OrmIPAddress
+from nautobot.ipam.models import Prefix as OrmPrefix
+from nautobot.ipam.models import Namespace as OrmNamespace
+from nautobot.ipam.models import IPAddressToInterface
 import distutils
 
-from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS, ARISTA_PLATFORM, CLOUDVISION_PLATFORM
-from nautobot_ssot.integrations.aristacv.diffsync.models.base import Device, CustomField, IPAddress, Port
+from nautobot_ssot.integrations.aristacv.constant import (
+    APP_SETTINGS,
+    ARISTA_PLATFORM,
+    CLOUDVISION_PLATFORM,
+)
+from nautobot_ssot.integrations.aristacv.diffsync.models.base import (
+    Device,
+    CustomField,
+    IPAddress,
+    IPAssignment,
+    Namespace,
+    Port,
+    Prefix,
+)
 from nautobot_ssot.integrations.aristacv.utils import nautobot
 
 try:
@@ -42,33 +57,39 @@ class NautobotDevice(Device):
     def create(cls, diffsync, ids, attrs):
         """Create device object in Nautobot."""
         site_code, role_code = nautobot.parse_hostname(ids["name"].lower())
-        site_map = APP_SETTINGS.get("site_mappings")
-        role_map = APP_SETTINGS.get("role_mappings")
+        site_map = APP_SETTINGS.get("aristacv_site_mappings")
+        role_map = APP_SETTINGS.get("aristacv_role_mappings")
 
         if site_code and site_code in site_map:
             site = nautobot.verify_site(site_map[site_code])
         elif "CloudVision" in ids["name"]:
-            if APP_SETTINGS.get("controller_site"):
-                site = nautobot.verify_site(APP_SETTINGS["controller_site"])
+            if APP_SETTINGS.get("aristacv_controller_site"):
+                site = nautobot.verify_site(APP_SETTINGS["aristacv_controller_site"])
             else:
                 site = nautobot.verify_site("CloudVision")
         else:
-            site = nautobot.verify_site(APP_SETTINGS.get("from_cloudvision_default_site", DEFAULT_SITE))
+            site = nautobot.verify_site(APP_SETTINGS.get("aristacv_from_cloudvision_default_site", DEFAULT_SITE))
 
         if role_code and role_code in role_map:
             role = nautobot.verify_device_role_object(
                 role_map[role_code],
-                APP_SETTINGS.get("from_cloudvision_default_device_role_color", DEFAULT_DEVICE_ROLE_COLOR),
+                APP_SETTINGS.get(
+                    "aristacv_from_cloudvision_default_device_role_color",
+                    DEFAULT_DEVICE_ROLE_COLOR,
+                ),
             )
         elif "CloudVision" in ids["name"]:
             role = nautobot.verify_device_role_object("Controller", DEFAULT_DEVICE_ROLE_COLOR)
         else:
             role = nautobot.verify_device_role_object(
-                APP_SETTINGS.get("from_cloudvision_default_device_role", DEFAULT_DEVICE_ROLE),
-                APP_SETTINGS.get("from_cloudvision_default_device_role_color", DEFAULT_DEVICE_ROLE_COLOR),
+                APP_SETTINGS.get("aristacv_from_cloudvision_default_device_role", DEFAULT_DEVICE_ROLE),
+                APP_SETTINGS.get(
+                    "aristacv_from_cloudvision_default_device_role_color",
+                    DEFAULT_DEVICE_ROLE_COLOR,
+                ),
             )
 
-        if APP_SETTINGS.get("create_controller") and "CloudVision" in ids["name"]:
+        if APP_SETTINGS.get("aristacv_create_controller") and "CloudVision" in ids["name"]:
             platform = OrmPlatform.objects.get(name=CLOUDVISION_PLATFORM)
         else:
             platform = OrmPlatform.objects.get(name=ARISTA_PLATFORM)
@@ -85,7 +106,7 @@ class NautobotDevice(Device):
             serial=attrs["serial"] if attrs.get("serial") else "",
         )
 
-        if APP_SETTINGS.get("apply_import_tag", APPLY_IMPORT_TAG):
+        if APP_SETTINGS.get("aristacv_apply_import_tag", APPLY_IMPORT_TAG):
             import_tag = nautobot.verify_import_tag()
             new_device.tags.add(import_tag)
         try:
@@ -122,10 +143,10 @@ class NautobotDevice(Device):
 
     def delete(self):
         """Delete device object in Nautobot."""
-        if APP_SETTINGS.get("delete_devices_on_sync", DEFAULT_DELETE_DEVICES_ON_SYNC):
+        if APP_SETTINGS.get("aristacv_delete_devices_on_sync", DEFAULT_DELETE_DEVICES_ON_SYNC):
             self.diffsync.job.logger.warning(f"Device {self.name} will be deleted per app settings.")
             device = OrmDevice.objects.get(id=self.uuid)
-            device.delete()
+            self.diffsync.objects_to_delete["devices"].append(device)
             super().delete()
         return self
 
@@ -221,12 +242,58 @@ class NautobotPort(Port):
 
     def delete(self):
         """Delete Interface in Nautobot."""
-        if APP_SETTINGS.get("delete_devices_on_sync"):
+        if APP_SETTINGS.get("aristacv_delete_devices_on_sync"):
             super().delete()
             if self.diffsync.job.debug:
                 self.diffsync.job.logger.warning(f"Interface {self.name} for {self.device} will be deleted.")
             _port = OrmInterface.objects.get(id=self.uuid)
-            _port.delete()
+            self.diffsync.objects_to_delete["interfaces"].append(_port)
+        return self
+
+
+class NautobotNamespace(Namespace):
+    """Nautobot Prefix model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create Prefix in Nautobot from NautobotPrefix objects."""
+        if diffsync.job.debug:
+            diffsync.job.logger.info(f"Creating Namespace {ids['name']}.")
+        _ns = OrmNamespace(
+            name=ids["name"],
+        )
+        _ns.validated_save()
+        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+
+    def delete(self):
+        """Delete Namespace in Nautobot."""
+        super().delete()
+        _ns = OrmNamespace.objects.get(id=self.uuid)
+        self.diffsync.objects_to_delete["namespaces"].append(_ns)
+        return self
+
+
+class NautobotPrefix(Prefix):
+    """Nautobot Prefix model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create Prefix in Nautobot from NautobotPrefix objects."""
+        if diffsync.job.debug:
+            diffsync.job.logger.info(f"Creating Prefix {ids['prefix']}.")
+        _pf = OrmPrefix(
+            prefix=ids["prefix"],
+            namespace=OrmNamespace.objects.get(name=ids["namespace"]),
+            status=OrmStatus.objects.get(name="Active"),
+        )
+        _pf.validated_save()
+        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+
+    def delete(self):
+        """Delete Prefix in Nautobot."""
+        super().delete()
+        _pf = OrmPrefix.objects.get(id=self.uuid)
+        self.diffsync.objects_to_delete["prefixes"].append(_pf)
         return self
 
 
@@ -236,28 +303,67 @@ class NautobotIPAddress(IPAddress):
     @classmethod
     def create(cls, diffsync, ids, attrs):
         """Create IPAddress in Nautobot."""
-        dev = OrmDevice.objects.get(name=ids["device"])
         new_ip = OrmIPAddress(
             address=ids["address"],
+            parent=OrmPrefix.objects.get(
+                prefix=ids["prefix"], namespace=OrmNamespace.objects.get(name=ids["namespace"])
+            ),
             status=OrmStatus.objects.get(name="Active"),
         )
-        if "loopback" in ids["interface"]:
-            new_ip.role = "loopback"
         new_ip.validated_save()
+        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+
+    def delete(self):
+        """Delete IPAddress in Nautobot."""
+        super().delete()
+        ipaddr = OrmIPAddress.objects.get(id=self.uuid)
+        self.diffsync.objects_to_delete["ipaddresses"].append(ipaddr)
+        return self
+
+
+class NautobotIPAssignment(IPAssignment):
+    """Nautobot IPAssignment model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create IPAddressToInterface in Nautobot."""
         try:
-            intf = OrmInterface.objects.get(device=dev, name=ids["interface"])
-            new_ip.assigned_object_type = ContentType.objects.get(app_label="dcim", model="interface")
-            new_ip.assigned_object = intf
-            new_ip.validated_save()
-            if "Management" in ids["interface"]:
+            ipaddr = OrmIPAddress.objects.get(
+                address=ids["address"], parent__namespace=OrmNamespace.objects.get(name=ids["namespace"])
+            )
+            intf = OrmInterface.objects.get(name=ids["interface"], device__name=ids["device"])
+            new_map = IPAddressToInterface(ip_address=ipaddr, interface=intf)
+            if "loopback" in ids["interface"]:
+                ipaddr.role = "loopback"
+                ipaddr.validated_save()
+            new_map.validated_save()
+            if attrs.get("primary"):
                 if ":" in ids["address"]:
-                    dev.primary_ip6 = new_ip
+                    intf.device.primary_ip6 = ipaddr
                 else:
-                    dev.primary_ip4 = new_ip
-                dev.validated_save()
+                    intf.device.primary_ip4 = ipaddr
+                intf.device.validated_save()
+            return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
         except OrmInterface.DoesNotExist as err:
             diffsync.job.logger.warning(f"Unable to find Interface {ids['interface']} for {ids['device']}. {err}")
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+
+    def update(self, attrs):
+        """Update IPAddressToInterface in Nautobot."""
+        map = IPAddressToInterface.objects.get(id=self.uuid)
+        if attrs.get("primary"):
+            if ":" in map.ip_address.address:
+                map.interface.device.primary_ip6 = map.ip_address
+            else:
+                map.interface.device.primary_ip4 = map.ip_address
+            map.interface.device.validated_save()
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete IPAddressToInterface in Nautobot."""
+        super().delete()
+        mapping = IPAddressToInterface.objects.get(id=self.uuid)
+        mapping.delete()
+        return self
 
 
 class NautobotCustomField(CustomField):

@@ -178,7 +178,7 @@ PLUGINS_CONFIG = {
         "aristacv_from_cloudvision_default_device_role": "network",
         "aristacv_from_cloudvision_default_device_role_color": "ff0000",
         "aristacv_from_cloudvision_default_site": "cloudvision_imported",
-        "aristacv_hostname_patterns": [[r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"]],
+        "aristacv_hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
         "aristacv_import_active": is_truthy(os.getenv("NAUTOBOT_ARISTACV_IMPORT_ACTIVE", False)),
         "aristacv_role_mappings": {
             "bb": "backbone",

@@ -1,10 +1,13 @@
 """DiffSync adapter for Nautobot."""
+from collections import defaultdict
 from django.contrib.contenttypes.models import ContentType
+from django.db.models import ProtectedError
 from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import Interface as OrmInterface
 from nautobot.extras.models import Relationship as OrmRelationship
 from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
 from nautobot.ipam.models import IPAddress as OrmIPAddress
+from nautobot.ipam.models import IPAddressToInterface
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectNotFound, ObjectAlreadyExists
 
@@ -12,7 +15,10 @@ from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
 from nautobot_ssot.integrations.aristacv.diffsync.models.nautobot import (
     NautobotDevice,
     NautobotCustomField,
+    NautobotNamespace,
+    NautobotPrefix,
     NautobotIPAddress,
+    NautobotIPAssignment,
     NautobotPort,
 )
 from nautobot_ssot.integrations.aristacv.utils import nautobot
@@ -23,15 +29,19 @@ class NautobotAdapter(DiffSync):
 
     device = NautobotDevice
     port = NautobotPort
+    namespace = NautobotNamespace
+    prefix = NautobotPrefix
     ipaddr = NautobotIPAddress
+    ipassignment = NautobotIPAssignment
     cf = NautobotCustomField
 
-    top_level = ["device", "ipaddr", "cf"]
+    top_level = ["device", "namespace", "prefix", "ipaddr", "ipassignment", "cf"]
 
     def __init__(self, *args, job=None, **kwargs):
         """Initialize the Nautobot DiffSync adapter."""
         super().__init__(*args, **kwargs)
         self.job = job
+        self.objects_to_delete = defaultdict(list)
 
     def load_devices(self):
         """Add Nautobot Device objects as DiffSync Device models."""
@@ -57,7 +67,11 @@ class NautobotAdapter(DiffSync):
         for cf_name, cf_value in dev.custom_field_data.items():
             if cf_name.startswith("arista_"):
                 try:
-                    new_cf = self.cf(name=cf_name, value=cf_value if cf_value is not None else "", device_name=dev.name)
+                    new_cf = self.cf(
+                        name=cf_name,
+                        value=cf_value if cf_value is not None else "",
+                        device_name=dev.name,
+                    )
                     self.add(new_cf)
                 except AttributeError as err:
                     self.job.logger.warning(f"Unable to load {cf_name}. {err}")
@@ -90,16 +104,45 @@ class NautobotAdapter(DiffSync):
     def load_ip_addresses(self):
         """Add Nautobot IPAddress objects as DiffSync IPAddress models."""
         for ipaddr in OrmIPAddress.objects.filter(interfaces__device__device_type__manufacturer__name__in=["Arista"]):
+            try:
+                self.get(self.namespace, ipaddr.parent.namespace.name)
+            except ObjectNotFound:
+                new_ns = self.namespace(
+                    name=ipaddr.parent.namespace.name,
+                    uuid=ipaddr.parent.namespace.id,
+                )
+                self.add(new_ns)
+            try:
+                self.get(self.prefix, {"prefix": str(ipaddr.parent.prefix), "namespace": ipaddr.parent.namespace.name})
+            except ObjectNotFound:
+                new_pf = self.prefix(
+                    prefix=str(ipaddr.parent.prefix),
+                    namespace=ipaddr.parent.namespace.name,
+                    uuid=ipaddr.parent.id,
+                )
+                self.add(new_pf)
             new_ip = self.ipaddr(
                 address=str(ipaddr.address),
-                interface=ipaddr.assigned_object.name,
-                device=ipaddr.assigned_object.device.name,
+                prefix=str(ipaddr.parent.prefix),
+                namespace=ipaddr.parent.namespace.name,
                 uuid=ipaddr.id,
             )
             try:
                 self.add(new_ip)
             except ObjectAlreadyExists as err:
                 self.job.logger.warning(f"Unable to load {ipaddr.address} as appears to be a duplicate. {err}")
+            ip_to_intfs = IPAddressToInterface.objects.filter(ip_address=ipaddr)
+            for mapping in ip_to_intfs:
+                new_map = self.ipassignment(
+                    address=str(ipaddr.address),
+                    namespace=mapping.ip_address.parent.namespace.name,
+                    device=mapping.interface.device.name,
+                    interface=mapping.interface.name,
+                    primary=len(mapping.ip_address.primary_ip4_for.all()) > 0
+                    or len(mapping.ip_address.primary_ip6_for.all()) > 0,
+                    uuid=mapping.id,
+                )
+                self.add(new_map)
 
     def sync_complete(self, source: DiffSync, *args, **kwargs):
         """Perform actions after sync is completed.
@@ -107,10 +150,26 @@ class NautobotAdapter(DiffSync):
         Args:
             source (DiffSync): Source DiffSync DataSource adapter.
         """
+        for grouping in (
+            "ipaddresses",
+            "prefixes",
+            "namespaces",
+            "interfaces",
+            "devices",
+        ):
+            for nautobot_object in self.objects_to_delete[grouping]:
+                try:
+                    if self.job.debug:
+                        self.job.logger.info(f"Deleting {nautobot_object}.")
+                    nautobot_object.delete()
+                except ProtectedError as err:
+                    self.job.logger.warning(f"Deletion failed for protected object: {nautobot_object}. {err}")
+            self.objects_to_delete[grouping] = []
+
         # if Controller is created we need to ensure all imported Devices have RelationshipAssociation to it.
-        if APP_SETTINGS.get("create_controller"):
+        if APP_SETTINGS.get("aristacv_create_controller"):
             self.job.logger.info("Creating Relationships between CloudVision and connected Devices.")
-            controller_relation = OrmRelationship.objects.get(name="Controller -> Device")
+            controller_relation = OrmRelationship.objects.get(label="Controller -> Device")
             device_ct = ContentType.objects.get_for_model(OrmDevice)
             cvp = OrmDevice.objects.get(name="CloudVision")
             loaded_devices = source.dict()["device"]
