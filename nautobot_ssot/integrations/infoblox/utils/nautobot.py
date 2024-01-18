@@ -13,7 +13,11 @@ def build_vlan_map_from_relations(vlans: list):
     """
     vlan_map = {}
     for vlan in vlans:
-        vlan_map[vlan.vid] = {"vid": vlan.vid, "name": vlan.name, "group": vlan.vlan_group.name}
+        vlan_map[vlan.vid] = {"vid": vlan.vid, "name": vlan.name}
+        if vlan.vlan_group:
+            vlan_map[vlan.vid]["group"] = vlan.vlan_group.name
+        else:
+            vlan_map[vlan.vid]["group"] = None
     return vlan_map
 
 

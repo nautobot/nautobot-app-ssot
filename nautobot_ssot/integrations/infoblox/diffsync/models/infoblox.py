@@ -10,13 +10,26 @@ class InfobloxNetwork(Network):
     def create(cls, diffsync, ids, attrs):
         """Create Network object in Infoblox."""
         status = attrs.get("status")
+        network = ids["network"]
         try:
             if status != "container":
-                diffsync.conn.create_network(prefix=ids["network"], comment=attrs.get("description", ""))
+                diffsync.conn.create_network(prefix=network, comment=attrs.get("description", ""))
             else:
-                diffsync.conn.create_network_container(prefix=ids["network"], comment=attrs.get("description", ""))
+                diffsync.conn.create_network_container(prefix=network, comment=attrs.get("description", ""))
         except HTTPError as err:
             diffsync.job.logger.warning(f"Failed to create {ids['network']} due to {err.response.text}")
+        dhcp_ranges = attrs.get("ranges")
+        if dhcp_ranges:
+            for dhcp_range in dhcp_ranges:
+                start, end = dhcp_range.split("-")
+                try:
+                    diffsync.conn.create_range(
+                        prefix=network,
+                        start=start.strip(),
+                        end=end.strip(),
+                    )
+                except HTTPError as err:
+                    diffsync.job.logger.warning(f"Failed to create {dhcp_range} due to {err.response.text}")
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
     def update(self, attrs):
@@ -24,6 +37,11 @@ class InfobloxNetwork(Network):
         self.diffsync.conn.update_network(
             prefix=self.get_identifiers()["network"], comment=attrs.get("description", "")
         )
+        if attrs.get("ranges"):
+            self.diffsync.job.logger.warning(
+                f"Prefix, {self.network}, has a change of Ranges in Nautobot, but"
+                "updating InfoBlox with Ranges is currently not supported."
+            )
         return super().update(attrs)
 
     # def delete(self):

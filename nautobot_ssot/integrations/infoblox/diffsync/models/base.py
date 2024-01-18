@@ -9,13 +9,14 @@ class Network(DiffSyncModel):
 
     _modelname = "prefix"
     _identifiers = ("network",)
-    _attributes = ("description", "network_type", "ext_attrs", "vlans")
+    _attributes = ("description", "network_type", "ext_attrs", "vlans", "ranges")
 
     network: str
     description: Optional[str]
     network_type: Optional[str]
     ext_attrs: Optional[dict]
     vlans: Optional[dict]
+    ranges: Optional[list[str]] = []
     pk: Optional[uuid.UUID] = None
 
 

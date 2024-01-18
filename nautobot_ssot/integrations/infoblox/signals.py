@@ -53,7 +53,14 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         ContentType.objects.get_for_model(IPAddress),
     ]:
         custom_field.content_types.add(content_type)
-
+    range_custom_field, _ = CustomField.objects.get_or_create(
+        type=CustomFieldTypeChoices.TYPE_TEXT,
+        key="dhcp_ranges",
+        defaults={
+            "label": "DHCP Ranges",
+        },
+    )
+    range_custom_field.content_types.add(ContentType.objects.get_for_model(Prefix))
     # add Prefix -> VLAN Relationship
     relationship_dict = {
         "label": "Prefix -> VLAN",
