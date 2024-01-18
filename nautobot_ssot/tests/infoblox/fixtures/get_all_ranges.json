@@ -1,12 +1,6 @@
 [
     {
         "network_view": "default",
-        "network": "10.0.0.0/24",
-        "start_addr": "10.0.0.20",
-        "end_addr": "10.0.0.254"
-    },
-    {
-        "network_view": "default",
         "network": "10.10.0.0/23",
         "start_addr": "10.10.0.20",
         "end_addr": "10.0.0.255"
@@ -16,6 +10,12 @@
         "network": "10.10.0.0/23",
         "start_addr": "10.10.1.20",
         "end_addr": "10.10.1.254"
+    },
+    {
+        "network_view": "default",
+        "network": "10.220.64.0/21",
+        "start_addr": "10.220.65.200",
+        "end_addr": "10.220.65.255"
     },
     {
         "network_view": "non-default-view",

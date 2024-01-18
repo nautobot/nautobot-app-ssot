@@ -1,4 +1,5 @@
 """All interactions with infoblox."""  # pylint: disable=too-many-lines
+from __future__ import annotations
 
 import copy
 import json
@@ -872,12 +873,15 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             return []
         json_response = response.json()
         logger.info(json_response)
-        ranges = self.get_all_ranges(prefix=prefix)
-        for returned_prefix in json_response:
-            network_view_ranges = ranges.get(returned_prefix["network_view"], {})
-            prefix_ranges = network_view_ranges.get(returned_prefix["network"])
-            if prefix_ranges:
-                returned_prefix["ranges"] = prefix_ranges
+        if not ipv6:
+            ranges = self.get_all_ranges(prefix=prefix)
+            for returned_prefix in json_response:
+                network_view_ranges = ranges.get(returned_prefix["network_view"], {})
+                prefix_ranges = network_view_ranges.get(returned_prefix["network"])
+                if prefix_ranges:
+                    returned_prefix["ranges"] = prefix_ranges
+        else:
+            logger.info("Support for DHCP Ranges is not currently supported for IPv6 Networks.")
         return json_response
 
     def get_authoritative_zone(self):

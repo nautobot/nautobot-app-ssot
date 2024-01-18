@@ -16,7 +16,7 @@ class Network(DiffSyncModel):
     network_type: Optional[str]
     ext_attrs: Optional[dict]
     vlans: Optional[dict]
-    ranges: Optional[list[str]] = []
+    ranges: Optional[list] = []
     pk: Optional[uuid.UUID] = None
 
 

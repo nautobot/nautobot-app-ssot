@@ -61,6 +61,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         },
     )
     range_custom_field.content_types.add(ContentType.objects.get_for_model(Prefix))
+
     # add Prefix -> VLAN Relationship
     relationship_dict = {
         "label": "Prefix -> VLAN",

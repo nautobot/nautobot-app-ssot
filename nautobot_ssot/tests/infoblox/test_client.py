@@ -368,8 +368,8 @@ class TestInfobloxTest(unittest.TestCase):
         mock_uri = "range"
         expected = {
             "default": {
-                "10.0.0.0/24": ["10.0.0.20-10.0.0.254"],
                 "10.10.0.0/23": ["10.10.0.20-10.0.0.255", "10.10.1.20-10.10.1.254"],
+                "10.220.64.0/21": ["10.220.65.200-10.220.65.255"],
             },
             "non-default-view": {"192.168.1.0/24": ["192.168.1.50-192.168.1.254"]},
         }
@@ -395,28 +395,10 @@ class TestInfobloxTest(unittest.TestCase):
         """Test get_all_subnets success."""
         mock_response = get_all_subnets()
         mock_uri = "network"
-        mock_range_response = [
-            {
-                "network_view": "default",
-                "network": "10.220.64.0/21",
-                "start_addr": "10.220.65.200",
-                "end_addr": "10.220.65.255",
-            }
-        ]
+        mock_range_response = get_all_ranges()
 
-        expected = [
-            {
-                "_ref": "network/ZG5zLm5ldHdvcmskMTAuMjIzLjAuMC8yMS8w:10.223.0.0/21/default",
-                "network": "10.223.0.0/21",
-                "network_view": "default",
-            },
-            {
-                "_ref": "network/ZG5zLm5ldHdvcmskMTAuMjIwLjY0LjAvMjEvMA:10.220.64.0/21/default",
-                "network": "10.220.64.0/21",
-                "network_view": "default",
-                "ranges": ["10.220.65.200-10.220.65.255"],
-            },
-        ]
+        expected = [result.copy() for result in mock_response]
+        expected[1]["ranges"] = ["10.220.65.200-10.220.65.255"]
 
         with requests_mock.Mocker() as req:
             req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=200)
