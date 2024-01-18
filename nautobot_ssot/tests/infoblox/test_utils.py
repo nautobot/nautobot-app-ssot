@@ -1,6 +1,8 @@
 """Util tests that do not require Django."""
 import unittest
 
+from django.test import TestCase
+
 from nautobot.extras.models import Status
 from nautobot.ipam.models import VLAN, VLANGroup
 
@@ -35,7 +37,7 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(standardized_dict, expected)
 
 
-class TestNautobotUtils(unittest.TestCase):
+class TestNautobotUtils(TestCase):
     """Test infoblox.utils.nautobot.py."""
 
     def setUp(self):
@@ -61,15 +63,16 @@ class TestNautobotUtils(unittest.TestCase):
             status=active_status,
             vlan_group=self.vlan_group_2,
         )
-
-    def tearDown(self):
-        for obj in [self.vlan_10, self.vlan_20, self.vlan_30, self.vlan_group_1, self.vlan_group_2]:
-            obj.delete()
+        self.vlan_40 = VLAN.objects.create(
+            vid=40,
+            name="forty",
+            status=active_status,
+        )
 
     def test_build_vlan_map_from_relations(self):
         """Test VLAN map is built correctly."""
 
-        actual = build_vlan_map_from_relations([self.vlan_10, self.vlan_20, self.vlan_30])
+        actual = build_vlan_map_from_relations([self.vlan_10, self.vlan_20, self.vlan_30, self.vlan_40])
         expected = {
             10: {
                 "vid": 10,
@@ -85,6 +88,11 @@ class TestNautobotUtils(unittest.TestCase):
                 "vid": 30,
                 "name": "thirty",
                 "group": "two",
+            },
+            40: {
+                "vid": 40,
+                "name": "forty",
+                "group": None,
             },
         }
         self.assertEqual(actual, expected)
