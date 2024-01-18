@@ -49,11 +49,11 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
     def __init__(
         self,
         cvp_host: str,
-        cvp_port: str = None,
+        cvp_port: str = "",
         verify: bool = True,
-        username: str = None,
-        password: str = None,
-        cvp_token: str = None,
+        username: str = "",
+        password: str = "",
+        cvp_token: str = "",
     ):
         """Create Cloudvision API connection."""
         self.metadata = None
@@ -97,7 +97,7 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
             self.metadata = ((self.AUTH_KEY_PATH, self.cvp_token),)
         # Set up credentials for CVaaS using supplied token.
         else:
-            self.cvp_url = APP_SETTINGS.get("cvaas_url", "www.arista.io:443")
+            self.cvp_url = APP_SETTINGS.get("aristacv_cvaas_url", "www.arista.io:443")
             call_creds = grpc.access_token_call_credentials(self.cvp_token)
             channel_creds = grpc.ssl_channel_credentials()
         conn_creds = grpc.composite_channel_credentials(channel_creds, call_creds)
@@ -269,7 +269,7 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
 def get_devices(client):
     """Get devices from CloudVision inventory."""
     device_stub = services.DeviceServiceStub(client)
-    if APP_SETTINGS.get("import_active"):
+    if APP_SETTINGS.get("aristacv_import_active"):
         req = services.DeviceStreamRequest(
             partial_eq_filter=[models.Device(streaming_status=models.STREAMING_STATUS_ACTIVE)]
         )
@@ -640,6 +640,25 @@ def get_interface_description(client: CloudvisionApi, dId: str, interface: str):
     return ""
 
 
+def get_interface_vrf(client: CloudvisionApi, dId: str, interface: str) -> str:
+    """Gets interface VRF.
+
+    Args:
+        client (CloudvisionApi): Cloudvision connection.
+        dId (str): Device ID to determine type for.
+        interface (str): Name of interface to get mode information for.
+    """
+    pathElts = ["Sysdb", "l3", "intf", "config", "intfConfig", interface]
+    query = [create_query([(pathElts, [])], dId)]
+    query = unfreeze_frozen_dict(query)
+
+    for batch in client.get(query):
+        for notif in batch["notifications"]:
+            if notif["updates"].get("vrf"):
+                return notif["updates"]["vrf"]["value"]
+    return "Global"
+
+
 def get_ip_interfaces(client: CloudvisionApi, dId: str):
     """Gets interfaces with IP Addresses configured from specified device.
 
@@ -675,10 +694,24 @@ def get_cvp_version():
     """
     client = CvpClient()
     try:
-        client.connect([APP_SETTINGS["cvp_host"]], APP_SETTINGS["cvp_user"], APP_SETTINGS["cvp_password"])
-        version = client.api.get_cvp_info()
-        if "version" in version:
-            return version["version"]
+        if APP_SETTINGS.get("aristacv_cvp_token") and not APP_SETTINGS.get("aristacv_cvp_host"):
+            client.connect(
+                nodes=[APP_SETTINGS["aristacv_cvaas_url"]],
+                username="",
+                password="",  # nosec: B106
+                is_cvaas=True,
+                api_token=APP_SETTINGS.get("aristacv_cvp_token"),
+            )
+        else:
+            client.connect(
+                nodes=[APP_SETTINGS["aristacv_cvp_host"]],
+                username=APP_SETTINGS.get("aristacv_cvp_user"),
+                password=APP_SETTINGS.get("aristacv_cvp_password"),
+                is_cvaas=False,
+            )
     except CvpLoginError as err:
         raise AuthFailure(error_code="Failed Login", message=f"Unable to login to CloudVision Portal. {err}") from err
+    version = client.api.get_cvp_info()
+    if "version" in version:
+        return version["version"]
     return ""

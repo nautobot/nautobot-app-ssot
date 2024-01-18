@@ -178,7 +178,7 @@ PLUGINS_CONFIG = {
         "aristacv_from_cloudvision_default_device_role": "network",
         "aristacv_from_cloudvision_default_device_role_color": "ff0000",
         "aristacv_from_cloudvision_default_site": "cloudvision_imported",
-        "aristacv_hostname_patterns": [[r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"]],
+        "aristacv_hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
         "aristacv_import_active": is_truthy(os.getenv("NAUTOBOT_ARISTACV_IMPORT_ACTIVE", False)),
         "aristacv_role_mappings": {
             "bb": "backbone",
@@ -222,6 +222,9 @@ PLUGINS_CONFIG = {
             os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_IP_ADDRESSES")
         ),
         "infoblox_import_objects_subnets": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_SUBNETS")),
+        "infoblox_import_objects_subnets_ipv6": is_truthy(
+            os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_SUBNETS_IPV6")
+        ),
         "infoblox_import_objects_vlan_views": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_VLAN_VIEWS")),
         "infoblox_import_objects_vlans": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_VLANS")),
         "infoblox_import_subnets": os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_SUBNETS", "").split(","),

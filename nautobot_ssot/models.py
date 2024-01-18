@@ -37,6 +37,16 @@ from nautobot_ssot.integrations.servicenow.models import SSOTServiceNowConfig
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 
 
+class DiffJSONEncoder(DjangoJSONEncoder):
+    """Custom JSON encoder for the Sync.diff field."""
+
+    def default(self, o):
+        """Custom JSON encoder for the Sync.diff field."""
+        if isinstance(o, set):
+            return self.encode(list(o))
+        return super().default(o)
+
+
 @extras_features(
     "custom_links",
 )
@@ -67,7 +77,7 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
     dry_run = models.BooleanField(
         default=False, help_text="Report what data would be synced but do not make any changes"
     )
-    diff = models.JSONField(blank=True, encoder=DjangoJSONEncoder)
+    diff = models.JSONField(blank=True, encoder=DiffJSONEncoder)
     summary = models.JSONField(blank=True, null=True)
 
     job_result = models.ForeignKey(to=JobResult, on_delete=models.PROTECT, blank=True, null=True)
@@ -156,7 +166,7 @@ class SyncLogEntry(BaseModel):  # pylint: disable=nb-string-field-blank-null
 
     action = models.CharField(max_length=32, choices=SyncLogEntryActionChoices)
     status = models.CharField(max_length=32, choices=SyncLogEntryStatusChoices)
-    diff = models.JSONField(blank=True, null=True, encoder=DjangoJSONEncoder)
+    diff = models.JSONField(blank=True, null=True, encoder=DiffJSONEncoder)
 
     synced_object_type = models.ForeignKey(
         to=ContentType,

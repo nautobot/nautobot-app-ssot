@@ -1,9 +1,12 @@
 """Unit tests for the Cloudvision DiffSync adapter class."""
+import ipaddress
 from unittest.mock import MagicMock, patch
 
 from nautobot.extras.models import JobResult
 from nautobot.core.testing import TransactionTestCase
-from nautobot_ssot.integrations.aristacv.diffsync.adapters.cloudvision import CloudvisionAdapter
+from nautobot_ssot.integrations.aristacv.diffsync.adapters.cloudvision import (
+    CloudvisionAdapter,
+)
 from nautobot_ssot.integrations.aristacv.jobs import CloudVisionDataSource
 from nautobot_ssot.tests.aristacv.fixtures import fixtures
 
@@ -37,6 +40,8 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
         self.cloudvision.get_interface_description.return_value = "Uplink to DC1"
         self.cloudvision.get_ip_interfaces = MagicMock()
         self.cloudvision.get_ip_interfaces.return_value = fixtures.IP_INTF_FIXTURE
+        self.cloudvision.get_interface_vrf = MagicMock()
+        self.cloudvision.get_interface_vrf.return_value = "Global"
 
         self.job = self.job_class()
         self.job.job_result = JobResult.objects.create(
@@ -46,11 +51,14 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
 
     @patch.dict(
         "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
-        {"create_controller": False},
+        {"aristacv_create_controller": False},
     )
     def test_load_devices(self):
         """Test the load_devices() adapter method."""
-        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.get_devices", self.cloudvision.get_devices):
+        with patch(
+            "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_devices",
+            self.cloudvision.get_devices,
+        ):
             with patch(
                 "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_device_type",
                 self.cloudvision.get_device_type,
@@ -75,7 +83,8 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
         mock_device.device_model.return_value = "DCS-7280CR2-60"
 
         with patch(
-            "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_device_type", self.cloudvision.get_device_type
+            "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_device_type",
+            self.cloudvision.get_device_type,
         ):
             with patch(
                 "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interfaces_fixed",
@@ -114,8 +123,15 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
                 "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_description",
                 self.cloudvision.get_interface_description,
             ):
-                self.cvp.load_ip_addresses(dev=mock_device)
+                with patch(
+                    "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_vrf",
+                    self.cloudvision.get_interface_vrf,
+                ):
+                    self.cvp.load_ip_addresses(dev=mock_device)
         self.assertEqual(
-            {f"{ipaddr['address']}__mock_device__{ipaddr['interface']}" for ipaddr in fixtures.IP_INTF_FIXTURE},
+            {
+                f"{ipaddr['address']}__{ipaddress.ip_interface(ipaddr['address']).network.with_prefixlen}__Global"
+                for ipaddr in fixtures.IP_INTF_FIXTURE
+            },
             {ipaddr.get_unique_id() for ipaddr in self.cvp.get_all("ipaddr")},
         )

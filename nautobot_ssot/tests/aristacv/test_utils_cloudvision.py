@@ -19,6 +19,10 @@ class TestCloudvisionApi(TestCase):
         with self.assertRaises(cloudvision.AuthFailure):
             cloudvision.CloudvisionApi(cvp_host="https://localhost", username="", password="", verify=True)  # nosec
 
+    @patch.dict(
+        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
+        {"aristacv_cvaas_url": "www.arista.io:443"},
+    )
     def test_auth_cvass_with_token(self):
         """Test that authentication against CVaaS with token works."""
         client = cloudvision.CloudvisionApi(cvp_host=None, cvp_token="1234567890abcdef")  # nosec
@@ -37,7 +41,7 @@ class TestCloudvisionUtils(TestCase):
 
     @patch.dict(
         "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
-        {"import_active": False},
+        {"aristacv_import_active": False},
     )
     def test_get_all_devices(self):
         """Test get_devices function for active and inactive devices."""
@@ -71,7 +75,7 @@ class TestCloudvisionUtils(TestCase):
 
     @patch.dict(
         "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
-        {"import_active": True},
+        {"aristacv_import_active": True},
     )
     def test_get_active_devices(self):
         """Test get_devices function for active devices."""

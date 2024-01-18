@@ -105,9 +105,9 @@ class TestNautobotUtils(TestCase):
     @patch.dict(
         "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
         {
-            "hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
-            "site_mappings": {"ams01": "Amsterdam"},
-            "role_mappings": {"leaf": "leaf"},
+            "aristacv_hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
+            "aristacv_site_mappings": {"ams01": "Amsterdam"},
+            "aristacv_role_mappings": {"leaf": "leaf"},
         },
     )
     def test_parse_hostname(self):
@@ -120,9 +120,9 @@ class TestNautobotUtils(TestCase):
     @patch.dict(
         "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
         {
-            "hostname_patterns": [r"(?P<site>\w{2,3}\d+)-.+-\d+"],
-            "site_mappings": {"ams01": "Amsterdam"},
-            "role_mappings": {},
+            "aristacv_hostname_patterns": [r"(?P<site>\w{2,3}\d+)-.+-\d+"],
+            "aristacv_site_mappings": {"ams01": "Amsterdam"},
+            "aristacv_role_mappings": {},
         },
     )
     def test_parse_hostname_only_site(self):
@@ -135,9 +135,9 @@ class TestNautobotUtils(TestCase):
     @patch.dict(
         "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
         {
-            "hostname_patterns": [r".+-(?P<role>\w+)-\d+"],
-            "site_mappings": {},
-            "role_mappings": {"leaf": "leaf"},
+            "aristacv_hostname_patterns": [r".+-(?P<role>\w+)-\d+"],
+            "aristacv_site_mappings": {},
+            "aristacv_role_mappings": {"leaf": "leaf"},
         },
     )
     def test_parse_hostname_only_role(self):
@@ -150,8 +150,8 @@ class TestNautobotUtils(TestCase):
     @patch.dict(
         "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
         {
-            "hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
-            "site_mappings": {"ams01": "Amsterdam"},
+            "aristacv_hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
+            "aristacv_site_mappings": {"ams01": "Amsterdam"},
         },
     )
     def test_get_site_from_map_success(self):
@@ -163,8 +163,8 @@ class TestNautobotUtils(TestCase):
     @patch.dict(
         "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
         {
-            "hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
-            "site_mappings": {},
+            "aristacv_hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
+            "aristacv_site_mappings": {},
         },
     )
     def test_get_site_from_map_fail(self):
@@ -176,8 +176,8 @@ class TestNautobotUtils(TestCase):
     @patch.dict(
         "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
         {
-            "hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
-            "role_mappings": {"edge": "Edge Router"},
+            "aristacv_hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
+            "aristacv_role_mappings": {"edge": "Edge Router"},
         },
     )
     def test_get_role_from_map_success(self):
@@ -189,8 +189,8 @@ class TestNautobotUtils(TestCase):
     @patch.dict(
         "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
         {
-            "hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
-            "role_mappings": {},
+            "aristacv_hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
+            "aristacv_role_mappings": {},
         },
     )
     def test_get_role_from_map_fail(self):

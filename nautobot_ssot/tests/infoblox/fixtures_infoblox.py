@@ -123,3 +123,13 @@ def find_next_available_ip():
 def search_ipv4_address():
     """Return a search IPv4 address response."""
     return _json_read_fixture("search_ipv4_address.json")
+
+
+def get_network_containers():
+    """Return a get_all_containers response."""
+    return _json_read_fixture("get_network_containers.json")
+
+
+def get_network_containers_ipv6():
+    """Return a get_all_containers IPv6 response."""
+    return _json_read_fixture("get_network_containers_ipv6.json")

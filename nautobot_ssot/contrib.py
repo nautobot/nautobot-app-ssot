@@ -4,13 +4,53 @@
 
 from collections import defaultdict
 from dataclasses import dataclass
+from enum import Enum
 
 import pydantic
 from diffsync import DiffSyncModel, DiffSync
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError, MultipleObjectsReturned
 from django.db.models import Model
+from nautobot.extras.models import Relationship, RelationshipAssociation
 from typing_extensions import get_type_hints
+
+
+class RelationshipSideEnum(Enum):
+    """This details which side of a custom relationship the model it's defined on is on."""
+
+    SOURCE = "SOURCE"
+    DESTINATION = "DESTINATION"
+
+
+@dataclass
+class CustomRelationshipAnnotation:
+    """Map a model field to an arbitrary custom relationship.
+
+    For usage with `typing.Annotated`.
+
+    This exists to map model fields to their corresponding relationship fields. All different types of relationships
+    then work exactly the same as they normally do, just that you have to annotate the field(s) that belong(s) to the
+    relationship.
+
+    Example:
+        Given a custom relationship called "Circuit provider to tenant":
+        ```python
+        class ProviderModel(NautobotModel):
+            _model: Provider
+            _identifiers = ("name",)
+            _attributes = ("tenant__name",)
+
+            tenant__name = Annotated[
+                str,
+                CustomRelationshipAnnotation(name="Circuit provider to tenant", side=RelationshipSideEnum.SOURCE)
+            ]
+
+        This then identifies the tenant to relate the provider to through its `name` field as well as the relationship
+        name.
+    """
+
+    name: str
+    side: RelationshipSideEnum
 
 
 @dataclass
@@ -57,6 +97,10 @@ class NautobotAdapter(DiffSync):
         self.job = job
         self.sync = sync
 
+        # Caches lookups to custom relationships.
+        # TODO: Once caching is in, replace this cache with it.
+        self.custom_relationship_cache = {}
+
     @staticmethod
     def _get_parameter_names(diffsync_model):
         """Ignore the differences between identifiers and attributes, because at this point they don't matter to us."""
@@ -68,48 +112,66 @@ class NautobotAdapter(DiffSync):
         for database_object in diffsync_model._get_queryset():
             self._load_single_object(database_object, diffsync_model, parameter_names)
 
+    def _handle_single_parameter(self, parameters, parameter_name, database_object, diffsync_model):
+        type_hints = get_type_hints(diffsync_model, include_extras=True)
+        # Handle custom fields and custom relationships. See CustomFieldAnnotation and CustomRelationshipAnnotation
+        # docstrings for more details.
+        is_custom_field = False
+        custom_relationship_annotation = None
+        metadata_for_this_field = getattr(type_hints[parameter_name], "__metadata__", [])
+        for metadata in metadata_for_this_field:
+            if isinstance(metadata, CustomFieldAnnotation):
+                if metadata.name in database_object.cf:
+                    parameters[parameter_name] = database_object.cf[metadata.name]
+                is_custom_field = True
+                break
+            if isinstance(metadata, CustomRelationshipAnnotation):
+                custom_relationship_annotation = metadata
+                break
+        if is_custom_field:
+            return
+
+        # Handling of foreign keys where the local side is the many and the remote side the one.
+        # Note: This includes the side of a generic foreign key that has the foreign key, i.e.
+        # the 'many' side.
+        if "__" in parameter_name:
+            if custom_relationship_annotation:
+                parameters[parameter_name] = self._handle_custom_relationship_foreign_key(
+                    database_object, parameter_name, custom_relationship_annotation
+                )
+            else:
+                parameters[parameter_name] = self._handle_foreign_key(database_object, parameter_name)
+            return
+
+        # Handling of one- and many-to custom relationship fields:
+        if custom_relationship_annotation:
+            parameters[parameter_name] = self._handle_custom_relationship_to_many_relationship(
+                database_object, diffsync_model, parameter_name, custom_relationship_annotation
+            )
+            return
+
+        database_field = diffsync_model._model._meta.get_field(parameter_name)
+
+        # Handling of one- and many-to-many non-custom relationship fields.
+        # Note: This includes the side of a generic foreign key that constitutes the foreign key,
+        # i.e. the 'one' side.
+        if database_field.many_to_many or database_field.one_to_many:
+            parameters[parameter_name] = self._handle_to_many_relationship(
+                database_object, diffsync_model, parameter_name
+            )
+            return
+
+        # Handling of normal fields - as this is the default case, set the attribute directly.
+        if hasattr(self, f"load_param_{parameter_name}"):
+            parameters[parameter_name] = getattr(self, f"load_param_{parameter_name}")(parameter_name, database_object)
+        else:
+            parameters[parameter_name] = getattr(database_object, parameter_name)
+
     def _load_single_object(self, database_object, diffsync_model, parameter_names):
         """Load a single diffsync object from a single database object."""
         parameters = {}
-        type_hints = get_type_hints(diffsync_model, include_extras=True)
         for parameter_name in parameter_names:
-            # Handling of foreign keys where the local side is the many and the remote side the one.
-            # Note: This includes the side of a generic foreign key that has the foreign key, i.e.
-            # the 'many' side.
-            if "__" in parameter_name:
-                parameters[parameter_name] = self._handle_foreign_key(database_object, parameter_name)
-                continue
-
-            # Handle custom fields. See CustomFieldAnnotation docstring for more details.
-            is_custom_field = False
-            metadata_for_this_field = getattr(type_hints[parameter_name], "__metadata__", [])
-            for metadata in metadata_for_this_field:
-                if isinstance(metadata, CustomFieldAnnotation):
-                    if metadata.name in database_object.cf:
-                        parameters[parameter_name] = database_object.cf[metadata.name]
-                    is_custom_field = True
-                    break
-            if is_custom_field:
-                continue
-
-            database_field = diffsync_model._model._meta.get_field(parameter_name)
-
-            # Handling of one- and many-to-many fields.
-            # Note: This includes the side of a generic foreign key that constitues the foreign key,
-            # i.e. the 'one' side.
-            if database_field.many_to_many or database_field.one_to_many:
-                parameters[parameter_name] = self._handle_to_many_relationship(
-                    database_object, diffsync_model, parameter_name
-                )
-                continue
-
-            # Handling of normal fields - as this is the default case, set the attribute directly.
-            if hasattr(self, f"load_param_{parameter_name}"):
-                parameters[parameter_name] = getattr(self, f"load_param_{parameter_name}")(
-                    parameter_name, database_object
-                )
-            else:
-                parameters[parameter_name] = getattr(database_object, parameter_name)
+            self._handle_single_parameter(parameters, parameter_name, database_object, diffsync_model)
         try:
             diffsync_model = diffsync_model(**parameters)
         except pydantic.ValidationError as error:
@@ -150,6 +212,64 @@ class NautobotAdapter(DiffSync):
                 f"Please define {model_name} to be the diffsync model on this adapter as a class level attribute."
             ) from error
         return diffsync_model
+
+    def _handle_custom_relationship_to_many_relationship(
+        self, database_object, diffsync_model, parameter_name, annotation
+    ):
+        # Introspect type annotations to deduce which fields are of interest
+        # for this many-to-many relationship.
+        diffsync_field_type = diffsync_model.__annotations__[parameter_name]
+        # TODO: Why is this different then in the normal case??
+        inner_type = diffsync_field_type.__dict__["__args__"][0].__dict__["__args__"][0]
+        related_objects_list = []
+        # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
+        relationship = Relationship.objects.get(label=annotation.name)
+        relationship_association_parameters = self._construct_relationship_association_parameters(
+            annotation, database_object
+        )
+        relationship_associations = RelationshipAssociation.objects.filter(**relationship_association_parameters)
+
+        field_name = ""
+        field_name += "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
+        field_name += "_"
+        field_name += (
+            relationship.source_type.app_label.lower()
+            if annotation.side == RelationshipSideEnum.DESTINATION
+            else relationship.destination_type.app_label.lower()
+        )
+        field_name += "_"
+        field_name += (
+            relationship.source_type.model.lower()
+            if annotation.side == RelationshipSideEnum.DESTINATION
+            else relationship.destination_type.model.lower()
+        )
+
+        for association in relationship_associations:
+            related_object = getattr(
+                association, "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
+            )
+            dictionary_representation = {
+                field_name: getattr(related_object, field_name) for field_name in inner_type.__annotations__
+            }
+            # Only use those where there is a single field defined, all 'None's will not help us.
+            if any(dictionary_representation.values()):
+                related_objects_list.append(dictionary_representation)
+        return related_objects_list
+
+    def _construct_relationship_association_parameters(self, annotation, database_object):
+        relationship = self.custom_relationship_cache.get(
+            annotation.name, Relationship.objects.get(label=annotation.name)
+        )
+        relationship_association_parameters = {
+            "relationship": relationship,
+            "source_type": relationship.source_type,
+            "destination_type": relationship.destination_type,
+        }
+        if annotation.side == RelationshipSideEnum.SOURCE:
+            relationship_association_parameters["source_id"] = database_object.id
+        else:
+            relationship_association_parameters["destination_id"] = database_object.id
+        return relationship_association_parameters
 
     @staticmethod
     def _handle_to_many_relationship(database_object, diffsync_model, parameter_name):
@@ -216,6 +336,30 @@ class NautobotAdapter(DiffSync):
                 related_objects_list.append(dictionary_representation)
         return related_objects_list
 
+    def _handle_custom_relationship_foreign_key(
+        self, database_object, parameter_name: str, annotation: CustomRelationshipAnnotation
+    ):
+        """Handle a single custom relationship foreign key field."""
+        relationship_association_parameters = self._construct_relationship_association_parameters(
+            annotation, database_object
+        )
+
+        relationship_association = RelationshipAssociation.objects.filter(**relationship_association_parameters)
+        amount_of_relationship_associations = relationship_association.count()
+        if amount_of_relationship_associations == 0:
+            return None
+        if amount_of_relationship_associations == 1:
+            association = relationship_association.first()
+            related_object = getattr(
+                association, "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
+            )
+            # Discard the first part as there is no actual field on the model corresponding to that part.
+            _, *lookups = parameter_name.split("__")
+            for lookup in lookups[:-1]:
+                related_object = getattr(related_object, lookup)
+            return getattr(related_object, lookups[-1])
+        raise ValueError("Foreign key custom relationship matched two associations - this shouldn't happen.")
+
     @staticmethod
     def _handle_foreign_key(database_object, parameter_name):
         """Handle a single foreign key field.
@@ -266,7 +410,10 @@ class NautobotModel(DiffSyncModel):
     @classmethod
     def _get_queryset(cls):
         """Get the queryset used to load the models data from Nautobot."""
-        parameter_names = list(cls._identifiers) + list(cls._attributes)
+        available_fields = {field.name for field in cls._model._meta.get_fields()}
+        parameter_names = [
+            parameter for parameter in list(cls._identifiers) + list(cls._attributes) if parameter in available_fields
+        ]
         # Here we identify any foreign keys (i.e. fields with '__' in them) so that we can load them directly in the
         # first query if this function hasn't been overridden.
         prefetch_related_parameters = [parameter.split("__")[0] for parameter in parameter_names if "__" in parameter]
@@ -285,13 +432,16 @@ class NautobotModel(DiffSyncModel):
             raise ValueError(f"Field {name} is not defined on the model.")
 
     def get_from_db(self):
-        """Get the ORM object for this diffsync object from the database using the identifiers."""
+        """Get the ORM object for this diffsync object from the database using the identifiers.
+
+        TODO: Currently I don't think this works for custom fields, therefore those can't be identifiers.
+        """
         return self._model.objects.get(**self.get_identifiers())
 
     def update(self, attrs):
         """Update the ORM object corresponding to this diffsync object."""
         obj = self.get_from_db()
-        self._update_obj_with_parameters(obj, attrs)
+        self._update_obj_with_parameters(obj, attrs, self.diffsync)
         return super().update(attrs)
 
     def delete(self):
@@ -310,65 +460,113 @@ class NautobotModel(DiffSyncModel):
         # This is in fact callable, because it is a model
         obj = cls._model()  # pylint: disable=not-callable
 
-        cls._update_obj_with_parameters(obj, parameters)
+        cls._update_obj_with_parameters(obj, parameters, diffsync)
 
         return super().create(diffsync, ids, attrs)
 
     @classmethod
-    def _update_obj_with_parameters(cls, obj, parameters):
-        """Update a given Nautobot ORM object with the given parameters."""
-        # Example: {"group": {"name": "Group Name", "_model_class": TenantGroup}}
-        foreign_keys = defaultdict(dict)
+    def _handle_single_field(
+        cls, field, obj, value, relationship_fields, diffsync
+    ):  # pylint: disable=too-many-arguments
+        """Set a single field on a Django object to a given value, or, for relationship fields, prepare setting.
 
-        # Example: {"tags": [Tag-1, Tag-2]}
-        many_to_many_fields = defaultdict(list)
-
+        :param field: The name of the field to set.
+        :param obj: The Django ORM object to set the field on.
+        :param value: The value to set the field to.
+        :param relationship_fields: Helper dictionary containing information on relationship fields.
+            This is mutated over the course of this function.
+        :param diffsync: The related diffsync adapter used for looking up things in the cache.
+        """
         # Use type hints at runtime to determine which fields are custom fields
         type_hints = get_type_hints(cls, include_extras=True)
 
-        for field, value in parameters.items():
-            cls._check_field(field)
+        cls._check_field(field)
 
-            # Prepare handling of foreign keys.
-            # Example: If field is `tenant__group__name`, then
-            # `foreign_keys["tenant"]["group__name"] = value`
-            # Also, the model class will be added to the dictionary, so we can later use it
-            # for querying:
-            # `foreign_keys["tenant"]["_model_class"] = nautobot.tenancy.models.Tenant
-            if "__" in field:
-                related_model, lookup = field.split("__", maxsplit=1)
+        # Handle custom fields. See CustomFieldAnnotation docstring for more details.
+        custom_relationship_annotation = None
+        metadata_for_this_field = getattr(type_hints[field], "__metadata__", [])
+        for metadata in metadata_for_this_field:
+            if isinstance(metadata, CustomFieldAnnotation):
+                obj.cf[metadata.name] = value
+                return
+            if isinstance(metadata, CustomRelationshipAnnotation):
+                custom_relationship_annotation = metadata
+                break
+
+        # Prepare handling of foreign keys and custom relationship foreign keys.
+        # Example: If field is `tenant__group__name`, then
+        # `foreign_keys["tenant"]["group__name"] = value` or
+        # `custom_relationship_foreign_keys["tenant"]["group__name"] = value`
+        # Also, the model class will be added to the dictionary for normal foreign keys, so we can later use it
+        # for querying:
+        # `foreign_keys["tenant"]["_model_class"] = nautobot.tenancy.models.Tenant
+        # For custom relationship foreign keys, we add the annotation instead:
+        # `custom_relationship_foreign_keys["tenant"]["_annotation"] = CustomRelationshipAnnotation(...)
+        if "__" in field:
+            related_model, lookup = field.split("__", maxsplit=1)
+            # Custom relationship foreign keys
+            if custom_relationship_annotation:
+                relationship_fields["custom_relationship_foreign_keys"][related_model][lookup] = value
+                relationship_fields["custom_relationship_foreign_keys"][related_model][
+                    "_annotation"
+                ] = custom_relationship_annotation
+            # Normal foreign keys
+            else:
                 django_field = cls._model._meta.get_field(related_model)
-                foreign_keys[related_model][lookup] = value
+                relationship_fields["foreign_keys"][related_model][lookup] = value
                 # Add a special key to the dictionary to point to the related model's class
-                foreign_keys[related_model]["_model_class"] = django_field.related_model
-                continue
+                relationship_fields["foreign_keys"][related_model]["_model_class"] = django_field.related_model
+            return
 
-            # Handle custom fields. See CustomFieldAnnotation docstring for more details.
-            is_custom_field = False
-            metadata_for_this_field = getattr(type_hints[field], "__metadata__", [])
-            for metadata in metadata_for_this_field:
-                if isinstance(metadata, CustomFieldAnnotation):
-                    obj.cf[metadata.name] = value
-                    is_custom_field = True
-                    continue
-            if is_custom_field:
-                continue
+        # Prepare handling of custom relationship many-to-many fields.
+        if custom_relationship_annotation:
+            relationship = diffsync.custom_relationship_cache.get(
+                custom_relationship_annotation.name,
+                Relationship.objects.get(label=custom_relationship_annotation.name),
+            )
+            if custom_relationship_annotation.side == RelationshipSideEnum.DESTINATION:
+                related_object_content_type = relationship.source_type
+            else:
+                related_object_content_type = relationship.destination_type
+            relationship_fields["custom_relationship_many_to_many_fields"][field] = {
+                "objects": [
+                    related_object_content_type.model_class().objects.get(**parameters) for parameters in value
+                ],
+                "annotation": custom_relationship_annotation,
+            }
+            return
 
-            django_field = cls._model._meta.get_field(field)
+        django_field = cls._model._meta.get_field(field)
 
-            # Prepare handling of many-to-many fields. If we are dealing with a many-to-many field,
-            # we get all the related objects here to later set them once the object has been saved.
-            if django_field.many_to_many or django_field.one_to_many:
-                many_to_many_fields[field] = [
-                    django_field.related_model.objects.get(**parameters) for parameters in value
-                ]
-                continue
+        # Prepare handling of many-to-many fields. If we are dealing with a many-to-many field,
+        # we get all the related objects here to later set them once the object has been saved.
+        if django_field.many_to_many or django_field.one_to_many:
+            relationship_fields["many_to_many_fields"][field] = [
+                django_field.related_model.objects.get(**parameters) for parameters in value
+            ]
+            return
 
-            # As the default case, just set the attribute directly
-            setattr(obj, field, value)
+        # As the default case, just set the attribute directly
+        setattr(obj, field, value)
+
+    @classmethod
+    def _update_obj_with_parameters(cls, obj, parameters, diffsync):
+        """Update a given Nautobot ORM object with the given parameters."""
+        relationship_fields = {
+            # Example: {"group": {"name": "Group Name", "_model_class": TenantGroup}}
+            "foreign_keys": defaultdict(dict),
+            # Example: {"tags": [Tag-1, Tag-2]}
+            "many_to_many_fields": defaultdict(list),
+            # Example: TODO
+            "custom_relationship_foreign_keys": defaultdict(dict),
+            # Example: TODO
+            "custom_relationship_many_to_many_fields": defaultdict(dict),
+        }
+        for field, value in parameters.items():
+            cls._handle_single_field(field, obj, value, relationship_fields, diffsync)
 
         # Set foreign keys
-        cls._lookup_and_set_foreign_keys(foreign_keys, obj)
+        cls._lookup_and_set_foreign_keys(relationship_fields["foreign_keys"], obj)
 
         # Save the object to the database
         try:
@@ -376,8 +574,58 @@ class NautobotModel(DiffSyncModel):
         except ValidationError as error:
             raise ValidationError(f"Parameters: {parameters}") from error
 
-        # Set many-to-many fields after saving
-        cls._set_many_to_many_fields(many_to_many_fields, obj)
+        # Handle relationship association creation. This needs to be after object creation, because relationship
+        # association objects rely on both sides already existing.
+        cls._lookup_and_set_custom_relationship_foreign_keys(
+            relationship_fields["custom_relationship_foreign_keys"], obj, diffsync
+        )
+        cls._set_custom_relationship_to_many_fields(
+            relationship_fields["custom_relationship_many_to_many_fields"], obj, diffsync
+        )
+
+        # Set many-to-many fields after saving.
+        cls._set_many_to_many_fields(relationship_fields["many_to_many_fields"], obj)
+
+    @classmethod
+    def _set_custom_relationship_to_many_fields(cls, custom_relationship_many_to_many_fields, obj, diffsync):
+        for _, dictionary in custom_relationship_many_to_many_fields.items():
+            annotation = dictionary.pop("annotation")
+            objects = dictionary.pop("objects")
+            # TODO: Deduplicate this code
+            relationship = diffsync.custom_relationship_cache.get(
+                annotation.name, Relationship.objects.get(label=annotation.name)
+            )
+            parameters = {
+                "relationship": relationship,
+                "source_type": relationship.source_type,
+                "destination_type": relationship.destination_type,
+            }
+            associations = []
+            if annotation.side == RelationshipSideEnum.SOURCE:
+                parameters["source_id"] = obj.id
+                for object_to_relate in objects:
+                    try:
+                        association = RelationshipAssociation.objects.get(
+                            **parameters, destination_id=object_to_relate.id
+                        )
+                    except RelationshipAssociation.DoesNotExist:
+                        association = RelationshipAssociation(**parameters, destination_id=object_to_relate.id)
+                        association.validated_save()
+                    associations.append(association)
+            else:
+                parameters["destination_id"] = obj.id
+                for object_to_relate in objects:
+                    try:
+                        association = RelationshipAssociation.objects.get(**parameters, source_id=object_to_relate.id)
+                    except RelationshipAssociation.DoesNotExist:
+                        association = RelationshipAssociation(**parameters, source_id=object_to_relate.id)
+                        association.validated_save()
+                    associations.append(association)
+            # Now we need to clean up any associations that we're not `get_or_create`'d in order to achieve
+            # declarativeness.
+            for existing_association in RelationshipAssociation.objects.filter(**parameters):
+                if existing_association not in associations:
+                    existing_association.delete()
 
     @classmethod
     def _set_many_to_many_fields(cls, many_to_many_fields, obj):
@@ -395,6 +643,36 @@ class NautobotModel(DiffSyncModel):
         for field_name, related_objects in many_to_many_fields.items():
             many_to_many_field = getattr(obj, field_name)
             many_to_many_field.set(related_objects)
+
+    @classmethod
+    def _lookup_and_set_custom_relationship_foreign_keys(cls, custom_relationship_foreign_keys, obj, diffsync):
+        for _, related_model_dict in custom_relationship_foreign_keys.items():
+            annotation = related_model_dict.pop("_annotation")
+            # TODO: Deduplicate this code
+            relationship = diffsync.custom_relationship_cache.get(
+                annotation.name, Relationship.objects.get(label=annotation.name)
+            )
+            parameters = {
+                "relationship": relationship,
+                "source_type": relationship.source_type,
+                "destination_type": relationship.destination_type,
+            }
+            if annotation.side == RelationshipSideEnum.SOURCE:
+                parameters["source_id"] = obj.id
+                RelationshipAssociation.objects.update_or_create(
+                    **parameters,
+                    defaults={
+                        "destination_id": relationship.destination_type.model_class()
+                        .objects.get(**related_model_dict)
+                        .id
+                    },
+                )
+            else:
+                parameters["destination_id"] = obj.id
+                RelationshipAssociation.objects.update_or_create(
+                    **parameters,
+                    defaults={"source_id": relationship.source_type.model_class().objects.get(**related_model_dict).id},
+                )
 
     @classmethod
     def _lookup_and_set_foreign_keys(cls, foreign_keys, obj):

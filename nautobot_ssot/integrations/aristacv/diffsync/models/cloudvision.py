@@ -1,6 +1,14 @@
 """Cloudvision DiffSync models for AristaCV SSoT."""
 from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
-from nautobot_ssot.integrations.aristacv.diffsync.models.base import Device, CustomField, IPAddress, Port
+from nautobot_ssot.integrations.aristacv.diffsync.models.base import (
+    Device,
+    CustomField,
+    Namespace,
+    Prefix,
+    IPAddress,
+    IPAssignment,
+    Port,
+)
 from nautobot_ssot.integrations.aristacv.utils.cloudvision import CloudvisionApi
 
 
@@ -38,6 +46,46 @@ class CloudvisionPort(Port):
         return self
 
 
+class CloudvisionNamespace(Namespace):
+    """Cloudvision Namespace model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create Namespace in AristaCV from Namespace object."""
+        ...
+        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+
+    def update(self, attrs):
+        """Update Namespace in AristaCV from Namespace object."""
+        ...
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete Namespace in AristaCV from Namespace object."""
+        ...
+        return self
+
+
+class CloudvisionPrefix(Prefix):
+    """Cloudvision IPAdress model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create Prefix in AristaCV from Prefix object."""
+        ...
+        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+
+    def update(self, attrs):
+        """Update Prefix in AristaCV from Prefix object."""
+        ...
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete Prefix in AristaCV from Prefix object."""
+        ...
+        return self
+
+
 class CloudvisionIPAddress(IPAddress):
     """Cloudvision IPAdress model."""
 
@@ -58,6 +106,26 @@ class CloudvisionIPAddress(IPAddress):
         return self
 
 
+class CloudvisionIPAssignment(IPAssignment):
+    """Cloudvision IPAssignment model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create IPAssignment in AristaCV from IPAssignment object."""
+        ...
+        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+
+    def update(self, attrs):
+        """Update IPAssignment in AristaCV from IPAssignment object."""
+        ...
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete IPAssignment in AristaCV from IPAssignment object."""
+        ...
+        return self
+
+
 class CloudvisionCustomField(CustomField):
     """Cloudvision CustomField model."""
 
@@ -65,12 +133,12 @@ class CloudvisionCustomField(CustomField):
     def connect_cvp():
         """Connect to Cloudvision gRPC endpoint."""
         return CloudvisionApi(
-            cvp_host=APP_SETTINGS["cvp_host"],
-            cvp_port=APP_SETTINGS.get("cvp_port", "8443"),
-            verify=APP_SETTINGS["verify"],
-            username=APP_SETTINGS["cvp_user"],
-            password=APP_SETTINGS["cvp_password"],
-            cvp_token=APP_SETTINGS["cvp_token"],
+            cvp_host=APP_SETTINGS["aristacv_cvp_host"],
+            cvp_port=APP_SETTINGS.get("aristacv_cvp_port", "8443"),
+            verify=APP_SETTINGS["aristacv_verify"],
+            username=APP_SETTINGS["aristacv_cvp_user"],
+            password=APP_SETTINGS["aristacv_cvp_password"],
+            cvp_token=APP_SETTINGS["aristacv_cvp_token"],
         )
 
     @classmethod

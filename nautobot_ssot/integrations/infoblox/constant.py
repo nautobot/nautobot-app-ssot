@@ -20,6 +20,7 @@ def _read_app_config():
             "vlan_views": config["infoblox_import_objects_vlan_views"],
             "vlans": config["infoblox_import_objects_vlans"],
             "subnets": config["infoblox_import_objects_subnets"],
+            "subnets_ipv6": config["infoblox_import_objects_subnets_ipv6"],
             "ip_addresses": config["infoblox_import_objects_ip_addresses"],
         },
         "infoblox_import_subnets": config["infoblox_import_subnets"],

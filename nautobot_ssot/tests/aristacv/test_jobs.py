@@ -104,15 +104,15 @@ class CloudVisionDataSourceJobTest(TestCase):
     @patch.dict(
         "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
         {
-            "cvp_host": "https://localhost",
-            "cvp_user": "admin",
-            "verify": True,
-            "delete_devices_on_sync": True,
-            "from_cloudvision_default_site": "HQ",
-            "from_cloudvision_default_device_role": "Router",
-            "from_cloudvision_default_device_role_color": "ff0000",
-            "apply_import_tag": True,
-            "import_active": True,
+            "aristacv_cvp_host": "https://localhost",
+            "aristacv_cvp_user": "admin",
+            "aristacv_verify": True,
+            "aristacv_delete_devices_on_sync": True,
+            "aristacv_from_cloudvision_default_site": "HQ",
+            "aristacv_from_cloudvision_default_device_role": "Router",
+            "aristacv_from_cloudvision_default_device_role_color": "ff0000",
+            "aristacv_apply_import_tag": True,
+            "aristacv_import_active": True,
         },
     )
     def test_config_information_on_prem(self):
@@ -133,8 +133,8 @@ class CloudVisionDataSourceJobTest(TestCase):
     @patch.dict(
         "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
         {
-            "cvaas_url": "https://www.arista.io",
-            "cvp_user": "admin",
+            "aristacv_cvaas_url": "https://www.arista.io",
+            "aristacv_cvp_user": "admin",
         },
     )
     def test_config_information_cvaas(self):
