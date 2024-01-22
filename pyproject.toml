@@ -28,7 +28,7 @@ packages = [
 [tool.poetry.dependencies]
 python = ">=3.8,<3.12"
 # Used for local development
-nautobot = "^2.0.0"
+nautobot = "^2.1.0"
 diffsync = "^1.6.0"
 Jinja2 = { version = ">=2.11.3", optional = true }
 Markdown = "!=3.3.5"
