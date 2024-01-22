@@ -125,13 +125,15 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 name=device_record.name,
                 model=str(device_record.device_type),
                 role=str(device_record.role.cf.get("ipfabric_type"))
-                if str(device_record.role.cf.get("ipfabric_type"))
-                else str(device_record.role),
+                if device_record.role.cf.get("ipfabric_type")
+                else device_record.role.name,
                 location_name=device_record.location.name,
                 vendor=str(device_record.device_type.manufacturer),
                 status=device_record.status.name,
                 serial_number=device_record.serial if device_record.serial else "",
             )
+            if device_record.platform:
+                device.platform = device_record.platform.name
             try:
                 self.add(device)
             except ObjectAlreadyExists:

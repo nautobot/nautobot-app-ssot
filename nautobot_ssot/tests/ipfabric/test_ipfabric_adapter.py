@@ -65,6 +65,7 @@ class IPFabricDiffSyncTestCase(TestCase):
             self.assertTrue(hasattr(device, "vendor"))
             self.assertTrue(hasattr(device, "serial_number"))
             self.assertTrue(hasattr(device, "interfaces"))
+            self.assertTrue(hasattr(device, "platform"))
 
         # Assert each vlan has the necessary attributes
         for vlan in ipfabric.get_all("vlan"):
