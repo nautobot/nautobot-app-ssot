@@ -19,7 +19,6 @@ from netutils.mac import mac_to_format
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 
 from nautobot_ssot.integrations.ipfabric.constants import (
-    DEFAULT_INTERFACE_TYPE,
     DEFAULT_INTERFACE_MTU,
     DEFAULT_INTERFACE_MAC,
 )
@@ -102,7 +101,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 else DEFAULT_INTERFACE_MAC,
                 subnet_mask="255.255.255.255",
                 mtu=interface_record.mtu if interface_record.mtu else DEFAULT_INTERFACE_MTU,
-                type=DEFAULT_INTERFACE_TYPE,
+                type=interface_record.type,
                 mgmt_only=interface_record.mgmt_only if interface_record.mgmt_only else False,
                 pk=interface_record.pk,
                 ip_is_primary=interface_record.ip_addresses.first() == device_primary_ip
