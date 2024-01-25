@@ -133,3 +133,8 @@ def get_network_containers():
 def get_network_containers_ipv6():
     """Return a get_all_containers IPv6 response."""
     return _json_read_fixture("get_network_containers_ipv6.json")
+
+
+def get_all_ranges():
+    """Return a get all ranges response."""
+    return _json_read_fixture("get_all_ranges.json")

@@ -6,6 +6,7 @@ from .nbutils import (
     create_ip,
     create_manufacturer,
     create_location,
+    create_platform_object,
     create_status,
     create_vlan,
 )
@@ -15,6 +16,7 @@ __all__ = (
     "create_location",
     "create_device_type_object",
     "create_manufacturer",
+    "create_platform_object",
     "get_or_create_device_role_object",
     "create_status",
     "create_ip",

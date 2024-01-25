@@ -1,4 +1,5 @@
 """All interactions with infoblox."""  # pylint: disable=too-many-lines
+from __future__ import annotations
 
 import copy
 import json
@@ -6,6 +7,8 @@ import ipaddress
 import logging
 import re
 import urllib.parse
+from collections import defaultdict
+from typing import Optional
 import requests
 from requests.exceptions import HTTPError
 from requests.compat import urljoin
@@ -488,6 +491,29 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         logger.info(response)
         return response
 
+    def create_range(self, prefix: str, start: str, end: str) -> str:
+        """Create a range.
+
+        Args:
+            prefix: IP network range belongs to.
+            start: The starting IP of the range.
+            end: The ending IP of the range.
+
+        Returns:
+            str: Object reference of range.
+
+        Return Response:
+            "range/ZG5zLm5ldHdvcmskMTkyLjE2OC4wLjAvMjMvMA:192.168.0.100/192.168.0.254/default"
+        """
+        params = {"network": prefix, "start_addr": start, "end_addr": end}
+        plugin_defined_network_view = PLUGIN_CFG.get("NAUTOBOT_INFOBLOX_NETWORK_VIEW")
+        if plugin_defined_network_view:
+            params["network_view"] = plugin_defined_network_view
+        api_path = "range"
+        response = self._request("POST", api_path, params=params)
+        logger.info(response.text)
+        return response.text
+
     def get_host_record_by_name(self, fqdn):
         """Get the host record by using FQDN.
 
@@ -756,6 +782,46 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         logger.info(response.json)
         return response.json()
 
+    def get_all_ranges(self, prefix: Optional[str] = None) -> dict[str, dict[str, list[dict[str, str]]]]:
+        """Get all Ranges.
+
+        Args:
+            prefix: Network prefix - '10.220.0.0/22'
+
+        Returns:
+            dict: The mapping of network_view to prefix to defined ranges.
+
+        Return Response:
+        {
+            "default": {
+                "10.0.0.0/24": ["10.0.0.20-10.0.0.254"],
+                "10.10.0.0/23": ["10.10.0.20-10.0.0.255", "10.10.1.20-10.10.1.254"]
+            },
+            "non-default-view": {
+                "192.168.1.0/24": ["192.168.1.50-192.168.1.254"]
+            }
+        }
+        """
+        url_path = "range"
+        params = {"_return_fields": "network,network_view,start_addr,end_addr", "_max_results": 10000}
+        plugin_defined_network_view = PLUGIN_CFG.get("NAUTOBOT_INFOBLOX_NETWORK_VIEW")
+        if plugin_defined_network_view:
+            params["network_view"] = plugin_defined_network_view
+        if prefix:
+            params["network"]: prefix
+        try:
+            response = self._request("GET", url_path, params=params)
+        except HTTPError as err:
+            logger.info(err.response.text)
+            return {}
+        json_response = response.json()
+        logger.info(json_response)
+        data = defaultdict(lambda: defaultdict(list))
+        for prefix_range in json_response:
+            str_range = f"{prefix_range['start_addr']}-{prefix_range['end_addr']}"
+            data[prefix_range["network_view"]][prefix_range["network"]].append(str_range)
+        return data
+
     def get_all_subnets(self, prefix: str = None, ipv6: bool = False):
         """Get all Subnets.
 
@@ -783,6 +849,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
                 "network_view": "default",
                 "rir": "NONE",
                 "vlans": [],
+                "ranges": ["10.220.65.0-10.220.66.255"]
             },
         ]
         """
@@ -792,7 +859,6 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             url_path = "network"
 
         params = {
-            "_return_as_object": 1,
             "_return_fields": "network,network_view,comment,extattrs,rir_organization,rir,vlans",
             "_max_results": 10000,
         }
@@ -805,8 +871,18 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         except HTTPError as err:
             logger.info(err.response.text)
             return []
-        logger.info(response.json())
-        return response.json().get("result")
+        json_response = response.json()
+        logger.info(json_response)
+        if not ipv6:
+            ranges = self.get_all_ranges(prefix=prefix)
+            for returned_prefix in json_response:
+                network_view_ranges = ranges.get(returned_prefix["network_view"], {})
+                prefix_ranges = network_view_ranges.get(returned_prefix["network"])
+                if prefix_ranges:
+                    returned_prefix["ranges"] = prefix_ranges
+        else:
+            logger.info("Support for DHCP Ranges is not currently supported for IPv6 Networks.")
+        return json_response
 
     def get_authoritative_zone(self):
         """Get authoritative zone to check if fqdn exists.

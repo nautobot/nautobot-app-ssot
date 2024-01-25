@@ -8,7 +8,8 @@
     "memoryUtilization": 40.11,
     "version": "4.22.4M",
     "sn": "5254.00d3.a91d",
-    "loginIp": "172.18.0.22"
+    "loginIp": "172.18.0.22",
+    "family": "eos"
   },
   {
     "hostname": "jcy-spine-01.infra.ntc.com",
@@ -19,7 +20,8 @@
     "memoryUtilization": 58.22,
     "version": "9.3(3)",
     "sn": "a000a04",
-    "loginIp": "172.18.0.9"
+    "loginIp": "172.18.0.9",
+    "family": "nxos"
   },
   {
     "hostname": "jcy-rtr-01",
@@ -30,7 +32,8 @@
     "memoryUtilization": 11.97,
     "version": "17.1.1",
     "sn": "a000a01",
-    "loginIp": "172.18.0.3"
+    "loginIp": "172.18.0.3",
+    "family": "ios-xe"
   },
   {
     "hostname": "nyc-rtr-01",
@@ -41,7 +44,8 @@
     "memoryUtilization": 15,
     "version": "18.2R1.9",
     "sn": "VM60D5EE2211",
-    "loginIp": "172.18.0.14"
+    "loginIp": "172.18.0.14",
+    "family": "junos"
   },
   {
     "hostname": "nyc-leaf-01",
@@ -52,7 +56,8 @@
     "memoryUtilization": 39.6,
     "version": "4.22.4M",
     "sn": "5254.0029.fbf2",
-    "loginIp": "172.18.0.25"
+    "loginIp": "172.18.0.25",
+    "family": "eos"
   },
   {
     "hostname": "jcy-rtr-02",
@@ -63,6 +68,7 @@
     "memoryUtilization": 11.97,
     "version": "17.1.1",
     "sn": "a000a02",
-    "loginIp": "172.18.0.5"
+    "loginIp": "172.18.0.5",
+    "family": "ios-xe"
   }
 ]

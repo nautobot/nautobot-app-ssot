@@ -66,3 +66,26 @@ class TestNautobotAdapter(TestCase):
             sync_ipfabric_tagged_only=False,
             location_filter=None,
         )
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models.Location", autospec=True)
+    @unittest.mock.patch.object(NautobotDiffSync, "load_interfaces")
+    def test_load_device(self, mock_load_interfaces, mock_location):
+        self.nb_adapter.load_device(Device.objects.filter(location=self.site1), mock_location)
+        self.assertEqual(mock_load_interfaces.call_count, 2)
+        self.assertEqual(mock_location.add_child.call_count, 2)
+        loaded_devices = self.nb_adapter.get_all("device")
+        self.assertEqual(len(loaded_devices), 2)
+        self.assertEqual(loaded_devices[0].name, "dev1")
+        self.assertEqual(loaded_devices[1].name, "dev2")
+        self.assertEqual(loaded_devices[0].serial_number, "abc")
+        self.assertEqual(loaded_devices[1].serial_number, "def")
+        for device in loaded_devices:
+            self.assertEqual(device.model, "dev_type1")
+            self.assertEqual(device.role, "test")
+            self.assertEqual(device.location_name, "site1")
+            self.assertEqual(device.vendor, "man1")
+            self.assertEqual(device.status, "Active")
+            if device.name != "dev3":
+                self.assertEqual(device.platform, "platform1")
+            else:
+                self.assertEqual(device.platform, "")
