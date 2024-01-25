@@ -1,7 +1,7 @@
 """Test Nautobot Utilities."""
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
-from nautobot.dcim.models import DeviceType, Manufacturer, Location, LocationType
+from nautobot.dcim.models import DeviceType, Manufacturer, Location, LocationType, Platform
 from nautobot.dcim.models.devices import Device
 from nautobot.extras.models.statuses import Status
 from nautobot.ipam.models import VLAN, IPAddress, Prefix, get_default_namespace
@@ -13,6 +13,7 @@ from nautobot_ssot.integrations.ipfabric.utilities import (  # create_ip,; creat
     create_device_type_object,
     create_location,
     create_manufacturer,
+    create_platform_object,
     create_status,
     create_vlan,
 )
@@ -121,6 +122,46 @@ class TestNautobotUtils(TestCase):
         """Test `create_manufacturer` Utility."""
         test_manufacturer = create_manufacturer(vendor_name="Test-Manufacturer")
         self.assertEqual(test_manufacturer.id, self.manufacturer.id)
+
+    def test_create_platform_object_platform_created_no_napalm_driver(self):
+        """Test `create_platform_object` Utility."""
+        platform = "does_not_exist"
+        self.assertEqual(Platform.objects.filter(name=platform).count(), 0)
+        platform_obj = create_platform_object(platform, self.manufacturer)
+        self.assertEqual(self.manufacturer.id, platform_obj.manufacturer.id)
+        self.assertEqual(platform_obj.name, platform)
+        expected_network_driver = f"{self.manufacturer.name.lower()}_{platform}"
+        self.assertEqual(platform_obj.network_driver, expected_network_driver)
+        self.assertEqual(platform_obj.napalm_driver, "")
+
+    def test_create_platform_object_platform_created_with_napalm_driver(self):
+        """Test `create_platform_object` Utility."""
+        manufacturer_obj, _ = Manufacturer.objects.get_or_create(name="Cisco")
+        platform = "ios"
+        self.assertEqual(Platform.objects.filter(name=platform).count(), 0)
+        platform_obj = create_platform_object(platform, manufacturer_obj)
+        self.assertEqual(manufacturer_obj.id, platform_obj.manufacturer.id)
+        self.assertEqual(platform_obj.name, platform)
+        self.assertEqual(platform_obj.network_driver, "cisco_ios")
+        self.assertEqual(platform_obj.napalm_driver, "cisco_ios")
+
+    def test_create_platform_object_platform_created_iosxe(self):
+        """Test `create_platform_object` Utility."""
+        platform = "ios-xe"
+        self.assertEqual(Platform.objects.filter(name=platform).count(), 0)
+        platform_obj = create_platform_object(platform, self.manufacturer)
+        self.assertEqual(platform_obj.network_driver, "cisco_ios")
+        self.assertEqual(platform_obj.napalm_driver, "cisco_ios")
+
+    def test_create_platform_object_existing_platform_returned(self):
+        """Test `create_platform_object` Utility."""
+        manufacturer_obj, _ = Manufacturer.objects.get_or_create(name="Cisco")
+        platform = "ios"
+        platform_obj = Platform.objects.create(name=platform, manufacturer=manufacturer_obj)
+        existing_platform_obj = create_platform_object(platform, manufacturer_obj)
+        self.assertEqual(platform_obj.id, existing_platform_obj.id)
+        self.assertEqual(platform_obj.network_driver, "")
+        self.assertEqual(platform_obj.napalm_driver, "")
 
     def test_get_or_create_device_role(self):
         """Test `get_or_create_device_role` Utility."""

@@ -10,7 +10,7 @@ from diffsync import DiffSyncModel
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from nautobot.dcim.models import Device as NautobotDevice
-from nautobot.dcim.models import DeviceType, Location as NautobotLocation
+from nautobot.dcim.models import DeviceType, Location as NautobotLocation, Manufacturer
 from nautobot.extras.models import Role, Tag
 from nautobot.extras.models.statuses import Status
 from nautobot.ipam.models import VLAN
@@ -138,7 +138,7 @@ class Device(DiffSyncExtras):
 
     _modelname = "device"
     _identifiers = ("name",)
-    _attributes = ("location_name", "model", "vendor", "serial_number", "role", "status")
+    _attributes = ("location_name", "model", "vendor", "serial_number", "role", "status", "platform")
     _children = {"interface": "interfaces"}
 
     name: str
@@ -148,6 +148,7 @@ class Device(DiffSyncExtras):
     serial_number: Optional[str]
     role: Optional[str]
     status: Optional[str]
+    platform: Optional[str]
 
     mgmt_address: Optional[str]
 
@@ -164,6 +165,15 @@ class Device(DiffSyncExtras):
             device_type_object = tonb_nbutils.create_device_type_object(
                 device_type=attrs["model"], vendor_name=attrs["vendor"]
             )
+        # Get Platform
+        platform = attrs.get("platform")
+        if platform:
+            platform_object = tonb_nbutils.create_platform_object(
+                platform=platform,
+                manufacturer_obj=device_type_object.manufacturer,
+            )
+        else:
+            platform_object = None
         # Get Role, update if missing cf and create otherwise
         role_name = attrs.get("role", DEFAULT_DEVICE_ROLE)
         device_role_filter = Role.objects.filter(name=role_name)
@@ -195,6 +205,7 @@ class Device(DiffSyncExtras):
             device_type=device_type_object,
             role=device_role_object,
             location=location,
+            defaults={"platform": platform_object},
         )
         try:
             # Validated save happens inside of tag_objet
@@ -230,12 +241,17 @@ class Device(DiffSyncExtras):
                 device_tags = _device.tags.filter(pk=safe_delete_tag.pk)
                 if device_tags.exists():
                     _device.tags.remove(safe_delete_tag)
-            # TODO: If only the "model" is changing, the "vendor" is not available
+            vendor_name = attrs.get("vendor") or self.vendor
             if attrs.get("model"):
                 device_type_object = tonb_nbutils.create_device_type_object(
-                    device_type=attrs["model"], vendor_name=attrs["vendor"]
+                    device_type=attrs["model"], vendor_name=vendor_name
                 )
                 _device.type = device_type_object
+            platform_name = attrs.get("platform")
+            if platform_name:
+                manufacturer_object = Manufacturer.objects.get(name=vendor_name)
+                platform_object = tonb_nbutils.create_platform_object(platform_name, manufacturer_object)
+                _device.platform = platform_object
             if attrs.get("location_name"):
                 location = tonb_nbutils.create_location(attrs["location_name"])
                 _device.location = location
@@ -247,6 +263,10 @@ class Device(DiffSyncExtras):
                 )
                 _device.role = device_role_object
             tonb_nbutils.tag_object(nautobot_object=_device, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+            try:
+                _device.validated_save()
+            except:  # noqa: E722 pylint: disable=bare-except
+                logger.warning(f"Unable to update device {self.name}")
             # Call the super().update() method to update the in-memory DiffSyncModel instance
             return super().update(attrs)
         except NautobotDevice.DoesNotExist:

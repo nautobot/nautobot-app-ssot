@@ -7,6 +7,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 from netutils.ip import netmask_to_cidr
+from netutils.lib_mapper import NAPALM_LIB_MAPPER
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import (
     Device,
@@ -15,6 +16,7 @@ from nautobot.dcim.models import (
     Manufacturer,
     Location,
     LocationType,
+    Platform,
 )
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Role, Tag
@@ -68,6 +70,24 @@ def create_device_type_object(device_type, vendor_name):
     device_type_obj, _ = DeviceType.objects.get_or_create(manufacturer=mf_name, model=device_type)
     tag_object(nautobot_object=device_type_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
     return device_type_obj
+
+
+def create_platform_object(platform, manufacturer_obj):
+    """Ensure Platform exists in Nautobot."""
+    if platform == "ios-xe":
+        network_driver = "cisco_ios"
+        napalm_driver = "cisco_ios"
+    else:
+        network_driver = f"{manufacturer_obj.name.lower()}_{platform.lower()}"
+        napalm_driver = NAPALM_LIB_MAPPER.get(platform, "")
+
+    defaults = {"network_driver": network_driver, "napalm_driver": napalm_driver}
+    platform_obj, _ = Platform.objects.get_or_create(
+        name=platform,
+        manufacturer=manufacturer_obj,
+        defaults=defaults,
+    )
+    return platform_obj
 
 
 def get_or_create_device_role_object(role_name, role_color):

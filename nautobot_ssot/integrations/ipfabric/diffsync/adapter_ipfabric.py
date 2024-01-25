@@ -142,6 +142,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                         serial_number=serial_number,
                         role=device.get("devType") if device.get("devType") else DEFAULT_DEVICE_ROLE,
                         status=DEFAULT_DEVICE_STATUS,
+                        platform=device.get("family"),
                     )
                     self.add(device_model)
                     location.add_child(device_model)
