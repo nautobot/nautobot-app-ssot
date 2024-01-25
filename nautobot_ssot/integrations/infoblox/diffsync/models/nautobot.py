@@ -105,6 +105,9 @@ class NautobotNetwork(Network):
             type=attrs["network_type"],
             description=attrs.get("description", ""),
         )
+        prefix_ranges = attrs.get("ranges")
+        if prefix_ranges:
+            _prefix.cf["dhcp_ranges"] = ",".join(prefix_ranges)
         if attrs.get("vlans"):
             relation = diffsync.relationship_map["Prefix -> VLAN"]
             for _, _vlan in attrs["vlans"].items():
@@ -144,6 +147,9 @@ class NautobotNetwork(Network):
             _pf.type = attrs["network_type"]
         if "ext_attrs" in attrs:
             process_ext_attrs(diffsync=self.diffsync, obj=_pf, extattrs=attrs["ext_attrs"])
+        prefix_ranges = attrs.get("ranges")
+        if prefix_ranges:
+            _pf.cf["dhcp_ranges"] = ",".join(prefix_ranges)
         if "vlans" in attrs:  # pylint: disable=too-many-nested-blocks
             current_vlans = get_prefix_vlans(prefix=_pf)
             if len(current_vlans) < len(attrs["vlans"]):
