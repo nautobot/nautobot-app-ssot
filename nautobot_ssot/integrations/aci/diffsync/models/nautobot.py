@@ -348,13 +348,8 @@ class NautobotIPAddress(IPAddress):
         obj_id = None
         if attrs["device"] and attrs["interface"]:
             try:
-                obj_id = OrmDevice.objects.get(
-                    name=_device,
-                    location=Location.objects.get(
-                        name=ids["site"], location_type=LocationType.objects.get(name="Site")
-                    ),
-                ).interfaces.get(name=_interface)
-            except ObjectNotCreated:
+                intf = OrmInterface.objects.get(name=_interface, device__name=_device)
+            except OrmInterface.DoesNotExist:
                 diffsync.job.logger.warning(f"{_device} missing interface {_interface} to assign {ids['address']}")
         if ids["tenant"]:
             tenant_name = OrmTenant.objects.get(name=ids["tenant"])
