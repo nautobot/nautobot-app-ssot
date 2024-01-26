@@ -8,9 +8,9 @@ from nautobot.dcim.models import DeviceType as OrmDeviceType
 from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import InterfaceTemplate as OrmInterfaceTemplate
 from nautobot.dcim.models import Interface as OrmInterface
-from nautobot.ipam.models import IPAddress as OrmIPAddress
-from nautobot.ipam.models import Namespace
 from nautobot.dcim.models import Location, LocationType
+from nautobot.ipam.models import IPAddress as OrmIPAddress
+from nautobot.ipam.models import Namespace, IPAddressToInterface
 from nautobot.ipam.models import Prefix as OrmPrefix
 from nautobot.ipam.models import VRF as OrmVrf
 from nautobot.dcim.models import Manufacturer
@@ -345,7 +345,7 @@ class NautobotIPAddress(IPAddress):
         """Create IPAddress object in Nautobot."""
         _device = attrs["device"]
         _interface = attrs["interface"]
-        obj_id = None
+        intf = None
         if attrs["device"] and attrs["interface"]:
             try:
                 intf = OrmInterface.objects.get(name=_interface, device__name=_device)
@@ -365,8 +365,9 @@ class NautobotIPAddress(IPAddress):
             parent=OrmPrefix.objects.get(prefix=attrs["prefix"], namespace=namespace),
             tenant=tenant_name,
         )
-        if obj_id:
-            _ipaddress.interfaces.add(obj_id)
+        if intf:
+            mapping = IPAddressToInterface.objects.create(ip_address=_ipaddress, interface=intf)
+            mapping.validated_save()
         _ipaddress.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _ipaddress.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _ipaddress.validated_save()
@@ -388,9 +389,9 @@ class NautobotIPAddress(IPAddress):
         if attrs.get("tenant"):
             _ipaddress.tenant = OrmTenant.objects.get(name=self.tenant)
         if attrs.get("device") and attrs.get("interface"):
-            _ipaddress.interfaces.add(
-                OrmDevice.objects.get(name=attrs["device"], location=self.site).interfaces.get(name=attrs["interface"])
-            )
+            intf = OrmInterface.objects.get(name=attrs["interface"], device__name=attrs["device"])
+            mapping = IPAddressToInterface.objects.create(ip_address=_ipaddress, interface=intf)
+            mapping.validated_save()
         if attrs.get("status"):
             _ipaddress.status = Status.objects.get(name=attrs["status"])
         if attrs.get("tenant"):
