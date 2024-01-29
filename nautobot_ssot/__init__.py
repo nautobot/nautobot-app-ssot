@@ -1,14 +1,14 @@
-"""Plugin declaration for nautobot_ssot."""
+"""App declaration for nautobot_ssot."""
 # Metadata is inherited from Nautobot. If not including Nautobot in the environment, this should be added
 from importlib import metadata
 
+from nautobot.apps import NautobotAppConfig
+
 __version__ = metadata.version(__name__)
 
-from nautobot.extras.plugins import NautobotAppConfig
 
-
-class NautobotSSOTPluginConfig(NautobotAppConfig):
-    """Plugin configuration for the nautobot_ssot plugin."""
+class NautobotSSOTAppConfig(NautobotAppConfig):
+    """App configuration for the nautobot_ssot app."""
 
     name = "nautobot_ssot"
     verbose_name = "Single Source of Truth"
@@ -23,4 +23,4 @@ class NautobotSSOTPluginConfig(NautobotAppConfig):
     caching_config = {}
 
 
-config = NautobotSSOTPluginConfig  # pylint:disable=invalid-name
+config = NautobotSSOTAppConfig  # pylint:disable=invalid-name
