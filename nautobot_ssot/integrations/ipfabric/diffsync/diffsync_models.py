@@ -6,6 +6,8 @@ from typing import Any, ClassVar, List, Optional
 from uuid import UUID
 import logging
 
+from netutils.ip import netmask_to_cidr
+
 from diffsync import DiffSyncModel
 from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
@@ -13,7 +15,7 @@ from django.db.models import Q
 from nautobot.dcim.models import Device as NautobotDevice, DeviceType, Location as NautobotLocation, Manufacturer
 from nautobot.extras.models import Role, Tag
 from nautobot.extras.models.statuses import Status
-from nautobot.ipam.models import VLAN
+from nautobot.ipam.models import VLAN, IPAddress
 from nautobot.core.choices import ColorChoices
 from nautobot_ssot.integrations.ipfabric.constants import LAST_SYNCHRONIZED_CF_NAME
 import nautobot_ssot.integrations.ipfabric.utilities.nbutils as tonb_nbutils
@@ -458,7 +460,7 @@ class Interface(DiffSyncExtras):
         device_name = ids["device_name"]
         interface_name = ids["name"]
         ip_address = attrs["ip_address"]
-        subnet_mask = attrs["subnet_mask"]
+        subnet_mask = attrs["subnet_mask"]  # TODO: switch to cidr notation since both APIs use that format
         ssot_tag, _ = Tag.objects.get_or_create(name="SSoT Synced from IPFabric")
         device_obj = NautobotDevice.objects.filter(Q(name=device_name) & Q(tags__name=ssot_tag.name)).first()
 
@@ -599,6 +601,29 @@ class Interface(DiffSyncExtras):
                             f"Unable to update Interface {self.name} on Device {device.name} "
                             f"with an IPAddress of {ip_address}/{subnet_mask}"
                         )
+                elif attrs.get("subnet_mask"):
+                    try:
+                        ip_address_obj = interface.ip_addresses.get(host=self.ip_address)
+                    except IPAddress.MultipleObjectsReturned:
+                        self.diffsync.job.logger.error(
+                            f"Multiple IPAddresses found with an address of {self.ip_address} on Interface named {self.name} "
+                            f"on Device named {device.name} with an ID of {device.id}, unable to determine which one "
+                            f"to update with a mask of {subnet_mask}"
+                        )
+                    except IPAddress.DoesNotExist:
+                        self.diffsync.job.logger.error(
+                            f"Unable to find an IPAddress with an address of {self.ip_address} on Interface named {self.name} "
+                            f"on Device named {device.name} with an ID of {device.id} to update with a mask of {subnet_mask}"
+                        )
+                    else:
+                        ip_address_obj.mask_length = netmask_to_cidr(subnet_mask)
+                        try:
+                            ip_address_obj.validated_save()
+                        except (DjangoBaseDBError, ValidationError):
+                            self.diffsync.job.logger.error(
+                                f"Unable to update the subnet_mask with a value of {subnet_mask} on Interface named {self.name} "
+                                f"on Device named {device.name} with an ID of {device.id}"
+                            )
                 if attrs.get("ip_is_primary"):
                     interface_obj = interface.ip_addresses.first()
                     if interface_obj:
@@ -610,7 +635,7 @@ class Interface(DiffSyncExtras):
                                 device.primary_ip6 = interface_obj
                                 device.save()
                         except (DjangoBaseDBError, ValidationError):
-                            self.diffsync.job.logger(
+                            self.diffsync.job.logger.error(
                                 f"Unable to update Primay IP for Device named {device.name} "
                                 f"with an ID of {device.id}"
                             )

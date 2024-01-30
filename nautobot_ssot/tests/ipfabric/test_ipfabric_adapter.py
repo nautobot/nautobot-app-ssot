@@ -1,8 +1,8 @@
 """Unit tests for the IPFabric DiffSync adapter class."""
 import json
+from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
-from django.test import TestCase
 from nautobot.extras.models import JobResult
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabricDiffSync
@@ -19,6 +19,7 @@ SITE_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_sites.json
 DEVICE_INVENTORY_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_device_inventory.json")
 VLAN_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_vlans.json")
 INTERFACE_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_interface_inventory.json")
+NETWORKS_FIXTURE = [{"net": "10.255.254.0/23", "siteName": "site1"}, {"net": "172.18.0.0/24", "siteName": "site2"}]
 
 
 class IPFabricDiffSyncTestCase(TestCase):
@@ -35,6 +36,7 @@ class IPFabricDiffSyncTestCase(TestCase):
             side_effect=(lambda x: VLAN_FIXTURE if x == "tables/vlan/site-summary" else "")
         )
         ipfabric_client.inventory.interfaces.all.return_value = INTERFACE_FIXTURE
+        ipfabric_client.technology.managed_networks.networks.fetch.return_value = NETWORKS_FIXTURE
 
         job = IpFabricDataSource()
         job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
@@ -66,6 +68,7 @@ class IPFabricDiffSyncTestCase(TestCase):
             self.assertTrue(hasattr(device, "serial_number"))
             self.assertTrue(hasattr(device, "interfaces"))
             self.assertTrue(hasattr(device, "platform"))
+            self.assertTrue(hasattr(device, "mgmt_address"))
 
         # Assert each vlan has the necessary attributes
         for vlan in ipfabric.get_all("vlan"):
@@ -76,6 +79,7 @@ class IPFabricDiffSyncTestCase(TestCase):
             self.assertTrue(hasattr(vlan, "description"))
 
         # Assert each interface has the necessary attributes
+        interface_names = set()
         for interface in ipfabric.get_all("interface"):
             self.assertTrue(hasattr(interface, "name"))
             self.assertTrue(hasattr(interface, "device_name"))
@@ -84,6 +88,17 @@ class IPFabricDiffSyncTestCase(TestCase):
             self.assertTrue(hasattr(interface, "ip_address"))
             self.assertTrue(hasattr(interface, "subnet_mask"))
             self.assertTrue(hasattr(interface, "type"))
+            # Test mask from NETWORKS_FIXTURE is used
+            if interface.name == "pseudo_mgmt":
+                self.assertEqual(interface.subnet_mask, "255.255.255.0")
+            # Test network not in NETWORKS_FIXTURE uses default of /32
+            elif interface.name == "Gi4":
+                self.assertEqual(interface.subnet_mask, "255.255.255.255")
+            interface_names.add(interface.name)
+
+        # Test that subnet masks tests were ran
+        self.assertTrue("pseudo_mgmt" in interface_names)
+        self.assertTrue("Gi4" in interface_names)
 
     @patch("nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME", True)
     def test_data_loading_elongate_interface_names(self):
