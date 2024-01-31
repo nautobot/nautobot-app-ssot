@@ -1,7 +1,6 @@
 """Nautobot Models for Cisco ACI integration with SSoT app."""
 
 import logging
-from diffsync.exceptions import ObjectNotCreated
 from django.contrib.contenttypes.models import ContentType
 from nautobot.tenancy.models import Tenant as OrmTenant
 from nautobot.dcim.models import DeviceType as OrmDeviceType
