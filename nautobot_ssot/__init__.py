@@ -1,10 +1,38 @@
 """App declaration for nautobot_ssot."""
-# Metadata is inherited from Nautobot. If not including Nautobot in the environment, this should be added
+import os
 from importlib import metadata
 
-from nautobot.apps import NautobotAppConfig
+from django.conf import settings
+from nautobot.extras.plugins import NautobotAppConfig
+from nautobot.core.settings_funcs import is_truthy
+
+from nautobot_ssot.integrations.utils import each_enabled_integration_module
+from nautobot_ssot.utils import logger
 
 __version__ = metadata.version(__name__)
+
+
+_CONFLICTING_APP_NAMES = [
+    "nautobot_ssot_aci",
+    "nautobot_ssot_aristacv",
+    "nautobot_ssot_device42",
+    "nautobot_ssot_infoblox",
+    "nautobot_ssot_ipfabric",
+    "nautobot_ssot_servicenow",
+]
+
+
+def _check_for_conflicting_apps():
+    intersection = set(_CONFLICTING_APP_NAMES).intersection(set(settings.PLUGINS))
+    if intersection:
+        raise RuntimeError(
+            f"The following apps are installed and conflict with `nautobot-ssot`: {', '.join(intersection)}."
+            "See: https://docs.nautobot.com/projects/ssot/en/latest/admin/upgrade/#potential-apps-conflicts"
+        )
+
+
+if not is_truthy(os.getenv("NAUTOBOT_SSOT_ALLOW_CONFLICTING_APPS", "False")):
+    _check_for_conflicting_apps()
 
 
 class NautobotSSOTAppConfig(NautobotAppConfig):
@@ -94,5 +122,10 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
     def ready(self):
         """Trigger callback when database is ready."""
         super().ready()
+
+        for module in each_enabled_integration_module("signals"):
+            logger.debug("Registering signals for %s", module.__file__)
+            module.register_signals(self)
+
 
 config = NautobotSSOTAppConfig  # pylint:disable=invalid-name

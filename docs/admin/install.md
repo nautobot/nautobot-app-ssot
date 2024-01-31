@@ -79,10 +79,19 @@ sudo systemctl restart nautobot nautobot-worker nautobot-scheduler
 
 The app behavior can be controlled with the following list of settings:
 
-The app behavior can be controlled with the following list of settings:
+| Key                 | Example | Default | Description                                                |
+| ------------------- | ------- | ------- | ---------------------------------------------------------- |
+| `hide_example_jobs` | `True`  | `False` | A boolean to represent whether or display the example job. |
 
-| Key     | Example | Default | Description                          |
-| ------- | ------ | -------- | ------------------------------------- |
-| `enable_backup` | `True` | `True` | A boolean to represent whether or not to run backup configurations within the app. |
-| `platform_slug_map` | `{"cisco_wlc": "cisco_aireos"}` | `None` | A dictionary in which the key is the platform slug and the value is what netutils uses in any "network_os" parameter. |
-| `per_feature_bar_width` | `0.15` | `0.15` | The width of the table bar within the overview report |
+## Integrations Configuration
+
+The `nautobot-ssot` package includes multiple integrations. Each requires extra dependencies defined in `pyproject.toml`.
+
+Set up each integration using the specific guides:
+
+- [Cisco ACI](./integrations/aci_setup.md)
+- [Arista CloudVision](./integrations/aristacv_setup.md)
+- [Device42](./integrations//device42_setup.md)
+- [Infoblox](./integrations/infoblox_setup.md)
+- [IPFabric](./integrations/ipfabric_setup.md)
+- [ServiceNow](./integrations/servicenow_setup.md)

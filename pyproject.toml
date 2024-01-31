@@ -61,6 +61,7 @@ django-extensions = "*"
 flake8 = "*"
 invoke = "*"
 ipython = "*"
+jedi = "^0.17.2"
 pylint = "*"
 pylint-django = "*"
 pylint-nautobot = "*"
@@ -79,9 +80,86 @@ mkdocs-version-annotations = "1.0.0"
 mkdocstrings = "0.22.0"
 mkdocstrings-python = "1.5.2"
 towncrier = "~23.6.0"
+requests-mock = "^1.10.0"
+parameterized = "^0.8.1"
+myst-parser = "^0.15.2"
+nautobot-chatops = { version = "^3.0.0", extras = ["ipfabric"] }
+responses = "^0.14.0"
+
+[tool.poetry.plugins."nautobot_ssot.data_sources"]
+"example" = "nautobot_ssot.sync.example:ExampleSyncWorker"
+
+[tool.poetry.plugins."nautobot_ssot.data_targets"]
+"example" = "nautobot_ssot.sync.example:ExampleSyncWorker"
+
+[tool.poetry.plugins."nautobot.workers"]
+"ipfabric" = "nautobot_ssot.integrations.ipfabric.workers:ipfabric"
 
 [tool.poetry.extras]
+aci = [
+    "PyYAML",
+]
 all = [
+    "Jinja2",
+    "PyYAML",
+    "cloudvision",
+    "cvprac",
+    "dnspython",
+    "ijson",
+    "ipfabric",
+    "ipfabric-diagrams",
+    "nautobot-device-lifecycle-mgmt",
+    "netutils",
+    "oauthlib",
+    "python-magic",
+    "pytz",
+    "requests",
+    "requests-oauthlib",
+    "six",
+]
+aristacv = [
+    "cloudvision",
+    "cvprac",
+]
+device42 = [
+    "requests",
+]
+infoblox = [
+    "dnspython",
+]
+ipfabric = [
+    "httpx",
+    "ipfabric",
+    "ipfabric-diagrams",
+    "netutils",
+]
+# pysnow = "^0.7.17"
+# PySNow is currently pinned to an older version of pytz as a dependency, which blocks compatibility with newer
+# versions of Nautobot. See https://github.com/rbw/pysnow/pull/186
+# For now, we have embedded a copy of PySNow under nautobot_ssot/integrations/servicenow/third_party/pysnow;
+# here are its direct packaging dependencies:
+pysnow = [
+    "requests",
+    "oauthlib",
+    "python-magic",
+    "requests-oauthlib",
+    "six",
+    "ijson",
+    "pytz",
+]
+servicenow = [
+    "Jinja2",
+    "PyYAML",
+    "ijson",
+    "oauthlib",
+    "python-magic",
+    "pytz",
+    "requests",
+    "requests-oauthlib",
+    "six",
+]
+nautobot-device-lifecycle-mgmt = [
+    "nautobot-device-lifecycle-mgmt",
 ]
 
 [tool.black]
@@ -161,6 +239,10 @@ ignore = [
     "D401",  # First line of docstring should be in imperative mood
     "D407",  # Missing dashed underline after section
     "D416",  # Section name ends in colon
+
+    # Package specific ignores
+    "D104",
+    "D417",
 ]
 
 [tool.ruff.lint.pydocstyle]
@@ -171,6 +253,9 @@ convention = "google"
     "D",  # pydocstyle
 ]
 "nautobot_ssot/tests/*" = [
+    "D",  # pydocstyle
+]
+"nautobot_ssot/integrations/servicenow/third_party/*" = [
     "D",  # pydocstyle
 ]
 

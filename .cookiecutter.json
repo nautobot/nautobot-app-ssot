@@ -8,7 +8,7 @@
         "verbose_name": "Single Source of Truth",
         "app_slug": "nautobot-ssot",
         "project_slug": "nautobot-app-ssot",
-        "repo_url": "https://github.com/nautobot/nautobot-app-ssot/",
+        "repo_url": "https://github.com/nautobot/nautobot-app-ssot",
         "base_url": "ssot",
         "min_nautobot_version": "2.0.0",
         "max_nautobot_version": "2.9999",
