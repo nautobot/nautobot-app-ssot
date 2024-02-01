@@ -532,7 +532,7 @@ class Interface(DiffSyncExtras):
                 )
             except NautobotInterface.DoesNotExist:
                 self.diffsync.job.logger.error(
-                    f"Unable to find an Interface with the name {self.name} on Device named {self.device} "
+                    f"Unable to find an Interface with the name {self.name} on Device named {self.device_name} "
                     f"with an ID of {device.id} to delete"
                 )
             else:
@@ -705,12 +705,12 @@ class Vlan(DiffSyncExtras):
             location_obj = NautobotLocation.objects.get(name=self.location)
         except NautobotLocation.MultipleObjectsReturned:
             self.diffsync.job.logger.error(
-                f"Multiple Locations found with the name {self.lcation}, unable to "
+                f"Multiple Locations found with the name {self.location}, unable to "
                 f"Retrieve the VLAN named {self.name} to perform updates"
             )
         except NautobotLocation.DoesNotExist:
             self.diffsync.job.logger.error(
-                f"Could not find a Location with the name {self.lcation}, unable to "
+                f"Could not find a Location with the name {self.location}, unable to "
                 f"Retrieve the VLAN named {self.name} to perform updates"
             )
         else:
