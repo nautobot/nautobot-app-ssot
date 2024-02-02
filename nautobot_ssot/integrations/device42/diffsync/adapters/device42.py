@@ -591,7 +591,7 @@ class Device42Adapter(Adapter):
                                 self.get(self.vlan, {"vlan_id": self.d42_vlan_map[_pk]["vid"], "building": building})
                             except ObjectNotFound:
                                 load_vlan(
-                                    diffsync=self,
+                                    adapter=self,
                                     vlan_id=self.d42_vlan_map[_pk]["vid"],
                                     site_name=building,
                                 )
@@ -741,7 +741,7 @@ class Device42Adapter(Adapter):
             elif _info.get("building"):
                 building = _info["building"]
             load_vlan(
-                diffsync=self,
+                adapter=self,
                 vlan_id=int(_info["vid"]),
                 site_name=building if building else "Unknown",
                 vlan_name=_vlan_name,
