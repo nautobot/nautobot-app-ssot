@@ -105,7 +105,7 @@ all = [
     "dnspython",
     "ijson",
     "ipfabric",
-    "ipfabric-diagrams",
+#    "ipfabric-diagrams",
     "nautobot-device-lifecycle-mgmt",
     "netutils",
     "oauthlib",
@@ -128,7 +128,7 @@ infoblox = [
 ipfabric = [
     "httpx",
     "ipfabric",
-    "ipfabric-diagrams",
+#    "ipfabric-diagrams",
     "netutils",
 ]
 # pysnow = "^0.7.17"
