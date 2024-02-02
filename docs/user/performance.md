@@ -55,12 +55,12 @@ As an SSoT job typically has lots of Nautobot database interaction (i.e. Nautobo
 The following is an example of an inefficient `load` function that can be greatly improved:
 
 ```python
-from diffsync import DiffSync
+from diffsync import Adapter
 from nautobot.dcim.models import Region, Site, Location
 
 from my_package import ParentRegionModel, ChildRegionModel, SiteModel, LocationModel
 
-class ExampleAdapter(DiffSync):
+class ExampleAdapter(Adapter):
     parent_region = ParentRegionModel
     child_region = ChildRegionModel
     site = SiteModel
