@@ -295,17 +295,18 @@ class Device(DiffSyncExtras):
                 diffsync.job.logger.error(
                     f"Unable to create a new Device named {device_name} at Location {location_name}"
                 )
-            try:
-                # Validated save happens inside of tag_objet
-                tonb_nbutils.tag_object(nautobot_object=new_device, custom_field=LAST_SYNCHRONIZED_CF_NAME)
-            except (DjangoBaseDBError, ValidationError) as error:
-                diffsync.job.logger.error(
-                    f"Unable to perform a validated_save() on Device {device_name} with an ID of {new_device.id}"
-                )
-                message = f"Unable to create device: {device_name}. A validation error occured. Enable debug for more information."
-                if diffsync.job.debug:
-                    logger.debug(error)
-                logger.error(message)
+            else:
+                try:
+                    # Validated save happens inside of tag_objet
+                    tonb_nbutils.tag_object(nautobot_object=new_device, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+                except (DjangoBaseDBError, ValidationError) as error:
+                    diffsync.job.logger.error(
+                        f"Unable to perform a validated_save() on Device {device_name} with an ID of {new_device.id}"
+                    )
+                    message = f"Unable to create device: {device_name}. A validation error occured. Enable debug for more information."
+                    if diffsync.job.debug:
+                        logger.debug(error)
+                    logger.error(message)
 
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
@@ -314,28 +315,28 @@ class Device(DiffSyncExtras):
         try:
             device_object = NautobotDevice.objects.get(name=self.name)
         except NautobotDevice.MultipleObjectsReturned:
-            self.diffsync.logger.error(
+            self.diffsync.job.logger.error(
                 f"Multiple Devices found with the name {self.name}, unable to determine which one to delete"
             )
         except NautobotDevice.DoesNotExist:
-            self.diffsync.logger.error(f"Unable to find a Device with the name {self.name} to delete")
+            self.diffsync.job.logger.error(f"Unable to find a Device with the name {self.name} to delete")
         else:
             self.safe_delete(
                 device_object,
                 SAFE_DELETE_DEVICE_STATUS,
             )
-            return super().delete()
+        return super().delete()
 
     def update(self, attrs):
         """Update devices in Nautobot based on Source."""
         try:
             _device = NautobotDevice.objects.get(name=self.name)
-        except NautobotLocation.MultipleObjectsReturned:
+        except NautobotDevice.MultipleObjectsReturned:
             self.diffsync.job.logger.error(
                 f"Multiple Devices found with the name {self.name}, unable to determine which one to update"
             )
-        except NautobotLocation.DoesNotExist:
-            self.diffsync.logger.error(f"Unable to find a Device with the name {self.name} to update")
+        except NautobotDevice.DoesNotExist:
+            self.diffsync.job.logger.error(f"Unable to find a Device with the name {self.name} to update")
         else:
             if attrs.get("status") == "Active":
                 safe_delete_tag, _ = Tag.objects.get_or_create(name="SSoT Safe Delete")
@@ -415,8 +416,7 @@ class Device(DiffSyncExtras):
                 tonb_nbutils.tag_object(nautobot_object=_device, custom_field=LAST_SYNCHRONIZED_CF_NAME)
             except (DjangoBaseDBError, ValidationError):
                 self.diffsync.job.logger.error(f"Unable to update the existing Device named {self.name} with {attrs}")
-            # Call the super().update() method to update the in-memory DiffSyncModel instance
-            return super().update(attrs)
+        return super().update(attrs)
 
 
 class Interface(DiffSyncExtras):
@@ -560,7 +560,7 @@ class Interface(DiffSyncExtras):
                     f"with an ID of {device.id}, unable to determine which one to update"
                 )
             except Interface.DoesNotExist:
-                self.diffsync.logger.error(
+                self.diffsync.job.logger.error(
                     f"Unable to find an Interface with the name {self.name} on Device named {device.name} "
                     f"with an ID of {device.id} to update"
                 )
@@ -592,7 +592,7 @@ class Interface(DiffSyncExtras):
                         subnet_mask=subnet_mask,
                         status="Active",
                         object_pk=interface,
-                        logger=self.diffsync.jog.logger,
+                        logger=self.diffsync.job.logger,
                     )
                     if ip_address_obj:
                         interface.ip_addresses.add(ip_address_obj)
