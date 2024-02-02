@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 import pydantic
-from diffsync import DiffSyncModel, DiffSync
+from diffsync import DiffSyncModel, Adapter
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError, MultipleObjectsReturned
 from django.db.models import Model
@@ -85,7 +85,7 @@ class CustomFieldAnnotation:
     name: str
 
 
-class NautobotAdapter(DiffSync):
+class NautobotAdapter(Adapter):
     """
     Adapter for loading data from Nautobot through the ORM.
 

@@ -4,7 +4,7 @@ import re
 from decimal import Decimal
 from typing import List
 import ipaddress
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from nautobot.core.settings_funcs import is_truthy
 from netutils.bandwidth import name_to_bits
@@ -82,7 +82,7 @@ def get_dns_a_record(dev_name: str):
         return False
 
 
-class Device42Adapter(DiffSync):
+class Device42Adapter(Adapter):
     """DiffSync adapter using requests to communicate to Device42 server."""
 
     building = dcim.Building

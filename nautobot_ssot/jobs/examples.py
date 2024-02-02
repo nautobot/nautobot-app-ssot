@@ -17,7 +17,7 @@ from nautobot.ipam.models import Namespace, Prefix, VLAN, VLANGroup
 from nautobot.tenancy.models import Tenant
 from nautobot.virtualization.models import Cluster
 
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.enum import DiffSyncFlags
 
 import requests
@@ -376,7 +376,7 @@ class PrefixLocalModel(PrefixModel):
 # In a more complex Job, you would probably want to move each DiffSync subclass into a separate Python module.
 
 
-class NautobotRemote(DiffSync):
+class NautobotRemote(Adapter):
     """DiffSync adapter class for loading data from a remote Nautobot instance using Python requests.
 
     In a more realistic example, you'd probably use PyNautobot here instead of raw requests,

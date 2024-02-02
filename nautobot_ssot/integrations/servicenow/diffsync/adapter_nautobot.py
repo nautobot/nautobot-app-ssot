@@ -3,7 +3,7 @@
 
 import datetime
 
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.exceptions import ObjectNotFound
 
 from django.contrib.contenttypes.models import ContentType
@@ -16,7 +16,7 @@ from nautobot.core.choices import ColorChoices
 from . import models
 
 
-class NautobotDiffSync(DiffSync):
+class NautobotDiffSync(Adapter):
     """Nautobot adapter for DiffSync."""
 
     company = models.Company
