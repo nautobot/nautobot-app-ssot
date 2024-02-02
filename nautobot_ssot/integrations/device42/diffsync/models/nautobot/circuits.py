@@ -16,11 +16,11 @@ class NautobotProvider(Provider):
     """Nautobot Provider model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Provider object in Nautobot."""
-        diffsync.job.logger.info(f"Creating Provider {ids['name']}.")
+        adapter.job.logger.info(f"Creating Provider {ids['name']}.")
         try:
-            _provider = diffsync.provider_map[ids["name"]]
+            _provider = adapter.provider_map[ids["name"]]
         except KeyError:
             _provider = OrmProvider(
                 name=ids["name"],
@@ -36,17 +36,17 @@ class NautobotProvider(Provider):
                     _provider.tags.add(_tag)
             try:
                 _provider.validated_save()
-                diffsync.provider_map[ids["name"]] = _provider.id
-                return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+                adapter.provider_map[ids["name"]] = _provider.id
+                return super().create(ids=ids, adapter=adapter, attrs=attrs)
             except ValidationError as err:
-                if diffsync.job.debug:
-                    diffsync.job.logger.warning(f"Unable to create {ids['name']} provider. {err}")
+                if adapter.job.debug:
+                    adapter.job.logger.warning(f"Unable to create {ids['name']} provider. {err}")
         return None
 
     def update(self, attrs):
         """Update Provider object in Nautobot."""
         _prov = OrmProvider.objects.get(id=self.uuid)
-        self.diffsync.job.logger.info(f"Updating Provider {_prov.name}.")
+        self.adapter.job.logger.info(f"Updating Provider {_prov.name}.")
         if "notes" in attrs:
             _prov.comments = attrs["notes"]
         if "vendor_url" in attrs:
@@ -66,14 +66,14 @@ class NautobotProvider(Provider):
         """Delete Provider object from Nautobot.
 
         Because Provider has a direct relationship with Circuits it can't be deleted before them.
-        The self.diffsync.objects_to_delete dictionary stores all objects for deletion and removes them from Nautobot
+        The self.adapter.objects_to_delete dictionary stores all objects for deletion and removes them from Nautobot
         in the correct order. This is used in the Nautobot adapter sync_complete function.
         """
         if PLUGIN_CFG.get("device42_delete_on_sync"):
-            self.diffsync.job.logger.info(f"Provider {self.name} will be deleted.")
+            self.adapter.job.logger.info(f"Provider {self.name} will be deleted.")
             super().delete()
             provider = OrmProvider.objects.get(id=self.uuid)
-            self.diffsync.objects_to_delete["provider"].append(provider)  # pylint: disable=protected-access
+            self.adapter.objects_to_delete["provider"].append(provider)  # pylint: disable=protected-access
         return self
 
 
@@ -81,17 +81,17 @@ class NautobotCircuit(Circuit):
     """Nautobot TelcoCircuit model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Circuit object in Nautobot."""
-        diffsync.job.logger.info(f"Creating Circuit {ids['circuit_id']}.")
+        adapter.job.logger.info(f"Creating Circuit {ids['circuit_id']}.")
         try:
-            diffsync.circuit_map[ids["circuit_id"]]
+            adapter.circuit_map[ids["circuit_id"]]
         except KeyError:
             _circuit = OrmCircuit(
                 cid=ids["circuit_id"],
-                provider_id=diffsync.provider_map[ids["provider"]],
+                provider_id=adapter.provider_map[ids["provider"]],
                 circuit_type=nautobot.verify_circuit_type(attrs["type"]),
-                status_id=diffsync.status_map[attrs["status"]],
+                status_id=adapter.status_map[attrs["status"]],
                 install_date=attrs["install_date"] if attrs.get("install_date") else None,
                 commit_rate=attrs["bandwidth"] if attrs.get("bandwidth") else None,
                 comments=attrs["notes"] if attrs.get("notes") else "",
@@ -101,46 +101,46 @@ class NautobotCircuit(Circuit):
                 for _tag in nautobot.get_tags(attrs["tags"]):
                     _circuit.tags.add(_tag)
             if attrs.get("origin_int") and attrs.get("origin_dev"):
-                if attrs["origin_dev"] not in diffsync.circuit_map:
-                    diffsync.circuit_map[attrs["origin_dev"]] = {}
-                diffsync.circuit_map[attrs["origin_dev"]][attrs["origin_int"]] = _circuit.id
+                if attrs["origin_dev"] not in adapter.circuit_map:
+                    adapter.circuit_map[attrs["origin_dev"]] = {}
+                adapter.circuit_map[attrs["origin_dev"]][attrs["origin_int"]] = _circuit.id
                 cls.connect_circuit_to_device(
-                    diffsync=diffsync,
+                    adapter=adapter,
                     intf=attrs["origin_int"],
                     dev=attrs["origin_dev"],
                     term_side="A",
                     circuit=_circuit,
                 )
             if attrs.get("endpoint_int") and attrs.get("endpoint_dev"):
-                if attrs["endpoint_dev"] not in diffsync.circuit_map:
-                    diffsync.circuit_map[attrs["endpoint_dev"]] = {}
-                diffsync.circuit_map[attrs["endpoint_dev"]][attrs["endpoint_int"]] = _circuit.id
+                if attrs["endpoint_dev"] not in adapter.circuit_map:
+                    adapter.circuit_map[attrs["endpoint_dev"]] = {}
+                adapter.circuit_map[attrs["endpoint_dev"]][attrs["endpoint_int"]] = _circuit.id
                 cls.connect_circuit_to_device(
-                    diffsync=diffsync,
+                    adapter=adapter,
                     intf=attrs["endpoint_int"],
                     dev=attrs["endpoint_dev"],
                     term_side="Z",
                     circuit=_circuit,
                 )
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update Circuit object in Nautobot."""
         _circuit = OrmCircuit.objects.get(id=self.uuid)
-        self.diffsync.job.logger.info(f"Updating Circuit {_circuit.cid}.")
+        self.adapter.job.logger.info(f"Updating Circuit {_circuit.cid}.")
         if "notes" in attrs:
             _circuit.comments = attrs["notes"]
         if "type" in attrs:
             _circuit.circuit_type = nautobot.verify_circuit_type(attrs["type"])
         if "status" in attrs:
-            _circuit.status_id = self.diffsync.status_map[attrs["status"]]
+            _circuit.status_id = self.adapter.status_map[attrs["status"]]
         if "install_date" in attrs:
             _circuit.install_date = attrs["install_date"]
         if "bandwidth" in attrs:
             _circuit.commit_rate = attrs["bandwidth"]
         if "origin_int" in attrs and "origin_dev" in attrs:
             self.connect_circuit_to_device(
-                diffsync=self.diffsync,
+                adapter=self.adapter,
                 intf=attrs["origin_int"],
                 dev=attrs["origin_dev"],
                 term_side="A",
@@ -148,7 +148,7 @@ class NautobotCircuit(Circuit):
             )
         if "endpoint_int" in attrs and "endpoint_dev" in attrs:
             self.connect_circuit_to_device(
-                diffsync=self.diffsync,
+                adapter=self.adapter,
                 intf=attrs["endpoint_int"],
                 dev=attrs["endpoint_dev"],
                 term_side="Z",
@@ -160,23 +160,23 @@ class NautobotCircuit(Circuit):
         return super().update(attrs)
 
     @staticmethod
-    def connect_circuit_to_device(diffsync, intf: str, dev: str, term_side: str, circuit: OrmCircuit):
+    def connect_circuit_to_device(adapter, intf: str, dev: str, term_side: str, circuit: OrmCircuit):
         """Method to handle Circuit Termination to a Device.
 
         Args:
-            diffsync (obj): DiffSync Job for maps.
+            adapter (obj): DiffSync Adapter for maps.
             intf (str): Interface of Device to connect Circuit Termination.
             dev (str): Device with respective interface to connect Circuit to.
             term_side (str): Which side of the CircuitTermination this connection is on, A or Z.
             circuit (OrmCircuit): The actual Circuit object that the CircuitTermination is connecting to.
         """
         try:
-            _intf = diffsync.port_map[dev][intf]
+            _intf = adapter.port_map[dev][intf]
             try:
-                _term = diffsync.circuit_map[dev][intf]
+                _term = adapter.circuit_map[dev][intf]
             except KeyError:
-                _site = diffsync.get(NautobotDevice, dev)
-                _site = diffsync.site_map[_site.name]
+                _site = adapter.get(NautobotDevice, dev)
+                _site = adapter.site_map[_site.name]
                 _term = OrmCT(
                     circuit_id=circuit,
                     term_side=term_side,
@@ -190,26 +190,26 @@ class NautobotCircuit(Circuit):
                     termination_a_id=_intf,
                     termination_b_type=ContentType.objects.get(app_label="circuits", model="circuittermination"),
                     termination_b_id=_term,
-                    status_id=diffsync.status_map["Connected"],
+                    status_id=adapter.status_map["Connected"],
                     color=nautobot.get_random_color(),
                 )
                 new_cable.validated_save()
-                if dev not in diffsync.cable_map:
-                    diffsync.cable_map[dev] = {}
-                diffsync.cable_map[dev][intf] = new_cable.id
+                if dev not in adapter.cable_map:
+                    adapter.cable_map[dev] = {}
+                adapter.cable_map[dev][intf] = new_cable.id
         except KeyError:
-            diffsync.job.logger.warning(f"Unable to find {dev} in port_map.")
+            adapter.job.logger.warning(f"Unable to find {dev} in port_map.")
 
     def delete(self):
         """Delete Provider object from Nautobot.
 
         Because Provider has a direct relationship with Circuits it can't be deleted before them.
-        The self.diffsync.objects_to_delete dictionary stores all objects for deletion and removes them from Nautobot
+        The self.adapter.objects_to_delete dictionary stores all objects for deletion and removes them from Nautobot
         in the correct order. This is used in the Nautobot adapter sync_complete function.
         """
         if PLUGIN_CFG.get("device42_delete_on_sync"):
-            self.diffsync.job.logger.info(f"Circuit {self.circuit_id} will be deleted.")
+            self.adapter.job.logger.info(f"Circuit {self.circuit_id} will be deleted.")
             super().delete()
             circuit = OrmCircuit.objects.get(id=self.uuid)
-            self.diffsync.objects_to_delete["circuit"].append(circuit)  # pylint: disable=protected-access
+            self.adapter.objects_to_delete["circuit"].append(circuit)  # pylint: disable=protected-access
         return self

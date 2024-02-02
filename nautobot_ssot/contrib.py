@@ -1,4 +1,5 @@
 """This module includes a base adapter and a base model class for interfacing with Nautobot."""
+
 # pylint: disable=protected-access
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
@@ -428,7 +429,7 @@ class NautobotModel(DiffSyncModel):
     @classmethod
     def _check_field(cls, name):
         """Check whether the given field name is defined on the diffsync (pydantic) model."""
-        if name not in cls.__fields__:
+        if name not in cls.model_fields:
             raise ValueError(f"Field {name} is not defined on the model.")
 
     def get_from_db(self):
@@ -441,7 +442,7 @@ class NautobotModel(DiffSyncModel):
     def update(self, attrs):
         """Update the ORM object corresponding to this diffsync object."""
         obj = self.get_from_db()
-        self._update_obj_with_parameters(obj, attrs, self.diffsync)
+        self._update_obj_with_parameters(obj, attrs, self.adapter)
         return super().update(attrs)
 
     def delete(self):
@@ -450,7 +451,7 @@ class NautobotModel(DiffSyncModel):
         return super().delete()
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create the ORM object corresponding to this diffsync object."""
         # Only diffsync cares about the distinction between ids and attrs, we do not.
         # Therefore, we merge the two into parameters.
@@ -460,13 +461,13 @@ class NautobotModel(DiffSyncModel):
         # This is in fact callable, because it is a model
         obj = cls._model()  # pylint: disable=not-callable
 
-        cls._update_obj_with_parameters(obj, parameters, diffsync)
+        cls._update_obj_with_parameters(obj, parameters, adapter)
 
-        return super().create(diffsync, ids, attrs)
+        return super().create(adapter, ids, attrs)
 
     @classmethod
     def _handle_single_field(
-        cls, field, obj, value, relationship_fields, diffsync
+        cls, field, obj, value, relationship_fields, adapter
     ):  # pylint: disable=too-many-arguments
         """Set a single field on a Django object to a given value, or, for relationship fields, prepare setting.
 
@@ -475,7 +476,7 @@ class NautobotModel(DiffSyncModel):
         :param value: The value to set the field to.
         :param relationship_fields: Helper dictionary containing information on relationship fields.
             This is mutated over the course of this function.
-        :param diffsync: The related diffsync adapter used for looking up things in the cache.
+        :param adapter: The related diffsync adapter used for looking up things in the cache.
         """
         # Use type hints at runtime to determine which fields are custom fields
         type_hints = get_type_hints(cls, include_extras=True)
@@ -520,7 +521,7 @@ class NautobotModel(DiffSyncModel):
 
         # Prepare handling of custom relationship many-to-many fields.
         if custom_relationship_annotation:
-            relationship = diffsync.custom_relationship_cache.get(
+            relationship = adapter.custom_relationship_cache.get(
                 custom_relationship_annotation.name,
                 Relationship.objects.get(label=custom_relationship_annotation.name),
             )
@@ -550,7 +551,7 @@ class NautobotModel(DiffSyncModel):
         setattr(obj, field, value)
 
     @classmethod
-    def _update_obj_with_parameters(cls, obj, parameters, diffsync):
+    def _update_obj_with_parameters(cls, obj, parameters, adapter):
         """Update a given Nautobot ORM object with the given parameters."""
         relationship_fields = {
             # Example: {"group": {"name": "Group Name", "_model_class": TenantGroup}}
@@ -563,7 +564,7 @@ class NautobotModel(DiffSyncModel):
             "custom_relationship_many_to_many_fields": defaultdict(dict),
         }
         for field, value in parameters.items():
-            cls._handle_single_field(field, obj, value, relationship_fields, diffsync)
+            cls._handle_single_field(field, obj, value, relationship_fields, adapter)
 
         # Set foreign keys
         cls._lookup_and_set_foreign_keys(relationship_fields["foreign_keys"], obj)
@@ -577,22 +578,22 @@ class NautobotModel(DiffSyncModel):
         # Handle relationship association creation. This needs to be after object creation, because relationship
         # association objects rely on both sides already existing.
         cls._lookup_and_set_custom_relationship_foreign_keys(
-            relationship_fields["custom_relationship_foreign_keys"], obj, diffsync
+            relationship_fields["custom_relationship_foreign_keys"], obj, adapter
         )
         cls._set_custom_relationship_to_many_fields(
-            relationship_fields["custom_relationship_many_to_many_fields"], obj, diffsync
+            relationship_fields["custom_relationship_many_to_many_fields"], obj, adapter
         )
 
         # Set many-to-many fields after saving.
         cls._set_many_to_many_fields(relationship_fields["many_to_many_fields"], obj)
 
     @classmethod
-    def _set_custom_relationship_to_many_fields(cls, custom_relationship_many_to_many_fields, obj, diffsync):
+    def _set_custom_relationship_to_many_fields(cls, custom_relationship_many_to_many_fields, obj, adapter):
         for _, dictionary in custom_relationship_many_to_many_fields.items():
             annotation = dictionary.pop("annotation")
             objects = dictionary.pop("objects")
             # TODO: Deduplicate this code
-            relationship = diffsync.custom_relationship_cache.get(
+            relationship = adapter.custom_relationship_cache.get(
                 annotation.name, Relationship.objects.get(label=annotation.name)
             )
             parameters = {
@@ -645,11 +646,11 @@ class NautobotModel(DiffSyncModel):
             many_to_many_field.set(related_objects)
 
     @classmethod
-    def _lookup_and_set_custom_relationship_foreign_keys(cls, custom_relationship_foreign_keys, obj, diffsync):
+    def _lookup_and_set_custom_relationship_foreign_keys(cls, custom_relationship_foreign_keys, obj, adapter):
         for _, related_model_dict in custom_relationship_foreign_keys.items():
             annotation = related_model_dict.pop("_annotation")
             # TODO: Deduplicate this code
-            relationship = diffsync.custom_relationship_cache.get(
+            relationship = adapter.custom_relationship_cache.get(
                 annotation.name, Relationship.objects.get(label=annotation.name)
             )
             parameters = {

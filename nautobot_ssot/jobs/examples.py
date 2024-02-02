@@ -1,4 +1,5 @@
 """Sample data-source and data-target Jobs."""
+
 # Skip colon check for multiple statements on one line.
 # flake8: noqa: E701
 
@@ -109,15 +110,15 @@ class LocationRemoteModel(LocationModel):
     """Implementation of Location create/update/delete methods for updating remote Nautobot data."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create a new Location in remote Nautobot.
 
         Args:
-            diffsync (NautobotRemote): DiffSync adapter owning this Site
+            adapter (NautobotRemote): DiffSync adapter owning this Site
             ids (dict): Initial values for this model's _identifiers
             attrs (dict): Initial values for this model's _attributes
         """
-        diffsync.post(
+        adapter.post(
             "/api/dcim/locations/",
             {
                 "name": ids["name"],
@@ -126,7 +127,7 @@ class LocationRemoteModel(LocationModel):
                 "parent": {"name": attrs["parent__name"]} if attrs["parent__name"] else None,
             },
         )
-        return super().create(diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update an existing Site record in remote Nautobot.
@@ -144,12 +145,12 @@ class LocationRemoteModel(LocationModel):
                 data["parent"] = {"name": attrs["parent__name"]}
             else:
                 data["parent"] = None
-        self.diffsync.patch(f"/api/dcim/locations/{self.pk}/", data)
+        self.adapter.patch(f"/api/dcim/locations/{self.pk}/", data)
         return super().update(attrs)
 
     def delete(self):
         """Delete an existing Site record from remote Nautobot."""
-        self.diffsync.delete(f"/api/dcim/locations/{self.pk}/")
+        self.adapter.delete(f"/api/dcim/locations/{self.pk}/")
         return super().delete()
 
 
@@ -157,15 +158,15 @@ class TenantRemoteModel(TenantModel):
     """Implementation of Tenant create/update/delete methods for updating remote Nautobot data."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create a new Tenant in remote Nautobot."""
-        diffsync.post(
+        adapter.post(
             "/api/tenancy/tenants/",
             {
                 "name": ids["name"],
             },
         )
-        return super().create(diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Updating tenants is not supported because we don't have any attributes."""
@@ -173,7 +174,7 @@ class TenantRemoteModel(TenantModel):
 
     def delete(self):
         """Delete a Tenant in remote Nautobot."""
-        self.diffsync.delete(f"/api/tenancy/tenants/{self.pk}/")
+        self.adapter.delete(f"/api/tenancy/tenants/{self.pk}/")
         return super().delete()
 
 
@@ -181,15 +182,15 @@ class PrefixRemoteModel(PrefixModel):
     """Implementation of Prefix create/update/delete methods for updating remote Nautobot data."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create a new Prefix in remote Nautobot.
 
         Args:
-            diffsync (NautobotRemote): DiffSync adapter owning this Prefix
+            adapter (NautobotRemote): DiffSync adapter owning this Prefix
             ids (dict): Initial values for this model's _identifiers
             attrs (dict): Initial values for this model's _attributes
         """
-        diffsync.post(
+        adapter.post(
             "/api/ipam/prefixes/",
             {
                 "prefix": ids["prefix"],
@@ -198,7 +199,7 @@ class PrefixRemoteModel(PrefixModel):
                 "status": attrs["status"],
             },
         )
-        return super().create(diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update an existing Site record in remote Nautobot.
@@ -211,12 +212,12 @@ class PrefixRemoteModel(PrefixModel):
             data["description"] = attrs["description"]
         if "status" in attrs:
             data["status"] = attrs["status"]
-        self.diffsync.patch(f"/api/dcim/locations/{self.pk}/", data)
+        self.adapter.patch(f"/api/dcim/locations/{self.pk}/", data)
         return super().update(attrs)
 
     def delete(self):
         """Delete an existing Site record from remote Nautobot."""
-        self.diffsync.delete(f"/api/dcim/locations/{self.pk}/")
+        self.adapter.delete(f"/api/dcim/locations/{self.pk}/")
         return super().delete()
 
 
@@ -224,15 +225,15 @@ class LocationTypeLocalModel(LocationTypeModel):
     """Implementation of LocationType create/update/delete methods for updating local Nautobot data."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create a new LocationType record in local Nautobot.
 
         Args:
-            diffsync (NautobotLocal): DiffSync adapter owning this Location
+            adapter (NautobotLocal): DiffSync adapter owning this Location
             ids (dict): Initial values for this model's _identifiers
             attrs (dict): Initial values for this model's _attributes
         """
-        diffsync.job.logger.info(f"Creating LocationType {ids['name']} with ids: {ids} attrs: {attrs}")
+        adapter.job.logger.info(f"Creating LocationType {ids['name']} with ids: {ids} attrs: {attrs}")
         try:
             loc_type = LocationType.objects.get_or_create(name=ids["name"])[0]
         except LocationType.DoesNotExist:
@@ -258,19 +259,19 @@ class LocationLocalModel(LocationModel):
     """Implementation of Location create/update/delete methods for updating local Nautobot data."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create a new Location record in local Nautobot.
 
         Args:
-            diffsync (NautobotLocal): DiffSync adapter owning this Location
+            adapter (NautobotLocal): DiffSync adapter owning this Location
             ids (dict): Initial values for this model's _identifiers
             attrs (dict): Initial values for this model's _attributes
         """
-        diffsync.job.logger.info(f"Creating Location {ids['name']} with ids: {ids} attrs: {attrs}")
+        adapter.job.logger.info(f"Creating Location {ids['name']} with ids: {ids} attrs: {attrs}")
         try:
             loc_type = LocationType.objects.get_or_create(name=attrs["location_type"])[0]
         except LocationType.DoesNotExist:
-            diffsync.job.logger.error(f"Unable to find LocationType {attrs['location_type']}")
+            adapter.job.logger.error(f"Unable to find LocationType {attrs['location_type']}")
             return None
         site = Location(
             name=ids["name"],
@@ -282,7 +283,7 @@ class LocationLocalModel(LocationModel):
         if attrs["parent__name"]:
             site.parent = Location.objects.get(name=attrs["parent__name"])
         site.validated_save()
-        return super().create(diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update an existing Site record in local Nautobot.
@@ -315,15 +316,15 @@ class PrefixLocalModel(PrefixModel):
     """Implementation of Prefix create/update/delete methods for updating local Nautobot data."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create a new Prefix record in local Nautobot.
 
         Args:
-            diffsync (NautobotLocal): DiffSync adapter owning this Prefix
+            adapter (NautobotLocal): DiffSync adapter owning this Prefix
             ids (dict): Initial values for this model's _identifiers
             attrs (dict): Initial values for this model's _attributes
         """
-        diffsync.job.logger.info(f"Creating Prefix {ids['prefix']} with ids: {ids} attrs: {attrs}")
+        adapter.job.logger.info(f"Creating Prefix {ids['prefix']} with ids: {ids} attrs: {attrs}")
         prefix = Prefix(prefix=ids["prefix"], description=attrs["description"])
         if ids["tenant"]:
             tenant_obj, _ = Tenant.objects.get_or_create(
@@ -344,7 +345,7 @@ class PrefixLocalModel(PrefixModel):
         status_obj.content_types.add(ContentType.objects.get_for_model(Prefix))
         prefix.status = status_obj
         prefix.validated_save()
-        return super().create(diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update an existing Prefix record in local Nautobot.
