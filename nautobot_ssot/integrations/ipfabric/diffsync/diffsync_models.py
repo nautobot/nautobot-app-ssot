@@ -435,6 +435,8 @@ class Interface(DiffSyncExtras):
         "mgmt_only",
         "ip_address",
         "subnet_mask",
+        "ipv6_address",
+        "subnetv6_mask",
         "ip_is_primary",
         "status",
     )
@@ -449,8 +451,43 @@ class Interface(DiffSyncExtras):
     mgmt_only: Optional[bool]
     ip_address: Optional[str]
     subnet_mask: Optional[str]
+    ipv6_address: Optional[str]
+    subnetv6_mask: Optional[str]
     ip_is_primary: Optional[bool]
     status: str
+
+    @staticmethod
+    def _add_ip(interface_obj, ip, subnet, attrs, device_obj, diffsync, interface_name, device_name):
+        if interface_obj.ip_addresses.exists():
+            interface_obj.ip_addresses.all().delete()
+        ip_address_obj = tonb_nbutils.create_ip(
+            ip_address=ip,
+            subnet_mask=subnet,
+            status=attrs["status"],
+            object_pk=interface_obj,
+            logger=diffsync.job.logger,
+        )
+        if ip_address_obj:
+            interface_obj.ip_addresses.add(ip_address_obj)
+            if attrs.get("ip_is_primary"):
+                if ip_address_obj.ip_version == 4:
+                    device_obj.primary_ip4 = ip_address_obj
+                    device_obj.save()
+                if ip_address_obj.ip_version == 6:
+                    device_obj.primary_ip6 = ip_address_obj
+                    device_obj.save()
+        else:
+            diffsync.job.logger.warning(
+                f"Unable to assign an IPAddress to an Interface named {interface_name} on a Device named {device_name} "
+                f"because of a failure to get or create an IPAddress of {ip}/{subnet}"
+            )
+        try:
+            interface_obj.validated_save()
+        except (DjangoBaseDBError, ValidationError):
+            diffsync.job.logger.error(
+                f"Unable to perform a validated_save() on an Interface named {interface_name} on a Device named {device_name}"
+            )
+        return interface_obj
 
     @classmethod
     def create(cls, diffsync, ids, attrs):
@@ -459,6 +496,8 @@ class Interface(DiffSyncExtras):
         interface_name = ids["name"]
         ip_address = attrs["ip_address"]
         subnet_mask = attrs["subnet_mask"]
+        ipv6_address = attrs["ipv6_address"]
+        subnetv6_mask = attrs["subnetv6_mask"]
         ssot_tag, _ = Tag.objects.get_or_create(name="SSoT Synced from IPFabric")
         device_obj = NautobotDevice.objects.filter(Q(name=device_name) & Q(tags__name=ssot_tag.name)).first()
 
@@ -471,38 +510,17 @@ class Interface(DiffSyncExtras):
                 logger=diffsync.job.logger,
             )
             if interface_obj and ip_address:
-                if interface_obj.ip_addresses.exists():
-                    interface_obj.ip_addresses.all().delete()
-                ip_address_obj = tonb_nbutils.create_ip(
-                    ip_address=ip_address,
-                    subnet_mask=subnet_mask,
-                    status=attrs["status"],
-                    object_pk=interface_obj,
-                    logger=diffsync.job.logger,
-                )
-                if ip_address_obj:
-                    interface_obj.ip_addresses.add(ip_address_obj)
-                    if attrs.get("ip_is_primary"):
-                        if ip_address_obj.ip_version == 4:
-                            device_obj.primary_ip4 = ip_address_obj
-                            device_obj.save()
-                        if ip_address_obj.ip_version == 6:
-                            device_obj.primary_ip6 = ip_address_obj
-                            device_obj.save()
-                else:
-                    diffsync.job.logger.warning(
-                        f"Unable to assign an IPAddress to an Interface named {interface_name} on a Device named {device_name} "
-                        f"because of a failure to get or create an IPAddress of {ip_address}/{subnet_mask}"
-                    )
-                try:
-                    interface_obj.validated_save()
-                except (DjangoBaseDBError, ValidationError):
-                    diffsync.job.logger.error(
-                        f"Unable to perform a validated_save() on an Interface named {interface_name} on a Device named {device_name}"
-                    )
+                cls._add_ip(interface_obj, ip_address, subnet_mask, attrs, device_obj, diffsync, interface_name, device_name)
             elif ip_address:
                 diffsync.job.logger.warning(
                     f"Unable to create an IPAddress {ip_address}/{subnet_mask} because of a failure "
+                    f"to get or create an Interface named {interface_name} on a Device named {device_name}"
+                )
+            if interface_obj and ipv6_address:
+                cls._add_ip(interface_obj, ipv6_address, subnetv6_mask, attrs, device_obj, diffsync, interface_name, device_name)
+            elif ipv6_address:
+                diffsync.job.logger.warning(
+                    f"Unable to create an IPAddress {ipv6_address}/{subnetv6_mask} because of a failure "
                     f"to get or create an Interface named {interface_name} on a Device named {device_name}"
                 )
         else:

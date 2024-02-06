@@ -6,7 +6,7 @@ from collections import defaultdict
 from typing import Any, ClassVar, List, Optional
 import logging
 
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists
 from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError, Q
@@ -15,6 +15,7 @@ from nautobot.extras.models import Tag
 from nautobot.ipam.models import VLAN, Interface
 from nautobot.core.choices import ColorChoices
 from netutils.mac import mac_to_format
+from netutils.ip import cidr_to_netmask, cidr_to_netmaskv6
 
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 
@@ -52,7 +53,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         self.sync_ipfabric_tagged_only = sync_ipfabric_tagged_only
         self.location_filter = location_filter
 
-    def sync_complete(self, source: DiffSync, *args, **kwargs):
+    def sync_complete(self, source: Adapter, *args, **kwargs):
         """Clean up function for DiffSync sync.
 
         Once the sync is complete, this function runs deleting any objects
@@ -89,6 +90,17 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             device_primary_ip = device_record.primary_ip6
 
         for interface_record in device_record.interfaces.all():
+            ip_address, subnet_mask, ipv6_address, subnetv6_mask = None, "255.255.255.255", None, None
+            for ip in interface_record.ip_addresses:
+                if ip_address and ipv6_address:
+                    break
+                elif not ip_address and ip.ip_version == 4:
+                    ip_address = ip.host
+                    subnet_mask = cidr_to_netmask(ip.mask_length)
+                elif not ipv6_address and ip.ip_version == 6:
+                    ipv6_address = ip.host
+                    subnetv6_mask = cidr_to_netmaskv6(ip.mask_length)
+
             interface = self.interface(
                 diffsync=self,
                 status=device_record.status.name,
@@ -99,7 +111,6 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 mac_address=mac_to_format(str(interface_record.mac_address), "MAC_COLON_TWO").upper()
                 if interface_record.mac_address
                 else DEFAULT_INTERFACE_MAC,
-                subnet_mask="255.255.255.255",
                 mtu=interface_record.mtu if interface_record.mtu else DEFAULT_INTERFACE_MTU,
                 type=interface_record.type,
                 mgmt_only=interface_record.mgmt_only if interface_record.mgmt_only else False,
@@ -107,9 +118,10 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 ip_is_primary=interface_record.ip_addresses.first() == device_primary_ip
                 if device_primary_ip
                 else False,
-                ip_address=str(interface_record.ip_addresses.first().host)
-                if interface_record.ip_addresses.first()
-                else None,
+                ip_address=ip_address,
+                subnet_mask=subnet_mask,
+                ipv6_address=ipv6_address,
+                subnetv6_mask=subnetv6_mask,
             )
             self.add(interface)
             diffsync_device.add_child(interface)

@@ -47,6 +47,8 @@ def get_formatted_snapshots(client: IPFClient):
     if client:
         for snapshot_ref, snapshot in client.loaded_snapshots.items():
             description = ""
+            if snapshot.locked:
+                description += "🔒 "
             if snapshot_ref in [LAST, PREV, LAST_LOCKED]:
                 description += f"{snapshot_ref}: "
                 snapshot_refs.append(snapshot_ref)
@@ -54,6 +56,7 @@ def get_formatted_snapshots(client: IPFClient):
                 description += snapshot.name + " - " + snapshot.end.strftime("%d-%b-%y %H:%M:%S")
             else:
                 description += snapshot.end.strftime("%d-%b-%y %H:%M:%S") + " - " + snapshot.snapshot_id
+            description += f" - {snapshot.licensed_dev_count} Devices"
             formatted_snapshots[snapshot_ref] = (description, snapshot.snapshot_id)
         for ref in snapshot_refs:
             formatted_snapshots.pop(formatted_snapshots[ref][1], None)
@@ -172,7 +175,7 @@ class IpFabricDataSource(DataSource):
             description="IPFabric snapshot to sync from. Defaults to $last",
             default=default_choice,
             choices=[(snapshot_id, snapshot_name) for snapshot_name, snapshot_id in formatted_snapshots.values()],
-            required=False,
+            required=True,
         )
 
         if hasattr(cls, "snapshot"):

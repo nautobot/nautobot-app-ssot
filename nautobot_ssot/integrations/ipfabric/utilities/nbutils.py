@@ -1,6 +1,7 @@
 # pylint: disable=duplicate-code
 """Utility functions for Nautobot ORM."""
 import datetime
+import ipaddress
 import logging
 from typing import Any, Optional
 
@@ -342,8 +343,9 @@ def create_ip(
                 logger.error(f"Multiple IPAddresses returned with the address of {ip_address}/{subnet_mask}")
         except (DjangoBaseDBError, ValidationError):
             try:
+                ip_version = ipaddress.ip_address(ip_address).version
                 parent, _ = Prefix.objects.get_or_create(
-                    network="0.0.0.0",  # nosec B104
+                    network="0.0.0.0" if ip_version == 4 else '::',  # nosec B104
                     prefix_length=0,
                     type=PrefixTypeChoices.TYPE_NETWORK,
                     status=Status.objects.get_for_model(Prefix).get(name="Active"),

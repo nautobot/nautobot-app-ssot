@@ -8,6 +8,9 @@ from nautobot.dcim.models import Device
 from nautobot.ipam.models import VLAN
 from netutils.mac import mac_to_format
 from netutils.interface import canonical_interface_name
+from ipfabric import IPFClient
+from collections import defaultdict
+from ipaddress import IPv4Network, IPv6Network, AddressValueError
 
 from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_INTERFACE_MTU,
@@ -29,7 +32,7 @@ name_max_length = VLAN._meta.get_field("name").max_length
 class IPFabricDiffSync(DiffSyncModelAdapters):
     """Nautobot adapter for DiffSync."""
 
-    def __init__(self, job, sync, client, *args, **kwargs):
+    def __init__(self, job, sync, client: IPFClient, *args, **kwargs):
         """Initialize the NautobotDiffSync."""
         super().__init__(*args, **kwargs)
         self.job = job
@@ -46,18 +49,27 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             except ObjectAlreadyExists:
                 logger.warning(f"Duplicate Location discovered, {site}")
 
-    def load_device_interfaces(self, device_model, interfaces, device_primary_ip):
+    def load_device_interfaces(self, device_model, interfaces, device_primary_ip, managed_ipv4, managed_ipv6):
         """Create and load DiffSync Interface model objects for a specific device."""
-        device_interfaces = [iface for iface in interfaces if iface.get("hostname") == device_model.name]
-        pseudo_interface = pseudo_management_interface(device_model.name, device_interfaces, device_primary_ip)
+        pseudo_interface = pseudo_management_interface(device_model.name, interfaces, device_primary_ip)
 
         if pseudo_interface:
-            device_interfaces.append(pseudo_interface)
+            interfaces.append(pseudo_interface)
             logger.info("Pseudo MGMT Interface: %s", pseudo_interface)
 
-        for iface in device_interfaces:
+        for iface in interfaces:
             ip_address = iface.get("primaryIp")
             iface_name = iface["intName"]
+            try:
+                subnet = str(IPv4Network(managed_ipv4[ip_address]['net'], strict=False).netmask)
+            except (KeyError, AddressValueError):
+                subnet = "255.255.255.255"
+            try:
+                ipv6_address = IPv6Network(managed_ipv6[iface_name]['net'], strict=False)
+                subnetv6 = str(ipv6_address.netmask)
+                ipv6_address = ipv6_address.compressed.split('/')[0]
+            except (KeyError, AddressValueError):
+                ipv6_address, subnetv6 = None, None
             if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
                 iface_name = canonical_interface_name(iface_name)
             try:
@@ -74,8 +86,9 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     type=ipfabric_utils.convert_media_type(iface.get("media") or ""),
                     mgmt_only=iface.get("mgmt_only", False),
                     ip_address=ip_address,
-                    # TODO: why is only IPv4? and why /32?
-                    subnet_mask="255.255.255.255",
+                    subnet_mask=subnet,
+                    ipv6_address=ipv6_address,
+                    subnetv6_mask=subnetv6,
                     ip_is_primary=ip_address is not None and ip_address == device_primary_ip,
                     status="Active",
                 )
@@ -84,11 +97,22 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             except ObjectAlreadyExists:
                 logger.warning(f"Duplicate Interface discovered, {iface}")
 
+    def managed_ip(self):
+        ip_columns = ['sn', 'intName', 'net', 'ip', 'type']
+        ip_filter = {'type': ['eq', 'primary']}
+        managed_ipv4, managed_ipv6 = defaultdict(dict), defaultdict(dict)
+        for ip in self.client.technology.addressing.managed_ip_ipv4.all(columns=ip_columns, filters=ip_filter):
+            managed_ipv4[ip['sn']].update({ip['ip']: ip})
+        for ip in self.client.technology.addressing.managed_ip_ipv6.all(columns=ip_columns, filters=ip_filter):
+            managed_ipv4[ip['sn']].update({ip['intName']: ip})
+        return managed_ipv4, managed_ipv6
+
     def load(self):
         """Load data from IP Fabric."""
         self.load_sites()
-        devices = self.client.inventory.devices.all()
+        devices = self.client.devices.all
         interfaces = self.client.inventory.interfaces.all()
+        managed_ipv4, managed_ipv6 = self.managed_ip()
         vlans = self.client.fetch_all("tables/vlan/site-summary")
 
         for location in self.get_all(self.location):
@@ -104,8 +128,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 description = vlan.get("dscr") if vlan.get("dscr") else f"VLAN ID: {vlan['vlanId']}"
                 vlan_name = vlan.get("vlanName") if vlan.get("vlanName") else f"{vlan['siteName']}:{vlan['vlanId']}"
                 if len(vlan_name) > name_max_length:
-                    logger.warning(f"Not syncing VLAN, {vlan_name} due to character limit exceeding {name_max_length}.")
-                    continue
+                    logger.warning(f"Clipping VLAN, {vlan_name} due to character limit exceeding {name_max_length}.")
+                    vlan_name = vlan_name[:name_max_length - 3] + '...'
                 try:
                     vlan = self.vlan(
                         diffsync=self,
@@ -120,33 +144,34 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 except ObjectAlreadyExists:
                     logger.warning(f"Duplicate VLAN discovered, {vlan}")
 
-            location_devices = [device for device in devices if device["siteName"] == location.name]
+            location_devices = [device for device in devices if device.site_name == location.name]
             for device in location_devices:
-                device_primary_ip = device["loginIp"]
-                sn_length = len(device["sn"])
-                serial_number = device["sn"] if sn_length < device_serial_max_length else ""
-                if not serial_number:
+                device_primary_ip = str(device.login_ip.ip) if device.login_ip else None
+                serial_number = device.sn
+                if len(serial_number) > device_serial_max_length:
                     logger.warning(
-                        (
-                            f"Serial Number will not be recorded for {device['hostname']} due to character limit. "
-                            f"{sn_length} exceeds {device_serial_max_length}"
-                        )
+                        f"Clipping Serial Number for {device['hostname']} due to character limit exceeding "
+                        f"{device_serial_max_length}."
                     )
+                    serial_number = serial_number[:device_serial_max_length]
                 try:
                     device_model = self.device(
                         diffsync=self,
-                        name=device["hostname"],
-                        location_name=device["siteName"],
-                        model=device.get("model") if device.get("model") else f"Default-{device.get('vendor')}",
-                        vendor=device.get("vendor").capitalize(),
+                        name=device.hostname,
+                        location_name=device.site_name,
+                        model=device.model if device.model else f"Default-{device.get('vendor')}",
+                        vendor=device.vendor.capitalize(),
                         serial_number=serial_number,
-                        role=device.get("devType") if device.get("devType") else DEFAULT_DEVICE_ROLE,
+                        role=device.dev_type if device.dev_type else DEFAULT_DEVICE_ROLE,
                         status=DEFAULT_DEVICE_STATUS,
-                        platform=device.get("family"),
+                        platform=device.family,
                     )
                     self.add(device_model)
                     location.add_child(device_model)
-                    self.load_device_interfaces(device_model, interfaces, device_primary_ip)
+                    self.load_device_interfaces(
+                        device_model, interfaces.get(device.sn, []), device_primary_ip, managed_ipv4.get(device.sn, {}),
+                        managed_ipv6.get(device.sn, {})
+                    )
                 except ObjectAlreadyExists:
                     logger.warning(f"Duplicate Device discovered, {device}")
 
