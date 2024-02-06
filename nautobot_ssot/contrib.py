@@ -13,7 +13,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError, MultipleObjectsReturned
 from django.db.models import Model
 from nautobot.extras.models import Relationship, RelationshipAssociation
-from typing_extensions import get_type_hints
+from typing_extensions import get_type_hints, Optional
 
 
 # This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
@@ -73,14 +73,14 @@ class CustomFieldAnnotation:
 
     For usage with `typing.Annotated`.
 
-    This exists to map model fields to their corresponding custom fields. This solves the problem of Python object
-    attributes not being able to include spaces, while custom field names/labels may.
+    This exists to map model fields to their corresponding custom fields. This serves to explicitly differentiate
+    normal fields from custom fields.
 
-    TODO: With Nautobot 2.0, the custom fields `key` field needs to be a valid Python identifier. This will probably
-      simplify this a lot.
+    Note that for backwards compatibility purposes it is also possible to use `CustomFieldAnnotation.name` instead of
+    `CustomFieldAnnotation.key`.
 
     Example:
-        Given a boolean custom field "Is Global" on the Provider model:
+        Given a boolean custom field with label "Is Global" and key "is_global" on the Provider model:
 
         ```python
         class ProviderModel(NautobotModel):
@@ -89,13 +89,27 @@ class CustomFieldAnnotation:
             _attributes = ("is_global",)
 
             name: str
-            is_global: Annotated[bool, CustomFieldAnnotation(name="Is Global")
+            is_global: Annotated[bool, CustomFieldAnnotation(key="is_global")
         ```
 
-        This then maps the model field 'is_global' to the custom field 'Is Global'.
+        This then maps the model field 'is_global' to the custom field with the key 'Is Global'.
     """
 
-    name: str
+    # TODO: Delete on 3.0, keep around for backwards compatibility for now
+    name: Optional[str] = None
+
+    key: Optional[str] = None
+
+    def __post_init__(self):
+        """Compatibility layer with using 'name' instead of 'key'.
+
+        If `self.key` isn't set, fall back to the old behaviour.
+        """
+        if not self.key:
+            if self.name:
+                self.key = self.name
+            else:
+                raise ValueError("The 'key' field on CustomFieldAnnotation needs to be set.")
 
 
 class NautobotAdapter(DiffSync):
@@ -156,7 +170,7 @@ class NautobotAdapter(DiffSync):
         for metadata in metadata_for_this_field:
             if isinstance(metadata, CustomFieldAnnotation):
                 if metadata.name in database_object.cf:
-                    parameters[parameter_name] = database_object.cf[metadata.name]
+                    parameters[parameter_name] = database_object.cf[metadata.key]
                 is_custom_field = True
                 break
             if isinstance(metadata, CustomRelationshipAnnotation):
@@ -466,9 +480,40 @@ class NautobotModel(DiffSyncModel):
     def get_from_db(self):
         """Get the ORM object for this diffsync object from the database using the identifiers.
 
-        TODO: Currently I don't think this works for custom fields, therefore those can't be identifiers.
+        Note that this method currently supports the following things in identifiers:
+        - Normal model fields
+        - Foreign key fields (i.e. ones with the `__` syntax separating fields)
+        - Nautobot custom fields
+
+        TODO - Currently unsupported are:
+        - to-many-relationships, i.e. reverse foreign keys or many-to-many relationships
+        - probably also generic relationships, this is untested and hard to test in the current Nautobot version (2.1)
+
         """
-        return self.diffsync.get_from_orm_cache(self.get_identifiers(), self._model)
+        parameters = {}
+        custom_field_lookup = {}
+        type_hints = get_type_hints(self, include_extras=True)
+        is_custom_field = False
+        for key, value in self.get_identifiers().items():
+            metadata_for_this_field = getattr(type_hints[key], "__metadata__", [])
+            for metadata in metadata_for_this_field:
+                if isinstance(metadata, CustomFieldAnnotation):
+                    custom_field_lookup[metadata.key] = value
+                    is_custom_field = True
+            if not is_custom_field:
+                parameters[key] = value
+        if custom_field_lookup:
+            parameters["_custom_field_data__contains"] = custom_field_lookup
+        try:
+            return self.diffsync.get_from_orm_cache(**parameters, self._model)
+        except self._model.DoesNotExist as error:
+            raise ValueError(
+                f"No such {self._model._meta.verbose_name} instance with lookup parameters {parameters}."
+            ) from error
+        except self._model.MultipleObjectsReturned as error:
+            raise ValueError(
+                f"Multiple {self._model._meta.verbose_name} instances with lookup parameters {parameters}."
+            ) from error
 
     def update(self, attrs):
         """Update the ORM object corresponding to this diffsync object."""
@@ -519,7 +564,7 @@ class NautobotModel(DiffSyncModel):
         metadata_for_this_field = getattr(type_hints[field], "__metadata__", [])
         for metadata in metadata_for_this_field:
             if isinstance(metadata, CustomFieldAnnotation):
-                obj.cf[metadata.name] = value
+                obj.cf[metadata.key] = value
                 return
             if isinstance(metadata, CustomRelationshipAnnotation):
                 custom_relationship_annotation = metadata
