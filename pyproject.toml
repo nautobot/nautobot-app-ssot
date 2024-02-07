@@ -40,7 +40,7 @@ nautobot-device-lifecycle-mgmt = { version = "^2.0.0", optional = true }
 packaging = ">=21.3, <24"
 prometheus-client = "~0.17.1"
 ijson = { version = ">=2.5.1", optional = true }
-ipfabric = { version = "^6.0.0", optional = true }
+ipfabric = { version = "~6.6.2", optional = true }
 netutils = { version = "^1.0.0", optional = true }
 oauthlib = { version = ">=3.1.0", optional = true }
 python-magic = { version = ">=0.4.15", optional = true }
@@ -83,7 +83,7 @@ mkdocstrings-python = "1.5.2"
 requests-mock = "^1.10.0"
 parameterized = "^0.8.1"
 myst-parser = "^2.0.0"
-# nautobot-chatops = { version = "^3.0.0", extras = ["ipfabric"] }
+# nautobot-chatops = { version = "^3.0.0", extras = ["ipfabric"] }  # TODO Why is chatops included?
 responses = "^0.14.0"
 
 [tool.poetry.plugins."nautobot_ssot.data_sources"]
@@ -130,7 +130,6 @@ infoblox = [
 ipfabric = [
     "httpx",
     "ipfabric",
-#    "ipfabric-diagrams",
     "netutils",
 ]
 # pysnow = "^0.7.17"
