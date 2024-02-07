@@ -24,7 +24,7 @@ It contains 3 steps:
 # example_ssot_app/jobs.py
 from typing import Optional
 
-from diffsync import DiffSync
+from diffsync import Adapter
 from nautobot.ipam.models import VLAN
 from nautobot.extras.jobs import Job
 from nautobot_ssot.contrib import NautobotModel, NautobotAdapter
@@ -51,7 +51,7 @@ class MySSoTNautobotAdapter(NautobotAdapter):
     top_level = ("vlan",)
 
 # Step 2.2 - the remote adapter
-class MySSoTRemoteAdapter(DiffSync):
+class MySSoTRemoteAdapter(Adapter):
     """DiffSync adapter for remote system."""
     vlan = VLANModel
     top_level = ("vlan",)

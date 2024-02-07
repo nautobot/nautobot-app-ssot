@@ -51,7 +51,7 @@ class DiffSyncExtras(DiffSyncModel):
             logger.warning(f"{nautobot_object} will be deleted as safe delete mode is not enabled.")
             # This allows private class naming of nautobot objects to be ordered for delete()
             # Example definition in adapter class var: _site = Location
-            self.diffsync.objects_to_delete[f"_{nautobot_object.__class__.__name__.lower()}"].append(
+            self.adapter.objects_to_delete[f"_{nautobot_object.__class__.__name__.lower()}"].append(
                 nautobot_object
             )  # pylint: disable=protected-access
             super().delete()
@@ -97,31 +97,31 @@ class Location(DiffSyncExtras):
     _children = {"device": "devices", "vlan": "vlans"}
 
     name: str
-    site_id: Optional[str]
+    site_id: Optional[str] = None
     status: str
-    devices: List["Device"] = list()  # pylint: disable=use-list-literal
-    vlans: List["Vlan"] = list()  # pylint: disable=use-list-literal
+    devices: List["Device"] = []
+    vlans: List["Vlan"] = []
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Location in Nautobot."""
         tonb_nbutils.create_location(
             location_name=ids["name"],
             location_id=attrs["site_id"],
-            logger=diffsync.job.logger,
+            logger=adapter.job.logger,
         )
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete Location in Nautobot."""
         try:
             location = NautobotLocation.objects.get(name=self.name)
         except NautobotLocation.MultipleObjectsReturned:
-            self.diffsync.job.logger.error(
+            self.adapter.job.logger.error(
                 f"Multiple Locations found with the name {self.name}, unable to determine which one to delete"
             )
         except NautobotLocation.DoesNotExist:
-            self.diffsync.job.logger.error(f"Unable to find a Location with the name {self.name} to delete")
+            self.adapter.job.logger.error(f"Unable to find a Location with the name {self.name} to delete")
         else:
             self.safe_delete(
                 location,
@@ -134,11 +134,11 @@ class Location(DiffSyncExtras):
         try:
             location = NautobotLocation.objects.get(name=self.name)
         except NautobotLocation.MultipleObjectsReturned:
-            self.diffsync.job.logger.error(
+            self.adapter.job.logger.error(
                 f"Multiple Locations found with the name {self.name}, unable to determine which one to update"
             )
         except NautobotLocation.DoesNotExist:
-            self.diffsync.job.logger.error(f"Unable to find a Location with the name {self.name} to update")
+            self.adapter.job.logger.error(f"Unable to find a Location with the name {self.name} to update")
         else:
             site_id = attrs.get("site_id")
             if site_id:
@@ -155,7 +155,7 @@ class Location(DiffSyncExtras):
                 # Calls validated_save() on the object
                 tonb_nbutils.tag_object(nautobot_object=location, custom_field=LAST_SYNCHRONIZED_CF_NAME)
             except (DjangoBaseDBError, ValidationError):
-                self.diffsync.job.logger.error(f"Unable to update the existing Location named {self.name} with {attrs}")
+                self.adapter.job.logger.error(f"Unable to update the existing Location named {self.name} with {attrs}")
 
             return super().update(attrs)
 
@@ -169,20 +169,20 @@ class Device(DiffSyncExtras):
     _children = {"interface": "interfaces"}
 
     name: str
-    location_name: Optional[str]
-    model: Optional[str]
-    vendor: Optional[str]
-    serial_number: Optional[str]
-    role: Optional[str]
-    status: Optional[str]
-    platform: Optional[str]
+    location_name: Optional[str] = None
+    model: Optional[str] = None
+    vendor: Optional[str] = None
+    serial_number: Optional[str] = None
+    role: Optional[str] = None
+    status: Optional[str] = None
+    platform: Optional[str] = None
 
-    mgmt_address: Optional[str]
+    mgmt_address: Optional[str] = None
 
-    interfaces: List["Interface"] = list()  # pylint: disable=use-list-literal
+    interfaces: List["Interface"] = []
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Device in Nautobot under its parent location."""
         # Get DeviceType
         device_name = ids["name"]
@@ -195,10 +195,10 @@ class Device(DiffSyncExtras):
             device_type_object = tonb_nbutils.create_device_type_object(
                 device_type=device_type_name,
                 vendor_name=vendor_name,
-                logger=diffsync.job.logger,
+                logger=adapter.job.logger,
             )
             if not device_type_object:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f"Unable to create a Device with the name {device_name} because of a failure "
                     f"to get or create a DeviceType named {device_type_name} with a Manufacturer named {vendor_name}"
                 )
@@ -208,15 +208,15 @@ class Device(DiffSyncExtras):
             platform_object = tonb_nbutils.create_platform_object(
                 platform=platform,
                 manufacturer_obj=device_type_object.manufacturer,
-                logger=diffsync.job.logger,
+                logger=adapter.job.logger,
             )
             if not platform_object:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f"Unable to get or create a Platform named {platform}, "
                     f"Device named {device_name} will not have a Platform assigned"
                 )
         elif platform:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f"Unable to get or create a Platform named {platform} since the DeviceType could not be retrieved, "
                 f"Device named {device_name} will not have a Platform assigned"
             )
@@ -232,17 +232,17 @@ class Device(DiffSyncExtras):
             try:
                 device_role_object.validated_save()
             except (DjangoBaseDBError, ValidationError):
-                diffsync.job.logger.error(
+                adapter.job.logger.error(
                     f"Unable to perform a validated_save() on Role {role_name} with an ID of {device_role_object.id}"
                 )
         else:
             device_role_object = tonb_nbutils.get_or_create_device_role_object(
                 role_name=role_name,
                 role_color=DEFAULT_DEVICE_ROLE_COLOR,
-                logger=diffsync.job.logger,
+                logger=adapter.job.logger,
             )
             if not device_role_object:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f"Unable to create a Device with the name {device_name} because of a failure "
                     f"to get or create a Role named {role_name}"
                 )
@@ -254,10 +254,10 @@ class Device(DiffSyncExtras):
             device_status_object = tonb_nbutils.create_status(
                 DEFAULT_DEVICE_STATUS,
                 DEFAULT_DEVICE_STATUS_COLOR,
-                logger=diffsync.job.logger,
+                logger=adapter.job.logger,
             )
             if not device_status_object:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f"Unable to create a Device with the name {device_name} because of a failure "
                     f"to get or create a Status named {DEFAULT_DEVICE_STATUS}"
                 )
@@ -267,9 +267,9 @@ class Device(DiffSyncExtras):
         if location_object_filter.exists():
             location_object = location_object_filter.first()
         else:
-            location_object = tonb_nbutils.create_location(location_name, logger=diffsync.job.logger)
+            location_object = tonb_nbutils.create_location(location_name, logger=adapter.job.logger)
             if not location_object:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f"Unable to create Device with name {device_name} because of a failure "
                     f"to get or create a Location named {location_name}"
                 )
@@ -286,37 +286,37 @@ class Device(DiffSyncExtras):
                     defaults={"platform": platform_object},
                 )
             except NautobotDevice.MultipleObjectsReturned:
-                diffsync.job.logger.error(
+                adapter.job.logger.error(
                     f"Multiple Devices returned with name {device_name} at Location {location_name}"
                 )
             except (DjangoBaseDBError, ValidationError):
-                diffsync.job.logger.error(
+                adapter.job.logger.error(
                     f"Unable to create a new Device named {device_name} at Location {location_name}"
                 )
             try:
                 # Validated save happens inside of tag_objet
                 tonb_nbutils.tag_object(nautobot_object=new_device, custom_field=LAST_SYNCHRONIZED_CF_NAME)
             except (DjangoBaseDBError, ValidationError) as error:
-                diffsync.job.logger.error(
+                adapter.job.logger.error(
                     f"Unable to perform a validated_save() on Device {device_name} with an ID of {new_device.id}"
                 )
                 message = f"Unable to create device: {device_name}. A validation error occured. Enable debug for more information."
-                if diffsync.job.debug:
+                if adapter.job.debug:
                     logger.debug(error)
                 logger.error(message)
 
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete device in Nautobot."""
         try:
             device_object = NautobotDevice.objects.get(name=self.name)
         except NautobotDevice.MultipleObjectsReturned:
-            self.diffsync.logger.error(
+            self.adapter.logger.error(
                 f"Multiple Devices found with the name {self.name}, unable to determine which one to delete"
             )
         except NautobotDevice.DoesNotExist:
-            self.diffsync.logger.error(f"Unable to find a Device with the name {self.name} to delete")
+            self.adapter.logger.error(f"Unable to find a Device with the name {self.name} to delete")
         else:
             self.safe_delete(
                 device_object,
@@ -329,11 +329,11 @@ class Device(DiffSyncExtras):
         try:
             _device = NautobotDevice.objects.get(name=self.name)
         except NautobotLocation.MultipleObjectsReturned:
-            self.diffsync.job.logger.error(
+            self.adapter.job.logger.error(
                 f"Multiple Devices found with the name {self.name}, unable to determine which one to update"
             )
         except NautobotLocation.DoesNotExist:
-            self.diffsync.logger.error(f"Unable to find a Device with the name {self.name} to update")
+            self.adapter.logger.error(f"Unable to find a Device with the name {self.name} to update")
         else:
             if attrs.get("status") == "Active":
                 safe_delete_tag, _ = Tag.objects.get_or_create(name="SSoT Safe Delete")
@@ -349,12 +349,12 @@ class Device(DiffSyncExtras):
                 device_type_object = tonb_nbutils.create_device_type_object(
                     device_type=device_type_name,
                     vendor_name=vendor_name,
-                    logger=self.diffsync.job.logger,
+                    logger=self.adapter.job.logger,
                 )
                 if device_type_object:
                     _device.type = device_type_object
                 else:
-                    self.diffsync.job.logger.warning(
+                    self.adapter.job.logger.warning(
                         f"Unable to update Device {self.name} with a DeviceType of {device_type_name}"
                     )
             platform_name = attrs.get("platform")
@@ -362,12 +362,12 @@ class Device(DiffSyncExtras):
                 try:
                     manufacturer_object = Manufacturer.objects.get(name=vendor_name)
                 except Manufacturer.MultipleObjectsReturned:
-                    self.diffsync.job.logger.error(
+                    self.adapter.job.logger.error(
                         f"Multiple Manufacturers found with the name {vendor_name}, "
                         f"unable to get or create a Platform named {platform_name} for Device named {self.name}"
                     )
                 except Manufacturer.DoesNotExist:
-                    self.diffsync.job.logger.error(
+                    self.adapter.job.logger.error(
                         f"Could not find a Manufacturer with the name {vendor_name}, "
                         f"unable to get or create a Platform named {platform_name} for Device named {self.name}"
                     )
@@ -375,22 +375,22 @@ class Device(DiffSyncExtras):
                     platform_object = tonb_nbutils.create_platform_object(
                         platform=platform_name,
                         manufacturer_obj=manufacturer_object,
-                        logger=self.diffsync.job.logger,
+                        logger=self.adapter.job.logger,
                     )
                     if platform_object:
                         _device.platform = platform_object
                     else:
-                        self.diffsync.job.logger.warning(
+                        self.adapter.job.logger.warning(
                             f"Unable to update Device {self.name} with a Platform of {platform_name}"
                         )
 
             location_name = attrs.get("location_name")
             if location_name:
-                location = tonb_nbutils.create_location(location_name, logger=self.diffsync.job.logger)
+                location = tonb_nbutils.create_location(location_name, logger=self.adapter.job.logger)
                 if location:
                     _device.location = location
                 else:
-                    self.diffsync.job.logger.warning(
+                    self.adapter.job.logger.warning(
                         f"Unable to update Device {self.name} with a Location named {location_name}"
                     )
             if attrs.get("serial_number"):
@@ -400,19 +400,19 @@ class Device(DiffSyncExtras):
                 device_role_object = tonb_nbutils.get_or_create_device_role_object(
                     role_name=role_name,
                     role_color=DEFAULT_DEVICE_ROLE_COLOR,
-                    logger=self.diffsync.job.logger,
+                    logger=self.adapter.job.logger,
                 )
                 if device_role_object:
                     _device.role = device_role_object
                 else:
-                    self.diffsync.job.logger.warning(
+                    self.adapter.job.logger.warning(
                         f"Unable to update Device {self.name} with a Role named {role_name}"
                     )
             # tonb_nbutils.tag_object calls validated_save()
             try:
                 tonb_nbutils.tag_object(nautobot_object=_device, custom_field=LAST_SYNCHRONIZED_CF_NAME)
             except (DjangoBaseDBError, ValidationError):
-                self.diffsync.job.logger.error(f"Unable to update the existing Device named {self.name} with {attrs}")
+                self.adapter.job.logger.error(f"Unable to update the existing Device named {self.name} with {attrs}")
             # Call the super().update() method to update the in-memory DiffSyncModel instance
             return super().update(attrs)
 
@@ -443,21 +443,21 @@ class Interface(DiffSyncExtras):
 
     name: str
     device_name: str
-    description: Optional[str]
-    enabled: Optional[bool]
-    mac_address: Optional[str]
-    mtu: Optional[int]
-    type: Optional[str]
-    mgmt_only: Optional[bool]
-    ip_address: Optional[str]
-    subnet_mask: Optional[str]
-    ipv6_address: Optional[str]
-    subnetv6_mask: Optional[str]
-    ip_is_primary: Optional[bool]
+    description: Optional[str] = None
+    enabled: Optional[bool] = None
+    mac_address: Optional[str] = None
+    mtu: Optional[int] = None
+    type: Optional[str] = None
+    mgmt_only: Optional[bool] = None
+    ip_address: Optional[str] = None
+    subnet_mask: Optional[str] = None
+    ipv6_address: Optional[str] = None
+    subnetv6_mask: Optional[str] = None
+    ip_is_primary: Optional[bool] = None
     status: str
 
     @staticmethod
-    def _add_ip(interface_obj, ip, subnet, attrs, device_obj, diffsync, interface_name, device_name):
+    def _add_ip(interface_obj, ip, subnet, attrs, device_obj, adapter, interface_name, device_name):
         if interface_obj.ip_addresses.exists():
             interface_obj.ip_addresses.all().delete()
         ip_address_obj = tonb_nbutils.create_ip(
@@ -465,7 +465,7 @@ class Interface(DiffSyncExtras):
             subnet_mask=subnet,
             status=attrs["status"],
             object_pk=interface_obj,
-            logger=diffsync.job.logger,
+            logger=adapter.job.logger,
         )
         if ip_address_obj:
             interface_obj.ip_addresses.add(ip_address_obj)
@@ -477,20 +477,20 @@ class Interface(DiffSyncExtras):
                     device_obj.primary_ip6 = ip_address_obj
                     device_obj.save()
         else:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f"Unable to assign an IPAddress to an Interface named {interface_name} on a Device named {device_name} "
                 f"because of a failure to get or create an IPAddress of {ip}/{subnet}"
             )
         try:
             interface_obj.validated_save()
         except (DjangoBaseDBError, ValidationError):
-            diffsync.job.logger.error(
+            adapter.job.logger.error(
                 f"Unable to perform a validated_save() on an Interface named {interface_name} on a Device named {device_name}"
             )
         return interface_obj
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create interface in Nautobot under its parent device."""
         device_name = ids["device_name"]
         interface_name = ids["name"]
@@ -507,28 +507,28 @@ class Interface(DiffSyncExtras):
             interface_obj = tonb_nbutils.create_interface(
                 device_obj=device_obj,
                 interface_details={**ids, **attrs},
-                logger=diffsync.job.logger,
+                logger=adapter.job.logger,
             )
             if interface_obj and ip_address:
-                cls._add_ip(interface_obj, ip_address, subnet_mask, attrs, device_obj, diffsync, interface_name, device_name)
+                cls._add_ip(interface_obj, ip_address, subnet_mask, attrs, device_obj, adapter, interface_name, device_name)
             elif ip_address:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f"Unable to create an IPAddress {ip_address}/{subnet_mask} because of a failure "
                     f"to get or create an Interface named {interface_name} on a Device named {device_name}"
                 )
             if interface_obj and ipv6_address:
-                cls._add_ip(interface_obj, ipv6_address, subnetv6_mask, attrs, device_obj, diffsync, interface_name, device_name)
+                cls._add_ip(interface_obj, ipv6_address, subnetv6_mask, attrs, device_obj, adapter, interface_name, device_name)
             elif ipv6_address:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f"Unable to create an IPAddress {ipv6_address}/{subnetv6_mask} because of a failure "
                     f"to get or create an Interface named {interface_name} on a Device named {device_name}"
                 )
         else:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f"Unable to create an Interface with the name {interface_name} because of a failure "
                 f"to get a Device named {device_name}"
             )
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete Interface Object."""
@@ -538,12 +538,12 @@ class Interface(DiffSyncExtras):
             try:
                 interface = device.interfaces.get(name=self.name)
             except Interface.MultipleObjectsReturned:
-                self.diffsync.job.logger.error(
+                self.adapter.job.logger.error(
                     f"Multiple Interfaces found with the name {self.name}, on Device named {self.device_name} "
                     f"with an ID of {device.id}, unable to determine which one to delete"
                 )
             except Interface.DoesNotExist:
-                self.diffsync.job.logger.error(
+                self.adapter.job.logger.error(
                     f"Unable to find an Interface with the name {self.name} on Device named {self.device} "
                     f"with an ID of {device.id} to delete"
                 )
@@ -555,7 +555,7 @@ class Interface(DiffSyncExtras):
                 # Attached interfaces do not have a status to update.
                 self.safe_delete(interface)
         else:
-            self.diffsync.job.logger.warning(
+            self.adapter.job.logger.warning(
                 f"Unable to retrieve Device named {self.device_name}, so Interface named {self.name} "
                 "will not be deleted."
             )
@@ -571,12 +571,12 @@ class Interface(DiffSyncExtras):
             try:
                 interface = device.interfaces.get(name=self.name)
             except Interface.MultipleObjectsReturned:
-                self.diffsync.job.logger.error(
+                self.adapter.job.logger.error(
                     f"Multiple Interfaces found with the name {self.name} on Device named {device.name} "
                     f"with an ID of {device.id}, unable to determine which one to update"
                 )
             except Interface.DoesNotExist:
-                self.diffsync.logger.error(
+                self.adapter.logger.error(
                     f"Unable to find an Interface with the name {self.name} on Device named {device.name} "
                     f"with an ID of {device.id} to update"
                 )
@@ -608,12 +608,12 @@ class Interface(DiffSyncExtras):
                         subnet_mask=subnet_mask,
                         status="Active",
                         object_pk=interface,
-                        logger=self.diffsync.jog.logger,
+                        logger=self.adapter.jog.logger,
                     )
                     if ip_address_obj:
                         interface.ip_addresses.add(ip_address_obj)
                     else:
-                        self.diffsync.job.logger.warning(
+                        self.adapter.job.logger.warning(
                             f"Unable to update Interface {self.name} on Device {device.name} "
                             f"with an IPAddress of {ip_address}/{subnet_mask}"
                         )
@@ -628,20 +628,20 @@ class Interface(DiffSyncExtras):
                                 device.primary_ip6 = interface_obj
                                 device.save()
                         except (DjangoBaseDBError, ValidationError):
-                            self.diffsync.job.logger(
+                            self.adapter.job.logger(
                                 f"Unable to update Primay IP for Device named {device.name} "
                                 f"with an ID of {device.id}"
                             )
                 try:
                     tonb_nbutils.tag_object(nautobot_object=interface, custom_field=LAST_SYNCHRONIZED_CF_NAME)
                 except (DjangoBaseDBError, ValidationError):
-                    self.diffsync.job.logger.error(
+                    self.adapter.job.logger.error(
                         f"Unable to perform validated_save() on Interface named {self.name} "
                         f"on Device named {device.name} with an ID of {device.id}"
                     )
         else:
             logger.warning(f"Unable to match device by name, {self.name}")
-            self.diffsync.job.logger.warning(
+            self.adapter.job.logger.warning(
                 f"Unable to retrieve a Device named {self.device_name}, so unable to update "
                 f"its interface named {self.name}"
             )
@@ -660,11 +660,11 @@ class Vlan(DiffSyncExtras):
     vid: int
     status: str
     location: str
-    description: Optional[str]
-    vlan_pk: Optional[UUID]
+    description: Optional[str] = None
+    vlan_pk: Optional[UUID] = None
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create VLANs in Nautobot under the site."""
         status = attrs["status"].lower().capitalize()
         location_name = ids["location"]
@@ -673,18 +673,18 @@ class Vlan(DiffSyncExtras):
         try:
             location = NautobotLocation.objects.get(name=ids["location"])
         except NautobotLocation.MultipleObjectsReturned:
-            diffsync.job.logger.error(
+            adapter.job.logger.error(
                 f"Multiple Locations returned with the name {location_name}, "
                 f"unable to create a VLAN named {vlan_name} and VLAN ID {vlan_id}"
             )
         except NautobotLocation.DoesNotExist:
-            diffsync.job.logger.error(
+            adapter.job.logger.error(
                 f"Unable to retrieve a Location with the name {location_name}, "
                 f"unable to create a VLAN named {vlan_name} and VLAN ID {vlan_id}"
             )
         else:
             description = attrs.get("description")
-            if diffsync.job.debug:
+            if adapter.job.debug:
                 logger.debug("Creating VLAN: %s description: %s", vlan_name, description)
             tonb_nbutils.create_vlan(
                 vlan_name=vlan_name,
@@ -692,16 +692,16 @@ class Vlan(DiffSyncExtras):
                 vlan_status=status,
                 location_obj=location,
                 description=description,
-                logger=diffsync.job.logger,
+                logger=adapter.job.logger,
             )
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete."""
         try:
             vlan = VLAN.objects.get(name=self.name, pk=self.vlan_pk)
         except VLAN.DoesNotExist:
-            self.diffsync.job.logger.error(
+            self.adapter.job.logger.error(
                 f"Unable to find a VLAN found with the name {self.name} and an ID of {self.vlan_pk}"
             )
         else:
@@ -716,12 +716,12 @@ class Vlan(DiffSyncExtras):
         try:
             location_obj = NautobotLocation.objects.get(name=self.location)
         except NautobotLocation.MultipleObjectsReturned:
-            self.diffsync.job.logger.error(
+            self.adapter.job.logger.error(
                 f"Multiple Locations found with the name {self.lcation}, unable to "
                 f"Retrieve the VLAN named {self.name} to perform updates"
             )
         except NautobotLocation.DoesNotExist:
-            self.diffsync.job.logger.error(
+            self.adapter.job.logger.error(
                 f"Could not find a Location with the name {self.lcation}, unable to "
                 f"Retrieve the VLAN named {self.name} to perform updates"
             )
@@ -729,12 +729,12 @@ class Vlan(DiffSyncExtras):
             try:
                 vlan = VLAN.objects.get(name=self.name, vid=self.vid, location=location_obj)
             except VLAN.MultipleObjectsReturned:
-                self.diffsync.job.logger.error(
+                self.adapter.job.logger.error(
                     f"Multiple VLANs found with a name {self.name} and VLAN ID {self.vid} "
                     f"at a Location named {self.location}, unable to perform updates"
                 )
             except VLAN.DoesNotExist:
-                self.diffsync.job.logger.error(
+                self.adapter.job.logger.error(
                     f"Could not find a VLAN named {self.name} and VLAN ID {self.vid} "
                     f"at a Location named {self.location}, unable to perform updates"
                 )
@@ -751,13 +751,13 @@ class Vlan(DiffSyncExtras):
             try:
                 tonb_nbutils.tag_object(nautobot_object=vlan, custom_field=LAST_SYNCHRONIZED_CF_NAME)
             except (DjangoBaseDBError, ValidationError):
-                self.diffsync.job.logger.warning(
+                self.adapter.job.logger.warning(
                     f"Unable to perform a validated_save() on VLAN {self.name} with an ID of {vlan.id}"
                 )
         return super().update(attrs)
 
 
-Location.update_forward_refs()
-Device.update_forward_refs()
-Interface.update_forward_refs()
-Vlan.update_forward_refs()
+Location.model_rebuild()
+Device.model_rebuild()
+Interface.model_rebuild()
+Vlan.model_rebuild()

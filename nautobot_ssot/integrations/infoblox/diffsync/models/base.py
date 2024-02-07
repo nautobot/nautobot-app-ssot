@@ -1,4 +1,5 @@
 """Base Shared Models for Infoblox integration with SSoT app."""
+
 import uuid
 from typing import Optional
 from diffsync import DiffSyncModel
@@ -12,11 +13,11 @@ class Network(DiffSyncModel):
     _attributes = ("description", "network_type", "ext_attrs", "vlans", "ranges")
 
     network: str
-    description: Optional[str]
-    network_type: Optional[str]
-    ext_attrs: Optional[dict]
-    vlans: Optional[dict]
-    ranges: Optional[list] = []
+    description: Optional[str] = None
+    network_type: Optional[str] = None
+    ext_attrs: Optional[dict] = None
+    vlans: Optional[dict] = None
+    ranges: Optional[list] = None
     pk: Optional[uuid.UUID] = None
 
 
@@ -28,8 +29,8 @@ class VlanView(DiffSyncModel):
     _attributes = ("description", "ext_attrs")
 
     name: str
-    description: Optional[str]
-    ext_attrs: Optional[dict]
+    description: Optional[str] = None
+    ext_attrs: Optional[dict] = None
     pk: Optional[uuid.UUID] = None
 
 
@@ -43,9 +44,9 @@ class Vlan(DiffSyncModel):
     vid: int
     name: str
     status: str
-    description: Optional[str]
-    vlangroup: Optional[str]
-    ext_attrs: Optional[dict]
+    description: Optional[str] = None
+    vlangroup: Optional[str] = None
+    ext_attrs: Optional[dict] = None
     pk: Optional[uuid.UUID] = None
 
 
@@ -60,8 +61,8 @@ class IPAddress(DiffSyncModel):
     dns_name: str
     prefix: str
     prefix_length: int
-    status: Optional[str]
-    ip_addr_type: Optional[str]
-    description: Optional[str]
-    ext_attrs: Optional[dict]
+    status: Optional[str] = None
+    ip_addr_type: Optional[str] = None
+    description: Optional[str] = None
+    ext_attrs: Optional[dict] = None
     pk: Optional[uuid.UUID] = None

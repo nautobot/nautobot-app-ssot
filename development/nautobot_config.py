@@ -1,4 +1,5 @@
 """Nautobot development configuration file."""
+
 import os
 import sys
 
@@ -130,7 +131,7 @@ if not _TESTING:
 
 # Enable installed Apps. Add the name of each App to the list.
 PLUGINS = [
-    "nautobot_chatops",
+    # "nautobot_chatops",
     "nautobot_device_lifecycle_mgmt",
     "nautobot_ssot",
 ]

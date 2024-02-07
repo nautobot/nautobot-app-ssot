@@ -44,7 +44,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         sites = self.client.inventory.sites.all()
         for site in sites:
             try:
-                location = self.location(diffsync=self, name=site["siteName"], site_id=site["id"], status="Active")
+                location = self.location(name=site["siteName"], site_id=site["id"], status="Active")
                 self.add(location)
             except ObjectAlreadyExists:
                 logger.warning(f"Duplicate Location discovered, {site}")
@@ -74,14 +74,15 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 iface_name = canonical_interface_name(iface_name)
             try:
                 interface = self.interface(
-                    diffsync=self,
                     name=iface_name,
                     device_name=iface.get("hostname"),
                     description=iface.get("dscr", ""),
                     enabled=True,
-                    mac_address=mac_to_format(iface.get("mac"), "MAC_COLON_TWO").upper()
-                    if iface.get("mac")
-                    else DEFAULT_INTERFACE_MAC,
+                    mac_address=(
+                        mac_to_format(iface.get("mac"), "MAC_COLON_TWO").upper()
+                        if iface.get("mac")
+                        else DEFAULT_INTERFACE_MAC
+                    ),
                     mtu=iface.get("mtu") if iface.get("mtu") else DEFAULT_INTERFACE_MTU,
                     type=ipfabric_utils.convert_media_type(iface.get("media") or ""),
                     mgmt_only=iface.get("mgmt_only", False),
@@ -132,7 +133,6 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     vlan_name = vlan_name[:name_max_length - 3] + '...'
                 try:
                     vlan = self.vlan(
-                        diffsync=self,
                         name=vlan_name,
                         location=vlan["siteName"],
                         vid=vlan["vlanId"],
@@ -156,7 +156,6 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     serial_number = serial_number[:device_serial_max_length]
                 try:
                     device_model = self.device(
-                        diffsync=self,
                         name=device.hostname,
                         location_name=device.site_name,
                         model=device.model if device.model else f"Default-{device.get('vendor')}",

@@ -4,7 +4,7 @@ from base64 import b64encode
 import json
 import os
 
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.enum import DiffSyncFlags
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from jinja2 import Environment, FileSystemLoader
@@ -13,7 +13,7 @@ import yaml
 from . import models
 
 
-class ServiceNowDiffSync(DiffSync):
+class ServiceNowDiffSync(Adapter):
     """DiffSync adapter using pysnow to communicate with a ServiceNow server."""
 
     company = models.Company
