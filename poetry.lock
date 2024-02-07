@@ -1982,13 +1982,13 @@ files = [
 
 [[package]]
 name = "ipfabric"
-version = "6.6.2b0"
+version = "6.6.2"
 description = "Python package for interacting with IP Fabric"
 optional = true
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "ipfabric-6.6.2b0-py3-none-any.whl", hash = "sha256:18302e4c6d15261a57e67dbe94fb08d9dd3da045cd06a940ff6cbfe2ca233938"},
-    {file = "ipfabric-6.6.2b0.tar.gz", hash = "sha256:60a82031297d510ecac36e78ad1e91c61439b1261215d39fe9109112fbc4f796"},
+    {file = "ipfabric-6.6.2-py3-none-any.whl", hash = "sha256:038614dab1fc576d7b0221149d3570979ed908c7db1239bda9ce7a0b10368d86"},
+    {file = "ipfabric-6.6.2.tar.gz", hash = "sha256:42e6d44d41397e3d81b9abd1ff42fecc3fbb379c93bca00f04450c549c2bbd91"},
 ]
 
 [package.dependencies]
@@ -4997,4 +4997,4 @@ servicenow = ["Jinja2", "PyYAML", "ijson", "oauthlib", "python-magic", "pytz", "
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.12"
-content-hash = "166c3d5f81278cb7307a521310a5f4bee1f9af3ad2dd7dc446457652dfa073a1"
+content-hash = "ca23554c496a3d457f02ee80d96afa6e8bc7b35a8e570b837ac0a30759a9acc0"
