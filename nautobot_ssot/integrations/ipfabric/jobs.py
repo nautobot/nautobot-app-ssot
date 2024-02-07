@@ -143,7 +143,7 @@ class IpFabricDataSource(DataSource):
         try:
             return IPFClient(
                 base_url=constants.IPFABRIC_HOST,
-                token=constants.IPFABRIC_API_TOKEN,
+                auth=constants.IPFABRIC_API_TOKEN,
                 verify=constants.IPFABRIC_SSL_VERIFY,
                 timeout=constants.IPFABRIC_TIMEOUT,
                 unloaded=False,
