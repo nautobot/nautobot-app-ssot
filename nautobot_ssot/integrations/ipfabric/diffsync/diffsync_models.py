@@ -510,14 +510,16 @@ class Interface(DiffSyncExtras):
                 logger=adapter.job.logger,
             )
             if interface_obj and ip_address:
-                cls._add_ip(interface_obj, ip_address, subnet_mask, attrs, device_obj, adapter, interface_name, device_name)
+                cls._add_ip(interface_obj, ip_address, subnet_mask, attrs, device_obj, adapter, interface_name,
+                            device_name)
             elif ip_address:
                 adapter.job.logger.warning(
                     f"Unable to create an IPAddress {ip_address}/{subnet_mask} because of a failure "
                     f"to get or create an Interface named {interface_name} on a Device named {device_name}"
                 )
             if interface_obj and ipv6_address:
-                cls._add_ip(interface_obj, ipv6_address, subnetv6_mask, attrs, device_obj, adapter, interface_name, device_name)
+                cls._add_ip(interface_obj, ipv6_address, subnetv6_mask, attrs, device_obj, adapter, interface_name,
+                            device_name)
             elif ipv6_address:
                 adapter.job.logger.warning(
                     f"Unable to create an IPAddress {ipv6_address}/{subnetv6_mask} because of a failure "

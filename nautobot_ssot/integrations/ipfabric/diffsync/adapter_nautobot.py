@@ -89,7 +89,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         elif device_record.primary_ip6:
             device_primary_ip = device_record.primary_ip6
 
-        for interface_record in device_record.interfaces.all():
+        for interface_record in device_record.interfaces.all():  # TODO: Unresolved attribute reference 'interfaces' for class 'Device
             ip_address, subnet_mask, ipv6_address, subnetv6_mask = None, "255.255.255.255", None, None
             for ip in interface_record.ip_addresses:
                 if ip_address and ipv6_address:
