@@ -1,4 +1,5 @@
 """Cloudvision DiffSync models for AristaCV SSoT."""
+
 from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
 from nautobot_ssot.integrations.aristacv.diffsync.models.base import (
     Device,
@@ -16,9 +17,9 @@ class CloudvisionDevice(Device):
     """Cloudvision Device model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Device in AristaCV from Device object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Device in AristaCV from Device object."""
@@ -33,9 +34,9 @@ class CloudvisionPort(Port):
     """Cloudvision Port model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Interface in AristaCV from Port object."""
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update Interface in AristaCV from Port object."""
@@ -50,10 +51,10 @@ class CloudvisionNamespace(Namespace):
     """Cloudvision Namespace model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Namespace in AristaCV from Namespace object."""
         ...
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update Namespace in AristaCV from Namespace object."""
@@ -70,10 +71,10 @@ class CloudvisionPrefix(Prefix):
     """Cloudvision IPAdress model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Prefix in AristaCV from Prefix object."""
         ...
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update Prefix in AristaCV from Prefix object."""
@@ -90,10 +91,10 @@ class CloudvisionIPAddress(IPAddress):
     """Cloudvision IPAdress model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create IPAddress in AristaCV from IPAddress object."""
         ...
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update IPAddress in AristaCV from IPAddress object."""
@@ -110,10 +111,10 @@ class CloudvisionIPAssignment(IPAssignment):
     """Cloudvision IPAssignment model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create IPAssignment in AristaCV from IPAssignment object."""
         ...
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update IPAssignment in AristaCV from IPAssignment object."""
@@ -142,7 +143,7 @@ class CloudvisionCustomField(CustomField):
         )
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create a user tag in cvp."""
         cvp = cls.connect_cvp()
         cvp.create_tag(ids["name"], attrs["value"])
@@ -154,8 +155,8 @@ class CloudvisionCustomField(CustomField):
                 cvp.assign_tag_to_device(device_ids[device], ids["name"], attrs["value"])
             else:
                 tag = f"{ids['name']}:{attrs['value']}" if attrs["value"] else ids["name"]
-                diffsync.job.logger.warning(f"{device} is inactive or missing in CloudVision - skipping for tag: {tag}")
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+                adapter.job.logger.warning(f"{device} is inactive or missing in CloudVision - skipping for tag: {tag}")
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update user tag in cvp."""
@@ -172,7 +173,7 @@ class CloudvisionCustomField(CustomField):
                 cvp.assign_tag_to_device(device_ids[device], self.name, self.value)
             else:
                 tag = f"{self.name}:{self.value}" if self.value else self.name
-                self.diffsync.job.logger.warning(
+                self.adapter.job.logger.warning(
                     f"{device} is inactive or missing in CloudVision - skipping for tag: {tag}"
                 )
         # Call the super().update() method to update the in-memory DiffSyncModel instance

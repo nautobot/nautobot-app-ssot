@@ -1,4 +1,5 @@
 """Base Shared Models for Cisco ACI integration with SSoT app."""
+
 from typing import List, Optional
 from diffsync import DiffSyncModel
 
@@ -11,8 +12,8 @@ class Tenant(DiffSyncModel):
     _attributes = ("description", "comments", "site_tag")
 
     name: str
-    description: Optional[str]
-    comments: Optional[str]
+    description: Optional[str] = None
+    comments: Optional[str] = None
     site_tag: str
 
 
@@ -25,7 +26,7 @@ class Vrf(DiffSyncModel):
 
     name: str
     tenant: str
-    description: Optional[str]
+    description: Optional[str] = None
     namespace: str
     site_tag: str
 
@@ -50,8 +51,8 @@ class DeviceType(DiffSyncModel):
     model: str
     manufacturer: str
     part_nbr: str
-    comments: Optional[str]
-    u_height: Optional[int]
+    comments: Optional[str] = None
+    u_height: Optional[int] = None
 
     interface_templates: List["InterfaceTemplate"] = []
 
@@ -64,7 +65,7 @@ class DeviceRole(DiffSyncModel):
     _attributes = ("description",)
 
     name: str
-    description: Optional[str]
+    description: Optional[str] = None
 
 
 class Device(DiffSyncModel):
@@ -85,10 +86,10 @@ class Device(DiffSyncModel):
     device_role: str
     serial: str
     site: str
-    comments: Optional[str]
+    comments: Optional[str] = None
     interfaces: List["Interface"] = []
-    node_id: Optional[int]
-    pod_id: Optional[int]
+    node_id: Optional[int] = None
+    pod_id: Optional[int] = None
     site_tag: str
 
 
@@ -106,8 +107,8 @@ class InterfaceTemplate(DiffSyncModel):
     name: str
     device_type: str
     type: str
-    u_height: Optional[int]
-    mgmt_only: Optional[bool]
+    u_height: Optional[int] = None
+    mgmt_only: Optional[bool] = None
     site_tag: str
 
 
@@ -128,10 +129,10 @@ class IPAddress(DiffSyncModel):
     status: str
     site: str
     namespace: str
-    description: Optional[str]
-    device: Optional[str]
-    interface: Optional[str]
-    tenant: Optional[str]
+    description: Optional[str] = None
+    device: Optional[str] = None
+    interface: Optional[str] = None
+    tenant: Optional[str] = None
     site_tag: str
 
 
@@ -151,10 +152,10 @@ class Prefix(DiffSyncModel):
     namespace: str
     status: str
     site: str
-    tenant: Optional[str]
-    description: Optional[str]
-    vrf: Optional[str]
-    vrf_tenant: Optional[str]
+    tenant: Optional[str] = None
+    description: Optional[str] = None
+    vrf: Optional[str] = None
+    vrf_tenant: Optional[str] = None
     site_tag: str
 
 
@@ -172,11 +173,11 @@ class Interface(DiffSyncModel):
     name: str
     device: str
     site: str
-    description: Optional[str]
-    gbic_sn: Optional[str]
-    gbic_vendor: Optional[str]
-    gbic_type: Optional[str]
-    gbic_model: Optional[str]
-    state: Optional[str]
+    description: Optional[str] = None
+    gbic_sn: Optional[str] = None
+    gbic_vendor: Optional[str] = None
+    gbic_type: Optional[str] = None
+    gbic_model: Optional[str] = None
+    state: Optional[str] = None
     type: str
     site_tag: str

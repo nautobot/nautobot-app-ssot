@@ -30,13 +30,13 @@ class PatchPanel(DiffSyncModel):
     vendor: str
     model: str
     orientation: str
-    position: Optional[float]
+    position: Optional[float] = None
     num_ports: int
-    building: Optional[str]
-    room: Optional[str]
-    rack: Optional[str]
-    serial_no: Optional[str]
-    uuid: Optional[UUID]
+    building: Optional[str] = None
+    room: Optional[str] = None
+    rack: Optional[str] = None
+    serial_no: Optional[str] = None
+    uuid: Optional[UUID] = None
 
 
 class PatchPanelRearPort(DiffSyncModel):
@@ -50,7 +50,7 @@ class PatchPanelRearPort(DiffSyncModel):
     name: str
     patchpanel: str
     port_type: str
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class PatchPanelFrontPort(DiffSyncModel):
@@ -64,4 +64,4 @@ class PatchPanelFrontPort(DiffSyncModel):
     name: str
     patchpanel: str
     port_type: str
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None

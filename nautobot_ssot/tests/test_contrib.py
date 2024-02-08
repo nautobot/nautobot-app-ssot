@@ -1,4 +1,5 @@
 """Test code for generic base adapters/models."""
+
 from typing import Optional, List
 from unittest import skip
 from unittest.mock import MagicMock
@@ -412,7 +413,7 @@ class BaseModelTests(TestCase):
 
     def test_basic_creation(self):
         """Test whether a basic create of an object works."""
-        NautobotTenant.create(diffsync=None, ids={"name": self.tenant_name}, attrs={})
+        NautobotTenant.create(adapter=None, ids={"name": self.tenant_name}, attrs={})
         try:
             tenancy_models.Tenant.objects.get(name=self.tenant_name)
         except tenancy_models.Tenant.DoesNotExist:
@@ -682,7 +683,7 @@ class BaseModelCustomRelationshipTest(TestCase):
         diffsync_tenant = TenantModelCustomRelationship(
             name=self.tenant_one.name,
         )
-        diffsync_tenant.diffsync = CustomRelationShipTestAdapterSource(job=MagicMock())
+        diffsync_tenant.adapter = CustomRelationShipTestAdapterSource(job=MagicMock())
         diffsync_tenant.update({"provider__name": self.provider_one.name})
         self.assertEqual(extras_models.RelationshipAssociation.objects.count(), 1)
 
@@ -690,7 +691,7 @@ class BaseModelCustomRelationshipTest(TestCase):
         diffsync_tenant = TenantModelCustomRelationship(
             name=self.tenant_one.name,
         )
-        diffsync_tenant.diffsync = CustomRelationShipTestAdapterSource(job=MagicMock())
+        diffsync_tenant.adapter = CustomRelationShipTestAdapterSource(job=MagicMock())
         diffsync_tenant.update({"provider__name": self.provider_one.name})
         diffsync_tenant.update({"provider__name": self.provider_two.name})
         self.assertEqual(extras_models.RelationshipAssociation.objects.first().destination, self.provider_two)
@@ -699,7 +700,7 @@ class BaseModelCustomRelationshipTest(TestCase):
         diffsync_provider = ProviderModelCustomRelationship(
             name=self.provider_one.name,
         )
-        diffsync_provider.diffsync = CustomRelationShipTestAdapterDestination(job=MagicMock())
+        diffsync_provider.adapter = CustomRelationShipTestAdapterDestination(job=MagicMock())
         diffsync_provider.update({"tenants": [{"name": self.tenant_one.name}, {"name": self.tenant_two.name}]})
         self.assertEqual(extras_models.RelationshipAssociation.objects.count(), 2)
 
@@ -707,7 +708,7 @@ class BaseModelCustomRelationshipTest(TestCase):
         diffsync_provider = ProviderModelCustomRelationship(
             name=self.provider_one.name,
         )
-        diffsync_provider.diffsync = CustomRelationShipTestAdapterDestination(job=MagicMock())
+        diffsync_provider.adapter = CustomRelationShipTestAdapterDestination(job=MagicMock())
         diffsync_provider.update({"tenants": [{"name": self.tenant_one.name}]})
         diffsync_provider.update({"tenants": [{"name": self.tenant_two.name}]})
         self.assertEqual(extras_models.RelationshipAssociation.objects.count(), 1)

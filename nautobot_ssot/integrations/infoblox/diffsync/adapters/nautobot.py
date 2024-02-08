@@ -1,8 +1,9 @@
 """Nautobot Adapter for Infoblox integration."""
+
 # pylint: disable=duplicate-code
 from collections import defaultdict
 import datetime
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
 from nautobot.dcim.models import Location
@@ -81,7 +82,7 @@ class NautobotMixin:
             _tag_object(Prefix.objects.get(pk=model_instance.pk))
 
 
-class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-instance-attributes
+class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-instance-attributes
     """DiffSync adapter using ORM to communicate to Nautobot."""
 
     prefix = NautobotNetwork
@@ -114,11 +115,11 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
         self.sync = sync
         self.objects_to_create = defaultdict(list)
 
-    def sync_complete(self, source: DiffSync, *args, **kwargs):
+    def sync_complete(self, source: Adapter, *args, **kwargs):
         """Process object creations/updates using bulk operations.
 
         Args:
-            source (DiffSync): Source DiffSync adapter data.
+            source (Adapter): Source DiffSync adapter data.
         """
         for obj_type, objs in self.objects_to_create.items():
             if obj_type != "vlangroups":
