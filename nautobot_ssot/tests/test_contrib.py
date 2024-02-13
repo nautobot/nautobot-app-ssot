@@ -856,5 +856,5 @@ class CacheTests(TestCase):
                 adapter.invalidate_cache()
                 tenant.update({"tenant_group__name": updated_tenant_group.name})
             tenant_group_queries = [query["sql"] for query in ctx.captured_queries if query_filter in query["sql"]]
-            # One query per tenant to re-populate the cache and another query per tenant during `clean`.
+            # One query per tenant to get the tenant group, one to pre-populate the cache, and another query per tenant during `clean`.
             self.assertEqual(6, len(tenant_group_queries))
