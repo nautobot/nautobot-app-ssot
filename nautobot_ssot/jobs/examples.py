@@ -436,7 +436,7 @@ class ExampleDataSource(DataSource, Job):
 
     def load_target_adapter(self):
         """Method to instantiate and load the TARGET adapter into `self.target_adapter`."""
-        self.target_adapter = NautobotLocal()
+        self.target_adapter = NautobotLocal(job=self, sync=None)
         self.target_adapter.load()
         self.log_info(obj=None, message=f"Found {self.target_adapter.count('region')} regions")
 
@@ -494,7 +494,7 @@ class ExampleDataTarget(DataTarget, Job):
 
     def load_source_adapter(self):
         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""
-        self.source_adapter = NautobotLocal()
+        self.source_adapter = NautobotLocal(job=self)
         self.source_adapter.load()
 
     def load_target_adapter(self):
