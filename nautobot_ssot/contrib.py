@@ -92,7 +92,7 @@ class CustomFieldAnnotation:
             is_global: Annotated[bool, CustomFieldAnnotation(key="is_global")
         ```
 
-        This then maps the model field 'is_global' to the custom field with the key 'Is Global'.
+        This then maps the model field 'is_global' to the custom field with the key 'is_global'.
     """
 
     # TODO: Delete on 3.0, keep around for backwards compatibility for now
@@ -505,7 +505,7 @@ class NautobotModel(DiffSyncModel):
         if custom_field_lookup:
             parameters["_custom_field_data__contains"] = custom_field_lookup
         try:
-            return self.diffsync.get_from_orm_cache(**parameters, self._model)
+            return self.diffsync.get_from_orm_cache(parameters, self._model)
         except self._model.DoesNotExist as error:
             raise ValueError(
                 f"No such {self._model._meta.verbose_name} instance with lookup parameters {parameters}."

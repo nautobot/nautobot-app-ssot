@@ -893,6 +893,7 @@ class BaseModelIdentifierTest(TestCase):
             name=self.provider.name,
             flavour=self.provider._custom_field_data[self.custom_field.key],  # pylint: disable=protected-access
         )
+        diffsync_provider.diffsync = NautobotAdapter(job=None)
 
         self.assertEqual(self.provider, diffsync_provider.get_from_db())
 
@@ -913,5 +914,6 @@ class BaseModelIdentifierTest(TestCase):
             name=self.provider.name,
             flavour=self.provider._custom_field_data[self.custom_field.key],  # pylint: disable=protected-access
         )
+        diffsync_provider.diffsync = NautobotAdapter(job=None)
 
         self.assertEqual(self.provider, diffsync_provider.get_from_db())
