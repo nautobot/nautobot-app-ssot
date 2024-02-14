@@ -5,6 +5,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
+from typing import FrozenSet, Tuple, Hashable, DefaultDict, Dict, Type
 
 import pydantic
 from diffsync import DiffSyncModel, DiffSync
@@ -13,6 +14,19 @@ from django.core.exceptions import ValidationError, MultipleObjectsReturned
 from django.db.models import Model
 from nautobot.extras.models import Relationship, RelationshipAssociation
 from typing_extensions import get_type_hints
+
+
+# This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
+# and therefore a frozenset rather than a normal set or a list.
+#
+# The following is an example of a parameter set that describes a tenant based on its name and group:
+# frozenset(
+#  [
+#   ("name", "ABC Inc."),
+#   ("group__name", "Customers"),
+#  ]
+# )
+ParameterSet = FrozenSet[Tuple[str, Hashable]]
 
 
 class RelationshipSideEnum(Enum):
@@ -91,15 +105,35 @@ class NautobotAdapter(DiffSync):
     This adapter is able to infer how to load data from Nautobot based on how the models attached to it are defined.
     """
 
+    # This dictionary acts as an ORM cache.
+    _cache: DefaultDict[str, Dict[ParameterSet, Model]]
+    _cache_hits: DefaultDict[str, int] = defaultdict(int)
+
     def __init__(self, *args, job, sync=None, **kwargs):
         """Instantiate this class, but do not load data immediately from the local system."""
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
+        self.invalidate_cache()
 
-        # Caches lookups to custom relationships.
-        # TODO: Once caching is in, replace this cache with it.
-        self.custom_relationship_cache = {}
+    def invalidate_cache(self, zero_out_hits=True):
+        """Invalidates all the objects in the ORM cache."""
+        self._cache = defaultdict(dict)
+        if zero_out_hits:
+            self._cache_hits = defaultdict(int)
+
+    def get_from_orm_cache(self, parameters: Dict, model_class: Type[Model]):
+        """Retrieve an object from the ORM or the cache."""
+        parameter_set = frozenset(parameters.items())
+        content_type = ContentType.objects.get_for_model(model_class)
+        model_cache_key = f"{content_type.app_label}.{content_type.model}"
+        if cached_object := self._cache[model_cache_key].get(parameter_set):
+            self._cache_hits[model_cache_key] += 1
+            return cached_object
+        # As we are using `get` here, this will error if there is not exactly one object that corresponds to the
+        # parameter set. We intentionally pass these errors through.
+        self._cache[model_cache_key][parameter_set] = model_class.objects.get(**dict(parameter_set))
+        return self._cache[model_cache_key][parameter_set]
 
     @staticmethod
     def _get_parameter_names(diffsync_model):
@@ -223,7 +257,7 @@ class NautobotAdapter(DiffSync):
         inner_type = diffsync_field_type.__dict__["__args__"][0].__dict__["__args__"][0]
         related_objects_list = []
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
-        relationship = Relationship.objects.get(label=annotation.name)
+        relationship = self.get_from_orm_cache({"label": annotation.name}, Relationship)
         relationship_association_parameters = self._construct_relationship_association_parameters(
             annotation, database_object
         )
@@ -257,9 +291,7 @@ class NautobotAdapter(DiffSync):
         return related_objects_list
 
     def _construct_relationship_association_parameters(self, annotation, database_object):
-        relationship = self.custom_relationship_cache.get(
-            annotation.name, Relationship.objects.get(label=annotation.name)
-        )
+        relationship = self.get_from_orm_cache({"label": annotation.name}, Relationship)
         relationship_association_parameters = {
             "relationship": relationship,
             "source_type": relationship.source_type,
@@ -436,7 +468,7 @@ class NautobotModel(DiffSyncModel):
 
         TODO: Currently I don't think this works for custom fields, therefore those can't be identifiers.
         """
-        return self._model.objects.get(**self.get_identifiers())
+        return self.diffsync.get_from_orm_cache(self.get_identifiers(), self._model)
 
     def update(self, attrs):
         """Update the ORM object corresponding to this diffsync object."""
@@ -467,7 +499,7 @@ class NautobotModel(DiffSyncModel):
     @classmethod
     def _handle_single_field(
         cls, field, obj, value, relationship_fields, diffsync
-    ):  # pylint: disable=too-many-arguments
+    ):  # pylint: disable=too-many-arguments,too-many-locals
         """Set a single field on a Django object to a given value, or, for relationship fields, prepare setting.
 
         :param field: The name of the field to set.
@@ -520,18 +552,14 @@ class NautobotModel(DiffSyncModel):
 
         # Prepare handling of custom relationship many-to-many fields.
         if custom_relationship_annotation:
-            relationship = diffsync.custom_relationship_cache.get(
-                custom_relationship_annotation.name,
-                Relationship.objects.get(label=custom_relationship_annotation.name),
-            )
+            relationship = diffsync.get_from_orm_cache({"label": custom_relationship_annotation.name}, Relationship)
             if custom_relationship_annotation.side == RelationshipSideEnum.DESTINATION:
                 related_object_content_type = relationship.source_type
             else:
                 related_object_content_type = relationship.destination_type
+            related_model_class = related_object_content_type.model_class()
             relationship_fields["custom_relationship_many_to_many_fields"][field] = {
-                "objects": [
-                    related_object_content_type.model_class().objects.get(**parameters) for parameters in value
-                ],
+                "objects": [diffsync.get_from_orm_cache(parameters, related_model_class) for parameters in value],
                 "annotation": custom_relationship_annotation,
             }
             return
@@ -542,7 +570,7 @@ class NautobotModel(DiffSyncModel):
         # we get all the related objects here to later set them once the object has been saved.
         if django_field.many_to_many or django_field.one_to_many:
             relationship_fields["many_to_many_fields"][field] = [
-                django_field.related_model.objects.get(**parameters) for parameters in value
+                diffsync.get_from_orm_cache(parameters, django_field.related_model) for parameters in value
             ]
             return
 
@@ -566,7 +594,7 @@ class NautobotModel(DiffSyncModel):
             cls._handle_single_field(field, obj, value, relationship_fields, diffsync)
 
         # Set foreign keys
-        cls._lookup_and_set_foreign_keys(relationship_fields["foreign_keys"], obj)
+        cls._lookup_and_set_foreign_keys(relationship_fields["foreign_keys"], obj, diffsync=diffsync)
 
         # Save the object to the database
         try:
@@ -592,9 +620,7 @@ class NautobotModel(DiffSyncModel):
             annotation = dictionary.pop("annotation")
             objects = dictionary.pop("objects")
             # TODO: Deduplicate this code
-            relationship = diffsync.custom_relationship_cache.get(
-                annotation.name, Relationship.objects.get(label=annotation.name)
-            )
+            relationship = diffsync.get_from_orm_cache({"label": annotation.name}, Relationship)
             parameters = {
                 "relationship": relationship,
                 "source_type": relationship.source_type,
@@ -604,10 +630,10 @@ class NautobotModel(DiffSyncModel):
             if annotation.side == RelationshipSideEnum.SOURCE:
                 parameters["source_id"] = obj.id
                 for object_to_relate in objects:
+                    association_parameters = parameters.copy()
+                    association_parameters["destination_id"] = object_to_relate.id
                     try:
-                        association = RelationshipAssociation.objects.get(
-                            **parameters, destination_id=object_to_relate.id
-                        )
+                        association = diffsync.get_from_orm_cache(association_parameters, RelationshipAssociation)
                     except RelationshipAssociation.DoesNotExist:
                         association = RelationshipAssociation(**parameters, destination_id=object_to_relate.id)
                         association.validated_save()
@@ -615,14 +641,18 @@ class NautobotModel(DiffSyncModel):
             else:
                 parameters["destination_id"] = obj.id
                 for object_to_relate in objects:
+                    association_parameters = parameters.copy()
+                    association_parameters["source_id"] = object_to_relate.id
                     try:
-                        association = RelationshipAssociation.objects.get(**parameters, source_id=object_to_relate.id)
+                        association = diffsync.get_from_orm_cache(association_parameters, RelationshipAssociation)
                     except RelationshipAssociation.DoesNotExist:
                         association = RelationshipAssociation(**parameters, source_id=object_to_relate.id)
                         association.validated_save()
                     associations.append(association)
             # Now we need to clean up any associations that we're not `get_or_create`'d in order to achieve
             # declarativeness.
+            # TODO: This may benefit from an ORM cache with `filter` capabilities, but I guess the gain in most cases
+            # would be fairly minor.
             for existing_association in RelationshipAssociation.objects.filter(**parameters):
                 if existing_association not in associations:
                     existing_association.delete()
@@ -649,9 +679,7 @@ class NautobotModel(DiffSyncModel):
         for _, related_model_dict in custom_relationship_foreign_keys.items():
             annotation = related_model_dict.pop("_annotation")
             # TODO: Deduplicate this code
-            relationship = diffsync.custom_relationship_cache.get(
-                annotation.name, Relationship.objects.get(label=annotation.name)
-            )
+            relationship = diffsync.get_from_orm_cache({"label": annotation.name}, Relationship)
             parameters = {
                 "relationship": relationship,
                 "source_type": relationship.source_type,
@@ -659,23 +687,22 @@ class NautobotModel(DiffSyncModel):
             }
             if annotation.side == RelationshipSideEnum.SOURCE:
                 parameters["source_id"] = obj.id
+                destination_object = diffsync.get_from_orm_cache(
+                    related_model_dict, relationship.destination_type.model_class()
+                )
                 RelationshipAssociation.objects.update_or_create(
                     **parameters,
-                    defaults={
-                        "destination_id": relationship.destination_type.model_class()
-                        .objects.get(**related_model_dict)
-                        .id
-                    },
+                    defaults={"destination_id": destination_object.id},
                 )
             else:
                 parameters["destination_id"] = obj.id
-                RelationshipAssociation.objects.update_or_create(
-                    **parameters,
-                    defaults={"source_id": relationship.source_type.model_class().objects.get(**related_model_dict).id},
+                source_object = diffsync.get_from_orm_cache(
+                    related_model_dict, relationship.destination_type.model_class()
                 )
+                RelationshipAssociation.objects.update_or_create(**parameters, defaults={"source_id": source_object.id})
 
     @classmethod
-    def _lookup_and_set_foreign_keys(cls, foreign_keys, obj):
+    def _lookup_and_set_foreign_keys(cls, foreign_keys, obj, diffsync):
         """
         Given a list of foreign keys as dictionaries, look up and set foreign keys on an object.
 
@@ -699,13 +726,13 @@ class NautobotModel(DiffSyncModel):
                         f"Missing annotation for '{field_name}__app_label' or '{field_name}__model - this is required"
                         f"for generic foreign keys."
                     ) from error
-                related_model = ContentType.objects.get(app_label=app_label, model=model).model_class()
+                related_model = diffsync.get_from_orm_cache({"app_label": app_label, "model": model}, ContentType)
             # Set the foreign key to 'None' when none of the fields are set to anything
             if not any(related_model_dict.values()):
                 setattr(obj, field_name, None)
                 continue
             try:
-                related_object = related_model.objects.get(**related_model_dict)
+                related_object = diffsync.get_from_orm_cache(related_model_dict, related_model)
             except related_model.DoesNotExist as error:
                 raise ValueError(f"Couldn't find {field_name} instance with: {related_model_dict}.") from error
             except MultipleObjectsReturned as error:
