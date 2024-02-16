@@ -1,0 +1,42 @@
+{% extends 'generic/object_create.html' %}
+{% load form_helpers %}
+
+{% block form %}
+    <div class="panel panel-default">
+        <div class="panel-heading"><strong>vSphere Config</strong></div>
+        <div class="panel-body">
+            {% render_field form.name %}
+            {% render_field form.description %}
+            {% render_field form.vsphere_instance %}
+            {% render_field form.job_enabled %}
+            {% render_field form.enable_sync_to_nautobot %}
+            {% render_field form.primary_ip_sort_by %}
+            {% render_field form.default_ignore_link_local %}
+            {% render_field form.default_status %}
+        </div>
+    </div>
+    <div class="panel panel-default">
+        <div class="panel-heading"><strong>Data</strong></div>
+        <div class="panel-body">
+            {% render_field form.default_vm_status_map %}
+        </div>
+    </div>
+    <div class="panel panel-default">
+        <div class="panel-heading"><strong>Data</strong></div>
+        <div class="panel-body">
+            {% render_field form.default_ip_status_map %}
+        </div>
+    </div>
+    <div class="panel panel-default">
+        <div class="panel-heading"><strong>Data</strong></div>
+        <div class="panel-body">
+            {% render_field form.default_vm_interface_map %}
+        </div>
+    </div>
+    <div class="panel panel-default">
+        <div class="panel-heading"><strong>Notes</strong></div>
+        <div class="panel-body">
+            {% render_field form.object_note %}
+        </div>
+    </div>
+{% endblock %}

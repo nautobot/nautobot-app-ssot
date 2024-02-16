@@ -77,12 +77,15 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
     sync_memory_peak = models.PositiveBigIntegerField(blank=True, null=True)
 
     dry_run = models.BooleanField(
-        default=False, help_text="Report what data would be synced but do not make any changes"
+        default=False,
+        help_text="Report what data would be synced but do not make any changes",
     )
     diff = models.JSONField(blank=True, encoder=DiffJSONEncoder)
     summary = models.JSONField(blank=True, null=True)
 
-    job_result = models.ForeignKey(to=JobResult, on_delete=models.CASCADE, blank=True, null=True)
+    job_result = models.ForeignKey(
+        to=JobResult, on_delete=models.CASCADE, blank=True, null=True
+    )
 
     class Meta:
         """Metaclass attributes of Sync model."""
@@ -106,16 +109,45 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
             .prefetch_related("logs")
             .annotate(
                 num_unchanged=models.Count(
-                    "log", filter=models.Q(log__action=SyncLogEntryActionChoices.ACTION_NO_CHANGE)
+                    "log",
+                    filter=models.Q(
+                        log__action=SyncLogEntryActionChoices.ACTION_NO_CHANGE
+                    ),
                 ),
-                num_created=models.Count("log", filter=models.Q(log__action=SyncLogEntryActionChoices.ACTION_CREATE)),
-                num_updated=models.Count("log", filter=models.Q(log__action=SyncLogEntryActionChoices.ACTION_UPDATE)),
-                num_deleted=models.Count("log", filter=models.Q(log__action=SyncLogEntryActionChoices.ACTION_DELETE)),
+                num_created=models.Count(
+                    "log",
+                    filter=models.Q(
+                        log__action=SyncLogEntryActionChoices.ACTION_CREATE
+                    ),
+                ),
+                num_updated=models.Count(
+                    "log",
+                    filter=models.Q(
+                        log__action=SyncLogEntryActionChoices.ACTION_UPDATE
+                    ),
+                ),
+                num_deleted=models.Count(
+                    "log",
+                    filter=models.Q(
+                        log__action=SyncLogEntryActionChoices.ACTION_DELETE
+                    ),
+                ),
                 num_succeeded=models.Count(
-                    "log", filter=models.Q(log__status=SyncLogEntryStatusChoices.STATUS_SUCCESS)
+                    "log",
+                    filter=models.Q(
+                        log__status=SyncLogEntryStatusChoices.STATUS_SUCCESS
+                    ),
                 ),
-                num_failed=models.Count("log", filter=models.Q(log__status=SyncLogEntryStatusChoices.STATUS_FAILURE)),
-                num_errored=models.Count("log", filter=models.Q(log__status=SyncLogEntryStatusChoices.STATUS_ERROR)),
+                num_failed=models.Count(
+                    "log",
+                    filter=models.Q(
+                        log__status=SyncLogEntryStatusChoices.STATUS_FAILURE
+                    ),
+                ),
+                num_errored=models.Count(
+                    "log",
+                    filter=models.Q(log__status=SyncLogEntryStatusChoices.STATUS_ERROR),
+                ),
             )
         )
 
@@ -124,7 +156,10 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
         """Total execution time of this Sync."""
         if not self.start_time:
             return timedelta()  # zero
-        if not self.job_result or self.job_result.status == JobResultStatusChoices.STATUS_PENDING:
+        if (
+            not self.job_result
+            or self.job_result.status == JobResultStatusChoices.STATUS_PENDING
+        ):
             return now() - self.start_time
         if self.job_result and self.job_result.date_done:
             return self.job_result.date_done - self.start_time
@@ -163,7 +198,9 @@ class SyncLogEntry(BaseModel):  # pylint: disable=nb-string-field-blank-null
     the data isn't changing in Nautobot, so there will be no ObjectChange record.
     """
 
-    sync = models.ForeignKey(to=Sync, on_delete=models.CASCADE, related_name="logs", related_query_name="log")
+    sync = models.ForeignKey(
+        to=Sync, on_delete=models.CASCADE, related_name="logs", related_query_name="log"
+    )
     timestamp = models.DateTimeField(auto_now_add=True)
 
     action = models.CharField(max_length=32, choices=SyncLogEntryActionChoices)
@@ -177,7 +214,9 @@ class SyncLogEntry(BaseModel):  # pylint: disable=nb-string-field-blank-null
         on_delete=models.PROTECT,
     )
     synced_object_id = models.UUIDField(blank=True, null=True)
-    synced_object = GenericForeignKey(ct_field="synced_object_type", fk_field="synced_object_id")
+    synced_object = GenericForeignKey(
+        ct_field="synced_object_type", fk_field="synced_object_id"
+    )
 
     object_repr = models.TextField(blank=True, default="", editable=False)
 
