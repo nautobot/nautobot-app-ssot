@@ -38,6 +38,14 @@
             </a></td>
         </tr>
         {% endif %}
+        {% if perms.nautobot_ssot.view_ssotvsphereconfig and "vsphere" in enabled_integrations %}
+        <tr>
+            <td>vSphere</td>
+            <td><a href="{% url 'plugins:nautobot_ssot:ssotvsphereconfig_list' %}">
+                vSphere Configuration Instance
+            </a></td>
+        </tr>
+        {% endif %}
     </table>
 </div>
 </div>

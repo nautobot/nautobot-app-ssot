@@ -16,7 +16,7 @@ from nautobot_ssot.integrations.infoblox.models import SSOTInfobloxConfig
 
 @mock.patch.dict(os.environ, {"INFOBLOX_USERNAME": "username", "INFOBLOX_PASSWORD": "password"})
 class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-methods
-    """Tests for the HardwareLCM models."""
+    """Tests for the SSOTInfobloxConfig models."""
 
     def setUp(self):
         """Setup testing."""
