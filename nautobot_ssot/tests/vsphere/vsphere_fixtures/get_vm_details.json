@@ -1,0 +1,107 @@
+{
+   "value": {
+      "instant_clone_frozen": false,
+      "cdroms": [],
+      "memory": {
+         "size_MiB": 6144,
+         "hot_add_enabled": false
+      },
+      "disks": [
+         {
+            "value": {
+               "scsi": {
+                  "bus": 0,
+                  "unit": 0
+               },
+               "backing": {
+                  "vmdk_file": "[Crunchy] jenkins/jenkins_2-000001.vmdk",
+                  "type": "VMDK_FILE"
+               },
+               "label": "Hard disk 1",
+               "type": "SCSI",
+               "capacity": 68719476736
+            },
+            "key": "2000"
+         }
+      ],
+      "parallel_ports": [],
+      "sata_adapters": [
+         {
+            "value": {
+               "bus": 0,
+               "pci_slot_number": 35,
+               "label": "SATA controller 0",
+               "type": "AHCI"
+            },
+            "key": "15000"
+         }
+      ],
+      "cpu": {
+         "hot_remove_enabled": false,
+         "count": 4,
+         "hot_add_enabled": false,
+         "cores_per_socket": 1
+      },
+      "scsi_adapters": [
+         {
+            "value": {
+               "pci_slot_number": 16,
+               "scsi": {
+                  "bus": 0,
+                  "unit": 7
+               },
+               "label": "SCSI controller 0",
+               "sharing": "NONE",
+               "type": "LSILOGIC"
+            },
+            "key": "1000"
+         }
+      ],
+      "power_state": "POWERED_OFF",
+      "floppies": [],
+      "identity": {
+         "name": "jenkins",
+         "instance_uuid": "50350cac-eae7-0163-80a5-2312abb2dea1",
+         "bios_uuid": "42354e9c-58f3-be8d-1951-d56b54c16f3e"
+      },
+      "nvme_adapters": [],
+      "name": "jenkins",
+      "nics": [
+         {
+            "value": {
+               "start_connected": true,
+               "pci_slot_number": 160,
+               "backing": {
+                  "network_name": "CrunchyMgmt",
+                  "type": "STANDARD_PORTGROUP",
+                  "network": "network-1010"
+               },
+               "mac_address": "00:50:56:b5:e5:5e",
+               "mac_type": "ASSIGNED",
+               "allow_guest_control": true,
+               "wake_on_lan_enabled": false,
+               "label": "Network adapter 1",
+               "state": "NOT_CONNECTED",
+               "type": "VMXNET3",
+               "upt_compatibility_enabled": true
+            },
+            "key": "4000"
+         }
+      ],
+      "boot": {
+         "delay": 0,
+         "retry_delay": 10000,
+         "enter_setup_mode": false,
+         "type": "BIOS",
+         "retry": false
+      },
+      "serial_ports": [],
+      "boot_devices": [],
+      "guest_OS": "UBUNTU_64",
+      "hardware": {
+         "upgrade_policy": "NEVER",
+         "upgrade_status": "NONE",
+         "version": "VMX_19"
+      }
+   }
+}

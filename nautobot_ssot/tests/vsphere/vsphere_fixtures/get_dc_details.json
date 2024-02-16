@@ -1,0 +1,9 @@
+{
+   "value":{
+      "datastore_folder":"group-s65",
+      "host_folder":"group-h64",
+      "network_folder":"group-n66",
+      "name":"CrunchyDatacenter",
+      "vm_folder":"group-v63"
+   }
+}
