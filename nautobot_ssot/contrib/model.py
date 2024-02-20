@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError, MultipleObjectsReturned
 from django.db.models import Model
 from nautobot.extras.models import Relationship, RelationshipAssociation
 from typing_extensions import get_type_hints
-from nautobot_ssot.contrib.utils import RelationshipSideEnum, CustomFieldAnnotation, CustomRelationshipAnnotation
+from nautobot_ssot.contrib.types import RelationshipSideEnum, CustomFieldAnnotation, CustomRelationshipAnnotation
 
 
 class NautobotModel(DiffSyncModel):
