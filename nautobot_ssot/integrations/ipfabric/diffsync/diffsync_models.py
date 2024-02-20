@@ -10,7 +10,13 @@ from diffsync import DiffSyncModel
 from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
 from django.db.models import Q
-from nautobot.dcim.models import Device as NautobotDevice, DeviceType, Location as NautobotLocation, Manufacturer
+from nautobot.dcim.models import (
+    Device as NautobotDevice,
+    DeviceType,
+    Interface as NautobotInterface,
+    Location as NautobotLocation,
+    Manufacturer,
+)
 from nautobot.extras.models import Role, Tag
 from nautobot.extras.models.statuses import Status
 from nautobot.ipam.models import VLAN
@@ -519,14 +525,14 @@ class Interface(DiffSyncExtras):
         if device:
             try:
                 interface = device.interfaces.get(name=self.name)
-            except Interface.MultipleObjectsReturned:
+            except NautobotInterface.MultipleObjectsReturned:
                 self.diffsync.job.logger.error(
                     f"Multiple Interfaces found with the name {self.name}, on Device named {self.device_name} "
                     f"with an ID of {device.id}, unable to determine which one to delete"
                 )
-            except Interface.DoesNotExist:
+            except NautobotInterface.DoesNotExist:
                 self.diffsync.job.logger.error(
-                    f"Unable to find an Interface with the name {self.name} on Device named {self.device} "
+                    f"Unable to find an Interface with the name {self.name} on Device named {self.device_name} "
                     f"with an ID of {device.id} to delete"
                 )
             else:
@@ -552,12 +558,12 @@ class Interface(DiffSyncExtras):
         if device:  # pylint: disable=too-many-nested-blocks
             try:
                 interface = device.interfaces.get(name=self.name)
-            except Interface.MultipleObjectsReturned:
+            except NautobotInterface.MultipleObjectsReturned:
                 self.diffsync.job.logger.error(
                     f"Multiple Interfaces found with the name {self.name} on Device named {device.name} "
                     f"with an ID of {device.id}, unable to determine which one to update"
                 )
-            except Interface.DoesNotExist:
+            except NautobotInterface.DoesNotExist:
                 self.diffsync.logger.error(
                     f"Unable to find an Interface with the name {self.name} on Device named {device.name} "
                     f"with an ID of {device.id} to update"
@@ -699,12 +705,12 @@ class Vlan(DiffSyncExtras):
             location_obj = NautobotLocation.objects.get(name=self.location)
         except NautobotLocation.MultipleObjectsReturned:
             self.diffsync.job.logger.error(
-                f"Multiple Locations found with the name {self.lcation}, unable to "
+                f"Multiple Locations found with the name {self.location}, unable to "
                 f"Retrieve the VLAN named {self.name} to perform updates"
             )
         except NautobotLocation.DoesNotExist:
             self.diffsync.job.logger.error(
-                f"Could not find a Location with the name {self.lcation}, unable to "
+                f"Could not find a Location with the name {self.location}, unable to "
                 f"Retrieve the VLAN named {self.name} to perform updates"
             )
         else:
