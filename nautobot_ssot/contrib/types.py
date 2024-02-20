@@ -1,4 +1,4 @@
-"""Supporting classes for SSoT contib interfacing with Nautobot."""
+"""Supporting classes for SSoT contrib interfacing with Nautobot."""
 
 from enum import Enum
 from dataclasses import dataclass
