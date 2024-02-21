@@ -266,9 +266,8 @@ class NautobotAdapter(DiffSync):
     ):
         # Introspect type annotations to deduce which fields are of interest
         # for this many-to-many relationship.
-        diffsync_field_type = diffsync_model.__annotations__[parameter_name]
-        # TODO: Why is this different then in the normal case??
-        inner_type = diffsync_field_type.__dict__["__args__"][0].__dict__["__args__"][0]
+        diffsync_field_type = get_type_hints(diffsync_model)[parameter_name]
+        inner_type = diffsync_field_type.__dict__["__args__"][0]
         related_objects_list = []
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
         relationship = self.get_from_orm_cache({"label": annotation.name}, Relationship)
@@ -297,7 +296,7 @@ class NautobotAdapter(DiffSync):
                 association, "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
             )
             dictionary_representation = {
-                field_name: getattr(related_object, field_name) for field_name in inner_type.__annotations__
+                field_name: getattr(related_object, field_name) for field_name in get_type_hints(inner_type)
             }
             # Only use those where there is a single field defined, all 'None's will not help us.
             if any(dictionary_representation.values()):
@@ -369,13 +368,13 @@ class NautobotAdapter(DiffSync):
         """
         # Introspect type annotations to deduce which fields are of interest
         # for this many-to-many relationship.
-        diffsync_field_type = diffsync_model.__annotations__[parameter_name]
+        diffsync_field_type = get_type_hints(diffsync_model)[parameter_name]
         inner_type = diffsync_field_type.__dict__["__args__"][0]
         related_objects_list = []
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
         for related_object in getattr(database_object, parameter_name).all():
             dictionary_representation = {
-                field_name: getattr(related_object, field_name) for field_name in inner_type.__annotations__
+                field_name: getattr(related_object, field_name) for field_name in get_type_hints(inner_type)
             }
             # Only use those where there is a single field defined, all 'None's will not help us.
             if any(dictionary_representation.values()):
