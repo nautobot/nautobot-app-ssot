@@ -112,6 +112,9 @@ As you can see when looking at the [source code](https://github.com/nautobot/nau
 
 The above example shows the simplest field type (an attribute on the model), however, to build a production implementation you will need to understand how to identify different variants of fields by following the [modeling docs](../user/modeling.md).
 
+!!! warn
+    Currently, only normal fields, forwards foreign key fields and custom fields may be used in identifiers. Anything else is unsupported and will likely fail in unintuitive ways.
+
 ### Step 2.1 - Creating the Nautobot Adapter
 
 Having created all your models, creating the Nautobot side adapter is very straight-forward:
