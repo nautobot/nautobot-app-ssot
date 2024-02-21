@@ -41,7 +41,7 @@ class ProviderModel(NautobotModel):
     _attributes = ("test_custom_field",)
 
     name: str
-    test_custom_field: Annotated[str, CustomFieldAnnotation(key="test_custom_field")]
+    test_custom_field: Annotated[str, CustomFieldAnnotation(name="Test Custom Field")]
 ```
 
 !!! note

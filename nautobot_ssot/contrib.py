@@ -13,7 +13,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError, MultipleObjectsReturned
 from django.db.models import Model
 from nautobot.extras.models import Relationship, RelationshipAssociation
-from typing_extensions import get_type_hints, Optional
+from typing_extensions import get_type_hints
 
 
 # This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
@@ -76,11 +76,8 @@ class CustomFieldAnnotation:
     This exists to map model fields to their corresponding custom fields. This serves to explicitly differentiate
     normal fields from custom fields.
 
-    Note that for backwards compatibility purposes it is also possible to use `CustomFieldAnnotation.name` instead of
-    `CustomFieldAnnotation.key`.
-
     Example:
-        Given a boolean custom field with label "Is Global" and key "is_global" on the Provider model:
+        Given a boolean custom field with name "Is Global" and key "is_global" on the Provider model:
 
         ```python
         class ProviderModel(NautobotModel):
@@ -89,27 +86,13 @@ class CustomFieldAnnotation:
             _attributes = ("is_global",)
 
             name: str
-            is_global: Annotated[bool, CustomFieldAnnotation(key="is_global")
+            is_global: Annotated[bool, CustomFieldAnnotation(name="Is Global")
         ```
 
-        This then maps the model field 'is_global' to the custom field with the key 'is_global'.
+        This then maps the model field 'is_global' to the custom field with the name 'Is Global'.
     """
 
-    # TODO: Delete on 3.0, keep around for backwards compatibility for now
-    name: Optional[str] = None
-
-    key: Optional[str] = None
-
-    def __post_init__(self):
-        """Compatibility layer with using 'name' instead of 'key'.
-
-        If `self.key` isn't set, fall back to the old behaviour.
-        """
-        if not self.key:
-            if self.name:
-                self.key = self.name
-            else:
-                raise ValueError("The 'key' field on CustomFieldAnnotation needs to be set.")
+    name: str
 
 
 class NautobotAdapter(DiffSync):
@@ -170,7 +153,7 @@ class NautobotAdapter(DiffSync):
         for metadata in metadata_for_this_field:
             if isinstance(metadata, CustomFieldAnnotation):
                 if metadata.name in database_object.cf:
-                    parameters[parameter_name] = database_object.cf[metadata.key]
+                    parameters[parameter_name] = database_object.cf[metadata.name]
                 is_custom_field = True
                 break
             if isinstance(metadata, CustomRelationshipAnnotation):
@@ -498,7 +481,7 @@ class NautobotModel(DiffSyncModel):
             metadata_for_this_field = getattr(type_hints[key], "__metadata__", [])
             for metadata in metadata_for_this_field:
                 if isinstance(metadata, CustomFieldAnnotation):
-                    custom_field_lookup[metadata.key] = value
+                    custom_field_lookup[metadata.name] = value
                     is_custom_field = True
             if not is_custom_field:
                 parameters[key] = value
@@ -564,7 +547,7 @@ class NautobotModel(DiffSyncModel):
         metadata_for_this_field = getattr(type_hints[field], "__metadata__", [])
         for metadata in metadata_for_this_field:
             if isinstance(metadata, CustomFieldAnnotation):
-                obj.cf[metadata.key] = value
+                obj.cf[metadata.name] = value
                 return
             if isinstance(metadata, CustomRelationshipAnnotation):
                 custom_relationship_annotation = metadata

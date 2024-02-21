@@ -864,33 +864,12 @@ class BaseModelIdentifierTest(TestCase):
         provider_name = "Link Inc."
         provider_flavour = "Vanilla"
         cls.provider = circuits_models.Provider.objects.create(
-            name=provider_name, _custom_field_data={cls.custom_field.key: provider_flavour}
+            name=provider_name, _custom_field_data={cls.custom_field.name: provider_flavour}
         )
-
-    def test_custom_field_in_identifiers_backwards_compatibility(self):
-        """Test the case where `CustomFieldAnnotation.name` is used rather than `CustomFieldAnnotation.key`."""
-        custom_field_key = self.custom_field.key
-
-        class _ProviderTestModel(NautobotModel):
-            _model = circuits_models.Provider
-            _modelname = "provider"
-            _identifiers = ("name", "flavour")
-            _attributes = ()
-
-            name: str
-            flavour: Annotated[str, CustomFieldAnnotation(name=custom_field_key)]  # Note the `name=`
-
-        diffsync_provider = _ProviderTestModel(
-            name=self.provider.name,
-            flavour=self.provider._custom_field_data[self.custom_field.key],  # pylint: disable=protected-access
-        )
-        diffsync_provider.diffsync = NautobotAdapter(job=None)
-
-        self.assertEqual(self.provider, diffsync_provider.get_from_db())
 
     def test_custom_field_in_identifiers(self):
         """Test the basic case where a custom field is part of the identifiers of a diffsync model."""
-        custom_field_key = self.custom_field.key
+        custom_field_name = self.custom_field.name
 
         class _ProviderTestModel(NautobotModel):
             _model = circuits_models.Provider
@@ -899,11 +878,11 @@ class BaseModelIdentifierTest(TestCase):
             _attributes = ()
 
             name: str
-            flavour: Annotated[str, CustomFieldAnnotation(key=custom_field_key)]
+            flavour: Annotated[str, CustomFieldAnnotation(name=custom_field_name)]
 
         diffsync_provider = _ProviderTestModel(
             name=self.provider.name,
-            flavour=self.provider._custom_field_data[self.custom_field.key],  # pylint: disable=protected-access
+            flavour=self.provider._custom_field_data[self.custom_field.name],  # pylint: disable=protected-access
         )
         diffsync_provider.diffsync = NautobotAdapter(job=None)
 
