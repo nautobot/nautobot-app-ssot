@@ -502,8 +502,8 @@ class NautobotModel(DiffSyncModel):
                     is_custom_field = True
             if not is_custom_field:
                 parameters[key] = value
-        if custom_field_lookup:
-            parameters["_custom_field_data__contains"] = custom_field_lookup
+        for key, value in custom_field_lookup.items():
+            parameters[f"_custom_field_data__{key}"] = value
         try:
             return self.diffsync.get_from_orm_cache(parameters, self._model)
         except self._model.DoesNotExist as error:
