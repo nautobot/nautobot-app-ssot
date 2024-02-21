@@ -849,3 +849,62 @@ class CacheTests(TestCase):
             tenant_group_queries = [query["sql"] for query in ctx.captured_queries if query_filter in query["sql"]]
             # One query per tenant to re-populate the cache and another query per tenant during `clean`.
             self.assertEqual(6, len(tenant_group_queries))
+
+
+class BaseModelIdentifierTest(TestCase):
+    """Test cases for testing various things as identifiers for models."""
+
+    @classmethod
+    def setUpTestData(cls):
+        custom_field_label = "Preferred ice cream flavour"
+        cls.custom_field = extras_models.CustomField.objects.create(
+            label=custom_field_label, description="The preferred flavour of ice cream for the reps for this provider"
+        )
+        cls.custom_field.content_types.add(ContentType.objects.get_for_model(circuits_models.Provider))
+        provider_name = "Link Inc."
+        provider_flavour = "Vanilla"
+        cls.provider = circuits_models.Provider.objects.create(
+            name=provider_name, _custom_field_data={cls.custom_field.key: provider_flavour}
+        )
+
+    def test_custom_field_in_identifiers_backwards_compatibility(self):
+        """Test the case where `CustomFieldAnnotation.name` is used rather than `CustomFieldAnnotation.key`."""
+        custom_field_key = self.custom_field.key
+
+        class _ProviderTestModel(NautobotModel):
+            _model = circuits_models.Provider
+            _modelname = "provider"
+            _identifiers = ("name", "flavour")
+            _attributes = ()
+
+            name: str
+            flavour: Annotated[str, CustomFieldAnnotation(name=custom_field_key)]  # Note the `name=`
+
+        diffsync_provider = _ProviderTestModel(
+            name=self.provider.name,
+            flavour=self.provider._custom_field_data[self.custom_field.key],  # pylint: disable=protected-access
+        )
+        diffsync_provider.diffsync = NautobotAdapter(job=None)
+
+        self.assertEqual(self.provider, diffsync_provider.get_from_db())
+
+    def test_custom_field_in_identifiers(self):
+        """Test the basic case where a custom field is part of the identifiers of a diffsync model."""
+        custom_field_key = self.custom_field.key
+
+        class _ProviderTestModel(NautobotModel):
+            _model = circuits_models.Provider
+            _modelname = "provider"
+            _identifiers = ("name", "flavour")
+            _attributes = ()
+
+            name: str
+            flavour: Annotated[str, CustomFieldAnnotation(key=custom_field_key)]
+
+        diffsync_provider = _ProviderTestModel(
+            name=self.provider.name,
+            flavour=self.provider._custom_field_data[self.custom_field.key],  # pylint: disable=protected-access
+        )
+        diffsync_provider.diffsync = NautobotAdapter(job=None)
+
+        self.assertEqual(self.provider, diffsync_provider.get_from_db())
