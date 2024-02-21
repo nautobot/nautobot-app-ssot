@@ -17,3 +17,18 @@
 - [161](https://github.com/nautobot/nautobot-plugin-ssot/pull/161) - Reverts ChatOps dependency removal by @snaselj
 - [213](https://github.com/nautobot/nautobot-plugin-ssot/pull/213) - fix: :bug: Several fixes in the ACI integration by @chadell
 - [205](https://github.com/nautobot/nautobot-plugin-ssot/pull/205) - Migrate PR #164 from Arista Child Repo by @qduk
+
+## v1.6.1 - 2024-02-21
+
+## Fixed
+
+- [243](https://github.com/nautobot/nautobot-app-ssot/pull/243) - Fix Infoblox import_subnet for ltm-1.6 by @jdrew82
+- [261](https://github.com/nautobot/nautobot-app-ssot/pull/261) - Fix Device42 documentation. by @jdrew82
+
+## Changed
+
+- [245](https://github.com/nautobot/nautobot-app-ssot/pull/245) - IPFabric integration settings updates by @alhogan
+
+- [357](https://github.com/nautobot/nautobot-app-ssot/pull/357) - Backport contrib changes to LTM by @Kircheneer
+- [361](https://github.com/nautobot/nautobot-app-ssot/pull/361) - Backport of #350 by @Kircheneer
+- [363](https://github.com/nautobot/nautobot-app-ssot/pull/363) - Backport #362 by @Kircheneer
