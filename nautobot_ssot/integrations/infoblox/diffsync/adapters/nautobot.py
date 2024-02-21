@@ -143,6 +143,9 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
                 vlans=build_vlan_map_from_relations(vlans=current_vlans),
                 pk=prefix.id,
             )
+            dhcp_ranges = prefix.cf.get("dhcp_ranges")
+            if dhcp_ranges:
+                _prefix.ranges = dhcp_ranges.split(",")
             try:
                 self.add(_prefix)
             except ObjectAlreadyExists:

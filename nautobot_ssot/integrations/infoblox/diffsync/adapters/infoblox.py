@@ -86,6 +86,9 @@ class InfobloxAdapter(DiffSync):
                 ext_attrs={**default_ext_attrs, **pf_ext_attrs},
                 vlans=build_vlan_map(vlans=_pf["vlans"]) if _pf.get("vlans") else {},
             )
+            prefix_ranges = _pf.get("ranges")
+            if prefix_ranges:
+                new_pf.ranges = prefix_ranges
             try:
                 self.add(new_pf)
             except ObjectAlreadyExists:

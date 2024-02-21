@@ -3,14 +3,17 @@ from typing import Optional, List
 from unittest import skip
 from unittest.mock import MagicMock
 from diffsync.exceptions import ObjectNotFound
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
-from nautobot.circuits.models import Provider
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+import nautobot.circuits.models as circuits_models
 from nautobot.dcim.choices import InterfaceTypeChoices
-from nautobot.dcim.models import LocationType, Location, Manufacturer, DeviceType, Device, Interface
 from nautobot.extras.choices import RelationshipTypeChoices
-from nautobot.extras.models import Tag, Status, CustomField, Role, Relationship, RelationshipAssociation
-from nautobot.ipam.models import Prefix, IPAddress, Namespace
-from nautobot.tenancy.models import Tenant, TenantGroup
+import nautobot.extras.models as extras_models
+import nautobot.dcim.models as dcim_models
+import nautobot.ipam.models as ipam_models
+import nautobot.tenancy.models as tenancy_models
 from nautobot.core.testing import TestCase
 from typing_extensions import TypedDict, Annotated
 
@@ -28,28 +31,46 @@ class TestCaseWithDeviceData(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.status_active = Status.objects.get(name="Active")
-        cls.device_role = Role.objects.create(name="Switch")
-        cls.manufacturer = Manufacturer.objects.create(name="Generic Inc.")
-        cls.device_type = DeviceType.objects.create(model="Generic Switch", manufacturer=cls.manufacturer)
-        cls.device_name = "sw01"
-        cls.location = Location.objects.create(
-            name="Bremen", location_type=LocationType.objects.get_or_create(name="Site")[0], status=cls.status_active
-        )
-        cls.device = Device.objects.create(
+        cls.status_active = extras_models.Status.objects.get(name="Active")
+        cls.device_role = extras_models.Role.objects.create(name="Switch")
+        cls.device_role.content_types.set([ContentType.objects.get_for_model(dcim_models.Device)])
+        cls.manufacturer = dcim_models.Manufacturer.objects.create(name="Generic Inc.")
+        cls.device_type = dcim_models.DeviceType.objects.create(model="Generic Switch", manufacturer=cls.manufacturer)
+        cls.location = dcim_models.Location.objects.create(
+            name="Bremen",
+            location_type=dcim_models.LocationType.objects.get_or_create(name="Site")[0],
             status=cls.status_active,
-            location=cls.location,
-            name=cls.device_name,
-            role=cls.device_role,
-            device_type=cls.device_type,
         )
-        cls.interface_name = "Loopback 1"
-        cls.interface = Interface.objects.create(
-            device=cls.device, name=cls.interface_name, type=InterfaceTypeChoices.TYPE_VIRTUAL, status=cls.status_active
+        for name in ["sw01", "sw02"]:
+            device = dcim_models.Device.objects.create(
+                status=cls.status_active,
+                location=cls.location,
+                name=name,
+                role=cls.device_role,
+                device_type=cls.device_type,
+            )
+            dcim_models.Interface.objects.create(
+                device=device,
+                name="Loopback 1",
+                type=InterfaceTypeChoices.TYPE_VIRTUAL,
+                status=cls.status_active,
+            )
+        cls.namespace = ipam_models.Namespace.objects.get(name="Global")
+        cls.prefix = ipam_models.Prefix.objects.create(
+            prefix="192.0.2.0/24", namespace=ipam_models.Namespace.objects.get(name="Global"), status=cls.status_active
         )
-        cls.prefix = Prefix.objects.create(
-            prefix="192.168.2.0/24", namespace=Namespace.objects.get(name="Global"), status=cls.status_active
+        cls.ip_address_1 = ipam_models.IPAddress(
+            address="192.0.2.1/24",
+            namespace=cls.namespace,
+            status=cls.status_active,
         )
+        cls.ip_address_1.save()
+        cls.ip_address_2 = ipam_models.IPAddress.objects.create(
+            address="192.0.2.2/24",
+            namespace=cls.namespace,
+            status=cls.status_active,
+        )
+        cls.ip_address_2.save()
         super().setUpTestData()
 
 
@@ -62,7 +83,7 @@ class TagDict(TypedDict):
 class NautobotTenant(NautobotModel):
     """A tenant model for testing the `NautobotModel` base class."""
 
-    _model = Tenant
+    _model = tenancy_models.Tenant
     _modelname = "tenant"
     _identifiers = ("name",)
     _attributes = ("description", "tenant_group__name", "tags")
@@ -76,7 +97,7 @@ class NautobotTenant(NautobotModel):
 class NautobotTenantGroup(NautobotModel):
     """A tenant group model for testing the `NautobotModel` base class."""
 
-    _model = TenantGroup
+    _model = tenancy_models.TenantGroup
     _modelname = "tenant_group"
     _identifiers = ("name",)
     _attributes = ("description",)
@@ -97,7 +118,7 @@ class ContentTypeDict(TypedDict):
 class TagModel(NautobotModel):
     """A model for testing the 'NautobotModel' class."""
 
-    _model = Tag
+    _model = extras_models.Tag
     _identifiers = ("name",)
     _attributes = ("content_types",)
 
@@ -116,18 +137,23 @@ class TestAdapter(NautobotAdapter):
 class NautobotIPAddress(NautobotModel):
     """IP Address test model."""
 
-    _model = IPAddress
+    _model = ipam_models.IPAddress
     _modelname = "ip_address"
     _identifiers = (
         "host",
         "mask_length",
     )
-    _attributes = ("status__name", "parent__prefix")
+    _attributes = (
+        "status__name",
+        "parent__network",
+        "parent__prefix_length",
+    )
 
     host: str
     mask_length: int
     status__name: str
-    parent__prefix: str
+    parent__network: str
+    parent__prefix_length: str
 
 
 class IPAddressDict(TypedDict):
@@ -140,7 +166,7 @@ class IPAddressDict(TypedDict):
 class NautobotInterface(NautobotModel):
     """Interface test model."""
 
-    _model = Interface
+    _model = dcim_models.Interface
     _modelname = "interface"
     _identifiers = (
         "name",
@@ -156,20 +182,24 @@ class NautobotInterface(NautobotModel):
 class NautobotDevice(NautobotModel):
     """Device test model."""
 
-    _model = Device
+    _model = dcim_models.Device
     _modelname = "device"
     _identifiers = ("name",)
-    _attributes = ("primary_ip4__host", "primary_ip4__mask_length")
+    _attributes = (
+        "primary_ip4__host",
+        "primary_ip4__mask_length",
+        "role__name",
+    )
 
     name: str
-    primary_ip4__host: str
-    primary_ip4__mask_length: int
+    role__name: str
+    primary_ip4__host: Optional[str] = None
+    primary_ip4__mask_length: Optional[int] = None
 
 
 class NautobotAdapterOneToOneRelationTests(TestCaseWithDeviceData):
     """Testing the one-to-one relation capability of the 'NautobotAdapter' class."""
 
-    @skip("TODO: Update for 2.0")
     def test_one_to_one_relationship(self):
         """Test that loading a one-to-one relationship works."""
 
@@ -179,73 +209,100 @@ class NautobotAdapterOneToOneRelationTests(TestCaseWithDeviceData):
             top_level = ("device",)
             device = NautobotDevice
 
-        ip_address = IPAddress.objects.create(host="192.0.2.1", mask_length=28, parent=self.prefix)
-        self.interface.ip_addresses.add(ip_address)
-        self.device.primary_ip4 = ip_address
-        self.device.validated_save()
+        device = dcim_models.Device.objects.first()
+        interface = dcim_models.Interface.objects.get(name="Loopback 1", device=device)
+        interface.ip_addresses.add(self.ip_address_1)
+        device.primary_ip4 = self.ip_address_1
+        device.validated_save()
 
         adapter = Adapter(job=MagicMock())
         adapter.load()
-        diffsync_device = adapter.get(NautobotDevice, {"name": self.device})
+        diffsync_device = adapter.get(NautobotDevice, {"name": device.name})
 
-        self.assertEqual(ip_address.host, diffsync_device.primary_ip4__host)
-        self.assertEqual(ip_address.mask_length, diffsync_device.primary_ip4__mask_length)
+        self.assertEqual(self.ip_address_1.host, diffsync_device.primary_ip4__host)
+        self.assertEqual(self.ip_address_1.mask_length, diffsync_device.primary_ip4__mask_length)
+
+
+class NautobotCable(NautobotModel):
+    """Model for cables between device interfaces.
+
+    Note: This model doesn't support terminating to things other than device interfaces because of the way is is
+    implemented.
+    """
+
+    _model = dcim_models.Cable
+    _modelname = "cable"
+    _identifiers = (
+        "termination_a__name",
+        "termination_a__device__name",
+        "termination_b__name",
+        "termination_b__device__name",
+    )
+    _attributes = (
+        "termination_a__app_label",
+        "termination_a__model",
+        "termination_b__app_label",
+        "termination_b__model",
+    )
+
+    termination_a__app_label: str
+    termination_a__model: str
+    termination_a__name: str
+    termination_a__device__name: str
+
+    termination_b__app_label: str
+    termination_b__model: str
+    termination_b__name: str
+    termination_b__device__name: str
 
 
 class NautobotAdapterGenericRelationTests(TestCaseWithDeviceData):
     """Testing the generic relation capability of the 'NautobotAdapter' class."""
 
-    @skip("TODO: Update for 2.0")
+    def setUp(self):
+        dcim_models.Cable.objects.create(
+            termination_a=dcim_models.Interface.objects.all().filter(name="Loopback 1").first(),
+            termination_b=dcim_models.Interface.objects.all().filter(name="Loopback 1").last(),
+            status=extras_models.Status.objects.get(name="Active"),
+        )
+        super().setUp()
+
     def test_load_generic_relationship_forwards(self):
         """Test that loading a generic relationship forwards works."""
 
         class Adapter(NautobotAdapter):
             """Adapter for loading generic relationship fields on an interface."""
 
-            top_level = ("interface",)
-            interface = NautobotInterface
-
-        ip_address_1 = IPAddress.objects.create(host="192.0.2.1", mask_length=24)
-        ip_address_2 = IPAddress.objects.create(host="192.0.2.2", mask_length=24)
-
-        self.interface.ip_addresses.set([ip_address_1, ip_address_2])
+            top_level = ("cable",)
+            cable = NautobotCable
 
         adapter = Adapter(job=MagicMock())
         adapter.load()
-        diffsync_interface = adapter.get(
-            NautobotInterface, {"name": self.interface_name, "device__name": self.device_name}
-        )
+        try:
+            diffsync_cable = adapter.get_all("cable")[0]
+        except IndexError:
+            self.fail("Cable with generic relationships wasn't properly loaded by adapter.")
 
-        self.assertEqual(
-            diffsync_interface.ip_addresses,
-            [{"host": "192.0.2.1", "mask_length": 24}, {"host": "192.0.2.2", "mask_length": 24}],
-        )
+        expected = {
+            "termination_a__app_label": "dcim",
+            "termination_a__model": "interface",
+            "termination_a__name": "Loopback 1",
+            "termination_a__device__name": "sw01",
+            "termination_b__app_label": "dcim",
+            "termination_b__model": "interface",
+            "termination_b__name": "Loopback 1",
+            "termination_b__device__name": "sw02",
+        }
+        for key, value in expected.items():
+            self.assertEqual(getattr(diffsync_cable, key), value, "Generic foreign key wasn't loaded correctly.")
 
-    @skip("TODO: Update for 2.0")
+    @skip("See docstring")
     def test_load_generic_relationship_backwards(self):
-        """Test that loading a generic relationship backwards works."""
+        """Skipped.
 
-        class Adapter(NautobotAdapter):
-            """Adapter for loading generic relationship fields on an IP address."""
-
-            top_level = ("ip_address",)
-            ip_address = NautobotIPAddress
-
-        ip_address_1 = IPAddress.objects.create(
-            host="192.0.2.1", mask_length=24, status=Status.objects.get(name="Active"), parent=self.prefix
-        )
-
-        self.interface.ip_addresses.set([ip_address_1])
-
-        adapter = Adapter(job=MagicMock())
-        adapter.load()
-        diffsync_ip_address = adapter.get(NautobotIPAddress, {"host": "192.0.2.1", "mask_length": 24})
-
-        # self.assertEqual(diffsync_ip_address.assigned_object__app_label, "dcim")
-        # self.assertEqual(diffsync_ip_address.assigned_object__model, "interface")
-        # self.assertEqual(diffsync_ip_address.assigned_object__device__name, self.device_name)
-        # self.assertEqual(diffsync_ip_address.assigned_object__name, self.interface_name)
-        self.assertEqual(diffsync_ip_address.parent__prefix, self.prefix.prefix)
+        As of Nautobot 2, there is no model in Nautobot core with a generic relationship that has 'related_name' set
+        (as cable terminations don't provide a backwards relation). Thus, this test will be skipped for now.
+        """
 
 
 class NautobotAdapterTests(TestCase):
@@ -254,17 +311,19 @@ class NautobotAdapterTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.tenant_group_name = "Test Group"
-        cls.tenant_group = TenantGroup.objects.create(name=cls.tenant_group_name, description="Test Group Description")
+        cls.tenant_group = tenancy_models.TenantGroup.objects.create(
+            name=cls.tenant_group_name, description="Test Group Description"
+        )
         cls.tenant_name = "Test"
-        cls.tenant = Tenant.objects.create(name=cls.tenant_name, tenant_group=cls.tenant_group)
+        cls.tenant = tenancy_models.Tenant.objects.create(name=cls.tenant_name, tenant_group=cls.tenant_group)
         cls.tags = [{"name": "space"}, {"name": "earth"}]
         for tag_dict in cls.tags:
-            tag_object = Tag.objects.create(name=tag_dict["name"])
-            tag_object.content_types.set([ContentType.objects.get_for_model(Tenant)])
+            tag_object = extras_models.Tag.objects.create(name=tag_dict["name"])
+            tag_object.content_types.set([ContentType.objects.get_for_model(tenancy_models.Tenant)])
             cls.tenant.tags.add(tag_object)
 
-        cls.custom_field = CustomField.objects.create(key="Test", label="Test")
-        cls.custom_field.content_types.set([ContentType.objects.get_for_model(Provider)])
+        cls.custom_field = extras_models.CustomField.objects.create(key="Test", label="Test")
+        cls.custom_field.content_types.set([ContentType.objects.get_for_model(circuits_models.Provider)])
 
     def test_basic_loading(self):
         adapter = TestAdapter(job=MagicMock())
@@ -286,7 +345,7 @@ class NautobotAdapterTests(TestCase):
         class ProviderModel(NautobotModel):
             """Test model with a custom field,"""
 
-            _model = Provider
+            _model = circuits_models.Provider
             _modelname = "provider"
             _identifiers = ("name",)
             _attributes = ("custom_field",)
@@ -302,7 +361,7 @@ class NautobotAdapterTests(TestCase):
 
         custom_field_value = "Custom Field Value"
         provider_name = "Test"
-        Provider.objects.create(name=provider_name, _custom_field_data={"Test": custom_field_value})
+        circuits_models.Provider.objects.create(name=provider_name, _custom_field_data={"Test": custom_field_value})
 
         adapter = Adapter(job=MagicMock())
         adapter.load()
@@ -320,7 +379,7 @@ class NautobotAdapterTests(TestCase):
         class TenantModel(NautobotModel):
             """Test model for testing overridden 'get_queryset' method."""
 
-            _model = Tenant
+            _model = tenancy_models.Tenant
             _modelname = "tenant"
             _identifiers = ("name",)
             _attributes = ("description",)
@@ -330,7 +389,7 @@ class NautobotAdapterTests(TestCase):
 
             @classmethod
             def get_queryset(cls):
-                return Tenant.objects.filter(name__startswith="N")
+                return tenancy_models.Tenant.objects.filter(name__startswith="N")
 
         class Adapter(NautobotAdapter):
             """Test overriding 'get_queryset' method."""
@@ -339,8 +398,8 @@ class NautobotAdapterTests(TestCase):
             tenant = TenantModel
 
         new_tenant_name = "NASA"
-        Tenant.objects.create(name=new_tenant_name)
-        Tenant.objects.create(name="Air Force")
+        tenancy_models.Tenant.objects.create(name=new_tenant_name)
+        tenancy_models.Tenant.objects.create(name="Air Force")
         adapter = Adapter(job=MagicMock())
         adapter.load()
         diffsync_tenant = adapter.get(TenantModel, new_tenant_name)
@@ -358,15 +417,16 @@ class BaseModelTests(TestCase):
         """Test whether a basic create of an object works."""
         NautobotTenant.create(diffsync=None, ids={"name": self.tenant_name}, attrs={})
         try:
-            Tenant.objects.get(name=self.tenant_name)
-        except Tenant.DoesNotExist:
+            tenancy_models.Tenant.objects.get(name=self.tenant_name)
+        except tenancy_models.Tenant.DoesNotExist:
             self.fail("Basic object creation through 'NautobotModel' does not work.")
 
     def test_basic_update(self):
         """Test whether a basic update of an object works."""
-        tenant = Tenant.objects.create(name=self.tenant_name)
+        tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
         description = "An updated description"
         diffsync_tenant = NautobotTenant(name=self.tenant_name)
+        diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"description": description})
         tenant.refresh_from_db()
         self.assertEqual(
@@ -375,15 +435,16 @@ class BaseModelTests(TestCase):
 
     def test_basic_deletion(self):
         """Test whether basic deletion of an object works."""
-        Tenant.objects.create(name=self.tenant_name)
+        tenancy_models.Tenant.objects.create(name=self.tenant_name)
 
         diffsync_tenant = NautobotTenant(name=self.tenant_name)
+        diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.delete()
 
         try:
-            Tenant.objects.get(name=self.tenant_name)
+            tenancy_models.Tenant.objects.get(name=self.tenant_name)
             self.fail("Basic object deletion through 'NautobotModel' does not work.")
-        except Tenant.DoesNotExist:
+        except tenancy_models.Tenant.DoesNotExist:
             pass
 
 
@@ -393,13 +454,15 @@ class BaseModelCustomFieldTest(TestCase):
     def test_custom_field_set(self):
         """Test whether setting a custom field value works."""
         custom_field_name = "Is Global"
-        custom_field = CustomField.objects.create(key="is_global", label=custom_field_name, type="boolean")
-        custom_field.content_types.set([ContentType.objects.get_for_model(Provider)])
+        custom_field = extras_models.CustomField.objects.create(
+            key="is_global", label=custom_field_name, type="boolean"
+        )
+        custom_field.content_types.set([ContentType.objects.get_for_model(circuits_models.Provider)])
 
         class ProviderModel(NautobotModel):
             """Test model for testing custom field functionality."""
 
-            _model = Provider
+            _model = circuits_models.Provider
             _identifiers = ("name",)
             _attributes = ("is_global",)
 
@@ -408,10 +471,11 @@ class BaseModelCustomFieldTest(TestCase):
             is_global: Annotated[bool, CustomFieldAnnotation(name="is_global")] = False
 
         provider_name = "Test Provider"
-        provider = Provider.objects.create(name=provider_name)
+        provider = circuits_models.Provider.objects.create(name=provider_name)
 
         diffsync_provider = ProviderModel(name=provider_name)
         updated_custom_field_value = True
+        diffsync_provider.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_provider.update(attrs={"is_global": updated_custom_field_value})
 
         provider.refresh_from_db()
@@ -430,10 +494,11 @@ class BaseModelForeignKeyTest(TestCase):
 
     def test_foreign_key_add(self):
         """Test whether setting a foreign key works."""
-        group = TenantGroup.objects.create(name=self.tenant_group_name)
-        tenant = Tenant.objects.create(name=self.tenant_name)
+        group = tenancy_models.TenantGroup.objects.create(name=self.tenant_group_name)
+        tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
 
         diffsync_tenant = NautobotTenant(name=self.tenant_name)
+        diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"tenant_group__name": self.tenant_group_name})
 
         tenant.refresh_from_db()
@@ -443,10 +508,11 @@ class BaseModelForeignKeyTest(TestCase):
 
     def test_foreign_key_remove(self):
         """Test whether unsetting a foreign key works."""
-        group = TenantGroup.objects.create(name=self.tenant_group_name)
-        tenant = Tenant.objects.create(name=self.tenant_name, tenant_group=group)
+        group = tenancy_models.TenantGroup.objects.create(name=self.tenant_group_name)
+        tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name, tenant_group=group)
 
         diffsync_tenant = NautobotTenant(name=self.tenant_name, tenant_group__name=self.tenant_group_name)
+        diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"tenant_group__name": None})
 
         tenant.refresh_from_db()
@@ -454,21 +520,21 @@ class BaseModelForeignKeyTest(TestCase):
 
     def test_foreign_key_add_multiple_fields(self):
         """Test whether setting a foreign key using multiple fields works."""
-        location_type_a = LocationType.objects.create(name="Room")
-        location_type_b = LocationType.objects.create(name="Building")
-        location_type_a.content_types.set([ContentType.objects.get_for_model(Prefix)])
-        location_type_b.content_types.set([ContentType.objects.get_for_model(Prefix)])
-        location_a = Location.objects.create(
-            name="Room A", location_type=location_type_a, status=Status.objects.get(name="Active")
+        location_type_a = dcim_models.LocationType.objects.create(name="Room")
+        location_type_b = dcim_models.LocationType.objects.create(name="Building")
+        location_type_a.content_types.set([ContentType.objects.get_for_model(ipam_models.Prefix)])
+        location_type_b.content_types.set([ContentType.objects.get_for_model(ipam_models.Prefix)])
+        location_a = dcim_models.Location.objects.create(
+            name="Room A", location_type=location_type_a, status=extras_models.Status.objects.get(name="Active")
         )
-        location_b = Location.objects.create(
-            name="Room B", location_type=location_type_b, status=Status.objects.get(name="Active")
+        location_b = dcim_models.Location.objects.create(
+            name="Room B", location_type=location_type_b, status=extras_models.Status.objects.get(name="Active")
         )
 
         class PrefixModel(NautobotModel):
             """Test model for testing foreign key functionality."""
 
-            _model = Prefix
+            _model = ipam_models.Prefix
             _identifiers = ("network", "prefix_length")
             _attributes = ("location__name", "location__location_type__name")
 
@@ -480,8 +546,11 @@ class BaseModelForeignKeyTest(TestCase):
 
         network = "192.0.2.0"
         prefix_length = 24
-        prefix = Prefix.objects.create(
-            network=network, prefix_length=prefix_length, location=location_a, status=Status.objects.get(name="Active")
+        prefix = ipam_models.Prefix.objects.create(
+            network=network,
+            prefix_length=prefix_length,
+            location=location_a,
+            status=extras_models.Status.objects.get(name="Active"),
         )
         prefix_diffsync = PrefixModel(
             network=network,
@@ -489,6 +558,7 @@ class BaseModelForeignKeyTest(TestCase):
             location__name=location_a.name,
             location__location_type__name=location_a.location_type.name,
         )
+        prefix_diffsync.diffsync = NautobotAdapter(job=None, sync=None)
 
         prefix_diffsync.update(
             attrs={"location__name": location_b.name, "location__location_type__name": location_b.location_type.name}
@@ -498,49 +568,29 @@ class BaseModelForeignKeyTest(TestCase):
         self.assertEqual(prefix.location, location_b)
 
 
+@skip("See docstrings.")
 class BaseModelGenericRelationTest(TestCaseWithDeviceData):
     """Test for manipulating generic relations through the shared base model code."""
 
-    @skip("Needs to be updated for 2.0")
     def test_generic_relation_add_forwards(self):
-        ip_address_1 = IPAddress.objects.create(host="192.0.2.1", mask_length=24, parent=self.prefix)
-        ip_address_2 = IPAddress.objects.create(host="192.0.2.2", mask_length=24, parent=self.prefix)
+        """Skipped.
 
-        diffsync_interface = NautobotInterface(
-            name=self.interface_name,
-            device__name=self.device_name,
-            type=InterfaceTypeChoices.TYPE_VIRTUAL,
-        )
-        diffsync_interface.update(
-            attrs={
-                "ip_addresses": [
-                    {"host": ip_address_1.host, "mask_length": ip_address_1.mask_length},
-                    {"host": ip_address_2.host, "mask_length": ip_address_2.mask_length},
-                ],
-            }
-        )
+        As of Nautobot 2, there is no model in Nautobot core with a generic relationship that makes sense to update as
+        cables can't be updated due to their model validation enforcing this.
+        """
 
-        self.assertEqual(list(self.interface.ip_addresses.all()), [ip_address_1, ip_address_2])
-
-    @skip("TODO: Update for 2.0")
     def test_generic_relation_add_backwards(self):
-        diffsync_ip_address = NautobotIPAddress.create(
-            diffsync=None,
-            ids={"host": "192.0.2.1", "mask_length": 24},
-            attrs={
-                "status__name": "Active",
-                "parent__prefix": "192.0.2.0/24",
-            },
-        )
-        # The 'get_from_db' function comes from NautobotModel, I don't see why this pylint warning occurs.
-        nautobot_ip_address = diffsync_ip_address.get_from_db()  # pylint: disable=no-member
-        self.assertEqual(self.prefix, nautobot_ip_address.parent)
+        """Skipped.
+
+        As of Nautobot 2, there is no model in Nautobot core with a generic relationship that has 'related_name' set
+        (as cable terminations don't provide a backwards relation). Thus, this test will be skipped for now.
+        """
 
 
 class TenantModelCustomRelationship(NautobotModel):
     """Tenant model for testing custom relationship support."""
 
-    _model = Tenant
+    _model = tenancy_models.Tenant
     _modelname = "tenant"
     _identifiers = ("name",)
     _attributes = ("provider__name",)
@@ -560,7 +610,7 @@ class TenantDict(TypedDict):
 class ProviderModelCustomRelationship(NautobotModel):
     """Provider model for testing custom relationship support."""
 
-    _model = Provider
+    _model = circuits_models.Provider
     _modelname = "provider"
     _identifiers = ("name",)
     _attributes = ("tenants",)
@@ -589,15 +639,15 @@ class AdapterCustomRelationshipTest(TestCase):
     """Test case for custom relationships."""
 
     def setUp(self):
-        self.relationship = Relationship.objects.create(
+        self.relationship = extras_models.Relationship.objects.create(
             label="Test Relationship",
-            source_type=ContentType.objects.get_for_model(Tenant),
-            destination_type=ContentType.objects.get_for_model(Provider),
+            source_type=ContentType.objects.get_for_model(tenancy_models.Tenant),
+            destination_type=ContentType.objects.get_for_model(circuits_models.Provider),
             type=RelationshipTypeChoices.TYPE_ONE_TO_MANY,
         )
-        self.tenant = Tenant.objects.create(name="Test Tenant")
-        self.provider = Provider.objects.create(name="Test Provider")
-        RelationshipAssociation.objects.create(
+        self.tenant = tenancy_models.Tenant.objects.create(name="Test Tenant")
+        self.provider = circuits_models.Provider.objects.create(name="Test Provider")
+        extras_models.RelationshipAssociation.objects.create(
             relationship=self.relationship,
             source=self.tenant,
             destination=self.provider,
@@ -627,15 +677,15 @@ class BaseModelCustomRelationshipTest(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.relationship = Relationship.objects.create(
+        cls.relationship = extras_models.Relationship.objects.create(
             label="Test Relationship",
-            source_type=ContentType.objects.get_for_model(Tenant),
-            destination_type=ContentType.objects.get_for_model(Provider),
+            source_type=ContentType.objects.get_for_model(tenancy_models.Tenant),
+            destination_type=ContentType.objects.get_for_model(circuits_models.Provider),
         )
-        cls.tenant_one = Tenant.objects.create(name="Test Tenant 1")
-        cls.tenant_two = Tenant.objects.create(name="Test Tenant 2")
-        cls.provider_one = Provider.objects.create(name="Test Provider 1")
-        cls.provider_two = Provider.objects.create(name="Test Provider 2")
+        cls.tenant_one = tenancy_models.Tenant.objects.create(name="Test Tenant 1")
+        cls.tenant_two = tenancy_models.Tenant.objects.create(name="Test Tenant 2")
+        cls.provider_one = circuits_models.Provider.objects.create(name="Test Provider 1")
+        cls.provider_two = circuits_models.Provider.objects.create(name="Test Provider 2")
 
     def test_custom_relationship_add_foreign_key(self):
         diffsync_tenant = TenantModelCustomRelationship(
@@ -643,7 +693,7 @@ class BaseModelCustomRelationshipTest(TestCase):
         )
         diffsync_tenant.diffsync = CustomRelationShipTestAdapterSource(job=MagicMock())
         diffsync_tenant.update({"provider__name": self.provider_one.name})
-        self.assertEqual(RelationshipAssociation.objects.count(), 1)
+        self.assertEqual(extras_models.RelationshipAssociation.objects.count(), 1)
 
     def test_custom_relationship_update_foreign_key(self):
         diffsync_tenant = TenantModelCustomRelationship(
@@ -652,7 +702,7 @@ class BaseModelCustomRelationshipTest(TestCase):
         diffsync_tenant.diffsync = CustomRelationShipTestAdapterSource(job=MagicMock())
         diffsync_tenant.update({"provider__name": self.provider_one.name})
         diffsync_tenant.update({"provider__name": self.provider_two.name})
-        self.assertEqual(RelationshipAssociation.objects.first().destination, self.provider_two)
+        self.assertEqual(extras_models.RelationshipAssociation.objects.first().destination, self.provider_two)
 
     def test_custom_relationship_add_to_many(self):
         diffsync_provider = ProviderModelCustomRelationship(
@@ -660,7 +710,7 @@ class BaseModelCustomRelationshipTest(TestCase):
         )
         diffsync_provider.diffsync = CustomRelationShipTestAdapterDestination(job=MagicMock())
         diffsync_provider.update({"tenants": [{"name": self.tenant_one.name}, {"name": self.tenant_two.name}]})
-        self.assertEqual(RelationshipAssociation.objects.count(), 2)
+        self.assertEqual(extras_models.RelationshipAssociation.objects.count(), 2)
 
     def test_custom_relationship_update_to_many(self):
         diffsync_provider = ProviderModelCustomRelationship(
@@ -669,8 +719,8 @@ class BaseModelCustomRelationshipTest(TestCase):
         diffsync_provider.diffsync = CustomRelationShipTestAdapterDestination(job=MagicMock())
         diffsync_provider.update({"tenants": [{"name": self.tenant_one.name}]})
         diffsync_provider.update({"tenants": [{"name": self.tenant_two.name}]})
-        self.assertEqual(RelationshipAssociation.objects.count(), 1)
-        self.assertEqual(RelationshipAssociation.objects.first().source, self.tenant_two)
+        self.assertEqual(extras_models.RelationshipAssociation.objects.count(), 1)
+        self.assertEqual(extras_models.RelationshipAssociation.objects.first().source, self.tenant_two)
 
 
 class BaseModelManyToManyTest(TestCase):
@@ -681,14 +731,15 @@ class BaseModelManyToManyTest(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.tags = [Tag.objects.create(name=tag_name) for tag_name in cls.tag_names]
+        cls.tags = [extras_models.Tag.objects.create(name=tag_name) for tag_name in cls.tag_names]
 
     def test_many_to_many_add(self):
         """Test whether adding to a many-to-many relationship works."""
-        tenant = Tenant.objects.create(name=self.tenant_name)
+        tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
         tenant.tags.add(self.tags[0])
 
         diffsync_tenant = NautobotTenant(name=self.tenant_name, tags=[{"name": self.tags[0].name}])
+        diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"tags": [{"name": tag.name} for tag in self.tags]})
 
         tenant.refresh_from_db()
@@ -700,10 +751,11 @@ class BaseModelManyToManyTest(TestCase):
 
     def test_many_to_many_remove(self):
         """Test whether removing a single object from a many-to-many relationship works."""
-        tenant = Tenant.objects.create(name=self.tenant_name)
+        tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
         tenant.tags.set(self.tags)
 
         diffsync_tenant = NautobotTenant(name=self.tenant_name, tags=[{"name": tag.name} for tag in self.tags])
+        diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"tags": [{"name": self.tags[0].name}]})
 
         tenant.refresh_from_db()
@@ -715,10 +767,11 @@ class BaseModelManyToManyTest(TestCase):
 
     def test_many_to_many_null(self):
         """Test whether removing all elements from a many-to-many relationship works."""
-        tenant = Tenant.objects.create(name=self.tenant_name)
+        tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
         tenant.tags.set(self.tags)
 
         diffsync_tenant = NautobotTenant(name=self.tenant_name, tags=[{"name": tag.name} for tag in self.tags])
+        diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"tags": []})
 
         tenant.refresh_from_db()
@@ -731,10 +784,11 @@ class BaseModelManyToManyTest(TestCase):
     def test_many_to_many_multiple_fields_add(self):
         """Test whether adding items to a many-to-many relationship using multiple fields works."""
         name = "Test Tag"
-        tag = Tag.objects.create(name=name)
+        tag = extras_models.Tag.objects.create(name=name)
 
         content_types = [{"app_label": "dcim", "model": "device"}, {"app_label": "circuits", "model": "provider"}]
         tag_diffsync = TagModel(name=name)
+        tag_diffsync.diffsync = NautobotAdapter(job=None, sync=None)
         tag_diffsync.update(attrs={"content_types": content_types})
 
         tag.refresh_from_db()
@@ -748,11 +802,12 @@ class BaseModelManyToManyTest(TestCase):
     def test_many_to_many_multiple_fields_remove(self):
         """Test whether removing items from a many-to-many relationship using multiple fields works."""
         name = "Test Tag"
-        tag = Tag.objects.create(name=name)
+        tag = extras_models.Tag.objects.create(name=name)
         content_types = [{"app_label": "dcim", "model": "device"}, {"app_label": "circuits", "model": "provider"}]
         tag.content_types.set([ContentType.objects.get(**parameters) for parameters in content_types])
 
         tag_diffsync = TagModel(name=name)
+        tag_diffsync.diffsync = NautobotAdapter(job=None, sync=None)
         tag_diffsync.update(attrs={"content_types": []})
 
         tag.refresh_from_db()
@@ -762,3 +817,143 @@ class BaseModelManyToManyTest(TestCase):
             "Removing objects to a many-to-many relationship based on more than one parameter through 'NautobotModel'"
             "does not work.",
         )
+
+
+class CacheTests(TestCase):
+    """Tests caching functionality between the nautobot adapter and model base classes."""
+
+    def test_caching(self):
+        """Test the cache mechanism built into the Nautobot adapter."""
+        # Postgres uses '"' while MySQL uses '`'
+        backend = settings.DATABASES["default"]["ENGINE"]
+        *_, suffix = backend.split(".")
+        if suffix == "postgresql":
+            query_filter = 'FROM "tenancy_tenantgroup"'
+        elif suffix == "mysql":
+            query_filter = "FROM `tenancy_tenantgroup`"
+        else:
+            self.fail(f"Unexpected database backend {settings.DATABASES['default']['ENGINE']}.")
+
+        initial_tenant_group = tenancy_models.TenantGroup.objects.create(name="Old tenants")
+        updated_tenant_group = tenancy_models.TenantGroup.objects.create(name="New tenants")
+        for i in range(3):
+            tenancy_models.Tenant.objects.create(name=f"Tenant {i}", tenant_group=initial_tenant_group)
+
+        adapter = TestAdapter(job=None, sync=None)
+        adapter.load()
+
+        with CaptureQueriesContext(connection) as ctx:
+            for i, tenant in enumerate(adapter.get_all("tenant")):
+                tenant.update({"tenant_group__name": updated_tenant_group.name})
+            tenant_group_queries = [query["sql"] for query in ctx.captured_queries if query_filter in query["sql"]]
+            # One query to get the tenant group into the cache and another query per tenant during `clean`.
+            self.assertEqual(4, len(tenant_group_queries))
+        # As a consequence, there should be two cache hits for 'tenancy.tenantgroup'.
+        self.assertEqual(2, adapter._cache_hits["tenancy.tenantgroup"])  # pylint: disable=protected-access
+
+        with CaptureQueriesContext(connection) as ctx:
+            for i, tenant in enumerate(adapter.get_all("tenant")):
+                adapter.invalidate_cache()
+                tenant.update({"tenant_group__name": updated_tenant_group.name})
+            tenant_group_queries = [query["sql"] for query in ctx.captured_queries if query_filter in query["sql"]]
+            # One query per tenant to get the tenant group, one to pre-populate the cache, and another query per tenant during `clean`.
+            self.assertEqual(6, len(tenant_group_queries))
+
+
+class BaseModelIdentifierTest(TestCase):
+    """Test cases for testing various things as identifiers for models."""
+
+    @classmethod
+    def setUpTestData(cls):
+        custom_field_label = "Preferred ice cream flavour"
+        cls.custom_field = extras_models.CustomField.objects.create(
+            label=custom_field_label, description="The preferred flavour of ice cream for the reps for this provider"
+        )
+        cls.custom_field.content_types.add(ContentType.objects.get_for_model(circuits_models.Provider))
+        provider_name = "Link Inc."
+        provider_flavour = "Vanilla"
+        cls.provider = circuits_models.Provider.objects.create(
+            name=provider_name, _custom_field_data={cls.custom_field.key: provider_flavour}
+        )
+
+    def test_custom_field_in_identifiers_backwards_compatibility(self):
+        """Test the case where `CustomFieldAnnotation.name` is used rather than `CustomFieldAnnotation.key`."""
+        custom_field_key = self.custom_field.key
+
+        class _ProviderTestModel(NautobotModel):
+            _model = circuits_models.Provider
+            _modelname = "provider"
+            _identifiers = ("name", "flavour")
+            _attributes = ()
+
+            name: str
+            flavour: Annotated[str, CustomFieldAnnotation(name=custom_field_key)]  # Note the `name=`
+
+        diffsync_provider = _ProviderTestModel(
+            name=self.provider.name,
+            flavour=self.provider._custom_field_data[self.custom_field.key],  # pylint: disable=protected-access
+        )
+        diffsync_provider.diffsync = NautobotAdapter(job=None)
+
+        self.assertEqual(self.provider, diffsync_provider.get_from_db())
+
+    def test_custom_field_in_identifiers(self):
+        """Test the basic case where a custom field is part of the identifiers of a diffsync model."""
+        custom_field_key = self.custom_field.key
+
+        class _ProviderTestModel(NautobotModel):
+            _model = circuits_models.Provider
+            _modelname = "provider"
+            _identifiers = ("name", "flavour")
+            _attributes = ()
+
+            name: str
+            flavour: Annotated[str, CustomFieldAnnotation(key=custom_field_key)]
+
+        diffsync_provider = _ProviderTestModel(
+            name=self.provider.name,
+            flavour=self.provider._custom_field_data[self.custom_field.key],  # pylint: disable=protected-access
+        )
+        diffsync_provider.diffsync = NautobotAdapter(job=None)
+
+        self.assertEqual(self.provider, diffsync_provider.get_from_db())
+
+
+class AnnotationsSubclassingTest(TestCase):
+    """Test that annotations work properly with subclassing."""
+
+    def test_annotations_subclassing(self):
+        """Test that annotations work properly with subclassing."""
+
+        class BaseTenantModel(NautobotModel):
+            """Tenant model to be subclassed."""
+
+            _model = tenancy_models.Tenant
+            _modelname = "tenant"
+            _identifiers = ("name",)
+            _attributes = ("tags",)
+
+            name: str
+            tags: List[TagDict]
+
+        class Subclass(BaseTenantModel):
+            """Subclassed model."""
+
+            extra_field: Optional[str] = None
+
+        class Adapter(NautobotAdapter):
+            """Test adapter."""
+
+            tenant = Subclass
+            top_level = ["tenant"]
+
+        tenancy_models.Tenant.objects.create(name="Test Tenant")
+
+        adapter = Adapter(job=None)
+        try:
+            adapter.load()
+        except KeyError as error:
+            if error.args[0] == "tags":
+                self.fail("Don't use `Klass.__annotations__`, prefer `typing.get_type_hints`.")
+            else:
+                raise error

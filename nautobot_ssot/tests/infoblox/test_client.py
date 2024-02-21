@@ -28,6 +28,7 @@ from .fixtures_infoblox import (
     get_all_dns_views,
     get_dhcp_lease_from_ipv4,
     get_dhcp_lease_from_hostname,
+    get_all_ranges,
     get_all_subnets,
     get_authoritative_zone,
     get_network_containers,
@@ -361,16 +362,50 @@ class TestInfobloxTest(unittest.TestCase):
 
         self.assertEqual(context.exception.response.status_code, 404)
 
+    def test_get_all_ranges_success(self):
+        """Test get_all_ranges success."""
+        mock_response = get_all_ranges()
+        mock_uri = "range"
+        expected = {
+            "default": {
+                "10.10.0.0/23": ["10.10.0.20-10.0.0.255", "10.10.1.20-10.10.1.254"],
+                "10.220.64.0/21": ["10.220.65.200-10.220.65.255"],
+            },
+            "non-default-view": {"192.168.1.0/24": ["192.168.1.50-192.168.1.254"]},
+        }
+
+        with requests_mock.Mocker() as req:
+            req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=200)
+            resp = self.infoblox_client.get_all_ranges()
+
+        self.assertEqual(resp, expected)
+
+    def test_get_all_ranges_fail(self):
+        """Test get_all_ranges fail."""
+        mock_response = ""
+        mock_uri = "range"
+
+        with requests_mock.Mocker() as req:
+            req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=404)
+            response = self.infoblox_client.get_all_ranges()
+
+        self.assertEqual(response, {})
+
     def test_get_all_subnets_success(self):
         """Test get_all_subnets success."""
         mock_response = get_all_subnets()
         mock_uri = "network"
+        mock_range_response = get_all_ranges()
+
+        expected = [result.copy() for result in mock_response]
+        expected[1]["ranges"] = ["10.220.65.200-10.220.65.255"]
 
         with requests_mock.Mocker() as req:
             req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=200)
+            req.get(f"{LOCALHOST}/range", json=mock_range_response, status_code=200)
             resp = self.infoblox_client.get_all_subnets()
 
-        self.assertEqual(resp, mock_response["result"])
+        self.assertEqual(resp, expected)
 
     def test_get_all_subnets_fail(self):
         """Test get_all_subnets fail."""
@@ -482,6 +517,12 @@ class TestInfobloxTest(unittest.TestCase):
             response = self.infoblox_client.create_host_record(mock_fqdn, mock_ip_address)
 
         self.assertEqual(response, [])
+
+    def test_create_range_success(self):
+        params = {"network": "10.0.0.0/24", "start_addr": "10.0.0.200", "end_addr": "10.0.0.254"}
+        with patch.object(self.infoblox_client, "_request") as mock_request_function:
+            self.infoblox_client.create_range("10.0.0.0/24", "10.0.0.200", "10.0.0.254")
+        mock_request_function.assert_called_with("POST", "range", params=params)
 
     @patch("nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi._find_network_reference")
     def test_find_next_available_ip_success(self, mock_find_network_reference):
