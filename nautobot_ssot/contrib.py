@@ -73,14 +73,11 @@ class CustomFieldAnnotation:
 
     For usage with `typing.Annotated`.
 
-    This exists to map model fields to their corresponding custom fields. This solves the problem of Python object
-    attributes not being able to include spaces, while custom field names/labels may.
-
-    TODO: With Nautobot 2.0, the custom fields `key` field needs to be a valid Python identifier. This will probably
-      simplify this a lot.
+    This exists to map model fields to their corresponding custom fields. This serves to explicitly differentiate
+    normal fields from custom fields.
 
     Example:
-        Given a boolean custom field "Is Global" on the Provider model:
+        Given a boolean custom field with name "Is Global" and key "is_global" on the Provider model:
 
         ```python
         class ProviderModel(NautobotModel):
@@ -92,7 +89,7 @@ class CustomFieldAnnotation:
             is_global: Annotated[bool, CustomFieldAnnotation(name="Is Global")
         ```
 
-        This then maps the model field 'is_global' to the custom field 'Is Global'.
+        This then maps the model field 'is_global' to the custom field with the name 'Is Global'.
     """
 
     name: str
@@ -466,9 +463,40 @@ class NautobotModel(DiffSyncModel):
     def get_from_db(self):
         """Get the ORM object for this diffsync object from the database using the identifiers.
 
-        TODO: Currently I don't think this works for custom fields, therefore those can't be identifiers.
+        Note that this method currently supports the following things in identifiers:
+        - Normal model fields
+        - Foreign key fields (i.e. ones with the `__` syntax separating fields)
+        - Nautobot custom fields
+
+        TODO - Currently unsupported are:
+        - to-many-relationships, i.e. reverse foreign keys or many-to-many relationships
+        - probably also generic relationships, this is untested and hard to test in the current Nautobot version (2.1)
+
         """
-        return self.diffsync.get_from_orm_cache(self.get_identifiers(), self._model)
+        parameters = {}
+        custom_field_lookup = {}
+        type_hints = get_type_hints(self, include_extras=True)
+        is_custom_field = False
+        for key, value in self.get_identifiers().items():
+            metadata_for_this_field = getattr(type_hints[key], "__metadata__", [])
+            for metadata in metadata_for_this_field:
+                if isinstance(metadata, CustomFieldAnnotation):
+                    custom_field_lookup[metadata.name] = value
+                    is_custom_field = True
+            if not is_custom_field:
+                parameters[key] = value
+        for key, value in custom_field_lookup.items():
+            parameters[f"_custom_field_data__{key}"] = value
+        try:
+            return self.diffsync.get_from_orm_cache(parameters, self._model)
+        except self._model.DoesNotExist as error:
+            raise ValueError(
+                f"No such {self._model._meta.verbose_name} instance with lookup parameters {parameters}."
+            ) from error
+        except self._model.MultipleObjectsReturned as error:
+            raise ValueError(
+                f"Multiple {self._model._meta.verbose_name} instances with lookup parameters {parameters}."
+            ) from error
 
     def update(self, attrs):
         """Update the ORM object corresponding to this diffsync object."""
