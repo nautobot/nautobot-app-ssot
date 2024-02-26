@@ -5,7 +5,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
-from typing import FrozenSet, Tuple, Hashable, DefaultDict, Dict, Type
+from typing import FrozenSet, Tuple, Hashable, DefaultDict, Dict, Type, Optional
 
 import pydantic
 from diffsync import DiffSyncModel, DiffSync
@@ -13,7 +13,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError, MultipleObjectsReturned
 from django.db.models import Model
 from nautobot.extras.models import Relationship, RelationshipAssociation
-from typing import Optional
 from typing_extensions import get_type_hints
 
 
