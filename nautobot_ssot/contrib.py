@@ -5,7 +5,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
-from typing import FrozenSet, Tuple, Hashable, DefaultDict, Dict, Type
+from typing import FrozenSet, Tuple, Hashable, DefaultDict, Dict, Type, Optional
 
 import pydantic
 from diffsync import DiffSyncModel, DiffSync
@@ -13,7 +13,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError, MultipleObjectsReturned
 from django.db.models import Model
 from nautobot.extras.models import Relationship, RelationshipAssociation
-from typing_extensions import get_type_hints, Optional
+from typing_extensions import get_type_hints
 
 
 # This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
