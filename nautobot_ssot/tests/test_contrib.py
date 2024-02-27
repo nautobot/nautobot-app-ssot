@@ -425,7 +425,7 @@ class BaseModelTests(TestCase):
         """Test whether a basic update of an object works."""
         tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
         description = "An updated description"
-        diffsync_tenant = NautobotTenant(name=self.tenant_name)
+        diffsync_tenant = NautobotTenant(name=self.tenant_name, pk=tenant.pk)
         diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"description": description})
         tenant.refresh_from_db()
@@ -435,9 +435,9 @@ class BaseModelTests(TestCase):
 
     def test_basic_deletion(self):
         """Test whether basic deletion of an object works."""
-        tenancy_models.Tenant.objects.create(name=self.tenant_name)
+        tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
 
-        diffsync_tenant = NautobotTenant(name=self.tenant_name)
+        diffsync_tenant = NautobotTenant(name=self.tenant_name, pk=tenant.pk)
         diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.delete()
 
@@ -473,7 +473,7 @@ class BaseModelCustomFieldTest(TestCase):
         provider_name = "Test Provider"
         provider = circuits_models.Provider.objects.create(name=provider_name)
 
-        diffsync_provider = ProviderModel(name=provider_name)
+        diffsync_provider = ProviderModel(name=provider_name, pk=provider.pk)
         updated_custom_field_value = True
         diffsync_provider.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_provider.update(attrs={"is_global": updated_custom_field_value})
@@ -497,7 +497,7 @@ class BaseModelForeignKeyTest(TestCase):
         group = tenancy_models.TenantGroup.objects.create(name=self.tenant_group_name)
         tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
 
-        diffsync_tenant = NautobotTenant(name=self.tenant_name)
+        diffsync_tenant = NautobotTenant(name=self.tenant_name, pk=tenant.pk)
         diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"tenant_group__name": self.tenant_group_name})
 
@@ -511,7 +511,7 @@ class BaseModelForeignKeyTest(TestCase):
         group = tenancy_models.TenantGroup.objects.create(name=self.tenant_group_name)
         tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name, tenant_group=group)
 
-        diffsync_tenant = NautobotTenant(name=self.tenant_name, tenant_group__name=self.tenant_group_name)
+        diffsync_tenant = NautobotTenant(name=self.tenant_name, tenant_group__name=self.tenant_group_name, pk=tenant.pk)
         diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"tenant_group__name": None})
 
@@ -557,6 +557,7 @@ class BaseModelForeignKeyTest(TestCase):
             prefix_length=prefix_length,
             location__name=location_a.name,
             location__location_type__name=location_a.location_type.name,
+            pk=prefix.pk,
         )
         prefix_diffsync.diffsync = NautobotAdapter(job=None, sync=None)
 
@@ -690,6 +691,7 @@ class BaseModelCustomRelationshipTest(TestCase):
     def test_custom_relationship_add_foreign_key(self):
         diffsync_tenant = TenantModelCustomRelationship(
             name=self.tenant_one.name,
+            pk=self.tenant_one.pk,
         )
         diffsync_tenant.diffsync = CustomRelationShipTestAdapterSource(job=MagicMock())
         diffsync_tenant.update({"provider__name": self.provider_one.name})
@@ -698,6 +700,7 @@ class BaseModelCustomRelationshipTest(TestCase):
     def test_custom_relationship_update_foreign_key(self):
         diffsync_tenant = TenantModelCustomRelationship(
             name=self.tenant_one.name,
+            pk=self.tenant_one.pk,
         )
         diffsync_tenant.diffsync = CustomRelationShipTestAdapterSource(job=MagicMock())
         diffsync_tenant.update({"provider__name": self.provider_one.name})
@@ -707,6 +710,7 @@ class BaseModelCustomRelationshipTest(TestCase):
     def test_custom_relationship_add_to_many(self):
         diffsync_provider = ProviderModelCustomRelationship(
             name=self.provider_one.name,
+            pk=self.provider_one.pk,
         )
         diffsync_provider.diffsync = CustomRelationShipTestAdapterDestination(job=MagicMock())
         diffsync_provider.update({"tenants": [{"name": self.tenant_one.name}, {"name": self.tenant_two.name}]})
@@ -715,6 +719,7 @@ class BaseModelCustomRelationshipTest(TestCase):
     def test_custom_relationship_update_to_many(self):
         diffsync_provider = ProviderModelCustomRelationship(
             name=self.provider_one.name,
+            pk=self.provider_one.pk,
         )
         diffsync_provider.diffsync = CustomRelationShipTestAdapterDestination(job=MagicMock())
         diffsync_provider.update({"tenants": [{"name": self.tenant_one.name}]})
@@ -738,7 +743,7 @@ class BaseModelManyToManyTest(TestCase):
         tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
         tenant.tags.add(self.tags[0])
 
-        diffsync_tenant = NautobotTenant(name=self.tenant_name, tags=[{"name": self.tags[0].name}])
+        diffsync_tenant = NautobotTenant(name=self.tenant_name, tags=[{"name": self.tags[0].name}], pk=tenant.pk)
         diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"tags": [{"name": tag.name} for tag in self.tags]})
 
@@ -754,7 +759,9 @@ class BaseModelManyToManyTest(TestCase):
         tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
         tenant.tags.set(self.tags)
 
-        diffsync_tenant = NautobotTenant(name=self.tenant_name, tags=[{"name": tag.name} for tag in self.tags])
+        diffsync_tenant = NautobotTenant(
+            name=self.tenant_name, tags=[{"name": tag.name} for tag in self.tags], pk=tenant.pk
+        )
         diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"tags": [{"name": self.tags[0].name}]})
 
@@ -770,7 +777,9 @@ class BaseModelManyToManyTest(TestCase):
         tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
         tenant.tags.set(self.tags)
 
-        diffsync_tenant = NautobotTenant(name=self.tenant_name, tags=[{"name": tag.name} for tag in self.tags])
+        diffsync_tenant = NautobotTenant(
+            name=self.tenant_name, tags=[{"name": tag.name} for tag in self.tags], pk=tenant.pk
+        )
         diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"tags": []})
 
@@ -787,7 +796,7 @@ class BaseModelManyToManyTest(TestCase):
         tag = extras_models.Tag.objects.create(name=name)
 
         content_types = [{"app_label": "dcim", "model": "device"}, {"app_label": "circuits", "model": "provider"}]
-        tag_diffsync = TagModel(name=name)
+        tag_diffsync = TagModel(name=name, pk=tag.pk)
         tag_diffsync.diffsync = NautobotAdapter(job=None, sync=None)
         tag_diffsync.update(attrs={"content_types": content_types})
 
@@ -806,7 +815,7 @@ class BaseModelManyToManyTest(TestCase):
         content_types = [{"app_label": "dcim", "model": "device"}, {"app_label": "circuits", "model": "provider"}]
         tag.content_types.set([ContentType.objects.get(**parameters) for parameters in content_types])
 
-        tag_diffsync = TagModel(name=name)
+        tag_diffsync = TagModel(name=name, pk=tag.pk)
         tag_diffsync.diffsync = NautobotAdapter(job=None, sync=None)
         tag_diffsync.update(attrs={"content_types": []})
 
@@ -858,65 +867,6 @@ class CacheTests(TestCase):
             tenant_group_queries = [query["sql"] for query in ctx.captured_queries if query_filter in query["sql"]]
             # One query per tenant to get the tenant group, one to pre-populate the cache, and another query per tenant during `clean`.
             self.assertEqual(6, len(tenant_group_queries))
-
-
-class BaseModelIdentifierTest(TestCase):
-    """Test cases for testing various things as identifiers for models."""
-
-    @classmethod
-    def setUpTestData(cls):
-        custom_field_label = "Preferred ice cream flavour"
-        cls.custom_field = extras_models.CustomField.objects.create(
-            label=custom_field_label, description="The preferred flavour of ice cream for the reps for this provider"
-        )
-        cls.custom_field.content_types.add(ContentType.objects.get_for_model(circuits_models.Provider))
-        provider_name = "Link Inc."
-        provider_flavour = "Vanilla"
-        cls.provider = circuits_models.Provider.objects.create(
-            name=provider_name, _custom_field_data={cls.custom_field.key: provider_flavour}
-        )
-
-    def test_custom_field_in_identifiers_backwards_compatibility(self):
-        """Test the case where `CustomFieldAnnotation.name` is used rather than `CustomFieldAnnotation.key`."""
-        custom_field_key = self.custom_field.key
-
-        class _ProviderTestModel(NautobotModel):
-            _model = circuits_models.Provider
-            _modelname = "provider"
-            _identifiers = ("name", "flavour")
-            _attributes = ()
-
-            name: str
-            flavour: Annotated[str, CustomFieldAnnotation(name=custom_field_key)]  # Note the `name=`
-
-        diffsync_provider = _ProviderTestModel(
-            name=self.provider.name,
-            flavour=self.provider._custom_field_data[self.custom_field.key],  # pylint: disable=protected-access
-        )
-        diffsync_provider.diffsync = NautobotAdapter(job=None)
-
-        self.assertEqual(self.provider, diffsync_provider.get_from_db())
-
-    def test_custom_field_in_identifiers(self):
-        """Test the basic case where a custom field is part of the identifiers of a diffsync model."""
-        custom_field_key = self.custom_field.key
-
-        class _ProviderTestModel(NautobotModel):
-            _model = circuits_models.Provider
-            _modelname = "provider"
-            _identifiers = ("name", "flavour")
-            _attributes = ()
-
-            name: str
-            flavour: Annotated[str, CustomFieldAnnotation(key=custom_field_key)]
-
-        diffsync_provider = _ProviderTestModel(
-            name=self.provider.name,
-            flavour=self.provider._custom_field_data[self.custom_field.key],  # pylint: disable=protected-access
-        )
-        diffsync_provider.diffsync = NautobotAdapter(job=None)
-
-        self.assertEqual(self.provider, diffsync_provider.get_from_db())
 
 
 class AnnotationsSubclassingTest(TestCase):
