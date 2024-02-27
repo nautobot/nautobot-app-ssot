@@ -141,10 +141,12 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         url = urljoin(self.url, api_path)
 
         if self.cookie:
-            resp = requests.request(method, url, cookies=self.cookie, timeout=60, **kwargs)
+            resp = requests.request(
+                method, url, cookies=self.cookie, timeout=PLUGIN_CFG["infoblox_request_timeout"], **kwargs
+            )
         else:
             kwargs["auth"] = requests.auth.HTTPBasicAuth(self.username, self.password)
-            resp = requests.request(method, url, timeout=60, **kwargs)
+            resp = requests.request(method, url, timeout=PLUGIN_CFG["infoblox_request_timeout"], **kwargs)
             self.cookie = copy.copy(resp.cookies.get_dict("ibapauth"))
         resp.raise_for_status()
         return resp
