@@ -5,6 +5,8 @@
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
+from uuid import UUID
+
 from typing import FrozenSet, Tuple, Hashable, DefaultDict, Dict, Type, Optional
 
 import pydantic
@@ -220,6 +222,7 @@ class NautobotAdapter(DiffSync):
         parameters = {}
         for parameter_name in parameter_names:
             self._handle_single_parameter(parameters, parameter_name, database_object, diffsync_model)
+        parameters["pk"] = database_object.pk
         try:
             diffsync_model = diffsync_model(**parameters)
         except pydantic.ValidationError as error:
@@ -452,6 +455,8 @@ class NautobotModel(DiffSyncModel):
 
     _model: Model
 
+    pk: Optional[UUID]
+
     @classmethod
     def _get_queryset(cls):
         """Get the queryset used to load the models data from Nautobot."""
@@ -477,42 +482,11 @@ class NautobotModel(DiffSyncModel):
             raise ValueError(f"Field {name} is not defined on the model.")
 
     def get_from_db(self):
-        """Get the ORM object for this diffsync object from the database using the identifiers.
-
-        Note that this method currently supports the following things in identifiers:
-        - Normal model fields
-        - Foreign key fields (i.e. ones with the `__` syntax separating fields)
-        - Nautobot custom fields
-
-        TODO - Currently unsupported are:
-        - to-many-relationships, i.e. reverse foreign keys or many-to-many relationships
-        - probably also generic relationships, this is untested and hard to test in the current Nautobot version (2.1)
-
-        """
-        parameters = {}
-        custom_field_lookup = {}
-        type_hints = get_type_hints(self, include_extras=True)
-        is_custom_field = False
-        for key, value in self.get_identifiers().items():
-            metadata_for_this_field = getattr(type_hints[key], "__metadata__", [])
-            for metadata in metadata_for_this_field:
-                if isinstance(metadata, CustomFieldAnnotation):
-                    custom_field_lookup[metadata.key] = value
-                    is_custom_field = True
-            if not is_custom_field:
-                parameters[key] = value
-        for key, value in custom_field_lookup.items():
-            parameters[f"_custom_field_data__{key}"] = value
+        """Get the ORM object for this diffsync object from the database using the primary key."""
         try:
-            return self.diffsync.get_from_orm_cache(parameters, self._model)
+            return self.diffsync.get_from_orm_cache({"pk": self.pk}, self._model)
         except self._model.DoesNotExist as error:
-            raise ValueError(
-                f"No such {self._model._meta.verbose_name} instance with lookup parameters {parameters}."
-            ) from error
-        except self._model.MultipleObjectsReturned as error:
-            raise ValueError(
-                f"Multiple {self._model._meta.verbose_name} instances with lookup parameters {parameters}."
-            ) from error
+            raise ValueError(f"No such {self._model._meta.verbose_name} instance with PK {self.pk}") from error
 
     def update(self, attrs):
         """Update the ORM object corresponding to this diffsync object."""
