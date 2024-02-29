@@ -76,5 +76,18 @@
         "rDCount": 1,
         "routersCount": 1,
         "networksCount": 5
+    },
+    {
+        "id": "123456",
+        "siteName": "stack",
+        "siteKey": "123456",
+        "devicesCount": 1,
+        "usersCount": 0,
+        "stpDCount": 0,
+        "switchesCount": 1,
+        "vlanCount": 1,
+        "rDCount": 1,
+        "routersCount": 1,
+        "networksCount": 5
     }
 ]

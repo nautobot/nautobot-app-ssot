@@ -70,5 +70,17 @@
     "sn": "a000a02",
     "loginIp": "172.18.0.5",
     "family": "ios-xe"
+  },
+  {
+    "hostname": "stack",
+    "siteName": "stack",
+    "vendor": "cisco",
+    "platform": "ios",
+    "model": "ws-3850-a",
+    "memoryUtilization": 11.97,
+    "version": "17.1.1",
+    "sn": "stack1",
+    "loginIp": "172.18.0.5",
+    "family": "ios-xe"
   }
 ]

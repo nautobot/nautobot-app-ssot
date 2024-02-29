@@ -137,6 +137,11 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             )
             if device_record.platform:
                 device.platform = device_record.platform.name
+            if device_record.virtual_chassis:
+                device.vc_name = device_record.virtual_chassis.name
+                device.vc_position = device_record.vc_position
+                device.vc_priority = device_record.vc_priority
+                device.vc_master = bool(device_record.virtual_chassis.master == device_record)
             try:
                 self.add(device)
             except ObjectAlreadyExists:

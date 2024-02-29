@@ -108,7 +108,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             except ObjectAlreadyExists:
                 logger.warning(f"Duplicate Interface discovered, {iface}")
 
-    def load(self):  # pylint: disable=too-many-locals
+    def load(self):  # pylint: disable=too-many-locals,too-many-statements
         """Load data from IP Fabric."""
         self.load_sites()
         devices = self.client.inventory.devices.all()
@@ -150,33 +150,69 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     logger.warning(f"Duplicate VLAN discovered, {vlan}")
             location_devices = [device for device in devices if device["siteName"] == location.name]
             for device in location_devices:
+                device_name = device["hostname"]
+                stack_members = self.client.technology.platforms.stacks_members.fetch(
+                    filters={"master": ["eq", device_name], "siteName": ["eq", location.name]},
+                    columns=["master", "member", "memberSn", "pn"],
+                )
+                base_args = {
+                    "diffsync": self,
+                    "location_name": device["siteName"],
+                    "model": device.get("model") if device.get("model") else f"Default-{device.get('vendor')}",
+                    "vendor": device.get("vendor").capitalize(),
+                    "role": device.get("devType") if device.get("devType") else DEFAULT_DEVICE_ROLE,
+                    "status": DEFAULT_DEVICE_STATUS,
+                    "platform": device.get("family"),
+                }
+                if not stack_members:
+                    serial_number = device["sn"]
+                    sn_length = len(serial_number)
+                    args = base_args.copy()
+                    args["name"] = device_name
+                    args["serial_number"] = serial_number if sn_length < device_serial_max_length else ""
+                    member_devices = [args]
+                else:
+                    # member with the lowest member number will be considered master,
+                    # and vc_priority and vc_position will both be derived from the member field,
+                    # as the role field will depend on operational state and not config,
+                    # and this will cause uneccessary diffs.
+                    stack_members.sort(key=lambda x: x["member"])
+                    member_devices = []
+                    for index, member in enumerate(stack_members):
+                        # using `or` syntax in case memberSn is defined as None
+                        member_sn = member.get("memberSn") or ""
+                        member_sn_length = len(member_sn)
+                        args = base_args.copy()
+                        model = member.get("pn")
+                        if model:
+                            args["model"] = model
+                        args["serial_number"] = member_sn if member_sn_length < device_serial_max_length else ""
+                        args["vc_name"] = device_name
+                        member_field = member.get("member")
+                        args["vc_priority"] = member_field
+                        args["vc_position"] = member_field
+                        if index == 0:
+                            args["name"] = device_name
+                            args["vc_master"] = True
+                        else:
+                            args["name"] = f"{device_name}-member{member_field}"
+                            args["vc_master"] = False
+                        member_devices.append(args)
+
                 device_primary_ip = device["loginIp"]
-                sn_length = len(device["sn"])
-                serial_number = device["sn"] if sn_length < device_serial_max_length else ""
-                if not serial_number:
-                    logger.warning(
-                        (
-                            f"Serial Number will not be recorded for {device['hostname']} due to character limit. "
-                            f"{sn_length} exceeds {device_serial_max_length}"
+                for index, dev in enumerate(member_devices):
+                    if not dev["serial_number"]:
+                        logger.warning(
+                            f"Serial Number will not be recorded for {dev['name']} due to character limit exceeds {device_serial_max_length}"
                         )
-                    )
-                try:
-                    device_model = self.device(
-                        diffsync=self,
-                        name=device["hostname"],
-                        location_name=device["siteName"],
-                        model=device.get("model") if device.get("model") else f"Default-{device.get('vendor')}",
-                        vendor=device.get("vendor").capitalize(),
-                        serial_number=serial_number,
-                        role=device.get("devType") if device.get("devType") else DEFAULT_DEVICE_ROLE,
-                        status=DEFAULT_DEVICE_STATUS,
-                        platform=device.get("family"),
-                    )
-                    self.add(device_model)
-                    location.add_child(device_model)
-                    self.load_device_interfaces(device_model, interfaces, device_primary_ip, networks)
-                except ObjectAlreadyExists:
-                    logger.warning(f"Duplicate Device discovered, {device}")
+                    try:
+                        device_model = self.device(**dev)
+                        self.add(device_model)
+                        location.add_child(device_model)
+                        if index == 0:
+                            self.load_device_interfaces(device_model, interfaces, device_primary_ip, networks)
+                    except ObjectAlreadyExists:
+                        logger.warning(f"Duplicate Device discovered, {device}")
 
 
 def pseudo_management_interface(hostname, device_interfaces, device_primary_ip):
