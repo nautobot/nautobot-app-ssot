@@ -1,15 +1,16 @@
 """Base classes for contrib testing."""
+from typing import Optional, List
+
+from nautobot.circuits import models as circuits_models
 from nautobot.dcim import models as dcim_models
 from nautobot.dcim.choices import InterfaceTypeChoices
 from nautobot.extras import models as extras_models
 from nautobot.ipam import models as ipam_models
 from nautobot.tenancy import models as tenancy_models
 from nautobot.utilities.testing import TestCase
+from typing_extensions import TypedDict, Annotated
 
-from typing import Optional, List
-from typing_extensions import TypedDict
-
-from nautobot_ssot.contrib import NautobotModel, NautobotAdapter
+from nautobot_ssot.contrib import NautobotModel, NautobotAdapter, CustomRelationshipAnnotation, RelationshipSideEnum
 
 
 class TestCaseWithDeviceData(TestCase):
@@ -213,3 +214,31 @@ class TenantDict(TypedDict):
     """Many-to-many relationship typed dict explaining which fields are interesting."""
 
     name: str
+
+
+class TenantModelCustomRelationship(NautobotModel):
+    """Tenant model for testing custom relationship support."""
+
+    _model = tenancy_models.Tenant
+    _modelname = "tenant"
+    _identifiers = ("name",)
+    _attributes = ("provider__name",)
+
+    name: str
+    provider__name: Annotated[
+        Optional[str], CustomRelationshipAnnotation(name="Test Relationship", side=RelationshipSideEnum.SOURCE)
+    ] = None
+
+
+class ProviderModelCustomRelationship(NautobotModel):
+    """Provider model for testing custom relationship support."""
+
+    _model = circuits_models.Provider
+    _modelname = "provider"
+    _identifiers = ("name",)
+    _attributes = ("tenants",)
+
+    name: str
+    tenants: Annotated[
+        List[TenantDict], CustomRelationshipAnnotation(name="Test Relationship", side=RelationshipSideEnum.DESTINATION)
+    ] = []

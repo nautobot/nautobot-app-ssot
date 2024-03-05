@@ -1,3 +1,4 @@
+"""Contrib type classes for interfacing with Nautobot in SSoT."""
 from dataclasses import dataclass
 from enum import Enum
 

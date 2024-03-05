@@ -3,14 +3,13 @@
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
 from collections import defaultdict
-from typing import FrozenSet, Tuple, Hashable, DefaultDict, Dict, Type, get_args
+from typing import DefaultDict, Dict, Type, get_args
 
 import pydantic
 from diffsync import DiffSync
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 from nautobot.extras.models import Relationship, RelationshipAssociation
-from typing import DefaultDict, Dict, Type
 from typing_extensions import get_type_hints
 
 from nautobot_ssot.contrib.types import (
@@ -205,13 +204,28 @@ class NautobotAdapter(DiffSync):
             related_object = getattr(
                 association, "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
             )
-            dictionary_representation = {
-                field_name: getattr(related_object, field_name) for field_name in get_type_hints(inner_type)
-            }
+            dictionary_representation = self._handle_typed_dict(inner_type, related_object)
             # Only use those where there is a single field defined, all 'None's will not help us.
             if any(dictionary_representation.values()):
                 related_objects_list.append(dictionary_representation)
         return related_objects_list
+
+    @classmethod
+    def _handle_typed_dict(cls, inner_type, related_object):
+        """Handle a typed dict for many to many relationships.
+
+        Args:
+            inner_type: The typed dict.
+            related_object: The related object
+        Returns: The dictionary representation of `related_object` as described by `inner_type`.
+        """
+        dictionary_representation = {}
+        for field_name in get_type_hints(inner_type):
+            if "__" in field_name:
+                dictionary_representation[field_name] = cls._handle_foreign_key(related_object, field_name)
+                continue
+            dictionary_representation[field_name] = getattr(related_object, field_name)
+        return dictionary_representation
 
     def _construct_relationship_association_parameters(self, annotation, database_object):
         relationship = self.get_from_orm_cache({"name": annotation.name}, Relationship)
@@ -282,9 +296,7 @@ class NautobotAdapter(DiffSync):
         related_objects_list = []
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
         for related_object in getattr(database_object, parameter_name).all():
-            dictionary_representation = {
-                field_name: getattr(related_object, field_name) for field_name in get_type_hints(inner_type)
-            }
+            dictionary_representation = NautobotAdapter._handle_typed_dict(inner_type, related_object)
             # Only use those where there is a single field defined, all 'None's will not help us.
             if any(dictionary_representation.values()):
                 related_objects_list.append(dictionary_representation)

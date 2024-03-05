@@ -3,6 +3,7 @@
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
 from collections import defaultdict
+from typing import Optional
 from uuid import UUID
 
 from diffsync import DiffSyncModel
@@ -11,7 +12,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import MultipleObjectsReturned, ValidationError
 from django.db.models import Model, ProtectedError
 from nautobot.extras.models import Relationship, RelationshipAssociation
-from typing import Optional
 from typing_extensions import get_type_hints
 
 from nautobot_ssot.contrib.types import CustomFieldAnnotation, CustomRelationshipAnnotation, RelationshipSideEnum

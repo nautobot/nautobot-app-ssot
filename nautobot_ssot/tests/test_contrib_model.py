@@ -1,6 +1,7 @@
 """Tests for contrib.NautobotModel."""
 from unittest import skip
 from unittest.mock import MagicMock
+from typing import Optional, List
 
 from diffsync.exceptions import ObjectNotCreated, ObjectNotUpdated, ObjectNotDeleted
 from django.contrib.contenttypes.models import ContentType
@@ -11,22 +12,20 @@ from nautobot.extras import models as extras_models
 from nautobot.ipam import models as ipam_models
 from nautobot.tenancy import models as tenancy_models
 from nautobot.utilities.testing import TestCase
-from typing import Optional, List
 from typing_extensions import Annotated
 
 from nautobot_ssot.contrib import (
     NautobotAdapter,
     NautobotModel,
     CustomFieldAnnotation,
-    CustomRelationshipAnnotation,
-    RelationshipSideEnum,
 )
 from nautobot_ssot.tests.contrib_base_classes import (
     NautobotTenant,
     TestCaseWithDeviceData,
-    TenantDict,
     TagModel,
     TagDict,
+    TenantModelCustomRelationship,
+    ProviderModelCustomRelationship,
 )
 from nautobot_ssot.tests.test_contrib_adapter import (
     CustomRelationShipTestAdapterSource,
@@ -297,34 +296,6 @@ class BaseModelGenericRelationTest(TestCaseWithDeviceData):
         """
 
 
-class TenantModelCustomRelationship(NautobotModel):
-    """Tenant model for testing custom relationship support."""
-
-    _model = tenancy_models.Tenant
-    _modelname = "tenant"
-    _identifiers = ("name",)
-    _attributes = ("provider__name",)
-
-    name: str
-    provider__name: Annotated[
-        Optional[str], CustomRelationshipAnnotation(name="Test Relationship", side=RelationshipSideEnum.SOURCE)
-    ] = None
-
-
-class ProviderModelCustomRelationship(NautobotModel):
-    """Provider model for testing custom relationship support."""
-
-    _model = circuits_models.Provider
-    _modelname = "provider"
-    _identifiers = ("name",)
-    _attributes = ("tenants",)
-
-    name: str
-    tenants: Annotated[
-        List[TenantDict], CustomRelationshipAnnotation(name="Test Relationship", side=RelationshipSideEnum.DESTINATION)
-    ] = []
-
-
 class BaseModelCustomRelationshipTest(TestCase):
     """Tests for manipulating custom relationships through the shared base model code."""
 
@@ -381,6 +352,8 @@ class BaseModelCustomRelationshipTest(TestCase):
 
 
 class BaseModelCustomRelationshipTestWithDeviceData(TestCaseWithDeviceData):
+    """Tests for NautobotModel with custom relationships and including device data."""
+
     def test_create_with_custom_relationship(self):
         """Test that NautobotModel.create works as expected with custom relationships."""
 
@@ -439,7 +412,7 @@ class BaseModelCustomRelationshipTestWithDeviceData(TestCaseWithDeviceData):
                 "termination_b__model": "interface",
             },
             attrs={
-                "status__name": "Active",
+                "status__name": "Connected",
             },
         )
 
