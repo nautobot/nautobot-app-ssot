@@ -2,7 +2,7 @@
 from typing import Optional, List
 from unittest import skip
 from unittest.mock import MagicMock
-from diffsync.exceptions import ObjectNotFound
+from diffsync.exceptions import ObjectNotFound, ObjectNotCreated, ObjectNotUpdated, ObjectNotDeleted
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection
@@ -405,6 +405,90 @@ class NautobotAdapterTests(TestCase):
         diffsync_tenant = adapter.get(TenantModel, new_tenant_name)
 
         self.assertEqual(new_tenant_name, diffsync_tenant.name)
+
+
+class BaseModelErrorTests(TestCase):
+    """Testing various error cases for 'NautobotModel'."""
+
+    def test_error_creation(self):
+        """Test that different cases raise `ObjectNotCreated` correctly."""
+        for ids, attrs, expected_error_prefix in [
+            # Non-nullable field set to null
+            ({"name": None}, {}, "Validated save failed for Django object"),
+            # Foreign key reference doesn't exist
+            (
+                {"name": "Test Tenant"},
+                {"tenant_group__name": "I don't exist"},
+                "Couldn't find 'tenant group' instance behind 'tenant_group'",
+            ),
+            # Many to many reference doesn't exist
+            (
+                {"name": "Test Tenant"},
+                {"tags": [{"name": "I don't exist"}]},
+                "Unable to populate many to many relationship 'tags'",
+            ),
+            # Validation error because description is too long
+            ({"name": "Test Tenant"}, {"description": "a" * 1000}, "Validated save failed for Django object"),
+        ]:
+            with self.subTest(ids=ids, attrs=attrs):
+                with self.assertRaises(ObjectNotCreated) as exception_context:
+                    NautobotTenant.create(diffsync=NautobotAdapter(job=MagicMock()), ids=ids, attrs=attrs)
+                error_message = exception_context.exception.args[0].args[0]
+                self.assertTrue(
+                    error_message.startswith(expected_error_prefix),
+                    f"Correct exception was raised but its error message doesn't start with '{expected_error_prefix}': '{error_message}'.",
+                )
+
+    def test_error_update(self):
+        """Test that different cases raise `ObjectNotUpdated` correctly."""
+        tenant = tenancy_models.Tenant.objects.create(name="Test Tenant")
+        for base_parameters, updated_attrs, expected_error_prefix in [
+            # Foreign key reference doesn't exist
+            (
+                {"name": tenant.name},
+                {"tenant_group__name": "I don't exist"},
+                "Couldn't find 'tenant group' instance behind 'tenant_group'",
+            ),
+            # Many to many reference doesn't exist
+            (
+                {"name": tenant.name},
+                {"tags": [{"name": "I don't exist"}]},
+                "Unable to populate many to many relationship 'tags'",
+            ),
+            # Validation error because description is too long
+            ({"name": tenant.name}, {"description": "a" * 1000}, "Validated save failed for Django object"),
+        ]:
+            with self.subTest(base_parameters=base_parameters, updated_attrs=updated_attrs):
+                diffsync_tenant = NautobotTenant(pk=tenant.pk, **base_parameters)
+                diffsync_tenant.diffsync = NautobotAdapter(job=MagicMock())
+                with self.assertRaises(ObjectNotUpdated) as exception_context:
+                    diffsync_tenant.update(attrs=updated_attrs)
+                error_message = exception_context.exception.args[0].args[0]
+                self.assertTrue(
+                    error_message.startswith(expected_error_prefix),
+                    f"Correct exception was raised but its error message doesn't start with '{expected_error_prefix}': '{error_message}'.",
+                )
+
+    def test_error_delete(self):
+        """Test that delete raises `ObjectNotDeleted` correctly."""
+        tenant = tenancy_models.Tenant.objects.create(name="Test Tenant")
+        location_type = dcim_models.LocationType.objects.create(name="Test Location Type")
+        dcim_models.Location.objects.create(
+            location_type=location_type,
+            name="Test Site",
+            tenant=tenant,
+            status=extras_models.Status.objects.get(name="Active"),
+        )
+        diffsync_tenant = NautobotTenant(pk=tenant.pk, name=tenant.name)
+        diffsync_tenant.diffsync = NautobotAdapter(job=MagicMock())
+        with self.assertRaises(ObjectNotDeleted) as exception_context:
+            diffsync_tenant.delete()
+        error_message = exception_context.exception.args[0]
+        expected_error_prefix = f"Couldn't delete {tenant.name} as it is referenced by another object"
+        self.assertTrue(
+            error_message.startswith(expected_error_prefix),
+            f"Correct exception was raised but its error message doesn't start with '{expected_error_prefix}': '{error_message}'.",
+        )
 
 
 class BaseModelTests(TestCase):
