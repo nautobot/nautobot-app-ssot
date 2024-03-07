@@ -18,6 +18,7 @@ from nautobot.dcim.models import (
     Interface as NautobotInterface,
     Location as NautobotLocation,
     Manufacturer,
+    VirtualChassis,
 )
 from nautobot.extras.models import Role, Tag
 from nautobot.extras.models.statuses import Status
@@ -177,7 +178,19 @@ class Device(DiffSyncExtras):
 
     _modelname = "device"
     _identifiers = ("name",)
-    _attributes = ("location_name", "model", "vendor", "serial_number", "role", "status", "platform")
+    _attributes = (
+        "location_name",
+        "model",
+        "vendor",
+        "serial_number",
+        "role",
+        "status",
+        "platform",
+        "vc_name",
+        "vc_priority",
+        "vc_position",
+        "vc_master",
+    )
     _children = {"interface": "interfaces"}
 
     name: str
@@ -188,6 +201,10 @@ class Device(DiffSyncExtras):
     role: Optional[str]
     status: Optional[str]
     platform: Optional[str]
+    vc_name: Optional[str]
+    vc_priority: Optional[int]
+    vc_position: Optional[int]
+    vc_master: Optional[bool]
 
     mgmt_address: Optional[str]
 
@@ -318,7 +335,21 @@ class Device(DiffSyncExtras):
                         logger.debug(error)
                     logger.error(message)
 
-                return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+                vc_name = attrs.get("vc_name")
+                if vc_name:
+                    vc_master = attrs.get("vc_master", False)
+                    vc_position = attrs.get("vc_position")
+                    vc_priority = attrs.get("vc_priority")
+                    try:
+                        cls._get_or_create_virtual_chassis(
+                            vc_name, new_device, diffsync.job.logger, vc_master, vc_position, vc_priority
+                        )
+                    except (DjangoBaseDBError, ValidationError):
+                        diffsync.job.logger.error(
+                            f"Unable to update Device {device_name} with an ID of {new_device.id} with VirtualChassis data"
+                        )
+                    else:
+                        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
         return None
 
     def delete(self) -> Optional["DiffSyncModel"]:
@@ -436,9 +467,63 @@ class Device(DiffSyncExtras):
             except (DjangoBaseDBError, ValidationError):
                 self.diffsync.job.logger.error(f"Unable to update the existing Device named {self.name} with {attrs}")
                 return_super = False
+
+            vc_name = attrs.get("vc_name")
+            vc_master = attrs.get("vc_master", False)
+            vc_position = attrs.get("vc_position")
+            vc_priority = attrs.get("vc_priority")
+            if vc_name or vc_master or vc_position or vc_priority:
+                if not vc_name:
+                    vc_name = self.vc_name
+                try:
+                    self._get_or_create_virtual_chassis(
+                        vc_name, _device, self.diffsync.job.logger, vc_master, vc_position, vc_priority
+                    )
+                except (DjangoBaseDBError, ValidationError):
+                    self.diffsync.job.logger.error(f"Unable to update VirtualChassis {vc_name} for Device {self.name}")
+                    return_super = False
             if return_super:
                 return super().update(attrs)
         return None
+
+    @staticmethod
+    def _get_or_create_virtual_chassis(  # pylint: disable=too-many-arguments
+        name: str,
+        device: NautobotDevice,
+        job_logger: logging.Logger,
+        master: bool = False,
+        position: Optional[int] = None,
+        priority: Optional[int] = None,
+    ) -> VirtualChassis:
+        virtual_chassis, _ = VirtualChassis.objects.get_or_create(name=name)
+        device.virtual_chassis = virtual_chassis
+        if position:
+            device.vc_position = position
+        if priority and device.vc_position:  # An update might already have vc_position assigned
+            device.vc_priority = priority
+        elif priority:
+            job_logger.warning(
+                f"Device {device.name} assigned to VirtualChassis {name} has a "
+                f"priority of {priority}, but this cannot be set without a vc_position"
+            )
+        try:
+            device.validated_save()
+        except (DjangoBaseDBError, ValidationError) as error:
+            job_logger.error(f"Unable to perform validated_save() on Device named {device.name}")
+            raise error
+
+        if master:
+            virtual_chassis.master = device
+            try:
+                virtual_chassis.validated_save()
+            except (DjangoBaseDBError, ValidationError) as error:
+                job_logger.error(
+                    f"Unable to perform validated_save() on VirtualChassis {name}, "
+                    "the VirtualChassis will not have a Device designated as master"
+                )
+                raise error
+
+        return virtual_chassis
 
 
 class Interface(DiffSyncExtras):
