@@ -11,12 +11,12 @@ from diffsync import DiffSync
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 from nautobot.extras.models import Relationship, RelationshipAssociation
+from typing_extensions import get_type_hints
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
-from typing_extensions import get_type_hints
 
 # This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
 # and therefore a frozenset rather than a normal set or a list.

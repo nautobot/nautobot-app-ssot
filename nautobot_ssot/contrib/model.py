@@ -13,12 +13,12 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError, MultipleObjectsReturned
 from django.db.models import Model, ProtectedError
 from nautobot.extras.models import Relationship, RelationshipAssociation
+from typing_extensions import get_type_hints
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
-from typing_extensions import get_type_hints
 
 
 class NautobotModel(DiffSyncModel):
