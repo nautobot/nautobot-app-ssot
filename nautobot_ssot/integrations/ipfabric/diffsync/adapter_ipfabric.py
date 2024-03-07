@@ -1,7 +1,8 @@
 # pylint: disable=duplicate-code
 """DiffSync adapter class for Ip Fabric."""
-
+import ipaddress
 import logging
+from collections import defaultdict
 
 from diffsync import ObjectAlreadyExists
 from nautobot.dcim.models import Device
@@ -26,6 +27,7 @@ device_serial_max_length = Device._meta.get_field("serial").max_length
 name_max_length = VLAN._meta.get_field("name").max_length
 
 
+# pylint: disable=too-many-locals,too-many-nested-blocks,too-many-branches
 class IPFabricDiffSync(DiffSyncModelAdapters):
     """Nautobot adapter for DiffSync."""
 
@@ -46,7 +48,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             except ObjectAlreadyExists:
                 logger.warning(f"Duplicate Location discovered, {site}")
 
-    def load_device_interfaces(self, device_model, interfaces, device_primary_ip):
+    def load_device_interfaces(self, device_model, interfaces, device_primary_ip, networks):
         """Create and load DiffSync Interface model objects for a specific device."""
         device_interfaces = [iface for iface in interfaces if iface.get("hostname") == device_model.name]
         pseudo_interface = pseudo_management_interface(device_model.name, device_interfaces, device_primary_ip)
@@ -56,7 +58,30 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             logger.info("Pseudo MGMT Interface: %s", pseudo_interface)
 
         for iface in device_interfaces:
+            subnet_mask = None
             ip_address = iface.get("primaryIp")
+            if ip_address:
+                ip_network = ipaddress.ip_network(ip_address)
+                for network in networks[device_model.location_name]:
+                    if network.supernet_of(ip_network):
+                        subnet_mask = str(network.netmask)
+                        break
+                else:
+                    subnet_mask = None
+                    for site_name, site_networks in networks.items():
+                        # Already checked networks for the site
+                        if site_name == device_model.location_name:
+                            continue
+                        for network in site_networks:
+                            if network.supernet_of(ip_network):
+                                subnet_mask = str(network.netmask)
+                                break
+                        if subnet_mask:
+                            break
+                    else:
+                        # TODO: why is only IPv4?
+                        subnet_mask = "255.255.255.255"
+
             iface_name = iface["intName"]
             if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
                 iface_name = canonical_interface_name(iface_name)
@@ -74,8 +99,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     type=ipfabric_utils.convert_media_type(iface.get("media") or ""),
                     mgmt_only=iface.get("mgmt_only", False),
                     ip_address=ip_address,
-                    # TODO: why is only IPv4? and why /32?
-                    subnet_mask="255.255.255.255",
+                    subnet_mask=subnet_mask,
                     ip_is_primary=ip_address is not None and ip_address == device_primary_ip,
                     status="Active",
                 )
@@ -84,13 +108,18 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             except ObjectAlreadyExists:
                 logger.warning(f"Duplicate Interface discovered, {iface}")
 
-    def load(self):
+    def load(self):  # pylint: disable=too-many-locals,too-many-statements
         """Load data from IP Fabric."""
         self.load_sites()
         devices = self.client.inventory.devices.all()
         interfaces = self.client.inventory.interfaces.all()
         vlans = self.client.fetch_all("tables/vlan/site-summary")
-
+        networks = defaultdict(list)
+        for network in self.client.technology.managed_networks.networks.fetch(
+            filters={"net": ["empty", False], "siteName": ["empty", False]},
+            columns=["net", "siteName"],
+        ):
+            networks[network["siteName"]].append(ipaddress.ip_network(network["net"]))
         for location in self.get_all(self.location):
             if location.name is None:
                 continue
@@ -119,36 +148,71 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     location.add_child(vlan)
                 except ObjectAlreadyExists:
                     logger.warning(f"Duplicate VLAN discovered, {vlan}")
-
             location_devices = [device for device in devices if device["siteName"] == location.name]
             for device in location_devices:
+                device_name = device["hostname"]
+                stack_members = self.client.technology.platforms.stacks_members.fetch(
+                    filters={"master": ["eq", device_name], "siteName": ["eq", location.name]},
+                    columns=["master", "member", "memberSn", "pn"],
+                )
+                base_args = {
+                    "diffsync": self,
+                    "location_name": device["siteName"],
+                    "model": device.get("model") if device.get("model") else f"Default-{device.get('vendor')}",
+                    "vendor": device.get("vendor").capitalize(),
+                    "role": device.get("devType") if device.get("devType") else DEFAULT_DEVICE_ROLE,
+                    "status": DEFAULT_DEVICE_STATUS,
+                    "platform": device.get("family"),
+                }
+                if not stack_members:
+                    serial_number = device["sn"]
+                    sn_length = len(serial_number)
+                    args = base_args.copy()
+                    args["name"] = device_name
+                    args["serial_number"] = serial_number if sn_length < device_serial_max_length else ""
+                    member_devices = [args]
+                else:
+                    # member with the lowest member number will be considered master,
+                    # and vc_priority and vc_position will both be derived from the member field,
+                    # as the role field will depend on operational state and not config,
+                    # and this will cause uneccessary diffs.
+                    stack_members.sort(key=lambda x: x["member"])
+                    member_devices = []
+                    for index, member in enumerate(stack_members):
+                        # using `or` syntax in case memberSn is defined as None
+                        member_sn = member.get("memberSn") or ""
+                        member_sn_length = len(member_sn)
+                        args = base_args.copy()
+                        model = member.get("pn")
+                        if model:
+                            args["model"] = model
+                        args["serial_number"] = member_sn if member_sn_length < device_serial_max_length else ""
+                        args["vc_name"] = device_name
+                        member_field = member.get("member")
+                        args["vc_priority"] = member_field
+                        args["vc_position"] = member_field
+                        if index == 0:
+                            args["name"] = device_name
+                            args["vc_master"] = True
+                        else:
+                            args["name"] = f"{device_name}-member{member_field}"
+                            args["vc_master"] = False
+                        member_devices.append(args)
+
                 device_primary_ip = device["loginIp"]
-                sn_length = len(device["sn"])
-                serial_number = device["sn"] if sn_length < device_serial_max_length else ""
-                if not serial_number:
-                    logger.warning(
-                        (
-                            f"Serial Number will not be recorded for {device['hostname']} due to character limit. "
-                            f"{sn_length} exceeds {device_serial_max_length}"
+                for index, dev in enumerate(member_devices):
+                    if not dev["serial_number"]:
+                        logger.warning(
+                            f"Serial Number will not be recorded for {dev['name']} due to character limit exceeds {device_serial_max_length}"
                         )
-                    )
-                try:
-                    device_model = self.device(
-                        diffsync=self,
-                        name=device["hostname"],
-                        location_name=device["siteName"],
-                        model=device.get("model") if device.get("model") else f"Default-{device.get('vendor')}",
-                        vendor=device.get("vendor").capitalize(),
-                        serial_number=serial_number,
-                        role=device.get("devType") if device.get("devType") else DEFAULT_DEVICE_ROLE,
-                        status=DEFAULT_DEVICE_STATUS,
-                        platform=device.get("family"),
-                    )
-                    self.add(device_model)
-                    location.add_child(device_model)
-                    self.load_device_interfaces(device_model, interfaces, device_primary_ip)
-                except ObjectAlreadyExists:
-                    logger.warning(f"Duplicate Device discovered, {device}")
+                    try:
+                        device_model = self.device(**dev)
+                        self.add(device_model)
+                        location.add_child(device_model)
+                        if index == 0:
+                            self.load_device_interfaces(device_model, interfaces, device_primary_ip, networks)
+                    except ObjectAlreadyExists:
+                        logger.warning(f"Duplicate Device discovered, {device}")
 
 
 def pseudo_management_interface(hostname, device_interfaces, device_primary_ip):

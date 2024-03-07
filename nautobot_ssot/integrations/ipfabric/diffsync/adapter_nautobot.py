@@ -15,6 +15,7 @@ from nautobot.extras.models import Tag
 from nautobot.ipam.models import VLAN, Interface
 from nautobot.core.choices import ColorChoices
 from netutils.mac import mac_to_format
+from netutils.ip import cidr_to_netmask
 
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 
@@ -89,6 +90,13 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             device_primary_ip = device_record.primary_ip6
 
         for interface_record in device_record.interfaces.all():
+            ip_address_obj = interface_record.ip_addresses.first()
+            if ip_address_obj:
+                ip_address = ip_address_obj.host
+                subnet_mask = cidr_to_netmask(ip_address_obj.mask_length)
+            else:
+                ip_address = None
+                subnet_mask = None
             interface = self.interface(
                 diffsync=self,
                 status=device_record.status.name,
@@ -99,17 +107,13 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 mac_address=mac_to_format(str(interface_record.mac_address), "MAC_COLON_TWO").upper()
                 if interface_record.mac_address
                 else DEFAULT_INTERFACE_MAC,
-                subnet_mask="255.255.255.255",
+                subnet_mask=subnet_mask,
                 mtu=interface_record.mtu if interface_record.mtu else DEFAULT_INTERFACE_MTU,
                 type=interface_record.type,
                 mgmt_only=interface_record.mgmt_only if interface_record.mgmt_only else False,
                 pk=interface_record.pk,
-                ip_is_primary=interface_record.ip_addresses.first() == device_primary_ip
-                if device_primary_ip
-                else False,
-                ip_address=str(interface_record.ip_addresses.first().host)
-                if interface_record.ip_addresses.first()
-                else None,
+                ip_is_primary=ip_address_obj == device_primary_ip if device_primary_ip else False,
+                ip_address=ip_address,
             )
             self.add(interface)
             diffsync_device.add_child(interface)
@@ -133,6 +137,11 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             )
             if device_record.platform:
                 device.platform = device_record.platform.name
+            if device_record.virtual_chassis:
+                device.vc_name = device_record.virtual_chassis.name
+                device.vc_position = device_record.vc_position
+                device.vc_priority = device_record.vc_priority
+                device.vc_master = bool(device_record.virtual_chassis.master == device_record)
             try:
                 self.add(device)
             except ObjectAlreadyExists:

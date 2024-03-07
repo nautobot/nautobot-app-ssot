@@ -1,7 +1,10 @@
-"""Supporting classes for SSoT contrib interfacing with Nautobot."""
+"""This module includes a base adapter and a base model class for interfacing with Nautobot."""
+# pylint: disable=protected-access
+# Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
+from typing import Optional
 
 
 class RelationshipSideEnum(Enum):
@@ -48,14 +51,14 @@ class CustomFieldAnnotation:
 
     For usage with `typing.Annotated`.
 
-    This exists to map model fields to their corresponding custom fields. This solves the problem of Python object
-    attributes not being able to include spaces, while custom field names/labels may.
+    This exists to map model fields to their corresponding custom fields. This serves to explicitly differentiate
+    normal fields from custom fields.
 
-    TODO: With Nautobot 2.0, the custom fields `key` field needs to be a valid Python identifier. This will probably
-      simplify this a lot.
+    Note that for backwards compatibility purposes it is also possible to use `CustomFieldAnnotation.name` instead of
+    `CustomFieldAnnotation.key`.
 
     Example:
-        Given a boolean custom field "Is Global" on the Provider model:
+        Given a boolean custom field with label "Is Global" and key "is_global" on the Provider model:
 
         ```python
         class ProviderModel(NautobotModel):
@@ -64,10 +67,24 @@ class CustomFieldAnnotation:
             _attributes = ("is_global",)
 
             name: str
-            is_global: Annotated[bool, CustomFieldAnnotation(name="Is Global")
+            is_global: Annotated[bool, CustomFieldAnnotation(key="is_global")
         ```
 
-        This then maps the model field 'is_global' to the custom field 'Is Global'.
+        This then maps the model field 'is_global' to the custom field with the key 'is_global'.
     """
 
-    name: str
+    # TODO: Delete on 3.0, keep around for backwards compatibility for now
+    name: Optional[str] = None
+
+    key: Optional[str] = None
+
+    def __post_init__(self):
+        """Compatibility layer with using 'name' instead of 'key'.
+
+        If `self.key` isn't set, fall back to the old behaviour.
+        """
+        if not self.key:
+            if self.name:
+                self.key = self.name
+            else:
+                raise ValueError("The 'key' field on CustomFieldAnnotation needs to be set.")

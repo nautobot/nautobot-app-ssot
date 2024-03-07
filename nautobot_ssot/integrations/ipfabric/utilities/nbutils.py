@@ -362,7 +362,7 @@ def create_ip(
                         logger.error(f"Unable to create a new IPAddress of {ip_address}/{subnet_mask}")
 
         if ip_obj:
-            if object_pk and ip_obj:
+            if object_pk:
                 assign_ip = IPAddressToInterface(ip_address=ip_obj, interface_id=object_pk.pk)
                 try:
                     assign_ip.validated_save()

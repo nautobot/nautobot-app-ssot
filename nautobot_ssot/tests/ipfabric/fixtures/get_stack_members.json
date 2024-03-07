@@ -1,0 +1,19 @@
+[ 
+  {
+    "master": "stack",
+    "member": 1,
+    "memberSn": "stack1",
+    "pn": "ws-3850-a"
+  },
+  {
+    "master": "stack",
+    "member": 2,
+    "memberSn": "stack2"
+  },
+  {
+    "master": "stack",
+    "member": 4,
+    "memberSn": "stack4",
+    "pn": "ws-3850-b"
+  }
+]

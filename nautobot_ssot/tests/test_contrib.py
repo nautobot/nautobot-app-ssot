@@ -2,7 +2,7 @@
 from typing import Optional, List
 from unittest import skip
 from unittest.mock import MagicMock
-from diffsync.exceptions import ObjectNotFound
+from diffsync.exceptions import ObjectNotFound, ObjectNotCreated, ObjectNotUpdated, ObjectNotDeleted
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection
@@ -407,6 +407,90 @@ class NautobotAdapterTests(TestCase):
         self.assertEqual(new_tenant_name, diffsync_tenant.name)
 
 
+class BaseModelErrorTests(TestCase):
+    """Testing various error cases for 'NautobotModel'."""
+
+    def test_error_creation(self):
+        """Test that different cases raise `ObjectNotCreated` correctly."""
+        for ids, attrs, expected_error_prefix in [
+            # Non-nullable field set to null
+            ({"name": None}, {}, "Validated save failed for Django object"),
+            # Foreign key reference doesn't exist
+            (
+                {"name": "Test Tenant"},
+                {"tenant_group__name": "I don't exist"},
+                "Couldn't find 'tenant group' instance behind 'tenant_group'",
+            ),
+            # Many to many reference doesn't exist
+            (
+                {"name": "Test Tenant"},
+                {"tags": [{"name": "I don't exist"}]},
+                "Unable to populate many to many relationship 'tags'",
+            ),
+            # Validation error because description is too long
+            ({"name": "Test Tenant"}, {"description": "a" * 1000}, "Validated save failed for Django object"),
+        ]:
+            with self.subTest(ids=ids, attrs=attrs):
+                with self.assertRaises(ObjectNotCreated) as exception_context:
+                    NautobotTenant.create(diffsync=NautobotAdapter(job=MagicMock()), ids=ids, attrs=attrs)
+                error_message = exception_context.exception.args[0].args[0]
+                self.assertTrue(
+                    error_message.startswith(expected_error_prefix),
+                    f"Correct exception was raised but its error message doesn't start with '{expected_error_prefix}': '{error_message}'.",
+                )
+
+    def test_error_update(self):
+        """Test that different cases raise `ObjectNotUpdated` correctly."""
+        tenant = tenancy_models.Tenant.objects.create(name="Test Tenant")
+        for base_parameters, updated_attrs, expected_error_prefix in [
+            # Foreign key reference doesn't exist
+            (
+                {"name": tenant.name},
+                {"tenant_group__name": "I don't exist"},
+                "Couldn't find 'tenant group' instance behind 'tenant_group'",
+            ),
+            # Many to many reference doesn't exist
+            (
+                {"name": tenant.name},
+                {"tags": [{"name": "I don't exist"}]},
+                "Unable to populate many to many relationship 'tags'",
+            ),
+            # Validation error because description is too long
+            ({"name": tenant.name}, {"description": "a" * 1000}, "Validated save failed for Django object"),
+        ]:
+            with self.subTest(base_parameters=base_parameters, updated_attrs=updated_attrs):
+                diffsync_tenant = NautobotTenant(pk=tenant.pk, **base_parameters)
+                diffsync_tenant.diffsync = NautobotAdapter(job=MagicMock())
+                with self.assertRaises(ObjectNotUpdated) as exception_context:
+                    diffsync_tenant.update(attrs=updated_attrs)
+                error_message = exception_context.exception.args[0].args[0]
+                self.assertTrue(
+                    error_message.startswith(expected_error_prefix),
+                    f"Correct exception was raised but its error message doesn't start with '{expected_error_prefix}': '{error_message}'.",
+                )
+
+    def test_error_delete(self):
+        """Test that delete raises `ObjectNotDeleted` correctly."""
+        tenant = tenancy_models.Tenant.objects.create(name="Test Tenant")
+        location_type = dcim_models.LocationType.objects.create(name="Test Location Type")
+        dcim_models.Location.objects.create(
+            location_type=location_type,
+            name="Test Site",
+            tenant=tenant,
+            status=extras_models.Status.objects.get(name="Active"),
+        )
+        diffsync_tenant = NautobotTenant(pk=tenant.pk, name=tenant.name)
+        diffsync_tenant.diffsync = NautobotAdapter(job=MagicMock())
+        with self.assertRaises(ObjectNotDeleted) as exception_context:
+            diffsync_tenant.delete()
+        error_message = exception_context.exception.args[0]
+        expected_error_prefix = f"Couldn't delete {tenant.name} as it is referenced by another object"
+        self.assertTrue(
+            error_message.startswith(expected_error_prefix),
+            f"Correct exception was raised but its error message doesn't start with '{expected_error_prefix}': '{error_message}'.",
+        )
+
+
 class BaseModelTests(TestCase):
     """Testing basic operations through 'NautobotModel'."""
 
@@ -425,7 +509,7 @@ class BaseModelTests(TestCase):
         """Test whether a basic update of an object works."""
         tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
         description = "An updated description"
-        diffsync_tenant = NautobotTenant(name=self.tenant_name)
+        diffsync_tenant = NautobotTenant(name=self.tenant_name, pk=tenant.pk)
         diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"description": description})
         tenant.refresh_from_db()
@@ -435,9 +519,9 @@ class BaseModelTests(TestCase):
 
     def test_basic_deletion(self):
         """Test whether basic deletion of an object works."""
-        tenancy_models.Tenant.objects.create(name=self.tenant_name)
+        tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
 
-        diffsync_tenant = NautobotTenant(name=self.tenant_name)
+        diffsync_tenant = NautobotTenant(name=self.tenant_name, pk=tenant.pk)
         diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.delete()
 
@@ -473,7 +557,7 @@ class BaseModelCustomFieldTest(TestCase):
         provider_name = "Test Provider"
         provider = circuits_models.Provider.objects.create(name=provider_name)
 
-        diffsync_provider = ProviderModel(name=provider_name)
+        diffsync_provider = ProviderModel(name=provider_name, pk=provider.pk)
         updated_custom_field_value = True
         diffsync_provider.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_provider.update(attrs={"is_global": updated_custom_field_value})
@@ -497,7 +581,7 @@ class BaseModelForeignKeyTest(TestCase):
         group = tenancy_models.TenantGroup.objects.create(name=self.tenant_group_name)
         tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
 
-        diffsync_tenant = NautobotTenant(name=self.tenant_name)
+        diffsync_tenant = NautobotTenant(name=self.tenant_name, pk=tenant.pk)
         diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"tenant_group__name": self.tenant_group_name})
 
@@ -511,7 +595,7 @@ class BaseModelForeignKeyTest(TestCase):
         group = tenancy_models.TenantGroup.objects.create(name=self.tenant_group_name)
         tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name, tenant_group=group)
 
-        diffsync_tenant = NautobotTenant(name=self.tenant_name, tenant_group__name=self.tenant_group_name)
+        diffsync_tenant = NautobotTenant(name=self.tenant_name, tenant_group__name=self.tenant_group_name, pk=tenant.pk)
         diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"tenant_group__name": None})
 
@@ -557,6 +641,7 @@ class BaseModelForeignKeyTest(TestCase):
             prefix_length=prefix_length,
             location__name=location_a.name,
             location__location_type__name=location_a.location_type.name,
+            pk=prefix.pk,
         )
         prefix_diffsync.diffsync = NautobotAdapter(job=None, sync=None)
 
@@ -690,6 +775,7 @@ class BaseModelCustomRelationshipTest(TestCase):
     def test_custom_relationship_add_foreign_key(self):
         diffsync_tenant = TenantModelCustomRelationship(
             name=self.tenant_one.name,
+            pk=self.tenant_one.pk,
         )
         diffsync_tenant.diffsync = CustomRelationShipTestAdapterSource(job=MagicMock())
         diffsync_tenant.update({"provider__name": self.provider_one.name})
@@ -698,6 +784,7 @@ class BaseModelCustomRelationshipTest(TestCase):
     def test_custom_relationship_update_foreign_key(self):
         diffsync_tenant = TenantModelCustomRelationship(
             name=self.tenant_one.name,
+            pk=self.tenant_one.pk,
         )
         diffsync_tenant.diffsync = CustomRelationShipTestAdapterSource(job=MagicMock())
         diffsync_tenant.update({"provider__name": self.provider_one.name})
@@ -707,6 +794,7 @@ class BaseModelCustomRelationshipTest(TestCase):
     def test_custom_relationship_add_to_many(self):
         diffsync_provider = ProviderModelCustomRelationship(
             name=self.provider_one.name,
+            pk=self.provider_one.pk,
         )
         diffsync_provider.diffsync = CustomRelationShipTestAdapterDestination(job=MagicMock())
         diffsync_provider.update({"tenants": [{"name": self.tenant_one.name}, {"name": self.tenant_two.name}]})
@@ -715,6 +803,7 @@ class BaseModelCustomRelationshipTest(TestCase):
     def test_custom_relationship_update_to_many(self):
         diffsync_provider = ProviderModelCustomRelationship(
             name=self.provider_one.name,
+            pk=self.provider_one.pk,
         )
         diffsync_provider.diffsync = CustomRelationShipTestAdapterDestination(job=MagicMock())
         diffsync_provider.update({"tenants": [{"name": self.tenant_one.name}]})
@@ -738,7 +827,7 @@ class BaseModelManyToManyTest(TestCase):
         tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
         tenant.tags.add(self.tags[0])
 
-        diffsync_tenant = NautobotTenant(name=self.tenant_name, tags=[{"name": self.tags[0].name}])
+        diffsync_tenant = NautobotTenant(name=self.tenant_name, tags=[{"name": self.tags[0].name}], pk=tenant.pk)
         diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"tags": [{"name": tag.name} for tag in self.tags]})
 
@@ -754,7 +843,9 @@ class BaseModelManyToManyTest(TestCase):
         tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
         tenant.tags.set(self.tags)
 
-        diffsync_tenant = NautobotTenant(name=self.tenant_name, tags=[{"name": tag.name} for tag in self.tags])
+        diffsync_tenant = NautobotTenant(
+            name=self.tenant_name, tags=[{"name": tag.name} for tag in self.tags], pk=tenant.pk
+        )
         diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"tags": [{"name": self.tags[0].name}]})
 
@@ -770,7 +861,9 @@ class BaseModelManyToManyTest(TestCase):
         tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
         tenant.tags.set(self.tags)
 
-        diffsync_tenant = NautobotTenant(name=self.tenant_name, tags=[{"name": tag.name} for tag in self.tags])
+        diffsync_tenant = NautobotTenant(
+            name=self.tenant_name, tags=[{"name": tag.name} for tag in self.tags], pk=tenant.pk
+        )
         diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"tags": []})
 
@@ -787,7 +880,7 @@ class BaseModelManyToManyTest(TestCase):
         tag = extras_models.Tag.objects.create(name=name)
 
         content_types = [{"app_label": "dcim", "model": "device"}, {"app_label": "circuits", "model": "provider"}]
-        tag_diffsync = TagModel(name=name)
+        tag_diffsync = TagModel(name=name, pk=tag.pk)
         tag_diffsync.diffsync = NautobotAdapter(job=None, sync=None)
         tag_diffsync.update(attrs={"content_types": content_types})
 
@@ -806,7 +899,7 @@ class BaseModelManyToManyTest(TestCase):
         content_types = [{"app_label": "dcim", "model": "device"}, {"app_label": "circuits", "model": "provider"}]
         tag.content_types.set([ContentType.objects.get(**parameters) for parameters in content_types])
 
-        tag_diffsync = TagModel(name=name)
+        tag_diffsync = TagModel(name=name, pk=tag.pk)
         tag_diffsync.diffsync = NautobotAdapter(job=None, sync=None)
         tag_diffsync.update(attrs={"content_types": []})
 
@@ -858,3 +951,43 @@ class CacheTests(TestCase):
             tenant_group_queries = [query["sql"] for query in ctx.captured_queries if query_filter in query["sql"]]
             # One query per tenant to get the tenant group, one to pre-populate the cache, and another query per tenant during `clean`.
             self.assertEqual(6, len(tenant_group_queries))
+
+
+class AnnotationsSubclassingTest(TestCase):
+    """Test that annotations work properly with subclassing."""
+
+    def test_annotations_subclassing(self):
+        """Test that annotations work properly with subclassing."""
+
+        class BaseTenantModel(NautobotModel):
+            """Tenant model to be subclassed."""
+
+            _model = tenancy_models.Tenant
+            _modelname = "tenant"
+            _identifiers = ("name",)
+            _attributes = ("tags",)
+
+            name: str
+            tags: List[TagDict]
+
+        class Subclass(BaseTenantModel):
+            """Subclassed model."""
+
+            extra_field: Optional[str] = None
+
+        class Adapter(NautobotAdapter):
+            """Test adapter."""
+
+            tenant = Subclass
+            top_level = ["tenant"]
+
+        tenancy_models.Tenant.objects.create(name="Test Tenant")
+
+        adapter = Adapter(job=None)
+        try:
+            adapter.load()
+        except KeyError as error:
+            if error.args[0] == "tags":
+                self.fail("Don't use `Klass.__annotations__`, prefer `typing.get_type_hints`.")
+            else:
+                raise error
