@@ -1,4 +1,4 @@
-"""This module includes a base adapter and a base model class for interfacing with Nautobot."""
+"""Contrib type classes for interfacing with Nautobot in SSoT."""
 # pylint: disable=protected-access
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
