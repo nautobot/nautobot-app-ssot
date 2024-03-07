@@ -3,6 +3,7 @@
 #  pylint: disable=too-many-locals
 """IP Fabric Data Target Job."""
 import uuid
+from diffsync.enum import DiffSyncFlags
 from diffsync.exceptions import ObjectNotCreated
 from django.templatetags.static import static
 from django.urls import reverse
@@ -300,7 +301,7 @@ class IpFabricDataSource(DataSource):
         if not dryrun:
             self.logger.info("Syncing from IP Fabric to Nautobot")
             try:
-                dest.sync_from(ipfabric_source)
+                dest.sync_from(ipfabric_source, flags=DiffSyncFlags.CONTINUE_ON_FAILURE)
             except ObjectNotCreated:
                 self.logger.debug("Unable to create object.", exc_info=True)
 

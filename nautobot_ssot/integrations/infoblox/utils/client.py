@@ -141,10 +141,12 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         url = urljoin(self.url, api_path)
 
         if self.cookie:
-            resp = requests.request(method, url, cookies=self.cookie, timeout=60, **kwargs)
+            resp = requests.request(
+                method, url, cookies=self.cookie, timeout=PLUGIN_CFG["infoblox_request_timeout"], **kwargs
+            )
         else:
             kwargs["auth"] = requests.auth.HTTPBasicAuth(self.username, self.password)
-            resp = requests.request(method, url, timeout=60, **kwargs)
+            resp = requests.request(method, url, timeout=PLUGIN_CFG["infoblox_request_timeout"], **kwargs)
             self.cookie = copy.copy(resp.cookies.get_dict("ibapauth"))
         resp.raise_for_status()
         return resp
@@ -295,12 +297,16 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             """
             response = None
             try:
-                response = self._request(method="POST", path=url_path, data=data)
+                response = self._request(method="POST", path=url_path, json=data)
             except HTTPError as err:
                 logger.info(err.response.text)
-            if response and len(response.json()) > 0:
-                logger.debug(response.json()[0])
-                return response.json()[0]
+            if response:
+                # This should flatten the results, not return the first entry
+                results = []
+                for result in response.json():
+                    results += result
+                logger.debug(results)
+                return results
             return []
 
         def create_payload(prefix: str, view: str) -> dict:
@@ -334,31 +340,22 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             if network.num_addresses > 1000:
                 pf_payload = create_payload(prefix=prefix[0], view=view)
                 pf_payload["args"]["_max_results"] = network.num_addresses
-                addrs = get_ipaddrs(url_path=url_path, data=json.dumps([pf_payload]))
-                if addrs:
-                    ipaddrs = ipaddrs + addrs
-                continue
-
+                ipaddrs += get_ipaddrs(url_path=url_path, data=[pf_payload])
             # append payloads to list until number of hosts is 1000
-            if network.num_addresses + num_hosts <= 1000:
+            elif network.num_addresses + num_hosts <= 1000:
                 num_hosts += network.num_addresses
                 payload.append(create_payload(prefix=prefix[0], view=view))
             else:
                 # if we can't add more hosts, make call to get IP addresses with existing payload
-                addrs = get_ipaddrs(url_path=url_path, data=json.dumps(payload))
-                if addrs:
-                    ipaddrs = ipaddrs + addrs
+                ipaddrs += get_ipaddrs(url_path=url_path, data=payload)
                 # reset payload as all addresses are processed
                 payload = []
                 payload.append(create_payload(prefix=prefix[0], view=view))
                 num_hosts = network.num_addresses
             # check if last prefix in list, if it is, send payload otherwise keep processing
-            if prefixes[-1] == prefix:
-                addrs = get_ipaddrs(url_path=url_path, data=json.dumps(payload))
-                if addrs:
-                    ipaddrs = ipaddrs + addrs
-                payload = []
-                num_hosts = 0
+            if prefixes[-1] == prefix and payload:
+                ipaddrs += get_ipaddrs(url_path=url_path, data=payload)
+
         return ipaddrs
 
     def create_network(self, prefix, comment=None):
