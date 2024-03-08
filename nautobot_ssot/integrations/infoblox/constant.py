@@ -24,6 +24,7 @@ def _read_app_config():
             "ip_addresses": config.get("infoblox_import_objects_ip_addresses"),
         },
         "infoblox_import_subnets": config.get("infoblox_import_subnets"),
+        "infoblox_request_timeout": int(config.get("infoblox_request_timeout", 60)),
     }
 
 
