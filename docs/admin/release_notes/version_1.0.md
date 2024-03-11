@@ -8,7 +8,11 @@
 
 ### Fixed
 
-- [#123](https://github.com/nautobot/nautobot-app-ssot/issues/123) Fixed Tag filtering not working in job launch form
+- [#9](https://github.com/nautobot/nautobot-app-ssot/pull/9) - Added missing `name` string to `jobs/examples.py`.
+
+### Removed
+
+- [#7](https://github.com/nautobot/nautobot-app-ssot/pull/7) - Removed unnecessary `markdown-include` development/documentation dependency.
 
 ## [v1.0.0] - 2021-08-03
 

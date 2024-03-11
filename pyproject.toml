@@ -81,8 +81,22 @@ mkdocs-version-annotations = "1.0.0"
 mkdocstrings = "0.22.0"
 mkdocstrings-python = "1.5.2"
 towncrier = "~23.6.0"
+requests-mock = "^1.10.0"
+parameterized = "^0.8.1"
+myst-parser = "^0.15.2"
+nautobot-chatops = { version = "^3.0.0", extras = ["ipfabric"] }
+responses = "^0.14.0"
 to-json-schema = "*"
 jsonschema = "*"
+
+[tool.poetry.plugins."nautobot_ssot.data_sources"]
+"example" = "nautobot_ssot.sync.example:ExampleSyncWorker"
+
+[tool.poetry.plugins."nautobot_ssot.data_targets"]
+"example" = "nautobot_ssot.sync.example:ExampleSyncWorker"
+
+[tool.poetry.plugins."nautobot.workers"]
+"ipfabric" = "nautobot_ssot.integrations.ipfabric.workers:ipfabric"
 
 [tool.poetry.extras]
 aci = [
