@@ -5,8 +5,9 @@ description = "Nautobot Single Source of Truth"
 authors = ["Network to Code, LLC <opensource@networktocode.com>"]
 license = "Apache-2.0"
 readme = "README.md"
-homepage = "https://github.com/nautobot/nautobot-app-ssot/"
-repository = "https://github.com/nautobot/nautobot-app-ssot/"
+homepage = "https://github.com/nautobot/nautobot-app-ssot"
+repository = "https://github.com/nautobot/nautobot-app-ssot"
+documentation = "https://docs.nautobot.com/projects/ssot/en/latest/"
 keywords = ["nautobot", "nautobot-app", "nautobot-plugin"]
 classifiers = [
     "Intended Audience :: Developers",
@@ -55,6 +56,8 @@ mkdocs-version-annotations = "1.0.0"
 mkdocstrings = "0.22.0"
 mkdocstrings-python = "1.5.2"
 towncrier = "~23.6.0"
+to-json-schema = "*"
+jsonschema = "*"
 
 [tool.poetry.extras]
 all = [
@@ -153,12 +156,12 @@ requires = ["poetry_core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.towncrier]
-package = "nautobot"
+package = "nautobot_ssot"
 directory = "changes"
 filename = "docs/admin/release_notes/version_X.Y.md"
 template = "development/towncrier_template.j2"
 start_string = "<!-- towncrier release notes start -->"
-issue_format = "[#{issue}](https://github.com/nautobot/nautobot-app-ssot//issues/{issue})"
+issue_format = "[#{issue}](https://github.com/nautobot/nautobot-app-ssot/issues/{issue})"
 
 [[tool.towncrier.type]]
 directory = "security"
