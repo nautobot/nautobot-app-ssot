@@ -112,7 +112,7 @@ As you can see when looking at the [source code](https://github.com/nautobot/nau
 
 The above example shows the simplest field type (an attribute on the model), however, to build a production implementation you will need to understand how to identify different variants of fields by following the [modeling docs](../user/modeling.md).
 
-!!! warn
+!!! warning
     Currently, only normal fields, forwards foreign key fields and custom fields may be used in identifiers. Anything else is unsupported and will likely fail in unintuitive ways.
 
 ### Step 2.1 - Creating the Nautobot Adapter
@@ -175,3 +175,6 @@ If you need to perform the `create`, `update` and `delete` operations on the rem
 
 !!! note
     You still want your models to adhere to the [modeling guide](../user/modeling.md), since it provides you the auto-generated `load` function for the diffsync adapter on the Nautobot side.
+
+!!! warning
+    Special care should be taken when synchronizing new Devices with children Interfaces into a Nautobot instance that also defines Device Types with Interface components of the same name. When the new Device is created in Nautobot, its Interfaces will also be created as defined in the respective Device Type. As a result, when SSoT will attempt to create the children Interfaces loaded by the remote adapter, these will already exist in the target Nautobot system. In this scenario, if not properly handled, the sync will fail! Possible remediation steps may vary depending on the specific use-case, therefore this is left as an exercise to the reader/developer to solve for their specific context.
