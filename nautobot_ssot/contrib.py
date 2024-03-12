@@ -703,9 +703,9 @@ class NautobotModel(DiffSyncModel):
             annotation = related_model_dict.pop("_annotation")
             # TODO: Deduplicate this code
             try:
-                relationship = diffsync.get_from_orm_cache({"label": annotation.name}, Relationship)
+                relationship = diffsync.get_from_orm_cache({"name": annotation.name}, Relationship)
             except Relationship.DoesNotExist as error:
-                raise ObjectCrudException(f"No such relationship with label '{annotation.name}'") from error
+                raise ObjectCrudException(f"No such relationship with name '{annotation.name}'") from error
             parameters = {
                 "relationship": relationship,
                 "source_type": relationship.source_type,
