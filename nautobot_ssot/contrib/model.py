@@ -357,7 +357,10 @@ class NautobotModel(DiffSyncModel):
                         f"for generic foreign keys."
                     ) from error
                 try:
-                    related_model = diffsync.get_from_orm_cache({"app_label": app_label, "model": model}, ContentType)
+                    related_model_content_type = diffsync.get_from_orm_cache(
+                        {"app_label": app_label, "model": model}, ContentType
+                    )
+                    related_model = related_model_content_type.model_class()
                 except ContentType.DoesNotExist as error:
                     raise ObjectCrudException(f"Unknown content type '{app_label}.{model}'.") from error
             # Set the foreign key to 'None' when none of the fields are set to anything
