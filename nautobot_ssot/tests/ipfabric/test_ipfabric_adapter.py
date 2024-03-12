@@ -21,7 +21,7 @@ VLAN_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_vlans.json
 INTERFACE_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_interface_inventory.json")
 NETWORKS_FIXTURE = [{"net": "10.255.254.0/23", "siteName": "site1"}, {"net": "172.18.0.0/24", "siteName": "site2"}]
 STACKS_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_stack_members.json")
-
+STACK_PORTS_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_stack_ports.json")
 
 class IPFabricDiffSyncTestCase(TestCase):
     """Test the IPFabricDiffSync adapter class."""
@@ -40,6 +40,7 @@ class IPFabricDiffSyncTestCase(TestCase):
         ipfabric_client.technology.platforms.stacks_members.fetch.side_effect = [[] for site in SITE_FIXTURE[:-1]] + [
             STACKS_FIXTURE
         ]
+        ipfabric_client.technology.platforms.stacks_stack_ports.fetch.return_value = STACK_PORTS_FIXTURE
 
         job = IpFabricDataSource()
         job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
@@ -141,3 +142,23 @@ class IPFabricDiffSyncTestCase(TestCase):
         self.assertEqual(stack.serial_number, "stack4")
         self.assertEqual(stack.model, "ws-3850-b")
         self.assertFalse(stack.vc_master)
+
+    def test_get_stack_connection_matrix(self):
+        """Test the _get_stack_connection_matrix method."""
+        stack_connections = self.ipfabric._get_stack_connection_matrix("stack", 1)
+        expected = {
+            "stack": {
+                "stack-member2": [
+                    {"local": 1, "remote": 2},
+                ],
+                "stack-member4": [
+                    {"local": 2, "remote": 1},
+                ],
+            },
+            "stack-member2": {
+                "stack-member4": [
+                    {"local": 1, "remote": 2},
+                ],
+            },
+        }
+        self.assertEqual(stack_connections, expected)

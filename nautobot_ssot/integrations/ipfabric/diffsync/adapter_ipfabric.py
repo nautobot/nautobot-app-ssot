@@ -108,6 +108,92 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             except ObjectAlreadyExists:
                 logger.warning(f"Duplicate Interface discovered, {iface}")
 
+    def _get_stack_connection_matrix(self, device_name: str, first_member: int) -> dict:
+        """Get matrix detailing stack connections."""
+        stack_ports = self.client.technology.platforms.stacks_stack_ports.fetch(filter={"master": ["eq", device_name]})
+        connections = {}
+        for stack_port in stack_ports:
+            member_field = stack_port["member"]
+            if member_field == first_member:
+                local_member_name= device_name
+            else:
+                local_member_name= f"{device_name}-member{member_field}"
+            neighbor_member_field = stack_port["neiSwitchId"]
+            if neighbor_member_field == first_member:
+                neighbor_member_name = device_name
+            else:
+                neighbor_member_name = f"{device_name}-member{neighbor_member_field}"
+            local_port = stack_port["stackPort"]
+            # Verify that this connection hasn't been started by a previous entry.
+            # Each returned result only provides the local port ID.
+            neighbor_existing_connections = connections.get(neighbor_member_name, {}).get(local_member_name, [])
+            for neighbor_existing_connection in neighbor_existing_connections:
+                # Connection was already started by another entry
+                if not neighbor_existing_connection.get("remote"):
+                    neighbor_existing_connection["remote"] = local_port
+                    break
+            # Connection has not been started yet
+            else:
+                # defaultdict is intentionally not used to prevent preemptive creation of entries
+                # when first looking for halfway created connections
+                if local_member_name not in connections:
+                    connections[local_member_name] = {neighbor_member_name: []}
+                local_member_connections = connections[local_member_name]
+                if neighbor_member_name not in local_member_connections:
+                    local_member_connections[neighbor_member_name] = []
+                local_member_connections[neighbor_member_name].append({"local": local_port})
+        return connections
+
+    def load_stack_interfaces(self, device_name: str, first_member: int) -> None:
+        """Load Stack Ports and Cabling."""
+        connections = self._get_stack_connection_matrix(device_name, first_member)
+        for local_device_name, device_connections in connections.items():
+            local_device = self.get("device", device_name)
+            for neighbor_device_name, local_to_neighbor_connections in device_connections.items():
+                neighbor_device = self.get("device", neighbor_device_name)
+                for local_to_neighbor_connection in local_to_neighbor_connections:
+                    local_interface = self.interface(
+                            diffsync=self,
+                            name=f"stack{local_to_neighbor_connection['local']}",
+                            device_name=local_device_name,
+                            enabled=True,
+                            # TODO: Add logic to default based on Switch Vendor
+                            type="cisco-stackwise",
+                            mgmt_only=False,
+                            status="Active",
+                        )
+                    local_device.add_child(local_interface)
+                    neighbor_interface = self.interface(
+                            diffsync=self,
+                            name=f"stack{local_to_neighbor_connection['remote']}",
+                            device_name=neighbor_device_name,
+                            enabled=True,
+                            # TODO: Add logic to default based on Switch Vendor
+                            type="cisco-stackwise",
+                            mgmt_only=False,
+                            status="Active",
+                        )
+                    neighbor_device.add_child(neighbor_interface)
+
+
+        """
+        {
+            "switch1": {
+                "switch2": [
+                    {
+                        "local": 1,
+                        "remote": 2,
+                    },
+                    {
+                        "local": 2,
+                        "remote": 1,
+                    }
+                ]
+            }
+        }
+        """
+
+
     def load(self):  # pylint: disable=too-many-locals,too-many-statements
         """Load data from IP Fabric."""
         self.load_sites()
@@ -213,6 +299,9 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                             self.load_device_interfaces(device_model, interfaces, device_primary_ip, networks)
                     except ObjectAlreadyExists:
                         logger.warning(f"Duplicate Device discovered, {device}")
+
+                if stack_members:
+                    self.load_stack_interfaces(device_name, first_member=stack_members[0]["member"])
 
 
 def pseudo_management_interface(hostname, device_interfaces, device_primary_ip):

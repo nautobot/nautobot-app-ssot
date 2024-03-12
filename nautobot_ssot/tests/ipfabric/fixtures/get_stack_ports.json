@@ -1,0 +1,38 @@
+[ 
+  {
+    "master": "stack",
+    "member": 1,
+    "stackPort": 1,
+    "neiSwitchId": 2
+  },
+  {
+    "master": "stack",
+    "member": 1,
+    "stackPort": 2,
+    "neiSwitchId": 4
+  },
+  {
+    "master": "stack",
+    "member": 2,
+    "stackPort": 1,
+    "neiSwitchId": 4
+  },
+  {
+    "master": "stack",
+    "member": 2,
+    "stackPort": 2,
+    "neiSwitchId": 1
+  },
+  {
+    "master": "stack",
+    "member": 4,
+    "stackPort": 1,
+    "neiSwitchId": 1
+  },
+  {
+    "master": "stack",
+    "member": 4,
+    "stackPort": 2,
+    "neiSwitchId": 2
+  }
+]
