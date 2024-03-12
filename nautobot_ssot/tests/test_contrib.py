@@ -980,3 +980,68 @@ class AnnotationsSubclassingTest(TestCase):
                 self.fail("Don't use `Klass.__annotations__`, prefer `typing.get_type_hints`.")
             else:
                 raise error
+
+
+class Regression(TestCaseWithDeviceData):
+    def test_regression(self):
+        class CableModel(NautobotModel):
+            """Shared data model representing a Cable."""
+
+            _model = dcim_models.Cable
+            _modelname = "cable"
+            _identifiers = (
+                "termination_a__device__name",
+                "termination_a__name",
+                "termination_a__app_label",
+                "termination_a__model",
+                "termination_b__device__name",
+                "termination_b__name",
+                "termination_b__app_label",
+                "termination_b__model",
+            )
+            _attributes = ("status__name",)
+            _children = {}
+
+            termination_a__device__name: str
+            termination_a__name: str
+            termination_a__app_label: str
+            termination_a__model: str
+            termination_b__device__name: str
+            termination_b__name: str
+            termination_b__app_label: str
+            termination_b__model: str
+            status__name: str
+
+        device = dcim_models.Device.objects.first()
+        interface_a = dcim_models.Interface.objects.create(
+            device=device,
+            status=extras_models.Status.objects.get(name="Active"),
+            name="interface_a",
+            type=InterfaceTypeChoices.TYPE_1GE_FIXED,
+        )
+        interface_b = dcim_models.Interface.objects.create(
+            device=device,
+            status=extras_models.Status.objects.get(name="Active"),
+            name="interface_b",
+            type=InterfaceTypeChoices.TYPE_1GE_FIXED,
+        )
+        dcim_models.Cable.objects.create(
+            termination_a=interface_a, termination_b=interface_b, status=extras_models.Status.objects.get(name="Active")
+        )
+
+        CableModel.create(
+            diffsync=NautobotAdapter(job=MagicMock()),
+            ids={
+                "termination_a__device__name": device.name,
+                "termination_a__name": interface_a.name,
+                "termination_a__app_label": "dcim",
+                "termination_a__model": "interface",
+                "termination_b__device__name": device.name,
+                "termination_b__name": interface_b.name,
+                "termination_b__app_label": "dcim",
+                "termination_b__model": "interface",
+            },
+            attrs={
+                "status__name": "Active",
+            }
+        )
