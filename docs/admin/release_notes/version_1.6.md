@@ -32,3 +32,14 @@
 - [357](https://github.com/nautobot/nautobot-app-ssot/pull/357) - Backport contrib changes to LTM by @Kircheneer
 - [361](https://github.com/nautobot/nautobot-app-ssot/pull/361) - Backport of #350 by @Kircheneer
 - [363](https://github.com/nautobot/nautobot-app-ssot/pull/363) - Backport #362 by @Kircheneer
+
+## v1.6.2 - 2024-03-12
+
+## Fixed
+
+- [386](https://github.com/nautobot/nautobot-app-ssot/pull/386) - Fixes bug in backport of contrib custom relationship handling
+
+## Changed
+
+- [386](https://github.com/nautobot/nautobot-app-ssot/pull/386) - Improves error handling in contrib (backport of #374)
+- [373](https://github.com/nautobot/nautobot-app-ssot/pull/373) - Change contrib.NautobotModel.get_from_db to use a PK (backport of #371)
