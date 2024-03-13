@@ -3,6 +3,7 @@
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
 from collections import defaultdict
+from typing import FrozenSet, Tuple, Hashable, DefaultDict, Dict, Type, get_args
 
 import pydantic
 from diffsync import DiffSync
@@ -176,7 +177,7 @@ class NautobotAdapter(DiffSync):
         # Introspect type annotations to deduce which fields are of interest
         # for this many-to-many relationship.
         diffsync_field_type = get_type_hints(diffsync_model)[parameter_name]
-        inner_type = diffsync_field_type.__dict__["__args__"][0]
+        inner_type = get_args(diffsync_field_type)[0]
         related_objects_list = []
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
         relationship = self.get_from_orm_cache({"name": annotation.name}, Relationship)
@@ -277,8 +278,7 @@ class NautobotAdapter(DiffSync):
         """
         # Introspect type annotations to deduce which fields are of interest
         # for this many-to-many relationship.
-        diffsync_field_type = get_type_hints(diffsync_model)[parameter_name]
-        inner_type = diffsync_field_type.__dict__["__args__"][0]
+        inner_type = get_args(get_type_hints(diffsync_model)[parameter_name])[0]
         related_objects_list = []
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
         for related_object in getattr(database_object, parameter_name).all():
