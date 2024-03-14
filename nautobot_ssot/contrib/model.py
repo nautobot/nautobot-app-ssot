@@ -14,6 +14,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError, MultipleObjectsReturned
 from django.db.models import Model, ProtectedError
 from nautobot.extras.models import Relationship, RelationshipAssociation
+from nautobot.extras.choices import RelationshipTypeChoices
+
 from typing_extensions import get_type_hints
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
@@ -110,7 +112,7 @@ class NautobotModel(DiffSyncModel):
     @classmethod
     def _handle_single_field(
         cls, field, obj, value, relationship_fields, diffsync
-    ):  # pylint: disable=too-many-arguments,too-many-locals
+    ):  # pylint: disable=too-many-arguments,too-many-locals, too-many-branches
         """Set a single field on a Django object to a given value, or, for relationship fields, prepare setting.
 
         :param field: The name of the field to set.
@@ -170,7 +172,7 @@ class NautobotModel(DiffSyncModel):
                 related_object_content_type = relationship.destination_type
             related_model_class = related_object_content_type.model_class()
 
-            if relationship.type == "one-to-many":
+            if relationship.type == RelationshipTypeChoices.TYPE_ONE_TO_MANY:
                 relationship_fields["custom_relationship_foreign_keys"][related_model_class.__name__] = {
                     **value,
                     "_annotation": custom_relationship_annotation,
