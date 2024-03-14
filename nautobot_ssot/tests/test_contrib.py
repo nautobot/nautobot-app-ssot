@@ -20,10 +20,8 @@ from typing_extensions import TypedDict, Annotated
 from nautobot_ssot.contrib import (
     NautobotModel,
     NautobotAdapter,
-    CustomFieldAnnotation,
-    CustomRelationshipAnnotation,
-    RelationshipSideEnum,
 )
+from nautobot_ssot.contrib.types import RelationshipSideEnum, CustomRelationshipAnnotation, CustomFieldAnnotation
 
 
 class TestCaseWithDeviceData(TestCase):
