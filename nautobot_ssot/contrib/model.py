@@ -1,4 +1,5 @@
 """Base model module for interfacing with Nautobot in SSoT."""
+
 # pylint: disable=protected-access
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
@@ -168,10 +169,18 @@ class NautobotModel(DiffSyncModel):
             else:
                 related_object_content_type = relationship.destination_type
             related_model_class = related_object_content_type.model_class()
-            relationship_fields["custom_relationship_many_to_many_fields"][field] = {
-                "objects": [diffsync.get_from_orm_cache(parameters, related_model_class) for parameters in value],
-                "annotation": custom_relationship_annotation,
-            }
+
+            if relationship.type == "one-to-many":
+                relationship_fields["custom_relationship_foreign_keys"][related_model_class.__name__] = {
+                    **value,
+                    "_annotation": custom_relationship_annotation,
+                }
+            else:
+                relationship_fields["custom_relationship_many_to_many_fields"][field] = {
+                    "objects": [diffsync.get_from_orm_cache(parameters, related_model_class) for parameters in value],
+                    "annotation": custom_relationship_annotation,
+                }
+
             return
 
         django_field = cls._model._meta.get_field(field)

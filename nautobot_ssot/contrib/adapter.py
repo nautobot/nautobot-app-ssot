@@ -1,4 +1,5 @@
 """Base adapter module for interfacing with Nautobot in SSoT."""
+
 # pylint: disable=protected-access
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
@@ -221,6 +222,16 @@ class NautobotAdapter(DiffSync):
             # Only use those where there is a single field defined, all 'None's will not help us.
             if any(dictionary_representation.values()):
                 related_objects_list.append(dictionary_representation)
+
+        if relationship.type == "one-to-many" and annotation.side == RelationshipSideEnum.DESTINATION:
+            if not related_objects_list:
+                return None
+            elif len(related_objects_list) == 1:
+                return related_objects_list[0]
+            else:
+                # TODO: raise something interesting
+                pass
+
         return related_objects_list
 
     def _construct_relationship_association_parameters(self, annotation, database_object):
