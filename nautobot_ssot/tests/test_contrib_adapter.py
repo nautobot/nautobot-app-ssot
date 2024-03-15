@@ -1,5 +1,6 @@
 """Tests for contrib.NautobotAdapter."""
 
+from typing import List
 from unittest import skip
 from unittest.mock import MagicMock
 
@@ -14,8 +15,9 @@ from nautobot.circuits import models as circuits_models
 from nautobot.dcim import models as dcim_models
 from nautobot.extras import models as extras_models
 from nautobot.extras.choices import RelationshipTypeChoices
+from nautobot.ipam import models as ipam_models
 from nautobot.tenancy import models as tenancy_models
-from typing_extensions import Annotated
+from typing_extensions import Annotated, TypedDict
 
 from nautobot_ssot.contrib import NautobotAdapter, NautobotModel, CustomFieldAnnotation
 from nautobot_ssot.tests.contrib_base_classes import (
@@ -297,3 +299,57 @@ class CacheTests(TestCase):
             tenant_group_queries = [query["sql"] for query in ctx.captured_queries if query_filter in query["sql"]]
             # One query per tenant to get the tenant group, one to pre-populate the cache, and another query per tenant during `clean`.
             self.assertEqual(6, len(tenant_group_queries))
+
+
+class TestNestedRelationships(TestCase):
+    """Tests for nested relationships."""
+
+    def test_foreign_key_in_many_to_many_field(self):
+        """Test that many to many fields can contain foreign keys."""
+
+        class VLANDict(TypedDict):
+            """Test VLAN dict."""
+
+            id: int
+            location__name: str
+
+        class VLANGroupModel(NautobotModel):
+            """Test VLAN Group model."""
+
+            _model = ipam_models.VLANGroup
+            _modelname = "vlan_group"
+            _identifiers = ("name",)
+            _attributes = ("vlans",)
+
+            name: str
+            vlans: List[VLANDict] = []
+
+        class Adapter(NautobotAdapter):
+            """Test adapter."""
+
+            vlan_group = VLANGroupModel
+            top_level = ["vlan_group"]
+
+        location_type = dcim_models.LocationType.objects.create(name="Building")
+        location = dcim_models.Location.objects.create(
+            name="Example Building", location_type=location_type, status=extras_models.Status.objects.get(name="Active")
+        )
+        group = ipam_models.VLANGroup.objects.create(name="Test VLAN Group")
+        amount_of_vlans = 5
+        for i in range(amount_of_vlans):
+            ipam_models.VLAN.objects.create(
+                vlan_group=group,
+                vid=i,
+                name=f"VLAN {i}",
+                status=extras_models.Status.objects.get(name="Active"),
+                location=location,
+            )
+
+        adapter = Adapter(job=MagicMock())
+        adapter.load()
+
+        diffsync_vlan_group = adapter.get_all("vlan_group")[0]
+
+        self.assertEqual(amount_of_vlans, len(diffsync_vlan_group.vlans))
+        for vlan in diffsync_vlan_group.vlans:
+            self.assertEqual(location.name, vlan["location__name"])
