@@ -1,4 +1,5 @@
 """Tests for contrib.NautobotAdapter."""
+
 from unittest import skip
 from unittest.mock import MagicMock
 
@@ -226,16 +227,16 @@ class AdapterCustomRelationshipTest(TestCase):
     def setUp(self):
         self.relationship = extras_models.Relationship.objects.create(
             label="Test Relationship",
-            source_type=ContentType.objects.get_for_model(tenancy_models.Tenant),
-            destination_type=ContentType.objects.get_for_model(circuits_models.Provider),
+            source_type=ContentType.objects.get_for_model(circuits_models.Provider),
+            destination_type=ContentType.objects.get_for_model(tenancy_models.Tenant),
             type=RelationshipTypeChoices.TYPE_ONE_TO_MANY,
         )
         self.tenant = tenancy_models.Tenant.objects.create(name="Test Tenant")
         self.provider = circuits_models.Provider.objects.create(name="Test Provider")
         extras_models.RelationshipAssociation.objects.create(
             relationship=self.relationship,
-            source=self.tenant,
-            destination=self.provider,
+            source=self.provider,
+            destination=self.tenant,
         )
 
     def test_load_source(self):

@@ -1,4 +1,5 @@
 """Base classes for contrib testing."""
+
 from typing import Optional, List
 from unittest import skip
 from unittest.mock import MagicMock
@@ -501,7 +502,7 @@ class TenantModelCustomRelationship(NautobotModel):
 
     name: str
     provider__name: Annotated[
-        Optional[str], CustomRelationshipAnnotation(name="Test Relationship", side=RelationshipSideEnum.SOURCE)
+        Optional[str], CustomRelationshipAnnotation(name="Test Relationship", side=RelationshipSideEnum.DESTINATION)
     ] = None
 
 
@@ -521,5 +522,5 @@ class ProviderModelCustomRelationship(NautobotModel):
 
     name: str
     tenants: Annotated[
-        List[TenantDict], CustomRelationshipAnnotation(name="Test Relationship", side=RelationshipSideEnum.DESTINATION)
+        List[TenantDict], CustomRelationshipAnnotation(name="Test Relationship", side=RelationshipSideEnum.SOURCE)
     ] = []
