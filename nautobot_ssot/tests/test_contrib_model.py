@@ -8,6 +8,7 @@ from nautobot.circuits import models as circuits_models
 from nautobot.core.testing import TestCase
 from nautobot.dcim import models as dcim_models
 from nautobot.dcim.choices import InterfaceTypeChoices
+from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras import models as extras_models
 from nautobot.tenancy import models as tenancy_models
 
@@ -26,13 +27,14 @@ from nautobot_ssot.tests.test_contrib_adapter import (
 )
 
 
-class BaseModelCustomRelationshipTest(TestCase):
+class BaseModelCustomRelationshipOneToManyTest(TestCase):
     """Tests for manipulating custom relationships through the shared base model code."""
 
     @classmethod
     def setUpTestData(cls):
         cls.relationship = extras_models.Relationship.objects.create(
             label="Test Relationship",
+            type=RelationshipTypeChoices.TYPE_ONE_TO_MANY,
             source_type=ContentType.objects.get_for_model(circuits_models.Provider),
             destination_type=ContentType.objects.get_for_model(tenancy_models.Tenant),
         )
@@ -58,7 +60,7 @@ class BaseModelCustomRelationshipTest(TestCase):
         diffsync_tenant.diffsync = CustomRelationShipTestAdapterDestination(job=MagicMock())
         diffsync_tenant.update({"provider__name": self.provider_one.name})
         diffsync_tenant.update({"provider__name": self.provider_two.name})
-        self.assertEqual(extras_models.RelationshipAssociation.objects.first().destination, self.provider_two)
+        self.assertEqual(extras_models.RelationshipAssociation.objects.first().source, self.provider_two)
 
     def test_custom_relationship_add_to_many(self):
         diffsync_provider = ProviderModelCustomRelationship(
@@ -78,7 +80,7 @@ class BaseModelCustomRelationshipTest(TestCase):
         diffsync_provider.update({"tenants": [{"name": self.tenant_one.name}]})
         diffsync_provider.update({"tenants": [{"name": self.tenant_two.name}]})
         self.assertEqual(extras_models.RelationshipAssociation.objects.count(), 1)
-        self.assertEqual(extras_models.RelationshipAssociation.objects.first().source, self.tenant_two)
+        self.assertEqual(extras_models.RelationshipAssociation.objects.first().destination, self.tenant_two)
 
 
 class BaseModelCustomRelationshipTestWithDeviceData(TestCaseWithDeviceData):

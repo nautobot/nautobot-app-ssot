@@ -171,8 +171,10 @@ class NautobotModel(DiffSyncModel):
             else:
                 related_object_content_type = relationship.destination_type
             related_model_class = related_object_content_type.model_class()
-
-            if relationship.type == RelationshipTypeChoices.TYPE_ONE_TO_MANY:
+            if (
+                relationship.type == RelationshipTypeChoices.TYPE_ONE_TO_MANY
+                and custom_relationship_annotation.side == RelationshipSideEnum.DESTINATION
+            ):
                 relationship_fields["custom_relationship_foreign_keys"][related_model_class.__name__] = {
                     **value,
                     "_annotation": custom_relationship_annotation,
@@ -337,9 +339,7 @@ class NautobotModel(DiffSyncModel):
                 )
             else:
                 parameters["destination_id"] = obj.id
-                source_object = diffsync.get_from_orm_cache(
-                    related_model_dict, relationship.destination_type.model_class()
-                )
+                source_object = diffsync.get_from_orm_cache(related_model_dict, relationship.source_type.model_class())
                 RelationshipAssociation.objects.update_or_create(**parameters, defaults={"source_id": source_object.id})
 
     @classmethod
