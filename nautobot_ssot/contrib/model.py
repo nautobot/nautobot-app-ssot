@@ -175,7 +175,7 @@ class NautobotModel(DiffSyncModel):
                 relationship.type == RelationshipTypeChoices.TYPE_ONE_TO_MANY
                 and custom_relationship_annotation.side == RelationshipSideEnum.DESTINATION
             ):
-                relationship_fields["custom_relationship_foreign_keys"][related_model_class.__name__] = {
+                relationship_fields["custom_relationship_foreign_keys"][field] = {
                     **value,
                     "_annotation": custom_relationship_annotation,
                 }
