@@ -12,8 +12,12 @@ from nautobot.extras.models import Relationship, RelationshipAssociation
 from typing import DefaultDict, Dict, Type
 from typing_extensions import get_type_hints
 
-from nautobot_ssot.contrib.types import ParameterSet, CustomFieldAnnotation, CustomRelationshipAnnotation, \
-    RelationshipSideEnum
+from nautobot_ssot.contrib.types import (
+    ParameterSet,
+    CustomFieldAnnotation,
+    CustomRelationshipAnnotation,
+    RelationshipSideEnum,
+)
 
 
 class NautobotAdapter(DiffSync):
