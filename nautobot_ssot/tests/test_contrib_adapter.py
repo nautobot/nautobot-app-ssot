@@ -1,4 +1,5 @@
 """Tests for contrib.NautobotAdapter."""
+
 from typing import List
 from unittest import skip
 from unittest.mock import MagicMock
@@ -236,8 +237,8 @@ class AdapterCustomRelationshipTest(TestCase):
         self.provider = circuits_models.Provider.objects.create(name="Test Provider")
         extras_models.RelationshipAssociation.objects.create(
             relationship=self.relationship,
-            source=self.tenant,
-            destination=self.provider,
+            source=self.provider,
+            destination=self.tenant,
         )
 
     def test_load_source(self):

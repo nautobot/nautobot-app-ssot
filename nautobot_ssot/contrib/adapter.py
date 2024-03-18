@@ -1,4 +1,5 @@
 """Base adapter module for interfacing with Nautobot in SSoT."""
+
 # pylint: disable=protected-access
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
@@ -7,9 +8,11 @@ from typing import DefaultDict, Dict, Type, get_args
 
 import pydantic
 from diffsync import DiffSync
+from diffsync.exceptions import ObjectCrudException
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 from nautobot.extras.models import Relationship, RelationshipAssociation
+from nautobot.extras.choices import RelationshipTypeChoices
 from typing_extensions import get_type_hints
 
 from nautobot_ssot.contrib.types import (
@@ -208,6 +211,22 @@ class NautobotAdapter(DiffSync):
             # Only use those where there is a single field defined, all 'None's will not help us.
             if any(dictionary_representation.values()):
                 related_objects_list.append(dictionary_representation)
+
+        # For one-to-many, we need to return an object, not a list of objects
+        if (
+            relationship.type == RelationshipTypeChoices.TYPE_ONE_TO_MANY
+            and annotation.side == RelationshipSideEnum.DESTINATION
+        ):
+            if not related_objects_list:
+                return None
+
+            if len(related_objects_list) == 1:
+                return related_objects_list[0]
+
+            raise ObjectCrudException(
+                f"More than one related objects for a {RelationshipTypeChoices.TYPE_ONE_TO_MANY} relationship: {related_objects_list}"
+            )
+
         return related_objects_list
 
     @classmethod
