@@ -229,8 +229,8 @@ class AdapterCustomRelationshipTest(TestCase):
     def setUp(self):
         self.relationship = extras_models.Relationship.objects.create(
             name="Test Relationship",
-            source_type=ContentType.objects.get_for_model(tenancy_models.Tenant),
-            destination_type=ContentType.objects.get_for_model(circuits_models.Provider),
+            source_type=ContentType.objects.get_for_model(circuits_models.Circuit),
+            destination_type=ContentType.objects.get_for_model(tenancy_models.Tenant),
             type=RelationshipTypeChoices.TYPE_ONE_TO_MANY,
         )
         self.tenant = tenancy_models.Tenant.objects.create(name="Test Tenant")
@@ -240,6 +240,7 @@ class AdapterCustomRelationshipTest(TestCase):
             source=self.provider,
             destination=self.tenant,
         )
+        super().setUp()
 
     def test_load_source(self):
         """Test loading a single custom relationship from the source side."""

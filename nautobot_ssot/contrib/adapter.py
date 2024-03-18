@@ -250,8 +250,6 @@ class NautobotAdapter(DiffSync):
         relationship = self.get_from_orm_cache({"name": annotation.name}, Relationship)
         relationship_association_parameters = {
             "relationship": relationship,
-            "source_type": relationship.source_type,
-            "destination_type": relationship.destination_type,
         }
         if annotation.side == RelationshipSideEnum.SOURCE:
             relationship_association_parameters["source_id"] = database_object.id
