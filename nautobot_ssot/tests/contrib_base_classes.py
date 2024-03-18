@@ -1,4 +1,5 @@
 """Base classes for contrib testing."""
+
 from typing import Optional, List
 from unittest import skip
 from unittest.mock import MagicMock
@@ -51,9 +52,9 @@ class TestCaseWithDeviceData(TestCase):
                 type=InterfaceTypeChoices.TYPE_VIRTUAL,
                 status=cls.status_active,
             )
-        cls.namespace = ipam_models.Namespace.objects.get(name="Global")
+        cls.namespace, _ = ipam_models.Namespace.objects.get_or_create(name="Global")
         cls.prefix = ipam_models.Prefix.objects.create(
-            prefix="192.0.2.0/24", namespace=ipam_models.Namespace.objects.get(name="Global"), status=cls.status_active
+            prefix="192.0.2.0/24", namespace=cls.namespace, status=cls.status_active
         )
         cls.ip_address_1 = ipam_models.IPAddress(
             address="192.0.2.1/24",
@@ -501,7 +502,7 @@ class TenantModelCustomRelationship(NautobotModel):
 
     name: str
     provider__name: Annotated[
-        Optional[str], CustomRelationshipAnnotation(name="Test Relationship", side=RelationshipSideEnum.SOURCE)
+        Optional[str], CustomRelationshipAnnotation(name="Test Relationship", side=RelationshipSideEnum.DESTINATION)
     ] = None
 
 
@@ -521,5 +522,5 @@ class ProviderModelCustomRelationship(NautobotModel):
 
     name: str
     tenants: Annotated[
-        List[TenantDict], CustomRelationshipAnnotation(name="Test Relationship", side=RelationshipSideEnum.DESTINATION)
+        List[TenantDict], CustomRelationshipAnnotation(name="Test Relationship", side=RelationshipSideEnum.SOURCE)
     ] = []

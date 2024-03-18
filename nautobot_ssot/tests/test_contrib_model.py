@@ -1,4 +1,5 @@
 """Tests for contrib.NautobotModel."""
+
 from unittest.mock import MagicMock
 from typing import List, Optional
 
@@ -7,6 +8,7 @@ from nautobot.circuits import models as circuits_models
 from nautobot.core.testing import TestCase
 from nautobot.dcim import models as dcim_models
 from nautobot.dcim.choices import InterfaceTypeChoices
+from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras import models as extras_models
 from nautobot.tenancy import models as tenancy_models
 
@@ -25,15 +27,16 @@ from nautobot_ssot.tests.test_contrib_adapter import (
 )
 
 
-class BaseModelCustomRelationshipTest(TestCase):
+class BaseModelCustomRelationshipOneToManyTest(TestCase):
     """Tests for manipulating custom relationships through the shared base model code."""
 
     @classmethod
     def setUpTestData(cls):
         cls.relationship = extras_models.Relationship.objects.create(
             label="Test Relationship",
-            source_type=ContentType.objects.get_for_model(tenancy_models.Tenant),
-            destination_type=ContentType.objects.get_for_model(circuits_models.Provider),
+            type=RelationshipTypeChoices.TYPE_ONE_TO_MANY,
+            source_type=ContentType.objects.get_for_model(circuits_models.Provider),
+            destination_type=ContentType.objects.get_for_model(tenancy_models.Tenant),
         )
         cls.tenant_one = tenancy_models.Tenant.objects.create(name="Test Tenant 1")
         cls.tenant_two = tenancy_models.Tenant.objects.create(name="Test Tenant 2")
@@ -45,7 +48,7 @@ class BaseModelCustomRelationshipTest(TestCase):
             name=self.tenant_one.name,
             pk=self.tenant_one.pk,
         )
-        diffsync_tenant.diffsync = CustomRelationShipTestAdapterSource(job=MagicMock())
+        diffsync_tenant.diffsync = CustomRelationShipTestAdapterDestination(job=MagicMock())
         diffsync_tenant.update({"provider__name": self.provider_one.name})
         self.assertEqual(extras_models.RelationshipAssociation.objects.count(), 1)
 
@@ -54,17 +57,17 @@ class BaseModelCustomRelationshipTest(TestCase):
             name=self.tenant_one.name,
             pk=self.tenant_one.pk,
         )
-        diffsync_tenant.diffsync = CustomRelationShipTestAdapterSource(job=MagicMock())
+        diffsync_tenant.diffsync = CustomRelationShipTestAdapterDestination(job=MagicMock())
         diffsync_tenant.update({"provider__name": self.provider_one.name})
         diffsync_tenant.update({"provider__name": self.provider_two.name})
-        self.assertEqual(extras_models.RelationshipAssociation.objects.first().destination, self.provider_two)
+        self.assertEqual(extras_models.RelationshipAssociation.objects.first().source, self.provider_two)
 
     def test_custom_relationship_add_to_many(self):
         diffsync_provider = ProviderModelCustomRelationship(
             name=self.provider_one.name,
             pk=self.provider_one.pk,
         )
-        diffsync_provider.diffsync = CustomRelationShipTestAdapterDestination(job=MagicMock())
+        diffsync_provider.diffsync = CustomRelationShipTestAdapterSource(job=MagicMock())
         diffsync_provider.update({"tenants": [{"name": self.tenant_one.name}, {"name": self.tenant_two.name}]})
         self.assertEqual(extras_models.RelationshipAssociation.objects.count(), 2)
 
@@ -73,11 +76,11 @@ class BaseModelCustomRelationshipTest(TestCase):
             name=self.provider_one.name,
             pk=self.provider_one.pk,
         )
-        diffsync_provider.diffsync = CustomRelationShipTestAdapterDestination(job=MagicMock())
+        diffsync_provider.diffsync = CustomRelationShipTestAdapterSource(job=MagicMock())
         diffsync_provider.update({"tenants": [{"name": self.tenant_one.name}]})
         diffsync_provider.update({"tenants": [{"name": self.tenant_two.name}]})
         self.assertEqual(extras_models.RelationshipAssociation.objects.count(), 1)
-        self.assertEqual(extras_models.RelationshipAssociation.objects.first().source, self.tenant_two)
+        self.assertEqual(extras_models.RelationshipAssociation.objects.first().destination, self.tenant_two)
 
 
 class BaseModelCustomRelationshipTestWithDeviceData(TestCaseWithDeviceData):
