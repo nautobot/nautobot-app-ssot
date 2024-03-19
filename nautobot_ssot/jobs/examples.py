@@ -599,6 +599,12 @@ class NautobotLocal(NautobotAdapter):
 class ExampleDataSource(DataSource):
     """Sync Region and Site data from a remote Nautobot instance into the local Nautobot instance."""
 
+    source = ObjectVar(
+        model=ExternalIntegration,
+        queryset=ExternalIntegration.objects.all(),
+        display_field="display",
+        label="Nautobot Demo Instance",
+    )
     source_url = StringVar(
         description="Remote Nautobot instance to load Sites and Regions from", default="https://demo.nautobot.com"
     )
@@ -630,13 +636,27 @@ class ExampleDataSource(DataSource):
         )
 
     def run(
-        self, dryrun, memory_profiling, source_url, source_token, *args, **kwargs
+        self, dryrun, memory_profiling, source, source_url, source_token, *args, **kwargs
     ):  # pylint:disable=arguments-differ
         """Run sync."""
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
-        self.source_url = source_url
-        self.source_token = source_token
+        try:
+            if source:
+                self.logger.info(f"Using external integration '{source}'")
+                self.source_url = source.remote_url
+                secrets_group = source.secrets_group
+                self.source_token = secrets_group.get_secret_value(
+                    access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
+                    secret_type=SecretsGroupSecretTypeChoices.TYPE_TOKEN,
+                )
+            else:
+                self.source_url = source_url
+                self.source_token = source_token
+        except Exception as e:
+            self.logger.error(f"Error setting up job: {e}")
+            raise
+
         super().run(dryrun, memory_profiling, *args, **kwargs)
 
     def load_source_adapter(self):
