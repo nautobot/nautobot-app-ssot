@@ -8,7 +8,7 @@
         "verbose_name": "Single Source of Truth",
         "app_slug": "nautobot-ssot",
         "project_slug": "nautobot-app-ssot",
-        "repo_url": "https://github.com/nautobot/nautobot-app-ssot/",
+        "repo_url": "https://github.com/nautobot/nautobot-app-ssot",
         "base_url": "ssot",
         "min_nautobot_version": "2.0.0",
         "max_nautobot_version": "2.9999",
@@ -21,7 +21,7 @@
         "_drift_manager": {
             "template": "https://github.com/nautobot/cookiecutter-nautobot-app.git",
             "template_dir": "nautobot-app",
-            "template_ref": "develop",
+            "template_ref": "refs/tags/nautobot-app-v2.2.1",
             "cookie_dir": "",
             "branch_prefix": "drift-manager",
             "pull_request_strategy": "create",
@@ -29,7 +29,7 @@
                 "black"
             ],
             "draft": true,
-            "baked_commit_ref": "802b921a43ac6c3a5bfe059c4feccc8eef629fed"
+            "baked_commit_ref": "88cb0d71afd4889658b76c64cfb86d5b347e7565"
         }
     }
 }

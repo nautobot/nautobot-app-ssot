@@ -4,7 +4,7 @@
   <img src="https://raw.githubusercontent.com/nautobot/nautobot-app-ssot/develop/docs/images/icon-nautobot-ssot.png" class="logo" height="200px">
   <br>
   <a href="https://github.com/nautobot/nautobot-app-ssot/actions"><img src="https://github.com/nautobot/nautobot-app-ssot/actions/workflows/ci.yml/badge.svg?branch=main"></a>
-  <a href="https://docs.nautobot.com/projects/ssot/en/latest"><img src="https://readthedocs.org/projects/nautobot-plugin-ssot/badge/"></a>
+  <a href="https://docs.nautobot.com/projects/ssot/en/latest/"><img src="https://readthedocs.org/projects/nautobot-plugin-ssot/badge/"></a>
   <a href="https://pypi.org/project/nautobot-ssot/"><img src="https://img.shields.io/pypi/v/nautobot-ssot"></a>
   <a href="https://pypi.org/project/nautobot-ssot/"><img src="https://img.shields.io/pypi/dm/nautobot-ssot"></a>
   <br>
@@ -85,7 +85,7 @@ The SSoT framework includes a number of integrations with external Systems of Re
 
 ### Contributing to the Documentation
 
-You can find all the Markdown source for the app documentation under the [`docs`](https://github.com/nautobot/nautobot-app-ssot/tree/develop/docs) folder in this repository. For simple edits, a Markdown capable editor is sufficient: clone the repository and edit away.
+You can find all the Markdown source for the App documentation under the [`docs`](https://github.com/nautobot/nautobot-app-ssot/tree/develop/docs) folder in this repository. For simple edits, a Markdown capable editor is sufficient: clone the repository and edit away.
 
 If you need to view the fully-generated documentation site, you can build it with [MkDocs](https://www.mkdocs.org/). A container hosting the documentation can be started using the `invoke` commands (details in the [Development Environment Guide](https://docs.nautobot.com/projects/ssot/en/latest/dev/dev_environment/#docker-development-environment)) on [http://localhost:8001](http://localhost:8001). Using this container, as your changes to the documentation are saved, they will be automatically rebuilt and any pages currently being viewed will be reloaded in your browser.
 

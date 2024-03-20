@@ -1,10 +1,10 @@
 ---
 dev_addr: "127.0.0.1:8001"
-edit_uri: "blob/develop/docs"
+edit_uri: "edit/main/nautobot-app-ssot/docs"
 site_dir: "nautobot_ssot/static/nautobot_ssot/docs"
 site_name: "Single Source of Truth Documentation"
 site_url: "https://docs.nautobot.com/projects/ssot/en/latest/"
-repo_url: "https://github.com/nautobot/nautobot-app-ssot/"
+repo_url: "https://github.com/nautobot/nautobot-app-ssot"
 copyright: "Copyright &copy; The Authors"
 theme:
   name: "material"
@@ -80,7 +80,11 @@ markdown_extensions:
       anchor_linenums: true
   - "pymdownx.inlinehilite"
   - "pymdownx.snippets"
-  - "pymdownx.superfences"
+  - "pymdownx.superfences":
+      custom_fences:
+        - name: "mermaid"
+          class: "mermaid"
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - "footnotes"
 plugins:
   - "search"
@@ -128,6 +132,7 @@ nav:
       - Compatibility Matrix: "admin/compatibility_matrix.md"
       - Release Notes:
           - "admin/release_notes/index.md"
+          - v2.5: "admin/release_notes/version_2.5.md"
           - v2.4: "admin/release_notes/version_2.4.md"
           - v2.3: "admin/release_notes/version_2.3.md"
           - v2.2: "admin/release_notes/version_2.2.md"

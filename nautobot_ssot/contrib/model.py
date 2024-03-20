@@ -1,4 +1,5 @@
 """Base model module for interfacing with Nautobot in SSoT."""
+
 # pylint: disable=protected-access
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
@@ -13,6 +14,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError, MultipleObjectsReturned
 from django.db.models import Model, ProtectedError
 from nautobot.extras.models import Relationship, RelationshipAssociation
+from nautobot.extras.choices import RelationshipTypeChoices
+
 from typing_extensions import get_type_hints
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
@@ -109,7 +112,7 @@ class NautobotModel(DiffSyncModel):
     @classmethod
     def _handle_single_field(
         cls, field, obj, value, relationship_fields, diffsync
-    ):  # pylint: disable=too-many-arguments,too-many-locals
+    ):  # pylint: disable=too-many-arguments,too-many-locals, too-many-branches
         """Set a single field on a Django object to a given value, or, for relationship fields, prepare setting.
 
         :param field: The name of the field to set.
@@ -168,10 +171,20 @@ class NautobotModel(DiffSyncModel):
             else:
                 related_object_content_type = relationship.destination_type
             related_model_class = related_object_content_type.model_class()
-            relationship_fields["custom_relationship_many_to_many_fields"][field] = {
-                "objects": [diffsync.get_from_orm_cache(parameters, related_model_class) for parameters in value],
-                "annotation": custom_relationship_annotation,
-            }
+            if (
+                relationship.type == RelationshipTypeChoices.TYPE_ONE_TO_MANY
+                and custom_relationship_annotation.side == RelationshipSideEnum.DESTINATION
+            ):
+                relationship_fields["custom_relationship_foreign_keys"][field] = {
+                    **value,
+                    "_annotation": custom_relationship_annotation,
+                }
+            else:
+                relationship_fields["custom_relationship_many_to_many_fields"][field] = {
+                    "objects": [diffsync.get_from_orm_cache(parameters, related_model_class) for parameters in value],
+                    "annotation": custom_relationship_annotation,
+                }
+
             return
 
         django_field = cls._model._meta.get_field(field)
@@ -326,9 +339,7 @@ class NautobotModel(DiffSyncModel):
                 )
             else:
                 parameters["destination_id"] = obj.id
-                source_object = diffsync.get_from_orm_cache(
-                    related_model_dict, relationship.destination_type.model_class()
-                )
+                source_object = diffsync.get_from_orm_cache(related_model_dict, relationship.source_type.model_class())
                 RelationshipAssociation.objects.update_or_create(**parameters, defaults={"source_id": source_object.id})
 
     @classmethod
@@ -357,7 +368,10 @@ class NautobotModel(DiffSyncModel):
                         f"for generic foreign keys."
                     ) from error
                 try:
-                    related_model = diffsync.get_from_orm_cache({"app_label": app_label, "model": model}, ContentType)
+                    related_model_content_type = diffsync.get_from_orm_cache(
+                        {"app_label": app_label, "model": model}, ContentType
+                    )
+                    related_model = related_model_content_type.model_class()
                 except ContentType.DoesNotExist as error:
                     raise ObjectCrudException(f"Unknown content type '{app_label}.{model}'.") from error
             # Set the foreign key to 'None' when none of the fields are set to anything
