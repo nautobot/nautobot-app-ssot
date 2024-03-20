@@ -43,3 +43,19 @@
 
 - [386](https://github.com/nautobot/nautobot-app-ssot/pull/386) - Improves error handling in contrib (backport of #374)
 - [373](https://github.com/nautobot/nautobot-app-ssot/pull/373) - Change contrib.NautobotModel.get_from_db to use a PK (backport of #371)
+
+## v1.6.3 - 2024-03-20
+
+## Fixed
+
+- [396](https://github.com/nautobot/nautobot-app-ssot/pull/396) - Fix custom one-to-many relationships (backport of #393)
+- [396](https://github.com/nautobot/nautobot-app-ssot/pull/396) -
+  Use `typing.get_args` in favor of accessing `__args__` directly (backport of #390)
+- [396](https://github.com/nautobot/nautobot-app-ssot/pull/396) -
+  Fixed issue with generic relationships and `NautobotAdapter.load` (backport of #388)
+- [396](Fixed issue with generic relationships and `NautobotAdapter.load`.) -
+  Allow foreign keys inside of many to many relationships (backport of #377)
+
+## Housekeeping
+
+- Replicate module and test module structure for contrib code in LTM branch
