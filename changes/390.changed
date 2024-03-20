@@ -1,1 +1,0 @@
-Use typing.get_args in contrib in favor of accessing __args__.
