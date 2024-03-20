@@ -1,7 +1,7 @@
 
-# v2.3 Release Notes
+# v2.4 Release Notes
 
-## v2.3.0 - 2024-02-21
+## v2.4.0 - 2024-03-08
 
 ## Added
 
