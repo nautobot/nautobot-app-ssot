@@ -15,6 +15,7 @@ from nautobot.tenancy.models import Tenant
 
 from diffsync import DiffSync
 from diffsync.enum import DiffSyncFlags
+from diffsync.exceptions import ObjectNotFound
 
 import requests
 
@@ -73,12 +74,13 @@ class PrefixModel(NautobotModel):
     # Metadata about this model
     _model = Prefix
     _modelname = "prefix"
-    _identifiers = ("prefix", "tenant__name")
+    _identifiers = ("network", "prefix_length", "tenant__name")
     # To keep this example simple, we don't include **all** attributes of a Prefix here. But you could!
     _attributes = ("description", "status__name")
 
     # Data type declarations for all identifiers and attributes
-    prefix: str
+    network: str
+    prefix_length: int
     tenant__name: Optional[str]
     status__name: str
     description: str
@@ -135,7 +137,7 @@ class LocationRemoteModel(LocationModel):
         data = {}
         if "description" in attrs:
             data["description"] = attrs["description"]
-        if "status" in attrs:
+        if "status__name" in attrs:
             data["status"] = attrs["status__name"]
         if "parent__name" in attrs:
             if attrs["parent__name"]:
@@ -190,7 +192,8 @@ class PrefixRemoteModel(PrefixModel):
         diffsync.post(
             "/api/ipam/prefixes/",
             {
-                "prefix": ids["prefix"],
+                "network": ids["network"],
+                "prefix_length": ids["prefix_length"],
                 "tenant": {"name": ids["tenant__name"]} if ids["tenant__name"] else None,
                 "description": attrs["description"],
                 "status": attrs["status__name"],
@@ -207,7 +210,7 @@ class PrefixRemoteModel(PrefixModel):
         data = {}
         if "description" in attrs:
             data["description"] = attrs["description"]
-        if "status" in attrs:
+        if "status__name" in attrs:
             data["status"] = attrs["status__name"]
         self.diffsync.patch(f"/api/dcim/locations/{self.pk}/", data)
         return super().update(attrs)
@@ -288,21 +291,35 @@ class NautobotRemote(DiffSync):
                 "pk": loc_entry["id"],
             }
             if loc_entry["parent"]:
-                location_args["parent_name"] = loc_entry["parent"]["name"]
+                location_args["parent__name"] = loc_entry["parent"]["name"]
             new_location = self.location(**location_args)
             self.add(new_location)
             self.job.logger.debug(f"Loaded {new_location} Location from remote Nautobot instance")
 
-        for prefix_entry in self._get_api_data("api/ipam/prefixes/?depth=1"):
-            prefix = self.prefix(
-                prefix=prefix_entry["prefix"],
-                description=prefix_entry["description"],
-                status__name=prefix_entry["status"]["name"] if prefix_entry["status"].get("name") else "Active",
-                tenant__name=prefix_entry["tenant"]["name"] if prefix_entry["tenant"] else "",
-                pk=prefix_entry["id"],
+        for tenant_entry in self._get_api_data("api/tenancy/tenants/?depth=1"):
+            tenant = self.tenant(
+                name=tenant_entry["name"],
+                pk=tenant_entry["id"],
             )
-            self.add(prefix)
-            self.job.logger.debug(f"Loaded {prefix} from remote Nautobot instance")
+            self.add(tenant)
+
+        for prefix_entry in self._get_api_data("api/ipam/prefixes/?depth=1"):
+            tenant_name = prefix_entry["tenant"]["name"] if prefix_entry["tenant"] else ""
+            try:
+                tenant = self.get(self.tenant, tenant_name)
+                prefix = self.prefix(
+                    network=prefix_entry["network"],
+                    prefix_length=prefix_entry["prefix_length"],
+                    description=prefix_entry["description"],
+                    status__name=prefix_entry["status"]["name"] if prefix_entry["status"].get("name") else "Active",
+                    tenant__name=tenant_name,
+                    pk=prefix_entry["id"],
+                )
+                self.add(prefix)
+                tenant.add_child(prefix)
+                self.job.logger.debug(f"Loaded {prefix} from remote Nautobot instance")
+            except ObjectNotFound:
+                self.job.logger.debug(f"Unable to find Tenant {tenant_name} so skipping loading of Prefixes.")
 
     def post(self, path, data):
         """Send an appropriately constructed HTTP POST request."""
@@ -333,42 +350,7 @@ class NautobotLocal(NautobotAdapter):
     prefix = PrefixModel
 
     # Top-level class labels, i.e. those classes that are handled directly rather than as children of other models
-    top_level = ["locationtype", "location", "prefix"]
-
-    def load(self):
-        """Load LocationType and Location data from the local Nautobot instance."""
-        for loc_type in LocationType.objects.all():
-            new_lt = self.locationtype(
-                name=loc_type.name,
-                description=loc_type.description,
-                nestable=loc_type.nestable,
-                pk=loc_type.pk,
-            )
-            self.add(new_lt)
-            self.job.logger.debug(f"Loaded {new_lt} LocationType from local Nautobot instance")
-
-        for location in Location.objects.all():
-            loc_model = self.location(
-                name=location.name,
-                status=location.status.name,
-                location_type=location.location_type.name,
-                parent__name=location.parent.name if location.parent else "",
-                description=location.description,
-                pk=location.pk,
-            )
-            self.add(loc_model)
-            self.job.logger.debug(f"Loaded {loc_model} Location from local Nautobot instance")
-
-        for prefix in Prefix.objects.all():
-            prefix_model = self.prefix(
-                prefix=str(prefix.prefix),
-                description=prefix.description,
-                status=prefix.status.name,
-                tenant__name=prefix.tenant.name if prefix.tenant else "",
-                pk=prefix.pk,
-            )
-            self.add(prefix_model)
-            self.job.logger.debug(f"Loaded {prefix_model} from local Nautobot instance")
+    top_level = ["locationtype", "location", "tenant"]
 
 
 # The actual Data Source and Data Target Jobs are relatively simple to implement
@@ -405,11 +387,10 @@ class ExampleDataSource(DataSource):
             DataMapping("Region (remote)", None, "Region (local)", reverse("dcim:location_list")),
             DataMapping("Site (remote)", None, "Site (local)", reverse("dcim:location_list")),
             DataMapping("Prefix (remote)", None, "Prefix (local)", reverse("ipam:prefix_list")),
+            DataMapping("Tenant (remote)", None, "Tenant (local)", reverse("tenancy:tenant_list")),
         )
 
-    def run(
-        self, dryrun, memory_profiling, source_url, source_token, *args, **kwargs
-    ):  # pylint:disable=arguments-differ
+    def run(self, dryrun, memory_profiling, source_url, source_token, *args, **kwargs):  # pylint:disable=arguments-differ
         """Run sync."""
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
@@ -451,6 +432,11 @@ class ExampleDataSource(DataSource):
                 )
             except Prefix.DoesNotExist:
                 pass
+        elif model_name == "tenant":
+            try:
+                return Tenant.objects.get(name=unique_id)
+            except Tenant.DoesNotExist:
+                pass
         return None
 
 
@@ -482,6 +468,7 @@ class ExampleDataTarget(DataTarget):
             DataMapping("Region (local)", reverse("dcim:location_list"), "Region (remote)", None),
             DataMapping("Site (local)", reverse("dcim:location_list"), "Site (remote)", None),
             DataMapping("Prefix (local)", reverse("ipam:prefix_list"), "Prefix (remote)", None),
+            DataMapping("Tenant (local)", reverse("tenancy:tenant_list"), "Tenant (remote)", None),
         )
 
     def load_source_adapter(self):
@@ -516,5 +503,10 @@ class ExampleDataTarget(DataTarget):
                     prefix=unique_id.split("__")[0], tenant__name=unique_id.split("__")[1] or None
                 )
             except Prefix.DoesNotExist:
+                pass
+        elif model_name == "tenant":
+            try:
+                return Tenant.objects.get(name=unique_id)
+            except Tenant.DoesNotExist:
                 pass
         return None
