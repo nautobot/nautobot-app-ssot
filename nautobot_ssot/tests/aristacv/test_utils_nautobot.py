@@ -2,9 +2,12 @@
 
 from unittest import skip
 from unittest.mock import MagicMock, patch
+
+from django.test import override_settings
+from nautobot.core.testing import TestCase
 from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer
 from nautobot.extras.models import Relationship, Role, Status, Tag
-from nautobot.core.testing import TestCase
+
 from nautobot_ssot.integrations.aristacv.utils import nautobot
 
 
@@ -103,99 +106,53 @@ class TestNautobotUtils(TestCase):
             result = nautobot.get_device_version(mock_device)
         self.assertEqual(result, "1.0")
 
-    @patch.dict(
-        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
-        {
-            "aristacv_hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
-            "aristacv_site_mappings": {"ams01": "Amsterdam"},
-            "aristacv_role_mappings": {"leaf": "leaf"},
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
+                "aristacv_site_mappings": {"ams01": "Amsterdam"},
+                "aristacv_role_mappings": {"leaf": "leaf"},
+            },
         },
     )
     def test_parse_hostname(self):
         """Test the parse_hostname method."""
+        config = nautobot.get_config()
         host = "ams01-leaf-01"
-        results = nautobot.parse_hostname(host)
+        results = nautobot.parse_hostname(host, config.hostname_patterns)
         expected = ("ams01", "leaf")
         self.assertEqual(results, expected)
 
-    @patch.dict(
-        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
-        {
-            "aristacv_hostname_patterns": [r"(?P<site>\w{2,3}\d+)-.+-\d+"],
-            "aristacv_site_mappings": {"ams01": "Amsterdam"},
-            "aristacv_role_mappings": {},
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_hostname_patterns": [r"(?P<site>\w{2,3}\d+)-.+-\d+"],
+                "aristacv_site_mappings": {"ams01": "Amsterdam"},
+                "aristacv_role_mappings": {},
+            },
         },
     )
     def test_parse_hostname_only_site(self):
         """Test the parse_hostname method with only site specified."""
+        config = nautobot.get_config()
         host = "ams01-leaf-01"
-        results = nautobot.parse_hostname(host)
+        results = nautobot.parse_hostname(host, config.hostname_patterns)
         expected = ("ams01", None)
         self.assertEqual(results, expected)
 
-    @patch.dict(
-        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
-        {
-            "aristacv_hostname_patterns": [r".+-(?P<role>\w+)-\d+"],
-            "aristacv_site_mappings": {},
-            "aristacv_role_mappings": {"leaf": "leaf"},
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_hostname_patterns": [r".+-(?P<role>\w+)-\d+"],
+                "aristacv_site_mappings": {},
+                "aristacv_role_mappings": {"leaf": "leaf"},
+            },
         },
     )
     def test_parse_hostname_only_role(self):
         """Test the parse_hostname method with only role specified."""
+        config = nautobot.get_config()
         host = "ams01-leaf-01"
-        results = nautobot.parse_hostname(host)
+        results = nautobot.parse_hostname(host, config.hostname_patterns)
         expected = (None, "leaf")
-        self.assertEqual(results, expected)
-
-    @patch.dict(
-        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
-        {
-            "aristacv_hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
-            "aristacv_site_mappings": {"ams01": "Amsterdam"},
-        },
-    )
-    def test_get_site_from_map_success(self):
-        """Test the get_site_from_map method with response."""
-        results = nautobot.get_site_from_map("ams01")
-        expected = "Amsterdam"
-        self.assertEqual(results, expected)
-
-    @patch.dict(
-        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
-        {
-            "aristacv_hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
-            "aristacv_site_mappings": {},
-        },
-    )
-    def test_get_site_from_map_fail(self):
-        """Test the get_site_from_map method with failed response."""
-        results = nautobot.get_site_from_map("dc01")
-        expected = None
-        self.assertEqual(results, expected)
-
-    @patch.dict(
-        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
-        {
-            "aristacv_hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
-            "aristacv_role_mappings": {"edge": "Edge Router"},
-        },
-    )
-    def test_get_role_from_map_success(self):
-        """Test the get_role_from_map method with response."""
-        results = nautobot.get_role_from_map("edge")
-        expected = "Edge Router"
-        self.assertEqual(results, expected)
-
-    @patch.dict(
-        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
-        {
-            "aristacv_hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
-            "aristacv_role_mappings": {},
-        },
-    )
-    def test_get_role_from_map_fail(self):
-        """Test the get_role_from_map method with failed response."""
-        results = nautobot.get_role_from_map("rtr")
-        expected = None
         self.assertEqual(results, expected)

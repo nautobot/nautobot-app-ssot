@@ -3,8 +3,9 @@
 import ipaddress
 from unittest.mock import MagicMock, patch
 
-from nautobot.extras.models import JobResult
 from nautobot.core.testing import TransactionTestCase
+from nautobot.extras.models import JobResult
+
 from nautobot_ssot.integrations.aristacv.diffsync.adapters.cloudvision import (
     CloudvisionAdapter,
 )
@@ -50,12 +51,10 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
         )
         self.cvp = CloudvisionAdapter(job=self.job, conn=self.client)
 
-    @patch.dict(
-        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
-        {"aristacv_create_controller": False},
-    )
     def test_load_devices(self):
         """Test the load_devices() adapter method."""
+        # Update config namedtuple `create_controller` to False
+        self.job.app_config = self.job.app_config._replace(create_controller=False)
         with patch(
             "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_devices",
             self.cloudvision.get_devices,

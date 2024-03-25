@@ -8,7 +8,6 @@ import arista.tag.v2 as TAG
 from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 
-from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
 from nautobot_ssot.integrations.aristacv.diffsync.models.cloudvision import (
     CloudvisionCustomField,
     CloudvisionDevice,
@@ -18,6 +17,7 @@ from nautobot_ssot.integrations.aristacv.diffsync.models.cloudvision import (
     CloudvisionIPAddress,
     CloudvisionIPAssignment,
 )
+from nautobot_ssot.integrations.aristacv.types import CloudVisionAppConfig
 from nautobot_ssot.integrations.aristacv.utils import cloudvision
 
 
@@ -42,8 +42,13 @@ class CloudvisionAdapter(Adapter):
 
     def load_devices(self):
         """Load devices from CloudVision."""
-        if APP_SETTINGS.get("aristacv_create_controller"):
-            cvp_version = cloudvision.get_cvp_version()
+        config: CloudVisionAppConfig = self.job.app_config
+        if config.hostname_patterns and not (config.site_mappings and config.role_mappings):
+            self.job.logger.warning(
+                "Configuration found for aristacv_hostname_patterns but no aristacv_site_mappings or aristacv_role_mappings. Please ensure your mappings are defined."
+            )
+        if config.create_controller:
+            cvp_version = cloudvision.get_cvp_version(config)
             cvp_ver_cf = self.cf(name="arista_eos", value=cvp_version, device_name="CloudVision")
             try:
                 self.add(cvp_ver_cf)
@@ -259,10 +264,4 @@ class CloudvisionAdapter(Adapter):
 
     def load(self):
         """Load devices and associated data from CloudVision."""
-        if APP_SETTINGS.get("aristacv_hostname_patterns") and not (
-            APP_SETTINGS.get("aristacv_site_mappings") and APP_SETTINGS.get("aristacv_role_mappings")
-        ):
-            self.job.logger.warning(
-                "Configuration found for aristacv_hostname_patterns but no aristacv_site_mappings or aristacv_role_mappings. Please ensure your mappings are defined."
-            )
         self.load_devices()

@@ -3,7 +3,9 @@
 # Skip colon check for multiple statements on one line.
 # flake8: noqa: E701
 
-from typing import Optional, Mapping, List
+from typing import List
+from typing import Mapping
+from typing import Optional
 from uuid import UUID
 from django.contrib.contenttypes.models import ContentType
 from django.templatetags.static import static
@@ -635,9 +637,16 @@ class ExampleDataSource(DataSource):
             DataMapping("Tenant (remote)", None, "Tenant (local)", reverse("tenancy:tenant_list")),
         )
 
-    def run(
-        self, dryrun, memory_profiling, source, source_url, source_token, *args, **kwargs
-    ):  # pylint:disable=arguments-differ
+    def run(  # pylint: disable=too-many-arguments, arguments-differ
+        self,
+        dryrun,
+        memory_profiling,
+        source,
+        source_url,
+        source_token,
+        *args,
+        **kwargs,
+    ):
         """Run sync."""
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
@@ -653,9 +662,9 @@ class ExampleDataSource(DataSource):
             else:
                 self.source_url = source_url
                 self.source_token = source_token
-        except Exception as e:
+        except Exception as error:
             # TBD: Why are these exceptions swallowed?
-            self.logger.error(f"Error setting up job: {e}")
+            self.logger.error("Error setting up job: %s", error)
             raise
 
         super().run(dryrun, memory_profiling, *args, **kwargs)

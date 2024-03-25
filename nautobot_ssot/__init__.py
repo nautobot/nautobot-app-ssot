@@ -75,6 +75,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "aristacv_from_cloudvision_default_site": "",
         "aristacv_hostname_patterns": [],
         "aristacv_import_active": False,
+        "aristacv_external_integration_name": "",
         "aristacv_role_mappings": {},
         "aristacv_site_mappings": {},
         "aristacv_verify": True,
