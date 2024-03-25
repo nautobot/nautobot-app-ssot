@@ -1,5 +1,4 @@
-"""Cloudvision DiffSync models for AristaCV SSoT."""
-from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
+"""CloudVision DiffSync models for AristaCV SSoT."""
 from nautobot_ssot.integrations.aristacv.diffsync.models.base import (
     Device,
     CustomField,
@@ -9,11 +8,12 @@ from nautobot_ssot.integrations.aristacv.diffsync.models.base import (
     IPAssignment,
     Port,
 )
+from nautobot_ssot.integrations.aristacv.types import CloudVisionAppConfig
 from nautobot_ssot.integrations.aristacv.utils.cloudvision import CloudvisionApi
 
 
 class CloudvisionDevice(Device):
-    """Cloudvision Device model."""
+    """CloudVision Device model."""
 
     @classmethod
     def create(cls, diffsync, ids, attrs):
@@ -30,7 +30,7 @@ class CloudvisionDevice(Device):
 
 
 class CloudvisionPort(Port):
-    """Cloudvision Port model."""
+    """CloudVision Port model."""
 
     @classmethod
     def create(cls, diffsync, ids, attrs):
@@ -47,7 +47,7 @@ class CloudvisionPort(Port):
 
 
 class CloudvisionNamespace(Namespace):
-    """Cloudvision Namespace model."""
+    """CloudVision Namespace model."""
 
     @classmethod
     def create(cls, diffsync, ids, attrs):
@@ -67,7 +67,7 @@ class CloudvisionNamespace(Namespace):
 
 
 class CloudvisionPrefix(Prefix):
-    """Cloudvision IPAdress model."""
+    """CloudVision IPAdress model."""
 
     @classmethod
     def create(cls, diffsync, ids, attrs):
@@ -87,7 +87,7 @@ class CloudvisionPrefix(Prefix):
 
 
 class CloudvisionIPAddress(IPAddress):
-    """Cloudvision IPAdress model."""
+    """CloudVision IPAdress model."""
 
     @classmethod
     def create(cls, diffsync, ids, attrs):
@@ -107,7 +107,7 @@ class CloudvisionIPAddress(IPAddress):
 
 
 class CloudvisionIPAssignment(IPAssignment):
-    """Cloudvision IPAssignment model."""
+    """CloudVision IPAssignment model."""
 
     @classmethod
     def create(cls, diffsync, ids, attrs):
@@ -127,24 +127,19 @@ class CloudvisionIPAssignment(IPAssignment):
 
 
 class CloudvisionCustomField(CustomField):
-    """Cloudvision CustomField model."""
+    """CloudVision CustomField model."""
 
     @staticmethod
-    def connect_cvp():
-        """Connect to Cloudvision gRPC endpoint."""
-        return CloudvisionApi(
-            cvp_host=APP_SETTINGS["aristacv_cvp_host"],
-            cvp_port=APP_SETTINGS.get("aristacv_cvp_port", "8443"),
-            verify=APP_SETTINGS["aristacv_verify"],
-            username=APP_SETTINGS["aristacv_cvp_user"],
-            password=APP_SETTINGS["aristacv_cvp_password"],
-            cvp_token=APP_SETTINGS["aristacv_cvp_token"],
-        )
+    def connect_cvp(config: CloudVisionAppConfig):
+        """Connect to CloudVision gRPC endpoint."""
+        return CloudvisionApi(config)
 
     @classmethod
     def create(cls, diffsync, ids, attrs):
         """Create a user tag in cvp."""
-        cvp = cls.connect_cvp()
+        config: CloudVisionAppConfig = diffsync.job.app_config  # type: ignore
+        # TBD: Isn't this a performance bottleneck? We are connecting to CVP for each operation.
+        cvp = cls.connect_cvp(config)
         cvp.create_tag(ids["name"], attrs["value"])
         # Create mapping from device_name to CloudVision device_id
         device_ids = {dev["hostname"]: dev["device_id"] for dev in cvp.get_devices()}
@@ -159,7 +154,9 @@ class CloudvisionCustomField(CustomField):
 
     def update(self, attrs):
         """Update user tag in cvp."""
-        cvp = self.connect_cvp()
+        config: CloudVisionAppConfig = self.diffsync.job.app_config  # type: ignore
+        # TBD: Isn't this a performance bottleneck? We are connecting to CVP for each operation.
+        cvp = self.connect_cvp(config)
         remove = set(self.device_name) - set(attrs["devices"])
         add = set(attrs["devices"]) - set(self.device_name)
         # Create mapping from device_name to CloudVision device_id
@@ -180,7 +177,9 @@ class CloudvisionCustomField(CustomField):
 
     def delete(self):
         """Delete user tag applied to devices in cvp."""
-        cvp = self.connect_cvp()
+        config: CloudVisionAppConfig = self.diffsync.job.app_config  # type: ignore
+        # TBD: Isn't this performance bottleneck? We are connecting to CVP for each operation.
+        cvp = self.connect_cvp(config)
         device_ids = {dev["hostname"]: dev["device_id"] for dev in cvp.get_devices()}
         for device in self.device_name:
             cvp.remove_tag_from_device(device_ids[device], self.name, self.value)

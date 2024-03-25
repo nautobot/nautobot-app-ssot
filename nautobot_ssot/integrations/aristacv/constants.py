@@ -1,14 +1,18 @@
 """Storage of data that will not change throughout the life cycle of the application."""
 
-from django.conf import settings
-
-
-def _read_settings() -> dict:
-    config = settings.PLUGINS_CONFIG["nautobot_ssot"]
-    return config
-
-
-APP_SETTINGS = _read_settings()
+ARISTA_PLATFORM = "arista.eos.eos"
+CLOUDVISION_PLATFORM = "Arista EOS-CloudVision"
+DEFAULT_APPLY_IMPORT_TAG = False
+DEFAULT_CREATE_CONTROLLER = False
+DEFAULT_CVAAS_URL = "https://www.arista.io"
+DEFAULT_DELETE_DEVICES_ON_SYNC = False
+DEFAULT_DEVICE_ROLE = "network"
+DEFAULT_DEVICE_ROLE_COLOR = "ff0000"
+DEFAULT_DEVICE_STATUS = "cloudvision_imported"
+DEFAULT_DEVICE_STATUS_COLOR = "ff0000"
+DEFAULT_IMPORT_ACTIVE = False
+DEFAULT_SITE = "cloudvision_imported"
+DEFAULT_VERIFY_SSL = True
 
 PORT_TYPE_MAP = {
     "xcvr1000BaseT": "1000base-t",
@@ -83,7 +87,3 @@ PORT_TYPE_MAP = {
     "400GBASE-2FR4": "400gbase-x-osfp",
     "400GBASE-ZR": "400gbase-x-qsfpdd",
 }
-
-CLOUDVISION_PLATFORM = "Arista EOS-CloudVision"
-
-ARISTA_PLATFORM = "arista.eos.eos"
