@@ -50,8 +50,6 @@ class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
         """Dictionary describing the configuration of this DataSource."""
         config = get_config()
 
-        print(100 * "A")
-        print(config)
         return {
             "Server Type": "On prem" if config.is_on_premise else "CVaaS",
             "CloudVision URL": config.url,
