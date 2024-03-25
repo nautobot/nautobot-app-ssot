@@ -495,9 +495,9 @@ class NautobotRemote(DiffSync):
                 location__parent__name=device["location"]["parent"]["name"]
                 if device["location"].get("parent")
                 else None,
-                location__parent__location_type__name=device["location"]["parent"]["location_type"]["name"]
-                if device["location"].get("parent")
-                else None,
+                location__parent__location_type__name=(
+                    device["location"]["parent"]["location_type"]["name"] if device["location"].get("parent") else None
+                ),
                 location__location_type__name=device["location"]["location_type"]["name"],
                 device_type__manufacturer__name=device["device_type"]["manufacturer"]["name"],
                 device_type__model=device["device_type"]["model"],
