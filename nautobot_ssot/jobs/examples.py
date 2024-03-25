@@ -497,9 +497,9 @@ class NautobotRemote(Adapter):
             device = self.device(
                 name=device["name"],
                 location__name=device["location"]["name"],
-                location__parent__name=device["location"]["parent"]["name"]
-                if device["location"].get("parent")
-                else None,
+                location__parent__name=(
+                    device["location"]["parent"]["name"] if device["location"].get("parent") else None
+                ),
                 location__parent__location_type__name=(
                     device["location"]["parent"]["location_type"]["name"] if device["location"].get("parent") else None
                 ),
@@ -608,7 +608,9 @@ class ExampleDataSource(DataSource):
             DataMapping("Tenant (remote)", None, "Tenant (local)", reverse("tenancy:tenant_list")),
         )
 
-    def run(self, dryrun, memory_profiling, source_url, source_token, *args, **kwargs):  # pylint:disable=arguments-differ
+    def run(
+        self, dryrun, memory_profiling, source_url, source_token, *args, **kwargs
+    ):  # pylint:disable=arguments-differ
         """Run sync."""
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
