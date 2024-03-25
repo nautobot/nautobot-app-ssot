@@ -1,48 +1,62 @@
-"""Tests of Cloudvision utility methods."""
-from unittest.mock import MagicMock, patch
+"""Tests of CloudVision utility methods."""
+
+from unittest.mock import MagicMock
+from unittest.mock import patch
+
+from cloudvision.Connector.codec.custom_types import FrozenDict
+from django.test import override_settings
+from nautobot.core.testing import TestCase
 from parameterized import parameterized
 
-from nautobot.core.testing import TestCase
-from cloudvision.Connector.codec.custom_types import FrozenDict
-
 from nautobot_ssot.integrations.aristacv.utils import cloudvision
+from nautobot_ssot.integrations.aristacv.utils.nautobot import get_config
 from nautobot_ssot.tests.aristacv.fixtures import fixtures
 
 
 class TestCloudvisionApi(TestCase):
-    """Test Cloudvision Api client and methods."""
+    """Test CloudVision Api client and methods."""
 
     databases = ("default", "job_logs")
 
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_cvp_host": "localhost",
+                "aristacv_verify": True,
+            },
+        },
+    )
     def test_auth_failure_exception(self):
         """Test that AuthFailure is thrown when no credentials are passed."""
+        config = get_config()
         with self.assertRaises(cloudvision.AuthFailure):
-            cloudvision.CloudvisionApi(cvp_host="https://localhost", username="", password="", verify=True)  # nosec
+            cloudvision.CloudvisionApi(config)  # nosec
 
-    @patch.dict(
-        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
-        {"aristacv_cvaas_url": "www.arista.io:443"},
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_cvaas_url": "www.arista.io:443",
+                "aristacv_cvp_token": "1234567890abcdef",
+            },
+        },
     )
     def test_auth_cvass_with_token(self):
         """Test that authentication against CVaaS with token works."""
-        client = cloudvision.CloudvisionApi(cvp_host=None, cvp_token="1234567890abcdef")  # nosec
-        self.assertEqual(client.cvp_url, "www.arista.io:443")
-        self.assertEqual(client.cvp_token, "1234567890abcdef")
+        config = get_config()
+        cloudvision.CloudvisionApi(config)
+        self.assertEqual(config.url, "https://www.arista.io:443")
+        self.assertEqual(config.token, "1234567890abcdef")
 
 
 class TestCloudvisionUtils(TestCase):
-    """Test Cloudvision utility methods."""
+    """Test CloudVision utility methods."""
 
     databases = ("default", "job_logs")
 
     def setUp(self):
-        """Setup mock Cloudvision client."""
+        """Setup mock CloudVision client."""
         self.client = MagicMock()
 
-    @patch.dict(
-        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
-        {"aristacv_import_active": False},
-    )
     def test_get_all_devices(self):
         """Test get_devices function for active and inactive devices."""
         device1 = MagicMock()
@@ -69,14 +83,10 @@ class TestCloudvisionUtils(TestCase):
         device_svc_stub.DeviceServiceStub.return_value.GetAll.return_value = device_list
 
         with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.services", device_svc_stub):
-            results = cloudvision.get_devices(client=self.client)
+            results = cloudvision.get_devices(client=self.client, import_active=False)
         expected = fixtures.DEVICE_FIXTURE
         self.assertEqual(results, expected)
 
-    @patch.dict(
-        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
-        {"aristacv_import_active": True},
-    )
     def test_get_active_devices(self):
         """Test get_devices function for active devices."""
         device1 = MagicMock()
@@ -94,7 +104,7 @@ class TestCloudvisionUtils(TestCase):
         device_svc_stub.DeviceServiceStub.return_value.GetAll.return_value = device_list
 
         with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.services", device_svc_stub):
-            results = cloudvision.get_devices(client=self.client)
+            results = cloudvision.get_devices(client=self.client, import_active=True)
         expected = [
             {
                 "device_id": "JPE12345678",

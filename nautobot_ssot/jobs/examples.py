@@ -3,24 +3,31 @@
 # Skip colon check for multiple statements on one line.
 # flake8: noqa: E701
 
-from typing import Optional, Mapping, List
+from typing import List
+from typing import Mapping
+from typing import Optional
 from uuid import UUID
+
+import requests
+from diffsync import DiffSync
+from diffsync.enum import DiffSyncFlags
 from django.templatetags.static import static
 from django.urls import reverse
-
-from nautobot.dcim.models import Location, LocationType
+from nautobot.dcim.models import Location
+from nautobot.dcim.models import LocationType
+from nautobot.extras.choices import SecretsGroupAccessTypeChoices
+from nautobot.extras.choices import SecretsGroupSecretTypeChoices
+from nautobot.extras.jobs import ObjectVar
 from nautobot.extras.jobs import StringVar
+from nautobot.extras.models import ExternalIntegration
 from nautobot.ipam.models import Prefix
 from nautobot.tenancy.models import Tenant
 
-from diffsync import DiffSync
-from diffsync.enum import DiffSyncFlags
-
-import requests
-
-from nautobot_ssot.contrib import NautobotModel, NautobotAdapter
-from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
-
+from nautobot_ssot.contrib import NautobotAdapter
+from nautobot_ssot.contrib import NautobotModel
+from nautobot_ssot.jobs.base import DataMapping
+from nautobot_ssot.jobs.base import DataSource
+from nautobot_ssot.jobs.base import DataTarget
 
 # In a more complex Job, you would probably want to move the DiffSyncModel subclasses into a separate Python module(s).
 
@@ -378,6 +385,12 @@ class NautobotLocal(NautobotAdapter):
 class ExampleDataSource(DataSource):
     """Sync Region and Site data from a remote Nautobot instance into the local Nautobot instance."""
 
+    source = ObjectVar(
+        model=ExternalIntegration,
+        queryset=ExternalIntegration.objects.all(),
+        display_field="display",
+        label="Nautobot Demo Instance",
+    )
     source_url = StringVar(
         description="Remote Nautobot instance to load Sites and Regions from", default="https://demo.nautobot.com"
     )
@@ -407,14 +420,36 @@ class ExampleDataSource(DataSource):
             DataMapping("Prefix (remote)", None, "Prefix (local)", reverse("ipam:prefix_list")),
         )
 
-    def run(
-        self, dryrun, memory_profiling, source_url, source_token, *args, **kwargs
-    ):  # pylint:disable=arguments-differ
+    def run(  # pylint: disable=too-many-arguments, arguments-differ
+        self,
+        dryrun,
+        memory_profiling,
+        source,
+        source_url,
+        source_token,
+        *args,
+        **kwargs,
+    ):
         """Run sync."""
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
-        self.source_url = source_url
-        self.source_token = source_token
+        try:
+            if source:
+                self.logger.info(f"Using external integration '{source}'")
+                self.source_url = source.remote_url
+                secrets_group = source.secrets_group
+                self.source_token = secrets_group.get_secret_value(
+                    access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
+                    secret_type=SecretsGroupSecretTypeChoices.TYPE_TOKEN,
+                )
+            else:
+                self.source_url = source_url
+                self.source_token = source_token
+        except Exception as error:
+            # TBD: Why are these exceptions swallowed?
+            self.logger.error("Error setting up job: %s", error)
+            raise
+
         super().run(dryrun, memory_profiling, *args, **kwargs)
 
     def load_source_adapter(self):

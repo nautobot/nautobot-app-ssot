@@ -11,7 +11,6 @@ from nautobot.ipam.models import IPAddressToInterface
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectNotFound, ObjectAlreadyExists
 
-from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
 from nautobot_ssot.integrations.aristacv.diffsync.models.nautobot import (
     NautobotDevice,
     NautobotCustomField,
@@ -21,6 +20,7 @@ from nautobot_ssot.integrations.aristacv.diffsync.models.nautobot import (
     NautobotIPAssignment,
     NautobotPort,
 )
+from nautobot_ssot.integrations.aristacv.types import CloudVisionAppConfig
 from nautobot_ssot.integrations.aristacv.utils import nautobot
 
 
@@ -166,8 +166,9 @@ class NautobotAdapter(DiffSync):
                     self.job.logger.warning(f"Deletion failed for protected object: {nautobot_object}. {err}")
             self.objects_to_delete[grouping] = []
 
+        config: CloudVisionAppConfig = self.job.app_config  # type: ignore
         # if Controller is created we need to ensure all imported Devices have RelationshipAssociation to it.
-        if APP_SETTINGS.get("aristacv_create_controller"):
+        if config.create_controller:
             self.job.logger.info("Creating Relationships between CloudVision and connected Devices.")
             controller_relation = OrmRelationship.objects.get(label="Controller -> Device")
             device_ct = ContentType.objects.get_for_model(OrmDevice)

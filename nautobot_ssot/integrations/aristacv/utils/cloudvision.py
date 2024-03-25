@@ -3,6 +3,7 @@
 import ssl
 from datetime import datetime
 from typing import Any, Iterable, List, Optional, Tuple, Union
+from urllib.parse import urlparse
 
 import google.protobuf.timestamp_pb2 as pbts
 import grpc
@@ -23,7 +24,8 @@ from cloudvision.Connector.codec import Wildcard
 from cloudvision.Connector.codec.custom_types import FrozenDict
 from cloudvision.Connector.grpc_client.grpcClient import create_query, to_pbts
 
-from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS, PORT_TYPE_MAP
+from nautobot_ssot.integrations.aristacv.constants import PORT_TYPE_MAP
+from nautobot_ssot.integrations.aristacv.types import CloudVisionAppConfig
 
 RPC_TIMEOUT = 30
 TIME_TYPE = Union[pbts.Timestamp, datetime]
@@ -42,66 +44,51 @@ class AuthFailure(Exception):
 
 
 class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-arguments
-    """Arista Cloudvision gRPC client."""
+    """Arista CloudVision gRPC client."""
 
     AUTH_KEY_PATH = "access_token"
 
-    def __init__(
-        self,
-        cvp_host: str,
-        cvp_port: str = "",
-        verify: bool = True,
-        username: str = "",
-        password: str = "",
-        cvp_token: str = "",
-    ):
-        """Create Cloudvision API connection."""
+    def __init__(self, config: CloudVisionAppConfig):
+        """Create CloudVision API connection."""
         self.metadata = None
-        self.cvp_host = cvp_host
-        self.cvp_port = cvp_port
-        self.cvp_url = f"{cvp_host}:{cvp_port}"
-        self.verify = verify
-        self.username = username
-        self.password = password
-        self.cvp_token = cvp_token
 
-        # If CVP_HOST is defined, we assume an on-prem installation.
-        if self.cvp_host:
-            if self.verify:
+        parsed_url = urlparse(config.url)
+        if not parsed_url.hostname or not parsed_url.port:
+            raise ValueError("Invalid URL provided for CloudVision")
+        token = config.token
+        if config.is_on_premise:
+            if config.verify_ssl:
                 channel_creds = grpc.ssl_channel_credentials()
             else:
                 channel_creds = grpc.ssl_channel_credentials(
-                    bytes(ssl.get_server_certificate((self.cvp_host, int(self.cvp_port))), "utf-8")
+                    bytes(ssl.get_server_certificate((parsed_url.hostname, parsed_url.port)), "utf-8")
                 )
-            if self.cvp_token:
-                call_creds = grpc.access_token_call_credentials(self.cvp_token)
-            elif self.username != "" and self.password != "":  # nosec
+            if token:
+                call_creds = grpc.access_token_call_credentials(token)
+            elif config.cvp_user != "" and config.cvp_password != "":  # nosec
                 response = requests.post(  # nosec
-                    f"https://{self.cvp_host}/cvpservice/login/authenticate.do",
-                    auth=(self.username, self.password),
+                    f"{parsed_url.hostname}:{parsed_url.port}/cvpservice/login/authenticate.do",
+                    auth=(config.cvp_user, config.cvp_password),
                     timeout=60,
-                    verify=self.verify,
+                    verify=config.verify_ssl,
                 )
                 session_id = response.json().get("sessionId")
                 if not session_id:
                     error_code = response.json().get("errorCode")
                     error_message = response.json().get("errorMessage")
                     raise AuthFailure(error_code, error_message)
-                if not self.cvp_token:
-                    self.cvp_token = session_id
+                token = session_id
                 call_creds = grpc.access_token_call_credentials(session_id)
             else:
                 raise AuthFailure(
                     error_code="Missing Credentials", message="Unable to authenticate due to missing credentials."
                 )
-            self.metadata = ((self.AUTH_KEY_PATH, self.cvp_token),)
-        # Set up credentials for CVaaS using supplied token.
+            self.metadata = ((self.AUTH_KEY_PATH, token),)
         else:
-            self.cvp_url = APP_SETTINGS.get("aristacv_cvaas_url", "www.arista.io:443")
-            call_creds = grpc.access_token_call_credentials(self.cvp_token)
+            call_creds = grpc.access_token_call_credentials(token)
             channel_creds = grpc.ssl_channel_credentials()
         conn_creds = grpc.composite_channel_credentials(channel_creds, call_creds)
-        self.comm_channel = grpc.secure_channel(self.cvp_url, conn_creds)
+        self.comm_channel = grpc.secure_channel(f"{parsed_url.hostname}:{parsed_url.port}", conn_creds)
         self.__client = rtr_client.RouterV1Stub(self.comm_channel)
         self.__auth_client = rtr_client.AuthStub(self.comm_channel)
         self.__search_client = rtr_client.SearchStub(self.comm_channel)
@@ -266,10 +253,10 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
         return (self.decode_batch(nb) for nb in res)
 
 
-def get_devices(client):
+def get_devices(client, import_active: bool):
     """Get devices from CloudVision inventory."""
     device_stub = services.DeviceServiceStub(client)
-    if APP_SETTINGS.get("aristacv_import_active"):
+    if import_active:
         req = services.DeviceStreamRequest(
             partial_eq_filter=[models.Device(streaming_status=models.STREAMING_STATUS_ACTIVE)]
         )
@@ -440,7 +427,7 @@ def get_device_type(client: CloudvisionApi, dId: str):
     """Returns the type of the device: modular/fixed.
 
     Args:
-        client (CloudvisionApi): Cloudvision connection.
+        client (CloudvisionApi): CloudVision connection.
         dId (str): Device ID to determine type for.
 
     Returns:
@@ -462,7 +449,7 @@ def get_interfaces_chassis(client: CloudvisionApi, dId):
     """Gets information about interfaces for a modular device.
 
     Args:
-        client (CloudvisionApi): Cloudvision connection.
+        client (CloudvisionApi): CloudVision connection.
         dId (str): Device ID to determine type for.
     """
     # Fetch the list of slices/linecards
@@ -502,7 +489,7 @@ def get_interfaces_fixed(client: CloudvisionApi, dId: str):
     """Gets information about interfaces for a fixed system device.
 
     Args:
-        client (CloudvisionApi): Cloudvision connection.
+        client (CloudvisionApi): CloudVision connection.
         dId (str): Device ID to determine type for.
     """
     pathElts = ["Sysdb", "interface", "status", "eth", "phy", "slice", "1", "intfStatus", Wildcard()]
@@ -534,7 +521,7 @@ def get_interface_transceiver(client: CloudvisionApi, dId: str, interface: str):
     """Gets transceiver information for specified interface on specific device.
 
     Args:
-        client (CloudvisionApi): Cloudvision connection.
+        client (CloudvisionApi): CloudVision connection.
         dId (str): Device ID to determine transceiver type for.
         interface (str): Name of interface to get transceiver information for.
     """
@@ -559,7 +546,7 @@ def get_interface_mode(client: CloudvisionApi, dId: str, interface: str):
     """Gets interface mode, ie access/trunked.
 
     Args:
-        client (CloudvisionApi): Cloudvision connection.
+        client (CloudvisionApi): CloudVision connection.
         dId (str): Device ID to determine type for.
         interface (str): Name of interface to get mode information for.
     """
@@ -625,7 +612,7 @@ def get_interface_description(client: CloudvisionApi, dId: str, interface: str):
     """Gets interface description.
 
     Args:
-        client (CloudvisionApi): Cloudvision connection.
+        client (CloudvisionApi): CloudVision connection.
         dId (str): Device ID to get description for.
         interface (str): Name of interface to get description for.
     """
@@ -644,7 +631,7 @@ def get_interface_vrf(client: CloudvisionApi, dId: str, interface: str) -> str:
     """Gets interface VRF.
 
     Args:
-        client (CloudvisionApi): Cloudvision connection.
+        client (CloudvisionApi): CloudVision connection.
         dId (str): Device ID to determine type for.
         interface (str): Name of interface to get mode information for.
     """
@@ -663,7 +650,7 @@ def get_ip_interfaces(client: CloudvisionApi, dId: str):
     """Gets interfaces with IP Addresses configured from specified device.
 
     Args:
-        client (CloudvisionApi): Cloudvision connection.
+        client (CloudvisionApi): CloudVision connection.
         dId (str): Device ID to retrieve IP Addresses and associated interfaces for.
     """
     pathElts = ["Sysdb", "ip", "config", "ipIntfConfig", Wildcard()]
@@ -686,7 +673,7 @@ def get_ip_interfaces(client: CloudvisionApi, dId: str):
     return ip_intfs
 
 
-def get_cvp_version():
+def get_cvp_version(config: CloudVisionAppConfig):
     """Returns CloudVision portal version.
 
     Returns:
@@ -694,19 +681,19 @@ def get_cvp_version():
     """
     client = CvpClient()
     try:
-        if APP_SETTINGS.get("aristacv_cvp_token") and not APP_SETTINGS.get("aristacv_cvp_host"):
+        if config.token and not config.is_on_premise:
             client.connect(
-                nodes=[APP_SETTINGS["aristacv_cvaas_url"]],
+                nodes=[config.url],
                 username="",
                 password="",  # nosec: B106
                 is_cvaas=True,
-                api_token=APP_SETTINGS.get("aristacv_cvp_token"),
+                api_token=config.token,
             )
         else:
             client.connect(
-                nodes=[APP_SETTINGS["aristacv_cvp_host"]],
-                username=APP_SETTINGS.get("aristacv_cvp_user"),
-                password=APP_SETTINGS.get("aristacv_cvp_password"),
+                nodes=[config.url],
+                username=config.cvp_user,
+                password=config.cvp_password,
                 is_cvaas=False,
             )
     except CvpLoginError as err:
