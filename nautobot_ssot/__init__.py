@@ -48,7 +48,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
     min_version = "2.0.0"
     max_version = "2.9999"
     default_settings = {
-        "aci_apics": [],
+        "aci_apics": {},
         "aci_tag": "",
         "aci_tag_color": "",
         "aci_tag_up": "",

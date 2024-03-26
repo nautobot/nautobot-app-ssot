@@ -1,12 +1,16 @@
 {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/nautobot/nautobot-app-ssot/develop/nautobot_ssot/app-config-schema.json",
+  "$comment": "TBD: Update $id, replace `develop` with the future release tag",
   "type": "object",
   "properties": {
     "aci_apics": {
-      "type": "array",
+      "type": "object",
       "items": {
         "type": "string"
       },
-      "default": []
+      "default": {},
+      "additionalProperties": true
     },
     "aci_tag": {
       "type": "string",
@@ -187,6 +191,9 @@
       },
       "default": []
     },
+    "device42_verify_ssl": {
+      "type": "boolean"
+    },
     "enable_aci": {
       "type": "boolean",
       "default": false
@@ -235,6 +242,9 @@
       "type": "boolean",
       "default": false
     },
+    "infoblox_import_objects_subnets_ipv6": {
+      "type": "boolean"
+    },
     "infoblox_import_objects_vlan_views": {
       "type": "boolean",
       "default": false
@@ -271,6 +281,9 @@
       "type": "string",
       "default": ""
     },
+    "infoblox_network_view": {
+      "type": "string"
+    },
     "ipfabric_api_token": {
       "type": "string",
       "default": ""
@@ -290,6 +303,9 @@
     "ipfabric_nautobot_host": {
       "type": "string",
       "default": ""
+    },
+    "nautobot_host": {
+      "type": "string"
     },
     "servicenow_instance": {
       "type": "string",
