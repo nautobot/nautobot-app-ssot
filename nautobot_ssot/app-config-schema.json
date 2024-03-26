@@ -1,1 +1,308 @@
-true
+{
+  "type": "object",
+  "properties": {
+    "aci_apics": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "aci_tag": {
+      "type": "string",
+      "default": ""
+    },
+    "aci_tag_color": {
+      "type": "string",
+      "pattern": "^([0-9a-fA-F]{6})?$",
+      "default": ""
+    },
+    "aci_tag_up": {
+      "type": "string",
+      "default": ""
+    },
+    "aci_tag_up_color": {
+      "type": "string",
+      "pattern": "^([0-9a-fA-F]{6})?$",
+      "default": ""
+    },
+    "aci_tag_down": {
+      "type": "string",
+      "default": ""
+    },
+    "aci_tag_down_color": {
+      "type": "string",
+      "pattern": "^([0-9a-fA-F]{6})?$",
+      "default": ""
+    },
+    "aci_manufacturer_name": {
+      "type": "string",
+      "default": ""
+    },
+    "aci_ignore_tenants": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "aci_comments": {
+      "type": "string",
+      "default": ""
+    },
+    "aci_site": {
+      "type": "string",
+      "default": ""
+    },
+    "aristacv_apply_import_tag": {
+      "type": "boolean",
+      "default": false
+    },
+    "aristacv_controller_site": {
+      "type": "string",
+      "default": ""
+    },
+    "aristacv_create_controller": {
+      "type": "boolean",
+      "default": false
+    },
+    "aristacv_cvaas_url": {
+      "type": "string",
+      "default": "www.arista.io:443"
+    },
+    "aristacv_cvp_host": {
+      "type": "string",
+      "default": ""
+    },
+    "aristacv_cvp_password": {
+      "type": "string",
+      "default": ""
+    },
+    "aristacv_cvp_port": {
+      "type": "string",
+      "pattern": "^\\d{1,5}$",
+      "default": "443"
+    },
+    "aristacv_cvp_token": {
+      "type": "string",
+      "default": ""
+    },
+    "aristacv_cvp_user": {
+      "type": "string",
+      "default": ""
+    },
+    "aristacv_delete_devices_on_sync": {
+      "type": "boolean",
+      "default": false
+    },
+    "aristacv_from_cloudvision_default_device_role": {
+      "type": "string",
+      "default": ""
+    },
+    "aristacv_from_cloudvision_default_device_role_color": {
+      "type": "string",
+      "pattern": "^([0-9a-fA-F]{6})?$",
+      "default": ""
+    },
+    "aristacv_from_cloudvision_default_site": {
+      "type": "string",
+      "default": ""
+    },
+    "aristacv_hostname_patterns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "aristacv_import_active": {
+      "type": "boolean",
+      "default": false
+    },
+    "aristacv_role_mappings": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {}
+    },
+    "aristacv_site_mappings": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {}
+    },
+    "aristacv_verify": {
+      "type": "boolean",
+      "default": true
+    },
+    "device42_host": {
+      "type": "string",
+      "default": ""
+    },
+    "device42_username": {
+      "type": "string",
+      "default": ""
+    },
+    "device42_password": {
+      "type": "string",
+      "default": ""
+    },
+    "device42_defaults": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {}
+    },
+    "device42_delete_on_sync": {
+      "type": "boolean",
+      "default": false
+    },
+    "device42_use_dns": {
+      "type": "boolean",
+      "default": true
+    },
+    "device42_customer_is_facility": {
+      "type": "boolean",
+      "default": true
+    },
+    "device42_facility_prepend": {
+      "type": "string",
+      "default": ""
+    },
+    "device42_role_prepend": {
+      "type": "string",
+      "default": ""
+    },
+    "device42_ignore_tag": {
+      "type": "string",
+      "default": ""
+    },
+    "device42_hostname_mapping": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "default": []
+    },
+    "enable_aci": {
+      "type": "boolean",
+      "default": false
+    },
+    "enable_aristacv": {
+      "type": "boolean",
+      "default": false
+    },
+    "enable_device42": {
+      "type": "boolean",
+      "default": false
+    },
+    "enable_infoblox": {
+      "type": "boolean",
+      "default": false
+    },
+    "enable_ipfabric": {
+      "type": "boolean",
+      "default": false
+    },
+    "enable_servicenow": {
+      "type": "boolean",
+      "default": false
+    },
+    "hide_example_jobs": {
+      "type": "boolean",
+      "default": true
+    },
+    "infoblox_default_status": {
+      "type": "string",
+      "default": ""
+    },
+    "infoblox_enable_rfc1918_network_containers": {
+      "type": "boolean",
+      "default": false
+    },
+    "infoblox_enable_sync_to_infoblox": {
+      "type": "boolean",
+      "default": false
+    },
+    "infoblox_import_objects_ip_addresses": {
+      "type": "boolean",
+      "default": false
+    },
+    "infoblox_import_objects_subnets": {
+      "type": "boolean",
+      "default": false
+    },
+    "infoblox_import_objects_vlan_views": {
+      "type": "boolean",
+      "default": false
+    },
+    "infoblox_import_objects_vlans": {
+      "type": "boolean",
+      "default": false
+    },
+    "infoblox_import_subnets": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}/\\d{1,2}$"
+      },
+      "default": []
+    },
+    "infoblox_password": {
+      "type": "string",
+      "default": ""
+    },
+    "infoblox_url": {
+      "type": "string",
+      "default": ""
+    },
+    "infoblox_username": {
+      "type": "string",
+      "default": ""
+    },
+    "infoblox_verify_ssl": {
+      "type": "boolean",
+      "default": true
+    },
+    "infoblox_wapi_version": {
+      "type": "string",
+      "default": ""
+    },
+    "ipfabric_api_token": {
+      "type": "string",
+      "default": ""
+    },
+    "ipfabric_host": {
+      "type": "string",
+      "default": ""
+    },
+    "ipfabric_ssl_verify": {
+      "type": "boolean",
+      "default": true
+    },
+    "ipfabric_timeout": {
+      "type": "integer",
+      "default": 15
+    },
+    "ipfabric_nautobot_host": {
+      "type": "string",
+      "default": ""
+    },
+    "servicenow_instance": {
+      "type": "string",
+      "default": ""
+    },
+    "servicenow_password": {
+      "type": "string",
+      "default": ""
+    },
+    "servicenow_username": {
+      "type": "string",
+      "default": ""
+    }
+  },
+  "additionalProperties": false
+}
