@@ -15,13 +15,8 @@ from nautobot.extras.models import Role
 from nautobot.ipam.models import Prefix
 from nautobot.tenancy.models import Tenant
 
-<<<<<<< HEAD
 from diffsync import Adapter
 from diffsync.enum import DiffSyncFlags
-=======
-from diffsync import DiffSync
-from diffsync.enum import DiffSyncFlags, DiffSyncModelFlags
->>>>>>> ddfcdd9 (feat: ✨ Update examples to handle in Role, Platform, Manufacturer, DeviceType, and Device.)
 from diffsync.exceptions import ObjectNotFound
 
 import requests
@@ -397,12 +392,21 @@ class NautobotRemote(Adapter):
         return result_data
 
     def load(self):
-        """Load Region and Site data from the remote Nautobot instance."""
+        """Load data from the remote Nautobot instance."""
+        self.load_location_types()
+        self.load_locations()
+        self.load_roles()
+        self.load_tenants()
+        self.load_prefixes()
+        self.load_manufacturers()
+        self.load_device_types()
+        self.load_platforms()
+        self.load_devices()
+
+    def load_location_types(self):
+        """Load LocationType data from the remote Nautobot instance."""
         for lt_entry in self._get_api_data("api/dcim/location-types/?depth=1"):
             content_types = self.get_content_types(lt_entry)
-            for ct in lt_entry["content_types"]:
-                app_label, model = tuple(ct.split("."))
-                content_types.append({"app_label": app_label, "model": model})
             location_type = self.locationtype(
                 name=lt_entry["name"],
                 description=lt_entry["description"],
@@ -414,6 +418,8 @@ class NautobotRemote(Adapter):
             self.add(location_type)
             self.job.logger.debug(f"Loaded {location_type} LocationType from remote Nautobot instance")
 
+    def load_locations(self):
+        """Load Locations data from the remote Nautobot instance."""
         for loc_entry in self._get_api_data("api/dcim/locations/?depth=3"):
             location_args = {
                 "name": loc_entry["name"],
@@ -430,6 +436,8 @@ class NautobotRemote(Adapter):
             self.add(new_location)
             self.job.logger.debug(f"Loaded {new_location} Location from remote Nautobot instance")
 
+    def load_roles(self):
+        """Load Roles data from the remote Nautobot instance."""
         for role_entry in self._get_api_data("api/extras/roles/?depth=1"):
             content_types = self.get_content_types(role_entry)
             role = self.role(
@@ -439,6 +447,8 @@ class NautobotRemote(Adapter):
             )
             self.add(role)
 
+    def load_tenants(self):
+        """Load Tenants data from the remote Nautobot instance."""
         for tenant_entry in self._get_api_data("api/tenancy/tenants/?depth=1"):
             tenant = self.tenant(
                 name=tenant_entry["name"],
@@ -446,6 +456,8 @@ class NautobotRemote(Adapter):
             )
             self.add(tenant)
 
+    def load_prefixes(self):
+        """Load Prefixes data from the remote Nautobot instance."""
         for prefix_entry in self._get_api_data("api/ipam/prefixes/?depth=1"):
             prefix = self.prefix(
                 network=prefix_entry["network"],
@@ -458,6 +470,8 @@ class NautobotRemote(Adapter):
             self.add(prefix)
             self.job.logger.debug(f"Loaded {prefix} from remote Nautobot instance")
 
+    def load_manufacturers(self):
+        """Load Manufacturers data from the remote Nautobot instance."""
         for manufacturer in self._get_api_data("api/dcim/manufacturers/?depth=1"):
             manufacturer = self.manufacturer(
                 name=manufacturer["name"],
@@ -466,6 +480,8 @@ class NautobotRemote(Adapter):
             )
             self.add(manufacturer)
 
+    def load_device_types(self):
+        """Load DeviceTypes data from the remote Nautobot instance."""
         for device_type in self._get_api_data("api/dcim/device-types/?depth=1"):
             try:
                 manufacturer = self.get(self.manufacturer, device_type["manufacturer"]["name"])
@@ -482,6 +498,8 @@ class NautobotRemote(Adapter):
             except ObjectNotFound:
                 self.job.logger.debug(f"Unable to find Manufacturer {device_type['manufacturer']['name']}")
 
+    def load_platforms(self):
+        """Load Platforms data from the remote Nautobot instance."""
         for platform in self._get_api_data("api/dcim/platforms/?depth=1"):
             platform = self.platform(
                 name=platform["name"],
@@ -493,6 +511,8 @@ class NautobotRemote(Adapter):
             )
             self.add(platform)
 
+    def load_devices(self):
+        """Load Devices data from the remote Nautobot instance."""
         for device in self._get_api_data("api/dcim/devices/?depth=3"):
             device = self.device(
                 name=device["name"],
@@ -526,8 +546,8 @@ class NautobotRemote(Adapter):
             List[dict]: List of dictionaries of ContentTypes split into app_label and model.
         """
         content_types = []
-        for ct in entry["content_types"]:
-            app_label, model = tuple(ct.split("."))
+        for contenttype in entry["content_types"]:
+            app_label, model = tuple(contenttype.split("."))
             try:
                 ContentType.objects.get(app_label=app_label, model=model)
                 content_types.append({"app_label": app_label, "model": model})
