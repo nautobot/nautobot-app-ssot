@@ -15,7 +15,6 @@ if is_truthy(hide_jobs_setting):
     jobs = []
 else:
     jobs = [ExampleDataSource, ExampleDataTarget]
-]
 
 
 class JobException(Exception):
