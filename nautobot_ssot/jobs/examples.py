@@ -475,7 +475,7 @@ class NautobotRemote(DiffSync):
                 self.add(devicetype)
                 manufacturer.add_child(devicetype)
             except ObjectNotFound:
-                self.logger.debug(f"Unable to find Manufacturer {device_type['manufacturer']['name']}")
+                self.job.logger.debug(f"Unable to find Manufacturer {device_type['manufacturer']['name']}")
 
         for platform in self._get_api_data("api/dcim/platforms/?depth=1"):
             platform = self.platform(
