@@ -222,7 +222,9 @@ PLUGINS_CONFIG = {
         "infoblox_import_objects_subnets_ipv6": is_truthy(
             os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_SUBNETS_IPV6", "")
         ),
-        "infoblox_import_objects_vlan_views": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_VLAN_VIEWS", "")),
+        "infoblox_import_objects_vlan_views": is_truthy(
+            os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_VLAN_VIEWS", "")
+        ),
         "infoblox_import_objects_vlans": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_OBJECTS_VLANS", "")),
         "infoblox_import_subnets": [x for x in os.getenv("NAUTOBOT_SSOT_INFOBLOX_IMPORT_SUBNETS", "").split(",") if x],
         "infoblox_password": os.getenv("NAUTOBOT_SSOT_INFOBLOX_PASSWORD", ""),
