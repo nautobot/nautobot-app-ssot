@@ -12,15 +12,10 @@ from nautobot_ssot.utils import logger
 
 hide_jobs_setting = settings.PLUGINS_CONFIG["nautobot_ssot"].get("hide_example_jobs", False)
 if is_truthy(hide_jobs_setting):
-    jobs = [ExampleDataSource, ExampleDataTarget]
-else:
     jobs = []
-
-
-if settings.PLUGINS_CONFIG["nautobot_ssot"].get("hide_example_jobs") and is_truthy(settings.PLUGINS_CONFIG["nautobot_ssot"]["hide_example_jobs"]):
-    jobs = [ExampleDataSource, ExampleDataTarget]
 else:
-    jobs = []
+    jobs = [ExampleDataSource, ExampleDataTarget]
+]
 
 
 class JobException(Exception):
