@@ -13,6 +13,7 @@ from nautobot.ipam.models import VLAN as OrmVlan
 from nautobot.ipam.models import VLANGroup as OrmVlanGroup
 from nautobot_ssot.integrations.infoblox.constant import PLUGIN_CFG
 from nautobot_ssot.integrations.infoblox.diffsync.models.base import Network, IPAddress, Vlan, VlanView
+from nautobot_ssot.integrations.infoblox.utils.diffsync import create_tag_sync_from_infoblox
 from nautobot_ssot.integrations.infoblox.utils.nautobot import get_prefix_vlans
 
 
@@ -227,6 +228,7 @@ class NautobotIPAddress(IPAddress):
         if attrs.get("ext_attrs"):
             process_ext_attrs(adapter=adapter, obj=_ip, extattrs=attrs["ext_attrs"])
         try:
+            _ip.tags.add(create_tag_sync_from_infoblox())
             _ip.validated_save()
             adapter.ipaddr_map[_ip.address] = _ip.id
             return super().create(ids=ids, adapter=adapter, attrs=attrs)
@@ -318,6 +320,7 @@ class NautobotVlan(Vlan):
         if "ext_attrs" in attrs:
             process_ext_attrs(adapter=adapter, obj=_vlan, extattrs=attrs["ext_attrs"])
         try:
+            _vlan.tags.add(create_tag_sync_from_infoblox())
             _vlan.validated_save()
             if ids["vlangroup"] not in adapter.vlan_map:
                 adapter.vlan_map[ids["vlangroup"]] = {}

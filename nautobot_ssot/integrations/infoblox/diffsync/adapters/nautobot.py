@@ -1,7 +1,6 @@
 """Nautobot Adapter for Infoblox integration."""
 
 # pylint: disable=duplicate-code
-from collections import defaultdict
 import datetime
 from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
@@ -19,7 +18,6 @@ from nautobot_ssot.integrations.infoblox.diffsync.models import (
 )
 from nautobot_ssot.integrations.infoblox.constant import TAG_COLOR
 from nautobot_ssot.integrations.infoblox.utils.diffsync import (
-    create_tag_sync_from_infoblox,
     nautobot_vlan_status,
     get_default_custom_fields,
 )
@@ -41,18 +39,20 @@ class NautobotMixin:
                 "color": TAG_COLOR,
             },
         )
+        for model in [IPAddress, Prefix, VLAN]:
+            tag.content_types.add(ContentType.objects.get_for_model(model))
         # Ensure that the "ssot_synced_to_infoblox" custom field is present; as above, it *should* already exist.
         custom_field, _ = CustomField.objects.get_or_create(
             type=CustomFieldTypeChoices.TYPE_DATE,
-            name="ssot_synced_to_infoblox",
+            key="ssot_synced_to_infoblox",
             defaults={
                 "label": "Last synced to Infoblox on",
             },
         )
-        for model in [IPAddress, Prefix]:
+        for model in [IPAddress, Prefix, VLAN, VLANGroup]:
             custom_field.content_types.add(ContentType.objects.get_for_model(model))
 
-        for modelname in ["ipaddress", "prefix"]:
+        for modelname in ["ipaddress", "prefix", "vlan", "vlangroup"]:
             for local_instance in self.get_all(modelname):
                 unique_id = local_instance.get_unique_id()
                 # Verify that the object now has a counterpart in the target DiffSync
@@ -73,13 +73,17 @@ class NautobotMixin:
             if hasattr(nautobot_object, "tags"):
                 nautobot_object.tags.add(tag)
             if hasattr(nautobot_object, "cf"):
-                nautobot_object.cf[custom_field.name] = today
+                nautobot_object.cf[custom_field.key] = today
             nautobot_object.validated_save()
 
         if modelname == "ipaddress":
             _tag_object(IPAddress.objects.get(pk=model_instance.pk))
         elif modelname == "prefix":
             _tag_object(Prefix.objects.get(pk=model_instance.pk))
+        elif modelname == "vlan":
+            _tag_object(VLAN.objects.get(pk=model_instance.pk))
+        elif modelname == "vlangroup":
+            _tag_object(VLANGroup.objects.get(pk=model_instance.pk))
 
 
 class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-instance-attributes
@@ -113,7 +117,6 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
-        self.objects_to_create = defaultdict(list)
 
     def sync_complete(self, source: Adapter, *args, **kwargs):
         """Process object creations/updates using bulk operations.
@@ -121,11 +124,7 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
         Args:
             source (Adapter): Source DiffSync adapter data.
         """
-        for obj_type, objs in self.objects_to_create.items():
-            if obj_type != "vlangroups":
-                self.job.logger.info(f"Adding tags to all imported {obj_type}.")
-                for obj in objs:
-                    obj.tags.add(create_tag_sync_from_infoblox())
+        super().sync_complete(source, *args, **kwargs)
 
     def load_prefixes(self):
         """Load Prefixes from Nautobot."""
