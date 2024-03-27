@@ -11,7 +11,7 @@ def register_signals(sender):
     nautobot_database_ready.connect(nautobot_database_ready_callback, sender=sender)
 
 
-def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disable=unused-argument
+def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disable=unused-argument,too-many-locals
     """Create Tag and CustomField to note System of Record for SSoT.
 
     Callback function triggered by the nautobot_database_ready signal when the Nautobot database is fully ready.
@@ -24,8 +24,9 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     Tag = apps.get_model("extras", "Tag")
     Relationship = apps.get_model("extras", "Relationship")
     VLAN = apps.get_model("ipam", "VLAN")
+    VLANGroup = apps.get_model("ipam", "VLANGroup")
 
-    Tag.objects.get_or_create(
+    tag_sync_from_infoblox, _ = Tag.objects.get_or_create(
         name="SSoT Synced from Infoblox",
         defaults={
             "name": "SSoT Synced from Infoblox",
@@ -33,7 +34,9 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
             "color": TAG_COLOR,
         },
     )
-    Tag.objects.get_or_create(
+    for model in [IPAddress, Prefix, VLAN]:
+        tag_sync_from_infoblox.content_types.add(ContentType.objects.get_for_model(model))
+    tag_sync_to_infoblox, _ = Tag.objects.get_or_create(
         name="SSoT Synced to Infoblox",
         defaults={
             "name": "SSoT Synced to Infoblox",
@@ -41,6 +44,8 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
             "color": TAG_COLOR,
         },
     )
+    for model in [IPAddress, Prefix, VLAN]:
+        tag_sync_to_infoblox.content_types.add(ContentType.objects.get_for_model(model))
     custom_field, _ = CustomField.objects.get_or_create(
         type=CustomFieldTypeChoices.TYPE_DATE,
         key="ssot_synced_to_infoblox",
@@ -48,11 +53,8 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
             "label": "Last synced to Infoblox on",
         },
     )
-    for content_type in [
-        ContentType.objects.get_for_model(Prefix),
-        ContentType.objects.get_for_model(IPAddress),
-    ]:
-        custom_field.content_types.add(content_type)
+    for model in [IPAddress, Prefix, VLAN, VLANGroup]:
+        custom_field.content_types.add(ContentType.objects.get_for_model(model))
     range_custom_field, _ = CustomField.objects.get_or_create(
         type=CustomFieldTypeChoices.TYPE_TEXT,
         key="dhcp_ranges",

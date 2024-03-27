@@ -1,6 +1,7 @@
 """Utilities for DiffSync related stuff."""
 from django.contrib.contenttypes.models import ContentType
 from django.utils.text import slugify
+from nautobot.ipam.models import IPAddress, Prefix, VLAN
 from nautobot.extras.models import CustomField, Tag
 from nautobot_ssot.integrations.infoblox.constant import TAG_COLOR
 
@@ -15,6 +16,8 @@ def create_tag_sync_from_infoblox():
             "color": TAG_COLOR,
         },
     )
+    for model in [IPAddress, Prefix, VLAN]:
+        tag.content_types.add(ContentType.objects.get_for_model(model))
     return tag
 
 
