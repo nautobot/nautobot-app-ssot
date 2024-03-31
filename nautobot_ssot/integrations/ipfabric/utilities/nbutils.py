@@ -311,7 +311,7 @@ def create_ip(
         ip_address: IP address.
         subnet_mask: Subnet mask used for IP Address.
         status: Status to assign to IP Address.
-        object_pk: Interface Object to assigne IPAdress to.
+        object_pk: Interface Object to assign IPAddress to.
         logger: Logger to use for messaging.
 
     Returns:
