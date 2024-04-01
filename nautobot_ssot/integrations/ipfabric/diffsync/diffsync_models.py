@@ -610,7 +610,7 @@ class Interface(DiffSyncExtras):
                         subnet_mask=subnet_mask,
                         status="Active",
                         object_pk=interface,
-                        logger=self.adapter.jog.logger,
+                        logger=self.adapter.job.logger,
                     )
                     if ip_address_obj:
                         interface.ip_addresses.add(ip_address_obj)
