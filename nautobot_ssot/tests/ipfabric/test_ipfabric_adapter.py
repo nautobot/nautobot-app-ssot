@@ -37,8 +37,8 @@ class IPFabricDiffSyncTestCase(TestCase):
             side_effect=(lambda x: VLAN_FIXTURE if x == "tables/vlan/site-summary" else "")
         )
         ipfabric_client.inventory.interfaces.all.return_value = INTERFACE_FIXTURE
-        ipfabric_client.technology.managed_networks.networks.fetch.return_value = NETWORKS_FIXTURE
-        ipfabric_client.technology.platforms.stacks_members.fetch.side_effect = [[] for site in SITE_FIXTURE[:-1]] + [
+        ipfabric_client.technology.managed_networks.networks.all.return_value = NETWORKS_FIXTURE
+        ipfabric_client.technology.platforms.stacks_members.all.side_effect = [[] for site in SITE_FIXTURE[:-1]] + [
             STACKS_FIXTURE
         ]
 
