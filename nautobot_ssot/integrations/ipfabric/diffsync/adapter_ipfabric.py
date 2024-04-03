@@ -96,7 +96,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     if iface.get("mac")
                     else DEFAULT_INTERFACE_MAC,
                     mtu=iface.get("mtu") if iface.get("mtu") else DEFAULT_INTERFACE_MTU,
-                    type=ipfabric_utils.convert_media_type(iface.get("media") or ""),
+                    type=ipfabric_utils.convert_media_type(iface.get("media"), iface_name),
                     mgmt_only=iface.get("mgmt_only", False),
                     ip_address=ip_address,
                     subnet_mask=subnet_mask,
