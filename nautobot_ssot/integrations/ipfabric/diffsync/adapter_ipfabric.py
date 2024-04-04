@@ -1,7 +1,6 @@
 # pylint: disable=duplicate-code
 """DiffSync adapter class for Ip Fabric."""
-
-import logging
+import ipaddress
 
 from diffsync import ObjectAlreadyExists
 from nautobot.dcim.models import Device
@@ -168,7 +167,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             filters={"net": ["empty", False], "siteName": ["empty", False]},
             columns=["net", "siteName"],
         ):
-            networks[network["siteName"]].append(ipaddress.ip_network(network["net"]))
+            networks[network["siteName"]].append(ipaddress.ip_network(ipaddress.IPv4Interface(network["net"]).netmask))
         for location in self.get_all(self.location):
             if location.name is None:
                 continue
@@ -230,22 +229,24 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     )
                 except ObjectAlreadyExists:
                     logger.warning(f"Duplicate Device discovered, {device}")
-                device_name = device["hostname"]
-                stack_members = self.client.technology.platforms.stacks_members.all(
-                    filters={"master": ["eq", device_name], "siteName": ["eq", location.name]},
-                    columns=["master", "member", "memberSn", "pn"],
-                )
+                device_name = device.hostname
+                stack_members = None
+                if self.client.devices.by_sn[serial_number].fetch_all("tables/platforms/stack/members"):
+                    stack_members = self.client.technology.platforms.stacks_members.all(
+                        filters={"master": ["eq", device_name], "siteName": ["eq", location.name]},
+                        columns=["master", "member", "memberSn", "pn"],
+                    )
                 base_args = {
                     "diffsync": self,
-                    "location_name": device["siteName"],
-                    "model": device.get("model") if device.get("model") else f"Default-{device.get('vendor')}",
-                    "vendor": device.get("vendor").capitalize(),
-                    "role": device.get("devType") if device.get("devType") else DEFAULT_DEVICE_ROLE,
+                    "location_name": device.site_name,
+                    "model": device.model if device.model else f"Default-{device.vendor}",
+                    "vendor": device.vendor.capitalize(),
+                    "role": device.dev_type if device.dev_type else DEFAULT_DEVICE_ROLE,
                     "status": DEFAULT_DEVICE_STATUS,
-                    "platform": device.get("family"),
+                    "platform": device.family,
                 }
                 if not stack_members:
-                    serial_number = device["sn"]
+                    serial_number = device.sn
                     sn_length = len(serial_number)
                     args = base_args.copy()
                     args["name"] = device_name
@@ -279,7 +280,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                             args["vc_master"] = False
                         member_devices.append(args)
 
-                device_primary_ip = device["loginIp"]
+                device_primary_ip = device.login_ip
                 for index, dev in enumerate(member_devices):
                     if not dev["serial_number"]:
                         logger.warning(
@@ -290,7 +291,13 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                         self.add(device_model)
                         location.add_child(device_model)
                         if index == 0:
-                            self.load_device_interfaces(device_model, interfaces, device_primary_ip, networks)
+                            self.load_device_interfaces(
+                                device_model,
+                                self.client.devices.by_sn[serial_number].interfaces(),
+                                device_primary_ip,
+                                self.client.devices.by_sn[serial_number].managed_ip_ipv4(),
+                                self.client.devices.by_sn[serial_number].managed_ip_ipv6()
+                            )
                     except ObjectAlreadyExists:
                         logger.warning(f"Duplicate Device discovered, {device}")
 
