@@ -142,11 +142,12 @@ class IpFabricDataSource(DataSource):
     def _init_ipf_client():
         try:
             return IPFClient(
-                base_url=constants.IPFABRIC_HOST,
+                base_url=str(constants.IPFABRIC_HOST),
                 auth=constants.IPFABRIC_API_TOKEN,
                 verify=constants.IPFABRIC_SSL_VERIFY,
                 timeout=constants.IPFABRIC_TIMEOUT,
                 unloaded=False,
+                http2=False
             )
         except (RuntimeError, ConnectError) as error:
             print(f"Got an error {error}")
