@@ -331,6 +331,7 @@ class TestNestedRelationships(TestCase):
             top_level = ["vlan_group"]
 
         location_type = dcim_models.LocationType.objects.create(name="Building")
+        location_type.content_types.add(ContentType.objects.get_for_model(ipam_models.VLAN))
         location = dcim_models.Location.objects.create(
             name="Example Building", location_type=location_type, status=extras_models.Status.objects.get(name="Active")
         )
