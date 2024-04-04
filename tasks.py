@@ -88,6 +88,38 @@ def _await_healthy_container(context, container_id):
         sleep(1)
 
 
+def _read_command_env(values) -> dict:
+    """Reads the environment variables from the values and returns a dictionary.
+
+    Examples:
+        >>> _read_command_env('VAR1=VALUE1')
+        {'VAR1': 'VALUE1'}
+        os.environ["VAR2"] = "VALUE2"
+        >>> _read_command_env(['VAR1=VALUE1', 'VAR2', 'VAR3'])
+        {'VAR1': 'VALUE1', 'VAR2': 'VALUE2', 'VAR3': ''}
+        >>> _read_command_env({'VAR1': 'VALUE1', 'VAR2': 'ANOHTER_VALUE'})
+        {'VAR1': 'VALUE1', 'VAR2': 'ANOHTER_VALUE'}
+    """
+    if not values:
+        return {}
+
+    if isinstance(values, dict):
+        return values
+
+    def read(envs):
+        if isinstance(envs, str):
+            if "=" in envs:
+                name, value = envs.split("=")
+                yield name, value
+            else:
+                yield envs, os.getenv(envs, "")
+        else:
+            for env in envs:
+                yield from read(env)
+
+    return dict(read(values))
+
+
 def task(function=None, *args, **kwargs):
     """Task decorator to override the default Invoke task decorator and add each task to the invoke namespace."""
 
@@ -148,32 +180,26 @@ def docker_compose(context, command, **kwargs):
 
 def run_command(context, command, **kwargs):
     """Wrapper to run a command locally or inside the nautobot container."""
+    env = _read_command_env(kwargs.pop("env", None))
     if is_truthy(context.nautobot_ssot.local):
-        if "command_env" in kwargs:
-            kwargs["env"] = {
-                **kwargs.get("env", {}),
-                **kwargs.pop("command_env"),
-            }
-        context.run(command, **kwargs)
+        return context.run(command, **kwargs, env=env)
+
+    # Check if nautobot is running, no need to start another nautobot container to run a command
+    docker_compose_status = "ps --services --filter status=running"
+    results = docker_compose(context, docker_compose_status, hide="out")
+    if "nautobot" in results.stdout:
+        compose_command = "exec"
     else:
-        # Check if nautobot is running, no need to start another nautobot container to run a command
-        docker_compose_status = "ps --services --filter status=running"
-        results = docker_compose(context, docker_compose_status, hide="out")
-        if "nautobot" in results.stdout:
-            compose_command = "exec"
-        else:
-            compose_command = "run --rm --entrypoint=''"
+        compose_command = "run --rm --entrypoint=''"
 
-        if "command_env" in kwargs:
-            command_env = kwargs.pop("command_env")
-            for key, value in command_env.items():
-                compose_command += f' --env="{key}={value}"'
+    for env_name in env:
+        compose_command += f" --env={env_name}"
 
-        compose_command += f" -- nautobot {command}"
+    compose_command += f" -- nautobot {command}"
 
-        pty = kwargs.pop("pty", True)
+    pty = kwargs.pop("pty", True)
 
-        docker_compose(context, compose_command, pty=pty, **kwargs)
+    return docker_compose(context, compose_command, **kwargs, pty=pty, env=env)
 
 
 # ------------------------------------------------------------------------------
@@ -342,19 +368,23 @@ def logs(context, service="", follow=False, tail=0):
 @task(
     help={
         "file": "Python file to execute",
-        "env": "Environment variables to pass to the command",
+        "env": "Environment variables to pass to the command e.g.: `--env VAR1=VALUE1 --env VAR2`",
         "plain": "Flag to run nbshell in plain mode (default: False)",
     },
+    iterable=["env"],
 )
-def nbshell(context, file="", env={}, plain=False):
-    """Launch an interactive nbshell session."""
+def nbshell(context, file="", env=None, plain=False):
+    """Launch an interactive nbshell session.
+
+    Files passed to the command can't contain unindented empty lines, as it breaks the nbshell interpreter.
+    """
     command = [
         "nautobot-server",
         "nbshell",
         "--plain" if plain else "",
         f"< '{file}'" if file else "",
     ]
-    run_command(context, " ".join(command), pty=not bool(file), command_env=env)
+    run_command(context, " ".join(command), pty=not bool(file), env=env)
 
 
 @task
