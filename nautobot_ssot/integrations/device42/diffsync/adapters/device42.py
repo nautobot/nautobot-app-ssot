@@ -176,7 +176,7 @@ class Device42Adapter(DiffSync):
 
         if not _building:
             if (
-                PLUGIN_CFG.get("customer_is_facility")
+                PLUGIN_CFG.get("device42_customer_is_facility")
                 and dev_record.get("customer")
                 and dev_record["customer"] in self.d42_building_sitecode_map
             ):
@@ -721,7 +721,7 @@ class Device42Adapter(DiffSync):
             else:
                 _cfs = {}
             tags = _info["tags"].split(",").sort() if _info.get("tags") else []
-            if is_truthy(PLUGIN_CFG.get("customer_is_facility")) and _info.get("customer"):
+            if is_truthy(PLUGIN_CFG.get("device42_customer_is_facility")) and _info.get("customer"):
                 building = self.d42_building_sitecode_map[_info["customer"].upper()]
             elif _info.get("building"):
                 building = _info["building"]
@@ -747,9 +747,11 @@ class Device42Adapter(DiffSync):
                 continue
             try:
                 new_conn = self.conn(
-                    src_device=self.d42_device_map[_conn["second_src_device"]]["name"]
-                    if _conn.get("second_src_device")
-                    else self.d42_device_map[_conn["src_device"]]["name"],
+                    src_device=(
+                        self.d42_device_map[_conn["second_src_device"]]["name"]
+                        if _conn.get("second_src_device")
+                        else self.d42_device_map[_conn["src_device"]]["name"]
+                    ),
                     src_port=self.d42_port_map[_conn["src_port"]]["port"],
                     src_port_mac=self.d42_port_map[_conn["src_port"]]["hwaddress"],
                     src_type="interface",
@@ -824,9 +826,11 @@ class Device42Adapter(DiffSync):
                 a_side_conn = self.conn(
                     src_device=origin_dev,
                     src_port=origin_int,
-                    src_port_mac=self.d42_port_map[_tc["origin_netport_fk"]]["hwaddress"]
-                    if _tc["origin_type"] == "Device"
-                    else None,
+                    src_port_mac=(
+                        self.d42_port_map[_tc["origin_netport_fk"]]["hwaddress"]
+                        if _tc["origin_type"] == "Device"
+                        else None
+                    ),
                     src_type="interface" if _tc["origin_type"] == "Device Port" else "patch panel",
                     dst_device=_tc["circuit_id"],
                     dst_port=_tc["circuit_id"],
@@ -844,9 +848,11 @@ class Device42Adapter(DiffSync):
                     src_type="circuit",
                     dst_device=endpoint_dev,
                     dst_port=endpoint_int,
-                    dst_port_mac=self.d42_port_map[_tc["end_point_netport_fk"]]["hwaddress"]
-                    if _tc["end_point_type"] == "Device"
-                    else None,
+                    dst_port_mac=(
+                        self.d42_port_map[_tc["end_point_netport_fk"]]["hwaddress"]
+                        if _tc["end_point_type"] == "Device"
+                        else None
+                    ),
                     dst_type="interface" if _tc["end_point_type"] == "Device Port" else "patch panel",
                     src_port_mac=None,
                     tags=None,
@@ -995,7 +1001,7 @@ class Device42Adapter(DiffSync):
             _building, _room, _rack = None, None, None
             if PLUGIN_CFG.get("hostname_mapping") and len(PLUGIN_CFG["hostname_mapping"]) > 0:
                 _building = get_site_from_mapping(device_name=panel["name"])
-            if not _building and PLUGIN_CFG.get("customer_is_facility") and panel["customer_fk"] is not None:
+            if not _building and PLUGIN_CFG.get("device42_customer_is_facility") and panel["customer_fk"] is not None:
                 _building = slugify(self.d42_customer_map[panel["customer_fk"]]["name"])
             if not _building and panel["building_fk"] is not None:
                 _building = slugify(self.d42_building_map[panel["building_fk"]]["name"])

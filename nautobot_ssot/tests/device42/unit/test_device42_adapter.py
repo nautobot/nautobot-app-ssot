@@ -1,4 +1,5 @@
 """Unit tests for the Device42 DiffSync adapter class."""
+
 import json
 import uuid
 from unittest.mock import MagicMock, patch
@@ -90,7 +91,7 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
 
     @patch(
         "nautobot_ssot.integrations.device42.diffsync.adapters.device42.PLUGIN_CFG",
-        {"customer_is_facility": True},
+        {"device42_customer_is_facility": True},
     )
     def test_data_loading(self):
         """Test the load() function."""
