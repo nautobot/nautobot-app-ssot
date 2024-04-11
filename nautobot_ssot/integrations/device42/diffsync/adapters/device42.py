@@ -61,7 +61,7 @@ def get_site_from_mapping(device_name: str) -> str:
     Returns:
         str: The Site slug of the associated Site for the Device in the mapping. Returns blank string if match not found.
     """
-    for _entry in PLUGIN_CFG["hostname_mapping"]:
+    for _entry in PLUGIN_CFG["device42_hostname_mapping"]:
         for _mapping, _slug in _entry.items():
             site_match = re.match(_mapping, device_name)
             if site_match:
@@ -171,7 +171,7 @@ class Device42Adapter(DiffSync):
             str: Slugified version of the Building (Site) for a Device.
         """
         _building = False
-        if PLUGIN_CFG.get("hostname_mapping") and len(PLUGIN_CFG["hostname_mapping"]) > 0:
+        if PLUGIN_CFG.get("device42_hostname_mapping") and len(PLUGIN_CFG["device42_hostname_mapping"]) > 0:
             _building = get_site_from_mapping(device_name=dev_record["name"])
 
         if not _building:
@@ -999,7 +999,7 @@ class Device42Adapter(DiffSync):
         panels = self.device42.get_patch_panels()
         for panel in panels:
             _building, _room, _rack = None, None, None
-            if PLUGIN_CFG.get("hostname_mapping") and len(PLUGIN_CFG["hostname_mapping"]) > 0:
+            if PLUGIN_CFG.get("device42_hostname_mapping") and len(PLUGIN_CFG["device42_hostname_mapping"]) > 0:
                 _building = get_site_from_mapping(device_name=panel["name"])
             if not _building and PLUGIN_CFG.get("device42_customer_is_facility") and panel["customer_fk"] is not None:
                 _building = slugify(self.d42_customer_map[panel["customer_fk"]]["name"])
