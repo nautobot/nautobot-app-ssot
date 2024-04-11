@@ -55,7 +55,7 @@ class NautobotVRFGroup(VRFGroup):
         The self.diffsync.objects_to_delete dictionary stores all objects for deletion and removes them from Nautobot
         in the correct order. This is used in the Nautobot adapter sync_complete function.
         """
-        if PLUGIN_CFG.get("delete_on_sync"):
+        if PLUGIN_CFG.get("device42_delete_on_sync"):
             super().delete()
             self.diffsync.job.log_info(message=f"VRF {self.name} will be deleted.")
             vrf = OrmVRF.objects.get(id=self.uuid)
@@ -115,7 +115,7 @@ class NautobotSubnet(Subnet):
         The self.diffsync.objects_to_delete dictionary stores all objects for deletion and removes them from Nautobot
         in the correct order. This is used in the Nautobot adapter sync_complete function.
         """
-        if PLUGIN_CFG.get("delete_on_sync"):
+        if PLUGIN_CFG.get("device42_delete_on_sync"):
             super().delete()
             subnet = OrmPrefix.objects.get(id=self.uuid)
             self.diffsync.job.log_info(message=f"Prefix {subnet.prefix} will be deleted.")
@@ -291,7 +291,7 @@ class NautobotIPAddress(IPAddress):
         The self.diffsync.objects_to_delete dictionary stores all objects for deletion and removes them from Nautobot
         in the correct order. This is used in the Nautobot adapter sync_complete function.
         """
-        if PLUGIN_CFG.get("delete_on_sync"):
+        if PLUGIN_CFG.get("device42_delete_on_sync"):
             super().delete()
             self.diffsync.job.log_info(message=f"IP Address {self.address} will be deleted.")
             ipaddr = OrmIPAddress.objects.get(id=self.uuid)
@@ -355,7 +355,7 @@ class NautobotVLAN(VLAN):
         The self.diffsync.objects_to_delete dictionary stores all objects for deletion and removes them from Nautobot
         in the correct order. This is used in the Nautobot adapter sync_complete function.
         """
-        if PLUGIN_CFG.get("delete_on_sync"):
+        if PLUGIN_CFG.get("device42_delete_on_sync"):
             super().delete()
             self.diffsync.job.log_info(message=f"VLAN {self.name} {self.vlan_id} {self.building} will be deleted.")
             vlan = OrmVLAN.objects.get(id=self.uuid)
