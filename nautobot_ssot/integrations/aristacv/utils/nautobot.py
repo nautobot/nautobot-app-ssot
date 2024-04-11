@@ -210,7 +210,9 @@ def verify_site(site_name):
     try:
         site_obj = Location.objects.get(name=site_name, location_type=loc_type)
     except Location.DoesNotExist:
-        status, _ = Status.objects.get_or_create(name="Staging")
+        status, created = Status.objects.get_or_create(name="Staging")
+        if created:
+            status.content_types.add(ContentType.objects.get_for_model(Location))
         site_obj = Location.objects.create(
             name=site_name,
             status=status,
