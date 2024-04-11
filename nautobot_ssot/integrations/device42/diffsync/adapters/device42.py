@@ -1097,7 +1097,7 @@ class Device42Adapter(DiffSync):
         self.assign_version_to_master_devices()
         self.load_ports()
         self.load_ip_addresses()
-        if is_truthy(PLUGIN_CFG.get("use_dns")):
+        if is_truthy(PLUGIN_CFG.get("device42_use_dns")):
             self.job.log_info(message="Checking DNS entries for all loaded Devices.")
             self.check_dns()
         self.load_providers_and_circuits()
