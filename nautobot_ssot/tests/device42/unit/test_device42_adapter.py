@@ -216,7 +216,7 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
 
     @patch(
         "nautobot_ssot.integrations.device42.diffsync.adapters.device42.PLUGIN_CFG",
-        {"ignore_tag": "TEST"},
+        {"device42_ignore_tag": "TEST"},
     )
     def test_load_cluster_ignore_tag(self):
         """Validate functionality of the load_cluster() function when cluster has ignore tag."""

@@ -344,7 +344,7 @@ class Device42Adapter(DiffSync):
             self.job.log_info(message=f"Cluster {cluster_info['name']} being loaded from Device42.")
             _clus = self.device42_clusters[cluster_info["name"]]
             _tags = cluster_info["tags"] if cluster_info.get("tags") else []
-            if PLUGIN_CFG.get("ignore_tag") and PLUGIN_CFG["ignore_tag"] in _tags:
+            if PLUGIN_CFG.get("device42_ignore_tag") and PLUGIN_CFG["device42_ignore_tag"] in _tags:
                 self.job.log_warning(message=f"Cluster {cluster_info['name']} has ignore tag so skipping.")
                 return
             if len(_tags) > 1:
@@ -410,7 +410,7 @@ class Device42Adapter(DiffSync):
                     )
                     continue
                 _tags = _record["tags"] if _record.get("tags") else []
-                if PLUGIN_CFG.get("ignore_tag") and PLUGIN_CFG["ignore_tag"] in _tags:
+                if PLUGIN_CFG.get("device42_ignore_tag") and PLUGIN_CFG["device42_ignore_tag"] in _tags:
                     self.job.log_warning(
                         message=f"Skipping loading {_record['name']} as it has the specified ignore tag."
                     )
