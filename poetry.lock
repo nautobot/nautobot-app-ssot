@@ -5382,4 +5382,4 @@ servicenow = ["Jinja2", "PyYAML", "ijson", "oauthlib", "python-magic", "pytz", "
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.12"
-content-hash = "b969e8a60b22f2df8aa86eb1a633b4d266441eb6cc3d74f726880dc92a91cf4e"
+content-hash = "cd710f5c319a47e01c925b15ded4986b7dd40575ee65813234016f2511ffbbc6"
