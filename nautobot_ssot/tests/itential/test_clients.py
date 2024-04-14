@@ -3,7 +3,7 @@
 import os
 from unittest import TestCase
 
-from nautobot_ssot.tests.itential.fixtures import gateways
+from nautobot_ssot.tests.itential.fixtures import gateways, logging
 
 
 class AutomationGatewayClientTestCase(TestCase):
@@ -11,6 +11,8 @@ class AutomationGatewayClientTestCase(TestCase):
 
     def setUp(self):
         """Setup test cases."""
+        self.job = logging.JobLogger()
+
         for device in gateways.gateways:
             os.environ[device.get("username_env")] = "testUser"
             os.environ[device.get("password_env")] = "testPass"
