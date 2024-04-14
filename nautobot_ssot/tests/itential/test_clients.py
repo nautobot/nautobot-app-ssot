@@ -27,51 +27,51 @@ class AutomationGatewayClientTestCase(TestCase):
                 secret_group=device.get("secret_group"),
             )
 
-    def test_login(self):
+    def test_login__success(self):
         """Test API client login."""
         pass
 
-    def test_logout(self):
+    def test_logout__success(self):
         """Test API client logout."""
         pass
 
-    def test_get_devices(self):
+    def test_get_devices__success(self):
         """Test get_devices."""
         pass
 
-    def test_get_device(self):
+    def test_get_device__success(self):
         """Test get_device."""
         pass
 
-    def test_create_device(self):
+    def test_create_device__success(self):
         """Test create_device."""
         pass
 
-    def test_update_device(self):
+    def test_update_device__success(self):
         """Test update_device."""
         pass
 
-    def test_delete_device(self):
+    def test_delete_device__success(self):
         """Test delete_device."""
         pass
 
-    def test_get_groups(self):
+    def test_get_groups__success(self):
         """Test get_groups."""
         pass
 
-    def test_get_group(self):
+    def test_get_group__success(self):
         """Test get_group."""
         pass
 
-    def test_create_group(self):
+    def test_create_group__success(self):
         """Test create_group."""
         pass
 
-    def test_update_group(self):
+    def test_update_group__success(self):
         """Test update_group."""
         pass
 
-    def test_delete_group(self):
+    def test_delete_group__success(self):
         """Test delete_group."""
         pass
 
