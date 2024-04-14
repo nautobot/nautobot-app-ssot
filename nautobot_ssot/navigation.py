@@ -1,6 +1,7 @@
 """App additions to the Nautobot navigation menu."""
 
 from nautobot.apps.ui import NavMenuGroup, NavMenuItem, NavMenuTab
+from .integrations.utils import each_enabled_integration_module
 
 
 items = [
@@ -20,6 +21,15 @@ items = [
         permissions=["nautobot_ssot.view_synclogentry"],
     ),
 ]
+
+
+def _add_integrations():
+    for module in each_enabled_integration_module("navigation"):
+        items.extend(module.nav_items)
+
+
+_add_integrations()
+
 
 menu_items = (
     NavMenuTab(
