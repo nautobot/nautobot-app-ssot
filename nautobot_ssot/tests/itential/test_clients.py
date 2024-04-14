@@ -1,5 +1,6 @@
 """Itential SSoT API Client Tests."""
 
+import os
 from unittest import TestCase
 
 from nautobot_ssot.tests.itential.fixtures import gateways
@@ -10,7 +11,21 @@ class AutomationGatewayClientTestCase(TestCase):
 
     def setUp(self):
         """Setup test cases."""
-        pass
+        for device in gateways.gateways:
+            os.environ[device.get("username_env")] = "testUser"
+            os.environ[device.get("password_env")] = "testPass"
+
+            gateways.update_or_create_automation_gateways(
+                name=device.get("name"),
+                description=device.get("description"),
+                location=device.get("location"),
+                region=device.get("region"),
+                gateway=device.get("gateway"),
+                enabled=device.get("enabled"),
+                username_env=device.get("username_env"),
+                password_env=device.get("password_env"),
+                secret_group=device.get("secret_group"),
+            )
 
     def test_login(self):
         """Test API client login."""
