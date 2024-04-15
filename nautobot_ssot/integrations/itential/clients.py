@@ -170,8 +170,7 @@ class AutomationGatewayClient:
         Returns:
             dict: API client return message.
         """
-        payload = {"name": device_name, "variables": variables}
-        response = self._put(uri=f"devices/{device_name}", json_data=payload)
+        response = self._put(uri=f"devices/{device_name}", json_data=variables)
         if response.ok:
             self.job.log_info(message=f"Updating {device_name} on {self.host}.")
             return response.json()
@@ -247,8 +246,7 @@ class AutomationGatewayClient:
         Returns:
             dict: API client return message.
         """
-        payload = {"name": group_name, "variables": variables}
-        response = self._put(uri=f"groups/{group_name}", json_data=payload)
+        response = self._put(uri=f"groups/{group_name}", json_data=variables)
         if response.ok:
             self.job.log_info(message=f"Updating {group_name} on {self.host}.")
             return response.json()

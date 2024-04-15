@@ -44,18 +44,72 @@ responses = {
         "hostname": "https://iag1.example.com:8443",
         "responses": {
             "login": {"token": "abc123="},
-            "logout": {},
-            "poll": {},
-            "get_devices": {},
-            "get_device": {},
-            "create_device": {},
-            "update_device": {},
-            "delete_device": {},
-            "get_groups": {},
-            "get_group": {},
-            "create_group": {},
-            "update_group": {},
-            "delete_group": {},
+            "logout": "User was successfully logged out of session",
+            "poll": {"success": True, "hostname": "localhost", "serverId": "00:00:00:00:00:00:8443"},
+            "get_devices": {
+                "meta": {
+                    "count": 1,
+                    "query_object": {"offset": None, "limit": None, "filter": None, "order": "ascending"},
+                    "total_count": 1,
+                },
+                "data": [
+                    {
+                        "name": "rtr1.example.net",
+                        "variables": {
+                            "ansible_host": "192.0.2.1",
+                            "ansible_network_os": "cisco.ios.ios",
+                            "ansible_connection": "ansible.netcommon.network_cli",
+                            "ansible_port": 22,
+                        },
+                    }
+                ],
+            },
+            "get_device": {
+                "name": "rtr1.example.net",
+                "variables": {
+                    "ansible_host": "192.0.2.1",
+                    "ansible_network_os": "cisco.ios.ios",
+                    "ansible_connection": "ansible.netcommon.network_cli",
+                    "ansible_port": 22,
+                },
+            },
+            "create_device": {"name": "rtr10.example.net", "variables": {"ansible_host": "192.0.2.10"}},
+            "update_device": {"name": "rtr10.example.net", "variables": {"ansible_host": "192.0.2.10"}},
+            "delete_device": {"code": 200, "status": 200, "message": "deleted"},
+            "get_groups": {
+                "meta": {
+                    "count": 1,
+                    "query_object": {"offset": None, "limit": None, "filter": None, "order": "ascending"},
+                    "total_count": 1,
+                },
+                "data": [
+                    {
+                        "name": "rtr1.example.net",
+                        "variables": {"ansible_user": "testUser", "ansible_password": "testPass"},
+                        "devices": ["rtr1.example.net"],
+                        "childGroups": [],
+                    }
+                ],
+            },
+            "get_group": {
+                "name": "rtr1.example.net",
+                "variables": {"ansible_user": "testUser", "ansible_password": "testPass"},
+                "devices": ["rtr1.example.net"],
+                "childGroups": [],
+            },
+            "create_group": {
+                "name": "test-group",
+                "variables": {},
+                "devices": [],
+                "childGroups": [],
+            },
+            "update_group": {
+                "name": "test-group",
+                "variables": {"key": "value"},
+                "devices": [],
+                "childGroups": [],
+            },
+            "delete_group": {"code": 200, "status": 200, "message": "deleted"},
         },
     },
 }
