@@ -1,6 +1,7 @@
 """Itential SSoT API Client Tests."""
 
 from nautobot_ssot.tests.itential.fixtures.base import ItentialSSoTBaseTestCase
+from nautobot_ssot.tests.itential.fixtures import gateways
 
 
 class AutomationGatewayClientTestCase(ItentialSSoTBaseTestCase):

@@ -12,13 +12,14 @@ from nautobot.dcim.models import (
     Interface,
 )
 from nautobot.extras.models import Status, Role
-from nautobot.ipam.models import Preifx, IPAddress, Namespace
+from nautobot.ipam.models import Prefix, IPAddress, Namespace
 
 
 data = [
     {
         "name": "rtr1.example.net",
-        "location": "USA",
+        "location": "North America",
+        "manufacturer": "Cisco",
         "model": "Cisco 2901",
         "interface": "gigabitEthernet0/1",
         "ip_address": "192.0.2.1",
@@ -29,7 +30,8 @@ data = [
     },
     {
         "name": "rtr2.example.net",
-        "location": "USA",
+        "location": "North America",
+        "manufacturer": "Cisco",
         "model": "Cisco 2901",
         "interface": "gigabitEthernet0/1",
         "ip_address": None,
@@ -80,8 +82,8 @@ def update_or_create_device_object(
     device, _ = Device.objects.update_or_create(
         name=name, role=role, device_type=device_type, location=location, status=status, platform=platform
     )
-    interface, _ = Interface.objects.update_or_create(name=interace, status=status, device=device)
+    interface, _ = Interface.objects.update_or_create(name=interface, status=status, device=device)
 
     if ip_address:
         ip_address, _ = IPAddress.objects.update_or_create(host=ip_address, mask_length=32, status=status)
-        ip_address.primary_ip4_for(device)
+        ip_address.primary_ip4_for.add(device)
