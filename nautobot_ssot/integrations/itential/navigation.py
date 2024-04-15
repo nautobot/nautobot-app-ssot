@@ -1,6 +1,6 @@
 """Itential SSoT Navigation."""
 
-from nautobot.apps.ui import NavMenuGroup, NavMenuItem, NavMenuTab
+from nautobot.apps.ui import NavMenuItem
 
 
 nav_items = [

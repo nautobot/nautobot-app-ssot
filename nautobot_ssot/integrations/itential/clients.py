@@ -144,7 +144,7 @@ class AutomationGatewayClient:
             dict: API client return message.
         """
         payload = {"name": device_name, "variables": variables}
-        response = self._post(uri=f"devices", json_data=payload)
+        response = self._post(uri="devices", json_data=payload)
         if response.ok:
             self.job.log_info(message=f"Creating {device_name} on {self.host}.")
             return response.json()
@@ -223,7 +223,7 @@ class AutomationGatewayClient:
             dict: API client return message.
         """
         payload = {"name": group_name, "variables": variables}
-        response = self._post(uri=f"groups", json_data=payload)
+        response = self._post(uri="groups", json_data=payload)
         if response.ok:
             self.job.log_info(message=f"Creating {group_name} on {self.host}.")
             return response.json()
