@@ -10,8 +10,7 @@ gateways = [
     {
         "name": "IAG1",
         "description": "Test IAG 1",
-        "region": "USA",
-        "location": "NYC",
+        "region": "North America",
         "gateway": "https://iag1.example.com:8443",
         "enabled": True,
         "username_env": "IAG1_USERNAME",
@@ -21,8 +20,7 @@ gateways = [
     {
         "name": "IAG10",
         "description": "Test IAG 10",
-        "region": "USA",
-        "location": "NYC",
+        "region": "North America",
         "gateway": "https://iag10.example.com:8443",
         "enabled": False,
         "username_env": "IAG1_USERNAME",
@@ -33,7 +31,6 @@ gateways = [
         "name": "IAG2",
         "description": "Test IAG 2",
         "region": "Europe",
-        "location": "LON",
         "gateway": "https://iag2.example.com:8443",
         "enabled": True,
         "username_env": "IAG2_USERNAME",
@@ -80,18 +77,10 @@ def update_or_create_automation_gateways(
     status = Status.objects.get(name="Active")
 
     # Create a region location type
-    region_type, _ = LocationType.objects.update_or_create(name="Region")
-
-    # Create a site location type
-    site_type, _ = LocationType.objects.update_or_create(name="Site", parent=region_type)
+    location_type, _ = LocationType.objects.update_or_create(name="Region")
 
     # Create a region location
-    region, _ = Location.objects.update_or_create(name=region, location_type=region_type, status=status)
-
-    # Create a location with the region as the parent
-    location, _ = Location.objects.update_or_create(
-        name=location, location_type=site_type, parent=region, status=status
-    )
+    location, _ = Location.objects.update_or_create(name=region, location_type=location_type, status=status)
 
     # Create a REST username secret
     secret_username, _ = Secret.objects.update_or_create(
@@ -127,5 +116,5 @@ def update_or_create_automation_gateways(
 
     # Create the Automation Gateway object
     automation_gateway, _ = AutomationGatewayModel.objects.update_or_create(
-        name=name, description=description, location=region, gateway=gateway, enabled=enabled
+        name=name, description=description, location=location, gateway=gateway, enabled=enabled
     )
