@@ -12,7 +12,7 @@ gateways = [
         "description": "Test IAG 1",
         "region": "USA",
         "location": "NYC",
-        "gateway": "iag1.example.com",
+        "gateway": "https://iag1.example.com:8443",
         "enabled": True,
         "username_env": "IAG1_USERNAME",
         "password_env": "IAG1_PASSWORD",
@@ -23,7 +23,7 @@ gateways = [
         "description": "Test IAG 10",
         "region": "USA",
         "location": "NYC",
-        "gateway": "iag10.example.com",
+        "gateway": "https://iag10.example.com:8443",
         "enabled": False,
         "username_env": "IAG1_USERNAME",
         "password_env": "IAG1_PASSWORD",
@@ -34,7 +34,7 @@ gateways = [
         "description": "Test IAG 2",
         "region": "Europe",
         "location": "LON",
-        "gateway": "iag2.example.com",
+        "gateway": "https://iag2.example.com:8443",
         "enabled": True,
         "username_env": "IAG2_USERNAME",
         "password_env": "IAG2_PASSWORD",
@@ -42,7 +42,26 @@ gateways = [
     },
 ]
 
-responses = {}
+responses = {
+    "iag1": {
+        "hostname": "https://iag1.example.com:8443",
+        "responses": {
+            "login": {"token": "abc123="},
+            "logout": {},
+            "poll": {},
+            "get_devices": {},
+            "get_device": {},
+            "create_device": {},
+            "update_device": {},
+            "delete_device": {},
+            "get_groups": {},
+            "get_group": {},
+            "create_group": {},
+            "update_group": {},
+            "delete_group": {},
+        },
+    },
+}
 
 
 def update_or_create_automation_gateways(
