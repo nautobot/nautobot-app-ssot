@@ -2,7 +2,10 @@
 
 import requests
 
+from retry import retry
 from typing import List, Optional, Union
+
+from nautobot_ssot.integrations.itential.constants import BACKOFF, DELAY, RETRIES
 
 
 class AutomationGatewayClient:
@@ -50,11 +53,13 @@ class AutomationGatewayClient:
         """Build base URL."""
         return f"{self.host}/api/{self.api_version}"
 
+    @retry(requests.exceptions.HTTPError, delay=DELAY, tries=RETRIES, backoff=BACKOFF)
     def _get(self, uri: str) -> requests.Response:
         """Perform a GET request to the specified uri."""
         response = self.session.get(f"{self.base_url}/{uri}", verify=self.verify_ssl)
         return response
 
+    @retry(requests.exceptions.HTTPError, delay=DELAY, tries=RETRIES, backoff=BACKOFF)
     def _post(self, uri: str, json_data: Optional[dict] = None) -> requests.Response:
         """Perform a POST request to the specified uri."""
         if json_data:
@@ -63,6 +68,7 @@ class AutomationGatewayClient:
             response = self.session.post(f"{self.base_url}/{uri}", verify=self.verify_ssl)
         return response
 
+    @retry(requests.exceptions.HTTPError, delay=DELAY, tries=RETRIES, backoff=BACKOFF)
     def _put(self, uri: str, json_data: Optional[dict] = None) -> requests.Response:
         """Perform a PUT request to the specified uri."""
         if json_data:
@@ -71,6 +77,7 @@ class AutomationGatewayClient:
             response = self.session.put(f"{self.base_url}/{uri}", verify=self.verify_ssl)
         return response
 
+    @retry(requests.exceptions.HTTPError, delay=DELAY, tries=RETRIES, backoff=BACKOFF)
     def _delete(self, uri: str) -> requests.Response:
         """Perform a GET request to the specified uri."""
         response = self.session.delete(f"{self.base_url}/{uri}", verify=self.verify_ssl)
