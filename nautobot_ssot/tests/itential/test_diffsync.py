@@ -1,9 +1,12 @@
 """Itential SSoT DiffSync tests."""
 
-from nautobot_ssot.tests.itential.fixtures.base import ItentialSSoTBaseTestCase
+from nautobot_ssot.tests.itential.fixtures import base
 
 
-class DiffSyncTestCases(ItentialSSoTBaseTestCase):
+class DiffSyncTestCases(base.ItentialSSoTBaseTestCase):
     """DiffSync test cases."""
 
-    pass
+    def test_inventory_diff(self):
+        """Test diff exists."""
+        diff = self.nautobot_adapter.diff_to(self.itential_adapter)
+        self.assertTrue(diff.has_diffs())

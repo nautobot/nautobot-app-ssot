@@ -2,10 +2,13 @@
 
 import os
 import requests_mock
-from unittest import TestCase
+
+from nautobot.apps.testing import TestCase
 
 from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
-from nautobot_ssot.tests.itential.fixtures import gateways, logger, urls, clients, devices
+from nautobot_ssot.integrations.itential.diffsync.adapters import itential, nautobot
+from nautobot_ssot.tests.itential.fixtures import gateways, urls, clients, devices
+from nautobot_ssot.tests.itential.fixtures.logger import JobLogger
 
 
 class ItentialSSoTBaseTestCase(TestCase):
@@ -13,7 +16,8 @@ class ItentialSSoTBaseTestCase(TestCase):
 
     def setUp(self):
         """Setup test cases."""
-        self.job = logger.JobLogger()
+        self.job = JobLogger()
+        self.job.log_info(message="test")
         self.requests_mock = requests_mock.Mocker()
         self.requests_mock.start()
 
@@ -59,6 +63,13 @@ class ItentialSSoTBaseTestCase(TestCase):
 
         self.gateway = AutomationGatewayModel.objects.first()
         self.client = clients.api_client(self.gateway)
+        self.itential_adapter = itential.ItentialAnsibleDeviceAdapter(api_client=self.client, job=self.job)
+        self.nautobot_adapter = nautobot.NautobotAnsibleDeviceAdapter(
+            job=self.job, location="North America", location_descendants=True
+        )
+
+        self.itential_adapter.load()
+        self.nautobot_adapter.load()
 
     def tearDown(self):
         """Teardown test cases."""

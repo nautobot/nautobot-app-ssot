@@ -10,14 +10,15 @@ from nautobot_ssot.integrations.itential.diffsync.models.nautobot import Nautobo
 from nautobot.dcim.models import Device, Location
 
 
-class NautobotAnsibleAdapter(DiffSync):
+class NautobotAnsibleDeviceAdapter(DiffSync):
     """Nautobot => Itential Ansible Device Diffsync Adapter."""
 
     device = NautobotAnsibleDeviceModel
     top_level = ["device"]
 
-    def __init__(self, job: object, location: str, location_descendants: bool):
+    def __init__(self, job: object, location: str, location_descendants: bool, *args, **kwargs):
         """Initialize Nautobot Itential Ansible Device Diffsync adapter."""
+        super().__init__(*args, **kwargs)
         self.job = job
         self.location = location
         self.location_descendants = location_descendants
@@ -49,7 +50,7 @@ class NautobotAnsibleAdapter(DiffSync):
         else:
             ansible_network_os = {}
 
-        ansible_host = {"ansible_host": device_obj.primary_ipv4.host}
+        ansible_host = {"ansible_host": device_obj.primary_ip4.host}
         config_context = device_obj.get_config_context()
 
         return {**ansible_host, **ansible_network_os, **config_context}
@@ -58,10 +59,10 @@ class NautobotAnsibleAdapter(DiffSync):
         """Load Nautobot Diffsync adapter."""
         self.job.log_info(message="Loading locations from Nautobot.")
         location = Location.objects.get(name=self.location)
-        locations = location.get_descendants(include_self=True) if self.location_descendants else location
+        locations = location.descendants(include_self=True) if self.location_descendants else location
 
         self.job.log_info(message="Loading devices from Nautobot.")
-        devices = Device.objects.filter(location__in=locations).exclude(primary_ipv4=None)
+        devices = Device.objects.filter(location__in=locations).exclude(primary_ip4=None)
 
         for nb_device in devices:
             try:

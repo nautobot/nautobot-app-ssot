@@ -8,7 +8,7 @@ from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
 from nautobot_ssot.integrations.itential.clients import AutomationGatewayClient
 
 
-def api_client(device_obj: AutomationGatewayModel, job: object = logger.JobLogger) -> AutomationGatewayClient:
+def api_client(device_obj: AutomationGatewayModel, job: object = logger.JobLogger()) -> AutomationGatewayClient:
     """Initialize API Client."""
 
     return AutomationGatewayClient(

@@ -13,12 +13,13 @@ class ItentialAnsibleDeviceAdapter(DiffSync):
 
     def __init__(self, api_client: AutomationGatewayClient, job: object, *args, **kwargs):
         """Initialize Diffsync Adapter."""
+        super().__init__(*args, **kwargs)
         self.api_client = api_client
         self.job = job
 
     def load(self):
         """Load Adapter."""
-        self.job.load_info(message=f"Loading Itential devices from {self.api_client.host} into Diffsync adapter.")
+        self.job.log_info(message=f"Loading Itential devices from {self.api_client.host} into Diffsync adapter.")
         devices = self.api_client.get_devices().get("data")
 
         for iag_device in devices:
