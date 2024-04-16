@@ -1,1 +1,0 @@
-+ Fixed logic check for 'hide_example_jobs' when defined, and also set to False.
