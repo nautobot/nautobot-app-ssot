@@ -1,19 +1,19 @@
 # pylint: disable=invalid-name,too-few-public-methods
 """Jobs for CloudVision integration with SSoT app."""
+
 from django.templatetags.static import static
 from django.urls import reverse
-
-from nautobot.dcim.models import DeviceType
-from nautobot.extras.jobs import Job, BooleanVar
 from nautobot.core.utils.lookup import get_route_for_model
-from nautobot_ssot.jobs.base import DataTarget, DataSource, DataMapping
-
-from nautobot_ssot.integrations.aristacv.constant import APP_SETTINGS
+from nautobot.dcim.models import DeviceType
+from nautobot.extras.jobs import BooleanVar
+from nautobot.extras.jobs import Job
 from nautobot_ssot.integrations.aristacv.diffsync.adapters.cloudvision import CloudvisionAdapter
 from nautobot_ssot.integrations.aristacv.diffsync.adapters.nautobot import NautobotAdapter
-from nautobot_ssot.integrations.aristacv.diffsync.models import nautobot
 from nautobot_ssot.integrations.aristacv.utils.cloudvision import CloudvisionApi
-
+from nautobot_ssot.integrations.aristacv.utils.nautobot import get_config
+from nautobot_ssot.jobs.base import DataMapping
+from nautobot_ssot.jobs.base import DataSource
+from nautobot_ssot.jobs.base import DataTarget
 
 name = "SSoT - Arista CloudVision"  # pylint: disable=invalid-name
 
@@ -41,38 +41,26 @@ class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
         """Meta data for DataSource."""
 
         name = "CloudVision ⟹ Nautobot"
-        data_source = "Cloudvision"
+        data_source = "CloudVision"
         data_source_icon = static("nautobot_ssot_aristacv/cvp_logo.png")
         description = "Sync system tag data from CloudVision to Nautobot"
 
     @classmethod
     def config_information(cls):
         """Dictionary describing the configuration of this DataSource."""
-        if APP_SETTINGS.get("aristacv_cvp_host"):
-            server_type = "On prem"
-            host = APP_SETTINGS.get("aristacv_cvp_host")
-        else:
-            server_type = "CVaaS"
-            host = APP_SETTINGS.get("aristacv_cvaas_url")
+        config = get_config()
+
         return {
-            "Server type": server_type,
-            "CloudVision host": host,
-            "Username": APP_SETTINGS.get("aristacv_cvp_user"),
-            "Verify": str(APP_SETTINGS.get("aristacv_verify")),
-            "Delete devices on sync": APP_SETTINGS.get(
-                "aristacv_delete_devices_on_sync", str(nautobot.DEFAULT_DELETE_DEVICES_ON_SYNC)
-            ),
-            "New device default site": APP_SETTINGS.get(
-                "aristacv_from_cloudvision_default_site", nautobot.DEFAULT_SITE
-            ),
-            "New device default role": APP_SETTINGS.get(
-                "aristacv_from_cloudvision_default_device_role", nautobot.DEFAULT_DEVICE_ROLE
-            ),
-            "New device default role color": APP_SETTINGS.get(
-                "aristacv_from_cloudvision_default_device_role_color", nautobot.DEFAULT_DEVICE_ROLE_COLOR
-            ),
-            "Apply import tag": str(APP_SETTINGS.get("aristacv_apply_import_tag", nautobot.APPLY_IMPORT_TAG)),
-            "Import Active": str(APP_SETTINGS.get("aristacv_import_active", "True"))
+            "Server Type": "On prem" if config.is_on_premise else "CVaaS",
+            "CloudVision URL": config.url,
+            "User Name": config.cvp_user,
+            "Verify SSL": str(config.verify_ssl),
+            "Delete Devices On Sync": config.delete_devices_on_sync,
+            "New Device Default Site": config.from_cloudvision_default_site,
+            "New Device Default Role": config.from_cloudvision_default_device_role,
+            "New Device Default Role Color": config.from_cloudvision_default_device_role_color,
+            "Apply Import Tag": str(config.apply_import_tag),
+            "Import Active": str(config.import_active),
             # Password and Token are intentionally omitted!
         }
 
@@ -98,36 +86,34 @@ class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
             DataMapping("topology_type", None, "Topology Type", None),
         )
 
+    def __init__(self, *args, **kwargs):
+        """Initialize the CloudVision Data Target."""
+        super().__init__(*args, **kwargs)
+        self.app_config = get_config()
+
     def load_source_adapter(self):
         """Load data from CloudVision into DiffSync models."""
-        if not APP_SETTINGS.get("aristacv_from_cloudvision_default_site"):
+        if not self.app_config.from_cloudvision_default_site:
             self.logger.error(
-                "App setting `aristacv_from_cloudvision_default_site` is not defined. This setting is required for the App to function."
+                "App setting `from_cloudvision_default_site` is not defined. This setting is required for the App to function."
             )
-            raise MissingConfigSetting(setting="aristacv_from_cloudvision_default_site")
-        if not APP_SETTINGS.get("aristacv_from_cloudvision_default_device_role"):
+            raise MissingConfigSetting(setting="from_cloudvision_default_site")
+        if not self.app_config.from_cloudvision_default_device_role:
             self.logger.error(
-                "App setting `aristacv_from_cloudvision_default_device_role` is not defined. This setting is required for the App to function."
+                "App setting `from_cloudvision_default_device_role` is not defined. This setting is required for the App to function."
             )
-            raise MissingConfigSetting(setting="aristacv_from_cloudvision_default_device_role")
+            raise MissingConfigSetting(setting="from_cloudvision_default_device_role")
         if self.debug:
-            if APP_SETTINGS.get("aristacv_delete_devices_on_sync"):
+            if self.app_config.delete_devices_on_sync:
                 self.logger.warning(
-                    "Devices not present in Cloudvision but present in Nautobot will be deleted from Nautobot."
+                    "Devices not present in CloudVision but present in Nautobot will be deleted from Nautobot."
                 )
             else:
                 self.logger.warning(
-                    "Devices not present in Cloudvision but present in Nautobot will not be deleted from Nautobot."
+                    "Devices not present in CloudVision but present in Nautobot will not be deleted from Nautobot."
                 )
             self.logger.info("Connecting to CloudVision")
-        with CloudvisionApi(
-            cvp_host=APP_SETTINGS["aristacv_cvp_host"],
-            cvp_port=APP_SETTINGS.get("aristacv_cvp_port", "8443"),
-            verify=APP_SETTINGS["aristacv_verify"],
-            username=APP_SETTINGS["aristacv_cvp_user"],
-            password=APP_SETTINGS["aristacv_cvp_password"],
-            cvp_token=APP_SETTINGS["aristacv_cvp_token"],
-        ) as client:
+        with CloudvisionApi(self.app_config) as client:
             self.logger.info("Loading data from CloudVision")
             self.source_adapter = CloudvisionAdapter(job=self, conn=client)
             self.source_adapter.load()
@@ -139,12 +125,18 @@ class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
         self.target_adapter.load()
 
     def run(  # pylint: disable=arguments-differ, too-many-arguments, duplicate-code
-        self, dryrun, memory_profiling, debug, *args, **kwargs
+        self,
+        dryrun,
+        memory_profiling,
+        debug,
+        *args,
+        **kwargs,
     ):
         """Perform data synchronization."""
         self.debug = debug
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
+
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 
@@ -164,17 +156,19 @@ class CloudVisionDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
     @classmethod
     def config_information(cls):
         """Dictionary describing the configuration of this DataTarget."""
-        if APP_SETTINGS.get("aristacv_cvp_host"):
+        config = get_config()
+
+        if config.is_on_premise:
             return {
-                "Server type": "On prem",
-                "CloudVision host": APP_SETTINGS.get("aristacv_cvp_host"),
-                "Username": APP_SETTINGS.get("aristacv_cvp_user"),
-                "Verify": str(APP_SETTINGS.get("aristacv_verify"))
+                "Server Type": "On prem",
+                "CloudVision URL": config.url,
+                "Verify": str(config.verify_ssl),
+                "User Name": config.cvp_user,
                 # Password is intentionally omitted!
             }
         return {
-            "Server type": "CVaaS",
-            "CloudVision host": APP_SETTINGS.get("aristacv_cvaas_url"),
+            "Server Type": "CVaaS",
+            "CloudVision URL": config.url,
             # Token is intentionally omitted!
         }
 
@@ -182,6 +176,11 @@ class CloudVisionDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
     def data_mappings(cls):
         """List describing the data mappings involved in this DataTarget."""
         return (DataMapping("Tags", reverse("extras:tag_list"), "Device Tags", None),)
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the CloudVision Data Target."""
+        super().__init__(*args, **kwargs)
+        self.app_config = get_config()
 
     def load_source_adapter(self):
         """Load data from Nautobot into DiffSync models."""
@@ -192,34 +191,33 @@ class CloudVisionDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
     def load_target_adapter(self):
         """Load data from CloudVision into DiffSync models."""
         if self.debug:
-            if APP_SETTINGS.get("aristacv_delete_devices_on_sync"):
+            if self.app_config.delete_devices_on_sync:
                 self.logger.warning(
-                    "Devices not present in Cloudvision but present in Nautobot will be deleted from Nautobot."
+                    "Devices not present in CloudVision but present in Nautobot will be deleted from Nautobot."
                 )
             else:
                 self.logger.warning(
-                    "Devices not present in Cloudvision but present in Nautobot will not be deleted from Nautobot."
+                    "Devices not present in CloudVision but present in Nautobot will not be deleted from Nautobot."
                 )
             self.logger.info("Connecting to CloudVision")
-        with CloudvisionApi(
-            cvp_host=APP_SETTINGS["aristacv_cvp_host"],
-            cvp_port=APP_SETTINGS.get("aristacv_cvp_port", "8443"),
-            verify=APP_SETTINGS["aristacv_verify"],
-            username=APP_SETTINGS["aristacv_cvp_user"],
-            password=APP_SETTINGS["aristacv_cvp_password"],
-            cvp_token=APP_SETTINGS["aristacv_cvp_token"],
-        ) as client:
+        with CloudvisionApi(self.app_config) as client:
             self.logger.info("Loading data from CloudVision")
             self.target_adapter = CloudvisionAdapter(job=self, conn=client)
             self.target_adapter.load()
 
     def run(  # pylint: disable=arguments-differ, too-many-arguments, duplicate-code
-        self, dryrun, memory_profiling, debug, *args, **kwargs
+        self,
+        dryrun,
+        memory_profiling,
+        debug,
+        *args,
+        **kwargs,
     ):
         """Perform data synchronization."""
         self.debug = debug
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
+
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 

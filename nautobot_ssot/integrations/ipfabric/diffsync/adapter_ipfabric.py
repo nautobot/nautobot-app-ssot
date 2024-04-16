@@ -96,7 +96,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     if iface.get("mac")
                     else DEFAULT_INTERFACE_MAC,
                     mtu=iface.get("mtu") if iface.get("mtu") else DEFAULT_INTERFACE_MTU,
-                    type=ipfabric_utils.convert_media_type(iface.get("media") or ""),
+                    type=ipfabric_utils.convert_media_type(iface.get("media"), iface_name),
                     mgmt_only=iface.get("mgmt_only", False),
                     ip_address=ip_address,
                     subnet_mask=subnet_mask,
@@ -115,7 +115,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         interfaces = self.client.inventory.interfaces.all()
         vlans = self.client.fetch_all("tables/vlan/site-summary")
         networks = defaultdict(list)
-        for network in self.client.technology.managed_networks.networks.fetch(
+        for network in self.client.technology.managed_networks.networks.all(
             filters={"net": ["empty", False], "siteName": ["empty", False]},
             columns=["net", "siteName"],
         ):
@@ -151,7 +151,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             location_devices = [device for device in devices if device["siteName"] == location.name]
             for device in location_devices:
                 device_name = device["hostname"]
-                stack_members = self.client.technology.platforms.stacks_members.fetch(
+                stack_members = self.client.technology.platforms.stacks_members.all(
                     filters={"master": ["eq", device_name], "siteName": ["eq", location.name]},
                     columns=["master", "member", "memberSn", "pn"],
                 )
