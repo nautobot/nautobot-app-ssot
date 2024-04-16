@@ -15,8 +15,8 @@
 ### Fixed
 
 - [#367](https://github.com/nautobot/nautobot-app-ssot/issues/367) - Fixed issues with example Jobs.
-- [#407](https://github.com/nautobot/nautobot-app-ssot/issues/407) - + Fixed logic check for 'hide_example_jobs' when defined, and also set to False.
-- [#409](https://github.com/nautobot/nautobot-app-ssot/issues/409) - + Fixes tagging and custom field updates for Nautobot objects synced to/from Infoblox.
+- [#407](https://github.com/nautobot/nautobot-app-ssot/issues/407) - Fixed logic check for 'hide_example_jobs' when defined, and also set to False.
+- [#409](https://github.com/nautobot/nautobot-app-ssot/issues/409) - Fixed tagging and custom field updates for Nautobot objects synced to/from Infoblox.
 - [#413](https://github.com/nautobot/nautobot-app-ssot/issues/413) - Fixed method of retrieving objects from IPFabric's technology categories.
 
 ### Housekeeping
