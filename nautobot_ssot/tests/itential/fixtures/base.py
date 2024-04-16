@@ -3,6 +3,8 @@
 import os
 import requests_mock
 
+# from unittest import TestCase
+
 from nautobot.apps.testing import TestCase
 
 from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
@@ -17,7 +19,6 @@ class ItentialSSoTBaseTestCase(TestCase):
     def setUp(self):
         """Setup test cases."""
         self.job = JobLogger()
-        self.job.log_info(message="test")
         self.requests_mock = requests_mock.Mocker()
         self.requests_mock.start()
 
@@ -59,6 +60,7 @@ class ItentialSSoTBaseTestCase(TestCase):
                 model=device.get("model"),
                 interface=device.get("interface"),
                 ip_address=device.get("ip_address"),
+                config_context=device.get("config_context"),
             )
 
         self.gateway = AutomationGatewayModel.objects.first()

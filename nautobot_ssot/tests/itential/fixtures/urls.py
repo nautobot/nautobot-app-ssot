@@ -41,7 +41,7 @@ data = [
     },
     {
         "method": "DELETE",
-        "url": f"{gateways.responses['iag1'].get('hostname')}/api/v2.0/devices/rtr10.example.net",
+        "url": f"{gateways.responses['iag1'].get('hostname')}/api/v2.0/devices/rtr12.example.net",
         "json": gateways.responses["iag1"]["responses"].get("delete_device"),
     },
     {
@@ -76,7 +76,7 @@ data = [
     },
     {
         "method": "DELETE",
-        "url": f"{gateways.responses['iag1'].get('hostname')}/api/v2.0/groups/all/devices/rtr1.example.net",
+        "url": f"{gateways.responses['iag1'].get('hostname')}/api/v2.0/groups/all/devices/rtr12.example.net",
         "json": gateways.responses["iag1"]["responses"].get("delete_device_from_group"),
     },
 ]

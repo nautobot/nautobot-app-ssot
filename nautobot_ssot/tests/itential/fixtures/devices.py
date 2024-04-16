@@ -53,6 +53,18 @@ data = [
         "role": "Router",
         "status": "Active",
     },
+    {
+        "name": "rtr11.example.net",
+        "location": "North America",
+        "manufacturer": "Cisco",
+        "model": "NCS 5501",
+        "interface": "managementEthernet0/0/0/1",
+        "ip_address": "192.0.2.11",
+        "platform": "Cisco IOS-XR",
+        "network_driver": "cisco_xr",
+        "role": "Router",
+        "status": "Active",
+    },
 ]
 
 
@@ -79,7 +91,7 @@ def update_or_create_device_object(
     config_context: dict = {},
 ):
     """Create or update device fixtures."""
-    status = Status.objects.get(name="Active")
+    status = Status.objects.get(name=status)
     namespace = Namespace.objects.get(name="Global")
     ip_prefix, _ = Prefix.objects.update_or_create(prefix="192.0.2.0/24", namespace=namespace, status=status)
     device_content_type = ContentType.objects.get_for_model(Device)
@@ -102,5 +114,5 @@ def update_or_create_device_object(
         ip_address, _ = IPAddress.objects.update_or_create(host=ip_address, mask_length=32, status=status)
         ip_address.primary_ip4_for.add(device)
 
-    device.local_config_context = config_context
+    device.local_config_context_data = config_context
     device.save()

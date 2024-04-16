@@ -61,7 +61,19 @@ responses = {
                             "ansible_connection": "ansible.netcommon.network_cli",
                             "ansible_port": 22,
                         },
-                    }
+                    },
+                    {
+                        "name": "rtr10.example.net",
+                        "variables": {
+                            "ansible_host": "192.0.2.1",
+                        },
+                    },
+                    {
+                        "name": "rtr12.example.net",
+                        "variables": {
+                            "ansible_host": "192.0.2.12",
+                        },
+                    },
                 ],
             },
             "get_device": {
@@ -74,8 +86,8 @@ responses = {
                 },
             },
             "create_device": {
-                "name": "rtr10.example.net",
-                "variables": {"ansible_host": "192.0.2.10", "ansible_network_os": "cisco.ios.ios"},
+                "name": "rtr11.example.net",
+                "variables": {"ansible_host": "192.0.2.11", "ansible_network_os": "cisco.iosxr.iosxr"},
             },
             "update_device": {
                 "name": "rtr10.example.net",
