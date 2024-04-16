@@ -49,13 +49,26 @@
 ## Fixed
 
 - [396](https://github.com/nautobot/nautobot-app-ssot/pull/396) - Fix custom one-to-many relationships (backport of #393)
-- [396](https://github.com/nautobot/nautobot-app-ssot/pull/396) -
-  Use `typing.get_args` in favor of accessing `__args__` directly (backport of #390)
-- [396](https://github.com/nautobot/nautobot-app-ssot/pull/396) -
-  Fixed issue with generic relationships and `NautobotAdapter.load` (backport of #388)
-- [396](Fixed issue with generic relationships and `NautobotAdapter.load`.) -
-  Allow foreign keys inside of many to many relationships (backport of #377)
+- [396](https://github.com/nautobot/nautobot-app-ssot/pull/396) - Use `typing.get_args` in favor of accessing `__args__` directly (backport of #390)
+- [396](https://github.com/nautobot/nautobot-app-ssot/pull/396) - Fixed issue with generic relationships and `NautobotAdapter.load` (backport of #388)
+- [396](https://github.com/nautobot/nautobot-app-ssot/pull/396) - Allow foreign keys inside of many to many relationships (backport of #377)
 
 ## Housekeeping
 
 - Replicate module and test module structure for contrib code in LTM branch
+
+## v1.6.4 - 2024-04-16
+
+## Fixed
+
+- [243](https://github.com/nautobot/nautobot-app-ssot/pull/243) - Fix Infoblox import_subnet for ltm-1.6 by @jdrew82
+- [261](https://github.com/nautobot/nautobot-app-ssot/pull/261) - Fix Device42 documentation. by @jdrew82
+- [419](https://github.com/nautobot/nautobot-app-ssot/pull/419) - Fix Device42 Plugin Settings for LTM by @jdrew82
+
+## Changed
+
+- [245](https://github.com/nautobot/nautobot-app-ssot/pull/245) - IPFabric integration settings updates by @alhogan
+- [357](https://github.com/nautobot/nautobot-app-ssot/pull/357) - backport contrib changes to LTM by @Kircheneer
+- [361](https://github.com/nautobot/nautobot-app-ssot/pull/361) - Backport of #350 by @Kircheneer
+- [363](https://github.com/nautobot/nautobot-app-ssot/pull/363) - Backport #362 by @Kircheneer
+- [373](https://github.com/nautobot/nautobot-app-ssot/pull/373) - change contrib.NautobotModel.get_from_db to use a PK by @Kircheneer
