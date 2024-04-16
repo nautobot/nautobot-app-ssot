@@ -60,6 +60,8 @@
 
 - Replicate module and test module structure for contrib code in LTM branch
 
+## v1.6.4 - 2024-04-16
+
 ## Fixed
 
 - [243](https://github.com/nautobot/nautobot-app-ssot/pull/243) - Fix Infoblox import_subnet for ltm-1.6 by @jdrew82
