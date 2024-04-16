@@ -268,3 +268,40 @@ class AutomationGatewayClient:
             return response.json()
         self.job.log_warning(message=f"Failed to delete {group_name} on {self.host}.")
         return response.raise_for_status()
+
+    def add_device_to_group(self, group_name: str, device_name: str) -> Union[requests.Response, requests.HTTPError]:
+        """Add a device to a group.
+
+        Args:
+            group_name (str): Group name.
+            device_name (str): Device name.
+
+        Returns:
+            Union[requests.Response, requests.HTTPError]: API client return message.
+        """
+        device_name = [device_name]
+        response = self._post(uri=f"groups/{group_name}/devices", json_data=device_name)
+        if response.ok:
+            self.job.log_info(message=f"Adding {device_name} to {group_name} group on {self.host}.")
+            return response.json()
+        self.job.log_warning(message=f"Failed to add {device_name} to {group_name} group on {self.host}.")
+        return response.raise_for_status()
+
+    def delete_device_from_group(
+        self, group_name: str, device_name: str
+    ) -> Union[requests.Response, requests.HTTPError]:
+        """Delete a device from a group.
+
+        Args:
+            group_name (str): Group name.
+            device_name (str): Device name.
+
+        Returns:
+            Union[requests.Response, requests.HTTPError]: API client return message.
+        """
+        response = self._delete(uri=f"groups/{group_name}/devices/{device_name}")
+        if response.ok:
+            self.job.log_info(message=f"Deleting {device_name} from {group_name} group on {self.host}.")
+            return response.json()
+        self.job.log_warning(message=f"Failed to delete {device_name} from {group_name} group on {self.host}.")
+        return response.raise_for_status()

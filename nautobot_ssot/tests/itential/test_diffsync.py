@@ -10,3 +10,8 @@ class DiffSyncTestCases(base.ItentialSSoTBaseTestCase):
         """Test diff exists."""
         diff = self.nautobot_adapter.diff_to(self.itential_adapter)
         self.assertTrue(diff.has_diffs())
+
+    def test_inventory_sync(self):
+        """Test successful sync."""
+        diff = self.nautobot_adapter.sync_to(self.itential_adapter)
+        self.assertFalse(diff.has_diffs())

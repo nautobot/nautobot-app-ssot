@@ -69,4 +69,14 @@ data = [
         "url": f"{gateways.responses['iag1'].get('hostname')}/api/v2.0/groups/test-group",
         "json": gateways.responses["iag1"]["responses"].get("delete_group"),
     },
+    {
+        "method": "POST",
+        "url": f"{gateways.responses['iag1'].get('hostname')}/api/v2.0/groups/all/devices",
+        "json": gateways.responses["iag1"]["responses"].get("add_device_to_group"),
+    },
+    {
+        "method": "DELETE",
+        "url": f"{gateways.responses['iag1'].get('hostname')}/api/v2.0/groups/all/devices/rtr1.example.net",
+        "json": gateways.responses["iag1"]["responses"].get("delete_device_from_group"),
+    },
 ]

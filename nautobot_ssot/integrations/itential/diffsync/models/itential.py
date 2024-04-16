@@ -29,5 +29,5 @@ class ItentialAnsibleDeviceModel(DiffSyncModel):
 
     def update(self, attrs):
         """Update device in Automation Gateway."""
-        self.diffsync.api_cient.update_device(device_name=self.name, variables=attrs.get("variables"))
+        self.diffsync.api_client.update_device(device_name=self.name, variables=attrs.get("variables"))
         return super().update(attrs)

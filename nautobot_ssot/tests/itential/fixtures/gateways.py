@@ -73,8 +73,17 @@ responses = {
                     "ansible_port": 22,
                 },
             },
-            "create_device": {"name": "rtr10.example.net", "variables": {"ansible_host": "192.0.2.10"}},
-            "update_device": {"name": "rtr10.example.net", "variables": {"ansible_host": "192.0.2.10"}},
+            "create_device": {
+                "name": "rtr10.example.net",
+                "variables": {"ansible_host": "192.0.2.10", "ansible_network_os": "cisco.ios.ios"},
+            },
+            "update_device": {
+                "name": "rtr10.example.net",
+                "variables": {
+                    "ansible_host": "192.0.2.10",
+                    "ansible_network_os": "cisco.ios.ios",
+                },
+            },
             "delete_device": {"code": 200, "status": 200, "message": "deleted"},
             "get_groups": {
                 "meta": {
@@ -92,7 +101,7 @@ responses = {
                 ],
             },
             "get_group": {
-                "name": "rtr1.example.net",
+                "name": "all",
                 "variables": {"ansible_user": "testUser", "ansible_password": "testPass"},
                 "devices": ["rtr1.example.net"],
                 "childGroups": [],
@@ -110,6 +119,8 @@ responses = {
                 "childGroups": [],
             },
             "delete_group": {"code": 200, "status": 200, "message": "deleted"},
+            "add_device_to_group": ["rtr1.example.net"],
+            "delete_device_from_group": {"code": 200, "status": 200, "message": "deleted"},
         },
     },
 }

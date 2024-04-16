@@ -27,6 +27,7 @@ data = [
         "network_driver": "cisco_ios",
         "role": "Router",
         "status": "Active",
+        "config_context": {"ansible_port": 22, "ansible_connection": "ansible.netcommon.network_cli"},
     },
     {
         "name": "rtr2.example.net",
@@ -35,6 +36,18 @@ data = [
         "model": "Cisco 2901",
         "interface": "gigabitEthernet0/1",
         "ip_address": None,
+        "platform": "Cisco IOS",
+        "network_driver": "cisco_ios",
+        "role": "Router",
+        "status": "Active",
+    },
+    {
+        "name": "rtr10.example.net",
+        "location": "North America",
+        "manufacturer": "Cisco",
+        "model": "Cisco 2901",
+        "interface": "gigabitEthernet0/1",
+        "ip_address": "192.0.2.10",
         "platform": "Cisco IOS",
         "network_driver": "cisco_ios",
         "role": "Router",
@@ -63,6 +76,7 @@ def update_or_create_device_object(
     model: str,
     interface: str,
     ip_address: str,
+    config_context: dict = {},
 ):
     """Create or update device fixtures."""
     status = Status.objects.get(name="Active")
@@ -87,3 +101,6 @@ def update_or_create_device_object(
     if ip_address:
         ip_address, _ = IPAddress.objects.update_or_create(host=ip_address, mask_length=32, status=status)
         ip_address.primary_ip4_for.add(device)
+
+    device.local_config_context = config_context
+    device.save()

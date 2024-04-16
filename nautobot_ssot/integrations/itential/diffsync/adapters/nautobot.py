@@ -43,7 +43,7 @@ class NautobotAnsibleDeviceAdapter(DiffSync):
 
         return True
 
-    def _ansible_vars(device_obj: Device) -> dict:
+    def _ansible_vars(self, device_obj: Device) -> dict:
         """Create device variables to load into Automation Gateway."""
         if device_obj.platform and device_obj.platform.network_driver_mappings.get("ansible"):
             ansible_network_os = {"ansible_network_os": device_obj.platform.network_driver_mappings.get("ansible")}
