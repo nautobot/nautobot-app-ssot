@@ -1,6 +1,5 @@
-"""Test Cloudvision Jobs."""
-from unittest.mock import patch
-
+"""Test CloudVision Jobs."""
+from django.test import override_settings
 from django.urls import reverse
 from nautobot.core.testing import TestCase
 
@@ -8,13 +7,13 @@ from nautobot_ssot.integrations.aristacv import jobs
 
 
 class CloudVisionDataSourceJobTest(TestCase):
-    """Test the Cloudvision DataSource Job."""
+    """Test the CloudVision DataSource Job."""
 
     def test_metadata(self):
         """Verify correctness of the Job Meta attributes."""
         self.assertEqual("CloudVision ⟹ Nautobot", jobs.CloudVisionDataSource.name)
         self.assertEqual("CloudVision ⟹ Nautobot", jobs.CloudVisionDataSource.Meta.name)
-        self.assertEqual("Cloudvision", jobs.CloudVisionDataSource.data_source)
+        self.assertEqual("CloudVision", jobs.CloudVisionDataSource.data_source)
         self.assertEqual("Sync system tag data from CloudVision to Nautobot", jobs.CloudVisionDataSource.description)
 
     def test_data_mapping(self):  # pylint: disable=too-many-statements
@@ -101,53 +100,55 @@ class CloudVisionDataSourceJobTest(TestCase):
         self.assertEqual("Topology Type", mappings[15].target_name)
         self.assertIsNone(mappings[15].target_url)
 
-    @patch.dict(
-        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
-        {
-            "aristacv_cvp_host": "https://localhost",
-            "aristacv_cvp_user": "admin",
-            "aristacv_verify": True,
-            "aristacv_delete_devices_on_sync": True,
-            "aristacv_from_cloudvision_default_site": "HQ",
-            "aristacv_from_cloudvision_default_device_role": "Router",
-            "aristacv_from_cloudvision_default_device_role_color": "ff0000",
-            "aristacv_apply_import_tag": True,
-            "aristacv_import_active": True,
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_cvp_host": "https://localhost",
+                "aristacv_cvp_user": "admin",
+                "aristacv_verify": True,
+                "aristacv_delete_devices_on_sync": True,
+                "aristacv_from_cloudvision_default_site": "HQ",
+                "aristacv_from_cloudvision_default_device_role": "Router",
+                "aristacv_from_cloudvision_default_device_role_color": "ff0000",
+                "aristacv_apply_import_tag": True,
+                "aristacv_import_active": True,
+            },
         },
     )
     def test_config_information_on_prem(self):
         """Verify the config_information() API for on-prem."""
         config_information = jobs.CloudVisionDataSource.config_information()
 
-        self.assertEqual(config_information["Server type"], "On prem")
-        self.assertEqual(config_information["CloudVision host"], "https://localhost")
-        self.assertEqual(config_information["Username"], "admin")
-        self.assertEqual(config_information["Verify"], "True")
-        self.assertEqual(config_information["Delete devices on sync"], True)
-        self.assertEqual(config_information["New device default site"], "HQ")
-        self.assertEqual(config_information["New device default role"], "Router")
-        self.assertEqual(config_information["New device default role color"], "ff0000")
-        self.assertEqual(config_information["Apply import tag"], "True")
+        self.assertEqual(config_information["Server Type"], "On prem")
+        self.assertEqual(config_information["CloudVision URL"], "https://localhost:443")
+        self.assertEqual(config_information["Verify SSL"], "True")
+        self.assertEqual(config_information["User Name"], "admin")
+        self.assertEqual(config_information["Delete Devices On Sync"], True)
+        self.assertEqual(config_information["New Device Default Site"], "HQ")
+        self.assertEqual(config_information["New Device Default Role"], "Router")
+        self.assertEqual(config_information["New Device Default Role Color"], "ff0000")
+        self.assertEqual(config_information["Apply Import Tag"], "True")
         self.assertEqual(config_information["Import Active"], "True")
 
-    @patch.dict(
-        "nautobot_ssot.integrations.aristacv.constant.APP_SETTINGS",
-        {
-            "aristacv_cvaas_url": "https://www.arista.io",
-            "aristacv_cvp_user": "admin",
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_cvaas_url": "https://www.arista.io",
+                "aristacv_cvp_user": "admin",
+            },
         },
     )
     def test_config_information_cvaas(self):
         """Verify the config_information() API for CVaaS."""
         config_information = jobs.CloudVisionDataSource.config_information()
 
-        self.assertEqual(config_information["Server type"], "CVaaS")
-        self.assertEqual(config_information["CloudVision host"], "https://www.arista.io")
-        self.assertEqual(config_information["Username"], "admin")
+        self.assertEqual(config_information["Server Type"], "CVaaS")
+        self.assertEqual(config_information["CloudVision URL"], "https://www.arista.io:443")
+        self.assertEqual(config_information["User Name"], "admin")
 
 
 class CloudVisionDataTargetJobTest(TestCase):
-    """Test the Cloudvision DataTarget Job."""
+    """Test the CloudVision DataTarget Job."""
 
     def test_metadata(self):
         """Verify correctness of the Job Meta attributes."""
