@@ -1,4 +1,5 @@
 """Utility/helper functions for nautobot-ssot-servicenow."""
+
 import logging
 
 from django.conf import settings

@@ -1,4 +1,5 @@
 """Constants for use with the Infoblox SSoT app."""
+
 from django.conf import settings
 
 

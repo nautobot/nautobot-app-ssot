@@ -1,4 +1,5 @@
 """Nautobot development configuration file."""
+
 import os
 import sys
 
@@ -127,7 +128,7 @@ if not _TESTING:
 
 # Enable installed Apps. Add the name of each App to the list.
 PLUGINS = [
-    "nautobot_chatops",
+    # "nautobot_chatops",
     "nautobot_device_lifecycle_mgmt",
     "nautobot_ssot",
 ]
@@ -135,14 +136,14 @@ PLUGINS = [
 # Apps configuration settings. These settings are used by various Apps that the user may have installed.
 # Each key in the dictionary is the name of an installed App and its value is a dictionary of settings.
 PLUGINS_CONFIG = {
-    "nautobot_chatops": {
-        "enable_slack": True,
-        "slack_api_token": os.getenv("SLACK_API_TOKEN"),
-        "slack_signing_secret": os.getenv("SLACK_SIGNING_SECRET"),
-        "session_cache_timeout": 3600,
-        "ipfabric_api_token": os.getenv("IPFABRIC_API_TOKEN"),
-        "ipfabric_host": os.getenv("IPFABRIC_HOST"),
-    },
+    # "nautobot_chatops": {
+    #     "enable_slack": True,
+    #     "slack_api_token": os.getenv("SLACK_API_TOKEN"),
+    #     "slack_signing_secret": os.getenv("SLACK_SIGNING_SECRET"),
+    #     "session_cache_timeout": 3600,
+    #     "ipfabric_api_token": os.getenv("IPFABRIC_API_TOKEN"),
+    #     "ipfabric_host": os.getenv("IPFABRIC_HOST"),
+    # },
     "nautobot_ssot": {
         # URL and credentials should be configured as environment variables on the host system
         "aci_apics": {x: os.environ[x] for x in os.environ if "APIC" in x},

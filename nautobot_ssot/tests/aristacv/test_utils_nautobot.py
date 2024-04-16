@@ -1,4 +1,5 @@
 """Tests of Cloudvision utility methods."""
+
 from unittest import skip
 from unittest.mock import MagicMock, patch
 from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer

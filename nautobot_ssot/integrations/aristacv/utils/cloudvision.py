@@ -678,9 +678,11 @@ def get_ip_interfaces(client: CloudvisionApi, dId: str):
                 ip_intfs.append(
                     {
                         "interface": results["intfId"],
-                        "address": results["addrWithMask"]
-                        if results["addrWithMask"] != "0.0.0.0/0"
-                        else results.get("virtualAddrWithMask"),
+                        "address": (
+                            results["addrWithMask"]
+                            if results["addrWithMask"] != "0.0.0.0/0"
+                            else results.get("virtualAddrWithMask")
+                        ),
                     }
                 )
     return ip_intfs

@@ -519,9 +519,11 @@ def import_db(context, db_name="", input_file="dump.sql"):
             '--execute="',
             f"DROP DATABASE IF EXISTS {db_name};",
             f"CREATE DATABASE {db_name};",
-            ""
-            if db_name == "$MYSQL_DATABASE"
-            else f"GRANT ALL PRIVILEGES ON {db_name}.* TO $MYSQL_USER; FLUSH PRIVILEGES;",
+            (
+                ""
+                if db_name == "$MYSQL_DATABASE"
+                else f"GRANT ALL PRIVILEGES ON {db_name}.* TO $MYSQL_USER; FLUSH PRIVILEGES;"
+            ),
             '"',
             "&&",
             "mysql",

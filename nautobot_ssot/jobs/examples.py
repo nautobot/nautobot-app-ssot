@@ -13,7 +13,7 @@ from nautobot.extras.jobs import StringVar
 from nautobot.ipam.models import Prefix
 from nautobot.tenancy.models import Tenant
 
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.enum import DiffSyncFlags
 
 import requests
@@ -106,15 +106,15 @@ class LocationRemoteModel(LocationModel):
     """Implementation of Location create/update/delete methods for updating remote Nautobot data."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create a new Location in remote Nautobot.
 
         Args:
-            diffsync (NautobotRemote): DiffSync adapter owning this Site
+            adapter (NautobotRemote): DiffSync adapter owning this Site
             ids (dict): Initial values for this model's _identifiers
             attrs (dict): Initial values for this model's _attributes
         """
-        diffsync.post(
+        adapter.post(
             "/api/dcim/locations/",
             {
                 "name": ids["name"],
@@ -124,7 +124,7 @@ class LocationRemoteModel(LocationModel):
                 "parent": {"name": attrs["parent__name"]} if attrs["parent__name"] else None,
             },
         )
-        return super().create(diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update an existing Site record in remote Nautobot.
@@ -142,12 +142,12 @@ class LocationRemoteModel(LocationModel):
                 data["parent"] = {"name": attrs["parent__name"]}
             else:
                 data["parent"] = None
-        self.diffsync.patch(f"/api/dcim/locations/{self.pk}/", data)
+        self.adapter.patch(f"/api/dcim/locations/{self.pk}/", data)
         return super().update(attrs)
 
     def delete(self):
         """Delete an existing Site record from remote Nautobot."""
-        self.diffsync.delete(f"/api/dcim/locations/{self.pk}/")
+        self.adapter.delete(f"/api/dcim/locations/{self.pk}/")
         return super().delete()
 
 
@@ -155,15 +155,15 @@ class TenantRemoteModel(TenantModel):
     """Implementation of Tenant create/update/delete methods for updating remote Nautobot data."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create a new Tenant in remote Nautobot."""
-        diffsync.post(
+        adapter.post(
             "/api/tenancy/tenants/",
             {
                 "name": ids["name"],
             },
         )
-        return super().create(diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Updating tenants is not supported because we don't have any attributes."""
@@ -171,7 +171,7 @@ class TenantRemoteModel(TenantModel):
 
     def delete(self):
         """Delete a Tenant in remote Nautobot."""
-        self.diffsync.delete(f"/api/tenancy/tenants/{self.pk}/")
+        self.adapter.delete(f"/api/tenancy/tenants/{self.pk}/")
         return super().delete()
 
 
@@ -179,15 +179,15 @@ class PrefixRemoteModel(PrefixModel):
     """Implementation of Prefix create/update/delete methods for updating remote Nautobot data."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create a new Prefix in remote Nautobot.
 
         Args:
-            diffsync (NautobotRemote): DiffSync adapter owning this Prefix
+            adapter (NautobotRemote): DiffSync adapter owning this Prefix
             ids (dict): Initial values for this model's _identifiers
             attrs (dict): Initial values for this model's _attributes
         """
-        diffsync.post(
+        adapter.post(
             "/api/ipam/prefixes/",
             {
                 "prefix": ids["prefix"],
@@ -196,7 +196,7 @@ class PrefixRemoteModel(PrefixModel):
                 "status": attrs["status__name"],
             },
         )
-        return super().create(diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update an existing Site record in remote Nautobot.
@@ -209,19 +209,19 @@ class PrefixRemoteModel(PrefixModel):
             data["description"] = attrs["description"]
         if "status" in attrs:
             data["status"] = attrs["status__name"]
-        self.diffsync.patch(f"/api/dcim/locations/{self.pk}/", data)
+        self.adapter.patch(f"/api/dcim/locations/{self.pk}/", data)
         return super().update(attrs)
 
     def delete(self):
         """Delete an existing Site record from remote Nautobot."""
-        self.diffsync.delete(f"/api/dcim/locations/{self.pk}/")
+        self.adapter.delete(f"/api/dcim/locations/{self.pk}/")
         return super().delete()
 
 
-# In a more complex Job, you would probably want to move each DiffSync subclass into a separate Python module.
+# In a more complex Job, you would probably want to move each Adapter subclass into a separate Python module.
 
 
-class NautobotRemote(DiffSync):
+class NautobotRemote(Adapter):
     """DiffSync adapter class for loading data from a remote Nautobot instance using Python requests.
 
     In a more realistic example, you'd probably use PyNautobot here instead of raw requests,

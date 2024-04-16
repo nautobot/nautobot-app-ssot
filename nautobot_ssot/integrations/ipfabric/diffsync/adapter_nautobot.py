@@ -6,7 +6,7 @@ from collections import defaultdict
 from typing import Any, ClassVar, List, Optional
 import logging
 
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists
 from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError, Q
@@ -53,14 +53,14 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         self.sync_ipfabric_tagged_only = sync_ipfabric_tagged_only
         self.location_filter = location_filter
 
-    def sync_complete(self, source: DiffSync, *args, **kwargs):
+    def sync_complete(self, source: Adapter, *args, **kwargs):
         """Clean up function for DiffSync sync.
 
         Once the sync is complete, this function runs deleting any objects
         from Nautobot that need to be deleted in a specific order.
 
         Args:
-            source (DiffSync): DiffSync
+            source (Adapter): DiffSync Adapter
         """
         for grouping in (
             "_vlan",
@@ -98,15 +98,16 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 ip_address = None
                 subnet_mask = None
             interface = self.interface(
-                diffsync=self,
                 status=device_record.status.name,
                 name=interface_record.name,
                 device_name=device_record.name,
                 description=interface_record.description if interface_record.description else None,
                 enabled=True,
-                mac_address=mac_to_format(str(interface_record.mac_address), "MAC_COLON_TWO").upper()
-                if interface_record.mac_address
-                else DEFAULT_INTERFACE_MAC,
+                mac_address=(
+                    mac_to_format(str(interface_record.mac_address), "MAC_COLON_TWO").upper()
+                    if interface_record.mac_address
+                    else DEFAULT_INTERFACE_MAC
+                ),
                 subnet_mask=subnet_mask,
                 mtu=interface_record.mtu if interface_record.mtu else DEFAULT_INTERFACE_MTU,
                 type=interface_record.type,
@@ -124,12 +125,13 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             if self.job.debug:
                 logger.debug("Loading Nautobot Device: %s", device_record.name)
             device = self.device(
-                diffsync=self,
                 name=device_record.name,
                 model=str(device_record.device_type),
-                role=str(device_record.role.cf.get("ipfabric_type"))
-                if device_record.role.cf.get("ipfabric_type")
-                else device_record.role.name,
+                role=(
+                    str(device_record.role.cf.get("ipfabric_type"))
+                    if device_record.role.cf.get("ipfabric_type")
+                    else device_record.role.name
+                ),
                 location_name=device_record.location.name,
                 vendor=str(device_record.device_type.manufacturer),
                 status=device_record.status.name,
@@ -157,7 +159,6 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             if not vlan_record:
                 continue
             vlan = self.vlan(
-                diffsync=self,
                 name=vlan_record.name,
                 location=vlan_record.location.name,
                 status=vlan_record.status.name if vlan_record.status else "Active",
@@ -215,7 +216,6 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             for location_record in location_objects:
                 try:
                     location = self.location(
-                        diffsync=self,
                         name=location_record.name,
                         site_id=location_record.custom_field_data.get("ipfabric_site_id"),
                         status=location_record.status.name,

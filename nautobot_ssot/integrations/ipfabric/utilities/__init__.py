@@ -1,4 +1,5 @@
 """Utilities."""
+
 from .nbutils import (
     get_or_create_device_role_object,
     create_device_type_object,

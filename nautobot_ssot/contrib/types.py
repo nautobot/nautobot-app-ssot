@@ -1,4 +1,5 @@
 """Contrib type classes for interfacing with Nautobot in SSoT."""
+
 # pylint: disable=protected-access
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 

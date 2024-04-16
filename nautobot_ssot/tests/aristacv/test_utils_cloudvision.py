@@ -1,4 +1,5 @@
 """Tests of Cloudvision utility methods."""
+
 from unittest.mock import MagicMock, patch
 from parameterized import parameterized
 

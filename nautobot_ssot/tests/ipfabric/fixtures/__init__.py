@@ -12,6 +12,7 @@ json_fixture(f"{FIXTURES}/get_projects.json")
 
 This will return a loaded json object.
 """
+
 import os
 
 real_path = os.path.dirname(os.path.realpath(__file__))

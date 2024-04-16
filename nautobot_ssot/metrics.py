@@ -1,4 +1,5 @@
 """Nautobot SSoT framework level metrics."""
+
 from django.conf import settings
 from prometheus_client.core import GaugeMetricFamily
 from nautobot.extras.choices import JobResultStatusChoices

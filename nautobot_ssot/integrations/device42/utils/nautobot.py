@@ -33,11 +33,11 @@ def get_random_color() -> str:
     return f"{random.randint(0, 0xFFFFFF):06x}"  # nosec: B311
 
 
-def verify_device_role(diffsync, role_name: str, role_color: str = "") -> UUID:
+def verify_device_role(adapter, role_name: str, role_color: str = "") -> UUID:
     """Verifies DeviceRole object exists in Nautobot. If not, creates it.
 
     Args:
-        diffsync (obj): DiffSync Job object.
+        adapter (obj): DiffSync Adapter object.
         role_name (str): Name of role to verify.
         role_color (str): Color of role to verify. Must be hex code format.
 
@@ -47,21 +47,21 @@ def verify_device_role(diffsync, role_name: str, role_color: str = "") -> UUID:
     if not role_color:
         role_color = get_random_color()
     try:
-        role_obj = diffsync.role_map[role_name]
+        role_obj = adapter.role_map[role_name]
     except KeyError:
         role_obj = Role.objects.create(name=role_name, color=role_color)
         role_obj.content_types.add(ContentType.objects.get_for_model(Device))
         role_obj.validated_save()
-        diffsync.role_map[role_name] = role_obj.id
+        adapter.role_map[role_name] = role_obj.id
         role_obj = role_obj.id
     return role_obj
 
 
-def verify_platform(diffsync, platform_name: str, manu: UUID) -> UUID:
+def verify_platform(adapter, platform_name: str, manu: UUID) -> UUID:
     """Verifies Platform object exists in Nautobot. If not, creates it.
 
     Args:
-        diffsync (obj): DiffSync Job with maps.
+        adapter (obj): DiffSync Adapter with maps.
         platform_name (str): Name of platform to verify.
         manu (UUID): The ID (primary key) of platform manufacturer.
 
@@ -77,7 +77,7 @@ def verify_platform(diffsync, platform_name: str, manu: UUID) -> UUID:
     else:
         napalm_driver = platform_name
     try:
-        platform_obj = diffsync.platform_map[_name]
+        platform_obj = adapter.platform_map[_name]
     except KeyError:
         platform_obj = Platform(
             name=_name,
@@ -86,7 +86,7 @@ def verify_platform(diffsync, platform_name: str, manu: UUID) -> UUID:
             network_driver=platform_name,
         )
         platform_obj.validated_save()
-        diffsync.platform_map[_name] = platform_obj.id
+        adapter.platform_map[_name] = platform_obj.id
         platform_obj = platform_obj.id
     return platform_obj
 
@@ -327,28 +327,28 @@ def get_cf_version_map():
     return version_map
 
 
-def apply_vlans_to_port(diffsync, device_name: str, mode: str, vlans: list, port: Interface):
+def apply_vlans_to_port(adapter, device_name: str, mode: str, vlans: list, port: Interface):
     """Determine appropriate VLANs to add to a Port link.
 
     Args:
-        diffsync (DiffSyncAdapter): DiffSync Adapter with get and vlan_map.
+        adapter (DiffSyncAdapter): DiffSync Adapter with get and vlan_map.
         device_name (str): Name of Device associated to Port.
         mode (str): Port mode, access or trunk.
         vlans (list): List of VLANs to be attached to Port.
         port (Interface): Port to have VLANs applied to.
     """
     try:
-        dev = diffsync.get(NautobotDevice, device_name)
+        dev = adapter.get(NautobotDevice, device_name)
         site_name = dev.building
     except ObjectNotFound:
         site_name = "Global"
     if mode == "access" and len(vlans) == 1:
         _vlan = vlans[0]
-        port.untagged_vlan_id = diffsync.vlan_map[site_name][_vlan]
+        port.untagged_vlan_id = adapter.vlan_map[site_name][_vlan]
     else:
         tagged_vlans = []
         for _vlan in vlans:
-            tagged_vlan = diffsync.vlan_map[site_name][_vlan]
+            tagged_vlan = adapter.vlan_map[site_name][_vlan]
             if tagged_vlan:
                 tagged_vlans.append(tagged_vlan)
         port.tagged_vlans.set(tagged_vlans)

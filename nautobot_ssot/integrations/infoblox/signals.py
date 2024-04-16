@@ -1,4 +1,5 @@
 """Signal handlers for Infoblox integration."""
+
 # pylint: disable=duplicate-code
 
 from nautobot.core.signals import nautobot_database_ready

@@ -1,4 +1,5 @@
 """Test IPFabric Jobs."""
+
 from copy import deepcopy
 
 from django.conf import settings

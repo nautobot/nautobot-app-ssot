@@ -1,9 +1,10 @@
 """DiffSync Adapter for Nautobot."""
+
 # pylint: disable=duplicate-code
 
 import logging
 from collections import defaultdict
-from diffsync import DiffSync
+from diffsync import Adapters
 from diffsync.enum import DiffSyncModelFlags
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import ProtectedError
@@ -26,7 +27,7 @@ from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
 logger = logging.getLogger(__name__)
 
 
-class NautobotAdapter(DiffSync):
+class NautobotAdapter(Adapters):
     """Nautobot adapter for DiffSync."""
 
     objects_to_delete = defaultdict(list)
@@ -68,14 +69,14 @@ class NautobotAdapter(DiffSync):
         self.site_tag = Tag.objects.get_or_create(name=self.site)[0]
         self.tenant_prefix = client.get("tenant_prefix")
 
-    def sync_complete(self, source: DiffSync, *args, **kwargs):
+    def sync_complete(self, source: Adapter, *args, **kwargs):
         """Clean up function for DiffSync sync.
 
         Once the sync is complete, this function runs deleting any objects
         from Nautobot that need to be deleted in a specific order.
 
         Args:
-            source (DiffSync): DiffSync
+            source (Adapter): DiffSync Adapter
         """
         for grouping in (
             "ipaddress",

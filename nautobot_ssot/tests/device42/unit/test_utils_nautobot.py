@@ -1,4 +1,5 @@
 """Tests of Nautobot utility methods."""
+
 from uuid import UUID
 from unittest.mock import MagicMock, patch
 from diffsync.exceptions import ObjectNotFound
@@ -70,16 +71,16 @@ class TestNautobotUtils(TransactionTestCase):  # pylint: disable=too-many-instan
             status=self.status_active,
         )
         self.mock_vlan.validated_save()
-        self.dsync = MagicMock()
-        self.dsync.get = MagicMock()
-        self.dsync.platform_map = {}
-        self.dsync.vlan_map = {"Microsoft HQ": {}, "Global": {}}
-        self.dsync.vlan_map["Microsoft HQ"][1] = self.mock_vlan.id
-        self.dsync.site_map = {}
-        self.dsync.status_map = {}
-        self.dsync.objects_to_create = {"platforms": [], "vlans": [], "tagged_vlans": []}
-        self.dsync.site_map["Test Site"] = self.site.id
-        self.dsync.status_map["Active"] = self.status_active.id
+        self.adapter = MagicMock()
+        self.adapter.get = MagicMock()
+        self.adapter.platform_map = {}
+        self.adapter.vlan_map = {"Microsoft HQ": {}, "Global": {}}
+        self.adapter.vlan_map["Microsoft HQ"][1] = self.mock_vlan.id
+        self.adapter.site_map = {}
+        self.adapter.status_map = {}
+        self.adapter.objects_to_create = {"platforms": [], "vlans": [], "tagged_vlans": []}
+        self.adapter.site_map["Test Site"] = self.site.id
+        self.adapter.status_map["Active"] = self.status_active.id
 
     def test_lifecycle_mgmt_available(self):
         """Validate that the DLC App module is available."""
@@ -95,22 +96,22 @@ class TestNautobotUtils(TransactionTestCase):  # pylint: disable=too-many-instan
 
     def test_verify_platform_ios(self):
         """Test the verify_platform method with IOS."""
-        platform = verify_platform(diffsync=self.dsync, platform_name="cisco_ios", manu=self.cisco_manu.id)
+        platform = verify_platform(adapter=self.adapter, platform_name="cisco_ios", manu=self.cisco_manu.id)
         self.assertEqual(type(platform), UUID)
-        self.assertEqual(self.dsync.platform_map["cisco.ios.ios"], platform)
+        self.assertEqual(self.adapter.platform_map["cisco.ios.ios"], platform)
 
     def test_verify_platform_iosxr(self):
         """Test the verify_platform method with IOS-XR."""
-        platform = verify_platform(diffsync=self.dsync, platform_name="cisco_xr", manu=self.cisco_manu.id)
+        platform = verify_platform(adapter=self.adapter, platform_name="cisco_xr", manu=self.cisco_manu.id)
         self.assertEqual(type(platform), UUID)
-        self.assertEqual(self.dsync.platform_map["cisco.iosxr.iosxr"], platform)
+        self.assertEqual(self.adapter.platform_map["cisco.iosxr.iosxr"], platform)
 
     def test_verify_platform_f5(self):
         """Test the verify_platform method with F5 BIG-IP."""
         f5_manu, _ = Manufacturer.objects.get_or_create(name="F5")
-        platform = verify_platform(diffsync=self.dsync, platform_name="f5_tmsh", manu=f5_manu.id)
+        platform = verify_platform(adapter=self.adapter, platform_name="f5_tmsh", manu=f5_manu.id)
         self.assertEqual(type(platform), UUID)
-        self.assertEqual(self.dsync.platform_map["f5_tmsh"], platform)
+        self.assertEqual(self.adapter.platform_map["f5_tmsh"], platform)
 
     def test_determine_vc_position(self):
         vc_map = {
@@ -203,9 +204,9 @@ class TestNautobotUtils(TransactionTestCase):  # pylint: disable=too-many-instan
 
     def test_apply_vlans_to_port_access_port(self):
         """Test the apply_vlans_to_port() method adds a single VLAN to a port."""
-        self.dsync.vlan_map["Microsoft HQ"][1] = self.mock_vlan.id
-        self.dsync.get.return_value = self.mock_dev
-        apply_vlans_to_port(diffsync=self.dsync, device_name="Test", mode="access", vlans=[1], port=self.intf)
+        self.adapter.vlan_map["Microsoft HQ"][1] = self.mock_vlan.id
+        self.adapter.get.return_value = self.mock_dev
+        apply_vlans_to_port(adapter=self.adapter, device_name="Test", mode="access", vlans=[1], port=self.intf)
         self.assertIsNotNone(self.intf.untagged_vlan)
         self.assertEqual(self.intf.untagged_vlan, self.mock_vlan)
 
@@ -218,17 +219,17 @@ class TestNautobotUtils(TransactionTestCase):  # pylint: disable=too-many-instan
             status=self.status_active,
         )
         mock_vlan2.validated_save()
-        self.dsync.vlan_map["Microsoft HQ"][2] = mock_vlan2.id
-        self.dsync.get.return_value = self.mock_dev
+        self.adapter.vlan_map["Microsoft HQ"][2] = mock_vlan2.id
+        self.adapter.get.return_value = self.mock_dev
         self.intf.mode = "tagged"
-        apply_vlans_to_port(diffsync=self.dsync, device_name="Test", mode="tagged", vlans=[1, 2], port=self.intf)
+        apply_vlans_to_port(adapter=self.adapter, device_name="Test", mode="tagged", vlans=[1, 2], port=self.intf)
         self.intf.refresh_from_db()
         self.assertEqual(list(self.intf.tagged_vlans.all()), [self.mock_vlan, mock_vlan2])
 
     def test_apply_vlans_to_port_w_missing_device(self):
         """Test the apply_vlans_to_port() method when Device not found."""
-        self.dsync.get.side_effect = ObjectNotFound
-        self.dsync.vlan_map["Global"][1] = self.mock_vlan.id
-        apply_vlans_to_port(diffsync=self.dsync, device_name="Test", mode="access", vlans=[1], port=self.intf)
+        self.adapter.get.side_effect = ObjectNotFound
+        self.adapter.vlan_map["Global"][1] = self.mock_vlan.id
+        apply_vlans_to_port(adapter=self.adapter, device_name="Test", mode="access", vlans=[1], port=self.intf)
         self.assertIsNotNone(self.intf.untagged_vlan)
         self.assertEqual(self.intf.untagged_vlan, self.mock_vlan)

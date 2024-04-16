@@ -72,7 +72,7 @@ class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
                 "aristacv_from_cloudvision_default_device_role_color", nautobot.DEFAULT_DEVICE_ROLE_COLOR
             ),
             "Apply import tag": str(APP_SETTINGS.get("aristacv_apply_import_tag", nautobot.APPLY_IMPORT_TAG)),
-            "Import Active": str(APP_SETTINGS.get("aristacv_import_active", "True"))
+            "Import Active": str(APP_SETTINGS.get("aristacv_import_active", "True")),
             # Password and Token are intentionally omitted!
         }
 
@@ -169,7 +169,7 @@ class CloudVisionDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
                 "Server type": "On prem",
                 "CloudVision host": APP_SETTINGS.get("aristacv_cvp_host"),
                 "Username": APP_SETTINGS.get("aristacv_cvp_user"),
-                "Verify": str(APP_SETTINGS.get("aristacv_verify"))
+                "Verify": str(APP_SETTINGS.get("aristacv_verify")),
                 # Password is intentionally omitted!
             }
         return {

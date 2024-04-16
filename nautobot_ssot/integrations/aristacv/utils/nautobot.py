@@ -1,4 +1,5 @@
 """Utility functions for Nautobot ORM."""
+
 import re
 from django.contrib.contenttypes.models import ContentType
 from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Manufacturer
