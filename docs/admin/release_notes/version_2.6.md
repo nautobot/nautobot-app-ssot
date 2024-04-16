@@ -1,5 +1,5 @@
 
-# v2.5 Release Notes
+# v2.6 Release Notes
 
 ## [v2.6.0 (2024-04-16)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v2.6.0)
 
