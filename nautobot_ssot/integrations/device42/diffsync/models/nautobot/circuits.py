@@ -71,7 +71,7 @@ class NautobotProvider(Provider):
         The self.diffsync.objects_to_delete dictionary stores all objects for deletion and removes them from Nautobot
         in the correct order. This is used in the Nautobot adapter sync_complete function.
         """
-        if PLUGIN_CFG.get("delete_on_sync"):
+        if PLUGIN_CFG.get("device42_delete_on_sync"):
             self.diffsync.job.log_info(message=f"Provider {self.name} will be deleted.")
             super().delete()
             provider = OrmProvider.objects.get(id=self.uuid)
@@ -209,7 +209,7 @@ class NautobotCircuit(Circuit):
         The self.diffsync.objects_to_delete dictionary stores all objects for deletion and removes them from Nautobot
         in the correct order. This is used in the Nautobot adapter sync_complete function.
         """
-        if PLUGIN_CFG.get("delete_on_sync"):
+        if PLUGIN_CFG.get("device42_delete_on_sync"):
             self.diffsync.job.log_info(message=f"Circuit {self.circuit_id} will be deleted.")
             super().delete()
             circuit = OrmCircuit.objects.get(id=self.uuid)

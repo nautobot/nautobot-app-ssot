@@ -108,7 +108,7 @@ class NautobotBuilding(Building):
         The self.diffsync.objects_to_delete dictionary stores all objects for deletion and removes them from Nautobot
         in the correct order. This is used in the Nautobot adapter sync_complete function.
         """
-        if PLUGIN_CFG.get("delete_on_sync"):
+        if PLUGIN_CFG.get("device42_delete_on_sync"):
             super().delete()
             self.diffsync.job.log_info(message=f"Site {self.name} will be deleted.")
             site = OrmSite.objects.get(id=self.uuid)
@@ -150,7 +150,7 @@ class NautobotRoom(Room):
 
     def delete(self):
         """Delete RackGroup object from Nautobot."""
-        if PLUGIN_CFG.get("delete_on_sync"):
+        if PLUGIN_CFG.get("device42_delete_on_sync"):
             super().delete()
             self.diffsync.job.log_info(message=f"RackGroup {self.name} will be deleted.")
             rackgroup = OrmRackGroup.objects.get(id=self.uuid)
@@ -213,7 +213,7 @@ class NautobotRack(Rack):
         The self.diffsync.objects_to_delete dictionary stores all objects for deletion and removes them from Nautobot
         in the correct order. This is used in the Nautobot adapter sync_complete function.
         """
-        if PLUGIN_CFG.get("delete_on_sync"):
+        if PLUGIN_CFG.get("device42_delete_on_sync"):
             super().delete()
             self.diffsync.job.log_info(message=f"Rack {self.name} will be deleted.")
             rack = OrmRack.objects.get(id=self.uuid)
@@ -257,7 +257,7 @@ class NautobotVendor(Vendor):
         The self.diffsync.objects_to_delete dictionary stores all objects for deletion and removes them from Nautobot
         in the correct order. This is used in the Nautobot adapter sync_complete function.
         """
-        if PLUGIN_CFG.get("delete_on_sync"):
+        if PLUGIN_CFG.get("device42_delete_on_sync"):
             super().delete()
             self.diffsync.job.log_info(message=f"Manufacturer {self.name} will be deleted.")
             _manu = OrmManufacturer.objects.get(id=self.uuid)
@@ -316,7 +316,7 @@ class NautobotHardware(Hardware):
         The self.diffsync.objects_to_delete dictionary stores all objects for deletion and removes them from Nautobot
         in the correct order. This is used in the Nautobot adapter sync_complete function.
         """
-        if PLUGIN_CFG.get("delete_on_sync"):
+        if PLUGIN_CFG.get("device42_delete_on_sync"):
             super().delete()
             self.diffsync.job.log_info(message=f"DeviceType {self.name} will be deleted.")
             _dt = OrmDeviceType.objects.get(id=self.uuid)
@@ -368,7 +368,7 @@ class NautobotCluster(Cluster):
         The self.diffsync.objects_to_delete dictionary stores all objects for deletion and removes them from Nautobot
         in the correct order. This is used in the Nautobot adapter sync_complete function.
         """
-        if PLUGIN_CFG.get("delete_on_sync"):
+        if PLUGIN_CFG.get("device42_delete_on_sync"):
             super().delete()
             self.diffsync.job.log_info(message=f"Virtual Chassis {self.name} will be deleted.")
             _cluster = OrmVC.objects.get(id=self.uuid)
@@ -618,7 +618,7 @@ class NautobotDevice(Device):
         The self.diffsync.objects_to_delete dictionary stores all objects for deletion and removes them from Nautobot
         in the correct order. This is used in the Nautobot adapter sync_complete function.
         """
-        if PLUGIN_CFG.get("delete_on_sync"):
+        if PLUGIN_CFG.get("device42_delete_on_sync"):
             super().delete()
             self.diffsync.job.log_info(message=f"Device {self.name} will be deleted.")
             _dev = OrmDevice.objects.get(id=self.uuid)
@@ -767,7 +767,7 @@ class NautobotPort(Port):
 
     def delete(self):
         """Delete Interface object from Nautobot."""
-        if PLUGIN_CFG.get("delete_on_sync"):
+        if PLUGIN_CFG.get("device42_delete_on_sync"):
             super().delete()
             self.diffsync.job.log_info(message=f"Interface {self.name} for {self.device} will be deleted.")
             _intf = OrmInterface.objects.get(id=self.uuid)
@@ -899,9 +899,11 @@ class NautobotConnection(Connection):
             circuit_term.validated_save()
         if _intf and not _intf.cable and not circuit_term.cable:
             new_cable = OrmCable(
-                termination_a_type=ContentType.objects.get(app_label="dcim", model="interface")
-                if attrs["src_type"] == "interface"
-                else ContentType.objects.get(app_label="dcim", model="frontport"),
+                termination_a_type=(
+                    ContentType.objects.get(app_label="dcim", model="interface")
+                    if attrs["src_type"] == "interface"
+                    else ContentType.objects.get(app_label="dcim", model="frontport")
+                ),
                 termination_a_id=_intf,
                 termination_b_type=ContentType.objects.get(app_label="circuits", model="circuittermination"),
                 termination_b_id=circuit_term.id,
@@ -960,7 +962,7 @@ class NautobotConnection(Connection):
 
     def delete(self):
         """Delete Cable object from Nautobot."""
-        if PLUGIN_CFG.get("delete_on_sync"):
+        if PLUGIN_CFG.get("device42_delete_on_sync"):
             super().delete()
             self.diffsync.job.log_info(
                 message=f"Deleting Cable between {self.src_device}'s {self.src_port} port to {self.dst_device} {self.dst_port} port."

@@ -1,4 +1,5 @@
 """Unit tests for the Device42 DiffSync adapter class."""
+
 import json
 import uuid
 from unittest.mock import MagicMock, patch
@@ -90,7 +91,7 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
 
     @patch(
         "nautobot_ssot.integrations.device42.diffsync.adapters.device42.PLUGIN_CFG",
-        {"customer_is_facility": True},
+        {"device42_customer_is_facility": True},
     )
     def test_data_loading(self):
         """Test the load() function."""
@@ -215,7 +216,7 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
 
     @patch(
         "nautobot_ssot.integrations.device42.diffsync.adapters.device42.PLUGIN_CFG",
-        {"ignore_tag": "TEST"},
+        {"device42_ignore_tag": "TEST"},
     )
     def test_load_cluster_ignore_tag(self):
         """Validate functionality of the load_cluster() function when cluster has ignore tag."""
@@ -307,7 +308,7 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
 
     @patch(
         "nautobot_ssot.integrations.device42.diffsync.adapters.device42.PLUGIN_CFG",
-        {"hostname_mapping": [{"^aus.+|AUS.+": "austin"}]},
+        {"device42_hostname_mapping": [{"^aus.+|AUS.+": "austin"}]},
     )
     def test_get_site_from_mapping(self):
         """Test the get_site_from_mapping method."""
@@ -316,7 +317,7 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
 
     @patch(
         "nautobot_ssot.integrations.device42.diffsync.adapters.device42.PLUGIN_CFG",
-        {"hostname_mapping": [{"^aus.+|AUS.+": "austin"}]},
+        {"device42_hostname_mapping": [{"^aus.+|AUS.+": "austin"}]},
     )
     def test_get_site_from_mapping_missing_site(self):
         """Test the get_site_from_mapping method with missing site."""
@@ -343,7 +344,7 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
 
     @patch(
         "nautobot_ssot.integrations.device42.diffsync.adapters.device42.PLUGIN_CFG",
-        {"hostname_mapping": [{"^nyc.+|NYC.+": "new-york-city"}]},
+        {"device42_hostname_mapping": [{"^nyc.+|NYC.+": "new-york-city"}]},
     )
     def test_get_building_for_device_from_mapping(self):
         """Test the get_building_for_device method using site_mapping."""

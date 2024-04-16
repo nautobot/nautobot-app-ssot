@@ -126,7 +126,7 @@ class NautobotAdapter(DiffSync):
         Args:
             source (DiffSync): DiffSync
         """
-        if PLUGIN_CFG.get("delete_on_sync"):
+        if PLUGIN_CFG.get("device42_delete_on_sync"):
             for grouping in (
                 "ipaddr",
                 "subnet",

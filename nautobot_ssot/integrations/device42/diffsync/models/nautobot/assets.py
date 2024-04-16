@@ -136,7 +136,7 @@ class NautobotPatchPanel(PatchPanel):
         The self.diffsync.objects_to_delete dictionary stores all objects for deletion and removes them from Nautobot
         in the correct order. This is used in the Nautobot adapter sync_complete function.
         """
-        if PLUGIN_CFG.get("delete_on_sync"):
+        if PLUGIN_CFG.get("device42_delete_on_sync"):
             super().delete()
             self.diffsync.job.log_info(message=f"Patch panel {self.name} will be deleted.")
             _pp = Device.objects.get(id=self.uuid)
@@ -186,7 +186,7 @@ class NautobotPatchPanelRearPort(PatchPanelRearPort):
 
     def delete(self):
         """Delete RearPort object from Nautobot."""
-        if PLUGIN_CFG.get("delete_on_sync"):
+        if PLUGIN_CFG.get("device42_delete_on_sync"):
             super().delete()
             self.diffsync.job.log_info(message=f"RearPort {self.name} for {self.patchpanel} will be deleted.")
             port = RearPort.objects.get(id=self.uuid)
@@ -236,7 +236,7 @@ class NautobotPatchPanelFrontPort(PatchPanelFrontPort):
 
     def delete(self):
         """Delete FrontPort object from Nautobot."""
-        if PLUGIN_CFG.get("delete_on_sync"):
+        if PLUGIN_CFG.get("device42_delete_on_sync"):
             super().delete()
             self.diffsync.job.log_info(message=f"FrontPort {self.name} for {self.patchpanel} will be deleted.")
             port = FrontPort.objects.get(id=self.uuid)

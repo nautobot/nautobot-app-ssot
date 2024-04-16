@@ -61,7 +61,7 @@ def get_site_from_mapping(device_name: str) -> str:
     Returns:
         str: The Site slug of the associated Site for the Device in the mapping. Returns blank string if match not found.
     """
-    for _entry in PLUGIN_CFG["hostname_mapping"]:
+    for _entry in PLUGIN_CFG["device42_hostname_mapping"]:
         for _mapping, _slug in _entry.items():
             site_match = re.match(_mapping, device_name)
             if site_match:
@@ -171,12 +171,12 @@ class Device42Adapter(DiffSync):
             str: Slugified version of the Building (Site) for a Device.
         """
         _building = False
-        if PLUGIN_CFG.get("hostname_mapping") and len(PLUGIN_CFG["hostname_mapping"]) > 0:
+        if PLUGIN_CFG.get("device42_hostname_mapping") and len(PLUGIN_CFG["device42_hostname_mapping"]) > 0:
             _building = get_site_from_mapping(device_name=dev_record["name"])
 
         if not _building:
             if (
-                PLUGIN_CFG.get("customer_is_facility")
+                PLUGIN_CFG.get("device42_customer_is_facility")
                 and dev_record.get("customer")
                 and dev_record["customer"] in self.d42_building_sitecode_map
             ):
@@ -344,7 +344,7 @@ class Device42Adapter(DiffSync):
             self.job.log_info(message=f"Cluster {cluster_info['name']} being loaded from Device42.")
             _clus = self.device42_clusters[cluster_info["name"]]
             _tags = cluster_info["tags"] if cluster_info.get("tags") else []
-            if PLUGIN_CFG.get("ignore_tag") and PLUGIN_CFG["ignore_tag"] in _tags:
+            if PLUGIN_CFG.get("device42_ignore_tag") and PLUGIN_CFG["device42_ignore_tag"] in _tags:
                 self.job.log_warning(message=f"Cluster {cluster_info['name']} has ignore tag so skipping.")
                 return
             if len(_tags) > 1:
@@ -410,7 +410,7 @@ class Device42Adapter(DiffSync):
                     )
                     continue
                 _tags = _record["tags"] if _record.get("tags") else []
-                if PLUGIN_CFG.get("ignore_tag") and PLUGIN_CFG["ignore_tag"] in _tags:
+                if PLUGIN_CFG.get("device42_ignore_tag") and PLUGIN_CFG["device42_ignore_tag"] in _tags:
                     self.job.log_warning(
                         message=f"Skipping loading {_record['name']} as it has the specified ignore tag."
                     )
@@ -721,7 +721,7 @@ class Device42Adapter(DiffSync):
             else:
                 _cfs = {}
             tags = _info["tags"].split(",").sort() if _info.get("tags") else []
-            if is_truthy(PLUGIN_CFG.get("customer_is_facility")) and _info.get("customer"):
+            if is_truthy(PLUGIN_CFG.get("device42_customer_is_facility")) and _info.get("customer"):
                 building = self.d42_building_sitecode_map[_info["customer"].upper()]
             elif _info.get("building"):
                 building = _info["building"]
@@ -747,9 +747,11 @@ class Device42Adapter(DiffSync):
                 continue
             try:
                 new_conn = self.conn(
-                    src_device=self.d42_device_map[_conn["second_src_device"]]["name"]
-                    if _conn.get("second_src_device")
-                    else self.d42_device_map[_conn["src_device"]]["name"],
+                    src_device=(
+                        self.d42_device_map[_conn["second_src_device"]]["name"]
+                        if _conn.get("second_src_device")
+                        else self.d42_device_map[_conn["src_device"]]["name"]
+                    ),
                     src_port=self.d42_port_map[_conn["src_port"]]["port"],
                     src_port_mac=self.d42_port_map[_conn["src_port"]]["hwaddress"],
                     src_type="interface",
@@ -824,9 +826,11 @@ class Device42Adapter(DiffSync):
                 a_side_conn = self.conn(
                     src_device=origin_dev,
                     src_port=origin_int,
-                    src_port_mac=self.d42_port_map[_tc["origin_netport_fk"]]["hwaddress"]
-                    if _tc["origin_type"] == "Device"
-                    else None,
+                    src_port_mac=(
+                        self.d42_port_map[_tc["origin_netport_fk"]]["hwaddress"]
+                        if _tc["origin_type"] == "Device"
+                        else None
+                    ),
                     src_type="interface" if _tc["origin_type"] == "Device Port" else "patch panel",
                     dst_device=_tc["circuit_id"],
                     dst_port=_tc["circuit_id"],
@@ -844,9 +848,11 @@ class Device42Adapter(DiffSync):
                     src_type="circuit",
                     dst_device=endpoint_dev,
                     dst_port=endpoint_int,
-                    dst_port_mac=self.d42_port_map[_tc["end_point_netport_fk"]]["hwaddress"]
-                    if _tc["end_point_type"] == "Device"
-                    else None,
+                    dst_port_mac=(
+                        self.d42_port_map[_tc["end_point_netport_fk"]]["hwaddress"]
+                        if _tc["end_point_type"] == "Device"
+                        else None
+                    ),
                     dst_type="interface" if _tc["end_point_type"] == "Device Port" else "patch panel",
                     src_port_mac=None,
                     tags=None,
@@ -993,9 +999,9 @@ class Device42Adapter(DiffSync):
         panels = self.device42.get_patch_panels()
         for panel in panels:
             _building, _room, _rack = None, None, None
-            if PLUGIN_CFG.get("hostname_mapping") and len(PLUGIN_CFG["hostname_mapping"]) > 0:
+            if PLUGIN_CFG.get("device42_hostname_mapping") and len(PLUGIN_CFG["device42_hostname_mapping"]) > 0:
                 _building = get_site_from_mapping(device_name=panel["name"])
-            if not _building and PLUGIN_CFG.get("customer_is_facility") and panel["customer_fk"] is not None:
+            if not _building and PLUGIN_CFG.get("device42_customer_is_facility") and panel["customer_fk"] is not None:
                 _building = slugify(self.d42_customer_map[panel["customer_fk"]]["name"])
             if not _building and panel["building_fk"] is not None:
                 _building = slugify(self.d42_building_map[panel["building_fk"]]["name"])
@@ -1091,7 +1097,7 @@ class Device42Adapter(DiffSync):
         self.assign_version_to_master_devices()
         self.load_ports()
         self.load_ip_addresses()
-        if is_truthy(PLUGIN_CFG.get("use_dns")):
+        if is_truthy(PLUGIN_CFG.get("device42_use_dns")):
             self.job.log_info(message="Checking DNS entries for all loaded Devices.")
             self.check_dns()
         self.load_providers_and_circuits()
