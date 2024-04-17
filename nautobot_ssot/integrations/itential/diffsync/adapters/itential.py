@@ -20,7 +20,7 @@ class ItentialAnsibleDeviceAdapter(DiffSync):
 
     def load(self):
         """Load Adapter."""
-        self.job.logger.info(message=f"Loading Itential devices from {self.api_client.host} into Diffsync adapter.")
+        self.job.logger.info(f"Loading Itential devices from {self.api_client.host} into Diffsync adapter.")
         devices = self.api_client.get_devices().get("data")
 
         for iag_device in devices:

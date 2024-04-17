@@ -6,17 +6,17 @@ import logging
 class Logger:
     """Logger."""
 
-    def info(self, message: str):
+    def info(self, msg: str):
         """Info logging."""
-        logging.info(message)
+        logging.info(msg)
 
-    def warning(self, message: str):
+    def warning(self, msg: str):
         """Warning logging."""
-        logging.warning(message)
+        logging.warning(msg)
 
-    def failure(self, message: str):
+    def failure(self, msg: str):
         """Failure logging."""
-        logging.error(message)
+        logging.error(msg)
 
 
 class JobLogger:

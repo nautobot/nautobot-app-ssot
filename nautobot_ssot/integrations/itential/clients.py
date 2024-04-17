@@ -88,38 +88,38 @@ class AutomationGatewayClient:
         response = self._post(uri="login", json_data={"username": self.username, "password": self.password})
 
         if response.ok:
-            self.job.logger.info(message=f"Logging into {self.host}.")
+            self.job.logger.info(f"Logging into {self.host}.")
             self.cookie = {"AutomationGatewayToken": response.json()["token"]}
             self.session.headers.update(self.cookie)
             return response.json()
-        self.job.logger.warning(message=f"Failed to login to {self.host}.")
+        self.job.logger.warning(f"Failed to login to {self.host}.")
         return response.raise_for_status()
 
     def logout(self) -> Union[requests.Response, requests.HTTPError]:
         """Logout of Automation Gateway."""
         response = self._post(uri="logout")
         if response.ok:
-            self.job.logger.info(message=f"Logging out of {self.host}.")
+            self.job.logger.info(f"Logging out of {self.host}.")
             return response.json()
-        self.job.logger.warning(message=f"Failed logging out of {self.host}.")
+        self.job.logger.warning(f"Failed logging out of {self.host}.")
         return response.raise_for_status()
 
     def status(self) -> Union[requests.Response, requests.HTTPError]:
         """Get Automation Gateway status."""
         response = self._get(uri="poll")
         if response.ok:
-            self.job.logger.info(message=f"{self.host} polling is successful.")
+            self.job.logger.info(f"{self.host} polling is successful.")
             return response.json()
-        self.job.logger.warning(message=f"Failed to poll {self.host}.")
+        self.job.logger.warning(f"Failed to poll {self.host}.")
         return response.raise_for_status()
 
     def get_devices(self) -> Union[requests.Response, requests.HTTPError]:
         """Get a devices."""
         response = self._get(uri="devices")
         if response.ok:
-            self.job.logger.info(message=f"Pulling devices from {self.host}.")
+            self.job.logger.info(f"Pulling devices from {self.host}.")
             return response.json()
-        self.job.logger.warning(message=f"Failed pulling devices from {self.host}.")
+        self.job.logger.warning(f"Failed pulling devices from {self.host}.")
         return response.raise_for_status()
 
     def get_device(self, device_name: str) -> Union[requests.Response, requests.HTTPError]:
@@ -133,9 +133,9 @@ class AutomationGatewayClient:
         """
         response = self._get(uri=f"devices/{device_name}")
         if response.ok:
-            self.job.logger.info(message=f"Pulling {device_name} from {self.host}.")
+            self.job.logger.info(f"Pulling {device_name} from {self.host}.")
             return response.json()
-        self.job.logger.warning(message=f"Failed pulling {device_name} from {self.host}.")
+        self.job.logger.warning(f"Failed pulling {device_name} from {self.host}.")
         return response.raise_for_status()
 
     def create_device(
@@ -153,9 +153,9 @@ class AutomationGatewayClient:
         payload = {"name": device_name, "variables": variables}
         response = self._post(uri="devices", json_data=payload)
         if response.ok:
-            self.job.logger.info(message=f"Creating {device_name} on {self.host}.")
+            self.job.logger.info(f"Creating {device_name} on {self.host}.")
             return response.json()
-        self.job.logger.warning(message=f"Failed to create {device_name} on {self.host}.")
+        self.job.logger.warning(f"Failed to create {device_name} on {self.host}.")
         return response.raise_for_status()
 
     def update_device(
@@ -172,9 +172,9 @@ class AutomationGatewayClient:
         """
         response = self._put(uri=f"devices/{device_name}", json_data=variables)
         if response.ok:
-            self.job.logger.info(message=f"Updating {device_name} on {self.host}.")
+            self.job.logger.info(f"Updating {device_name} on {self.host}.")
             return response.json()
-        self.job.logger.warning(message=f"Failed to update {device_name} on {self.host}.")
+        self.job.logger.warning(f"Failed to update {device_name} on {self.host}.")
         return response.raise_for_status()
 
     def delete_device(self, device_name: str) -> Union[requests.Response, requests.HTTPError]:
@@ -188,18 +188,18 @@ class AutomationGatewayClient:
         """
         response = self._delete(uri=f"devices/{device_name}")
         if response.ok:
-            self.job.logger.info(message=f"Deleting {device_name} on {self.host}.")
+            self.job.logger.info(f"Deleting {device_name} on {self.host}.")
             return response.json()
-        self.job.logger.warning(message=f"Failed to delete {device_name} on {self.host}.")
+        self.job.logger.warning(f"Failed to delete {device_name} on {self.host}.")
         return response.raise_for_status()
 
     def get_groups(self) -> List[str]:
         """Get a groups."""
         response = self._get(uri="groups")
         if response.ok:
-            self.job.logger.info(message=f"Pulling groups from {self.host}.")
+            self.job.logger.info(f"Pulling groups from {self.host}.")
             return response.json()
-        self.job.logger.warning(message=f"Failed pulling groups from {self.host}.")
+        self.job.logger.warning(f"Failed pulling groups from {self.host}.")
         return response.raise_for_status()
 
     def get_group(self, group_name: str) -> Union[requests.Response, requests.HTTPError]:
@@ -213,9 +213,9 @@ class AutomationGatewayClient:
         """
         response = self._get(uri=f"groups/{group_name}")
         if response.ok:
-            self.job.logger.info(message=f"Pulling {group_name} from {self.host}.")
+            self.job.logger.info(f"Pulling {group_name} from {self.host}.")
             return response.json()
-        self.job.logger.warning(message=f"Failed pulling {group_name} from {self.host}.")
+        self.job.logger.warning(f"Failed pulling {group_name} from {self.host}.")
         return response.raise_for_status()
 
     def create_group(self, group_name: str, variables: Optional[dict]) -> Union[requests.Response, requests.HTTPError]:
@@ -231,9 +231,9 @@ class AutomationGatewayClient:
         payload = {"name": group_name, "variables": variables}
         response = self._post(uri="groups", json_data=payload)
         if response.ok:
-            self.job.logger.info(message=f"Creating {group_name} on {self.host}.")
+            self.job.logger.info(f"Creating {group_name} on {self.host}.")
             return response.json()
-        self.job.logger.warning(message=f"Failed to create {group_name} on {self.host}.")
+        self.job.logger.warning(f"Failed to create {group_name} on {self.host}.")
         return response.raise_for_status()
 
     def update_group(self, group_name: str, variables: Optional[dict]) -> Union[requests.Response, requests.HTTPError]:
@@ -248,9 +248,9 @@ class AutomationGatewayClient:
         """
         response = self._put(uri=f"groups/{group_name}", json_data=variables)
         if response.ok:
-            self.job.logger.info(message=f"Updating {group_name} on {self.host}.")
+            self.job.logger.info(f"Updating {group_name} on {self.host}.")
             return response.json()
-        self.job.logger.warning(message=f"Failed to update {group_name} on {self.host}.")
+        self.job.logger.warning(f"Failed to update {group_name} on {self.host}.")
         return response.raise_for_status()
 
     def delete_group(self, group_name: str) -> Union[requests.Response, requests.HTTPError]:
@@ -264,9 +264,9 @@ class AutomationGatewayClient:
         """
         response = self._delete(uri=f"groups/{group_name}")
         if response.ok:
-            self.job.logger.info(message=f"Deleting {group_name} on {self.host}.")
+            self.job.logger.info(f"Deleting {group_name} on {self.host}.")
             return response.json()
-        self.job.logger.warning(message=f"Failed to delete {group_name} on {self.host}.")
+        self.job.logger.warning(f"Failed to delete {group_name} on {self.host}.")
         return response.raise_for_status()
 
     def add_device_to_group(self, group_name: str, device_name: str) -> Union[requests.Response, requests.HTTPError]:
@@ -282,9 +282,9 @@ class AutomationGatewayClient:
         device_name = [device_name]
         response = self._post(uri=f"groups/{group_name}/devices", json_data=device_name)
         if response.ok:
-            self.job.logger.info(message=f"Adding {device_name} to {group_name} group on {self.host}.")
+            self.job.logger.info(f"Adding {device_name} to {group_name} group on {self.host}.")
             return response.json()
-        self.job.logger.warning(message=f"Failed to add {device_name} to {group_name} group on {self.host}.")
+        self.job.logger.warning(f"Failed to add {device_name} to {group_name} group on {self.host}.")
         return response.raise_for_status()
 
     def delete_device_from_group(
@@ -301,7 +301,7 @@ class AutomationGatewayClient:
         """
         response = self._delete(uri=f"groups/{group_name}/devices/{device_name}")
         if response.ok:
-            self.job.logger.info(message=f"Deleting {device_name} from {group_name} group on {self.host}.")
+            self.job.logger.info(f"Deleting {device_name} from {group_name} group on {self.host}.")
             return response.json()
-        self.job.logger.warning(message=f"Failed to delete {device_name} from {group_name} group on {self.host}.")
+        self.job.logger.warning(f"Failed to delete {device_name} from {group_name} group on {self.host}.")
         return response.raise_for_status()

@@ -41,6 +41,11 @@ data = [
     },
     {
         "method": "DELETE",
+        "url": f"{gateways.responses['iag1'].get('hostname')}/api/v2.0/devices/rtr10.example.net",
+        "json": gateways.responses["iag1"]["responses"].get("delete_device"),
+    },
+    {
+        "method": "DELETE",
         "url": f"{gateways.responses['iag1'].get('hostname')}/api/v2.0/devices/rtr12.example.net",
         "json": gateways.responses["iag1"]["responses"].get("delete_device"),
     },

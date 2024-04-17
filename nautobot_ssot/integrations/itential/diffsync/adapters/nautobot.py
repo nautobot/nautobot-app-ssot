@@ -7,6 +7,7 @@ from diffsync import DiffSync
 
 from nautobot_ssot.integrations.itential.diffsync.models.nautobot import NautobotAnsibleDeviceModel
 
+from nautobot.extras.models import Status
 from nautobot.dcim.models import Device, Location
 
 
@@ -28,7 +29,7 @@ class NautobotAnsibleDeviceAdapter(DiffSync):
         """Check to see if a device name is RFC 1123 compliant."""
         # Check for invalid characters (anything other than alphanumerics, hypens, and periods)
         if not re.search("[a-zA-Z0-9][a-zA-Z0-9-.]{0,62}$", device_name):
-            self.job.logger.warning(message=f"{device_name} has iinvalid characters.")
+            self.job.logger.warning(f"{device_name} has iinvalid characters.")
             return False
 
         # RFC 1123 allows hostnames to start with a digit
@@ -39,7 +40,7 @@ class NautobotAnsibleDeviceAdapter(DiffSync):
 
         for label in labels:
             if not re.match(label_pattern, label) or label.endswith("-"):
-                self.job.logger.warning(message=f"{device_name} has an invalid hostname pattern.")
+                self.job.logger.warning(f"{device_name} has an invalid hostname pattern.")
                 return False
 
         return True
@@ -58,12 +59,13 @@ class NautobotAnsibleDeviceAdapter(DiffSync):
 
     def load(self):
         """Load Nautobot Diffsync adapter."""
-        self.job.logger.info(message="Loading locations from Nautobot.")
+        self.job.logger.info("Loading locations from Nautobot.")
         location = Location.objects.get(name=self.location)
         locations = location.descendants(include_self=True) if self.location_descendants else location
+        status = Status.objects.get(name="Active")
 
-        self.job.logger.info(message="Loading devices from Nautobot.")
-        devices = Device.objects.filter(location__in=locations).exclude(primary_ip4=None)
+        self.job.logger.info("Loading devices from Nautobot.")
+        devices = Device.objects.filter(location__in=locations, status=status).exclude(primary_ip4=None)
 
         for nb_device in devices:
             try:
@@ -76,7 +78,7 @@ class NautobotAnsibleDeviceAdapter(DiffSync):
                     raise Exception(f"{nb_device.name} is not RFC 1123 compliant.")
             except Exception as exc:
                 stacktrace = traceback.format_exc()
-                self.job.logger.warning(message=f"{nb_device.name} was not added to inventory due to an error.")
+                self.job.logger.warning(f"{nb_device.name} was not added to inventory due to an error.")
                 self.job.logger.warning(
-                    message=f"An exception ocurred: " f"`{type(exec).__name__}: {exc}`\n```\n{stacktrace}\n```"
+                    f"An exception ocurred: " f"`{type(exec).__name__}: {exc}`\n```\n{stacktrace}\n```"
                 )
