@@ -303,5 +303,5 @@ class AutomationGatewayClient:
         if response.ok:
             self.job.logger.info(f"Deleting {device_name} from {group_name} group on {self.host}.")
             return response.json()
-        self.job.logger.warning(f"Failed to delete {device_name} from {group_name} group on {self.host}.")
+        self.job.logger.warning(f"Failed to delete {device_name} from {group_name} group on {self.host}.")  # nosec
         return response.raise_for_status()
