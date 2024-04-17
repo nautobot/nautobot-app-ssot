@@ -8,7 +8,7 @@ from collections import defaultdict
 from typing import FrozenSet, Tuple, Hashable, DefaultDict, Dict, Type, get_args
 
 import pydantic
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.exceptions import ObjectCrudException
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
@@ -34,7 +34,7 @@ from nautobot_ssot.contrib.types import (
 ParameterSet = FrozenSet[Tuple[str, Hashable]]
 
 
-class NautobotAdapter(DiffSync):
+class NautobotAdapter(Adapter):
     """
     Adapter for loading data from Nautobot through the ORM.
 

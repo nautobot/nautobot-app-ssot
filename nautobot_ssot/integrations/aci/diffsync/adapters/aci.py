@@ -8,7 +8,7 @@ import os
 import re
 from typing import Optional
 from ipaddress import ip_network
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.exceptions import ObjectNotFound
 from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotTenant
@@ -27,7 +27,7 @@ from nautobot_ssot.integrations.aci.diffsync.utils import load_yamlfile
 logger = logging.getLogger(__name__)
 
 
-class AciAdapter(DiffSync):
+class AciAdapter(Adapter):
     """DiffSync adapter for Cisco ACI."""
 
     tenant = NautobotTenant

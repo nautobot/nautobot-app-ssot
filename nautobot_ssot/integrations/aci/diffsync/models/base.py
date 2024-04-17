@@ -12,8 +12,8 @@ class Tenant(DiffSyncModel):
     _attributes = ("description", "comments", "site_tag")
 
     name: str
-    description: Optional[str]
-    comments: Optional[str]
+    description: Optional[str] = None
+    comments: Optional[str] = None
     site_tag: str
 
 
@@ -26,7 +26,7 @@ class Vrf(DiffSyncModel):
 
     name: str
     tenant: str
-    description: Optional[str]
+    description: Optional[str] = None
     namespace: str
     site_tag: str
 
@@ -51,8 +51,8 @@ class DeviceType(DiffSyncModel):
     model: str
     manufacturer: str
     part_nbr: str
-    comments: Optional[str]
-    u_height: Optional[int]
+    comments: Optional[str] = None
+    u_height: Optional[int] = None
 
     interface_templates: List["InterfaceTemplate"] = []
 
@@ -65,7 +65,7 @@ class DeviceRole(DiffSyncModel):
     _attributes = ("description",)
 
     name: str
-    description: Optional[str]
+    description: Optional[str] = None
 
 
 class Device(DiffSyncModel):
@@ -107,8 +107,8 @@ class InterfaceTemplate(DiffSyncModel):
     name: str
     device_type: str
     type: str
-    u_height: Optional[int]
-    mgmt_only: Optional[bool]
+    u_height: Optional[int] = None
+    mgmt_only: Optional[bool] = None
     site_tag: str
 
 
@@ -129,10 +129,10 @@ class IPAddress(DiffSyncModel):
     status: str
     site: str
     namespace: str
-    description: Optional[str]
-    device: Optional[str]
-    interface: Optional[str]
-    tenant: Optional[str]
+    description: Optional[str] = None
+    device: Optional[str] = None
+    interface: Optional[str] = None
+    tenant: Optional[str] = None
     site_tag: str
 
 
