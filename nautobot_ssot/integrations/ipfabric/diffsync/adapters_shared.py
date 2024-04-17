@@ -2,12 +2,12 @@
 
 from typing import ClassVar
 
-from diffsync import DiffSync
+from diffsync import Adapter
 
 from nautobot_ssot.integrations.ipfabric.diffsync import diffsync_models
 
 
-class DiffSyncModelAdapters(DiffSync):
+class DiffSyncModelAdapters(Adapter):
     """Nautobot adapter for DiffSync."""
 
     safe_delete_mode: ClassVar[bool] = True

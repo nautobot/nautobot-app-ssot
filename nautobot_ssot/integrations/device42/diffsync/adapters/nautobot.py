@@ -45,7 +45,7 @@ except RuntimeError:
     LIFECYCLE_MGMT = False
 
 
-class NautobotAdapter(DiffSync):
+class NautobotAdapter(Adapter):
     """Nautobot adapter for DiffSync."""
 
     building = dcim.NautobotBuilding
@@ -122,14 +122,14 @@ class NautobotAdapter(DiffSync):
         self.objects_to_delete = defaultdict(list)
         self.objects_to_create = defaultdict(list)
 
-    def sync_complete(self, source: DiffSync, *args, **kwargs):
+    def sync_complete(self, source: Adapter, *args, **kwargs):
         """Clean up function for DiffSync sync.
 
         Once the sync is complete, this function runs deleting any objects
         from Nautobot that need to be deleted in a specific order.
 
         Args:
-            source (DiffSync): DiffSync
+            source (Adapter): DiffSync Adapter
         """
         if PLUGIN_CFG.get("device42_delete_on_sync"):
             for grouping in (

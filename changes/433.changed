@@ -1,0 +1,4 @@
+Updated diffsync to 2.0.0
+Changed ipfabric pinned version to ^6.0.0
+
+Updating diffsync required changes to imports and many files changed `from diffsync import Diffsync` to `from diffsync import Adapter` and then changing `diffsync` to `adapter` in the file.

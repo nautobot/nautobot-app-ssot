@@ -1,0 +1,4 @@
+removed ipfabric-diagrams
+removed nautobot-chatops
+upgraded diffsync to 2.0.0
+changed ipfabric pinned version

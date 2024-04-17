@@ -4,7 +4,7 @@
 import datetime
 from typing import Optional
 
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
 from nautobot.dcim.models import Location
@@ -97,7 +97,7 @@ class NautobotMixin:
             _tag_object(VLANGroup.objects.get(pk=model_instance.pk))
 
 
-class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-instance-attributes
+class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-instance-attributes
     """DiffSync adapter using ORM to communicate to Nautobot."""
 
     namespace = NautobotNamespace
@@ -137,11 +137,11 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
         self.config = config
         self.excluded_cfs = config.cf_fields_ignore.get("custom_fields", [])
 
-    def sync_complete(self, source: DiffSync, *args, **kwargs):
+    def sync_complete(self, source: Adapter, *args, **kwargs):
         """Process object creations/updates using bulk operations.
 
         Args:
-            source (DiffSync): Source DiffSync adapter data.
+            source (Adapter): Source DiffSync adapter data.
         """
         super().sync_complete(source, *args, **kwargs)
 

@@ -1,5 +1,6 @@
 # pylint: disable=duplicate-code
 """DiffSync adapter class for Ip Fabric."""
+
 import ipaddress
 import logging
 from collections import defaultdict
@@ -43,7 +44,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         sites = self.client.inventory.sites.all()
         for site in sites:
             try:
-                location = self.location(diffsync=self, name=site["siteName"], site_id=site["id"], status="Active")
+                location = self.location(adapter=self, name=site["siteName"], site_id=site["id"], status="Active")
                 self.add(location)
             except ObjectAlreadyExists:
                 logger.warning(f"Duplicate Location discovered, {site}")
@@ -87,7 +88,6 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 iface_name = canonical_interface_name(iface_name)
             try:
                 interface = self.interface(
-                    diffsync=self,
                     name=iface_name,
                     device_name=iface.get("hostname"),
                     description=iface.get("dscr", ""),
@@ -139,7 +139,6 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     continue
                 try:
                     vlan = self.vlan(
-                        diffsync=self,
                         name=vlan_name,
                         location=vlan["siteName"],
                         vid=vlan["vlanId"],

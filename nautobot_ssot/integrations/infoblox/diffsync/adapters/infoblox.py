@@ -3,7 +3,7 @@
 import re
 
 import requests
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.enum import DiffSyncFlags
 from diffsync.exceptions import ObjectAlreadyExists
 from nautobot.extras.plugins.exceptions import PluginImproperlyConfigured
@@ -31,7 +31,7 @@ class AdapterLoadException(Exception):
     """Raised when there's an error while loading data."""
 
 
-class InfobloxAdapter(DiffSync):
+class InfobloxAdapter(Adapter):
     """DiffSync adapter using requests to communicate to Infoblox server."""
 
     namespace = InfobloxNamespace
