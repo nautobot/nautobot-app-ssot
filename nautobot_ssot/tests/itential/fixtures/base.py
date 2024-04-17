@@ -65,9 +65,9 @@ class ItentialSSoTBaseTestCase(TestCase):
 
         self.gateway = AutomationGatewayModel.objects.first()
         self.client = clients.api_client(self.gateway)
-        self.itential_adapter = itential.ItentialAnsibleDeviceAdapter(api_client=self.client, job=self.job)
+        self.itential_adapter = itential.ItentialAnsibleDeviceAdapter(api_client=self.client, job=self.job, sync=None)
         self.nautobot_adapter = nautobot.NautobotAnsibleDeviceAdapter(
-            job=self.job, location="North America", location_descendants=True
+            job=self.job, location="North America", location_descendants=True, sync=None
         )
 
         self.itential_adapter.load()

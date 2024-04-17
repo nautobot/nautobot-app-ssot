@@ -3,17 +3,24 @@
 import logging
 
 
-class JobLogger:
-    """Job Logger."""
+class Logger:
+    """Logger."""
 
-    def log_info(self, message: str):
+    def info(self, message: str):
         """Info logging."""
         logging.info(message)
 
-    def log_warning(self, message: str):
+    def warning(self, message: str):
         """Warning logging."""
         logging.warning(message)
 
-    def log_failure(self, message: str):
+    def failure(self, message: str):
         """Failure logging."""
         logging.error(message)
+
+
+class JobLogger:
+    """Job Logger."""
+
+    def __init__(self):
+        self.logger = Logger()
