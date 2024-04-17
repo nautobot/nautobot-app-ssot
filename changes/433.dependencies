@@ -1,0 +1,5 @@
+Removed ipfabric-diagrams
+Removed nautobot-chatops
+Upgraded DiffSync to 2.0.0
+
+Updating DiffSync required changes to imports and many files changed `from diffsync import Diffsync` to `from diffsync import Adapter` and then changing `diffsync` to `adapter` in the file.

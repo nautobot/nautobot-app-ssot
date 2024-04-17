@@ -5,7 +5,7 @@ import ipaddress
 import re
 
 import arista.tag.v2 as TAG
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 
 from nautobot_ssot.integrations.aristacv.diffsync.models.cloudvision import (
@@ -21,7 +21,7 @@ from nautobot_ssot.integrations.aristacv.types import CloudVisionAppConfig
 from nautobot_ssot.integrations.aristacv.utils import cloudvision
 
 
-class CloudvisionAdapter(DiffSync):
+class CloudvisionAdapter(Adapter):
     """DiffSync adapter implementation for CloudVision user-defined device tags."""
 
     device = CloudvisionDevice
