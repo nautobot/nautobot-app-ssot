@@ -11,7 +11,7 @@ class ItentialSSoTJobsTestCase(base.ItentialSSoTBaseTransactionTestCase):
 
     databases = ("default", "job_logs")
 
-    def test_successful_job(self):
+    def test_job__success(self):
         """Test successful job."""
         self.job = Job.objects.get(
             job_class_name="ItentialAutomationGatewayDataTarget",
@@ -21,5 +21,6 @@ class ItentialSSoTJobsTestCase(base.ItentialSSoTBaseTransactionTestCase):
         log_entries = JobLogEntry.objects.filter(job_result=job_result)
         self.assertGreater(log_entries.count(), 1)
         log_entries = [log_entry.message for log_entry in log_entries]
-        summary_output = "{'create': 1, 'update': 1, 'delete': 1, 'no-change': 0, 'skip': 0}"
+        summary_output = "{'create': 1, 'update': 1, 'delete': 1, 'no-change': 1, 'skip': 0}"
         self.assertIn(summary_output, log_entries)
+        self.assertIn("Sync complete", log_entries)

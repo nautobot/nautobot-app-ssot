@@ -75,7 +75,7 @@ class ItentialAutomationGatewayDataTarget(DataTarget):
         if memory_profiling:
             record_memory_trace("source_load")
 
-        with AutomationGatewayClient(
+        api_client = AutomationGatewayClient(
             host=self.gateway.gateway.remote_url,
             username=self.gateway.gateway.secrets_group.get_secret_value(
                 access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
@@ -87,39 +87,44 @@ class ItentialAutomationGatewayDataTarget(DataTarget):
             ),
             job=self,
             verify_ssl=self.gateway.gateway.verify_ssl,
-        ) as api_client:
-            self.load_target_adapter(api_client=api_client)
-            load_target_adapter_time = datetime.now()
-            self.sync.target_load_time = load_target_adapter_time - load_source_adapter_time
+        )
+
+        api_client.login()
+
+        self.load_target_adapter(api_client=api_client)
+        load_target_adapter_time = datetime.now()
+        self.sync.target_load_time = load_target_adapter_time - load_source_adapter_time
+        self.sync.save()
+        self.logger.info("Target Load Time from %s: %s", self.target_adapter, self.sync.target_load_time)
+
+        if memory_profiling:
+            record_memory_trace("target_load")
+
+        self.logger.info("Calculating diffs...")
+        self.calculate_diff()
+        calculate_diff_time = datetime.now()
+        self.sync.diff_time = calculate_diff_time - load_target_adapter_time
+        self.sync.save()
+        self.logger.info("Diff Calculation Time: %s", self.sync.diff_time)
+
+        if memory_profiling:
+            record_memory_trace("diff")
+
+        if self.dryrun:
+            self.logger.info("As `dryrun` is set, skipping the actual data sync.")
+        else:
+            self.logger.info("Syncing from %s to %s...", self.source_adapter, self.target_adapter)
+            self.execute_sync()
+            execute_sync_time = datetime.now()
+            self.sync.sync_time = execute_sync_time - calculate_diff_time
             self.sync.save()
-            self.logger.info("Target Load Time from %s: %s", self.target_adapter, self.sync.target_load_time)
+            self.logger.info("Sync complete")
+            self.logger.info("Sync Time: %s", self.sync.sync_time)
 
             if memory_profiling:
-                record_memory_trace("target_load")
+                record_memory_trace("sync")
 
-            self.logger.info("Calculating diffs...")
-            self.calculate_diff()
-            calculate_diff_time = datetime.now()
-            self.sync.diff_time = calculate_diff_time - load_target_adapter_time
-            self.sync.save()
-            self.logger.info("Diff Calculation Time: %s", self.sync.diff_time)
-
-            if memory_profiling:
-                record_memory_trace("diff")
-
-            if self.dryrun:
-                self.logger.info("As `dryrun` is set, skipping the actual data sync.")
-            else:
-                self.logger.info("Syncing from %s to %s...", self.source_adapter, self.target_adapter)
-                self.execute_sync()
-                execute_sync_time = datetime.now()
-                self.sync.sync_time = execute_sync_time - calculate_diff_time
-                self.sync.save()
-                self.logger.info("Sync complete")
-                self.logger.info("Sync Time: %s", self.sync.sync_time)
-
-                if memory_profiling:
-                    record_memory_trace("sync")
+        api_client.logout()
 
     def run(self, dryrun, memory_profiling, gateway, *args, **kwargs):  # pylint: disable=arguments-differ
         """Execute sync."""
