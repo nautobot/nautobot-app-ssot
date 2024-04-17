@@ -16,11 +16,12 @@ class NautobotAnsibleDeviceAdapter(DiffSync):
     device = NautobotAnsibleDeviceModel
     top_level = ["device"]
 
-    def __init__(self, job: object, location: str, location_descendants: bool, *args, **kwargs):
+    def __init__(self, job: object, sync: object, location: str, location_descendants: bool, *args, **kwargs):
         """Initialize Nautobot Itential Ansible Device Diffsync adapter."""
         super().__init__(*args, **kwargs)
         self.job = job
         self.location = location
+        self.sync = sync
         self.location_descendants = location_descendants
 
     def _is_rfc1123_compliant(self, device_name: str) -> bool:

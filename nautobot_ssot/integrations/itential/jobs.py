@@ -24,6 +24,7 @@ class ItentialAutomationGatewayDataTarget(DataTarget, Job):
 
     dryrun = BooleanVar(default=False, widget=HiddenInput(), required=True)
     location = ObjectVar(model=Location, description="Choose a location to sync to.", required=True)
+    location_descendants = BooleanVar(default=True, required=True)
 
     class Meta:
         """Meta class definition."""
@@ -32,17 +33,20 @@ class ItentialAutomationGatewayDataTarget(DataTarget, Job):
         data_target = "Itential Automation Gateway"
         # data_source_icon = static("nautobot_ssot_itential/itential.png")
         description = "Sync data from Nautobot into Itential Automation Gateway."
-        field_order = ("location", "dry_run")
+        field_order = ("location", "location_descendants", "dry_run")
 
-    def gateways(self, location):
+    @property
+    def gateways(self):
         """Fetch Automation Gateways to sync."""
-        self.logger.info(f"Loading gateays for {location}.")
-        gateways = AutomationGatewayClient.objects.filter(enabled=True, location=location)
+        self.logger.info(f"Loading gateays for {self.location}.")
+        gateways = AutomationGatewayClient.objects.filter(enabled=True, location=self.location)
         return gateways
 
-    def load_source_adapter(self, location: Location):
+    def load_source_adapter(self, location: Location, location_descendants: bool):
         """Load Nautobot adapter."""
-        self.source_adapter = NautobotAnsibleDeviceAdapter(job=self, sync=self.sync, location=location)
+        self.source_adapter = NautobotAnsibleDeviceAdapter(
+            job=self, sync=self.sync, location=location, location_descendants=location_descendants
+        )
         self.logger.info("Loading data from Nautobot.")
         self.source_adapter.load()
 
@@ -73,7 +77,7 @@ class ItentialAutomationGatewayDataTarget(DataTarget, Job):
         start_time = datetime.now()
 
         self.logger.info("Loading current data from source adapter...")
-        self.load_source_adapter(location=self.location)
+        self.load_source_adapter(location=self.location, location_descendants=self.location_descendants)
         load_source_adapter_time = datetime.now()
         self.sync.source_load_time = load_source_adapter_time - start_time
         self.sync.save()
@@ -82,7 +86,7 @@ class ItentialAutomationGatewayDataTarget(DataTarget, Job):
         if memory_profiling:
             record_memory_trace("source_load")
 
-        for device in self.gateways(location=self.location):
+        for device in self.gateways:
             with AutomationGatewayClient(
                 host=device.gateway.remote_url,
                 username=device.gateway.secrets_group.get_secret_value(
@@ -96,8 +100,8 @@ class ItentialAutomationGatewayDataTarget(DataTarget, Job):
                 job=self,
                 verify_ssl=device.gateway.verify_ssl,
             ) as api_client:
-                self.logger.info("Loading current data from target adapter...")
-                self.load_target_adapter(api_client=api_client, job=self)
+                self.logger.info("Loading current data from target adapter.")
+                self.load_target_adapter(api_client=api_client)
                 load_target_adapter_time = datetime.now()
                 self.sync.target_load_time = load_target_adapter_time - load_source_adapter_time
                 self.sync.save()
@@ -130,11 +134,12 @@ class ItentialAutomationGatewayDataTarget(DataTarget, Job):
                     if memory_profiling:
                         record_memory_trace("sync")
 
-    def run(self, dryrun, memory_profiling, location, *args, **kwargs):
+    def run(self, dryrun, memory_profiling, location, location_descendants, *args, **kwargs):
         """Execute sync."""
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
         self.location = location
+        self.location_descendants = location_descendants
         super().__init__(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 

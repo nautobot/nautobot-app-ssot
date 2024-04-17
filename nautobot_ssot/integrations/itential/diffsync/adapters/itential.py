@@ -11,11 +11,12 @@ class ItentialAnsibleDeviceAdapter(DiffSync):
     device = ItentialAnsibleDeviceModel
     top_level = ["device"]
 
-    def __init__(self, api_client: AutomationGatewayClient, job: object, *args, **kwargs):
+    def __init__(self, api_client: AutomationGatewayClient, job: object, sync: object, *args, **kwargs):
         """Initialize Diffsync Adapter."""
         super().__init__(*args, **kwargs)
         self.api_client = api_client
         self.job = job
+        self.sync = sync
 
     def load(self):
         """Load Adapter."""
