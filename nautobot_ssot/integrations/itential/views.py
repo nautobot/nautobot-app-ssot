@@ -15,3 +15,4 @@ class AutomationGatewayModelUIViewSet(views.NautobotUIViewSet):
     queryset = models.AutomationGatewayModel.objects.all()
     serializer_class = serializers.AutomationGatewayModelSerializer
     table_class = tables.AutomationGatewayModelTable
+    lookup_field = "pk"

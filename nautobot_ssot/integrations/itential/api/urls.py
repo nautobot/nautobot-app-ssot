@@ -4,7 +4,7 @@ from nautobot.apps.api import OrderedDefaultRouter
 from nautobot_ssot.integrations.itential.api import views
 
 
-router = OrderedDefaultRouter(view_name="Itential SSoT")
-router.register("models", views.AutomationGatewayModelViewSet)
+router = OrderedDefaultRouter()
+router.register("itential/automation-gateway", views.AutomationGatewayModelViewSet)
 
 urlpatterns = router.urls

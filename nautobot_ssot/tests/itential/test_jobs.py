@@ -17,7 +17,9 @@ class ItentialSSoTJobsTestCase(base.ItentialSSoTBaseTransactionTestCase):
             job_class_name="ItentialAutomationGatewayDataTarget",
             module_name="nautobot_ssot.integrations.itential.jobs",
         )
-        job_result = run_job_for_testing(self.job, dryrun=False, memory_profiling=False, gateway=self.gateway.pk)
+        job_result = run_job_for_testing(
+            self.job, dryrun=False, memory_profiling=False, gateway=self.gateway.pk, status=self.status.pk
+        )
         log_entries = JobLogEntry.objects.filter(job_result=job_result)
         self.assertGreater(log_entries.count(), 1)
         log_entries = [log_entry.message for log_entry in log_entries]

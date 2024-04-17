@@ -4,6 +4,7 @@ import tracemalloc
 
 from datetime import datetime
 
+from nautobot.extras.models import Status
 from nautobot.extras.jobs import ObjectVar
 
 from nautobot_ssot.jobs.base import DataTarget
@@ -22,6 +23,7 @@ class ItentialAutomationGatewayDataTarget(DataTarget):
     """Job syncing Nautobot to Itential Automation Gateway."""
 
     gateway = ObjectVar(model=AutomationGatewayModel, description="Choose a gateway to sync to.", required=True)
+    status = ObjectVar(model=Status, description="Choose a device status to sync.", required=True)
 
     class Meta:
         """Meta class definition."""
@@ -35,7 +37,11 @@ class ItentialAutomationGatewayDataTarget(DataTarget):
     def load_source_adapter(self):
         """Load Nautobot adapter."""
         self.source_adapter = NautobotAnsibleDeviceAdapter(
-            job=self, sync=self.sync, location=self.location, location_descendants=self.location_descendants
+            job=self,
+            sync=self.sync,
+            location=self.location,
+            location_descendants=self.location_descendants,
+            status=self.status,
         )
         self.logger.info("Loading data from Nautobot.")
         self.source_adapter.load()
@@ -126,9 +132,10 @@ class ItentialAutomationGatewayDataTarget(DataTarget):
 
         api_client.logout()
 
-    def run(self, dryrun, memory_profiling, gateway, *args, **kwargs):  # pylint: disable=arguments-differ
+    def run(self, dryrun, memory_profiling, gateway, status, *args, **kwargs):  # pylint: disable=arguments-differ
         """Execute sync."""
         self.gateway = gateway
+        self.status = status
         self.location = self.gateway.location
         self.location_descendants = self.gateway.location_descendants
         self.dryrun = dryrun

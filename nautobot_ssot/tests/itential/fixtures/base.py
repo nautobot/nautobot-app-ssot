@@ -8,6 +8,7 @@ import requests_mock
 from nautobot.apps.testing import TestCase
 from nautobot.apps.testing import TransactionTestCase
 
+from nautobot.extras.models import Status
 
 from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
 from nautobot_ssot.integrations.itential.diffsync.adapters import itential, nautobot
@@ -65,11 +66,12 @@ class ItentialSSoTBaseTestCase(TestCase):
                 config_context=device.get("config_context"),
             )
 
+        self.status, _ = Status.objects.get_or_create(name="Active")
         self.gateway = AutomationGatewayModel.objects.first()
         self.client = clients.api_client(self.gateway)
         self.itential_adapter = itential.ItentialAnsibleDeviceAdapter(api_client=self.client, job=self.job, sync=None)
         self.nautobot_adapter = nautobot.NautobotAnsibleDeviceAdapter(
-            job=self.job, location="North America", location_descendants=True, sync=None
+            job=self.job, location="North America", location_descendants=True, status=self.status, sync=None
         )
 
         self.itential_adapter.load()
@@ -130,11 +132,12 @@ class ItentialSSoTBaseTransactionTestCase(TransactionTestCase):
                 config_context=device.get("config_context"),
             )
 
+        self.status, _ = Status.objects.get_or_create(name="Active")
         self.gateway = AutomationGatewayModel.objects.first()
         self.client = clients.api_client(self.gateway)
         self.itential_adapter = itential.ItentialAnsibleDeviceAdapter(api_client=self.client, job=self.job, sync=None)
         self.nautobot_adapter = nautobot.NautobotAnsibleDeviceAdapter(
-            job=self.job, location="North America", location_descendants=True, sync=None
+            job=self.job, location="North America", location_descendants=True, status=self.status, sync=None
         )
 
         self.itential_adapter.load()

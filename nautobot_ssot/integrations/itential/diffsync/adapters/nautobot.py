@@ -17,13 +17,16 @@ class NautobotAnsibleDeviceAdapter(DiffSync):
     device = NautobotAnsibleDeviceModel
     top_level = ["device"]
 
-    def __init__(self, job: object, sync: object, location: str, location_descendants: bool, *args, **kwargs):
+    def __init__(
+        self, job: object, sync: object, location: Location, location_descendants: bool, status: Status, *args, **kwargs
+    ):
         """Initialize Nautobot Itential Ansible Device Diffsync adapter."""
         super().__init__(*args, **kwargs)
         self.job = job
-        self.location = location
         self.sync = sync
+        self.location = location
         self.location_descendants = location_descendants
+        self.status = status
 
     def _is_rfc1123_compliant(self, device_name: str) -> bool:
         """Check to see if a device name is RFC 1123 compliant."""
@@ -62,10 +65,9 @@ class NautobotAnsibleDeviceAdapter(DiffSync):
         self.job.logger.info("Loading locations from Nautobot.")
         location = Location.objects.get(name=self.location)
         locations = location.descendants(include_self=True) if self.location_descendants else location
-        status = Status.objects.get(name="Active")
 
         self.job.logger.info("Loading devices from Nautobot.")
-        devices = Device.objects.filter(location__in=locations, status=status).exclude(primary_ip4=None)
+        devices = Device.objects.filter(location__in=locations, status=self.status.pk).exclude(primary_ip4=None)
 
         for nb_device in devices:
             try:
