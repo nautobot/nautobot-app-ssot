@@ -2,7 +2,7 @@
 
 import re
 
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.enum import DiffSyncFlags
 from diffsync.exceptions import ObjectAlreadyExists
 from nautobot.extras.plugins.exceptions import PluginImproperlyConfigured
@@ -17,7 +17,7 @@ from nautobot_ssot.integrations.infoblox.diffsync.models.infoblox import (
 )
 
 
-class InfobloxAdapter(DiffSync):
+class InfobloxAdapter(Adapter):
     """DiffSync adapter using requests to communicate to Infoblox server."""
 
     prefix = InfobloxNetwork

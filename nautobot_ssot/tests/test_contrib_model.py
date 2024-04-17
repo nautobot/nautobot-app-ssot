@@ -132,7 +132,7 @@ class BaseModelCustomRelationshipTestWithDeviceData(TestCaseWithDeviceData):
         )
 
         CableModel.create(
-            diffsync=NautobotAdapter(job=MagicMock()),
+            adapter=NautobotAdapter(job=MagicMock()),
             ids={
                 "termination_a__device__name": device.name,
                 "termination_a__name": interface_a.name,

@@ -15,7 +15,7 @@ from nautobot_ssot.integrations.aci.diffsync.models.nautobot import NautobotTena
 # Note: You might need to instantiate your actual adapter and pass it in as the diffsync parameter, this may be the case
 # if you are doing logging. `unittest.MagicMock` can help here as a substitute for e.g. an actual job class.
 # If you want to test `create`
-NautobotTenant.create(diffsync=None, ids={"name": "Company A"}, attrs={"site_tag": "Something"})
+NautobotTenant.create(adapter=None, ids={"name": "Company A"}, attrs={"site_tag": "Something"})
 tenant = NautobotTenant(name="Company A", site_tag="Something")
 # If you want to test `update`
 tenant.update(attrs={"site_tag": "Something else"})
