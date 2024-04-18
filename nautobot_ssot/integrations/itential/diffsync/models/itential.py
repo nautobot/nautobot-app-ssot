@@ -1,10 +1,10 @@
 """Itential SSoT models."""
 
 
-from nautobot_ssot.integrations.itential.diffsync.models import SharedAnsibleDeviceDiffsyncModel
+from nautobot_ssot.integrations.itential.diffsync.models import shared
 
 
-class ItentialAnsibleDeviceModel(SharedAnsibleDeviceDiffsyncModel):
+class ItentialAnsibleDeviceModel(shared.SharedAnsibleDeviceDiffsyncModel):
     """Itential Ansible Device DiffSyncModel."""
 
     @classmethod
@@ -22,5 +22,20 @@ class ItentialAnsibleDeviceModel(SharedAnsibleDeviceDiffsyncModel):
 
     def update(self, attrs):
         """Update device in Automation Gateway."""
+        self.diffsync.api_client.update_device(device_name=self.name, variables=attrs.get("variables"))
+        return super().update(attrs)
+
+
+class ItentialDefaultAnsibleGroupModel(shared.SharedAnsibleDefaultGroupDiffsyncModel):
+    """Itential Default Ansible Group DiffsyncModel."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create default group in Automation Gateway."""
+        diffsync.api_client.create_group(group_name=ids.get("name"), variables=attrs.get("variables"))
+        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+
+    def update(self, attrs):
+        """Update default group in Automation Gateway."""
         self.diffsync.api_client.update_device(device_name=self.name, variables=attrs.get("variables"))
         return super().update(attrs)

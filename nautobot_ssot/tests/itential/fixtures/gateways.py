@@ -41,9 +41,9 @@ gateways = [
         "enabled": True,
         "username_env": "IAG2_USERNAME",
         "password_env": "IAG2_PASSWORD",
-        "ansible_vault_env": "IAG1_VAULT",
-        "device_user_env": "IAG1_DEVICE_USER",
-        "device_pass_env": "IAG1_DEVICE_PASS",
+        "ansible_vault_env": "IAG2_VAULT",
+        "device_user_env": "IAG2_DEVICE_USER",
+        "device_pass_env": "IAG2_DEVICE_PASS",
         "secret_group": "testGroup2",
     },
 ]
@@ -183,17 +183,17 @@ def update_or_create_automation_gateways(
 
     # Create Ansible VAULT secret
     ansible_vault, _ = Secret.objects.update_or_create(
-        name=ansible_vault_env, provider="environment-variable", parameters={"variable:": ansible_vault_env}
+        name=ansible_vault_env, provider="environment-variable", parameters={"variable": ansible_vault_env}
     )
 
     # Create Device user secret
     device_user, _ = Secret.objects.update_or_create(
-        name=device_user_env, provider="environment-variable", parameters={"variable:": device_user_env}
+        name=device_user_env, provider="environment-variable", parameters={"variable": device_user_env}
     )
 
     # Create Device pass secret
     device_pass, _ = Secret.objects.update_or_create(
-        name=device_pass_env, provider="environment-variable", parameters={"variable:": device_pass_env}
+        name=device_pass_env, provider="environment-variable", parameters={"variable": device_pass_env}
     )
 
     # Create a secrets group

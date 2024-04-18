@@ -77,7 +77,7 @@ class ItentialSSoTBaseTestCase(TestCase):
         self.client = clients.api_client(self.gateway)
         self.itential_adapter = itential.ItentialAnsibleDeviceAdapter(api_client=self.client, job=self.job, sync=None)
         self.nautobot_adapter = nautobot.NautobotAnsibleDeviceAdapter(
-            job=self.job, location="North America", location_descendants=True, status=self.status, sync=None
+            job=self.job, gateway=self.gateway, status=self.status, sync=None
         )
 
         self.itential_adapter.load()
@@ -149,7 +149,7 @@ class ItentialSSoTBaseTransactionTestCase(TransactionTestCase):
         self.client = clients.api_client(self.gateway)
         self.itential_adapter = itential.ItentialAnsibleDeviceAdapter(api_client=self.client, job=self.job, sync=None)
         self.nautobot_adapter = nautobot.NautobotAnsibleDeviceAdapter(
-            job=self.job, location="North America", location_descendants=True, status=self.status, sync=None
+            job=self.job, gateway=self.gateway, status=self.status, sync=None
         )
 
         self.itential_adapter.load()

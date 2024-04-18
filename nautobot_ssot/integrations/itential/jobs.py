@@ -39,8 +39,7 @@ class ItentialAutomationGatewayDataTarget(DataTarget):  # pylint: disable=too-ma
         self.source_adapter = NautobotAnsibleDeviceAdapter(
             job=self,
             sync=self.sync,
-            location=self.location,
-            location_descendants=self.location_descendants,
+            gateway=self.gateway,
             status=self.status,
         )
         self.logger.info("Loading data from Nautobot.")

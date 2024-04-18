@@ -6,26 +6,32 @@ import traceback
 from diffsync import DiffSync
 
 from nautobot.extras.models import Status
-from nautobot.dcim.models import Device, Location
+from nautobot.dcim.models import Device
 
-from nautobot_ssot.integrations.itential.diffsync.models.nautobot import NautobotAnsibleDeviceModel
+from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
+
+from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
+from nautobot_ssot.integrations.itential.diffsync.models.nautobot import (
+    NautobotAnsibleDeviceModel,
+    NautobotDefaultAnsibleGroupModel,
+)
 
 
 class NautobotAnsibleDeviceAdapter(DiffSync):
     """Nautobot => Itential Ansible Device Diffsync Adapter."""
 
     device = NautobotAnsibleDeviceModel
-    top_level = ["device"]
+    all_group = NautobotDefaultAnsibleGroupModel
+    top_level = ["all_group", "device"]
 
     def __init__(  # pylint disable=too-many-arguments
-        self, job: object, sync: object, location: Location, location_descendants: bool, status: Status, *args, **kwargs
+        self, job: object, sync: object, gateway: AutomationGatewayModel, status: Status, *args, **kwargs
     ):
         """Initialize Nautobot Itential Ansible Device Diffsync adapter."""
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
-        self.location = location
-        self.location_descendants = location_descendants
+        self.gateway = gateway
         self.status = status
 
     def _is_rfc1123_compliant(self, device_name: str) -> bool:
@@ -60,11 +66,33 @@ class NautobotAnsibleDeviceAdapter(DiffSync):
 
         return {**ansible_host, **ansible_network_os, **config_context}
 
+    @property
+    def _default_group_vars(self) -> dict:
+        """Create the ansible default group variables to load into Automation Gateway."""
+        username = self.gateway.gateway.secrets_group.get_secret_value(
+            access_type=SecretsGroupAccessTypeChoices.TYPE_GENERIC,
+            secret_type=SecretsGroupSecretTypeChoices.TYPE_USERNAME,
+        )
+        password = self.gateway.gateway.secrets_group.get_secret_value(
+            access_type=SecretsGroupAccessTypeChoices.TYPE_GENERIC,
+            secret_type=SecretsGroupSecretTypeChoices.TYPE_PASSWORD,
+        )
+
+        ansible_username = {"ansible_username": username} if username else {}
+        ansible_password = {"ansible_passwod": password} if password else {}
+
+        return {**ansible_username, **ansible_password}
+
     def load(self):
         """Load Nautobot Diffsync adapter."""
+
+        self.job.logger.info("Loading default ansible group variables from Nautobot.")
+        _group = self.all_group(name="all", variables=self._default_group_vars)
+        self.add(_group)
+
         self.job.logger.info("Loading locations from Nautobot.")
-        location = Location.objects.get(name=self.location)
-        locations = location.descendants(include_self=True) if self.location_descendants else location
+        location = self.gateway.location
+        locations = location.descendants(include_self=True) if self.gateway.location_descendants else location
 
         self.job.logger.info("Loading devices from Nautobot.")
         devices = Device.objects.filter(location__in=locations, status=self.status.pk).exclude(primary_ip4=None)
@@ -77,9 +105,9 @@ class NautobotAnsibleDeviceAdapter(DiffSync):
 
                     self.add(_device)
                 else:
-                    raise Exception(
+                    raise Exception(  # pylint: disable=broad-exception-raised
                         f"{nb_device.name} is not RFC 1123 compliant."
-                    )  # pylint: disable=broad-exception-raised
+                    )
             except Exception as exc:  # pylint: disable=broad-exception-caught
                 stacktrace = traceback.format_exc()
                 self.job.logger.warning(f"{nb_device.name} was not added to inventory due to an error.")
