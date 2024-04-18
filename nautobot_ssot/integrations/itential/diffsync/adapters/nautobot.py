@@ -56,36 +56,62 @@ class NautobotAnsibleDeviceAdapter(DiffSync):
 
     def _ansible_vars(self, device_obj: Device) -> dict:
         """Create device variables to load into Automation Gateway."""
+        # Add ansible_network_os if available
         if device_obj.platform and device_obj.platform.network_driver_mappings.get("ansible"):
             ansible_network_os = {"ansible_network_os": device_obj.platform.network_driver_mappings.get("ansible")}
         else:
             ansible_network_os = {}
 
+        # Add device specific credentials if available
+        try:
+            ansible_username = {
+                "ansible_username": device_obj.secrets_group.get_secret_value(
+                    access_type=SecretsGroupAccessTypeChoices.TYPE_GENERIC,
+                    secret_type=SecretsGroupSecretTypeChoices.TYPE_USERNAME,
+                )
+            }
+            ansible_password = {
+                "ansible_password": device_obj.secrets_group.get_secret_value(
+                    access_type=SecretsGroupAccessTypeChoices.TYPE_GENERIC,
+                    secret_type=SecretsGroupSecretTypeChoices.TYPE_PASSWORD,
+                )
+            }
+        except AttributeError:
+            ansible_username = {}
+            ansible_password = {}
+
+        # Add ansible_host
         ansible_host = {"ansible_host": device_obj.primary_ip4.host}
+
+        # Add device attributes from config_context
         config_context = device_obj.get_config_context()
 
-        return {**ansible_host, **ansible_network_os, **config_context}
+        return {**ansible_host, **ansible_network_os, **ansible_username, **ansible_password, **config_context}
 
     @property
     def _default_group_vars(self) -> dict:
         """Create the ansible default group variables to load into Automation Gateway."""
-        username = self.gateway.gateway.secrets_group.get_secret_value(
-            access_type=SecretsGroupAccessTypeChoices.TYPE_GENERIC,
-            secret_type=SecretsGroupSecretTypeChoices.TYPE_USERNAME,
-        )
-        password = self.gateway.gateway.secrets_group.get_secret_value(
-            access_type=SecretsGroupAccessTypeChoices.TYPE_GENERIC,
-            secret_type=SecretsGroupSecretTypeChoices.TYPE_PASSWORD,
-        )
-
-        ansible_username = {"ansible_username": username} if username else {}
-        ansible_password = {"ansible_passwod": password} if password else {}
+        try:
+            ansible_username = {
+                "ansible_username": self.gateway.gateway.secrets_group.get_secret_value(
+                    access_type=SecretsGroupAccessTypeChoices.TYPE_GENERIC,
+                    secret_type=SecretsGroupSecretTypeChoices.TYPE_USERNAME,
+                )
+            }
+            ansible_password = {
+                "ansible_password": self.gateway.gateway.secrets_group.get_secret_value(
+                    access_type=SecretsGroupAccessTypeChoices.TYPE_GENERIC,
+                    secret_type=SecretsGroupSecretTypeChoices.TYPE_PASSWORD,
+                )
+            }
+        except AttributeError:
+            ansible_username = {}
+            ansible_password = {}
 
         return {**ansible_username, **ansible_password}
 
     def load(self):
         """Load Nautobot Diffsync adapter."""
-
         self.job.logger.info("Loading default ansible group variables from Nautobot.")
         _group = self.all_group(name="all", variables=self._default_group_vars)
         self.add(_group)
