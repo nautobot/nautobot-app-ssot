@@ -1,5 +1,7 @@
 # pylint: disable=duplicate-code
 """Utility functions for Nautobot ORM."""
+
+import logging
 import random
 from typing import List, OrderedDict
 from uuid import UUID
@@ -15,12 +17,19 @@ from netutils.lib_mapper import ANSIBLE_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER_RE
 from taggit.managers import TaggableManager
 from nautobot_ssot.integrations.device42.diffsync.models.base.dcim import Device as NautobotDevice
 
+logger = logging.getLogger(__name__)
+
 try:
-    from nautobot_device_lifecycle_mgmt.models import SoftwareLCM
+    from nautobot_device_lifecycle_mgmt.models import SoftwareLCM  # noqa: F401 # pylint: disable=unused-import
 
     LIFECYCLE_MGMT = True
-except (ImportError, RuntimeError):
-    print("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
+except ImportError:
+    logger.info("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
+    LIFECYCLE_MGMT = False
+except RuntimeError:
+    logger.warning(
+        "nautobot-device-lifecycle-mgmt is installed but not enabled. Did you forget to add it to your settings.PLUGINS?"
+    )
     LIFECYCLE_MGMT = False
 
 
