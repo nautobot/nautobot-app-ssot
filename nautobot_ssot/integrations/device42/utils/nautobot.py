@@ -19,7 +19,7 @@ try:
     from nautobot_device_lifecycle_mgmt.models import SoftwareLCM
 
     LIFECYCLE_MGMT = True
-except ImportError:
+except (ImportError, RuntimeError):
     print("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
     LIFECYCLE_MGMT = False
 

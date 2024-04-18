@@ -40,7 +40,7 @@ try:
     from nautobot_device_lifecycle_mgmt.models import SoftwareLCM
 
     LIFECYCLE_MGMT = True
-except ImportError:
+except (ImportError, RuntimeError):
     print("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
     LIFECYCLE_MGMT = False
 
@@ -881,9 +881,11 @@ class NautobotConnection(Connection):
             circuit_term.validated_save()
         if _intf and not _intf.cable and not circuit_term.cable:
             new_cable = OrmCable(
-                termination_a_type=ContentType.objects.get(app_label="dcim", model="interface")
-                if attrs["src_type"] == "interface"
-                else ContentType.objects.get(app_label="dcim", model="frontport"),
+                termination_a_type=(
+                    ContentType.objects.get(app_label="dcim", model="interface")
+                    if attrs["src_type"] == "interface"
+                    else ContentType.objects.get(app_label="dcim", model="frontport")
+                ),
                 termination_a_id=_intf,
                 termination_b_type=ContentType.objects.get(app_label="circuits", model="circuittermination"),
                 termination_b_id=circuit_term.id,

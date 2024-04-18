@@ -1,4 +1,5 @@
 """Nautobot DiffSync models for AristaCV SSoT."""
+
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from nautobot.core.settings_funcs import is_truthy
@@ -35,7 +36,7 @@ try:
     from nautobot_device_lifecycle_mgmt.models import SoftwareLCM
 
     LIFECYCLE_MGMT = True
-except ImportError:
+except (ImportError, RuntimeError):
     print("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
     LIFECYCLE_MGMT = False
 

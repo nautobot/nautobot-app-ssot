@@ -1,4 +1,5 @@
 """DiffSync adapter class for Nautobot as source-of-truth."""
+
 from collections import defaultdict
 
 from diffsync import DiffSync
@@ -32,7 +33,7 @@ try:
     import nautobot_device_lifecycle_mgmt  # noqa: F401
 
     LIFECYCLE_MGMT = True
-except ImportError:
+except (ImportError, RuntimeError):
     print("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
     LIFECYCLE_MGMT = False
 
