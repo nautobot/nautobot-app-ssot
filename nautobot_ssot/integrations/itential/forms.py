@@ -33,7 +33,7 @@ class AutomationGatewayModelFilterForm(BootstrapMixin, forms.Form):
         enabled = forms.BooleanField(required=False)
 
 
-class AutomationGatewayModelForm(NautobotModelForm):
+class AutomationGatewayModelForm(NautobotModelForm):  # pylint: disable=too-many-ancestors
     """AutomationGatewayModel Form form."""
 
     class Meta:

@@ -15,6 +15,9 @@ gateways = [
         "enabled": True,
         "username_env": "IAG1_USERNAME",
         "password_env": "IAG1_PASSWORD",
+        "ansible_vault_env": "IAG1_VAULT",
+        "device_user_env": "IAG1_DEVICE_USER",
+        "device_pass_env": "IAG1_DEVICE_PASS",
         "secret_group": "testGroup1",
     },
     {
@@ -25,6 +28,9 @@ gateways = [
         "enabled": False,
         "username_env": "IAG1_USERNAME",
         "password_env": "IAG1_PASSWORD",
+        "ansible_vault_env": "IAG1_VAULT",
+        "device_user_env": "IAG1_DEVICE_USER",
+        "device_pass_env": "IAG1_DEVICE_PASS",
         "secret_group": "testGroup1",
     },
     {
@@ -35,6 +41,9 @@ gateways = [
         "enabled": True,
         "username_env": "IAG2_USERNAME",
         "password_env": "IAG2_PASSWORD",
+        "ansible_vault_env": "IAG1_VAULT",
+        "device_user_env": "IAG1_DEVICE_USER",
+        "device_pass_env": "IAG1_DEVICE_PASS",
         "secret_group": "testGroup2",
     },
 ]
@@ -147,8 +156,11 @@ def update_or_create_automation_gateways(
     enabled: bool,
     username_env: str,
     password_env: str,
+    ansible_vault_env: str,
+    device_user_env: str,
+    device_pass_env: str,
     secret_group: str,
-):
+):  # pylint: disable=too-many-arguments,too-many-locals
     """Fixture to populate Automation Gateways."""
     # Fetch the active status
     status = Status.objects.get(name="Active")
@@ -169,11 +181,26 @@ def update_or_create_automation_gateways(
         name=password_env, provider="environment-variable", parameters={"variable": password_env}
     )
 
+    # Create Ansible VAULT secret
+    ansible_vault, _ = Secret.objects.update_or_create(
+        name=ansible_vault_env, provider="environment-variable", parameters={"variable:": ansible_vault_env}
+    )
+
+    # Create Device user secret
+    device_user, _ = Secret.objects.update_or_create(
+        name=device_user_env, provider="environment-variable", parameters={"variable:": device_user_env}
+    )
+
+    # Create Device pass secret
+    device_pass, _ = Secret.objects.update_or_create(
+        name=device_pass_env, provider="environment-variable", parameters={"variable:": device_pass_env}
+    )
+
     # Create a secrets group
     secret_group, _ = SecretsGroup.objects.update_or_create(name=secret_group)
 
     # Associate the REST username with the secrets group
-    username_assoc, _ = SecretsGroupAssociation.objects.update_or_create(
+    SecretsGroupAssociation.objects.update_or_create(
         secrets_group=secret_group,
         secret=secret_username,
         access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
@@ -181,10 +208,34 @@ def update_or_create_automation_gateways(
     )
 
     # Associate the REST password with the secrets group
-    password_assoc, _ = SecretsGroupAssociation.objects.update_or_create(
+    SecretsGroupAssociation.objects.update_or_create(
         secrets_group=secret_group,
         secret=secret_password,
         access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
+        secret_type=SecretsGroupSecretTypeChoices.TYPE_PASSWORD,
+    )
+
+    # Associate the Ansible Vault secret with the secrets group
+    SecretsGroupAssociation.objects.update_or_create(
+        secrets_group=secret_group,
+        secret=ansible_vault,
+        access_type=SecretsGroupAccessTypeChoices.TYPE_GENERIC,
+        secret_type=SecretsGroupSecretTypeChoices.TYPE_KEY,
+    )
+
+    # Associate the Device username with the secrets group
+    SecretsGroupAssociation.objects.update_or_create(
+        secrets_group=secret_group,
+        secret=device_user,
+        access_type=SecretsGroupAccessTypeChoices.TYPE_GENERIC,
+        secret_type=SecretsGroupSecretTypeChoices.TYPE_USERNAME,
+    )
+
+    # Associate the Device password with the secrets group
+    SecretsGroupAssociation.objects.update_or_create(
+        secrets_group=secret_group,
+        secret=device_pass,
+        access_type=SecretsGroupAccessTypeChoices.TYPE_GENERIC,
         secret_type=SecretsGroupSecretTypeChoices.TYPE_PASSWORD,
     )
 
@@ -192,6 +243,6 @@ def update_or_create_automation_gateways(
     gateway, _ = ExternalIntegration.objects.update_or_create(name=name, remote_url=gateway, secrets_group=secret_group)
 
     # Create the Automation Gateway object
-    automation_gateway, _ = AutomationGatewayModel.objects.update_or_create(
+    AutomationGatewayModel.objects.update_or_create(
         name=name, description=description, location=location, gateway=gateway, enabled=enabled
     )

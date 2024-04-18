@@ -7,7 +7,7 @@ from nautobot.apps.api import NautobotModelSerializer
 from nautobot_ssot.integrations.itential import models
 
 
-class AutomationGatewayModelSerializer(NautobotModelSerializer):
+class AutomationGatewayModelSerializer(NautobotModelSerializer):  # pylint: disable=too-many-ancestors
     """AutomationGatewayModel serializer."""
 
     url = serializers.HyperlinkedIdentityField(view_name="plugins-api:nautobot_ssot-api:automationgatewaymodel-detail")

@@ -6,7 +6,7 @@ from nautobot_ssot.integrations.itential import models, filters
 from nautobot_ssot.integrations.itential.api import serializers
 
 
-class AutomationGatewayModelViewSet(NautobotModelViewSet):
+class AutomationGatewayModelViewSet(NautobotModelViewSet):  # pylint: disable=too-many-ancestors
     """AutomationGatewayModel API ViewSet."""
 
     queryset = models.AutomationGatewayModel.objects.all()

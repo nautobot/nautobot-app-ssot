@@ -7,8 +7,8 @@ from datetime import datetime
 from nautobot.extras.models import Status
 from nautobot.extras.jobs import ObjectVar
 
-from nautobot_ssot.jobs.base import DataTarget
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
+from nautobot_ssot.jobs.base import DataTarget
 
 from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
 from nautobot_ssot.integrations.itential.clients import AutomationGatewayClient
@@ -19,7 +19,7 @@ from nautobot_ssot.integrations.itential.diffsync.adapters.nautobot import Nauto
 name = "SSoT - Itential"  # pylint: disable=invalid-name
 
 
-class ItentialAutomationGatewayDataTarget(DataTarget):
+class ItentialAutomationGatewayDataTarget(DataTarget):  # pylint: disable=too-many-instance-attributes
     """Job syncing Nautobot to Itential Automation Gateway."""
 
     gateway = ObjectVar(model=AutomationGatewayModel, description="Choose a gateway to sync to.", required=True)
@@ -46,7 +46,7 @@ class ItentialAutomationGatewayDataTarget(DataTarget):
         self.logger.info("Loading data from Nautobot.")
         self.source_adapter.load()
 
-    def load_target_adapter(self, api_client: AutomationGatewayClient):
+    def load_target_adapter(self, api_client: AutomationGatewayClient):  # pylint: disable=arguments-differ
         """Load Itential adapter."""
         self.target_adapter = ItentialAnsibleDeviceAdapter(job=self, sync=self.sync, api_client=api_client)
         self.logger.info("Loading data from Itential.")
@@ -140,8 +140,8 @@ class ItentialAutomationGatewayDataTarget(DataTarget):
         """Execute sync."""
         self.gateway = gateway
         self.status = status
-        self.location = self.gateway.location
-        self.location_descendants = self.gateway.location_descendants
+        self.location = self.gateway.location  # pylint: disable=attribute-defined-outside-init
+        self.location_descendants = self.gateway.location_descendants  # pylint: disable=attribute-defined-outside-init
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)

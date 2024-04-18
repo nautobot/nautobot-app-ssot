@@ -89,11 +89,11 @@ def update_or_create_device_object(
     interface: str,
     ip_address: str,
     config_context: dict = {},
-):
+):  # pylint: disable=dangerous-default-value,too-many-arguments,too-many-locals
     """Create or update device fixtures."""
     status = Status.objects.get(name=status)
     namespace, _ = Namespace.objects.get_or_create(name="Global")
-    ip_prefix, _ = Prefix.objects.update_or_create(prefix="192.0.2.0/24", namespace=namespace, status=status)
+    Prefix.objects.update_or_create(prefix="192.0.2.0/24", namespace=namespace, status=status)
     device_content_type = ContentType.objects.get_for_model(Device)
     role, role_changed = Role.objects.update_or_create(name=role)
     add_content_type(model=role, content_type=device_content_type, changed=role_changed)

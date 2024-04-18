@@ -1,6 +1,8 @@
 """Itential SSoT adapters."""
 
+
 from diffsync import DiffSync
+
 from nautobot_ssot.integrations.itential.diffsync.models.itential import ItentialAnsibleDeviceModel
 from nautobot_ssot.integrations.itential.clients import AutomationGatewayClient
 

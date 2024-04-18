@@ -28,6 +28,9 @@ class ItentialSSoTBaseTestCase(TestCase):
         for device in gateways.gateways:
             os.environ[device.get("username_env")] = "testUser"
             os.environ[device.get("password_env")] = "testPass"
+            os.environ[device.get("ansible_vault_env")] = "testAnsibleVaultKey"
+            os.environ[device.get("device_user_env")] = "testDeviceUser"
+            os.environ[device.get("device_pass_env")] = "testDevicePass"
 
             gateways.update_or_create_automation_gateways(
                 name=device.get("name"),
@@ -38,6 +41,9 @@ class ItentialSSoTBaseTestCase(TestCase):
                 enabled=device.get("enabled"),
                 username_env=device.get("username_env"),
                 password_env=device.get("password_env"),
+                ansible_vault_env=device.get("ansible_vault_env"),
+                device_user_env=device.get("device_user_env"),
+                device_pass_env=device.get("device_pass_env"),
                 secret_group=device.get("secret_group"),
             )
 
@@ -94,6 +100,9 @@ class ItentialSSoTBaseTransactionTestCase(TransactionTestCase):
         for device in gateways.gateways:
             os.environ[device.get("username_env")] = "testUser"
             os.environ[device.get("password_env")] = "testPass"
+            os.environ[device.get("ansible_vault_env")] = "testAnsibleVaultKey"
+            os.environ[device.get("device_user_env")] = "testDeviceUser"
+            os.environ[device.get("device_pass_env")] = "testDevicePass"
 
             gateways.update_or_create_automation_gateways(
                 name=device.get("name"),
@@ -104,6 +113,9 @@ class ItentialSSoTBaseTransactionTestCase(TransactionTestCase):
                 enabled=device.get("enabled"),
                 username_env=device.get("username_env"),
                 password_env=device.get("password_env"),
+                ansible_vault_env=device.get("ansible_vault_env"),
+                device_user_env=device.get("device_user_env"),
+                device_pass_env=device.get("device_pass_env"),
                 secret_group=device.get("secret_group"),
             )
 

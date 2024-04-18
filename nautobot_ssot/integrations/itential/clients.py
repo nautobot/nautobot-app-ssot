@@ -1,14 +1,15 @@
 """Itential SSoT API Clients."""
 
+from typing import List, Optional, Union
+
 import requests
 
 from retry import retry
-from typing import List, Optional, Union
 
 from nautobot_ssot.integrations.itential.constants import BACKOFF, DELAY, RETRIES
 
 
-class AutomationGatewayClient:
+class AutomationGatewayClient:  # pylint: disable=too-many-instance-attributes
     """Itential Automation Gateway API Client."""
 
     def __init__(
@@ -19,7 +20,7 @@ class AutomationGatewayClient:
         job: object,
         verify_ssl: Optional[bool] = True,
         api_version: Optional[str] = "v2.0",
-    ):
+    ):  # pylint: disable=too-many-arguments
         """Initialize the API client.
 
         Args:
@@ -42,7 +43,6 @@ class AutomationGatewayClient:
     def __enter__(self):
         """Context manager setup."""
         self.login()
-        return
 
     def __exit__(self, exc_type, exc_value, traceback):
         """Context manager teardown."""

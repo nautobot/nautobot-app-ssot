@@ -1,15 +1,8 @@
 """Itential SSoT Nautobot models."""
 
-from diffsync import DiffSyncModel
-from typing import Optional
+
+from nautobot_ssot.integrations.itential.diffsync.models import SharedAnsibleDeviceDiffsyncModel
 
 
-class NautobotAnsibleDeviceModel(DiffSyncModel):
+class NautobotAnsibleDeviceModel(SharedAnsibleDeviceDiffsyncModel):
     """Nautobot => Itential Ansible Device DiffSyncModel."""
-
-    _modelname = "device"
-    _identifiers = ("name",)
-    _attributes = ("variables",)
-
-    name: str
-    variables: Optional[dict]

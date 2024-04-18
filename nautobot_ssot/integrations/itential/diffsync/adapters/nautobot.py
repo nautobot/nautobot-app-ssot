@@ -5,10 +5,10 @@ import traceback
 
 from diffsync import DiffSync
 
-from nautobot_ssot.integrations.itential.diffsync.models.nautobot import NautobotAnsibleDeviceModel
-
 from nautobot.extras.models import Status
 from nautobot.dcim.models import Device, Location
+
+from nautobot_ssot.integrations.itential.diffsync.models.nautobot import NautobotAnsibleDeviceModel
 
 
 class NautobotAnsibleDeviceAdapter(DiffSync):
@@ -17,7 +17,7 @@ class NautobotAnsibleDeviceAdapter(DiffSync):
     device = NautobotAnsibleDeviceModel
     top_level = ["device"]
 
-    def __init__(
+    def __init__(  # pylint disable=too-many-arguments
         self, job: object, sync: object, location: Location, location_descendants: bool, status: Status, *args, **kwargs
     ):
         """Initialize Nautobot Itential Ansible Device Diffsync adapter."""
@@ -77,8 +77,10 @@ class NautobotAnsibleDeviceAdapter(DiffSync):
 
                     self.add(_device)
                 else:
-                    raise Exception(f"{nb_device.name} is not RFC 1123 compliant.")
-            except Exception as exc:
+                    raise Exception(
+                        f"{nb_device.name} is not RFC 1123 compliant."
+                    )  # pylint: disable=broad-exception-raised
+            except Exception as exc:  # pylint: disable=broad-exception-caught
                 stacktrace = traceback.format_exc()
                 self.job.logger.warning(f"{nb_device.name} was not added to inventory due to an error.")
                 self.job.logger.warning(
