@@ -1,0 +1,1 @@
+Fixed handling of DLM App installed but not enabled throwing RuntimeError.

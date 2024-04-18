@@ -1,6 +1,7 @@
 """DiffSync adapter class for Nautobot as source-of-truth."""
-from collections import defaultdict
 
+from collections import defaultdict
+import logging
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.db.models import ProtectedError
@@ -28,12 +29,19 @@ from nautobot_ssot.integrations.device42.constant import PLUGIN_CFG
 from nautobot_ssot.integrations.device42.diffsync.models.nautobot import assets, circuits, dcim, ipam
 from nautobot_ssot.integrations.device42.utils import nautobot
 
+logger = logging.getLogger(__name__)
+
 try:
-    import nautobot_device_lifecycle_mgmt  # noqa: F401
+    from nautobot_device_lifecycle_mgmt.models import SoftwareLCM  # noqa: F401 # pylint: disable=unused-import
 
     LIFECYCLE_MGMT = True
 except ImportError:
-    print("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
+    logger.info("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
+    LIFECYCLE_MGMT = False
+except RuntimeError:
+    logger.warning(
+        "nautobot-device-lifecycle-mgmt is installed but not enabled. Did you forget to add it to your settings.PLUGINS?"
+    )
     LIFECYCLE_MGMT = False
 
 
