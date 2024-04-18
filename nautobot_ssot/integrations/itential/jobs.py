@@ -67,6 +67,10 @@ class ItentialAutomationGatewayDataTarget(DataTarget):
         if not self.sync:
             return
 
+        if not self.gateway.enabled:
+            self.logger.warning(f"{self.gateway.gateway.remote_url} is not enabled to sync inventory.")
+            return
+
         if memory_profiling:
             tracemalloc.start()
 
