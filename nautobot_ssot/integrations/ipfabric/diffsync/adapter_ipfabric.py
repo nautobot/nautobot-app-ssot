@@ -29,7 +29,7 @@ name_max_length = VLAN._meta.get_field("name").max_length
 
 # pylint: disable=too-many-locals,too-many-nested-blocks,too-many-branches
 class IPFabricDiffSync(DiffSyncModelAdapters):
-    """Nautobot adapter for DiffSync."""
+    """IPFabric adapter for DiffSync."""
 
     def __init__(self, job, sync, client, *args, **kwargs):
         """Initialize the NautobotDiffSync."""
