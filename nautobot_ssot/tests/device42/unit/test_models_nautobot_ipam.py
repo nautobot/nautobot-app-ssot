@@ -389,7 +389,7 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         result = self.mock_addr.update(attrs=update_attrs)
         self.assertIsInstance(result, ipam.NautobotIPAddress)
         self.addr.refresh_from_db()
-        self.assertEqual(self.addr.custom_field_data["New CF"], "Test")
+        self.assertEqual(self.addr.custom_field_data["New_CF"], "Test")
 
     @patch("nautobot_ssot.integrations.device42.diffsync.models.nautobot.ipam.OrmIPAddress.objects.get")
     def test_update_handling_validation_error(self, mock_ip_get):
