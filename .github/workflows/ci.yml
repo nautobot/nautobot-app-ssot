@@ -152,7 +152,7 @@ jobs:
         include:
           - python-version: "3.11"
             db-backend: "postgresql"
-            nautobot-version: "2.1.0"
+            nautobot-version: "2.2.1"
           - python-version: "3.11"
             db-backend: "mysql"
             nautobot-version: "stable"
