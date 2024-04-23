@@ -13,7 +13,7 @@ class ItentialSSoTJobsTestCase(base.ItentialSSoTBaseTransactionTestCase):
 
     databases = ("default", "job_logs")
 
-    def test_job__success(self):
+    def test_job_success(self):
         """Test successful job."""
         self.job = Job.objects.get(
             job_class_name="ItentialAutomationGatewayDataTarget",
@@ -29,7 +29,7 @@ class ItentialSSoTJobsTestCase(base.ItentialSSoTBaseTransactionTestCase):
         self.assertIn(summary_output, log_entries)
         self.assertIn("Sync complete", log_entries)
 
-    def test_job__disabled_gateway(self):
+    def test_job_disabled_gateway(self):
         """Test job with disabled automation gateway."""
         gateway = AutomationGatewayModel.objects.get(name="IAG10")
         self.job = Job.objects.get(

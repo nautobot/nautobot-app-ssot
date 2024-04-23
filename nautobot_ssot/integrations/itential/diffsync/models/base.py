@@ -5,7 +5,7 @@ from typing import Optional
 from diffsync import DiffSyncModel
 
 
-class SharedAnsibleDeviceDiffsyncModel(DiffSyncModel):
+class BaseAnsibleDeviceDiffsyncModel(DiffSyncModel):
     """Itential Ansible Device DiffSyncModel."""
 
     _modelname = "device"
@@ -16,7 +16,7 @@ class SharedAnsibleDeviceDiffsyncModel(DiffSyncModel):
     variables: Optional[dict]
 
 
-class SharedAnsibleDefaultGroupDiffsyncModel(DiffSyncModel):
+class BaseAnsibleDefaultGroupDiffsyncModel(DiffSyncModel):
     """Itential Default Ansible Group DiffsyncModel."""
 
     _modelname = "all_group"

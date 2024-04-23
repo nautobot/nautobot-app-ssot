@@ -1,10 +1,10 @@
 """Itential SSoT models."""
 
 
-from nautobot_ssot.integrations.itential.diffsync.models import shared
+from nautobot_ssot.integrations.itential.diffsync.models import base
 
 
-class ItentialAnsibleDeviceModel(shared.SharedAnsibleDeviceDiffsyncModel):
+class ItentialAnsibleDeviceModel(base.BaseAnsibleDeviceDiffsyncModel):
     """Itential Ansible Device DiffSyncModel."""
 
     @classmethod
@@ -26,7 +26,7 @@ class ItentialAnsibleDeviceModel(shared.SharedAnsibleDeviceDiffsyncModel):
         return super().update(attrs)
 
 
-class ItentialDefaultAnsibleGroupModel(shared.SharedAnsibleDefaultGroupDiffsyncModel):
+class ItentialDefaultAnsibleGroupModel(base.BaseAnsibleDefaultGroupDiffsyncModel):
     """Itential Default Ansible Group DiffsyncModel."""
 
     @classmethod
@@ -39,3 +39,7 @@ class ItentialDefaultAnsibleGroupModel(shared.SharedAnsibleDefaultGroupDiffsyncM
         """Update default group in Automation Gateway."""
         self.diffsync.api_client.update_device(device_name=self.name, variables=attrs.get("variables"))
         return super().update(attrs)
+
+    def delete(self):
+        """Delete default group in Automation Gateway."""
+        raise NotImplementedError
