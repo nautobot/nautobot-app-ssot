@@ -1,4 +1,5 @@
 """Util tests that do not require Django."""
+
 import unittest
 
 from django.test import TestCase

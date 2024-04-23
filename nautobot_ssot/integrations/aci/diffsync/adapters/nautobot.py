@@ -1,4 +1,5 @@
 """DiffSync Adapter for Nautobot."""
+
 # pylint: disable=duplicate-code
 
 import logging

@@ -468,18 +468,26 @@ class Device42Adapter(DiffSync):
             hwmodel = self.hardware(
                 name=hwmodel_name,
                 manufacturer=manuf,
-                size=float(round(self.d42_hardware_map[hwmodel_name]["size"]))
-                if self.d42_hardware_map.get(hwmodel_name) and self.d42_hardware_map[hwmodel_name].get("size")
-                else 1.0,
-                depth=self.d42_hardware_map[hwmodel_name]["depth"]
-                if self.d42_hardware_map.get(hwmodel_name) and self.d42_hardware_map[hwmodel_name].get("depth")
-                else "Half Depth",
-                part_number=self.d42_hardware_map[hwmodel_name]["part_no"]
-                if self.d42_hardware_map.get(hwmodel_name) and self.d42_hardware_map[hwmodel_name].get("part_no")
-                else "",
-                custom_fields=get_custom_field_dict(self.d42_hardware_map[hwmodel_name]["custom_fields"])
-                if self.d42_hardware_map.get(hwmodel_name)
-                else {},
+                size=(
+                    float(round(self.d42_hardware_map[hwmodel_name]["size"]))
+                    if self.d42_hardware_map.get(hwmodel_name) and self.d42_hardware_map[hwmodel_name].get("size")
+                    else 1.0
+                ),
+                depth=(
+                    self.d42_hardware_map[hwmodel_name]["depth"]
+                    if self.d42_hardware_map.get(hwmodel_name) and self.d42_hardware_map[hwmodel_name].get("depth")
+                    else "Half Depth"
+                ),
+                part_number=(
+                    self.d42_hardware_map[hwmodel_name]["part_no"]
+                    if self.d42_hardware_map.get(hwmodel_name) and self.d42_hardware_map[hwmodel_name].get("part_no")
+                    else ""
+                ),
+                custom_fields=(
+                    get_custom_field_dict(self.d42_hardware_map[hwmodel_name]["custom_fields"])
+                    if self.d42_hardware_map.get(hwmodel_name)
+                    else {}
+                ),
                 uuid=None,
             )
             self.add(hwmodel)
@@ -762,9 +770,11 @@ class Device42Adapter(DiffSync):
                 continue
             try:
                 new_conn = self.conn(
-                    src_device=self.d42_device_map[_conn["second_src_device"]]["name"]
-                    if _conn.get("second_src_device")
-                    else self.d42_device_map[_conn["src_device"]]["name"],
+                    src_device=(
+                        self.d42_device_map[_conn["second_src_device"]]["name"]
+                        if _conn.get("second_src_device")
+                        else self.d42_device_map[_conn["src_device"]]["name"]
+                    ),
                     src_port=self.d42_port_map[_conn["src_port"]]["port"],
                     src_port_mac=self.d42_port_map[_conn["src_port"]]["hwaddress"],
                     src_type="interface",
@@ -839,9 +849,11 @@ class Device42Adapter(DiffSync):
                 a_side_conn = self.conn(
                     src_device=origin_dev,
                     src_port=origin_int,
-                    src_port_mac=self.d42_port_map[_tc["origin_netport_fk"]]["hwaddress"]
-                    if _tc["origin_type"] == "Device"
-                    else None,
+                    src_port_mac=(
+                        self.d42_port_map[_tc["origin_netport_fk"]]["hwaddress"]
+                        if _tc["origin_type"] == "Device"
+                        else None
+                    ),
                     src_type="interface" if _tc["origin_type"] == "Device Port" else "patch panel",
                     dst_device=_tc["circuit_id"],
                     dst_port=_tc["circuit_id"],
@@ -859,9 +871,11 @@ class Device42Adapter(DiffSync):
                     src_type="circuit",
                     dst_device=endpoint_dev,
                     dst_port=endpoint_int,
-                    dst_port_mac=self.d42_port_map[_tc["end_point_netport_fk"]]["hwaddress"]
-                    if _tc["end_point_type"] == "Device"
-                    else None,
+                    dst_port_mac=(
+                        self.d42_port_map[_tc["end_point_netport_fk"]]["hwaddress"]
+                        if _tc["end_point_type"] == "Device"
+                        else None
+                    ),
                     dst_type="interface" if _tc["end_point_type"] == "Device Port" else "patch panel",
                     src_port_mac=None,
                     tags=None,

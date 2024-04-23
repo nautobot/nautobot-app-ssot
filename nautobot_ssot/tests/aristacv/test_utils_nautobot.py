@@ -1,4 +1,5 @@
 """Tests of CloudVision utility methods."""
+
 from unittest import skip
 from unittest.mock import MagicMock, patch
 

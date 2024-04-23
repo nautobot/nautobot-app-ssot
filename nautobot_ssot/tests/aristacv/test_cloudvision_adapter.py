@@ -1,4 +1,5 @@
 """Unit tests for the CloudVision DiffSync adapter class."""
+
 import ipaddress
 from unittest.mock import MagicMock, patch
 

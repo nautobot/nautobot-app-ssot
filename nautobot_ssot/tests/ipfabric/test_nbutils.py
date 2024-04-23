@@ -1,4 +1,5 @@
 """Test Nautobot Utilities."""
+
 import unittest
 
 from django.contrib.contenttypes.models import ContentType

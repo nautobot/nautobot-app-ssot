@@ -1,4 +1,5 @@
 """Test Utils."""
+
 import json
 
 from nautobot.dcim.models import Device, Location

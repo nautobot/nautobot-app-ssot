@@ -1,4 +1,5 @@
 """URL patterns for nautobot-ssot-servicenow."""
+
 from django.urls import path
 
 from . import views

@@ -1,4 +1,5 @@
 """Signals for ACI integration."""
+
 # pylint: disable=logging-fstring-interpolation, invalid-name
 import logging
 import random

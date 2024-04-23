@@ -1,4 +1,5 @@
 """Base Job classes for sync workers."""
+
 from collections import namedtuple
 from datetime import datetime
 import tracemalloc

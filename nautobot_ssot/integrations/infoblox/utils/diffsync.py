@@ -1,4 +1,5 @@
 """Utilities for DiffSync related stuff."""
+
 from django.contrib.contenttypes.models import ContentType
 from django.utils.text import slugify
 from nautobot.ipam.models import IPAddress, Prefix, VLAN

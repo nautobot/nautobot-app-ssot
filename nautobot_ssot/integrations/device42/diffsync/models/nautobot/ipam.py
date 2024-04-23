@@ -316,9 +316,9 @@ class NautobotVLAN(VLAN):
         new_vlan = OrmVLAN(
             name=attrs["name"],
             vid=ids["vlan_id"],
-            location_id=diffsync.site_map[_site_name]
-            if _site_name in diffsync.site_map and _site_name != "Global"
-            else None,
+            location_id=(
+                diffsync.site_map[_site_name] if _site_name in diffsync.site_map and _site_name != "Global" else None
+            ),
             status_id=diffsync.status_map["Active"],
             description=attrs["description"],
         )

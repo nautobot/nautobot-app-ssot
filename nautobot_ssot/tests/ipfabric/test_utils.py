@@ -1,4 +1,5 @@
 """Tests for IPFabric utilities.utils."""
+
 from django.test import SimpleTestCase
 
 from nautobot_ssot.integrations.ipfabric.constants import DEFAULT_INTERFACE_TYPE
