@@ -1,0 +1,1 @@
+Changed the Infoblox `utils.client` to make API calls using `requests.Session` instead of `requests.request`.
