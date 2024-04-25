@@ -134,7 +134,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         self.headers = {"Content-Type": "application/json"}
         session = requests.Session()
         if cookie and isinstance(cookie, dict):
-            session.cookies.update(self.cookie)
+            session.cookies.update(cookie)
         session.verify = verify_ssl
         session.headers.update(self.headers)
         session.auth = self.auth
