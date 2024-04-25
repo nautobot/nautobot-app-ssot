@@ -118,7 +118,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         self.session = self._init_session(verify_ssl=verify_ssl, cookie=cookie)
 
     def _init_session(self, verify_ssl: bool, cookie: Optional[dict]) -> requests.Session:
-        """Initiatlize requests Session object used across all the API calls.
+        """Initialize requests Session object that is used across all the API calls.
 
         Args:
             verify_ssl (bool): whether to verify SSL cert for https calls
