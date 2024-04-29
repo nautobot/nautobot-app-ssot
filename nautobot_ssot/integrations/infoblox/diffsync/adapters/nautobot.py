@@ -2,24 +2,29 @@
 
 # pylint: disable=duplicate-code
 import datetime
+from typing import Optional
+
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
 from nautobot.dcim.models import Location
 from nautobot.extras.choices import CustomFieldTypeChoices
-from nautobot.extras.models import Relationship, Role, Status, Tag, CustomField
-from nautobot.ipam.models import IPAddress, Prefix, VLAN, VLANGroup
+from nautobot.extras.models import CustomField, Relationship, Role, Status, Tag
+from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix, VLANGroup
 from nautobot.tenancy.models import Tenant
+
+from nautobot_ssot.integrations.infoblox.constant import PLUGIN_CFG, TAG_COLOR
 from nautobot_ssot.integrations.infoblox.diffsync.models import (
-    NautobotNetwork,
     NautobotIPAddress,
-    NautobotVlanGroup,
+    NautobotNamespace,
+    NautobotNetwork,
     NautobotVlan,
+    NautobotVlanGroup,
 )
-from nautobot_ssot.integrations.infoblox.constant import TAG_COLOR
 from nautobot_ssot.integrations.infoblox.utils.diffsync import (
-    nautobot_vlan_status,
     get_default_custom_fields,
+    map_network_view_to_namespace,
+    nautobot_vlan_status,
 )
 from nautobot_ssot.integrations.infoblox.utils.nautobot import build_vlan_map_from_relations, get_prefix_vlans
 
@@ -89,18 +94,20 @@ class NautobotMixin:
 class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-instance-attributes
     """DiffSync adapter using ORM to communicate to Nautobot."""
 
+    namespace = NautobotNamespace
     prefix = NautobotNetwork
     ipaddress = NautobotIPAddress
     vlangroup = NautobotVlanGroup
     vlan = NautobotVlan
 
-    top_level = ["vlangroup", "vlan", "prefix", "ipaddress"]
+    top_level = ["namespace", "vlangroup", "vlan", "prefix", "ipaddress"]
 
     status_map = {}
     location_map = {}
     relationship_map = {}
     tenant_map = {}
     vrf_map = {}
+    namespace_map = {}
     prefix_map = {}
     role_map = {}
     ipaddr_map = {}
@@ -126,17 +133,88 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
         """
         super().sync_complete(source, *args, **kwargs)
 
-    def load_prefixes(self):
+    def _get_namespaces_from_sync_filters(self, sync_filters: list) -> set:
+        """Get namespaces defined in filters."""
+        namespaces = set()
+        for sync_filter in sync_filters:
+            if "network_view" not in sync_filter:
+                continue
+            namespace_name = map_network_view_to_namespace(sync_filter["network_view"])
+            namespaces.add(namespace_name)
+
+        return namespaces
+
+    def load_namespaces(self, sync_filters: Optional[list] = None):
+        """Load Namespace DiffSync model."""
+        namespace_names = None
+        if sync_filters:
+            namespace_names = self._get_namespaces_from_sync_filters(sync_filters)
+        if namespace_names:
+            all_namespaces = Namespace.objects.filter(name__in=namespace_names)
+        else:
+            all_namespaces = Namespace.objects.all()
+
+        default_cfs = get_default_custom_fields(cf_contenttype=ContentType.objects.get_for_model(Namespace))
+        for namespace in all_namespaces:
+            self.namespace_map[namespace.name] = namespace.id
+            _namespace = self.namespace(
+                name=namespace.name,
+                ext_attrs={**default_cfs, **namespace.custom_field_data},
+                pk=namespace.id,
+            )
+            try:
+                self.add(_namespace)
+            except ObjectAlreadyExists:
+                self.job.logger.warning(f"Found duplicate namespace: {namespace.name}.")
+
+    def _load_all_prefixes_filtered(self, sync_filters: list, include_ipv4: bool, include_ipv6: bool):
+        """Loads prefixes from Nautobot based on the provided sync filter.
+
+        Args:
+            sync_filter (dict): Sync filter containing sync rules
+            include_ipv4 (bool): Whether to include IPv4 prefixes
+            include_ipv6 (bool): Whether to include IPv6 prefixes
+
+        Returns:
+            (PrefixQuerySet): PrefixQuerySet with prefixes
+        """
+        all_prefixes = Prefix.objects.none()
+        for sync_filter in sync_filters:
+            query_filters = {}
+            if "network_view" in sync_filter:
+                query_filters["namespace__name"] = sync_filter["network_view"]
+            if "prefixes_ipv4" in sync_filter and include_ipv4:
+                for pfx_ipv4 in sync_filter["prefixes_ipv4"]:
+                    query_filters["network__net_contained_or_equal"] = pfx_ipv4
+                    all_prefixes.union(Prefix.objects.filter(**query_filters))
+            if "prefixes_ipv6" in sync_filter and include_ipv6:
+                for pfx_ipv6 in sync_filter["prefixes_ipv6"]:
+                    query_filters["network__net_contained_or_equal"] = pfx_ipv6
+                    all_prefixes.union(Prefix.objects.filter(**query_filters))
+            # Filter on namespace name only
+            if "prefixes_ipv4" not in sync_filter and "prefixes_ipv6" not in sync_filter:
+                all_prefixes.union(Prefix.objects.filter(**query_filters))
+
+        return all_prefixes
+
+    def load_prefixes(self, include_ipv4: bool, include_ipv6: bool, sync_filters: Optional[list]):
         """Load Prefixes from Nautobot."""
-        all_prefixes = Prefix.objects.all()
+        if not sync_filters:
+            all_prefixes = Prefix.objects.all()
+        else:
+            all_prefixes = self._load_all_prefixes_filtered(
+                sync_filters=sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6
+            )
+
         default_cfs = get_default_custom_fields(cf_contenttype=ContentType.objects.get_for_model(Prefix))
         for prefix in all_prefixes:
-            self.prefix_map[str(prefix.prefix)] = prefix.id
+            self.prefix_map[(prefix.namespace.name), str(prefix.prefix)] = prefix.id
             if "ssot_synced_to_infoblox" in prefix.custom_field_data:
                 prefix.custom_field_data.pop("ssot_synced_to_infoblox")
             current_vlans = get_prefix_vlans(prefix=prefix)
             _prefix = self.prefix(
                 network=str(prefix.prefix),
+                namespace=prefix.namespace.name,
                 description=prefix.description,
                 network_type=prefix.type,
                 ext_attrs={**default_cfs, **prefix.custom_field_data},
@@ -151,19 +229,55 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
             except ObjectAlreadyExists:
                 self.job.logger.warning(f"Found duplicate prefix: {prefix.prefix}.")
 
-    def load_ipaddresses(self):
+    def _load_all_ipaddresses_filtered(self, sync_filters: list, include_ipv4: bool, include_ipv6: bool):
+        """Loads ip addresses from Nautobot based on the provided sync filter.
+
+        Args:
+            sync_filter (dict): Sync filter containing sync rules
+            include_ipv4 (bool): Whether to include IPv4 addresses
+            include_ipv6 (bool): Whether to include IPv6 addresses
+
+        Returns:
+            (IPAddressQuerySet): IPAddressQuerySet with ip addresses
+        """
+        all_ipaddresses = IPAddress.objects.none()
+        for sync_filter in sync_filters:
+            query_filters = {}
+            if "network_view" in sync_filter:
+                query_filters["parent__namespace__name"] = sync_filter["network_view"]
+            if "prefixes_ipv4" in sync_filter and include_ipv4:
+                query_filters["host__net_in"] = sync_filter["prefixes_ipv4"]
+                all_ipaddresses.union(IPAddress.objects.filter(**query_filters))
+            if "prefixes_ipv6" in sync_filter and include_ipv6:
+                query_filters["host__net_in"] = sync_filter["prefixes_ipv6"]
+                all_ipaddresses.union(IPAddress.objects.filter(**query_filters))
+            # Filter on namespace name only
+            if "prefixes_ipv4" not in sync_filter and "prefixes_ipv6" not in sync_filter:
+                all_ipaddresses.union(IPAddress.objects.filter(**query_filters))
+
+        return all_ipaddresses
+
+    def load_ipaddresses(self, include_ipv4: bool, include_ipv6: bool, sync_filters: list):
         """Load IP Addresses from Nautobot."""
         default_cfs = get_default_custom_fields(cf_contenttype=ContentType.objects.get_for_model(IPAddress))
-        for ipaddr in IPAddress.objects.all():
+        if not sync_filters:
+            all_ipaddresses = IPAddress.objects.all()
+        else:
+            all_ipaddresses = self._load_all_ipaddresses_filtered(
+                sync_filters=sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6
+            )
+        for ipaddr in all_ipaddresses:
             self.ipaddr_map[str(ipaddr.address)] = ipaddr.id
             addr = ipaddr.host
-            # the last Prefix is the most specific and is assumed the one the IP address resides in
-            prefix = Prefix.objects.net_contains(addr).last()
+            prefix = ipaddr.parent
 
             # The IP address must have a parent prefix
+            # Note: In Nautobot 2.0 IP Address *must* have a parent prefix so this should not happen
             if not prefix:
                 self.job.logger.warning(f"IP Address {addr} does not have a parent prefix and will not be synced.")
+                self.ipaddr_map[str(ipaddr.address), "Global"] = ipaddr.id
                 continue
+            self.ipaddr_map[str(ipaddr.address), prefix.namespace.name] = ipaddr.id
             # IP address must be part of a prefix that is not a container
             # This means the IP cannot be associated with an IPv4 Network within Infoblox
             if prefix.type == "container":
@@ -177,6 +291,7 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
             _ip = self.ipaddress(
                 address=addr,
                 prefix=str(prefix),
+                namespace=prefix.namespace.name,
                 status=ipaddr.status.name if ipaddr.status else None,
                 ip_addr_type=ipaddr.type,
                 prefix_length=prefix.prefix_length if prefix else ipaddr.prefix_length,
@@ -229,15 +344,21 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
 
     def load(self):
         """Load models with data from Nautobot."""
+        include_ipv4 = True
+        include_ipv6 = PLUGIN_CFG.get("infoblox_import_objects", {}).get("subnets_ipv6", False)
+        sync_filters = PLUGIN_CFG["infoblox_sync_filters"]
         self.relationship_map = {r.label: r.id for r in Relationship.objects.only("id", "label")}
         self.status_map = {s.name: s.id for s in Status.objects.only("id", "name")}
         self.location_map = {loc.name: loc.id for loc in Location.objects.only("id", "name")}
         self.tenant_map = {t.name: t.id for t in Tenant.objects.only("id", "name")}
         self.role_map = {r.name: r.id for r in Role.objects.only("id", "name")}
-        self.load_prefixes()
+        self.load_namespaces(sync_filters=sync_filters)
+        if "namespace" in self.dict():
+            self.job.logger.info(f"Loaded {len(self.dict()['namespace'])} Namespaces from Nautobot.")
+        self.load_prefixes(sync_filters=sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6)
         if "prefix" in self.dict():
             self.job.logger.info(f"Loaded {len(self.dict()['prefix'])} prefixes from Nautobot.")
-        self.load_ipaddresses()
+        self.load_ipaddresses(sync_filters=sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6)
         if "ipaddress" in self.dict():
             self.job.logger.info(f"Loaded {len(self.dict()['ipaddress'])} IP addresses from Nautobot.")
         self.load_vlangroups()
