@@ -1,4 +1,5 @@
 """App declaration for nautobot_ssot."""
+
 import os
 from importlib import metadata
 

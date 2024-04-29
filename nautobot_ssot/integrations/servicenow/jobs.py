@@ -1,4 +1,5 @@
 """ServiceNow Data Target Job."""
+
 from django.core.exceptions import ObjectDoesNotExist
 from django.templatetags.static import static
 from django.urls import reverse

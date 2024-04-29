@@ -1,4 +1,5 @@
 """Unit tests for the Device42 DiffSync adapter class."""
+
 import json
 from unittest.mock import MagicMock, patch
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound

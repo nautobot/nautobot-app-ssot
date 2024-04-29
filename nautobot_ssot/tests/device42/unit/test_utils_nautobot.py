@@ -1,4 +1,5 @@
 """Tests of Nautobot utility methods."""
+
 from uuid import UUID
 from unittest.mock import MagicMock, patch
 from diffsync.exceptions import ObjectNotFound

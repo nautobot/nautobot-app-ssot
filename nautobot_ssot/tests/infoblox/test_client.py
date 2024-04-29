@@ -1,4 +1,5 @@
 """Unit tests for Infoblox client."""
+
 # pylint: disable=protected-access
 # pylint: disable=too-many-public-methods
 from collections import namedtuple

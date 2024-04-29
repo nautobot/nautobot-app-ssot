@@ -1,4 +1,5 @@
 """Tests for API"""
+
 # pylint: disable=import-outside-toplevel, invalid-name
 import unittest
 from unittest.mock import patch, Mock

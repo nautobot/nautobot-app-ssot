@@ -12,7 +12,6 @@ from nautobot.circuits.models import CircuitType
 from nautobot.dcim.models import Device, Interface, Platform
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Relationship, Role, Tag
-from nautobot.ipam.models import IPAddress
 from netutils.lib_mapper import ANSIBLE_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER_REVERSE
 from taggit.managers import TaggableManager
 from nautobot_ssot.integrations.device42.diffsync.models.base.dcim import Device as NautobotDevice
@@ -362,17 +361,3 @@ def apply_vlans_to_port(diffsync, device_name: str, mode: str, vlans: list, port
                 tagged_vlans.append(tagged_vlan)
         port.tagged_vlans.set(tagged_vlans)
         port.validated_save()
-
-
-def unassign_primary(ipaddr: IPAddress):
-    """Handle unassigning primary IP address from a Device.
-
-    Args:
-        ipaddr (IPAddress): IP Address that's set to primary and needs to be unset.
-    """
-    _dev = ipaddr.assigned_object.device
-    if hasattr(ipaddr, "primary_ip4_for"):
-        _dev.primary_ip4 = None
-    elif hasattr(ipaddr, "primary_ip6_for"):
-        _dev.primary_ip6 = None
-    _dev.validated_save()

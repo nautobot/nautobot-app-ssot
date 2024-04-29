@@ -1,4 +1,5 @@
 """All interactions with infoblox."""  # pylint: disable=too-many-lines
+
 from __future__ import annotations
 
 import json

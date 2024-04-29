@@ -37,7 +37,7 @@ class NautobotProvider(Provider):
             try:
                 _provider.validated_save()
                 diffsync.provider_map[ids["name"]] = _provider.id
-                return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+                return super().create(diffsync, ids=ids, attrs=attrs)
             except ValidationError as err:
                 if diffsync.job.debug:
                     diffsync.job.logger.warning(f"Unable to create {ids['name']} provider. {err}")
@@ -122,7 +122,7 @@ class NautobotCircuit(Circuit):
                     term_side="Z",
                     circuit=_circuit,
                 )
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(diffsync, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Circuit object in Nautobot."""

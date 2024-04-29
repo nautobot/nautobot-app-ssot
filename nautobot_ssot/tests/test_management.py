@@ -1,4 +1,5 @@
 """Test cases for custom Django MGMT commands."""
+
 from io import StringIO
 
 from django.contrib.contenttypes.models import ContentType

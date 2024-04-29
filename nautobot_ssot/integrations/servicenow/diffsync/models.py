@@ -1,4 +1,5 @@
 """DiffSyncModel subclasses for Nautobot-to-ServiceNow data sync."""
+
 from typing import List, Optional, Union
 import uuid
 

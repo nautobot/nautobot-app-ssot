@@ -1,4 +1,5 @@
 """Unit tests for the IPFabric DiffSync adapter class."""
+
 import unittest
 
 from django.contrib.contenttypes.models import ContentType

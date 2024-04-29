@@ -1,0 +1,6 @@
+Fixed IPAddress attribute to be ip_version.
+Fixed IPAddress Status to Active if available, else Reserved.
+Fixed IPAddress assignment to Interface and setting primary.
+Fixed variable used when assigning IPAddress to Interface.
+Fixed check for Building definiton when creating a VLAN.
+Fixed VLAN to use location instead of location_id in create().

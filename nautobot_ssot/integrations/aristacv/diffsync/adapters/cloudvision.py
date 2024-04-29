@@ -1,4 +1,5 @@
 """DiffSync adapter for Arista CloudVision."""
+
 import distutils
 import ipaddress
 import re

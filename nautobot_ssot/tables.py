@@ -1,4 +1,5 @@
 """Data tables for Single Source of Truth (SSOT) views."""
+
 from django_tables2 import Column, DateTimeColumn, JSONColumn, LinkColumn, TemplateColumn
 
 from nautobot.apps.tables import BaseTable, ToggleColumn
@@ -35,7 +36,7 @@ DRY_RUN_LABEL = """
 MESSAGE_SPAN = """<span class="message">{% if record.message %}{{ record.message }}{% else %}—{% endif %}</span>"""
 
 
-class DashboardTable(BaseTable):
+class DashboardTable(BaseTable):  # pylint: disable=nb-sub-class-name
     """Abbreviated version of SyncTable, for use with the dashboard."""
 
     start_time = DateTimeColumn(linkify=True, short=True)
@@ -48,7 +49,7 @@ class DashboardTable(BaseTable):
         """Metaclass attributes of DashboardTable."""
 
         model = Sync
-        fields = ["source", "target", "start_time", "status", "dry_run"]
+        fields = ["source", "target", "start_time", "status", "dry_run"]  # pylint: disable=nb-use-fields-all
         order_by = ["-start_time"]
 
 
@@ -104,7 +105,7 @@ class SyncTable(BaseTable):
         """Metaclass attributes of SyncTable."""
 
         model = Sync
-        fields = (
+        fields = (  # pylint: disable=nb-use-fields-all
             "pk",
             "source",
             "target",
@@ -137,7 +138,7 @@ class SyncTable(BaseTable):
         order_by = ("-start_time",)
 
 
-class SyncTableSingleSourceOrTarget(SyncTable):
+class SyncTableSingleSourceOrTarget(SyncTable):  # pylint: disable=nb-no-model-found
     """Subclass of SyncTable with fewer default columns."""
 
     class Meta(SyncTable.Meta):
@@ -186,7 +187,7 @@ class SyncLogEntryTable(BaseTable):
         """Metaclass attributes of SyncLogEntryTable."""
 
         model = SyncLogEntry
-        fields = (
+        fields = (  # pylint: disable=nb-use-fields-all
             "pk",
             "timestamp",
             "sync",
