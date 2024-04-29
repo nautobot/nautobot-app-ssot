@@ -821,21 +821,7 @@ class ExampleDataSource(DataSource):
 
     def lookup_object(self, model_name, unique_id):
         """Look up a Nautobot object based on the DiffSync model name and unique ID."""
-        if model_name == "region":
-            try:
-                return Location.objects.get(
-                    name=unique_id, location_type=LocationType.objects.get_or_create(name="Region")[0]
-                )
-            except Location.DoesNotExist:
-                pass
-        elif model_name == "site":
-            try:
-                return Location.objects.get(
-                    name=unique_id, location_type=LocationType.objects.get_or_create(name="Site")[0]
-                )
-            except Location.DoesNotExist:
-                pass
-        elif model_name == "prefix":
+        if model_name == "prefix":
             try:
                 return Prefix.objects.get(
                     prefix=unique_id.split("__")[0], tenant__name=unique_id.split("__")[1] or None
@@ -900,21 +886,7 @@ class ExampleDataTarget(DataTarget):
 
     def lookup_object(self, model_name, unique_id):
         """Look up a Nautobot object based on the DiffSync model name and unique ID."""
-        if model_name == "region":
-            try:
-                return Location.objects.get(
-                    name=unique_id, location_type=LocationType.objects.get_or_create(name="Region")[0]
-                )
-            except Location.DoesNotExist:
-                pass
-        elif model_name == "site":
-            try:
-                return Location.objects.get(
-                    name=unique_id, location_type=LocationType.objects.get_or_create(name="Site")
-                )
-            except Location.DoesNotExist:
-                pass
-        elif model_name == "prefix":
+        if model_name == "prefix":
             try:
                 return Prefix.objects.get(
                     prefix=unique_id.split("__")[0], tenant__name=unique_id.split("__")[1] or None
