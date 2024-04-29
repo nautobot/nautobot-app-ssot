@@ -43,6 +43,6 @@
 - [#436](https://github.com/nautobot/nautobot-app-ssot/issues/436) - Fixed check for Building definiton when creating a VLAN.
 - [#436](https://github.com/nautobot/nautobot-app-ssot/issues/436) - Fixed VLAN to use location instead of location_id in create().
 
-### Houstkeeping
+### Housekeeping
 
 - [#431](https://github.com/nautobot/nautobot-app-ssot/issues/431) - Updated note on nautobot_ssot/integrations/ipfabric/diffsync/adapter_ipfabric.py IPFabricDiffSync from Nautobot to IPFabric.
