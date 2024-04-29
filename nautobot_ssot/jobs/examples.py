@@ -9,7 +9,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.templatetags.static import static
 from django.urls import reverse
 
-from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Manufacturer, Platform
+from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer, Platform
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.jobs import ObjectVar, StringVar
 from nautobot.extras.models import ExternalIntegration, Role
@@ -204,7 +204,7 @@ class DeviceModel(NautobotModel):
         "tenant__name",
         "asset_tag",
     )
-    # _children = {"interface": "interfaces"}
+    _children = {"interface": "interfaces"}
 
     name: str
     location__name: str
@@ -219,6 +219,41 @@ class DeviceModel(NautobotModel):
     status__name: str
     tenant__name: Optional[str]
     asset_tag: Optional[str]
+    interface: List["Interface"] = []
+
+
+class InterfaceModel(NautobotModel):
+    """Shared data model representing an Interface in either of the local or remote Nautobot instances."""
+
+    # Metadata about this model
+    _model = Interface
+    _modelname = "interface"
+    _identifiers = ("name", "device__name")
+    _attributes = (
+        "device__location__name",
+        "device__location__parent__name",
+        "description",
+        "enabled",
+        "mac_address",
+        "mgmt_only",
+        "mtu",
+        "type",
+        "status__name",
+    )
+    _children = {}
+
+    # Data type declarations for all identifiers and attributes
+    device__name: str
+    device__location__name: str
+    device__location__parent__name: str
+    description: Optional[str]
+    enabled: bool
+    mac_address: Optional[str]
+    mgmt_only: bool
+    mtu: Optional[int]
+    name: str
+    type: str
+    status__name: str
 
 
 class LocationRemoteModel(LocationModel):
@@ -358,6 +393,7 @@ class NautobotRemote(DiffSync):
     platform = PlatformModel
     role = RoleModel
     device = DeviceModel
+    interface = InterfaceModel
 
     # Top-level class labels, i.e. those classes that are handled directly rather than as children of other models
     top_level = ["tenant", "locationtype", "location", "manufacturer", "platform", "role", "device"]
@@ -403,6 +439,7 @@ class NautobotRemote(DiffSync):
         self.load_device_types()
         self.load_platforms()
         self.load_devices()
+        self.load_interfaces()
 
     def load_location_types(self):
         """Load LocationType data from the remote Nautobot instance."""
@@ -537,6 +574,37 @@ class NautobotRemote(DiffSync):
             )
             self.add(device)
 
+    def load_interfaces(self):
+        """Load Interfaces data from the remote Nautobot instance."""
+        for interface in self._get_api_data("api/dcim/interfaces/?depth=3"):
+            try:
+                dev = self.get(
+                    self.device,
+                    {
+                        "name": interface["device"]["name"],
+                        "location__name": interface["device"]["location"]["name"],
+                        "location__parent__name": interface["device"]["location"]["parent"]["name"],
+                    },
+                )
+                new_interface = self.interface(
+                    name=interface["name"],
+                    device__name=interface["device"]["name"],
+                    device__location__name=interface["device"]["location"]["name"],
+                    device__location__parent__name=interface["device"]["location"]["parent"]["name"],
+                    description=interface["description"],
+                    enabled=interface["enabled"],
+                    mac_address=interface["mac_address"],
+                    mgmt_only=interface["mgmt_only"],
+                    mtu=interface["mtu"],
+                    type=interface["type"],
+                    status__name=interface["status"]["name"],
+                    pk=interface["id"],
+                )
+                self.add(new_interface)
+                dev.add_child(new_interface)
+            except ObjectNotFound:
+                self.job.logger.warning(f"Unable to find Device {interface['device']['name']} loaded.")
+
     def get_content_types(self, entry):
         """Create list of dicts of ContentTypes.
 
@@ -588,6 +656,7 @@ class NautobotLocal(NautobotAdapter):
     platform = PlatformModel
     role = RoleModel
     device = DeviceModel
+    interface = InterfaceModel
 
     # Top-level class labels, i.e. those classes that are handled directly rather than as children of other models
     top_level = ["tenant", "locationtype", "location", "manufacturer", "platform", "role", "device"]
