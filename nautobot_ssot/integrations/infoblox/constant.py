@@ -26,6 +26,7 @@ def _read_app_config():
         },
         "infoblox_import_subnets": config.get("infoblox_import_subnets"),
         "infoblox_request_timeout": int(config.get("infoblox_request_timeout", 60)),
+        "infoblox_sync_filters": config.get("infoblox_sync_filters"),
     }
 
 
