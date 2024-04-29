@@ -1,4 +1,5 @@
 """DiffSync adapter for Nautobot."""
+
 from collections import defaultdict
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import ProtectedError

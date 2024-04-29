@@ -1,4 +1,5 @@
 """Unit tests for nautobot_ssot."""
+
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from nautobot.users.models import Token

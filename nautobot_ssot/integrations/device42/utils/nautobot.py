@@ -1,5 +1,7 @@
 # pylint: disable=duplicate-code
 """Utility functions for Nautobot ORM."""
+
+import logging
 import random
 from typing import List, OrderedDict
 from uuid import UUID
@@ -10,17 +12,23 @@ from nautobot.circuits.models import CircuitType
 from nautobot.dcim.models import Device, Interface, Platform
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Relationship, Role, Tag
-from nautobot.ipam.models import IPAddress
 from netutils.lib_mapper import ANSIBLE_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER_REVERSE
 from taggit.managers import TaggableManager
 from nautobot_ssot.integrations.device42.diffsync.models.base.dcim import Device as NautobotDevice
 
+logger = logging.getLogger(__name__)
+
 try:
-    from nautobot_device_lifecycle_mgmt.models import SoftwareLCM
+    from nautobot_device_lifecycle_mgmt.models import SoftwareLCM  # noqa: F401 # pylint: disable=unused-import
 
     LIFECYCLE_MGMT = True
 except ImportError:
-    print("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
+    logger.info("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
+    LIFECYCLE_MGMT = False
+except RuntimeError:
+    logger.warning(
+        "nautobot-device-lifecycle-mgmt is installed but not enabled. Did you forget to add it to your settings.PLUGINS?"
+    )
     LIFECYCLE_MGMT = False
 
 
@@ -353,17 +361,3 @@ def apply_vlans_to_port(diffsync, device_name: str, mode: str, vlans: list, port
                 tagged_vlans.append(tagged_vlan)
         port.tagged_vlans.set(tagged_vlans)
         port.validated_save()
-
-
-def unassign_primary(ipaddr: IPAddress):
-    """Handle unassigning primary IP address from a Device.
-
-    Args:
-        ipaddr (IPAddress): IP Address that's set to primary and needs to be unset.
-    """
-    _dev = ipaddr.assigned_object.device
-    if hasattr(ipaddr, "primary_ip4_for"):
-        _dev.primary_ip4 = None
-    elif hasattr(ipaddr, "primary_ip6_for"):
-        _dev.primary_ip6 = None
-    _dev.validated_save()

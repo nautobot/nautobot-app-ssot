@@ -104,9 +104,11 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 device_name=device_record.name,
                 description=interface_record.description if interface_record.description else None,
                 enabled=True,
-                mac_address=mac_to_format(str(interface_record.mac_address), "MAC_COLON_TWO").upper()
-                if interface_record.mac_address
-                else DEFAULT_INTERFACE_MAC,
+                mac_address=(
+                    mac_to_format(str(interface_record.mac_address), "MAC_COLON_TWO").upper()
+                    if interface_record.mac_address
+                    else DEFAULT_INTERFACE_MAC
+                ),
                 subnet_mask=subnet_mask,
                 mtu=interface_record.mtu if interface_record.mtu else DEFAULT_INTERFACE_MTU,
                 type=interface_record.type,
@@ -127,9 +129,11 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 diffsync=self,
                 name=device_record.name,
                 model=str(device_record.device_type),
-                role=str(device_record.role.cf.get("ipfabric_type"))
-                if device_record.role.cf.get("ipfabric_type")
-                else device_record.role.name,
+                role=(
+                    str(device_record.role.cf.get("ipfabric_type"))
+                    if device_record.role.cf.get("ipfabric_type")
+                    else device_record.role.name
+                ),
                 location_name=device_record.location.name,
                 vendor=str(device_record.device_type.manufacturer),
                 status=device_record.status.name,

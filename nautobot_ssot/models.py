@@ -16,6 +16,7 @@ The interaction between these models and Nautobot's native JobResult model deser
 
 JobResult 1<->1 Sync 1-->n SyncLogEntry
 """
+
 from datetime import timedelta
 
 from django.conf import settings

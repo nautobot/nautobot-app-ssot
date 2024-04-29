@@ -1,4 +1,5 @@
 """Constants used by IPFabric Integration."""
+
 from django.conf import settings
 
 CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})

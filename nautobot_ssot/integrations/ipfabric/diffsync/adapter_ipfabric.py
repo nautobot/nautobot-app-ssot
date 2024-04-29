@@ -29,7 +29,7 @@ name_max_length = VLAN._meta.get_field("name").max_length
 
 # pylint: disable=too-many-locals,too-many-nested-blocks,too-many-branches
 class IPFabricDiffSync(DiffSyncModelAdapters):
-    """Nautobot adapter for DiffSync."""
+    """IPFabric adapter for DiffSync."""
 
     def __init__(self, job, sync, client, *args, **kwargs):
         """Initialize the NautobotDiffSync."""
@@ -92,9 +92,11 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     device_name=iface.get("hostname"),
                     description=iface.get("dscr", ""),
                     enabled=True,
-                    mac_address=mac_to_format(iface.get("mac"), "MAC_COLON_TWO").upper()
-                    if iface.get("mac")
-                    else DEFAULT_INTERFACE_MAC,
+                    mac_address=(
+                        mac_to_format(iface.get("mac"), "MAC_COLON_TWO").upper()
+                        if iface.get("mac")
+                        else DEFAULT_INTERFACE_MAC
+                    ),
                     mtu=iface.get("mtu") if iface.get("mtu") else DEFAULT_INTERFACE_MTU,
                     type=ipfabric_utils.convert_media_type(iface.get("media"), iface_name),
                     mgmt_only=iface.get("mgmt_only", False),

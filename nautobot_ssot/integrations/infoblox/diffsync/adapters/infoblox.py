@@ -1,4 +1,5 @@
 """Infoblox Adapter for Infoblox integration with SSoT app."""
+
 import re
 
 from diffsync import DiffSync

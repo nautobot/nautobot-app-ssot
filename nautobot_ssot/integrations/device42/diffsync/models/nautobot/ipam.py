@@ -33,7 +33,7 @@ class NautobotVRFGroup(VRFGroup):
         _vrf.validated_save()
         diffsync.vrf_map[ids["name"]] = _vrf.id
         diffsync.namespace_map[ids["name"]] = _namespace.id
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(diffsync, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update VRF object in Nautobot."""
@@ -93,7 +93,7 @@ class NautobotSubnet(Subnet):
         if ids["vrf"] not in diffsync.prefix_map:
             diffsync.prefix_map[ids["vrf"]] = {}
         diffsync.prefix_map[ids["vrf"]][prefix] = _pf.id
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(diffsync, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Prefix object in Nautobot."""
@@ -143,7 +143,7 @@ class NautobotIPAddress(IPAddress):
         _ip = OrmIPAddress(
             address=_address,
             parent_id=prefix.id,
-            status_id=diffsync.status_map["Active"] if not attrs.get("available") else diffsync.status_map["Reserved"],
+            status_id=diffsync.status_map["Active"] if attrs.get("available") else diffsync.status_map["Reserved"],
             description=attrs["label"] if attrs.get("label") else "",
         )
         _ip.validated_save()
@@ -154,7 +154,7 @@ class NautobotIPAddress(IPAddress):
                 assign_ip = IPAddressToInterface.objects.create(ip_address=_ip, interface_id=intf, vm_interface=None)
                 assign_ip.validated_save()
                 if attrs.get("primary"):
-                    if _ip.family == 4:
+                    if _ip.ip_version == 4:
                         assign_ip.interface.device.primary_ip4 = _ip
                     else:
                         assign_ip.interface.device.primary_ip6 = _ip
@@ -174,7 +174,7 @@ class NautobotIPAddress(IPAddress):
         if attrs["namespace"] not in diffsync.ipaddr_map:
             diffsync.ipaddr_map[attrs["namespace"]] = {}
         diffsync.ipaddr_map[attrs["namespace"]][_address] = _ip.id
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(diffsync, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update IPAddress object in Nautobot."""
@@ -189,20 +189,16 @@ class NautobotIPAddress(IPAddress):
         self.diffsync.job.logger.info(f"Updating IPAddress {_ipaddr.address}")
         if "available" in attrs:
             _ipaddr.status = (
-                OrmStatus.objects.get(name="Active")
-                if not attrs["available"]
-                else OrmStatus.objects.get(name="Reserved")
+                OrmStatus.objects.get(name="Active") if attrs["available"] else OrmStatus.objects.get(name="Reserved")
             )
         if "label" in attrs:
             _ipaddr.description = attrs["label"] if attrs.get("label") else ""
         if attrs.get("device") and attrs.get("interface"):
             _device = attrs["device"]
-            if self.primary:
-                nautobot.unassign_primary(_ipaddr)
             try:
                 intf = OrmInterface.objects.get(device__name=_device, name=attrs["interface"])
                 assign_ip = IPAddressToInterface.objects.create(
-                    ip_address=_ipaddr, interface_id=intf, vm_interface=None
+                    ip_address=_ipaddr, interface_id=intf.id, vm_interface=None
                 )
                 assign_ip.validated_save()
                 try:
@@ -217,12 +213,11 @@ class NautobotIPAddress(IPAddress):
                 )
         elif attrs.get("device"):
             try:
-                intf = OrmInterface.objects.get(device__name=attrs["device"], name=self.interface)
+                intf = self.diffsync.port_map[attrs["device"]][self.interface]
                 assign_ip = IPAddressToInterface.objects.create(
                     ip_address=_ipaddr, interface_id=intf, vm_interface=None
                 )
                 assign_ip.validated_save()
-                nautobot.unassign_primary(_ipaddr)
             except OrmInterface.DoesNotExist as err:
                 self.diffsync.job.logger.debug(
                     f"Unable to find Interface {attrs['interface'] if attrs.get('interface') else self.interface} for {attrs['device']} {err}"
@@ -257,12 +252,22 @@ class NautobotIPAddress(IPAddress):
                     f"Unable to find Interface {attrs['interface']} for {attrs['device'] if attrs.get('device') else self.device}. {err}"
                 )
         if attrs.get("primary") or self.primary is True:
-            if getattr(_ipaddr, "assigned_object"):
-                if _ipaddr.family == 4:
-                    _ipaddr.assigned_object.device.primary_ip4 = _ipaddr
+            if attrs.get("device"):
+                device = attrs["device"]
+            else:
+                device = self.device
+            if attrs.get("interface"):
+                intf = attrs["interface"]
+            else:
+                intf = self.interface
+            intf = OrmInterface.objects.get(device__name=device, name=intf)
+            ip_to_intf = IPAddressToInterface.objects.filter(ip_address=_ipaddr, interface=intf).first()
+            if ip_to_intf and (getattr(_ipaddr, "primary_ip4_for") or getattr(_ipaddr, "primary_ip6_for")):
+                if _ipaddr.ip_version == 4:
+                    ip_to_intf.interface.device.primary_ip4 = _ipaddr
                 else:
-                    _ipaddr.assigned_object.device.primary_ip6 = _ipaddr
-                _ipaddr.assigned_object.device.validated_save()
+                    ip_to_intf.interface.device.primary_ip6 = _ipaddr
+                ip_to_intf.interface.device.validated_save()
             else:
                 self.diffsync.job.logger.warning(
                     f"IPAddress {_ipaddr.address} is showing unassigned from an Interface so can't be marked primary."
@@ -302,8 +307,8 @@ class NautobotVLAN(VLAN):
     @classmethod
     def create(cls, diffsync, ids, attrs):
         """Create VLAN object in Nautobot."""
-        _site_name = None, None
-        if ids["building"] != "Unknown":
+        _site_name = None
+        if ids.get("building") and ids["building"] != "Unknown":
             _site_name = ids["building"]
         else:
             _site_name = "Global"
@@ -311,9 +316,9 @@ class NautobotVLAN(VLAN):
         new_vlan = OrmVLAN(
             name=attrs["name"],
             vid=ids["vlan_id"],
-            location_id=diffsync.site_map[_site_name]
-            if _site_name in diffsync.site_map and _site_name != "Global"
-            else None,
+            location=(
+                diffsync.site_map[_site_name] if _site_name in diffsync.site_map and _site_name != "Global" else None
+            ),
             status_id=diffsync.status_map["Active"],
             description=attrs["description"],
         )
@@ -326,7 +331,7 @@ class NautobotVLAN(VLAN):
         if _site_name not in diffsync.vlan_map:
             diffsync.vlan_map[_site_name] = {}
         diffsync.vlan_map[_site_name][ids["vlan_id"]] = new_vlan.id
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(diffsync, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update VLAN object in Nautobot."""

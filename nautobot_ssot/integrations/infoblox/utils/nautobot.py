@@ -1,4 +1,5 @@
 """Utility functions for working with Nautobot."""
+
 from nautobot.extras.models import Relationship
 from nautobot.ipam.models import Prefix
 

@@ -1,4 +1,5 @@
 """Tests covering use of tags and custom fields in the plugin."""
+
 import datetime
 from unittest.mock import Mock
 

@@ -1,4 +1,5 @@
 """Test CloudVision Jobs."""
+
 from django.test import override_settings
 from django.urls import reverse
 from nautobot.core.testing import TestCase

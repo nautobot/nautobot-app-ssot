@@ -40,7 +40,7 @@ try:
     from nautobot_device_lifecycle_mgmt.models import SoftwareLCM
 
     LIFECYCLE_MGMT = True
-except ImportError:
+except (ImportError, RuntimeError):
     print("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
     LIFECYCLE_MGMT = False
 
@@ -75,7 +75,7 @@ class NautobotBuilding(Building):
             nautobot.update_custom_fields(new_cfields=attrs["custom_fields"], update_obj=new_site)
         new_site.validated_save()
         diffsync.site_map[ids["name"]] = new_site.id
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(diffsync, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Site object in Nautobot."""
@@ -137,7 +137,7 @@ class NautobotRoom(Room):
         if ids["building"] not in diffsync.room_map:
             diffsync.room_map[ids["building"]] = {}
         diffsync.room_map[ids["building"]][ids["name"]] = new_rg.id
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(diffsync, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update RackGroup object in Nautobot."""
@@ -188,7 +188,7 @@ class NautobotRack(Rack):
         if ids["room"] not in diffsync.rack_map[ids["building"]]:
             diffsync.rack_map[ids["building"]][ids["room"]] = {}
         diffsync.rack_map[ids["building"]][ids["room"]][ids["name"]] = new_rack.id
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(diffsync, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Rack object in Nautobot."""
@@ -240,7 +240,7 @@ class NautobotVendor(Vendor):
                 nautobot.update_custom_fields(new_cfields=attrs["custom_fields"], update_obj=new_manu)
             new_manu.validated_save()
             diffsync.vendor_map[ids["name"]] = new_manu.id
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(diffsync, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Manufacturer object in Nautobot."""
@@ -287,7 +287,7 @@ class NautobotHardware(Hardware):
                 nautobot.update_custom_fields(new_cfields=attrs["custom_fields"], update_obj=new_dt)
             new_dt.validated_save()
             diffsync.devicetype_map[ids["name"]] = new_dt.id
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(diffsync, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update DeviceType object in Nautobot."""
@@ -346,7 +346,7 @@ class NautobotCluster(Cluster):
             nautobot.update_custom_fields(new_cfields=attrs["custom_fields"], update_obj=new_vc)
         new_vc.validated_save()
         diffsync.cluster_map[ids["name"]] = new_vc.id
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(diffsync, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Virtual Chassis object in Nautobot."""
@@ -699,7 +699,7 @@ class NautobotPort(Port):
         diffsync.port_map[ids["device"]][ids["name"]] = new_intf.id
         if attrs.get("mac_addr"):
             diffsync.port_map[attrs["mac_addr"][:12]] = new_intf.id
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(diffsync, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Interface object in Nautobot."""
@@ -881,9 +881,11 @@ class NautobotConnection(Connection):
             circuit_term.validated_save()
         if _intf and not _intf.cable and not circuit_term.cable:
             new_cable = OrmCable(
-                termination_a_type=ContentType.objects.get(app_label="dcim", model="interface")
-                if attrs["src_type"] == "interface"
-                else ContentType.objects.get(app_label="dcim", model="frontport"),
+                termination_a_type=(
+                    ContentType.objects.get(app_label="dcim", model="interface")
+                    if attrs["src_type"] == "interface"
+                    else ContentType.objects.get(app_label="dcim", model="frontport")
+                ),
                 termination_a_id=_intf,
                 termination_b_type=ContentType.objects.get(app_label="circuits", model="circuittermination"),
                 termination_b_id=circuit_term.id,

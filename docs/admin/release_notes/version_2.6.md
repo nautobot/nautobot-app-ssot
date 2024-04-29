@@ -23,3 +23,26 @@
 
 - [#418](https://github.com/nautobot/nautobot-app-ssot/issues/418) - Unpins multiple dependencies.
 - [#421](https://github.com/nautobot/nautobot-app-ssot/issues/421) - Opened prometheus-client dependency range and removed direct drf-spectacular dependency.
+
+## [v2.6.1 (2024-04-29)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v2.6.1)
+
+### Added
+
+- [#436](https://github.com/nautobot/nautobot-app-ssot/issues/436) - Added additional unit tests for Device42 integration.
+
+### Changed
+
+- [#437](https://github.com/nautobot/nautobot-app-ssot/issues/437) - Improved performance of the Infoblox client by using `requests.Session` for API calls instead of `requests.request`.
+
+### Fixed
+
+- [#435](https://github.com/nautobot/nautobot-app-ssot/issues/435) - Fixed handling of DLM App installed but not enabled throwing RuntimeError.
+- [#436](https://github.com/nautobot/nautobot-app-ssot/issues/436) - Fixed IPAddress attribute to be ip_version.
+- [#436](https://github.com/nautobot/nautobot-app-ssot/issues/436) - Fixed IPAddress Status incorrectly being set to Reserved when the status in Device42 showed as "available".
+- [#436](https://github.com/nautobot/nautobot-app-ssot/issues/436) - Fixed multiple bugs when assigning IPAddresses to Interfaces.
+- [#436](https://github.com/nautobot/nautobot-app-ssot/issues/436) - Fixed check for Building definiton when creating a VLAN.
+- [#436](https://github.com/nautobot/nautobot-app-ssot/issues/436) - Fixed VLAN to use location instead of location_id in create().
+
+### Housekeeping
+
+- [#431](https://github.com/nautobot/nautobot-app-ssot/issues/431) - Updated note on nautobot_ssot/integrations/ipfabric/diffsync/adapter_ipfabric.py IPFabricDiffSync from Nautobot to IPFabric.

@@ -1,4 +1,6 @@
 """Nautobot DiffSync models for AristaCV SSoT."""
+
+import logging
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from nautobot.core.settings_funcs import is_truthy
@@ -31,12 +33,19 @@ from nautobot_ssot.integrations.aristacv.diffsync.models.base import (
 from nautobot_ssot.integrations.aristacv.types import CloudVisionAppConfig
 from nautobot_ssot.integrations.aristacv.utils import nautobot
 
+logger = logging.getLogger(__name__)
+
 try:
-    from nautobot_device_lifecycle_mgmt.models import SoftwareLCM
+    from nautobot_device_lifecycle_mgmt.models import SoftwareLCM  # noqa: F401 # pylint: disable=unused-import
 
     LIFECYCLE_MGMT = True
 except ImportError:
-    print("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
+    logger.info("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
+    LIFECYCLE_MGMT = False
+except RuntimeError:
+    logger.warning(
+        "nautobot-device-lifecycle-mgmt is installed but not enabled. Did you forget to add it to your settings.PLUGINS?"
+    )
     LIFECYCLE_MGMT = False
 
 MISSING_CUSTOM_FIELDS = []

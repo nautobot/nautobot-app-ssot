@@ -1,4 +1,5 @@
 """Test the Job classes in nautobot_ssot."""
+
 import os.path
 from unittest.mock import Mock, call
 

@@ -1,4 +1,5 @@
 """Signals for Device42 integration."""
+
 from nautobot.core.signals import nautobot_database_ready
 
 

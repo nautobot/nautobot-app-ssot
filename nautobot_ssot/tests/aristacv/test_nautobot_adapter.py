@@ -1,4 +1,5 @@
 """Unit tests for the Nautoobt DiffSync adapter class."""
+
 from unittest.mock import MagicMock, patch
 
 from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Manufacturer

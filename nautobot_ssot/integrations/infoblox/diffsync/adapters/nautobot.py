@@ -1,4 +1,5 @@
 """Nautobot Adapter for Infoblox integration."""
+
 # pylint: disable=duplicate-code
 import datetime
 from diffsync import DiffSync

@@ -1,4 +1,5 @@
 """Initialize models for Nautobot and ACI."""
+
 from .nautobot import (
     NautobotTenant,
     NautobotVrf,

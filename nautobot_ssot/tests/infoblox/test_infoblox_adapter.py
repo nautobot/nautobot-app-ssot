@@ -1,4 +1,5 @@
 """Unit tests for the Infoblox DiffSync adapter class."""
+
 import unittest
 
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import (
