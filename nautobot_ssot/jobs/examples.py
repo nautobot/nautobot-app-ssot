@@ -763,10 +763,17 @@ class ExampleDataSource(DataSource):
     def data_mappings(cls):
         """This Job maps Region and Site objects from the remote system to the local system."""
         return (
-            DataMapping("Region (remote)", None, "Region (local)", reverse("dcim:location_list")),
-            DataMapping("Site (remote)", None, "Site (local)", reverse("dcim:location_list")),
+            DataMapping("LocationType (remote)", None, "LocationType (local)", reverse("dcim:locationtype_list")),
+            DataMapping("Location (remote)", None, "Location (local)", reverse("dcim:location_list")),
+            DataMapping("Role (remote)", None, "Role (local)", reverse("extras:role_list")),
             DataMapping("Prefix (remote)", None, "Prefix (local)", reverse("ipam:prefix_list")),
+            DataMapping("IPAddress (remote)", None, "IPAddress (local)", reverse("ipam:ipaddress_list")),
             DataMapping("Tenant (remote)", None, "Tenant (local)", reverse("tenancy:tenant_list")),
+            DataMapping("DeviceType (remote)", None, "DeviceType (local)", reverse("dcim:devicetype_list")),
+            DataMapping("Manufacturer (remote)", None, "Manufacturer (local)", reverse("dcim:manufacturer_list")),
+            DataMapping("Platform (remote)", None, "Platform (local)", reverse("dcim:platform_list")),
+            DataMapping("Device (remote)", None, "Device (local)", reverse("dcim:device_list")),
+            DataMapping("Interface (remote)", None, "Interface (local)", reverse("dcim:interface_list")),
         )
 
     def run(  # pylint: disable=too-many-arguments, arguments-differ
@@ -868,10 +875,17 @@ class ExampleDataTarget(DataTarget):
     def data_mappings(cls):
         """This Job maps Region and Site objects from the local system to the remote system."""
         return (
-            DataMapping("Region (local)", reverse("dcim:location_list"), "Region (remote)", None),
-            DataMapping("Site (local)", reverse("dcim:location_list"), "Site (remote)", None),
+            DataMapping("LocationType (local)", reverse("dcim:locationtype_list"), "LocationType (remote)", None),
+            DataMapping("Location (local)", reverse("dcim:location_list"), "Location (remote)", None),
+            DataMapping("Role (local)", reverse("extras:role_list"), "Role (remote)", None),
             DataMapping("Prefix (local)", reverse("ipam:prefix_list"), "Prefix (remote)", None),
+            DataMapping("IPAddress (local)", reverse("ipam:ipaddress_list"), "IPAddress (remote)", None),
             DataMapping("Tenant (local)", reverse("tenancy:tenant_list"), "Tenant (remote)", None),
+            DataMapping("DeviceType (local)", reverse("dcim:devicetype_list"), "DeviceType (remote)", None),
+            DataMapping("Manufacturer (local)", reverse("dcim:manufacturer_list"), "Manufacturer (remote)", None),
+            DataMapping("Platform (local)", reverse("dcim:platform_list"), "Platform (remote)", None),
+            DataMapping("Device (local)", reverse("dcim:device_list"), "Device (remote)", None),
+            DataMapping("Interface (local)", reverse("dcim:interface_list"), "Interface (remote)", None),
         )
 
     def load_source_adapter(self):
