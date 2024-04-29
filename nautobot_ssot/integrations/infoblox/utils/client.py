@@ -6,6 +6,7 @@ import json
 import ipaddress
 import logging
 import re
+from typing import Optional
 import urllib.parse
 from collections import defaultdict
 from typing import Optional
@@ -54,7 +55,7 @@ def get_default_ext_attrs(review_list: list) -> dict:
 
 
 def get_dns_name(possible_fqdn: str) -> str:
-    """Validate passed FQDN and returns if found.
+    """Validates passed FQDN and returns if found.
 
     Args:
         possible_fqdn (str): Potential string to be used for IP Address dns_name.
@@ -185,14 +186,14 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         """
         response = self._request("DELETE", resource)
         try:
-            logger.info(response.json())
+            logger.debug(response.json())
             return response.json()
         except json.decoder.JSONDecodeError:
             logger.info(response.text)
             return response.text
 
     def _update(self, resource, **params):
-        """Delete a resource from Infoblox.
+        """Update a resource in Infoblox.
 
         Args:
             resource (str): Resource to update
@@ -206,17 +207,20 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         """
         response = self._request("PUT", path=resource, params=params)
         try:
-            logger.info(response.json())
+            logger.debug(response.json())
             return response.json()
         except json.decoder.JSONDecodeError:
             logger.info(response.text)
             return response.text
 
-    def _get_network_ref(self, prefix):  # pylint: disable=inconsistent-return-statements
+    def _get_network_ref(
+        self, prefix, network_view: Optional[str] = None
+    ):  # pylint: disable=inconsistent-return-statements
         """Fetch the _ref of a prefix resource.
 
         Args:
             prefix (str): IPv4 Prefix to fetch the _ref for.
+            network_view (str): Network View of the prefix to fetch the _ref for.
 
         Returns:
             (str) network _ref or None
@@ -224,15 +228,29 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         Returns Response:
             "network/ZG5zLm5ldHdvcmskMTkyLjAuMi4wLzI0LzA:192.0.2.0/24/default"
         """
-        for item in self.get_all_subnets(prefix):
-            if item["network"] == prefix:
-                return item["_ref"]
+        url_path = "network"
+        params = {"network": prefix, "_return_as_object": 1}
+        if network_view:
+            params["network_view"] = network_view
+        response = self._request("GET", url_path, params=params)
+        try:
+            logger.debug(response.json())
+            results = response.json().get("result")
+        except json.decoder.JSONDecodeError:
+            logger.info(response.text)
+            return response.text
+        if results and len(results):
+            return results[0]
+        return None
 
-    def _get_network_container_ref(self, prefix):  # pylint: disable=inconsistent-return-statements
+    def _get_network_container_ref(
+        self, prefix, network_view: Optional[str] = None
+    ):  # pylint: disable=inconsistent-return-statements
         """Fetch the _ref of a networkcontainer resource.
 
         Args:
             prefix (str): IPv4 Prefix to fetch the _ref for.
+            network_view (str): Network View of the prefix to fetch the _ref for.
 
         Returns:
             (str) networkcontainer _ref or None
@@ -240,12 +258,23 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         Returns Response:
             "networkcontainer/ZG5zLm5ldHdvcmtfY29udGFpbmVyJDE5Mi4xNjguMi4wLzI0LzA:192.168.2.0/24/default"
         """
-        for item in self.get_network_containers():
-            if item["network"] == prefix:
-                return item["_ref"]
+        url_path = "networkcontainer"
+        params = {"network": prefix, "_return_as_object": 1}
+        if network_view:
+            params["network_view"] = network_view
+        response = self._request("GET", url_path, params=params)
+        try:
+            logger.debug(response.json())
+            results = response.json().get("result")
+        except json.decoder.JSONDecodeError:
+            logger.info(response.text)
+            return response.text
+        if results and len(results):
+            return results[0]
+        return None
 
     def get_all_ipv4address_networks(self, prefixes):
-        """Get all used / unused IPv4 addresses within the supplied network.
+        """Get all used / unused IPv4 addresses within the supplied networks.
 
         Args:
             prefixes (List[tuple]): List of Network prefixes and associated network view - ('10.220.0.0/22', 'default')
@@ -344,7 +373,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
                 "object": "ipv4address",
                 "data": {"network_view": view, "network": prefix, "status": "USED"},
                 "args": {
-                    "_return_fields": "ip_address,mac_address,names,network,objects,status,types,usage,comment,extattrs"
+                    "_return_fields": "ip_address,mac_address,names,network,network_view,objects,status,types,usage,comment,extattrs"
                 },
             }
             return query
@@ -378,7 +407,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
 
         return ipaddrs
 
-    def create_network(self, prefix, comment=None):
+    def create_network(self, prefix, comment=None, network_view: Optional[str] = None):
         """Create a network.
 
         Args:
@@ -391,12 +420,14 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             "network/ZG5zLm5ldHdvcmskMTkyLjE2OC4wLjAvMjMvMA:192.168.0.0/23/default"
         """
         params = {"network": prefix, "comment": comment}
+        if network_view:
+            params["network_view"] = network_view
         api_path = "network"
         response = self._request("POST", api_path, params=params)
-        logger.info(response.text)
+        logger.debug(response.text)
         return response.text
 
-    def delete_network(self, prefix):
+    def delete_network(self, prefix, network_view: Optional[str] = None):
         """Delete a network.
 
         Args:
@@ -408,7 +439,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         Returns Response:
             {"deleted": "network/ZG5zLm5ldHdvcmskMTkyLjAuMi4wLzI0LzA:192.0.2.0/24/default"}
         """
-        resource = self._get_network_ref(prefix)
+        resource = self._get_network_ref(prefix=prefix, network_view=network_view)
 
         if resource:
             self._delete(resource)
@@ -416,10 +447,10 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         else:
             response = {"error": f"{prefix} not found."}
 
-        logger.info(response)
+        logger.debug(response)
         return response
 
-    def update_network(self, prefix, comment=None):
+    def update_network(self, prefix, comment=None, network_view: Optional[str] = None):
         """Update a network.
 
         Args:
@@ -432,7 +463,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         Return Response:
             {"updated": "network/ZG5zLm5ldHdvcmskMTkyLjE2OC4wLjAvMjMvMA:192.168.0.0/23/default"}
         """
-        resource = self._get_network_ref(prefix)
+        resource = self._get_network_ref(prefix=prefix, network_view=network_view)
 
         if resource:
             params = {"network": prefix, "comment": comment}
@@ -440,10 +471,10 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             response = {"updated": resource}
         else:
             response = {"error": f"error updating {prefix}"}
-        logger.info(response)
+        logger.debug(response)
         return response
 
-    def create_network_container(self, prefix, comment=None):
+    def create_network_container(self, prefix, comment=None, network_view: Optional[str] = None):
         """Create a network container.
 
         Args:
@@ -456,12 +487,14 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             "networkcontainer/ZG5zLm5ldHdvcmskMTkyLjE2OC4wLjAvMjMvMA:192.168.0.0/23/default"
         """
         params = {"network": prefix, "comment": comment}
+        if network_view:
+            params["network_view"] = network_view
         api_path = "networkcontainer"
         response = self._request("POST", api_path, params=params)
-        logger.info(response.text)
+        logger.debug(response.text)
         return response.text
 
-    def delete_network_container(self, prefix):
+    def delete_network_container(self, prefix, network_view: Optional[str] = None):
         """Delete a network container.
 
         Args:
@@ -473,18 +506,19 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         Returns Response:
             {"deleted": "networkcontainer/ZG5zLm5ldHdvcmskMTkyLjAuMi4wLzI0LzA:192.0.2.0/24/default"}
         """
-        resource = self._get_network_container_ref(prefix)
+        resource = self._get_network_container_ref(prefix=prefix, network_view=network_view)
 
         if resource:
             self._delete(resource)
             response = {"deleted": resource}
         else:
-            response = {"error": f"{prefix} not found."}
+            nv_msg = f" in network view {network_view}" if network_view else ""
+            response = {"error": f"{prefix}{nv_msg} not found."}
 
-        logger.info(response)
+        logger.debug(response)
         return response
 
-    def update_network_container(self, prefix, comment=None):
+    def update_network_container(self, prefix, comment=None, network_view: Optional[str] = None):
         """Update a network container.
 
         Args:
@@ -497,18 +531,19 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         Return Response:
             {"updated": "networkcontainer/ZG5zLm5ldHdvcmskMTkyLjE2OC4wLjAvMjMvMA:192.168.0.0/23/default"}
         """
-        resource = self._get_network_container_ref(prefix)
+        resource = self._get_network_container_ref(prefix=prefix, network_view=network_view)
 
         if resource:
-            params = {"network": prefix, "comment": comment}
+            params = {"comment": comment}
             self._update(resource, **params)
             response = {"updated": resource}
         else:
-            response = {"error": f"error updating {prefix}"}
-        logger.info(response)
+            nv_msg = f" in network view {network_view}" if network_view else ""
+            response = {"error": f"error updating {prefix}{nv_msg}"}
+        logger.debug(response)
         return response
 
-    def create_range(self, prefix: str, start: str, end: str) -> str:
+    def create_range(self, prefix: str, start: str, end: str, network_view: Optional[str] = None) -> str:
         """Create a range.
 
         Args:
@@ -523,15 +558,14 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             "range/ZG5zLm5ldHdvcmskMTkyLjE2OC4wLjAvMjMvMA:192.168.0.100/192.168.0.254/default"
         """
         params = {"network": prefix, "start_addr": start, "end_addr": end}
-        plugin_defined_network_view = PLUGIN_CFG.get("NAUTOBOT_INFOBLOX_NETWORK_VIEW")
-        if plugin_defined_network_view:
-            params["network_view"] = plugin_defined_network_view
+        if network_view:
+            params["network_view"] = network_view
         api_path = "range"
         response = self._request("POST", api_path, params=params)
-        logger.info(response.text)
+        logger.debug(response.text)
         return response.text
 
-    def get_host_record_by_name(self, fqdn):
+    def get_host_record_by_name(self, fqdn, network_view: Optional[str] = None):
         """Get the host record by using FQDN.
 
         Args:
@@ -560,11 +594,13 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         """
         url_path = "record:host"
         params = {"name": fqdn, "_return_as_object": 1}
+        if network_view:
+            params["network_view"] = network_view
         response = self._request("GET", url_path, params=params)
-        logger.info(response.json)
+        logger.debug(response.json())
         return response.json().get("result")
 
-    def get_host_record_by_ip(self, ip_address):
+    def get_host_record_by_ip(self, ip_address, network_view: Optional[str] = None):
         """Get the host record by using IP Address.
 
         Args:
@@ -593,11 +629,13 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         """
         url_path = "record:host"
         params = {"ipv4addr": ip_address, "_return_as_object": 1}
+        if network_view:
+            params["network_view"] = network_view
         response = self._request("GET", url_path, params=params)
-        logger.info(response.json)
+        logger.debug(response.json())
         return response.json().get("result")
 
-    def get_a_record_by_name(self, fqdn):
+    def get_a_record_by_name(self, fqdn, network_view: Optional[str] = None):
         """Get the A record for a FQDN.
 
         Args:
@@ -618,11 +656,16 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         """
         url_path = "record:a"
         params = {"name": fqdn, "_return_as_object": 1}
+        # TODO: This is a bit more complicated. One network view can have multiple DNS views
+        # default name for a DNS view for a network view is formed by prepending "default." to the network view name
+        if network_view:
+            dns_view = self.get_default_dns_view_for_network_view(network_view)
+            params["view"] = dns_view
         response = self._request("GET", url_path, params=params)
-        logger.info(response.json)
+        logger.debug(response.json())
         return response.json().get("result")
 
-    def get_a_record_by_ip(self, ip_address):
+    def get_a_record_by_ip(self, ip_address, network_view: Optional[str] = None):
         """Get the A record for a IP Address.
 
         Args:
@@ -643,11 +686,17 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         """
         url_path = "record:a"
         params = {"ipv4addr": ip_address, "_return_as_object": 1}
+        # TODO: This is a bit more complicated. One network view can have multiple DNS views
+        # default name for a DNS view for a network view is formed by prepending "default." to the network view name
+        # TODO: Would be interesting to see if we can specify network view in the lookup
+        if network_view:
+            dns_view = self.get_default_dns_view_for_network_view(network_view)
+            params["view"] = dns_view
         response = self._request("GET", url_path, params=params)
-        logger.info(response.json)
+        logger.debug(response.json())
         return response.json().get("result")
 
-    def get_ptr_record_by_name(self, fqdn):
+    def get_ptr_record_by_name(self, fqdn, network_view: Optional[str] = None):
         """Get the PTR record by FQDN.
 
         Args:
@@ -667,8 +716,11 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         """
         url_path = "record:ptr"
         params = {"ptrdname": fqdn, "_return_as_object": 1}
+        if network_view:
+            dns_view = self.get_default_dns_view_for_network_view(network_view)
+            params["view"] = dns_view
         response = self._request("GET", url_path, params=params)
-        logger.info(response.json)
+        logger.debug(response.json())
         return response.json().get("result")
 
     def get_all_dns_views(self):
@@ -692,12 +744,12 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         ]
         """
         url_path = "view"
-        params = {"_return_as_object": 1}
+        params = {"_return_fields": "is_default,name,network_view", "_return_as_object": 1}
         response = self._request("GET", url_path, params=params)
-        logger.info(response.json)
+        logger.debug(response.json())
         return response.json().get("result")
 
-    def create_a_record(self, fqdn, ip_address):
+    def create_a_record(self, fqdn, ip_address, network_view: Optional[str] = None):
         """Create an A record for a given FQDN.
 
         Please note:  This API call with work only for host records that do not have an associated a record.
@@ -715,8 +767,11 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         url_path = "record:a"
         params = {"_return_fields": "name", "_return_as_object": 1}
         payload = {"name": fqdn, "ipv4addr": ip_address}
+        if network_view:
+            dns_view = self.get_default_dns_view_for_network_view(network_view)
+            payload["view"] = dns_view
         response = self._request("POST", url_path, params=params, json=payload)
-        logger.info(response.json)
+        logger.debug(response.json())
         return response.json().get("result")
 
     def get_dhcp_lease(self, lease_to_check):
@@ -741,7 +796,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             return self.get_dhcp_lease_from_ipv4(lease_to_check)
         return self.get_dhcp_lease_from_hostname(lease_to_check)
 
-    def get_dhcp_lease_from_ipv4(self, ip_address):
+    def get_dhcp_lease_from_ipv4(self, ip_address, network_view: Optional[str] = None):
         """Get a DHCP lease for the IP address passed in.
 
         Args:
@@ -766,11 +821,13 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             "_return_fields": "binding_state,hardware,client_hostname,fingerprint",
             "_return_as_object": 1,
         }
+        if network_view:
+            params["network_view"] = network_view
         response = self._request("GET", url_path, params=params)
-        logger.info(response.json)
+        logger.debug(response.json())
         return response.json()
 
-    def get_dhcp_lease_from_hostname(self, hostname):
+    def get_dhcp_lease_from_hostname(self, hostname, network_view: Optional[str] = None):
         """Get a DHCP lease for the hostname passed in.
 
         Args:
@@ -795,11 +852,15 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             "_return_fields": "binding_state,hardware,client_hostname,fingerprint",
             "_return_as_object": 1,
         }
+        if network_view:
+            params["network_view"] = network_view
         response = self._request("GET", url_path, params=params)
-        logger.info(response.json)
+        logger.debug(response.json())
         return response.json()
 
-    def get_all_ranges(self, prefix: Optional[str] = None) -> dict[str, dict[str, list[dict[str, str]]]]:
+    def get_all_ranges(
+        self, prefix: Optional[str] = None, network_view: Optional[str] = None
+    ) -> dict[str, dict[str, list[dict[str, str]]]]:
         """Get all Ranges.
 
         Args:
@@ -821,25 +882,24 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         """
         url_path = "range"
         params = {"_return_fields": "network,network_view,start_addr,end_addr", "_max_results": 10000}
-        plugin_defined_network_view = PLUGIN_CFG.get("NAUTOBOT_INFOBLOX_NETWORK_VIEW")
-        if plugin_defined_network_view:
-            params["network_view"] = plugin_defined_network_view
+        if network_view:
+            params["network_view"] = network_view
         if prefix:
-            params["network"]: prefix
+            params["network"] = prefix
         try:
             response = self._request("GET", url_path, params=params)
         except HTTPError as err:
             logger.info(err.response.text)
             return {}
         json_response = response.json()
-        logger.info(json_response)
+        logger.debug(json_response())
         data = defaultdict(lambda: defaultdict(list))
         for prefix_range in json_response:
             str_range = f"{prefix_range['start_addr']}-{prefix_range['end_addr']}"
             data[prefix_range["network_view"]][prefix_range["network"]].append(str_range)
         return data
 
-    def get_all_subnets(self, prefix: str = None, ipv6: bool = False):
+    def get_all_subnets(self, prefix: str = None, ipv6: bool = False, network_view: Optional[str] = None):
         """Get all Subnets.
 
         Args:
@@ -879,8 +939,8 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             "_return_fields": "network,network_view,comment,extattrs,rir_organization,rir,vlans",
             "_max_results": 10000,
         }
-        if PLUGIN_CFG.get("NAUTOBOT_INFOBLOX_NETWORK_VIEW"):
-            params.update({"network_view": PLUGIN_CFG["NAUTOBOT_INFOBLOX_NETWORK_VIEW"]})
+        if network_view:
+            params.update({"network_view": network_view})
         if prefix:
             params.update({"network": prefix})
         try:
@@ -889,9 +949,10 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             logger.info(err.response.text)
             return []
         json_response = response.json()
-        logger.info(json_response)
+        logger.debug(json_response())
+        # TODO: What does the below code do? We don't return any of this. @progala
         if not ipv6:
-            ranges = self.get_all_ranges(prefix=prefix)
+            ranges = self.get_all_ranges(prefix=prefix, network_view=network_view)
             for returned_prefix in json_response:
                 network_view_ranges = ranges.get(returned_prefix["network_view"], {})
                 prefix_ranges = network_view_ranges.get(returned_prefix["network"])
@@ -901,7 +962,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             logger.info("Support for DHCP Ranges is not currently supported for IPv6 Networks.")
         return json_response
 
-    def get_authoritative_zone(self):
+    def get_authoritative_zone(self, network_view: Optional[str] = None):
         """Get authoritative zone to check if fqdn exists.
 
         Returns:
@@ -923,11 +984,14 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         """
         url_path = "zone_auth"
         params = {"_return_as_object": 1}
+        if network_view:
+            dns_view = self.get_default_dns_view_for_network_view(network_view)
+            params["view"] = dns_view
         response = self._request("GET", url_path, params=params)
-        logger.info(response.json())
+        logger.debug(response.json())
         return response.json().get("result")
 
-    def _find_network_reference(self, network):
+    def _find_network_reference(self, network, network_view: Optional[str] = None):
         """Find the reference for the given network.
 
         Returns:
@@ -944,11 +1008,13 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         """
         url_path = "network"
         params = {"network": network}
+        if network_view:
+            params["network_view"] = network_view
         response = self._request("GET", url_path, params=params)
-        logger.info(response.json())
+        logger.debug(response.json())
         return response.json()
 
-    def find_next_available_ip(self, network):
+    def find_next_available_ip(self, network, network_view: Optional[str] = None):
         """Find the next available ip address for a given network.
 
         Returns:
@@ -964,8 +1030,9 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         next_ip_avail = ""
         # Find the Network reference id
         try:
-            network_ref_id = self._find_network_reference(network)
+            network_ref_id = self._find_network_reference(network=network, network_view=network_view)
         except Exception as err:  # pylint: disable=broad-except
+            # TODO: Add network-view to the error @progala
             logger.warning("Network reference not found for %s: %s", network, err)
             return next_ip_avail
 
@@ -975,12 +1042,12 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             params = {"_function": "next_available_ip"}
             payload = {"num": 1}
             response = self._request("POST", url_path, params=params, json=payload)
-            logger.info(response.json())
+            logger.debug(response.json())
             next_ip_avail = response.json().get("ips")[0]
 
         return next_ip_avail
 
-    def reserve_fixed_address(self, network, mac_address):
+    def reserve_fixed_address(self, network, mac_address, network_view: Optional[str] = None):
         """Reserve the next available ip address for a given network range.
 
         Returns:
@@ -990,17 +1057,19 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             "10.220.0.1"
         """
         # Get the next available IP Address for this network
-        ip_address = self.find_next_available_ip(network)
+        ip_address = self.find_next_available_ip(network=network, network_view=network_view)
         if ip_address:
             url_path = "fixedaddress"
             params = {"_return_fields": "ipv4addr", "_return_as_object": 1}
             payload = {"ipv4addr": ip_address, "mac": mac_address}
+            if network_view:
+                payload["network_view"] = network_view
             response = self._request("POST", url_path, params=params, json=payload)
-            logger.info(response.json())
+            logger.debug(response.json())
             return response.json().get("result").get("ipv4addr")
         return False
 
-    def create_fixed_address(self, ip_address, mac_address):
+    def create_fixed_address(self, ip_address, mac_address, network_view: Optional[str] = None):
         """Create a fixed ip address within Infoblox.
 
         Returns:
@@ -1012,11 +1081,13 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         url_path = "fixedaddress"
         params = {"_return_fields": "ipv4addr", "_return_as_object": 1}
         payload = {"ipv4addr": ip_address, "mac": mac_address}
+        if network_view:
+            payload["network_view"] = network_view
         response = self._request("POST", url_path, params=params, json=payload)
-        logger.info(response.json())
+        logger.debug(response.json())
         return response.json().get("result").get("ipv4addr")
 
-    def create_host_record(self, fqdn, ip_address):
+    def create_host_record(self, fqdn, ip_address, network_view: Optional[str] = None):
         """Create a host record for a given FQDN.
 
         Please note:  This API call with work only for host records that do not have an associated a record.
@@ -1035,27 +1106,30 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         url_path = "record:host"
         params = {"_return_fields": "name", "_return_as_object": 1}
         payload = {"name": fqdn, "configure_for_dns": False, "ipv4addrs": [{"ipv4addr": ip_address}]}
+        if network_view:
+            payload["network_view"] = network_view
         try:
             response = self._request("POST", url_path, params=params, json=payload)
         except HTTPError as err:
             logger.info("Host record error: %s", err.response.text)
             return []
-        logger.info("Infoblox host record created: %s", response.json())
+        logger.debug("Infoblox host record created: %s", response.json())
         return response.json().get("result")
 
-    def delete_host_record(self, ip_address):
+    def delete_host_record(self, ip_address, network_view: Optional[str] = None):
         """Delete provided IP Address from Infoblox."""
-        resource = self.get_host_record_by_ip(ip_address)
+        resource = self.get_host_record_by_ip(ip_address=ip_address, network_view=network_view)
+        # TODO: Add network view to messages @progala
         if resource:
             ref = resource[0]["_ref"]
             self._delete(ref)
             response = {"deleted": ip_address}
         else:
             response = {"error": f"Did not find {ip_address}"}
-        logger.info(response)
+        logger.debug(response)
         return response
 
-    def create_ptr_record(self, fqdn, ip_address):
+    def create_ptr_record(self, fqdn, ip_address, network_view: Optional[str] = None):
         """Create an PTR record for a given FQDN.
 
         Args:
@@ -1074,12 +1148,16 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         }
         """
         url_path = "record:ptr"
-        params = {"_return_fields": "name,ptrdname,ipv4addr", "_return_as_object": 1}
+        params = {"_return_fields": "name,ptrdname,ipv4addr,view", "_return_as_object": 1}
         reverse_host = str(reversename.from_address(ip_address))[
             0:-1
         ]  # infoblox does not accept the top most domain '.', so we strip it
-        payload = {"name": reverse_host, "ptrdname": fqdn, "ipv4addr": ip_address}
+        payload = {"name": reverse_host, "ptrdname": fqdn}  # , "ipv4addr": ip_address}
+        if network_view:
+            dns_view = self.get_default_dns_view_for_network_view(network_view)
+            payload["view"] = dns_view
         response = self._request("POST", url_path, params=params, json=payload)
+        # TODO: Add network view/dns view to the message @progala
         logger.info("Infoblox PTR record created: %s", response.json())
         return response.json().get("result")
 
@@ -1114,7 +1192,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         url_path = "search"
         params = {"address": ip_address, "_return_as_object": 1}
         response = self._request("GET", url_path, params=params)
-        logger.info(response.json())
+        logger.debug(response.json())
         return response.json().get("result")
 
     def get_vlan_view(self, name="Nautobot"):
@@ -1139,7 +1217,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         url_path = "vlanview"
         params = {"name": name}
         response = self._request("GET", path=url_path, params=params)
-        logger.info(response.json())
+        logger.debug(response.json())
         return response.json()
 
     def create_vlan_view(self, name, start_vid=1, end_vid=4094):
@@ -1159,7 +1237,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         url_path = "vlanview"
         params = {"name": name, "start_vlan_id": start_vid, "end_vlan_id": end_vid}
         response = self._request("POST", path=url_path, params=params)
-        logger.info(response.json())
+        logger.debug(response.json())
         return response.json()
 
     def get_vlanviews(self):
@@ -1189,7 +1267,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         url_path = "vlanview"
         params = {"_return_fields": "name,comment,start_vlan_id,end_vlan_id,extattrs"}
         response = self._request("GET", url_path, params=params)
-        logger.info(response.json())
+        logger.debug(response.json())
         return response.json()
 
     def get_vlans(self):
@@ -1238,8 +1316,11 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             ]
         )
         response = self._request("POST", url_path, data=payload)
-        logger.info(response.json()[0])
-        return response.json()[0]
+        logger.debug(response.json())
+        if len(response.json()):
+            return response.json()[0]
+        else:
+            return []
 
     def create_vlan(self, vlan_id, vlan_name, vlan_view):
         """Create a VLAN in Infoblox.
@@ -1266,7 +1347,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         params = {}
         payload = {"parent": parent, "id": vlan_id, "name": vlan_name}
         response = self._request("POST", url_path, params=params, json=payload)
-        logger.info(response.json())
+        logger.debug(response.json())
         return response.json()
 
     @staticmethod
@@ -1285,7 +1366,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             return "slaac"
         return "host"
 
-    def _find_resource(self, resource, **params):
+    def _find_matching_resources(self, resource, **params):
         """Find the resource for given parameters.
 
         Returns:
@@ -1295,17 +1376,19 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             _ref: fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMjIwLjAuMy4wLi4:10.220.0.3/default
         """
         response = self._request("GET", resource, params=params)
-        logger.info(response.json())
-        for _resource in response.json():
-            return _resource.get("_ref")
+        logger.debug(response.json())
         return response.json()
 
     # TODO: See if we should accept params dictionary and extended to both host record and fixed address
-    def update_ipaddress(self, ip_address, **data):  # pylint: disable=inconsistent-return-statements
-        """Update a Network object with a given prefix.
+    # TODO: This doesn't work very well at all currently @progala
+    # Perhaps make multiple searches, or go through types returned by the search
+    def update_ipaddress(
+        self, ip_address, network_view: Optional[str] = None, **data
+    ):  # pylint: disable=inconsistent-return-statements
+        """Update a IP Address object with a given ip address.
 
         Args:
-            prefix (str): Valid IP prefix
+            ip_address (str): Valid IP address
             data (dict): keyword args used to update the object e.g. comment="updateme"
 
         Returns:
@@ -1317,33 +1400,70 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             "ipv4addr": "10.220.0.3"
         }
         """
-        resource = self._find_resource("search", address=ip_address)
-        if not resource:
+        # resources = self._find_matching_resources("search", search_string=ip_address, objtype="fixedaddress")
+        # resources.extend(self._find_matching_resources("search", search_string=ip_address, objtype="record:host"))
+        resources = self._find_matching_resources("search", address=ip_address)
+        if not resources:
+            return
+        found_ipv4_ref = None
+        # We can get multiple resources of varying types. The name of resource is embedded in the `_ref` attr
+        resource_types = ["fixedaddress"]
+        if network_view:
+            for resource in resources:
+                ref = resource.get("_ref")
+                if ref.split("/")[0] not in resource_types:
+                    continue
+                if resource.get("network_view") != network_view:
+                    continue
+                if resource.get("ipv4addr") != ip_address:
+                    continue
+                found_ipv4_ref = ref
+                break
+        else:
+            for resource in resources:
+                ref = resource.get("_ref")
+                if ref.split("/")[0] not in resource_types:
+                    continue
+                if resource.get("ipv4addr") != ip_address:
+                    continue
+                found_ipv4_ref = ref
+                break
+
+        if not found_ipv4_ref:
             return
         # params = {"_return_fields": "ipv4addr", "_return_as_object": 1}
         params = {}
         try:
-            logger.info(data)
-            response = self._request("PUT", path=resource, params=params, json=data["data"])
+            logger.debug(data)
+            response = self._request("PUT", path=found_ipv4_ref, params=params, json=data)
         except HTTPError as err:
-            logger.info("Resource: %s", resource)
+            logger.info("Resource: %s", found_ipv4_ref)
             logger.info("Could not update IP address: %s", err.response.text)
             return
         logger.info("Infoblox IP Address updated: %s", response.json())
         return response.json()
 
-    def get_tree_from_container(self, root_container: str) -> list:
+    def get_tree_from_container(self, root_container: str, network_view: Optional[str] = None) -> list:
         """Returns the list of all child containers from a given root container."""
         flattened_tree = []
         stack = []
         root_containers = self.get_network_containers(prefix=root_container)
+        if network_view:
+            root_containers = self.get_network_containers(prefix=root_container, network_view=network_view)
+        else:
+            root_containers = self.get_network_containers(prefix=root_container)
         if root_containers:
             stack = [root_containers[0]]
 
+        get_child_network_containers_kwargs = {}
+        if network_view:
+            get_child_network_containers_kwargs["network_view"] = network_view
+
         while stack:
             current_node = stack.pop()
+            get_child_network_containers_kwargs.update({"prefix": current_node["network"]})
             flattened_tree.append(current_node)
-            children = self.get_child_network_containers(prefix=current_node["network"])
+            children = self.get_child_network_containers(**get_child_network_containers_kwargs)
             stack.extend(children)
 
         return flattened_tree
@@ -1359,7 +1479,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
 
         return new_list
 
-    def get_network_containers(self, prefix: str = "", ipv6: bool = False):
+    def get_network_containers(self, prefix: str = "", ipv6: bool = False, network_view: Optional[str] = None):
         """Get all Network Containers.
 
         Args:
@@ -1391,19 +1511,19 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             "_return_fields": "network,comment,network_view,extattrs,rir_organization,rir",
             "_max_results": 100000,
         }
-        if PLUGIN_CFG.get("NAUTOBOT_INFOBLOX_NETWORK_VIEW"):
-            params.update({"network_view": PLUGIN_CFG["NAUTOBOT_INFOBLOX_NETWORK_VIEW"]})
+        if network_view:
+            params.update({"network_view": network_view})
         if prefix:
             params.update({"network": prefix})
         response = self._request("GET", url_path, params=params)
         response = response.json()
-        logger.info(response)
+        logger.debug(response)
         results = response.get("result", [])
         for res in results:
             res.update({"status": "container"})
         return results
 
-    def get_child_network_containers(self, prefix: str):
+    def get_child_network_containers(self, prefix: str, network_view: Optional[str] = None):
         """Get all Child Network Containers for Container.
 
         Returns:
@@ -1435,18 +1555,18 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             "_return_fields": "network,comment,network_view,extattrs,rir_organization,rir",
             "_max_results": 100000,
         }
-        if PLUGIN_CFG.get("NAUTOBOT_INFOBLOX_NETWORK_VIEW"):
-            params.update({"network_view": PLUGIN_CFG["NAUTOBOT_INFOBLOX_NETWORK_VIEW"]})
+        if network_view:
+            params.update({"network_view": network_view})
         params.update({"network_container": prefix})
         response = self._request("GET", url_path, params=params)
         response = response.json()
-        logger.info(response)
+        logger.debug(response)
         results = response.get("result", [])
         for res in results:
             res.update({"status": "container"})
         return results
 
-    def get_child_subnets_from_container(self, prefix: str):
+    def get_child_subnets_from_container(self, prefix: str, network_view: Optional[str] = None):
         """Get child subnets from container.
 
         Args:
@@ -1483,8 +1603,8 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             "_return_fields": "network,network_view,comment,extattrs,rir_organization,rir,vlans",
             "_max_results": 10000,
         }
-        if PLUGIN_CFG.get("NAUTOBOT_INFOBLOX_NETWORK_VIEW"):
-            params.update({"network_view": PLUGIN_CFG["NAUTOBOT_INFOBLOX_NETWORK_VIEW"]})
+        if network_view:
+            params.update({"network_view": network_view})
         params.update({"network_container": prefix})
 
         try:
@@ -1493,5 +1613,113 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             logger.info(err.response.text)
             return []
         response = response.json()
-        logger.info(response)
+        logger.debug(response)
         return response.get("result")
+
+    def get_network_views(self):
+        """Get all network views.
+
+        Returns:
+            (list) of record dicts
+
+        Return Response:
+        [
+          {
+            "_ref": "networkview/ZG5zLm5ldHdvcmtfdmlldyQw:default/true",
+            "associated_dns_views": [
+              "default"
+            ],
+            "extattrs": {
+
+            },
+            "is_default": true,
+            "name": "default"
+          },
+          {
+            "_ref": "networkview/ZG5zLm5ldHdvcmtfdmlldyQx:prod/false",
+            "associated_dns_views": [
+              "default.prod"
+            ],
+            "extattrs": {
+
+            },
+            "is_default": false,
+            "name": "prod"
+          },
+          {
+            "_ref": "networkview/ZG5zLm5ldHdvcmtfdmlldyQy:dev/false",
+            "associated_dns_views": [
+              "default.dev"
+            ],
+            "extattrs": {
+
+            },
+            "is_default": false,
+            "name": "dev"
+          }
+        ]
+        """
+        url_path = "networkview"
+        params = {
+            "_return_fields": "name,associated_dns_views,extattrs,comment,is_default",
+        }
+        try:
+            response = self._request("GET", url_path, params=params)
+        except HTTPError as err:
+            logger.info(err.response.text)
+            return []
+        logger.debug(response.json())
+        return response.json()
+
+    def get_network_view(self, name: str):
+        """Get network view object for given name.
+
+        Args:
+            name (str): Name of the network view - 'dev'
+
+        Returns:
+            (dict) record dict
+
+        Return Response:
+        [
+            {
+              "_ref": "networkview/ZG5zLm5ldHdvcmtfdmlldyQy:dev/false",
+              "associated_dns_views": [
+                "default.dev"
+              ],
+              "extattrs": {
+
+              },
+              "is_default": false,
+              "name": "dev"
+            }
+        ]
+        """
+        url_path = "networkview"
+        params = {
+            "name": name,
+            "_return_fields": "name,associated_dns_views,extattrs,comment,is_default",
+        }
+        try:
+            response = self._request("GET", path=url_path, params=params)
+        except HTTPError as err:
+            logger.info(err.response.text)
+            return []
+        logger.debug(response.json())
+        return response.json()
+
+    def get_default_dns_view_for_network_view(self, network_view: str):
+        """Get default (first on the list) DNS view for given network view.
+
+        Args:
+            network_view (str): Name of the network view - 'dev'
+
+        Returns:
+            (str) name of the default dns view
+        """
+        _network_view = self.get_network_view(network_view)
+        logger.info(_network_view)
+        if _network_view:
+            return _network_view[0]["associated_dns_views"][0]
+        else:
+            return None
