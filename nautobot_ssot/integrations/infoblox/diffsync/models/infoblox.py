@@ -1,7 +1,7 @@
 """Infoblox Models for Infoblox integration with SSoT app."""
 
 from requests.exceptions import HTTPError
-from nautobot_ssot.integrations.infoblox.diffsync.models.base import Network, IPAddress, Vlan, VlanView
+from nautobot_ssot.integrations.infoblox.diffsync.models.base import Namespace, Network, IPAddress, Vlan, VlanView
 
 
 class InfobloxNetwork(Network):
@@ -104,3 +104,9 @@ class InfobloxIPAddress(IPAddress):
     #     """Delete an IP Address from Infoblox."""
     #     self.diffsync.conn.delete_host_record(self.get_identifiers()["address"])
     #     return super().delete()
+
+
+class InfobloxNamespace(Namespace):
+    """Infoblox implementation of the Namespace model."""
+
+    # Currently there are no plans to modify Network Views in Infoblox
