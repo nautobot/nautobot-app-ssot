@@ -13,7 +13,7 @@ from nautobot.dcim.models import Device, DeviceType, Interface, Location, Locati
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.jobs import ObjectVar, StringVar
 from nautobot.extras.models import ExternalIntegration, Role
-from nautobot.ipam.models import Prefix
+from nautobot.ipam.models import IPAddress, Prefix
 from nautobot.tenancy.models import Tenant
 
 from diffsync import DiffSync
@@ -117,6 +117,32 @@ class PrefixModel(NautobotModel):
     description: str
 
     # Not in _attributes or _identifiers, hence not included in diff calculations
+    pk: Optional[UUID]
+
+
+class IPAddressModel(NautobotModel):
+    """Shared data model representing an IPAddress in either of the local or remote Nautobot instances."""
+
+    # Metadata about this model
+    _model = IPAddress
+    _modelname = "ipaddress"
+    _identifiers = ("host",)
+    _attributes = (
+        "mask_length",
+        "parent__network",
+        "status__name",
+        "ip_version",
+        "tenant__name",
+    )
+
+    # Data type declarations for all identifiers and attributes
+    host: str
+    mask_length: int
+    parent__network: str
+    status__name: str
+    ip_version: int
+    tenant__name: Optional[str]
+
     pk: Optional[UUID]
 
 
@@ -388,6 +414,7 @@ class NautobotRemote(DiffSync):
     location = LocationRemoteModel
     tenant = TenantRemoteModel
     prefix = PrefixRemoteModel
+    ipaddress = IPAddressModel
     manufacturer = ManufacturerModel
     device_type = DeviceTypeModel
     platform = PlatformModel
@@ -396,7 +423,17 @@ class NautobotRemote(DiffSync):
     interface = InterfaceModel
 
     # Top-level class labels, i.e. those classes that are handled directly rather than as children of other models
-    top_level = ["tenant", "locationtype", "location", "manufacturer", "platform", "role", "device"]
+    top_level = [
+        "tenant",
+        "locationtype",
+        "location",
+        "manufacturer",
+        "platform",
+        "role",
+        "device",
+        "prefix",
+        "ipaddress",
+    ]
 
     def __init__(self, *args, url=None, token=None, job=None, **kwargs):
         """Instantiate this class, but do not load data immediately from the remote system.
@@ -435,6 +472,7 @@ class NautobotRemote(DiffSync):
         self.load_roles()
         self.load_tenants()
         self.load_prefixes()
+        self.load_ipaddresses()
         self.load_manufacturers()
         self.load_device_types()
         self.load_platforms()
@@ -507,6 +545,21 @@ class NautobotRemote(DiffSync):
             )
             self.add(prefix)
             self.job.logger.debug(f"Loaded {prefix} from remote Nautobot instance")
+
+    def load_ipaddresses(self):
+        """Load IPAddresses data from the remote Nautobot instance."""
+        for ipaddr_entry in self._get_api_data("api/ipam/ipaddresses/?depth=2"):
+            ipaddr = self.ipaddress(
+                host=ipaddr_entry["host"],
+                mask_length=ipaddr_entry["mask_length"],
+                parent__network=ipaddr_entry["parent"]["network"],
+                status__name=ipaddr_entry["status"]["name"],
+                ip_version=ipaddr_entry["ip_version"],
+                tenant__name=ipaddr_entry["tenant"]["name"],
+                pk=ipaddr_entry["id"],
+            )
+            self.add(ipaddr)
+            self.job.logger.debug(f"Loaded {ipaddr} from remote Nautobot instance")
 
     def load_manufacturers(self):
         """Load Manufacturers data from the remote Nautobot instance."""
@@ -651,6 +704,7 @@ class NautobotLocal(NautobotAdapter):
     location = LocationModel
     tenant = TenantModel
     prefix = PrefixModel
+    ipaddress = IPAddressModel
     manufacturer = ManufacturerModel
     device_type = DeviceTypeModel
     platform = PlatformModel
@@ -659,7 +713,17 @@ class NautobotLocal(NautobotAdapter):
     interface = InterfaceModel
 
     # Top-level class labels, i.e. those classes that are handled directly rather than as children of other models
-    top_level = ["tenant", "locationtype", "location", "manufacturer", "platform", "role", "device"]
+    top_level = [
+        "tenant",
+        "locationtype",
+        "location",
+        "manufacturer",
+        "platform",
+        "role",
+        "device",
+        "prefix",
+        "ipaddress",
+    ]
 
 
 # The actual Data Source and Data Target Jobs are relatively simple to implement
