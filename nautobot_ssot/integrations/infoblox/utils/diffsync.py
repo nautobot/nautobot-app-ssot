@@ -97,3 +97,20 @@ def get_default_custom_fields(cf_contenttype: ContentType) -> dict:
             if customfield.key not in default_cfs:
                 default_cfs[customfield.key] = None
     return default_cfs
+
+
+def map_network_view_to_namespace(network_view: str) -> str:
+    """Remaps Infoblox Network View name to Nautobot Namespace name.
+
+    This matters most for mapping default "default" Network View to default Namespace "Global".
+
+    Args:
+        network_view (str): Infoblox Network View name
+
+    Returns:
+        (str) corresponding Nautobot Namespace name
+    """
+    network_view_to_namespace = {
+        "default": "Global",
+    }
+    return network_view_to_namespace.get(network_view, network_view)
