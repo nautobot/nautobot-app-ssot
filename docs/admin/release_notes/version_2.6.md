@@ -38,7 +38,7 @@
 
 - [#435](https://github.com/nautobot/nautobot-app-ssot/issues/435) - Fixed handling of DLM App installed but not enabled throwing RuntimeError.
 - [#436](https://github.com/nautobot/nautobot-app-ssot/issues/436) - Fixed IPAddress attribute to be ip_version.
-- [#436](https://github.com/nautobot/nautobot-app-ssot/issues/436) - Fixed IPAddress Status to Active if available, else Reserved.
+- [#436](https://github.com/nautobot/nautobot-app-ssot/issues/436) - Fixed IPAddress Status incorrectly being set to Reserved when the status in Device42 showed as "available".
 - [#436](https://github.com/nautobot/nautobot-app-ssot/issues/436) - Fixed multiple bugs when assigning IPAddresses to Interfaces.
 - [#436](https://github.com/nautobot/nautobot-app-ssot/issues/436) - Fixed check for Building definiton when creating a VLAN.
 - [#436](https://github.com/nautobot/nautobot-app-ssot/issues/436) - Fixed VLAN to use location instead of location_id in create().
