@@ -36,6 +36,7 @@ class InfobloxDataSource(DataSource):
     def data_mappings(cls):
         """Show mapping of models between Infoblox and Nautobot."""
         return (
+            DataMapping("network_view", None, "Namespace", reverse("ipam:namespace_list")),
             DataMapping("network", None, "Prefix", reverse("ipam:prefix_list")),
             DataMapping("ipaddress", None, "IP Address", reverse("ipam:ipaddress_list")),
             DataMapping("vlan", None, "VLAN", reverse("ipam:vlan_list")),
