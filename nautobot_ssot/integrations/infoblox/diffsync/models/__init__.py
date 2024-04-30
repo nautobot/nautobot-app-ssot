@@ -1,5 +1,4 @@
 """Initialize models for Nautobot and Infoblox."""
-
 from .nautobot import NautobotNamespace, NautobotNetwork, NautobotIPAddress, NautobotVlanGroup, NautobotVlan
 from .infoblox import InfobloxNamespace, InfobloxNetwork, InfobloxIPAddress, InfobloxVLANView, InfobloxVLAN
 
