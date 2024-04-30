@@ -109,17 +109,21 @@ class InfobloxAdapter(DiffSync):
             if _ip["names"]:
                 dns_name = get_dns_name(possible_fqdn=_ip["names"][0])
             ip_ext_attrs = get_ext_attr_dict(extattrs=_ip.get("extattrs", {}))
-            new_ip = self.ipaddress(
-                address=_ip["ip_address"],
-                prefix=_ip["network"],
-                prefix_length=prefix_length,
-                dns_name=dns_name,
-                status=self.conn.get_ipaddr_status(_ip),
-                ip_addr_type=self.conn.get_ipaddr_type(_ip),
-                description=_ip["comment"],
-                ext_attrs={**default_ext_attrs, **ip_ext_attrs},
+            _, loaded = self.get_or_instantiate(
+                self.ipaddress,
+                ids={"address": _ip["ip_address"], "prefix": _ip["network"], "prefix_length": prefix_length},
+                attrs={
+                    "dns_name": dns_name,
+                    "status": self.conn.get_ipaddr_status(_ip),
+                    "ip_addr_type": self.conn.get_ipaddr_type(_ip),
+                    "description": _ip["comment"],
+                    "ext_attrs": {**default_ext_attrs, **ip_ext_attrs},
+                },
             )
-            self.add(new_ip)
+            if not loaded:
+                self.job.logger.warning(
+                    f"Duplicate IP Address {_ip['address']}/{prefix_length} in {_ip['network']} attempting to be loaded."
+                )
 
     def load_vlanviews(self):
         """Load InfobloxVLANView DiffSync model."""
