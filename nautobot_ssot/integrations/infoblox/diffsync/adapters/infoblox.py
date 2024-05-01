@@ -122,7 +122,7 @@ class InfobloxAdapter(DiffSync):
             )
             if not loaded:
                 self.job.logger.warning(
-                    f"Duplicate IP Address {_ip['address']}/{prefix_length} in {_ip['network']} attempting to be loaded."
+                    f"Duplicate IP Address {_ip['ip_address']}/{prefix_length} in {_ip['network']} attempting to be loaded."
                 )
 
     def load_vlanviews(self):
