@@ -50,6 +50,8 @@ class InfobloxAdapter(DiffSync):
     def load_prefixes(self):
         """Load InfobloxNetwork DiffSync model."""
         if PLUGIN_CFG.get("infoblox_import_subnets"):
+            if self.job.debug:
+                self.job.logger.debug(f"Loading Subnets from Infoblox.")
             subnets = []
             containers = []
             for prefix in PLUGIN_CFG["infoblox_import_subnets"]:
@@ -101,6 +103,8 @@ class InfobloxAdapter(DiffSync):
 
     def load_ipaddresses(self):
         """Load InfobloxIPAddress DiffSync model."""
+        if self.job.debug:
+            self.job.logger.debug(f"Loading IP addresses from Infoblox.")
         ipaddrs = self.conn.get_all_ipv4address_networks(prefixes=self.subnets)
         default_ext_attrs = get_default_ext_attrs(review_list=ipaddrs)
         for _ip in ipaddrs:
@@ -127,6 +131,8 @@ class InfobloxAdapter(DiffSync):
 
     def load_vlanviews(self):
         """Load InfobloxVLANView DiffSync model."""
+        if self.job.debug:
+            self.job.logger.debug(f"Loading VLAN Views from Infoblox.")
         vlanviews = self.conn.get_vlanviews()
         default_ext_attrs = get_default_ext_attrs(review_list=vlanviews)
         for _vv in vlanviews:
@@ -140,6 +146,8 @@ class InfobloxAdapter(DiffSync):
 
     def load_vlans(self):
         """Load InfobloxVlan DiffSync model."""
+        if self.job.debug:
+            self.job.logger.debug(f"Loading VLANs from Infoblox.")
         vlans = self.conn.get_vlans()
         default_ext_attrs = get_default_ext_attrs(review_list=vlans)
         for _vlan in vlans:
