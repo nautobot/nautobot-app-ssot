@@ -1,0 +1,27 @@
+{
+    "49aa97a7-5d45-4303-89dd-f76dfbfc624a": {
+        "name": "Floor1",
+        "loc_type": "area",
+        "parent": null
+    },
+    "5c59e37a-f12d-4e84-a085-ac5c02f240d4": {
+        "name": "Building1",
+        "loc_type": "area",
+        "parent": null
+    },
+    "3f07768d-6b5c-4b4d-8577-29f765bd49c9": {
+        "name": "NY",
+        "loc_type": "area",
+        "parent": null
+    },
+    "aa197d0e-75e2-4d46-bf51-97781931d034": {
+        "name": "DC1",
+        "loc_type": "area",
+        "parent": null
+    },
+    "0ca6155d-207d-4760-961a-7e49149a684a": {
+        "name": "Main Floor",
+        "loc_type": "area",
+        "parent": null
+    }
+}
