@@ -1391,8 +1391,8 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             "_return_fields": "network,comment,network_view,extattrs,rir_organization,rir",
             "_max_results": 100000,
         }
-        if PLUGIN_CFG.get("NAUTOBOT_INFOBLOX_NETWORK_VIEW"):
-            params.update({"network_view": PLUGIN_CFG["NAUTOBOT_INFOBLOX_NETWORK_VIEW"]})
+        if PLUGIN_CFG.get("infoblox_network_view"):
+            params.update({"network_view": PLUGIN_CFG["infoblox_network_view"]})
         if prefix:
             params.update({"network": prefix})
         response = self._request("GET", url_path, params=params)
