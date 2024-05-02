@@ -1,0 +1,19 @@
+[
+    {
+        "additionalInfo": [
+            {
+                "attributes": {
+                    "addressInheritedFrom": "3f07768d-6b5c-4b4d-8577-29f765bd49c9",
+                    "type": "area"
+                },
+                "nameSpace": "Location"
+            }
+        ],
+        "id": "3f07768d-6b5c-4b4d-8577-29f765bd49c9",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "name": "NY",
+        "parentId": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/3f07768d-6b5c-4b4d-8577-29f765bd49c9",
+        "siteNameHierarchy": "Global/NY"
+    }
+]
