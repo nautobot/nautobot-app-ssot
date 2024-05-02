@@ -1,0 +1,161 @@
+[
+    {
+        "additionalInfo": [],
+        "id": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "name": "Global",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+        "siteNameHierarchy": "Global"
+    },
+    {
+        "additionalInfo": [
+            {
+                "attributes": {
+                    "address": "",
+                    "addressInheritedFrom": "5c59e37a-f12d-4e84-a085-ac5c02f240d4",
+                    "type": "floor"
+                },
+                "nameSpace": "Location"
+            },
+            {
+                "attributes": {
+                    "height": "10.0",
+                    "length": "100.0",
+                    "offsetX": "0.0",
+                    "offsetY": "0.0",
+                    "width": "100.0"
+                },
+                "nameSpace": "mapGeometry"
+            },
+            {
+                "attributes": {
+                    "member.umbrellaEnabled.direct": "0",
+                    "member.umbrellaNotReady.direct": "2",
+                    "member.umbrellaReady.direct": "0",
+                    "member.umbrellaReadyNotEnabled.direct": "0"
+                },
+                "nameSpace": "UMBRELLA"
+            },
+            {
+                "attributes": {
+                    "floorIndex": "1",
+                    "rfModel": "95095"
+                },
+                "nameSpace": "mapsSummary"
+            },
+            {
+                "attributes": {
+                    "ETAReady": "true",
+                    "member.compatibleWithNaasOnly.direct": "0",
+                    "member.etaCapable.direct": "2",
+                    "member.etaEnabled.direct": "0",
+                    "member.etaEnabledNaasOnly.direct": "0",
+                    "member.etaNotReady.direct": "0",
+                    "member.etaReady.direct": "2",
+                    "member.etaReadyNotEnabled.direct": "2"
+                },
+                "nameSpace": "ETA"
+            }
+        ],
+        "id": "49aa97a7-5d45-4303-89dd-f76dfbfc624a",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "name": "Floor1",
+        "parentId": "5c59e37a-f12d-4e84-a085-ac5c02f240d4",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/eed5ccc3-d76f-46e2-9d8d-97624f5418ac/5c59e37a-f12d-4e84-a085-ac5c02f240d4/49aa97a7-5d45-4303-89dd-f76dfbfc624a",
+        "siteNameHierarchy": "Global/NY/Building1/Floor1"
+    },
+    {
+        "additionalInfo": [
+            {
+                "attributes": {
+                    "address": "",
+                    "addressInheritedFrom": "5c59e37a-f12d-4e84-a085-ac5c02f240d4",
+                    "country": "United States",
+                    "latitude": "38.581405819248886",
+                    "longitude": "-121.49309067224416",
+                    "type": "building"
+                },
+                "nameSpace": "Location"
+            }
+        ],
+        "id": "5c59e37a-f12d-4e84-a085-ac5c02f240d4",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "name": "Building1",
+        "parentId": "3f07768d-6b5c-4b4d-8577-29f765bd49c9",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/3f07768d-6b5c-4b4d-8577-29f765bd49c9/5c59e37a-f12d-4e84-a085-ac5c02f240d4",
+        "siteNameHierarchy": "Global/NY/Building1"
+    },
+    {
+        "additionalInfo": [
+            {
+                "attributes": {
+                    "addressInheritedFrom": "3f07768d-6b5c-4b4d-8577-29f765bd49c9",
+                    "type": "area"
+                },
+                "nameSpace": "Location"
+            }
+        ],
+        "id": "3f07768d-6b5c-4b4d-8577-29f765bd49c9",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "name": "NY",
+        "parentId": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/3f07768d-6b5c-4b4d-8577-29f765bd49c9",
+        "siteNameHierarchy": "Global/NY"
+    },
+    {
+        "parentId": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+        "additionalInfo": [
+            {
+                "nameSpace": "Location",
+                "attributes": {
+                    "country": "United States",
+                    "address": "",
+                    "latitude": "40.72947644312811",
+                    "addressInheritedFrom": "aa197d0e-75e2-4d46-bf51-97781931d034",
+                    "type": "building",
+                    "longitude": "-73.99464143036406"
+                }
+            }
+        ],
+        "name": "DC1",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "id": "aa197d0e-75e2-4d46-bf51-97781931d034",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/aa197d0e-75e2-4d46-bf51-97781931d034",
+        "siteNameHierarchy": "Global/DC1"
+    },
+    {
+        "parentId": "aa197d0e-75e2-4d46-bf51-97781931d034",
+        "additionalInfo": [
+            {
+                "nameSpace": "Location",
+                "attributes": {
+                    "address": "",
+                    "addressInheritedFrom": "aa197d0e-75e2-4d46-bf51-97781931d034",
+                    "type": "floor"
+                }
+            },
+            {
+                "nameSpace": "mapGeometry",
+                "attributes": {
+                    "offsetX": "0.0",
+                    "offsetY": "0.0",
+                    "length": "100.0",
+                    "width": "100.0",
+                    "height": "10.0"
+                }
+            },
+            {
+                "nameSpace": "mapsSummary",
+                "attributes": {
+                    "rfModel": "95095",
+                    "floorIndex": "1"
+                }
+            }
+        ],
+        "name": "Main Floor",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "id": "0ca6155d-207d-4760-961a-7e49149a684a",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/aa197d0e-75e2-4d46-bf51-97781931d034/0ca6155d-207d-4760-961a-7e49149a684a",
+        "siteNameHierarchy": "Global/DC1/Main Floor"
+    }
+]
