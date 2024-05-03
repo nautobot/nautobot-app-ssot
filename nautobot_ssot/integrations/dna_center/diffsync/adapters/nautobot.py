@@ -28,7 +28,7 @@ from nautobot.ipam.models import Namespace
 from nautobot.ipam.models import Prefix as OrmPrefix
 from nautobot.tenancy.models import Tenant as OrmTenant
 from nautobot_ssot.jobs.base import DataTarget
-from nautobot_ssot_dna_center.diffsync.models.nautobot import (
+from nautobot_ssot.integrations.dna_center.diffsync.models.nautobot import (
     NautobotArea,
     NautobotBuilding,
     NautobotDevice,
