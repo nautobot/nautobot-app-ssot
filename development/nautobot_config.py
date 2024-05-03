@@ -194,6 +194,7 @@ PLUGINS_CONFIG = {
         "enable_aci": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ACI")),
         "enable_aristacv": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ARISTACV")),
         "enable_device42": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_DEVICE42")),
+        "enable_dna_center": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_DNA_CENTER")),
         "enable_infoblox": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_INFOBLOX")),
         "enable_ipfabric": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_IPFABRIC")),
         "enable_servicenow": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_SERVICENOW")),
@@ -214,6 +215,10 @@ PLUGINS_CONFIG = {
         "device42_role_prepend": "",
         "device42_ignore_tag": "",
         "device42_hostname_mapping": [],
+        "dna_center_import_global": is_truthy(os.getenv("NAUTOBOT_DNAC_SSOT_DNA_CENTER_IMPORT_GLOBAL", True)),
+        "dna_center_import_merakis": is_truthy(os.getenv("NAUTOBOT_DNAC_SSOT_DNA_CENTER_IMPORT_MERAKIS", False)),
+        "dna_center_update_locations": is_truthy(os.getenv("NAUTOBOT_DNAC_SSOT_DNA_CENTER_UPDATE_LOCATIONS", True)),
+        "dna_center_show_failures": is_truthy(os.getenv("NAUTOBOT_DNAC_SSOT_DNA_CENTER_SHOW_FAILURES", True)),
         "infoblox_default_status": os.getenv("NAUTOBOT_SSOT_INFOBLOX_DEFAULT_STATUS", "active"),
         "infoblox_enable_sync_to_infoblox": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_ENABLE_SYNC_TO_INFOBLOX")),
         "infoblox_import_objects_ip_addresses": is_truthy(
