@@ -5,7 +5,7 @@ from requests import Response
 from parameterized import parameterized
 from nautobot.core.testing import TestCase
 from dnacentersdk.exceptions import dnacentersdkException
-from nautobot_ssot_dna_center.tests.fixtures import (
+from nautobot_ssot.tests.dna_center.fixtures import (
     DEVICE_DETAIL_FIXTURE,
     DEVICE_FIXTURE,
     LOCATION_FIXTURE,
@@ -15,7 +15,7 @@ from nautobot_ssot_dna_center.tests.fixtures import (
     RECV_LOCATION_FIXTURE,
     RECV_PORT_FIXTURE,
 )
-from nautobot_ssot_dna_center.utils.dna_center import DnaCenterClient
+from nautobot_ssot.integrations.dna_center.utils.dna_center import DnaCenterClient
 
 
 class TestDnaCenterClient(TestCase):  # pylint: disable=too-many-public-methods
