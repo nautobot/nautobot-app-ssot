@@ -1,6 +1,6 @@
 """Nautobot SSoT for Cisco DNA Center DiffSync models for Nautobot SSoT for Cisco DNA Center SSoT."""
 
-from nautobot_ssot_dna_center.diffsync.models.base import (
+from nautobot_ssot.integrations.dna_center.diffsync.models.base import (
     Area,
     Building,
     Floor,
