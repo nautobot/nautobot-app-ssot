@@ -9,8 +9,8 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from nautobot.tenancy.models import Tenant
 
-from nautobot_ssot_dna_center.constants import DNAC_PLATFORM_MAPPER, PLUGIN_CFG
-from nautobot_ssot_dna_center.diffsync.models.dna_center import (
+from nautobot_ssot.integrations.dna_center.constants import DNAC_PLATFORM_MAPPER, PLUGIN_CFG
+from nautobot_ssot.integrations.dna_center.diffsync.models.dna_center import (
     DnaCenterArea,
     DnaCenterBuilding,
     DnaCenterDevice,
@@ -20,7 +20,7 @@ from nautobot_ssot_dna_center.diffsync.models.dna_center import (
     DnaCenterPort,
     DnaCenterIPAddressonInterface,
 )
-from nautobot_ssot_dna_center.utils.dna_center import DnaCenterClient
+from nautobot_ssot.integrations.dna_center.utils.dna_center import DnaCenterClient
 
 
 class DnaCenterAdapter(DiffSync):
