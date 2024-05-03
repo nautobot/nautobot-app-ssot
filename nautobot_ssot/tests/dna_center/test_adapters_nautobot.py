@@ -16,8 +16,8 @@ from nautobot.dcim.models import (
 from nautobot.extras.models import Status, JobResult, Role
 from nautobot.ipam.models import IPAddress, Namespace, Prefix, IPAddressToInterface
 from nautobot.core.testing import TransactionTestCase
-from nautobot_ssot_dna_center.jobs import DnaCenterDataSource
-from nautobot_ssot_dna_center.diffsync.adapters.nautobot import NautobotAdapter
+from nautobot_ssot.integrations.dna_center.jobs import DnaCenterDataSource
+from nautobot_ssot.integrations.dna_center.diffsync.adapters.nautobot import NautobotAdapter
 
 
 class NautobotDiffSyncTestCase(TransactionTestCase):
