@@ -11,7 +11,7 @@ from nautobot.dcim.models import (
 from nautobot.extras.models import Status, Role
 from nautobot.tenancy.models import Tenant
 from nautobot.core.testing import TransactionTestCase
-from nautobot_ssot_dna_center.diffsync.models.nautobot import (
+from nautobot_ssot.integrations.dna_center.diffsync.models.nautobot import (
     NautobotArea,
     NautobotBuilding,
     NautobotFloor,

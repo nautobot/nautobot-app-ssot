@@ -10,8 +10,8 @@ from nautobot.dcim.models import Device, DeviceType, Interface, Manufacturer, Lo
 from nautobot.extras.models import CustomField, JobResult, Status, Role
 from nautobot.ipam.models import IPAddress, IPAddressToInterface, Prefix, Namespace
 from nautobot.core.testing import TransactionTestCase
-from nautobot_ssot_dna_center.diffsync.adapters.dna_center import DnaCenterAdapter
-from nautobot_ssot_dna_center.tests.fixtures import (
+from nautobot_ssot.integrations.dna_center.diffsync.adapters.dna_center import DnaCenterAdapter
+from nautobot_ssot.tests.dna_center.fixtures import (
     LOCATION_FIXTURE,
     EXPECTED_DNAC_LOCATION_MAP,
     EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL,
@@ -23,7 +23,7 @@ from nautobot_ssot_dna_center.tests.fixtures import (
     EXPECTED_BUILDINGS,
     EXPECTED_FLOORS,
 )
-from nautobot_ssot_dna_center.jobs import DnaCenterDataSource
+from nautobot_ssot.integrations.dna_center.jobs import DnaCenterDataSource
 
 
 @override_settings(PLUGINS_CONFIG={"nautobot_ssot_dna_center": {"import_global": True}})
