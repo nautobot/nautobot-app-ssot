@@ -14,8 +14,12 @@ from nautobot.dcim.models import (
 )
 from nautobot.extras.models import Role
 from nautobot.ipam.models import IPAddress, IPAddressToInterface, Prefix, Namespace
-from nautobot_ssot_dna_center.diffsync.models import base
-from nautobot_ssot_dna_center.utils.nautobot import add_software_lcm, assign_version_to_device, verify_platform
+from nautobot_ssot.integrations.dna_center.diffsync.models import base
+from nautobot_ssot.integrations.dna_center.utils.nautobot import (
+    add_software_lcm,
+    assign_version_to_device,
+    verify_platform,
+)
 
 try:
     import nautobot_device_lifecycle_mgmt  # noqa: F401
