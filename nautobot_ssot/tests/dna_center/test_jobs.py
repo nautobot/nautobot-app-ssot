@@ -3,7 +3,7 @@
 from django.test import TestCase
 from django.urls import reverse
 
-from nautobot_ssot_dna_center import jobs
+from nautobot_ssot.integrations.dna_center import jobs
 
 
 class DnaCenterDataSourceJobTest(TestCase):
