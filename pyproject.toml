@@ -119,6 +119,7 @@ all = [
     "requests",
     "requests-oauthlib",
     "six",
+    "dnacentersdk",
 ]
 aristacv = [
     "cloudvision",
@@ -126,6 +127,9 @@ aristacv = [
 ]
 device42 = [
     "requests",
+]
+dna_center = [
+    "dnacentersdk",
 ]
 infoblox = [
     "dnspython",
