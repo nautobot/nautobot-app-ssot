@@ -50,6 +50,8 @@ class InfobloxAdapter(DiffSync):
     def load_prefixes(self):
         """Load InfobloxNetwork DiffSync model."""
         if PLUGIN_CFG.get("infoblox_import_subnets"):
+            if self.job.debug:
+                self.job.logger.debug("Loading Subnets from Infoblox.")
             subnets = []
             containers = []
             for prefix in PLUGIN_CFG["infoblox_import_subnets"]:
@@ -101,6 +103,8 @@ class InfobloxAdapter(DiffSync):
 
     def load_ipaddresses(self):
         """Load InfobloxIPAddress DiffSync model."""
+        if self.job.debug:
+            self.job.logger.debug("Loading IP addresses from Infoblox.")
         ipaddrs = self.conn.get_all_ipv4address_networks(prefixes=self.subnets)
         default_ext_attrs = get_default_ext_attrs(review_list=ipaddrs)
         for _ip in ipaddrs:
@@ -109,20 +113,26 @@ class InfobloxAdapter(DiffSync):
             if _ip["names"]:
                 dns_name = get_dns_name(possible_fqdn=_ip["names"][0])
             ip_ext_attrs = get_ext_attr_dict(extattrs=_ip.get("extattrs", {}))
-            new_ip = self.ipaddress(
-                address=_ip["ip_address"],
-                prefix=_ip["network"],
-                prefix_length=prefix_length,
-                dns_name=dns_name,
-                status=self.conn.get_ipaddr_status(_ip),
-                ip_addr_type=self.conn.get_ipaddr_type(_ip),
-                description=_ip["comment"],
-                ext_attrs={**default_ext_attrs, **ip_ext_attrs},
+            _, loaded = self.get_or_instantiate(
+                self.ipaddress,
+                ids={"address": _ip["ip_address"], "prefix": _ip["network"], "prefix_length": prefix_length},
+                attrs={
+                    "dns_name": dns_name,
+                    "status": self.conn.get_ipaddr_status(_ip),
+                    "ip_addr_type": self.conn.get_ipaddr_type(_ip),
+                    "description": _ip["comment"],
+                    "ext_attrs": {**default_ext_attrs, **ip_ext_attrs},
+                },
             )
-            self.add(new_ip)
+            if not loaded:
+                self.job.logger.warning(
+                    f"Duplicate IP Address {_ip['ip_address']}/{prefix_length} in {_ip['network']} attempting to be loaded."
+                )
 
     def load_vlanviews(self):
         """Load InfobloxVLANView DiffSync model."""
+        if self.job.debug:
+            self.job.logger.debug("Loading VLAN Views from Infoblox.")
         vlanviews = self.conn.get_vlanviews()
         default_ext_attrs = get_default_ext_attrs(review_list=vlanviews)
         for _vv in vlanviews:
@@ -136,6 +146,8 @@ class InfobloxAdapter(DiffSync):
 
     def load_vlans(self):
         """Load InfobloxVlan DiffSync model."""
+        if self.job.debug:
+            self.job.logger.debug("Loading VLANs from Infoblox.")
         vlans = self.conn.get_vlans()
         default_ext_attrs = get_default_ext_attrs(review_list=vlans)
         for _vlan in vlans:
