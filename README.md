@@ -114,6 +114,9 @@ This project includes code originally written in separate Nautobot apps, which h
     [@nniehoff](https://github.com/nniehoff),
     [@qduk](https://github.com/qduk),
     [@ubajze](https://github.com/ubajze)
+- [nautobot-plugin-ssot-device42](https://github.com/nautobot/nautobot-plugin-ssot-device42):
+    Thanks
+    [@jdrew82](https://github.com/jdrew82)
 - [nautobot-plugin-ssot-infoblox](https://github.com/nautobot/nautobot-plugin-ssot-infoblox):
     Thanks
     [@FragmentedPacket](https://github.com/FragmentedPacket),
