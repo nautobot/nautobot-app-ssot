@@ -1,6 +1,12 @@
 """Signals triggered when Nautobot starts to perform certain actions."""
 
+from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices
+
+
+def register_signals(sender):
+    """Register signals for DNA Center integration."""
+    nautobot_database_ready.connect(nautobot_database_ready_callback, sender=sender)
 
 
 def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disable=unused-argument, too-many-locals
