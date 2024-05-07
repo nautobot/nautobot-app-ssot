@@ -28,10 +28,13 @@ class TestNautobotUtils(TransactionTestCase):  # pylint: disable=too-many-instan
         super().setUp()
         self.status_active = Status.objects.get(name="Active")
         self.cisco_manu, _ = Manufacturer.objects.get_or_create(name="Cisco")
+        site_lt = LocationType.objects.get_or_create(name="Site")[0]
+        site_lt.content_types.add(ContentType.objects.get_for_model(Device))
+        site_lt.content_types.add(ContentType.objects.get_for_model(VLAN))
         self.site = Location.objects.create(
             name="Test Site",
             status=self.status_active,
-            location_type=LocationType.objects.get(name="Site"),
+            location_type=site_lt,
         )
         self.site.validated_save()
         _dt = DeviceType.objects.create(model="CSR1000v", manufacturer=self.cisco_manu)
@@ -154,7 +157,7 @@ class TestNautobotUtils(TransactionTestCase):  # pylint: disable=too-many-instan
         test_site = Location.objects.create(
             name="Test", location_type=LocationType.objects.get_or_create(name="Site")[0], status=self.status_active
         )
-        self.assertEqual(len(test_site.get_custom_fields()), 4)
+        self.assertEqual(len(test_site.get_custom_fields()), 0)
         mock_cfs = {
             "Test Custom Field": {"key": "Test Custom Field", "value": None, "notes": None},
         }

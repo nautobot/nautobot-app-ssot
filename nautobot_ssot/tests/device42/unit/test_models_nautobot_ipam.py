@@ -200,6 +200,7 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         status_reserved = Status.objects.get(name="Reserved")
         loc_type = LocationType.objects.get_or_create(name="Site")[0]
         loc_type.content_types.add(ContentType.objects.get_for_model(Device))
+        loc_type.content_types.add(ContentType.objects.get_for_model(Prefix))
         loc = Location.objects.get_or_create(name="Test Site", location_type=loc_type, status=self.status_active)[0]
         cisco_manu = Manufacturer.objects.get_or_create(name="Cisco")[0]
         csr1000v = DeviceType.objects.get_or_create(model="CSR1000v", manufacturer=cisco_manu)[0]
@@ -420,8 +421,9 @@ class TestNautobotVLAN(TransactionTestCase):
         super().setUp()
         self.status_active = Status.objects.get(name="Active")
 
-        site_type = LocationType.objects.get(name="Site")
+        site_type = LocationType.objects.get_or_create(name="Site")[0]
         site_type.content_types.add(ContentType.objects.get_for_model(Device))
+        site_type.content_types.add(ContentType.objects.get_for_model(VLAN))
 
         self.test_site = Location.objects.create(name="HQ", location_type=site_type, status=self.status_active)
         self.diffsync = DiffSync()
