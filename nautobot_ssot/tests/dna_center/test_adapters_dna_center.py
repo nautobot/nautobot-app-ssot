@@ -26,7 +26,7 @@ from nautobot_ssot.tests.dna_center.fixtures import (
 from nautobot_ssot.integrations.dna_center.jobs import DnaCenterDataSource
 
 
-@override_settings(PLUGINS_CONFIG={"nautobot_ssot_dna_center": {"import_global": True}})
+@override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"dna_center_import_global": True}})
 class TestDnaCenterAdapterTestCase(
     TransactionTestCase
 ):  # pylint: disable=too-many-public-methods, too-many-instance-attributes
@@ -122,7 +122,7 @@ class TestDnaCenterAdapterTestCase(
         expected = EXPECTED_DNAC_LOCATION_MAP
         self.assertEqual(actual, expected)
 
-    @override_settings(PLUGINS_CONFIG={"nautobot_ssot_dna_center": {"import_global": False}})
+    @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"dna_center_import_global": False}})
     def test_build_dnac_location_map_wo_global(self):
         """Test Nautobot adapter build_dnac_location_map method without global."""
         self.dna_center.dnac_location_map = {}
@@ -136,7 +136,7 @@ class TestDnaCenterAdapterTestCase(
         expected = EXPECTED_AREAS, EXPECTED_BUILDINGS, EXPECTED_FLOORS
         self.assertEqual(actual, expected)
 
-    @override_settings(PLUGINS_CONFIG={"nautobot_ssot_dna_center": {"import_global": False}})
+    @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"dna_center_import_global": False}})
     def test_parse_and_sort_locations_wo_global(self):
         """Test Nautobot adapter parse_and_sort_locations method without Global region."""
         self.dna_center.dnac_location_map = EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL
@@ -180,7 +180,7 @@ class TestDnaCenterAdapterTestCase(
             "Loading area NY. {'additionalInfo': [{'attributes': {'addressInheritedFrom': '3f07768d-6b5c-4b4d-8577-29f765bd49c9', 'type': 'area'}, 'nameSpace': 'Location'}], 'id': '3f07768d-6b5c-4b4d-8577-29f765bd49c9', 'instanceTenantId': '623f029857259506a56ad9bd', 'name': 'NY', 'parentId': '9e5f9fc2-032e-45e8-994c-4a00629648e8', 'siteHierarchy': '9e5f9fc2-032e-45e8-994c-4a00629648e8/3f07768d-6b5c-4b4d-8577-29f765bd49c9', 'siteNameHierarchy': 'Global/NY'}"
         )
 
-    @override_settings(PLUGINS_CONFIG={"nautobot_ssot_dna_center": {"import_global": False}})
+    @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"dna_center_import_global": False}})
     def test_load_areas_wo_global(self):
         """Test Nautobot SSoT for Cisco DNA Center load_areas() function without Global area."""
         self.dna_center.dnac_location_map = EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL
