@@ -291,8 +291,8 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
         self.nb_adapter.load_regions()
         self.nb_adapter.job.logger.warning.assert_called_with("Region NY already loaded so skipping duplicate.")
 
-    @patch("nautobot_ssot_dna_center.diffsync.adapters.nautobot.OrmLocationType")
-    @patch("nautobot_ssot_dna_center.diffsync.adapters.nautobot.OrmLocation")
+    @patch("nautobot_ssot.integrations.dna_center.diffsync.adapters.nautobot.OrmLocationType")
+    @patch("nautobot_ssot.integrations.dna_center.diffsync.adapters.nautobot.OrmLocation")
     def test_load_floors_missing_building(self, mock_floors, mock_loc_type):
         """Test the load_floors method failing with missing Building."""
         mock_floor = MagicMock()
