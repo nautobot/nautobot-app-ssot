@@ -3,6 +3,7 @@
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 
+from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation, Status
 from nautobot.ipam.models import Prefix, VLAN, VLANGroup
 
@@ -14,7 +15,18 @@ class TestNautobotAdapter(TestCase):
 
     def setUp(self):
         active_status = Status.objects.get(name="Active")
-        prefix_vlan_relationship = Relationship.objects.get(label="Prefix -> VLAN")
+        relationship_dict = {
+            "label": "Prefix -> VLAN",
+            "key": "prefix_to_vlan",
+            "type": RelationshipTypeChoices.TYPE_ONE_TO_MANY,
+            "source_type": ContentType.objects.get_for_model(Prefix),
+            "source_label": "Prefix",
+            "destination_type": ContentType.objects.get_for_model(VLAN),
+            "destination_label": "VLAN",
+        }
+        prefix_vlan_relationship = Relationship.objects.get_or_create(
+            label=relationship_dict["label"], defaults=relationship_dict
+        )[0]
         vlan_group1 = VLANGroup.objects.create(name="one")
         vlan_group2 = VLANGroup.objects.create(name="two")
         vlan10 = VLAN.objects.create(
