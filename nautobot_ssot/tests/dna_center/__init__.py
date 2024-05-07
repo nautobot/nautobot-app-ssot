@@ -1,1 +1,1 @@
-"""Unit tests for nautobot_ssot_dna_center plugin."""
+"""Unit tests for DNA Center integration plugin."""
