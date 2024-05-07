@@ -275,7 +275,7 @@ class TestNautobotDevice(TransactionTestCase):
         self.diffsync.device_map = {}
         self.diffsync.objects_to_create = {"devices": []}  # pylint: disable=no-member
 
-    @patch("nautobot_ssot_dna_center.diffsync.models.nautobot.LIFECYCLE_MGMT", True)
+    @patch("nautobot_ssot.integrations.dna_center.diffsync.models.nautobot.LIFECYCLE_MGMT", True)
     def test_create(self):
         """Test the NautobotDevice create() method creates a Device."""
         hq_site = Location.objects.create(

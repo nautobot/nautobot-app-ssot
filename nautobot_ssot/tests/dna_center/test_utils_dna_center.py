@@ -43,7 +43,7 @@ class TestDnaCenterClient(TestCase):  # pylint: disable=too-many-public-methods
         self.mock_response.response.return_value = {}
         self.mock_response.status_code.return_value = 401
 
-    @patch("nautobot_ssot_dna_center.utils.dna_center.api.DNACenterAPI")
+    @patch("nautobot_ssot.integrations.dna_center.utils.dna_center.api.DNACenterAPI")
     def test_connect_success(self, mock_api):
         self.dnac.connect()
         mock_api.assert_called_once_with(  # nosec B106
@@ -51,7 +51,7 @@ class TestDnaCenterClient(TestCase):  # pylint: disable=too-many-public-methods
         )
         self.assertIsNotNone(self.dnac.conn)
 
-    @patch("nautobot_ssot_dna_center.utils.dna_center.api.DNACenterAPI")
+    @patch("nautobot_ssot.integrations.dna_center.utils.dna_center.api.DNACenterAPI")
     def test_connect_error(self, mock_api):
         self.dnac.conn = None
         mock_api.side_effect = dnacentersdkException(self.mock_response)
