@@ -74,7 +74,7 @@ class DnaCenterAdapter(DiffSync):
             areas (List[dict]): List of dictionaries containing location information about a building.
         """
         for location in areas:
-            if not settings.PLUGINS_CONFIG["nautobot_ssot_dna_center"].get("import_global"):
+            if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
                 if location["name"] == "Global":
                     continue
             if self.job.debug:
@@ -175,7 +175,7 @@ class DnaCenterAdapter(DiffSync):
         """
         areas, buildings, floors = [], [], []
         for location in locations:
-            if not settings.PLUGINS_CONFIG["nautobot_ssot_dna_center"].get("import_global"):
+            if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
                 if location["name"] == "Global":
                     continue
             for info in location["additionalInfo"]:
@@ -208,7 +208,7 @@ class DnaCenterAdapter(DiffSync):
         """
         location_map = {}
         for loc in locations:
-            if not settings.PLUGINS_CONFIG["nautobot_ssot_dna_center"].get("import_global"):
+            if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
                 if loc["name"] == "Global":
                     continue
             location_map[loc["id"]] = {"name": loc["name"], "parent": None, "loc_type": "area"}
@@ -216,7 +216,6 @@ class DnaCenterAdapter(DiffSync):
 
     def load_devices(self):
         """Load Device data from DNA Center info DiffSync models."""
-        PLUGIN_CFG = settings.PLUGINS_CONFIG["nautobot_ssot_dna_center"]
         devices = self.conn.get_devices()
         for dev in devices:
             platform = "unknown"
@@ -229,9 +228,9 @@ class DnaCenterAdapter(DiffSync):
                 }
                 self.failed_import_devices.append(dev)
                 continue
-            if PLUGIN_CFG.get("hostname_mapping"):
+            if PLUGIN_CFG.get("dna_center_hostname_mapping"):
                 dev_role = self.conn.parse_hostname_for_role(
-                    hostname_map=PLUGIN_CFG["hostname_mapping"], device_hostname=dev["hostname"]
+                    hostname_map=PLUGIN_CFG["dna_center_hostname_mapping"], device_hostname=dev["hostname"]
                 )
             if dev_role == "Unknown":
                 dev_role = dev["role"]
@@ -241,7 +240,7 @@ class DnaCenterAdapter(DiffSync):
                 if not dev.get("softwareType") and dev.get("type") and ("3800" in dev["type"] or "9130" in dev["type"]):
                     platform = "cisco_ios"
                 if not dev.get("softwareType") and dev.get("family") and "Meraki" in dev["family"]:
-                    if not PLUGIN_CFG.get("import_merakis"):
+                    if not PLUGIN_CFG.get("dna_center_import_merakis"):
                         continue
                     platform = "cisco_meraki"
             if dev.get("type") and "Juniper" in dev["type"]:
@@ -445,7 +444,7 @@ class DnaCenterAdapter(DiffSync):
 
         self.load_locations()
         self.load_devices()
-        if PLUGIN_CFG.get("show_failures"):
+        if PLUGIN_CFG.get("dna_center_show_failures"):
             if self.failed_import_devices:
                 self.job.logger.warning(
                     f"List of {len(self.failed_import_devices)} devices that were unable to be loaded. {json.dumps(self.failed_import_devices, indent=2)}"
