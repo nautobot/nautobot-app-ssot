@@ -8,7 +8,7 @@ from dnacentersdk import api
 from dnacentersdk.exceptions import dnacentersdkException
 from netutils.constants import BASE_INTERFACES
 
-from nautobot_ssot_dna_center.constants import BASE_INTERFACE_MAP
+from nautobot_ssot.integrations.dna_center.constants import BASE_INTERFACE_MAP
 
 LOGGER = logging.getLogger(__name__)
 

@@ -8,8 +8,8 @@ from nautobot.extras.models import ExternalIntegration
 from nautobot.tenancy.models import Tenant
 from nautobot.core.celery import register_jobs
 from nautobot_ssot.jobs.base import DataSource, DataMapping
-from nautobot_ssot_dna_center.diffsync.adapters import dna_center, nautobot
-from nautobot_ssot_dna_center.utils.dna_center import DnaCenterClient
+from nautobot_ssot.integrations.dna_center.diffsync.adapters import dna_center, nautobot
+from nautobot_ssot.integrations.dna_center.utils.dna_center import DnaCenterClient
 
 
 name = "DNA Center SSoT"  # pylint: disable=invalid-name
