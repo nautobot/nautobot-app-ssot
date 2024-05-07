@@ -81,7 +81,7 @@ class NautobotBuilding(base.Building):
 
     def update(self, attrs):
         """Update Site in Nautobot from Building object."""
-        if not settings.PLUGINS_CONFIG["nautobot_ssot_dna_center"].get("update_locations"):
+        if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dns_center_update_locations"):
             self.diffsync.job.logger.warning(
                 f"`update_locations` setting is disabled so will skip updating {self.name}."
             )
@@ -107,7 +107,7 @@ class NautobotBuilding(base.Building):
 
     def delete(self):
         """Delete Site in Nautobot from Building object."""
-        if not settings.PLUGINS_CONFIG["nautobot_ssot_dna_center"].get("update_locations"):
+        if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_update_locations"):
             self.diffsync.job.logger.warning(
                 f"`update_locations` setting is disabled so will skip deleting {self.name}."
             )
