@@ -5,12 +5,13 @@ from unittest.mock import Mock
 
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
-from nautobot.extras.choices import CustomFieldTypeChoices, RelationshipTypeChoices
-from nautobot.extras.models import CustomField, Relationship, Status, Tag
+from nautobot.extras.choices import CustomFieldTypeChoices
+from nautobot.extras.models import CustomField, Status, Tag
 from nautobot.ipam.models import VLAN, IPAddress, Prefix, VLANGroup
 
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import InfobloxAdapter
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import NautobotAdapter
+from nautobot_ssot.tests.infoblox.fixtures_infoblox import create_prefix_relationship
 
 
 class TestTagging(TestCase):
@@ -98,17 +99,7 @@ class TestTagging(TestCase):
 
     def test_objects_synced_to_infoblox_are_tagged(self):
         """Ensure objects synced to Infoblox have 'SSoT Synced to Infoblox' tag applied."""
-        relationship_dict = {
-                "label": "Prefix -> VLAN",
-                "key": "prefix_to_vlan",
-                "type": RelationshipTypeChoices.TYPE_ONE_TO_MANY,
-                "source_type": ContentType.objects.get_for_model(Prefix),
-                "source_label": "Prefix",
-                "destination_type": ContentType.objects.get_for_model(VLAN),
-                "destination_label": "VLAN",
-        }
-        Relationship.objects.get_or_create(label=relationship_dict["label"], defaults=relationship_dict)
-
+        create_prefix_relationship()
         nb_prefix = Prefix(
             network="10.0.0.0",
             prefix_length=8,
@@ -170,16 +161,7 @@ class TestCustomFields(TestCase):
         )
         for model in [IPAddress, Prefix, VLAN, VLANGroup]:
             self.cf_synced_to_infoblox.content_types.add(ContentType.objects.get_for_model(model))
-        relationship_dict = {
-            "label": "Prefix -> VLAN",
-            "key": "prefix_to_vlan",
-            "type": RelationshipTypeChoices.TYPE_ONE_TO_MANY,
-            "source_type": ContentType.objects.get_for_model(Prefix),
-            "source_label": "Prefix",
-            "destination_type": ContentType.objects.get_for_model(VLAN),
-            "destination_label": "VLAN",
-        }
-        Relationship.objects.get_or_create(label=relationship_dict["label"], defaults=relationship_dict)
+        create_prefix_relationship()
 
     def test_cfs_have_correct_content_types_set(self):
         """Ensure cfs have correct content types configured."""
