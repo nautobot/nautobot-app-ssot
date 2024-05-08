@@ -3,10 +3,11 @@
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 
-from nautobot.extras.models import Relationship, RelationshipAssociation, Status
+from nautobot.extras.models import RelationshipAssociation, Status
 from nautobot.ipam.models import Prefix, VLAN, VLANGroup
 
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import NautobotAdapter
+from nautobot_ssot.tests.infoblox.fixtures_infoblox import create_prefix_relationship
 
 
 class TestNautobotAdapter(TestCase):
@@ -14,7 +15,7 @@ class TestNautobotAdapter(TestCase):
 
     def setUp(self):
         active_status = Status.objects.get(name="Active")
-        prefix_vlan_relationship = Relationship.objects.get(label="Prefix -> VLAN")
+        prefix_vlan_relationship = create_prefix_relationship()
         vlan_group1 = VLANGroup.objects.create(name="one")
         vlan_group2 = VLANGroup.objects.create(name="two")
         vlan10 = VLAN.objects.create(

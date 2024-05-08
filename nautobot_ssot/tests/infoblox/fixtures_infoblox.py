@@ -5,6 +5,10 @@
 import json
 import os
 
+from django.contrib.contenttypes.models import ContentType
+from nautobot.extras.choices import RelationshipTypeChoices
+from nautobot.extras.models import Relationship
+from nautobot.ipam.models import Prefix, VLAN
 
 from nautobot_ssot.integrations.infoblox.utils import client
 
@@ -24,6 +28,20 @@ def localhost_client_infoblox(localhost_url):
     return client.InfobloxApi(  # nosec
         url=localhost_url, username="test-user", password="test-password", verify_ssl=False, cookie=None
     )
+
+
+def create_prefix_relationship():
+    """Create Relationship for Prefix -> VLAN."""
+    relationship_dict = {  # pylint: disable=duplicate-code
+        "label": "Prefix -> VLAN",
+        "key": "prefix_to_vlan",
+        "type": RelationshipTypeChoices.TYPE_ONE_TO_MANY,
+        "source_type": ContentType.objects.get_for_model(Prefix),
+        "source_label": "Prefix",
+        "destination_type": ContentType.objects.get_for_model(VLAN),
+        "destination_label": "VLAN",
+    }
+    return Relationship.objects.get_or_create(label=relationship_dict["label"], defaults=relationship_dict)[0]
 
 
 def get_all_ipv4address_networks():
