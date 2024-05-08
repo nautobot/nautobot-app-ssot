@@ -20,7 +20,7 @@ from nautobot_ssot.integrations.dna_center.jobs import DnaCenterDataSource
 from nautobot_ssot.integrations.dna_center.diffsync.adapters.nautobot import NautobotAdapter
 
 
-class NautobotDiffSyncTestCase(TransactionTestCase):
+class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many-instance-attributes
     """Test the NautobotAdapter class."""
 
     databases = ("default", "job_logs")
@@ -30,13 +30,17 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
         super().__init__(*args, **kwargs)
         self.ny_region = None
         self.hq_site = None
-        self.loc_type = None
         self.floor_loc = None
 
     def setUp(self):  # pylint: disable=too-many-locals
         """Per-test-case data setup."""
         super().setUp()
         self.status_active = Status.objects.get(name="Active")
+        self.reg_loc_type = LocationType.objects.get_or_create(name="Region", nestable=True)[0]
+        self.site_loc_type = LocationType.objects.get_or_create(name="Site", parent=self.reg_loc_type)[0]
+        self.site_loc_type.content_types.add(ContentType.objects.get_for_model(Device))
+        self.floor_loc_type = LocationType.objects.get_or_create(name="Floor", parent=self.site_loc_type)[0]
+        self.floor_loc_type.content_types.add(ContentType.objects.get_for_model(Device))
 
         job = DnaCenterDataSource()
         job.job_result = JobResult.objects.create(
@@ -49,27 +53,26 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
 
     def build_nautobot_objects(self):  # pylint: disable=too-many-locals, too-many-statements
         """Build out Nautobot objects to test loading."""
-        self.loc_type = LocationType.objects.get(name="Region")
-        global_region = Location.objects.create(name="Global", status=self.status_active, location_type=self.loc_type)
+        global_region = Location.objects.create(
+            name="Global", status=self.status_active, location_type=self.reg_loc_type
+        )
         global_region.custom_field_data["system_of_record"] = "DNA Center"
         global_region.validated_save()
         self.ny_region = Location.objects.create(
-            name="NY", location_type=self.loc_type, parent=global_region, status=self.status_active
+            name="NY", location_type=self.reg_loc_type, parent=global_region, status=self.status_active
         )
         self.ny_region.custom_field_data["system_of_record"] = "DNA Center"
         self.ny_region.validated_save()
-        self.loc_type = LocationType.objects.get(name="Site")
         self.hq_site = Location.objects.create(
-            parent=self.ny_region, name="HQ", status=self.status_active, location_type=self.loc_type
+            parent=self.ny_region, name="HQ", status=self.status_active, location_type=self.site_loc_type
         )
         self.hq_site.custom_field_data["system_of_record"] = "DNA Center"
         self.hq_site.validated_save()
 
-        self.loc_type = LocationType.objects.get(name="Floor")
         self.floor_loc = Location.objects.create(
             name="HQ Floor 1",
             parent=self.hq_site,
-            location_type=self.loc_type,
+            location_type=self.floor_loc_type,
             status=self.status_active,
         )
         self.floor_loc.custom_field_data["system_of_record"] = "DNA Center"
