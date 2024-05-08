@@ -1,6 +1,7 @@
 """Test the DiffSync models for Nautobot."""
 
 from unittest.mock import MagicMock, patch
+from django.test import override_settings
 from diffsync import DiffSync
 from nautobot.dcim.models import (
     Location,
@@ -28,7 +29,7 @@ class TestNautobotArea(TransactionTestCase):
         self.diffsync.job = MagicMock()
         self.diffsync.job.logger.info = MagicMock()
         self.diffsync.region_map = {}
-        self.region_type = LocationType.objects.get(name="Region")
+        self.region_type = LocationType.objects.get_or_create(name="Region", nestable=True)[0]
         self.diffsync.locationtype_map = {"Region": self.region_type.id}
         self.diffsync.status_map = {"Active": Status.objects.get(name="Active").id}
 
@@ -55,6 +56,7 @@ class TestNautobotArea(TransactionTestCase):
         self.diffsync.job.logger.warning.assert_called_once_with("Unable to find Region USA for TX.")
 
 
+@override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"dna_center_update_locations": True}})
 class TestNautobotBuilding(TransactionTestCase):
     """Test the NautobotBuilding class."""
 
@@ -65,13 +67,14 @@ class TestNautobotBuilding(TransactionTestCase):
 
         self.diffsync = DiffSync()
         self.diffsync.job = MagicMock()
+        self.diffsync.job.debug = True
         self.diffsync.job.logger.info = MagicMock()
         self.diffsync.status_map = {"Active": Status.objects.get(name="Active").id}
         ga_tenant = Tenant.objects.create(name="G&A")
         self.diffsync.tenant_map = {"G&A": ga_tenant.id}
-        reg_loc = LocationType.objects.get(name="Region")
+        reg_loc = LocationType.objects.get_or_create(name="Region", nestable=True)[0]
         ny_region = Location.objects.create(name="NY", location_type=reg_loc, status=Status.objects.get(name="Active"))
-        loc_type = LocationType.objects.get(name="Site")
+        loc_type = LocationType.objects.get_or_create(name="Site", parent=reg_loc)[0]
         self.diffsync.locationtype_map = {"Region": reg_loc.id, "Site": loc_type.id}
         self.sec_site = Location.objects.create(
             name="Site 2", parent=ny_region, status=Status.objects.get(name="Active"), location_type=loc_type
@@ -158,10 +161,11 @@ class TestNautobotFloor(TransactionTestCase):
         self.diffsync.job.logger.info = MagicMock()
         ga_tenant = Tenant.objects.create(name="G&A")
         self.diffsync.tenant_map = {"G&A": ga_tenant.id}
-        loc_type = LocationType.objects.get(name="Site")
-        self.diffsync.locationtype_map = {"Site": loc_type.id, "Floor": LocationType.objects.get(name="Floor").id}
+        site_loc_type = LocationType.objects.get_or_create(name="Site")[0]
+        self.floor_loc_type = LocationType.objects.get_or_create(name="Floor", parent=site_loc_type)[0]
+        self.diffsync.locationtype_map = {"Site": site_loc_type.id, "Floor": self.floor_loc_type.id}
         self.hq_site, _ = Location.objects.get_or_create(
-            name="HQ", location_type=loc_type, status=Status.objects.get(name="Active")
+            name="HQ", location_type=site_loc_type, status=Status.objects.get(name="Active")
         )
         self.diffsync.site_map = {"HQ": self.hq_site.id}
         self.diffsync.floor_map = {}
@@ -205,10 +209,9 @@ class TestNautobotFloor(TransactionTestCase):
     def test_update_wo_tenant(self):
         """Test the NautobotFloor update() method updates a LocationType: Floor without tenant."""
         # I hate having to duplicate with above method but we can't have in setUp and test for ContentTypes.
-        floor_type, _ = LocationType.objects.get_or_create(name="Floor")
         mock_floor = Location.objects.create(
             name="HQ - Floor 2",
-            location_type=floor_type,
+            location_type=self.floor_loc_type,
             parent=self.hq_site,
             status=Status.objects.get(name="Active"),
         )
@@ -278,12 +281,10 @@ class TestNautobotDevice(TransactionTestCase):
     @patch("nautobot_ssot.integrations.dna_center.diffsync.models.nautobot.LIFECYCLE_MGMT", True)
     def test_create(self):
         """Test the NautobotDevice create() method creates a Device."""
-        hq_site = Location.objects.create(
-            name="HQ", status=self.status_active, location_type=LocationType.objects.get(name="Site")
-        )
-        hq_floor = Location.objects.create(
-            name="HQ - Floor 1", status=self.status_active, location_type=LocationType.objects.get(name="Floor")
-        )
+        site_lt = LocationType.objects.get_or_create(name="Site")[0]
+        floor_lt = LocationType.objects.get_or_create(name="Floor", parent=site_lt)[0]
+        hq_site = Location.objects.create(name="HQ", status=self.status_active, location_type=site_lt)
+        hq_floor = Location.objects.create(name="HQ - Floor 1", status=self.status_active, location_type=floor_lt)
         self.diffsync.site_map = {"HQ": hq_site.id}
         self.diffsync.floor_map = {"HQ - Floor 1": hq_floor.id}
 
