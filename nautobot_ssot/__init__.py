@@ -120,6 +120,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "servicenow_username": "",
     }
     caching_config = {}
+    config_view_name = "plugins:nautobot_ssot:config"
 
     def ready(self):
         """Trigger callback when database is ready."""
