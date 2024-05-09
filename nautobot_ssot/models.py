@@ -28,12 +28,14 @@ from django.urls import reverse
 from django.utils.formats import date_format
 from django.utils.timezone import now
 
+
 from nautobot.core.models import BaseModel
 from nautobot.extras.choices import JobResultStatusChoices
 from nautobot.extras.models import JobResult
 from nautobot.extras.utils import extras_features
 
 from nautobot_ssot.integrations.servicenow.models import SSOTServiceNowConfig
+from nautobot_ssot.integrations.infoblox.models import SSOTInfobloxConfig
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 
@@ -206,7 +208,14 @@ class SyncLogEntry(BaseModel):  # pylint: disable=nb-string-field-blank-null
         }.get(self.status)
 
 
+class SSOTConfig(models.Model):
+    class Meta:
+        managed = False
+        default_permissions = ("view",)
+
+
 __all__ = (
+    "SSOTInfobloxConfig",
     "SSOTServiceNowConfig",
     "Sync",
     "SyncLogEntry",
