@@ -16,6 +16,7 @@ urlpatterns = [
     path("history/<uuid:pk>/jobresult/", views.SyncJobResultView.as_view(), name="sync_jobresult"),
     path("history/<uuid:pk>/logs/", views.SyncLogEntriesView.as_view(), name="sync_logentries"),
     path("logs/", views.SyncLogEntryListView.as_view(), name="synclogentry_list"),
+    path("config/", views.SSOTConfigView.as_view(), name="config"),
 ]
 
 
