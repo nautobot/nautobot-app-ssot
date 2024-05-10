@@ -138,18 +138,10 @@ class TestDnaCenterAdapterTestCase(
 
     def test_parse_and_sort_locations(self):
         """Test Nautobot adapter parse_and_sort_locations method."""
-        actual = self.dna_center.parse_and_sort_locations(locations=LOCATION_FIXTURE)
-        expected = EXPECTED_AREAS, EXPECTED_BUILDINGS, EXPECTED_FLOORS
-        self.assertEqual(actual, expected)
-
-    @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"dna_center_import_global": False}})
-    def test_parse_and_sort_locations_wo_global(self):
-        """Test Nautobot adapter parse_and_sort_locations method without Global region."""
-        self.dna_center.dnac_location_map = EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL
         actual_areas, actual_buildings, actual_floors = self.dna_center.parse_and_sort_locations(
             locations=LOCATION_FIXTURE
         )
-        self.assertEqual(actual_areas, EXPECTED_AREAS_WO_GLOBAL)
+        self.assertEqual(actual_areas, EXPECTED_AREAS)
         self.assertEqual(actual_buildings, EXPECTED_BUILDINGS)
         self.assertEqual(actual_floors, EXPECTED_FLOORS)
 

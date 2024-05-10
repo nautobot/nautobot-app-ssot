@@ -176,15 +176,14 @@ class DnaCenterAdapter(DiffSync):
         """
         areas, buildings, floors = [], [], []
         for location in locations:
-            if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
-                if location["name"] == "Global":
-                    continue
+            self.dnac_location_map[location["id"]] = {"name": location["name"], "loc_type": "area"}
+        for location in locations:
             for info in location["additionalInfo"]:
                 if info["attributes"].get("type") == "building":
                     buildings.append(location)
                     self.dnac_location_map[location["id"]]["loc_type"] = "building"
                     break
-                elif info["attributes"].get("type") == "floor":
+                if info["attributes"].get("type") == "floor":
                     floors.append(location)
                     self.dnac_location_map[location["id"]]["loc_type"] = "floor"
                     break
