@@ -71,7 +71,7 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
             url=self.dnac.remote_url,
             username=username,
             password=password,
-            port=self.dnac.extra_config["port"],
+            port=self.dnac.extra_config.get("port", 443) if getattr(self.dnac, "extra_config") else 443,
             verify=self.dnac.verify_ssl,
         )
         client.connect()
