@@ -88,14 +88,19 @@ class NautobotAdapter(DiffSync):
         try:
             locations = OrmLocation.objects.filter(location_type=self.locationtype_map["Region"])
             for region in locations:
-                self.region_map[region.name] = region.id
+                parent = None
+                if region.parent:
+                    parent = region.parent.name
+                if parent not in self.region_map:
+                    self.region_map[parent] = {}
+                self.region_map[parent][region.name] = region.id
                 try:
-                    self.get(self.area, {"name": region.name, "parent": region.parent.name if region.parent else None})
+                    self.get(self.area, {"name": region.name, "parent": parent})
                     self.job.logger.warning(f"Region {region.name} already loaded so skipping duplicate.")
                 except ObjectNotFound:
                     new_region = self.area(
                         name=region.name,
-                        parent=region.parent.name if region.parent else None,
+                        parent=parent,
                         uuid=region.id,
                     )
                     self.add(new_region)
@@ -117,6 +122,7 @@ class NautobotAdapter(DiffSync):
                         name=site.name,
                         address=site.physical_address,
                         area=site.parent.name if site.parent else "",
+                        area_parent=site.parent.parent.name if site.parent.parent else None,
                         latitude=str(site.latitude).rstrip("0"),
                         longitude=str(site.longitude).rstrip("0"),
                         tenant=site.tenant.name if site.tenant else None,

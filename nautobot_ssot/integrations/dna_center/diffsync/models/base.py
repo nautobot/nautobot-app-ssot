@@ -30,12 +30,13 @@ class Building(DiffSyncModel):
 
     _modelname = "building"
     _identifiers = ("name",)
-    _attributes = ("address", "area", "latitude", "longitude", "tenant")
+    _attributes = ("address", "area", "area_parent", "latitude", "longitude", "tenant")
     _children = {"floor": "floors"}
 
     name: str
     address: Optional[str]
     area: str
+    area_parent: Optional[str]
     latitude: Optional[str]
     longitude: Optional[str]
     tenant: Optional[str]
