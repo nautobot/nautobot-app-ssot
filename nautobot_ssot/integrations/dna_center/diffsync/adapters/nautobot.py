@@ -86,8 +86,7 @@ class NautobotAdapter(DiffSync):
     def load_regions(self):
         """Load Region data from Nautobt into DiffSync models."""
         try:
-            loc_type = OrmLocationType.objects.get(name="Region")
-            locations = OrmLocation.objects.filter(location_type=loc_type)
+            locations = OrmLocation.objects.filter(location_type=self.locationtype_map["Region"])
             for region in locations:
                 self.region_map[region.name] = region.id
                 try:
@@ -108,8 +107,7 @@ class NautobotAdapter(DiffSync):
     def load_sites(self):
         """Load Site data from Nautobot into DiffSync models."""
         try:
-            loc_type = OrmLocationType.objects.get(name="Site")
-            locations = OrmLocation.objects.filter(location_type=loc_type)
+            locations = OrmLocation.objects.filter(location_type=self.locationtype_map["Site"])
             for site in locations:
                 self.site_map[site.name] = site.id
                 try:
