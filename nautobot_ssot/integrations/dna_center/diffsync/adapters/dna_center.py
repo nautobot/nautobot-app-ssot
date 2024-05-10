@@ -115,8 +115,9 @@ class DnaCenterAdapter(DiffSync):
                     _area = {"name": "Global", "parent": None}
                 new_building = self.building(
                     name=location["name"],
-                    address=address,
+                    address=address if address else "",
                     area=_area["name"],
+                    area_parent=_area["parent"],
                     latitude=latitude[:9].rstrip("0"),
                     longitude=longitude[:7].rstrip("0"),
                     tenant=self.tenant.name if self.tenant else None,
