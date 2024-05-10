@@ -35,25 +35,25 @@ class NautobotArea(base.Area):
     @classmethod
     def create(cls, diffsync, ids, attrs):
         """Create Region in Nautobot from Area object."""
+        if diffsync.job.debug:
+            diffsync.job.logger.info(f"Creating Region {ids['name']} in {ids['parent']}.")
+        new_region = Location(
+            name=ids["name"],
+            location_type_id=diffsync.locationtype_map["Region"],
+            status_id=diffsync.status_map["Active"],
+        )
         try:
-            diffsync.region_map[ids["name"]]
-            diffsync.job.logger.warning(f"Region {ids['name']} already exists so won't be created.")
+            if settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
+                new_region.parent_id = diffsync.region_map["Global"][ids["parent"]]
+            else:
+                new_region.parent_id = diffsync.region_map[None][ids["parent"]]
         except KeyError:
-            if diffsync.job.debug:
-                diffsync.job.logger.info(f"Creating Region {ids['name']}.")
-            new_region = Location(
-                name=ids["name"],
-                location_type_id=diffsync.locationtype_map["Region"],
-                status_id=diffsync.status_map["Active"],
-            )
-            if ids.get("parent"):
-                try:
-                    new_region.parent_id = diffsync.region_map[ids["parent"]]
-                except KeyError:
-                    diffsync.job.logger.warning(f"Unable to find Region {ids['parent']} for {ids['name']}.")
-            new_region.validated_save()
-            diffsync.region_map[ids["name"]] = new_region.id
-            return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+            diffsync.job.logger.warning(f"Unable to find Region {ids['parent']} for {ids['name']}.")
+        new_region.validated_save()
+        if ids["parent"] not in diffsync.region_map:
+            diffsync.region_map[ids["parent"]] = {}
+        diffsync.region_map[ids["parent"]][ids["name"]] = new_region.id
+        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
 
 
 class NautobotBuilding(base.Building):
@@ -67,7 +67,7 @@ class NautobotBuilding(base.Building):
         new_site = Location(
             name=ids["name"],
             location_type_id=diffsync.locationtype_map["Site"],
-            parent_id=diffsync.region_map[attrs["area"]],
+            parent_id=diffsync.region_map[attrs["area_parent"]][attrs["area"]],
             physical_address=attrs["address"] if attrs.get("address") else "",
             status_id=diffsync.status_map["Active"],
             latitude=attrs["latitude"],
