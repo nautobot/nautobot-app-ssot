@@ -18,7 +18,7 @@ class Area(DiffSyncModel):
 
     name: str
     parent: Optional[str]
-    buildings: Optional[List["Building"]] = list()
+    buildings: Optional[List["Building"]] = []
 
     uuid: Optional[UUID]
 
@@ -40,7 +40,7 @@ class Building(DiffSyncModel):
     latitude: Optional[str]
     longitude: Optional[str]
     tenant: Optional[str]
-    floors: Optional[List["Floor"]] = list()
+    floors: Optional[List["Floor"]] = []
 
     uuid: Optional[UUID]
 
@@ -90,7 +90,7 @@ class Device(DiffSyncModel):
     version: Optional[str]
     platform: str
     tenant: Optional[str]
-    ports: Optional[List["Port"]] = list()
+    ports: Optional[List["Port"]] = []
 
     uuid: Optional[UUID]
 
