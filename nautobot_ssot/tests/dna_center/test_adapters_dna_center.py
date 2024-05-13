@@ -168,14 +168,13 @@ class TestDnaCenterAdapterTestCase(
     def test_load_areas_w_global(self):
         """Test Nautobot SSoT for Cisco DNA Center load_areas() function with Global area."""
         self.dna_center.load_areas(areas=EXPECTED_AREAS)
-        area_expected = [
-            "Global__None",
-            "NY__Global",
-        ]
-        area_actual = [area.get_unique_id() for area in self.dna_center.get_all("area")]
+        area_expected = sorted(
+            [f"{x['name']}__{x['parent']}" for x in EXPECTED_DNAC_LOCATION_MAP.values() if x["loc_type"] == "area"]
+        )
+        area_actual = sorted([area.get_unique_id() for area in self.dna_center.get_all("area")])
         self.assertEqual(area_actual, area_expected)
         self.dna_center.job.logger.info.assert_called_with(
-            "Loading area NY. {'additionalInfo': [{'attributes': {'addressInheritedFrom': '3f07768d-6b5c-4b4d-8577-29f765bd49c9', 'type': 'area'}, 'nameSpace': 'Location'}], 'id': '3f07768d-6b5c-4b4d-8577-29f765bd49c9', 'instanceTenantId': '623f029857259506a56ad9bd', 'name': 'NY', 'parentId': '9e5f9fc2-032e-45e8-994c-4a00629648e8', 'siteHierarchy': '9e5f9fc2-032e-45e8-994c-4a00629648e8/3f07768d-6b5c-4b4d-8577-29f765bd49c9', 'siteNameHierarchy': 'Global/NY'}"
+            "Loading area Sydney. {'parentId': '262696b1-aa87-432b-8a21-db9a77c51f23', 'additionalInfo': [{'nameSpace': 'Location', 'attributes': {'addressInheritedFrom': '262696b1-aa87-432b-8a21-db9a77c51f23', 'type': 'area'}}], 'name': 'Sydney', 'instanceTenantId': '623f029857259506a56ad9bd', 'id': '6e404051-4c06-4dab-adaa-72c5eeac577b', 'siteHierarchy': '9e5f9fc2-032e-45e8-994c-4a00629648e8/262696b1-aa87-432b-8a21-db9a77c51f23/6e404051-4c06-4dab-adaa-72c5eeac577b', 'siteNameHierarchy': 'Global/Australia/Sydney'}"
         )
 
     @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"dna_center_import_global": False}})
