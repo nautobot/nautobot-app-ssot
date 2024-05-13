@@ -164,7 +164,7 @@ class TestUtilsDevice42(TestCase):
         ("iosxe", "iosxe", "cisco_ios"),
         ("iosxr", "iosxr", "cisco_xr"),
         ("nxos", "nxos", "cisco_nxos"),
-        ("bigip", "f5", "f5_tmsh"),
+        ("bigip", "f5", "bigip_f5"),
         ("junos", "junos", "juniper_junos"),
         ("dell", "dell", "dell"),
     ]
