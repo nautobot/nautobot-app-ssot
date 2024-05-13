@@ -181,14 +181,14 @@ class TestDnaCenterAdapterTestCase(
     def test_load_areas_wo_global(self):
         """Test Nautobot SSoT for Cisco DNA Center load_areas() function without Global area."""
         self.dna_center.dnac_location_map = EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL
-        self.dna_center.load_areas(areas=EXPECTED_AREAS)
+        self.dna_center.load_areas(areas=EXPECTED_AREAS_WO_GLOBAL)
         area_expected = [
             f"{x['name']}__{x['parent']}"
             for x in EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL.values()
             if x["loc_type"] == "area"
         ]
         area_actual = [area.get_unique_id() for area in self.dna_center.get_all("area")]
-        self.assertEqual(area_actual, area_expected)
+        self.assertEqual(sorted(area_actual), sorted(area_expected))
 
     def test_load_areas_with_validation_error(self):
         """Test Nautobot SSoT for Cisco DNA Center load_areas() function with a ValidationError."""
