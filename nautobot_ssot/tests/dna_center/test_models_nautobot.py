@@ -20,6 +20,7 @@ from nautobot_ssot.integrations.dna_center.diffsync.models.nautobot import (
 )
 
 
+@override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"dna_center_import_global": True}})
 class TestNautobotArea(TransactionTestCase):
     """Test the NautobotArea class."""
 
@@ -38,12 +39,12 @@ class TestNautobotArea(TransactionTestCase):
         status_active = Status.objects.get(name="Active")
         self.diffsync.status_map = {"Active": status_active.id}
         global_region = Location.objects.create(name="Global", location_type=self.region_type, status=status_active)
-        self.diffsync.region_map = {"Global": global_region.id}
+        self.diffsync.region_map = {None: {"Global": global_region.id}}
         ids = {"name": "NY", "parent": "Global"}
         attrs = {}
         result = NautobotArea.create(self.diffsync, ids, attrs)
         self.assertIsInstance(result, NautobotArea)
-        self.diffsync.job.logger.info.assert_called_once_with("Creating Region NY.")
+        self.diffsync.job.logger.info.assert_called_once_with("Creating Region NY in Global.")
         region_obj = Location.objects.get(name=ids["name"], location_type__name="Region")
         self.assertEqual(region_obj.name, ids["name"])
         self.assertEqual(region_obj.parent.name, ids["parent"])
@@ -82,19 +83,33 @@ class TestNautobotBuilding(TransactionTestCase):
         self.sec_site.validated_save()
         self.diffsync.site_map = {"NY": ny_region.id, "Site 2": self.sec_site.id}
         self.test_bldg = NautobotBuilding(
-            name="Site 2", address="", area="NY", latitude="", longitude="", tenant="G&A", uuid=self.sec_site.id
+            name="Site 2",
+            address="",
+            area="NY",
+            area_parent=None,
+            latitude="",
+            longitude="",
+            tenant="G&A",
+            uuid=self.sec_site.id,
         )
         self.test_bldg.diffsync = self.diffsync
 
     def test_create(self):
         """Validate the NautobotBuilding create() method creates a Site."""
         ids = {"name": "HQ"}
-        attrs = {"address": "123 Main St", "area": "NY", "latitude": "12.345", "longitude": "-67.890", "tenant": "G&A"}
+        attrs = {
+            "address": "123 Main St",
+            "area": "NY",
+            "area_parent": None,
+            "latitude": "12.345",
+            "longitude": "-67.890",
+            "tenant": "G&A",
+        }
         ny_area = Location.objects.get_or_create(
             name="NY", location_type=LocationType.objects.get(name="Region"), status=Status.objects.get(name="Active")
         )[0]
         ny_area.validated_save()
-        self.diffsync.region_map = {"NY": ny_area.id}
+        self.diffsync.region_map = {None: {"NY": ny_area.id}}
         result = NautobotBuilding.create(self.diffsync, ids, attrs)
         self.assertIsInstance(result, NautobotBuilding)
         self.diffsync.job.logger.info.assert_called_once_with("Creating Site HQ.")
