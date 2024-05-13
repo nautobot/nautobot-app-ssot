@@ -212,9 +212,19 @@ class TestDnaCenterAdapterTestCase(
 
     def test_load_buildings_duplicate(self):
         """Test Nautobot SSoT for Cisco DNA Center load_buildings() function with duplicate building."""
+        self.dna_center_client.find_address_and_type.side_effect = [
+            ("", "building"),
+            ("", "building"),
+            ("", "building"),
+            ("", "building"),
+            ("", "building"),
+            ("", "building"),
+            ("", "building"),
+            ("", "building"),
+        ]
         self.dna_center.load_buildings(buildings=EXPECTED_BUILDINGS)
-        self.dna_center.load_buildings(buildings=EXPECTED_BUILDINGS)
-        self.dna_center.job.logger.warning.assert_called_with("Building DC1 already loaded so skipping.")
+        self.dna_center.load_buildings(buildings=[EXPECTED_BUILDINGS[0]])
+        self.dna_center.job.logger.warning.assert_called_with("Building Building1 already loaded so skipping.")
 
     def test_load_buildings_with_validation_error(self):
         """Test Nautobot SSoT for Cisco DNA Center load_buildings() function with a ValidationError."""
