@@ -183,7 +183,9 @@ class TestDnaCenterAdapterTestCase(
         self.dna_center.dnac_location_map = EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL
         self.dna_center.load_areas(areas=EXPECTED_AREAS)
         area_expected = [
-            "NY__None",
+            f"{x['name']}__{x['parent']}"
+            for x in EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL.values()
+            if x["loc_type"] == "area"
         ]
         area_actual = [area.get_unique_id() for area in self.dna_center.get_all("area")]
         self.assertEqual(area_actual, area_expected)
