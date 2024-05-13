@@ -248,7 +248,13 @@ class TestDnaCenterAdapterTestCase(
     def test_load_floors(self):
         """Test Nautobot SSoT for Cisco DNA Center load_floors() function."""
         self.dna_center.load_floors(floors=EXPECTED_FLOORS)
-        floor_expected = ["Building1 - Floor1__Building1", "DC1 - Main Floor__DC1"]
+        floor_expected = [
+            "Building1 - Floor1__Building1",
+            "1 - 1__1",
+            "Deep Space - 1st Floor__Deep Space",
+            "Building 1 - Lab__Building 1",
+            "secretlab - Floor 2__secretlab",
+        ]
         floor_actual = [floor.get_unique_id() for floor in self.dna_center.get_all("floor")]
         self.assertEqual(floor_actual, floor_expected)
 
