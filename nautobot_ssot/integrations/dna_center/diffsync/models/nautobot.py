@@ -43,10 +43,10 @@ class NautobotArea(base.Area):
             status_id=diffsync.status_map["Active"],
         )
         try:
-            if settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
-                new_region.parent_id = diffsync.region_map["Global"][ids["parent"]]
-            else:
-                new_region.parent_id = diffsync.region_map[None][ids["parent"]]
+            parents_parent = "Global"
+            if ids["parent"] == "Global":
+                parents_parent = None
+            new_region.parent_id = diffsync.region_map[parents_parent][ids["parent"]]
         except KeyError:
             diffsync.job.logger.warning(f"Unable to find Region {ids['parent']} for {ids['name']}.")
         new_region.validated_save()
