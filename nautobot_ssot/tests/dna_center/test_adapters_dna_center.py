@@ -193,7 +193,7 @@ class TestDnaCenterAdapterTestCase(
         self.dna_center.add = MagicMock()
         self.dna_center.add.side_effect = ValidationError(message="Area load failed!")
         self.dna_center.load_areas(areas=EXPECTED_AREAS_WO_GLOBAL)
-        self.dna_center.job.logger.warning.assert_called_with("Unable to load area NY. ['Area load failed!']")
+        self.dna_center.job.logger.warning.assert_called_with("Unable to load area Sydney. ['Area load failed!']")
 
     def test_load_buildings_w_global(self):
         """Test Nautobot SSoT for Cisco DNA Center load_buildings() function with Global area."""
