@@ -199,8 +199,18 @@ class TestDnaCenterAdapterTestCase(
 
     def test_load_buildings_w_global(self):
         """Test Nautobot SSoT for Cisco DNA Center load_buildings() function with Global area."""
+        self.dna_center_client.find_address_and_type.side_effect = [
+            ("", "building"),
+            ("", "building"),
+            ("", "building"),
+            ("", "building"),
+            ("", "building"),
+            ("", "building"),
+            ("", "building"),
+            ("", "building"),
+        ]
         self.dna_center.load_buildings(buildings=EXPECTED_BUILDINGS)
-        building_expected = ["Building1", "DC1"]
+        building_expected = [x["name"] for x in EXPECTED_DNAC_LOCATION_MAP.values() if x["loc_type"] == "building"]
         building_actual = [building.get_unique_id() for building in self.dna_center.get_all("building")]
         self.assertEqual(building_actual, building_expected)
 
