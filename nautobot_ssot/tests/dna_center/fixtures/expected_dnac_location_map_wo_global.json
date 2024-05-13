@@ -102,7 +102,7 @@
     "5c882916-4f65-45b5-a5cc-ca5fa927cba6": {
         "name": "Forschungszentrum",
         "loc_type": "area",
-        "parent": "building"
+        "parent": null
     },
     "1c3bb089-2a74-4fdf-96e3-d1815ac67e38": {
         "name": "Building 1",
