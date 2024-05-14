@@ -74,10 +74,10 @@ class TestNautobotVRFGroup(TransactionTestCase):
         self.assertEqual(list(self.vrf.tags.names()), [])
 
     @patch(
-        "nautobot_ssot.integrations.device42.diffsync.models.nautobot.ipam.PLUGIN_CFG",
+        "nautobot_ssot.integrations.device42.adapter.models.nautobot.ipam.PLUGIN_CFG",
         {"device42_delete_on_sync": True},
     )
-    @patch("nautobot_ssot.integrations.device42.diffsync.models.nautobot.ipam.OrmVRF.objects.get")
+    @patch("nautobot_ssot.integrations.device42.adapter.models.nautobot.ipam.OrmVRF.objects.get")
     def test_delete(self, mock_vrf):
         """Validate the NautobotVRFGroup delete() deletes a VRF."""
         vrf_group = ipam.NautobotVRFGroup(
@@ -160,10 +160,10 @@ class TestNautobotSubnet(TransactionTestCase):
         self.assertEqual(actual, test_pf)
 
     @patch(
-        "nautobot_ssot.integrations.device42.diffsync.models.nautobot.ipam.PLUGIN_CFG",
+        "nautobot_ssot.integrations.device42.adapter.models.nautobot.ipam.PLUGIN_CFG",
         {"device42_delete_on_sync": True},
     )
-    @patch("nautobot_ssot.integrations.device42.diffsync.models.nautobot.ipam.OrmPrefix.objects.get")
+    @patch("nautobot_ssot.integrations.device42.adapter.models.nautobot.ipam.OrmPrefix.objects.get")
     def test_delete(self, mock_subnet):
         """Validate the NautobotVRFGroup delete() deletes a Prefix."""
         test_pf = ipam.NautobotSubnet(
@@ -392,7 +392,7 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         self.addr.refresh_from_db()
         self.assertEqual(self.addr.custom_field_data["New_CF"], "Test")
 
-    @patch("nautobot_ssot.integrations.device42.diffsync.models.nautobot.ipam.OrmIPAddress.objects.get")
+    @patch("nautobot_ssot.integrations.device42.adapter.models.nautobot.ipam.OrmIPAddress.objects.get")
     def test_update_handling_validation_error(self, mock_ip_get):
         """Validate how the NautobotIPAddress.update() handles a ValidationError."""
         mock_ip = MagicMock()
