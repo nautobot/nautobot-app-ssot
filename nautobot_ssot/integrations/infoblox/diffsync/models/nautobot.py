@@ -209,12 +209,12 @@ class NautobotIPAddress(IPAddress):
         except KeyError:
             status = adapter.status_map[PLUGIN_CFG.get("default_status", "Active")]
         addr = f"{ids['address']}/{ids['prefix_length']}"
+        ip_addr_type = "host"
         if attrs.get("ip_addr_type"):
             if attrs["ip_addr_type"].lower() in IPAddressTypeChoices.as_dict():
                 ip_addr_type = attrs["ip_addr_type"].lower()
             else:
                 adapter.logger.warning(f"unable to determine IPAddress Type for {addr}, defaulting to 'Host'")
-                ip_addr_type = "host"
         if adapter.job.debug:
             adapter.job.logger.debug(f"Creating IP Address {addr}")
         _ip = OrmIPAddress(
