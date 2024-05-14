@@ -188,6 +188,7 @@ class ServiceNowDiffSync(Adapter):
             elif "reference" in mapping:
                 # Reference by sys_id to a field in a record in another table
                 table = mapping["reference"]["table"]
+                sys_id = None
                 if "key" in mapping["reference"]:
                     key = mapping["reference"]["key"]
                     if key not in record:
