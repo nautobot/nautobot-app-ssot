@@ -2,7 +2,7 @@
 
 from collections import defaultdict
 import logging
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.db.models import ProtectedError
 from nautobot.circuits.models import Circuit, CircuitTermination, Provider
