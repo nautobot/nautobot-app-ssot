@@ -314,13 +314,12 @@ class NautobotVLAN(VLAN):
         new_vlan = OrmVLAN(
             name=attrs["name"],
             vid=ids["vlan_id"],
-            location_id=(
-                adapter.site_map[_site_name] if _site_name in adapter.site_map and _site_name != "Global" else None
-            ),
             status_id=adapter.status_map["Active"],
             description=attrs["description"],
         )
         new_vlan.validated_save()
+        if _site_name in adapter.site_map and _site_name != "Global":
+            new_vlan.location = adapter.site_map[_site_name]
         if attrs.get("custom_fields"):
             nautobot.update_custom_fields(new_cfields=attrs["custom_fields"], update_obj=new_vlan)
         if attrs.get("tags"):
