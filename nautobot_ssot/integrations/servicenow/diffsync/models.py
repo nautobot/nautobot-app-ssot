@@ -88,20 +88,20 @@ class ServiceNowCRUDMixin:
 
     def delete(self):
         """Delete an existing instance in ServiceNow if it does not exist in Nautobot. This code adds the ServiceNow object to the objects_to_delete dict of lists. The actual delete occurs in the post-run method of adapter_servicenow.py."""
-        entry = self.diffsync.mapping_data[self.get_type()]
-        sn_resource = self.diffsync.client.resource(api_path=f"/table/{entry['table']}")
+        entry = self.adapter.mapping_data[self.get_type()]
+        sn_resource = self.adapter.client.resource(api_path=f"/table/{entry['table']}")
         query = self.map_data_to_sn_record(data=self.get_identifiers(), mapping_entry=entry)
         try:
             sn_resource.get(query=query).one()
         except pysnow.exceptions.MultipleResults:
-            self.diffsync.job.logger.error(
+            self.adapter.job.logger.error(
                 f"Unsure which record to update, as query {query} matched more than one item "
                 f"in table {entry['table']}"
             )
             return None
-        self.diffsync.job.logger.warning(f"{self._modelname} {self.get_identifiers()} will be deleted.")
+        self.adapter.job.logger.warning(f"{self._modelname} {self.get_identifiers()} will be deleted.")
         _object = sn_resource.get(query=query)
-        self.diffsync.objects_to_delete[self._modelname].append(_object)
+        self.adapter.objects_to_delete[self._modelname].append(_object)
         self.map_data_to_sn_record(
             data=self.get_identifiers(), mapping_entry=entry, clear_cache=True
         )  # remove device cache

@@ -155,7 +155,7 @@ class CloudvisionCustomField(CustomField):
 
     def update(self, attrs):
         """Update user tag in cvp."""
-        config: CloudVisionAppConfig = self.diffsync.job.app_config  # type: ignore
+        config: CloudVisionAppConfig = self.adapter.job.app_config  # type: ignore
         # TBD: Isn't this a performance bottleneck? We are connecting to CVP for each operation.
         cvp = self.connect_cvp(config)
         remove = set(self.device_name) - set(attrs["devices"])
@@ -178,7 +178,7 @@ class CloudvisionCustomField(CustomField):
 
     def delete(self):
         """Delete user tag applied to devices in cvp."""
-        config: CloudVisionAppConfig = self.diffsync.job.app_config  # type: ignore
+        config: CloudVisionAppConfig = self.adapter.job.app_config  # type: ignore
         # TBD: Isn't this performance bottleneck? We are connecting to CVP for each operation.
         cvp = self.connect_cvp(config)
         device_ids = {dev["hostname"]: dev["device_id"] for dev in cvp.get_devices()}

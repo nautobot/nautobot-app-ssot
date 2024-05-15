@@ -139,11 +139,11 @@ class NautobotDevice(Device):
 
     def delete(self):
         """Delete device object in Nautobot."""
-        config: CloudVisionAppConfig = self.diffsync.job.app_config  # type: ignore
+        config: CloudVisionAppConfig = self.adapter.job.app_config  # type: ignore
         if config.delete_devices_on_sync:
-            self.diffsync.job.logger.warning(f"Device {self.name} will be deleted per app settings.")
+            self.adapter.job.logger.warning(f"Device {self.name} will be deleted per app settings.")
             device = OrmDevice.objects.get(id=self.uuid)
-            self.diffsync.objects_to_delete["devices"].append(device)
+            self.adapter.objects_to_delete["devices"].append(device)
             super().delete()
         return self
 
@@ -239,7 +239,7 @@ class NautobotPort(Port):
 
     def delete(self):
         """Delete Interface in Nautobot."""
-        config: CloudVisionAppConfig = self.diffsync.job.app_config  # type: ignore
+        config: CloudVisionAppConfig = self.adapter.job.app_config  # type: ignore
         if config.delete_devices_on_sync:
             super().delete()
             if self.adapter.job.debug:
