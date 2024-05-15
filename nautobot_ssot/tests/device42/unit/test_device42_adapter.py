@@ -69,6 +69,8 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         self.d42_client.get_port_custom_fields.return_value = PORT_CUSTOM_FIELDS
         self.d42_client.get_ip_addrs.return_value = IPADDRESS_FIXTURE
         self.d42_client.get_ipaddr_custom_fields.return_value = IPADDRESS_CF_FIXTURE
+        self.d42_client.get_port_default_custom_fields.return_value = {}
+        self.d42_client.get_ipaddr_default_custom_fields.return_value = {}
 
         self.job = self.job_class()
         self.job.logger = MagicMock()
@@ -91,6 +93,7 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
     @patch(
         "nautobot_ssot.integrations.device42.utils.device42.PLUGIN_CFG",
         {
+            "enable_device42": True,
             "device42_customer_is_facility": True,
             "device42_facility_prepend": "sitecode-",
             "device42_hostname_mapping": [{"AUS": "Austin"}],
