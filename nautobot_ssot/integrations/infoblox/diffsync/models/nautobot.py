@@ -134,6 +134,7 @@ class NautobotNetwork(Network):
 
         if attrs.get("ext_attrs"):
             process_ext_attrs(adapter=adapter, obj=_prefix, extattrs=attrs["ext_attrs"])
+        _prefix.tags.add(create_tag_sync_from_infoblox())
         _prefix.validated_save()
         adapter.prefix_map[ids["network"]] = _prefix.id
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
