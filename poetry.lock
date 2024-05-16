@@ -2951,6 +2951,8 @@ Django = ">=4.2.15,<4.3.0"
 django-ajax-tables = ">=1.1.1,<1.2.0"
 django-celery-beat = ">=2.6.0,<2.7.0"
 django-celery-results = ">=2.5.1,<2.6.0"
+django-celery-beat = ">=2.6.0,<2.7.0"
+django-celery-results = ">=2.5.1,<2.6.0"
 django-constance = ">=3.1.0,<3.2.0"
 django-cors-headers = ">=4.4.0,<4.5.0"
 django-db-file-storage = ">=0.5.6.1,<0.6.0.0"
@@ -3228,6 +3230,8 @@ description = "Utility library for gitignore style pattern matching of file path
 optional = false
 python-versions = ">=3.8"
 files = [
+    {file = "pathspec-0.12.1-py3-none-any.whl", hash = "sha256:a0d503e138a4c123b27490a4f7beda6a01c6f288df0e4a8b79c7eb0dc7b4cc08"},
+    {file = "pathspec-0.12.1.tar.gz", hash = "sha256:a482d51503a1ab33b1c67a6c3813a26953dbdc71c31dacaef9a838c4e29f5712"},
     {file = "pathspec-0.12.1-py3-none-any.whl", hash = "sha256:a0d503e138a4c123b27490a4f7beda6a01c6f288df0e4a8b79c7eb0dc7b4cc08"},
     {file = "pathspec-0.12.1.tar.gz", hash = "sha256:a482d51503a1ab33b1c67a6c3813a26953dbdc71c31dacaef9a838c4e29f5712"},
 ]
