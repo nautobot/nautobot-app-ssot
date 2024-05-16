@@ -6,7 +6,7 @@
 from collections import defaultdict
 from uuid import UUID
 
-from typing import Optional
+from typing import ClassVar, Optional
 
 from diffsync import DiffSyncModel
 from diffsync.exceptions import ObjectCrudException, ObjectNotUpdated, ObjectNotDeleted, ObjectNotCreated
@@ -35,7 +35,7 @@ class NautobotModel(DiffSyncModel):
     model class.
     """
 
-    _model: Model
+    _model: ClassVar[Model]
 
     pk: Optional[UUID]
 
