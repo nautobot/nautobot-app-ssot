@@ -13,7 +13,9 @@ import requests_mock
 from nautobot_ssot.integrations.infoblox.utils.client import InvalidUrlScheme, get_dns_name
 
 from .fixtures_infoblox import (
+    get_ptr_record_by_ip,
     get_ptr_record_by_name,
+    get_ptr_record_by_ref,
     localhost_client_infoblox,
     get_all_ipv4address_networks,
     get_all_ipv4address_networks_medium,
@@ -25,6 +27,7 @@ from .fixtures_infoblox import (
     get_host_by_ip,
     get_a_record_by_ip,
     get_a_record_by_name,
+    get_a_record_by_ref,
     get_host_record_by_name,
     get_all_dns_views,
     get_dhcp_lease_from_ipv4,
@@ -32,8 +35,11 @@ from .fixtures_infoblox import (
     get_all_ranges,
     get_all_subnets,
     get_authoritative_zone,
+    get_authoritative_zones_for_dns_view,
     get_network_containers,
     get_network_containers_ipv6,
+    get_all_network_views,
+    get_network_view,
     find_network_reference,
     find_next_available_ip,
     search_ipv4_address,
@@ -275,7 +281,7 @@ class TestInfobloxTest(unittest.TestCase):
             req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=200)
             resp = self.infoblox_client.get_a_record_by_ip(mock_ip)
 
-        self.assertEqual(resp, mock_response["result"])
+        self.assertEqual(resp, mock_response["result"][0])
 
     def test_get_a_record_by_ip_fail(self):
         """Test get_a_record_by_ip fail."""
@@ -287,6 +293,33 @@ class TestInfobloxTest(unittest.TestCase):
             req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=404)
             with self.assertRaises(HTTPError) as context:
                 self.infoblox_client.get_a_record_by_ip(mock_ip)
+
+        self.assertEqual(context.exception.response.status_code, 404)
+
+    def test_get_a_record_by_ref_success(self):
+        """Test get_a_record_by_ref success."""
+        mock_ref = (
+            "record:a/ZG5zLmJpbmRfYSQuX2RlZmF1bHQudGVzdCx0ZXN0ZGV2aWNlMSwxMC4yMjAuMC4xMDE:testdevice1.test/default"
+        )
+        mock_response = get_a_record_by_ref()
+
+        with requests_mock.Mocker() as req:
+            req.get(f"{LOCALHOST}/{mock_ref}", json=mock_response, status_code=200)
+            resp = self.infoblox_client.get_a_record_by_ref(mock_ref)
+
+        self.assertEqual(resp, mock_response)
+
+    def test_get_a_record_by_ref_fail(self):
+        """Test get_a_record_by_ref fail."""
+        mock_ref = (
+            "record:a/aG5zLmJpbmRfYSQuX2RlZmF1bHQudGVzdCx0ZXN0ZGV2aWNlMSwxMC4yMjAuMC4xMDE:testdevice1.test/default"
+        )
+        mock_response = ""
+
+        with requests_mock.Mocker() as req:
+            req.get(f"{LOCALHOST}/{mock_ref}", json=mock_response, status_code=404)
+            with self.assertRaises(HTTPError) as context:
+                self.infoblox_client.get_a_record_by_ref(mock_ref)
 
         self.assertEqual(context.exception.response.status_code, 404)
 
@@ -659,6 +692,58 @@ class TestInfobloxTest(unittest.TestCase):
 
         self.assertEqual(context.exception.response.status_code, 404)
 
+    def test_get_ptr_record_by_ip_success(self):
+        """Test get_ptr_record_by_ip success."""
+        mock_ip = "10.0.0.1"
+        mock_response = get_ptr_record_by_ip()
+        mock_uri = "record:ptr"
+
+        with requests_mock.Mocker() as req:
+            req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=200)
+            resp = self.infoblox_client.get_ptr_record_by_name(mock_ip)
+
+        self.assertEqual(resp, mock_response["result"])
+
+    def test_get_ptr_record_by_ip_fail(self):
+        """Test get_ptr_record_by_ip success."""
+        mock_ip = "10.0.0.2"
+        mock_response = ""
+        mock_uri = "record:ptr"
+
+        with requests_mock.Mocker() as req:
+            req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=404)
+            with self.assertRaises(HTTPError) as context:
+                self.infoblox_client.get_ptr_record_by_ip(mock_ip)
+
+        self.assertEqual(context.exception.response.status_code, 404)
+
+    def test_get_ptr_record_by_ref_success(self):
+        """Test get_ptr_record_by_ref success."""
+        mock_ref = (
+            "record:a/ZG5zLmJpbmRfYSQuX2RlZmF1bHQudGVzdCx0ZXN0ZGV2aWNlMSwxMC4yMjAuMC4xMDE:testdevice1.test/default"
+        )
+        mock_response = get_ptr_record_by_ref()
+
+        with requests_mock.Mocker() as req:
+            req.get(f"{LOCALHOST}/{mock_ref}", json=mock_response, status_code=200)
+            resp = self.infoblox_client.get_ptr_record_by_ref(mock_ref)
+
+        self.assertEqual(resp, mock_response)
+
+    def test_get_ptr_record_by_ref_fail(self):
+        """Test get_ptr_record_by_ref fail."""
+        mock_ref = (
+            "record:a/aG5zLmJpbmRfYSQuX2RlZmF1bHQudGVzdCx0ZXN0ZGV2aWNlMSwxMC4yMjAuMC4xMDE:testdevice1.test/default"
+        )
+        mock_response = ""
+
+        with requests_mock.Mocker() as req:
+            req.get(f"{LOCALHOST}/{mock_ref}", json=mock_response, status_code=404)
+            with self.assertRaises(HTTPError) as context:
+                self.infoblox_client.get_ptr_record_by_ref(mock_ref)
+
+        self.assertEqual(context.exception.response.status_code, 404)
+
     def test_search_ipv4_address_success(self):
         """Test search_ipv4_address success."""
         mock_ip = "10.223.0.42"
@@ -703,5 +788,92 @@ class TestInfobloxTest(unittest.TestCase):
         with requests_mock.Mocker() as req:
             req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=200)
             resp = self.infoblox_client.get_network_containers(ipv6=True)
+
+        self.assertEqual(resp, mock_response["result"])
+
+    def test_get_network_views_success(self):
+        """Test get_network_views."""
+        mock_response = get_all_network_views()
+        mock_uri = "networkview"
+
+        with requests_mock.Mocker() as req:
+            req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=200)
+            resp = self.infoblox_client.get_network_views()
+
+        self.assertEqual(resp, mock_response)
+
+    def test_get_network_view_success(self):
+        """Test get_network_view success."""
+        mock_name = "dev"
+        mock_response = get_network_view()
+        mock_uri = "networkview"
+
+        with requests_mock.Mocker() as req:
+            req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=200)
+            resp = self.infoblox_client.get_network_view(mock_name)
+
+        self.assertEqual(resp, mock_response)
+
+    def test_get_network_view_fail(self):
+        """Test get_ptr_record_by_ref fail."""
+        mock_name = "dev"
+        mock_response = ""
+        mock_uri = "networkview"
+
+        with requests_mock.Mocker() as req:
+            req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=404)
+            resp = self.infoblox_client.get_network_view(mock_name)
+
+        self.assertEqual(resp, [])
+
+    def test_get_default_dns_view_for_network_view(self):
+        """Test get_default_dns_view_for_network_view success."""
+        mock_name = "dev"
+        mock_response = get_network_view()
+        mock_uri = "networkview"
+
+        with requests_mock.Mocker() as req:
+            req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=200)
+            resp = self.infoblox_client.get_default_dns_view_for_network_view(mock_name)
+
+        self.assertEqual(resp, "default.dev")
+
+    def test_get_dns_view_for_network_view_from_default(self):
+        """Test get_dns_view_for_network_view using default view."""
+        mock_name = "dev"
+        mock_response = get_network_view()
+        mock_uri = "networkview"
+
+        with requests_mock.Mocker() as req:
+            req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=200)
+            resp = self.infoblox_client.get_dns_view_for_network_view(mock_name)
+
+        self.assertEqual(resp, "default.dev")
+
+    def test_get_dns_view_for_network_view_from_config(self):
+        """Test get_dns_view_for_network_view using configured mapping."""
+        mock_name = "dev"
+        mock_network_view_to_dns_map = {"dev": "dev-view"}
+        mock_response = get_network_view()
+        mock_uri = "networkview"
+
+        with requests_mock.Mocker() as req:
+            req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=200)
+            with unittest.mock.patch.object(
+                self.infoblox_client, "network_view_to_dns_map", mock_network_view_to_dns_map
+            ):
+                resp = self.infoblox_client.get_dns_view_for_network_view(mock_name)
+
+        self.assertEqual(resp, "dev-view")
+
+    def test_get_authoritative_zones_for_dns_view(self):
+        """Test get_authoritative_zones_for_dns_view."""
+        mock_view = "dev"
+        mock_response = get_authoritative_zones_for_dns_view()
+        mock_uri = "zone_auth"
+
+        with requests_mock.Mocker() as req:
+            req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=200)
+            resp = self.infoblox_client.get_authoritative_zones_for_dns_view(mock_view)
 
         self.assertEqual(resp, mock_response["result"])
