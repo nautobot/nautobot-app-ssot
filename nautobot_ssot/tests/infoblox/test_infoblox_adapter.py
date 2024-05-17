@@ -98,7 +98,7 @@ class TestInfobloxAdapter(unittest.TestCase):
         subnet_without_attrs = self.infoblox_adapter.get("prefix", "10.0.100.0/24__Global")
         self.assertEqual(subnet_without_attrs.ext_attrs, {"attr1": "data"})
         self.assertEqual(subnet_without_attrs.vlans, {})
-        self.assertEqual(subnet_without_attrs.ranges, [])
+        self.assertEqual(subnet_without_attrs.ranges, None)
 
     @unittest.mock.patch(
         "nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox.get_default_ext_attrs",
