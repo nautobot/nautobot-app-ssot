@@ -1,0 +1,35 @@
+[
+    {
+      "_ref": "networkview/ZG5zLm5ldHdvcmtfdmlldyQw:default/true",
+      "associated_dns_views": [
+        "default"
+      ],
+      "extattrs": {
+
+      },
+      "is_default": true,
+      "name": "default"
+    },
+    {
+      "_ref": "networkview/ZG5zLm5ldHdvcmtfdmlldyQx:prod/false",
+      "associated_dns_views": [
+        "default.prod"
+      ],
+      "extattrs": {
+
+      },
+      "is_default": false,
+      "name": "prod"
+    },
+    {
+      "_ref": "networkview/ZG5zLm5ldHdvcmtfdmlldyQy:dev/false",
+      "associated_dns_views": [
+        "default.dev"
+      ],
+      "extattrs": {
+
+      },
+      "is_default": false,
+      "name": "dev"
+    }
+]

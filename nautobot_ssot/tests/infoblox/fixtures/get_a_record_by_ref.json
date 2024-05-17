@@ -1,0 +1,6 @@
+{
+    "_ref": "record:a/ZG5zLmJpbmRfYSQuX2RlZmF1bHQudGVzdC5uYXV0b2JvdCx0ZXN0ZG5zbmFtZSwxMC4wLjAuMQ:testdnsname.nautobot.test/default",
+    "ipv4addr": "10.0.0.1",
+    "name": "testdnsname.nautobot.test",
+    "view": "default"
+}

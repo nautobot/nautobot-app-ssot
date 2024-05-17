@@ -1,0 +1,16 @@
+{
+    "result": [
+      {
+        "_ref": "record:ptr/ZG5zLmJpbmRfcHRyJC4yLmFycGEuaW4tYWRkci4xMC4wLjAuMS5ob3N0MS5uYXV0b2JvdC5sb2NhbC50ZXN0:1.0.0.10.in-addr.arpa/default.dev",
+        "extattrs": {
+  
+        },
+        "ipv4addr": "10.0.0.1",
+        "ipv6addr": "",
+        "name": "1.0.0.10.in-addr.arpa",
+        "ptrdname": "host1.nautobot.local.test",
+        "view": "default.dev",
+        "zone": "in-addr.arpa"
+      }
+    ]
+}
