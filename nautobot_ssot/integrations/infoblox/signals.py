@@ -2,9 +2,20 @@
 
 # pylint: disable=duplicate-code
 
+import ipaddress
+
 from nautobot.core.signals import nautobot_database_ready
-from nautobot.extras.choices import CustomFieldTypeChoices, RelationshipTypeChoices
+from nautobot.extras.choices import (
+    CustomFieldTypeChoices,
+    RelationshipTypeChoices,
+    SecretsGroupAccessTypeChoices,
+    SecretsGroupSecretTypeChoices,
+)
+from django.conf import settings
 from nautobot_ssot.integrations.infoblox.constant import TAG_COLOR
+
+
+config = settings.PLUGINS_CONFIG["nautobot_ssot"]
 
 
 def register_signals(sender):
@@ -24,8 +35,14 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     IPAddress = apps.get_model("ipam", "IPAddress")
     Tag = apps.get_model("extras", "Tag")
     Relationship = apps.get_model("extras", "Relationship")
+    ExternalIntegration = apps.get_model("extras", "ExternalIntegration")
+    Secret = apps.get_model("extras", "Secret")
+    SecretsGroup = apps.get_model("extras", "SecretsGroup")
+    SecretsGroupAssociation = apps.get_model("extras", "SecretsGroupAssociation")
+    Status = apps.get_model("extras", "Status")
     VLAN = apps.get_model("ipam", "VLAN")
     VLANGroup = apps.get_model("ipam", "VLANGroup")
+    SSOTInfobloxConfig = apps.get_model("nautobot_ssot", "SSOTInfobloxConfig")
 
     tag_sync_from_infoblox, _ = Tag.objects.get_or_create(
         name="SSoT Synced from Infoblox",
@@ -76,3 +93,114 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         "destination_label": "VLAN",
     }
     Relationship.objects.get_or_create(label=relationship_dict["label"], defaults=relationship_dict)
+
+    # Migrate existing configuration to a configuration object
+    if not SSOTInfobloxConfig.objects.exists():
+        default_status_name = str(config.get("infoblox_default_status", ""))
+        found_status = Status.objects.filter(name=default_status_name)
+        if found_status.exists():
+            default_status = found_status.first()
+        else:
+            default_status = Status.objects.get(name="Active")
+
+        try:
+            infoblox_request_timeout = int(config.get("infoblox_request_timeout", 60))
+        except ValueError:
+            infoblox_request_timeout = 60
+
+        infoblox_sync_filters = _get_sync_filters()
+
+        secrets_group, _ = SecretsGroup.objects.get_or_create(name="InfobloxSSOTMigration")
+        infoblox_username, _ = Secret.objects.get_or_create(
+            name="Infoblox Username - SSOT Migration",
+            defaults={
+                "provider": "environment-variable",
+                "parameters": {"variable": "NAUTOBOT_SSOT_INFOBLOX_USERNAME"},
+            },
+        )
+        infoblox_password, _ = Secret.objects.get_or_create(
+            name="Infoblox Password - SSOT Migration",
+            defaults={
+                "provider": "environment-variable",
+                "parameters": {"variable": "NAUTOBOT_SSOT_INFOBLOX_PASSWORD"},
+            },
+        )
+        SecretsGroupAssociation.objects.get_or_create(
+            secrets_group=secrets_group,
+            access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
+            secret_type=SecretsGroupSecretTypeChoices.TYPE_USERNAME,
+            defaults={
+                "secret": infoblox_username,
+            },
+        )
+        SecretsGroupAssociation.objects.get_or_create(
+            secrets_group=secrets_group,
+            access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
+            secret_type=SecretsGroupSecretTypeChoices.TYPE_PASSWORD,
+            defaults={
+                "secret": infoblox_password,
+            },
+        )
+        external_integration = ExternalIntegration.objects.create(
+            name="MigratedInfobloxInstance",
+            remote_url=str(config.get("infoblox_url", "https://replace.me.local")),
+            secrets_group=secrets_group,
+            verify_ssl=bool(config.get("infoblox_verify_ssl", True)),
+            timeout=infoblox_request_timeout,
+        )
+
+        SSOTInfobloxConfig.objects.create(
+            name="InfobloxConfigDefault",
+            description="Config generated from the migrated legacy settings.",
+            default_status=default_status,
+            infoblox_wapi_version=str(config.get("infoblox_wapi_version", "v2.12")),
+            infoblox_instance=external_integration,
+            enable_sync_to_infoblox=bool(config.get("infoblox_enable_sync_to_infoblox", False)),
+            import_ip_addresses=bool(config.get("infoblox_import_objects_ip_addresses", False)),
+            import_subnets=bool(config.get("infoblox_import_objects_subnets", False)),
+            import_vlan_views=bool(config.get("infoblox_import_objects_vlan_views", False)),
+            import_vlans=bool(config.get("infoblox_import_objects_vlans", False)),
+            import_ipv4=True,
+            import_ipv6=bool(config.get("infoblox_import_objects_subnets_ipv6", False)),
+            job_enabled=True,
+            infoblox_sync_filters=infoblox_sync_filters,
+        )
+
+
+def _get_sync_filters():
+    """Build sync filters from the existing config."""
+    subnets_to_import = config.get("infoblox_import_subnets", [])
+    default_sync_filters = [{"network_view": "default"}]
+    ipv4_subnets = []
+    ipv6_subnets = []
+    if not subnets_to_import:
+        return default_sync_filters
+    if not isinstance(subnets_to_import, list):
+        return default_sync_filters
+    for subnet in subnets_to_import:
+        try:
+            ipaddress.IPv4Network(subnet)
+            ipv4_subnets.append(subnet)
+        except (ValueError, TypeError):
+            pass
+        try:
+            ipaddress.IPv6Network(subnet)
+            ipv6_subnets.append(subnet)
+        except (ValueError, TypeError):
+            pass
+
+    sync_filter = {}
+    if ipv4_subnets:
+        sync_filter["prefixes_ipv4"] = ipv4_subnets
+    if ipv6_subnets:
+        sync_filter["prefixes_ipv6"] = ipv6_subnets
+
+    network_view = str(config.get("infoblox_network_view", ""))
+    if network_view:
+        sync_filter["network_view"] = network_view
+    else:
+        sync_filter["network_view"] = "default"
+
+    sync_filters = [sync_filter]
+
+    return sync_filters
