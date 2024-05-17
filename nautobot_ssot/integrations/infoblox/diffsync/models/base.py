@@ -68,7 +68,16 @@ class IPAddress(DiffSyncModel):
 
     _modelname = "ipaddress"
     _identifiers = ("address", "prefix", "prefix_length", "namespace")
-    _attributes = ("description", "dns_name", "status", "ip_addr_type", "ext_attrs")
+    _attributes = (
+        "description",
+        "dns_name",
+        "status",
+        "ip_addr_type",
+        "ext_attrs",
+        "has_host_record",
+        "has_a_record",
+        "has_ptr_record",
+    )
 
     address: str
     dns_name: str
@@ -79,4 +88,11 @@ class IPAddress(DiffSyncModel):
     ip_addr_type: Optional[str]
     description: Optional[str]
     ext_attrs: Optional[dict]
+    has_a_record: bool = False
+    has_host_record: bool = False
+    has_ptr_record: bool = False
+
     pk: Optional[uuid.UUID] = None
+    a_record_ref: Optional[str] = None
+    host_record_ref: Optional[str] = None
+    ptr_record_ref: Optional[str] = None
