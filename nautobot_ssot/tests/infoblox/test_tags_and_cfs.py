@@ -15,6 +15,8 @@ from nautobot_ssot.tests.infoblox.fixtures_infoblox import create_prefix_relatio
 
 from .fixtures_infoblox import create_default_infoblox_config
 
+from .fixtures_infoblox import create_default_infoblox_config
+
 
 class TestTagging(TestCase):
     """Tests ensuring tagging is applied to objects synced from and to Infoblox."""
