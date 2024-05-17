@@ -12,7 +12,6 @@ from nautobot.ipam.models import Prefix as OrmPrefix
 from nautobot.ipam.models import VLAN as OrmVlan
 from nautobot.ipam.models import VLANGroup as OrmVlanGroup
 from nautobot.ipam.models import Namespace as OrmNamespace
-from nautobot_ssot.integrations.infoblox.constant import PLUGIN_CFG
 from nautobot_ssot.integrations.infoblox.diffsync.models.base import Namespace, Network, IPAddress, Vlan, VlanView
 from nautobot_ssot.integrations.infoblox.utils.diffsync import (
     create_tag_sync_from_infoblox,
@@ -105,8 +104,7 @@ class NautobotNetwork(Network):
     @classmethod
     def create(cls, diffsync, ids, attrs):
         """Create Prefix object in Nautobot."""
-        # Remap "default" Network View to "Global" Namespace
-        namespace_name = map_network_view_to_namespace(ids["namespace"])
+        namespace_name = map_network_view_to_namespace(value=ids["namespace"], direction="nv_to_ns")
         _prefix = OrmPrefix(
             prefix=ids["network"],
             status_id=diffsync.status_map["Active"],
@@ -217,7 +215,7 @@ class NautobotIPAddress(IPAddress):
         try:
             status = diffsync.status_map[attrs["status"]]
         except KeyError:
-            status = diffsync.status_map[PLUGIN_CFG.get("default_status", "Active")]
+            status = diffsync.config.default_status.pk
         addr = f"{ids['address']}/{ids['prefix_length']}"
         if attrs.get("ip_addr_type"):
             if attrs["ip_addr_type"].lower() in IPAddressTypeChoices.as_dict():
@@ -256,7 +254,7 @@ class NautobotIPAddress(IPAddress):
             try:
                 status = self.diffsync.status_map[attrs["status"]]
             except KeyError:
-                status = self.diffsync.status_map[PLUGIN_CFG.get("default_status", "Active")]
+                status = self.diffsync.config.default_status.pk
             _ipaddr.status_id = status
         if attrs.get("ip_addr_type"):
             if attrs["ip_addr_type"].lower() in IPAddressTypeChoices.as_dict():
@@ -389,6 +387,29 @@ class NautobotNamespace(Namespace):
         )
         if attrs.get("ext_attrs"):
             process_ext_attrs(diffsync=diffsync, obj=_ns, extattrs=attrs["ext_attrs"])
-        _ns.validated_save()
-        diffsync.namespace_map[ids["name"]] = _ns.id
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        try:
+            _ns.validated_save()
+            diffsync.namespace_map[ids["name"]] = _ns.id
+            return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        except ValidationError as err:
+            diffsync.job.logger.warning(f"Unable to create Namespace {_ns.name}. {err}")
+            return None
+
+    def update(self, attrs):
+        """Update VLAN object in Nautobot."""
+        _ns = OrmNamespace.objects.get(id=self.pk)
+        if "ext_attrs" in attrs:
+            process_ext_attrs(diffsync=self.diffsync, obj=_ns, extattrs=attrs["ext_attrs"])
+        try:
+            _ns.validated_save()
+            return super().update(attrs)
+        except ValidationError as err:
+            self.diffsync.job.logger.warning(f"Unable to update Namespace {_ns.name}. {err}")
+            return None
+
+    def delete(self):
+        """Don't allow deleting Namespaces in Nautobot."""
+        self.diffsync.job.logger.error(
+            f"Deleting Namespaces in Nautobot is not allowed. Infoblox Network View: {self.get_identifiers()['name']}"
+        )
+        raise NotImplementedError
