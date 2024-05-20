@@ -396,7 +396,7 @@ class NautobotNamespace(Namespace):
             return None
 
     def update(self, attrs):
-        """Update VLAN object in Nautobot."""
+        """Update Namespace object in Nautobot."""
         _ns = OrmNamespace.objects.get(id=self.pk)
         if "ext_attrs" in attrs:
             process_ext_attrs(diffsync=self.diffsync, obj=_ns, extattrs=attrs["ext_attrs"])
