@@ -3,7 +3,7 @@
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 
-from nautobot.extras.models import Relationship, RelationshipAssociation, Status
+from nautobot.extras.models import RelationshipAssociation, Status
 from nautobot.ipam.models import Namespace, Prefix, VLAN, VLANGroup
 
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import NautobotAdapter
