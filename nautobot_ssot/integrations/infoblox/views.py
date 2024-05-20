@@ -1,4 +1,5 @@
 """Views implementation for SSOT Infoblox."""
+
 from nautobot.extras.views import ObjectChangeLogView, ObjectNotesView
 from nautobot.apps.views import (
     ObjectDestroyViewMixin,

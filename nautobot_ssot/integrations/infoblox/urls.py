@@ -1,4 +1,5 @@
 """URL patterns for nautobot-ssot-servicenow."""
+
 from django.urls import path
 from nautobot.apps.urls import NautobotUIViewSetRouter
 

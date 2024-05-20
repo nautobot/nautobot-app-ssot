@@ -223,6 +223,8 @@ class NautobotIPAddress(IPAddress):
             else:
                 diffsync.logger.warning(f"unable to determine IPAddress Type for {addr}, defaulting to 'Host'")
                 ip_addr_type = "host"
+        else:
+            ip_addr_type = "host"
         if diffsync.job.debug:
             diffsync.job.logger.debug(f"Creating IP Address {addr}")
         _ip = OrmIPAddress(

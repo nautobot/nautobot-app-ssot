@@ -1,4 +1,5 @@
 """Tables implementation for SSOT Infoblox."""
+
 import django_tables2 as tables
 
 from nautobot.apps.tables import BaseTable, BooleanColumn, ButtonsColumn
@@ -25,7 +26,7 @@ class SSOTInfobloxConfigTable(BaseTable):
         """Meta attributes."""
 
         model = SSOTInfobloxConfig
-        fields = (
+        fields = (  # pylint: disable=nb-use-fields-all
             "name",
             "infoblox_url",
             "enable_sync_to_infoblox",

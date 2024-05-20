@@ -170,7 +170,7 @@ class InfobloxIPAddress(IPAddress):
             incompatible_record_types = True
 
         if incompatible_record_types:
-            self.diffsync.job.logger.warning(incomp_msg)
+            self.diffsync.job.logger.warning(incomp_msg)  # pylint: disable=possibly-used-before-assignment
             return super().update(attrs)
 
         a_record_action = "none"
