@@ -165,7 +165,6 @@ class TestInfobloxAdapter(unittest.TestCase):
             },
         ]
         self.infoblox_adapter.conn.get_all_subnets.side_effect = [one_nine_two_network]
-        self.infoblox_adapter.conn.remove_duplicates.side_effect = [ten_network + one_nine_two_network, ten_container]
         sync_filters = [{"network_view": "default", "prefixes_ipv4": ["10.0.0.0/8", "192.168.0.0/16"]}]
         self.infoblox_adapter.load_prefixes(include_ipv4=True, include_ipv6=False, sync_filters=sync_filters)
         self.infoblox_adapter.conn.get_tree_from_container.assert_has_calls(

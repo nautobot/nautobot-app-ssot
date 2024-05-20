@@ -3,8 +3,8 @@
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 
-from nautobot.extras.models import RelationshipAssociation, Status
-from nautobot.ipam.models import Prefix, VLAN, VLANGroup
+from nautobot.extras.models import Relationship, RelationshipAssociation, Status
+from nautobot.ipam.models import Namespace, Prefix, VLAN, VLANGroup
 
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import NautobotAdapter
 from nautobot_ssot.tests.infoblox.fixtures_infoblox import create_default_infoblox_config, create_prefix_relationship
@@ -47,6 +47,7 @@ class TestNautobotAdapter(TestCase):
             status=active_status,
             vlan_group=vlan_group2,
         )
+        namespace_dev, _ = Namespace.objects.get_or_create(name="dev")
         prefix1 = Prefix.objects.create(
             prefix="10.0.0.0/24",
             status=active_status,
@@ -66,6 +67,18 @@ class TestNautobotAdapter(TestCase):
             status=active_status,
             type="Network",
         )
+        Prefix.objects.create(
+            prefix="10.0.1.0/24",
+            status=active_status,
+            type="Network",
+            namespace=namespace_dev,
+        )
+        Prefix.objects.create(
+            prefix="10.2.1.0/24",
+            status=active_status,
+            type="Network",
+            namespace=namespace_dev,
+        )
         self.config = create_default_infoblox_config()
         self.sync_filters = self.config.infoblox_sync_filters
         self.nb_adapter = NautobotAdapter(config=self.config)
@@ -83,8 +96,28 @@ class TestNautobotAdapter(TestCase):
 
     def test_load_prefixes_loads_prefixes(self):
         self.nb_adapter.load_prefixes(include_ipv4=True, include_ipv6=False, sync_filters=self.sync_filters)
-        actual_prefixes = {prefix.network for prefix in self.nb_adapter.get_all("prefix")}
-        self.assertEqual(actual_prefixes, {"10.0.0.0/24", "10.0.1.0/24"})
+        actual_prefixes = {(prefix.network, prefix.namespace) for prefix in self.nb_adapter.get_all("prefix")}
+        self.assertEqual(actual_prefixes, {("10.0.0.0/24", "Global"), ("10.0.1.0/24", "Global")})
+
+    def test_load_prefixes_loads_prefixes_dev_namespace(self):
+        sync_filters = [{"network_view": "dev"}]
+        self.nb_adapter.load_prefixes(include_ipv4=True, include_ipv6=False, sync_filters=sync_filters)
+        actual_prefixes = {(prefix.network, prefix.namespace) for prefix in self.nb_adapter.get_all("prefix")}
+        self.assertEqual(
+            actual_prefixes,
+            {("10.0.1.0/24", "dev"), ("10.2.1.0/24", "dev")},
+        )
+
+    def test_load_prefixes_loads_prefixes_dev_namespace_ipv4_filter(self):
+        sync_filters = [{"network_view": "dev", "prefixes_ipv4": ["10.0.0.0/16"]}]
+        self.nb_adapter.load_prefixes(include_ipv4=True, include_ipv6=False, sync_filters=sync_filters)
+        actual_prefixes = {(prefix.network, prefix.namespace) for prefix in self.nb_adapter.get_all("prefix")}
+        self.assertEqual(
+            actual_prefixes,
+            {
+                ("10.0.1.0/24", "dev"),
+            },
+        )
 
     def test_load_prefixes_loads_prefixes_and_vlan_relationship(self):
         self.nb_adapter.load_prefixes(include_ipv4=True, include_ipv6=False, sync_filters=self.sync_filters)
