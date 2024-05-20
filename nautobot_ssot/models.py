@@ -208,7 +208,9 @@ class SyncLogEntry(BaseModel):  # pylint: disable=nb-string-field-blank-null
         }.get(self.status)
 
 
-class SSOTConfig(models.Model):
+class SSOTConfig(models.Model):  # pylint: disable=nb-incorrect-base-class
+    """Non-db model providing user permission constraints."""
+
     class Meta:
         managed = False
         default_permissions = ("view",)
