@@ -11,7 +11,14 @@ from nautobot.extras.choices import (
     SecretsGroupAccessTypeChoices,
     SecretsGroupSecretTypeChoices,
 )
-from nautobot.extras.models import ExternalIntegration, Relationship, Secret, SecretsGroup, SecretsGroupAssociation, Status
+from nautobot.extras.models import (
+    ExternalIntegration,
+    Relationship,
+    Secret,
+    SecretsGroup,
+    SecretsGroupAssociation,
+    Status,
+)
 from nautobot.ipam.models import Prefix, VLAN
 
 
