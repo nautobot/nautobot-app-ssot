@@ -238,9 +238,6 @@ class TestInfobloxAdapter(unittest.TestCase):
         self.assertEqual(mock_extra_attr_dict.call_count, 2)
         mock_default_extra_attrs.assert_called_once()
 
-    # @unittest.mock.patch.dict(
-    #     PLUGIN_CFG, [("infoblox_import_subnets", []), ("infoblox_import_objects_subnets_ipv6", True)]
-    # )
     @unittest.mock.patch(
         "nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox.get_default_ext_attrs",
         autospec=True,
