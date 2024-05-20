@@ -149,7 +149,7 @@ class InfobloxIPAddress(IPAddress):
             and inf_attrs["has_host_record"]
         ):
             incomp_msg = (
-                f"Cannot create/update PTR Record for IP Address, {ip_address}. It already has an existing Host Record"
+                f"Cannot create/update PTR Record for IP Address, {ip_address}. It already has an existing Host Record."
             )
             incompatible_record_types = True
         elif (
