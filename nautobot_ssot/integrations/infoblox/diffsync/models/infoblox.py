@@ -103,13 +103,13 @@ class InfobloxIPAddress(IPAddress):
             diffsync.job.logger.warning(f"Invalid zone fqdn in DNS name `{dns_name}` for IP Address {ip_address}")
             return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
-        if diffsync.config.create_a_record:
+        if diffsync.config.create_a_record and attrs.get("has_a_record"):
             diffsync.conn.create_a_record(dns_name, ip_address, network_view=network_view)
             # Only create PTR records if A record has been created
-            if diffsync.config.create_ptr_record:
+            if diffsync.config.create_ptr_record and attrs.get("has_ptr_record"):
                 diffsync.conn.create_ptr_record(dns_name, ip_address, network_view=network_view)
-        elif diffsync.config.create_host_record:
-            diffsync.conn.create_host_record(dns_name, ip_address)
+        elif diffsync.config.create_host_record and attrs.get("has_host_record"):
+            diffsync.conn.create_host_record(dns_name, ip_address, network_view=network_view)
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
     def update(self, attrs):  # pylint: disable=too-many-branches
@@ -141,9 +141,7 @@ class InfobloxIPAddress(IPAddress):
         # Only allows creating/updating Host record if IP Address doesn't have a corresponding A or PTR record.
         incompatible_record_types = False
         if attrs.get("has_a_record", False) and self.diffsync.config.create_a_record and inf_attrs["has_host_record"]:
-            incomp_msg = (
-                f"Cannot create/update A Record for IP Address, {ip_address}. It already has an existing Host Record."
-            )
+            incomp_msg = f"Cannot update A Record for IP Address, {ip_address}. It already has an existing Host Record."
             incompatible_record_types = True
         elif (
             attrs.get("has_ptr_record", False)
@@ -159,9 +157,7 @@ class InfobloxIPAddress(IPAddress):
             and self.diffsync.config.create_host_record
             and inf_attrs["has_a_record"]
         ):
-            incomp_msg = (
-                f"Cannot create/update Host Record for IP Address, {ip_address}. It already has an existing A Record"
-            )
+            incomp_msg = f"Cannot update Host Record for IP Address, {ip_address}. It already has an existing A Record."
             incompatible_record_types = True
         elif (
             attrs.get("has_host_record", False)
@@ -169,7 +165,7 @@ class InfobloxIPAddress(IPAddress):
             and inf_attrs["has_ptr_record"]
         ):
             incomp_msg = (
-                f"Cannot create/update Host Record for IP Address, {ip_address}. It already has an existing PTR Record"
+                f"Cannot update Host Record for IP Address, {ip_address}. It already has an existing PTR Record."
             )
             incompatible_record_types = True
 
@@ -182,9 +178,9 @@ class InfobloxIPAddress(IPAddress):
         host_record_action = "none"
         if self.diffsync.config.create_a_record and inf_attrs["has_a_record"]:
             a_record_action = "update"
-            if self.diffsync.config.create_ptr_record:
-                ptr_record_action = "update" if inf_attrs["has_ptr_record"] else "create"
-        elif self.diffsync.config.create_host_record and inf_attrs["has_host_record"]:
+        if self.diffsync.config.create_ptr_record:
+            ptr_record_action = "update" if inf_attrs["has_ptr_record"] else "create"
+        if self.diffsync.config.create_host_record and inf_attrs["has_host_record"]:
             host_record_action = "update"
 
         # IP Address in Infoblox is not a plain IP Address like in Nautobot.
