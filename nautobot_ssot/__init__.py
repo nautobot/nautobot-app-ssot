@@ -3,9 +3,11 @@
 import os
 from importlib import metadata
 
+
 from django.conf import settings
 from nautobot.extras.plugins import NautobotAppConfig
 from nautobot.core.settings_funcs import is_truthy
+import packaging
 
 from nautobot_ssot.integrations.utils import each_enabled_integration_module
 from nautobot_ssot.utils import logger
@@ -22,6 +24,25 @@ _CONFLICTING_APP_NAMES = [
     "nautobot_ssot_servicenow",
 ]
 
+_MIN_NAUTOBOT_VERSION = {
+    "nautobot_ssot_infoblox": "2.1",
+}
+
+
+def _check_min_nautobot_version_met():
+    incompatible_apps_msg = []
+    nautobot_version = metadata.version("nautobot")
+    for app, nb_ver in _MIN_NAUTOBOT_VERSION.items():
+        if packaging.version.parse(nb_ver) > packaging.version.parse(nautobot_version):
+            incompatible_apps_msg.append(f"The `{app}` requires Nautobot version {nb_ver} or higher.\n")
+            print(incompatible_apps_msg)
+
+    if incompatible_apps_msg:
+        raise RuntimeError(
+            f"This version of Nautobot ({nautobot_version}) does not meet minimum requirements for the following apps:\n {''.join(incompatible_apps_msg)}."
+            "See: https://docs.nautobot.com/projects/ssot/en/latest/admin/upgrade/#potential-apps-conflicts"
+        )
+
 
 def _check_for_conflicting_apps():
     intersection = set(_CONFLICTING_APP_NAMES).intersection(set(settings.PLUGINS))
@@ -34,6 +55,8 @@ def _check_for_conflicting_apps():
 
 if not is_truthy(os.getenv("NAUTOBOT_SSOT_ALLOW_CONFLICTING_APPS", "False")):
     _check_for_conflicting_apps()
+
+_check_min_nautobot_version_met()
 
 
 class NautobotSSOTAppConfig(NautobotAppConfig):
@@ -97,19 +120,6 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "enable_ipfabric": False,
         "enable_servicenow": False,
         "hide_example_jobs": True,
-        "infoblox_default_status": "",
-        "infoblox_enable_rfc1918_network_containers": False,
-        "infoblox_enable_sync_to_infoblox": False,
-        "infoblox_import_objects_ip_addresses": False,
-        "infoblox_import_objects_subnets": False,
-        "infoblox_import_objects_vlan_views": False,
-        "infoblox_import_objects_vlans": False,
-        "infoblox_import_subnets": [],
-        "infoblox_password": "",
-        "infoblox_url": "",
-        "infoblox_username": "",
-        "infoblox_verify_ssl": True,
-        "infoblox_wapi_version": "",
         "ipfabric_api_token": "",
         "ipfabric_host": "",
         "ipfabric_ssl_verify": True,
