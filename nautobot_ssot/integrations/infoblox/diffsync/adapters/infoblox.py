@@ -69,6 +69,8 @@ class InfobloxAdapter(DiffSync):
         Args:
             sync_filter (dict): Sync filter containing sync rules
         """
+        if self.job.debug:
+            self.job.logger.debug("Loading Network Views from Infoblox.")
         network_view_filters = {sf["network_view"] for sf in sync_filters if "network_view" in sf}
         try:
             networkviews = self.conn.get_network_views()
@@ -159,6 +161,8 @@ class InfobloxAdapter(DiffSync):
 
     def load_prefixes(self, include_ipv4: bool, include_ipv6: bool, sync_filters: Optional[list] = None):
         """Load InfobloxNetwork DiffSync model."""
+        if self.job.debug:
+            self.job.logger.debug("Loading Subnets from Infoblox.")
         try:
             containers, subnets = self._load_all_prefixes_filtered(
                 sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6
@@ -236,6 +240,8 @@ class InfobloxAdapter(DiffSync):
 
     def load_vlanviews(self):
         """Load InfobloxVLANView DiffSync model."""
+        if self.job.debug:
+            self.job.logger.debug("Loading VLAN Views from Infoblox.")
         try:
             vlanviews = self.conn.get_vlanviews()
         except requests.exceptions.HTTPError as err:
