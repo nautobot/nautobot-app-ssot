@@ -1,4 +1,5 @@
 """Unit tests for the Infoblox Diffsync models."""
+
 import unittest
 from unittest.mock import Mock
 

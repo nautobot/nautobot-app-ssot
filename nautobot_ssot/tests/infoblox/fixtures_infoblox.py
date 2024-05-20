@@ -19,7 +19,7 @@ from nautobot.extras.models import (
     SecretsGroupAssociation,
     Status,
 )
-from nautobot.ipam.models import Prefix, VLAN
+from nautobot.ipam.models import IPAddress, Prefix, VLAN, VLANGroup
 
 
 from nautobot_ssot.integrations.infoblox.utils import client
@@ -37,7 +37,9 @@ def _json_read_fixture(name):
 
 
 def create_default_infoblox_config(infoblox_url="infoblox.example.com"):
-    default_status = Status.objects.get(name="Active")
+    default_status, _ = Status.objects.get_or_create(name="Active")
+    for model in [IPAddress, Prefix, VLAN, VLANGroup]:
+        default_status.content_types.add(ContentType.objects.get_for_model(model))
     infoblox_sync_filters = [{"network_view": "default"}]
     secrets_group, _ = SecretsGroup.objects.get_or_create(name="InfobloxSSOTUnitTesting")
     infoblox_username, _ = Secret.objects.get_or_create(
