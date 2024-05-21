@@ -37,7 +37,7 @@ class NautobotModel(DiffSyncModel):
 
     _model: ClassVar[Model]
 
-    pk: Optional[UUID]
+    pk: Optional[UUID] = None
 
     @classmethod
     def _get_queryset(cls):
