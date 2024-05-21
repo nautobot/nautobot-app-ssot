@@ -17,10 +17,10 @@ class Area(DiffSyncModel):
     _children = {}
 
     name: str
-    parent: Optional[str]
+    parent: Optional[str] = None
     buildings: Optional[List["Building"]] = []
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class Building(DiffSyncModel):
@@ -34,15 +34,15 @@ class Building(DiffSyncModel):
     _children = {"floor": "floors"}
 
     name: str
-    address: Optional[str]
+    address: Optional[str] = None
     area: str
-    area_parent: Optional[str]
-    latitude: Optional[str]
-    longitude: Optional[str]
-    tenant: Optional[str]
+    area_parent: Optional[str] = None
+    latitude: Optional[str] = None
+    longitude: Optional[str] = None
+    tenant: Optional[str] = None
     floors: Optional[List["Floor"]] = []
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class Floor(DiffSyncModel):
@@ -55,9 +55,9 @@ class Floor(DiffSyncModel):
 
     name: str
     building: str
-    tenant: Optional[str]
+    tenant: Optional[str] = None
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class Device(DiffSyncModel):
@@ -79,20 +79,20 @@ class Device(DiffSyncModel):
     )
     _children = {"port": "ports"}
 
-    name: Optional[str]
-    status: Optional[str]
-    role: Optional[str]
+    name: Optional[str] = None
+    status: Optional[str] = None
+    role: Optional[str] = None
     vendor: str
     model: str
-    site: Optional[str]
-    floor: Optional[str]
+    site: Optional[str] = None
+    floor: Optional[str] = None
     serial: str = ""
-    version: Optional[str]
+    version: Optional[str] = None
     platform: str
-    tenant: Optional[str]
+    tenant: Optional[str] = None
     ports: Optional[List["Port"]] = []
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class Port(DiffSyncModel):
@@ -105,15 +105,15 @@ class Port(DiffSyncModel):
 
     name: str
     device: str
-    description: Optional[str]
+    description: Optional[str] = None
     port_type: str
     port_mode: str
-    mac_addr: Optional[str]
+    mac_addr: Optional[str] = None
     mtu: int
     status: str
     enabled: bool
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class Prefix(DiffSyncModel):
@@ -126,8 +126,9 @@ class Prefix(DiffSyncModel):
 
     prefix: str
     namespace: str
-    tenant: Optional[str]
-    uuid: Optional[UUID]
+    tenant: Optional[str] = None
+
+    uuid: Optional[UUID] = None
 
 
 class IPAddress(DiffSyncModel):
@@ -141,9 +142,9 @@ class IPAddress(DiffSyncModel):
     host: str
     mask_length: int
     namespace: str
-    tenant: Optional[str]
+    tenant: Optional[str] = None
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class IPAddressOnInterface(DiffSyncModel):
@@ -159,7 +160,7 @@ class IPAddressOnInterface(DiffSyncModel):
     port: str
     primary: bool
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 Area.update_forward_refs()
