@@ -158,6 +158,6 @@ class IPAddressOnInterface(DiffSyncModel):
     uuid: Optional[UUID] = None
 
 
-Area.update_forward_refs()
-Building.update_forward_refs()
-Device.update_forward_refs()
+Area.model_rebuild()
+Building.model_rebuild()
+Device.model_rebuild()
