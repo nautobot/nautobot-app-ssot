@@ -217,6 +217,7 @@ PLUGINS_CONFIG = {
         "device42_hostname_mapping": [],
         "dna_center_import_global": is_truthy(os.getenv("NAUTOBOT_DNAC_SSOT_DNA_CENTER_IMPORT_GLOBAL", "true")),
         "dna_center_import_merakis": is_truthy(os.getenv("NAUTOBOT_DNAC_SSOT_DNA_CENTER_IMPORT_MERAKIS", "false")),
+        "dna_center_delete_locations": is_truthy(os.getenv("NAUTOBOT_DNAC_SSOT_DNA_CENTER_DELETE_LOCATIONS", "true")),
         "dna_center_update_locations": is_truthy(os.getenv("NAUTOBOT_DNAC_SSOT_DNA_CENTER_UPDATE_LOCATIONS", "true")),
         "dna_center_show_failures": is_truthy(os.getenv("NAUTOBOT_DNAC_SSOT_DNA_CENTER_SHOW_FAILURES", "true")),
         "infoblox_default_status": os.getenv("NAUTOBOT_SSOT_INFOBLOX_DEFAULT_STATUS", "active"),
