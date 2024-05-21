@@ -9,7 +9,7 @@ except ImportError:
 
 from collections import defaultdict
 from typing import Optional
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.enum import DiffSyncModelFlags
 from diffsync.exceptions import ObjectNotFound
 from django.core.exceptions import ValidationError
@@ -40,7 +40,7 @@ from nautobot_ssot.integrations.dna_center.diffsync.models.nautobot import (
 )
 
 
-class NautobotAdapter(DiffSync):
+class NautobotAdapter(Adapter):
     """DiffSync adapter for Nautobot."""
 
     area = NautobotArea
@@ -280,14 +280,14 @@ class NautobotAdapter(DiffSync):
                 new_ipaddr_to_interface.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
             self.add(new_ipaddr_to_interface)
 
-    def sync_complete(self, source: DiffSync, *args, **kwargs):
+    def sync_complete(self, source: Adapter, *args, **kwargs):
         """Label and clean up function for DiffSync sync.
 
         Once the sync is complete, this function labels all imported objects and then
         deletes any objects from Nautobot that need to be deleted in a specific order.
 
         Args:
-            source (DiffSync): DiffSync
+            source (Adapter): DiffSync
         """
         for grouping in ["ipaddresses", "prefixes", "ports", "devices", "floors", "sites", "regions"]:
             for nautobot_obj in self.objects_to_delete[grouping]:

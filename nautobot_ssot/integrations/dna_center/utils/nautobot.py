@@ -42,7 +42,7 @@ def verify_platform(platform_name: str, manu: UUID) -> Platform:
     return platform_obj
 
 
-def add_software_lcm(diffsync, platform: str, version: str):
+def add_software_lcm(adapter, platform: str, version: str):
     """Add OS Version as SoftwareLCM if Device Lifecycle Plugin found.
 
     Args:
@@ -57,7 +57,7 @@ def add_software_lcm(diffsync, platform: str, version: str):
     try:
         os_ver = SoftwareLCM.objects.get(device_platform=platform_obj, version=version).id
     except SoftwareLCM.DoesNotExist:
-        diffsync.job.logger.info(f"Creating Version {version} for {platform}.")
+        adapter.job.logger.info(f"Creating Version {version} for {platform}.")
         os_ver = SoftwareLCM(
             device_platform=platform_obj,
             version=version,
@@ -67,12 +67,12 @@ def add_software_lcm(diffsync, platform: str, version: str):
     return os_ver
 
 
-def assign_version_to_device(diffsync, device: Device, software_lcm: UUID):
+def assign_version_to_device(adapter, device: Device, software_lcm: UUID):
     """Add Relationship between Device and SoftwareLCM."""
     try:
         software_relation = Relationship.objects.get(label="Software on Device")
         relationship = RelationshipAssociation.objects.get(relationship=software_relation, destination_id=device.id)
-        diffsync.job.logger.warning(
+        adapter.job.logger.warning(
             f"Deleting Software Version Relationships for {device.name} to assign a new version."
         )
         relationship.delete()
