@@ -96,7 +96,7 @@ class TestInfobloxAdapter(unittest.TestCase):
         subnet_without_attrs = self.infoblox_adapter.get("prefix", "10.0.100.0/24")
         self.assertEqual(subnet_without_attrs.ext_attrs, {"attr1": "data"})
         self.assertEqual(subnet_without_attrs.vlans, {})
-        self.assertEqual(subnet_without_attrs.ranges, [])
+        self.assertEqual(subnet_without_attrs.ranges, None)
 
     @unittest.mock.patch.dict(PLUGIN_CFG, [("infoblox_import_subnets", ["10.0.0.0/8", "192.168.0.0/16"])])
     @unittest.mock.patch(
@@ -337,4 +337,4 @@ class TestInfobloxAdapter(unittest.TestCase):
         ipv6_subnet = self.infoblox_adapter.get("prefix", "2001:5b0:4100::/40")
         self.assertEqual(ipv6_subnet.ext_attrs, {"attr1": "data"})
         self.assertEqual(ipv6_subnet.vlans, {})
-        self.assertEqual(ipv6_subnet.ranges, [])
+        self.assertEqual(ipv6_subnet.ranges, None)

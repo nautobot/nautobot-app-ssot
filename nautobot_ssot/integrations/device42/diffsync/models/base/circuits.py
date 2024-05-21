@@ -15,13 +15,13 @@ class Provider(DiffSyncModel):
     _children = {}
 
     name: str
-    notes: Optional[str]
-    vendor_url: Optional[str]
-    vendor_acct: Optional[str]
-    vendor_contact1: Optional[str]
-    vendor_contact2: Optional[str]
-    tags: Optional[List[str]]
-    uuid: Optional[UUID]
+    notes: Optional[str] = None
+    vendor_url: Optional[str] = None
+    vendor_acct: Optional[str] = None
+    vendor_contact1: Optional[str] = None
+    vendor_contact2: Optional[str] = None
+    tags: Optional[List[str]] = None
+    uuid: Optional[UUID] = None
 
 
 class Circuit(DiffSyncModel):
@@ -47,14 +47,14 @@ class Circuit(DiffSyncModel):
     _children = {}
     circuit_id: str
     provider: str
-    notes: Optional[str]
+    notes: Optional[str] = None
     type: str
     status: str
-    install_date: Optional[str]
-    origin_int: Optional[str]
-    origin_dev: Optional[str]
-    endpoint_int: Optional[str]
-    endpoint_dev: Optional[str]
-    bandwidth: Optional[int]
-    tags: Optional[List[str]]
-    uuid: Optional[UUID]
+    install_date: Optional[str] = None
+    origin_int: Optional[str] = None
+    origin_dev: Optional[str] = None
+    endpoint_int: Optional[str] = None
+    endpoint_dev: Optional[str] = None
+    bandwidth: Optional[int] = None
+    tags: Optional[List[str]] = None
+    uuid: Optional[UUID] = None
