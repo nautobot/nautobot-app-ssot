@@ -523,5 +523,5 @@ class NautobotPrefix(Prefix):
         return self
 
 
-NautobotDevice.update_forward_refs()
-NautobotDeviceType.update_forward_refs()
+NautobotDevice.model_rebuild()
+NautobotDeviceType.model_rebuild()
