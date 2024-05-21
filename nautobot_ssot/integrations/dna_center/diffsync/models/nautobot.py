@@ -55,6 +55,19 @@ class NautobotArea(base.Area):
         adapter.region_map[ids["parent"]][ids["name"]] = new_region.id
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
+    def delete(self):
+        """Delete Region in Nautobot from Area object."""
+        if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_delete_locations"):
+            self.adapter.job.logger.warning(
+                f"`dna_center_delete_locations` setting is disabled so will skip deleting {self.name}."
+            )
+            return None
+        area = Location.objects.get(id=self.uuid)
+        if self.adapter.job.debug:
+            self.adapter.job.logger.info(f"Deleting Region {area.name}.")
+        self.adapter.objects_to_delete["regions"].append(area)
+        return self
+
 
 class NautobotBuilding(base.Building):
     """Nautobot implementation of Building DiffSync model."""
@@ -107,9 +120,9 @@ class NautobotBuilding(base.Building):
 
     def delete(self):
         """Delete Site in Nautobot from Building object."""
-        if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_update_locations"):
+        if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_delete_locations"):
             self.adapter.job.logger.warning(
-                f"`update_locations` setting is disabled so will skip deleting {self.name}."
+                f"`dna_center_delete_locations` setting is disabled so will skip deleting {self.name}."
             )
             return None
         site = Location.objects.get(id=self.uuid)
@@ -154,6 +167,11 @@ class NautobotFloor(base.Floor):
 
     def delete(self):
         """Delete LocationType: Floor in Nautobot from Floor object."""
+        if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_delete_locations"):
+            self.adapter.job.logger.warning(
+                f"`dna_center_delete_locations` setting is disabled so will skip deleting {self.name}."
+            )
+            return None
         floor = Location.objects.get(id=self.uuid)
         if self.adapter.job.debug:
             self.adapter.job.logger.info(f"Deleting Floor {floor.name} in {floor.parent.name}.")

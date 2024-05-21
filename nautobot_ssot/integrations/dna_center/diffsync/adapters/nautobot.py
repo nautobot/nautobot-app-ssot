@@ -28,6 +28,7 @@ from nautobot.ipam.models import Namespace
 from nautobot.ipam.models import Prefix as OrmPrefix
 from nautobot.tenancy.models import Tenant as OrmTenant
 from nautobot_ssot.jobs.base import DataTarget
+from nautobot_ssot.integrations.dna_center.constants import PLUGIN_CFG
 from nautobot_ssot.integrations.dna_center.diffsync.models.nautobot import (
     NautobotArea,
     NautobotBuilding,
@@ -103,6 +104,8 @@ class NautobotAdapter(Adapter):
                         parent=parent,
                         uuid=region.id,
                     )
+                    if not PLUGIN_CFG.get("dna_center_delete_locations"):
+                        new_region.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
                     self.add(new_region)
         except OrmLocationType.DoesNotExist as err:
             self.job.logger.warning(
@@ -128,6 +131,8 @@ class NautobotAdapter(Adapter):
                         tenant=site.tenant.name if site.tenant else None,
                         uuid=site.id,
                     )
+                    if not PLUGIN_CFG.get("dna_center_delete_locations"):
+                        new_building.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
                     self.add(new_building)
         except OrmLocationType.DoesNotExist as err:
             self.job.logger.warning(f"Unable to find LocationType: Site so can't find site Locations to load. {err}")

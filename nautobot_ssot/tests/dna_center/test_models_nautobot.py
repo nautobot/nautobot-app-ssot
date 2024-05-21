@@ -57,7 +57,9 @@ class TestNautobotArea(TransactionTestCase):
         self.adapter.job.logger.warning.assert_called_once_with("Unable to find Region USA for TX.")
 
 
-@override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"dna_center_update_locations": True}})
+@override_settings(
+    PLUGINS_CONFIG={"nautobot_ssot": {"dna_center_delete_locations": True, "dna_center_update_locations": True}}
+)
 class TestNautobotBuilding(TransactionTestCase):
     """Test the NautobotBuilding class."""
 
