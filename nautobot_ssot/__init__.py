@@ -35,7 +35,6 @@ def _check_min_nautobot_version_met():
     for app, nb_ver in _MIN_NAUTOBOT_VERSION.items():
         if packaging.version.parse(nb_ver) > packaging.version.parse(nautobot_version):
             incompatible_apps_msg.append(f"The `{app}` requires Nautobot version {nb_ver} or higher.\n")
-            print(incompatible_apps_msg)
 
     if incompatible_apps_msg:
         raise RuntimeError(
