@@ -46,11 +46,11 @@ class LocationTypeModel(NautobotModel):
     name: str
     description: str
     nestable: bool
-    parent__name: Optional[str]
+    parent__name: Optional[str] = None
     content_types: List[ContentTypeDict] = []
 
     # Not in _attributes or _identifiers, hence not included in diff calculations
-    pk: Optional[UUID]
+    pk: Optional[UUID] = None
 
 
 class LocationModel(NautobotModel):
@@ -74,13 +74,13 @@ class LocationModel(NautobotModel):
     name: str
     location_type__name: str
     status__name: str
-    parent__name: Optional[str]
-    parent__location_type__name: Optional[str]
-    tenant__name: Optional[str]
+    parent__name: Optional[str] = None
+    parent__location_type__name: Optional[str] = None
+    tenant__name: Optional[str] = None
     description: str
 
     # Not in _attributes or _identifiers, hence not included in diff calculations
-    pk: Optional[UUID]
+    pk: Optional[UUID] = None
 
 
 class RoleModel(NautobotModel):
@@ -96,7 +96,7 @@ class RoleModel(NautobotModel):
     content_types: List[ContentTypeDict] = []
 
     # Not in _attributes or _identifiers, hence not included in diff calculations
-    pk: Optional[UUID]
+    pk: Optional[UUID] = None
 
 
 class PrefixModel(NautobotModel):
@@ -112,12 +112,12 @@ class PrefixModel(NautobotModel):
     # Data type declarations for all identifiers and attributes
     network: str
     prefix_length: int
-    tenant__name: Optional[str]
+    tenant__name: Optional[str] = None
     status__name: str
     description: str
 
     # Not in _attributes or _identifiers, hence not included in diff calculations
-    pk: Optional[UUID]
+    pk: Optional[UUID] = None
 
 
 class TenantModel(NautobotModel):
@@ -132,7 +132,7 @@ class TenantModel(NautobotModel):
     name: str
     prefixes: List[PrefixModel] = []
 
-    pk: Optional[UUID]
+    pk: Optional[UUID] = None
 
 
 class DeviceTypeModel(NautobotModel):
@@ -150,7 +150,7 @@ class DeviceTypeModel(NautobotModel):
     is_full_depth: bool
 
     # Not in _attributes or _identifiers, hence not included in diff calculations
-    pk: Optional[UUID]
+    pk: Optional[UUID] = None
 
 
 class ManufacturerModel(NautobotModel):
@@ -167,7 +167,7 @@ class ManufacturerModel(NautobotModel):
     device_types: List[DeviceTypeModel] = []
 
     # Not in _attributes or _identifiers, hence not included in diff calculations
-    pk: Optional[UUID]
+    pk: Optional[UUID] = None
 
 
 class PlatformModel(NautobotModel):
@@ -209,16 +209,16 @@ class DeviceModel(NautobotModel):
     name: str
     location__name: str
     location__location_type__name: str
-    location__parent__name: Optional[str]
-    location__parent__location_type__name: Optional[str]
+    location__parent__name: Optional[str] = None
+    location__parent__location_type__name: Optional[str] = None
     device_type__manufacturer__name: str
     device_type__model: str
-    platform__name: Optional[str]
+    platform__name: Optional[str] = None
     role__name: str
     serial: str
     status__name: str
-    tenant__name: Optional[str]
-    asset_tag: Optional[str]
+    tenant__name: Optional[str] = None
+    asset_tag: Optional[str] = None
 
 
 class LocationRemoteModel(LocationModel):
