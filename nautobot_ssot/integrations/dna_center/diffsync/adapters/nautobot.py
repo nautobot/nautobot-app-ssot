@@ -125,7 +125,7 @@ class NautobotAdapter(Adapter):
                         name=site.name,
                         address=site.physical_address,
                         area=site.parent.name if site.parent else "",
-                        area_parent=site.parent.parent.name if site.parent.parent else None,
+                        area_parent=site.parent.parent.name if site.parent and site.parent.parent else None,
                         latitude=str(site.latitude).rstrip("0"),
                         longitude=str(site.longitude).rstrip("0"),
                         tenant=site.tenant.name if site.tenant else None,
