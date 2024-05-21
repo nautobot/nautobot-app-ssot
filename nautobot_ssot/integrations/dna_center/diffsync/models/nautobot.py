@@ -96,7 +96,7 @@ class NautobotBuilding(base.Building):
         """Update Site in Nautobot from Building object."""
         if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_update_locations"):
             self.adapter.job.logger.warning(
-                f"`update_locations` setting is disabled so will skip updating {self.name}."
+                f"`dna_center_update_locations` setting is disabled so will skip updating {self.name}."
             )
             return super().update(attrs)
         site = Location.objects.get(id=self.uuid)
