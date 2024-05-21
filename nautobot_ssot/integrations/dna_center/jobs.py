@@ -2,9 +2,9 @@
 
 from django.urls import reverse
 from django.templatetags.static import static
+from nautobot.dcim.models import Controller
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.jobs import BooleanVar, ObjectVar
-from nautobot.extras.models import ExternalIntegration
 from nautobot.tenancy.models import Tenant
 from nautobot.core.celery import register_jobs
 from nautobot_ssot.jobs.base import DataSource, DataMapping
@@ -19,11 +19,11 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
     """DNA Center SSoT Data Source."""
 
     dnac = ObjectVar(
-        model=ExternalIntegration,
-        queryset=ExternalIntegration.objects.all(),
+        model=Controller,
+        queryset=Controller.objects.all(),
         display_field="display",
         required=True,
-        label="DNAC Instance",
+        label="DNA Center Controller",
     )
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
     bulk_import = BooleanVar(description="Perform bulk operations when importing data", default=False)
@@ -58,7 +58,7 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
     def load_source_adapter(self):
         """Load data from DNA Center into DiffSync models."""
         self.logger.info(f"Loading data from {self.dnac.name}")
-        _sg = self.dnac.secrets_group
+        _sg = self.dnac.external_integration.secrets_group
         username = _sg.get_secret_value(
             access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
             secret_type=SecretsGroupSecretTypeChoices.TYPE_USERNAME,
@@ -68,19 +68,25 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
             secret_type=SecretsGroupSecretTypeChoices.TYPE_PASSWORD,
         )
         client = DnaCenterClient(
-            url=self.dnac.remote_url,
+            url=self.dnac.external_integration.remote_url,
             username=username,
             password=password,
-            port=self.dnac.extra_config.get("port", 443) if getattr(self.dnac, "extra_config") else 443,
-            verify=self.dnac.verify_ssl,
+            port=(
+                self.dnac.external_integration.extra_config.get("port", 443)
+                if getattr(self.dnac.external_integration, "extra_config")
+                else 443
+            ),
+            verify=self.dnac.external_integration.verify_ssl,
         )
         client.connect()
-        self.source_adapter = dna_center.DnaCenterAdapter(job=self, sync=self.sync, client=client, tenant=self.tenant)
+        self.source_adapter = dna_center.DnaCenterAdapter(
+            job=self, sync=self.sync, client=client, tenant=self.dnac.tenant
+        )
         self.source_adapter.load()
 
     def load_target_adapter(self):
         """Load data from Nautobot into DiffSync models."""
-        self.target_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync, tenant=self.tenant)
+        self.target_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync, tenant=self.dnac.tenant)
         self.target_adapter.load()
 
     def run(
