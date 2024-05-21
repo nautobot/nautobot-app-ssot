@@ -50,7 +50,7 @@ class LocationTypeModel(NautobotModel):
     name: str
     description: str
     nestable: bool
-    parent__name: Optional[str]
+    parent__name: Optional[str] = None
     content_types: List[ContentTypeDict] = []
 
 
@@ -82,9 +82,9 @@ class LocationModel(NautobotModel):
     name: str
     location_type__name: str
     status__name: str
-    parent__name: Optional[str]
-    parent__location_type__name: Optional[str]
-    tenant__name: Optional[str]
+    parent__name: Optional[str] = None
+    parent__location_type__name: Optional[str] = None
+    tenant__name: Optional[str] = None
     description: str
 
 
@@ -142,7 +142,7 @@ class PrefixModel(NautobotModel):
     network: str
     namespace__name: str
     prefix_length: int
-    tenant__name: Optional[str]
+    tenant__name: Optional[str] = None
     status__name: str
     description: str
 
@@ -254,11 +254,11 @@ class DeviceModel(NautobotModel):
     name: str
     location__name: str
     location__location_type__name: str
-    location__parent__name: Optional[str]
-    location__parent__location_type__name: Optional[str]
+    location__parent__name: Optional[str] = None
+    location__parent__location_type__name: Optional[str] = None
     device_type__manufacturer__name: str
     device_type__model: str
-    platform__name: Optional[str]
+    platform__name: Optional[str] = None
     role__name: str
     serial: str
     status__name: str
