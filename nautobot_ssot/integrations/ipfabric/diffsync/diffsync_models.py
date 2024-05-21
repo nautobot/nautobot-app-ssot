@@ -684,7 +684,7 @@ class Interface(DiffSyncExtras):
                     f"with an ID of {device.id}, unable to determine which one to update"
                 )
             except NautobotInterface.DoesNotExist:
-                self.adapter.logger.error(
+                self.adapter.job.logger.error(
                     f"Unable to find an Interface with the name {self.name} on Device named {device.name} "
                     f"with an ID of {device.id} to update"
                 )
