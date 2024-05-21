@@ -3,7 +3,7 @@
 from typing import List
 import json
 from netutils.ip import ipaddress_interface, netmask_to_cidr
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.exceptions import ObjectNotFound
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -23,7 +23,7 @@ from nautobot_ssot.integrations.dna_center.diffsync.models.dna_center import (
 from nautobot_ssot.integrations.dna_center.utils.dna_center import DnaCenterClient
 
 
-class DnaCenterAdapter(DiffSync):
+class DnaCenterAdapter(Adapter):
     """DiffSync adapter for DNA Center."""
 
     area = DnaCenterArea
