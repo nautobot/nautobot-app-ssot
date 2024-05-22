@@ -13,8 +13,13 @@ from nautobot.extras.models import SecretsGroupAssociation
 
 
 def _get_default_sync_filters():
-    """Provides default value for infoblox_sync_filters field."""
+    """Provides default value for SSOTInfobloxConfig infoblox_sync_filters field."""
     return [{"network_view": "default"}]
+
+
+def _get_default_cf_fields_ignore():
+    """Provides default value for SSOTInfobloxConfig cf_fields_ignore field."""
+    return {"extensible_attributes": [], "custom_fields": []}
 
 
 class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
@@ -62,8 +67,8 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         verbose_name="Import VLANs",
     )
     infoblox_sync_filters = models.JSONField(default=_get_default_sync_filters, encoder=DjangoJSONEncoder)
-    infoblox_dns_view_mapping = models.JSONField(default=dict, encoder=DjangoJSONEncoder)
-    cf_fields_ignore = models.JSONField(default=dict, encoder=DjangoJSONEncoder)
+    infoblox_dns_view_mapping = models.JSONField(default=dict, encoder=DjangoJSONEncoder, blank=True)
+    cf_fields_ignore = models.JSONField(default=_get_default_cf_fields_ignore, encoder=DjangoJSONEncoder, blank=True)
     import_ipv4 = models.BooleanField(
         default=True,
         verbose_name="Import IPv4",
@@ -123,7 +128,7 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
             invalid_keys = set(sync_filter.keys()) - allowed_keys
             if invalid_keys:
                 raise ValidationError(
-                    {"infoblox_sync_filters": f"Invalid keys found in the sync filter: {''.join(invalid_keys)}."}
+                    {"infoblox_sync_filters": f"Invalid keys found in the sync filter: {', '.join(invalid_keys)}."}
                 )
 
             if "network_view" not in sync_filter:
@@ -151,7 +156,9 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
                     try:
                         if "/" not in prefix:
                             raise ValidationError(
-                                {"infoblox_sync_filters": f"IPv4 prefix must have a prefix length: {prefix}."}
+                                {
+                                    "infoblox_sync_filters": f"IPv4 prefix must have a prefix length defined using `/` format: {prefix}."
+                                }
                             )
                         ipaddress.IPv4Network(prefix)
                     except (ValueError, TypeError) as error:
@@ -170,7 +177,9 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
                     try:
                         if "/" not in prefix:
                             raise ValidationError(
-                                {"infoblox_sync_filters": f"IPv6 prefix must have a prefix length: {prefix}."}
+                                {
+                                    "infoblox_sync_filters": f"IPv6 prefix must have a prefix length defined using `/` format: {prefix}."
+                                }
                             )
                         ipaddress.IPv6Network(prefix)
                     except (ValueError, TypeError) as error:
@@ -178,10 +187,10 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
                             {"infoblox_sync_filters": f"IPv6 prefix parsing error: {str(error)}."}
                         )
 
-    def _clean_secrets_group(self):
-        """Performs validation of the secrets_group field."""
+    def _clean_infoblox_instance(self):
+        """Performs validation of the infoblox_instance field."""
         if not self.infoblox_instance.secrets_group:
-            raise ValidationError({"secrets_group": "Infoblox instance must have Secrets groups assigned."})
+            raise ValidationError({"infoblox_instance": "Infoblox instance must have Secrets groups assigned."})
         try:
             self.infoblox_instance.secrets_group.get_secret_value(
                 access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
@@ -190,7 +199,7 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         except SecretsGroupAssociation.DoesNotExist:
             raise ValidationError(  # pylint: disable=raise-missing-from
                 {
-                    "secrets_group": "Secrets group for the Infoblox instance must have secret with type Username and access type REST."
+                    "infoblox_instance": "Secrets group for the Infoblox instance must have secret with type Username and access type REST."
                 }
             )
         try:
@@ -201,7 +210,7 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         except SecretsGroupAssociation.DoesNotExist:
             raise ValidationError(  # pylint: disable=raise-missing-from
                 {
-                    "secrets_group": "Secrets group for the Infoblox instance must have secret with type Password and access type REST."
+                    "infoblox_instance": "Secrets group for the Infoblox instance must have secret with type Password and access type REST."
                 }
             )
 
@@ -284,7 +293,7 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         super().clean()
 
         self._clean_infoblox_sync_filters()
-        self._clean_secrets_group()
+        self._clean_infoblox_instance()
         self._clean_import_ip()
         self._clean_ip_address_create_options()
         self._clean_infoblox_dns_view_mapping()
