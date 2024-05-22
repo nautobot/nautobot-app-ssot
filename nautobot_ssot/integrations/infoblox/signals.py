@@ -141,12 +141,14 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
                 "secret": infoblox_password,
             },
         )
-        external_integration = ExternalIntegration.objects.create(
+        external_integration, _ = ExternalIntegration.objects.get_or_create(
             name="MigratedInfobloxInstance",
-            remote_url=str(config.get("infoblox_url", "https://replace.me.local")),
-            secrets_group=secrets_group,
-            verify_ssl=bool(config.get("infoblox_verify_ssl", True)),
-            timeout=infoblox_request_timeout,
+            defaults=dict(  # pylint: disable=use-dict-literal
+                remote_url=str(config.get("infoblox_url", "https://replace.me.local")),
+                secrets_group=secrets_group,
+                verify_ssl=bool(config.get("infoblox_verify_ssl", True)),
+                timeout=infoblox_request_timeout,
+            ),
         )
 
         SSOTInfobloxConfig.objects.create(
@@ -164,6 +166,11 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
             import_ipv6=bool(config.get("infoblox_import_objects_subnets_ipv6", False)),
             job_enabled=True,
             infoblox_sync_filters=infoblox_sync_filters,
+            infoblox_dns_view_mapping={},
+            cf_fields_ignore={},
+            create_a_record=False,
+            create_host_record=True,
+            create_ptr_record=False,
         )
 
 
