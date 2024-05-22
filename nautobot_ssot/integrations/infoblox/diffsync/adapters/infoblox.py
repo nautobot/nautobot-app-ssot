@@ -285,7 +285,7 @@ class InfobloxAdapter(DiffSync):
     def load(self):
         """Load all models by calling other methods."""
         include_ipv4 = self.config.import_ipv4
-        include_ipv6 = self.config.import_ipv4
+        include_ipv6 = self.config.import_ipv6
         sync_filters = self.config.infoblox_sync_filters
 
         self.load_network_views(sync_filters=sync_filters)

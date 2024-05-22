@@ -361,7 +361,7 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
     def load(self):
         """Load models with data from Nautobot."""
         include_ipv4 = self.config.import_ipv4
-        include_ipv6 = self.config.import_ipv4
+        include_ipv6 = self.config.import_ipv6
         sync_filters = self.config.infoblox_sync_filters
 
         self.relationship_map = {r.label: r.id for r in Relationship.objects.only("id", "label")}
