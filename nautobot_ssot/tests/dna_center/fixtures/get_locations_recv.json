@@ -1,0 +1,649 @@
+{
+    "response": [
+        {
+            "additionalInfo": [],
+            "name": "Global",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+            "siteNameHierarchy": "Global"
+        },
+        {
+            "parentId": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "addressInheritedFrom": "eed5ccc3-d76f-46e2-9d8d-97624f5418ac",
+                        "type": "area"
+                    }
+                }
+            ],
+            "name": "SanJose",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "eed5ccc3-d76f-46e2-9d8d-97624f5418ac",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/eed5ccc3-d76f-46e2-9d8d-97624f5418ac",
+            "siteNameHierarchy": "Global/SanJose"
+        },
+        {
+            "parentId": "eed5ccc3-d76f-46e2-9d8d-97624f5418ac",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "country": "United States",
+                        "address": "1000 I Street, Sacramento, California 95814, United States",
+                        "latitude": "38.581405819248886",
+                        "addressInheritedFrom": "5c59e37a-f12d-4e84-a085-ac5c02f240d4",
+                        "type": "building",
+                        "longitude": "-121.49309067224416"
+                    }
+                }
+            ],
+            "name": "Building1",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "5c59e37a-f12d-4e84-a085-ac5c02f240d4",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/eed5ccc3-d76f-46e2-9d8d-97624f5418ac/5c59e37a-f12d-4e84-a085-ac5c02f240d4",
+            "siteNameHierarchy": "Global/SanJose/Building1"
+        },
+        {
+            "parentId": "5c59e37a-f12d-4e84-a085-ac5c02f240d4",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "address": "1000 I Street, Sacramento, California 95814, United States",
+                        "addressInheritedFrom": "5c59e37a-f12d-4e84-a085-ac5c02f240d4",
+                        "type": "floor"
+                    }
+                },
+                {
+                    "nameSpace": "mapsSummary",
+                    "attributes": {
+                        "rfModel": "95095",
+                        "floorIndex": "1"
+                    }
+                },
+                {
+                    "nameSpace": "mapGeometry",
+                    "attributes": {
+                        "offsetX": "0.0",
+                        "offsetY": "0.0",
+                        "length": "100.0",
+                        "width": "100.0",
+                        "height": "10.0"
+                    }
+                }
+            ],
+            "name": "Floor1",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "49aa97a7-5d45-4303-89dd-f76dfbfc624a",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/eed5ccc3-d76f-46e2-9d8d-97624f5418ac/5c59e37a-f12d-4e84-a085-ac5c02f240d4/49aa97a7-5d45-4303-89dd-f76dfbfc624a",
+            "siteNameHierarchy": "Global/SanJose/Building1/Floor1"
+        },
+        {
+            "parentId": "2d0d8545-b6de-4dda-a0f7-93bcd7d0e738",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "address": "Ocean Drive Bar & Restaurant, 3915 Landis Ave, Sea Isle City, New Jersey 08243, United States",
+                        "addressInheritedFrom": "2d0d8545-b6de-4dda-a0f7-93bcd7d0e738",
+                        "type": "floor"
+                    }
+                },
+                {
+                    "nameSpace": "mapsSummary",
+                    "attributes": {
+                        "rfModel": "95095",
+                        "floorIndex": "1"
+                    }
+                },
+                {
+                    "nameSpace": "mapGeometry",
+                    "attributes": {
+                        "offsetX": "0.0",
+                        "offsetY": "0.0",
+                        "length": "79.0",
+                        "width": "100.0",
+                        "height": "10.0"
+                    }
+                }
+            ],
+            "name": "1",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "925f1a03-05df-4d9a-b2e0-db1989367138",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/04509ce4-6c88-40a3-b444-9e00f2cd97f2/2d0d8545-b6de-4dda-a0f7-93bcd7d0e738/925f1a03-05df-4d9a-b2e0-db1989367138",
+            "siteNameHierarchy": "Global/SanDiego/1/1"
+        },
+        {
+            "parentId": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "addressInheritedFrom": "cf1746d3-4de0-4ef5-bd3a-a5e51191eee1",
+                        "type": "area"
+                    }
+                }
+            ],
+            "name": "OZ",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "cf1746d3-4de0-4ef5-bd3a-a5e51191eee1",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/cf1746d3-4de0-4ef5-bd3a-a5e51191eee1",
+            "siteNameHierarchy": "Global/OZ"
+        },
+        {
+            "parentId": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "addressInheritedFrom": "04509ce4-6c88-40a3-b444-9e00f2cd97f2",
+                        "type": "area"
+                    }
+                }
+            ],
+            "name": "SanDiego",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "04509ce4-6c88-40a3-b444-9e00f2cd97f2",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/04509ce4-6c88-40a3-b444-9e00f2cd97f2",
+            "siteNameHierarchy": "Global/SanDiego"
+        },
+        {
+            "parentId": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "addressInheritedFrom": "73b2f82c-413e-439e-a614-0ab0d0378114",
+                        "type": "area"
+                    }
+                }
+            ],
+            "name": "Antartica2",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "73b2f82c-413e-439e-a614-0ab0d0378114",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/73b2f82c-413e-439e-a614-0ab0d0378114",
+            "siteNameHierarchy": "Global/Antartica2"
+        },
+        {
+            "parentId": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "addressInheritedFrom": "4e84a340-efdb-4f06-878f-3235173036ef",
+                        "type": "area"
+                    }
+                }
+            ],
+            "name": "Antartica3",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "4e84a340-efdb-4f06-878f-3235173036ef",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/4e84a340-efdb-4f06-878f-3235173036ef",
+            "siteNameHierarchy": "Global/Antartica3"
+        },
+        {
+            "parentId": "257c51d3-971d-49f4-83f7-c9baf334865a",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "country": "Vietnam",
+                        "latitude": "38.10344327099361",
+                        "addressInheritedFrom": "257c51d3-971d-49f4-83f7-c9baf334865a",
+                        "type": "building",
+                        "longitude": "-70.53258776522935"
+                    }
+                }
+            ],
+            "name": "VN_1",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "6e1ebb51-62cd-400f-b130-a6959d81e775",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/257c51d3-971d-49f4-83f7-c9baf334865a/6e1ebb51-62cd-400f-b130-a6959d81e775",
+            "siteNameHierarchy": "Global/Texas/VN_1"
+        },
+        {
+            "parentId": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "addressInheritedFrom": "20d34f71-f4db-4833-90f7-4208a349f876",
+                        "type": "area"
+                    }
+                }
+            ],
+            "name": "Antartica",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "20d34f71-f4db-4833-90f7-4208a349f876",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/20d34f71-f4db-4833-90f7-4208a349f876",
+            "siteNameHierarchy": "Global/Antartica"
+        },
+        {
+            "parentId": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "addressInheritedFrom": "262696b1-aa87-432b-8a21-db9a77c51f23",
+                        "type": "area"
+                    }
+                }
+            ],
+            "name": "Australia",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "262696b1-aa87-432b-8a21-db9a77c51f23",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/262696b1-aa87-432b-8a21-db9a77c51f23",
+            "siteNameHierarchy": "Global/Australia"
+        },
+        {
+            "parentId": "262696b1-aa87-432b-8a21-db9a77c51f23",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "addressInheritedFrom": "262696b1-aa87-432b-8a21-db9a77c51f23",
+                        "type": "area"
+                    }
+                }
+            ],
+            "name": "Sydney",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "6e404051-4c06-4dab-adaa-72c5eeac577b",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/262696b1-aa87-432b-8a21-db9a77c51f23/6e404051-4c06-4dab-adaa-72c5eeac577b",
+            "siteNameHierarchy": "Global/Australia/Sydney"
+        },
+        {
+            "parentId": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "addressInheritedFrom": "63a7fb03-d4b2-408e-a6ab-b4df0a198643",
+                        "type": "area"
+                    }
+                }
+            ],
+            "name": "Sydney",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "63a7fb03-d4b2-408e-a6ab-b4df0a198643",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/63a7fb03-d4b2-408e-a6ab-b4df0a198643",
+            "siteNameHierarchy": "Global/Sydney"
+        },
+        {
+            "parentId": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "addressInheritedFrom": "f5a19514-3c1e-4127-a2b5-2a64a963c934",
+                        "type": "area"
+                    }
+                }
+            ],
+            "name": "Area_52",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "f5a19514-3c1e-4127-a2b5-2a64a963c934",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/f5a19514-3c1e-4127-a2b5-2a64a963c934",
+            "siteNameHierarchy": "Global/Area_52"
+        },
+        {
+            "parentId": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "addressInheritedFrom": "fa22b4e1-ee80-4aa8-8d76-83c4126d16ee",
+                        "type": "area"
+                    }
+                }
+            ],
+            "name": "Area_51",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "fa22b4e1-ee80-4aa8-8d76-83c4126d16ee",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/fa22b4e1-ee80-4aa8-8d76-83c4126d16ee",
+            "siteNameHierarchy": "Global/Area_51"
+        },
+        {
+            "parentId": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "addressInheritedFrom": "f1c8b4ea-ccc1-4b26-9cfd-25c0eb4ca661",
+                        "type": "area"
+                    }
+                }
+            ],
+            "name": "Area_51a",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "f1c8b4ea-ccc1-4b26-9cfd-25c0eb4ca661",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/f1c8b4ea-ccc1-4b26-9cfd-25c0eb4ca661",
+            "siteNameHierarchy": "Global/Area_51a"
+        },
+        {
+            "parentId": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "addressInheritedFrom": "7760b82a-b07e-4fa7-8cad-91adfa12dd43",
+                        "type": "area"
+                    }
+                }
+            ],
+            "name": "Area 51",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "7760b82a-b07e-4fa7-8cad-91adfa12dd43",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/7760b82a-b07e-4fa7-8cad-91adfa12dd43",
+            "siteNameHierarchy": "Global/Area 51"
+        },
+        {
+            "parentId": "7760b82a-b07e-4fa7-8cad-91adfa12dd43",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "country": "United States",
+                        "address": "Mercury, NV 89023",
+                        "latitude": "36.632621",
+                        "addressInheritedFrom": "331f7e36-1a45-4c9f-bfa9-3425a053f81a",
+                        "type": "building",
+                        "longitude": "-115.934912"
+                    }
+                }
+            ],
+            "name": "Deep Space",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "331f7e36-1a45-4c9f-bfa9-3425a053f81a",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/7760b82a-b07e-4fa7-8cad-91adfa12dd43/331f7e36-1a45-4c9f-bfa9-3425a053f81a",
+            "siteNameHierarchy": "Global/Area 51/Deep Space"
+        },
+        {
+            "parentId": "331f7e36-1a45-4c9f-bfa9-3425a053f81a",
+            "additionalInfo": [
+                {
+                    "nameSpace": "mapGeometry",
+                    "attributes": {
+                        "offsetX": "0.0",
+                        "offsetY": "0.0",
+                        "length": "300.0",
+                        "width": "1000.0",
+                        "height": "30.0"
+                    }
+                },
+                {
+                    "nameSpace": "mapsSummary",
+                    "attributes": {
+                        "rfModel": "95098",
+                        "imageURL": "",
+                        "isCadFile": "false",
+                        "floorIndex": "1"
+                    }
+                },
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "address": "Mercury, NV 89023",
+                        "addressInheritedFrom": "331f7e36-1a45-4c9f-bfa9-3425a053f81a",
+                        "type": "floor"
+                    }
+                }
+            ],
+            "name": "1st Floor",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "42a47e36-01ea-4189-8e54-16a2fd063648",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/7760b82a-b07e-4fa7-8cad-91adfa12dd43/331f7e36-1a45-4c9f-bfa9-3425a053f81a/42a47e36-01ea-4189-8e54-16a2fd063648",
+            "siteNameHierarchy": "Global/Area 51/Deep Space/1st Floor"
+        },
+        {
+            "parentId": "257c51d3-971d-49f4-83f7-c9baf334865a",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "country": "United States",
+                        "address": "County Road 186, Brookesmith, Texas 76827, United States",
+                        "latitude": "31.559432441659325",
+                        "addressInheritedFrom": "398de1d9-d595-429d-8239-64b51d24f230",
+                        "type": "building",
+                        "longitude": "-99.19356001285279"
+                    }
+                }
+            ],
+            "name": "Texas_building",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "398de1d9-d595-429d-8239-64b51d24f230",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/257c51d3-971d-49f4-83f7-c9baf334865a/398de1d9-d595-429d-8239-64b51d24f230",
+            "siteNameHierarchy": "Global/Texas/Texas_building"
+        },
+        {
+            "parentId": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "addressInheritedFrom": "5c882916-4f65-45b5-a5cc-ca5fa927cba6",
+                        "type": "area"
+                    }
+                }
+            ],
+            "name": "Forschungszentrum",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "5c882916-4f65-45b5-a5cc-ca5fa927cba6",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/5c882916-4f65-45b5-a5cc-ca5fa927cba6",
+            "siteNameHierarchy": "Global/Forschungszentrum"
+        },
+        {
+            "parentId": "5c882916-4f65-45b5-a5cc-ca5fa927cba6",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "country": "Germany",
+                        "address": "Wallstadter StraÃŸe 59, 68526 Ladenburg",
+                        "latitude": "49.479617",
+                        "addressInheritedFrom": "1c3bb089-2a74-4fdf-96e3-d1815ac67e38",
+                        "type": "building",
+                        "longitude": "8.602459"
+                    }
+                }
+            ],
+            "name": "Building 1",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "1c3bb089-2a74-4fdf-96e3-d1815ac67e38",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/5c882916-4f65-45b5-a5cc-ca5fa927cba6/1c3bb089-2a74-4fdf-96e3-d1815ac67e38",
+            "siteNameHierarchy": "Global/Forschungszentrum/Building 1"
+        },
+        {
+            "parentId": "1c3bb089-2a74-4fdf-96e3-d1815ac67e38",
+            "additionalInfo": [
+                {
+                    "nameSpace": "mapGeometry",
+                    "attributes": {
+                        "offsetX": "0.0",
+                        "offsetY": "0.0",
+                        "length": "100.0",
+                        "width": "100.0",
+                        "height": "10.0"
+                    }
+                },
+                {
+                    "nameSpace": "mapsSummary",
+                    "attributes": {
+                        "rfModel": "95095",
+                        "imageURL": "",
+                        "isCadFile": "false",
+                        "floorIndex": "0"
+                    }
+                },
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "address": "Wallstadter StraÃŸe 59, 68526 Ladenburg",
+                        "addressInheritedFrom": "1c3bb089-2a74-4fdf-96e3-d1815ac67e38",
+                        "type": "floor"
+                    }
+                }
+            ],
+            "name": "Lab",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "0b1f8f7f-f0be-4d14-974d-69b1693d39ec",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/5c882916-4f65-45b5-a5cc-ca5fa927cba6/1c3bb089-2a74-4fdf-96e3-d1815ac67e38/0b1f8f7f-f0be-4d14-974d-69b1693d39ec",
+            "siteNameHierarchy": "Global/Forschungszentrum/Building 1/Lab"
+        },
+        {
+            "parentId": "04509ce4-6c88-40a3-b444-9e00f2cd97f2",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "country": "United States",
+                        "address": "Ocean Drive Bar & Restaurant, 3915 Landis Ave, Sea Isle City, New Jersey 08243, United States",
+                        "latitude": "39.156233",
+                        "addressInheritedFrom": "2d0d8545-b6de-4dda-a0f7-93bcd7d0e738",
+                        "type": "building",
+                        "longitude": "-74.690192"
+                    }
+                }
+            ],
+            "name": "1",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "2d0d8545-b6de-4dda-a0f7-93bcd7d0e738",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/04509ce4-6c88-40a3-b444-9e00f2cd97f2/2d0d8545-b6de-4dda-a0f7-93bcd7d0e738",
+            "siteNameHierarchy": "Global/SanDiego/1"
+        },
+        {
+            "parentId": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "addressInheritedFrom": "257c51d3-971d-49f4-83f7-c9baf334865a",
+                        "type": "area"
+                    }
+                }
+            ],
+            "name": "Texas",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "257c51d3-971d-49f4-83f7-c9baf334865a",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/257c51d3-971d-49f4-83f7-c9baf334865a",
+            "siteNameHierarchy": "Global/Texas"
+        },
+        {
+            "parentId": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "addressInheritedFrom": "f372dbbb-d689-4d9a-9a5e-887de33fbce5",
+                        "type": "area"
+                    }
+                }
+            ],
+            "name": "Maryland",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "f372dbbb-d689-4d9a-9a5e-887de33fbce5",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/f372dbbb-d689-4d9a-9a5e-887de33fbce5",
+            "siteNameHierarchy": "Global/Maryland"
+        },
+        {
+            "parentId": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "addressInheritedFrom": "8004668a-eb96-47cc-b659-bcc9c04669ba",
+                        "type": "area"
+                    }
+                }
+            ],
+            "name": "Treton",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "8004668a-eb96-47cc-b659-bcc9c04669ba",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/8004668a-eb96-47cc-b659-bcc9c04669ba",
+            "siteNameHierarchy": "Global/Treton"
+        },
+        {
+            "parentId": "f372dbbb-d689-4d9a-9a5e-887de33fbce5",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "country": "United States",
+                        "address": "123 Main Street",
+                        "latitude": "39.0458",
+                        "addressInheritedFrom": "755faf69-0d07-48f7-b130-4806c32eb13e",
+                        "type": "building",
+                        "longitude": "-76.6413"
+                    }
+                }
+            ],
+            "name": "secretlab",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "755faf69-0d07-48f7-b130-4806c32eb13e",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/f372dbbb-d689-4d9a-9a5e-887de33fbce5/755faf69-0d07-48f7-b130-4806c32eb13e",
+            "siteNameHierarchy": "Global/Maryland/secretlab"
+        },
+        {
+            "parentId": "8004668a-eb96-47cc-b659-bcc9c04669ba",
+            "additionalInfo": [
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "country": "United States",
+                        "address": "51 West Center Road Southeast, Rome, Georgia 30161, United States",
+                        "latitude": "34.237896413975506",
+                        "addressInheritedFrom": "fedd8d33-5334-413f-8a49-fb2459d7e337",
+                        "type": "building",
+                        "longitude": "-85.13241190760431"
+                    }
+                }
+            ],
+            "name": "Rome",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "fedd8d33-5334-413f-8a49-fb2459d7e337",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/8004668a-eb96-47cc-b659-bcc9c04669ba/fedd8d33-5334-413f-8a49-fb2459d7e337",
+            "siteNameHierarchy": "Global/Treton/Rome"
+        },
+        {
+            "parentId": "755faf69-0d07-48f7-b130-4806c32eb13e",
+            "additionalInfo": [
+                {
+                    "nameSpace": "mapGeometry",
+                    "attributes": {
+                        "offsetX": "0.0",
+                        "offsetY": "0.0",
+                        "width": "50.0",
+                        "length": "60.0",
+                        "height": "10.0"
+                    }
+                },
+                {
+                    "nameSpace": "mapsSummary",
+                    "attributes": {
+                        "rfModel": "95095",
+                        "imageURL": "",
+                        "isCadFile": "false",
+                        "floorIndex": "1"
+                    }
+                },
+                {
+                    "nameSpace": "Location",
+                    "attributes": {
+                        "address": "123 Main Street",
+                        "addressInheritedFrom": "755faf69-0d07-48f7-b130-4806c32eb13e",
+                        "type": "floor"
+                    }
+                }
+            ],
+            "name": "Floor 2",
+            "instanceTenantId": "623f029857259506a56ad9bd",
+            "id": "f4ff8ca1-c062-4228-868a-d6cd0bc53852",
+            "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/f372dbbb-d689-4d9a-9a5e-887de33fbce5/755faf69-0d07-48f7-b130-4806c32eb13e/f4ff8ca1-c062-4228-868a-d6cd0bc53852",
+            "siteNameHierarchy": "Global/Maryland/secretlab/Floor 2"
+        }
+    ]
+}

@@ -1,0 +1,32 @@
+{
+    "collectionStatus": "<status><general code='DEV_UNREACHED'/></status>",
+    "communicationState": "UNREACHABLE",
+    "cpuScore": -1,
+    "deviceGroupHierarchyId": "/d47e8608-46fa-4a02-93b1-da92a5ff6c22/56ba076d-0820-4d31-8127-85f5de26962b/",
+    "deviceSeries": "Cisco Catalyst 3850 Series Ethernet Stackable Switch",
+    "haStatus": "Non-redundant",
+    "ip_addr_managementIpAddr": "10.10.20.80",
+    "lastBootTime": 1668346366541,
+    "location": "Global/NY/Building1/Floor1",
+    "macAddress": "70:01:B5:5D:1B:00",
+    "maintenanceMode": false,
+    "managementIpAddr": "10.10.20.80",
+    "memoryScore": -1,
+    "nwDeviceFamily": "Switches and Hubs",
+    "nwDeviceId": "420aab4f-ff7e-41e0-8f59-eb18c0b80759",
+    "nwDeviceName": "spine1.abc.in",
+    "nwDeviceRole": "CORE",
+    "nwDeviceType": "Cisco Catalyst38xx stack-able ethernet switch",
+    "osType": "IOS-XE",
+    "overallHealth": -2,
+    "platformId": "WS-C3850-24P-L",
+    "ringStatus": false,
+    "serialNumber": "FCW2212D05S",
+    "siteHierarchyGraphId": "/9e5f9fc2-032e-45e8-994c-4a00629648e8/eed5ccc3-d76f-46e2-9d8d-97624f5418ac/5c59e37a-f12d-4e84-a085-ac5c02f240d4/49aa97a7-5d45-4303-89dd-f76dfbfc624a/",
+    "softwareVersion": "16.12.3",
+    "stackType": "NA",
+    "tagIdList": [
+        "lan_access_9300"
+    ],
+    "timestamp": 1676317680000
+}

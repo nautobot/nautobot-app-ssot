@@ -1,0 +1,183 @@
+[
+    {
+        "parentId": "5c59e37a-f12d-4e84-a085-ac5c02f240d4",
+        "additionalInfo": [
+            {
+                "nameSpace": "Location",
+                "attributes": {
+                    "address": "1000 I Street, Sacramento, California 95814, United States",
+                    "addressInheritedFrom": "5c59e37a-f12d-4e84-a085-ac5c02f240d4",
+                    "type": "floor"
+                }
+            },
+            {
+                "nameSpace": "mapsSummary",
+                "attributes": {
+                    "rfModel": "95095",
+                    "floorIndex": "1"
+                }
+            },
+            {
+                "nameSpace": "mapGeometry",
+                "attributes": {
+                    "offsetX": "0.0",
+                    "offsetY": "0.0",
+                    "length": "100.0",
+                    "width": "100.0",
+                    "height": "10.0"
+                }
+            }
+        ],
+        "name": "Floor1",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "id": "49aa97a7-5d45-4303-89dd-f76dfbfc624a",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/eed5ccc3-d76f-46e2-9d8d-97624f5418ac/5c59e37a-f12d-4e84-a085-ac5c02f240d4/49aa97a7-5d45-4303-89dd-f76dfbfc624a",
+        "siteNameHierarchy": "Global/SanJose/Building1/Floor1"
+    },
+    {
+        "parentId": "2d0d8545-b6de-4dda-a0f7-93bcd7d0e738",
+        "additionalInfo": [
+            {
+                "nameSpace": "Location",
+                "attributes": {
+                    "address": "Ocean Drive Bar & Restaurant, 3915 Landis Ave, Sea Isle City, New Jersey 08243, United States",
+                    "addressInheritedFrom": "2d0d8545-b6de-4dda-a0f7-93bcd7d0e738",
+                    "type": "floor"
+                }
+            },
+            {
+                "nameSpace": "mapsSummary",
+                "attributes": {
+                    "rfModel": "95095",
+                    "floorIndex": "1"
+                }
+            },
+            {
+                "nameSpace": "mapGeometry",
+                "attributes": {
+                    "offsetX": "0.0",
+                    "offsetY": "0.0",
+                    "length": "79.0",
+                    "width": "100.0",
+                    "height": "10.0"
+                }
+            }
+        ],
+        "name": "1",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "id": "925f1a03-05df-4d9a-b2e0-db1989367138",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/04509ce4-6c88-40a3-b444-9e00f2cd97f2/2d0d8545-b6de-4dda-a0f7-93bcd7d0e738/925f1a03-05df-4d9a-b2e0-db1989367138",
+        "siteNameHierarchy": "Global/SanDiego/1/1"
+    },
+    {
+        "parentId": "331f7e36-1a45-4c9f-bfa9-3425a053f81a",
+        "additionalInfo": [
+            {
+                "nameSpace": "mapGeometry",
+                "attributes": {
+                    "offsetX": "0.0",
+                    "offsetY": "0.0",
+                    "length": "300.0",
+                    "width": "1000.0",
+                    "height": "30.0"
+                }
+            },
+            {
+                "nameSpace": "mapsSummary",
+                "attributes": {
+                    "rfModel": "95098",
+                    "imageURL": "",
+                    "isCadFile": "false",
+                    "floorIndex": "1"
+                }
+            },
+            {
+                "nameSpace": "Location",
+                "attributes": {
+                    "address": "Mercury, NV 89023",
+                    "addressInheritedFrom": "331f7e36-1a45-4c9f-bfa9-3425a053f81a",
+                    "type": "floor"
+                }
+            }
+        ],
+        "name": "1st Floor",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "id": "42a47e36-01ea-4189-8e54-16a2fd063648",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/7760b82a-b07e-4fa7-8cad-91adfa12dd43/331f7e36-1a45-4c9f-bfa9-3425a053f81a/42a47e36-01ea-4189-8e54-16a2fd063648",
+        "siteNameHierarchy": "Global/Area 51/Deep Space/1st Floor"
+    },
+    {
+        "parentId": "1c3bb089-2a74-4fdf-96e3-d1815ac67e38",
+        "additionalInfo": [
+            {
+                "nameSpace": "mapGeometry",
+                "attributes": {
+                    "offsetX": "0.0",
+                    "offsetY": "0.0",
+                    "length": "100.0",
+                    "width": "100.0",
+                    "height": "10.0"
+                }
+            },
+            {
+                "nameSpace": "mapsSummary",
+                "attributes": {
+                    "rfModel": "95095",
+                    "imageURL": "",
+                    "isCadFile": "false",
+                    "floorIndex": "0"
+                }
+            },
+            {
+                "nameSpace": "Location",
+                "attributes": {
+                    "address": "Wallstadter StraÃŸe 59, 68526 Ladenburg",
+                    "addressInheritedFrom": "1c3bb089-2a74-4fdf-96e3-d1815ac67e38",
+                    "type": "floor"
+                }
+            }
+        ],
+        "name": "Lab",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "id": "0b1f8f7f-f0be-4d14-974d-69b1693d39ec",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/5c882916-4f65-45b5-a5cc-ca5fa927cba6/1c3bb089-2a74-4fdf-96e3-d1815ac67e38/0b1f8f7f-f0be-4d14-974d-69b1693d39ec",
+        "siteNameHierarchy": "Global/Forschungszentrum/Building 1/Lab"
+    },
+    {
+        "parentId": "755faf69-0d07-48f7-b130-4806c32eb13e",
+        "additionalInfo": [
+            {
+                "nameSpace": "mapGeometry",
+                "attributes": {
+                    "offsetX": "0.0",
+                    "offsetY": "0.0",
+                    "width": "50.0",
+                    "length": "60.0",
+                    "height": "10.0"
+                }
+            },
+            {
+                "nameSpace": "mapsSummary",
+                "attributes": {
+                    "rfModel": "95095",
+                    "imageURL": "",
+                    "isCadFile": "false",
+                    "floorIndex": "1"
+                }
+            },
+            {
+                "nameSpace": "Location",
+                "attributes": {
+                    "address": "123 Main Street",
+                    "addressInheritedFrom": "755faf69-0d07-48f7-b130-4806c32eb13e",
+                    "type": "floor"
+                }
+            }
+        ],
+        "name": "Floor 2",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "id": "f4ff8ca1-c062-4228-868a-d6cd0bc53852",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/f372dbbb-d689-4d9a-9a5e-887de33fbce5/755faf69-0d07-48f7-b130-4806c32eb13e/f4ff8ca1-c062-4228-868a-d6cd0bc53852",
+        "siteNameHierarchy": "Global/Maryland/secretlab/Floor 2"
+    }
+]

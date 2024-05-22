@@ -17,6 +17,7 @@ _CONFLICTING_APP_NAMES = [
     "nautobot_ssot_aci",
     "nautobot_ssot_aristacv",
     "nautobot_ssot_device42",
+    "nautobot_ssot_dna_center",
     "nautobot_ssot_infoblox",
     "nautobot_ssot_ipfabric",
     "nautobot_ssot_servicenow",
@@ -46,7 +47,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
     description = "Nautobot app that enables Single Source of Truth.  Allows users to aggregate distributed data sources and/or distribute Nautobot data to other data sources such as databases and SDN controllers."
     base_url = "ssot"
     required_settings = []
-    min_version = "2.0.0"
+    min_version = "2.2.0"
     max_version = "2.9999"
     default_settings = {
         "aci_apics": [],
@@ -90,9 +91,14 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "device42_role_prepend": "",
         "device42_ignore_tag": "",
         "device42_hostname_mapping": [],
+        "dna_center_import_global": True,
+        "dna_center_import_merakis": False,
+        "dna_center_update_locations": True,
+        "dna_center_show_failures": True,
         "enable_aci": False,
         "enable_aristacv": False,
         "enable_device42": False,
+        "enable_dna_center": False,
         "enable_infoblox": False,
         "enable_ipfabric": False,
         "enable_servicenow": False,
