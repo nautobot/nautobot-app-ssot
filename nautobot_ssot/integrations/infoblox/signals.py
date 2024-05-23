@@ -101,7 +101,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         if found_status.exists():
             default_status = found_status.first()
         else:
-            default_status = Status.objects.get(name="Active")
+            default_status, _ = Status.objects.get_or_create(name="Active")
 
         try:
             infoblox_request_timeout = int(config.get("infoblox_request_timeout", 60))
