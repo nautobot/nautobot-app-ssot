@@ -91,7 +91,6 @@ class InfobloxIPAddress(IPAddress):
         network_view = map_network_view_to_namespace(value=ids["namespace"], direction="ns_to_nv")
         dns_name = attrs.get("dns_name")
         ip_address = ids["address"]
-        diffsync.job.logger.warning(f"IP Address {ip_address}. DNS name: {dns_name}.")
         if not dns_name:
             diffsync.job.logger.warning(
                 f"Cannot create Infoblox record for IP Address {ip_address}. DNS name is not defined."
