@@ -81,7 +81,6 @@ class InfobloxDataSource(DataSource):
         """Load Infoblox data."""
         self.logger.info("Connecting to Infoblox")
         client_config = _get_infoblox_client_config(self.config, self.debug)
-        self.logger.info(client_config)
         client = InfobloxApi(**client_config)
         self.source_adapter = infoblox.InfobloxAdapter(job=self, sync=self.sync, conn=client, config=self.config)
         self.logger.info("Loading data from Infoblox...")
