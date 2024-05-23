@@ -199,6 +199,10 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
                     all_prefixes = all_prefixes.union(Prefix.objects.filter(**query_filters))
             # Filter on namespace name only
             if "prefixes_ipv4" not in sync_filter and "prefixes_ipv6" not in sync_filter:
+                if include_ipv4 and not include_ipv6:
+                    query_filters["ip_version"] = 4
+                elif include_ipv6 and not include_ipv4:
+                    query_filters["ip_version"] = 6
                 all_prefixes = all_prefixes.union(Prefix.objects.filter(**query_filters))
 
         return all_prefixes
@@ -258,6 +262,10 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
                 all_ipaddresses = all_ipaddresses.union(IPAddress.objects.filter(**query_filters))
             # Filter on namespace name only
             if "prefixes_ipv4" not in sync_filter and "prefixes_ipv6" not in sync_filter:
+                if include_ipv4 and not include_ipv6:
+                    query_filters["ip_version"] = 4
+                elif include_ipv6 and not include_ipv4:
+                    query_filters["ip_version"] = 6
                 all_ipaddresses = all_ipaddresses.union(IPAddress.objects.filter(**query_filters))
 
         return all_ipaddresses
@@ -372,15 +380,19 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
         self.load_namespaces(sync_filters=sync_filters)
         if "namespace" in self.dict():
             self.job.logger.info(f"Loaded {len(self.dict()['namespace'])} Namespaces from Nautobot.")
-        self.load_prefixes(sync_filters=sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6)
+        if self.config.import_subnets:
+            self.load_prefixes(sync_filters=sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6)
         if "prefix" in self.dict():
             self.job.logger.info(f"Loaded {len(self.dict()['prefix'])} prefixes from Nautobot.")
-        self.load_ipaddresses(sync_filters=sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6)
+        if self.config.import_ip_addresses:
+            self.load_ipaddresses(sync_filters=sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6)
         if "ipaddress" in self.dict():
             self.job.logger.info(f"Loaded {len(self.dict()['ipaddress'])} IP addresses from Nautobot.")
-        self.load_vlangroups()
+        if self.config.import_vlan_views:
+            self.load_vlangroups()
         if "vlangroup" in self.dict():
             self.job.logger.info(f"Loaded {len(self.dict()['vlangroup'])} VLAN Groups from Nautobot.")
-        self.load_vlans()
+        if self.config.import_vlans:
+            self.load_vlans()
         if "vlan" in self.dict():
             self.job.logger.info(f"Loaded {len(self.dict()['vlan'])} VLANs from Nautobot.")
