@@ -7,9 +7,16 @@ from django.core.exceptions import ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 
+try:
+    from nautobot.apps.constants import CHARFIELD_MAX_LENGTH
+except ImportError:
+    CHARFIELD_MAX_LENGTH = 255
+
 from nautobot.core.models.generics import PrimaryModel
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.models import SecretsGroupAssociation
+
+from nautobot_ssot.integrations.infoblox.choices import FixedAddressTypeChoices, DNSRecordTypeChoices
 
 
 def _get_default_sync_filters():
@@ -77,15 +84,32 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         default=False,
         verbose_name="Import IPv6",
     )
-    create_host_record = models.BooleanField(
+    dns_record_type = models.CharField(
+        max_length=CHARFIELD_MAX_LENGTH,
+        default=DNSRecordTypeChoices.HOST_RECORD,
+        choices=DNSRecordTypeChoices,
+        help_text="Choose what type of Infoblox DNS record to create for IP Addresses.",
+    )
+    fixed_address_type = models.CharField(
+        max_length=CHARFIELD_MAX_LENGTH,
+        default=FixedAddressTypeChoices.MAC_ADDRESS,
+        choices=FixedAddressTypeChoices,
+        help_text="Choose what type of Infoblox fixed IP address record to create.",
+    )
+    create_ip_reservation = models.BooleanField(
         default=True,
+        verbose_name="Create IP Reservation",
+        help_text="Infoblox - Create IP Address as IP Reservation",
+    )
+    create_host_record = models.BooleanField(
+        default=False,
         verbose_name="Create Host Record",
-        help_text="Infoblox - Create IP Address as Host Record",
+        help_text="Infoblox - Create IP Address Host Record",
     )
     create_a_record = models.BooleanField(
         default=False,
         verbose_name="Create A Record",
-        help_text="Infoblox - Create IP Address as A Record",
+        help_text="Infoblox - Create IP Address A Record",
     )
     create_ptr_record = models.BooleanField(
         default=False,

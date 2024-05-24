@@ -170,6 +170,3 @@ class InfobloxDataTarget(DataTarget):
 
 
 jobs = [InfobloxDataSource, InfobloxDataTarget]
-
-# if PLUGIN_CFG["enable_sync_to_infoblox"]:
-#     jobs.append(InfobloxDataTarget)

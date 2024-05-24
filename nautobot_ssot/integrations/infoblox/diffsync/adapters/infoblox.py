@@ -22,6 +22,7 @@ from nautobot_ssot.integrations.infoblox.utils.diffsync import (
     build_vlan_map,
     get_ext_attr_dict,
     map_network_view_to_namespace,
+    validate_dns_name,
 )
 
 
@@ -205,10 +206,20 @@ class InfobloxAdapter(DiffSync):
         default_ext_attrs = get_default_ext_attrs(review_list=ipaddrs, excluded_attrs=self.excluded_attrs)
         for _ip in ipaddrs:
             _, prefix_length = _ip["network"].split("/")
+            network_view = _ip["network_view"]
             dns_name = ""
-            if _ip["names"]:
-                dns_name = get_dns_name(possible_fqdn=_ip["names"][0])
-            namespace = map_network_view_to_namespace(value=_ip["network_view"], direction="nv_to_ns")
+            fallback_dns_name = ""
+            # Record can have multiple names, if there is a DNS record attached we should use that name
+            # Otherwise return non-DNS name
+            for dns_name_candidate in _ip["names"]:
+                if validate_dns_name(infoblox_client=self.conn, dns_name=dns_name_candidate, network_view=network_view):
+                    dns_name = dns_name_candidate
+                    break
+                if not fallback_dns_name:
+                    fallback_dns_name = get_dns_name(possible_fqdn=dns_name_candidate)
+
+            dns_name = dns_name or fallback_dns_name
+            namespace = map_network_view_to_namespace(value=network_view, direction="nv_to_ns")
 
             ip_ext_attrs = get_ext_attr_dict(extattrs=_ip.get("extattrs", {}), excluded_attrs=self.excluded_attrs)
             new_ip = self.ipaddress(
@@ -221,6 +232,7 @@ class InfobloxAdapter(DiffSync):
                 ip_addr_type=self.conn.get_ipaddr_type(_ip),
                 description=_ip["comment"],
                 ext_attrs={**default_ext_attrs, **ip_ext_attrs},
+                mac_address=None if not _ip["mac_address"] else _ip["mac_address"],
             )
 
             # Record references to DNS Records linked to this IP Address
@@ -235,6 +247,13 @@ class InfobloxAdapter(DiffSync):
                 elif obj_type == "record:ptr":
                     new_ip.has_ptr_record = True
                     new_ip.ptr_record_ref = ref
+                elif obj_type == "fixedaddress":
+                    new_ip.has_fixed_address = True
+                    new_ip.fixed_address_ref = ref
+                    if "RESERVATION" in _ip["types"]:
+                        new_ip.fixed_address_type = "RESERVED"
+                    elif "FA" in _ip["types"]:
+                        new_ip.fixed_address_type = "MAC_ADDRESS"
 
             self.add(new_ip)
 

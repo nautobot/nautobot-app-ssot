@@ -5,6 +5,7 @@ from unittest.mock import Mock
 
 from django.test import TestCase
 
+from nautobot_ssot.integrations.infoblox.choices import DNSRecordTypeChoices, FixedAddressTypeChoices
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import InfobloxAdapter
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import NautobotAdapter
 
@@ -54,7 +55,9 @@ class TestModelInfobloxIPAddressCreate(TestCase):
         with unittest.mock.patch(
             "nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi", autospec=True
         ) as mock_client:
-            self.config.create_a_record = True
+            # self.config.create_a_record = True
+            self.config.fixed_address_type = FixedAddressTypeChoices.DONT_CREATE_RECORD
+            self.config.dns_record_type = DNSRecordTypeChoices.A_RECORD
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
             inf_ds_namespace = infoblox_adapter.namespace(
                 name="Global",
@@ -93,9 +96,11 @@ class TestModelInfobloxIPAddressCreate(TestCase):
         with unittest.mock.patch(
             "nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi", autospec=True
         ) as mock_client:
-            self.config.create_host_record = False
-            self.config.create_a_record = True
-            self.config.create_ptr_record = True
+            # self.config.create_host_record = False
+            # self.config.create_a_record = True
+            # self.config.create_ptr_record = True
+            self.config.fixed_address_type = FixedAddressTypeChoices.DONT_CREATE_RECORD
+            self.config.dns_record_type = DNSRecordTypeChoices.A_AND_PTR_RECORD
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
             inf_ds_namespace = infoblox_adapter.namespace(
                 name="Global",
@@ -139,9 +144,11 @@ class TestModelInfobloxIPAddressCreate(TestCase):
         with unittest.mock.patch(
             "nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi", autospec=True
         ) as mock_client:
-            self.config.create_host_record = True
-            self.config.create_a_record = False
-            self.config.create_ptr_record = False
+            # self.config.create_host_record = True
+            # self.config.create_a_record = False
+            # self.config.create_ptr_record = False
+            self.config.fixed_address_type = FixedAddressTypeChoices.DONT_CREATE_RECORD
+            self.config.dns_record_type = DNSRecordTypeChoices.HOST_RECORD
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
             inf_ds_namespace = infoblox_adapter.namespace(
                 name="Global",
@@ -182,9 +189,11 @@ class TestModelInfobloxIPAddressCreate(TestCase):
         with unittest.mock.patch(
             "nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi", autospec=True
         ) as mock_client:
-            self.config.create_host_record = False
-            self.config.create_a_record = True
-            self.config.create_ptr_record = False
+            # self.config.create_host_record = False
+            # self.config.create_a_record = True
+            # self.config.create_ptr_record = False
+            self.config.fixed_address_type = FixedAddressTypeChoices.DONT_CREATE_RECORD
+            self.config.dns_record_type = DNSRecordTypeChoices.A_RECORD
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
             inf_ds_namespace = infoblox_adapter.namespace(
                 name="Global",
@@ -195,7 +204,7 @@ class TestModelInfobloxIPAddressCreate(TestCase):
             job_logger = Mock()
             infoblox_adapter.job.logger = job_logger
             self.nb_adapter.sync_to(infoblox_adapter)
-            log_msg = "Cannot create Infoblox record for IP Address 10.0.0.1. DNS name is not defined."
+            log_msg = "Cannot create Infoblox DNS record for IP Address 10.0.0.1. DNS name is not defined."
             job_logger.warning.assert_called_with(log_msg)
 
             mock_tag_involved_objects.assert_called_once()
@@ -230,9 +239,11 @@ class TestModelInfobloxIPAddressUpdate(TestCase):
         with unittest.mock.patch(
             "nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi", autospec=True
         ) as mock_client:
-            self.config.create_a_record = False
-            self.config.create_ptr_record = False
-            self.config.create_host_record = True
+            # self.config.create_a_record = False
+            # self.config.create_ptr_record = False
+            # self.config.create_host_record = True
+            self.config.fixed_address_type = FixedAddressTypeChoices.DONT_CREATE_RECORD
+            self.config.dns_record_type = DNSRecordTypeChoices.HOST_RECORD
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
             infoblox_adapter.job = Mock()
             inf_ds_namespace = infoblox_adapter.namespace(
@@ -280,9 +291,11 @@ class TestModelInfobloxIPAddressUpdate(TestCase):
         with unittest.mock.patch(
             "nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi", autospec=True
         ) as mock_client:
-            self.config.create_host_record = False
-            self.config.create_a_record = True
-            self.config.create_ptr_record = False
+            # self.config.create_host_record = False
+            # self.config.create_a_record = True
+            # self.config.create_ptr_record = False
+            self.config.fixed_address_type = FixedAddressTypeChoices.DONT_CREATE_RECORD
+            self.config.dns_record_type = DNSRecordTypeChoices.A_RECORD
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
             infoblox_adapter.job = Mock()
             inf_ds_namespace = infoblox_adapter.namespace(
@@ -330,9 +343,11 @@ class TestModelInfobloxIPAddressUpdate(TestCase):
         with unittest.mock.patch(
             "nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi", autospec=True
         ) as mock_client:
-            self.config.create_host_record = False
-            self.config.create_a_record = True
-            self.config.create_ptr_record = True
+            # self.config.create_host_record = False
+            # self.config.create_a_record = True
+            # self.config.create_ptr_record = True
+            self.config.fixed_address_type = FixedAddressTypeChoices.DONT_CREATE_RECORD
+            self.config.dns_record_type = DNSRecordTypeChoices.A_AND_PTR_RECORD
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
             infoblox_adapter.job = Mock()
             inf_ds_namespace = infoblox_adapter.namespace(
@@ -346,7 +361,9 @@ class TestModelInfobloxIPAddressUpdate(TestCase):
                 "has_ptr_record": False,
                 "a_record_ref": "record:a/xyz",
             }
+            print(_get_ip_address_dict(inf_ipaddress_atrs))
             inf_ds_ipaddress = infoblox_adapter.ipaddress(**_get_ip_address_dict(inf_ipaddress_atrs))
+            print(infoblox_adapter.dict())
             infoblox_adapter.add(inf_ds_ipaddress)
             self.nb_adapter.sync_to(infoblox_adapter)
 
@@ -381,9 +398,11 @@ class TestModelInfobloxIPAddressUpdate(TestCase):
         with unittest.mock.patch(
             "nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi", autospec=True
         ) as mock_client:
-            self.config.create_host_record = False
-            self.config.create_a_record = True
-            self.config.create_ptr_record = True
+            # self.config.create_host_record = False
+            # self.config.create_a_record = True
+            # self.config.create_ptr_record = True
+            self.config.fixed_address_type = FixedAddressTypeChoices.DONT_CREATE_RECORD
+            self.config.dns_record_type = DNSRecordTypeChoices.A_AND_PTR_RECORD
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
             infoblox_adapter.job = Mock()
             inf_ds_namespace = infoblox_adapter.namespace(
@@ -403,7 +422,7 @@ class TestModelInfobloxIPAddressUpdate(TestCase):
             self.nb_adapter.sync_to(infoblox_adapter)
             infoblox_adapter.conn.update_ptr_record.assert_called_once()
             infoblox_adapter.conn.update_ptr_record.assert_called_with(
-                ref="record:ptr/xyz", data={"name": "server2.local.test.net"}
+                ref="record:ptr/xyz", data={"ptrdname": "server2.local.test.net"}
             )
             infoblox_adapter.conn.update_a_record.assert_called_once()
             infoblox_adapter.conn.update_a_record.assert_called_with(
@@ -436,9 +455,11 @@ class TestModelInfobloxIPAddressUpdate(TestCase):
         with unittest.mock.patch(
             "nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi", autospec=True
         ) as mock_client:
-            self.config.create_host_record = False
-            self.config.create_a_record = True
-            self.config.create_ptr_record = False
+            # self.config.create_host_record = False
+            # self.config.create_a_record = True
+            # self.config.create_ptr_record = False
+            self.config.fixed_address_type = FixedAddressTypeChoices.DONT_CREATE_RECORD
+            self.config.dns_record_type = DNSRecordTypeChoices.A_RECORD
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
             infoblox_adapter.job = Mock()
             job_logger = Mock()
@@ -488,9 +509,11 @@ class TestModelInfobloxIPAddressUpdate(TestCase):
         with unittest.mock.patch(
             "nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi", autospec=True
         ) as mock_client:
-            self.config.create_host_record = False
-            self.config.create_a_record = True
-            self.config.create_ptr_record = True
+            # self.config.create_host_record = False
+            # self.config.create_a_record = True
+            # self.config.create_ptr_record = True
+            self.config.fixed_address_type = FixedAddressTypeChoices.DONT_CREATE_RECORD
+            self.config.dns_record_type = DNSRecordTypeChoices.A_AND_PTR_RECORD
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
             infoblox_adapter.job = Mock()
             job_logger = Mock()

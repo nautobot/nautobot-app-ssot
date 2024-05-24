@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
 import ipaddress
 import json
 import logging
@@ -922,7 +923,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             logger.error(response.text)
             return response.text
 
-    def create_a_record(self, fqdn, ip_address, network_view: Optional[str] = None):
+    def create_a_record(self, fqdn, ip_address, comment: Optional[str] = None, network_view: Optional[str] = None):
         """Create an A record for a given FQDN.
 
         Please note:  This API call with work only for host records that do not have an associated a record.
@@ -946,6 +947,8 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         if network_view:
             dns_view = self.get_dns_view_for_network_view(network_view)
             payload["view"] = dns_view
+        if comment:
+            payload["comment"] = comment
         response = self._request("POST", url_path, params=params, json=payload)
         try:
             logger.debug(response.json())
@@ -1203,6 +1206,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             logger.error(response.text)
             return response.text
 
+    @lru_cache(maxsize=None)
     def get_authoritative_zones_for_dns_view(self, view: str):
         """Get authoritative zone list for given DNS view.
 
@@ -1339,11 +1343,20 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
                 return response.text
         return False
 
-    def create_fixed_address(self, ip_address, mac_address, network_view: Optional[str] = None):
+    def create_fixed_address(
+        self,
+        ip_address,
+        name: str = None,
+        mac_address: Optional[str] = None,
+        comment: Optional[str] = None,
+        match_client: str = "MAC_ADDRESS",
+        network_view: Optional[str] = None,
+    ):
         """Create a fixed ip address within Infoblox.
 
         Args:
             network_view (str): Name of the network view, e.g. 'dev'
+            match_client: match client value, valid values are: "MAC_ADDRESS", "RESERVED"
 
         Returns:
             Str: The IP Address that was reserved
@@ -1353,9 +1366,18 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         """
         url_path = "fixedaddress"
         params = {"_return_fields": "ipv4addr", "_return_as_object": 1}
-        payload = {"ipv4addr": ip_address, "mac": mac_address}
+        valid_match_client_choices = ["MAC_ADDRESS", "RESERVED"]
+        if match_client not in valid_match_client_choices:
+            return None
+        payload = {"ipv4addr": ip_address, "match_client": match_client}
+        if match_client == "MAC_ADDRESS" and mac_address:
+            payload["mac"] = mac_address
         if network_view:
             payload["network_view"] = network_view
+        if name:
+            payload["name"] = name
+        if comment:
+            payload["comment"] = comment
         response = self._request("POST", url_path, params=params, json=payload)
         try:
             logger.debug(response.json())
@@ -1365,7 +1387,37 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             logger.error(response.text)
             return response.text
 
-    def create_host_record(self, fqdn, ip_address, network_view: Optional[str] = None):
+    def update_fixed_address(self, ref, data):
+        """Update a fixed ip address within Infoblox.
+
+        Args:
+            ref (str): Reference to Host record
+
+        Returns:
+            Dict: Dictionary of _ref and name
+
+        Return Response:
+        {
+
+            "_ref": "record:host/ZG5zLmhvc3QkLjEuY29tLmluZm9ibG94Lmhvc3Q:host.infoblox.com/default.test",
+            "name": "host.infoblox.com",
+        }
+        """
+        params = {}
+        try:
+            response = self._request("PUT", path=ref, params=params, json=data)
+        except HTTPError as err:
+            logger.error("Could not update Host address: %s for ref %s", err.response.text, ref)
+            return None
+        try:
+            logger.debug("Infoblox host record updated: %s", response.json())
+            results = response.json()
+            return results
+        except json.decoder.JSONDecodeError:
+            logger.error(response.text)
+            return response.text
+
+    def create_host_record(self, fqdn, ip_address, comment: Optional[str] = None, network_view: Optional[str] = None):
         """Create a host record for a given FQDN.
 
         Please note:  This API call with work only for host records that do not have an associated a record.
@@ -1389,6 +1441,8 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         payload = {"name": fqdn, "configure_for_dns": False, "ipv4addrs": [{"ipv4addr": ip_address}]}
         if network_view:
             payload["network_view"] = network_view
+        if comment:
+            payload["comment"] = comment
         try:
             response = self._request("POST", url_path, params=params, json=payload)
         except HTTPError as err:
@@ -1450,7 +1504,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         logger.debug(response)
         return response
 
-    def create_ptr_record(self, fqdn, ip_address, network_view: Optional[str] = None):
+    def create_ptr_record(self, fqdn, ip_address, comment: Optional[str] = None, network_view: Optional[str] = None):
         """Create a PTR record for a given FQDN.
 
         Args:
@@ -1478,6 +1532,8 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         if network_view:
             dns_view = self.get_dns_view_for_network_view(network_view)
             payload["view"] = dns_view
+        if comment:
+            payload["comment"] = comment
         response = self._request("POST", url_path, params=params, json=payload)
         try:
             logger.debug("Infoblox PTR record created: %s", response.json())
@@ -2167,6 +2223,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
 
         return dns_view
 
+    @lru_cache(maxsize=None)
     def get_default_dns_view_for_network_view(self, network_view: str):
         """Get default (first on the list) DNS view for given network view.
 

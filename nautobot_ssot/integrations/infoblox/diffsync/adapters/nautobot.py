@@ -11,8 +11,10 @@ from nautobot.dcim.models import Location
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Relationship, Role, Status, Tag
 from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix, VLANGroup
+from nautobot.ipam.choices import IPAddressTypeChoices
 from nautobot.tenancy.models import Tenant
 
+from nautobot_ssot.integrations.infoblox.choices import DNSRecordTypeChoices, FixedAddressTypeChoices
 from nautobot_ssot.integrations.infoblox.constant import TAG_COLOR
 from nautobot_ssot.integrations.infoblox.diffsync.models import (
     NautobotIPAddress,
@@ -298,6 +300,14 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
                 )
                 continue
 
+            mac_address = None
+            if ipaddr.type == IPAddressTypeChoices.TYPE_DHCP:
+                if self.config.fixed_address_type == FixedAddressTypeChoices.MAC_ADDRESS and mac_address:
+                    _ip.has_fixed_address = True
+                elif self.config.fixed_address_type == FixedAddressTypeChoices.RESERVED:
+                    _ip.has_fixed_address = True
+                mac_address = ipaddr.custom_field_data.get("mac_address")
+
             custom_fields = get_valid_custom_fields(ipaddr.custom_field_data, excluded_cfs=self.excluded_cfs)
             _ip = self.ipaddress(
                 address=addr,
@@ -309,18 +319,29 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
                 dns_name=ipaddr.dns_name,
                 description=ipaddr.description,
                 ext_attrs={**default_cfs, **custom_fields},
+                mac_address=mac_address,
                 pk=ipaddr.id,
             )
 
             # Pretend IP Address has matching DNS records if dns name is defined.
             # This will be compared against values set on Infoblox side.
+
             if ipaddr.dns_name:
-                if self.config.create_host_record:
+                if self.config.dns_record_type == DNSRecordTypeChoices.HOST_RECORD:
                     _ip.has_host_record = True
-                elif self.config.create_a_record:
+                elif self.config.dns_record_type == DNSRecordTypeChoices.A_RECORD:
                     _ip.has_a_record = True
-                    if self.config.create_ptr_record:
-                        _ip.has_ptr_record = True
+                elif self.config.dns_record_type == DNSRecordTypeChoices.A_AND_PTR_RECORD:
+                    _ip.has_a_record = True
+                    _ip.has_ptr_record = True
+
+            # if ipaddr.dns_name:
+            #     if self.config.create_host_record:
+            #         _ip.has_host_record = True
+            #     elif self.config.create_a_record:
+            #         _ip.has_a_record = True
+            #         if self.config.create_ptr_record:
+            #             _ip.has_ptr_record = True
 
             try:
                 self.add(_ip)

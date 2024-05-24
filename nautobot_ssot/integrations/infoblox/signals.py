@@ -168,6 +168,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
             infoblox_sync_filters=infoblox_sync_filters,
             infoblox_dns_view_mapping={},
             cf_fields_ignore={},
+            create_ip_reservation=False,
             create_a_record=False,
             create_host_record=True,
             create_ptr_record=False,

@@ -1,9 +1,12 @@
 """Forms implementation for SSOT Infoblox."""
 
+from django import forms
+
 from nautobot.extras.forms import NautobotModelForm, NautobotFilterForm
-from nautobot.apps.forms import JSONField
+from nautobot.apps.forms import JSONField, StaticSelect2
 
 from .models import SSOTInfobloxConfig
+from .choices import FixedAddressTypeChoices, DNSRecordTypeChoices
 
 
 class SSOTInfobloxConfigForm(NautobotModelForm):  # pylint: disable=too-many-ancestors
@@ -22,6 +25,16 @@ class SSOTInfobloxConfigForm(NautobotModelForm):  # pylint: disable=too-many-anc
         label="Extensible Attributes/Custom Fields to Ignore",
         help_text="Provide list of Extensible Attributes and Custom Fields to ignore during sync."
         " Assign lists to keys `extensible_attributes` and `custom_fields`.",
+    )
+    fixed_address_type = forms.ChoiceField(
+        choices=FixedAddressTypeChoices,
+        required=True,
+        widget=StaticSelect2(),
+    )
+    dns_record_type = forms.ChoiceField(
+        choices=DNSRecordTypeChoices,
+        required=True,
+        widget=StaticSelect2(),
     )
 
     class Meta:

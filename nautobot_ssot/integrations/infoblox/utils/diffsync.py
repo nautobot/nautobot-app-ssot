@@ -94,7 +94,7 @@ def get_valid_custom_fields(cfs: dict, excluded_cfs: list):
         cfs: custom fields
         excluded_cfs: list of excluded custom fields
     """
-    default_excluded_cfs = ["ssot_synced_to_infoblox", "dhcp_ranges"]
+    default_excluded_cfs = ["ssot_synced_to_infoblox", "dhcp_ranges", "mac_address"]
     excluded_cfs.extend(default_excluded_cfs)
     valid_cfs = {}
     for cf_name, val in cfs.items():
