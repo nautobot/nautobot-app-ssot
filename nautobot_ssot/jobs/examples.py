@@ -680,7 +680,7 @@ class NautobotRemote(DiffSync):
                     mac_address=interface["mac_address"],
                     mgmt_only=interface["mgmt_only"],
                     mtu=interface["mtu"],
-                    type=interface["type"],
+                    type=interface["type"]["value"],
                     status__name=interface["status"]["name"],
                     pk=interface["id"],
                 )
