@@ -772,6 +772,7 @@ class ExampleDataSource(DataSource):
         queryset=ExternalIntegration.objects.all(),
         display_field="display",
         label="Nautobot Demo Instance",
+        required=False,
     )
     source_url = StringVar(
         description="Remote Nautobot instance to load Sites and Regions from", default="https://demo.nautobot.com"
