@@ -478,10 +478,10 @@ class NautobotRemote(DiffSync):
 
     def _get_api_data(self, url_path: str) -> Mapping:
         """Returns data from a url_path using pagination."""
-        data = requests.get(f"{self.url}/{url_path}", headers=self.headers, params={"limit": 0}, timeout=60).json()
+        data = requests.get(f"{self.url}/{url_path}", headers=self.headers, params={"limit": 0}, timeout=600).json()
         result_data = data["results"]
         while data["next"]:
-            data = requests.get(data["next"], headers=self.headers, params={"limit": 0}, timeout=60).json()
+            data = requests.get(data["next"], headers=self.headers, params={"limit": 0}, timeout=600).json()
             result_data.extend(data["results"])
         return result_data
 
