@@ -586,7 +586,7 @@ class NautobotRemote(DiffSync):
                 parent__network=ipaddr_entry["parent"]["network"],
                 status__name=ipaddr_entry["status"]["name"],
                 ip_version=ipaddr_entry["ip_version"],
-                tenant__name=ipaddr_entry["tenant"]["name"],
+                tenant__name=ipaddr_entry["tenant"]["name"] if ipaddr_entry.get("tenant") else "",
                 pk=ipaddr_entry["id"],
             )
             self.add(ipaddr)
