@@ -580,7 +580,7 @@ class NautobotRemote(DiffSync):
 
     def load_ipaddresses(self):
         """Load IPAddresses data from the remote Nautobot instance."""
-        for ipaddr_entry in self._get_api_data("api/ipam/ipaddresses/?depth=2"):
+        for ipaddr_entry in self._get_api_data("api/ipam/ip-addresses/?depth=2"):
             ipaddr = self.ipaddress(
                 host=ipaddr_entry["host"],
                 mask_length=ipaddr_entry["mask_length"],
