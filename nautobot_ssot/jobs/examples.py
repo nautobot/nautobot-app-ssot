@@ -601,6 +601,7 @@ class NautobotRemote(DiffSync):
                 pk=manufacturer["id"],
             )
             self.add(manufacturer)
+            self.job.logger.debug(f"Loaded {manufacturer} from remote Nautobot instance")
 
     def load_device_types(self):
         """Load DeviceTypes data from the remote Nautobot instance."""
@@ -616,6 +617,7 @@ class NautobotRemote(DiffSync):
                     pk=device_type["id"],
                 )
                 self.add(devicetype)
+                self.job.logger.debug(f"Loaded {devicetype} from remote Nautobot instance")
                 manufacturer.add_child(devicetype)
             except ObjectNotFound:
                 self.job.logger.debug(f"Unable to find Manufacturer {device_type['manufacturer']['name']}")
@@ -632,6 +634,7 @@ class NautobotRemote(DiffSync):
                 pk=platform["id"],
             )
             self.add(platform)
+            self.job.logger.debug(f"Loaded {platform} from remote Nautobot instance")
 
     def load_devices(self):
         """Load Devices data from the remote Nautobot instance."""
@@ -657,9 +660,11 @@ class NautobotRemote(DiffSync):
                 pk=device["id"],
             )
             self.add(device)
+            self.job.logger.debug(f"Loaded {device} from remote Nautobot instance")
 
     def load_interfaces(self):
         """Load Interfaces data from the remote Nautobot instance."""
+        self.job.logger.info("Pulling data from remote Nautobot instance for Interfaces.")
         for interface in self._get_api_data("api/dcim/interfaces/?depth=3"):
             try:
                 dev = self.get(
@@ -685,6 +690,9 @@ class NautobotRemote(DiffSync):
                     pk=interface["id"],
                 )
                 self.add(new_interface)
+                self.job.logger.debug(
+                    f"Loaded {new_interface} for {interface['device']['name']} from remote Nautobot instance"
+                )
                 dev.add_child(new_interface)
             except ObjectNotFound:
                 self.job.logger.warning(f"Unable to find Device {interface['device']['name']} loaded.")
@@ -852,7 +860,6 @@ class ExampleDataSource(DataSource):
         """Method to instantiate and load the TARGET adapter into `self.target_adapter`."""
         self.target_adapter = NautobotLocal(job=self, sync=self.sync)
         self.target_adapter.load()
-        self.logger.info(f"Found {self.target_adapter.count('region')} regions")
 
     def lookup_object(self, model_name, unique_id):
         """Look up a Nautobot object based on the DiffSync model name and unique ID."""
