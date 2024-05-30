@@ -143,10 +143,9 @@ class IPAddressModel(NautobotModel):
     # Metadata about this model
     _model = IPAddress
     _modelname = "ipaddress"
-    _identifiers = ("host",)
+    _identifiers = ("host", "parent__network")
     _attributes = (
         "mask_length",
-        "parent__namespace__name",
         "status__name",
         "ip_version",
         "tenant__name",
@@ -155,7 +154,7 @@ class IPAddressModel(NautobotModel):
     # Data type declarations for all identifiers and attributes
     host: str
     mask_length: int
-    parent__namespace__name: str
+    parent__network: str
     status__name: str
     ip_version: int
     tenant__name: Optional[str]
@@ -584,7 +583,7 @@ class NautobotRemote(DiffSync):
             ipaddr = self.ipaddress(
                 host=ipaddr_entry["host"],
                 mask_length=ipaddr_entry["mask_length"],
-                parent__namespace__name=ipaddr_entry["parent"]["namespace"]["name"],
+                parent__network=ipaddr_entry["parent"]["network"],
                 status__name=ipaddr_entry["status"]["name"],
                 ip_version=ipaddr_entry["ip_version"],
                 tenant__name=ipaddr_entry["tenant"]["name"],
