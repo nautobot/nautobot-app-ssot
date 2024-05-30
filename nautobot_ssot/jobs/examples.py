@@ -13,7 +13,7 @@ from nautobot.dcim.models import Device, DeviceType, Interface, Location, Locati
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.jobs import ObjectVar, StringVar
 from nautobot.extras.models import ExternalIntegration, Role
-from nautobot.ipam.models import IPAddress, Prefix
+from nautobot.ipam.models import IPAddress, Namespace, Prefix
 from nautobot.tenancy.models import Tenant
 
 from diffsync import DiffSync
@@ -99,6 +99,22 @@ class RoleModel(NautobotModel):
     pk: Optional[UUID]
 
 
+class NamespaceModel(NautobotModel):
+    """Shared data model representing a Namespace in either of the local or remote Nautobot instance."""
+
+    # Metadata about this model
+    _model = Namespace
+    _modelname = "namespace"
+    _identifiers = ("name",)
+    _attributes = ("description",)
+
+    name: str
+    description: Optional[str] = ""
+
+    # Not in _attributes or _identifiers, hence not included in diff calculations
+    pk: Optional[UUID]
+
+
 class PrefixModel(NautobotModel):
     """Shared data model representing a Prefix in either of the local or remote Nautobot instances."""
 
@@ -107,10 +123,11 @@ class PrefixModel(NautobotModel):
     _modelname = "prefix"
     _identifiers = ("network", "prefix_length", "tenant__name")
     # To keep this example simple, we don't include **all** attributes of a Prefix here. But you could!
-    _attributes = ("description", "status__name")
+    _attributes = ("description", "namespace__name", "status__name")
 
     # Data type declarations for all identifiers and attributes
     network: str
+    namespace__name: str
     prefix_length: int
     tenant__name: Optional[str]
     status__name: str
@@ -129,7 +146,7 @@ class IPAddressModel(NautobotModel):
     _identifiers = ("host",)
     _attributes = (
         "mask_length",
-        "parent__network",
+        "parent__namespace__name",
         "status__name",
         "ip_version",
         "tenant__name",
@@ -138,7 +155,7 @@ class IPAddressModel(NautobotModel):
     # Data type declarations for all identifiers and attributes
     host: str
     mask_length: int
-    parent__network: str
+    parent__namespace__name: str
     status__name: str
     ip_version: int
     tenant__name: Optional[str]
@@ -373,6 +390,7 @@ class PrefixRemoteModel(PrefixModel):
                 "network": ids["network"],
                 "prefix_length": ids["prefix_length"],
                 "tenant": {"name": ids["tenant__name"]} if ids["tenant__name"] else None,
+                "namespace": {"name": attrs["namespace__name"]} if attrs["namespace__name"] else None,
                 "description": attrs["description"],
                 "status": attrs["status__name"],
             },
@@ -413,6 +431,7 @@ class NautobotRemote(DiffSync):
     locationtype = LocationTypeModel
     location = LocationRemoteModel
     tenant = TenantRemoteModel
+    namespace = NamespaceModel
     prefix = PrefixRemoteModel
     ipaddress = IPAddressModel
     manufacturer = ManufacturerModel
@@ -431,6 +450,7 @@ class NautobotRemote(DiffSync):
         "platform",
         "role",
         "device",
+        "namespace",
         "prefix",
         "ipaddress",
     ]
@@ -471,6 +491,7 @@ class NautobotRemote(DiffSync):
         self.load_locations()
         self.load_roles()
         self.load_tenants()
+        self.load_namespaces()
         self.load_prefixes()
         self.load_ipaddresses()
         self.load_manufacturers()
@@ -532,12 +553,23 @@ class NautobotRemote(DiffSync):
             )
             self.add(tenant)
 
+    def load_namespaces(self):
+        """Load Namespaces data from remote Nautobot instance."""
+        for namespace_entry in self._get_api_data("api/ipam/namespaces/?depth=1"):
+            namespace = self.namespace(
+                name=namespace_entry["name"],
+                description=namespace_entry["description"],
+                pk=namespace_entry["id"],
+            )
+            self.add(namespace)
+
     def load_prefixes(self):
         """Load Prefixes data from the remote Nautobot instance."""
-        for prefix_entry in self._get_api_data("api/ipam/prefixes/?depth=1"):
+        for prefix_entry in self._get_api_data("api/ipam/prefixes/?depth=2"):
             prefix = self.prefix(
                 network=prefix_entry["network"],
                 prefix_length=prefix_entry["prefix_length"],
+                namespace__name=prefix_entry["namespace"]["name"],
                 description=prefix_entry["description"],
                 status__name=prefix_entry["status"]["name"] if prefix_entry["status"].get("name") else "Active",
                 tenant__name=prefix_entry["tenant"]["name"] if prefix_entry["tenant"] else "",
@@ -552,7 +584,7 @@ class NautobotRemote(DiffSync):
             ipaddr = self.ipaddress(
                 host=ipaddr_entry["host"],
                 mask_length=ipaddr_entry["mask_length"],
-                parent__network=ipaddr_entry["parent"]["network"],
+                parent__namespace__name=ipaddr_entry["parent"]["namespace"]["name"],
                 status__name=ipaddr_entry["status"]["name"],
                 ip_version=ipaddr_entry["ip_version"],
                 tenant__name=ipaddr_entry["tenant"]["name"],
@@ -703,6 +735,7 @@ class NautobotLocal(NautobotAdapter):
     locationtype = LocationTypeModel
     location = LocationModel
     tenant = TenantModel
+    namespace = NamespaceModel
     prefix = PrefixModel
     ipaddress = IPAddressModel
     manufacturer = ManufacturerModel
@@ -721,6 +754,7 @@ class NautobotLocal(NautobotAdapter):
         "platform",
         "role",
         "device",
+        "namespace",
         "prefix",
         "ipaddress",
     ]
@@ -766,6 +800,7 @@ class ExampleDataSource(DataSource):
             DataMapping("LocationType (remote)", None, "LocationType (local)", reverse("dcim:locationtype_list")),
             DataMapping("Location (remote)", None, "Location (local)", reverse("dcim:location_list")),
             DataMapping("Role (remote)", None, "Role (local)", reverse("extras:role_list")),
+            DataMapping("Namespace (remote)", None, "Namespace (local)", reverse("ipam:namespace_list")),
             DataMapping("Prefix (remote)", None, "Prefix (local)", reverse("ipam:prefix_list")),
             DataMapping("IPAddress (remote)", None, "IPAddress (local)", reverse("ipam:ipaddress_list")),
             DataMapping("Tenant (remote)", None, "Tenant (local)", reverse("tenancy:tenant_list")),
@@ -864,6 +899,7 @@ class ExampleDataTarget(DataTarget):
             DataMapping("LocationType (local)", reverse("dcim:locationtype_list"), "LocationType (remote)", None),
             DataMapping("Location (local)", reverse("dcim:location_list"), "Location (remote)", None),
             DataMapping("Role (local)", reverse("extras:role_list"), "Role (remote)", None),
+            DataMapping("Namespace (local)", reverse("ipam:prefix_list"), "Namespace (remote)", None),
             DataMapping("Prefix (local)", reverse("ipam:prefix_list"), "Prefix (remote)", None),
             DataMapping("IPAddress (local)", reverse("ipam:ipaddress_list"), "IPAddress (remote)", None),
             DataMapping("Tenant (local)", reverse("tenancy:tenant_list"), "Tenant (remote)", None),
