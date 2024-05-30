@@ -69,7 +69,9 @@ class CloudvisionAdapter(DiffSync):
             except ObjectAlreadyExists as err:
                 self.job.logger.warning(f"Error attempting to add CloudVision device. {err}")
 
-        for index, dev in enumerate(cloudvision.get_devices(client=self.conn.comm_channel), start=1):
+        for index, dev in enumerate(
+            cloudvision.get_devices(client=self.conn.comm_channel, import_active=config.import_active), start=1
+        ):
             if self.job.debug:
                 self.job.logger.info(f"Loading {index}° device")
             if dev["hostname"] != "":
