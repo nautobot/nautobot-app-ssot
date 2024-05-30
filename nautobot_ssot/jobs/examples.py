@@ -262,7 +262,7 @@ class DeviceModel(NautobotModel):
     status__name: str
     tenant__name: Optional[str]
     asset_tag: Optional[str]
-    interface: List["Interface"] = []
+    interfaces: List["InterfaceModel"] = []
 
 
 class InterfaceModel(NautobotModel):
