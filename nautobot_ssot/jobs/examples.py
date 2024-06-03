@@ -12,7 +12,7 @@ from django.urls import reverse
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer, Platform
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.jobs import ObjectVar, StringVar
-from nautobot.extras.models import ExternalIntegration, Role
+from nautobot.extras.models import ExternalIntegration, Role, Status
 from nautobot.ipam.models import IPAddress, Namespace, Prefix
 from nautobot.tenancy.models import Tenant
 
@@ -93,6 +93,23 @@ class RoleModel(NautobotModel):
     _attributes = ("content_types",)
 
     name: str
+    content_types: List[ContentTypeDict] = []
+
+    # Not in _attributes or _identifiers, hence not included in diff calculations
+    pk: Optional[UUID]
+
+
+class StatusModel(NautobotModel):
+    """Shared data model representing a Status in either of the local or remote Nautobot instances."""
+
+    # Metadata about this model
+    _model = Status
+    _modelname = "status"
+    _identifiers = ("name",)
+    _attributes = ("content_types", "color")
+
+    name: str
+    color: str
     content_types: List[ContentTypeDict] = []
 
     # Not in _attributes or _identifiers, hence not included in diff calculations
@@ -437,12 +454,14 @@ class NautobotRemote(DiffSync):
     device_type = DeviceTypeModel
     platform = PlatformModel
     role = RoleModel
+    status = StatusModel
     device = DeviceModel
     interface = InterfaceModel
 
     # Top-level class labels, i.e. those classes that are handled directly rather than as children of other models
     top_level = [
         "tenant",
+        "status",
         "locationtype",
         "location",
         "manufacturer",
@@ -486,6 +505,7 @@ class NautobotRemote(DiffSync):
 
     def load(self):
         """Load data from the remote Nautobot instance."""
+        self.load_statuses()
         self.load_location_types()
         self.load_locations()
         self.load_roles()
@@ -542,6 +562,18 @@ class NautobotRemote(DiffSync):
                 pk=role_entry["id"],
             )
             self.add(role)
+
+    def load_statuses(self):
+        """Load Statuses data from the remote Nautobot instance."""
+        for status_entry in self._get_api_data("api/extras/statuses/?depth=1"):
+            content_types = self.get_content_types(status_entry)
+            status = self.status(
+                name=status_entry["name"],
+                color=status_entry["color"],
+                content_types=content_types,
+                pk=status_entry["id"],
+            )
+            self.add(status)
 
     def load_tenants(self):
         """Load Tenants data from the remote Nautobot instance."""
@@ -749,12 +781,14 @@ class NautobotLocal(NautobotAdapter):
     device_type = DeviceTypeModel
     platform = PlatformModel
     role = RoleModel
+    status = StatusModel
     device = DeviceModel
     interface = InterfaceModel
 
     # Top-level class labels, i.e. those classes that are handled directly rather than as children of other models
     top_level = [
         "tenant",
+        "status",
         "locationtype",
         "location",
         "manufacturer",
