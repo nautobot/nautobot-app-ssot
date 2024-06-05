@@ -4,15 +4,16 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.utils.text import slugify
 from nautobot.extras.choices import CustomFieldTypeChoices
-from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
 from nautobot.extras.models import CustomField as OrmCF
+from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
 from nautobot.ipam.choices import IPAddressRoleChoices, IPAddressTypeChoices
-from nautobot.ipam.models import IPAddress as OrmIPAddress
-from nautobot.ipam.models import Prefix as OrmPrefix
 from nautobot.ipam.models import VLAN as OrmVlan
-from nautobot.ipam.models import VLANGroup as OrmVlanGroup
+from nautobot.ipam.models import IPAddress as OrmIPAddress
 from nautobot.ipam.models import Namespace as OrmNamespace
-from nautobot_ssot.integrations.infoblox.diffsync.models.base import Namespace, Network, IPAddress, Vlan, VlanView
+from nautobot.ipam.models import Prefix as OrmPrefix
+from nautobot.ipam.models import VLANGroup as OrmVlanGroup
+
+from nautobot_ssot.integrations.infoblox.diffsync.models.base import IPAddress, Namespace, Network, Vlan, VlanView
 from nautobot_ssot.integrations.infoblox.utils.diffsync import (
     create_tag_sync_from_infoblox,
     map_network_view_to_namespace,
@@ -198,13 +199,6 @@ class NautobotNetwork(Network):
         _pf.validated_save()
         return super().update(attrs)
 
-    # def delete(self):
-    #     """Delete Prefix object in Nautobot."""
-    #     self.diffsync.job.logger.warning(f"Prefix {self.network} will be deleted.")
-    #     _prefix = OrmPrefix.objects.get(id=self.pk)
-    #     _prefix.delete()
-    #     return super().delete()
-
 
 class NautobotIPAddress(IPAddress):
     """Nautobot implementation of the IPAddress Model."""
@@ -275,13 +269,6 @@ class NautobotIPAddress(IPAddress):
         except ValidationError as err:
             self.diffsync.job.logger.warning(f"Error with updating IP Address {self.address}. {err}")
             return None
-
-    # def delete(self):
-    #     """Delete IPAddress object in Nautobot."""
-    #     self.diffsync.job.logger.warning(f"IP Address {self.address} will be deleted.")
-    #     _ipaddr = OrmIPAddress.objects.get(id=self.pk)
-    #     _ipaddr.delete()
-    #     return super().delete()
 
 
 class NautobotVlanGroup(VlanView):
@@ -390,6 +377,7 @@ class NautobotNamespace(Namespace):
         if attrs.get("ext_attrs"):
             process_ext_attrs(diffsync=diffsync, obj=_ns, extattrs=attrs["ext_attrs"])
         try:
+            _ns.tags.add(create_tag_sync_from_infoblox())
             _ns.validated_save()
             diffsync.namespace_map[ids["name"]] = _ns.id
             return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
