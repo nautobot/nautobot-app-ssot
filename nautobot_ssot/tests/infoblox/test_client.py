@@ -569,7 +569,7 @@ class TestInfobloxTest(unittest.TestCase):
             req.post(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=200)
 
             next_ip = self.infoblox_client.find_next_available_ip(test_network)
-        print(next_ip)
+
         self.assertEqual(next_ip, "10.220.0.1")
 
     @patch("nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi._find_network_reference")
