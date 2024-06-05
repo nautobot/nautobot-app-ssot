@@ -12,7 +12,7 @@ from nautobot.extras.choices import (
 )
 from nautobot.extras.models import ExternalIntegration, Secret, SecretsGroup, SecretsGroupAssociation, Status
 
-
+from nautobot_ssot.integrations.infoblox.choices import DNSRecordTypeChoices, FixedAddressTypeChoices
 from nautobot_ssot.integrations.infoblox.models import SSOTInfobloxConfig
 
 
@@ -82,9 +82,8 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
             "infoblox_sync_filters": sync_filters,
             "infoblox_dns_view_mapping": {"default": "default.default"},
             "cf_fields_ignore": {"extensible_attributes": [], "custom_fields": []},
-            "create_a_record": False,
-            "create_host_record": True,
-            "create_ptr_record": False,
+            "fixed_address_type": FixedAddressTypeChoices.DONT_CREATE_RECORD,
+            "dns_record_type": DNSRecordTypeChoices.HOST_RECORD,
         }
 
     def test_create_infoblox_config_required_fields_only(self):
@@ -113,9 +112,8 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
         self.assertEqual(inf_cfg_db.cf_fields_ignore, {"custom_fields": [], "extensible_attributes": []})
         self.assertEqual(inf_cfg_db.import_ipv4, True)
         self.assertEqual(inf_cfg_db.import_ipv6, False)
-        self.assertEqual(inf_cfg_db.create_host_record, True)
-        self.assertEqual(inf_cfg_db.create_a_record, False)
-        self.assertEqual(inf_cfg_db.create_ptr_record, False)
+        self.assertEqual(inf_cfg_db.fixed_address_type, FixedAddressTypeChoices.DONT_CREATE_RECORD)
+        self.assertEqual(inf_cfg_db.dns_record_type, DNSRecordTypeChoices.HOST_RECORD)
         self.assertEqual(inf_cfg_db.job_enabled, False)
 
     def test_create_infoblox_config_all_fields(self):
@@ -136,9 +134,8 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
             infoblox_sync_filters=[{"network_view": "dev"}],
             infoblox_dns_view_mapping={"default": "default.default"},
             cf_fields_ignore={"extensible_attributes": ["aws_id"], "custom_fields": ["po_no"]},
-            create_a_record=True,
-            create_host_record=False,
-            create_ptr_record=True,
+            fixed_address_type=FixedAddressTypeChoices.MAC_ADDRESS,
+            dns_record_type=DNSRecordTypeChoices.A_RECORD,
         )
         inf_cfg.validated_save()
 
@@ -159,9 +156,8 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
         self.assertEqual(inf_cfg_db.cf_fields_ignore, {"extensible_attributes": ["aws_id"], "custom_fields": ["po_no"]})
         self.assertEqual(inf_cfg_db.import_ipv4, False)
         self.assertEqual(inf_cfg_db.import_ipv6, True)
-        self.assertEqual(inf_cfg_db.create_host_record, False)
-        self.assertEqual(inf_cfg_db.create_a_record, True)
-        self.assertEqual(inf_cfg_db.create_ptr_record, True)
+        self.assertEqual(inf_cfg_db.fixed_address_type, FixedAddressTypeChoices.MAC_ADDRESS)
+        self.assertEqual(inf_cfg_db.dns_record_type, DNSRecordTypeChoices.A_RECORD)
         self.assertEqual(inf_cfg_db.job_enabled, True)
 
     def test_infoblox_sync_filters_must_be_a_list(self):
@@ -370,77 +366,6 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
         self.assertEqual(
             failure_exception.exception.error_dict["import_ipv6"][0].message,
             "At least one of `import_ipv4` or `import_ipv6` must be set to True.",
-        )
-
-    def test_infoblox_incompatible_ip_address_create_options(self):
-        """Only one of `create_a_record` or `create_host_record` can be enabled at any given time.
-        `create_ptr` cannot be used with `create_host_record`.
-        """
-        inf_dict = deepcopy(self.infoblox_config_dict)
-        inf_dict["create_a_record"] = True
-        inf_dict["create_host_record"] = True
-        infoblox_config = SSOTInfobloxConfig(**inf_dict)
-        with self.assertRaises(ValidationError) as failure_exception:
-            infoblox_config.full_clean()
-        self.assertIn("create_a_record", failure_exception.exception.error_dict)
-        self.assertIn("create_host_record", failure_exception.exception.error_dict)
-        self.assertEqual(
-            failure_exception.exception.error_dict["create_a_record"][0].message,
-            "Only one of `create_a_record` or `create_host_record` can be enabled at the same time.",
-        )
-        self.assertEqual(
-            failure_exception.exception.error_dict["create_host_record"][0].message,
-            "Only one of `create_a_record` or `create_host_record` can be enabled at the same time.",
-        )
-
-        inf_dict["create_a_record"] = False
-        inf_dict["create_ptr_record"] = True
-        inf_dict["create_host_record"] = True
-        infoblox_config = SSOTInfobloxConfig(**inf_dict)
-        with self.assertRaises(ValidationError) as failure_exception:
-            infoblox_config.full_clean()
-        self.assertIn("create_host_record", failure_exception.exception.error_dict)
-        self.assertIn("create_ptr_record", failure_exception.exception.error_dict)
-        self.assertEqual(
-            failure_exception.exception.error_dict["create_host_record"][0].message,
-            "`create_ptr_record` can be used with `create_a_record` only.",
-        )
-        self.assertEqual(
-            failure_exception.exception.error_dict["create_ptr_record"][0].message,
-            "`create_ptr_record` can be used with `create_a_record` only.",
-        )
-
-    def test_infoblox_ptr_record_requires_a_record(self):
-        """Using `create_ptr_record` required `create_a_record` to be enabled."""
-        inf_dict = deepcopy(self.infoblox_config_dict)
-        inf_dict["create_host_record"] = False
-        inf_dict["create_a_record"] = False
-        inf_dict["create_ptr_record"] = True
-        infoblox_config = SSOTInfobloxConfig(**inf_dict)
-        with self.assertRaises(ValidationError) as failure_exception:
-            infoblox_config.full_clean()
-        self.assertIn("create_ptr_record", failure_exception.exception.error_dict)
-        self.assertEqual(
-            failure_exception.exception.messages[0], "To use `create_ptr_record` you must enable `create_a_record`."
-        )
-
-    def test_infoblox_at_least_one_of_a_or_host_record_required(self):
-        """At least one of `create_a_record` or `create_host_record` must be selected."""
-        inf_dict = deepcopy(self.infoblox_config_dict)
-        inf_dict["create_a_record"] = False
-        inf_dict["create_host_record"] = False
-        infoblox_config = SSOTInfobloxConfig(**inf_dict)
-        with self.assertRaises(ValidationError) as failure_exception:
-            infoblox_config.full_clean()
-        self.assertIn("create_a_record", failure_exception.exception.error_dict)
-        self.assertIn("create_host_record", failure_exception.exception.error_dict)
-        self.assertEqual(
-            failure_exception.exception.error_dict["create_a_record"][0].message,
-            "Either `create_a_record` or `create_host_record` must be enabled.",
-        )
-        self.assertEqual(
-            failure_exception.exception.error_dict["create_host_record"][0].message,
-            "Either `create_a_record` or `create_host_record` must be enabled.",
         )
 
     def test_infoblox_infoblox_dns_view_mapping_must_be_dict(self):
