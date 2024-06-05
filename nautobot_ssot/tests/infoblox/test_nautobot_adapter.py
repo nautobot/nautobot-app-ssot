@@ -1,5 +1,7 @@
 """Nautobot Adapter tests."""
 
+from unittest import mock
+
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 
@@ -156,6 +158,7 @@ class TestNautobotAdapter(TestCase):
         self.config = create_default_infoblox_config()
         self.sync_filters = self.config.infoblox_sync_filters
         self.nb_adapter = NautobotAdapter(config=self.config)
+        self.nb_adapter.job = mock.Mock()
 
     def test_load_vlans_loads_expected_vlans(self):
         self.nb_adapter.load_vlans()
