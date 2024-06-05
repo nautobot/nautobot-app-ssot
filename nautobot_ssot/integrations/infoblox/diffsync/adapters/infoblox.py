@@ -1,10 +1,8 @@
 """Infoblox Adapter for Infoblox integration with SSoT app."""
 
 import re
-from typing import Optional
 
 import requests
-
 from diffsync import DiffSync
 from diffsync.enum import DiffSyncFlags
 from diffsync.exceptions import ObjectAlreadyExists
@@ -64,11 +62,11 @@ class InfobloxAdapter(DiffSync):
             )
             raise PluginImproperlyConfigured
 
-    def load_network_views(self, sync_filters: dict):
+    def load_network_views(self, sync_filters: list):
         """Load Namespace DiffSync model.
 
         Args:
-            sync_filter (dict): Sync filter containing sync rules
+            sync_filters (list): Sync filters containing sync rules
         """
         if self.job.debug:
             self.job.logger.debug("Loading Network Views from Infoblox.")
@@ -160,13 +158,19 @@ class InfobloxAdapter(DiffSync):
 
         return all_containers, all_subnets
 
-    def load_prefixes(self, include_ipv4: bool, include_ipv6: bool, sync_filters: Optional[list] = None):
-        """Load InfobloxNetwork DiffSync model."""
+    def load_prefixes(self, include_ipv4: bool, include_ipv6: bool, sync_filters: list):
+        """Load InfobloxNetwork DiffSync model.
+
+        Args:
+            sync_filters (list): List of dicts, each dict is a single sync filter definition
+            include_ipv4 (bool): Whether to include IPv4 prefixes
+            include_ipv6 (bool): Whether to include IPv6 prefixes
+        """
         if self.job.debug:
             self.job.logger.debug("Loading Subnets from Infoblox.")
         try:
             containers, subnets = self._load_all_prefixes_filtered(
-                sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6
+                sync_filters=sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6
             )
         except requests.exceptions.HTTPError as err:
             self.job.logger.error(f"Error while loading prefixes: {str(err)}")
@@ -193,7 +197,7 @@ class InfobloxAdapter(DiffSync):
             except ObjectAlreadyExists:
                 self.job.logger.warning(f"Duplicate prefix found: {new_pf}.")
 
-    def load_ipaddresses(self):
+    def load_ipaddresses(self):  # pylint: disable=too-many-branches
         """Load InfobloxIPAddress DiffSync model."""
         if self.job.debug:
             self.job.logger.debug("Loading IP addresses from Infoblox.")
@@ -247,13 +251,16 @@ class InfobloxAdapter(DiffSync):
                 elif obj_type == "record:ptr":
                     new_ip.has_ptr_record = True
                     new_ip.ptr_record_ref = ref
+                # We currently only support RESERVED and MAC_ADDRESS types for fixed address
                 elif obj_type == "fixedaddress":
-                    new_ip.has_fixed_address = True
-                    new_ip.fixed_address_ref = ref
                     if "RESERVATION" in _ip["types"]:
                         new_ip.fixed_address_type = "RESERVED"
+                        new_ip.has_fixed_address = True
+                        new_ip.fixed_address_ref = ref
                     elif "FA" in _ip["types"]:
                         new_ip.fixed_address_type = "MAC_ADDRESS"
+                        new_ip.has_fixed_address = True
+                        new_ip.fixed_address_ref = ref
 
             self.add(new_ip)
 
