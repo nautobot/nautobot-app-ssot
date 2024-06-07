@@ -1,15 +1,12 @@
 # pylint: disable=R0801
 """Infoblox Integration model tests."""
 import os
-from unittest import mock
 from copy import deepcopy
+from unittest import mock
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
-from nautobot.extras.choices import (
-    SecretsGroupAccessTypeChoices,
-    SecretsGroupSecretTypeChoices,
-)
+from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.models import ExternalIntegration, Secret, SecretsGroup, SecretsGroupAssociation, Status
 
 from nautobot_ssot.integrations.infoblox.choices import DNSRecordTypeChoices, FixedAddressTypeChoices
