@@ -290,7 +290,9 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
 
         return all_ipaddresses
 
-    def load_ipaddresses(self, include_ipv4: bool, include_ipv6: bool, sync_filters: list):
+    def load_ipaddresses(
+        self, include_ipv4: bool, include_ipv6: bool, sync_filters: list
+    ):  # pylint: disable=too-many-branches
         """Load IP Addresses from Nautobot.
 
         Args:
@@ -327,12 +329,21 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
 
             # Infoblox fixed address records are of type DHCP. Only Nautobot IP addresses of type DHCP will trigger fixed address creation logic.
             has_fixed_address = False
-            mac_address = ipaddr.custom_field_data.get("mac_address")
+            mac_address = ipaddr.custom_field_data.get("mac_address") or ""
             if ipaddr.type == IPAddressTypeChoices.TYPE_DHCP:
                 if self.config.fixed_address_type == FixedAddressTypeChoices.MAC_ADDRESS and mac_address:
                     has_fixed_address = True
                 elif self.config.fixed_address_type == FixedAddressTypeChoices.RESERVED:
                     has_fixed_address = True
+
+            # Description translates to comment for DNS records only.
+            # If we don't have DNS name, or we don't create DNS records, then we set description to an empty string.
+            if self.config.dns_record_type == DNSRecordTypeChoices.DONT_CREATE_RECORD:
+                description = ""
+            elif self.config.dns_record_type != DNSRecordTypeChoices.DONT_CREATE_RECORD and not ipaddr.dns_name:
+                description = ""
+            else:
+                description = ipaddr.description
 
             custom_fields = get_valid_custom_fields(ipaddr.custom_field_data, excluded_cfs=self.excluded_cfs)
             _ip = self.ipaddress(
@@ -343,14 +354,20 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
                 ip_addr_type=ipaddr.type,
                 prefix_length=prefix.prefix_length if prefix else ipaddr.prefix_length,
                 dns_name=ipaddr.dns_name,
-                description=ipaddr.description,
+                description=description,
                 ext_attrs={**default_cfs, **custom_fields},
                 mac_address=mac_address,
                 pk=ipaddr.id,
                 has_fixed_address=has_fixed_address,
+                # Fixed address name comes from Nautobot's IP Address `description`
+                fixed_address_name=ipaddr.description if has_fixed_address else "",
+                # Only set fixed address comment if we create fixed addresses.
+                fixed_address_comment=(
+                    ipaddr.custom_field_data.get("fixed_address_comment") or "" if has_fixed_address else ""
+                ),
             )
 
-            # Pretend IP Address has matching DNS records if dns name is defined.
+            # Pretend IP Address has matching DNS records if `dns_name` is defined.
             # This will be compared against values set on Infoblox side.
             if ipaddr.dns_name:
                 if self.config.dns_record_type == DNSRecordTypeChoices.HOST_RECORD:
