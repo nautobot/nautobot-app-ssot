@@ -32,16 +32,16 @@ def _get_default_cf_fields_ignore():
 class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
     """SSOT Infoblox Configuration model."""
 
-    name = models.CharField(max_length=255, unique=True)
+    name = models.CharField(max_length=CHARFIELD_MAX_LENGTH, unique=True)
     description = models.CharField(
-        max_length=255,
+        max_length=CHARFIELD_MAX_LENGTH,
         blank=True,
     )
     default_status = models.ForeignKey(
         to="extras.Status",
         on_delete=models.PROTECT,
         verbose_name="Default Object Status",
-        help_text="Status",
+        help_text="Default Object Status",
     )
     infoblox_instance = models.ForeignKey(
         to="extras.ExternalIntegration",
@@ -50,7 +50,7 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         help_text="Infoblox Instance",
     )
     infoblox_wapi_version = models.CharField(
-        max_length=255,
+        max_length=CHARFIELD_MAX_LENGTH,
         default="v2.12",
         verbose_name="Infoblox WAPI version",
     )
@@ -92,29 +92,9 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
     )
     fixed_address_type = models.CharField(
         max_length=CHARFIELD_MAX_LENGTH,
-        default=FixedAddressTypeChoices.MAC_ADDRESS,
+        default=FixedAddressTypeChoices.DONT_CREATE_RECORD,
         choices=FixedAddressTypeChoices,
         help_text="Choose what type of Infoblox fixed IP address record to create.",
-    )
-    create_ip_reservation = models.BooleanField(
-        default=True,
-        verbose_name="Create IP Reservation",
-        help_text="Infoblox - Create IP Address as IP Reservation",
-    )
-    create_host_record = models.BooleanField(
-        default=False,
-        verbose_name="Create Host Record",
-        help_text="Infoblox - Create IP Address Host Record",
-    )
-    create_a_record = models.BooleanField(
-        default=False,
-        verbose_name="Create A Record",
-        help_text="Infoblox - Create IP Address A Record",
-    )
-    create_ptr_record = models.BooleanField(
-        default=False,
-        verbose_name="Create PTR Record",
-        help_text="Infoblox - Create PTR Record for IP Address",
     )
     job_enabled = models.BooleanField(
         default=False,
@@ -248,36 +228,6 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
                 }
             )
 
-    def _clean_ip_address_create_options(self):
-        """Performs validation of the Infoblox IP Address creation options."""
-        if self.create_a_record and self.create_host_record:
-            raise ValidationError(
-                {
-                    "create_a_record": "Only one of `create_a_record` or `create_host_record` can be enabled at the same time.",
-                    "create_host_record": "Only one of `create_a_record` or `create_host_record` can be enabled at the same time.",
-                },
-            )
-        if self.create_host_record and self.create_ptr_record:
-            raise ValidationError(
-                {
-                    "create_host_record": "`create_ptr_record` can be used with `create_a_record` only.",
-                    "create_ptr_record": "`create_ptr_record` can be used with `create_a_record` only.",
-                },
-            )
-
-        if self.create_ptr_record and not self.create_a_record:
-            raise ValidationError(
-                {"create_ptr_record": "To use `create_ptr_record` you must enable `create_a_record`."},
-            )
-
-        if not (self.create_a_record or self.create_host_record):
-            raise ValidationError(
-                {
-                    "create_a_record": "Either `create_a_record` or `create_host_record` must be enabled.",
-                    "create_host_record": "Either `create_a_record` or `create_host_record` must be enabled.",
-                },
-            )
-
     def _clean_infoblox_dns_view_mapping(self):
         """Performs validation of the infoblox_dns_view_mapping field."""
         if not isinstance(self.infoblox_dns_view_mapping, dict):
@@ -319,6 +269,5 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         self._clean_infoblox_sync_filters()
         self._clean_infoblox_instance()
         self._clean_import_ip()
-        self._clean_ip_address_create_options()
         self._clean_infoblox_dns_view_mapping()
         self._clean_cf_fields_ignore()
