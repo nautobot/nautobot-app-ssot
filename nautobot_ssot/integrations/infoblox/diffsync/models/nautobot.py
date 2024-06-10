@@ -225,12 +225,20 @@ class NautobotIPAddress(IPAddress):
             address=addr,
             status_id=status,
             type=ip_addr_type,
-            description=attrs.get("description", ""),
             dns_name=attrs.get("dns_name", ""),
             parent_id=diffsync.prefix_map[(ids["namespace"], ids["prefix"])],
         )
         if attrs.get("ext_attrs"):
             process_ext_attrs(diffsync=diffsync, obj=_ip, extattrs=attrs["ext_attrs"])
+        if "mac_address" in attrs:
+            _ip.custom_field_data.update({"mac_address": attrs.get("mac_address", "")})
+        if attrs.get("has_fixed_address", False) and "fixed_address_comment" in attrs:
+            _ip.custom_field_data.update({"fixed_address_comment": attrs.get("fixed_address_comment") or ""})
+        # Fixed address name takes precedence over DNS comment field, and is recorded in the description field of Nautobot IP Address.
+        if attrs.get("has_fixed_address", False) and "fixed_address_name" in attrs:
+            _ip.description = attrs.get("fixed_address_name") or ""
+        else:
+            _ip.description = attrs.get("description") or ""
         try:
             _ip.tags.add(create_tag_sync_from_infoblox())
             _ip.validated_save()
@@ -257,12 +265,19 @@ class NautobotIPAddress(IPAddress):
                 _ipaddr.type = attrs["ip_addr_type"].lower()
             else:
                 _ipaddr.type = "host"
-        if attrs.get("description"):
+        # Fixed Address name takes precedence when filling out `description` field
+        if attrs.get("fixed_address_name"):
+            _ipaddr.description = attrs.get("fixed_address_name") or ""
+        elif attrs.get("description"):
             _ipaddr.description = attrs["description"]
         if attrs.get("dns_name"):
             _ipaddr.dns_name = attrs["dns_name"]
         if "ext_attrs" in attrs:
             process_ext_attrs(diffsync=self.diffsync, obj=_ipaddr, extattrs=attrs["ext_attrs"])
+        if "mac_address" in attrs:
+            _ipaddr.custom_field_data.update({"mac_address": attrs.get("mac_address", "")})
+        if "fixed_address_comment" in attrs:
+            _ipaddr.custom_field_data.update({"fixed_address_comment": attrs.get("fixed_address_comment") or ""})
         try:
             _ipaddr.validated_save()
             return super().update(attrs)
