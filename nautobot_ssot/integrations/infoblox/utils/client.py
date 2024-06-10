@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from functools import lru_cache
 import ipaddress
 import json
 import logging
 import re
 import urllib.parse
 from collections import defaultdict
+from functools import lru_cache
 from typing import Optional
 
 import requests
@@ -50,8 +50,8 @@ def get_default_ext_attrs(review_list: list, excluded_attrs: Optional[list] = No
         excluded_attrs = []
     default_ext_attrs = {}
     for item in review_list:
-        pf_ext_attrs = get_ext_attr_dict(extattrs=item.get("extattrs", {}), excluded_attrs=excluded_attrs)
-        for attr in pf_ext_attrs:
+        normalized_ext_attrs = get_ext_attr_dict(extattrs=item.get("extattrs", {}), excluded_attrs=excluded_attrs)
+        for attr in normalized_ext_attrs:
             if attr in excluded_attrs:
                 continue
             if attr not in default_ext_attrs:
@@ -181,13 +181,20 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
 
         resp = self.session.request(method, url, timeout=self.timeout, **kwargs)
         # Infoblox provides meaningful error messages for error codes >= 400
+        err_msg = "HTTP error while talking to Infoblox API."
         if resp.status_code >= 400:
             try:
                 err_msg = resp.json()
             except json.decoder.JSONDecodeError:
                 err_msg = resp.text
             logger.error(err_msg)
-        resp.raise_for_status()
+        # Ensure Job logs display error messages retrieved from the Infoblox API response.
+        # Default error message does not have enough context.
+        try:
+            resp.raise_for_status()
+        except HTTPError as err:
+            exc_msg = f"{str(err)}. {err_msg}"
+            raise HTTPError(exc_msg, response=err.response) from err
         return resp
 
     def _delete(self, resource):
@@ -668,6 +675,44 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             logger.debug(response.json())
             results = response.json().get("result")
             return results
+        except json.decoder.JSONDecodeError:
+            logger.error(response.text)
+            return response.text
+
+    def get_host_record_by_ref(self, ref: str):
+        """Get the Host record by ref.
+
+        Args:
+            ref (str): reference to the Host record
+
+        Returns:
+            (dict) Host record
+
+        Return Response:
+        {
+            "_ref": "record:host/ZG5zLmhvc3QkLl9kZWZhdWx0LnRlc3QudGVzdGRldmljZTE:testdevice1.test/default",
+            "ipv4addrs": [
+                {
+                    "_ref": "record:host_ipv4addr/ZG5zLmhvc3RfYWRkcmVzcyQuX2RlZmF1bHQudGVzdC50ZXN0ZGV2aWNlMS4xMC4yMjAuMC4xMDEu:10.220.0.101/testdevice1.test/default",
+                    "configure_for_dhcp": true,
+                    "host": "testdevice1.test",
+                    "ipv4addr": "10.220.0.101",
+                    "mac": "11:11:11:11:11:11"
+                }
+            ],
+            "name": "testdevice1.test",
+            "view": "default"
+        }
+        """
+        url_path = f"{ref}"
+        params = {
+            "_return_fields": "name,view,ipv4addr,comment",
+        }
+        response = self._request("GET", path=url_path, params=params)
+        logger.error(response.text)
+        try:
+            logger.debug(response.json())
+            return response.json()
         except json.decoder.JSONDecodeError:
             logger.error(response.text)
             return response.text
@@ -1157,7 +1202,8 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         except json.decoder.JSONDecodeError:
             logger.error(response.text)
             return response.text
-        # TODO: What does the below code do? We don't return any of this. @progala
+        # In-place update json_response containing prefixes with DHCP ranges, if found.
+        # This should be an opt-in
         if not ipv6:
             ranges = self.get_all_ranges(prefix=prefix, network_view=network_view)
             for returned_prefix in json_response:
@@ -1206,7 +1252,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             logger.error(response.text)
             return response.text
 
-    @lru_cache(maxsize=None)
+    @lru_cache(maxsize=1024)
     def get_authoritative_zones_for_dns_view(self, view: str):
         """Get authoritative zone list for given DNS view.
 
@@ -1313,6 +1359,40 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
 
         return next_ip_avail
 
+    def get_fixed_address_by_ref(self, ref: str):
+        """Get the Fixed Address object by ref.
+
+        Args:
+            ref (str): reference to the Fixed Address object
+
+        Returns:
+            (dict) Fixed Address object
+
+        Return Response:
+        {
+            "_ref": "fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMC4wLjIuMi4u:10.0.0.2/dev",
+            "extattrs": {
+
+            },
+            "mac": "52:1f:83:d4:9a:2e",
+            "name": "host-fixed1",
+            "network": "10.0.0.0/24",
+            "network_view": "dev"
+        }
+        """
+        url_path = f"{ref}"
+        params = {
+            "_return_fields": "mac,network,network_view,comment,extattrs,name",
+        }
+        response = self._request("GET", path=url_path, params=params)
+        logger.error(response.text)
+        try:
+            logger.debug(response.json())
+            return response.json()
+        except json.decoder.JSONDecodeError:
+            logger.error(response.text)
+            return response.text
+
     def reserve_fixed_address(self, network, mac_address, network_view: Optional[str] = None):
         """Reserve the next available ip address for a given network range.
 
@@ -1343,7 +1423,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
                 return response.text
         return False
 
-    def create_fixed_address(
+    def create_fixed_address(  # pylint: disable=too-many-arguments
         self,
         ip_address,
         name: str = None,
@@ -1407,10 +1487,10 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         try:
             response = self._request("PUT", path=ref, params=params, json=data)
         except HTTPError as err:
-            logger.error("Could not update Host address: %s for ref %s", err.response.text, ref)
+            logger.error("Could not update fixed address: %s for ref %s", err.response.text, ref)
             return None
         try:
-            logger.debug("Infoblox host record updated: %s", response.json())
+            logger.debug("Infoblox fixed address record updated: %s", response.json())
             results = response.json()
             return results
         except json.decoder.JSONDecodeError:
@@ -2223,7 +2303,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
 
         return dns_view
 
-    @lru_cache(maxsize=None)
+    @lru_cache(maxsize=1024)
     def get_default_dns_view_for_network_view(self, network_view: str):
         """Get default (first on the list) DNS view for given network view.
 
