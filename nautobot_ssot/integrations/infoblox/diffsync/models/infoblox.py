@@ -13,11 +13,11 @@ class InfobloxNetwork(Network):
     @classmethod
     def create(cls, diffsync, ids, attrs):
         """Create Network object in Infoblox."""
-        status = attrs.get("status")
+        network_type = attrs.get("network_type")
         network = ids["network"]
-        network_view = ids["namespace"]
+        network_view = map_network_view_to_namespace(value=ids["namespace"], direction="ns_to_nv")
         try:
-            if status != "container":
+            if network_type != "container":
                 diffsync.conn.create_network(
                     prefix=network, comment=attrs.get("description", ""), network_view=network_view
                 )
@@ -46,9 +46,10 @@ class InfobloxNetwork(Network):
 
     def update(self, attrs):
         """Update Network object in Infoblox."""
+        network_view = map_network_view_to_namespace(value=self.get_identifiers()["namespace"], direction="ns_to_nv")
         self.diffsync.conn.update_network(
             prefix=self.get_identifiers()["network"],
-            network_view=self.get_identifiers()["namespace"],
+            network_view=network_view,
             comment=attrs.get("description", ""),
         )
         if attrs.get("ranges"):
@@ -79,47 +80,57 @@ class InfobloxIPAddress(IPAddress):
         DNS record creation requires the IP Address to have a DNS name
         """
         network_view = map_network_view_to_namespace(value=ids["namespace"], direction="ns_to_nv")
-        dns_name = attrs.get("dns_name")
         ip_address = ids["address"]
-        name = attrs.get("description")
         mac_address = attrs.get("mac_address")
+        has_fixed_address = attrs.get("has_fixed_address", False)
+        fixed_address_name = attrs.get("fixed_address_name") or ""
+        fixed_address_comment = attrs.get("fixed_address_comment") or ""
 
-        # Used DNS name for fixed address name if it exists. Otherwise use description.
-        if dns_name:
-            fixed_address_name = dns_name
-        else:
-            fixed_address_name = name
-
-        if diffsync.config.fixed_address_type == FixedAddressTypeChoices.RESERVED:
+        if diffsync.config.fixed_address_type == FixedAddressTypeChoices.RESERVED and has_fixed_address:
             diffsync.conn.create_fixed_address(
-                ip_address=ip_address, name=fixed_address_name, match_client="RESERVED", network_view=network_view
+                ip_address=ip_address,
+                name=fixed_address_name,
+                comment=fixed_address_comment,
+                match_client="RESERVED",
+                network_view=network_view,
             )
-            diffsync.job.logger.debug(
-                "Created fixed address reservation, address: %s, name: %s, network_view: %s",
-                ip_address,
-                fixed_address_name,
-                network_view,
-            )
-        elif diffsync.config.fixed_address_type == FixedAddressTypeChoices.MAC_ADDRESS and mac_address:
+            if diffsync.job.debug:
+                diffsync.job.logger.debug(
+                    "Created fixed address reservation, address: %s, name: %s, network_view: %s, comment: %s",
+                    ip_address,
+                    fixed_address_name,
+                    network_view,
+                    fixed_address_comment,
+                )
+        elif (
+            diffsync.config.fixed_address_type == FixedAddressTypeChoices.MAC_ADDRESS
+            and mac_address
+            and has_fixed_address
+        ):
             diffsync.conn.create_fixed_address(
                 ip_address=ip_address,
                 name=fixed_address_name,
                 mac_address=mac_address,
                 match_client="MAC_ADDRESS",
+                comment=fixed_address_comment,
                 network_view=network_view,
             )
-            diffsync.job.logger.debug(
-                "Created fixed address with MAC, address: %s, name: %s, mac address: %s, network_view: %s",
-                ip_address,
-                fixed_address_name,
-                mac_address,
-                network_view,
-            )
+            if diffsync.job.debug:
+                diffsync.job.logger.debug(
+                    "Created fixed address with MAC, address: %s, name: %s, mac address: %s, network_view: %s, comment: %s",
+                    ip_address,
+                    fixed_address_name,
+                    mac_address,
+                    network_view,
+                    fixed_address_comment,
+                )
 
         # DNS record not needed, we can return
         if diffsync.config.dns_record_type == DNSRecordTypeChoices.DONT_CREATE_RECORD:
             return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
+        dns_name = attrs.get("dns_name")
+        dns_comment = attrs.get("description")
         if not dns_name:
             diffsync.job.logger.warning(
                 f"Cannot create Infoblox DNS record for IP Address {ip_address}. DNS name is not defined."
@@ -132,94 +143,47 @@ class InfobloxIPAddress(IPAddress):
             return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
         if diffsync.config.dns_record_type == DNSRecordTypeChoices.A_RECORD:
-            diffsync.conn.create_a_record(dns_name, ip_address, network_view=network_view)
-            diffsync.job.logger.debug(
-                "Created DNS A record, address: %s, dns_name: %s, network_view: %s",
-                ip_address,
-                dns_name,
-                network_view,
-            )
+            diffsync.conn.create_a_record(dns_name, ip_address, dns_comment, network_view=network_view)
+            if diffsync.job.debug:
+                diffsync.job.logger.debug(
+                    "Created DNS A record, address: %s, dns_name: %s, network_view: %s, comment: %s",
+                    ip_address,
+                    dns_name,
+                    network_view,
+                    dns_comment,
+                )
         elif diffsync.config.dns_record_type == DNSRecordTypeChoices.A_AND_PTR_RECORD:
-            diffsync.conn.create_a_record(dns_name, ip_address, network_view=network_view)
-            diffsync.job.logger.debug(
-                "Created DNS A record, address: %s, dns_name: %s, network_view: %s",
-                ip_address,
-                dns_name,
-                network_view,
-            )
-            diffsync.conn.create_ptr_record(dns_name, ip_address, network_view=network_view)
-            diffsync.job.logger.debug(
-                "Created DNS PTR record, address: %s, dns_name: %s, network_view: %s",
-                ip_address,
-                dns_name,
-                network_view,
-            )
+            diffsync.conn.create_a_record(dns_name, ip_address, dns_comment, network_view=network_view)
+            if diffsync.job.debug:
+                diffsync.job.logger.debug(
+                    "Created DNS A record, address: %s, dns_name: %s, network_view: %s, comment: %s",
+                    ip_address,
+                    dns_name,
+                    network_view,
+                    dns_comment,
+                )
+            diffsync.conn.create_ptr_record(dns_name, ip_address, dns_comment, network_view=network_view)
+            if diffsync.job.debug:
+                diffsync.job.logger.debug(
+                    "Created DNS PTR record, address: %s, dns_name: %s, network_view: %s, comment: %s",
+                    ip_address,
+                    dns_name,
+                    network_view,
+                    dns_comment,
+                )
         elif diffsync.config.dns_record_type == DNSRecordTypeChoices.HOST_RECORD:
-            diffsync.conn.create_host_record(dns_name, ip_address, network_view=network_view)
-            diffsync.job.logger.debug(
-                "Created DNS Host record, address: %s, dns_name: %s, network_view: %s",
-                ip_address,
-                dns_name,
-                network_view,
-            )
+            diffsync.conn.create_host_record(dns_name, ip_address, dns_comment, network_view=network_view)
+            if diffsync.job.debug:
+                diffsync.job.logger.debug(
+                    "Created DNS Host record, address: %s, dns_name: %s, network_view: %s, comment: %s",
+                    ip_address,
+                    dns_name,
+                    network_view,
+                    dns_comment,
+                )
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
-    def _update_fixed_address(self, new_attrs: dict, inf_attrs: dict, ip_address: str, network_view: str) -> None:
-        """Updates fixed address record in Infoblox.
-
-        Args:
-            new_attrs: Object attributes changed in Nautobot
-            inf_attrs: Infoblox object attributes
-            ip_address: IP address of the fixed address
-            network_view: Network View of the fixed address
-        """
-        new_dns_name = new_attrs.get("dns_name")
-        new_description = new_attrs.get("description")
-        mac_address = new_attrs.get("mac_address")
-
-        fa_update_data = {}
-        # Fixed Address name uses DNS Name if it's defined, then description.
-        if new_dns_name:
-            fa_update_data["name"] = new_dns_name
-        # DNS name cleared on Nautobot side
-        if new_dns_name == "":
-            # Description updated on Nautobot side
-            if new_description:
-                fa_update_data["name"] = new_description
-            # Nautobot description not updated. Copy Infoblox description over to the name attribute.
-            elif inf_attrs.get("description"):
-                fa_update_data["name"] = inf_attrs.get("description")
-        if new_description:
-            fa_update_data["comment"] = new_description
-
-        if (
-            self.diffsync.config.fixed_address_type == FixedAddressTypeChoices.RESERVED
-            and self.fixed_address_type == "RESERVED"
-            and fa_update_data
-        ):
-            self.diffsync.conn.update_fixed_address(ref=self.fixed_address_ref, data=fa_update_data)
-            self.diffsync.job.logger.debug(
-                "Updated fixed address reservation, address: %s, network_view: %s, update data: %s",
-                ip_address,
-                network_view,
-                fa_update_data,
-            )
-        elif (
-            self.diffsync.config.fixed_address_type == FixedAddressTypeChoices.MAC_ADDRESS
-            and self.fixed_address_type == "MAC_ADDRESS"
-            and (fa_update_data or mac_address)
-        ):
-            if mac_address:
-                fa_update_data["mac"] = mac_address
-            self.diffsync.conn.update_fixed_address(ref=self.fixed_address_ref, data=fa_update_data)
-            self.diffsync.job.logger.debug(
-                "Updated fixed address with MAC, address: %s, network_view: %s, update data: %s",
-                ip_address,
-                network_view,
-                fa_update_data,
-            )
-
-    def _check_for_incompatible_record_types(self, attrs: dict, inf_attrs: dict, ip_address: str):
+    def _ip_update_check_for_incompatible_record_types(self, attrs: dict, inf_attrs: dict, ip_address: str):
         """Checks whether requested changes to the DNS records are compatible with existing Infoblox DNS objects.
 
         Args:
@@ -270,53 +234,123 @@ class InfobloxIPAddress(IPAddress):
 
         return incompatible_record_types, incomp_msg
 
-    def update(self, attrs):  # pylint: disable=too-many-branches,too-many-locals,too-many-statements
-        """Update IP Address object in Infoblox."""
-        ids = self.get_identifiers()
-        inf_attrs = self.get_attrs()
-        ip_address = ids["address"]
-        network_view = map_network_view_to_namespace(value=ids["namespace"], direction="ns_to_nv")
+    def _ip_update_update_fixed_address(self, new_attrs: dict, ip_address: str, network_view: str) -> None:
+        """Updates fixed address record in Infoblox. Triggered by IP Address update.
 
-        # Update fixed address
-        if inf_attrs.get("has_fixed_address"):
-            self._update_fixed_address(
-                new_attrs=attrs, inf_attrs=inf_attrs, ip_address=ip_address, network_view=network_view
+        Args:
+            new_attrs: Object attributes changed in Nautobot
+            ip_address: IP address of the fixed address
+            network_view: Network View of the fixed address
+        """
+        mac_address = new_attrs.get("mac_address")
+
+        fa_update_data = {}
+        if "fixed_address_name" in new_attrs:
+            fa_update_data["name"] = new_attrs.get("fixed_address_name") or ""
+        if "fixed_address_comment" in new_attrs:
+            fa_update_data["comment"] = new_attrs.get("fixed_address_comment") or ""
+
+        if (
+            self.diffsync.config.fixed_address_type == FixedAddressTypeChoices.RESERVED
+            and self.fixed_address_type == "RESERVED"
+            and fa_update_data
+        ):
+            self.diffsync.conn.update_fixed_address(ref=self.fixed_address_ref, data=fa_update_data)
+            if self.diffsync.job.debug:
+                self.diffsync.job.logger.debug(
+                    "Updated fixed address reservation, address: %s, network_view: %s, update data: %s",
+                    ip_address,
+                    network_view,
+                    fa_update_data,
+                    extra={"grouping": "update"},
+                )
+        elif (
+            self.diffsync.config.fixed_address_type == FixedAddressTypeChoices.MAC_ADDRESS
+            and self.fixed_address_type == "MAC_ADDRESS"
+            and (fa_update_data or mac_address)
+        ):
+            if mac_address:
+                fa_update_data["mac"] = mac_address
+            self.diffsync.conn.update_fixed_address(ref=self.fixed_address_ref, data=fa_update_data)
+            if self.diffsync.job.debug:
+                self.diffsync.job.logger.debug(
+                    "Updated fixed address with MAC, address: %s, network_view: %s, update data: %s",
+                    ip_address,
+                    network_view,
+                    fa_update_data,
+                    extra={"grouping": "update"},
+                )
+
+    def _ip_update_create_fixed_address(self, new_attrs: dict, ip_address: str, network_view: str) -> None:
+        """Creates fixed address record in Infoblox. Triggered by IP Address update.
+
+        Args:
+            new_attrs: Object attributes changed in Nautobot
+            ip_address: IP address of the fixed address
+            network_view: Network View of the fixed address
+        """
+        mac_address = new_attrs.get("mac_address")
+        fixed_address_name = new_attrs.get("fixed_address_name") or ""
+        fixed_address_comment = new_attrs.get("fixed_address_comment") or ""
+
+        if self.diffsync.config.fixed_address_type == FixedAddressTypeChoices.RESERVED:
+            self.diffsync.conn.create_fixed_address(
+                ip_address=ip_address,
+                name=fixed_address_name,
+                comment=fixed_address_comment,
+                match_client="RESERVED",
+                network_view=network_view,
             )
-
-        # DNS record not needed, we can return
-        if self.diffsync.config.dns_record_type == DNSRecordTypeChoices.DONT_CREATE_RECORD:
-            return super().update(attrs)
-
-        # Nautobot side doesn't check if dns name is a fqdn. Additionally, Infoblox won't allow dns name if the zone fqdn doesn't exist.
-        # We get either existing DNS name, or a new one. This is because name might be the same but we need to create a PTR record.
-        canonical_dns_name = attrs.get("dns_name", inf_attrs["dns_name"])
-        if not canonical_dns_name:
-            self.diffsync.job.logger.warning(
-                f"Cannot update Infoblox record for IP Address {ip_address}. DNS name is not defined."
+            if self.diffsync.job.debug:
+                self.diffsync.job.logger.debug(
+                    "Created fixed address reservation, address: %s, name: %s, network_view: %s, comment: %s",
+                    ip_address,
+                    fixed_address_name,
+                    network_view,
+                    fixed_address_comment,
+                    extra={"grouping": "update"},
+                )
+        elif self.diffsync.config.fixed_address_type == FixedAddressTypeChoices.MAC_ADDRESS and mac_address:
+            self.diffsync.conn.create_fixed_address(
+                ip_address=ip_address,
+                name=fixed_address_name,
+                mac_address=mac_address,
+                comment=fixed_address_comment,
+                match_client="MAC_ADDRESS",
+                network_view=network_view,
             )
-            return super().update(attrs)
-        if not validate_dns_name(self.diffsync.conn, canonical_dns_name, network_view):
-            self.diffsync.job.logger.warning(
-                f"Invalid zone fqdn in DNS name `{canonical_dns_name}` for IP Address {ip_address}"
-            )
-            return super().update(attrs)
+            if self.diffsync.job.debug:
+                self.diffsync.job.logger.debug(
+                    "Created fixed address with MAC, address: %s, name: %s, mac address: %s, network_view: %s, comment: %s",
+                    ip_address,
+                    fixed_address_name,
+                    mac_address,
+                    network_view,
+                    fixed_address_comment,
+                    extra={"grouping": "update"},
+                )
 
-        incompatible_record_types, incomp_msg = self._check_for_incompatible_record_types(
-            attrs=attrs, inf_attrs=inf_attrs, ip_address=ip_address
-        )
-        if incompatible_record_types:
-            self.diffsync.job.logger.warning(incomp_msg)
-            return super().update(attrs)
+    def _ip_update_create_or_update_dns_records(  # pylint: disable=too-many-arguments
+        self, new_attrs: dict, inf_attrs: dict, canonical_dns_name: str, ip_address: str, network_view: str
+    ) -> None:
+        """Creates or update DNS records connected to the IP address. Triggered by IP Address update.
 
+        Args:
+            new_attrs: Object attributes changed in Nautobot
+            inf_attrs: Infoblox object attributes
+            canonical_dns_name: DNS name used for create operations only
+            ip_address: IP address for which DNS records are created
+            network_view: Network View of the fixed address
+        """
         dns_payload = {}
         ptr_payload = {}
-        new_description = attrs.get("description")
-        if new_description:
-            dns_payload.update({"comment": new_description})
-            ptr_payload.update({"comment": new_description})
-        if attrs.get("dns_name"):
-            dns_payload.update({"name": attrs.get("dns_name")})
-            ptr_payload.update({"ptrdname": attrs.get("dns_name")})
+        dns_comment = new_attrs.get("description")
+        if dns_comment:
+            dns_payload["comment"] = dns_comment
+            ptr_payload["comment"] = dns_comment
+        if new_attrs.get("dns_name"):
+            dns_payload["name"] = new_attrs.get("dns_name")
+            ptr_payload["ptrdname"] = new_attrs.get("dns_name")
 
         a_record_action = ptr_record_action = host_record_action = "none"
         if self.diffsync.config.dns_record_type == DNSRecordTypeChoices.A_RECORD:
@@ -328,57 +362,125 @@ class InfobloxIPAddress(IPAddress):
             host_record_action = "update" if inf_attrs["has_host_record"] else "create"
 
         # IP Address in Infoblox is not a plain IP Address like in Nautobot.
-        # In Infoblox we can have Fixed Address, Host record for IP Address, or A Record for IP Address.
+        # In Infoblox we can have one of many types of Fixed Address, Host record for IP Address, or A Record, with optional PTR, for IP Address.
         # When syncing from Nautobot to Infoblox we take IP Address and check if it has dns_name field populated.
         # We then combine this with the Infoblox Config toggles to arrive at the desired state in Infoblox.
+        comment = dns_comment or inf_attrs.get("description")
         if host_record_action == "update" and dns_payload:
             self.diffsync.conn.update_host_record(ref=self.host_record_ref, data=dns_payload)
-            self.diffsync.job.logger.debug(
-                "Updated Host record, address: %s, network_view: %s, update data: %s",
-                ip_address,
-                network_view,
-                dns_payload,
-            )
+            if self.diffsync.job.debug:
+                self.diffsync.job.logger.debug(
+                    "Updated Host record, address: %s, network_view: %s, update data: %s",
+                    ip_address,
+                    network_view,
+                    dns_payload,
+                    extra={"grouping": "update"},
+                )
         elif host_record_action == "create":
-            self.diffsync.conn.create_host_record(canonical_dns_name, ip_address, network_view=network_view)
-            self.diffsync.job.logger.debug(
-                "Created Host record, address: %s, network_view: %s, DNS name: %s",
-                ip_address,
-                network_view,
-                canonical_dns_name,
-            )
+            self.diffsync.conn.create_host_record(canonical_dns_name, ip_address, comment, network_view=network_view)
+            if self.diffsync.job.debug:
+                self.diffsync.job.logger.debug(
+                    "Created Host record, address: %s, network_view: %s, DNS name: %s, comment: %s",
+                    ip_address,
+                    network_view,
+                    canonical_dns_name,
+                    comment,
+                    extra={"grouping": "update"},
+                )
         if a_record_action == "update" and dns_payload:
             self.diffsync.conn.update_a_record(ref=self.a_record_ref, data=dns_payload)
-            self.diffsync.job.logger.debug(
-                "Updated A record, address: %s, network_view: %s, update data: %s",
-                ip_address,
-                network_view,
-                dns_payload,
-            )
+            if self.diffsync.job.debug:
+                self.diffsync.job.logger.debug(
+                    "Updated A record, address: %s, network_view: %s, update data: %s",
+                    ip_address,
+                    network_view,
+                    dns_payload,
+                    extra={"grouping": "update"},
+                )
         elif a_record_action == "create":
-            self.diffsync.conn.create_a_record(canonical_dns_name, ip_address, network_view=network_view)
-            self.diffsync.job.logger.debug(
-                "Created A record, address: %s, network_view: %s, DNS name: %s",
-                ip_address,
-                network_view,
-                canonical_dns_name,
-            )
+            self.diffsync.conn.create_a_record(canonical_dns_name, ip_address, comment, network_view=network_view)
+            if self.diffsync.job.debug:
+                self.diffsync.job.logger.debug(
+                    "Created A record, address: %s, network_view: %s, DNS name: %s, comment: %s",
+                    ip_address,
+                    network_view,
+                    canonical_dns_name,
+                    comment,
+                    extra={"grouping": "update"},
+                )
         if ptr_record_action == "update" and ptr_payload:
             self.diffsync.conn.update_ptr_record(ref=self.ptr_record_ref, data=ptr_payload)
-            self.diffsync.job.logger.debug(
-                "Updated PTR record, address: %s, network_view: %s, update data: %s",
-                ip_address,
-                network_view,
-                ptr_payload,
-            )
+            if self.diffsync.job.debug:
+                self.diffsync.job.logger.debug(
+                    "Updated PTR record, address: %s, network_view: %s, update data: %s",
+                    ip_address,
+                    network_view,
+                    ptr_payload,
+                    extra={"grouping": "update"},
+                )
         elif ptr_record_action == "create":
-            self.diffsync.conn.create_ptr_record(canonical_dns_name, ip_address, network_view=network_view)
-            self.diffsync.job.logger.debug(
-                "Created PTR record, address: %s, network_view: %s, DNS name: %s",
-                ip_address,
-                network_view,
-                canonical_dns_name,
+            self.diffsync.conn.create_ptr_record(canonical_dns_name, ip_address, comment, network_view=network_view)
+            if self.diffsync.job.debug:
+                self.diffsync.job.logger.debug(
+                    "Created PTR record, address: %s, network_view: %s, DNS name: %s, comment: %s",
+                    ip_address,
+                    network_view,
+                    canonical_dns_name,
+                    comment,
+                    extra={"grouping": "update"},
+                )
+
+    def update(self, attrs):
+        """Update IP Address object in Infoblox."""
+        ids = self.get_identifiers()
+        inf_attrs = self.get_attrs()
+        ip_address = ids["address"]
+        network_view = map_network_view_to_namespace(value=ids["namespace"], direction="ns_to_nv")
+
+        # Attempt update of a fixed address if Infoblox has one already
+        if inf_attrs.get("has_fixed_address"):
+            self._ip_update_update_fixed_address(new_attrs=attrs, ip_address=ip_address, network_view=network_view)
+        # IP Address exists in Infoblox without Fixed Address object. Nautobot side is asking for Fixed Address so we need to create one.
+        elif (
+            attrs.get("has_fixed_address")
+            and self.diffsync.config.fixed_address_type != FixedAddressTypeChoices.DONT_CREATE_RECORD
+        ):
+            self._ip_update_create_fixed_address(new_attrs=attrs, ip_address=ip_address, network_view=network_view)
+
+        # DNS record not needed, we can return
+        if self.diffsync.config.dns_record_type == DNSRecordTypeChoices.DONT_CREATE_RECORD:
+            return super().update(attrs)
+
+        # Nautobot side doesn't check if dns name is a fqdn. Additionally, Infoblox won't allow dns name if the zone fqdn doesn't exist.
+        # We get either existing DNS name, or a new one. This is because name might be the same but we might need to create a new DNS record.
+        canonical_dns_name = attrs.get("dns_name", inf_attrs["dns_name"])
+        if not canonical_dns_name:
+            self.diffsync.job.logger.info(
+                f"Skipping DNS Infoblox record create/update for IP Address {ip_address}. DNS name is not defined."
             )
+            return super().update(attrs)
+
+        if not validate_dns_name(self.diffsync.conn, canonical_dns_name, network_view):
+            self.diffsync.job.logger.warning(
+                f"Invalid zone fqdn in DNS name `{canonical_dns_name}` for IP Address {ip_address}"
+            )
+            return super().update(attrs)
+
+        incompatible_record_types, incomp_msg = self._ip_update_check_for_incompatible_record_types(
+            attrs=attrs, inf_attrs=inf_attrs, ip_address=ip_address
+        )
+        if incompatible_record_types:
+            self.diffsync.job.logger.warning(incomp_msg)
+            return super().update(attrs)
+
+        self._ip_update_create_or_update_dns_records(
+            new_attrs=attrs,
+            inf_attrs=inf_attrs,
+            canonical_dns_name=canonical_dns_name,
+            ip_address=ip_address,
+            network_view=network_view,
+        )
+
         return super().update(attrs)
 
 
