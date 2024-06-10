@@ -1,10 +1,12 @@
 """Utilities for DiffSync related stuff."""
 
 from typing import Optional
+
 from django.contrib.contenttypes.models import ContentType
 from django.utils.text import slugify
-from nautobot.ipam.models import IPAddress, Prefix, VLAN
 from nautobot.extras.models import CustomField, Tag
+from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix
+
 from nautobot_ssot.integrations.infoblox.constant import TAG_COLOR
 
 
@@ -18,7 +20,7 @@ def create_tag_sync_from_infoblox():
             "color": TAG_COLOR,
         },
     )
-    for model in [IPAddress, Prefix, VLAN]:
+    for model in [IPAddress, Namespace, Prefix, VLAN]:
         tag.content_types.add(ContentType.objects.get_for_model(model))
     return tag
 
@@ -87,14 +89,16 @@ def build_vlan_map(vlans: list):
     return vlan_map
 
 
-def get_valid_custom_fields(cfs: dict, excluded_cfs: list):
+def get_valid_custom_fields(cfs: dict, excluded_cfs: Optional[list] = None):
     """Remove custom fields that are on the excluded list.
 
     Args:
         cfs: custom fields
         excluded_cfs: list of excluded custom fields
     """
-    default_excluded_cfs = ["ssot_synced_to_infoblox", "dhcp_ranges", "mac_address"]
+    if excluded_cfs is None:
+        excluded_cfs = []
+    default_excluded_cfs = ["dhcp_ranges", "fixed_address_comment", "mac_address", "ssot_synced_to_infoblox"]
     excluded_cfs.extend(default_excluded_cfs)
     valid_cfs = {}
     for cf_name, val in cfs.items():
@@ -118,7 +122,7 @@ def get_default_custom_fields(cf_contenttype: ContentType, excluded_cfs: Optiona
         excluded_cfs = []
     customfields = CustomField.objects.filter(content_types=cf_contenttype)
     # These cfs are always excluded
-    default_excluded_cfs = ["ssot_synced_to_infoblox", "dhcp_ranges"]
+    default_excluded_cfs = ["dhcp_ranges", "fixed_address_comment", "mac_address", "ssot_synced_to_infoblox"]
     # User defined excluded cfs
     excluded_cfs.extend(default_excluded_cfs)
     default_cfs = {}
