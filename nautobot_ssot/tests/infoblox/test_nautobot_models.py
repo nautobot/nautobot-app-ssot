@@ -38,6 +38,7 @@ def _get_network_dict(attrs):
         "namespace": "dev",
         "status": "Active",
         "ext_attrs": {},
+        "vlans": {},
     }
     network_dict.update(attrs)
 
@@ -305,7 +306,7 @@ class TestModelNautobotIPAddress(TestCase):
 
     def test_ip_address_update_address_from_fixed_address_reserved(self):
         """Validate ip address gets updated from Infoblox fixed address reservation."""
-        inf_network_atrs = {"network_type": "network", "namespace": "dev", "ext_attrs": {"vlans": {}}}
+        inf_network_atrs = {"network_type": "network", "namespace": "dev"}
         inf_ds_network = self.infoblox_adapter.prefix(**_get_network_dict(inf_network_atrs))
         self.infoblox_adapter.add(inf_ds_network)
         inf_address_atrs = {
