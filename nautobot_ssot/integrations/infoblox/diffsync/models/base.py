@@ -79,6 +79,8 @@ class IPAddress(DiffSyncModel):
         "has_ptr_record",
         "has_fixed_address",
         "mac_address",
+        "fixed_address_name",
+        "fixed_address_comment",
     )
 
     address: str
@@ -95,6 +97,8 @@ class IPAddress(DiffSyncModel):
     has_ptr_record: bool = False
     has_fixed_address: bool = False
     mac_address: Optional[str]
+    fixed_address_name: Optional[str]
+    fixed_address_comment: Optional[str]
 
     pk: Optional[uuid.UUID] = None
     a_record_ref: Optional[str] = None
