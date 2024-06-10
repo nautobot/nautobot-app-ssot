@@ -10,9 +10,11 @@ from django.contrib.contenttypes.models import ContentType
 from nautobot.dcim.models import Location
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Relationship, Role, Status, Tag
+from nautobot.ipam.choices import IPAddressTypeChoices
 from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix, VLANGroup
 from nautobot.tenancy.models import Tenant
 
+from nautobot_ssot.integrations.infoblox.choices import DNSRecordTypeChoices, FixedAddressTypeChoices
 from nautobot_ssot.integrations.infoblox.constant import TAG_COLOR
 from nautobot_ssot.integrations.infoblox.diffsync.models import (
     NautobotIPAddress,
@@ -138,7 +140,11 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
         super().sync_complete(source, *args, **kwargs)
 
     def _get_namespaces_from_sync_filters(self, sync_filters: list) -> set:
-        """Get namespaces defined in filters."""
+        """Get namespaces defined in filters.
+
+        Args:
+            sync_filters (list): Sync filters containing sync rules
+        """
         namespaces = set()
         for sync_filter in sync_filters:
             namespace_name = map_network_view_to_namespace(value=sync_filter["network_view"], direction="nv_to_ns")
@@ -147,7 +153,13 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
         return namespaces
 
     def load_namespaces(self, sync_filters: Optional[list] = None):
-        """Load Namespace DiffSync model."""
+        """Load Namespace DiffSync model.
+
+        Args:
+            sync_filters (list): Sync filters containing sync rules
+        """
+        if self.job.debug:
+            self.job.logger.debug("Loading Namespaces from Nautobot.")
         namespace_names = None
         if sync_filters:
             namespace_names = self._get_namespaces_from_sync_filters(sync_filters)
@@ -207,8 +219,16 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
 
         return all_prefixes
 
-    def load_prefixes(self, include_ipv4: bool, include_ipv6: bool, sync_filters: Optional[list]):
-        """Load Prefixes from Nautobot."""
+    def load_prefixes(self, include_ipv4: bool, include_ipv6: bool, sync_filters: list):
+        """Load Prefixes from Nautobot.
+
+        Args:
+            sync_filters (list): List of dicts, each dict is a single sync filter definition
+            include_ipv4 (bool): Whether to include IPv4 prefixes
+            include_ipv6 (bool): Whether to include IPv6 prefixes
+        """
+        if self.job.debug:
+            self.job.logger.debug("Loading Prefixes from Nautobot.")
         all_prefixes = self._load_all_prefixes_filtered(
             sync_filters=sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6
         )
@@ -270,8 +290,18 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
 
         return all_ipaddresses
 
-    def load_ipaddresses(self, include_ipv4: bool, include_ipv6: bool, sync_filters: list):
-        """Load IP Addresses from Nautobot."""
+    def load_ipaddresses(
+        self, include_ipv4: bool, include_ipv6: bool, sync_filters: list
+    ):  # pylint: disable=too-many-branches
+        """Load IP Addresses from Nautobot.
+
+        Args:
+            sync_filters (list): List of dicts, each dict is a single sync filter definition
+            include_ipv4 (bool): Whether to include IPv4 IP addresses
+            include_ipv6 (bool): Whether to include IPv6 addresses
+        """
+        if self.job.debug:
+            self.job.logger.debug("Loading IP Addresses from Nautobot.")
         default_cfs = get_default_custom_fields(
             cf_contenttype=ContentType.objects.get_for_model(IPAddress), excluded_cfs=self.excluded_cfs
         )
@@ -279,7 +309,6 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
             sync_filters=sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6
         )
         for ipaddr in all_ipaddresses:
-            self.ipaddr_map[str(ipaddr.address)] = ipaddr.id
             addr = ipaddr.host
             prefix = ipaddr.parent
 
@@ -298,6 +327,24 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
                 )
                 continue
 
+            # Infoblox fixed address records are of type DHCP. Only Nautobot IP addresses of type DHCP will trigger fixed address creation logic.
+            has_fixed_address = False
+            mac_address = ipaddr.custom_field_data.get("mac_address") or ""
+            if ipaddr.type == IPAddressTypeChoices.TYPE_DHCP:
+                if self.config.fixed_address_type == FixedAddressTypeChoices.MAC_ADDRESS and mac_address:
+                    has_fixed_address = True
+                elif self.config.fixed_address_type == FixedAddressTypeChoices.RESERVED:
+                    has_fixed_address = True
+
+            # Description translates to comment for DNS records only.
+            # If we don't have DNS name, or we don't create DNS records, then we set description to an empty string.
+            if self.config.dns_record_type == DNSRecordTypeChoices.DONT_CREATE_RECORD:
+                description = ""
+            elif self.config.dns_record_type != DNSRecordTypeChoices.DONT_CREATE_RECORD and not ipaddr.dns_name:
+                description = ""
+            else:
+                description = ipaddr.description
+
             custom_fields = get_valid_custom_fields(ipaddr.custom_field_data, excluded_cfs=self.excluded_cfs)
             _ip = self.ipaddress(
                 address=addr,
@@ -307,20 +354,29 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
                 ip_addr_type=ipaddr.type,
                 prefix_length=prefix.prefix_length if prefix else ipaddr.prefix_length,
                 dns_name=ipaddr.dns_name,
-                description=ipaddr.description,
+                description=description,
                 ext_attrs={**default_cfs, **custom_fields},
+                mac_address=mac_address,
                 pk=ipaddr.id,
+                has_fixed_address=has_fixed_address,
+                # Fixed address name comes from Nautobot's IP Address `description`
+                fixed_address_name=ipaddr.description if has_fixed_address else "",
+                # Only set fixed address comment if we create fixed addresses.
+                fixed_address_comment=(
+                    ipaddr.custom_field_data.get("fixed_address_comment") or "" if has_fixed_address else ""
+                ),
             )
 
-            # Pretend IP Address has matching DNS records if dns name is defined.
+            # Pretend IP Address has matching DNS records if `dns_name` is defined.
             # This will be compared against values set on Infoblox side.
             if ipaddr.dns_name:
-                if self.config.create_host_record:
+                if self.config.dns_record_type == DNSRecordTypeChoices.HOST_RECORD:
                     _ip.has_host_record = True
-                elif self.config.create_a_record:
+                elif self.config.dns_record_type == DNSRecordTypeChoices.A_RECORD:
                     _ip.has_a_record = True
-                    if self.config.create_ptr_record:
-                        _ip.has_ptr_record = True
+                elif self.config.dns_record_type == DNSRecordTypeChoices.A_AND_PTR_RECORD:
+                    _ip.has_a_record = True
+                    _ip.has_ptr_record = True
 
             try:
                 self.add(_ip)
@@ -329,6 +385,8 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
 
     def load_vlangroups(self):
         """Load VLAN Groups from Nautobot."""
+        if self.job.debug:
+            self.job.logger.debug("Loading VLAN Groups from Nautobot.")
         default_cfs = get_default_custom_fields(
             cf_contenttype=ContentType.objects.get_for_model(VLANGroup), excluded_cfs=self.excluded_cfs
         )
@@ -345,6 +403,8 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
 
     def load_vlans(self):
         """Load VLANs from Nautobot."""
+        if self.job.debug:
+            self.job.logger.debug("Loading VLANs from Nautobot.")
         default_cfs = get_default_custom_fields(
             cf_contenttype=ContentType.objects.get_for_model(VLAN), excluded_cfs=self.excluded_cfs
         )

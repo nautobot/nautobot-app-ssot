@@ -13,6 +13,7 @@ from nautobot.extras.choices import (
 )
 from django.conf import settings
 from nautobot_ssot.integrations.infoblox.constant import TAG_COLOR
+from nautobot_ssot.integrations.infoblox.choices import DNSRecordTypeChoices, FixedAddressTypeChoices
 
 
 config = settings.PLUGINS_CONFIG["nautobot_ssot"]
@@ -33,6 +34,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     CustomField = apps.get_model("extras", "CustomField")
     Prefix = apps.get_model("ipam", "Prefix")
     IPAddress = apps.get_model("ipam", "IPAddress")
+    Namespace = apps.get_model("ipam", "Namespace")
     Tag = apps.get_model("extras", "Tag")
     Relationship = apps.get_model("extras", "Relationship")
     ExternalIntegration = apps.get_model("extras", "ExternalIntegration")
@@ -52,7 +54,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
             "color": TAG_COLOR,
         },
     )
-    for model in [IPAddress, Prefix, VLAN]:
+    for model in [IPAddress, Namespace, Prefix, VLAN]:
         tag_sync_from_infoblox.content_types.add(ContentType.objects.get_for_model(model))
     tag_sync_to_infoblox, _ = Tag.objects.get_or_create(
         name="SSoT Synced to Infoblox",
@@ -81,6 +83,24 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         },
     )
     range_custom_field.content_types.add(ContentType.objects.get_for_model(Prefix))
+
+    mac_address_comment_custom_field, _ = CustomField.objects.get_or_create(
+        type=CustomFieldTypeChoices.TYPE_TEXT,
+        key="mac_address",
+        defaults={
+            "label": "MAC Address",
+        },
+    )
+    mac_address_comment_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
+
+    fixed_address_comment_custom_field, _ = CustomField.objects.get_or_create(
+        type=CustomFieldTypeChoices.TYPE_TEXT,
+        key="fixed_address_comment",
+        defaults={
+            "label": "Fixed Address Comment",
+        },
+    )
+    fixed_address_comment_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
 
     # add Prefix -> VLAN Relationship
     relationship_dict = {
@@ -143,12 +163,12 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         )
         external_integration, _ = ExternalIntegration.objects.get_or_create(
             name="MigratedInfobloxInstance",
-            defaults=dict(  # pylint: disable=use-dict-literal
-                remote_url=str(config.get("infoblox_url", "https://replace.me.local")),
-                secrets_group=secrets_group,
-                verify_ssl=bool(config.get("infoblox_verify_ssl", True)),
-                timeout=infoblox_request_timeout,
-            ),
+            defaults={
+                "remote_url": str(config.get("infoblox_url", "https://replace.me.local")),
+                "secrets_group": secrets_group,
+                "verify_ssl": bool(config.get("infoblox_verify_ssl", True)),
+                "timeout": infoblox_request_timeout,
+            },
         )
 
         SSOTInfobloxConfig.objects.create(
@@ -167,10 +187,9 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
             job_enabled=True,
             infoblox_sync_filters=infoblox_sync_filters,
             infoblox_dns_view_mapping={},
-            cf_fields_ignore={},
-            create_a_record=False,
-            create_host_record=True,
-            create_ptr_record=False,
+            cf_fields_ignore={"extensible_attributes": [], "custom_fields": []},
+            fixed_address_type=FixedAddressTypeChoices.DONT_CREATE_RECORD,
+            dns_record_type=DNSRecordTypeChoices.HOST_RECORD,
         )
 
 

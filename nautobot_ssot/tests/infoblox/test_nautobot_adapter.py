@@ -1,10 +1,11 @@
 """Nautobot Adapter tests."""
 
+from unittest import mock
+
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
-
 from nautobot.extras.models import RelationshipAssociation, Status
-from nautobot.ipam.models import IPAddress, Namespace, Prefix, VLAN, VLANGroup
+from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix, VLANGroup
 
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import NautobotAdapter
 from nautobot_ssot.tests.infoblox.fixtures_infoblox import create_default_infoblox_config, create_prefix_relationship
@@ -156,6 +157,7 @@ class TestNautobotAdapter(TestCase):
         self.config = create_default_infoblox_config()
         self.sync_filters = self.config.infoblox_sync_filters
         self.nb_adapter = NautobotAdapter(config=self.config)
+        self.nb_adapter.job = mock.Mock()
 
     def test_load_vlans_loads_expected_vlans(self):
         self.nb_adapter.load_vlans()

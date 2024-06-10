@@ -7,7 +7,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Status, Tag
-from nautobot.ipam.models import VLAN, IPAddress, Prefix, VLANGroup
+from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix, VLANGroup
 
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import InfobloxAdapter
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import NautobotAdapter
@@ -29,7 +29,7 @@ class TestTagging(TestCase):
                 "color": "40bfae",
             },
         )
-        for model in [IPAddress, Prefix, VLAN]:
+        for model in [IPAddress, Namespace, Prefix, VLAN]:
             self.tag_sync_from_infoblox.content_types.add(ContentType.objects.get_for_model(model))
         self.tag_sync_to_infoblox, _ = Tag.objects.get_or_create(
             name="SSoT Synced to Infoblox",
@@ -47,22 +47,32 @@ class TestTagging(TestCase):
         """Ensure tags have correct content types configured."""
         for model in (IPAddress, Prefix, VLAN):
             content_type = ContentType.objects.get_for_model(model)
-            self.assertIn(content_type, self.tag_sync_from_infoblox.content_types.all())
             self.assertIn(content_type, self.tag_sync_to_infoblox.content_types.all())
+
+        for model in (IPAddress, Namespace, Prefix, VLAN):
+            content_type = ContentType.objects.get_for_model(model)
+            self.assertIn(content_type, self.tag_sync_from_infoblox.content_types.all())
 
     def test_objects_synced_from_infoblox_are_tagged(self):
         """Ensure objects synced from Infoblox have 'SSoT Synced from Infoblox' tag applied."""
-        nb_diffsync = NautobotAdapter(config=self.config)
-        nb_diffsync.job = Mock()
-        nb_diffsync.load()
+        nautobot_adapter = NautobotAdapter(config=self.config)
+        nautobot_adapter.job = Mock()
+        nautobot_adapter.load()
+
+        Namespace.objects.get_or_create(name="Global")
 
         infoblox_adapter = InfobloxAdapter(conn=Mock(), config=self.config)
 
-        ds_namespace = infoblox_adapter.namespace(
+        ds_namespace_global = infoblox_adapter.namespace(
             name="Global",
             ext_attrs={},
         )
-        infoblox_adapter.add(ds_namespace)
+        infoblox_adapter.add(ds_namespace_global)
+        ds_namespace_dev = infoblox_adapter.namespace(
+            name="dev",
+            ext_attrs={},
+        )
+        infoblox_adapter.add(ds_namespace_dev)
         ds_prefix = infoblox_adapter.prefix(
             network="10.0.0.0/8",
             description="Test Network",
@@ -96,8 +106,10 @@ class TestTagging(TestCase):
             ext_attrs={},
         )
         infoblox_adapter.add(ds_vlan)
+        infoblox_adapter.sync_to(nautobot_adapter)
 
-        nb_diffsync.sync_from(infoblox_adapter)
+        namespace = Namespace.objects.get(name="dev")
+        self.assertEqual(namespace.tags.all()[0], self.tag_sync_from_infoblox)
 
         prefix = Prefix.objects.get(network="10.0.0.0", prefix_length="8")
         self.assertEqual(prefix.tags.all()[0], self.tag_sync_from_infoblox)

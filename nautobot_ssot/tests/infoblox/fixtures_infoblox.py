@@ -19,11 +19,10 @@ from nautobot.extras.models import (
     SecretsGroupAssociation,
     Status,
 )
-from nautobot.ipam.models import IPAddress, Prefix, VLAN, VLANGroup
+from nautobot.ipam.models import VLAN, IPAddress, Prefix, VLANGroup
 
-
-from nautobot_ssot.integrations.infoblox.utils import client
 from nautobot_ssot.integrations.infoblox.models import SSOTInfobloxConfig
+from nautobot_ssot.integrations.infoblox.utils import client
 
 FIXTURES = os.environ.get("FIXTURE_DIR", "nautobot_ssot/tests/infoblox/fixtures")
 
@@ -164,9 +163,19 @@ def create_host_record():
     return _json_read_fixture("create_host_record.json")
 
 
+def get_fixed_address_by_ref():
+    """Return a get Fixed Address by ref response."""
+    return _json_read_fixture("get_fixed_address_by_ref.json")
+
+
 def get_host_by_ip():
     """Return a get Host by IP response."""
     return _json_read_fixture("get_host_by_ip.json")
+
+
+def get_host_by_ref():
+    """Return a get Host by ref response."""
+    return _json_read_fixture("get_host_by_ref.json")
 
 
 def get_a_record_by_ip():
