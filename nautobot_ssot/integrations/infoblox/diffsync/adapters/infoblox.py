@@ -15,7 +15,7 @@ from nautobot_ssot.integrations.infoblox.diffsync.models.infoblox import (
     InfobloxVLAN,
     InfobloxVLANView,
 )
-from nautobot_ssot.integrations.infoblox.utils.client import get_default_ext_attrs, get_dns_name
+from nautobot_ssot.integrations.infoblox.utils.client import get_default_ext_attrs
 from nautobot_ssot.integrations.infoblox.utils.diffsync import (
     build_vlan_map,
     get_ext_attr_dict,
@@ -197,7 +197,7 @@ class InfobloxAdapter(DiffSync):
             except ObjectAlreadyExists:
                 self.job.logger.warning(f"Duplicate prefix found: {new_pf}.")
 
-    def load_ipaddresses(self):  # pylint: disable=too-many-branches
+    def load_ipaddresses(self):  # pylint: disable=too-many-branches,too-many-locals,too-many-statements
         """Load InfobloxIPAddress DiffSync model."""
         if self.job.debug:
             self.job.logger.debug("Loading IP addresses from Infoblox.")
@@ -212,17 +212,15 @@ class InfobloxAdapter(DiffSync):
             _, prefix_length = _ip["network"].split("/")
             network_view = _ip["network_view"]
             dns_name = ""
-            fallback_dns_name = ""
             # Record can have multiple names, if there is a DNS record attached we should use that name
-            # Otherwise return non-DNS name
             for dns_name_candidate in _ip["names"]:
-                if validate_dns_name(infoblox_client=self.conn, dns_name=dns_name_candidate, network_view=network_view):
-                    dns_name = dns_name_candidate
-                    break
-                if not fallback_dns_name:
-                    fallback_dns_name = get_dns_name(possible_fqdn=dns_name_candidate)
+                if not validate_dns_name(
+                    infoblox_client=self.conn, dns_name=dns_name_candidate, network_view=network_view
+                ):
+                    continue
+                dns_name = dns_name_candidate
+                break
 
-            dns_name = dns_name or fallback_dns_name
             namespace = map_network_view_to_namespace(value=network_view, direction="nv_to_ns")
 
             ip_ext_attrs = get_ext_attr_dict(extattrs=_ip.get("extattrs", {}), excluded_attrs=self.excluded_attrs)
@@ -234,23 +232,38 @@ class InfobloxAdapter(DiffSync):
                 dns_name=dns_name,
                 status=self.conn.get_ipaddr_status(_ip),
                 ip_addr_type=self.conn.get_ipaddr_type(_ip),
-                description=_ip["comment"],
                 ext_attrs={**default_ext_attrs, **ip_ext_attrs},
-                mac_address=None if not _ip["mac_address"] else _ip["mac_address"],
+                mac_address="" if not _ip["mac_address"] else _ip["mac_address"],
+                fixed_address_name="",
+                fixed_address_comment="",
             )
 
-            # Record references to DNS Records linked to this IP Address
+            # Record references to DNS Records linked to this IP Address.
+            # Field `comment` in IP Address records can come from linked fixed address or DNS record.
+            # We add extra logic to tell DNS record and fixed address comments apart.
+            # NOTE: We are assuming that Host/A/PTR comments are the same.
+            # If they're not, the first one found will be treated as the correct one.
+            dns_comment = ""
             for ref in _ip["objects"]:
                 obj_type = ref.split("/")[0]
                 if obj_type == "record:host":
                     new_ip.has_host_record = True
                     new_ip.host_record_ref = ref
+                    if not dns_comment:
+                        host_record = self.conn.get_host_record_by_ref(ref)
+                        dns_comment = host_record.get("comment", "")
                 elif obj_type == "record:a":
                     new_ip.has_a_record = True
                     new_ip.a_record_ref = ref
+                    if not dns_comment:
+                        a_record = self.conn.get_a_record_by_ref(ref)
+                        dns_comment = a_record.get("comment", "")
                 elif obj_type == "record:ptr":
                     new_ip.has_ptr_record = True
                     new_ip.ptr_record_ref = ref
+                    if not dns_comment:
+                        ptr_record = self.conn.get_ptr_record_by_ref(ref)
+                        dns_comment = ptr_record.get("comment", "")
                 # We currently only support RESERVED and MAC_ADDRESS types for fixed address
                 elif obj_type == "fixedaddress":
                     if "RESERVATION" in _ip["types"]:
@@ -261,6 +274,14 @@ class InfobloxAdapter(DiffSync):
                         new_ip.fixed_address_type = "MAC_ADDRESS"
                         new_ip.has_fixed_address = True
                         new_ip.fixed_address_ref = ref
+
+            new_ip.description = dns_comment
+
+            # Fixed address name and comment values can differ from the DNS name and comment retrieved from the `names` array on the IP Address record.
+            if new_ip.has_fixed_address:
+                fixed_address = self.conn.get_fixed_address_by_ref(new_ip.fixed_address_ref)
+                new_ip.fixed_address_name = fixed_address.get("name", "")
+                new_ip.fixed_address_comment = fixed_address.get("comment", "")
 
             self.add(new_ip)
 
