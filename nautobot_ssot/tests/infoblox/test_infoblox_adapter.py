@@ -2,9 +2,7 @@
 
 import unittest
 
-from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import (
-    InfobloxAdapter,
-)
+from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import InfobloxAdapter
 
 from .fixtures_infoblox import create_default_infoblox_config
 
