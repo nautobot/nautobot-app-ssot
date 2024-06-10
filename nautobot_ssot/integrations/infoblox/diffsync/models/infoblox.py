@@ -72,7 +72,7 @@ class InfobloxIPAddress(IPAddress):
     """Infoblox implementation of the VLAN Model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, diffsync, ids, attrs):  # pylint: disable=too-many-branches
         """Creates IP Address Reservation. Additionally create DNS Host record or an A record.
 
         Optionally creates a PTR record in addition to an A record.
@@ -330,7 +330,7 @@ class InfobloxIPAddress(IPAddress):
                     extra={"grouping": "update"},
                 )
 
-    def _ip_update_create_or_update_dns_records(  # pylint: disable=too-many-arguments
+    def _ip_update_create_or_update_dns_records(  # pylint: disable=too-many-arguments,too-many-branches
         self, new_attrs: dict, inf_attrs: dict, canonical_dns_name: str, ip_address: str, network_view: str
     ) -> None:
         """Creates or update DNS records connected to the IP address. Triggered by IP Address update.
