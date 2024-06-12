@@ -166,12 +166,14 @@ nav:
           - v1.1: "admin/release_notes/version_1.1.md"
           - v1.0: "admin/release_notes/version_1.0.md"
   - Developer Guide:
-      - Extending the App: "dev/extending.md"
-      - Developing Jobs: "dev/jobs.md"
-      - Debugging Jobs: "dev/debugging.md"
-      - Contributing to the App: "dev/contributing.md"
+      - "Tutorial: Developing Jobs": "dev/jobs.md"
+      - "How To: Debugging Jobs": "dev/debugging.md"
+      - "Reference: Issues": "dev/issues.md"
+      - "Reference: Modeling": "dev/modeling.md"
       - Development Environment: "dev/dev_environment.md"
       - Upgrading SSoT Apps: "dev/upgrade.md"
+      - Extending the App: "dev/extending.md"
+      - Contributing to the App: "dev/contributing.md"
       - Code Reference:
           - "dev/code_reference/index.md"
           - Package: "dev/code_reference/package.md"

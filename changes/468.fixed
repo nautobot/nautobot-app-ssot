@@ -1,0 +1,1 @@
+Fixed SSoT jobs only allowing dry run unless you overwrote the `run` method.

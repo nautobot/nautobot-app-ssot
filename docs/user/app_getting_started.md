@@ -44,3 +44,5 @@ PLUGINS_CONFIG = {
 ## What are the next steps?
 
 You can check out the [Use Cases](app_use_cases.md) section for more examples.
+
+Alternatively, if you intend to build your own integration, check out [Developing Data Source and Data Target Jobs](../dev/jobs.md).
