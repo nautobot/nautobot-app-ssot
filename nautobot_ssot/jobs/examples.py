@@ -4,7 +4,6 @@
 # flake8: noqa: E701
 
 from typing import Optional, Mapping, List, TypedDict
-from uuid import UUID
 from django.contrib.contenttypes.models import ContentType
 from django.templatetags.static import static
 from django.urls import reverse
