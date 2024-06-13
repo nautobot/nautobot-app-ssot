@@ -56,7 +56,7 @@ class InfobloxDataSource(DataSource):
     def __init__(self):
         """Initialize InfobloxDataSource."""
         super().__init__()
-        self.diffsync_flags = DiffSyncFlags.CONTINUE_ON_FAILURE | DiffSyncFlags.SKIP_UNMATCHED_DST
+        self.diffsync_flags = DiffSyncFlags.CONTINUE_ON_FAILURE
 
     class Meta:  # pylint: disable=too-few-public-methods
         """Information about the Job."""
@@ -119,7 +119,7 @@ class InfobloxDataTarget(DataTarget):
     def __init__(self):
         """Initialize InfobloxDataTarget."""
         super().__init__()
-        self.diffsync_flags = DiffSyncFlags.CONTINUE_ON_FAILURE | DiffSyncFlags.SKIP_UNMATCHED_DST
+        self.diffsync_flags = DiffSyncFlags.CONTINUE_ON_FAILURE
 
     class Meta:  # pylint: disable=too-few-public-methods
         """Information about the Job."""

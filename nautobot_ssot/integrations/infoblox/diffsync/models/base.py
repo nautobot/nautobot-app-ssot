@@ -70,7 +70,6 @@ class IPAddress(DiffSyncModel):
     _identifiers = ("address", "prefix", "prefix_length", "namespace")
     _attributes = (
         "description",
-        "dns_name",
         "status",
         "ip_addr_type",
         "ext_attrs",
@@ -79,12 +78,10 @@ class IPAddress(DiffSyncModel):
         "has_ptr_record",
         "has_fixed_address",
         "mac_address",
-        "fixed_address_name",
         "fixed_address_comment",
     )
 
     address: str
-    dns_name: str
     prefix: str
     prefix_length: int
     namespace: str
@@ -97,12 +94,89 @@ class IPAddress(DiffSyncModel):
     has_ptr_record: bool = False
     has_fixed_address: bool = False
     mac_address: Optional[str]
-    fixed_address_name: Optional[str]
     fixed_address_comment: Optional[str]
 
     pk: Optional[uuid.UUID] = None
-    a_record_ref: Optional[str] = None
-    host_record_ref: Optional[str] = None
-    ptr_record_ref: Optional[str] = None
     fixed_address_ref: Optional[str] = None
     fixed_address_type: Optional[str] = None
+
+
+class DnsARecord(DiffSyncModel):
+    """DnsARecord model for DiffSync."""
+
+    _modelname = "dnsarecord"
+    _identifiers = ("address", "prefix", "prefix_length", "namespace")
+    _attributes = (
+        "dns_name",
+        "ip_addr_type",
+        "description",
+        "status",
+        "ext_attrs",
+    )
+
+    address: str
+    prefix: str
+    prefix_length: int
+    namespace: str
+    dns_name: str
+    ip_addr_type: str
+    description: Optional[str]
+    status: Optional[str]
+    ext_attrs: Optional[dict]
+
+    pk: Optional[uuid.UUID] = None
+    ref: Optional[str] = None
+
+
+class DnsHostRecord(DiffSyncModel):
+    """DnsHostRecord model for DiffSync."""
+
+    _modelname = "dnshostrecord"
+    _identifiers = ("address", "prefix", "prefix_length", "namespace")
+    _attributes = (
+        "dns_name",
+        "ip_addr_type",
+        "description",
+        "status",
+        "ext_attrs",
+    )
+
+    address: str
+    prefix: str
+    prefix_length: int
+    namespace: str
+    dns_name: str
+    ip_addr_type: str
+    description: Optional[str]
+    status: Optional[str]
+    ext_attrs: Optional[dict]
+
+    pk: Optional[uuid.UUID] = None
+    ref: Optional[str] = None
+
+
+class DnsPTRRecord(DiffSyncModel):
+    """DnsPTRRecord model for DiffSync."""
+
+    _modelname = "dnsptrrecord"
+    _identifiers = ("address", "prefix", "prefix_length", "namespace")
+    _attributes = (
+        "dns_name",
+        "ip_addr_type",
+        "description",
+        "status",
+        "ext_attrs",
+    )
+
+    address: str
+    prefix: str
+    prefix_length: int
+    namespace: str
+    dns_name: str
+    ip_addr_type: str
+    description: Optional[str]
+    status: Optional[str]
+    ext_attrs: Optional[dict]
+
+    pk: Optional[uuid.UUID] = None
+    ref: Optional[str] = None

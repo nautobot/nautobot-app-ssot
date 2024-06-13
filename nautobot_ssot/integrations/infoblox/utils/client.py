@@ -706,7 +706,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         """
         url_path = f"{ref}"
         params = {
-            "_return_fields": "name,view,ipv4addr,comment",
+            "_return_fields": "name,view,ipv4addrs,comment",
         }
         response = self._request("GET", path=url_path, params=params)
         logger.error(response.text)
@@ -812,7 +812,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         """
         url_path = f"{ref}"
         params = {
-            "_return_fields": "name,view,ipv4addr,comment",
+            "_return_fields": "name,view,ipv4addr,comment,extattrs",
         }
         response = self._request("GET", path=url_path, params=params)
         logger.error(response.text)
@@ -822,6 +822,24 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         except json.decoder.JSONDecodeError:
             logger.error(response.text)
             return response.text
+
+    def delete_a_record_by_ref(self, ref):
+        """Delete DNS A record by ref.
+
+        Args:
+            ref (str): reference to the DNS A record
+
+        Returns:
+            (dict) deleted DNS A record.
+
+        Returns Response:
+            {"deleted": "record:a/ZG5zLmJpbmRfYSQuX2RlZmF1bHQudGVzdCx0ZXN0ZGV2aWNlMSwxMC4yMjAuMC4xMDE:testdevice1.test/default"}
+        """
+        self._delete(ref)
+        response = {"deleted": ref}
+
+        logger.debug(response)
+        return response
 
     def get_ptr_record_by_ref(self, ref: str):
         """Get the PTR record by FQDN.
@@ -936,6 +954,24 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         except json.decoder.JSONDecodeError:
             logger.error(response.text)
             return response.text
+
+    def delete_ptr_record_by_ref(self, ref):
+        """Delete DNS PTR record by ref.
+
+        Args:
+            ref (str): reference to the DNS PTR record
+
+        Returns:
+            (dict) deleted DNS PTR record.
+
+        Returns Response:
+            {"deleted": "record:ptr/ZG5zLmJpbmRfYSQuX2RlZmF1bHQudGVzdCx0ZXN0ZGV2aWNlMSwxMC4yMjAuMC4xMDE:testdevice1.test/default"}
+        """
+        self._delete(ref)
+        response = {"deleted": ref}
+
+        logger.debug(response)
+        return response
 
     def get_all_dns_views(self):
         """Get all dns views.
@@ -1393,6 +1429,24 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             logger.error(response.text)
             return response.text
 
+    def delete_fixed_address_record_by_ref(self, ref):
+        """Delete Fixed Address record by ref.
+
+        Args:
+            ref (str): reference to the fixed address record
+
+        Returns:
+            (dict) deleted fixed address record.
+
+        Returns Response:
+            {"deleted": "fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMC4wLjIuMi4u:10.0.0.2/dev"}
+        """
+        self._delete(ref)
+        response = {"deleted": ref}
+
+        logger.debug(response)
+        return response
+
     def reserve_fixed_address(self, network, mac_address, network_view: Optional[str] = None):
         """Reserve the next available ip address for a given network range.
 
@@ -1581,6 +1635,24 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             response = {"deleted": ip_address, "network_view": network_view}
         else:
             response = {"error": f"Did not find IP address {ip_address} in network view {network_view}"}
+        logger.debug(response)
+        return response
+
+    def delete_host_record_by_ref(self, ref):
+        """Delete DNS Host record by ref.
+
+        Args:
+            ref (str): reference to the DNS Host record
+
+        Returns:
+            (dict) deleted DNS Host record.
+
+        Returns Response:
+            {"deleted": "record:host/ZG5zLmhvc3QkLl9kZWZhdWx0LnRlc3QudGVzdGRldmljZTE:testdevice1.test/default"}
+        """
+        self._delete(ref)
+        response = {"deleted": ref}
+
         logger.debug(response)
         return response
 

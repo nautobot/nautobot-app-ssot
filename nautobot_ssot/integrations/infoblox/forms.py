@@ -3,10 +3,15 @@
 from django import forms
 
 from nautobot.extras.forms import NautobotModelForm, NautobotFilterForm
-from nautobot.apps.forms import JSONField, StaticSelect2
+from nautobot.apps.forms import add_blank_choice, JSONField, StaticSelect2, StaticSelect2Multiple
 
 from .models import SSOTInfobloxConfig
-from .choices import FixedAddressTypeChoices, DNSRecordTypeChoices
+from .choices import (
+    FixedAddressTypeChoices,
+    DNSRecordTypeChoices,
+    InfobloxDeletableModelChoices,
+    NautobotDeletableModelChoices,
+)
 
 
 class SSOTInfobloxConfigForm(NautobotModelForm):  # pylint: disable=too-many-ancestors
@@ -35,6 +40,18 @@ class SSOTInfobloxConfigForm(NautobotModelForm):  # pylint: disable=too-many-anc
         choices=DNSRecordTypeChoices,
         required=True,
         widget=StaticSelect2(),
+    )
+    infoblox_deletable_models = forms.MultipleChoiceField(
+        required=False,
+        label="Models that can be deleted in Infoblox",
+        choices=add_blank_choice(InfobloxDeletableModelChoices),
+        widget=StaticSelect2Multiple(),
+    )
+    nautobot_deletable_models = forms.MultipleChoiceField(
+        required=False,
+        label="Models that can be deleted in Nautobot",
+        choices=add_blank_choice(NautobotDeletableModelChoices),
+        widget=StaticSelect2Multiple(),
     )
 
     class Meta:

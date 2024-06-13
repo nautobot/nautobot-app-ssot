@@ -8,7 +8,11 @@ from diffsync.enum import DiffSyncFlags
 from diffsync.exceptions import ObjectAlreadyExists
 from nautobot.extras.plugins.exceptions import PluginImproperlyConfigured
 
+from nautobot_ssot.integrations.infoblox.choices import FixedAddressTypeChoices
 from nautobot_ssot.integrations.infoblox.diffsync.models.infoblox import (
+    InfobloxDnsHostRecord,
+    InfobloxDnsARecord,
+    InfobloxDnsPTRRecord,
     InfobloxIPAddress,
     InfobloxNamespace,
     InfobloxNetwork,
@@ -20,7 +24,6 @@ from nautobot_ssot.integrations.infoblox.utils.diffsync import (
     build_vlan_map,
     get_ext_attr_dict,
     map_network_view_to_namespace,
-    validate_dns_name,
 )
 
 
@@ -36,8 +39,20 @@ class InfobloxAdapter(DiffSync):
     ipaddress = InfobloxIPAddress
     vlangroup = InfobloxVLANView
     vlan = InfobloxVLAN
+    dnshostrecord = InfobloxDnsHostRecord
+    dnsarecord = InfobloxDnsARecord
+    dnsptrrecord = InfobloxDnsPTRRecord
 
-    top_level = ["namespace", "vlangroup", "vlan", "prefix", "ipaddress"]
+    top_level = [
+        "namespace",
+        "vlangroup",
+        "vlan",
+        "prefix",
+        "ipaddress",
+        "dnshostrecord",
+        "dnsarecord",
+        "dnsptrrecord",
+    ]
 
     def __init__(self, *args, job=None, sync=None, conn, config, **kwargs):
         """Initialize Infoblox.
@@ -211,16 +226,6 @@ class InfobloxAdapter(DiffSync):
         for _ip in ipaddrs:
             _, prefix_length = _ip["network"].split("/")
             network_view = _ip["network_view"]
-            dns_name = ""
-            # Record can have multiple names, if there is a DNS record attached we should use that name
-            for dns_name_candidate in _ip["names"]:
-                if not validate_dns_name(
-                    infoblox_client=self.conn, dns_name=dns_name_candidate, network_view=network_view
-                ):
-                    continue
-                dns_name = dns_name_candidate
-                break
-
             namespace = map_network_view_to_namespace(value=network_view, direction="nv_to_ns")
 
             ip_ext_attrs = get_ext_attr_dict(extattrs=_ip.get("extattrs", {}), excluded_attrs=self.excluded_attrs)
@@ -229,41 +234,28 @@ class InfobloxAdapter(DiffSync):
                 prefix=_ip["network"],
                 prefix_length=prefix_length,
                 namespace=namespace,
-                dns_name=dns_name,
                 status=self.conn.get_ipaddr_status(_ip),
-                ip_addr_type=self.conn.get_ipaddr_type(_ip),
+                description="",
+                ip_addr_type="host",
                 ext_attrs={**default_ext_attrs, **ip_ext_attrs},
                 mac_address="" if not _ip["mac_address"] else _ip["mac_address"],
-                fixed_address_name="",
                 fixed_address_comment="",
             )
 
             # Record references to DNS Records linked to this IP Address.
             # Field `comment` in IP Address records can come from linked fixed address or DNS record.
             # We add extra logic to tell DNS record and fixed address comments apart.
-            # NOTE: We are assuming that Host/A/PTR comments are the same.
-            # If they're not, the first one found will be treated as the correct one.
-            dns_comment = ""
             for ref in _ip["objects"]:
                 obj_type = ref.split("/")[0]
                 if obj_type == "record:host":
                     new_ip.has_host_record = True
-                    new_ip.host_record_ref = ref
-                    if not dns_comment:
-                        host_record = self.conn.get_host_record_by_ref(ref)
-                        dns_comment = host_record.get("comment", "")
+                    host_record_ref = ref
                 elif obj_type == "record:a":
                     new_ip.has_a_record = True
-                    new_ip.a_record_ref = ref
-                    if not dns_comment:
-                        a_record = self.conn.get_a_record_by_ref(ref)
-                        dns_comment = a_record.get("comment", "")
+                    a_record_ref = ref
                 elif obj_type == "record:ptr":
                     new_ip.has_ptr_record = True
-                    new_ip.ptr_record_ref = ref
-                    if not dns_comment:
-                        ptr_record = self.conn.get_ptr_record_by_ref(ref)
-                        dns_comment = ptr_record.get("comment", "")
+                    ptr_record_ref = ref
                 # We currently only support RESERVED and MAC_ADDRESS types for fixed address
                 elif obj_type == "fixedaddress":
                     if "RESERVATION" in _ip["types"]:
@@ -275,15 +267,111 @@ class InfobloxAdapter(DiffSync):
                         new_ip.has_fixed_address = True
                         new_ip.fixed_address_ref = ref
 
-            new_ip.description = dns_comment
-
-            # Fixed address name and comment values can differ from the DNS name and comment retrieved from the `names` array on the IP Address record.
+            # We use Nautobot IP Address description for Infoblox Fixed Address name
             if new_ip.has_fixed_address:
                 fixed_address = self.conn.get_fixed_address_by_ref(new_ip.fixed_address_ref)
-                new_ip.fixed_address_name = fixed_address.get("name", "")
-                new_ip.fixed_address_comment = fixed_address.get("comment", "")
+                new_ip.description = fixed_address.get("name") or ""
+                new_ip.fixed_address_comment = fixed_address.get("comment") or ""
 
-            self.add(new_ip)
+            # Default type is `host` but fixed address records must be `dhcp`
+            if (
+                new_ip.has_fixed_address
+                and self.config.fixed_address_type != FixedAddressTypeChoices.DONT_CREATE_RECORD
+            ):
+                new_ip.ip_addr_type = "dhcp"
+
+            # Load individual DNS records
+            if new_ip.has_a_record:
+                self._load_dns_a_record_for_ip(ref=a_record_ref, ip_record=new_ip, namespace=namespace)
+            if new_ip.has_host_record:
+                self._load_dns_host_record_for_ip(ref=host_record_ref, ip_record=new_ip, namespace=namespace)
+            if new_ip.has_ptr_record:
+                self._load_dns_ptr_record_for_ip(ref=ptr_record_ref, ip_record=new_ip, namespace=namespace)
+
+            if new_ip.has_fixed_address or new_ip.has_a_record or new_ip.has_ptr_record:
+                self.add(new_ip)
+
+    def _load_dns_host_record_for_ip(self, ref: str, ip_record: object, namespace: str):
+        """Load the DNS Host record.
+
+        Args:
+            ref (list): Host record reference
+            ip_record (object): Parent IP Address record
+            namespace (str): Namespace of this record
+        """
+        host_record = self.conn.get_host_record_by_ref(ref)
+        record_ext_attrs = get_ext_attr_dict(
+            extattrs=host_record.get("extattrs", {}), excluded_attrs=self.excluded_attrs
+        )
+
+        new_host_record = self.dnshostrecord(
+            address=ip_record.address,
+            prefix=ip_record.prefix,
+            prefix_length=ip_record.prefix_length,
+            namespace=namespace,
+            dns_name=host_record["name"],
+            ip_addr_type=ip_record.ip_addr_type,
+            description=host_record.get("comment") or "",
+            status=ip_record.status,
+            ext_attrs=record_ext_attrs,
+            ref=ref,
+        )
+
+        self.add(new_host_record)
+
+    def _load_dns_a_record_for_ip(self, ref: str, ip_record: object, namespace: str):
+        """Load the DNS A record.
+
+        Args:
+            ref (list): A record reference
+            ip_record (object): Parent IP Address record
+            namespace (str): Namespace of this record
+        """
+        a_record = self.conn.get_a_record_by_ref(ref)
+        record_ext_attrs = get_ext_attr_dict(extattrs=a_record.get("extattrs", {}), excluded_attrs=self.excluded_attrs)
+
+        new_a_record = self.dnsarecord(
+            address=a_record["ipv4addr"],
+            prefix=ip_record.prefix,
+            prefix_length=ip_record.prefix_length,
+            namespace=namespace,
+            dns_name=a_record["name"],
+            ip_addr_type=ip_record.ip_addr_type,
+            description=a_record.get("comment") or "",
+            status=ip_record.status,
+            ext_attrs=record_ext_attrs,
+            ref=ref,
+        )
+
+        self.add(new_a_record)
+
+    def _load_dns_ptr_record_for_ip(self, ref: str, ip_record: object, namespace: str):
+        """Load the DNS PTR record.
+
+        Args:
+            ref (list): PTR record reference
+            ip_record (object): Parent IP Address record
+            namespace (str): Namespace of this record
+        """
+        ptr_record = self.conn.get_ptr_record_by_ref(ref)
+        record_ext_attrs = get_ext_attr_dict(
+            extattrs=ptr_record.get("extattrs", {}), excluded_attrs=self.excluded_attrs
+        )
+
+        new_ptr_record = self.dnsptrrecord(
+            address=ptr_record["ipv4addr"],
+            prefix=ip_record.prefix,
+            prefix_length=ip_record.prefix_length,
+            namespace=namespace,
+            dns_name=ptr_record["ptrdname"],
+            ip_addr_type=ip_record.ip_addr_type,
+            description=ptr_record.get("comment") or "",
+            status=ip_record.status,
+            ext_attrs=record_ext_attrs,
+            ref=ref,
+        )
+
+        self.add(new_ptr_record)
 
     def load_vlanviews(self):
         """Load InfobloxVLANView DiffSync model."""

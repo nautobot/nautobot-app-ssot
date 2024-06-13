@@ -17,6 +17,9 @@ from nautobot.tenancy.models import Tenant
 from nautobot_ssot.integrations.infoblox.choices import DNSRecordTypeChoices, FixedAddressTypeChoices
 from nautobot_ssot.integrations.infoblox.constant import TAG_COLOR
 from nautobot_ssot.integrations.infoblox.diffsync.models import (
+    NautobotDnsARecord,
+    NautobotDnsHostRecord,
+    NautobotDnsPTRRecord,
     NautobotIPAddress,
     NautobotNamespace,
     NautobotNetwork,
@@ -102,8 +105,11 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
     ipaddress = NautobotIPAddress
     vlangroup = NautobotVlanGroup
     vlan = NautobotVlan
+    dnshostrecord = NautobotDnsHostRecord
+    dnsarecord = NautobotDnsARecord
+    dnsptrrecord = NautobotDnsPTRRecord
 
-    top_level = ["namespace", "vlangroup", "vlan", "prefix", "ipaddress"]
+    top_level = ["namespace", "vlangroup", "vlan", "prefix", "ipaddress", "dnshostrecord", "dnsarecord", "dnsptrrecord"]
 
     status_map = {}
     location_map = {}
@@ -336,14 +342,11 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
                 elif self.config.fixed_address_type == FixedAddressTypeChoices.RESERVED:
                     has_fixed_address = True
 
-            # Description translates to comment for DNS records only.
-            # If we don't have DNS name, or we don't create DNS records, then we set description to an empty string.
-            if self.config.dns_record_type == DNSRecordTypeChoices.DONT_CREATE_RECORD:
-                description = ""
-            elif self.config.dns_record_type != DNSRecordTypeChoices.DONT_CREATE_RECORD and not ipaddr.dns_name:
-                description = ""
-            else:
+            # Description is used to derive name of the fixed record
+            if self.config.fixed_address_type != FixedAddressTypeChoices.DONT_CREATE_RECORD:
                 description = ipaddr.description
+            else:
+                description = ""
 
             custom_fields = get_valid_custom_fields(ipaddr.custom_field_data, excluded_cfs=self.excluded_cfs)
             _ip = self.ipaddress(
@@ -353,14 +356,11 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
                 status=ipaddr.status.name if ipaddr.status else None,
                 ip_addr_type=ipaddr.type,
                 prefix_length=prefix.prefix_length if prefix else ipaddr.prefix_length,
-                dns_name=ipaddr.dns_name,
                 description=description,
                 ext_attrs={**default_cfs, **custom_fields},
                 mac_address=mac_address,
                 pk=ipaddr.id,
                 has_fixed_address=has_fixed_address,
-                # Fixed address name comes from Nautobot's IP Address `description`
-                fixed_address_name=ipaddr.description if has_fixed_address else "",
                 # Only set fixed address comment if we create fixed addresses.
                 fixed_address_comment=(
                     ipaddr.custom_field_data.get("fixed_address_comment") or "" if has_fixed_address else ""
@@ -372,16 +372,97 @@ class NautobotAdapter(NautobotMixin, DiffSync):  # pylint: disable=too-many-inst
             if ipaddr.dns_name:
                 if self.config.dns_record_type == DNSRecordTypeChoices.HOST_RECORD:
                     _ip.has_host_record = True
+                    self._load_dns_host_record_for_ip(
+                        ip_record=_ip, dns_name=ipaddr.dns_name, cfs=ipaddr.custom_field_data
+                    )
                 elif self.config.dns_record_type == DNSRecordTypeChoices.A_RECORD:
                     _ip.has_a_record = True
+                    self._load_dns_a_record_for_ip(
+                        ip_record=_ip, dns_name=ipaddr.dns_name, cfs=ipaddr.custom_field_data
+                    )
                 elif self.config.dns_record_type == DNSRecordTypeChoices.A_AND_PTR_RECORD:
                     _ip.has_a_record = True
                     _ip.has_ptr_record = True
+                    self._load_dns_ptr_record_for_ip(
+                        ip_record=_ip, dns_name=ipaddr.dns_name, cfs=ipaddr.custom_field_data
+                    )
+                    self._load_dns_a_record_for_ip(
+                        ip_record=_ip, dns_name=ipaddr.dns_name, cfs=ipaddr.custom_field_data
+                    )
 
             try:
                 self.add(_ip)
             except ObjectAlreadyExists:
                 self.job.logger.warning(f"Duplicate IP Address detected: {addr}.")
+
+    def _load_dns_host_record_for_ip(self, ip_record: NautobotIPAddress, dns_name: str, cfs: dict):
+        """Load the DNS Host record.
+
+        Args:
+            ip_record (NautobotIPAddress): Parent IP Address record
+            dns_name (str): DNS Name
+            cfs (dict): Custom fields
+        """
+        new_host_record = self.dnshostrecord(
+            address=ip_record.address,
+            prefix=ip_record.prefix,
+            prefix_length=ip_record.prefix_length,
+            namespace=ip_record.namespace,
+            dns_name=dns_name,
+            ip_addr_type=ip_record.ip_addr_type,
+            description=cfs.get("dns_host_record_comment") or "",
+            status=ip_record.status,
+            ext_attrs=ip_record.ext_attrs,
+            pk=ip_record.pk,
+        )
+
+        self.add(new_host_record)
+
+    def _load_dns_a_record_for_ip(self, ip_record: NautobotIPAddress, dns_name: str, cfs: dict):
+        """Load the DNS A record.
+
+        Args:
+            ip_record (NautobotIPAddress): Parent IP Address record
+            dns_name (str): DNS Name
+            cfs (dict): Custom fields
+        """
+        new_a_record = self.dnsarecord(
+            address=ip_record.address,
+            prefix=ip_record.prefix,
+            prefix_length=ip_record.prefix_length,
+            namespace=ip_record.namespace,
+            dns_name=dns_name,
+            ip_addr_type=ip_record.ip_addr_type,
+            description=cfs.get("dns_a_record_comment") or "",
+            status=ip_record.status,
+            ext_attrs=ip_record.ext_attrs,
+            pk=ip_record.pk,
+        )
+
+        self.add(new_a_record)
+
+    def _load_dns_ptr_record_for_ip(self, ip_record: NautobotIPAddress, dns_name: str, cfs: dict):
+        """Load the DNS PTR record.
+
+        Args:
+            ip_record (NautobotIPAddress): Parent IP Address record
+            dns_name (str): DNS Name
+            cfs (dict): Custom fields
+        """
+        new_ptr_record = self.dnsptrrecord(
+            address=ip_record.address,
+            prefix=ip_record.prefix,
+            prefix_length=ip_record.prefix_length,
+            namespace=ip_record.namespace,
+            dns_name=dns_name,
+            ip_addr_type=ip_record.ip_addr_type,
+            description=cfs.get("dns_ptr_record_comment") or "",
+            status=ip_record.status,
+            ext_attrs=ip_record.ext_attrs,
+            pk=ip_record.pk,
+        )
+
+        self.add(new_ptr_record)
 
     def load_vlangroups(self):
         """Load VLAN Groups from Nautobot."""

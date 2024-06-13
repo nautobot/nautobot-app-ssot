@@ -9,6 +9,7 @@ from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Status, Tag
 from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix, VLANGroup
 
+from nautobot_ssot.integrations.infoblox.choices import DNSRecordTypeChoices, FixedAddressTypeChoices
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import InfobloxAdapter
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import NautobotAdapter
 from nautobot_ssot.tests.infoblox.fixtures_infoblox import create_prefix_relationship
@@ -55,6 +56,8 @@ class TestTagging(TestCase):
 
     def test_objects_synced_from_infoblox_are_tagged(self):
         """Ensure objects synced from Infoblox have 'SSoT Synced from Infoblox' tag applied."""
+        self.config.dns_record_type = DNSRecordTypeChoices.A_RECORD
+        self.config.fixed_address_type = FixedAddressTypeChoices.MAC_ADDRESS
         nautobot_adapter = NautobotAdapter(config=self.config)
         nautobot_adapter.job = Mock()
         nautobot_adapter.load()
@@ -87,10 +90,10 @@ class TestTagging(TestCase):
             description="Test IPAddress",
             address="10.0.0.1",
             status="Active",
-            dns_name="",
+            has_fixed_address=True,
             prefix="10.0.0.0/8",
             prefix_length=8,
-            ip_addr_type="host",
+            ip_addr_type="dhcp",
             ext_attrs={},
             namespace="Global",
         )

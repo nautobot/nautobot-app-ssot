@@ -24,7 +24,9 @@ def register_signals(sender):
     nautobot_database_ready.connect(nautobot_database_ready_callback, sender=sender)
 
 
-def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disable=unused-argument,too-many-locals
+def nautobot_database_ready_callback(
+    sender, *, apps, **kwargs
+):  # pylint: disable=unused-argument,too-many-locals,too-many-statements
     """Create Tag and CustomField to note System of Record for SSoT.
 
     Callback function triggered by the nautobot_database_ready signal when the Nautobot database is fully ready.
@@ -84,14 +86,14 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     )
     range_custom_field.content_types.add(ContentType.objects.get_for_model(Prefix))
 
-    mac_address_comment_custom_field, _ = CustomField.objects.get_or_create(
+    mac_address_custom_field, _ = CustomField.objects.get_or_create(
         type=CustomFieldTypeChoices.TYPE_TEXT,
         key="mac_address",
         defaults={
             "label": "MAC Address",
         },
     )
-    mac_address_comment_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
+    mac_address_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
 
     fixed_address_comment_custom_field, _ = CustomField.objects.get_or_create(
         type=CustomFieldTypeChoices.TYPE_TEXT,
@@ -101,6 +103,33 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         },
     )
     fixed_address_comment_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
+
+    dns_a_record_comment_custom_field, _ = CustomField.objects.get_or_create(
+        type=CustomFieldTypeChoices.TYPE_TEXT,
+        key="dns_a_record_comment",
+        defaults={
+            "label": "DNS A Record Comment",
+        },
+    )
+    dns_a_record_comment_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
+
+    dns_host_record_comment_custom_field, _ = CustomField.objects.get_or_create(
+        type=CustomFieldTypeChoices.TYPE_TEXT,
+        key="dns_host_record_comment",
+        defaults={
+            "label": "DNS Host Record Comment",
+        },
+    )
+    dns_host_record_comment_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
+
+    dns_ptr_record_comment_custom_field, _ = CustomField.objects.get_or_create(
+        type=CustomFieldTypeChoices.TYPE_TEXT,
+        key="dns_ptr_record_comment",
+        defaults={
+            "label": "DNS PTR Record Comment",
+        },
+    )
+    dns_ptr_record_comment_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
 
     # add Prefix -> VLAN Relationship
     relationship_dict = {
@@ -130,16 +159,16 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
 
         infoblox_sync_filters = _get_sync_filters()
 
-        secrets_group, _ = SecretsGroup.objects.get_or_create(name="InfobloxSSOTMigration")
+        secrets_group, _ = SecretsGroup.objects.get_or_create(name="InfobloxSSOTDefaultSecretGroup")
         infoblox_username, _ = Secret.objects.get_or_create(
-            name="Infoblox Username - SSOT Migration",
+            name="Infoblox Username - Default",
             defaults={
                 "provider": "environment-variable",
                 "parameters": {"variable": "NAUTOBOT_SSOT_INFOBLOX_USERNAME"},
             },
         )
         infoblox_password, _ = Secret.objects.get_or_create(
-            name="Infoblox Password - SSOT Migration",
+            name="Infoblox Password - Default",
             defaults={
                 "provider": "environment-variable",
                 "parameters": {"variable": "NAUTOBOT_SSOT_INFOBLOX_PASSWORD"},
@@ -162,7 +191,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
             },
         )
         external_integration, _ = ExternalIntegration.objects.get_or_create(
-            name="MigratedInfobloxInstance",
+            name="DefaultInfobloxInstance",
             defaults={
                 "remote_url": str(config.get("infoblox_url", "https://replace.me.local")),
                 "secrets_group": secrets_group,
@@ -173,7 +202,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
 
         SSOTInfobloxConfig.objects.create(
             name="InfobloxConfigDefault",
-            description="Config generated from the migrated legacy settings.",
+            description="Auto-generated default configuration.",
             default_status=default_status,
             infoblox_wapi_version=str(config.get("infoblox_wapi_version", "v2.12")),
             infoblox_instance=external_integration,
