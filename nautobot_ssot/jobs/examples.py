@@ -49,9 +49,6 @@ class LocationTypeModel(NautobotModel):
     parent__name: Optional[str]
     content_types: List[ContentTypeDict] = []
 
-    # Not in _attributes or _identifiers, hence not included in diff calculations
-    pk: Optional[UUID]
-
 
 class LocationDict(TypedDict):
     """This typed dict is for M2M Locations."""
@@ -86,9 +83,6 @@ class LocationModel(NautobotModel):
     tenant__name: Optional[str]
     description: str
 
-    # Not in _attributes or _identifiers, hence not included in diff calculations
-    pk: Optional[UUID]
-
 
 class RoleModel(NautobotModel):
     """Shared data model representing a Role in either of the local or remote Nautobot instances."""
@@ -101,9 +95,6 @@ class RoleModel(NautobotModel):
 
     name: str
     content_types: List[ContentTypeDict] = []
-
-    # Not in _attributes or _identifiers, hence not included in diff calculations
-    pk: Optional[UUID]
 
 
 class StatusModel(NautobotModel):
@@ -119,9 +110,6 @@ class StatusModel(NautobotModel):
     color: str
     content_types: List[ContentTypeDict] = []
 
-    # Not in _attributes or _identifiers, hence not included in diff calculations
-    pk: Optional[UUID]
-
 
 class NamespaceModel(NautobotModel):
     """Shared data model representing a Namespace in either of the local or remote Nautobot instance."""
@@ -134,9 +122,6 @@ class NamespaceModel(NautobotModel):
 
     name: str
     description: Optional[str] = ""
-
-    # Not in _attributes or _identifiers, hence not included in diff calculations
-    pk: Optional[UUID]
 
 
 class PrefixModel(NautobotModel):
@@ -158,9 +143,6 @@ class PrefixModel(NautobotModel):
     description: str
 
     locations: Optional[List[LocationDict]] = []
-
-    # Not in _attributes or _identifiers, hence not included in diff calculations
-    pk: Optional[UUID]
 
 
 class IPAddressModel(NautobotModel):
@@ -186,8 +168,6 @@ class IPAddressModel(NautobotModel):
     ip_version: int
     tenant__name: Optional[str]
 
-    pk: Optional[UUID]
-
 
 class TenantModel(NautobotModel):
     """Shared data model representing a Tenant in either of the local or remote Nautobot instances."""
@@ -200,8 +180,6 @@ class TenantModel(NautobotModel):
 
     name: str
     prefixes: List[PrefixModel] = []
-
-    pk: Optional[UUID]
 
 
 class DeviceTypeModel(NautobotModel):
@@ -218,9 +196,6 @@ class DeviceTypeModel(NautobotModel):
     u_height: int
     is_full_depth: bool
 
-    # Not in _attributes or _identifiers, hence not included in diff calculations
-    pk: Optional[UUID]
-
 
 class ManufacturerModel(NautobotModel):
     """Shared data model representing a Manufacturer in either of the local or remote Nautobot instances."""
@@ -234,9 +209,6 @@ class ManufacturerModel(NautobotModel):
     name: str
     description: str
     device_types: List[DeviceTypeModel] = []
-
-    # Not in _attributes or _identifiers, hence not included in diff calculations
-    pk: Optional[UUID]
 
 
 class PlatformModel(NautobotModel):
