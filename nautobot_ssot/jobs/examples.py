@@ -142,7 +142,7 @@ class PrefixModel(NautobotModel):
     status__name: str
     description: str
 
-    locations: Optional[List[LocationDict]] = []
+    locations: List[LocationDict] = []
 
 
 class IPAddressModel(NautobotModel):
