@@ -3,6 +3,7 @@
     "extattrs": {
   
     },
+    "ipv4addr": "10.0.0.2",
     "mac": "52:1f:83:d4:9a:2e",
     "name": "host-fixed1",
     "network": "10.0.0.0/24",
