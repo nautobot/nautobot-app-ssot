@@ -3,7 +3,12 @@
 # Skip colon check for multiple statements on one line.
 # flake8: noqa: E701
 
-from typing import Optional, Mapping, List, TypedDict
+try:
+    from typing_extensions import TypedDict  # Python<3.9
+except ImportError:
+    from typing import TypedDict  # Python>=3.9
+
+from typing import Optional, Mapping, List
 from django.contrib.contenttypes.models import ContentType
 from django.templatetags.static import static
 from django.urls import reverse
