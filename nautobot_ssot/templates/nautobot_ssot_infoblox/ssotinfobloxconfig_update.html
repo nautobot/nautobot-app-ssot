@@ -9,6 +9,7 @@
             {% render_field form.description %}
             {% render_field form.infoblox_instance %}
             {% render_field form.infoblox_wapi_version %}
+            {% render_field form.job_enabled %}
             {% render_field form.enable_sync_to_infoblox %}
             {% render_field form.import_ip_addresses %}
             {% render_field form.import_subnets %}
@@ -18,8 +19,9 @@
             {% render_field form.import_ipv6 %}
             {% render_field form.fixed_address_type %}
             {% render_field form.dns_record_type %}
+            {% render_field form.infoblox_deletable_models %}
+            {% render_field form.nautobot_deletable_models %}
             {% render_field form.default_status %}
-            {% render_field form.job_enabled %}
         </div>
     </div>
     <div class="panel panel-default">

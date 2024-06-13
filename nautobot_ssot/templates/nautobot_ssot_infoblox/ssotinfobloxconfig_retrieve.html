@@ -45,27 +45,31 @@
                 <td>{{ object.infoblox_wapi_version|placeholder }}</td>
             </tr>
             <tr>
+                <td>Can be used in Sync Job</td>
+                <td>{{ object.job_enabled }}</td>
+            </tr>
+            <tr>
                 <td>Enable Sync from Nautobot to Infoblox</td>
                 <td>{{ object.enable_sync_to_infoblox }}</td>
             </tr>
             <tr>
-                <td>Import IP Addresses from Infoblox</td>
+                <td>Import IP Addresses</td>
                 <td>{{ object.import_ip_addresses }}</td>
             </tr>
             <tr>
-                <td>Import VLANs from Infoblox</td>
+                <td>Import VLANs</td>
                 <td>{{ object.import_vlans }}</td>
             </tr>
             <tr>
-                <td>Import VLAN Views from Infoblox</td>
+                <td>Import VLAN Views</td>
                 <td>{{ object.import_vlan_views }}</td>
             </tr>
             <tr>
-                <td>Import IPv4 from Infoblox</td>
+                <td>Import IPv4</td>
                 <td>{{ object.import_ipv4 }}</td>
             </tr>
             <tr>
-                <td>Import IPv6 from Infoblox</td>
+                <td>Import IPv6</td>
                 <td>{{ object.import_ipv6 }}</td>
             </tr>
             <tr>
@@ -77,8 +81,12 @@
                 <td>{{ object.dns_record_type }}</td>
             </tr>
             <tr>
-                <td>Can be used in Sync Job</td>
-                <td>{{ object.job_enabled }}</td>
+                <td>Infoblox - deletable models</td>
+                <td>{{ object.infoblox_deletable_models }}</td>
+            </tr>
+            <tr>
+                <td>Nautobot - deletable models</td>
+                <td>{{ object.nautobot_deletable_models }}</td>
             </tr>
         </table>
     </div>

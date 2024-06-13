@@ -99,7 +99,10 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
     job_enabled = models.BooleanField(
         default=False,
         verbose_name="Enabled for Sync Job",
+        help_text="Enable use of this configuration in the sync jobs.",
     )
+    infoblox_deletable_models = models.JSONField(encoder=DjangoJSONEncoder, default=list, blank=True)
+    nautobot_deletable_models = models.JSONField(encoder=DjangoJSONEncoder, default=list, blank=True)
 
     class Meta:
         """Meta class for SSOTInfobloxConfig."""
