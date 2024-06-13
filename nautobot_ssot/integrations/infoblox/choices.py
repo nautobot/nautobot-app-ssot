@@ -42,3 +42,39 @@ class DNSRecordTypeChoices(ChoiceSet):
         (A_RECORD, "Create A record"),
         (A_AND_PTR_RECORD, "Create A and PTR records"),
     )
+
+
+class InfobloxDeletableModelChoices(ChoiceSet):
+    """Choiceset used by SSOTInfobloxConfig."""
+
+    DNS_A_RECORD = "dns-a-record"
+    DNS_HOST_RECORD = "dns-host-record"
+    DNS_PTR_RECORD = "dns-ptr-record"
+    FIXED_ADDRESS = "fixed-address"
+
+    CHOICES = (
+        (DNS_A_RECORD, "DNS A Record"),
+        (DNS_HOST_RECORD, "DNS Host Record"),
+        (DNS_PTR_RECORD, "DNS PTR Record"),
+        (FIXED_ADDRESS, "Fixed Address"),
+    )
+
+
+class NautobotDeletableModelChoices(ChoiceSet):
+    """Choiceset used by SSOTInfobloxConfig."""
+
+    DNS_A_RECORD = "dns-a-record"
+    DNS_HOST_RECORD = "dns-host-record"
+    DNS_PTR_RECORD = "dns-ptr-record"
+    IP_ADDRESS = "ip-address"
+    VLAN = "vlan"
+    VLAN_GROUP = "vlan-group"
+
+    CHOICES = (
+        (DNS_A_RECORD, "DNS A Record"),
+        (DNS_HOST_RECORD, "DNS Host Record"),
+        (DNS_PTR_RECORD, "DNS PTR Record"),
+        (IP_ADDRESS, "IP Address"),
+        (VLAN, "VLAN"),
+        (VLAN_GROUP, "VLAN Group"),
+    )
