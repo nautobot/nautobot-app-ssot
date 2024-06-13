@@ -98,7 +98,15 @@ def get_valid_custom_fields(cfs: dict, excluded_cfs: Optional[list] = None):
     """
     if excluded_cfs is None:
         excluded_cfs = []
-    default_excluded_cfs = ["dhcp_ranges", "fixed_address_comment", "mac_address", "ssot_synced_to_infoblox"]
+    default_excluded_cfs = [
+        "dhcp_ranges",
+        "dns_a_record_comment",
+        "dns_host_record_comment",
+        "dns_ptr_record_comment",
+        "fixed_address_comment",
+        "mac_address",
+        "ssot_synced_to_infoblox",
+    ]
     excluded_cfs.extend(default_excluded_cfs)
     valid_cfs = {}
     for cf_name, val in cfs.items():
@@ -122,7 +130,15 @@ def get_default_custom_fields(cf_contenttype: ContentType, excluded_cfs: Optiona
         excluded_cfs = []
     customfields = CustomField.objects.filter(content_types=cf_contenttype)
     # These cfs are always excluded
-    default_excluded_cfs = ["dhcp_ranges", "fixed_address_comment", "mac_address", "ssot_synced_to_infoblox"]
+    default_excluded_cfs = [
+        "dhcp_ranges",
+        "dns_a_record_comment",
+        "dns_host_record_comment",
+        "dns_ptr_record_comment",
+        "fixed_address_comment",
+        "mac_address",
+        "ssot_synced_to_infoblox",
+    ]
     # User defined excluded cfs
     excluded_cfs.extend(default_excluded_cfs)
     default_cfs = {}
