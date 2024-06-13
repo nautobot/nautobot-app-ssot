@@ -3,7 +3,7 @@
 # Skip colon check for multiple statements on one line.
 # flake8: noqa: E701
 
-from typing import Optional, Mapping, List
+from typing import Optional, Mapping, List, TypedDict
 from uuid import UUID
 from django.contrib.contenttypes.models import ContentType
 from django.templatetags.static import static
@@ -51,6 +51,13 @@ class LocationTypeModel(NautobotModel):
 
     # Not in _attributes or _identifiers, hence not included in diff calculations
     pk: Optional[UUID]
+
+
+class LocationDict(TypedDict):
+    """This typed dict is for M2M Locations."""
+
+    name: str
+    location_type__name: str
 
 
 class LocationModel(NautobotModel):
@@ -140,7 +147,7 @@ class PrefixModel(NautobotModel):
     _modelname = "prefix"
     _identifiers = ("network", "prefix_length", "tenant__name")
     # To keep this example simple, we don't include **all** attributes of a Prefix here. But you could!
-    _attributes = ("description", "namespace__name", "status__name")
+    _attributes = ("description", "namespace__name", "status__name", "locations")
 
     # Data type declarations for all identifiers and attributes
     network: str
@@ -149,6 +156,8 @@ class PrefixModel(NautobotModel):
     tenant__name: Optional[str]
     status__name: str
     description: str
+
+    locations: Optional[List[LocationDict]] = []
 
     # Not in _attributes or _identifiers, hence not included in diff calculations
     pk: Optional[UUID]
@@ -603,6 +612,10 @@ class NautobotRemote(DiffSync):
                 prefix_length=prefix_entry["prefix_length"],
                 namespace__name=prefix_entry["namespace"]["name"],
                 description=prefix_entry["description"],
+                locations=[
+                    {"name": x["name"], "location_type__name": x["location_type"]["name"]}
+                    for x in prefix_entry["locations"]
+                ],
                 status__name=prefix_entry["status"]["name"] if prefix_entry["status"].get("name") else "Active",
                 tenant__name=prefix_entry["tenant"]["name"] if prefix_entry["tenant"] else "",
                 pk=prefix_entry["id"],
