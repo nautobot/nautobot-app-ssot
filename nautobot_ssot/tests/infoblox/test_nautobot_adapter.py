@@ -7,6 +7,7 @@ from django.test import TestCase
 from nautobot.extras.models import RelationshipAssociation, Status
 from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix, VLANGroup
 
+from nautobot_ssot.integrations.infoblox.choices import DNSRecordTypeChoices
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import NautobotAdapter
 from nautobot_ssot.tests.infoblox.fixtures_infoblox import create_default_infoblox_config, create_prefix_relationship
 
@@ -310,5 +311,56 @@ class TestNautobotAdapter(TestCase):
                 ("10.0.1.1", "Global"),
                 ("10.0.1.2", "Global"),
                 ("2001:5b0:4100::1", "Global"),
+            },
+        )
+
+    def test_load_ipaddresses_load_host_records(self):
+        self.config.dns_record_type = DNSRecordTypeChoices.HOST_RECORD
+        nb_adapter = NautobotAdapter(config=self.config)
+        nb_adapter.job = mock.Mock()
+        sync_filters = [{"network_view": "default"}]
+        nb_adapter.load_ipaddresses(include_ipv4=True, include_ipv6=False, sync_filters=sync_filters)
+        actual_records = {
+            (hostr.address, hostr.namespace, hostr.dns_name) for hostr in nb_adapter.get_all("dnshostrecord")
+        }
+        self.assertEqual(
+            actual_records,
+            {
+                ("10.0.1.1", "Global", "server1.nautobot.test.com"),
+                ("10.0.1.2", "Global", "server2.nautobot.test.com"),
+            },
+        )
+
+    def test_load_ipaddresses_load_a_records(self):
+        self.config.dns_record_type = DNSRecordTypeChoices.A_RECORD
+        nb_adapter = NautobotAdapter(config=self.config)
+        nb_adapter.job = mock.Mock()
+        sync_filters = [{"network_view": "dev"}]
+        nb_adapter.load_ipaddresses(include_ipv4=True, include_ipv6=False, sync_filters=sync_filters)
+        actual_records = {
+            (hostr.address, hostr.namespace, hostr.dns_name) for hostr in nb_adapter.get_all("dnsarecord")
+        }
+        self.assertEqual(
+            actual_records,
+            {
+                ("10.0.1.1", "dev", "server10.nautobot.test.com"),
+                ("10.2.1.1", "dev", "server11.nautobot.test.com"),
+            },
+        )
+
+    def test_load_ipaddresses_load_ptr_records(self):
+        self.config.dns_record_type = DNSRecordTypeChoices.A_AND_PTR_RECORD
+        nb_adapter = NautobotAdapter(config=self.config)
+        nb_adapter.job = mock.Mock()
+        sync_filters = [{"network_view": "test"}]
+        nb_adapter.load_ipaddresses(include_ipv4=True, include_ipv6=False, sync_filters=sync_filters)
+        actual_records = {
+            (hostr.address, hostr.namespace, hostr.dns_name) for hostr in nb_adapter.get_all("dnsptrrecord")
+        }
+        self.assertEqual(
+            actual_records,
+            {
+                ("10.5.1.5", "test", "server21.nautobot.test.com"),
+                ("10.2.1.10", "test", "server20.nautobot.test.com"),
             },
         )
