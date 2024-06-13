@@ -36,7 +36,7 @@ DRY_RUN_LABEL = """
 MESSAGE_SPAN = """<span class="message">{% if record.message %}{{ record.message }}{% else %}—{% endif %}</span>"""
 
 
-class DashboardTable(BaseTable):  # pylint: disable=nb-sub-class-name
+class DashboardTable(BaseTable):
     """Abbreviated version of SyncTable, for use with the dashboard."""
 
     start_time = DateTimeColumn(linkify=True, short=True)
@@ -49,7 +49,7 @@ class DashboardTable(BaseTable):  # pylint: disable=nb-sub-class-name
         """Metaclass attributes of DashboardTable."""
 
         model = Sync
-        fields = ["source", "target", "start_time", "status", "dry_run"]  # pylint: disable=nb-use-fields-all
+        fields = ["source", "target", "start_time", "status", "dry_run"]
         order_by = ["-start_time"]
 
 
@@ -105,7 +105,7 @@ class SyncTable(BaseTable):
         """Metaclass attributes of SyncTable."""
 
         model = Sync
-        fields = (  # pylint: disable=nb-use-fields-all
+        fields = (
             "pk",
             "source",
             "target",
@@ -138,7 +138,7 @@ class SyncTable(BaseTable):
         order_by = ("-start_time",)
 
 
-class SyncTableSingleSourceOrTarget(SyncTable):  # pylint: disable=nb-no-model-found
+class SyncTableSingleSourceOrTarget(SyncTable):
     """Subclass of SyncTable with fewer default columns."""
 
     class Meta(SyncTable.Meta):
@@ -187,7 +187,7 @@ class SyncLogEntryTable(BaseTable):
         """Metaclass attributes of SyncLogEntryTable."""
 
         model = SyncLogEntry
-        fields = (  # pylint: disable=nb-use-fields-all
+        fields = (
             "pk",
             "timestamp",
             "sync",
