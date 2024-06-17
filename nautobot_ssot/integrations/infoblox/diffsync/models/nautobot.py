@@ -14,8 +14,8 @@ from nautobot.ipam.models import Prefix as OrmPrefix
 from nautobot.ipam.models import VLANGroup as OrmVlanGroup
 
 from nautobot_ssot.integrations.infoblox.choices import (
-    FixedAddressTypeChoices,
     DNSRecordTypeChoices,
+    FixedAddressTypeChoices,
     NautobotDeletableModelChoices,
 )
 from nautobot_ssot.integrations.infoblox.diffsync.models.base import (

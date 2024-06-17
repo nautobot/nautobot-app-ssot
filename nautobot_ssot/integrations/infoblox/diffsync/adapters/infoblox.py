@@ -10,8 +10,8 @@ from nautobot.extras.plugins.exceptions import PluginImproperlyConfigured
 
 from nautobot_ssot.integrations.infoblox.choices import FixedAddressTypeChoices
 from nautobot_ssot.integrations.infoblox.diffsync.models.infoblox import (
-    InfobloxDnsHostRecord,
     InfobloxDnsARecord,
+    InfobloxDnsHostRecord,
     InfobloxDnsPTRRecord,
     InfobloxIPAddress,
     InfobloxNamespace,
@@ -256,7 +256,7 @@ class InfobloxAdapter(DiffSync):
                 elif obj_type == "record:ptr":
                     new_ip.has_ptr_record = True
                     ptr_record_ref = ref
-                # We currently only support RESERVED and MAC_ADDRESS types for fixed address
+                # We currently only support RESERVED and MAC_ADDRESS types for fixed address objects.
                 elif obj_type == "fixedaddress":
                     if "RESERVATION" in _ip["types"]:
                         new_ip.fixed_address_type = "RESERVED"
@@ -288,7 +288,7 @@ class InfobloxAdapter(DiffSync):
             if new_ip.has_ptr_record:
                 self._load_dns_ptr_record_for_ip(ref=ptr_record_ref, ip_record=new_ip, namespace=namespace)
 
-            if new_ip.has_fixed_address or new_ip.has_a_record or new_ip.has_ptr_record:
+            if new_ip.has_fixed_address or new_ip.has_a_record or new_ip.has_host_record:
                 self.add(new_ip)
 
     def _load_dns_host_record_for_ip(self, ref: str, ip_record: object, namespace: str):

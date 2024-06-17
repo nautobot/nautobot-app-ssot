@@ -1007,9 +1007,6 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
     def create_a_record(self, fqdn, ip_address, comment: Optional[str] = None, network_view: Optional[str] = None):
         """Create an A record for a given FQDN.
 
-        Please note:  This API call with work only for host records that do not have an associated a record.
-        If an a record already exists, this will return a 400 error.
-
         Args:
             network_view (str): Name of the network view, e.g. 'dev'
 
@@ -1252,7 +1249,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         return json_response
 
     def get_authoritative_zone(self, network_view: Optional[str] = None):
-        """Get authoritative zones to check if FQDN exists.
+        """Get authoritative zones.
 
         Args:
             network_view (str): Name of the network view, e.g. 'dev'
@@ -1525,16 +1522,15 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         """Update a fixed ip address within Infoblox.
 
         Args:
-            ref (str): Reference to Host record
+            ref (str): Reference to fixed address record
 
         Returns:
             Dict: Dictionary of _ref and name
 
         Return Response:
         {
-
-            "_ref": "record:host/ZG5zLmhvc3QkLjEuY29tLmluZm9ibG94Lmhvc3Q:host.infoblox.com/default.test",
-            "name": "host.infoblox.com",
+            "_ref": "fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMjIwLjAuMy4wLi4:10.220.0.3/default",
+            "ipv4addr": "10.220.0.3"
         }
         """
         params = {}
@@ -1553,9 +1549,6 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
 
     def create_host_record(self, fqdn, ip_address, comment: Optional[str] = None, network_view: Optional[str] = None):
         """Create a host record for a given FQDN.
-
-        Please note:  This API call with work only for host records that do not have an associated a record.
-        If an a record already exists, this will return a 400 error.
 
         Args:
             network_view (str): Name of the network view, e.g. 'dev'
@@ -1593,8 +1586,6 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
     def update_host_record(self, ref, data):
         """Update a host record for a given FQDN.
 
-        Please note:  This API call should only be used for host records that do not have an associated A record.
-
         Args:
             ref (str): Reference to Host record
 
@@ -1623,7 +1614,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             return response.text
 
     def delete_host_record(self, ip_address, network_view: Optional[str] = None):
-        """Delete provided IP Address from Infoblox.
+        """Delete host record for provided IP Address from Infoblox.
 
         Args:
             network_view (str): Name of the network view, e.g. 'dev'
@@ -1971,10 +1962,10 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             logger.debug(data)
             response = self._request("PUT", path=ref, params=params, json=data)
         except HTTPError as err:
-            logger.error("Could not update PTR address: %s for ref %s", err.response.text, ref)
+            logger.error("Could not update DNS PTR record: %s for ref %s", err.response.text, ref)
             return None
         try:
-            logger.debug("Infoblox PTR Address updated: %s", response.json())
+            logger.debug("Infoblox DNS PTR record updated: %s", response.json())
             results = response.json()
             return results
         except json.decoder.JSONDecodeError:
@@ -2004,17 +1995,16 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             logger.debug(data)
             response = self._request("PUT", path=ref, params=params, json=data)
         except HTTPError as err:
-            logger.error("Could not update DNS address: %s for ref %s", err.response.text, ref)
+            logger.error("Could not update DNS A record: %s for ref %s", err.response.text, ref)
             return None
         try:
-            logger.debug("Infoblox DNS Address updated: %s", response.json())
+            logger.debug("Infoblox DNS A record updated: %s", response.json())
             results = response.json()
             return results
         except json.decoder.JSONDecodeError:
             logger.error(response.text)
             return response.text
 
-    # Perhaps make multiple searches, or go through types returned by the search
     def update_ipaddress(
         self,
         ip_address,
@@ -2037,8 +2027,6 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             "ipv4addr": "10.220.0.3"
         }
         """
-        # resources = self._find_matching_resources("search", search_string=ip_address, objtype="fixedaddress")
-        # resources.extend(self._find_matching_resources("search", search_string=ip_address, objtype="record:host"))
         resources = self._find_matching_resources("search", address=ip_address)
         if not resources:
             return None
@@ -2388,5 +2376,6 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         _network_view = self.get_network_view(network_view)
         if _network_view and "associated_dns_views" in _network_view[0]:
             return _network_view[0]["associated_dns_views"][0]
-        logger.debug(_network_view)
-        return None
+        # There is no easy way to recover if the network view is somehow missing associated dns views.
+        # This should only really happen if there's no network view for the provided name.
+        raise ValueError("Error retrieving the default DNS View for Network View {network_view}.")
