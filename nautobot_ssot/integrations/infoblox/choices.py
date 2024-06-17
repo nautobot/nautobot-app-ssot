@@ -45,7 +45,10 @@ class DNSRecordTypeChoices(ChoiceSet):
 
 
 class InfobloxDeletableModelChoices(ChoiceSet):
-    """Choiceset used by SSOTInfobloxConfig."""
+    """Choiceset used by SSOTInfobloxConfig.
+
+    These choices specify types of records that can be allowed to be deleted in Infoblox.
+    """
 
     DNS_A_RECORD = "dns-a-record"
     DNS_HOST_RECORD = "dns-host-record"
@@ -61,7 +64,10 @@ class InfobloxDeletableModelChoices(ChoiceSet):
 
 
 class NautobotDeletableModelChoices(ChoiceSet):
-    """Choiceset used by SSOTInfobloxConfig."""
+    """Choiceset used by SSOTInfobloxConfig.
+
+    These choices specify types of records that can be allowed to be deleted in Nautobot.
+    """
 
     DNS_A_RECORD = "dns-a-record"
     DNS_HOST_RECORD = "dns-host-record"

@@ -3,7 +3,6 @@
 import ipaddress
 
 from django.core.exceptions import ValidationError
-
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 
@@ -16,7 +15,12 @@ from nautobot.core.models.generics import PrimaryModel
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.models import SecretsGroupAssociation
 
-from nautobot_ssot.integrations.infoblox.choices import FixedAddressTypeChoices, DNSRecordTypeChoices
+from nautobot_ssot.integrations.infoblox.choices import (
+    DNSRecordTypeChoices,
+    FixedAddressTypeChoices,
+    InfobloxDeletableModelChoices,
+    NautobotDeletableModelChoices,
+)
 
 
 def _get_default_sync_filters():
@@ -57,6 +61,9 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
     enable_sync_to_infoblox = models.BooleanField(
         default=False, verbose_name="Sync to Infoblox", help_text="Enable syncing of data from Nautobot to Infoblox."
     )
+    enable_sync_to_nautobot = models.BooleanField(
+        default=True, verbose_name="Sync to Nautobot", help_text="Enable syncing of data from Infoblox to Nautobot."
+    )
     import_ip_addresses = models.BooleanField(
         default=False,
         verbose_name="Import IP Addresses",
@@ -88,21 +95,29 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         max_length=CHARFIELD_MAX_LENGTH,
         default=DNSRecordTypeChoices.HOST_RECORD,
         choices=DNSRecordTypeChoices,
+        verbose_name="DBS record type",
         help_text="Choose what type of Infoblox DNS record to create for IP Addresses.",
     )
     fixed_address_type = models.CharField(
         max_length=CHARFIELD_MAX_LENGTH,
         default=FixedAddressTypeChoices.DONT_CREATE_RECORD,
         choices=FixedAddressTypeChoices,
-        help_text="Choose what type of Infoblox fixed IP address record to create.",
+        help_text="Choose what type of Infoblox fixed IP Address record to create.",
     )
     job_enabled = models.BooleanField(
         default=False,
         verbose_name="Enabled for Sync Job",
         help_text="Enable use of this configuration in the sync jobs.",
     )
-    infoblox_deletable_models = models.JSONField(encoder=DjangoJSONEncoder, default=list, blank=True)
-    nautobot_deletable_models = models.JSONField(encoder=DjangoJSONEncoder, default=list, blank=True)
+    infoblox_deletable_models = models.JSONField(
+        encoder=DjangoJSONEncoder,
+        default=list,
+        blank=True,
+        help_text="Model types that can be deleted in Infoblox.",
+    )
+    nautobot_deletable_models = models.JSONField(
+        encoder=DjangoJSONEncoder, default=list, blank=True, help_text="Model types that can be deleted in Nautobot."
+    )
 
     class Meta:
         """Meta class for SSOTInfobloxConfig."""
@@ -265,6 +280,24 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
                     },
                 )
 
+    def _clean_deletable_model_types(self):
+        """Performs validation of infoblox_deletable_models and nautobot_deletable_models."""
+        for model in self.infoblox_deletable_models:
+            if model not in InfobloxDeletableModelChoices.values():
+                raise ValidationError(
+                    {
+                        "infoblox_deletable_models": f"Model `{model}` is not a valid choice.",
+                    },
+                )
+
+        for model in self.nautobot_deletable_models:
+            if model not in NautobotDeletableModelChoices.values():
+                raise ValidationError(
+                    {
+                        "nautobot_deletable_models": f"Model `{model}` is not a valid choice.",
+                    },
+                )
+
     def clean(self):
         """Clean method for SSOTInfobloxConfig."""
         super().clean()
@@ -274,3 +307,4 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         self._clean_import_ip()
         self._clean_infoblox_dns_view_mapping()
         self._clean_cf_fields_ignore()
+        self._clean_deletable_model_types()

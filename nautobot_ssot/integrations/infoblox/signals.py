@@ -207,6 +207,7 @@ def nautobot_database_ready_callback(
             infoblox_wapi_version=str(config.get("infoblox_wapi_version", "v2.12")),
             infoblox_instance=external_integration,
             enable_sync_to_infoblox=bool(config.get("infoblox_enable_sync_to_infoblox", False)),
+            enable_sync_to_nautobot=True,
             import_ip_addresses=bool(config.get("infoblox_import_objects_ip_addresses", False)),
             import_subnets=bool(config.get("infoblox_import_objects_subnets", False)),
             import_vlan_views=bool(config.get("infoblox_import_objects_vlan_views", False)),

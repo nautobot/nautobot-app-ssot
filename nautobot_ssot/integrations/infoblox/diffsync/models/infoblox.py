@@ -85,13 +85,8 @@ class InfobloxIPAddress(IPAddress):
     """Infoblox implementation of the VLAN Model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):  # pylint: disable=too-many-branches
-        """Creates IP Address Reservation. Additionally create DNS Host record or an A record.
-
-        Optionally creates a PTR record in addition to an A record.
-
-        DNS record creation requires the IP Address to have a DNS name
-        """
+    def create(cls, diffsync, ids, attrs):
+        """Creates Fixed Address record."""
         network_view = map_network_view_to_namespace(value=ids["namespace"], direction="ns_to_nv")
         ip_address = ids["address"]
         mac_address = attrs.get("mac_address")

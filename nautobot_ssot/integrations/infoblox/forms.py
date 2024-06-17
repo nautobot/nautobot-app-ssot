@@ -39,6 +39,7 @@ class SSOTInfobloxConfigForm(NautobotModelForm):  # pylint: disable=too-many-anc
     dns_record_type = forms.ChoiceField(
         choices=DNSRecordTypeChoices,
         required=True,
+        label="DNS record type",
         widget=StaticSelect2(),
     )
     infoblox_deletable_models = forms.MultipleChoiceField(
