@@ -49,6 +49,7 @@ class InfobloxDataSource(DataSource):
         display_field="SSOT Infoblox config",
         required=True,
         query_params={
+            "enable_sync_to_nautobot": True,
             "job_enabled": True,
         },
     )
@@ -98,6 +99,9 @@ class InfobloxDataSource(DataSource):
         self.debug = debug
         self.dryrun = dryrun
         self.config = kwargs.get("config")
+        if not self.config.enable_sync_to_nautobot:
+            self.logger.error("Can't run sync to Nautobot, provided config doesn't have it enabled...")
+            raise ValueError("Config not enabled for sync to Nautobot.")
         self.memory_profiling = memory_profiling
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
@@ -164,7 +168,7 @@ class InfobloxDataTarget(DataTarget):
         # Additional guard against launching sync to Infoblox with config that doesn't allow it
         if not self.config.enable_sync_to_infoblox:
             self.logger.error("Can't run sync to Infoblox, provided config doesn't have it enabled...")
-            return
+            raise ValueError("Config not enabled for sync to Infoblox.")
         self.memory_profiling = memory_profiling
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 

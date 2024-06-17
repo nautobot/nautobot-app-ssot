@@ -13,6 +13,7 @@ class SSOTInfobloxConfigTable(BaseTable):
     name = tables.LinkColumn()
     infoblox_url = tables.Column(accessor="infoblox_instance__remote_url")
     enable_sync_to_infoblox = BooleanColumn(orderable=False)
+    enable_sync_to_nautobot = BooleanColumn(orderable=False)
     import_subnets = BooleanColumn(orderable=False)
     import_ip_addresses = BooleanColumn(orderable=False)
     import_vlan_views = BooleanColumn(orderable=False)
