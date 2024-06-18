@@ -29,6 +29,10 @@ from django.utils.formats import date_format
 from django.utils.timezone import now
 
 from nautobot.core.models import BaseModel
+from nautobot.core.models.generics import PrimaryModel
+from nautobot.tenancy.models import Tenant
+from nautobot.ipam.models import IPAddress, Prefix, VLAN, VRF
+from nautobot.dcim.models import Interface
 from nautobot.extras.choices import JobResultStatusChoices
 from nautobot.extras.models import JobResult
 from nautobot.extras.utils import extras_features
@@ -205,9 +209,88 @@ class SyncLogEntry(BaseModel):  # pylint: disable=nb-string-field-blank-null
             SyncLogEntryStatusChoices.STATUS_ERROR: "danger",
         }.get(self.status)
 
+class AppProfile(PrimaryModel):
+    """
+    __model descr__
+    """
+    tenant = models.ForeignKey(Tenant, related_name='app_profiles', on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = "Application Profile"
+        verbose_name_plural = "Application Profiles"
+        ordering = ['name']
+        unique_together = ('tenant', 'name')
+
+class BridgeDomain(PrimaryModel):
+    """
+    __model descr__
+    """
+    vrf = models.ForeignKey(VRF, related_name='bridge_domains', on_delete=models.CASCADE)
+    tenant = models.ForeignKey(Tenant, related_name='bridge_domains', on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    ip_addresses = models.ManyToManyField(IPAddress, related_name='bridge_domains', blank=True)
+    #namespace=models.CharField(max_length=255, default="Global")
+    #vrf_tenant=models.CharField(max_length=255, default="common")
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = "Bridge Domain"
+        verbose_name_plural = "Bridge Domains"
+        ordering = ['name']
+        unique_together = ('vrf', 'name', 'tenant')
+
+class EPG(PrimaryModel):
+    """
+    __model descr__
+    """
+    name = models.CharField(max_length=255)
+    application = models.ForeignKey(AppProfile, related_name='epgs', on_delete=models.CASCADE)
+    tenant = models.ForeignKey(Tenant, related_name='epgs', on_delete=models.CASCADE)
+    bridge_domain = models.ForeignKey(BridgeDomain, related_name='epgs', on_delete=models.CASCADE)   
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = "EPG"
+        verbose_name_plural = "EPGs"
+        ordering = ['name']
+        unique_together = ('name', 'application', 'tenant')
+
+class EPGPath(PrimaryModel):
+    """
+    __model descr__
+    """
+    name = models.CharField(max_length=255, blank=True, null=True)
+    epg = models.ForeignKey(EPG, related_name='paths', on_delete=models.CASCADE)
+    interface = models.ForeignKey(Interface, related_name='paths', on_delete=models.CASCADE)
+    vlan = models.ForeignKey(VLAN, related_name='paths', on_delete=models.SET_NULL, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.interface.device.name}:{self.interface.name}:{self.vlan.vid}"
+
+    class Meta:
+        verbose_name = "EPG Path"
+        verbose_name_plural = "EPG Paths"
+        ordering = ['name']
+        unique_together = ('epg', 'interface', 'vlan')
 
 __all__ = (
     "SSOTServiceNowConfig",
     "Sync",
     "SyncLogEntry",
+    "AppProfile",
+    "BridgeDomain",
+    "EPG",
+    "EPGPath",
 )
