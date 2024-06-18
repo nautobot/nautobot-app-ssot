@@ -381,7 +381,6 @@ class AciApi:
     
     def get_bds_optimized(self, tenant: str = "all") -> dict:
         """Return Bridge Domains and Subnets from the Cisco APIC."""
-        # TODO: rewrite using one API call -> https://10.101.40.2/api/node/class/fvBD.json?query-target=subtree&target-subtree-class=fvBD,fvRsCtx,fvSubnet
         if tenant == "all":
             resp = self._get("/api/node/class/fvBD.json?query-target=subtree&target-subtree-class=fvBD,fvRsCtx,fvSubnet")
         else:
