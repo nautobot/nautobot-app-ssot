@@ -83,11 +83,13 @@ class AciAdapter(DiffSync):
         for _tenant in tenant_list:
             if not _tenant["name"] in PLUGIN_CFG.get("ignore_tenants"):
                 tenant_name = f"{self.tenant_prefix}:{_tenant['name']}"
+                _msite_tag = True if ":mso" in _tenant.get("annotation").lower() else False
                 new_tenant = self.tenant(
                     name=tenant_name,
                     description=_tenant["description"],
                     comments=PLUGIN_CFG.get("comments", ""),
                     site_tag=self.site,
+                    msite_tag=_msite_tag,
                 )
                 self.add(new_tenant)
 
@@ -218,7 +220,7 @@ class AciAdapter(DiffSync):
                         site=self.site,
                         vrf=bd_value["vrf"],
                         vrf_tenant=vrf_tenant,
-                        tenant=tenant_name,
+                        tenant=vrf_tenant or tenant_name,  # BUG fix
                     )
                     new_ipaddress = self.ip_address(
                         address=subnet[0],
@@ -227,8 +229,8 @@ class AciAdapter(DiffSync):
                         description=f"ACI Bridge Domain: {bd_key}",
                         device=None,
                         interface=None,
-                        tenant=tenant_name,
-                        namespace=tenant_name,
+                        tenant=vrf_tenant or tenant_name,  # BUGfix
+                        namespace=vrf_tenant or tenant_name,  # BUGfix
                         site=self.site,
                         site_tag=self.site,
                     )
@@ -241,7 +243,7 @@ class AciAdapter(DiffSync):
                         self.add(new_ipaddress)
                     else:
                         self.job.logger.warning(
-                            "Duplicate DiffSync IPAddress Object found and has not been loaded.",
+                            f"Duplicate DiffSync IPAddress Object found: {new_ipaddress.address} in Tenant {new_ipaddress.tenant} and has not been loaded.",
                         )
 
     def load_prefixes(self):
@@ -255,15 +257,15 @@ class AciAdapter(DiffSync):
                     vrf_tenant = f"{self.tenant_prefix}:{bd_value['vrf_tenant']}"
                 else:
                     vrf_tenant = None
-                if tenant_name not in PLUGIN_CFG.get("ignore_tenants"):
+                if bd_value.get("tenant") not in PLUGIN_CFG.get("ignore_tenants"):  # modified for bugfix
                     for subnet in bd_value["subnets"]:
                         new_prefix = self.prefix(
                             prefix=str(ip_network(subnet[0], strict=False)),
-                            namespace=tenant_name,
+                            namespace=vrf_tenant or tenant_name,  # BUGfix
                             status="Active",
                             site=self.site,
                             description=f"ACI Bridge Domain: {bd_key}",
-                            tenant=tenant_name,
+                            tenant=vrf_tenant or tenant_name,
                             vrf=bd_value["vrf"] if bd_value.get("vrf") != "" else None,
                             vrf_tenant=vrf_tenant,
                             site_tag=self.site,
@@ -282,7 +284,7 @@ class AciAdapter(DiffSync):
                                 self.add(new_prefix)
                             else:
                                 self.job.logger.warning(
-                                    "Duplicate DiffSync Prefix Object found and has not been loaded.",
+                                    f"Duplicate DiffSync Prefix Object found {new_prefix.prefix} in Namespace {new_prefix.namespace} and has not been loaded.",
                                 )
 
     def load_devicetypes(self):
