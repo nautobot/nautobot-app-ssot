@@ -1,6 +1,6 @@
 """Base Shared Models for Cisco ACI integration with SSoT app."""
 
-from typing import List, Optional
+from typing import List, Optional, Dict
 from diffsync import DiffSyncModel
 
 
@@ -180,4 +180,73 @@ class Interface(DiffSyncModel):
     gbic_model: Optional[str]
     state: Optional[str]
     type: str
+    site_tag: str
+
+class AppProfile(DiffSyncModel):
+    """App Profile model for DiffSync."""
+
+    _modelname = "appprofile"
+    _identifiers = (
+        "name",
+        "tenant",
+    )
+    _attributes = ("description", "site_tag")
+
+    name: str
+    tenant: str
+    description: Optional[str]
+    site_tag: str
+
+class BridgeDomain(DiffSyncModel):
+    """bridge domain model for DiffSync."""
+
+    _modelname = "bridgedomain"
+    _identifiers = (
+        "name",
+        "vrf",
+        "tenant",
+    )
+    _attributes = ("description", "ip_addresses", "site_tag")
+
+    name: str
+    vrf: Dict
+    description: Optional[str]
+    tenant: str
+    ip_addresses: List[str] = []
+    site_tag: str
+
+class EPG(DiffSyncModel):
+    """EPG model for DiffSync."""
+
+    _modelname = "epg"
+    _identifiers = (
+        "name",
+        "application",
+        "tenant",
+    )
+    _attributes = ("description", "bridge_domain", "site_tag")
+
+    name: str
+    application: str
+    tenant: str
+    bridge_domain: str
+    description: Optional[str]
+    site_tag: str
+
+class EPGPath(DiffSyncModel):
+    """EPG Path model for DiffSync."""
+
+    _modelname = "epgpath"
+    _identifiers = (
+        "epg",
+        "interface",
+        "vlan",
+    )
+    _attributes = ("name", "description", "site_tag")
+
+    name: Optional[str]
+    epg: Dict
+    interface: Dict
+    vlan: str
+    description: Optional[str]
     site_tag: str
