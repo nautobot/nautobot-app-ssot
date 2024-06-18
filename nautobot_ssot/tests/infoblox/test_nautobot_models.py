@@ -202,50 +202,50 @@ class TestModelNautobotIPAddress(TestCase):
         )
         self.infoblox_adapter.add(inf_ds_namespace)
 
-    mac_address_custom_field, _ = CustomField.objects.get_or_create(
-        type=CustomFieldTypeChoices.TYPE_TEXT,
-        key="mac_address",
-        defaults={
-            "label": "MAC Address",
-        },
-    )
-    mac_address_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
+        mac_address_custom_field, _ = CustomField.objects.get_or_create(
+            type=CustomFieldTypeChoices.TYPE_TEXT,
+            key="mac_address",
+            defaults={
+                "label": "MAC Address",
+            },
+        )
+        mac_address_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
 
-    fixed_address_comment_custom_field, _ = CustomField.objects.get_or_create(
-        type=CustomFieldTypeChoices.TYPE_TEXT,
-        key="fixed_address_comment",
-        defaults={
-            "label": "Fixed Address Comment",
-        },
-    )
-    fixed_address_comment_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
+        fixed_address_comment_custom_field, _ = CustomField.objects.get_or_create(
+            type=CustomFieldTypeChoices.TYPE_TEXT,
+            key="fixed_address_comment",
+            defaults={
+                "label": "Fixed Address Comment",
+            },
+        )
+        fixed_address_comment_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
 
-    dns_a_record_comment_custom_field, _ = CustomField.objects.get_or_create(
-        type=CustomFieldTypeChoices.TYPE_TEXT,
-        key="dns_a_record_comment",
-        defaults={
-            "label": "DNS A Record Comment",
-        },
-    )
-    dns_a_record_comment_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
+        dns_a_record_comment_custom_field, _ = CustomField.objects.get_or_create(
+            type=CustomFieldTypeChoices.TYPE_TEXT,
+            key="dns_a_record_comment",
+            defaults={
+                "label": "DNS A Record Comment",
+            },
+        )
+        dns_a_record_comment_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
 
-    dns_host_record_comment_custom_field, _ = CustomField.objects.get_or_create(
-        type=CustomFieldTypeChoices.TYPE_TEXT,
-        key="dns_host_record_comment",
-        defaults={
-            "label": "DNS Host Record Comment",
-        },
-    )
-    dns_host_record_comment_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
+        dns_host_record_comment_custom_field, _ = CustomField.objects.get_or_create(
+            type=CustomFieldTypeChoices.TYPE_TEXT,
+            key="dns_host_record_comment",
+            defaults={
+                "label": "DNS Host Record Comment",
+            },
+        )
+        dns_host_record_comment_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
 
-    dns_ptr_record_comment_custom_field, _ = CustomField.objects.get_or_create(
-        type=CustomFieldTypeChoices.TYPE_TEXT,
-        key="dns_ptr_record_comment",
-        defaults={
-            "label": "DNS PTR Record Comment",
-        },
-    )
-    dns_ptr_record_comment_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
+        dns_ptr_record_comment_custom_field, _ = CustomField.objects.get_or_create(
+            type=CustomFieldTypeChoices.TYPE_TEXT,
+            key="dns_ptr_record_comment",
+            defaults={
+                "label": "DNS PTR Record Comment",
+            },
+        )
+        dns_ptr_record_comment_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
 
     def test_ip_address_create_from_fixed_address_reserved(self):
         """Validate ip address gets created from Infoblox fixed address reservation."""
