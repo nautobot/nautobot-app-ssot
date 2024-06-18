@@ -185,6 +185,7 @@ class TestModelNautobotIPAddress(TestCase):
 
     def setUp(self):
         "Test class set up."
+        create_prefix_relationship()
         self.config = create_default_infoblox_config()
         self.config.infoblox_sync_filters = [{"network_view": "default"}, {"network_view": "dev"}]
         self.namespace_dev, _ = Namespace.objects.get_or_create(name="dev")
