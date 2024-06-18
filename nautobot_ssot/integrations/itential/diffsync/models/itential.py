@@ -1,6 +1,5 @@
 """Itential SSoT models."""
 
-
 from nautobot_ssot.integrations.itential.diffsync.models import base
 
 

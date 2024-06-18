@@ -1,6 +1,7 @@
 """Itential SSoT Base TestCase."""
 
 import os
+import unittest
 import requests_mock
 
 # from unittest import TestCase
@@ -13,7 +14,6 @@ from nautobot.extras.models import Status
 from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
 from nautobot_ssot.integrations.itential.diffsync.adapters import itential, nautobot
 from nautobot_ssot.tests.itential.fixtures import gateways, urls, clients, devices
-from nautobot_ssot.tests.itential.fixtures.logger import JobLogger
 
 
 class ItentialSSoTBaseTestCase(TestCase):
@@ -21,7 +21,7 @@ class ItentialSSoTBaseTestCase(TestCase):
 
     def setUp(self):
         """Setup test cases."""
-        self.job = JobLogger()
+        self.job = unittest.mock.MagicMock()
         self.requests_mock = requests_mock.Mocker()
         self.requests_mock.start()
 
@@ -93,7 +93,7 @@ class ItentialSSoTBaseTransactionTestCase(TransactionTestCase):
 
     def setUp(self):
         """Setup test cases."""
-        self.job = JobLogger()
+        self.job = unittest.mock.MagicMock()
         self.requests_mock = requests_mock.Mocker()
         self.requests_mock.start()
 

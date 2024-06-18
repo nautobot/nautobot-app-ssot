@@ -1,6 +1,5 @@
 """Itential SSoT adapters."""
 
-
 from diffsync import DiffSync
 
 from nautobot_ssot.integrations.itential.diffsync.models.itential import (

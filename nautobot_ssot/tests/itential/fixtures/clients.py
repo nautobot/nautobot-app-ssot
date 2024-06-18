@@ -1,14 +1,14 @@
 """Itential SSoT API Clients fixtures."""
 
-from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
+import unittest
 
-from nautobot_ssot.tests.itential.fixtures import logger
+from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 
 from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
 from nautobot_ssot.integrations.itential.clients import AutomationGatewayClient
 
 
-def api_client(device_obj: AutomationGatewayModel, job: object = logger.JobLogger()) -> AutomationGatewayClient:
+def api_client(device_obj: AutomationGatewayModel, job: object = unittest.mock.MagicMock()) -> AutomationGatewayClient:
     """Initialize API Client."""
 
     return AutomationGatewayClient(
