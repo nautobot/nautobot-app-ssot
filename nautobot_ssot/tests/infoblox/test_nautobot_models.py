@@ -15,8 +15,7 @@ from nautobot_ssot.integrations.infoblox.choices import (
 )
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import InfobloxAdapter
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import NautobotAdapter
-
-from .fixtures_infoblox import create_default_infoblox_config
+from nautobot_ssot.tests.infoblox.fixtures_infoblox import create_default_infoblox_config, create_prefix_relationship
 
 
 def _get_ip_address_dict(attrs):
@@ -108,6 +107,7 @@ class TestModelNautobotNetwork(TestCase):
 
     def setUp(self):
         "Test class set up."
+        create_prefix_relationship()
         self.config = create_default_infoblox_config()
         self.config.infoblox_sync_filters = [{"network_view": "default"}, {"network_view": "dev"}]
         self.namespace_dev, _ = Namespace.objects.get_or_create(name="dev")
