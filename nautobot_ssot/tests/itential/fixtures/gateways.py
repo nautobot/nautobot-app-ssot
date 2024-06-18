@@ -163,7 +163,7 @@ def update_or_create_automation_gateways(
 ):  # pylint: disable=too-many-arguments,too-many-locals
     """Fixture to populate Automation Gateways."""
     # Fetch the active status
-    status = Status.objects.get(name="Active")
+    status, _ = Status.objects.get_or_create(name="Active")
 
     # Create a region location type
     location_type, _ = LocationType.objects.update_or_create(name="Region")

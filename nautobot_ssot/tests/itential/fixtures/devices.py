@@ -91,7 +91,7 @@ def update_or_create_device_object(
     config_context: dict = {},
 ):  # pylint: disable=dangerous-default-value,too-many-arguments,too-many-locals
     """Create or update device fixtures."""
-    status = Status.objects.get(name=status)
+    status, _ = Status.objects.get_or_create(name=status)
     namespace, _ = Namespace.objects.get_or_create(name="Global")
     Prefix.objects.update_or_create(prefix="192.0.2.0/24", namespace=namespace, status=status)
     device_content_type = ContentType.objects.get_for_model(Device)
