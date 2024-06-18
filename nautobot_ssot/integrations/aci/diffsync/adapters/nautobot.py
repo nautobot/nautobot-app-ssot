@@ -13,6 +13,7 @@ from nautobot.dcim.models import DeviceType, Device, InterfaceTemplate, Interfac
 from nautobot.extras.models import Role
 from nautobot.ipam.models import IPAddress, Prefix, VRF
 from nautobot.extras.models import Tag
+from nautobot_ssot.models import AppProfile, BridgeDomain, EPG, EPGPath
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotTenant
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotVrf
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotDeviceType
@@ -22,6 +23,10 @@ from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterfaceTemp
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterface
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotIPAddress
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotPrefix
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotAppProfile
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotBridgeDomain
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotEPG
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotEPGPath
 from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
 
 logger = logging.getLogger(__name__)
@@ -41,6 +46,10 @@ class NautobotAdapter(DiffSync):
     interface = NautobotInterface
     ip_address = NautobotIPAddress
     prefix = NautobotPrefix
+    appprofile = NautobotAppProfile
+    bridgedomain = NautobotBridgeDomain
+    epg = NautobotEPG
+    epgpath = NautobotEPGPath
 
     top_level = [
         "tenant",
@@ -52,6 +61,10 @@ class NautobotAdapter(DiffSync):
         "interface",
         "prefix",
         "ip_address",
+        "appprofile",
+        "bridgedomain",
+        "epg",
+        "epgpath",
     ]
 
     def __init__(self, *args, job=None, sync=None, client, **kwargs):
@@ -84,6 +97,10 @@ class NautobotAdapter(DiffSync):
             "vrf",
             "tenant",
             "device",
+            "appprofile",
+            "bridgedomain",
+            "epg",
+            "epgpath", # TODO: check
         ):
             for nautobot_object in self.objects_to_delete[grouping]:
                 try:
@@ -242,6 +259,69 @@ class NautobotAdapter(DiffSync):
             )
             self.add(_prefix)
 
+    def load_appprofiles(self):
+        """Method to load VRFs from Nautobot."""
+        for nbap in AppProfile.objects.filter(tags=self.site_tag):
+            _ap = self.appprofile(
+                name=nbap.name,
+                tenant=nbap.tenant.name,
+                description=nbap.description if not None else "",
+                site_tag=self.site,
+            )
+            self.add(_ap)
+
+    def load_bridgedomains(self):
+        """Method to load BDs from Nautobot."""
+        for nbbd in BridgeDomain.objects.filter(tags=self.site_tag):
+            ip_addresses = [f"{ip.get('host')}/{ip.get('mask_length')}" for ip in list(nbbd.ip_addresses.values())]
+            _bd = self.bridgedomain(
+                name=nbbd.name,
+                vrf={
+                    "name":nbbd.vrf.name,
+                    "namespace": nbbd.vrf.namespace.name,
+                    "vrf_tenant": nbbd.vrf.tenant.name,
+                    },
+                ip_addresses=sorted(ip_addresses, key=hash),
+                tenant=nbbd.tenant.name,
+                description=nbbd.description if not None else "",
+                site_tag=self.site,
+            )
+            self.add(_bd)
+    
+    def load_epgs(self):
+        """Method to load EPGs from Nautobot."""
+        for nbepg in EPG.objects.filter(tags=self.site_tag):
+            _epg = self.epg(
+                name=nbepg.name,
+                tenant=nbepg.tenant.name,
+                application=nbepg.application.name,
+                bridge_domain=nbepg.bridge_domain.name,
+                description=nbepg.description if not None else "",
+                site_tag=self.site,
+            )
+            self.add(_epg)
+
+    def load_epgpaths(self):
+        """Method to load EPG paths from Nautobot."""
+        #for nbepgpath in EPGPath.objects.filter(tags=self.site_tag):
+        for nbepgpath in EPGPath.objects.all():
+            _epgpath = self.epgpath(
+                name=nbepgpath.name,
+                epg={
+                    "name": nbepgpath.epg.name,
+                    "tenant": nbepgpath.epg.tenant.name,
+                    "application": nbepgpath.epg.application.name,
+                    },
+                interface={
+                    "name": nbepgpath.interface.name,
+                    "device": nbepgpath.interface.device.name,
+                    },
+                vlan=nbepgpath.vlan.vid,
+                description=nbepgpath.description if not None else "",
+                site_tag=self.site,
+            )
+            self.add(_epgpath)
+
     def load(self):
         """Method to load models with data from Nautbot."""
         self.load_tenants()
@@ -252,3 +332,7 @@ class NautobotAdapter(DiffSync):
         self.load_interfaces()
         self.load_prefixes()
         self.load_ipaddresses()
+        self.load_appprofiles()
+        self.load_bridgedomains()
+        self.load_epgs()
+        self.load_epgpaths()
