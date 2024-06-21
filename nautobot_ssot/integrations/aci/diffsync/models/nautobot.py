@@ -13,10 +13,10 @@ from nautobot.ipam.models import IPAddress as OrmIPAddress
 from nautobot.ipam.models import Namespace, IPAddressToInterface, VLAN
 from nautobot.ipam.models import Prefix as OrmPrefix
 from nautobot.ipam.models import VRF as OrmVrf
-from nautobot_ssot.models import AppProfile as OrmAppProfile
-from nautobot_ssot.models import BridgeDomain as OrmBridgeDomain
-from nautobot_ssot.models import EPG as OrmEPG
-from nautobot_ssot.models import EPGPath as OrmEPGPath
+from nautobot_ssot.models import ACIAppProfile as OrmACIAppProfile
+from nautobot_ssot.models import ACIBridgeDomain as OrmACIBridgeDomain
+from nautobot_ssot.models import ACIEPG as OrmACIEPG
+from nautobot_ssot.models import ACIAppTermination as OrmACIAppTermination
 from nautobot.dcim.models import Manufacturer
 from nautobot.extras.models import Role, Status, Tag
 from nautobot_ssot.integrations.aci.diffsync.models.base import (
@@ -29,10 +29,10 @@ from nautobot_ssot.integrations.aci.diffsync.models.base import (
     Interface,
     IPAddress,
     Prefix,
-    AppProfile,
-    BridgeDomain,
-    EPG,
-    EPGPath,
+    ACIAppProfile,
+    ACIBridgeDomain,
+    ACIEPG,
+    ACIAppTermination,
 )
 from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
 
@@ -360,18 +360,27 @@ class NautobotIPAddress(IPAddress):
             except OrmInterface.DoesNotExist:
                 diffsync.job.logger.warning(f"{_device} missing interface {_interface} to assign {ids['address']}")
         if ids["tenant"]:
-            tenant_name = OrmTenant.objects.get(name=ids["tenant"])
+            _tenant = OrmTenant.objects.get(name=ids["tenant"])
         else:
-            tenant_name = None
+            _tenant = None
+        # BUGfix here
+        try:            
+            _namespace = Namespace.objects.get(name=ids["namespace"])
+            _parent = OrmPrefix.objects.get(prefix=attrs["prefix"], namespace=_namespace)
+        except Namespace.DoesNotExist:
+            diffsync.job.logger.warning(f"{ids['namespace']} missing Namespace to assign IP address: {ids['address']}")
+            return
+        except OrmPrefix.DoesNotExist:
+            diffsync.job.logger.warning(f"{attrs['prefix']} missing Parent Prefix to assign IP address: {ids['address']}")
+            return
 
-        namespace = Namespace.objects.get(name=ids["namespace"])
         _ipaddress = OrmIPAddress.objects.create(
             address=ids["address"],
             status=Status.objects.get(name=attrs["status"]),
             description=attrs["description"],
-            namespace=namespace,
-            parent=OrmPrefix.objects.get(prefix=attrs["prefix"], namespace=namespace),
-            tenant=tenant_name,
+            namespace=_namespace,
+            parent=_parent,
+            tenant=_tenant,
         )
         if intf:
             mapping = IPAddressToInterface.objects.create(ip_address=_ipaddress, interface=intf)
@@ -428,7 +437,7 @@ class NautobotPrefix(Prefix):
         try:
             vrf_tenant = OrmTenant.objects.get(name=attrs["vrf_tenant"])
         except OrmTenant.DoesNotExist:
-            diffsync.job.logger.warning(f"Tenant {attrs['vrf_tenant']} not found for VRF") # modified to avoid Key Error
+            diffsync.job.logger.warning(f"Tenant {attrs['vrf_tenant']} not found for VRF while creating Prefix: {ids['prefix']}") # modified to avoid Key Error
             vrf_tenant = None
 
         if ids["vrf"] and vrf_tenant:
@@ -440,8 +449,8 @@ class NautobotPrefix(Prefix):
         else:
             vrf = None
 
-        logger.info(msg=f"Processing Prefix {ids['prefix']} in Namespace: {attrs['namespace']}")
-        _prefix, created = OrmPrefix.objects.get_or_create( #fixing adding error correction
+        # diffsync.job.logger.info(msg=f"Processing Prefix {ids['prefix']} in Namespace: {attrs['namespace']}, Tenant: {attrs['vrf_tenant']}")
+        _prefix, created = OrmPrefix.objects.get_or_create( # fixing adding error correction
             prefix=ids["prefix"],
             status=Status.objects.get(name=attrs["status"]),
             description=attrs["description"],
@@ -494,33 +503,36 @@ class NautobotPrefix(Prefix):
         _prefix = OrmPrefix.objects.get(
             prefix=self.prefix,
             tenant=tenant,
-            vrf=OrmVrf.objects.get(name=self.vrf, tenant=vrf_tenant),
+            vrfs=OrmVrf.objects.get(name=self.vrf, tenant=vrf_tenant), #fixed bug here
         )
         self.diffsync.objects_to_delete["prefix"].append(_prefix)  # pylint: disable=protected-access
         return self
 
-class NautobotAppProfile(AppProfile):
+class NautobotACIAppProfile(ACIAppProfile):
     """Nautobot implementation of the AppProfile Model."""
 
     @classmethod
     def create(cls, diffsync, ids, attrs):
         """Create AP object in Nautobot."""
         _tenant = OrmTenant.objects.get(name=ids["tenant"])
-        _appprofile = OrmAppProfile(name=ids["name"], tenant=_tenant, description=attrs["description"])
+        _appprofile = OrmACIAppProfile(name=ids["name"], tenant=_tenant, description=attrs["description"])
         _appprofile.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _appprofile.tags.add(Tag.objects.get(name=attrs["site_tag"]))
+        if diffsync.job.debug:
+            diffsync.job.logger.debug(f"App Profile Created for tenant: {_tenant}")
         _appprofile.validated_save()
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
     def update(self, attrs):
         """Update AP object in Nautobot."""
         _tenant = OrmTenant.objects.get(name=self.tenant)
-        _appprofile = OrmAppProfile.objects.get(name=self.name, tenant=_tenant)
+        _appprofile = OrmACIAppProfile.objects.get(name=self.name, tenant=_tenant)
         if attrs.get("description"):
             _appprofile.description = attrs["description"]
-            self.diffsync.job.logger.info(f"App Profile Update tenant: {_tenant} app profile: {_appprofile} desc: {_appprofile.description}")
+           # self.diffsync.job.logger.info(f"App Profile Update tenant: {_tenant} app profile: {_appprofile} desc: {_appprofile.description}")
         _appprofile.validated_save()
-        self.diffsync.job.logger.info(f"App Profile updated for tenant: {_tenant}")
+        if diffsync.job.debug:
+            self.diffsync.job.logger.debug(f"App Profile updated for tenant: {_tenant}")
         return super().update(attrs)
 
     def delete(self):
@@ -528,11 +540,11 @@ class NautobotAppProfile(AppProfile):
         self.diffsync.job.logger.warning(f"App Profile {self.name} will be deleted.")
         super().delete()
         _tenant = OrmTenant.objects.get(name=self.tenant)
-        _appprofile = OrmAppProfile.objects.get(name=self.name, tenant=_tenant)
+        _appprofile = OrmACIAppProfile.objects.get(name=self.name, tenant=_tenant)
         self.diffsync.objects_to_delete["appprofile"].append(_appprofile)  # pylint: disable=protected-access
         return self
 
-class NautobotBridgeDomain(BridgeDomain):
+class NautobotACIBridgeDomain(ACIBridgeDomain):
     """Nautobot implementation of the VRF Model."""
 
     @classmethod
@@ -541,67 +553,66 @@ class NautobotBridgeDomain(BridgeDomain):
         try:
             _tenant = OrmTenant.objects.get(name=ids["tenant"])
             _namespace = Namespace.objects.get(name=ids["vrf"]["namespace"])
-            if ids["tenant"] == ids["vrf"]["vrf_tenant"]: #most frequent case, saving one DB query
+            if ids["tenant"] == ids["vrf"]["vrf_tenant"]: # most frequent case, saving one DB query
                 _vrf_tenant = _tenant
             else:
                 _vrf_tenant = OrmTenant.objects.get(name=ids["vrf"]["vrf_tenant"])
             _vrf = OrmVrf.objects.get(name=ids["vrf"]["name"], tenant=_vrf_tenant, namespace=_namespace)
         except OrmTenant.DoesNotExist:
-            logger.warning(msg=f"Cannot create BD: {ids['name']} - Tenant: {ids['vrf']['tenant']} does not exist.")
+            diffsync.job.logger.warning(msg=f"Cannot create BD: {ids['name']} - Tenant: {ids['vrf']['tenant']} does not exist.")
             return
         except OrmVrf.DoesNotExist:
-            logger.warning(msg=f"Cannot create BD: {ids['name']} - VRF: {ids['vrf']['name']} does not exist.")
+            diffsync.job.logger.warning(msg=f"Cannot create BD: {ids['name']} - VRF: {ids['vrf']['name']} does not exist.")
             return
         except Namespace.DoesNotExist:
-            logger.warning(msg=f"Cannot create BD: {ids['name']} - Namespace: {ids['vrf']['namespace']} does not exist.")
+            diffsync.job.logger.warning(msg=f"Cannot create BD: {ids['name']} - Namespace: {ids['vrf']['namespace']} does not exist.")
             return
-        #ip_addresses = prefixes = []
-        #for ip_address in attrs["ip_addresses"]:
-        #    net_obj = ip_network(ip_address, strict=False) 
-        #    ip_obj = ip_address.split('/')[0]
-        #    try:
-        #        _prefix = OrmPrefix.objects.get(network=str(net_obj.network_address), namespace=_namespace, tenant=_tenant)
-        #        _ip_address = OrmIPAddress.objects.get(host=ip_obj, mask_length=net_obj.prefixlen, parent=_prefix)
-        #    except OrmPrefix.DoesNotExist:
-        #        logger.warning(msg=f"Cannot attach Gateway: {ip_address} - to BD: {ids['name']} Prefix does not exist.")
-        #        continue
-        #    except OrmIPAddress.DoesNotExist:
-        #        logger.warning(msg=f"Cannot attach Gateway: {ip_address} - to BD: {ids['name']} IP Address does not exist.")
-        #        continue
-        #    prefixes.append(_prefix.id)
-        #    ip_addresses.append(_ip_address.id)           
-        # get subnets and ip addressess, pending
-        logger.info(msg=f"Creating Bridge Domain: {ids['name']} in VRF: {ids['vrf']['name']}")
-        _bd = OrmBridgeDomain(
+        _bd = OrmACIBridgeDomain(
             name=ids["name"],
             tenant=_tenant,
             vrf=_vrf,
             description=attrs["description"],
             )
-        #if prefixes:
-        #    _bd.prefixes.set(prefixes)
-        #if ip_addresses:
-        #    _bd.ip_addresses.set(ip_addresses)
+        if diffsync.job.debug:
+            diffsync.job.logger.debug(msg=f"Creating Bridge Domain: {ids['name']} in Tenant {ids['tenant']} VRF: {ids['vrf']['name']}")
+        # saving to attach M2M relationships
+        _bd.validated_save()
+        # get subnets and ip addressess and attach GWs
+        for ip_address in attrs["ip_addresses"]:
+            net_obj = ip_network(ip_address, strict=False) 
+            ip_obj = ip_address.split('/')[0]
+            try:
+                _ip_address = OrmIPAddress.objects.get(
+                    tenant=_tenant,
+                    host=ip_obj,
+                    mask_length=net_obj.prefixlen,
+                    parent__namespace=_namespace,
+                    )
+            except OrmIPAddress.DoesNotExist:
+                diffsync.job.logger.warning(msg=f"Cannot attach Gateway: {ip_address} - to BD: {ids['name']} IP Address does not exist.")
+                continue
+            _bd.ip_addresses.add(_ip_address)
+
         _bd.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _bd.tags.add(Tag.objects.get(name=attrs["site_tag"]))
-        _bd.validated_save()
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
     def update(self, attrs):
         """Update BD object in Nautobot."""
         try:
            _vrf = OrmVrf.objects.get(name=self.vrf["name"], tenant__name=self.vrf["vrf_tenant"], namespace__name=self.vrf["namespace"])
-           _bd = OrmBridgeDomain.objects.get(name=self.name, vrf=_vrf, tenant__name=self.tenant)
+           _bd = OrmACIBridgeDomain.objects.get(name=self.name, vrf=_vrf, tenant__name=self.tenant)
         except OrmVrf.DoesNotExist:
-            logger.warning(msg=f"Cannot update BD: {self.name} - VRF: {self.vrf['name']} does not exist.")
+            self.diffsync.job.logger.warning(msg=f"Cannot update BD: {self.name} - VRF: {self.vrf['name']} does not exist.")
             return
-        except OrmBridgeDomain.DoesNotExist:
-            logger.warning(msg=f"Cannot update BD: {self.name} - BD does not exist.")
+        except OrmACIBridgeDomain.DoesNotExist:
+            self.diffsync.job.logger.warning(msg=f"Cannot update BD: {self.name} - BD does not exist.")
             return
         if attrs.get("description"):
             _bd.description = attrs["description"]
         if attrs.get("ip_addresses"):
-            ip_addresses = prefixes = []
+            # validate ip address list and update if needed.
+            _ip_addresses = []
             for ip_address in attrs["ip_addresses"]:
                 net_obj = ip_network(ip_address, strict=False) 
                 ip_obj = ip_address.split('/')[0]
@@ -612,42 +623,57 @@ class NautobotBridgeDomain(BridgeDomain):
                         tenant=_vrf.tenant,
                         )
                 except OrmIPAddress.DoesNotExist:
-                    logger.warning(msg=f"Cannot attach Gateway: {ip_address} - to BD: {self.name} IP Address does not exist.")
+                    self.diffsync.job.logger.warning(msg=f"Cannot attach Gateway: {ip_address} - to BD: {self.name} IP Address does not exist.")
                     continue
-                ip_addresses.append(_ip_address.id)
-        if attrs.get("ip_addresses"):
-            _bd.ip_addresses.set(ip_addresses)
+                _ip_addresses.append(_ip_address.id)
+            _bd.ip_addresses.set(_ip_addresses)
+        else:
+            # clean ip address rel list if empty.
+            _bd.ip_addresses.set([])
         _bd.validated_save()
-        self.diffsync.job.logger.info(f"BD {_bd.name} updated in VRF: {_vrf.name}")
+        if self.diffsync.job.debug:
+            self.diffsync.job.logger.debug(f"BD {_bd.name} updated in VRF: {_vrf.name}")
         return super().update(attrs)
 
     def delete(self):
         """Delete BD object in Nautobot."""
-        # TODO: write CRUD fx
-        ...
+        self.diffsync.job.logger.warning(f"BD {self.name} will be deleted.")
+        super().delete()
+        _vrf = OrmVrf.objects.get(
+            name=self.vrf["name"],
+            tenant__name=self.vrf["vrf_tenant"],
+            namespace__name=self.vrf["namespace"],
+            )
+        _bd = OrmACIBridgeDomain.objects.get(name=self.name, vrf=_vrf, tenant__name=self.tenant)
+        self.diffsync.objects_to_delete["bridgedomain"].append(_bd)  # pylint: disable=protected-access
+        return self
 
-class NautobotEPG(EPG):
+class NautobotACIEPG(ACIEPG):
     """Nautobot implementation of the EPG Model."""
 
     @classmethod
     def create(cls, diffsync, ids, attrs):
         """Create BD object in Nautobot."""
         try:
-           _tenant = OrmTenant.objects.get(name=ids["tenant"])
-           _appprofile = OrmAppProfile.objects.get(name=ids["application"], tenant=_tenant)          
-           _bd = OrmBridgeDomain.objects.get(name=attrs["bridge_domain"], tenant=_tenant)
-        except OrmAppProfile.DoesNotExist:
-            logger.warning(msg=f"Cannot create EPG: {ids['name']} - App Profile: {ids['application']} does not exist in Tenant {ids['tenant']}.")
+            _tenant = OrmTenant.objects.get(name=ids["tenant"])
+            _appprofile = OrmACIAppProfile.objects.get(name=ids["application"], tenant=_tenant)
+            if attrs["bridge_domain"] != 'default':  # temporal solution to bd leaking
+                _bd = OrmACIBridgeDomain.objects.get(name=attrs["bridge_domain"], tenant=_tenant)
+            else:
+                _bd_tenant = f"{ids['tenant'].split(':')[0]}:common"
+                _bd = OrmACIBridgeDomain.objects.get(name='default', tenant__name=_bd_tenant)           
+        except OrmACIAppProfile.DoesNotExist:
+            diffsync.job.logger.warning(msg=f"Cannot create EPG: {ids['name']} - App Profile: {ids['application']} does not exist in Tenant {ids['tenant']}.")
             return
-        except OrmBridgeDomain.DoesNotExist:
-            logger.warning(msg=f"Cannot create EPG: {ids['name']} - BD: {attrs['bridge_domain']} does not exist in Tenant {ids['tenant']}.")
+        except OrmACIBridgeDomain.DoesNotExist:
+            diffsync.job.logger.warning(msg=f"Cannot create EPG: {ids['name']} - BD: {attrs['bridge_domain']} does not exist in Tenant {ids['tenant']}.")
             return
         except OrmTenant.DoesNotExist:
-            logger.warning(msg=f"Cannot create EPG: {ids['name']} - Tenant: {ids['tenant']} does not exist.")
+            diffsync.job.logger.warning(msg=f"Cannot create EPG: {ids['name']} - Tenant: {ids['tenant']} does not exist.")
             return
-
-        logger.info(msg=f"Creating EPG: {ids['name']} in APP Profile: {ids['application']}")
-        _epg = OrmEPG(
+        if diffsync.job.debug:
+            diffsync.job.logger.debug(msg=f"Creating EPG: {ids['name']} in APP Profile: {ids['application']}")
+        _epg = OrmACIEPG(
             name=ids["name"],
             tenant=_tenant,
             application=_appprofile,
@@ -660,23 +686,51 @@ class NautobotEPG(EPG):
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
     def update(self, attrs):
-        """Update BD object in Nautobot."""
-        # TODO: write CRUD fx
-        ...
+        """Update EPG object in Nautobot."""
+        try:
+           _tenant = OrmTenant.objects.get(name=self.tenant)
+           _appprofile = OrmACIAppProfile.objects.get(name=self.application, tenant=_tenant)          
+           _epg = OrmACIEPG.objects.get(name=self.name, tenant=_tenant, application=_appprofile)
+        except OrmTenant.DoesNotExist:
+            self.diffsync.job.logger.warning(msg=f"Cannot Update EPG: {self.name} - Tenant: {self.tenant} does not exist.")
+            return
+        except OrmACIAppProfile.DoesNotExist:
+            self.diffsync.job.logger.warning(msg=f"Cannot Update EPG: {self.name} - App Profile: {ids['application']} does not exist in Tenant {self.tenant}.")
+            return
+        if attrs.get("description"):
+            _epg.description = attrs["description"]
+        if attrs.get("bridge_domain"):
+            try:
+                _bd = OrmACIBridgeDomain.objects.get(name=attrs["bridge_domain"], tenant=_tenant)
+            except OrmACIBridgeDomain.DoesNotExist:
+                logger.warning(msg=f"Cannot Update EPG: {self.name} - BD: {attrs['bridge_domain']} does not exist in Tenant {self.tenant}.")
+                return
+            _epg.bridge_domain = _bd
+        _epg.validated_save()
+        if self.diffsync.job.debug:
+            self.diffsync.job.logger.debug(f"EPG {self.name} updated in Tenant: {self.tenant}")
+        return super().update(attrs)
 
     def delete(self):
-        """Delete BD object in Nautobot."""
-        # TODO: write CRUD fx
-        ...
+        """Delete EPG object in Nautobot."""
+        self.diffsync.job.logger.warning(f"EPG {self.name} will be deleted.")
+        super().delete()
+        _epg = OrmACIEPG.objects.get(
+            name=self.name,
+            application__name=self.application,
+            tenant__name=self.tenant,
+            )
+        self.diffsync.objects_to_delete["epg"].append(_epg)  # pylint: disable=protected-access
+        return self
 
-class NautobotEPGPath(EPGPath):
-    """Nautobot implementation of the EPG Model."""
+class NautobotACIAppTermination(ACIAppTermination):
+    """Nautobot implementation of the EPG Path Model."""
 
     @classmethod
     def create(cls, diffsync, ids, attrs):
         """Create EPG Path object in Nautobot."""
         try:
-            _epg = OrmEPG.objects.get(
+            _epg = OrmACIEPG.objects.get(
                 name=ids["epg"]["name"],
                 application__name=ids["epg"]["application"],
                 tenant__name=ids["epg"]["tenant"],
@@ -685,32 +739,32 @@ class NautobotEPGPath(EPGPath):
                 name=ids["interface"]["name"],
                 device__name=ids["interface"]["device"],
                 )
-        except OrmEPG.DoesNotExist:
-            logger.warning(msg=f"Cannot create Path: {_interface.device.name}:{_interface.name}:{ids['vlan']}. EPG {ids['epg']['name']} does not exist.")
+        except OrmACIEPG.DoesNotExist:
+            diffsync.job.logger.warning(msg=f"Cannot create Path: {_interface.device.name}:{_interface.name}:{ids['vlan']}. EPG {ids['epg']['name']} does not exist.")
             return
         except OrmInterface.DoesNotExist:
-            logger.warning(msg=f"Cannot create Path: {_interface.device.name}:{_interface.name}:{ids['vlan']}. Interface does not exist.")
+            diffsync.job.logger.warning(msg=f"Cannot create Path: {_interface.device.name}:{_interface.name}:{ids['vlan']}. Interface does not exist.")
             return
 
         _vlan_id = ids["vlan"]
         _description = attrs["description"]
         _site_tag = attrs["site_tag"]
-        _vlan_name = f"{_site_tag}_{_epg.application.name}_{_epg.name}_{_vlan_id}"
+        _vlan_name = f"{_epg.application.name}_{_epg.name}_{_vlan_id}"
         _vlan, _created = VLAN.objects.get_or_create(
             vid=_vlan_id,
-            location__name=_site_tag,
+            location=Location.objects.get(name=_site_tag),
             name=_vlan_name,
-            status=Status.objects.get(name="Active")
+            status=Status.objects.get(name="Active"),
             )
         if _created:
             _vlan.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
             _vlan.tags.add(Tag.objects.get(name=_site_tag))
             _vlan.validated_save()
-            logger.info(msg=f"Created VLAN: {_vlan_id} for EPG Path: {_interface.device.name}:{_interface.name}:{_vlan_id}")
+            diffsync.job.logger.info(msg=f"Created VLAN: {_vlan_id} for EPG Path: {_interface.device.name}:{_interface.name}:{_vlan_id}")
         _path_name=f"{_interface.device.name}:{_interface.name}:{_vlan_id}"
         # Find exceptions here
 
-        _epgpath = OrmEPGPath(
+        _epgpath = OrmACIAppTermination(
             name=_path_name,
             epg=_epg,
             interface=_interface,
@@ -719,20 +773,67 @@ class NautobotEPGPath(EPGPath):
             )
         _epgpath.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _epgpath.tags.add(Tag.objects.get(name=_site_tag))
+        if diffsync.job.debug:
+            diffsync.job.logger.debug(msg=f"Created EPG Path: {_interface.device.name}:{_interface.name}:{_vlan_id}")
         _epgpath.validated_save()
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
     def update(self, attrs):
-        """Update BD object in Nautobot."""
-        # TODO: write CRUD fx
-        ...
+        """Update EPGPath object in Nautobot."""
+        try:
+            _epg = OrmACIEPG.objects.get(
+                name=ids["epg"]["name"],
+                application__name=ids["epg"]["application"],
+                tenant__name=ids["epg"]["tenant"],
+                )
+            _interface = OrmInterface.objects.get(
+                name=ids["interface"]["name"],
+                device__name=ids["interface"]["device"],
+                )
+            _vlan = VLAN.objects.get_or_create(
+                vid=ids["vlan"],
+                location__name=attrs["site_tag"],
+                name=f"{_site_tag}_{_epg.application.name}_{_epg.name}_{_vlan_id}",
+                status=Status.objects.get(name="Active"),
+                )
+        except OrmACIEPG.DoesNotExist:
+            self.diffsync.job.logger.warning(msg=f"Cannot Update Path: {_interface.device.name}:{_interface.name}:{ids['vlan']}. EPG {ids['epg']['name']} does not exist.")
+            return
+        except OrmInterface.DoesNotExist:
+            self.diffsync.job.logger.warning(msg=f"Cannot Update Path: {_interface.device.name}:{_interface.name}:{ids['vlan']}. Interface does not exist.")
+            return
+        except VLAN.DoesNotExist:
+            self.diffsync.job.logger.warning(msg=f"Cannot Update Path: {_interface.device.name}:{_interface.name}:{ids['vlan']}. VLAN {ids['vlan']} does not exist.")
+            return
+
+        _epgpath = OrmACIAppTermination.objects.get(
+            name=ids["name"],
+            epg=_epg,
+            interface=_interface,
+            vlan=_vlan,
+            )
+
+        if attrs["description"]:
+            _epgpath.description = attrs["description"]
+
+        _epgpath.validated_save()
+        if self.diffsync.job.debug:     
+            self.diffsync.job.logger.debug(f"EPG Path: {ids['name']} Updated.")
+        return super().update(attrs)
 
     def delete(self):
-        """Delete BD object in Nautobot."""
-        # TODO: write CRUD fx
-        ...
+        """Delete EPGPath object in Nautobot."""
+        self.diffsync.job.logger.warning(f"EPG Termination {self.name} will be deleted.")
+        super().delete()
+        _epgpath = OrmACIAppTermination.objects.get(
+            name=self.name,
+            epg__name=self.epg["name"],
+            interface__name=self.interface["name"],
+            vlan__vid=self.vlan,
+            )
+        self.diffsync.objects_to_delete["epgpath"].append(_epgpath)  # pylint: disable=protected-access
+        return self
 
 
 NautobotDevice.update_forward_refs()
 NautobotDeviceType.update_forward_refs()
-NautobotBridgeDomain.update_forward_refs()
