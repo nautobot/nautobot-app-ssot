@@ -182,10 +182,10 @@ class Interface(DiffSyncModel):
     type: str
     site_tag: str
 
-class AppProfile(DiffSyncModel):
+class ACIAppProfile(DiffSyncModel):
     """App Profile model for DiffSync."""
 
-    _modelname = "appprofile"
+    _modelname = "aci_appprofile"
     _identifiers = (
         "name",
         "tenant",
@@ -197,17 +197,17 @@ class AppProfile(DiffSyncModel):
     description: Optional[str]
     site_tag: str
 
-class BridgeDomain(DiffSyncModel):
+class ACIBridgeDomain(DiffSyncModel):
     """bridge domain model for DiffSync."""
 
-    _modelname = "bridgedomain"
+    _modelname = "aci_bridgedomain"
     _identifiers = (
         "name",
         "vrf",
         "tenant",
     )
     _attributes = ("description", "ip_addresses", "site_tag")
-
+    
     name: str
     vrf: Dict
     description: Optional[str]
@@ -215,10 +215,10 @@ class BridgeDomain(DiffSyncModel):
     ip_addresses: List[str] = []
     site_tag: str
 
-class EPG(DiffSyncModel):
+class ACIEPG(DiffSyncModel):
     """EPG model for DiffSync."""
 
-    _modelname = "epg"
+    _modelname = "aci_epg"
     _identifiers = (
         "name",
         "application",
@@ -233,10 +233,10 @@ class EPG(DiffSyncModel):
     description: Optional[str]
     site_tag: str
 
-class EPGPath(DiffSyncModel):
+class ACIAppTermination(DiffSyncModel):
     """EPG Path model for DiffSync."""
 
-    _modelname = "epgpath"
+    _modelname = "aci_apptermination"
     _identifiers = (
         "epg",
         "interface",
