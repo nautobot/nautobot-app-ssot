@@ -209,79 +209,77 @@ class SyncLogEntry(BaseModel):  # pylint: disable=nb-string-field-blank-null
             SyncLogEntryStatusChoices.STATUS_ERROR: "danger",
         }.get(self.status)
 
-class AppProfile(PrimaryModel):
+class ACIAppProfile(PrimaryModel):
     """
     __model descr__
     """
-    tenant = models.ForeignKey(Tenant, related_name='app_profiles', on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
+    tenant = models.ForeignKey(Tenant, related_name='aci_appprofiles', on_delete=models.CASCADE)
     description = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return self.name
 
     class Meta:
-        verbose_name = "Application Profile"
-        verbose_name_plural = "Application Profiles"
+        verbose_name = "ACI Application Profile"
+        verbose_name_plural = "ACI Application Profiles"
         ordering = ['name']
         unique_together = ('tenant', 'name')
 
-class BridgeDomain(PrimaryModel):
+class ACIBridgeDomain(PrimaryModel):
     """
     __model descr__
     """
-    vrf = models.ForeignKey(VRF, related_name='bridge_domains', on_delete=models.CASCADE)
-    tenant = models.ForeignKey(Tenant, related_name='bridge_domains', on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
+    tenant = models.ForeignKey(Tenant, related_name='aci_bridgedomains', on_delete=models.CASCADE)
+    vrf = models.ForeignKey(VRF, related_name='aci_bridgedomains', on_delete=models.CASCADE)
     description = models.TextField(blank=True, null=True)
-    ip_addresses = models.ManyToManyField(IPAddress, related_name='bridge_domains', blank=True)
-    #namespace=models.CharField(max_length=255, default="Global")
-    #vrf_tenant=models.CharField(max_length=255, default="common")
+    ip_addresses = models.ManyToManyField(IPAddress, related_name='aci_bridgedomains', blank=True)
 
     def __str__(self):
         return self.name
 
     class Meta:
-        verbose_name = "Bridge Domain"
-        verbose_name_plural = "Bridge Domains"
+        verbose_name = "ACI Bridge Domain"
+        verbose_name_plural = "ACI Bridge Domains"
         ordering = ['name']
         unique_together = ('vrf', 'name', 'tenant')
 
-class EPG(PrimaryModel):
+class ACIEPG(PrimaryModel):
     """
     __model descr__
     """
     name = models.CharField(max_length=255)
-    application = models.ForeignKey(AppProfile, related_name='epgs', on_delete=models.CASCADE)
-    tenant = models.ForeignKey(Tenant, related_name='epgs', on_delete=models.CASCADE)
-    bridge_domain = models.ForeignKey(BridgeDomain, related_name='epgs', on_delete=models.CASCADE)   
+    tenant = models.ForeignKey(Tenant, related_name='aci_epgs', on_delete=models.CASCADE)
+    application = models.ForeignKey(ACIAppProfile, related_name='aci_epgs', on_delete=models.CASCADE)
+    bridge_domain = models.ForeignKey(ACIBridgeDomain, related_name='aci_epgs', on_delete=models.CASCADE) 
     description = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return self.name
 
     class Meta:
-        verbose_name = "EPG"
-        verbose_name_plural = "EPGs"
+        verbose_name = "ACI EPG"
+        verbose_name_plural = "ACI EPGs"
         ordering = ['name']
         unique_together = ('name', 'application', 'tenant')
 
-class EPGPath(PrimaryModel):
+class ACIAppTermination(PrimaryModel):
     """
     __model descr__
     """
     name = models.CharField(max_length=255, blank=True, null=True)
-    epg = models.ForeignKey(EPG, related_name='paths', on_delete=models.CASCADE)
-    interface = models.ForeignKey(Interface, related_name='paths', on_delete=models.CASCADE)
-    vlan = models.ForeignKey(VLAN, related_name='paths', on_delete=models.SET_NULL, blank=True, null=True)
+    epg = models.ForeignKey(ACIEPG, related_name='aci_apptermination', on_delete=models.CASCADE)
+    interface = models.ForeignKey(Interface, related_name='aci_apptermination', on_delete=models.CASCADE)
+    vlan = models.ForeignKey(VLAN, related_name='aci_apptermination', on_delete=models.SET_NULL, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.interface.device.name}:{self.interface.name}:{self.vlan.vid}"
 
     class Meta:
-        verbose_name = "EPG Path"
-        verbose_name_plural = "EPG Paths"
+        verbose_name = "ACI App Termination"
+        verbose_name_plural = "ACI App Termination"
         ordering = ['name']
         unique_together = ('epg', 'interface', 'vlan')
 
@@ -289,8 +287,8 @@ __all__ = (
     "SSOTServiceNowConfig",
     "Sync",
     "SyncLogEntry",
-    "AppProfile",
-    "BridgeDomain",
-    "EPG",
-    "EPGPath",
+    "ACIAppProfile",
+    "ACIBridgeDomain",
+    "ACIEPG",
+    "ACIAppTermination",
 )
