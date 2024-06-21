@@ -54,18 +54,18 @@ class NautobotAdapter(Adapter):
         "ip_address",
     ]
 
-    def __init__(self, *args, job=None, sync=None, client, **kwargs):
+    def __init__(self, *args, job=None, sync=None, site_name: str, **kwargs):
         """Initialize Nautobot.
 
         Args:
             job (object, optional): Nautobot job. Defaults to None.
             sync (object, optional): Nautobot DiffSync. Defaults to None.
-            client (object): ACI credentials.
+            site_name (str): Name of Site to filter objects on.
         """
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
-        self.site = client.get("site")
+        self.site = site_name
         self.site_tag = Tag.objects.get_or_create(name=self.site)[0]
 
     def sync_complete(self, source: Adapter, *args, **kwargs):
