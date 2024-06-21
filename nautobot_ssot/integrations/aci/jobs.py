@@ -53,7 +53,8 @@ class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method
         """Initialize ExampleYAMLDataSource."""
         super().__init__()
         self.diffsync_flags = (
-            self.diffsync_flags | DiffSyncFlags.SKIP_UNMATCHED_DST  # pylint: disable=unsupported-binary-operation
+            self.diffsync_flags
+            # self.diffsync_flags | DiffSyncFlags.SKIP_UNMATCHED_DST # pylint: disable=unsupported-binary-operation
         )
 
     @classmethod
