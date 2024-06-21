@@ -2,6 +2,7 @@
 #  pylint: disable=too-few-public-methods
 #  pylint: disable=too-many-locals
 """IP Fabric Data Target Job."""
+import os
 import uuid
 from diffsync.enum import DiffSyncFlags
 from diffsync.exceptions import ObjectNotCreated
@@ -207,8 +208,7 @@ class IpFabricDataSource(DataSource):
     def config_information(cls):
         """Dictionary describing the configuration of this DataSource."""
         return {
-            "IP Fabric host": constants.IPFABRIC_HOST,
-            "Nautobot Host URL": constants.NAUTOBOT_HOST,
+            "Nautobot Host URL": os.getenv("NAUTOBOT_HOST"),
             "Default Device Role": constants.DEFAULT_DEVICE_ROLE,
             "Default Device Role Color": constants.DEFAULT_DEVICE_ROLE_COLOR,
             "Default Device Status": constants.DEFAULT_DEVICE_STATUS,
