@@ -67,7 +67,6 @@ class NautobotAdapter(Adapter):
         self.sync = sync
         self.site = client.get("site")
         self.site_tag = Tag.objects.get_or_create(name=self.site)[0]
-        self.tenant_prefix = client.get("tenant_prefix")
 
     def sync_complete(self, source: Adapter, *args, **kwargs):
         """Clean up function for DiffSync sync.
