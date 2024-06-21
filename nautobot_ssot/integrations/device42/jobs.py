@@ -3,10 +3,11 @@
 
 from django.templatetags.static import static
 from django.urls import reverse
-from nautobot.extras.jobs import BooleanVar
+from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
+from nautobot.extras.models import ExternalIntegration
+from nautobot.extras.jobs import BooleanVar, ObjectVar
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 
-from nautobot_ssot.integrations.device42.constant import PLUGIN_CFG
 from nautobot_ssot.integrations.device42.diffsync.adapters.device42 import Device42Adapter
 from nautobot_ssot.integrations.device42.diffsync.adapters.nautobot import NautobotAdapter
 from nautobot_ssot.integrations.device42.utils.device42 import Device42API
@@ -18,6 +19,13 @@ name = "SSoT - Device42"  # pylint: disable=invalid-name
 class Device42DataSource(DataSource):  # pylint: disable=too-many-instance-attributes
     """Device42 SSoT Data Source."""
 
+    integration = ObjectVar(
+        model=ExternalIntegration,
+        queryset=ExternalIntegration.objects.all(),
+        display_field="name",
+        required=True,
+        label="Device42 Instance",
+    )
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
     bulk_import = BooleanVar(description="Enable using bulk create option for object creation.", default=False)
 
@@ -32,79 +40,75 @@ class Device42DataSource(DataSource):  # pylint: disable=too-many-instance-attri
     @classmethod
     def config_information(cls):
         """Dictionary describing the configuration of this DataSource."""
-        return {
-            "Device42 Host": PLUGIN_CFG.get("device42_host"),
-            "Username": PLUGIN_CFG.get("device42_username"),
-            "Verify SSL": str(PLUGIN_CFG.get("device42_verify_ssl")),
-        }
+        return {}
 
     @classmethod
     def data_mappings(cls):
         """List describing the data mappings involved in this DataSource."""
         return (
             DataMapping(
-                "Buildings", f"{PLUGIN_CFG['device42_host']}admin/rackraj/building/", "Sites", reverse("dcim:site_list")
+                "Buildings", f"{cls.integration.remote_url}admin/rackraj/building/", "Sites", reverse("dcim:site_list")
             ),
             DataMapping(
                 "Rooms",
-                f"{PLUGIN_CFG['device42_host']}admin/rackraj/room/",
+                f"{cls.integration.remote_url}admin/rackraj/room/",
                 "Rack Groups",
                 reverse("dcim:rackgroup_list"),
             ),
             DataMapping(
-                "Racks", f"{PLUGIN_CFG['device42_host']}admin/rackraj/rack/", "Racks", reverse("dcim:rack_list")
+                "Racks", f"{cls.integration.remote_url}admin/rackraj/rack/", "Racks", reverse("dcim:rack_list")
             ),
             DataMapping(
                 "Vendors",
-                f"{PLUGIN_CFG['device42_host']}admin/rackraj/organisation/",
+                f"{cls.integration.remote_url}admin/rackraj/organisation/",
                 "Manufacturers",
                 reverse("dcim:manufacturer_list"),
             ),
             DataMapping(
                 "Hardware Models",
-                f"{PLUGIN_CFG['device42_host']}admin/rackraj/hardware/",
+                f"{cls.integration.remote_url}admin/rackraj/hardware/",
                 "Device Types",
                 reverse("dcim:devicetype_list"),
             ),
             DataMapping(
-                "Devices", f"{PLUGIN_CFG['device42_host']}admin/rackraj/device/", "Devices", reverse("dcim:device_list")
+                "Devices", f"{cls.integration.remote_url}admin/rackraj/device/", "Devices", reverse("dcim:device_list")
             ),
             DataMapping(
                 "Ports",
-                f"{PLUGIN_CFG['device42_host']}admin/rackraj/netport/",
+                f"{cls.integration.remote_url}admin/rackraj/netport/",
                 "Interfaces",
                 reverse("dcim:interface_list"),
             ),
             DataMapping(
-                "Cables", f"{PLUGIN_CFG['device42_host']}admin/rackraj/cable/", "Cables", reverse("dcim:cable_list")
+                "Cables", f"{cls.integration.remote_url}admin/rackraj/cable/", "Cables", reverse("dcim:cable_list")
             ),
             DataMapping(
                 "VPC (VRF Groups)",
-                f"{PLUGIN_CFG['device42_host']}admin/rackraj/vrfgroup/",
+                f"{cls.integration.remote_url}admin/rackraj/vrfgroup/",
                 "VRFs",
                 reverse("ipam:vrf_list"),
             ),
             DataMapping(
-                "Subnets", f"{PLUGIN_CFG['device42_host']}admin/rackraj/vlan/", "Prefixes", reverse("ipam:prefix_list")
+                "Subnets", f"{cls.integration.remote_url}admin/rackraj/vlan/", "Prefixes", reverse("ipam:prefix_list")
             ),
             DataMapping(
                 "IP Addresses",
-                f"{PLUGIN_CFG['device42_host']}admin/rackraj/ip_address/",
+                f"{cls.integration.remote_url}admin/rackraj/ip_address/",
                 "IP Addresses",
                 reverse("ipam:ipaddress_list"),
             ),
             DataMapping(
-                "VLANs", f"{PLUGIN_CFG['device42_host']}admin/rackraj/switch_vlan/", "VLANs", reverse("ipam:vlan_list")
+                "VLANs", f"{cls.integration.remote_url}admin/rackraj/switch_vlan/", "VLANs", reverse("ipam:vlan_list")
             ),
             DataMapping(
                 "Vendors",
-                f"{PLUGIN_CFG['device42_host']}admin/rackraj/organisation/",
+                f"{cls.integration.remote_url}admin/rackraj/organisation/",
                 "Providers",
                 reverse("circuits:provider_list"),
             ),
             DataMapping(
                 "Telco Circuits",
-                f"{PLUGIN_CFG['device42_host']}admin/rackraj/circuit/",
+                f"{cls.integration.remote_url}admin/rackraj/circuit/",
                 "Circuits",
                 reverse("circuits:circuit_list"),
             ),
@@ -114,11 +118,20 @@ class Device42DataSource(DataSource):  # pylint: disable=too-many-instance-attri
         """Load data from Device42 into DiffSync models."""
         if self.debug:
             self.logger.info("Connecting to Device42...")
+        _sg = self.integration.secrets_group
+        username = _sg.get_secret_value(
+            access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
+            secret_type=SecretsGroupSecretTypeChoices.TYPE_USERNAME,
+        )
+        password = _sg.get_secret_value(
+            access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
+            secret_type=SecretsGroupSecretTypeChoices.TYPE_PASSWORD,
+        )
         client = Device42API(
-            base_url=PLUGIN_CFG["device42_host"],
-            username=PLUGIN_CFG["device42_username"],
-            password=PLUGIN_CFG["device42_password"],
-            verify=PLUGIN_CFG["device42_verify_ssl"],
+            base_url=self.integration.remote_url,
+            username=username,
+            password=password,
+            verify=self.integration.verify_ssl,
         )
         self.source_adapter = Device42Adapter(job=self, sync=self.sync, client=client)
         if self.debug:
@@ -133,9 +146,10 @@ class Device42DataSource(DataSource):  # pylint: disable=too-many-instance-attri
         self.target_adapter.load()
 
     def run(  # pylint: disable=arguments-differ, too-many-arguments
-        self, dryrun, memory_profiling, debug, bulk_import, *args, **kwargs
+        self, dryrun, memory_profiling, integration, debug, bulk_import, *args, **kwargs
     ):
         """Perform data synchronization."""
+        self.integration = integration
         self.bulk_import = bulk_import
         self.debug = debug
         self.dryrun = dryrun
