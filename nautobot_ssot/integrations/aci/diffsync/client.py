@@ -381,6 +381,7 @@ class AciApi:
     
     def get_bds_optimized(self, tenant: str = "all") -> dict:
         """Return Bridge Domains and Subnets from the Cisco APIC."""
+        # TODO: rewrite using one API call -> https://10.101.40.2/api/node/class/fvBD.json?query-target=subtree&target-subtree-class=fvBD,fvRsCtx,fvSubnet
         if tenant == "all":
             resp = self._get("/api/node/class/fvBD.json?query-target=subtree&target-subtree-class=fvBD,fvRsCtx,fvSubnet")
         else:
@@ -415,7 +416,7 @@ class AciApi:
                     bd_dict[unique_name]
                 except KeyError:
                     bd_dict.setdefault(unique_name, deepcopy(bd_dict_schema))
-                bd_dict[unique_name]["vrf"] = data["fvRsCtx"]["attributes"].get("tnFvCtxName", "default")
+                bd_dict[unique_name]["vrf"] = data["fvRsCtx"]["attributes"].get("tnFvCtxName") or "default"
                 vrf_tenant = data["fvRsCtx"]["attributes"].get("tDn")
                 bd_dict[unique_name]["vrf_tenant"] = tenant_from_dn(vrf_tenant)
         
@@ -460,12 +461,19 @@ class AciApi:
                 mgmt_addr = f"{node['topSystem']['attributes']['address']}/{ip_network(node['topSystem']['attributes']['tepPool'], strict=False).prefixlen}"
             else:
                 mgmt_addr = ""
-            if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
-                subnet = node["topSystem"]["attributes"]["tepPool"]
-            elif mgmt_addr:
+            # BUG detected in this block: changing
+            if mgmt_addr:
                 subnet = ip_network(mgmt_addr, strict=False).with_prefixlen
+            elif node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
+                subnet = node["topSystem"]["attributes"]["tepPool"]
             else:
-                subnet = ""
+                subnet = ""            
+            #if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
+            #    subnet = node["topSystem"]["attributes"]["tepPool"]
+            #elif mgmt_addr:
+            #    subnet = ip_network(mgmt_addr, strict=False).with_prefixlen
+            #else:
+            #    subnet = ""
             node_id = node["topSystem"]["attributes"]["id"]
             node_dict[node_id]["oob_ip"] = mgmt_addr
             node_dict[node_id]["subnet"] = subnet
@@ -513,12 +521,19 @@ class AciApi:
                 mgmt_addr = f"{node['topSystem']['attributes']['address']}/{ip_network(node['topSystem']['attributes']['tepPool'], strict=False).prefixlen}"
             else:
                 mgmt_addr = ""
-            if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
-                subnet = node["topSystem"]["attributes"]["tepPool"]
-            elif mgmt_addr:
+            # BUG detected in this block: changing
+            if mgmt_addr:
                 subnet = ip_network(mgmt_addr, strict=False).with_prefixlen
+            elif node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
+                subnet = node["topSystem"]["attributes"]["tepPool"]
             else:
                 subnet = ""
+            #if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
+            #    subnet = node["topSystem"]["attributes"]["tepPool"]
+            #elif mgmt_addr:
+            #    subnet = ip_network(mgmt_addr, strict=False).with_prefixlen
+            #else:
+            #    subnet = ""
             node_id = node["topSystem"]["attributes"]["id"]
             node_dict[node_id]["pod_id"] = node["topSystem"]["attributes"]["podId"]
             node_dict[node_id]["oob_ip"] = mgmt_addr
@@ -641,6 +656,10 @@ class AciApi:
             tDn = obj["fvIfConn"]["attributes"]["dn"]
             pattern = re.compile(r'\[(.*?)\]|node-(\d+)')
             obj_match = [match[0] if match[0] else match[1] for match in pattern.findall(tDn)]
+            #sp_dict["epg"] = obj_match[0].split('/')[-1]
+            #sp_dict["ap"] = obj_match[0].split('/')[-2]
+            #sp_dict["tenant"] = obj_match[0].split('/')[-3][3:]
+            #sp_dict["node-id"] = obj_match[1]
             sp_dict["epg"] = epg_from_dn(tDn)
             sp_dict["ap"] = ap_from_dn(tDn)
             sp_dict["tenant"] = tenant_from_dn(tDn)
@@ -695,7 +714,7 @@ class AciApi:
             _tenant = tenant_from_dn(data["fvRsBd"]["attributes"]["dn"])
             _ap = ap_from_dn(data["fvRsBd"]["attributes"]["dn"])
             _epg = epg_from_dn(data["fvRsBd"]["attributes"]["dn"])
-            _bd = data["fvRsBd"]["attributes"]["tnFvBDName"]
+            _bd = data["fvRsBd"]["attributes"]["tnFvBDName"] or 'default'
             new_epg = (_epg, _tenant, _ap, _bd)
             if new_epg not in epg_list: epg_list.append(new_epg)
         return epg_list
