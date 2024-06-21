@@ -5,7 +5,7 @@ from django.urls import reverse
 from diffsync.enum import DiffSyncFlags
 from nautobot.dcim.models import Controller, Location
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
-from nautobot.extras.jobs import BooleanVar, Job, ObjectVar, TextVar
+from nautobot.extras.jobs import BooleanVar, Job, ObjectVar
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 from nautobot_ssot.integrations.aci.diffsync.adapters.aci import AciAdapter
 from nautobot_ssot.integrations.aci.diffsync.adapters.nautobot import NautobotAdapter
