@@ -141,8 +141,6 @@ PLUGINS_CONFIG = {
     #     "slack_api_token": os.getenv("SLACK_API_TOKEN"),
     #     "slack_signing_secret": os.getenv("SLACK_SIGNING_SECRET"),
     #     "session_cache_timeout": 3600,
-    #     "ipfabric_api_token": os.getenv("IPFABRIC_API_TOKEN"),
-    #     "ipfabric_host": os.getenv("IPFABRIC_HOST"),
     # },
     "nautobot_ssot": {
         # Tag which will be created and applied to all synchronized objects.
@@ -229,10 +227,6 @@ PLUGINS_CONFIG = {
         "infoblox_verify_ssl": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_VERIFY_SSL", True)),
         "infoblox_wapi_version": os.getenv("NAUTOBOT_SSOT_INFOBLOX_WAPI_VERSION", "v2.12"),
         "infoblox_network_view": os.getenv("NAUTOBOT_SSOT_INFOBLOX_NETWORK_VIEW", ""),
-        "ipfabric_api_token": os.getenv("NAUTOBOT_SSOT_IPFABRIC_API_TOKEN"),
-        "ipfabric_host": os.getenv("NAUTOBOT_SSOT_IPFABRIC_HOST"),
-        "ipfabric_ssl_verify": is_truthy(os.getenv("NAUTOBOT_SSOT_IPFABRIC_SSL_VERIFY", "False")),
-        "nautobot_host": os.getenv("NAUTOBOT_HOST"),
         "servicenow_instance": os.getenv("SERVICENOW_INSTANCE", ""),
         "servicenow_password": os.getenv("SERVICENOW_PASSWORD", ""),
         "servicenow_username": os.getenv("SERVICENOW_USERNAME", ""),
