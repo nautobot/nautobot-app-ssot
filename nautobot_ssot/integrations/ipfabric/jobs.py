@@ -9,8 +9,9 @@ from django.templatetags.static import static
 from django.urls import reverse
 from httpx import ConnectError
 from ipfabric import IPFClient
-from nautobot.dcim.models import Location
-from nautobot.extras.jobs import BooleanVar, ScriptVariable, ChoiceVar
+from nautobot.dcim.models import Controller, Location
+from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
+from nautobot.extras.jobs import BooleanVar, ScriptVariable, ChoiceVar, ObjectVar
 from nautobot.core.forms import DynamicModelChoiceField
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 
@@ -103,6 +104,13 @@ class IpFabricDataSource(DataSource):
 
     client = None
     snapshot = None
+    controller = ObjectVar(
+        model=Controller,
+        queryset=Controller.objects.all(),
+        display_field="name",
+        required=True,
+        label="IPFabric Controller",
+    )
     debug = BooleanVar(description="Enable for more verbose debug logging")
     safe_delete_mode = BooleanVar(
         description="Records are not deleted. Status fields are updated as necessary.",
@@ -136,14 +144,17 @@ class IpFabricDataSource(DataSource):
             "dryrun",
         )
 
-    @staticmethod
-    def _init_ipf_client():
+    def _init_ipf_client(self):
+        token = self.controller.external_integration.secrets_group.get_secret_value(
+            access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
+            secret_type=SecretsGroupSecretTypeChoices.TYPE_TOKEN,
+        )
         try:
             return IPFClient(
-                base_url=constants.IPFABRIC_HOST,
-                auth=constants.IPFABRIC_API_TOKEN,
-                verify=constants.IPFABRIC_SSL_VERIFY,
-                timeout=constants.IPFABRIC_TIMEOUT,
+                base_url=self.controller.external_integration.remote_url,
+                auth=token,
+                verify=self.controller.external_integration.verify_ssl,
+                timeout=self.controller.external_integration.timeout,
                 unloaded=False,
             )
         except (RuntimeError, ConnectError) as error:
@@ -217,6 +228,7 @@ class IpFabricDataSource(DataSource):
         self,
         dryrun,
         memory_profiling,
+        controller,
         debug,
         snapshot=None,
         safe_delete_mode=True,
@@ -226,6 +238,7 @@ class IpFabricDataSource(DataSource):
         **kwargs,
     ):
         """Run the job."""
+        self.controller = controller
         self.kwargs = {
             "snapshot": snapshot,
             "dryrun": dryrun,
