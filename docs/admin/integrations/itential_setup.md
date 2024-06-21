@@ -35,7 +35,7 @@ The Itential integration necessitates four secret values: (1) Itential API acces
 When assigning secrets to a secrets group, please refer to the table below to correctly assign each secret to its respective access type and secret type.
 
 | Secret Description    | Access Type | Secret Type |
-+-----------------------+-------------+-------------+
+|-----------------------|-------------|-------------|
 | Itential API username | REST        | Username    |
 | Itential API password | REST        | Password    |
 | Device username       | GENERIC     | Username    |
