@@ -62,12 +62,14 @@ def aci_create_site(apps, **kwargs):
     Device = apps.get_model("dcim", "Device")
     Site = apps.get_model("dcim", "Location")
     Prefix = apps.get_model("ipam", "Prefix")
+    Vlan = apps.get_model("ipam", "VLAN")
     location_type = apps.get_model("dcim", "LocationType")
     status = apps.get_model("extras", "Status")
     apics = PLUGIN_CFG.get("apics")
     loc_type = location_type.objects.update_or_create(name="Site")[0]
     loc_type.content_types.add(ContentType.objects.get_for_model(Device))
     loc_type.content_types.add(ContentType.objects.get_for_model(Prefix))
+    loc_type.content_types.add(ContentType.objects.get_for_model(Vlan))
     active_status = status.objects.update_or_create(name="Active")[0]
     for key in apics:
         if "SITE" in key:
