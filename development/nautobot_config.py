@@ -145,8 +145,6 @@ PLUGINS_CONFIG = {
     #     "ipfabric_host": os.getenv("IPFABRIC_HOST"),
     # },
     "nautobot_ssot": {
-        # URL and credentials should be configured as environment variables on the host system
-        "aci_apics": {x: os.environ[x] for x in os.environ if "APIC" in x},
         # Tag which will be created and applied to all synchronized objects.
         "aci_tag": os.getenv("NAUTOBOT_SSOT_ACI_TAG"),
         "aci_tag_color": os.getenv("NAUTOBOT_SSOT_ACI_TAG_COLOR"),
@@ -161,9 +159,7 @@ PLUGINS_CONFIG = {
         "aci_ignore_tenants": os.getenv("NAUTOBOT_SSOT_ACI_IGNORE_TENANTS", "").split(","),
         # The below value will appear in the Comments field on objects created in Nautobot
         "aci_comments": os.getenv("NAUTOBOT_SSOT_ACI_COMMENTS"),
-        # Site to associate objects. Specify existing, or a new site with this name will be created.
-        "aci_site": os.getenv("NAUTOBOT_SSOT_ACI_SITE"),
-        "aristacv_apply_import_tag": is_truthy(os.getenv("NAUTOBOT_ARISTACV_IMPORT_TAG", False)),
+        "aristacv_apply_import_tag": is_truthy(os.getenv("NAUTOBOT_ARISTACV_IMPORT_TAG", "false")),
         "aristacv_controller_site": os.getenv("NAUTOBOT_ARISTACV_CONTROLLER_SITE", ""),
         "aristacv_create_controller": is_truthy(os.getenv("NAUTOBOT_ARISTACV_CREATE_CONTROLLER", False)),
         "aristacv_cvaas_url": os.getenv("NAUTOBOT_ARISTACV_CVAAS_URL", "www.arista.io:443"),
