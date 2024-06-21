@@ -36,7 +36,7 @@ When assigning secrets to a secrets group, please refer to the table below to co
 
 | Secret Description    | Access Type | Secret Type |
 +-----------------------+-------------+-------------+
-| Itnetial API username | REST        | Username    |
+| Itential API username | REST        | Username    |
 | Itential API password | REST        | Password    |
 | Device username       | GENERIC     | Username    |
 | Device password       | GENERIC     | Password    |
