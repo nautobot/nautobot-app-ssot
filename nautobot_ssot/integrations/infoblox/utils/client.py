@@ -1310,6 +1310,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         url_path = "zone_auth"
         params = {
             "view": view,
+            "zone_format": "FORWARD",
             "_return_fields": "fqdn,view",
             "_return_as_object": 1,
         }
