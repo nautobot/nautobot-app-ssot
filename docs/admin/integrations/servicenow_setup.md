@@ -80,3 +80,4 @@ PLUGINS_CONFIG = {
 
 !!! note
     Configuration keys are prefixed with `servicenow_`.
+

@@ -4,7 +4,7 @@ This integration provides the ability to synchronize basic data from Nautobot in
 
 - Nautobot Manufacturer table to ServiceNow Company table
 - Nautobot DeviceType table to ServiceNow Hardware Product Model table
-- Nautobot Region and Site tables to ServiceNow Location table
+- Nautobot Locations tables to ServiceNow Location table
 - Nautobot Device table to ServiceNow IP Switch table
 - Nautobot Interface table to ServiceNow Interface table
 
