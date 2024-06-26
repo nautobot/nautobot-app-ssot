@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% load helpers %}
+
+{% block header %}
+    <div class="row noprint">
+        <div class="col-sm-8 col-md-9">
+            <ol class="breadcrumb">
+                <li><a href="{% url 'plugins:nautobot_ssot:config' %}">SSOT Configs</a></li>
+            </ol>
+        </div>
+    </div>
+    <div class="pull-right noprint">
+    </div>
+
+    <h1>{% block title %}SSOT Configs{% endblock %}</h1>
+{% endblock header %}
+
+{% block content %}
+<div class="col-md-6">
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <strong>SSOT Integration Configs</strong>
+    </div>
+    <table class="table table-hover panel-body attr-table">
+        {% if perms.nautobot_ssot.view_ssotinfobloxconfig and "infoblox" in enabled_integrations %}
+        <tr>
+            <td>Infoblox</td>
+            <td><a href="{% url 'plugins:nautobot_ssot:ssotinfobloxconfig_list' %}">
+                Infoblox Configuration List
+            </a></td>
+        </tr>
+        {% endif %}
+        {% if perms.nautobot_ssot.view_ssotservicenowconfig and "servicenow" in enabled_integrations %}
+        <tr>
+            <td>ServiceNow</td>
+            <td><a href="{% url 'plugins:nautobot_ssot:servicenow_config' %}">
+                ServiceNow Configuration Instance
+            </a></td>
+        </tr>
+        {% endif %}
+    </table>
+</div>
+</div>
+{% endblock content %}

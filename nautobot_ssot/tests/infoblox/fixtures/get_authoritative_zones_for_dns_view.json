@@ -1,0 +1,14 @@
+{
+    "result": [
+      {
+        "_ref": "zone_auth/ZG5zLnpvbmUkLjIuYXJwYS5pbi1hZGRy:0.0.0.0%2F0/default.dev",
+        "fqdn": "0.0.0.0/0",
+        "view": "default.dev"
+      },
+      {
+        "_ref": "zone_auth/ZG5zLnpvbmUkLjIudGVzdC5sb2NhbC5uYXV0b2JvdA:nautobot.local.test/default.dev",
+        "fqdn": "nautobot.local.test",
+        "view": "default.dev"
+      }
+    ]
+}

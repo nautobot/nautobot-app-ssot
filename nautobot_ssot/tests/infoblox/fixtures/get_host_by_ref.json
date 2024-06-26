@@ -1,0 +1,15 @@
+{
+    "_ref": "record:host/ZG5zLmhvc3QkLl9kZWZhdWx0LnRlc3QudGVzdGRldmljZTE:testdevice1.test/default",
+    "ipv4addr": "10.220.0.101",
+    "ipv4addrs": [
+        {
+            "_ref": "record:host_ipv4addr/ZG5zLmhvc3RfYWRkcmVzcyQuX2RlZmF1bHQudGVzdC50ZXN0ZGV2aWNlMS4xMC4yMjAuMC4xMDEu:10.220.0.101/testdevice1.test/default",
+            "configure_for_dhcp": true,
+            "host": "testdevice1.test",
+            "ipv4addr": "10.220.0.101",
+            "mac": "11:11:11:11:11:11"
+        }
+    ],
+    "name": "testdevice1.test",
+    "view": "default"
+}

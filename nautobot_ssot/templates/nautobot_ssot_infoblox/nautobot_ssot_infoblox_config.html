@@ -1,0 +1,12 @@
+{% extends 'nautobot_ssot/config.html' %}
+{% load helpers %}
+
+{% block title %}{{ block.super }} - Infoblox Configs{% endblock %}
+
+{% block content %}
+  <div class="row">
+    <div class="col-md-8">
+        {% include 'utilities/obj_table.html' with table=infobloxconfig_table table_template='panel_table.html' heading='Infoblox Configs' %}
+    </div>
+  </div>
+{% endblock content %}

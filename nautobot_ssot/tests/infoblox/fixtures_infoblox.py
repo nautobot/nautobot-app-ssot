@@ -6,10 +6,22 @@ import json
 import os
 
 from django.contrib.contenttypes.models import ContentType
-from nautobot.extras.choices import RelationshipTypeChoices
-from nautobot.extras.models import Relationship
-from nautobot.ipam.models import Prefix, VLAN
+from nautobot.extras.choices import (
+    RelationshipTypeChoices,
+    SecretsGroupAccessTypeChoices,
+    SecretsGroupSecretTypeChoices,
+)
+from nautobot.extras.models import (
+    ExternalIntegration,
+    Relationship,
+    Secret,
+    SecretsGroup,
+    SecretsGroupAssociation,
+    Status,
+)
+from nautobot.ipam.models import VLAN, IPAddress, Prefix, VLANGroup
 
+from nautobot_ssot.integrations.infoblox.models import SSOTInfobloxConfig
 from nautobot_ssot.integrations.infoblox.utils import client
 
 FIXTURES = os.environ.get("FIXTURE_DIR", "nautobot_ssot/tests/infoblox/fixtures")
@@ -23,10 +35,82 @@ def _json_read_fixture(name):
         return json.load(fixture)
 
 
+def create_default_infoblox_config(infoblox_url="infoblox.example.com"):
+    default_status, _ = Status.objects.get_or_create(name="Active")
+    for model in [IPAddress, Prefix, VLAN, VLANGroup]:
+        default_status.content_types.add(ContentType.objects.get_for_model(model))
+    infoblox_sync_filters = [{"network_view": "default"}]
+    secrets_group, _ = SecretsGroup.objects.get_or_create(name="InfobloxSSOTUnitTesting")
+    infoblox_username, _ = Secret.objects.get_or_create(
+        name="Infoblox Username - Unit Testing",
+        defaults={
+            "provider": "environment-variable",
+            "parameters": {"variable": "NAUTOBOT_SSOT_INFOBLOX_USERNAME"},
+        },
+    )
+    infoblox_password, _ = Secret.objects.get_or_create(
+        name="Infoblox Password - Unit Testing",
+        defaults={
+            "provider": "environment-variable",
+            "parameters": {"variable": "NAUTOBOT_SSOT_INFOBLOX_PASSWORD"},
+        },
+    )
+    SecretsGroupAssociation.objects.get_or_create(
+        secrets_group=secrets_group,
+        access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
+        secret_type=SecretsGroupSecretTypeChoices.TYPE_USERNAME,
+        defaults={
+            "secret": infoblox_username,
+        },
+    )
+    SecretsGroupAssociation.objects.get_or_create(
+        secrets_group=secrets_group,
+        access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
+        secret_type=SecretsGroupSecretTypeChoices.TYPE_PASSWORD,
+        defaults={
+            "secret": infoblox_password,
+        },
+    )
+    external_integration, _ = ExternalIntegration.objects.get_or_create(
+        name="InfobloxUnitTestingInstance",
+        remote_url=infoblox_url,
+        secrets_group=secrets_group,
+        verify_ssl=True,
+        timeout=60,
+    )
+
+    config, _ = SSOTInfobloxConfig.objects.get_or_create(
+        name="InfobloxUnitTestConfig",
+        defaults=dict(  # pylint: disable=use-dict-literal
+            description="Unit Test Config.",
+            default_status=default_status,
+            infoblox_wapi_version="v2.12",
+            infoblox_instance=external_integration,
+            enable_sync_to_infoblox=True,
+            import_ip_addresses=True,
+            import_subnets=True,
+            import_vlan_views=True,
+            import_vlans=True,
+            import_ipv4=True,
+            import_ipv6=True,
+            job_enabled=True,
+            infoblox_sync_filters=infoblox_sync_filters,
+        ),
+    )
+
+    return config
+
+
 def localhost_client_infoblox(localhost_url):
     """Return InfobloxAPI client for testing."""
     return client.InfobloxApi(  # nosec
-        url=localhost_url, username="test-user", password="test-password", verify_ssl=False, cookie=None
+        url=localhost_url,
+        username="test-user",
+        password="test-password",
+        verify_ssl=False,
+        wapi_version="v2.12",
+        timeout=60,
+        cookie=None,
     )
 
 
@@ -79,9 +163,19 @@ def create_host_record():
     return _json_read_fixture("create_host_record.json")
 
 
+def get_fixed_address_by_ref():
+    """Return a get Fixed Address by ref response."""
+    return _json_read_fixture("get_fixed_address_by_ref.json")
+
+
 def get_host_by_ip():
     """Return a get Host by IP response."""
     return _json_read_fixture("get_host_by_ip.json")
+
+
+def get_host_by_ref():
+    """Return a get Host by ref response."""
+    return _json_read_fixture("get_host_by_ref.json")
 
 
 def get_a_record_by_ip():
@@ -92,6 +186,11 @@ def get_a_record_by_ip():
 def get_a_record_by_name():
     """Return a get A record by name response."""
     return _json_read_fixture("get_a_record_by_name.json")
+
+
+def get_a_record_by_ref():
+    """Return a get A record by ref response."""
+    return _json_read_fixture("get_a_record_by_ref.json")
 
 
 def get_host_record_by_name():
@@ -124,14 +223,29 @@ def get_authoritative_zone():
     return _json_read_fixture("get_authoritative_zone.json")
 
 
+def get_authoritative_zones_for_dns_view():
+    """Return a get authoritative zones for view response."""
+    return _json_read_fixture("get_authoritative_zones_for_dns_view.json")
+
+
 def find_network_reference():
     """Return a find network reference response."""
     return _json_read_fixture("find_network_reference.json")
 
 
+def get_ptr_record_by_ip():
+    """Return a get PTR record by IP response."""
+    return _json_read_fixture("get_ptr_record_by_ip.json")
+
+
 def get_ptr_record_by_name():
     """Return a get PTR record by name response."""
     return _json_read_fixture("get_ptr_record_by_name.json")
+
+
+def get_ptr_record_by_ref():
+    """Return a get PTR record by ref response."""
+    return _json_read_fixture("get_ptr_record_by_ref.json")
 
 
 def find_next_available_ip():
@@ -152,6 +266,16 @@ def get_network_containers():
 def get_network_containers_ipv6():
     """Return a get_all_containers IPv6 response."""
     return _json_read_fixture("get_network_containers_ipv6.json")
+
+
+def get_all_network_views():
+    """Return a all_network_views response."""
+    return _json_read_fixture("get_all_network_views.json")
+
+
+def get_network_view():
+    """Return a get_network_view response."""
+    return _json_read_fixture("get_network_view.json")
 
 
 def get_all_ranges():

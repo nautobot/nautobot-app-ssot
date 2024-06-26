@@ -1,0 +1,52 @@
+{% extends 'generic/object_create.html' %}
+{% load form_helpers %}
+
+{% block form %}
+    <div class="panel panel-default">
+        <div class="panel-heading"><strong>Infoblox Config</strong></div>
+        <div class="panel-body">
+            {% render_field form.name %}
+            {% render_field form.description %}
+            {% render_field form.infoblox_instance %}
+            {% render_field form.infoblox_wapi_version %}
+            {% render_field form.job_enabled %}
+            {% render_field form.enable_sync_to_infoblox %}
+            {% render_field form.enable_sync_to_nautobot %}
+            {% render_field form.import_ip_addresses %}
+            {% render_field form.import_subnets %}
+            {% render_field form.import_vlan_views %}
+            {% render_field form.import_vlans %}
+            {% render_field form.import_ipv4 %}
+            {% render_field form.import_ipv6 %}
+            {% render_field form.fixed_address_type %}
+            {% render_field form.dns_record_type %}
+            {% render_field form.infoblox_deletable_models %}
+            {% render_field form.nautobot_deletable_models %}
+            {% render_field form.default_status %}
+        </div>
+    </div>
+    <div class="panel panel-default">
+        <div class="panel-heading"><strong>Data</strong></div>
+        <div class="panel-body">
+            {% render_field form.infoblox_sync_filters %}
+        </div>
+    </div>
+    <div class="panel panel-default">
+        <div class="panel-heading"><strong>Data</strong></div>
+        <div class="panel-body">
+            {% render_field form.infoblox_dns_view_mapping %}
+        </div>
+    </div>
+    <div class="panel panel-default">
+        <div class="panel-heading"><strong>Data</strong></div>
+        <div class="panel-body">
+            {% render_field form.cf_fields_ignore %}
+        </div>
+    </div>
+    <div class="panel panel-default">
+        <div class="panel-heading"><strong>Notes</strong></div>
+        <div class="panel-body">
+            {% render_field form.object_note %}
+        </div>
+    </div>
+{% endblock %}
