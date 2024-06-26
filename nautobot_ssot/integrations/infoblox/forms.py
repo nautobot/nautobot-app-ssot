@@ -34,6 +34,7 @@ class SSOTInfobloxConfigForm(NautobotModelForm):  # pylint: disable=too-many-anc
     fixed_address_type = forms.ChoiceField(
         choices=FixedAddressTypeChoices,
         required=True,
+        label="Fixed Address type",
         widget=StaticSelect2(),
     )
     dns_record_type = forms.ChoiceField(
