@@ -23,10 +23,7 @@ def each_enabled_integration_module(module_name: str) -> Generator[ModuleType, N
     """For each enabled integration, import the module name."""
     for name in each_enabled_integration():
         try:
-            if api:
-                module = import_module(f"nautobot_ssot.integrations.{name}.api.{module_name}")
-            else:
-                module = import_module(f"nautobot_ssot.integrations.{name}.{module_name}")
+            module = import_module(f"nautobot_ssot.integrations.{name}.{module_name}")
         except ModuleNotFoundError:
             logger.debug("Integration %s does not have a %s module, skipping.", name, module_name)
             continue
