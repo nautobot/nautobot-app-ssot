@@ -19,7 +19,7 @@ Below is a table displaying the IAG communication methods.
 | Scripts              |
 | Terraform            |
 
-As a side note, you can create your own scripts or Ansible playbooks that utilize communication methods such as GRPC, HTTP, NETCONF, etc. Itential will use the default Ansible inventory to perform tasks on remote devices with these communication methods. However, if you want the Itential Automation Platform (IAP) to communicate with a remote device using a communication method that is not Ansible or scripts, it requires a separate inventory and iteration by the SSoT to support those inventories.
+As a side note, you can create your own scripts or Ansible playbooks that utilize communication methods such as GRPC, HTTP, NETCONF, etc. Itential will use the default Ansible inventory to perform tasks on remote devices with these communication methods. However, if you want the Itential Automation Platform (IAP) to communicate with a remote device using a communication method that is not Ansible or scripts, it requires a separate inventory and iteration by the SSoT App to support those inventories.
 
 ## Nautobot to Itential Automation Gateway Modeling
 
