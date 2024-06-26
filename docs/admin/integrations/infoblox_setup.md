@@ -71,7 +71,7 @@ Infoblox Sync Filters is a mandatory setting used to control the scope of the IP
 ]
 ```
 
-This default value specifies that all IPv4 and IPv6 objects located in Infoblox "default" Network View or Nautobot "Global" Namespace, will loaded for comparison and considered for synchronization.
+This default value specifies that all IPv4 and IPv6 objects located in Infoblox "default" Network View or Nautobot "Global" Namespace, will be loaded for comparison and considered for synchronization.
 
 Infoblox Sync Filters can contain multiple entries. Each entry is a dictionary with one mandatory key `network_view` and two optional keys `prefixes_ipv4` and `prefixes_ipv6`.
 
