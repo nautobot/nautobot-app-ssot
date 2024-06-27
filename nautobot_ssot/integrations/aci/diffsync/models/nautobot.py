@@ -47,6 +47,8 @@ class NautobotTenant(Tenant):
     def create(cls, diffsync, ids, attrs):
         """Create Tenant object in Nautobot."""
         _tenant = OrmTenant(name=ids["name"], description=attrs["description"], comments=attrs["comments"])
+        if attrs["msite_tag"]:
+            _tenant.tags.add(Tag.objects.get(name="ACI_MULTISITE"))
         _tenant.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _tenant.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _tenant.validated_save()
