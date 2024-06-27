@@ -38,6 +38,10 @@ def aci_create_tag(apps, **kwargs):
         name=PLUGIN_CFG.get("tag_down"),
         color=PLUGIN_CFG.get("tag_down_color"),
     )
+    tag.objects.update_or_create(
+        name="ACI_MULTISITE",
+        color="03a9f4",
+    )
     apics = PLUGIN_CFG.get("apics")
     for key in apics:
         if ("SITE" in key or "STAGE" in key) and not tag.objects.filter(name=apics[key]).exists():
