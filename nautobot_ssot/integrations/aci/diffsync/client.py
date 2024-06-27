@@ -656,10 +656,6 @@ class AciApi:
             tDn = obj["fvIfConn"]["attributes"]["dn"]
             pattern = re.compile(r'\[(.*?)\]|node-(\d+)')
             obj_match = [match[0] if match[0] else match[1] for match in pattern.findall(tDn)]
-            #sp_dict["epg"] = obj_match[0].split('/')[-1]
-            #sp_dict["ap"] = obj_match[0].split('/')[-2]
-            #sp_dict["tenant"] = obj_match[0].split('/')[-3][3:]
-            #sp_dict["node-id"] = obj_match[1]
             sp_dict["epg"] = epg_from_dn(tDn)
             sp_dict["ap"] = ap_from_dn(tDn)
             sp_dict["tenant"] = tenant_from_dn(tDn)
@@ -676,7 +672,7 @@ class AciApi:
                 sp_list.append(sp_dict)
             elif "stpathatt-[" in tDn:
                 # PortChannel or vPC
-                bundle_list = intfs = []
+                intf_list = []
                 sp_dict["type"] = "Bundle"
                 polgrp = obj_match[2]
                 resp = self._get(f"/api/node/mo/uni/infra/funcprof/accbundle-{polgrp}.json?query-target=subtree&target-subtree-class=infraRtAccBaseGrp&query-target-filter=wcard(infraNode.dn,\"{sp_dict['node-id']}\")")
