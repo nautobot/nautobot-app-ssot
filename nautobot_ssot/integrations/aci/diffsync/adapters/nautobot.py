@@ -116,7 +116,11 @@ class NautobotAdapter(DiffSync):
         """Method to load Tenants from Nautobot."""
         for nbtenant in Tenant.objects.filter(tags=self.site_tag):
             _tenant = self.tenant(
-                name=nbtenant.name, description=nbtenant.description, comments=nbtenant.comments, site_tag=self.site
+                name=nbtenant.name,
+                description=nbtenant.description,
+                comments=nbtenant.comments,
+                site_tag=self.site,
+                msite_tag=nbtenant.tags.filter(name="ACI_MULTISITE").exists(),
             )
             self.add(_tenant)
 
