@@ -3,17 +3,21 @@
 # Skip colon check for multiple statements on one line.
 # flake8: noqa: E701
 
+try:
+    from typing_extensions import TypedDict  # Python<3.9
+except ImportError:
+    from typing import TypedDict  # Python>=3.9
+
 from typing import Optional, Mapping, List
-from uuid import UUID
 from django.contrib.contenttypes.models import ContentType
 from django.templatetags.static import static
 from django.urls import reverse
 
-from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Manufacturer, Platform
+from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer, Platform
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.jobs import ObjectVar, StringVar
-from nautobot.extras.models import ExternalIntegration, Role
-from nautobot.ipam.models import Prefix
+from nautobot.extras.models import ExternalIntegration, Role, Status
+from nautobot.ipam.models import IPAddress, Namespace, Prefix
 from nautobot.tenancy.models import Tenant
 
 from diffsync import DiffSync
@@ -49,8 +53,12 @@ class LocationTypeModel(NautobotModel):
     parent__name: Optional[str]
     content_types: List[ContentTypeDict] = []
 
-    # Not in _attributes or _identifiers, hence not included in diff calculations
-    pk: Optional[UUID]
+
+class LocationDict(TypedDict):
+    """This typed dict is for M2M Locations."""
+
+    name: str
+    location_type__name: str
 
 
 class LocationModel(NautobotModel):
@@ -79,9 +87,6 @@ class LocationModel(NautobotModel):
     tenant__name: Optional[str]
     description: str
 
-    # Not in _attributes or _identifiers, hence not included in diff calculations
-    pk: Optional[UUID]
-
 
 class RoleModel(NautobotModel):
     """Shared data model representing a Role in either of the local or remote Nautobot instances."""
@@ -95,8 +100,32 @@ class RoleModel(NautobotModel):
     name: str
     content_types: List[ContentTypeDict] = []
 
-    # Not in _attributes or _identifiers, hence not included in diff calculations
-    pk: Optional[UUID]
+
+class StatusModel(NautobotModel):
+    """Shared data model representing a Status in either of the local or remote Nautobot instances."""
+
+    # Metadata about this model
+    _model = Status
+    _modelname = "status"
+    _identifiers = ("name",)
+    _attributes = ("content_types", "color")
+
+    name: str
+    color: str
+    content_types: List[ContentTypeDict] = []
+
+
+class NamespaceModel(NautobotModel):
+    """Shared data model representing a Namespace in either of the local or remote Nautobot instance."""
+
+    # Metadata about this model
+    _model = Namespace
+    _modelname = "namespace"
+    _identifiers = ("name",)
+    _attributes = ("description",)
+
+    name: str
+    description: Optional[str] = ""
 
 
 class PrefixModel(NautobotModel):
@@ -107,17 +136,41 @@ class PrefixModel(NautobotModel):
     _modelname = "prefix"
     _identifiers = ("network", "prefix_length", "tenant__name")
     # To keep this example simple, we don't include **all** attributes of a Prefix here. But you could!
-    _attributes = ("description", "status__name")
+    _attributes = ("description", "namespace__name", "status__name", "locations")
 
     # Data type declarations for all identifiers and attributes
     network: str
+    namespace__name: str
     prefix_length: int
     tenant__name: Optional[str]
     status__name: str
     description: str
 
-    # Not in _attributes or _identifiers, hence not included in diff calculations
-    pk: Optional[UUID]
+    locations: List[LocationDict] = []
+
+
+class IPAddressModel(NautobotModel):
+    """Shared data model representing an IPAddress in either of the local or remote Nautobot instances."""
+
+    # Metadata about this model
+    _model = IPAddress
+    _modelname = "ipaddress"
+    _identifiers = ("host", "mask_length", "parent__network", "parent__prefix_length", "parent__namespace__name")
+    _attributes = (
+        "status__name",
+        "ip_version",
+        "tenant__name",
+    )
+
+    # Data type declarations for all identifiers and attributes
+    host: str
+    mask_length: int
+    parent__network: str
+    parent__prefix_length: int
+    parent__namespace__name: str
+    status__name: str
+    ip_version: int
+    tenant__name: Optional[str]
 
 
 class TenantModel(NautobotModel):
@@ -131,8 +184,6 @@ class TenantModel(NautobotModel):
 
     name: str
     prefixes: List[PrefixModel] = []
-
-    pk: Optional[UUID]
 
 
 class DeviceTypeModel(NautobotModel):
@@ -149,9 +200,6 @@ class DeviceTypeModel(NautobotModel):
     u_height: int
     is_full_depth: bool
 
-    # Not in _attributes or _identifiers, hence not included in diff calculations
-    pk: Optional[UUID]
-
 
 class ManufacturerModel(NautobotModel):
     """Shared data model representing a Manufacturer in either of the local or remote Nautobot instances."""
@@ -165,9 +213,6 @@ class ManufacturerModel(NautobotModel):
     name: str
     description: str
     device_types: List[DeviceTypeModel] = []
-
-    # Not in _attributes or _identifiers, hence not included in diff calculations
-    pk: Optional[UUID]
 
 
 class PlatformModel(NautobotModel):
@@ -204,7 +249,7 @@ class DeviceModel(NautobotModel):
         "tenant__name",
         "asset_tag",
     )
-    # _children = {"interface": "interfaces"}
+    _children = {"interface": "interfaces"}
 
     name: str
     location__name: str
@@ -219,6 +264,41 @@ class DeviceModel(NautobotModel):
     status__name: str
     tenant__name: Optional[str]
     asset_tag: Optional[str]
+    interfaces: List["InterfaceModel"] = []
+
+
+class InterfaceModel(NautobotModel):
+    """Shared data model representing an Interface in either of the local or remote Nautobot instances."""
+
+    # Metadata about this model
+    _model = Interface
+    _modelname = "interface"
+    _identifiers = ("name", "device__name")
+    _attributes = (
+        "device__location__name",
+        "device__location__parent__name",
+        "description",
+        "enabled",
+        "mac_address",
+        "mgmt_only",
+        "mtu",
+        "type",
+        "status__name",
+    )
+    _children = {}
+
+    # Data type declarations for all identifiers and attributes
+    device__name: str
+    device__location__name: str
+    device__location__parent__name: str
+    description: Optional[str]
+    enabled: bool
+    mac_address: Optional[str]
+    mgmt_only: bool
+    mtu: Optional[int]
+    name: str
+    type: str
+    status__name: str
 
 
 class LocationRemoteModel(LocationModel):
@@ -312,6 +392,7 @@ class PrefixRemoteModel(PrefixModel):
                 "network": ids["network"],
                 "prefix_length": ids["prefix_length"],
                 "tenant": {"name": ids["tenant__name"]} if ids["tenant__name"] else None,
+                "namespace": {"name": attrs["namespace__name"]} if attrs["namespace__name"] else None,
                 "description": attrs["description"],
                 "status": attrs["status__name"],
             },
@@ -352,15 +433,31 @@ class NautobotRemote(DiffSync):
     locationtype = LocationTypeModel
     location = LocationRemoteModel
     tenant = TenantRemoteModel
+    namespace = NamespaceModel
     prefix = PrefixRemoteModel
+    ipaddress = IPAddressModel
     manufacturer = ManufacturerModel
     device_type = DeviceTypeModel
     platform = PlatformModel
     role = RoleModel
+    status = StatusModel
     device = DeviceModel
+    interface = InterfaceModel
 
     # Top-level class labels, i.e. those classes that are handled directly rather than as children of other models
-    top_level = ["tenant", "locationtype", "location", "manufacturer", "platform", "role", "device"]
+    top_level = [
+        "tenant",
+        "status",
+        "locationtype",
+        "location",
+        "manufacturer",
+        "platform",
+        "role",
+        "device",
+        "namespace",
+        "prefix",
+        "ipaddress",
+    ]
 
     def __init__(self, *args, url=None, token=None, job=None, **kwargs):
         """Instantiate this class, but do not load data immediately from the remote system.
@@ -385,24 +482,28 @@ class NautobotRemote(DiffSync):
 
     def _get_api_data(self, url_path: str) -> Mapping:
         """Returns data from a url_path using pagination."""
-        data = requests.get(f"{self.url}/{url_path}", headers=self.headers, params={"limit": 0}, timeout=60).json()
+        data = requests.get(f"{self.url}/{url_path}", headers=self.headers, params={"limit": 200}, timeout=60).json()
         result_data = data["results"]
         while data["next"]:
-            data = requests.get(data["next"], headers=self.headers, params={"limit": 0}, timeout=60).json()
+            data = requests.get(data["next"], headers=self.headers, params={"limit": 200}, timeout=60).json()
             result_data.extend(data["results"])
         return result_data
 
     def load(self):
         """Load data from the remote Nautobot instance."""
+        self.load_statuses()
         self.load_location_types()
         self.load_locations()
         self.load_roles()
         self.load_tenants()
+        self.load_namespaces()
         self.load_prefixes()
+        self.load_ipaddresses()
         self.load_manufacturers()
         self.load_device_types()
         self.load_platforms()
         self.load_devices()
+        self.load_interfaces()
 
     def load_location_types(self):
         """Load LocationType data from the remote Nautobot instance."""
@@ -448,6 +549,18 @@ class NautobotRemote(DiffSync):
             )
             self.add(role)
 
+    def load_statuses(self):
+        """Load Statuses data from the remote Nautobot instance."""
+        for status_entry in self._get_api_data("api/extras/statuses/?depth=1"):
+            content_types = self.get_content_types(status_entry)
+            status = self.status(
+                name=status_entry["name"],
+                color=status_entry["color"],
+                content_types=content_types,
+                pk=status_entry["id"],
+            )
+            self.add(status)
+
     def load_tenants(self):
         """Load Tenants data from the remote Nautobot instance."""
         for tenant_entry in self._get_api_data("api/tenancy/tenants/?depth=1"):
@@ -457,19 +570,51 @@ class NautobotRemote(DiffSync):
             )
             self.add(tenant)
 
+    def load_namespaces(self):
+        """Load Namespaces data from remote Nautobot instance."""
+        for namespace_entry in self._get_api_data("api/ipam/namespaces/?depth=1"):
+            namespace = self.namespace(
+                name=namespace_entry["name"],
+                description=namespace_entry["description"],
+                pk=namespace_entry["id"],
+            )
+            self.add(namespace)
+
     def load_prefixes(self):
         """Load Prefixes data from the remote Nautobot instance."""
-        for prefix_entry in self._get_api_data("api/ipam/prefixes/?depth=1"):
+        for prefix_entry in self._get_api_data("api/ipam/prefixes/?depth=2"):
             prefix = self.prefix(
                 network=prefix_entry["network"],
                 prefix_length=prefix_entry["prefix_length"],
+                namespace__name=prefix_entry["namespace"]["name"],
                 description=prefix_entry["description"],
+                locations=[
+                    {"name": x["name"], "location_type__name": x["location_type"]["name"]}
+                    for x in prefix_entry["locations"]
+                ],
                 status__name=prefix_entry["status"]["name"] if prefix_entry["status"].get("name") else "Active",
                 tenant__name=prefix_entry["tenant"]["name"] if prefix_entry["tenant"] else "",
                 pk=prefix_entry["id"],
             )
             self.add(prefix)
             self.job.logger.debug(f"Loaded {prefix} from remote Nautobot instance")
+
+    def load_ipaddresses(self):
+        """Load IPAddresses data from the remote Nautobot instance."""
+        for ipaddr_entry in self._get_api_data("api/ipam/ip-addresses/?depth=2"):
+            ipaddr = self.ipaddress(
+                host=ipaddr_entry["host"],
+                mask_length=ipaddr_entry["mask_length"],
+                parent__network=ipaddr_entry["parent"]["network"],
+                parent__prefix_length=ipaddr_entry["parent"]["prefix_length"],
+                parent__namespace__name=ipaddr_entry["parent"]["namespace"]["name"],
+                status__name=ipaddr_entry["status"]["name"],
+                ip_version=ipaddr_entry["ip_version"],
+                tenant__name=ipaddr_entry["tenant"]["name"] if ipaddr_entry.get("tenant") else "",
+                pk=ipaddr_entry["id"],
+            )
+            self.add(ipaddr)
+            self.job.logger.debug(f"Loaded {ipaddr} from remote Nautobot instance")
 
     def load_manufacturers(self):
         """Load Manufacturers data from the remote Nautobot instance."""
@@ -480,6 +625,7 @@ class NautobotRemote(DiffSync):
                 pk=manufacturer["id"],
             )
             self.add(manufacturer)
+            self.job.logger.debug(f"Loaded {manufacturer} from remote Nautobot instance")
 
     def load_device_types(self):
         """Load DeviceTypes data from the remote Nautobot instance."""
@@ -495,6 +641,7 @@ class NautobotRemote(DiffSync):
                     pk=device_type["id"],
                 )
                 self.add(devicetype)
+                self.job.logger.debug(f"Loaded {devicetype} from remote Nautobot instance")
                 manufacturer.add_child(devicetype)
             except ObjectNotFound:
                 self.job.logger.debug(f"Unable to find Manufacturer {device_type['manufacturer']['name']}")
@@ -511,6 +658,7 @@ class NautobotRemote(DiffSync):
                 pk=platform["id"],
             )
             self.add(platform)
+            self.job.logger.debug(f"Loaded {platform} from remote Nautobot instance")
 
     def load_devices(self):
         """Load Devices data from the remote Nautobot instance."""
@@ -536,6 +684,42 @@ class NautobotRemote(DiffSync):
                 pk=device["id"],
             )
             self.add(device)
+            self.job.logger.debug(f"Loaded {device} from remote Nautobot instance")
+
+    def load_interfaces(self):
+        """Load Interfaces data from the remote Nautobot instance."""
+        self.job.logger.info("Pulling data from remote Nautobot instance for Interfaces.")
+        for interface in self._get_api_data("api/dcim/interfaces/?depth=3"):
+            try:
+                dev = self.get(
+                    self.device,
+                    {
+                        "name": interface["device"]["name"],
+                        "location__name": interface["device"]["location"]["name"],
+                        "location__parent__name": interface["device"]["location"]["parent"]["name"],
+                    },
+                )
+                new_interface = self.interface(
+                    name=interface["name"],
+                    device__name=interface["device"]["name"],
+                    device__location__name=interface["device"]["location"]["name"],
+                    device__location__parent__name=interface["device"]["location"]["parent"]["name"],
+                    description=interface["description"],
+                    enabled=interface["enabled"],
+                    mac_address=interface["mac_address"],
+                    mgmt_only=interface["mgmt_only"],
+                    mtu=interface["mtu"],
+                    type=interface["type"]["value"],
+                    status__name=interface["status"]["name"],
+                    pk=interface["id"],
+                )
+                self.add(new_interface)
+                self.job.logger.debug(
+                    f"Loaded {new_interface} for {interface['device']['name']} from remote Nautobot instance"
+                )
+                dev.add_child(new_interface)
+            except ObjectNotFound:
+                self.job.logger.warning(f"Unable to find Device {interface['device']['name']} loaded.")
 
     def get_content_types(self, entry):
         """Create list of dicts of ContentTypes.
@@ -582,15 +766,31 @@ class NautobotLocal(NautobotAdapter):
     locationtype = LocationTypeModel
     location = LocationModel
     tenant = TenantModel
+    namespace = NamespaceModel
     prefix = PrefixModel
+    ipaddress = IPAddressModel
     manufacturer = ManufacturerModel
     device_type = DeviceTypeModel
     platform = PlatformModel
     role = RoleModel
+    status = StatusModel
     device = DeviceModel
+    interface = InterfaceModel
 
     # Top-level class labels, i.e. those classes that are handled directly rather than as children of other models
-    top_level = ["tenant", "locationtype", "location", "manufacturer", "platform", "role", "device"]
+    top_level = [
+        "tenant",
+        "status",
+        "locationtype",
+        "location",
+        "manufacturer",
+        "platform",
+        "role",
+        "device",
+        "namespace",
+        "prefix",
+        "ipaddress",
+    ]
 
 
 # The actual Data Source and Data Target Jobs are relatively simple to implement
@@ -605,6 +805,7 @@ class ExampleDataSource(DataSource):
         queryset=ExternalIntegration.objects.all(),
         display_field="display",
         label="Nautobot Demo Instance",
+        required=False,
     )
     source_url = StringVar(
         description="Remote Nautobot instance to load Sites and Regions from", default="https://demo.nautobot.com"
@@ -630,10 +831,18 @@ class ExampleDataSource(DataSource):
     def data_mappings(cls):
         """This Job maps Region and Site objects from the remote system to the local system."""
         return (
-            DataMapping("Region (remote)", None, "Region (local)", reverse("dcim:location_list")),
-            DataMapping("Site (remote)", None, "Site (local)", reverse("dcim:location_list")),
+            DataMapping("LocationType (remote)", None, "LocationType (local)", reverse("dcim:locationtype_list")),
+            DataMapping("Location (remote)", None, "Location (local)", reverse("dcim:location_list")),
+            DataMapping("Role (remote)", None, "Role (local)", reverse("extras:role_list")),
+            DataMapping("Namespace (remote)", None, "Namespace (local)", reverse("ipam:namespace_list")),
             DataMapping("Prefix (remote)", None, "Prefix (local)", reverse("ipam:prefix_list")),
+            DataMapping("IPAddress (remote)", None, "IPAddress (local)", reverse("ipam:ipaddress_list")),
             DataMapping("Tenant (remote)", None, "Tenant (local)", reverse("tenancy:tenant_list")),
+            DataMapping("DeviceType (remote)", None, "DeviceType (local)", reverse("dcim:devicetype_list")),
+            DataMapping("Manufacturer (remote)", None, "Manufacturer (local)", reverse("dcim:manufacturer_list")),
+            DataMapping("Platform (remote)", None, "Platform (local)", reverse("dcim:platform_list")),
+            DataMapping("Device (remote)", None, "Device (local)", reverse("dcim:device_list")),
+            DataMapping("Interface (remote)", None, "Interface (local)", reverse("dcim:interface_list")),
         )
 
     def run(  # pylint: disable=too-many-arguments, arguments-differ
@@ -677,25 +886,10 @@ class ExampleDataSource(DataSource):
         """Method to instantiate and load the TARGET adapter into `self.target_adapter`."""
         self.target_adapter = NautobotLocal(job=self, sync=self.sync)
         self.target_adapter.load()
-        self.logger.info(f"Found {self.target_adapter.count('region')} regions")
 
     def lookup_object(self, model_name, unique_id):
         """Look up a Nautobot object based on the DiffSync model name and unique ID."""
-        if model_name == "region":
-            try:
-                return Location.objects.get(
-                    name=unique_id, location_type=LocationType.objects.get_or_create(name="Region")[0]
-                )
-            except Location.DoesNotExist:
-                pass
-        elif model_name == "site":
-            try:
-                return Location.objects.get(
-                    name=unique_id, location_type=LocationType.objects.get_or_create(name="Site")[0]
-                )
-            except Location.DoesNotExist:
-                pass
-        elif model_name == "prefix":
+        if model_name == "prefix":
             try:
                 return Prefix.objects.get(
                     prefix=unique_id.split("__")[0], tenant__name=unique_id.split("__")[1] or None
@@ -735,10 +929,18 @@ class ExampleDataTarget(DataTarget):
     def data_mappings(cls):
         """This Job maps Region and Site objects from the local system to the remote system."""
         return (
-            DataMapping("Region (local)", reverse("dcim:location_list"), "Region (remote)", None),
-            DataMapping("Site (local)", reverse("dcim:location_list"), "Site (remote)", None),
+            DataMapping("LocationType (local)", reverse("dcim:locationtype_list"), "LocationType (remote)", None),
+            DataMapping("Location (local)", reverse("dcim:location_list"), "Location (remote)", None),
+            DataMapping("Role (local)", reverse("extras:role_list"), "Role (remote)", None),
+            DataMapping("Namespace (local)", reverse("ipam:prefix_list"), "Namespace (remote)", None),
             DataMapping("Prefix (local)", reverse("ipam:prefix_list"), "Prefix (remote)", None),
+            DataMapping("IPAddress (local)", reverse("ipam:ipaddress_list"), "IPAddress (remote)", None),
             DataMapping("Tenant (local)", reverse("tenancy:tenant_list"), "Tenant (remote)", None),
+            DataMapping("DeviceType (local)", reverse("dcim:devicetype_list"), "DeviceType (remote)", None),
+            DataMapping("Manufacturer (local)", reverse("dcim:manufacturer_list"), "Manufacturer (remote)", None),
+            DataMapping("Platform (local)", reverse("dcim:platform_list"), "Platform (remote)", None),
+            DataMapping("Device (local)", reverse("dcim:device_list"), "Device (remote)", None),
+            DataMapping("Interface (local)", reverse("dcim:interface_list"), "Interface (remote)", None),
         )
 
     def load_source_adapter(self):
@@ -753,21 +955,7 @@ class ExampleDataTarget(DataTarget):
 
     def lookup_object(self, model_name, unique_id):
         """Look up a Nautobot object based on the DiffSync model name and unique ID."""
-        if model_name == "region":
-            try:
-                return Location.objects.get(
-                    name=unique_id, location_type=LocationType.objects.get_or_create(name="Region")[0]
-                )
-            except Location.DoesNotExist:
-                pass
-        elif model_name == "site":
-            try:
-                return Location.objects.get(
-                    name=unique_id, location_type=LocationType.objects.get_or_create(name="Site")
-                )
-            except Location.DoesNotExist:
-                pass
-        elif model_name == "prefix":
+        if model_name == "prefix":
             try:
                 return Prefix.objects.get(
                     prefix=unique_id.split("__")[0], tenant__name=unique_id.split("__")[1] or None
