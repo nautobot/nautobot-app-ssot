@@ -3,7 +3,6 @@
 from nautobot_ssot.integrations.utils import each_enabled_integration_module
 
 app_name = "ssot"  # pylint: disable=invalid-name
-
 urlpatterns = []
 
 

@@ -36,6 +36,7 @@ from nautobot.extras.utils import extras_features
 
 from nautobot_ssot.integrations.servicenow.models import SSOTServiceNowConfig
 from nautobot_ssot.integrations.infoblox.models import SSOTInfobloxConfig
+from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 
@@ -218,6 +219,7 @@ class SSOTConfig(models.Model):  # pylint: disable=nb-incorrect-base-class
 
 __all__ = (
     "SSOTInfobloxConfig",
+    "AutomationGatewayModel",
     "SSOTServiceNowConfig",
     "Sync",
     "SyncLogEntry",

@@ -1,0 +1,5 @@
+Added an SSoT to sync Nautobot ==> Itential Automation Gateway.
+
+This integration allows users to sync Nautobot device inventory to Itential Automation Gateway(s) (IAG).
+The current IAG inventory that is supported is its default Ansible inventory.
+Netmiko, Nornir, HTTP requests inventories will be added at a later date.
