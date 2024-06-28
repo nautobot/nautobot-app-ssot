@@ -191,6 +191,7 @@ class NautobotAdapter(Adapter):
                 version=version,
                 platform=dev.platform.network_driver if dev.platform else "",
                 tenant=dev.tenant.name if dev.tenant else None,
+                controller_group=dev.controller_managed_device_group.name,
                 uuid=dev.id,
             )
             if self.tenant:

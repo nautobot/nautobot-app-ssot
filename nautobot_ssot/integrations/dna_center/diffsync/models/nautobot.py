@@ -202,6 +202,7 @@ class NautobotDevice(base.Device):
             device_type=device_type,
             serial=attrs["serial"],
             platform_id=platform.id,
+            controller_managed_device_group=adapter.job.controller_group,
         )
         if attrs.get("floor"):
             new_device.location_id = adapter.floor_map[attrs["floor"]]
@@ -251,6 +252,8 @@ class NautobotDevice(base.Device):
                 device.tenant_id = self.adapter.tenant_map[attrs["tenant"]]
             else:
                 device.tenant = None
+        if "controller_group" in attrs:
+            device.controller_managed_device_group = self.adapter.job.controller_group
         if "version" in attrs:
             device.custom_field_data.update({"os_version": attrs["version"]})
             if LIFECYCLE_MGMT:

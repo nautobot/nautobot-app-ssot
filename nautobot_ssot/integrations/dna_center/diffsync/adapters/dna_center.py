@@ -294,6 +294,7 @@ class DnaCenterAdapter(Adapter):
                     version=dev.get("softwareVersion"),
                     platform=platform,
                     tenant=self.tenant.name if self.tenant else None,
+                    controller_group=self.job.controller_group.name,
                     uuid=None,
                 )
                 try:

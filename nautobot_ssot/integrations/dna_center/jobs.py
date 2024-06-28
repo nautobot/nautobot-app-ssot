@@ -2,7 +2,7 @@
 
 from django.urls import reverse
 from django.templatetags.static import static
-from nautobot.dcim.models import Controller
+from nautobot.dcim.models import Controller, ControllerManagedDeviceGroup
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.jobs import BooleanVar, ObjectVar
 from nautobot.tenancy.models import Tenant
@@ -28,6 +28,7 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
     bulk_import = BooleanVar(description="Perform bulk operations when importing data", default=False)
     tenant = ObjectVar(model=Tenant, label="Tenant", required=False)
+    controller_group = None
 
     class Meta:  # pylint: disable=too-few-public-methods
         """Meta data for DNA Center."""
@@ -54,6 +55,12 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
             DataMapping("Interfaces", None, "Interfaces", reverse("dcim:interface_list")),
             DataMapping("IP Addresses", None, "IP Addresses", reverse("ipam:ipaddress_list")),
         )
+
+    def get_controller_group(self):
+        """Method to get or create ControllerManagedDeviceGroup for imported Devices."""
+        self.controller_group = ControllerManagedDeviceGroup.objects.update_or_create(
+            controller=self.dnac, defaults={"name": f"{self.dnac.name} Managed Devices"}
+        )[0]
 
     def load_source_adapter(self):
         """Load data from DNA Center into DiffSync models."""
@@ -97,11 +104,13 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
         dnac,
         bulk_import,
         tenant,
+        controller_group,
         *args,
         **kwargs,  # pylint: disable=arguments-differ, too-many-arguments
     ):
         """Perform data synchronization."""
         self.dnac = dnac
+        self.controller_group = controller_group
         self.tenant = tenant
         self.debug = debug
         self.bulk_import = bulk_import
