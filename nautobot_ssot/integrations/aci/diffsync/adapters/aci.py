@@ -10,7 +10,7 @@ from typing import Optional
 from ipaddress import ip_network
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectNotFound
-from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
+from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG, HAS_ACI_MODELS
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotTenant
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotVrf
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotDeviceType
@@ -20,13 +20,12 @@ from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterfaceTemp
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterface
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotIPAddress
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotPrefix
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotACIAppProfile
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotACIBridgeDomain
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotACIEPG
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotACIAppTermination
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotApplicationProfile
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotBridgeDomain
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotEPG
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotApplicationTermination
 from nautobot_ssot.integrations.aci.diffsync.client import AciApi
 from nautobot_ssot.integrations.aci.diffsync.utils import load_yamlfile
-
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +42,10 @@ class AciAdapter(DiffSync):
     ip_address = NautobotIPAddress
     prefix = NautobotPrefix
     interface = NautobotInterface
-    aci_appprofile = NautobotACIAppProfile
-    aci_bridgedomain = NautobotACIBridgeDomain
-    aci_epg = NautobotACIEPG
-    aci_apptermination = NautobotACIAppTermination
+    aci_appprofile = NautobotApplicationProfile
+    aci_bridgedomain = NautobotBridgeDomain
+    aci_epg = NautobotEPG
+    aci_apptermination = NautobotApplicationTermination
 
     top_level = [
         "tenant",
@@ -578,7 +577,8 @@ class AciAdapter(DiffSync):
         self.load_interfaces()
         self.load_prefixes()
         self.load_ipaddresses()
-        self.load_appprofiles()
-        self.load_bridgedomains()
-        self.load_epgs()
-        self.load_appterminations()
+        if HAS_ACI_MODELS:
+            self.load_appprofiles()
+            self.load_bridgedomains()
+            self.load_epgs()
+            self.load_appterminations()
