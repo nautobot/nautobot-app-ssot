@@ -131,6 +131,7 @@ PLUGINS = [
     "nautobot_chatops",
     "nautobot_device_lifecycle_mgmt",
     "nautobot_ssot",
+    "aci_models",
 ]
 
 # Apps configuration settings. These settings are used by various Apps that the user may have installed.
