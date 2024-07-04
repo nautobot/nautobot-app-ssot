@@ -417,9 +417,11 @@ class AciApi:
                     bd_dict[unique_name]
                 except KeyError:
                     bd_dict.setdefault(unique_name, deepcopy(bd_dict_schema))
+                # BUGfix for non existent VRF, assumes BD Tenant.
                 bd_dict[unique_name]["vrf"] = data["fvRsCtx"]["attributes"].get("tnFvCtxName") or "default"
                 vrf_tenant = data["fvRsCtx"]["attributes"].get("tDn")
-                bd_dict[unique_name]["vrf_tenant"] = tenant_from_dn(vrf_tenant)
+                if vrf_tenant:
+                    bd_dict[unique_name]["vrf_tenant"] = tenant_from_dn(vrf_tenant)
         
             elif "fvSubnet" in data.keys():
                 bd_tenant = tenant_from_dn(data["fvSubnet"]["attributes"]["dn"])
