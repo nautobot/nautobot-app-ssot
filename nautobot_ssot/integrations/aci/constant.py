@@ -2,6 +2,16 @@
 
 from django.conf import settings
 
+try:
+    from aci_models.models import (
+        ApplicationProfile,
+        BridgeDomain,
+        EPG,
+        ApplicationTermination,
+    )
+    HAS_ACI_MODELS = True
+except ImportError:
+    HAS_ACI_MODELS = False
 
 def _read_settings() -> dict:
     config = settings.PLUGINS_CONFIG["nautobot_ssot"]
