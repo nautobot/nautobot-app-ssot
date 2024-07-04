@@ -1,7 +1,7 @@
 """DiffSync Adapter for Nautobot."""
 
 # pylint: disable=duplicate-code
-
+from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG, HAS_ACI_MODELS
 import logging
 from collections import defaultdict
 from diffsync import DiffSync
@@ -13,7 +13,13 @@ from nautobot.dcim.models import DeviceType, Device, InterfaceTemplate, Interfac
 from nautobot.extras.models import Role
 from nautobot.ipam.models import IPAddress, Prefix, VRF
 from nautobot.extras.models import Tag
-from nautobot_ssot.models import ACIAppProfile, ACIBridgeDomain, ACIEPG, ACIAppTermination
+if HAS_ACI_MODELS:
+    from aci_models.models import (
+        ApplicationProfile,
+        BridgeDomain,
+        EPG,
+        ApplicationTermination,
+    )
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotTenant
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotVrf
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotDeviceType
@@ -23,11 +29,10 @@ from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterfaceTemp
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterface
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotIPAddress
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotPrefix
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotACIAppProfile
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotACIBridgeDomain
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotACIEPG
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotACIAppTermination
-from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotApplicationProfile
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotBridgeDomain
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotEPG
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotApplicationTermination
 
 logger = logging.getLogger(__name__)
 
@@ -46,10 +51,10 @@ class NautobotAdapter(DiffSync):
     interface = NautobotInterface
     ip_address = NautobotIPAddress
     prefix = NautobotPrefix
-    aci_appprofile = NautobotACIAppProfile
-    aci_bridgedomain = NautobotACIBridgeDomain
-    aci_epg = NautobotACIEPG
-    aci_apptermination = NautobotACIAppTermination
+    aci_appprofile = NautobotApplicationProfile
+    aci_bridgedomain = NautobotBridgeDomain
+    aci_epg = NautobotEPG
+    aci_apptermination = NautobotApplicationTermination
 
     top_level = [
         "tenant",
@@ -265,7 +270,7 @@ class NautobotAdapter(DiffSync):
 
     def load_appprofiles(self):
         """Method to load VRFs from Nautobot."""
-        for nbap in ACIAppProfile.objects.filter(tags=self.site_tag):
+        for nbap in ApplicationProfile.objects.filter(tags=self.site_tag):
             _ap = self.aci_appprofile(
                 name=nbap.name,
                 tenant=nbap.tenant.name,
@@ -276,7 +281,7 @@ class NautobotAdapter(DiffSync):
 
     def load_bridgedomains(self):
         """Method to load BDs from Nautobot."""
-        for nbbd in ACIBridgeDomain.objects.filter(tags=self.site_tag):
+        for nbbd in BridgeDomain.objects.filter(tags=self.site_tag):
             ip_addresses = [f"{ip.get('host')}/{ip.get('mask_length')}" for ip in list(nbbd.ip_addresses.values())]
             _bd = self.aci_bridgedomain(
                 name=nbbd.name,
@@ -294,7 +299,7 @@ class NautobotAdapter(DiffSync):
     
     def load_epgs(self):
         """Method to load EPGs from Nautobot."""
-        for nbepg in ACIEPG.objects.filter(tags=self.site_tag):
+        for nbepg in EPG.objects.filter(tags=self.site_tag):
             _epg = self.aci_epg(
                 name=nbepg.name,
                 tenant=nbepg.tenant.name,
@@ -307,7 +312,7 @@ class NautobotAdapter(DiffSync):
 
     def load_appterminations(self):
         """Method to load EPG paths from Nautobot."""
-        for nbepgpath in ACIAppTermination.objects.filter(tags=self.site_tag):
+        for nbepgpath in ApplicationTermination.objects.filter(tags=self.site_tag):
             _epgpath = self.aci_apptermination(
                 name=nbepgpath.name,
                 epg={
@@ -335,7 +340,8 @@ class NautobotAdapter(DiffSync):
         self.load_interfaces()
         self.load_prefixes()
         self.load_ipaddresses()
-        self.load_appprofiles()
-        self.load_bridgedomains()
-        self.load_epgs()
-        self.load_appterminations()
+        if HAS_ACI_MODELS:
+            self.load_appprofiles()
+            self.load_bridgedomains()
+            self.load_epgs()
+            self.load_appterminations()
