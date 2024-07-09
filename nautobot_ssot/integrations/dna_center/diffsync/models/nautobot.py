@@ -214,7 +214,7 @@ class NautobotDevice(base.Device):
                 lcm_obj = add_software_lcm(adapter=adapter, platform=platform.network_driver, version=attrs["version"])
                 assign_version_to_device(adapter=adapter, device=new_device, software_lcm=lcm_obj)
         new_device.custom_field_data.update({"system_of_record": "DNA Center"})
-        new_device.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        new_device.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         adapter.objects_to_create["devices"].append(new_device)
         adapter.device_map[ids["name"]] = new_device.id
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -263,7 +263,7 @@ class NautobotDevice(base.Device):
                 )
                 assign_version_to_device(adapter=self.adapter, device=device, software_lcm=lcm_obj)
         device.custom_field_data.update({"system_of_record": "DNA Center"})
-        device.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        device.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         device.validated_save()
         return super().update(attrs)
 
@@ -298,7 +298,7 @@ class NautobotPort(base.Port):
             mgmt_only=True if "Management" in ids["name"] else False,
         )
         new_port.custom_field_data.update({"system_of_record": "DNA Center"})
-        new_port.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        new_port.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         adapter.objects_to_create["interfaces"].append(new_port)
         if ids["device"] not in adapter.port_map:
             adapter.port_map[ids["device"]] = {}
@@ -325,7 +325,7 @@ class NautobotPort(base.Port):
         if "enabled" in attrs:
             port.enabled = attrs["enabled"]
         port.custom_field_data.update({"system_of_record": "DNA Center"})
-        port.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        port.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         port.validated_save()
         return super().update(attrs)
 
@@ -362,7 +362,7 @@ class NautobotPrefix(base.Prefix):
         if attrs.get("tenant"):
             new_prefix.tenant_id = adapter.tenant_map[attrs["tenant"]]
         new_prefix.custom_field_data.update({"system_of_record": "DNA Center"})
-        new_prefix.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        new_prefix.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_prefix.validated_save()
         adapter.prefix_map[ids["prefix"]] = new_prefix.id
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -403,7 +403,7 @@ class NautobotIPAddress(base.IPAddress):
         if attrs.get("tenant"):
             new_ip.tenant_id = adapter.tenant_map[attrs["tenant"]]
         new_ip.custom_field_data.update({"system_of_record": "DNA Center"})
-        new_ip.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        new_ip.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_ip.validated_save()
         adapter.ipaddr_map[ids["host"]] = new_ip.id
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -417,7 +417,7 @@ class NautobotIPAddress(base.IPAddress):
             else:
                 ipaddr.tenant = None
         ipaddr.custom_field_data.update({"system_of_record": "DNA Center"})
-        ipaddr.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        ipaddr.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         try:
             ipaddr.validated_save()
         except ValidationError as err:

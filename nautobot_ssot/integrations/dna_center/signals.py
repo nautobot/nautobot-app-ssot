@@ -47,7 +47,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     sor_custom_field, _ = CustomField.objects.update_or_create(key=sor_cf_dict["key"], defaults=sor_cf_dict)
     sync_cf_dict = {
         "type": CustomFieldTypeChoices.TYPE_DATE,
-        "key": "ssot_last_synchronized",
+        "key": "last_synced_from_sor",
         "label": "Last sync from System of Record",
     }
     sync_custom_field, _ = CustomField.objects.update_or_create(key=sync_cf_dict["key"], defaults=sync_cf_dict)
