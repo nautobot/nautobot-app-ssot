@@ -4,6 +4,8 @@ from unittest.mock import MagicMock, patch
 from django.test import override_settings
 from diffsync import Adapter
 from nautobot.dcim.models import (
+    Controller,
+    ControllerManagedDeviceGroup,
     Location,
     LocationType,
     DeviceType,
@@ -264,18 +266,35 @@ class TestNautobotDevice(TransactionTestCase):
     def setUp(self):
         super().setUp()
 
+        self.status_active = Status.objects.get(name="Active")
+        self.site_lt = LocationType.objects.get_or_create(name="Site")[0]
+
         self.adapter = Adapter()
         self.adapter.job = MagicMock()
         self.adapter.job.logger.info = MagicMock()
         self.ga_tenant = Tenant.objects.create(name="G&A")
+        self.adapter.device_map = {}
+        self.adapter.floor_map = {}
+        self.adapter.site_map = {}
+        self.adapter.status_map = {"Active": self.status_active.id}
         self.adapter.tenant_map = {"G&A": self.ga_tenant.id}
 
-        self.status_active = Status.objects.get(name="Active")
-        self.adapter.status_map = {"Active": self.status_active.id}
+        self.hq_site = Location.objects.create(name="HQ", status=self.status_active, location_type=self.site_lt)
+
+        dnac_controller = Controller.objects.get_or_create(
+            name="DNA Center", status=self.status_active, location=self.hq_site
+        )[0]
+        dnac_group = ControllerManagedDeviceGroup.objects.create(
+            name="DNA Center Managed Devices", controller=dnac_controller
+        )
+        self.adapter.job.controller_group = dnac_group
+        self.adapter.job.dnac = dnac_controller
+
         self.ids = {
             "name": "core-router.testexample.com",
         }
         self.attrs = {
+            "controller_group": "DNA Center Managed Devices",
             "floor": "HQ - Floor 1",
             "management_addr": "10.10.0.1",
             "model": "Nexus 9300",
@@ -288,19 +307,14 @@ class TestNautobotDevice(TransactionTestCase):
             "vendor": "Cisco",
             "version": "16.12.3",
         }
-        self.adapter.site_map = {}
-        self.adapter.floor_map = {}
-        self.adapter.device_map = {}
         self.adapter.objects_to_create = {"devices": []}  # pylint: disable=no-member
 
     @patch("nautobot_ssot.integrations.dna_center.diffsync.models.nautobot.LIFECYCLE_MGMT", True)
     def test_create(self):
         """Test the NautobotDevice create() method creates a Device."""
-        site_lt = LocationType.objects.get_or_create(name="Site")[0]
-        floor_lt = LocationType.objects.get_or_create(name="Floor", parent=site_lt)[0]
-        hq_site = Location.objects.create(name="HQ", status=self.status_active, location_type=site_lt)
+        floor_lt = LocationType.objects.get_or_create(name="Floor", parent=self.site_lt)[0]
         hq_floor = Location.objects.create(name="HQ - Floor 1", status=self.status_active, location_type=floor_lt)
-        self.adapter.site_map = {"HQ": hq_site.id}
+        self.adapter.site_map = {"HQ": self.hq_site.id}
         self.adapter.floor_map = {"HQ - Floor 1": hq_floor.id}
 
         NautobotDevice.create(self.adapter, self.ids, self.attrs)
