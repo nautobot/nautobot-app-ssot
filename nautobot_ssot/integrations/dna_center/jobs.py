@@ -86,14 +86,12 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
             verify=self.dnac.external_integration.verify_ssl,
         )
         client.connect()
-        self.source_adapter = dna_center.DnaCenterAdapter(
-            job=self, sync=self.sync, client=client, tenant=self.dnac.tenant
-        )
+        self.source_adapter = dna_center.DnaCenterAdapter(job=self, sync=self.sync, client=client, tenant=self.tenant)
         self.source_adapter.load()
 
     def load_target_adapter(self):
         """Load data from Nautobot into DiffSync models."""
-        self.target_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync, tenant=self.dnac.tenant)
+        self.target_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync, tenant=self.tenant)
         self.target_adapter.load()
 
     def run(
