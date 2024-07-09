@@ -321,7 +321,8 @@ class NautobotAdapter(Adapter):
                 self.job.logger.info(f"Importing {len(self.objects_to_create[obj_type])} {obj_type} into Nautobot.")
                 for nautobot_obj in self.objects_to_create[obj_type]:
                     try:
-                        self.job.logger.info(f"Saving {nautobot_obj}.")
+                        if self.job.debug:
+                            self.job.logger.info(f"Saving {nautobot_obj}.")
                         nautobot_obj.validated_save()
                     except ValidationError as err:
                         self.job.logger.warning(f"Unable to save {nautobot_obj}. {err}")
