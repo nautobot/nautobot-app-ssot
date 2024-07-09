@@ -28,7 +28,6 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
     bulk_import = BooleanVar(description="Perform bulk operations when importing data", default=False)
     tenant = ObjectVar(model=Tenant, label="Tenant", required=False)
-    controller_group = None
 
     class Meta:  # pylint: disable=too-few-public-methods
         """Meta data for DNA Center."""
@@ -38,6 +37,11 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
         data_target = "Nautobot"
         description = "Sync information from DNA Center to Nautobot"
         data_source_icon = static("nautobot_ssot_dna_center/dna_center_logo.png")
+
+    def __init__(self):
+        """Initiailize Job vars."""
+        self.controller_group = None
+        super().__init__()
 
     @classmethod
     def config_information(cls):
@@ -65,6 +69,7 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
     def load_source_adapter(self):
         """Load data from DNA Center into DiffSync models."""
         self.logger.info(f"Loading data from {self.dnac.name}")
+        self.get_controller_group()
         _sg = self.dnac.external_integration.secrets_group
         username = _sg.get_secret_value(
             access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
@@ -102,13 +107,11 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
         dnac,
         bulk_import,
         tenant,
-        controller_group,
         *args,
         **kwargs,  # pylint: disable=arguments-differ, too-many-arguments
     ):
         """Perform data synchronization."""
         self.dnac = dnac
-        self.controller_group = controller_group
         self.tenant = tenant
         self.debug = debug
         self.bulk_import = bulk_import

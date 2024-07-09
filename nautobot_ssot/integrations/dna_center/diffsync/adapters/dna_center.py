@@ -56,6 +56,7 @@ class DnaCenterAdapter(Adapter):
 
     def load_locations(self):
         """Load location data from DNA Center into DiffSync models."""
+        self.load_controller_locations()
         locations = self.conn.get_locations()
         if locations:
             # to ensure we process locations in the appropriate order we need to split them into their own list of locations
@@ -66,6 +67,51 @@ class DnaCenterAdapter(Adapter):
             self.load_floors(floors)
         else:
             self.job.logger.error("No location data was returned from DNAC. Unable to proceed.")
+
+    def load_controller_locations(self):
+        """Load location data for Controller specified in Job form."""
+        if self.job.dnac.location.location_type.name == "Site":
+            self.get_or_instantiate(
+                self.building,
+                ids={"name": self.job.dnac.location.name},
+                attrs={
+                    "address": self.job.dnac.location.physical_address,
+                    "area": self.job.dnac.location.parent.name if self.job.dnac.location.parent else None,
+                    "area_parent": (
+                        self.job.dnac.location.parent.parent.name
+                        if self.job.dnac.location.parent and self.job.dnac.location.parent.parent
+                        else None
+                    ),
+                    "latitude": str(self.job.dnac.location.latitude),
+                    "longitude": str(self.job.dnac.location.longitude),
+                    "tenant": self.job.dnac.location.tenant.name if self.job.dnac.location.tenant else None,
+                    "uuid": None,
+                },
+            )
+        if self.job.dnac.location.parent.location_type.name == "Region":
+            self.get_or_instantiate(
+                self.area,
+                ids={
+                    "name": self.job.dnac.location.parent.name,
+                    "parent": (
+                        self.job.dnac.location.parent.parent.name if self.job.dnac.location.parent.parent else None
+                    ),
+                },
+                attrs={"uuid": None},
+            )
+        if self.job.dnac.location.parent.parent and self.job.dnac.location.parent.parent.location_type.name == "Region":
+            self.get_or_instantiate(
+                self.area,
+                ids={
+                    "name": self.job.dnac.location.parent.parent.name,
+                    "parent": (
+                        self.job.dnac.location.parent.parent.parent.name
+                        if self.job.dnac.location.parent.parent.parent
+                        else None
+                    ),
+                },
+                attrs={"uuid": None},
+            )
 
     def load_areas(self, areas: List[dict]):
         """Load areas from DNAC into DiffSync model.
