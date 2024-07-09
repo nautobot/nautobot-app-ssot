@@ -6,7 +6,16 @@ from unittest.mock import MagicMock
 from django.core.exceptions import ValidationError
 from django.contrib.contenttypes.models import ContentType
 from django.test import override_settings
-from nautobot.dcim.models import Device, DeviceType, Interface, Manufacturer, Location, LocationType
+from nautobot.dcim.models import (
+    Controller,
+    ControllerManagedDeviceGroup,
+    Device,
+    DeviceType,
+    Interface,
+    Manufacturer,
+    Location,
+    LocationType,
+)
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, JobResult, Status, Role
 from nautobot.ipam.models import IPAddress, IPAddressToInterface, Prefix, Namespace
@@ -56,17 +65,6 @@ class TestDnaCenterAdapterTestCase(
         self.dna_center_client.get_port_info.return_value = PORT_FIXTURE
         self.dna_center_client.get_port_type.return_value = "virtual"
         self.dna_center_client.get_port_status.return_value = "active"
-
-        self.job = DnaCenterDataSource()
-        self.job.debug = True
-        self.job.job_result = JobResult.objects.create(
-            name=self.job.class_path, task_name="fake task", user=None, id=uuid.uuid4()
-        )
-        self.dna_center = DnaCenterAdapter(job=self.job, sync=None, client=self.dna_center_client, tenant=None)
-        self.dna_center.job.logger.warning = MagicMock()
-        self.dna_center.job.logger.error = MagicMock()
-        self.dna_center.job.logger.info = MagicMock()
-        self.dna_center.dnac_location_map = EXPECTED_DNAC_LOCATION_MAP
 
         sor_cf_dict = {
             "type": CustomFieldTypeChoices.TYPE_TEXT,
@@ -120,6 +118,22 @@ class TestDnaCenterAdapterTestCase(
             ip_address=self.addr,
             interface=self.intf,
         )
+
+        dnac = Controller.objects.get_or_create(name="DNA Center", status=self.status_active, location=self.hq_site)[0]
+        self.job = DnaCenterDataSource()
+        self.job.dnac = dnac
+        self.job.controller_group = ControllerManagedDeviceGroup.objects.get_or_create(
+            name="DNA Center Managed Devices", controller=dnac
+        )[0]
+        self.job.debug = True
+        self.job.job_result = JobResult.objects.create(
+            name=self.job.class_path, task_name="fake task", user=None, id=uuid.uuid4()
+        )
+        self.dna_center = DnaCenterAdapter(job=self.job, sync=None, client=self.dna_center_client, tenant=None)
+        self.dna_center.job.logger.warning = MagicMock()
+        self.dna_center.job.logger.error = MagicMock()
+        self.dna_center.job.logger.info = MagicMock()
+        self.dna_center.dnac_location_map = EXPECTED_DNAC_LOCATION_MAP
 
     def test_build_dnac_location_map(self):
         """Test Nautobot adapter build_dnac_location_map method."""
