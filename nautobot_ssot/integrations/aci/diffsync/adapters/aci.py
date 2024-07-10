@@ -335,57 +335,58 @@ class AciAdapter(DiffSync):
             fn = os.path.join(devicetype_file_path, f"{device['model']}.yaml")
             if os.path.exists(fn):
                 device_specs = load_yamlfile(fn)
-                for interface_name, interface in interfaces[device_name].items():
-                    if_list = [
-                        intf
-                        for intf in device_specs["interfaces"]
-                        if intf["name"] == interface_name.replace("eth", "Ethernet")
-                    ]
-                    if if_list:
-                        intf_type = if_list[0]["type"]
-                    else:
-                        intf_type = "other"
-                    new_interface = self.interface(
-                        name=interface_name.replace("eth", "Ethernet"),
-                        device=device["name"],
-                        site=self.site,
-                        description=interface["descr"],
-                        gbic_vendor=interface["gbic_vendor"],
-                        gbic_type=interface["gbic_type"],
-                        gbic_sn=interface["gbic_sn"],
-                        gbic_model=interface["gbic_model"],
-                        state=interface["state"],
-                        type=intf_type,
-                        site_tag=self.site,
-                    )
-                    self.add(new_interface)
+                if device_specs and device_specs.get("interfaces"):
+                    for interface_name, interface in interfaces[device_name].items():
+                        if_list = [
+                            intf
+                            for intf in device_specs["interfaces"]
+                            if intf["name"] == interface_name.replace("eth", "Ethernet")
+                        ]
+                        if if_list:
+                            intf_type = if_list[0]["type"]
+                        else:
+                            intf_type = "other"
+                        new_interface = self.interface(
+                            name=interface_name.replace("eth", "Ethernet"),
+                            device=device["name"],
+                            site=self.site,
+                            description=interface["descr"],
+                            gbic_vendor=interface["gbic_vendor"],
+                            gbic_type=interface["gbic_type"],
+                            gbic_sn=interface["gbic_sn"],
+                            gbic_model=interface["gbic_model"],
+                            state=interface["state"],
+                            type=intf_type,
+                            site_tag=self.site,
+                        )
+                        self.add(new_interface)
+                    for _interface in device_specs["interfaces"]:
+                        if_list = [intf for intf in device_specs["interfaces"] if intf["name"] == _interface]
+                        if if_list:
+                            intf_type = if_list[0]["type"]
+                        else:
+                            intf_type = "other"
+                        if re.match("^Eth[0-9]|^mgmt[0-9]", _interface["name"]):
+                            new_interface = self.interface(
+                                name=_interface["name"],
+                                device=device["name"],
+                                site=self.site,
+                                description="",
+                                gbic_vendor="",
+                                gbic_type="",
+                                gbic_sn="",
+                                gbic_model="",
+                                state="up",
+                                type=intf_type,
+                                site_tag=self.site,
+                            )
+                            self.add(new_interface)
             else:
                 logger.warning(
                     "No YAML file exists in device-types for model %s, skipping interface creation",
                     device["model"],
                 )
 
-            for _interface in device_specs["interfaces"]:
-                if_list = [intf for intf in device_specs["interfaces"] if intf["name"] == _interface]
-                if if_list:
-                    intf_type = if_list[0]["type"]
-                else:
-                    intf_type = "other"
-                if re.match("^Eth[0-9]|^mgmt[0-9]", _interface["name"]):
-                    new_interface = self.interface(
-                        name=_interface["name"],
-                        device=device["name"],
-                        site=self.site,
-                        description="",
-                        gbic_vendor="",
-                        gbic_type="",
-                        gbic_sn="",
-                        gbic_model="",
-                        state="up",
-                        type=intf_type,
-                        site_tag=self.site,
-                    )
-                    self.add(new_interface)
 
     def load_deviceroles(self):
         """Load device roles from ACI device data."""
