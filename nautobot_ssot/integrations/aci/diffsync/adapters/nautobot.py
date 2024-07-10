@@ -1,7 +1,6 @@
 """DiffSync Adapter for Nautobot."""
 
 # pylint: disable=duplicate-code
-from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG, HAS_ACI_MODELS
 import logging
 from collections import defaultdict
 from diffsync import DiffSync
@@ -13,13 +12,6 @@ from nautobot.dcim.models import DeviceType, Device, InterfaceTemplate, Interfac
 from nautobot.extras.models import Role
 from nautobot.ipam.models import IPAddress, Prefix, VRF
 from nautobot.extras.models import Tag
-if HAS_ACI_MODELS:
-    from aci_models.models import (
-        ApplicationProfile,
-        BridgeDomain,
-        EPG,
-        ApplicationTermination,
-    )
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotTenant
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotVrf
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotDeviceType
@@ -33,6 +25,14 @@ from nautobot_ssot.integrations.aci.diffsync.models import NautobotApplicationPr
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotBridgeDomain
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotEPG
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotApplicationTermination
+from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG, HAS_ACI_MODELS
+if HAS_ACI_MODELS:
+    from aci_models.models import (
+        ApplicationProfile,
+        BridgeDomain,
+        EPG,
+        ApplicationTermination,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -286,17 +286,17 @@ class NautobotAdapter(DiffSync):
             _bd = self.aci_bridgedomain(
                 name=nbbd.name,
                 vrf={
-                    "name":nbbd.vrf.name,
+                    "name": nbbd.vrf.name,
                     "namespace": nbbd.vrf.namespace.name,
                     "vrf_tenant": nbbd.vrf.tenant.name,
-                    },
+                },
                 ip_addresses=sorted(ip_addresses, key=hash),
                 tenant=nbbd.tenant.name,
                 description=nbbd.description if not None else "",
                 site_tag=self.site,
             )
             self.add(_bd)
-    
+
     def load_epgs(self):
         """Method to load EPGs from Nautobot."""
         for nbepg in EPG.objects.filter(tags=self.site_tag):
@@ -319,11 +319,11 @@ class NautobotAdapter(DiffSync):
                     "name": nbepgpath.epg.name,
                     "tenant": nbepgpath.epg.tenant.name,
                     "application": nbepgpath.epg.application.name,
-                    },
+                },
                 interface={
                     "name": nbepgpath.interface.name,
                     "device": nbepgpath.interface.device.name,
-                    },
+                },
                 vlan=nbepgpath.vlan.vid,
                 description=nbepgpath.description if not None else "",
                 site_tag=self.site,

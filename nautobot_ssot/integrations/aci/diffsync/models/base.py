@@ -183,6 +183,7 @@ class Interface(DiffSyncModel):
     type: str
     site_tag: str
 
+
 class ApplicationProfile(DiffSyncModel):
     """App Profile model for DiffSync."""
 
@@ -198,6 +199,7 @@ class ApplicationProfile(DiffSyncModel):
     description: Optional[str]
     site_tag: str
 
+
 class BridgeDomain(DiffSyncModel):
     """bridge domain model for DiffSync."""
 
@@ -208,13 +210,14 @@ class BridgeDomain(DiffSyncModel):
         "tenant",
     )
     _attributes = ("description", "ip_addresses", "site_tag")
-    
+
     name: str
     vrf: Dict
     description: Optional[str]
     tenant: str
     ip_addresses: List[str] = []
     site_tag: str
+
 
 class EPG(DiffSyncModel):
     """EPG model for DiffSync."""
@@ -233,6 +236,7 @@ class EPG(DiffSyncModel):
     bridge_domain: str
     description: Optional[str]
     site_tag: str
+
 
 class ApplicationTermination(DiffSyncModel):
     """EPG Path model for DiffSync."""

@@ -209,6 +209,7 @@ class SyncLogEntry(BaseModel):  # pylint: disable=nb-string-field-blank-null
             SyncLogEntryStatusChoices.STATUS_ERROR: "danger",
         }.get(self.status)
 
+
 __all__ = (
     "SSOTServiceNowConfig",
     "Sync",

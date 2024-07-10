@@ -94,7 +94,7 @@ class AciAdapter(DiffSync):
         for _tenant in tenant_list:
             if not _tenant["name"] in PLUGIN_CFG.get("ignore_tenants"):
                 tenant_name = f"{self.tenant_prefix}:{_tenant['name']}"
-                _msite_tag = True if ':mso' in _tenant.get("annotation").lower() else False
+                _msite_tag = True if ":mso" in _tenant.get("annotation").lower() else False
                 new_tenant = self.tenant(
                     name=tenant_name,
                     description=_tenant["description"],
@@ -215,7 +215,7 @@ class AciAdapter(DiffSync):
                 )
                 self.add(new_ipaddress)
         # Bridge domain subnets
-        bd_dict = self.conn.get_bds_optimized(tenant="all")
+        bd_dict = self.conn.get_bds(tenant="all")
         for bd_key, bd_value in bd_dict.items():
             if bd_value.get("subnets"):
                 tenant_name = f"{self.tenant_prefix}:{bd_value.get('tenant')}"
@@ -231,7 +231,7 @@ class AciAdapter(DiffSync):
                         site=self.site,
                         vrf=bd_value["vrf"],
                         vrf_tenant=vrf_tenant,
-                        tenant=vrf_tenant or tenant_name, #BUG fix
+                        tenant=vrf_tenant or tenant_name,  # BUG fix
                     )
                     new_ipaddress = self.ip_address(
                         address=subnet[0],
@@ -240,8 +240,8 @@ class AciAdapter(DiffSync):
                         description=f"ACI Bridge Domain: {bd_key}",
                         device=None,
                         interface=None,
-                        tenant=vrf_tenant or tenant_name, #BUGfix
-                        namespace=vrf_tenant or tenant_name, #BUGfix
+                        tenant=vrf_tenant or tenant_name,  # BUGfix
+                        namespace=vrf_tenant or tenant_name,  # BUGfix
                         site=self.site,
                         site_tag=self.site,
                     )
@@ -259,7 +259,7 @@ class AciAdapter(DiffSync):
 
     def load_prefixes(self):
         """Load Bridge domain subnets from ACI."""
-        bd_dict = self.conn.get_bds_optimized(tenant="all")
+        bd_dict = self.conn.get_bds(tenant="all")
         # pylint: disable-next=too-many-nested-blocks
         for bd_key, bd_value in bd_dict.items():
             if bd_value.get("subnets"):
@@ -268,11 +268,11 @@ class AciAdapter(DiffSync):
                     vrf_tenant = f"{self.tenant_prefix}:{bd_value['vrf_tenant']}"
                 else:
                     vrf_tenant = None
-                if bd_value.get('tenant') not in PLUGIN_CFG.get("ignore_tenants"): # modified for bugfix
+                if bd_value.get("tenant") not in PLUGIN_CFG.get("ignore_tenants"):  # modified for bugfix
                     for subnet in bd_value["subnets"]:
                         new_prefix = self.prefix(
                             prefix=str(ip_network(subnet[0], strict=False)),
-                            namespace=vrf_tenant or tenant_name, #BUGfix
+                            namespace=vrf_tenant or tenant_name,  # BUGfix
                             status="Active",
                             site=self.site,
                             description=f"ACI Bridge Domain: {bd_key}",
@@ -441,7 +441,7 @@ class AciAdapter(DiffSync):
                 site_tag=self.site,
             )
             self.add(new_device)
-    
+
     def load_appprofiles(self):
         """Load APs from ACI."""
         tenant_list = self.conn.get_tenants()
@@ -463,24 +463,26 @@ class AciAdapter(DiffSync):
 
     def load_bridgedomains(self):
         """Load Bridge domains from ACI."""
-        bd_dict = self.conn.get_bds_optimized(tenant="all")
+        bd_dict = self.conn.get_bds(tenant="all")
         # pylint: disable-next=too-many-nested-blocks
         for _, bd_value in bd_dict.items():
-            if bd_value.get('tenant') not in PLUGIN_CFG.get("ignore_tenants"):
+            if bd_value.get("tenant") not in PLUGIN_CFG.get("ignore_tenants"):
                 tenant_name = f"{self.tenant_prefix}:{bd_value.get('tenant')}"
                 if bd_value["vrf_tenant"]:
                     # If no vrf tenant we assign by default to common tenant
                     vrf_tenant = f"{self.tenant_prefix}:{bd_value.get('vrf_tenant','common')}"
                     # subnet namespace should match the tenant the vrf belongs to
                     # If no vrf tenant we assign by default to Global namespace
-                    if bd_value.get('vrf_tenant') == 'mgmt':
-                        namespace = 'Global'
+                    if bd_value.get("vrf_tenant") == "mgmt":
+                        namespace = "Global"
                     else:
                         namespace = f"{self.tenant_prefix}:{bd_value.get('vrf_tenant', 'Global')}"
                 else:
-                    self.job.logger.warning(msg=f"Cannot find VRF - Tenant association for BD: {bd_value['name']}. Skipping...")
+                    self.job.logger.warning(
+                        msg=f"Cannot find VRF - Tenant association for BD: {bd_value['name']}. Skipping..."
+                    )
                     continue
-                if bd_value.get("subnets"):                   
+                if bd_value.get("subnets"):
                     ip_addresses = sorted([subnet[0] for subnet in bd_value.get("subnets")], key=hash)
                 else:
                     ip_addresses = []
@@ -495,17 +497,17 @@ class AciAdapter(DiffSync):
                     # If the object doesn't exist we can create it
                     # Otherwise we log a message warning the user of the duplicate.
                     new_bd = self.aci_bridgedomain(
-                            name=bd_value["name"],
-                            description=f"ACI Bridge Domain: {bd_value['name']}",
-                            tenant=tenant_name,
-                            ip_addresses=ip_addresses,
-                            vrf={
-                                "name": bd_value["vrf"],
-                                "namespace": namespace,
-                                "vrf_tenant": vrf_tenant,
-                            },
-                            site_tag=self.site,
-                        )
+                        name=bd_value["name"],
+                        description=f"ACI Bridge Domain: {bd_value['name']}",
+                        tenant=tenant_name,
+                        ip_addresses=ip_addresses,
+                        vrf={
+                            "name": bd_value["vrf"],
+                            "namespace": namespace,
+                            "vrf_tenant": vrf_tenant,
+                        },
+                        site_tag=self.site,
+                    )
                     try:
                         self.get(obj=new_bd, identifier=new_bd.get_unique_id())
                         self.job.logger.warning(
@@ -513,9 +515,7 @@ class AciAdapter(DiffSync):
                         )
                     except ObjectNotFound:
                         if self.job.debug:
-                            self.job.logger.debug(
-                                f"Loading BridgeDomain: {bd_value['name']} in Tenant: {tenant_name}."
-                            )
+                            self.job.logger.debug(f"Loading BridgeDomain: {bd_value['name']} in Tenant: {tenant_name}.")
                         self.add(new_bd)
                     else:
                         self.job.logger.warning(
@@ -547,13 +547,13 @@ class AciAdapter(DiffSync):
         for path in path_list:
             if path.get("tenant") in PLUGIN_CFG.get("ignore_tenants"):
                 continue
-            _ap_name, _epg_name=path.get("ap"), path.get("epg")
+            _ap_name, _epg_name = path.get("ap"), path.get("epg")
             _tenant_name, _intf_name = f"{self.tenant_prefix}:{path.get('tenant')}", path.get("intf")
             _device_name, _vlan_id = path.get("node"), path.get("encap").replace("vlan-", "")
             _description = f"Path {_device_name}:{_intf_name}:{_vlan_id} synced from APIC"
-            _epg_attrs = {"name":_epg_name, "tenant":_tenant_name, "application": _ap_name}
-            _intf_attrs = {"name":_intf_name, "device":_device_name}
-            _path_name=f"{_device_name}:{_intf_name}:{_vlan_id}"
+            _epg_attrs = {"name": _epg_name, "tenant": _tenant_name, "application": _ap_name}
+            _intf_attrs = {"name": _intf_name, "device": _device_name}
+            _path_name = f"{_device_name}:{_intf_name}:{_vlan_id}"
 
             new_epgpath = self.aci_apptermination(
                 name=_path_name,

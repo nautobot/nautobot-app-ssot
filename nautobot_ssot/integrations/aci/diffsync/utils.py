@@ -43,15 +43,18 @@ def ap_from_dn(dn):
     pattern = "ap-[A-Za-z0-9\-\_]+"  # noqa: W605 # pylint: disable=anomalous-backslash-in-string
     return re.search(pattern, dn).group().replace("ap-", "", 1).rstrip("/")
 
+
 def bd_from_dn(dn):
     """Match an ACI Bridge Domain in the Distinguished Name (DN)."""
     pattern = "BD-[A-Za-z0-9\-\_]+"  # noqa: W605 # pylint: disable=anomalous-backslash-in-string
     return re.search(pattern, dn).group().replace("BD-", "", 1).rstrip("/")
 
+
 def epg_from_dn(dn):
     """Match an ACI Endpoint Group in the Distinguished Name (DN)."""
     pattern = "epg-[A-Za-z0-9\-\_]+"  # noqa: W605 # pylint: disable=anomalous-backslash-in-string
     return re.search(pattern, dn).group().replace("epg-", "", 1).rstrip("/")
+
 
 def load_yamlfile(filename):
     """Load a YAML file to a Dict."""

@@ -11,7 +11,8 @@ from datetime import datetime, timedelta
 from ipaddress import ip_network
 from .utils import (
     tenant_from_dn,
-    ap_from_dn, node_from_dn,
+    ap_from_dn,
+    node_from_dn,
     pod_from_dn,
     fex_id_from_dn,
     interface_from_dn,
@@ -335,78 +336,38 @@ class AciApi:
         ]
         return vrf_list
 
+
     def get_bds(self, tenant: str = "all") -> dict:
         """Return Bridge Domains and Subnets from the Cisco APIC."""
         # TODO: rewrite using one API call -> https://10.101.40.2/api/node/class/fvBD.json?query-target=subtree&target-subtree-class=fvBD,fvRsCtx,fvSubnet
         if tenant == "all":
-            resp = self._get("/api/node/class/fvBD.json")
-        else:
-            resp = self._get(f"/api/node/mo/uni/tn-{tenant}.json?query-target=children&target-subtree-class=fvBD")
-        bd_dict = {}
-        for data in resp.json()["imdata"]:
-            bd_tenant = tenant_from_dn(data["fvBD"]["attributes"]["dn"])
-            unique_name = f"{data['fvBD']['attributes']['name']}:{bd_tenant}"
-            bd_dict.setdefault(unique_name, {})
-            bd_dict[unique_name]["tenant"] = tenant_from_dn(data["fvBD"]["attributes"]["dn"])
-            bd_dict[unique_name]["name"] = data['fvBD']['attributes']['name']
-            bd_dict[unique_name]["description"] = data["fvBD"]["attributes"]["descr"]
-            #bd_dict[data["fvBD"]["attributes"]["name"]]["unicast_routing"] = data["fvBD"]["attributes"]["unicastRoute"]
-            #bd_dict[data["fvBD"]["attributes"]["name"]]["mac"] = data["fvBD"]["attributes"]["mac"]
-            #bd_dict[data["fvBD"]["attributes"]["name"]]["l2unicast"] = data["fvBD"]["attributes"]["unkMacUcastAct"]
-        for key, value in bd_dict.items():
-            # get the containing VRF
             resp = self._get(
-                f"/api/node/mo/uni/tn-{value['tenant']}/BD-{value['name']}.json?query-target=children&target-subtree-class=fvRsCtx"
+                "/api/node/class/fvBD.json?query-target=subtree&target-subtree-class=fvBD,fvRsCtx,fvSubnet"
             )
-            # if VRF attached to Bridge Domain
-            if resp.json()["totalCount"] != "0":
-                data = resp.json()["imdata"][0]
-                value["vrf"] = data["fvRsCtx"]["attributes"].get("tnFvCtxName", "default")
-                vrf_tenant = data["fvRsCtx"]["attributes"].get("tDn")
-                value["vrf_tenant"] = tenant_from_dn(vrf_tenant)
-
-            else:
-                value["vrf"] = value["vrf_tenant"] = None
-            # get subnets
-            resp = self._get(
-                f"/api/node/mo/uni/tn-{value['tenant']}/BD-{value['name']}.json?query-target=children&target-subtree-class=fvSubnet"
-            )
-            subnet_list = [
-                (data["fvSubnet"]["attributes"]["ip"], data["fvSubnet"]["attributes"]["scope"])
-                for data in resp.json()["imdata"]
-            ]
-            for subnet in subnet_list:
-                value.setdefault("subnets", [])
-                value["subnets"].append(subnet)
-        return bd_dict
-    
-    def get_bds_optimized(self, tenant: str = "all") -> dict:
-        """Return Bridge Domains and Subnets from the Cisco APIC."""
-        # TODO: rewrite using one API call -> https://10.101.40.2/api/node/class/fvBD.json?query-target=subtree&target-subtree-class=fvBD,fvRsCtx,fvSubnet
-        if tenant == "all":
-            resp = self._get("/api/node/class/fvBD.json?query-target=subtree&target-subtree-class=fvBD,fvRsCtx,fvSubnet")
         else:
-            resp = self._get(f"/api/node/mo/uni/tn-{tenant}.json?query-target=children&target-subtree-class=fvBD") # test this
+            resp = self._get(
+                f"/api/node/mo/uni/tn-{tenant}.json?query-target=children&target-subtree-class=fvBD"
+            )  # test this
         bd_dict = {}
         bd_dict_schema = {
-            "name" : "",
-            "tenant" : "",
-            "description" : "",
-            "vrf" : None,
-            "vrf_tenant" : None,
-            "subnets" : [],
+            "name": "",
+            "tenant": "",
+            "description": "",
+            "vrf": None,
+            "vrf_tenant": None,
+            "subnets": [],
         }
         for data in resp.json()["imdata"]:
             if "fvBD" in data.keys():
                 bd_tenant = tenant_from_dn(data["fvBD"]["attributes"]["dn"])
-                bd_name = data['fvBD']['attributes']['name']
+                bd_name = data["fvBD"]["attributes"]["name"]
                 unique_name = f"{bd_name}:{bd_tenant}"
                 try:
                     bd_dict[unique_name]
                 except KeyError:
                     bd_dict.setdefault(unique_name, deepcopy(bd_dict_schema))
                 bd_dict[unique_name]["tenant"] = tenant_from_dn(data["fvBD"]["attributes"]["dn"])
-                bd_dict[unique_name]["name"] = data['fvBD']['attributes']['name']
+                bd_dict[unique_name]["name"] = data["fvBD"]["attributes"]["name"]
                 bd_dict[unique_name]["description"] = data["fvBD"]["attributes"]["descr"]
 
             elif "fvRsCtx" in data.keys():
@@ -422,7 +383,7 @@ class AciApi:
                 vrf_tenant = data["fvRsCtx"]["attributes"].get("tDn")
                 if vrf_tenant:
                     bd_dict[unique_name]["vrf_tenant"] = tenant_from_dn(vrf_tenant)
-        
+
             elif "fvSubnet" in data.keys():
                 bd_tenant = tenant_from_dn(data["fvSubnet"]["attributes"]["dn"])
                 bd_name = bd_from_dn(data["fvSubnet"]["attributes"]["dn"])
@@ -434,7 +395,9 @@ class AciApi:
                 subnet = (data["fvSubnet"]["attributes"]["ip"], data["fvSubnet"]["attributes"]["scope"])
                 (bd_dict[unique_name]["subnets"]).append(subnet)
             else:
-                logger.error(msg=f"Failed to load Bridge Domains data, unexpected response in {data}. Skipping Record...")
+                logger.error(
+                    msg=f"Failed to load Bridge Domains data, unexpected response in {data}. Skipping Record..."
+                )
                 continue
         return bd_dict
 
@@ -470,12 +433,12 @@ class AciApi:
             elif node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
                 subnet = node["topSystem"]["attributes"]["tepPool"]
             else:
-                subnet = ""            
-            #if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
+                subnet = ""
+            # if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
             #    subnet = node["topSystem"]["attributes"]["tepPool"]
-            #elif mgmt_addr:
+            # elif mgmt_addr:
             #    subnet = ip_network(mgmt_addr, strict=False).with_prefixlen
-            #else:
+            # else:
             #    subnet = ""
             node_id = node["topSystem"]["attributes"]["id"]
             node_dict[node_id]["oob_ip"] = mgmt_addr
@@ -531,11 +494,11 @@ class AciApi:
                 subnet = node["topSystem"]["attributes"]["tepPool"]
             else:
                 subnet = ""
-            #if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
+            # if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
             #    subnet = node["topSystem"]["attributes"]["tepPool"]
-            #elif mgmt_addr:
+            # elif mgmt_addr:
             #    subnet = ip_network(mgmt_addr, strict=False).with_prefixlen
-            #else:
+            # else:
             #    subnet = ""
             node_id = node["topSystem"]["attributes"]["id"]
             node_dict[node_id]["pod_id"] = node["topSystem"]["attributes"]["podId"]
@@ -636,37 +599,47 @@ class AciApi:
         if resp.ok:
             return True
         return self._handle_error(resp)
-    
+
     def _solve_port_blocks(self, portblk: dict) -> list:
-        from_card, from_port = portblk['infraPortBlk']['attributes']['fromCard'], portblk['infraPortBlk']['attributes']['fromPort']
-        to_card, to_port = portblk['infraPortBlk']['attributes']['toCard'], portblk['infraPortBlk']['attributes']['toPort']
+        from_card, from_port = (
+            portblk["infraPortBlk"]["attributes"]["fromCard"],
+            portblk["infraPortBlk"]["attributes"]["fromPort"],
+        )
+        to_card, to_port = (
+            portblk["infraPortBlk"]["attributes"]["toCard"],
+            portblk["infraPortBlk"]["attributes"]["toPort"],
+        )
         if from_card != to_card:
             logger.warning(msg="Chassis Port Blocks not supported!!!!")
             return
         elif from_port == to_port:
             return [f"Ethernet{to_card}/{to_port}"]
         else:
-            ports = [f"Ethernet{from_card}/{port}" for port in list(range(int(from_port),int(to_port)+1))]
+            ports = [f"Ethernet{from_card}/{port}" for port in list(range(int(from_port), int(to_port) + 1))]
             return ports
 
     def get_static_path_all(self) -> list:
         """Return static path mapping details for an EPG."""
-        resp = self._get(f'/api/node/class/fvStPathAtt.json?query-target=subtree&target-subtree-class=fvIfConn&query-target-filter=wcard(fvIfConn.dn,"fv-")')
+        resp = self._get(
+            f'/api/node/class/fvStPathAtt.json?query-target=subtree&target-subtree-class=fvIfConn&query-target-filter=wcard(fvIfConn.dn,"fv-")'
+        )
         sp_list = []
         node_list = self.get_nodes()
         for obj in resp.json()["imdata"]:
             sp_dict = {"encap": obj["fvIfConn"]["attributes"]["encap"]}
             tDn = obj["fvIfConn"]["attributes"]["dn"]
-            pattern = re.compile(r'\[(.*?)\]|node-(\d+)')
+            pattern = re.compile(r"\[(.*?)\]|node-(\d+)")
             obj_match = [match[0] if match[0] else match[1] for match in pattern.findall(tDn)]
             sp_dict["epg"] = epg_from_dn(tDn)
             sp_dict["ap"] = ap_from_dn(tDn)
             sp_dict["tenant"] = tenant_from_dn(tDn)
             sp_dict["node-id"] = node_from_dn(tDn)
-            try:    
+            try:
                 sp_dict["node"] = node_list[sp_dict["node-id"]]["name"]
             except KeyError:
-                logging.warning(msg=f"EPG {sp_dict['epg']} has a Path associated with a non-registered Node: {sp_dict['node-id']}. Skipping Path...")
+                logging.warning(
+                    msg=f"EPG {sp_dict['epg']} has a Path associated with a non-registered Node: {sp_dict['node-id']}. Skipping Path..."
+                )
                 continue
             if "stpathatt-[eth" in tDn:
                 # Leaf Port Case
@@ -678,7 +651,9 @@ class AciApi:
                 intf_list = []
                 sp_dict["type"] = "Bundle"
                 polgrp = obj_match[2]
-                resp = self._get(f"/api/node/mo/uni/infra/funcprof/accbundle-{polgrp}.json?query-target=subtree&target-subtree-class=infraRtAccBaseGrp&query-target-filter=wcard(infraNode.dn,\"{sp_dict['node-id']}\")")
+                resp = self._get(
+                    f"/api/node/mo/uni/infra/funcprof/accbundle-{polgrp}.json?query-target=subtree&target-subtree-class=infraRtAccBaseGrp&query-target-filter=wcard(infraNode.dn,\"{sp_dict['node-id']}\")"
+                )
                 # FOUND ACI BUG here - portblks not filtering by polgrp when VPC bundle
                 # resp = self._get(f"/api/node/class/infraPortBlk.json?query-target=self&query-target-filter=and(wcard(infraNode.dn,\"{sp_dict['node-id']}\"),wcard(infraAccBndlGrp.dn,\"{polgrp}\"))")
                 # SCAN ALL interface profiles for a polgroup
@@ -686,25 +661,22 @@ class AciApi:
                     intf_list = []
                     tDn = data["infraRtAccBaseGrp"]["attributes"]["tDn"]
                     pattern = "-.*/"
-                    resp = self._get(
-                        f"/api/node/mo/{tDn}.json?query-target=subtree&target-subtree-class=infraPortBlk"
-                    )
-                # expand port blocks
-                    intf_list.extend([
-                        self._solve_port_blocks(data)
-                        for data in resp.json()["imdata"]
-                    ])
+                    resp = self._get(f"/api/node/mo/{tDn}.json?query-target=subtree&target-subtree-class=infraPortBlk")
+                    # expand port blocks
+                    intf_list.extend([self._solve_port_blocks(data) for data in resp.json()["imdata"]])
                 # flatten list of lists
                 intfs = list(itertools.chain.from_iterable(intf_list))
-                bundle_list = [{**sp_dict, 'intf': intf} for intf in intfs]
+                bundle_list = [{**sp_dict, "intf": intf} for intf in intfs]
                 sp_list.extend(bundle_list)
             else:
-                logging.warning(msg=f"EPG {sp_dict['epg']} has an Unsupported Path in node {sp_dict['node-id']}. Skipping Path...")
+                logging.warning(
+                    msg=f"EPG {sp_dict['epg']} has an Unsupported Path in node {sp_dict['node-id']}. Skipping Path..."
+                )
                 continue
         return sp_list
 
     def get_bd_to_epg_rs(self) -> list:
-        """Retrieve a list of EPGs and their rels to BDs"""
+        """Retrieve a list of EPGs and their rels to BDs."""
         resp = self._get("/api/node/class/fvRsBd.json")
         if resp.json()["totalCount"] == "0":
             return []
@@ -713,7 +685,8 @@ class AciApi:
             _tenant = tenant_from_dn(data["fvRsBd"]["attributes"]["dn"])
             _ap = ap_from_dn(data["fvRsBd"]["attributes"]["dn"])
             _epg = epg_from_dn(data["fvRsBd"]["attributes"]["dn"])
-            _bd = data["fvRsBd"]["attributes"]["tnFvBDName"] or 'default'
+            _bd = data["fvRsBd"]["attributes"]["tnFvBDName"] or "default"
             new_epg = (_epg, _tenant, _ap, _bd)
-            if new_epg not in epg_list: epg_list.append(new_epg)
+            if new_epg not in epg_list:
+                epg_list.append(new_epg)
         return epg_list
