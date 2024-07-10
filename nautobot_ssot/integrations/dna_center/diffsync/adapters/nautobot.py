@@ -87,7 +87,9 @@ class NautobotAdapter(Adapter):
     def load_regions(self):
         """Load Region data from Nautobt into DiffSync models."""
         try:
-            locations = OrmLocation.objects.filter(location_type=self.locationtype_map["Region"])
+            locations = OrmLocation.objects.filter(location_type=self.locationtype_map["Region"]).select_related(
+                "parent"
+            )
             for region in locations:
                 parent = None
                 if region.parent:
