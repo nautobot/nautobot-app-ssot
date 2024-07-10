@@ -3,13 +3,15 @@
 from typing import List
 import json
 from netutils.ip import ipaddress_interface, netmask_to_cidr
+from netutils.lib_mapper import DNA_CENTER_LIB_MAPPER
 from diffsync import Adapter
 from diffsync.exceptions import ObjectNotFound
 from django.conf import settings
 from django.core.exceptions import ValidationError
+
 from nautobot.tenancy.models import Tenant
 
-from nautobot_ssot.integrations.dna_center.constants import DNAC_PLATFORM_MAPPER, PLUGIN_CFG
+from nautobot_ssot.integrations.dna_center.constants import PLUGIN_CFG
 from nautobot_ssot.integrations.dna_center.diffsync.models.dna_center import (
     DnaCenterArea,
     DnaCenterBuilding,
@@ -280,8 +282,8 @@ class DnaCenterAdapter(Adapter):
                 )
             if dev_role == "Unknown":
                 dev_role = dev["role"]
-            if dev["softwareType"] in DNAC_PLATFORM_MAPPER:
-                platform = DNAC_PLATFORM_MAPPER[dev["softwareType"]]
+            if dev["softwareType"] in DNA_CENTER_LIB_MAPPER:
+                platform = DNA_CENTER_LIB_MAPPER[dev["softwareType"]]
             else:
                 if not dev.get("softwareType") and dev.get("type") and ("3800" in dev["type"] or "9130" in dev["type"]):
                     platform = "cisco_ios"

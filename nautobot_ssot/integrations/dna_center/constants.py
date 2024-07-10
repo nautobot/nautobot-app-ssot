@@ -5,13 +5,6 @@ from django.conf import settings
 # Import config vars from nautobot_config.py
 PLUGIN_CFG = settings.PLUGINS_CONFIG["nautobot_ssot"]
 
-DNAC_PLATFORM_MAPPER = {
-    "IOS": "cisco_ios",
-    "IOS-XE": "cisco_ios",
-    "NX-OS": "cisco_nxos",
-    "IOS-XR": "cisco_xr",
-}
-
 BASE_INTERFACE_MAP = {
     "Port-channel": "lag",
     "Tunnel": "virtual",
