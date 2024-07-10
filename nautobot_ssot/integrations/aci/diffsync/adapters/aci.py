@@ -387,7 +387,6 @@ class AciAdapter(DiffSync):
                     device["model"],
                 )
 
-
     def load_deviceroles(self):
         """Load device roles from ACI device data."""
         device_roles = {value["role"] for value in self.devices.values()}
