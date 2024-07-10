@@ -68,13 +68,10 @@ class DnaCenterClient:
         Returns:
             tuple: Tuple of Site address and type.
         """
-        address = ""
-        site_type = ""
         for element in info:
             if element["nameSpace"] == "Location":
-                address = element["attributes"]["address"]
-                site_type = element["attributes"]["type"]
-        return (address, site_type)
+                return (element["attributes"]["address"], element["attributes"]["type"])
+        return ("", "")
 
     @staticmethod
     def find_latitude_and_longitude(info: List[dict]):
@@ -86,13 +83,10 @@ class DnaCenterClient:
         Returns:
             tuple: Tuple of Site latitude and longitude.
         """
-        latitude = ""
-        longitude = ""
         for element in info:
             if element["nameSpace"] == "Location":
-                latitude = element["attributes"]["latitude"]
-                longitude = element["attributes"]["longitude"]
-        return (latitude, longitude)
+                return (element["attributes"]["latitude"], element["attributes"]["longitude"])
+        return ("", "")
 
     def get_devices(self):
         """Retrieve all Device data from DNA Center."""
