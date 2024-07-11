@@ -8,7 +8,7 @@ from nautobot.extras.jobs import BooleanVar, ChoiceVar, Job
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 from nautobot_ssot.integrations.aci.diffsync.adapters.aci import AciAdapter
 from nautobot_ssot.integrations.aci.diffsync.adapters.nautobot import NautobotAdapter
-from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
+from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG, HAS_ACI_MODELS
 
 name = "Cisco ACI SSoT"  # pylint: disable=invalid-name, abstract-method
 
@@ -60,7 +60,7 @@ class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method
     @classmethod
     def data_mappings(cls):
         """Shows mapping of models between ACI and Nautobot."""
-        return (
+        base_dm = (
             DataMapping("Tenant", None, "Tenant", reverse("tenancy:tenant_list")),
             DataMapping("Node", None, "Device", reverse("dcim:device_list")),
             DataMapping("Model", None, "Device Type", reverse("dcim:devicetype_list")),
@@ -69,6 +69,15 @@ class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method
             DataMapping("Interface", None, "Interface", reverse("dcim:interface_list")),
             DataMapping("VRF", None, "VRF", reverse("ipam:vrf_list")),
         )
+        extension_dm = (
+            DataMapping("ApplicationProfile", None, "ApplicationProfile", reverse("plugins:aci_models:applicationprofile_list")),
+            DataMapping("BridgeDomain", None, "BridgeDomain", reverse("plugins:aci_models:bridgedomain_list")),
+            DataMapping("EPG", None, "EPG", reverse("plugins:aci_models:epg_list")),
+            DataMapping("ApplicationTermination", None, "ApplicationTermination", reverse("plugins:aci_models:applicationtermination_list")),
+        )
+        if HAS_ACI_MODELS:
+            return base_dm + extension_dm
+        return base_dm
 
     def load_source_adapter(self):
         """Method to instantiate and load the ACI adapter into `self.source_adapter`."""
