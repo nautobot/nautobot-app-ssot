@@ -907,16 +907,18 @@ class NautobotApplicationTermination(ApplicationTermination):
     def delete(self):
         """Delete EPGPath object in Nautobot."""
         self.diffsync.job.logger.warning(f"EPG Termination {self.name} will be deleted.")
-        super().delete()
-        _epgpath = OrmApplicationTermination.objects.get(
-            name=self.name,
-            epg__name=self.epg["name"],
-            interface__name=self.interface["name"],
-            vlan__vid=self.vlan,
-        )
+        try:
+            _epgpath = OrmApplicationTermination.objects.get(
+                name=self.name,
+                epg__name=self.epg["name"],
+                interface__name=self.interface["name"],
+                vlan__vid=self.vlan,
+                )
+        except ApplicationTermination.DoesNotExist:
+            self.diffsync.job.logger.warning(f"Unable to Delete Application Termination {self.name}, does not exist in DB.")
+            return self
         self.diffsync.objects_to_delete["aci_apptermination"].append(_epgpath)  # pylint: disable=protected-access
         return self
-
 
 NautobotDevice.update_forward_refs()
 NautobotDeviceType.update_forward_refs()
