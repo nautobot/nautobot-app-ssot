@@ -97,15 +97,15 @@ class NautobotAdapter(DiffSync):
             source (DiffSync): DiffSync
         """
         for grouping in (
+            "aci_apptermination",
+            "aci_epg",
+            "aci_bridgedomain",
+            "aci_appprofile",
             "ipaddress",
             "prefix",
             "vrf",
             "tenant",
             "device",
-            "aci_appprofile",
-            "aci_bridgedomain",
-            "aci_epg",
-            "aci_apptermination",
         ):
             for nautobot_object in self.objects_to_delete[grouping]:
                 try:
