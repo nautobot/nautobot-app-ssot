@@ -1,0 +1,2 @@
+Correct get_or_instantiate() to use self.device_type instead of "device_type" in ACI adapter.
+Refactor load_interfaces() to have check for device_specs var being defined in case file isn't loaded.
