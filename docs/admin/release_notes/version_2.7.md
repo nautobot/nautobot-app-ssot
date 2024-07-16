@@ -4,7 +4,6 @@
 ### Added
 
 - [#432](https://github.com/nautobot/nautobot-app-ssot/issues/432) - Added an SSoT to sync Nautobot ==> Itential Automation Gateway.
-- [#432](https://github.com/nautobot/nautobot-app-ssot/issues/432) - 
 - [#432](https://github.com/nautobot/nautobot-app-ssot/issues/432) - This integration allows users to sync Nautobot device inventory to Itential Automation Gateway(s) (IAG).
 - [#432](https://github.com/nautobot/nautobot-app-ssot/issues/432) - The current IAG inventory that is supported is its default Ansible inventory.
 - [#432](https://github.com/nautobot/nautobot-app-ssot/issues/432) - Netmiko, Nornir, HTTP requests inventories will be added at a later date.
