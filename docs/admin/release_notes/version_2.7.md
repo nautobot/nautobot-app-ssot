@@ -45,5 +45,5 @@
 
 ### Documentation
 
-- [#442](https://github.com/nautobot/nautobot-app-ssot/issues/442), [#450](https://github.com/nautobot/nautobot-app-ssot/issues/450) - Add missing attribution for Device42 integration to README.
+- [#450](https://github.com/nautobot/nautobot-app-ssot/issues/450) - Add missing attribution for Device42 integration to README.
 - [#472](https://github.com/nautobot/nautobot-app-ssot/issues/472) - Update ServiceNow documentation for Locations and FAQ error.
