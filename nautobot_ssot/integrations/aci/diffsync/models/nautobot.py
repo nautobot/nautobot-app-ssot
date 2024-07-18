@@ -905,8 +905,9 @@ class NautobotApplicationTermination(ApplicationTermination):
         return super().update(attrs)
 
     def delete(self):
-        """Delete EPGPath object in Nautobot."""
-        self.diffsync.job.logger.warning(f"EPG Termination {self.name} will be deleted.")
+        """Delete App Termination object in Nautobot."""
+        self.diffsync.job.logger.warning(f"Application Termination {self.name} will be deleted.")
+        super().delete()
         try:
             _epgpath = OrmApplicationTermination.objects.get(
                 name=self.name,
