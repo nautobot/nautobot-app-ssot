@@ -33,9 +33,12 @@ class TestCaseWithDeviceData(TestCase):
         cls.device_role.content_types.set([ContentType.objects.get_for_model(dcim_models.Device)])
         cls.manufacturer = dcim_models.Manufacturer.objects.create(name="Generic Inc.")
         cls.device_type = dcim_models.DeviceType.objects.create(model="Generic Switch", manufacturer=cls.manufacturer)
+        cls.location_type, created = dcim_models.LocationType.objects.get_or_create(name="Site")
+        if created:
+            cls.location_type.content_types.add(ContentType.objects.get_for_model(dcim_models.Device))
         cls.location = dcim_models.Location.objects.create(
             name="Bremen",
-            location_type=dcim_models.LocationType.objects.get_or_create(name="Site")[0],
+            location_type=cls.location_type,
             status=cls.status_active,
         )
         for name in ["sw01", "sw02"]:

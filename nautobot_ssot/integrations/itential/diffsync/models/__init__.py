@@ -1,0 +1,1 @@
+"""Itential SSoT diffsync models."""

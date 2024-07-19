@@ -16,6 +16,10 @@ class TestNautobotUtils(TestCase):
 
     databases = ("default", "job_logs")
 
+    def setUp(self):
+        """Configure shared test vars."""
+        self.arista_manu = Manufacturer.objects.get_or_create(name="Arista")[0]
+
     def test_verify_site_success(self):
         """Test the verify_site method for existing Site."""
         loc_type = LocationType.objects.get_or_create(name="Site")[0]
@@ -33,9 +37,7 @@ class TestNautobotUtils(TestCase):
 
     def test_verify_device_type_object_success(self):
         """Test the verify_device_type_object for existing DeviceType."""
-        new_dt, _ = DeviceType.objects.get_or_create(
-            model="DCS-7150S-24", manufacturer=Manufacturer.objects.get(name="Arista")
-        )
+        new_dt, _ = DeviceType.objects.get_or_create(model="DCS-7150S-24", manufacturer=self.arista_manu)
         result = nautobot.verify_device_type_object(device_type="DCS-7150S-24")
         self.assertEqual(result, new_dt)
 

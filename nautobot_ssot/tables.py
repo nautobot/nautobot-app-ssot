@@ -10,7 +10,7 @@ from .models import Sync, SyncLogEntry
 
 ACTION_LOGS_LINK = """
 <a class="{{ link_class }}"
-   href="{% url 'plugins:nautobot_ssot:synclogentry_list' %}?overview={{ record.id }}&action={{ action }}">
+   href="{% url 'plugins:nautobot_ssot:synclogentry_list' %}?sync={{ record.id }}&action={{ action }}">
    {{ value }}
 </a>
 """
@@ -18,7 +18,7 @@ ACTION_LOGS_LINK = """
 
 STATUS_LOGS_LINK = """
 <a class="{{ link_class }}"
-   href="{% url 'plugins:nautobot_ssot:synclogentry_list' %}?overview={{ record.id }}&status={{ status }}">
+   href="{% url 'plugins:nautobot_ssot:synclogentry_list' %}?sync={{ record.id }}&status={{ status }}">
    {{ value }}
 </a>
 """

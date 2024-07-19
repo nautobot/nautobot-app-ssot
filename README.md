@@ -31,6 +31,7 @@ This Nautobot application framework includes the following integrations:
 - Device42
 - Infoblox
 - IPFabric
+- Itential
 - ServiceNow
 
 Read more about integrations [here](https://docs.nautobot.com/projects/ssot/en/latest/user/integrations). To enable and configure integrations follow the instructions from [the install guide](https://docs.nautobot.com/projects/ssot/en/latest/admin/install/#integrations-configuration).
@@ -79,6 +80,7 @@ The SSoT framework includes a number of integrations with external Systems of Re
 * Arista CloudVision
 * Device42
 * Infoblox
+* Itential
 * ServiceNow
 
 > Note that the Arista CloudVision integration is currently incompatible with the [Arista Labs](https://labs.arista.com/) environment due to a TLS issue. It has been confirmed to work in on-prem environments previously.
@@ -114,6 +116,9 @@ This project includes code originally written in separate Nautobot apps, which h
     [@nniehoff](https://github.com/nniehoff),
     [@qduk](https://github.com/qduk),
     [@ubajze](https://github.com/ubajze)
+- [nautobot-plugin-ssot-device42](https://github.com/nautobot/nautobot-plugin-ssot-device42):
+    Thanks
+    [@jdrew82](https://github.com/jdrew82)
 - [nautobot-plugin-ssot-infoblox](https://github.com/nautobot/nautobot-plugin-ssot-infoblox):
     Thanks
     [@FragmentedPacket](https://github.com/FragmentedPacket),

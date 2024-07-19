@@ -196,6 +196,7 @@ PLUGINS_CONFIG = {
         "enable_device42": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_DEVICE42")),
         "enable_infoblox": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_INFOBLOX")),
         "enable_ipfabric": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_IPFABRIC")),
+        "enable_itential": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ITENTIAL")),
         "enable_servicenow": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_SERVICENOW")),
         "hide_example_jobs": is_truthy(os.getenv("NAUTOBOT_SSOT_HIDE_EXAMPLE_JOBS")),
         "device42_host": os.getenv("NAUTOBOT_SSOT_DEVICE42_HOST", ""),
