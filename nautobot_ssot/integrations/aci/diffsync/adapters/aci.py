@@ -223,11 +223,15 @@ class AciAdapter(DiffSync):
                     vrf_tenant = f"{self.tenant_prefix}:{bd_value['vrf_tenant']}"
                 else:
                     vrf_tenant = None
+                if bd_value.get('tenant') == 'mgmt': # BUGFix
+                    _namespace = "Global"
+                else:
+                    _namespace = vrf_tenant or tenant_name
                 for subnet in bd_value["subnets"]:
                     prefix = ip_network(subnet[0], strict=False).with_prefixlen
                     self.load_subnet_as_prefix(
                         prefix=prefix,
-                        namespace=tenant_name,
+                        namespace=_namespace,
                         site=self.site,
                         vrf=bd_value["vrf"],
                         vrf_tenant=vrf_tenant,
@@ -241,7 +245,7 @@ class AciAdapter(DiffSync):
                         device=None,
                         interface=None,
                         tenant=vrf_tenant or tenant_name,  # BUGfix
-                        namespace=vrf_tenant or tenant_name,  # BUGfix
+                        namespace=_namespace,  # BUGfix
                         site=self.site,
                         site_tag=self.site,
                     )
@@ -268,11 +272,15 @@ class AciAdapter(DiffSync):
                     vrf_tenant = f"{self.tenant_prefix}:{bd_value['vrf_tenant']}"
                 else:
                     vrf_tenant = None
+                if bd_value.get('tenant') == 'mgmt': # BUGFix
+                    _namespace = "Global"
+                else:
+                    _namespace = vrf_tenant or tenant_name
                 if bd_value.get("tenant") not in PLUGIN_CFG.get("ignore_tenants"):  # modified for bugfix
                     for subnet in bd_value["subnets"]:
                         new_prefix = self.prefix(
                             prefix=str(ip_network(subnet[0], strict=False)),
-                            namespace=vrf_tenant or tenant_name,  # BUGfix
+                            namespace=_namespace,  # BUGfix
                             status="Active",
                             site=self.site,
                             description=f"ACI Bridge Domain: {bd_key}",
@@ -297,7 +305,6 @@ class AciAdapter(DiffSync):
                                 self.job.logger.warning(
                                     f"Duplicate DiffSync Prefix Object found {new_prefix.prefix} in Namespace {new_prefix.namespace} and has not been loaded.",
                                 )
-
     def load_devicetypes(self):
         """Load device types from YAML files."""
         devicetype_file_path = os.path.join(os.path.dirname(__file__), "..", "device-types")
