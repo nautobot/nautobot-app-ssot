@@ -21,42 +21,48 @@ To access integration configuration navigate to `Apps -> Installed Apps` and cli
 
 Configuration instance contains the below settings:
 
-| Setting                                       | Default | Description |
-| Name                                          | N/A | Unique name of the configuration instance. |
-| Description                                   | N/A | Description of the configuration instance. |
-| Infoblox Instance Config                      | N/A | External Integration object describing remote Infoblox instance. |
-| Infoblox WAPI Version                         | v2.12 | The version of the Infoblox API. |
-| Enabled for Sync Job                          | False | Allows this config to be used in the sync jobs. |
-| Sync to Infoblox                              | False | Allows this config to be used in the job syncing from Nautobot to Infoblox. |
-| Sync to Nautobot                              | True | Allows this config to be used in the job syncing from Infoblox to Nautobot. |
-| Import IP Addresses                           | False | Import IP addresses from the source to the target system. |
-| Import Networks                               | False | Import IP networks from the source to the target system. |
-| Import VLAN Views                             | False | Import VLAN Views from the source to the target system. |
-| Import VLANs                                  | False | Import VLANs from the source to the target system. |
-| Import IPv4                                   | True | Import IPv4 objects from the source to the target system.  |
-| Import IPv6                                   | False | Import IPv6 objects from the source to the target system. |
-| Fixed address type                            | Do not create record | Selects type of Fixed Address to create in Infoblox for imported IP Addresses. |
-| DNS record type                               | Do not create record | Selects the type of DNS record to create in Infoblox for imported IP Addresses. |
-| Default object status                         | Active | Default Status to be assigned to imported objects. |
-| Infoblox - deletable models                   | [] | Infoblox model types whose instances are allowed to be deleted during sync. |
-| Nautobot - deletable models                   | [] | Nautobot model types whose instances are allowed to be deleted during sync. |
-| Infoblox Sync Filters                         | `[{"network_view": "default"}]` | Filters control what data is loaded from the source and target systems and considered for sync. |
-| Infoblox Network View to DNS Mapping          | `{}`| Map specifying Infoblox DNS View for each Network View where DNS records need to be created.
-| Extensible Attributes/Custom Fields to Ignore |  `{"custom_fields": [], "extensible_attributes": []}` | Specifies Nautobot custom fields and Infoblox extensible attributes that are excluded from the sync. |
+| Setting                                       | Default                                              | Description                                                                                          |
+| --------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Name                                          | N/A                                                  | Unique name of the configuration instance.                                                           |
+| Description                                   | N/A                                                  | Description of the configuration instance.                                                           |
+| Infoblox Instance Config                      | N/A                                                  | External Integration object describing remote Infoblox instance.                                     |
+| Infoblox WAPI Version                         | v2.12                                                | The version of the Infoblox API.                                                                     |
+| Enabled for Sync Job                          | False                                                | Allows this config to be used in the sync jobs.                                                      |
+| Sync to Infoblox                              | False                                                | Allows this config to be used in the job syncing from Nautobot to Infoblox.                          |
+| Sync to Nautobot                              | True                                                 | Allows this config to be used in the job syncing from Infoblox to Nautobot.                          |
+| Import IP Addresses                           | False                                                | Import IP addresses from the source to the target system.                                            |
+| Import Networks                               | False                                                | Import IP networks from the source to the target system.                                             |
+| Import VLAN Views                             | False                                                | Import VLAN Views from the source to the target system.                                              |
+| Import VLANs                                  | False                                                | Import VLANs from the source to the target system.                                                   |
+| Import IPv4                                   | True                                                 | Import IPv4 objects from the source to the target system.                                            |
+| Import IPv6                                   | False                                                | Import IPv6 objects from the source to the target system.                                            |
+| Fixed address type                            | Do not create record                                 | Selects type of Fixed Address to create in Infoblox for imported IP Addresses.                       |
+| DNS record type                               | Do not create record                                 | Selects the type of DNS record to create in Infoblox for imported IP Addresses.                      |
+| Default object status                         | Active                                               | Default Status to be assigned to imported objects.                                                   |
+| Infoblox - deletable models                   | []                                                   | Infoblox model types whose instances are allowed to be deleted during sync.                          |
+| Nautobot - deletable models                   | []                                                   | Nautobot model types whose instances are allowed to be deleted during sync.                          |
+| Infoblox Sync Filters                         | `[{"network_view": "default"}]`                      | Filters control what data is loaded from the source and target systems and considered for sync.      |
+| Infoblox Network View to DNS Mapping          | `{}`                                                 | Map specifying Infoblox DNS View for each Network View where DNS records need to be created.         |
+| Extensible Attributes/Custom Fields to Ignore | `{"custom_fields": [], "extensible_attributes": []}` | Specifies Nautobot custom fields and Infoblox extensible attributes that are excluded from the sync. |
+
 
 Each Infoblox configuration must be linked to an External Integration describing the Infoblox instance. The following External Integration fields must be defined for integration to work correctly:
 
-| Setting       | Description |
-| Remote URL    | URL of the remote Infoblox instance to sync with. |
-| Verify SSL    | Toggle SSL verification when syncing data with Infoblox. |
+| Setting       | Description                                                                       |
+| ------------- | --------------------------------------------------------------------------------- |
+| Remote URL    | URL of the remote Infoblox instance to sync with.                                 |
+| Verify SSL    | Toggle SSL verification when syncing data with Infoblox.                          |
 | Secrets Group | Secrets Group defining credentials used when connecting to the Infoblox instance. |
-| Timeout       | How long HTTP requests to Infoblox should wait for a response before failing. |
+| Timeout       | How long HTTP requests to Infoblox should wait for a response before failing.     |
+
 
 The Secrets Group linked to the Infoblox External Integration must contain password and username secrets defined as per the below:
 
-| Access Type   | Secret Type   |
-| REST          | Password      |
-| REST          | Username      |
+| Access Type | Secret Type |
+| ----------- | ----------- |
+| REST        | Password    |
+| REST        | Username    |
+
 
 
 ### Configuring Infoblox Sync Filters
