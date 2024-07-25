@@ -630,12 +630,17 @@ class AciApi:
             tDn = obj["fvIfConn"]["attributes"]["dn"]
             pattern = re.compile(r"\[(.*?)\]|node-(\d+)")
             obj_match = [match[0] if match[0] else match[1] for match in pattern.findall(tDn)]
-            sp_dict["epg"] = epg_from_dn(tDn)
-            sp_dict["ap"] = ap_from_dn(tDn)
-            sp_dict["tenant"] = tenant_from_dn(tDn)
-            sp_dict["node-id"] = node_from_dn(tDn)
             try:
+                sp_dict["epg"] = epg_from_dn(tDn)
+                sp_dict["ap"] = ap_from_dn(tDn)
+                sp_dict["tenant"] = tenant_from_dn(tDn)
+                sp_dict["node-id"] = node_from_dn(tDn)
                 sp_dict["node"] = node_list[sp_dict["node-id"]]["name"]
+            except AttributeError:
+                logging.warning(         
+                    msg=f"Path {tDn} does not qualify as an Application Termination Path. Skipping Path..."
+                )              
+                continue
             except KeyError:
                 logging.warning(
                     msg=f"EPG {sp_dict['epg']} has a Path associated with a non-registered Node: {sp_dict['node-id']}. Skipping Path..."
