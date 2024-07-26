@@ -364,7 +364,6 @@ class NautobotIPAddress(IPAddress):
             _tenant = OrmTenant.objects.get(name=ids["tenant"])
         else:
             _tenant = None
-        # BUGfix here
         try:
             _namespace = Namespace.objects.get(name=ids["namespace"])
             _parent = OrmPrefix.objects.get(prefix=attrs["prefix"], namespace=_namespace)
@@ -385,7 +384,7 @@ class NautobotIPAddress(IPAddress):
                 parent=_parent,
                 tenant=_tenant,
             )
-        except IntegrityError:  # BUGFix Multiple BDs leaking same IP address space to common tenant
+        except IntegrityError:
             diffsync.job.logger.warning(
                 f"Unable to create IP Address {ids['address']}. Duplicate Address or Parent Prefix: {attrs['prefix']} in Namespace: {ids['namespace']}"
             )
