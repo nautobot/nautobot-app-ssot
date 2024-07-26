@@ -212,7 +212,7 @@ class AciAdapter(DiffSync):
                     vrf_tenant = f"{self.tenant_prefix}:{bd_value['vrf_tenant']}"
                 else:
                     vrf_tenant = None
-                if bd_value.get('tenant') == 'mgmt': # BUGFix
+                if bd_value.get('tenant') == 'mgmt':
                     _namespace = "Global"
                 else:
                     _namespace = vrf_tenant or tenant_name
@@ -233,8 +233,8 @@ class AciAdapter(DiffSync):
                         description=f"ACI Bridge Domain: {bd_key}",
                         device=None,
                         interface=None,
-                        tenant=vrf_tenant or tenant_name,  # BUGfix
-                        namespace=_namespace,  # BUGfix
+                        tenant=vrf_tenant or tenant_name,
+                        namespace=_namespace,
                         site=self.site,
                         site_tag=self.site,
                     )
@@ -261,15 +261,15 @@ class AciAdapter(DiffSync):
                     vrf_tenant = f"{self.tenant_prefix}:{bd_value['vrf_tenant']}"
                 else:
                     vrf_tenant = None
-                if bd_value.get('tenant') == 'mgmt': # BUGFix
+                if bd_value.get('tenant') == 'mgmt':
                     _namespace = "Global"
                 else:
                     _namespace = vrf_tenant or tenant_name
-                if bd_value.get("tenant") not in PLUGIN_CFG.get("ignore_tenants"):  # modified for bugfix
+                if bd_value.get("tenant") not in PLUGIN_CFG.get("ignore_tenants"):
                     for subnet in bd_value["subnets"]:
                         new_prefix = self.prefix(
                             prefix=str(ip_network(subnet[0], strict=False)),
-                            namespace=_namespace,  # BUGfix
+                            namespace=_namespace,
                             status="Active",
                             site=self.site,
                             description=f"ACI Bridge Domain: {bd_key}",
