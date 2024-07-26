@@ -3,7 +3,6 @@
 
 from django.templatetags.static import static
 from django.urls import reverse
-from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.models import ExternalIntegration
 from nautobot.extras.jobs import BooleanVar, ObjectVar
 from nautobot_ssot.jobs.base import DataMapping, DataSource
@@ -11,6 +10,7 @@ from nautobot_ssot.jobs.base import DataMapping, DataSource
 from nautobot_ssot.integrations.device42.diffsync.adapters.device42 import Device42Adapter
 from nautobot_ssot.integrations.device42.diffsync.adapters.nautobot import NautobotAdapter
 from nautobot_ssot.integrations.device42.utils.device42 import Device42API
+from nautobot_ssot.utils import get_username_password_https_from_secretsgroup
 
 
 name = "SSoT - Device42"  # pylint: disable=invalid-name
@@ -119,14 +119,7 @@ class Device42DataSource(DataSource):  # pylint: disable=too-many-instance-attri
         if self.debug:
             self.logger.info("Connecting to Device42...")
         _sg = self.integration.secrets_group
-        username = _sg.get_secret_value(
-            access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
-            secret_type=SecretsGroupSecretTypeChoices.TYPE_USERNAME,
-        )
-        password = _sg.get_secret_value(
-            access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
-            secret_type=SecretsGroupSecretTypeChoices.TYPE_PASSWORD,
-        )
+        username, password = get_username_password_https_from_secretsgroup(group=_sg)
         client = Device42API(
             base_url=self.integration.remote_url,
             username=username,

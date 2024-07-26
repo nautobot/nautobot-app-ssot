@@ -9,6 +9,7 @@ from nautobot_ssot.jobs.base import DataMapping, DataSource
 from nautobot_ssot.integrations.aci.diffsync.adapters.aci import AciAdapter
 from nautobot_ssot.integrations.aci.diffsync.adapters.nautobot import NautobotAdapter
 from nautobot_ssot.integrations.aci.diffsync.client import AciApi
+from nautobot_ssot.utils import get_username_password_https_from_secretsgroup
 
 name = "Cisco ACI SSoT"  # pylint: disable=invalid-name, abstract-method
 
@@ -65,6 +66,8 @@ class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method
         if not self.device_site:
             self.logger.info("Device Location is unspecified so will revert to specified Controller's Location.")
         self.verify_controller_managed_device_group()
+        username, password = get_username_password_https_from_secretsgroup(
+            group=self.apic.external_integration.secrets_group
         )
         client = AciApi(
             username=username,
