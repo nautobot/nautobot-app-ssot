@@ -51,11 +51,7 @@ class NautobotTenant(Tenant):
     def update(self, attrs):
         """Update Tenant object in Nautobot."""
         _tenant = OrmTenant.objects.get(name=self.name)
-        # if attrs.get("description"): Fix, this does not cover empty descr update
-        # _tenant.description = attrs["description"]
         _tenant.description = attrs.get("description", "")
-        # if attrs.get("comments"):
-        # _tenant.comments = attrs["comments"]
         _tenant.comments = attrs.get("comments", "")
         _tenant.validated_save()
         return super().update(attrs)
@@ -452,7 +448,7 @@ class NautobotPrefix(Prefix):
         except OrmTenant.DoesNotExist:
             diffsync.job.logger.warning(
                 f"Tenant {attrs['vrf_tenant']} not found for VRF while creating Prefix: {ids['prefix']}"
-            )  # modified to avoid Key Error
+            )
             vrf_tenant = None
             return
 
@@ -464,9 +460,7 @@ class NautobotPrefix(Prefix):
                 vrf = None
         else:
             vrf = None
-
-        # diffsync.job.logger.info(msg=f"Processing Prefix {ids['prefix']} in Namespace: {attrs['namespace']}, Tenant: {attrs['vrf_tenant']}")
-        _prefix, created = OrmPrefix.objects.get_or_create(  # fixing adding error correction
+        _prefix, created = OrmPrefix.objects.get_or_create(
             prefix=ids["prefix"],
             status=Status.objects.get(name=attrs["status"]),
             description=attrs["description"],
