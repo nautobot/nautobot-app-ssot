@@ -83,7 +83,7 @@ class AciAdapter(DiffSync):
         for _tenant in tenant_list:
             if not _tenant["name"] in PLUGIN_CFG.get("ignore_tenants"):
                 tenant_name = f"{self.tenant_prefix}:{_tenant['name']}"
-                if ":mso" in _tenant.get("annotation").lower():
+                if ":mso" in _tenant.get("annotation").lower():  # pylint: disable=simplifiable-if-statement
                     _msite_tag = True
                 else:
                     _msite_tag = False
