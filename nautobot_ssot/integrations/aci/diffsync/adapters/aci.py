@@ -212,7 +212,7 @@ class AciAdapter(DiffSync):
                     vrf_tenant = f"{self.tenant_prefix}:{bd_value['vrf_tenant']}"
                 else:
                     vrf_tenant = None
-                if bd_value.get('tenant') == 'mgmt':
+                if bd_value.get("tenant") == 'mgmt':
                     _namespace = "Global"
                 else:
                     _namespace = vrf_tenant or tenant_name
@@ -261,7 +261,7 @@ class AciAdapter(DiffSync):
                     vrf_tenant = f"{self.tenant_prefix}:{bd_value['vrf_tenant']}"
                 else:
                     vrf_tenant = None
-                if bd_value.get('tenant') == 'mgmt':
+                if bd_value.get("tenant") == 'mgmt':
                     _namespace = "Global"
                 else:
                     _namespace = vrf_tenant or tenant_name

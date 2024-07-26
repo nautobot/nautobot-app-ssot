@@ -1,7 +1,6 @@
 """Nautobot Models for Cisco ACI integration with SSoT app."""
 
 import logging
-from ipaddress import ip_network
 from django.db import IntegrityError
 from django.contrib.contenttypes.models import ContentType
 from nautobot.tenancy.models import Tenant as OrmTenant
@@ -12,7 +11,7 @@ from nautobot.dcim.models import Interface as OrmInterface
 from nautobot.dcim.models import Location, LocationType
 from nautobot.dcim.models import Manufacturer
 from nautobot.ipam.models import IPAddress as OrmIPAddress
-from nautobot.ipam.models import Namespace, IPAddressToInterface, VLAN
+from nautobot.ipam.models import Namespace, IPAddressToInterface
 from nautobot.ipam.models import Prefix as OrmPrefix
 from nautobot.ipam.models import VRF as OrmVrf
 from nautobot.extras.models import Role, Status, Tag

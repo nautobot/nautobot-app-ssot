@@ -4,7 +4,6 @@
 import re
 import sys
 import logging
-import itertools
 import requests
 import urllib3
 from datetime import datetime, timedelta
@@ -16,7 +15,6 @@ from .utils import (
     pod_from_dn,
     fex_id_from_dn,
     interface_from_dn,
-    epg_from_dn,
     bd_from_dn,
 )
 from copy import deepcopy
@@ -335,7 +333,6 @@ class AciApi:
             for data in resp.json()["imdata"]
         ]
         return vrf_list
-
 
     def get_bds(self, tenant: str = "all") -> dict:
         """Return Bridge Domains and Subnets from the Cisco APIC."""
