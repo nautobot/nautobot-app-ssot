@@ -14,7 +14,7 @@ from nautobot_ssot.utils import get_username_password_https_from_secretsgroup
 name = "Cisco ACI SSoT"  # pylint: disable=invalid-name, abstract-method
 
 
-class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method
+class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method, too-many-instance-attributes
     """ACI SSoT Data Source."""
 
     apic = ObjectVar(

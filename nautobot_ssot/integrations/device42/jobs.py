@@ -47,68 +47,64 @@ class Device42DataSource(DataSource):  # pylint: disable=too-many-instance-attri
         """List describing the data mappings involved in this DataSource."""
         return (
             DataMapping(
-                "Buildings", f"{cls.integration.remote_url}admin/rackraj/building/", "Sites", reverse("dcim:site_list")
+                "Buildings", "<Device42 Remote URL>/admin/rackraj/building/", "Sites", reverse("dcim:site_list")
             ),
             DataMapping(
                 "Rooms",
-                f"{cls.integration.remote_url}admin/rackraj/room/",
+                "<Device42 Remote URL>/admin/rackraj/room/",
                 "Rack Groups",
                 reverse("dcim:rackgroup_list"),
             ),
-            DataMapping(
-                "Racks", f"{cls.integration.remote_url}admin/rackraj/rack/", "Racks", reverse("dcim:rack_list")
-            ),
+            DataMapping("Racks", "<Device42 Remote URL>/admin/rackraj/rack/", "Racks", reverse("dcim:rack_list")),
             DataMapping(
                 "Vendors",
-                f"{cls.integration.remote_url}admin/rackraj/organisation/",
+                "<Device42 Remote URL>/admin/rackraj/organisation/",
                 "Manufacturers",
                 reverse("dcim:manufacturer_list"),
             ),
             DataMapping(
                 "Hardware Models",
-                f"{cls.integration.remote_url}admin/rackraj/hardware/",
+                "<Device42 Remote URL>/admin/rackraj/hardware/",
                 "Device Types",
                 reverse("dcim:devicetype_list"),
             ),
             DataMapping(
-                "Devices", f"{cls.integration.remote_url}admin/rackraj/device/", "Devices", reverse("dcim:device_list")
+                "Devices", "<Device42 Remote URL>/admin/rackraj/device/", "Devices", reverse("dcim:device_list")
             ),
             DataMapping(
                 "Ports",
-                f"{cls.integration.remote_url}admin/rackraj/netport/",
+                "<Device42 Remote URL>/admin/rackraj/netport/",
                 "Interfaces",
                 reverse("dcim:interface_list"),
             ),
-            DataMapping(
-                "Cables", f"{cls.integration.remote_url}admin/rackraj/cable/", "Cables", reverse("dcim:cable_list")
-            ),
+            DataMapping("Cables", "<Device42 Remote URL>/admin/rackraj/cable/", "Cables", reverse("dcim:cable_list")),
             DataMapping(
                 "VPC (VRF Groups)",
-                f"{cls.integration.remote_url}admin/rackraj/vrfgroup/",
+                "<Device42 Remote URL>/admin/rackraj/vrfgroup/",
                 "VRFs",
                 reverse("ipam:vrf_list"),
             ),
             DataMapping(
-                "Subnets", f"{cls.integration.remote_url}admin/rackraj/vlan/", "Prefixes", reverse("ipam:prefix_list")
+                "Subnets", "<Device42 Remote URL>/admin/rackraj/vlan/", "Prefixes", reverse("ipam:prefix_list")
             ),
             DataMapping(
                 "IP Addresses",
-                f"{cls.integration.remote_url}admin/rackraj/ip_address/",
+                "<Device42 Remote URL>/admin/rackraj/ip_address/",
                 "IP Addresses",
                 reverse("ipam:ipaddress_list"),
             ),
             DataMapping(
-                "VLANs", f"{cls.integration.remote_url}admin/rackraj/switch_vlan/", "VLANs", reverse("ipam:vlan_list")
+                "VLANs", "<Device42 Remote URL>/admin/rackraj/switch_vlan/", "VLANs", reverse("ipam:vlan_list")
             ),
             DataMapping(
                 "Vendors",
-                f"{cls.integration.remote_url}admin/rackraj/organisation/",
+                "<Device42 Remote URL>/admin/rackraj/organisation/",
                 "Providers",
                 reverse("circuits:provider_list"),
             ),
             DataMapping(
                 "Telco Circuits",
-                f"{cls.integration.remote_url}admin/rackraj/circuit/",
+                "<Device42 Remote URL>/admin/rackraj/circuit/",
                 "Circuits",
                 reverse("circuits:circuit_list"),
             ),

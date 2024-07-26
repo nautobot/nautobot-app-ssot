@@ -171,7 +171,7 @@ class IpFabricDataSource(DataSource):
         got_vars = super()._get_vars()
 
         if cls.client is None:
-            cls.client = cls._init_ipf_client()
+            cls.client = cls._init_ipf_client()  # pylint: disable=no-value-for-parameter
         else:
             cls.client.update()
 
