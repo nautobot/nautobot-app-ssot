@@ -77,7 +77,16 @@ class Device(DiffSyncModel):
         "name",
         "site",
     )
-    _attributes = ("device_role", "device_type", "serial", "comments", "node_id", "pod_id", "site_tag")
+    _attributes = (
+        "device_role",
+        "device_type",
+        "serial",
+        "comments",
+        "node_id",
+        "pod_id",
+        "site_tag",
+        "controller_group",
+    )
     _children = {
         "interface": "interfaces",
     }
@@ -92,6 +101,7 @@ class Device(DiffSyncModel):
     node_id: Optional[int]
     pod_id: Optional[int]
     site_tag: str
+    controller_group: str
 
 
 class InterfaceTemplate(DiffSyncModel):

@@ -3,8 +3,7 @@
 from django.templatetags.static import static
 from django.urls import reverse
 from diffsync.enum import DiffSyncFlags
-from nautobot.dcim.models import Controller, Location
-from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
+from nautobot.dcim.models import Controller, ControllerManagedDeviceGroup, Location
 from nautobot.extras.jobs import BooleanVar, Job, ObjectVar
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 from nautobot_ssot.integrations.aci.diffsync.adapters.aci import AciAdapter
@@ -55,18 +54,17 @@ class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method
             DataMapping("VRF", None, "VRF", reverse("ipam:vrf_list")),
         )
 
+    def verify_controller_managed_device_group(self):
+        """Validate that Controller Managed Device Group exists or create it."""
+        ControllerManagedDeviceGroup.objects.get_or_create(
+            controller=self.apic, defaults={"name": f"{self.apic} Managed Devices"}
+        )
+
     def load_source_adapter(self):
         """Method to instantiate and load the ACI adapter into `self.source_adapter`."""
         if not self.device_site:
             self.logger.info("Device Location is unspecified so will revert to specified Controller's Location.")
-        _sg = self.apic.external_integration.secrets_group
-        username = _sg.get_secret_value(
-            access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
-            secret_type=SecretsGroupSecretTypeChoices.TYPE_USERNAME,
-        )
-        password = _sg.get_secret_value(
-            access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
-            secret_type=SecretsGroupSecretTypeChoices.TYPE_PASSWORD,
+        self.verify_controller_managed_device_group()
         )
         client = AciApi(
             username=username,

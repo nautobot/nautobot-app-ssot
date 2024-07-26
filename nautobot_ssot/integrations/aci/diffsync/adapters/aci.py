@@ -432,6 +432,11 @@ class AciAdapter(Adapter):
                 pod_id=value["pod_id"],
                 site=self.site,
                 site_tag=self.site,
+                controller_group=(
+                    self.job.apic.controller_managed_device_group.name
+                    if self.job.apic.controller_managed_device_group
+                    else ""
+                ),
             )
             self.add(new_device)
 

@@ -188,6 +188,9 @@ class NautobotAdapter(Adapter):
                 node_id=nbdevice.custom_field_data["aci_node_id"],
                 pod_id=nbdevice.custom_field_data["aci_pod_id"],
                 site_tag=self.site,
+                controller_group=(
+                    nbdevice.controller_managed_device_group.name if nbdevice.controller_managed_device_group else ""
+                ),
             )
             self.add(_device)
 

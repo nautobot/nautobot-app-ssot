@@ -4,6 +4,7 @@ import logging
 from django.db import IntegrityError
 from django.contrib.contenttypes.models import ContentType
 from nautobot.tenancy.models import Tenant as OrmTenant
+from nautobot.dcim.models import ControllerManagedDeviceGroup
 from nautobot.dcim.models import DeviceType as OrmDeviceType
 from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import InterfaceTemplate as OrmInterfaceTemplate
@@ -179,6 +180,7 @@ class NautobotDevice(Device):
             device_type=OrmDeviceType.objects.get(model=attrs["device_type"]),
             serial=attrs["serial"],
             comments=attrs["comments"],
+            controller_managed_device_group=ControllerManagedDeviceGroup.objects.get(name=attrs["controller_group"]),
             location=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
             status=Status.objects.get(name="Active"),
         )
@@ -204,6 +206,10 @@ class NautobotDevice(Device):
             _device.role = Role.objects.get(name=attrs["device_role"])
         if attrs.get("comments"):
             _device.comments = attrs["comments"]
+        if attrs.get("controller_group"):
+            _device.controller_managed_device_group = ControllerManagedDeviceGroup.objects.get(
+                name=attrs["controller_group"]
+            )
         if attrs.get("node_id"):
             _device.custom_field_data["aci_node_id"] = attrs["node_id"]
         if attrs.get("pod_id"):
