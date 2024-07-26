@@ -521,7 +521,7 @@ class NautobotPrefix(Prefix):
         _prefix = OrmPrefix.objects.get(
             prefix=self.prefix,
             tenant=tenant,
-            vrfs=OrmVrf.objects.get(name=self.vrf, tenant=vrf_tenant),  # fixed bug here
+            vrfs=OrmVrf.objects.get(name=self.vrf, tenant=vrf_tenant),
         )
         self.diffsync.objects_to_delete["prefix"].append(_prefix)  # pylint: disable=protected-access
         return self

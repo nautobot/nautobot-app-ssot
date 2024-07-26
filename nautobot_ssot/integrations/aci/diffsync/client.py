@@ -423,7 +423,6 @@ class AciApi:
                 mgmt_addr = f"{node['topSystem']['attributes']['address']}/{ip_network(node['topSystem']['attributes']['tepPool'], strict=False).prefixlen}"
             else:
                 mgmt_addr = ""
-            # BUG detected in this block: changing
             if mgmt_addr:
                 subnet = ip_network(mgmt_addr, strict=False).with_prefixlen
             elif node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
@@ -483,7 +482,6 @@ class AciApi:
                 mgmt_addr = f"{node['topSystem']['attributes']['address']}/{ip_network(node['topSystem']['attributes']['tepPool'], strict=False).prefixlen}"
             else:
                 mgmt_addr = ""
-            # BUG detected in this block: changing
             if mgmt_addr:
                 subnet = ip_network(mgmt_addr, strict=False).with_prefixlen
             elif node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104

@@ -212,7 +212,7 @@ class AciAdapter(DiffSync):
                     vrf_tenant = f"{self.tenant_prefix}:{bd_value['vrf_tenant']}"
                 else:
                     vrf_tenant = None
-                if bd_value.get("tenant") == 'mgmt':
+                if bd_value.get("tenant") == "mgmt":
                     _namespace = "Global"
                 else:
                     _namespace = vrf_tenant or tenant_name
@@ -224,7 +224,7 @@ class AciAdapter(DiffSync):
                         site=self.site,
                         vrf=bd_value["vrf"],
                         vrf_tenant=vrf_tenant,
-                        tenant=vrf_tenant or tenant_name,  # BUG fix
+                        tenant=vrf_tenant or tenant_name,
                     )
                     new_ipaddress = self.ip_address(
                         address=subnet[0],
@@ -261,7 +261,7 @@ class AciAdapter(DiffSync):
                     vrf_tenant = f"{self.tenant_prefix}:{bd_value['vrf_tenant']}"
                 else:
                     vrf_tenant = None
-                if bd_value.get("tenant") == 'mgmt':
+                if bd_value.get("tenant") == "mgmt":
                     _namespace = "Global"
                 else:
                     _namespace = vrf_tenant or tenant_name
