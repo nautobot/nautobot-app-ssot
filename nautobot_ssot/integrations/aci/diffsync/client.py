@@ -1,13 +1,17 @@
 """All interactions with ACI."""  # pylint: disable=too-many-lines, too-many-instance-attributes, too-many-arguments
 
 # pylint: disable=invalid-name
-import re
-import sys
-import logging
-import requests
-import urllib3
+from copy import deepcopy
 from datetime import datetime, timedelta
 from ipaddress import ip_network
+
+import logging
+import re
+import sys
+
+import requests
+import urllib3
+
 from .utils import (
     tenant_from_dn,
     ap_from_dn,
@@ -17,7 +21,6 @@ from .utils import (
     interface_from_dn,
     bd_from_dn,
 )
-from copy import deepcopy
 
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
