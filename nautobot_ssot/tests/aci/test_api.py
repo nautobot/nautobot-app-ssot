@@ -521,7 +521,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         ]
 
         expected_data = {
-            "ntc-chatops:Vlan100_Web": {
+            "Vlan100_Web:ntc-chatops": {
                 "name": "Vlan100_Web",
                 "tenant": "ntc-chatops",
                 "vrf_tenant": "ntc-chatops",
@@ -529,7 +529,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
                 "vrf": "vrf1",
                 "subnets": [("10.1.1.1/24", "public")],
             },
-            "ntc-chatops:Vlan101_App": {
+            "Vlan101_App:ntc-chatops": {
                 "name": "Vlan101_App",
                 "tenant": "ntc-chatops",
                 "vrf_tenant": "ntc-chatops",
