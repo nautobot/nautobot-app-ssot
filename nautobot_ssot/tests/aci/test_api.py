@@ -40,8 +40,8 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         self.assertEqual(
             self.aci_obj.get_tenants(),
             [
-                {"name": "test_tenant_1", "description": "test_desc_1"},
-                {"name": "test_tenant_2", "description": "test_desc_2"},
+                {"name": "test_tenant_1", "description": "test_desc_1", "annotation": ""},
+                {"name": "test_tenant_2", "description": "test_desc_2", "annotation": ""},
             ],
         )
 
