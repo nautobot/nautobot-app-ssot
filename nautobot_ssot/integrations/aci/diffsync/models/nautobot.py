@@ -364,12 +364,12 @@ class NautobotIPAddress(IPAddress):
             _parent = OrmPrefix.objects.get(prefix=attrs["prefix"], namespace=_namespace)
         except Namespace.DoesNotExist:
             diffsync.job.logger.warning(f"{ids['namespace']} missing Namespace to assign IP address: {ids['address']}")
-            return
+            return None
         except OrmPrefix.DoesNotExist:
             diffsync.job.logger.warning(
                 f"{attrs['prefix']} missing Parent Prefix to assign IP address: {ids['address']}"
             )
-            return
+            return None
         try:
             _ipaddress = OrmIPAddress.objects.create(
                 address=ids["address"],
@@ -383,7 +383,7 @@ class NautobotIPAddress(IPAddress):
             diffsync.job.logger.warning(
                 f"Unable to create IP Address {ids['address']}. Duplicate Address or Parent Prefix: {attrs['prefix']} in Namespace: {ids['namespace']}"
             )
-            return
+            return None
 
         if intf:
             mapping = IPAddressToInterface.objects.create(ip_address=_ipaddress, interface=intf)
@@ -450,7 +450,7 @@ class NautobotPrefix(Prefix):
                 f"Tenant {attrs['vrf_tenant']} not found for VRF while creating Prefix: {ids['prefix']}"
             )
             vrf_tenant = None
-            return
+            return None
 
         if ids["vrf"] and vrf_tenant:
             try:
@@ -473,7 +473,7 @@ class NautobotPrefix(Prefix):
             diffsync.job.logger.warning(
                 f"Prefix: {_prefix.prefix} duplicate in Namespace: {_prefix.namespace.name}. Skipping .."
             )
-            return
+            return None
         if vrf:
             _prefix.vrfs.add(vrf)
         _prefix.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
