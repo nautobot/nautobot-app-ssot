@@ -141,7 +141,7 @@ class AciApi:
             {
                 "name": data["fvTenant"]["attributes"]["name"],
                 "description": data["fvTenant"]["attributes"]["descr"],
-                "annotation": data["fvTenant"]["attributes"]["annotation"],
+                "annotation": data["fvTenant"]["attributes"].get("annotation", ""),
             }
             for data in resp.json()["imdata"]
         ]
