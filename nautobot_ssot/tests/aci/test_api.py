@@ -29,8 +29,8 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         mock_fvTenant.status_code = 200
         mock_fvTenant.json.return_value = {
             "imdata": [
-                {"fvTenant": {"attributes": {"name": "test_tenant_1", "descr": "test_desc_1"}}},
-                {"fvTenant": {"attributes": {"name": "test_tenant_2", "descr": "test_desc_2"}}},
+                {"fvTenant": {"attributes": {"name": "test_tenant_1", "descr": "test_desc_1", "annotation": ""}}},
+                {"fvTenant": {"attributes": {"name": "test_tenant_2", "descr": "test_desc_2", "annotation": ""}}},
             ]
         }
 
