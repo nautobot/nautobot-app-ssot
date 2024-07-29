@@ -728,7 +728,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
                 "fabric_ip": "10.0.0.1",
                 "site": "ACI",
                 "pod_id": "1",
-                "subnet": "10.0.0.0/24",
+                "subnet": "10.1.1.0/24",
                 "oob_ip": "10.1.1.1/24",
                 "uptime": "05:22:43:18.000",
             },
