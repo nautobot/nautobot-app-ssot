@@ -462,7 +462,7 @@ class AciApi:
         return node_dict
 
     def get_controllers(self) -> dict:
-        """Return list of Leaf/Spine nodes in the ACI fabric."""
+        """Return list of Controller nodes in the ACI fabric."""
         resp = self._get('/api/class/fabricNode.json?query-target-filter=eq(fabricNode.role,"controller")')
         node_dict = {}
         for node in resp.json()["imdata"]:
