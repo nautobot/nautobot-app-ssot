@@ -16,7 +16,6 @@ def register_signals(sender):
     """Register signals for IPFabric integration."""
     nautobot_database_ready.connect(nautobot_database_ready_callback, sender=sender)
 
-
 def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disable=unused-argument
     """Adds OS Version and Physical Address CustomField to Devices and System of Record and Last Sync'd to Device, and IPAddress.
 
