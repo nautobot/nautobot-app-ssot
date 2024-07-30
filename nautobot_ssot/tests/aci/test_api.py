@@ -22,7 +22,6 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         )  # nosec
         self.maxDiff = None
 
-
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
     def test_get_tenants(self, mocked_login, mocked_handle_request):
