@@ -67,8 +67,8 @@ class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method, too-ma
         client = AciApi(
             username=username,
             password=password,
-            base_uri=self.apic.remote_url,
-            verify=self.apic.verify_ssl,
+            base_uri=self.apic.external_integration.remote_url,
+            verify=self.apic.external_integration.verify_ssl,
             site=self.device_site.name if self.device_site else self.apic.location.name,
         )
         self.source_adapter = AciAdapter(
