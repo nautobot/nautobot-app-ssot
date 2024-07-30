@@ -523,37 +523,9 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
             ]
         }
 
-        # mocked_fvRsCtx_1 = Mock()
-        # mocked_fvRsCtx_1.status_code = 200
-        # mocked_fvRsCtx_1.json.return_value = {
-        #     "imdata": [{"fvRsCtx": {"attributes": {"tnFvCtxName": "vrf1", "tDn": "uni/tn-ntc-chatops/ctx-vrf1"}}}]
-        # }
-
-        # mocked_fvRsCtx_2 = Mock()
-        # mocked_fvRsCtx_2.status_code = 200
-        # mocked_fvRsCtx_2.json.return_value = {
-        #     "imdata": [{"fvRsCtx": {"attributes": {"tnFvCtxName": "vrf2", "tDn": "uni/tn-ntc-chatops/ctx-vrf1"}}}]
-        # }
-
-        # mocked_fvSubnet_1 = Mock()
-        # mocked_fvSubnet_1.status_code = 200
-        # mocked_fvSubnet_1.json.return_value = {
-        #     "imdata": [{"fvSubnet": {"attributes": {"ip": "10.1.1.1/24", "scope": "public"}}}]
-        # }
-
-        # mocked_fvSubnet_2 = Mock()
-        # mocked_fvSubnet_2.status_code = 200
-        # mocked_fvSubnet_2.json.return_value = {
-        #     "imdata": [{"fvSubnet": {"attributes": {"ip": "10.2.2.2/24", "scope": "public"}}}]
-        # }
-
         mocked_login.return_value = self.mock_login
         mocked_handle_request.side_effect = [
             mocked_fvBD,
-            # mocked_fvRsCtx_1,
-            # mocked_fvSubnet_1,
-            # mocked_fvRsCtx_2,
-            # mocked_fvSubnet_2,
         ]
 
         expected_data = {
