@@ -1,0 +1,87 @@
+{
+  "name": "bootstrap",
+  // "build": {
+  // 	"context": "../",
+  // 	"dockerfile": "development/Dockerfile"
+  // },
+  "dockerComposeFile": [
+    "../development/docker-compose.base.yml",
+    "../development/docker-compose.dev.yml",
+    "../development/docker-compose.postgres.yml",
+    "../development/docker-compose.redis.yml"
+  ],
+  "containerEnv": {
+    "DJANGO_SETTINGS_MODULE": "nautobot.core.settings",
+    "NAUTOBOT_VER": "2.2.7",
+    "PYTHON_VER": 3.11
+  },
+  "remoteEnv": {
+    "NAUTOBOT_VER": "2.2.7",
+    "PYTHON_VER": 3.11
+  },
+  "service": "nautobot",
+  "runServices": ["worker", "db", "redis"],
+  "workspaceFolder": "/source/",
+
+  // 👇 Features to add to the Dev Container. More info: https://containers.dev/implementors/features.
+  // "features": {},
+
+  // 👇 Use 'forwardPorts' to make a list of ports inside the container available locally.
+  // "forwardPorts": [],
+
+  "mounts": [
+        "source=profile,target=/root,type=volume",
+        "target=/root/.vscode-server,type=volume"
+    ],
+  "postCreateCommand": "apt-get update && apt-get install -y openssh-client",
+
+  // 👇 Configure tool-specific properties.
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "streetsidesoftware.code-spell-checker",
+        "eamodio.gitlens",
+        "ms-python.python",
+        "vivaxy.vscode-conventional-commits",
+        "njpwerner.autodocstring",
+        "donjayamanne.git-extension-pack",
+        "ms-python.black-formatter",
+        "ms-python.flake8",
+        "codezombiech.gitignore",
+        "oderwat.indent-rainbow",
+        "DavidAnson.vscode-markdownlint",
+        "mohsen1.prettify-json",
+        "ms-python.pylint",
+        "shardulm94.trailing-spaces",
+        "ms-azuretools.vscode-docker"
+      ]
+    },
+    "settings": {
+      "python.pythonPath": "/usr/local/bin/python",
+      "python.analysis.extraPaths": ["/source"],
+      "python.linting.pylintEnabled": true,
+      "python.linting.enabled": true,
+      "pythonTestExplorer.testFramework": "pytest",
+      "python.formatting.blackEnabled": true,
+      "python.formatting.blackPath": "/usr/local/bin/black",
+      "python.linting.banditPath": "/usr/local/bin/bandit",
+      "python.linting.pylintPath": "/usr/local/bin/pylint",
+      "python.testing.pytestPath": "/usr/local/bin/pytest",
+      "python.linting.pydocstyleEnabled": true,
+      "python.linting.pydocstylePath": "/usr/local/bin/pydocstyle",
+      "python.linting.flake8Enabled": true,
+      "python.linting.flake8Path": "/usr/local/bin/flake8",
+      "python.formatting.autopep8Path": "/usr/local/bin/flake8",
+      "python.linting.pycodestyleEnabled": true,
+      "python.linting.pycodestylePath": "/usr/local/bin/flake8",
+      "python.linting.pylintArgs": ["--load-plugins", "pylint_django"],
+      "python.linting.pycodestyleArgs": ["--ignore=E501"] // E501 is line to long
+    },
+    "forwardPorts": [8080]
+
+    // 👇 Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+    // "remoteUser": "root"
+  }
+}

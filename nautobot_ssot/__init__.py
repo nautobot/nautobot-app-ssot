@@ -16,6 +16,7 @@ __version__ = metadata.version(__name__)
 _CONFLICTING_APP_NAMES = [
     "nautobot_ssot_aci",
     "nautobot_ssot_aristacv",
+    "nautobot_ssot_bootstrap",
     "nautobot_ssot_device42",
     "nautobot_ssot_infoblox",
     "nautobot_ssot_ipfabric",
@@ -92,6 +93,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "device42_hostname_mapping": [],
         "enable_aci": False,
         "enable_aristacv": False,
+        "enable_bootstrap": False,
         "enable_device42": False,
         "enable_infoblox": False,
         "enable_ipfabric": False,

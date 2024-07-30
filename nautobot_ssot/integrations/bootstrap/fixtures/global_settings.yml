@@ -1,0 +1,794 @@
+---
+tenant_group:
+  - name: "Group1"
+    parent: ""
+    description: ""
+  - name: "Group2"
+    parent: ""
+    description: ""
+  - name: "Group3"
+    parent: "Group1"
+    description: ""
+tenant:
+  - name: "Backbone"
+    tenant_group: "Group1"
+    description: ""
+    tags: []
+  - name: "Datacenter"
+    tenant_group: "Group2"
+    description: ""
+    tags: ["Test"]
+role:
+  - name: "spine_switches"
+    weight:
+    description: ""
+    color: "795548"
+    content_types:
+      - "dcim.device"
+  - name: "leaf_switches"
+    weight:
+    description: ""
+    color: "785530"
+    content_types:
+      - "dcim.device"
+  - name: "Switch"
+    weight:
+    description: ""
+    color: "9e9e9e"
+    content_types:
+      - "dcim.device"
+  - name: "Firewall"
+    weight:
+    description: ""
+    color: "9e9e9e"
+    content_types:
+      - "dcim.device"
+  - name: "Data Network"
+    weight:
+    description: ""
+    color: "9e9e9e"
+    content_types:
+      - "ipam.prefix"
+      - "ipam.vlan"
+  # Default Roles
+  - name: "Administrative"
+    weight:
+    description: "Unit plays an administrative role"
+    color: "2196f3"
+    content_types:
+      - "extras.contactassociation"
+  - name: "Anycast"
+    weight:
+    description: ""
+    color: "ffc107"
+    content_types:
+      - "ipam.ipaddress"
+  - name: "Billing"
+    weight:
+    description: "Unit plays a billing role"
+    color: "4caf50"
+    content_types:
+      - "extras.contactassociation"
+  - name: "CARP"
+    weight:
+    description: ""
+    color: "4caf50"
+    content_types:
+      - "ipam.ipaddress"
+  - name: "GLBP"
+    weight:
+    description: ""
+    color: "4caf50"
+    content_types:
+      - "ipam.ipaddress"
+  - name: "HSRP"
+    weight:
+    description: ""
+    color: "4caf50"
+    content_types:
+      - "ipam.ipaddress"
+  - name: "Loopback"
+    weight:
+    description: ""
+    color: "9e9e9e"
+    content_types:
+      - "ipam.ipaddress"
+  - name: "On Site"
+    weight:
+    description: "Unit plays an on site role"
+    color: "111111"
+    content_types:
+      - "extras.contactassociation"
+  - name: "Secondary"
+    weight:
+    description: ""
+    color: "2196f3"
+    content_types:
+      - "ipam.ipaddress"
+  - name: "Support"
+    weight:
+    description: "Unit plays a support role"
+    color: "ffeb3b"
+    content_types:
+      - "extras.contactassociation"
+  - name: "VIP"
+    weight:
+    description: ""
+    color: "4caf50"
+    content_types:
+      - "ipam.ipaddress"
+  - name: "VRRP"
+    weight:
+    description: ""
+    color: "4caf50"
+    content_types:
+      - "ipam.ipaddress"
+manufacturer:
+  - name: "Generic"
+    description: "For generic devices like patch panels"
+  - name: "Palo Alto Networks"
+    description: ""
+  - name: "Arista"
+    description: ""
+  - name: "Cisco"
+    description: ""
+platform:
+  - name: "paloalto_panos"
+    manufacturer: "Palo Alto Networks"
+    network_driver: "paloalto_panos"
+    napalm_driver: ""
+    napalm_arguments: {}
+    description: "PanOS Firewalls"
+  - name: "cisco_ios"
+    manufacturer: "Cisco"
+    network_driver: "cisco_ios"
+    napalm_driver: ""
+    napalm_arguments: {}
+    description: "Cisco Devices"
+  - name: "arista_eos"
+    manufacturer: "Arista"
+    network_driver: "arista_eos"
+    napalm_driver: ""
+    napalm_arguments: {}
+    description: "Arista Devices"
+location_type:
+  - name: "Region"
+    parent: ""
+    nestable: True
+    description: ""
+    content_types: []
+  - name: "Site"
+    parent: "Region"
+    nestable: True
+    description: ""
+    content_types:
+      - "dcim.device"
+      - "ipam.namespace"
+      - "ipam.prefix"
+      - "ipam.vlan"
+      - "ipam.vlangroup"
+      - "circuits.circuittermination"
+  - name: "Building"
+    parent: "Site"
+    nestable: False
+    description: ""
+    content_types:
+      - "dcim.device"
+      - "ipam.namespace"
+      - "ipam.prefix"
+      - "ipam.vlan"
+      - "ipam.vlangroup"
+      - "circuits.circuittermination"
+location:
+  - name: "Southeast"
+    location_type: "Region"
+    parent: ""
+    status: "Active"
+    facility: ""
+    asn:
+    time_zone: "US/Eastern"
+    description: ""
+    tenant: ""
+    physical_address: ""
+    shipping_address: ""
+    latitude:
+    longitude:
+    contact_name: ""
+    contact_phone: ""
+    contact_email: ""
+    tags: []
+  - name: "Atlanta"
+    location_type: "Site"
+    parent: "Southeast"
+    status: "Active"
+    facility: "AT1"
+    asn: 65001
+    time_zone: "US/Eastern"
+    description: ""
+    tenant: ""
+    physical_address: |
+      180 Peachtree St NE
+      FL 2 , FL 3 , FL 6
+      Atlanta, GA 30303
+      United States
+    shipping_address: |
+      Example Company
+      180 Peachtree St NE
+      Loading Dock 1
+      Atlanta, GA 30303
+      United States
+    latitude:
+    longitude:
+    contact_name: ""
+    contact_phone: ""
+    contact_email: ""
+    tags: []
+  - name: "Atlanta4"
+    location_type: "Site"
+    parent: "Southeast"
+    status: "Active"
+    facility: "AT4"
+    asn: 65004
+    time_zone: "US/Eastern"
+    description: ""
+    tenant: ""
+    physical_address: |
+      450 Interstate to N PKWY
+      Atlanta, GA 30339
+      United States
+    shipping_address: |
+      Example Company
+      450 Interstate to N PKWY
+      Loading Dock 1
+      Atlanta, GA 30339
+      United States
+    latitude:
+    longitude:
+    contact_name: ""
+    contact_phone: ""
+    contact_email: ""
+    tags: []
+team:
+  - name: "Datacenter"
+    phone: "123-456-7890"
+    email: "datacenter@example.com"
+    address: "2715 N Vermont Canyon Rd, Los Angeles, CA 90027"
+    # TODO: Need to consider how to allow loading from teams or contacts models.
+    # contacts: []
+  - name: "Backbone"
+    phone: "123-456-7890"
+    email: "backbone@example.com"
+    address: "1600 S Azusa Ave, Rowland Heights, CA 91748"
+    # TODO: Need to consider how to allow loading from teams or contacts models.
+    # contacts: []
+contact:
+  - name: "Jennifer Parker"
+    phone: "888-555-4823"
+    email: "jenny@future.com"
+    address: "12417 Philadelphia St, Whittier, CA 90601"
+    teams:
+      - "Backbone"
+      - "Datacenter"
+  - name: "Marty McFly"
+    phone: "888-555-1955"
+    email: "marty@future.com"
+    address: "9303 Roslyndale Ave, Arleta, CA 91331"
+    teams:
+      - "Backbone"
+provider:
+  - name: "Provider1"
+    asn: 65000
+    account_number: "12345678"
+    portal_url: "https://provider1.com"
+    noc_contact: ""
+    admin_contact: ""
+    tags: []
+  - name: "Provider2"
+    asn: 65001
+    account_number: "87654321"
+    portal_url: "https://provider2.com"
+    noc_contact: ""
+    admin_contact: ""
+    tags: []
+provider_network:
+  - name: "Provider1 Metro-E"
+    provider: "Provider1"
+    description: ""
+    comments: ""
+    tags: []
+  - name: "Provider2 Metro-E"
+    provider: "Provider2"
+    description: ""
+    comments: ""
+    tags: []
+circuit_type:
+  - name: "Metro-E"
+    description: "Metro ethernet"
+  - name: "DWDM"
+    description: ""
+  - name: "Internet"
+    description: ""
+circuit:
+  - circuit_id: "METRO-65002-CUST1"
+    provider: "Provider1"
+    circuit_type: "Metro-E"
+    status: "Active"
+    date_installed:
+    commit_rate_kbps: 1000000
+    description: ""
+    tenant: ""
+    tags: []
+  - circuit_id: "INTERNET-65002-CUST1"
+    provider: "Provider2"
+    circuit_type: "Internet"
+    status: "Active"
+    date_installed:
+    commit_rate_kbps: 1000000
+    description: ""
+    tenant: ""
+    tags: []
+circuit_termination:
+  - name: "METRO-65002-CUST1__Provider1__A"
+    termination_type: "Location"
+    location: "Atlanta"
+    provider_network: ""
+    port_speed_kbps: 1000000
+    upstream_speed_kbps:
+    cross_connect_id: ""
+    patch_panel_or_ports: ""
+    description: ""
+    tags: []
+  - name: "METRO-65002-CUST1__Provider1__Z"
+    termination_type: "Provider Network"
+    location: ""
+    provider_network: "Provider2 Metro-E"
+    port_speed_kbps: 1000000
+    upstream_speed_kbps:
+    cross_connect_id: ""
+    patch_panel_or_ports: ""
+    description: ""
+    tags: []
+  - name: "INTERNET-65002-CUST1__Provider2__A"
+    termination_type: "Location"
+    location: "Atlanta4"
+    provider_network: ""
+    port_speed_kbps: 1000000
+    upstream_speed_kbps:
+    cross_connect_id: ""
+    patch_panel_or_ports: ""
+    description: ""
+    tags: []
+secret:
+  - name: "Github_Service_Acct"
+    provider: "environment-variable"  # or text-file
+    parameters:
+      variable: "GITHUB_SERVICE_ACCT"
+      path:
+  - name: "Github_Service_Token"
+    provider: "environment-variable"  # or text-file
+    parameters:
+      variable: "GITHUB_SERVICE_TOKEN"
+      path:
+secrets_group:
+  - name: "Github_Service_Account"
+    secrets:
+      - name: "Github_Service_Acct"
+        secret_type: "username"
+        access_type: "HTTP(S)"
+      - name: "Github_Service_Token"
+        secret_type: "token"
+        access_type: "HTTP(S)"
+git_repository:
+  - name: "Backbone Config Contexts"
+    url: "https://github.com/nautobot/backbone-config-contexts.git"
+    branch: "main"
+    secrets_group_name: "Github_Service_Account"
+    provided_data_type:
+      - "config contexts"
+  - name: "Datacenter Config Contexts"
+    url: "https://github.com/nautobot/datacenter-config-contexts.git"
+    secrets_group_name: "Github_Service_Account"
+    provided_data_type:
+      - "config contexts"
+  - name: "Metro Config Contexts"
+    url: "https://github.com/nautobot/metro-config-contexts.git"
+    secrets_group_name:
+    provided_data_type:
+      - "config contexts"
+  - name: "Access Config Contexts"
+    url: "https://github.com/nautobot/access-config-contexts.git"
+    secrets_group_name:
+    provided_data_type:
+      - "config contexts"
+dynamic_group:
+  - name: "Backbone Domain"
+    content_type: "dcim.device"
+    description: ""
+    filter: |
+      {
+        "tenant": [
+          "Backbone"
+        ]
+      }
+  - name: "Datacenter"
+    content_type: "dcim.device"
+    description: ""
+    filter: |
+      {
+        "location": [
+          "Atlanta"
+        ],
+        "platform": [
+          "arista_eos",
+          "paloalto_panos"
+        ]
+      }
+computed_field:
+  - label: "Compliance Change"
+    content_type: "dcim.device"
+    template: "{{ obj | get_change_log }}"
+tag:
+  - name: "Backbone"
+    color: "795547"
+    description: ""
+    content_types:
+      - "dcim.device"
+  - name: "Access"
+    color: "795548"
+    description: ""
+    content_types:
+      - "dcim.device"
+      - "ipam.ipaddress"
+  - name: "Test"
+    color: "795548"
+    description: "Test"
+    content_types:
+      - "circuits.circuit"
+      - "circuits.circuittermination"
+      - "circuits.provider"
+      - "circuits.providernetwork"
+      - "dcim.cable"
+      - "dcim.consoleport"
+      - "dcim.consoleserverport"
+      - "dcim.device"
+      - "dcim.devicebay"
+      - "dcim.devicetype"
+      - "dcim.frontport"
+      - "dcim.interface"
+      - "dcim.inventoryitem"
+      - "dcim.powerfeed"
+      - "dcim.poweroutlet"
+      - "dcim.powerpanel"
+      - "dcim.powerport"
+      - "dcim.rack"
+      - "dcim.rackreservation"
+      - "dcim.rearport"
+      - "dcim.location"
+      - "dcim.deviceredundancygroup"
+      - "extras.gitrepository"
+      - "extras.job"
+      - "extras.secret"
+      - "ipam.namespace"
+      - "ipam.ipaddress"
+      - "ipam.prefix"
+      - "ipam.routetarget"
+      - "ipam.service"
+      - "ipam.vlan"
+      - "ipam.vrf"
+      - "tenancy.tenant"
+      - "virtualization.cluster"
+      - "virtualization.virtualmachine"
+      - "virtualization.vminterface"
+graph_ql_query:
+  - name: "Backbone Devices"
+    query: |
+      query ($device_id: ID!) {
+        device(id: $device_id) {
+          config_context
+          hostname: name
+          device_role {
+            name
+          }
+          tenant {
+            name
+          }
+          primary_ip4 {
+            address
+          }
+        }
+      }
+  - name: "Datacenter Devices"
+    query: |
+      query ($device_id: ID!) {
+        device(id: $device_id) {
+          config_context
+          hostname: name
+          device_role {
+            name
+          }
+          tenant {
+            name
+          }
+          primary_ip4 {
+            address
+          }
+        }
+      }
+software:
+  - device_platform: "arista_eos"
+    version: "4.25.10M"
+    alias: ""
+    release_date: "2023-12-04"
+    eos_date: "2023-12-05"
+    documentation_url: "https://arista.com"
+    lts: false
+    pre_release: false
+    tags: ["Backbone"]
+  - device_platform: "cisco_ios"
+    version: "03.11.04.E"
+    alias: "Cisco Validated"
+    release_date:
+    eos_date: "2023-12-04"
+    documentation_url: ""
+    lts: false
+    pre_release: false
+    tags: ["Test"]
+  - device_platform: "paloalto_panos"
+    version: "11.0.3"
+    alias: "Panos Preferred"
+    release_date:
+    eos_date: "2024-12-04"
+    documentation_url: "https://paloaltonetworks.com"
+    lts: false
+    pre_release: false
+    tags: ["Test"]
+  - device_platform: "arista_eos"
+    version: "15.4.3"
+    alias: "Arista Preferred"
+    release_date:
+    eos_date: "2024-12-04"
+    documentation_url: "https://arista.com"
+    lts: false
+    pre_release: false
+    tags: ["Test"]
+software_image:
+  - software: "arista_eos - 15.4.3"
+    platform: "arista_eos"
+    software_version: "15.4.3"
+    file_name: "arista15.4.3.bin"
+    download_url: "https://arista-files.com"
+    image_file_checksum: ""
+    hashing_algorithm: ""
+    default_image: false
+    tags: ["Test"]
+  - software: "paloalto_panos - 11.0.3"
+    platform: "paloalto_panos"
+    software_version: "11.0.3"
+    file_name: "paloalto_11.0.3.bin"
+    download_url: "https://paloaltonetworks.com"
+    image_file_checksum: "o234i09usdfsflkj"
+    hashing_algorithm: "SHA256"
+    default_image: false
+    tags: []
+validated_software:
+  - software: "arista_eos - 4.25.10M"
+    valid_since: 2023-08-07
+    valid_until: 2025-01-01
+    preferred_version: false
+    devices: []
+    device_types: []
+    device_roles: []
+    inventory_items: []
+    object_tags: []
+    tags: ["Test"]
+  - software: "cisco_ios - 03.11.04.E"
+    valid_since: 2023-08-07
+    valid_until:
+    preferred_version: false
+    devices: []
+    device_types: []
+    device_roles: []
+    inventory_items: []
+    object_tags: []
+    tags: []
+  - software: "paloalto_panos - 11.0.3"
+    valid_since: 2023-08-07
+    valid_until:
+    preferred_version: false
+    devices: []
+    device_types: []
+    device_roles: ["Firewall"]
+    inventory_items: []
+    object_tags: []
+    tags: []
+  - software: "arista_eos - 15.4.3"
+    valid_since: 2023-08-07
+    valid_until: 2025-08-09
+    preferred_version: true
+    devices: []
+    device_types: []
+    device_roles: []
+    inventory_items: []
+    object_tags: ["Backbone"]
+    tags: ["Test"]
+  - software: "arista_eos - 15.4.3"
+    valid_since: 2023-08-07
+    valid_until:
+    preferred_version: true
+    devices: []
+    device_types: []
+    device_roles: []
+    inventory_items: []
+    object_tags: []
+    tags: []
+namespace:
+  - name: "Global"
+    description: ""
+    location: ""
+  - name: "Customer1"
+    description: "Customer1 IPAM Namespace"
+    location: "Atlanta"
+  - name: "Customer2"
+    description: "Customer2 IPAM Namespace"
+    location: "Atlanta4"
+rir:
+  - name: "RFC1918"
+    private: true
+    description: "Private IP Space"
+  - name: "ARIN"
+    private: false
+    description: "American Registry for Internet Numbers"
+vlan_group:
+  - name: "Atlanta VLANs"
+    location: "Atlanta"
+    description: ""
+  - name: "Atlanta4 VLANs"
+    location: "Atlanta4"
+    description: ""
+vlan:
+  - name: "vlan10"
+    vid: 10
+    description: ""
+    status: "Active"
+    role: "Data Network"
+    locations: ["Atlanta"]
+    vlan_group: "Atlanta VLANs"
+    tenant: ""
+    tags: []
+  - name: "vlan20"
+    vid: 20
+    description: ""
+    status: "Reserved"
+    role: "Data Network"
+    locations: ["Atlanta", "Atlanta4"]
+    vlan_group: "Atlanta VLANs"
+    tenant: ""
+    tags: []
+  - name: "vlan30"
+    vid: 30
+    description: ""
+    status: "Reserved"
+    role: "Data Network"
+    locations: []
+    vlan_group: "Atlanta VLANs"
+    tenant: ""
+    tags: []
+  - name: "vlan30"
+    vid: 30
+    description: ""
+    status: "Active"
+    role: ""
+    locations: []
+    vlan_group: ""
+    tenant: ""
+    tags: []
+vrf:
+  - name: "blue"
+    namespace: "Global"
+    route_distinguisher: "65000:1"
+    description: ""
+    # TODO: Need to consider how to allow loading from vrfs or prefix models.
+    # prefixes: []
+    tenant: ""
+    tags: []
+  - name: "red"
+    namespace: "Global"
+    route_distinguisher: "65000:2"
+    description: ""
+    # TODO: Need to consider how to allow loading from vrfs or prefix models.
+    # prefixes: []
+    tenant: ""
+    tags: []
+  - name: "blue"
+    namespace: "Customer1"
+    route_distinguisher: "65000:1"
+    description: ""
+    # TODO: Need to consider how to allow loading from vrfs or prefix models.
+    # prefixes: []
+    tenant: ""
+    tags: []
+prefix:
+  - network: "10.0.0.0/24"
+    namespace: "Customer1"
+    prefix_type: "network"  # network, container, or pool
+    status: "Active"
+    role: "Data Network"
+    rir: "RFC1918"
+    date_allocated: 2024-06-01
+    description: ""
+    # TODO: Need to consider how to allow loading from vrfs or prefix models.
+    vrfs: []
+    locations: []
+    vlan: ""
+    tenant: ""
+    tags: []
+  - network: "10.0.0.0/24"
+    namespace: "Customer2"
+    prefix_type: "network"  # network, container, or pool
+    status: "Active"
+    role: "Data Network"
+    rir: "RFC1918"
+    date_allocated: "2024-06-01 12:00:00"
+    description: ""
+    # TODO: Need to consider how to allow loading from vrfs or prefix models.
+    vrfs: []
+    locations: []
+    vlan: ""
+    tenant: ""
+    tags: []
+  - network: "10.0.10.0/24"
+    namespace: "Global"
+    prefix_type: "network"  # network, container, or pool
+    status: "Active"
+    role: "Data Network"
+    rir: "RFC1918"
+    date_allocated:
+    description: ""
+    # TODO: Need to consider how to allow loading from vrfs or prefix models.
+    vrfs: []
+    locations: ["Atlanta", "Atlanta4"]
+    vlan: "vlan10__10__Atlanta VLANs"
+    tenant: ""
+    tags: []
+  - network: "192.168.0.0/24"
+    namespace: "Customer1"
+    prefix_type: "network"  # network, container, or pool
+    status: "Active"
+    role: "Data Network"
+    rir: "RFC1918"
+    date_allocated:
+    description: ""
+    # TODO: Need to consider how to allow loading from vrfs or prefix models.
+    vrfs: ["blue__Customer1"]
+    locations: ["Atlanta"]
+    vlan: ""
+    tenant: ""
+    tags: []
+  - network: "192.168.0.0/24"
+    namespace: "Global"
+    prefix_type: "network"  # network, container, or pool
+    status: "Active"
+    role: "Data Network"
+    rir: "RFC1918"
+    date_allocated:
+    description: ""
+    # TODO: Need to consider how to allow loading from vrfs or prefix models.
+    vrfs: ["red__Global"]
+    locations: ["Atlanta"]
+    vlan: ""
+    tenant: ""
+    tags: []
+  - network: "192.168.1.0/24"
+    namespace: ""
+    prefix_type: "network"  # network, container, or pool
+    status: "Active"
+    role: ""
+    rir: ""
+    date_allocated:
+    description: ""
+    # TODO: Need to consider how to allow loading from vrfs or prefix models.
+    vrfs: []
+    locations: []
+    vlan: ""
+    tenant: ""
+    tags: []
