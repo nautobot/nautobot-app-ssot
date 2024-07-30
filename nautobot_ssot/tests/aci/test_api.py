@@ -486,7 +486,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
                 {
                     "fvSubnet": {
                         "attributes": {
-                            "dn": "uni/tn-Prod/BD-Vlan100_Web/subnet-[10.1.1.1/24]",
+                            "dn": "uni/tn-ntc-chatops/BD-Vlan100_Web/subnet-[10.1.1.1/24]",
                             "ip": "10.1.1.1/24",
                             "scope": "public",
                         }
@@ -507,7 +507,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
                 {
                     "fvRsCtx": {
                         "attributes": {
-                            "dn": "uni/tn-Prod/BD-Vlan101_App/rsctx",
+                            "dn": "uni/tn-ntc-chatops/BD-Vlan101_App/rsctx",
                             "tnFvCtxName": "vrf2",
                             "tDn": "uni/tn-ntc-chatops/ctx-vrf1",
                         }
