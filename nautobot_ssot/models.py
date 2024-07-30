@@ -135,9 +135,15 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
         """Get the absolute url of the source worker associated with this instance."""
         if self.source == "Nautobot" or not self.job_result:
             return None
+
+        try:
+            class_path = self.job_result.job_model.class_path
+        except AttributeError as err:
+            return None
+
         return reverse(
             "plugins:nautobot_ssot:data_source",
-            kwargs={"class_path": self.job_result.job_model.class_path},
+            kwargs={"class_path": class_path},
         )
 
     def get_target_url(self):
