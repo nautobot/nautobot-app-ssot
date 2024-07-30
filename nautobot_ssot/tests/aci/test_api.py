@@ -20,6 +20,8 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
             verify=False,
             site="ACI",
         )  # nosec
+        self.maxDiff = None
+
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
