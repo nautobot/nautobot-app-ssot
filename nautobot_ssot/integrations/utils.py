@@ -1,5 +1,7 @@
 """Utility functions for nautobot_ssot integrations."""
 
+import logging
+
 from importlib import import_module
 from pathlib import Path
 from types import ModuleType
@@ -7,7 +9,7 @@ from typing import Generator
 
 from django.conf import settings
 
-from nautobot_ssot.utils import logger
+logger = logging.getLogger("nautobot.ssot")
 
 
 def each_enabled_integration() -> Generator[str, None, None]:

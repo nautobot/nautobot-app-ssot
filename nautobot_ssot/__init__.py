@@ -1,5 +1,6 @@
 """App declaration for nautobot_ssot."""
 
+import logging
 import os
 from importlib import metadata
 
@@ -8,8 +9,8 @@ from nautobot.extras.plugins import NautobotAppConfig
 from nautobot.core.settings_funcs import is_truthy
 
 from nautobot_ssot.integrations.utils import each_enabled_integration_module
-from nautobot_ssot.utils import logger
 
+logger = logging.getLogger("nautobot.ssot")
 __version__ = metadata.version(__name__)
 
 
@@ -46,10 +47,9 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
     description = "Nautobot app that enables Single Source of Truth.  Allows users to aggregate distributed data sources and/or distribute Nautobot data to other data sources such as databases and SDN controllers."
     base_url = "ssot"
     required_settings = []
-    min_version = "2.0.0"
+    min_version = "2.2.0"
     max_version = "2.9999"
     default_settings = {
-        "aci_apics": [],
         "aci_tag": "",
         "aci_tag_color": "",
         "aci_tag_up": "",
