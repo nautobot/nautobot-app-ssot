@@ -1,0 +1,935 @@
+{
+  "tenant_group": [
+    "Group1__",
+    "Group2__",
+    "Group3__Group1"
+  ],
+  "tenant": [
+    "Backbone",
+    "Datacenter"
+  ],
+  "role": {
+    "spine_switches": {
+      "name": "spine_switches",
+      "description": "",
+      "color": "795548",
+      "content_types": [
+        "dcim.device"
+      ]
+    },
+    "leaf_switches": {
+      "name": "leaf_switches",
+      "description": "",
+      "color": "785530",
+      "content_types": [
+        "dcim.device"
+      ]
+    },
+    "Switch": {
+      "name": "Switch",
+      "description": "",
+      "color": "9e9e9e",
+      "content_types": [
+        "dcim.device"
+      ]
+    },
+    "Firewall": {
+      "name": "Firewall",
+      "description": "",
+      "color": "9e9e9e",
+      "content_types": [
+        "dcim.device"
+      ]
+    },
+    "Data Network": {
+      "name": "Data Network",
+      "description": "",
+      "color": "9e9e9e",
+      "content_types": [
+        "ipam.prefix",
+        "ipam.vlan"
+      ]
+    },
+    "Administrative": {
+      "name": "Administrative",
+      "description": "Unit plays an administrative role",
+      "color": "2196f3",
+      "content_types": [
+        "extras.contactassociation"
+      ]
+    },
+    "Anycast": {
+      "name": "Anycast",
+      "description": "",
+      "color": "ffc107",
+      "content_types": [
+        "ipam.ipaddress"
+      ]
+    },
+    "Billing": {
+      "name": "Billing",
+      "description": "Unit plays a billing role",
+      "color": "4caf50",
+      "content_types": [
+        "extras.contactassociation"
+      ]
+    },
+    "CARP": {
+      "name": "CARP",
+      "description": "",
+      "color": "4caf50",
+      "content_types": [
+        "ipam.ipaddress"
+      ]
+    },
+    "GLBP": {
+      "name": "GLBP",
+      "description": "",
+      "color": "4caf50",
+      "content_types": [
+        "ipam.ipaddress"
+      ]
+    },
+    "HSRP": {
+      "name": "HSRP",
+      "description": "",
+      "color": "4caf50",
+      "content_types": [
+        "ipam.ipaddress"
+      ]
+    },
+    "Loopback": {
+      "name": "Loopback",
+      "description": "",
+      "color": "9e9e9e",
+      "content_types": [
+        "ipam.ipaddress"
+      ]
+    },
+    "On Site": {
+      "name": "On Site",
+      "description": "Unit plays an on site role",
+      "color": "111111",
+      "content_types": [
+        "extras.contactassociation"
+      ]
+    },
+    "Secondary": {
+      "name": "Secondary",
+      "description": "",
+      "color": "2196f3",
+      "content_types": [
+        "ipam.ipaddress"
+      ]
+    },
+    "Support": {
+      "name": "Support",
+      "description": "Unit plays a support role",
+      "color": "ffeb3b",
+      "content_types": [
+        "extras.contactassociation"
+      ]
+    },
+    "VIP": {
+      "name": "VIP",
+      "description": "",
+      "color": "4caf50",
+      "content_types": [
+        "ipam.ipaddress"
+      ]
+    },
+    "VRRP": {
+      "name": "VRRP",
+      "description": "",
+      "color": "4caf50",
+      "content_types": [
+        "ipam.ipaddress"
+      ]
+    }
+  },
+  "manufacturer": {
+    "Generic": {
+      "name": "Generic",
+      "description": "For generic devices like patch panels"
+    },
+    "Palo Alto Networks": {
+      "name": "Palo Alto Networks"
+    },
+    "Arista": {
+      "name": "Arista"
+    },
+    "Cisco": {
+      "name": "Cisco"
+    }
+  },
+  "platform": {
+    "paloalto_panos__Palo Alto Networks": {
+      "name": "paloalto_panos",
+      "manufacturer": "Palo Alto Networks",
+      "network_driver": "paloalto_panos",
+      "napalm_driver": "",
+      "napalm_arguments": {},
+      "description": "PanOS Firewalls"
+    },
+    "cisco_ios__Cisco": {
+      "name": "cisco_ios",
+      "manufacturer": "Cisco",
+      "network_driver": "cisco_ios",
+      "napalm_driver": "",
+      "napalm_arguments": {},
+      "description": "Cisco Devices"
+    },
+    "arista_eos__Arista": {
+      "name": "arista_eos",
+      "manufacturer": "Arista",
+      "network_driver": "arista_eos",
+      "napalm_driver": "",
+      "napalm_arguments": {},
+      "description": "Arista Devices"
+    }
+  },
+  "location_type": {
+    "Region": {
+      "name": "Region",
+      "parent": "",
+      "nestable": true,
+      "description": "",
+      "content_types": []
+    },
+    "Site": {
+      "name": "Site",
+      "parent": "Region",
+      "nestable": true,
+      "description": "",
+      "content_types": [
+        "dcim.device",
+        "ipam.namespace",
+        "ipam.prefix",
+        "ipam.vlan",
+        "ipam.vlangroup",
+        "circuits.circuittermination"
+      ]
+    },
+    "Building": {
+      "name": "Building",
+      "parent": "Site",
+      "nestable": true,
+      "description": "",
+      "content_types": [
+        "dcim.device",
+        "ipam.namespace",
+        "ipam.prefix",
+        "ipam.vlan",
+        "ipam.vlangroup",
+        "circuits.circuittermination"
+      ]
+    }
+  },
+  "location": {
+    "Southeast__Region": {
+      "name": "Southeast",
+      "location_type": "Region",
+      "parent": "",
+      "status": "Active",
+      "facility": "",
+      "asn": null,
+      "time_zone": "US/Eastern",
+      "description": "",
+      "tenant": "",
+      "physical_address": "",
+      "shipping_address": "",
+      "latitude": null,
+      "longitude": null,
+      "contact_name": "",
+      "contact_phone": "",
+      "contact_email": "",
+      "tags": []
+    },
+    "Atlanta__Site": {
+      "name": "Atlanta",
+      "location_type": "Site",
+      "parent": "Southeast",
+      "status": "Active",
+      "facility": "AT1",
+      "asn": 65001,
+      "time_zone": "US/Eastern",
+      "description": "",
+      "tenant": "",
+      "physical_address": "180 Peachtree St NE\nFL 2 , FL 3 , FL 6\nAtlanta, GA 30303\nUnited States\n",
+      "shipping_address": "Example Company\n180 Peachtree St NE\nLoading Dock 1\nAtlanta, GA 30303\nUnited States\n",
+      "latitude": null,
+      "longitude": null,
+      "contact_name": "",
+      "contact_phone": "",
+      "contact_email": "",
+      "tags": []
+    },
+    "Atlanta4__Site": {
+      "name": "Atlanta4",
+      "location_type": "Site",
+      "parent": "Southeast",
+      "status": "Active",
+      "facility": "AT4",
+      "asn": 65004,
+      "time_zone": "US/Eastern",
+      "description": "",
+      "tenant": "",
+      "physical_address": "450 Interstate to N PKWY\nAtlanta, GA 30339\nUnited States\n",
+      "shipping_address": "Example Company\n450 Interstate to N PKWY\nLoading Dock 1\nAtlanta, GA 30339\nUnited States\n",
+      "latitude": null,
+      "longitude": null,
+      "contact_name": "",
+      "contact_phone": "",
+      "contact_email": "",
+      "tags": []
+    }
+  },
+  "team": {
+    "Datacenter": {
+      "name": "Datacenter",
+      "phone": "123-456-7890",
+      "email": "datacenter@example.com",
+      "address": "2715 N Vermont Canyon Rd, Los Angeles, CA 90027"
+    },
+    "Backbone": {
+      "name": "Backbone",
+      "phone": "123-456-7890",
+      "email": "backbone@example.com",
+      "address": "1600 S Azusa Ave, Rowland Heights, CA 91748"
+    }
+  },
+  "contact": {
+    "Jennifer Parker": {
+      "name": "Jennifer Parker",
+      "phone": "888-555-4823",
+      "email": "jenny@future.com",
+      "address": "12417 Philadelphia St, Whittier, CA 90601",
+      "teams": [
+        "Backbone",
+        "Datacenter"
+      ]
+    },
+    "Marty McFly": {
+      "name": "Marty McFly",
+      "phone": "888-555-1955",
+      "email": "marty@future.com",
+      "address": "9303 Roslyndale Ave, Arleta, CA 91331",
+      "teams": [
+        "Backbone"
+      ]
+    }
+  },
+  "provider": {
+    "Provider1": {
+      "name": "Provider1",
+      "asn": 65000,
+      "account_number": "12345678",
+      "portal_url": "https://provider1.com",
+      "noc_contact": "",
+      "admin_contact": "",
+      "tags": []
+    },
+    "Provider2": {
+      "name": "Provider2",
+      "asn": 65001,
+      "account_number": "87654321",
+      "portal_url": "https://provider2.com",
+      "noc_contact": "",
+      "admin_contact": "",
+      "tags": []
+    }
+  },
+  "provider_network": {
+    "Provider1 Metro-E__Provider1": {
+      "name": "Provider1 Metro-E",
+      "provider": "Provider1",
+      "description": "",
+      "comments": "",
+      "tags": []
+    },
+    "Provider2 Metro-E__Provider2": {
+      "name": "Provider2 Metro-E",
+      "provider": "Provider2",
+      "description": "",
+      "comments": "",
+      "tags": []
+    }
+  },
+  "circuit_type": {
+    "Metro-E": {
+      "name": "Metro-E",
+      "description": "Metro ethernet"
+    },
+    "DWDM": {
+      "name": "DWDM",
+      "description": ""
+    },
+    "Internet": {
+      "name": "Internet",
+      "description": ""
+    }
+  },
+  "circuit": {
+    "METRO-65002-CUST1__Provider1": {
+      "circuit_id": "METRO-65002-CUST1",
+      "provider": "Provider1",
+      "circuit_type": "Metro-E",
+      "status": "Active",
+      "commit_rate_kbps": 1000000,
+      "description": "",
+      "tags": []
+    },
+    "INTERNET-65002-CUST1__Provider2": {
+      "circuit_id": "INTERNET-65002-CUST1",
+      "provider": "Provider2",
+      "circuit_type": "Internet",
+      "status": "Active",
+      "commit_rate_kbps": 1000000,
+      "description": "",
+      "tags": []
+    }
+  },
+  "circuit_termination": {
+    "METRO-65002-CUST1__Provider1__A__A__METRO-65002-CUST1": {
+      "name": "METRO-65002-CUST1__Provider1__A",
+      "termination_type": "Location",
+      "termination_side": "A",
+      "circuit_id": "METRO-65002-CUST1",
+      "location": "Atlanta",
+      "port_speed_kbps": "1000000",
+      "cross_connect_id": "",
+      "patch_panel_or_ports": "",
+      "description": "",
+      "tags": []
+    },
+    "METRO-65002-CUST1__Provider1__Z__Z__METRO-65002-CUST1": {
+      "name": "METRO-65002-CUST1__Provider1__Z",
+      "termination_side": "Z",
+      "circuit_id": "METRO-65002-CUST1",
+      "termination_type": "Provider Network",
+      "provider_network": "Provider2 Metro-E",
+      "port_speed_kbps": "1000000",
+      "cross_connect_id": "",
+      "patch_panel_or_ports": "",
+      "description": "",
+      "tags": []
+    },
+    "INTERNET-65002-CUST1__Provider2__A__A__INTERNET-65002-CUST1": {
+      "name": "INTERNET-65002-CUST1__Provider2__A",
+      "termination_side": "A",
+      "circuit_id": "INTERNET-65002-CUST1",
+      "termination_type": "Location",
+      "location": "Atlanta4",
+      "port_speed_kbps": "1000000",
+      "cross_connect_id": "",
+      "patch_panel_or_ports": "",
+      "description": "",
+      "tags": []
+    }
+  },
+  "namespace": {
+    "Global": {
+      "name": "Global",
+      "location": "",
+      "description": ""
+    },
+    "Customer1": {
+      "name": "Customer1",
+      "description": "Customer1 IPAM Namespace",
+      "location": "Atlanta"
+    },
+    "Customer2": {
+      "name": "Customer2",
+      "description": "Customer2 IPAM Namespace",
+      "location": "Atlanta4"
+    }
+  },
+  "rir": {
+    "RFC1918": {
+      "name": "RFC1918",
+      "private": true,
+      "description": "Private IP Space"
+    },
+    "ARIN": {
+      "name": "ARIN",
+      "private": false,
+      "description": "American Registry for Internet Numbers"
+    }
+  },
+  "vlan_group": {
+    "Atlanta VLANs": {
+      "name": "Atlanta VLANs",
+      "location": "Atlanta",
+      "description": ""
+    },
+    "Atlanta4 VLANs": {
+      "name": "Atlanta4 VLANs",
+      "location": "Atlanta4",
+      "description": ""
+    }
+  },
+  "vlan": {
+    "vlan10__10__Atlanta VLANs": {
+      "name": "vlan10",
+      "vid": 10,
+      "description": "",
+      "status": "Active",
+      "role": "Data Network",
+      "locations": [
+        "Atlanta"
+      ],
+      "vlan_group": "Atlanta VLANs",
+      "tenant": "",
+      "tags": []
+    },
+    "vlan20__20__Atlanta VLANs": {
+      "name": "vlan20",
+      "vid": 20,
+      "description": "",
+      "status": "Reserved",
+      "role": "Data Network",
+      "locations": [
+        "Atlanta",
+        "Atlanta4"
+      ],
+      "vlan_group": "Atlanta VLANs",
+      "tenant": "",
+      "tags": []
+    },
+    "vlan30__30__Atlanta VLANs": {
+      "name": "vlan30",
+      "vid": 30,
+      "description": "",
+      "status": "Reserved",
+      "role": "Data Network",
+      "locations": [],
+      "vlan_group": "Atlanta VLANs",
+      "tenant": "",
+      "tags": []
+    },
+    "vlan30__30__None": {
+      "name": "vlan30",
+      "vid": 30,
+      "description": "",
+      "status": "Active",
+      "role": "",
+      "locations": [],
+      "vlan_group": "",
+      "tenant": "",
+      "tags": []
+    }
+  },
+  "vrf": {
+    "blue__Global": {
+      "name": "blue",
+      "namespace": "Global",
+      "route_distinguisher": "65000:1",
+      "description": "",
+      "tenant": "",
+      "tags": []
+    },
+    "red__Global": {
+      "name": "red",
+      "namespace": "Global",
+      "route_distinguisher": "65000:2",
+      "description": "",
+      "tenant": "",
+      "tags": []
+    },
+    "blue__Customer1": {
+      "name": "blue",
+      "namespace": "Customer1",
+      "route_distinguisher": "65000:1",
+      "description": "",
+      "tenant": "",
+      "tags": []
+    }
+  },
+  "prefix": {
+    "10.0.0.0/24__Customer1": {
+      "network": "10.0.0.0/24",
+      "namespace": "Customer1",
+      "prefix_type": "network",
+      "status": "Active",
+      "role": "Data Network",
+      "rir": "RFC1918",
+      "date_allocated": "2024-06-01T00:00:00.000Z",
+      "description": "",
+      "vrfs": [],
+      "locations": [],
+      "vlan": "",
+      "tenant": "",
+      "tags": []
+    },
+    "10.0.0.0/24__Customer2": {
+      "network": "10.0.0.0/24",
+      "namespace": "Customer2",
+      "prefix_type": "network",
+      "status": "Active",
+      "role": "Data Network",
+      "rir": "RFC1918",
+      "date_allocated": "2024-06-01 12:00:00",
+      "description": "",
+      "vrfs": [],
+      "locations": [],
+      "vlan": "",
+      "tenant": "",
+      "tags": []
+    },
+    "10.0.10.0/24__Global": {
+      "network": "10.0.10.0/24",
+      "namespace": "Global",
+      "prefix_type": "network",
+      "status": "Active",
+      "role": "Data Network",
+      "rir": "RFC1918",
+      "date_allocated": null,
+      "description": "",
+      "vrfs": [],
+      "locations": [
+        "Atlanta",
+        "Atlanta4"
+      ],
+      "vlan": "vlan10__10__Atlanta VLANs",
+      "tenant": "",
+      "tags": []
+    },
+    "192.168.0.0/24__Customer1": {
+      "network": "192.168.0.0/24",
+      "namespace": "Customer1",
+      "prefix_type": "network",
+      "status": "Active",
+      "role": "Data Network",
+      "rir": "RFC1918",
+      "date_allocated": null,
+      "description": "",
+      "vrfs": [
+        "blue__Customer1"
+      ],
+      "locations": [
+        "Atlanta"
+      ],
+      "vlan": "",
+      "tenant": "",
+      "tags": []
+    },
+    "192.168.0.0/24__Global": {
+      "network": "192.168.0.0/24",
+      "namespace": "Global",
+      "prefix_type": "network",
+      "status": "Active",
+      "role": "Data Network",
+      "rir": "RFC1918",
+      "date_allocated": null,
+      "description": "",
+      "vrfs": [
+        "red__Global"
+      ],
+      "locations": [
+        "Atlanta"
+      ],
+      "vlan": "",
+      "tenant": "",
+      "tags": []
+    },
+    "192.168.1.0/24__Global": {
+      "network": "192.168.1.0/24",
+      "namespace": "",
+      "prefix_type": "network",
+      "status": "Active",
+      "role": "",
+      "rir": "",
+      "date_allocated": null,
+      "description": "",
+      "vrfs": [],
+      "locations": [],
+      "vlan": "",
+      "tenant": "",
+      "tags": []
+    }
+  },
+  "computed_field": {
+    "Compliance Change": {
+      "label": "Compliance Change",
+      "content_type": "dcim.device",
+      "template": "{{ obj | get_change_log }}"
+    }
+  },
+  "secrets_group": {
+    "Github_Service_Account": {
+      "name": "Github_Service_Account",
+      "secrets": [
+        {
+          "name": "Github_Service_Acct",
+          "secret_type": "username",
+          "access_type": "HTTP(S)"
+        },
+        {
+          "name": "Github_Service_Token",
+          "secret_type": "token",
+          "access_type": "HTTP(S)"
+        }
+      ]
+    }
+  },
+  "graph_ql_query": {
+    "Backbone Devices": {
+      "name": "Backbone Devices",
+      "query": "query ($device_id: ID!) {\n  device(id: $device_id) {\n    config_context\n    hostname: name\n    device_role {\n      name\n    }\n    tenant {\n      name\n    }\n    primary_ip4 {\n      address\n    }\n  }\n}\n"
+    },
+    "Datacenter Devices": {
+      "name": "Datacenter Devices",
+      "query": "query ($device_id: ID!) {\n  device(id: $device_id) {\n    config_context\n    hostname: name\n    device_role {\n      name\n    }\n    tenant {\n      name\n    }\n    primary_ip4 {\n      address\n    }\n  }\n}\n"
+    }
+  },
+  "software": {
+    "4.25.10M__arista_eos": {
+      "version": "4.25.10M",
+      "platform": "arista_eos",
+      "alias": "",
+      "release_date": "datetime.date(2023, 12, 4)",
+      "eos_date": "datetime.date(2023, 12, 5)",
+      "documentation_url": "https://arista.com",
+      "long_term_support": "False",
+      "pre_release": "False",
+      "tags": ["Backbone"]
+    },
+    "03.11.04.E__cisco_ios": {
+      "version": "03.11.04.E",
+      "platform": "cisco_ios",
+      "alias": "Cisco Validated",
+      "eos_date": "datetime.date(2023, 12, 4)",
+      "documentation_url": "",
+      "long_term_support": "False",
+      "pre_release": "False",
+      "tags": ["Test"]
+    },
+    "11.0.3__paloalto_panos": {
+      "version": "11.0.3",
+      "platform": "paloalto_panos",
+      "alias": "Panos Preferred",
+      "eos_date": "datetime.date(2024, 12, 4)",
+      "documentation_url": "https://paloaltonetworks.com",
+      "long_term_support": "False",
+      "pre_release": "False",
+      "tags": ["Test"]
+    },
+    "15.4.3__arista_eos": {
+      "version": "15.4.3",
+      "platform": "arista_eos",
+      "alias": "Arista Preferred",
+      "eos_date": "datetime.date(2024, 12, 4)",
+      "documentation_url": "https://arista.com",
+      "long_term_support": "False",
+      "pre_release": "False",
+      "tags": ["Test"]
+    }
+  },
+  "tag": {
+    "Backbone": {
+      "name": "Backbone",
+      "color": "795547",
+      "content_types": ["dcim.device"],
+      "description": ""
+    },
+    "Access": {
+      "name": "Access",
+      "color": "795548",
+      "content_types": ["dcim.device", "ipam.ipaddress"],
+      "description": ""
+    },
+    "Test": {
+      "name": "Test",
+      "color": "795548",
+      "content_types": [
+        "circuits.circuit",
+        "circuits.circuittermination",
+        "circuits.provider",
+        "circuits.providernetwork",
+        "dcim.cable",
+        "dcim.consoleport",
+        "dcim.consoleserverport",
+        "dcim.device",
+        "dcim.devicebay",
+        "dcim.deviceredundancygroup",
+        "dcim.devicetype",
+        "dcim.frontport",
+        "dcim.interface",
+        "dcim.inventoryitem",
+        "dcim.location",
+        "dcim.powerfeed",
+        "dcim.poweroutlet",
+        "dcim.powerpanel",
+        "dcim.powerport",
+        "dcim.rack",
+        "dcim.rackreservation",
+        "dcim.rearport",
+        "extras.gitrepository",
+        "extras.job",
+        "extras.secret",
+        "ipam.ipaddress",
+        "ipam.namespace",
+        "ipam.prefix",
+        "ipam.routetarget",
+        "ipam.service",
+        "ipam.vlan",
+        "ipam.vrf",
+        "tenancy.tenant",
+        "virtualization.cluster",
+        "virtualization.virtualmachine",
+        "virtualization.vminterface"
+      ],
+      "description": "Test"
+    }
+  },
+  "validated_software": {
+    "arista_eos - 4.25.10M__2023-08-07__2025-01-01": {
+      "devices": ["Switch1"],
+      "device_types": [],
+      "device_roles": [],
+      "inventory_items": [],
+      "object_tags": [],
+      "software": "arista_eos - 4.25.10M",
+      "platform": "arista_eos",
+      "software_version": "4.25.10M",
+      "valid_since": "datetime.date(2023, 8, 7)",
+      "valid_until": "datetime.date(2025, 1, 1)",
+      "preferred_version": "False",
+      "tags": ["Test"]
+    },
+    "cisco_ios - 03.11.04.E__2023-08-07__None": {
+      "devices": [],
+      "device_types": ["WS3850-24P"],
+      "device_roles": [],
+      "inventory_items": [],
+      "object_tags": [],
+      "software": "cisco_ios - 03.11.04.E",
+      "platform": "cisco_ios",
+      "software_version": "03.11.04.E",
+      "valid_since": "datetime.date(2023, 8, 7)",
+      "preferred_version": "False",
+      "tags": []
+    },
+    "paloalto_panos - 11.0.3__2023-08-07__None": {
+      "devices": [],
+      "device_types": [],
+      "device_roles": ["Firewall"],
+      "inventory_items": [],
+      "object_tags": [],
+      "software": "paloalto_panos - 11.0.3",
+      "platform": "paloalto_panos",
+      "software_version": "11.0.3",
+      "valid_since": "datetime.date(2023, 8, 7)",
+      "preferred_version": "False",
+      "tags": []
+    },
+    "arista_eos - 15.4.3__2023-08-07__2025-08-09": {
+      "devices": [],
+      "device_types": [],
+      "device_roles": [],
+      "inventory_items": [],
+      "object_tags": ["Backbone"],
+      "software": "arista_eos - 15.4.3",
+      "platform": "arista_eos",
+      "software_version": "15.4.3",
+      "valid_since": "datetime.date(2023, 8, 7)",
+      "valid_until": "datetime.date(2025, 8, 9)",
+      "preferred_version": "True",
+      "tags": ["Test"]
+    },
+    "arista_eos - 15.4.3__2023-08-07__None": {
+      "devices": [],
+      "device_types": [],
+      "device_roles": [],
+      "inventory_items": ["sfp-module"],
+      "object_tags": [],
+      "software": "arista_eos - 15.4.3",
+      "platform": "arista_eos",
+      "software_version": "15.4.3",
+      "valid_since": "datetime.date(2023, 8, 7)",
+      "preferred_version": "True",
+      "tags": []
+    }
+  },
+  "secret": {
+    "Github_Service_Acct": {
+      "name": "Github_Service_Acct",
+      "provider": "environment-variable",
+      "parameters": { "variable": "GITHUB_SERVICE_ACCT" }
+    },
+    "Github_Service_Token": {
+      "name": "Github_Service_Token",
+      "provider": "environment-variable",
+      "parameters": { "variable": "GITHUB_SERVICE_TOKEN" }
+    }
+  },
+  "software_image": {
+    "arista_eos - 15.4.3": {
+      "software": "arista_eos - 15.4.3",
+      "platform": "arista_eos",
+      "software_version": "15.4.3",
+      "file_name": "arista15.4.3.bin",
+      "download_url": "https://arista-files.com",
+      "image_file_checksum": "",
+      "hashing_algorithm": "",
+      "default_image": "False",
+      "tags": ["Test"]
+    },
+    "paloalto_panos - 11.0.3": {
+      "software": "paloalto_panos - 11.0.3",
+      "platform": "paloalto_panos",
+      "software_version": "11.0.3",
+      "file_name": "paloalto_11.0.3.bin",
+      "download_url": "https://paloaltonetworks.com",
+      "image_file_checksum": "o234i09usdfsflkj",
+      "hashing_algorithm": "SHA256",
+      "default_image": "False",
+      "tags": []
+    }
+  },
+  "dynamic_group": {
+    "Backbone Domain__dcim.device": {
+      "name": "Backbone Domain",
+      "content_type": "dcim.device",
+      "dynamic_filter": { "tenant": ["Backbone"] },
+      "description": ""
+    },
+    "Datacenter__dcim.device": {
+      "name": "Datacenter",
+      "content_type": "dcim.device",
+      "dynamic_filter": {
+        "location": ["Atlanta"],
+        "platform": ["arista_eos", "paloalto_panos"]
+      },
+      "description": ""
+    }
+  },
+  "git_repository": {
+    "Backbone Config Contexts": {
+      "name": "Backbone Config Contexts",
+      "url": "https://github.com/nautobot/backbone-config-contexts.git",
+      "branch": "main",
+      "secrets_group": "Github_Service_Account",
+      "provided_contents": ["extras.configcontext"]
+    },
+    "Datacenter Config Contexts": {
+      "name": "Datacenter Config Contexts",
+      "url": "https://github.com/nautobot/datacenter-config-contexts.git",
+      "branch": "develop",
+      "secrets_group": "Github_Service_Account",
+      "provided_contents": ["extras.configcontext"]
+    },
+    "Metro Config Contexts": {
+      "name": "Metro Config Contexts",
+      "url": "https://github.com/nautobot/metro-config-contexts.git",
+      "branch": "develop",
+      "provided_contents": ["extras.configcontext"]
+    },
+    "Access Config Contexts": {
+      "name": "Access Config Contexts",
+      "url": "https://github.com/nautobot/access-config-contexts.git",
+      "branch": "develop",
+      "provided_contents": ["extras.configcontext"]
+    }
+  }
+}
