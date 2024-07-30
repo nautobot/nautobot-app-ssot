@@ -1,6 +1,8 @@
 """Signals triggered when Nautobot starts to perform certain actions."""
 from nautobot.extras.choices import CustomFieldTypeChoices
 from django.conf import settings
+from nautobot.core.signals import nautobot_database_ready
+
 
 
 try:
@@ -9,6 +11,10 @@ try:
     LIFECYCLE_MGMT = True
 except ImportError:
     LIFECYCLE_MGMT = False
+
+def register_signals(sender):
+    """Register signals for IPFabric integration."""
+    nautobot_database_ready.connect(nautobot_database_ready_callback, sender=sender)
 
 
 def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disable=unused-argument
@@ -102,7 +108,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     }
     sync_custom_field, _ = CustomField.objects.update_or_create(key=sync_cf_dict["key"], defaults=sync_cf_dict)
 
-    models_to_sync = settings.PLUGINS_CONFIG["nautobot_ssot_bootstrap"]["models_to_sync"]
+    models_to_sync = settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]
     no_cf = ["computed_field", "graph_ql_query"]
     for model in models_to_sync:
         if model not in no_cf and models_to_sync[model] is True:
