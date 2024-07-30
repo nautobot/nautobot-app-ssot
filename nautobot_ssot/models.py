@@ -138,7 +138,7 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
 
         try:
             class_path = self.job_result.job_model.class_path
-        except AttributeError as err:
+        except AttributeError:
             return None
 
         return reverse(
