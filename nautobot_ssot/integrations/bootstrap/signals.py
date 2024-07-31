@@ -1,8 +1,9 @@
 """Signals triggered when Nautobot starts to perform certain actions."""
-from nautobot.extras.choices import CustomFieldTypeChoices
-from django.conf import settings
-from nautobot.core.signals import nautobot_database_ready
 
+from django.conf import settings
+
+from nautobot.core.signals import nautobot_database_ready
+from nautobot.extras.choices import CustomFieldTypeChoices
 
 
 try:
@@ -12,9 +13,11 @@ try:
 except ImportError:
     LIFECYCLE_MGMT = False
 
+
 def register_signals(sender):
     """Register signals for IPFabric integration."""
     nautobot_database_ready.connect(nautobot_database_ready_callback, sender=sender)
+
 
 def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disable=unused-argument
     """Adds OS Version and Physical Address CustomField to Devices and System of Record and Last Sync'd to Device, and IPAddress.
@@ -102,7 +105,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     sor_custom_field, _ = CustomField.objects.update_or_create(key=sor_cf_dict["key"], defaults=sor_cf_dict)
     sync_cf_dict = {
         "type": CustomFieldTypeChoices.TYPE_DATE,
-        "key": "ssot_last_synchronized",
+        "key": "last_synced_from_sor",
         "label": "Last sync from System of Record",
     }
     sync_custom_field, _ = CustomField.objects.update_or_create(key=sync_cf_dict["key"], defaults=sync_cf_dict)

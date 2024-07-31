@@ -111,7 +111,7 @@ class NautobotTenantGroup(TenantGroup):
         else:
             new_tenant_group = ORMTenantGroup(name=ids["name"], description=attrs["description"])
         new_tenant_group.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        new_tenant_group.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        new_tenant_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_tenant_group.validated_save()
         return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
@@ -125,7 +125,7 @@ class NautobotTenantGroup(TenantGroup):
             _update_tenant_group.custom_field_data.update(
                 {"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")}
             )
-        _update_tenant_group.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_tenant_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_tenant_group.validated_save()
         return super().update(attrs)
 
@@ -165,7 +165,7 @@ class NautobotTenant(Tenant):
         adapter.job.logger.info(f'Creating Nautobot Tenant: {ids["name"]}')
         new_tenant = ORMTenant(name=ids["name"], tenant_group=_tenant_group, tags=_tags, description=_description)
         new_tenant.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        new_tenant.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        new_tenant.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_tenant.validated_save()
         return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
@@ -188,7 +188,7 @@ class NautobotTenant(Tenant):
                 _update_tenant.tags.add(_tag)
         if not check_sor_field(_update_tenant):
             _update_tenant.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        _update_tenant.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_tenant.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_tenant.validated_save()
         return super().update(attrs)
 
@@ -222,7 +222,7 @@ class NautobotRole(Role):
         )
         _new_role.validated_save()
         _new_role.content_types.set(_content_types)
-        _new_role.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _new_role.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_role.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_role.validated_save()
         return super().create(diffsync=adapter, ids=ids, attrs=attrs)
@@ -245,7 +245,7 @@ class NautobotRole(Role):
             _update_role.content_types.set(_content_types)
         if not check_sor_field(_update_role):
             _update_role.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        _update_role.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_role.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_role.validated_save()
         return super().update(attrs)
 
@@ -269,7 +269,7 @@ class NautobotManufacturer(Manufacturer):
         """Create Manufacturer in Nautobot from NautobotManufacturer object."""
         adapter.job.logger.debug(f'Creating Nautobot Manufacturer {ids["name"]}')
         _new_manufacturer = ORMManufacturer(name=ids["name"], description=attrs["description"])
-        _new_manufacturer.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _new_manufacturer.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_manufacturer.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_manufacturer.validated_save()
         return super().create(diffsync=adapter, ids=ids, attrs=attrs)
@@ -281,9 +281,7 @@ class NautobotManufacturer(Manufacturer):
         if "description" in attrs:
             _update_manufacturer.description = attrs["description"]
         if not check_sor_field(_update_manufacturer):
-            _update_manufacturer.custom_field_data.update(
-                {"ssot_last_synchronized": datetime.today().date().isoformat()}
-            )
+            _update_manufacturer.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_manufacturer.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_manufacturer.validated_save()
         return super().update(attrs)
@@ -321,7 +319,7 @@ class NautobotPlatform(Platform):
                 napalm_args=attrs["napalm_arguments"],
                 description=attrs["description"],
             )
-            _new_platform.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+            _new_platform.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
             _new_platform.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
             _new_platform.validated_save()
         except ORMManufacturer.DoesNotExist:
@@ -341,7 +339,7 @@ class NautobotPlatform(Platform):
             _update_platform.napalm_args = attrs["napalm_arguments"]
         if "description" in attrs:
             _update_platform.description = attrs["description"]
-        _update_platform.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_platform.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         if not check_sor_field(_update_platform):
             _update_platform.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_platform.validated_save()
@@ -392,7 +390,7 @@ class NautobotLocationType(LocationType):
             adapter.job.logger.debug(f"Looking up {_model} in content types.")
             _content_types.append(lookup_content_type_for_taggable_model_path(_model))
         _new_location_type.content_types.set(_content_types)
-        _new_location_type.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _new_location_type.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_location_type.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_location_type.validated_save()
         return super().create(diffsync=adapter, ids=ids, attrs=attrs)
@@ -423,7 +421,7 @@ class NautobotLocationType(LocationType):
             _update_location_type.custom_field_data.update(
                 {"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")}
             )
-        _update_location_type.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_location_type.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_location_type.validated_save()
         return super().update(attrs)
 
@@ -489,7 +487,7 @@ class NautobotLocation(Location):
                 tags=_tags,
             )
             _new_location.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-            _new_location.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+            _new_location.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
             _new_location.validated_save()
         except ORMStatus.DoesNotExist:
             adapter.job.logger.warning(f'Status {attrs["status"]} could not be found. Make sure it exists.')
@@ -558,7 +556,7 @@ class NautobotLocation(Location):
                 _update_location.tags.add(_tag)
         if not check_sor_field(_update_location):
             _update_location.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        _update_location.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_location.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_location.validated_save()
         return super().update(attrs)
 
@@ -591,7 +589,7 @@ class NautobotTeam(Team):
             email=attrs["email"],
             address=attrs["address"],
         )
-        _new_team.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _new_team.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_team.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_team.validated_save()
         # TODO: Need to consider how to allow loading from teams or contacts models.
@@ -623,7 +621,7 @@ class NautobotTeam(Team):
         #         _update_team.contacts.add(lookup_contact_for_team(contact=_contact))
         if not check_sor_field(_update_team):
             _update_team.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        _update_team.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_team.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_team.validated_save()
         return super().update(attrs)
 
@@ -652,7 +650,7 @@ class NautobotContact(Contact):
             email=attrs["email"],
             address=attrs["address"],
         )
-        _new_contact.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _new_contact.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_contact.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_contact.validated_save()
         if "teams" in attrs:
@@ -680,7 +678,7 @@ class NautobotContact(Contact):
                 _update_contact.teams.add(lookup_team_for_contact(team=_team))
         if not check_sor_field(_update_contact):
             _update_contact.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        _update_contact.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_contact.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_contact.validated_save()
         return super().update(attrs)
 
@@ -720,7 +718,7 @@ class NautobotProvider(Provider):
                 _new_provider.tags.add(ORMTag.objects.get(name=_tag))
             except ORMTag.DoesNotExist:
                 adapter.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
-        _new_provider.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _new_provider.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_provider.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_provider.validated_save()
         return super().create(diffsync=adapter, ids=ids, attrs=attrs)
@@ -749,7 +747,7 @@ class NautobotProvider(Provider):
                     self.adapter.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
         if not check_sor_field(_update_provider):
             _update_provider.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        _update_provider.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_provider.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_provider.validated_save()
         return super().update(attrs)
 
@@ -788,7 +786,7 @@ class NautobotProviderNetwork(ProviderNetwork):
             except ORMTag.DoesNotExist:
                 adapter.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
         _new_provider_network.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        _new_provider_network.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _new_provider_network.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_provider_network.validated_save()
         return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
@@ -808,9 +806,7 @@ class NautobotProviderNetwork(ProviderNetwork):
                     _update_provider_network.tags.add(ORMTag.objects.get(name=_tag))
                 except ORMTag.DoesNotExist:
                     self.adapter.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
-        _update_provider_network.custom_field_data.update(
-            {"ssot_last_synchronized": datetime.today().date().isoformat()}
-        )
+        _update_provider_network.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         if not check_sor_field(_update_provider_network):
             _update_provider_network.custom_field_data.update(
                 {"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")}
@@ -842,7 +838,7 @@ class NautobotCircuitType(CircuitType):
             description=attrs["description"],
         )
         _new_circuit_type.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        _new_circuit_type.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _new_circuit_type.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_circuit_type.validated_save()
         return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
@@ -852,7 +848,7 @@ class NautobotCircuitType(CircuitType):
         _update_circuit_type = ORMCircuitType.objects.get(id=self.uuid)
         if "description" in attrs:
             _update_circuit_type.description = attrs["description"]
-        _update_circuit_type.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_circuit_type.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         if not check_sor_field(_update_circuit_type):
             _update_circuit_type.custom_field_data.update(
                 {"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")}
@@ -906,7 +902,7 @@ class NautobotCircuit(Circuit):
             except ORMTag.DoesNotExist:
                 adapter.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
         _new_circuit.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        _new_circuit.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _new_circuit.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_circuit.validated_save()
         return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
@@ -942,7 +938,7 @@ class NautobotCircuit(Circuit):
             pass
         if not check_sor_field(_update_circuit):
             _update_circuit.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        _update_circuit.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_circuit.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_circuit.validated_save()
         return super().update(attrs)
 
@@ -1023,9 +1019,7 @@ class NautobotCircuitTermination(CircuitTermination):
         _new_circuit_termination.custom_field_data.update(
             {"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")}
         )
-        _new_circuit_termination.custom_field_data.update(
-            {"ssot_last_synchronized": datetime.today().date().isoformat()}
-        )
+        _new_circuit_termination.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_circuit_termination.validated_save()
         return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
@@ -1072,7 +1066,7 @@ class NautobotCircuitTermination(CircuitTermination):
                 except ORMTag.DoesNotExist:
                     self.adapter.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
         _update_circuit_termination.custom_field_data.update(
-            {"ssot_last_synchronized": datetime.today().date().isoformat()}
+            {"last_synced_from_sor": datetime.today().date().isoformat()}
         )
         if not check_sor_field(_update_circuit_termination):
             _update_circuit_termination.custom_field_data.update(
@@ -1105,7 +1099,7 @@ class NautobotNamespace(Namespace):
             description=attrs["description"],
         )
         new_namespace.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        new_namespace.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        new_namespace.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_namespace.validated_save()
         if "location" in attrs:
             try:
@@ -1135,7 +1129,7 @@ class NautobotNamespace(Namespace):
                 )
         if not check_sor_field(_update_namespace):
             _update_namespace.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        _update_namespace.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_namespace.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_namespace.validated_save()
 
         return super().update(attrs)
@@ -1169,7 +1163,7 @@ class NautobotRiR(RiR):
             description=attrs["description"],
         )
         new_rir.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        new_rir.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        new_rir.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_rir.validated_save()
 
         return super().create(diffsync=adapter, ids=ids, attrs=attrs)
@@ -1184,7 +1178,7 @@ class NautobotRiR(RiR):
             _update_rir.description = attrs["description"]
         if not check_sor_field(_update_rir):
             _update_rir.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        _update_rir.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_rir.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_rir.validated_save()
 
         return super().update(attrs)
@@ -1225,7 +1219,7 @@ class NautobotVLANGroup(VLANGroup):
             description=attrs["description"],
         )
         new_vlan_group.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        new_vlan_group.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        new_vlan_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_vlan_group.validated_save()
 
         return super().create(diffsync=adapter, ids=ids, attrs=attrs)
@@ -1249,7 +1243,7 @@ class NautobotVLANGroup(VLANGroup):
             _update_vlan_group.custom_field_data.update(
                 {"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")}
             )
-        _update_vlan_group.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_vlan_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_vlan_group.validated_save()
 
         return super().update(attrs)
@@ -1333,7 +1327,7 @@ class NautobotVLAN(VLAN):
             for _tag in attrs["tags"]:
                 new_vlan.tags.add(ORMTag.objects.get(name=_tag))
         new_vlan.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        new_vlan.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        new_vlan.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_vlan.validated_save()
         try:
             if "locations" in attrs:
@@ -1419,7 +1413,7 @@ class NautobotVLAN(VLAN):
                     _update_vlan.locations.add(_location)
         if not check_sor_field(_update_vlan):
             _update_vlan.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        _update_vlan.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_vlan.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_vlan.validated_save()
         return super().update(attrs)
 
@@ -1474,7 +1468,7 @@ class NautobotVRF(VRF):
             for _tag in attrs["tags"]:
                 new_vrf.tags.add(ORMTag.objects.get(name=_tag))
         new_vrf.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        new_vrf.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        new_vrf.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_vrf.validated_save()
         return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
@@ -1502,7 +1496,7 @@ class NautobotVRF(VRF):
                 _update_vrf.tags.add(ORMTag.objects.get(name=_tag))
         if not check_sor_field(_update_vrf):
             _update_vrf.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        _update_vrf.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_vrf.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_vrf.validated_save()
         return super().update(attrs)
 
@@ -1616,7 +1610,7 @@ class NautobotPrefix(Prefix):
             for _tag in attrs["tags"]:
                 new_prefix.tags.add(ORMTag.objects.get(name=_tag))
         new_prefix.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        new_prefix.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        new_prefix.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_prefix.validated_save()
         try:
             if "locations" in attrs:
@@ -1787,7 +1781,7 @@ class NautobotPrefix(Prefix):
                 )
         if not check_sor_field(_update_prefix):
             _update_prefix.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        _update_prefix.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_prefix.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_prefix.validated_save()
 
         return super().update(attrs)
@@ -1817,7 +1811,7 @@ class NautobotSecret(Secret):
         adapter.job.logger.info(f'Creating Nautobot Secret: {ids["name"]}')
         new_secret = ORMSecret(name=ids["name"], provider=attrs["provider"], parameters=attrs["parameters"])
         new_secret.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        new_secret.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        new_secret.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_secret.validated_save()
         return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
@@ -1828,7 +1822,7 @@ class NautobotSecret(Secret):
             _update_secret.provider = attrs["provider"]
         if "parameters" in attrs:
             _update_secret.parameters["variable"] = attrs["parameters"]["variable"]
-        _update_secret.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_secret.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         if not check_sor_field(_update_secret):
             _update_secret.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_secret.validated_save()
@@ -1854,7 +1848,7 @@ class NautobotSecretsGroup(SecretsGroup):
         """Create SecretsGroup in Nautobot from NautobotSecretsGroup object."""
         adapter.job.logger.info(f'Creating Nautobot Secrets Group: {ids["name"]}')
         _new_secrets_group = ORMSecretsGroup(name=ids["name"])
-        _new_secrets_group.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _new_secrets_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_secrets_group.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_secrets_group.validated_save()
         return super().create(diffsync=adapter, ids=ids, attrs=attrs)
@@ -1899,7 +1893,7 @@ class NautobotSecretsGroup(SecretsGroup):
                     _sga.validated_save()
         if not check_sor_field(_update_group):
             _update_group.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        _update_group.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_group.validated_save()
         return super().update(attrs)
 
@@ -1933,7 +1927,7 @@ class NautobotGitRepository(GitRepository):
             provided_contents=attrs["provided_contents"],
         )
         new_gitrepository.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        new_gitrepository.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        new_gitrepository.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_gitrepository.validated_save()
         return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
@@ -1952,7 +1946,7 @@ class NautobotGitRepository(GitRepository):
             _update_git_repo.provided_contents = attrs["provided_contents"]
         if not check_sor_field(_update_git_repo):
             _update_git_repo.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        _update_git_repo.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_git_repo.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_git_repo.validated_save()
         return super().update(attrs)
 
@@ -1988,7 +1982,7 @@ class NautobotDynamicGroup(DynamicGroup):
             description=attrs["description"],
         )
         _new_nb_dg.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        _new_nb_dg.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _new_nb_dg.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
 
         try:
             _new_nb_dg.validated_save()
@@ -1997,7 +1991,7 @@ class NautobotDynamicGroup(DynamicGroup):
                 _new_nb_dg.filter = attrs["dynamic_filter"]
             if attrs.get("description"):
                 _new_nb_dg.description = attrs["description"]
-            _new_nb_dg.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+            _new_nb_dg.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
             _new_nb_dg.validated_save()
         return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
@@ -2011,7 +2005,7 @@ class NautobotDynamicGroup(DynamicGroup):
             _update_dyn_group.description = attrs["description"]
         if not check_sor_field(_update_dyn_group):
             _update_dyn_group.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        _update_dyn_group.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_dyn_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_dyn_group.validated_save()
         return super().update(attrs)
 
@@ -2094,7 +2088,7 @@ class NautobotTag(Tag):
         _new_tag.validated_save()
         _new_tag.content_types.set(_content_types)
         _new_tag.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        _new_tag.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _new_tag.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_tag.validated_save()
         return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
@@ -2114,7 +2108,7 @@ class NautobotTag(Tag):
             _update_tag.description = attrs["description"]
         if not check_sor_field(_update_tag):
             _update_tag.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        _update_tag.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+        _update_tag.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_tag.validated_save()
         return super().update(attrs)
 
@@ -2190,7 +2184,7 @@ if LIFECYCLE_MGMT:
                 for tag in attrs["tags"]:
                     _new_software.tags.add(ORMTag.objects.get(name=tag))
             _new_software.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-            _new_software.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+            _new_software.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
             _new_software.validated_save()
             return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
@@ -2223,7 +2217,7 @@ if LIFECYCLE_MGMT:
                 _update_software.custom_field_data.update(
                     {"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")}
                 )
-            _update_software.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+            _update_software.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
             _update_software.validated_save()
             return super().update(attrs)
 
@@ -2266,7 +2260,7 @@ if LIFECYCLE_MGMT:
                 for tag in attrs["tags"]:
                     _new_soft_image.tags.add(ORMTag.objects.get(name=tag))
             _new_soft_image.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-            _new_soft_image.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+            _new_soft_image.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
             _new_soft_image.validated_save()
             return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
@@ -2299,7 +2293,7 @@ if LIFECYCLE_MGMT:
                 _update_soft_image.custom_field_data.update(
                     {"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")}
                 )
-            _update_soft_image.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
+            _update_soft_image.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
             _update_soft_image.validated_save()
             return super().update(attrs)
 
@@ -2338,7 +2332,7 @@ if LIFECYCLE_MGMT:
                 {"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")}
             )
             _new_validated_software.custom_field_data.update(
-                {"ssot_last_synchronized": datetime.today().date().isoformat()}
+                {"last_synced_from_sor": datetime.today().date().isoformat()}
             )
             _new_validated_software.validated_save()
             if "devices" in attrs:
@@ -2434,7 +2428,7 @@ if LIFECYCLE_MGMT:
                     {"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")}
                 )
             _update_validated_software.custom_field_data.update(
-                {"ssot_last_synchronized": datetime.today().date().isoformat()}
+                {"last_synced_from_sor": datetime.today().date().isoformat()}
             )
             _update_validated_software.validated_save()
             return super().update(attrs)
