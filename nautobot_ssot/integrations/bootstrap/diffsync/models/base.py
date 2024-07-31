@@ -524,7 +524,7 @@ class Circuit(DiffSyncModel):
     description: Optional[str] = None
     tenant: Optional[str] = None
     tags: Optional[List[str]] = None
-    terminations: Optional[List["Circuit"]] = None
+    terminations: Optional[List["Circuit"]] = []
     system_of_record: Optional[str] = None
 
     uuid: Optional[UUID] = None
@@ -583,7 +583,7 @@ class Namespace(DiffSyncModel):
     location: Optional[str] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class RiR(DiffSyncModel):
@@ -605,7 +605,7 @@ class RiR(DiffSyncModel):
     description: Optional[str] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class VLANGroup(DiffSyncModel):
@@ -621,7 +621,7 @@ class VLANGroup(DiffSyncModel):
     description: Optional[str] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class VLAN(DiffSyncModel):
@@ -745,3 +745,4 @@ class SSoTJob(DiffSyncModel):
     uuid: Optional[UUID] = None
 
 Circuit.model_rebuild()
+CircuitTermination.model_rebuild()
