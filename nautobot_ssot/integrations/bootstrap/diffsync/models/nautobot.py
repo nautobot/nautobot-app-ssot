@@ -113,7 +113,7 @@ class NautobotTenantGroup(TenantGroup):
         new_tenant_group.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_tenant_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_tenant_group.validated_save()
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update TenantGroup in Nautobot from NautobotTenantGroup object."""
@@ -167,7 +167,7 @@ class NautobotTenant(Tenant):
         new_tenant.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_tenant.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_tenant.validated_save()
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Tenant in Nautobot from NautobotTenant object."""
@@ -225,7 +225,7 @@ class NautobotRole(Role):
         _new_role.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_role.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_role.validated_save()
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Role in Nautobot from NautobotRole object."""
@@ -272,7 +272,7 @@ class NautobotManufacturer(Manufacturer):
         _new_manufacturer.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_manufacturer.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_manufacturer.validated_save()
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Manufacturer in Nautobot from NautobotManufacturer object."""
@@ -326,7 +326,7 @@ class NautobotPlatform(Platform):
             adapter.job.logger.warning(
                 f'Manufacturer {ids["manufacturer"]} does not exist in Nautobot, be sure to create it.'
             )
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Platform in Nautobot from NautobotPlatform object."""
@@ -393,7 +393,7 @@ class NautobotLocationType(LocationType):
         _new_location_type.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_location_type.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_location_type.validated_save()
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update LocationType in Nautobot from NautobotLocationType object."""
@@ -503,7 +503,7 @@ class NautobotLocation(Location):
             )
         except ORMLocation.DoesNotExist:
             adapter.job.logger.warning(f'Parent Location {attrs["parent"]} does not exist, ensure it exists first.')
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Location in Nautobot from NautobotLocation object."""
@@ -600,7 +600,7 @@ class NautobotTeam(Team):
         #         adapter.job.logger.debug(f'Looking up Contact: {_contact} for Team: {ids["name"]}.')
         #         _new_team.contact.add(lookup_contact_for_team(contact=_contact))
         #     _new_team.validated_save()
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Team in Nautobot from NautobotTeam object."""
@@ -658,7 +658,7 @@ class NautobotContact(Contact):
                 adapter.job.logger.debug(f'Looking up Team: {_team} for Contact: {ids["name"]}.')
                 _new_contact.teams.add(lookup_team_for_contact(team=_team))
             _new_contact.validated_save()
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Contact in Nautobot from NautobotContact object."""
@@ -721,7 +721,7 @@ class NautobotProvider(Provider):
         _new_provider.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_provider.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_provider.validated_save()
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Provider in Nautobot from NautobotProvider object."""
@@ -788,7 +788,7 @@ class NautobotProviderNetwork(ProviderNetwork):
         _new_provider_network.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_provider_network.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_provider_network.validated_save()
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update ProviderNetwork in Nautobot from NautobotProviderNetwork object."""
@@ -840,7 +840,7 @@ class NautobotCircuitType(CircuitType):
         _new_circuit_type.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_circuit_type.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_circuit_type.validated_save()
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update CircuitType in Nautobot from NautobotCircuitType object."""
@@ -904,7 +904,7 @@ class NautobotCircuit(Circuit):
         _new_circuit.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_circuit.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_circuit.validated_save()
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Circuit in Nautobot from NautobotCircuit object."""
@@ -1021,7 +1021,7 @@ class NautobotCircuitTermination(CircuitTermination):
         )
         _new_circuit_termination.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_circuit_termination.validated_save()
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update CircuitTermination in Nautobot from NautobotCircuitTermination object."""
@@ -1111,7 +1111,7 @@ class NautobotNamespace(Namespace):
                     f'Nautobot Location {attrs["location"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                 )
 
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Namespace in Nautobot from NautobotNamespace object."""
@@ -1166,7 +1166,7 @@ class NautobotRiR(RiR):
         new_rir.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_rir.validated_save()
 
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update RiR in Nautobot from NautobotRiR object."""
@@ -1222,7 +1222,7 @@ class NautobotVLANGroup(VLANGroup):
         new_vlan_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_vlan_group.validated_save()
 
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update VLANGroup in Nautobot from NautobotVLANGroup object."""
@@ -1343,7 +1343,7 @@ class NautobotVLAN(VLAN):
             for _location in _locations:
                 new_vlan.locations.add(_location)
 
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update VLAN in Nautobot from NautobotVLAN object."""
@@ -1470,7 +1470,7 @@ class NautobotVRF(VRF):
         new_vrf.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_vrf.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_vrf.validated_save()
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update VRF in Nautobot from NautobotVRF object."""
@@ -1650,7 +1650,7 @@ class NautobotPrefix(Prefix):
                 f'Nautobot VRF {attrs["vrfs"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
             )
 
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Prefix in Nautobot from NautobotPrefix object."""
@@ -1813,7 +1813,7 @@ class NautobotSecret(Secret):
         new_secret.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_secret.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_secret.validated_save()
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Secret in Nautobot from NautobotSecret object."""
@@ -1851,7 +1851,7 @@ class NautobotSecretsGroup(SecretsGroup):
         _new_secrets_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_secrets_group.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_secrets_group.validated_save()
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
         _group = ORMSecretsGroup.objects.get(name=ids["name"])
         for _secret in attrs["secrets"]:
@@ -1929,7 +1929,7 @@ class NautobotGitRepository(GitRepository):
         new_gitrepository.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_gitrepository.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_gitrepository.validated_save()
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update GitRepository in Nautobot from NautobotSecretsGroup object."""
@@ -1993,7 +1993,7 @@ class NautobotDynamicGroup(DynamicGroup):
                 _new_nb_dg.description = attrs["description"]
             _new_nb_dg.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
             _new_nb_dg.validated_save()
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update DynamicGroups in Nautobot from NautobotDynamicGroup object."""
@@ -2038,7 +2038,7 @@ class NautobotComputedField(ComputedField):
             label=ids["label"], content_type=_content_type, template=attrs["template"]
         )
         _new_computed_field.validated_save()
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update ComputedField in Nautobot from NautobotComputedField object."""
@@ -2090,7 +2090,7 @@ class NautobotTag(Tag):
         _new_tag.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_tag.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_tag.validated_save()
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Tag in Nautobot from NautobotTag object."""
@@ -2133,7 +2133,7 @@ class NautobotGraphQLQuery(GraphQLQuery):
         adapter.job.logger.info(f'Creating Nautobot GraphQLQuery: {ids["name"]}')
         _new_query = ORMGraphQLQuery(name=ids["name"], query=attrs["query"])
         _new_query.validated_save()
-        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update GraphQLQuery in Nautobot from NautobotGraphQLQuery object."""
@@ -2186,7 +2186,7 @@ if LIFECYCLE_MGMT:
             _new_software.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
             _new_software.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
             _new_software.validated_save()
-            return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+            return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
         def update(self, attrs):
             """Update Software in Nautobot from NautobotSoftware object."""
@@ -2262,7 +2262,7 @@ if LIFECYCLE_MGMT:
             _new_soft_image.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
             _new_soft_image.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
             _new_soft_image.validated_save()
-            return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+            return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
         def update(self, attrs):
             """Update SoftwareImage in Nautobot from NautobotSoftwareImage object."""
@@ -2365,7 +2365,7 @@ if LIFECYCLE_MGMT:
                     for _tag in attrs["tags"]:
                         _new_validated_software.tags.add(ORMTag.objects.get(name=_tag))
             _new_validated_software.validated_save()
-            return super().create(diffsync=adapter, ids=ids, attrs=attrs)
+            return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
         def update(self, attrs):
             """Update ValidatedSoftware in Nautobot from NautobotValidatedSoftware object."""

@@ -362,7 +362,7 @@ class Platform(DiffSyncModel):
     description: Optional[str] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class LocationType(DiffSyncModel):
@@ -524,7 +524,7 @@ class Circuit(DiffSyncModel):
     description: Optional[str] = None
     tenant: Optional[str] = None
     tags: Optional[List[str]] = None
-    terminations: Optional[List["Circuit"]] = None
+    terminations: Optional[List["Circuit"]] = []
     system_of_record: Optional[str] = None
 
     uuid: Optional[UUID] = None
@@ -559,8 +559,8 @@ class CircuitTermination(DiffSyncModel):
     circuit_id: str
     location: Optional[str] = None
     provider_network: Optional[str] = None
-    port_speed_kbps: Optional[str] = None
-    upstream_speed_kbps: Optional[str] = None
+    port_speed_kbps: Optional[int] = None
+    upstream_speed_kbps: Optional[int] = None
     cross_connect_id: Optional[str] = None
     patch_panel_or_ports: Optional[str] = None
     description: Optional[str] = None
@@ -583,7 +583,7 @@ class Namespace(DiffSyncModel):
     location: Optional[str] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class RiR(DiffSyncModel):
@@ -605,7 +605,7 @@ class RiR(DiffSyncModel):
     description: Optional[str] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class VLANGroup(DiffSyncModel):
@@ -621,7 +621,7 @@ class VLANGroup(DiffSyncModel):
     description: Optional[str] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class VLAN(DiffSyncModel):
@@ -743,3 +743,7 @@ class SSoTJob(DiffSyncModel):
     schedule: str
 
     uuid: Optional[UUID] = None
+
+
+Circuit.model_rebuild()
+CircuitTermination.model_rebuild()

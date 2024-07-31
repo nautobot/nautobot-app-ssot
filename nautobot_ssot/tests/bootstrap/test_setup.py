@@ -1,4 +1,5 @@
 """Setup/Create Nautobot objects for use in unit testing."""
+
 # test_setup.py
 
 import json
