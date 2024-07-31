@@ -62,7 +62,7 @@ class BootstrapDataSource(DataSource):
             DataMapping("circuit_type", "", "CircuitType", "circuits.circuit_type"),
             DataMapping("circuit", "", "Circuit", "circuits.circuit"),
             DataMapping("circuit_termination", "", "CircuitTermination", "circuits.circuit_termination"),
-            DataMapping("namespace", "","Namespace", "ipam.namespcae"),
+            DataMapping("namespace", "", "Namespace", "ipam.namespcae"),
             DataMapping("rir", "", "RIR", "ipam.rir"),
             DataMapping("vlan_group", "", "VLANGroup", "ipam.vlan_group"),
             DataMapping("vlan", "", "VLAN", "ipam.vlan"),

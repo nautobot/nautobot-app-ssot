@@ -38,7 +38,11 @@ except ImportError:
     LIFECYCLE_MGMT = False
 
 if LIFECYCLE_MGMT:
-    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import Software, SoftwareImage, ValidatedSoftware  # noqa: F401
+    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
+        Software,
+        SoftwareImage,
+        ValidatedSoftware,
+    )  # noqa: F401
 
 
 class BootstrapTenantGroup(TenantGroup):
