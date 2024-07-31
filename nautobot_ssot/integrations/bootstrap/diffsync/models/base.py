@@ -744,5 +744,6 @@ class SSoTJob(DiffSyncModel):
 
     uuid: Optional[UUID] = None
 
+
 Circuit.model_rebuild()
 CircuitTermination.model_rebuild()
