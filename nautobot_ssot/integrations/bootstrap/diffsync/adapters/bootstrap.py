@@ -115,7 +115,7 @@ class LabelMixin:
 
         def _label_object(nautobot_object):
             """Apply custom field to object, if applicable."""
-            nautobot_object.custom_field_data["ssot_last_synchronized"] = today
+            nautobot_object.custom_field_data["last_synced_from_sor"] = today
             nautobot_object.custom_field_data["system_of_record"] = os.getenv("SYSTEM_OF_RECORD", "Bootstrap")
             nautobot_object.validated_save()
 
