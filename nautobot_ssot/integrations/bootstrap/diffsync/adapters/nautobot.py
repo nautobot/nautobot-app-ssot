@@ -688,12 +688,14 @@ class NautobotAdapter(Adapter):
                     termination_type=_termination_type,
                     termination_side=nb_circuit_termination.term_side,
                     circuit_id=nb_circuit_termination.circuit.cid,
-                    provider_network=nb_circuit_termination.provider_network.name
-                    if nb_circuit_termination.provider_network is not None
-                    else None,
-                    location=nb_circuit_termination.location.name
-                    if nb_circuit_termination.location is not None
-                    else None,
+                    provider_network=(
+                        nb_circuit_termination.provider_network.name
+                        if nb_circuit_termination.provider_network is not None
+                        else None
+                    ),
+                    location=(
+                        nb_circuit_termination.location.name if nb_circuit_termination.location is not None else None
+                    ),
                     port_speed_kbps=nb_circuit_termination.port_speed,
                     upstream_speed_kbps=nb_circuit_termination.upstream_speed,
                     cross_connect_id=nb_circuit_termination.xconnect_id,
@@ -1226,64 +1228,64 @@ class NautobotAdapter(Adapter):
 
     def load(self):
         """Load data from Nautobot into DiffSync models."""
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["tenant_group"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["tenant_group"]:
             self.load_tenant_group()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["tenant"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["tenant"]:
             self.load_tenant()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["role"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["role"]:
             self.load_role()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["manufacturer"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["manufacturer"]:
             self.load_manufacturer()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["platform"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["platform"]:
             self.load_platform()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["location_type"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["location_type"]:
             self.load_location_type()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["location"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["location"]:
             self.load_location()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["team"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["team"]:
             self.load_team()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["contact"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["contact"]:
             self.load_contact()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["provider"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["provider"]:
             self.load_provider()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["provider_network"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["provider_network"]:
             self.load_provider_network()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["circuit_type"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["circuit_type"]:
             self.load_circuit_type()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["circuit"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["circuit"]:
             self.load_circuit()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["circuit_termination"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["circuit_termination"]:
             self.load_circuit_termination()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["namespace"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["namespace"]:
             self.load_namespace()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["rir"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["rir"]:
             self.load_rir()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["vlan_group"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["vlan_group"]:
             self.load_vlan_group()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["vlan"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["vlan"]:
             self.load_vlan()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["vrf"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["vrf"]:
             self.load_vrf()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["prefix"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["prefix"]:
             self.load_prefix()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["secret"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["secret"]:
             self.load_secret()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["secrets_group"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["secrets_group"]:
             self.load_secrets_group()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["git_repository"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["git_repository"]:
             self.load_git_repository()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["dynamic_group"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["dynamic_group"]:
             self.load_dynamic_group()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["computed_field"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["computed_field"]:
             self.load_computed_field()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["tag"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["tag"]:
             self.load_tag()
-        if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["graph_ql_query"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["graph_ql_query"]:
             self.load_graph_ql_query()
         if LIFECYCLE_MGMT:
-            if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["software"]:
+            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software"]:
                 self.load_software()
-            if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["software_image"]:
+            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software_image"]:
                 self.load_software_image()
-            if settings.PLUGINS_CONFIG["nautobot_models_to_sync"]["validated_software"]:
+            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["validated_software"]:
                 self.load_validated_software()

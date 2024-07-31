@@ -1,4 +1,5 @@
 """Testing that objects are properly loaded from Nautobot into Nautobot adapter."""
+
 # test_nautobot_adapter.py
 
 from django.test import TransactionTestCase
