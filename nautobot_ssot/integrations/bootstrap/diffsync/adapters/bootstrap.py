@@ -1,4 +1,5 @@
 """Nautobot Ssot Bootstrap Adapter for bootstrap SSoT plugin."""
+
 import datetime
 import json
 import os
@@ -483,9 +484,11 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 termination_side=_term_side,
                 circuit_id=_circuit_id,
                 location=bs_circuit_termination["location"] if bs_circuit_termination["location"] != "" else None,
-                provider_network=bs_circuit_termination["provider_network"]
-                if bs_circuit_termination["provider_network"] != ""
-                else None,
+                provider_network=(
+                    bs_circuit_termination["provider_network"]
+                    if bs_circuit_termination["provider_network"] != ""
+                    else None
+                ),
                 port_speed_kbps=bs_circuit_termination["port_speed_kbps"],
                 upstream_speed_kbps=bs_circuit_termination["upstream_speed_kbps"],
                 cross_connect_id=bs_circuit_termination["cross_connect_id"],
