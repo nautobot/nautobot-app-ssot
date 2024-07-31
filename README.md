@@ -28,6 +28,7 @@ This Nautobot application framework includes the following integrations:
 
 - Cisco ACI
 - Arista CloudVision
+- Bootstrap
 - Device42
 - Cisco DNA Center
 - Infoblox
@@ -79,6 +80,7 @@ The SSoT framework includes a number of integrations with external Systems of Re
 
 * Cisco ACI
 * Arista CloudVision
+* Bootstrap
 * Device42
 * Cisco DNA Center
 * Infoblox
