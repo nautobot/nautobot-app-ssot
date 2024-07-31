@@ -1,6 +1,6 @@
 """Nautobot Ssot Bootstrap DiffSync models for Nautobot Ssot Bootstrap SSoT."""
 
-from nautobot_ssot_bootstrap.diffsync.models.base import (
+from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
     Secret,
     SecretsGroup,
     GitRepository,
@@ -38,7 +38,7 @@ except ImportError:
     LIFECYCLE_MGMT = False
 
 if LIFECYCLE_MGMT:
-    from nautobot_ssot_bootstrap.diffsync.models.base import Software, SoftwareImage, ValidatedSoftware  # noqa: F401
+    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import Software, SoftwareImage, ValidatedSoftware  # noqa: F401
 
 
 class BootstrapTenantGroup(TenantGroup):
