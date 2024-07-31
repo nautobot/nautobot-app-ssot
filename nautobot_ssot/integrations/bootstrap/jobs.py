@@ -1,6 +1,7 @@
 """Jobs for bootstrap SSoT integration."""
 
-from nautobot.apps.jobs import BooleanVar, register_jobs
+import os
+from nautobot.apps.jobs import BooleanVar
 from nautobot_ssot.jobs.base import DataSource, DataTarget, DataMapping
 from nautobot_ssot.integrations.bootstrap.diffsync.adapters import bootstrap, nautobot
 
@@ -129,4 +130,3 @@ class BootstrapDataTarget(DataTarget):
 
 
 jobs = [BootstrapDataSource, BootstrapDataTarget]
-register_jobs(*jobs)
