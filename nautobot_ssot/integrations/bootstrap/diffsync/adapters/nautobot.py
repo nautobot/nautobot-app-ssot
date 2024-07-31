@@ -1,7 +1,7 @@
 """Nautobot Adapter for bootstrap SSoT plugin."""
 
 from django.conf import settings
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.enum import DiffSyncModelFlags
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 
@@ -101,7 +101,7 @@ if LIFECYCLE_MGMT:
     )
 
 
-class NautobotAdapter(DiffSync):
+class NautobotAdapter(Adapter):
     """DiffSync adapter for Nautobot."""
 
     tenant_group = NautobotTenantGroup

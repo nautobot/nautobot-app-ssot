@@ -6,7 +6,7 @@ import yaml
 
 from django.conf import settings
 
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 
 from nautobot.extras.datasources.git import ensure_git_repository
@@ -122,7 +122,7 @@ class LabelMixin:
         today = datetime.today().date().isoformat()
 
 
-class BootstrapAdapter(DiffSync, LabelMixin):
+class BootstrapAdapter(Adapter, LabelMixin):
     """DiffSync adapter for Bootstrap."""
 
     tenant_group = BootstrapTenantGroup

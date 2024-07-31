@@ -1,4 +1,5 @@
 """DiffSyncModel subclasses for Nautobot-to-bootstrap data sync."""
+
 from typing import Optional, List
 from uuid import UUID
 from diffsync import DiffSyncModel
@@ -18,7 +19,7 @@ class Secret(DiffSyncModel):
     parameters: dict
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class SecretsGroup(DiffSyncModel):
@@ -30,10 +31,10 @@ class SecretsGroup(DiffSyncModel):
     _children = {}
 
     name: str
-    secrets: List["dict"] = list()
+    secrets: List["dict"] = []
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class GitRepository(DiffSyncModel):
@@ -53,11 +54,11 @@ class GitRepository(DiffSyncModel):
     name: str
     url: str
     branch: str
-    secrets_group: Optional[str]
-    provided_contents: List[str]
+    secrets_group: Optional[str] = None
+    provided_contents: List[str] = []
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class DynamicGroup(DiffSyncModel):
@@ -74,7 +75,7 @@ class DynamicGroup(DiffSyncModel):
     description: str
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class ComputedField(DiffSyncModel):
@@ -92,7 +93,7 @@ class ComputedField(DiffSyncModel):
     content_type: str
     template: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class Tag(DiffSyncModel):
@@ -105,11 +106,11 @@ class Tag(DiffSyncModel):
 
     name: str
     color: str
-    content_types: List[str]
+    content_types: List[str] = []
     description: str
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class GraphQLQuery(DiffSyncModel):
@@ -123,7 +124,7 @@ class GraphQLQuery(DiffSyncModel):
     name: str
     query: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class Software(DiffSyncModel):
@@ -148,16 +149,16 @@ class Software(DiffSyncModel):
 
     version: str
     platform: str
-    alias: Optional[str]
-    release_date: Optional[datetime.date]
-    eos_date: Optional[datetime.date]
-    documentation_url: Optional[str]
+    alias: Optional[str] = None
+    release_date: Optional[datetime.date] = None
+    eos_date: Optional[datetime.date] = None
+    documentation_url: Optional[str] = None
     long_term_support: bool
     pre_release: bool
-    tags: Optional[List[str]]
+    tags: Optional[List[str]] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class SoftwareImage(DiffSyncModel):
@@ -182,14 +183,14 @@ class SoftwareImage(DiffSyncModel):
     platform: str
     software_version: str
     file_name: str
-    download_url: Optional[str]
-    image_file_checksum: Optional[str]
+    download_url: Optional[str] = None
+    image_file_checksum: Optional[str] = None
     hashing_algorithm: str
     default_image: bool
-    tags: Optional[List[str]]
+    tags: Optional[List[str]] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class ValidatedSoftware(DiffSyncModel):
@@ -211,21 +212,21 @@ class ValidatedSoftware(DiffSyncModel):
     )
     _children = {}
 
-    devices: Optional[list[str]]
-    device_types: Optional[list[str]]
-    device_roles: Optional[list[str]]
-    inventory_items: Optional[list[str]]
-    object_tags: Optional[list[str]]
+    devices: Optional[list[str]] = None
+    device_types: Optional[list[str]] = None
+    device_roles: Optional[list[str]] = None
+    inventory_items: Optional[list[str]] = None
+    object_tags: Optional[list[str]] = None
     software: str
     platform: str
     software_version: str
-    valid_since: Optional[datetime.date]
-    valid_until: Optional[datetime.date]
+    valid_since: Optional[datetime.date] = None
+    valid_until: Optional[datetime.date] = None
     preferred_version: bool
-    tags: Optional[List[str]]
+    tags: Optional[List[str]] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class TenantGroup(DiffSyncModel):
@@ -240,11 +241,11 @@ class TenantGroup(DiffSyncModel):
     _children = {}
 
     name: str
-    parent: Optional[str]
-    description: Optional[str]
+    parent: Optional[str] = None
+    description: Optional[str] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class Tenant(DiffSyncModel):
@@ -256,12 +257,12 @@ class Tenant(DiffSyncModel):
     _children = {}
 
     name: str
-    tenant_group: Optional[str]
-    description: Optional[str]
-    tags: Optional[List[str]]
+    tenant_group: Optional[str] = None
+    description: Optional[str] = None
+    tags: Optional[List[str]] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class Role(DiffSyncModel):
@@ -273,13 +274,13 @@ class Role(DiffSyncModel):
     _children = {}
 
     name: str
-    weight: Optional[int]
-    description: Optional[str]
-    color: Optional[str]
-    content_types: List[str]
+    weight: Optional[int] = None
+    description: Optional[str] = None
+    color: Optional[str] = None
+    content_types: List[str] = []
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class Team(DiffSyncModel):
@@ -291,13 +292,13 @@ class Team(DiffSyncModel):
     _children = {}
 
     name: str
-    phone: Optional[str]
-    email: Optional[str]
-    address: Optional[str]
-    contacts: Optional[List[str]]
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    contacts: Optional[List[str]] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class Contact(DiffSyncModel):
@@ -309,13 +310,13 @@ class Contact(DiffSyncModel):
     _children = {}
 
     name: str
-    phone: Optional[str]
-    email: Optional[str]
-    address: Optional[str]
-    teams: Optional[List[str]]
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    teams: Optional[List[str]] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class Manufacturer(DiffSyncModel):
@@ -330,10 +331,10 @@ class Manufacturer(DiffSyncModel):
     _children = {}
 
     name: str
-    description: Optional[str]
+    description: Optional[str] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class Platform(DiffSyncModel):
@@ -355,10 +356,10 @@ class Platform(DiffSyncModel):
 
     name: str
     manufacturer: str
-    network_driver: Optional[str]
-    napalm_driver: Optional[str]
-    napalm_arguments: Optional[dict]
-    description: Optional[str]
+    network_driver: Optional[str] = None
+    napalm_driver: Optional[str] = None
+    napalm_arguments: Optional[dict] = None
+    description: Optional[str] = None
     system_of_record: str
 
     uuid: Optional[UUID]
@@ -379,13 +380,13 @@ class LocationType(DiffSyncModel):
     _children = {}
 
     name: str
-    parent: Optional[str]
-    nestable: Optional[bool]
-    description: Optional[str]
-    content_types: Optional[List[str]]
+    parent: Optional[str] = None
+    nestable: Optional[bool] = None
+    description: Optional[str] = None
+    content_types: Optional[List[str]] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class Location(DiffSyncModel):
@@ -418,24 +419,24 @@ class Location(DiffSyncModel):
 
     name: str
     location_type: str
-    parent: Optional[str]
-    status: Optional[str]
-    facility: Optional[str]
-    asn: Optional[int]
-    time_zone: Optional[str]
-    description: Optional[str]
-    tenant: Optional[str]
-    physical_address: Optional[str]
-    shipping_address: Optional[str]
-    latitude: Optional[float]
-    longitude: Optional[float]
-    contact_name: Optional[str]
-    contact_phone: Optional[str]
-    contact_email: Optional[str]
-    tags: Optional[List[str]]
+    parent: Optional[str] = None
+    status: Optional[str] = None
+    facility: Optional[str] = None
+    asn: Optional[int] = None
+    time_zone: Optional[str] = None
+    description: Optional[str] = None
+    tenant: Optional[str] = None
+    physical_address: Optional[str] = None
+    shipping_address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    contact_name: Optional[str] = None
+    contact_phone: Optional[str] = None
+    contact_email: Optional[str] = None
+    tags: Optional[List[str]] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class Provider(DiffSyncModel):
@@ -447,15 +448,15 @@ class Provider(DiffSyncModel):
     _children = {}
 
     name: str
-    asn: Optional[int]
-    account_number: Optional[str]
-    portal_url: Optional[str]
-    noc_contact: Optional[str]
-    admin_contact: Optional[str]
-    tags: Optional[List[str]]
+    asn: Optional[int] = None
+    account_number: Optional[str] = None
+    portal_url: Optional[str] = None
+    noc_contact: Optional[str] = None
+    admin_contact: Optional[str] = None
+    tags: Optional[List[str]] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class ProviderNetwork(DiffSyncModel):
@@ -471,12 +472,12 @@ class ProviderNetwork(DiffSyncModel):
 
     name: str
     provider: str
-    description: Optional[str]
-    comments: Optional[str]
-    tags: Optional[List[str]]
+    description: Optional[str] = None
+    comments: Optional[str] = None
+    tags: Optional[List[str]] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class CircuitType(DiffSyncModel):
@@ -488,10 +489,10 @@ class CircuitType(DiffSyncModel):
     _children = {}
 
     name: str
-    description: Optional[str]
+    description: Optional[str] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class Circuit(DiffSyncModel):
@@ -518,15 +519,15 @@ class Circuit(DiffSyncModel):
     provider: str
     circuit_type: str
     status: str
-    date_installed: Optional[datetime.date]
-    commit_rate_kbps: Optional[int]
-    description: Optional[str]
-    tenant: Optional[str]
-    tags: Optional[List[str]]
-    terminations: Optional[List["Circuit"]] = []
-    system_of_record: Optional[str]
+    date_installed: Optional[datetime.date] = None
+    commit_rate_kbps: Optional[int] = None
+    description: Optional[str] = None
+    tenant: Optional[str] = None
+    tags: Optional[List[str]] = None
+    terminations: Optional[List["Circuit"]] = None
+    system_of_record: Optional[str] = None
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class CircuitTermination(DiffSyncModel):
@@ -556,17 +557,17 @@ class CircuitTermination(DiffSyncModel):
     termination_type: str
     termination_side: str
     circuit_id: str
-    location: Optional[str]
-    provider_network: Optional[str]
-    port_speed_kbps: Optional[str]
-    upstream_speed_kbps: Optional[str]
-    cross_connect_id: Optional[str]
-    patch_panel_or_ports: Optional[str]
-    description: Optional[str]
-    tags: Optional[List[str]]
+    location: Optional[str] = None
+    provider_network: Optional[str] = None
+    port_speed_kbps: Optional[str] = None
+    upstream_speed_kbps: Optional[str] = None
+    cross_connect_id: Optional[str] = None
+    patch_panel_or_ports: Optional[str] = None
+    description: Optional[str] = None
+    tags: Optional[List[str]] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class Namespace(DiffSyncModel):
@@ -578,8 +579,8 @@ class Namespace(DiffSyncModel):
     _children = {}
 
     name: str
-    description: Optional[str]
-    location: Optional[str]
+    description: Optional[str] = None
+    location: Optional[str] = None
     system_of_record: str
 
     uuid: Optional[UUID]
@@ -601,7 +602,7 @@ class RiR(DiffSyncModel):
 
     name: str
     private: bool
-    description: Optional[str]
+    description: Optional[str] = None
     system_of_record: str
 
     uuid: Optional[UUID]
@@ -616,8 +617,8 @@ class VLANGroup(DiffSyncModel):
     _children = {}
 
     name: str
-    location: Optional[str]
-    description: Optional[str]
+    location: Optional[str] = None
+    description: Optional[str] = None
     system_of_record: str
 
     uuid: Optional[UUID]
@@ -645,16 +646,16 @@ class VLAN(DiffSyncModel):
 
     name: str
     vid: int
-    vlan_group: Optional[str]
-    description: Optional[str]
-    status: Optional[str]
-    role: Optional[str]
-    locations: Optional[List[str]]
-    tenant: Optional[str]
-    tags: Optional[List[str]]
+    vlan_group: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    role: Optional[str] = None
+    locations: Optional[List[str]] = None
+    tenant: Optional[str] = None
+    tags: Optional[List[str]] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class VRF(DiffSyncModel):
@@ -675,14 +676,14 @@ class VRF(DiffSyncModel):
     _children = {}
 
     name: str
-    namespace: Optional[str]
-    route_distinguisher: Optional[str]
-    description: Optional[str]
-    tenant: Optional[str]
-    tags: Optional[List[str]]
+    namespace: Optional[str] = None
+    route_distinguisher: Optional[str] = None
+    description: Optional[str] = None
+    tenant: Optional[str] = None
+    tags: Optional[List[str]] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class Prefix(DiffSyncModel):
@@ -711,20 +712,20 @@ class Prefix(DiffSyncModel):
 
     network: str
     namespace: str
-    prefix_type: Optional[str]
-    status: Optional[str]
-    role: Optional[str]
-    rir: Optional[str]
-    date_allocated: Optional[datetime.datetime]
-    description: Optional[str]
-    vrfs: Optional[List[str]]
-    locations: Optional[List[str]]
-    vlan: Optional[str]
-    tenant: Optional[str]
-    tags: Optional[List[str]]
+    prefix_type: Optional[str] = None
+    status: Optional[str] = None
+    role: Optional[str] = None
+    rir: Optional[str] = None
+    date_allocated: Optional[datetime.datetime] = None
+    description: Optional[str] = None
+    vrfs: Optional[List[str]] = None
+    locations: Optional[List[str]] = None
+    vlan: Optional[str] = None
+    tenant: Optional[str] = None
+    tags: Optional[List[str]] = None
     system_of_record: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class SSoTJob(DiffSyncModel):
@@ -741,4 +742,4 @@ class SSoTJob(DiffSyncModel):
     name: str
     schedule: str
 
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None

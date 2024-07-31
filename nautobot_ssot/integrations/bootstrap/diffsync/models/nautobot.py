@@ -86,7 +86,11 @@ except ImportError:
     LIFECYCLE_MGMT = False
 
 if LIFECYCLE_MGMT:
-    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import Software, SoftwareImage, ValidatedSoftware  # noqa: F401
+    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
+        Software,
+        SoftwareImage,
+        ValidatedSoftware,
+    )  # noqa: F401
     from nautobot_device_lifecycle_mgmt.models import SoftwareLCM as ORMSoftware  # noqa: F401
     from nautobot_device_lifecycle_mgmt.models import SoftwareImageLCM as ORMSoftwareImage  # noqa: F401
     from nautobot_device_lifecycle_mgmt.models import ValidatedSoftwareLCM as ORMValidatedSoftware  # noqa: F401
@@ -96,12 +100,12 @@ class NautobotTenantGroup(TenantGroup):
     """Nautobot implementation of Bootstrap TenantGroup model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create TenantGroup in Nautobot from NautobotTenantGroup object."""
         _parent = None
         if ids["parent"]:
             _parent = ORMTenantGroup.objects.get(name=ids["parent"])
-        diffsync.job.logger.info(f'Creating Nautobot TenantGroup: {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot TenantGroup: {ids["name"]}')
         if _parent is not None:
             new_tenant_group = ORMTenantGroup(name=ids["name"], parent=_parent, description=attrs["description"])
         else:
@@ -109,11 +113,11 @@ class NautobotTenantGroup(TenantGroup):
         new_tenant_group.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_tenant_group.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
         new_tenant_group.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update TenantGroup in Nautobot from NautobotTenantGroup object."""
-        self.diffsync.job.logger.debug(f"Updating TenantGroup {self.name} with {attrs}")
+        self.adapter.job.logger.debug(f"Updating TenantGroup {self.name} with {attrs}")
         _update_tenant_group = ORMTenantGroup.objects.get(name=self.name)
         if "description" in attrs:
             _update_tenant_group.description = attrs["description"]
@@ -128,20 +132,20 @@ class NautobotTenantGroup(TenantGroup):
     def delete(self):
         """Delete TenantGroup in Nautobot from NautobotTenantGroup object."""
         try:
-            self.diffsync.job.logger.debug(f"Attempting to delete TenantGroup: {self} - {self.uuid}")
+            self.adapter.job.logger.debug(f"Attempting to delete TenantGroup: {self} - {self.uuid}")
             _nb_tenant_group = ORMTenantGroup.objects.get(id=self.uuid)
             super().delete()
             _nb_tenant_group.delete()
             return self
         except ORMTenantGroup.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find TenantGroup {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find TenantGroup {self.uuid} for deletion. {err}")
 
 
 class NautobotTenant(Tenant):
     """Nautobot implementation of Bootstrap Tenant model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Tenant in Nautobot from NautobotTenant object."""
         _tags = []
         _tenant_group = None
@@ -153,17 +157,17 @@ class NautobotTenant(Tenant):
             try:
                 _tenant_group = ORMTenantGroup.objects.get(name=attrs["tenant_group"])
             except ORMTenantGroup.DoesNotExist:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f'Could not find TenantGroup {attrs["tenant_group"]} to assign to {ids["name"]}'
                 )
         if "description" in attrs:
             _description = attrs["description"]
-        diffsync.job.logger.info(f'Creating Nautobot Tenant: {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot Tenant: {ids["name"]}')
         new_tenant = ORMTenant(name=ids["name"], tenant_group=_tenant_group, tags=_tags, description=_description)
         new_tenant.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_tenant.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
         new_tenant.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Tenant in Nautobot from NautobotTenant object."""
@@ -174,7 +178,7 @@ class NautobotTenant(Tenant):
             try:
                 _update_tenant.tenant_group = ORMTenantGroup.objects.get(name=attrs["tenant_group"])
             except ORMTenantGroup.DoesNotExist:
-                self.diffsync.job.logger.warning(
+                self.adapter.job.logger.warning(
                     f'Could not find TenantGroup {attrs["tenant_group"]} to assign to {self.name}'
                 )
         if "tags" in attrs:
@@ -191,23 +195,23 @@ class NautobotTenant(Tenant):
     def delete(self):
         """Delete Tenant in Nautobot from NautobotTenant object."""
         try:
-            self.diffsync.job.logger.debug(f"Attempting to delete Tenant: {self} - {self.uuid}")
+            self.adapter.job.logger.debug(f"Attempting to delete Tenant: {self} - {self.uuid}")
             _nb_tenant = ORMTenant.objects.get(id=self.uuid)
             super().delete()
             _nb_tenant.delete()
             return self
         except ORMTenant.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find Tenant {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find Tenant {self.uuid} for deletion. {err}")
 
 
 class NautobotRole(Role):
     """Nautobot implementation of Bootstrap Role model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Role in Nautobot from NautobotRole object."""
         _content_types = []
-        diffsync.job.logger.info(f'Creating Nautobot Role: {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot Role: {ids["name"]}')
         for _model in attrs["content_types"]:
             _content_types.append(lookup_content_type_for_taggable_model_path(_model))
         _new_role = ORMRole(
@@ -221,12 +225,12 @@ class NautobotRole(Role):
         _new_role.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
         _new_role.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_role.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Role in Nautobot from NautobotRole object."""
         _content_types = []
-        self.diffsync.job.logger.info(f"Updating Role {self.name}")
+        self.adapter.job.logger.info(f"Updating Role {self.name}")
         _update_role = ORMRole.objects.get(name=self.name)
         if "weight" in attrs:
             _update_role.weight = attrs["weight"]
@@ -236,7 +240,7 @@ class NautobotRole(Role):
             _update_role.color = attrs["color"]
         if "content_types" in attrs:
             for _model in attrs["content_types"]:
-                self.diffsync.job.logger.debug(f"Looking up {_model} in content types.")
+                self.adapter.job.logger.debug(f"Looking up {_model} in content types.")
                 _content_types.append(lookup_content_type_for_taggable_model_path(_model))
             _update_role.content_types.set(_content_types)
         if not check_sor_field(_update_role):
@@ -248,32 +252,32 @@ class NautobotRole(Role):
     def delete(self):
         """Delete Role in Nautobot from NautobotRole object."""
         try:
-            self.diffsync.job.logger.debug(f"Attempting to delete Role: {self} - {self.uuid}")
+            self.adapter.job.logger.debug(f"Attempting to delete Role: {self} - {self.uuid}")
             _role = ORMRole.objects.get(id=self.uuid)
             _role.delete()
             super().delete()
             return self
         except ORMTenant.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find Role {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find Role {self.uuid} for deletion. {err}")
 
 
 class NautobotManufacturer(Manufacturer):
     """Nautobot implementation of Bootstrap Manufacturer model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Manufacturer in Nautobot from NautobotManufacturer object."""
-        diffsync.job.logger.debug(f'Creating Nautobot Manufacturer {ids["name"]}')
+        adapter.job.logger.debug(f'Creating Nautobot Manufacturer {ids["name"]}')
         _new_manufacturer = ORMManufacturer(name=ids["name"], description=attrs["description"])
         _new_manufacturer.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
         _new_manufacturer.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_manufacturer.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Manufacturer in Nautobot from NautobotManufacturer object."""
         _update_manufacturer = ORMManufacturer.objects.get(name=self.name)
-        self.diffsync.job.logger.info(f"Updating Manufacturer {self.name}")
+        self.adapter.job.logger.info(f"Updating Manufacturer {self.name}")
         if "description" in attrs:
             _update_manufacturer.description = attrs["description"]
         if not check_sor_field(_update_manufacturer):
@@ -287,15 +291,15 @@ class NautobotManufacturer(Manufacturer):
     def delete(self):
         """Delete Manufacturer in Nautobot from NautobotManufacturer object."""
         try:
-            self.diffsync.job.logger.debug(f"Attempting to delete Manufacturer: {self} - {self.uuid}")
+            self.adapter.job.logger.debug(f"Attempting to delete Manufacturer: {self} - {self.uuid}")
             _manufacturer = ORMManufacturer.objects.get(id=self.uuid)
             _manufacturer.delete()
             super().delete()
             return self
         except ORMManufacturer.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find Manufacturer {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find Manufacturer {self.uuid} for deletion. {err}")
         except ProtectedError as err:
-            self.diffsync.job.logger.warning(
+            self.adapter.job.logger.warning(
                 f"Unable to delete Manufacturer {self.name}, as it is referenced by another object. {err}"
             )
 
@@ -304,9 +308,9 @@ class NautobotPlatform(Platform):
     """Nautobot implementation of Bootstrap Platform model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Platform in Nautobot from NautobotPlatform object."""
-        diffsync.job.logger.info(f'Creating Nautobot Platform {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot Platform {ids["name"]}')
         try:
             _manufacturer = ORMManufacturer.objects.get(name=ids["manufacturer"])
             _new_platform = ORMPlatform(
@@ -321,10 +325,10 @@ class NautobotPlatform(Platform):
             _new_platform.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
             _new_platform.validated_save()
         except ORMManufacturer.DoesNotExist:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f'Manufacturer {ids["manufacturer"]} does not exist in Nautobot, be sure to create it.'
             )
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Platform in Nautobot from NautobotPlatform object."""
@@ -346,15 +350,15 @@ class NautobotPlatform(Platform):
     def delete(self):
         """Delete Platform in Nautobot from NautobotPlatform object."""
         try:
-            self.diffsync.job.logger.debug(f"Attempting to delete Platform: {self} - {self.uuid}")
+            self.adapter.job.logger.debug(f"Attempting to delete Platform: {self} - {self.uuid}")
             _platform = ORMPlatform.objects.get(id=self.uuid)
             _platform.delete()
             super().delete()
             return self
         except ORMManufacturer.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find Platform {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find Platform {self.uuid} for deletion. {err}")
         except ProtectedError as err:
-            self.diffsync.job.logger.warning(
+            self.adapter.job.logger.warning(
                 f"Unable to delete Platform {self.name}, as it is referenced by another object. {err}"
             )
 
@@ -363,10 +367,10 @@ class NautobotLocationType(LocationType):
     """Nautobot implementation of Bootstrap LocationType model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create LocationType in Nautobot from NautobotLocationType object."""
         _content_types = []
-        diffsync.job.logger.info(f'Creating Nautobot LocationType: {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot LocationType: {ids["name"]}')
         _parent = None
         for _model in attrs["content_types"]:
             _content_types.append(lookup_content_type_for_taggable_model_path(_model))
@@ -374,7 +378,7 @@ class NautobotLocationType(LocationType):
             try:
                 _parent = ORMLocationType.objects.get(name=attrs["parent"])
             except ORMLocationType.DoesNotExist:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f'Could not find LocationType {ids["parent"]} in Nautobot, ensure it exists.'
                 )
         _new_location_type = ORMLocationType(
@@ -385,25 +389,25 @@ class NautobotLocationType(LocationType):
         )
         _new_location_type.validated_save()
         for _model in attrs["content_types"]:
-            diffsync.job.logger.debug(f"Looking up {_model} in content types.")
+            adapter.job.logger.debug(f"Looking up {_model} in content types.")
             _content_types.append(lookup_content_type_for_taggable_model_path(_model))
         _new_location_type.content_types.set(_content_types)
         _new_location_type.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
         _new_location_type.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_location_type.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update LocationType in Nautobot from NautobotLocationType object."""
         _content_types = []
-        self.diffsync.job.logger.info(f"Updating LocationType {self.name}")
+        self.adapter.job.logger.info(f"Updating LocationType {self.name}")
         _update_location_type = ORMLocationType.objects.get(id=self.uuid)
         if "parent" in attrs:
             try:
                 _parent = ORMLocationType.objects.get(name=attrs["parent"])
                 _update_location_type.parent = _parent
             except ORMLocationType.DoesNotExist:
-                self.diffsync.job.logger.warning(
+                self.adapter.job.logger.warning(
                     f'Parent LocationType {attrs["parent"]} does not exist, ensure it exists first.'
                 )
         if "nestable" in attrs:
@@ -412,7 +416,7 @@ class NautobotLocationType(LocationType):
             _update_location_type.description = attrs["description"]
         if "content_types" in attrs:
             for _model in attrs["content_types"]:
-                self.diffsync.job.logger.debug(f"Looking up {_model} in content types.")
+                self.adapter.job.logger.debug(f"Looking up {_model} in content types.")
                 _content_types.append(lookup_content_type_for_taggable_model_path(_model))
             _update_location_type.content_types.set(_content_types)
         if not check_sor_field(_update_location_type):
@@ -426,15 +430,15 @@ class NautobotLocationType(LocationType):
     def delete(self):
         """Delete LocationType in Nautobot from NautobotLocationType object."""
         try:
-            self.diffsync.job.logger.debug(f"Attempting to delete LocationType: {self} - {self.uuid}")
+            self.adapter.job.logger.debug(f"Attempting to delete LocationType: {self} - {self.uuid}")
             _location_type = ORMLocationType.objects.get(id=self.uuid)
             _location_type.delete()
             super().delete()
             return self
         except ORMLocationType.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find LocationType {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find LocationType {self.uuid} for deletion. {err}")
         except ProtectedError as err:
-            self.diffsync.job.logger.warning(
+            self.adapter.job.logger.warning(
                 f"Unable to delete LocationType {self.name}, as it is referenced by another object. {err}"
             )
 
@@ -443,9 +447,9 @@ class NautobotLocation(Location):
     """Nautobot implementation of Bootstrap Location model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Location in Nautobot from NautobotLocation object."""
-        diffsync.job.logger.info(f'Creating Nautobot Location {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot Location {ids["name"]}')
 
         try:
             _parent = None
@@ -488,24 +492,24 @@ class NautobotLocation(Location):
             _new_location.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
             _new_location.validated_save()
         except ORMStatus.DoesNotExist:
-            diffsync.job.logger.warning(f'Status {attrs["status"]} could not be found. Make sure it exists.')
+            adapter.job.logger.warning(f'Status {attrs["status"]} could not be found. Make sure it exists.')
         except ORMLocationType.DoesNotExist:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f'LocationType {attrs["location_type"]} could not be found. Make sure it exists.'
             )
         except ORMTenant.DoesNotExist:
-            diffsync.job.logger.warning(f'Tenant {attrs["tenant"]} does not exist, verify it is created.')
+            adapter.job.logger.warning(f'Tenant {attrs["tenant"]} does not exist, verify it is created.')
         except pytz.UnknownTimeZoneError:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f'Timezone {attrs["time_zone"]} could not be found. Verify the timezone is a valid timezone.'
             )
         except ORMLocation.DoesNotExist:
-            diffsync.job.logger.warning(f'Parent Location {attrs["parent"]} does not exist, ensure it exists first.')
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+            adapter.job.logger.warning(f'Parent Location {attrs["parent"]} does not exist, ensure it exists first.')
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Location in Nautobot from NautobotLocation object."""
-        self.diffsync.job.logger.info(f"Updating Location {self.name}.")
+        self.adapter.job.logger.info(f"Updating Location {self.name}.")
         _parent = None
         _tenant = None
         _timezone = None
@@ -561,15 +565,15 @@ class NautobotLocation(Location):
     def delete(self):
         """Delete Location in Nautobot from NautobotLocation object."""
         try:
-            self.diffsync.job.logger.debug(f"Attempting to delete Location: {self} - {self.uuid}")
+            self.adapter.job.logger.debug(f"Attempting to delete Location: {self} - {self.uuid}")
             _location = ORMLocation.objects.get(id=self.uuid)
             _location.delete()
             super().delete()
             return self
         except ORMLocation.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find Location {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find Location {self.uuid} for deletion. {err}")
         except ProtectedError as err:
-            self.diffsync.job.logger.warning(
+            self.adapter.job.logger.warning(
                 f"Unable to delete Location {self.name}, as it is referenced by another object. {err}"
             )
 
@@ -578,9 +582,9 @@ class NautobotTeam(Team):
     """Nautobot implementation of Team DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Team in Nautobot from NautobotTeam object."""
-        diffsync.job.logger.debug(f'Creating Nautobot Team {ids["name"]}')
+        adapter.job.logger.debug(f'Creating Nautobot Team {ids["name"]}')
         _new_team = ORMTeam(
             name=ids["name"],
             phone=attrs["phone"],
@@ -595,15 +599,15 @@ class NautobotTeam(Team):
         #     # FIXME: There might be a better way to handle this that's easier on the database.
         #     _new_team.contacts.clear()
         #     for _contact in attrs["contacts"]:
-        #         diffsync.job.logger.debug(f'Looking up Contact: {_contact} for Team: {ids["name"]}.')
+        #         adapter.job.logger.debug(f'Looking up Contact: {_contact} for Team: {ids["name"]}.')
         #         _new_team.contact.add(lookup_contact_for_team(contact=_contact))
         #     _new_team.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Team in Nautobot from NautobotTeam object."""
         _update_team = ORMTeam.objects.get(name=self.name)
-        self.diffsync.job.logger.info(f"Updating Team {self.name}")
+        self.adapter.job.logger.info(f"Updating Team {self.name}")
         if "phone" in attrs:
             _update_team.phone = attrs["phone"]
         if "email" in attrs:
@@ -615,7 +619,7 @@ class NautobotTeam(Team):
         #     # FIXME: There might be a better way to handle this that's easier on the database.
         #     _update_team.contacts.clear()
         #     for _contact in attrs["contacts"]:
-        #         self.diffsync.job.logger.debug(f"Looking up Contact: {_contact} for Team: {self.name}.")
+        #         self.adapter.job.logger.debug(f"Looking up Contact: {_contact} for Team: {self.name}.")
         #         _update_team.contacts.add(lookup_contact_for_team(contact=_contact))
         if not check_sor_field(_update_team):
             _update_team.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
@@ -626,22 +630,22 @@ class NautobotTeam(Team):
     def delete(self):
         """Delete Team in Nautobot from NautobotTeam object."""
         try:
-            self.diffsync.job.logger.debug(f"Attempting to delete Team: {self} - {self.uuid}")
+            self.adapter.job.logger.debug(f"Attempting to delete Team: {self} - {self.uuid}")
             _team = ORMTeam.objects.get(id=self.uuid)
             _team.delete()
             super().delete()
             return self
         except ORMTeam.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find Team {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find Team {self.uuid} for deletion. {err}")
 
 
 class NautobotContact(Contact):
     """Nautobot implementation of Contact DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Contact in Nautobot from NautobotContact object."""
-        diffsync.job.logger.debug(f'Creating Nautobot Contact {ids["name"]}')
+        adapter.job.logger.debug(f'Creating Nautobot Contact {ids["name"]}')
         _new_contact = ORMContact(
             name=ids["name"],
             phone=attrs["phone"],
@@ -653,15 +657,15 @@ class NautobotContact(Contact):
         _new_contact.validated_save()
         if "teams" in attrs:
             for _team in attrs["teams"]:
-                diffsync.job.logger.debug(f'Looking up Team: {_team} for Contact: {ids["name"]}.')
+                adapter.job.logger.debug(f'Looking up Team: {_team} for Contact: {ids["name"]}.')
                 _new_contact.teams.add(lookup_team_for_contact(team=_team))
             _new_contact.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Contact in Nautobot from NautobotContact object."""
         _update_contact = ORMContact.objects.get(name=self.name)
-        self.diffsync.job.logger.info(f"Updating Contact {self.name}")
+        self.adapter.job.logger.info(f"Updating Contact {self.name}")
         if "phone" in attrs:
             _update_contact.phone = attrs["phone"]
         if "email" in attrs:
@@ -672,7 +676,7 @@ class NautobotContact(Contact):
             # FIXME: There might be a better way to handle this that's easier on the database.
             _update_contact.teams.clear()
             for _team in attrs["teams"]:
-                self.diffsync.job.logger.debug(f"Looking up Team: {_team} for Contact: {self.name}.")
+                self.adapter.job.logger.debug(f"Looking up Team: {_team} for Contact: {self.name}.")
                 _update_contact.teams.add(lookup_team_for_contact(team=_team))
         if not check_sor_field(_update_contact):
             _update_contact.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
@@ -683,22 +687,22 @@ class NautobotContact(Contact):
     def delete(self):
         """Delete Contact in Nautobot from NautobotContact object."""
         try:
-            self.diffsync.job.logger.debug(f"Attempting to delete Team: {self} - {self.uuid}")
+            self.adapter.job.logger.debug(f"Attempting to delete Team: {self} - {self.uuid}")
             _contact = ORMContact.objects.get(id=self.uuid)
             _contact.delete()
             super().delete()
             return self
         except ORMTenant.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find Contact {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find Contact {self.uuid} for deletion. {err}")
 
 
 class NautobotProvider(Provider):
     """Nautobot implementation of Provider DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Provider in Nautobot from NautobotProvider object."""
-        diffsync.job.logger.info(f'Creating Nautobot Provider: {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot Provider: {ids["name"]}')
         if "tags" in attrs:
             _tags = []
             for _tag in attrs["tags"]:
@@ -715,15 +719,15 @@ class NautobotProvider(Provider):
             try:
                 _new_provider.tags.add(ORMTag.objects.get(name=_tag))
             except ORMTag.DoesNotExist:
-                diffsync.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
+                adapter.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
         _new_provider.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
         _new_provider.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_provider.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Provider in Nautobot from NautobotProvider object."""
-        self.diffsync.job.logger.debug(f"Updating Nautobot Provider {self.name}")
+        self.adapter.job.logger.debug(f"Updating Nautobot Provider {self.name}")
         _update_provider = ORMProvider.objects.get(id=self.uuid)
         if "asn" in attrs:
             _update_provider.asn = attrs["asn"]
@@ -742,7 +746,7 @@ class NautobotProvider(Provider):
                 try:
                     _update_provider.tags.add(ORMTag.objects.get(name=_tag))
                 except ORMTag.DoesNotExist:
-                    self.diffsync.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
+                    self.adapter.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
         if not check_sor_field(_update_provider):
             _update_provider.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_provider.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
@@ -752,22 +756,22 @@ class NautobotProvider(Provider):
     def delete(self):
         """Delete Provider in Nautobot from NautobotProvider object."""
         try:
-            self.diffsync.job.logger.debug(f"Attempting to delete Provider: {self} - {self.uuid}")
+            self.adapter.job.logger.debug(f"Attempting to delete Provider: {self} - {self.uuid}")
             _nb_provider = ORMProvider.objects.get(id=self.uuid)
             _nb_provider.delete()
             super().delete()
             return self
         except ORMProvider.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find Provider {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find Provider {self.uuid} for deletion. {err}")
 
 
 class NautobotProviderNetwork(ProviderNetwork):
     """Nautobot implementation of ProviderNetwork DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create ProviderNetwork in Nautobot from NautobotProviderNetwork object."""
-        diffsync.job.logger.info(f'Creating Nautobot ProviderNetwork: {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot ProviderNetwork: {ids["name"]}')
         if "tags" in attrs:
             _tags = []
             for _tag in attrs["tags"]:
@@ -782,15 +786,15 @@ class NautobotProviderNetwork(ProviderNetwork):
             try:
                 _new_provider_network.tags.add(ORMTag.objects.get(name=_tag))
             except ORMTag.DoesNotExist:
-                diffsync.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
+                adapter.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
         _new_provider_network.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_provider_network.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
         _new_provider_network.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update ProviderNetwork in Nautobot from NautobotProviderNetwork object."""
-        self.diffsync.job.logger.debug(f"Updating Nautobot ProviderNetwork {self.name}")
+        self.adapter.job.logger.debug(f"Updating Nautobot ProviderNetwork {self.name}")
         _update_provider_network = ORMProviderNetwork.objects.get(id=self.uuid)
         if "description" in attrs:
             _update_provider_network.description = attrs["description"]
@@ -803,7 +807,7 @@ class NautobotProviderNetwork(ProviderNetwork):
                 try:
                     _update_provider_network.tags.add(ORMTag.objects.get(name=_tag))
                 except ORMTag.DoesNotExist:
-                    self.diffsync.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
+                    self.adapter.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
         _update_provider_network.custom_field_data.update(
             {"ssot_last_synchronized": datetime.today().date().isoformat()}
         )
@@ -817,22 +821,22 @@ class NautobotProviderNetwork(ProviderNetwork):
     def delete(self):
         """Delete ProviderNetwork in Nautobot from NautobotProviderNetwork object."""
         try:
-            self.diffsync.job.logger.debug(f"Attempting to delete ProviderNetwork: {self} - {self.uuid}")
+            self.adapter.job.logger.debug(f"Attempting to delete ProviderNetwork: {self} - {self.uuid}")
             _nb_provider_network = ORMProviderNetwork.objects.get(id=self.uuid)
             _nb_provider_network.delete()
             super().delete()
             return self
         except ORMProviderNetwork.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find ProviderNetwork {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find ProviderNetwork {self.uuid} for deletion. {err}")
 
 
 class NautobotCircuitType(CircuitType):
     """Nautobot implementation of CircuitType DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create CircuitType in Nautobot from NautobotCircuitType object."""
-        diffsync.job.logger.info(f'Creating Nautobot CircuitType: {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot CircuitType: {ids["name"]}')
         _new_circuit_type = ORMCircuitType(
             name=ids["name"],
             description=attrs["description"],
@@ -840,11 +844,11 @@ class NautobotCircuitType(CircuitType):
         _new_circuit_type.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_circuit_type.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
         _new_circuit_type.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update CircuitType in Nautobot from NautobotCircuitType object."""
-        self.diffsync.job.logger.debug(f"Updating Nautobot CircuitType {self.name}")
+        self.adapter.job.logger.debug(f"Updating Nautobot CircuitType {self.name}")
         _update_circuit_type = ORMCircuitType.objects.get(id=self.uuid)
         if "description" in attrs:
             _update_circuit_type.description = attrs["description"]
@@ -859,22 +863,22 @@ class NautobotCircuitType(CircuitType):
     def delete(self):
         """Delete CircuitType in Nautobot from NautobotCircuitType object."""
         try:
-            self.diffsync.job.logger.debug(f"Attempting to delete Circuittype: {self} - {self.uuid}")
+            self.adapter.job.logger.debug(f"Attempting to delete Circuittype: {self} - {self.uuid}")
             _nb_circuit_type = ORMCircuitType.objects.get(id=self.uuid)
             _nb_circuit_type.delete()
             super().delete()
             return self
         except ORMCircuitType.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find CircuitType {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find CircuitType {self.uuid} for deletion. {err}")
 
 
 class NautobotCircuit(Circuit):
     """Nautobot implementation of Circuit DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Circuit in Nautobot from NautobotCircuit object."""
-        diffsync.job.logger.info(f'Creating Nautobot Circuit: {ids["circuit_id"]}')
+        adapter.job.logger.info(f'Creating Nautobot Circuit: {ids["circuit_id"]}')
         if "tags" in attrs:
             _tags = []
             for _tag in attrs["tags"]:
@@ -900,15 +904,15 @@ class NautobotCircuit(Circuit):
             try:
                 _new_circuit.tags.add(ORMTag.objects.get(name=_tag))
             except ORMTag.DoesNotExist:
-                diffsync.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
+                adapter.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
         _new_circuit.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_circuit.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
         _new_circuit.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Circuit in Nautobot from NautobotCircuit object."""
-        self.diffsync.job.logger.debug(f"Updating Nautobot Circuit {self.circuit_id}")
+        self.adapter.job.logger.debug(f"Updating Nautobot Circuit {self.circuit_id}")
         _update_circuit = ORMCircuit.objects.get(id=self.uuid)
         if "circuit_type" in attrs:
             _circuit_type = ORMCircuitType.objects.get(name=attrs["circuit_type"])
@@ -932,7 +936,7 @@ class NautobotCircuit(Circuit):
                 try:
                     _update_circuit.tags.add(ORMTag.objects.get(name=_tag))
                 except ORMTag.DoesNotExist:
-                    self.diffsync.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
+                    self.adapter.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
         if "terminations" in attrs:
             # TODO: Implement circuit terminations
             pass
@@ -945,22 +949,22 @@ class NautobotCircuit(Circuit):
     def delete(self):
         """Delete Circuit in Nautobot from NautobotCircuit object."""
         try:
-            self.diffsync.job.logger.debug(f"Attempting to delete Circuit: {self} - {self.uuid}")
+            self.adapter.job.logger.debug(f"Attempting to delete Circuit: {self} - {self.uuid}")
             _circuit = ORMCircuit.objects.get(id=self.uuid)
             _circuit.delete()
             super().delete()
             return self
         except ORMProvider.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find Circuit {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find Circuit {self.uuid} for deletion. {err}")
 
 
 class NautobotCircuitTermination(CircuitTermination):
     """Nautobot implementation of CircuitTermination DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create CircuitTermination in Nautobot from NautobotCircuitTermination object."""
-        diffsync.job.logger.info(f'Creating Nautobot CircuitTermination {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot CircuitTermination {ids["name"]}')
         _name_parts = ids["name"].split("__", 2)
         _circuit_id = _name_parts[0]
         _provider_name = _name_parts[1]
@@ -968,11 +972,11 @@ class NautobotCircuitTermination(CircuitTermination):
         try:
             _provider = ORMProvider.objects.get(name=_provider_name)
         except ORMProvider.DoesNotExist:
-            diffsync.job.logger.warning(f"Provider {_provider_name} does not exist in Nautobot. Please create it.")
+            adapter.job.logger.warning(f"Provider {_provider_name} does not exist in Nautobot. Please create it.")
         try:
             _circuit = ORMCircuit.objects.get(cid=_circuit_id, provider=_provider)
         except ORMCircuit.DoesNotExist:
-            diffsync.job.logger.warning(f"Circuit {_circuit_id} does not exist in Nautobot. Please create it.")
+            adapter.job.logger.warning(f"Circuit {_circuit_id} does not exist in Nautobot. Please create it.")
         if "tags" in attrs:
             _tags = []
             for _tag in attrs["tags"]:
@@ -981,7 +985,7 @@ class NautobotCircuitTermination(CircuitTermination):
             try:
                 _provider_network = ORMProviderNetwork.objects.get(name=attrs["provider_network"])
             except ORMProviderNetwork.DoesNotExist:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f'ProviderNetwork {attrs["provider_network"]} does not exist in Nautobot. Please create it.'
                 )
             _new_circuit_termination = ORMCircuitTermination(
@@ -998,7 +1002,7 @@ class NautobotCircuitTermination(CircuitTermination):
             try:
                 _location = ORMLocation.objects.get(name=attrs["location"])
             except ORMLocation.DoesNotExist:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f'Location {attrs["location"]} does not exist in Nautobot. Please create it.'
                 )
             _new_circuit_termination = ORMCircuitTermination(
@@ -1015,7 +1019,7 @@ class NautobotCircuitTermination(CircuitTermination):
             try:
                 _new_circuit_termination.tags.add(ORMTag.objects.get(name=_tag))
             except ORMTag.DoesNotExist:
-                diffsync.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
+                adapter.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
         _new_circuit_termination.custom_field_data.update(
             {"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")}
         )
@@ -1023,11 +1027,11 @@ class NautobotCircuitTermination(CircuitTermination):
             {"ssot_last_synchronized": datetime.today().date().isoformat()}
         )
         _new_circuit_termination.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update CircuitTermination in Nautobot from NautobotCircuitTermination object."""
-        self.diffsync.job.logger.debug(f"Updating Nautobot CircuitTermination {self.name}")
+        self.adapter.job.logger.debug(f"Updating Nautobot CircuitTermination {self.name}")
         _update_circuit_termination = ORMCircuitTermination.objects.get(id=self.uuid)
         if "location" in attrs:
             try:
@@ -1036,7 +1040,7 @@ class NautobotCircuitTermination(CircuitTermination):
                     _update_circuit_termination.provider_network = None
                 _update_circuit_termination.location = _location
             except ORMLocation.DoesNotExist:
-                self.diffsync.job.logger.warning(
+                self.adapter.job.logger.warning(
                     f'Location {attrs["location"]} does not exist in Nautobot. Please create it.'
                 )
         if "provider_network" in attrs:
@@ -1046,7 +1050,7 @@ class NautobotCircuitTermination(CircuitTermination):
                     _update_circuit_termination.location = None
                 _update_circuit_termination.provider_network = _provider_network
             except ORMProviderNetwork.DoesNotExist:
-                self.diffsync.job.logger.warning(
+                self.adapter.job.logger.warning(
                     f'ProviderNetwork {attrs["provider_network"]} does not exist in Nautobot. Please create it.'
                 )
         if "port_speed_kbps" in attrs:
@@ -1066,7 +1070,7 @@ class NautobotCircuitTermination(CircuitTermination):
                 try:
                     _update_circuit_termination.tags.add(ORMTag.objects.get(name=_tag))
                 except ORMTag.DoesNotExist:
-                    self.diffsync.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
+                    self.adapter.job.logger.warning(f"Tag {_tag} does not exist in Nautobot.")
         _update_circuit_termination.custom_field_data.update(
             {"ssot_last_synchronized": datetime.today().date().isoformat()}
         )
@@ -1080,22 +1084,22 @@ class NautobotCircuitTermination(CircuitTermination):
     def delete(self):
         """Delete CircuitTermination in Nautobot from NautobotCircuitTermination object."""
         try:
-            self.diffsync.job.logger.debug(f"Attempting to delete CircuitTermination: {self} - {self.uuid}")
+            self.adapter.job.logger.debug(f"Attempting to delete CircuitTermination: {self} - {self.uuid}")
             _nb_circuit_termination = ORMCircuitTermination.objects.get(id=self.uuid)
             _nb_circuit_termination.delete()
             super().delete()
             return self
         except ORMCircuitTermination.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find ProviderNetwork {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find ProviderNetwork {self.uuid} for deletion. {err}")
 
 
 class NautobotNamespace(Namespace):
     """Nautobot implementation of Nautobot Namespace model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Namespace in Nautobot from NautobotNamespace object."""
-        diffsync.job.logger.info(f'Creating Nautobot Namespace {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot Namespace {ids["name"]}')
         new_namespace = ORMNamespace(
             name=ids["name"],
             description=attrs["description"],
@@ -1109,15 +1113,15 @@ class NautobotNamespace(Namespace):
                 new_namespace.location = _location
                 new_namespace.validated_save()
             except ORMLocation.DoesNotExist:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f'Nautobot Location {attrs["location"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                 )
 
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Namespace in Nautobot from NautobotNamespace object."""
-        self.diffsync.job.logger.debug(f"Updating Nautobot Namespace {self.name}.")
+        self.adapter.job.logger.debug(f"Updating Nautobot Namespace {self.name}.")
         _update_namespace = ORMNamespace.objects.get(id=self.uuid)
         if "description" in attrs:
             _update_namespace.description = attrs["description"]
@@ -1126,7 +1130,7 @@ class NautobotNamespace(Namespace):
                 _location = ORMLocation.objects.get(name=attrs["location"])
                 _update_namespace.location = _location
             except ORMLocation.DoesNotExist:
-                self.diffsync.job.logger.warning(
+                self.adapter.job.logger.warning(
                     f'Nautobot Location {attrs["location"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                 )
         if not check_sor_field(_update_namespace):
@@ -1138,16 +1142,16 @@ class NautobotNamespace(Namespace):
 
     def delete(self):
         """Delete Namespace in Nautobot from NautobotNamespace object."""
-        self.diffsync.job.logger.debug(f"Delete Nautobot Namespace {self.uuid}")
+        self.adapter.job.logger.debug(f"Delete Nautobot Namespace {self.uuid}")
         try:
             _namespace = ORMNamespace.objects.get(id=self.uuid)
             super().delete()
             _namespace.delete()
             return self
         except ORMNamespace.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find Namespace {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find Namespace {self.uuid} for deletion. {err}")
         except ProtectedError as err:
-            self.diffsync.job.logger.warning(
+            self.adapter.job.logger.warning(
                 f"Unable to delete Namespace {self.name} due to existing references. Error: {err}."
             )
 
@@ -1156,9 +1160,9 @@ class NautobotRiR(RiR):
     """Nautobot implementation of Nautobot RiR model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create RiR in Nautobot from NautobotRiR object."""
-        diffsync.job.logger.info(f'Creating Nautobot RiR: {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot RiR: {ids["name"]}')
         new_rir = ORMRiR(
             name=ids["name"],
             is_private=attrs["private"],
@@ -1168,11 +1172,11 @@ class NautobotRiR(RiR):
         new_rir.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
         new_rir.validated_save()
 
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update RiR in Nautobot from NautobotRiR object."""
-        self.diffsync.job.logger.info(f"Updating Nautobot RiR {self.name}")
+        self.adapter.job.logger.info(f"Updating Nautobot RiR {self.name}")
         _update_rir = ORMRiR.objects.get(id=self.uuid)
         if "private" in attrs:
             _update_rir.is_private = attrs["private"]
@@ -1187,16 +1191,16 @@ class NautobotRiR(RiR):
 
     def delete(self):
         """Delete RiR in Nautobot from NautobotRiR object."""
-        self.diffsync.job.logger.debug(f"Delete Nautobot Namespace {self.uuid}")
+        self.adapter.job.logger.debug(f"Delete Nautobot Namespace {self.uuid}")
         try:
             _rir = ORMRiR.objects.get(id=self.uuid)
             super().delete()
             _rir.delete()
             return self
         except ORMRiR.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find RiR {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find RiR {self.uuid} for deletion. {err}")
         except ProtectedError as err:
-            self.diffsync.job.logger.warning(
+            self.adapter.job.logger.warning(
                 f"Unable to delete RiR {self.name} due to existing references. Error: {err}."
             )
 
@@ -1205,14 +1209,14 @@ class NautobotVLANGroup(VLANGroup):
     """Nautobot implementation of Nautobot VLANGroup model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create VLANGroup in Nautobot from NautobotVLANGroup object."""
-        diffsync.job.logger.info(f'Creating Nautobot VLANGroup: {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot VLANGroup: {ids["name"]}')
         try:
             _location = ORMLocation.objects.get(name=attrs["location"])
         except ORMLocation.DoesNotExist:
             _location = None
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f'Nautobot Location {attrs["location"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
             )
         new_vlan_group = ORMVLANGroup(
@@ -1224,18 +1228,18 @@ class NautobotVLANGroup(VLANGroup):
         new_vlan_group.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
         new_vlan_group.validated_save()
 
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update VLANGroup in Nautobot from NautobotVLANGroup object."""
-        self.diffsync.job.logger.info(f"Updating Nautobot VLANGroup {self.name}")
+        self.adapter.job.logger.info(f"Updating Nautobot VLANGroup {self.name}")
         _update_vlan_group = ORMVLANGroup.objects.get(id=self.uuid)
         if "location" in attrs:
             try:
                 _location = ORMLocation.objects.get(name=attrs["location"])
             except ORMLocation.DoesNotExist:
                 _location = None
-                self.diffsync.job.logger.warning(
+                self.adapter.job.logger.warning(
                     f'Nautobot Location {attrs["location"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                 )
             _update_vlan_group.location = _location
@@ -1252,16 +1256,16 @@ class NautobotVLANGroup(VLANGroup):
 
     def delete(self):
         """Delete VLANGroup in Nautobot from NautobotVLANGroup object."""
-        self.diffsync.job.logger.debug(f"Delete Nautobot VLANGroup {self.uuid}")
+        self.adapter.job.logger.debug(f"Delete Nautobot VLANGroup {self.uuid}")
         try:
             _vlan_group = ORMVLANGroup.objects.get(id=self.uuid)
             super().delete()
             _vlan_group.delete()
             return self
         except ORMRiR.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find VLANGroup {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find VLANGroup {self.uuid} for deletion. {err}")
         except ProtectedError as err:
-            self.diffsync.job.logger.warning(
+            self.adapter.job.logger.warning(
                 f"Unable to delete VLANGroup {self.name} due to existing references. Error: {err}."
             )
         return self
@@ -1271,22 +1275,22 @@ class NautobotVLAN(VLAN):
     """Nautobot implementation of Nautobot VLAN model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create VLAN in Nautobot from NautobotVLAN object."""
-        diffsync.job.logger.info(f'Creating Nautobot VLAN: {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot VLAN: {ids["name"]}')
         try:
             _vlan_group = ORMVLANGroup.objects.get(name=ids["vlan_group"])
         except ORMVLANGroup.DoesNotExist:
             _vlan_group = None
             if ids["vlan_group"]:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f'Nautobot VLANGroup {ids["vlan_group"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                 )
         try:
             _status = ORMStatus.objects.get(name=attrs["status"])
         except ORMStatus.DoesNotExist:
             _status = ORMStatus.objects.get(name="Active")
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f'Nautobot Status {attrs["status"]} does not exist. Make sure it is created manually or defined in global_settings.yaml. Defaulting to Status Active.'
             )
         try:
@@ -1294,7 +1298,7 @@ class NautobotVLAN(VLAN):
         except ORMRole.DoesNotExist:
             _role = None
             if attrs["role"]:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f'Nautobot Role {attrs["role"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                 )
         try:
@@ -1302,7 +1306,7 @@ class NautobotVLAN(VLAN):
         except ORMTenant.DoesNotExist:
             _tenant = None
             if attrs["tenant"]:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f'Nautobot Tenant {attrs["tenant"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                 )
         try:
@@ -1311,7 +1315,7 @@ class NautobotVLAN(VLAN):
                 for tag in attrs["tags"]:
                     _tags.append(ORMTag.objects.get(name=tag))
         except ORMTag.DoesNotExist:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f'Nautobot Tag {attrs["tags"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
             )
         new_vlan = ORMVLAN(
@@ -1338,18 +1342,18 @@ class NautobotVLAN(VLAN):
                     _locations.append(ORMLocation.objects.get(name=_location))
         except ORMLocation.DoesNotExist:
             _location = None
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f'Nautobot Location {attrs["location"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
             )
         if _locations:
             for _location in _locations:
                 new_vlan.locations.add(_location)
 
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update VLAN in Nautobot from NautobotVLAN object."""
-        self.diffsync.job.logger.info(f"Updating Nautobot VLAN: {self.name}__{self.vid}")
+        self.adapter.job.logger.info(f"Updating Nautobot VLAN: {self.name}__{self.vid}")
         _update_vlan = ORMVLAN.objects.get(id=self.uuid)
         if "description" in attrs:
             _update_vlan.description = attrs["description"]
@@ -1358,7 +1362,7 @@ class NautobotVLAN(VLAN):
                 _status = ORMStatus.objects.get(name=attrs["status"])
             except ORMStatus.DoesNotExist:
                 _status = ORMStatus.objects.get(name="Active")
-                self.diffsync.job.logger.warning(
+                self.adapter.job.logger.warning(
                     f'Nautobot Status {attrs["status"]} does not exist. Make sure it is created manually or defined in global_settings.yaml. Defaulting to Status Active.'
                 )
             _update_vlan.status = _status
@@ -1368,7 +1372,7 @@ class NautobotVLAN(VLAN):
             except ORMRole.DoesNotExist:
                 _role = None
                 if attrs["role"]:
-                    self.diffsync.job.logger.warning(
+                    self.adapter.job.logger.warning(
                         f'Nautobot Role {attrs["role"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                     )
             _update_vlan.role = _role
@@ -1378,7 +1382,7 @@ class NautobotVLAN(VLAN):
             except ORMTenant.DoesNotExist:
                 _tenant = None
                 if attrs["tenant"]:
-                    self.diffsync.job.logger.warning(
+                    self.adapter.job.logger.warning(
                         f'Nautobot Tenant {attrs["tenant"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                     )
             _update_vlan.tenant = _tenant
@@ -1389,7 +1393,7 @@ class NautobotVLAN(VLAN):
                     for tag in attrs["tags"]:
                         _tags.append(ORMTag.objects.get(name=tag))
             except ORMTag.DoesNotExist:
-                self.diffsync.job.logger.warning(
+                self.adapter.job.logger.warning(
                     f'Nautobot Tag {attrs["tags"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                 )
         if attrs.get("tags"):
@@ -1407,7 +1411,7 @@ class NautobotVLAN(VLAN):
                     _locations.append(ORMLocation.objects.get(name=_location))
             except ORMLocation.DoesNotExist:
                 _location = None
-                self.diffsync.job.logger.warning(
+                self.adapter.job.logger.warning(
                     f'Nautobot Location {attrs["location"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                 )
             if _locations:
@@ -1421,16 +1425,16 @@ class NautobotVLAN(VLAN):
 
     def delete(self):
         """Delete VLAN in Nautobot from NautobotVLAN object."""
-        self.diffsync.job.logger.debug(f"Delete Nautobot VLAN {self.uuid}")
+        self.adapter.job.logger.debug(f"Delete Nautobot VLAN {self.uuid}")
         try:
             _vlan = ORMVLAN.objects.get(id=self.uuid)
             super().delete()
             _vlan.delete()
             return self
         except ORMVLAN.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find VLAN {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find VLAN {self.uuid} for deletion. {err}")
         except ProtectedError as err:
-            self.diffsync.job.logger.warning(
+            self.adapter.job.logger.warning(
                 f"Unable to delete VLAN {self.name} due to existing references. Error: {err}."
             )
 
@@ -1439,22 +1443,22 @@ class NautobotVRF(VRF):
     """Nautobot implementation of Nautobot VRF model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create VRF in Nautobot from NautobotVRF object."""
-        diffsync.job.logger.info(f'Creating Nautobot VRF: {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot VRF: {ids["name"]}')
         try:
             _tenant = ORMTenant.objects.get(name=attrs["tenant"])
         except ORMTenant.DoesNotExist:
             _tenant = None
             if attrs["tenant"]:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f'Nautobot Tenant {attrs["tenant"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                 )
         try:
             _namespace = ORMNamespace.objects.get(name=ids["namespace"])
         except ORMNamespace.DoesNotExist:
             _namespace = ORMNamespace.objects.get(name="Global")
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f'Nautobot Namespace {ids["namespace"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
             )
         new_vrf = ORMVRF(
@@ -1472,11 +1476,11 @@ class NautobotVRF(VRF):
         new_vrf.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_vrf.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
         new_vrf.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update VRF in Nautobot from NautobotVRF object."""
-        self.diffsync.job.logger.info(f"Creating Nautobot VRF: {self.name}")
+        self.adapter.job.logger.info(f"Creating Nautobot VRF: {self.name}")
         _update_vrf = ORMVRF.objects.get(id=self.uuid)
         if "tenant" in attrs:
             try:
@@ -1484,7 +1488,7 @@ class NautobotVRF(VRF):
             except ORMTenant.DoesNotExist:
                 _tenant = None
                 if attrs["tenant"]:
-                    self.diffsync.job.logger.warning(
+                    self.adapter.job.logger.warning(
                         f'Nautobot Tenant {attrs["tenant"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                     )
             _update_vrf.tenant = _tenant
@@ -1504,16 +1508,16 @@ class NautobotVRF(VRF):
 
     def delete(self):
         """Delete VRF in Nautobot from NautobotVRF object."""
-        self.diffsync.job.logger.debug(f"Delete Nautobot VRF {self.uuid}")
+        self.adapter.job.logger.debug(f"Delete Nautobot VRF {self.uuid}")
         try:
             _vrf = ORMVRF.objects.get(id=self.uuid)
             super().delete()
             _vrf.delete()
             return self
         except ORMVRF.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find VRF {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find VRF {self.uuid} for deletion. {err}")
         except ProtectedError as err:
-            self.diffsync.job.logger.warning(
+            self.adapter.job.logger.warning(
                 f"Unable to delete VRF {self.name} due to existing references. Error: {err}."
             )
 
@@ -1522,14 +1526,14 @@ class NautobotPrefix(Prefix):
     """Nautobot implementation of Nautobot Prefix model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Prefix in Nautobot from NautobotPrefix object."""
-        diffsync.job.logger.info(f'Creating Nautobot Prefix: {ids["network"]} in Namespace: {ids["namespace"]}')
+        adapter.job.logger.info(f'Creating Nautobot Prefix: {ids["network"]} in Namespace: {ids["namespace"]}')
         try:
             _namespace = ORMNamespace.objects.get(name=ids["namespace"])
         except ORMNamespace.DoesNotExist:
             _namespace = ORMNamespace.objects.get(name="Global")
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f'Nautobot Namespace {ids["namespace"]} does not exist. Defaulting to Global Namespace.'
             )
         try:
@@ -1544,20 +1548,20 @@ class NautobotPrefix(Prefix):
         except ORMVLANGroup.DoesNotExist:
             _vlan = None
             if attrs["vlan"]:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f'Nautobot VLANGroup {attrs["vlan"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                 )
         except ORMVLAN.DoesNotExist:
             _vlan = None
             if attrs["vlan"]:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f'Nautobot VLAN {attrs["vlan"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                 )
         try:
             _status = ORMStatus.objects.get(name=attrs["status"])
         except ORMStatus.DoesNotExist:
             _status = ORMStatus.objects.get(name="Active")
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f'Nautobot Status {attrs["status"]} does not exist. Make sure it is created manually or defined in global_settings.yaml. Defaulting to Status Active.'
             )
         try:
@@ -1565,7 +1569,7 @@ class NautobotPrefix(Prefix):
         except ORMRole.DoesNotExist:
             _role = None
             if attrs["role"]:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f'Nautobot Role {attrs["role"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                 )
         try:
@@ -1573,7 +1577,7 @@ class NautobotPrefix(Prefix):
         except ORMTenant.DoesNotExist:
             _tenant = None
             if attrs["tenant"]:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f'Nautobot Tenant {attrs["tenant"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                 )
         try:
@@ -1581,7 +1585,7 @@ class NautobotPrefix(Prefix):
         except ORMRiR.DoesNotExist:
             _rir = None
             if attrs["rir"]:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f'Nautobot RiR {attrs["rir"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                 )
         try:
@@ -1590,7 +1594,7 @@ class NautobotPrefix(Prefix):
                 for tag in attrs["tags"]:
                     _tags.append(ORMTag.objects.get(name=tag))
         except ORMTag.DoesNotExist:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f'Nautobot Tag {attrs["tags"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
             )
         new_prefix = ORMPrefix(
@@ -1622,7 +1626,7 @@ class NautobotPrefix(Prefix):
                         _locations.append(ORMLocation.objects.get(name=_location))
         except ORMLocation.DoesNotExist:
             _location = None
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f'Nautobot Location {attrs["locations"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
             )
         if _locations:
@@ -1638,25 +1642,25 @@ class NautobotPrefix(Prefix):
                         _vrfs.append(ORMVRF.objects.get(name=_vrf_name, namespace=_namespace))
             if _vrfs:
                 for _vrf in _vrfs:
-                    diffsync.job.logger.debug(f"Assigning VRF {_vrf} to Prefix {new_prefix}")
+                    adapter.job.logger.debug(f"Assigning VRF {_vrf} to Prefix {new_prefix}")
                     new_prefix.vrfs.add(_vrf)
         except ORMNamespace.DoesNotExist:
             _vrf = None
             if attrs["vrfs"]:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f'Nautobot Namespace {attrs["vrfs"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                 )
         except ORMVRF.DoesNotExist:
             _vrf = None
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f'Nautobot VRF {attrs["vrfs"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
             )
 
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Prefix in Nautobot from NautobotPrefix object."""
-        self.diffsync.job.logger.info(f"Creating Nautobot Prefix: {self.network} in Namespace: {self.namespace}")
+        self.adapter.job.logger.info(f"Creating Nautobot Prefix: {self.network} in Namespace: {self.namespace}")
         _update_prefix = ORMPrefix.objects.get(id=self.uuid)
         if "prefix_type" in attrs:
             _update_prefix.prefix_type = attrs["prefix_type"]
@@ -1673,13 +1677,13 @@ class NautobotPrefix(Prefix):
             except ORMVLANGroup.DoesNotExist:
                 _vlan = None
                 if attrs["vlan"]:
-                    self.diffsync.job.logger.warning(
+                    self.adapter.job.logger.warning(
                         f'Nautobot VLANGroup {attrs["vlan"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                     )
             except ORMVLAN.DoesNotExist:
                 _vlan = None
                 if attrs["vlan"]:
-                    self.diffsync.job.logger.warning(
+                    self.adapter.job.logger.warning(
                         f'Nautobot VLAN {attrs["vlan"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                     )
             _update_prefix.vlan = _vlan
@@ -1688,7 +1692,7 @@ class NautobotPrefix(Prefix):
                 _status = ORMStatus.objects.get(name=attrs["status"])
             except ORMStatus.DoesNotExist:
                 _status = ORMStatus.objects.get(name="Active")
-                self.diffsync.job.logger.warning(
+                self.adapter.job.logger.warning(
                     f'Nautobot Status {attrs["status"]} does not exist. Make sure it is created manually or defined in global_settings.yaml. Defaulting to Status Active.'
                 )
             _update_prefix.status = _status
@@ -1698,7 +1702,7 @@ class NautobotPrefix(Prefix):
             except ORMRole.DoesNotExist:
                 _role = None
                 if attrs["role"]:
-                    self.diffsync.job.logger.warning(
+                    self.adapter.job.logger.warning(
                         f'Nautobot Role {attrs["role"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                     )
             _update_prefix.role = _role
@@ -1708,7 +1712,7 @@ class NautobotPrefix(Prefix):
             except ORMTenant.DoesNotExist:
                 _tenant = None
                 if attrs["tenant"]:
-                    self.diffsync.job.logger.warning(
+                    self.adapter.job.logger.warning(
                         f'Nautobot Tenant {attrs["tenant"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                     )
             _update_prefix.tenant = _tenant
@@ -1718,7 +1722,7 @@ class NautobotPrefix(Prefix):
             except ORMRiR.DoesNotExist:
                 _rir = None
                 if attrs["rir"]:
-                    self.diffsync.job.logger.warning(
+                    self.adapter.job.logger.warning(
                         f'Nautobot RiR {attrs["rir"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                     )
             _update_prefix.rir = _rir
@@ -1728,7 +1732,7 @@ class NautobotPrefix(Prefix):
                 for tag in attrs["tags"]:
                     _tags.append(ORMTag.objects.get(name=tag))
             except ORMTag.DoesNotExist:
-                self.diffsync.job.logger.warning(
+                self.adapter.job.logger.warning(
                     f'Nautobot Tag {attrs["tags"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                 )
         if "date_allocated" in attrs:
@@ -1748,7 +1752,7 @@ class NautobotPrefix(Prefix):
                     _update_prefix.locations.clear()
             except ORMLocation.DoesNotExist:
                 _location = None
-                self.diffsync.job.logger.warning(
+                self.adapter.job.logger.warning(
                     f'Nautobot Location {attrs["locations"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                 )
             if _locations:
@@ -1768,17 +1772,17 @@ class NautobotPrefix(Prefix):
                 if _vrfs:
                     for _vrf in _vrfs:
                         _update_prefix.vrfs.clear()
-                        self.diffsync.job.logger.debug(f"Assigning VRF {_vrf} to Prefix {_update_prefix}")
+                        self.adapter.job.logger.debug(f"Assigning VRF {_vrf} to Prefix {_update_prefix}")
                         _update_prefix.vrfs.add(_vrf)
             except ORMNamespace.DoesNotExist:
                 _vrf = None
                 if attrs["vrfs"]:
-                    self.diffsync.job.logger.warning(
+                    self.adapter.job.logger.warning(
                         f'Nautobot Namespace {attrs["vrfs"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                     )
             except ORMVRF.DoesNotExist:
                 _vrf = None
-                self.diffsync.job.logger.warning(
+                self.adapter.job.logger.warning(
                     f'Nautobot VRF {attrs["vrfs"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                 )
         if not check_sor_field(_update_prefix):
@@ -1790,16 +1794,16 @@ class NautobotPrefix(Prefix):
 
     def delete(self):
         """Delete Prefix in Nautobot from NautobotPrefix object."""
-        self.diffsync.job.logger.debug(f"Delete Nautobot VRF {self.uuid}")
+        self.adapter.job.logger.debug(f"Delete Nautobot VRF {self.uuid}")
         try:
             _prefix = ORMPrefix.objects.get(id=self.uuid)
             super().delete()
             _prefix.delete()
             return self
         except ORMPrefix.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find Prefix {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find Prefix {self.uuid} for deletion. {err}")
         except ProtectedError as err:
-            self.diffsync.job.logger.warning(
+            self.adapter.job.logger.warning(
                 f"Unable to delete Prefix {self.name} due to existing references. Error: {err}."
             )
 
@@ -1808,14 +1812,14 @@ class NautobotSecret(Secret):
     """Nautobot implementation of Bootstrap Secret model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Secret in Nautobot from NautobotSecret object."""
-        diffsync.job.logger.info(f'Creating Nautobot Secret: {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot Secret: {ids["name"]}')
         new_secret = ORMSecret(name=ids["name"], provider=attrs["provider"], parameters=attrs["parameters"])
         new_secret.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_secret.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
         new_secret.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Secret in Nautobot from NautobotSecret object."""
@@ -1832,35 +1836,35 @@ class NautobotSecret(Secret):
 
     def delete(self):
         """Delete Secret in Nautobot from NautobotSecret object."""
-        self.diffsync.job.logger.debug(f"Delete secret uuid: {self.uuid}")
+        self.adapter.job.logger.debug(f"Delete secret uuid: {self.uuid}")
         try:
             secr = ORMSecret.objects.get(id=self.uuid)
             super().delete()
             secr.delete()
             return self
         except ORMSecret.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find Secret {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find Secret {self.uuid} for deletion. {err}")
 
 
 class NautobotSecretsGroup(SecretsGroup):
     """Nautobot implementation of Bootstrap SecretsGroup model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create SecretsGroup in Nautobot from NautobotSecretsGroup object."""
-        diffsync.job.logger.info(f'Creating Nautobot Secrets Group: {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot Secrets Group: {ids["name"]}')
         _new_secrets_group = ORMSecretsGroup(name=ids["name"])
         _new_secrets_group.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
         _new_secrets_group.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_secrets_group.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
         _group = ORMSecretsGroup.objects.get(name=ids["name"])
         for _secret in attrs["secrets"]:
             try:
                 _orm_secret = ORMSecret.objects.get(name=_secret["name"])
             except ORMSecret.DoesNotExist:
-                diffsync.job.logger.info(f'Secret {_secret["name"]} does not exist in Nautobot, ensure it is created.')
+                adapter.job.logger.info(f'Secret {_secret["name"]} does not exist in Nautobot, ensure it is created.')
             try:
                 _group.secrets.get(name=_secret["name"])
             except ORMSecret.DoesNotExist:
@@ -1873,14 +1877,14 @@ class NautobotSecretsGroup(SecretsGroup):
 
     def update(self, attrs):
         """Update SecretsGroup in Nautobot from NautobotSecretsGroup object."""
-        self.diffsync.job.logger.info(f"Updating SecretsGroup {self.name}")
+        self.adapter.job.logger.info(f"Updating SecretsGroup {self.name}")
         _update_group = ORMSecretsGroup.objects.get(name=self.name)
         if "secrets" in attrs:
             for _secret in attrs["secrets"]:
                 try:
                     _orm_secret = ORMSecret.objects.get(name=_secret["name"])
                 except ORMSecret.DoesNotExist:
-                    self.diffsync.job.logger.info(
+                    self.adapter.job.logger.info(
                         f'Secret {_secret["name"]} does not exist in Nautobot, ensure it is created.'
                     )
                 try:
@@ -1901,23 +1905,23 @@ class NautobotSecretsGroup(SecretsGroup):
 
     def delete(self):
         """Delete SecretsGroup in Nautobot from NautobotSecretsGroup object."""
-        self.diffsync.job.logger.debug(f"Delete SecretsGroup uuid: {self.uuid}")
+        self.adapter.job.logger.debug(f"Delete SecretsGroup uuid: {self.uuid}")
         try:
             secr = ORMSecretsGroup.objects.get(id=self.uuid)
             super().delete()
             secr.delete()
             return self
         except ORMSecretsGroup.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find SecretsGroup {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find SecretsGroup {self.uuid} for deletion. {err}")
 
 
 class NautobotGitRepository(GitRepository):
     """Nautobot implementation of Bootstrap GitRepository model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create GitRepository in Nautobot from NautobotGitRepository object."""
-        diffsync.job.logger.info(f'Creating Nautobot Git Repository: {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot Git Repository: {ids["name"]}')
         _secrets_group = None
         if attrs.get("secrets_group"):
             _secrets_group = ORMSecretsGroup.objects.get(name=attrs["secrets_group"])
@@ -1931,11 +1935,11 @@ class NautobotGitRepository(GitRepository):
         new_gitrepository.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_gitrepository.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
         new_gitrepository.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update GitRepository in Nautobot from NautobotSecretsGroup object."""
-        self.diffsync.job.logger.info(f"Updating GitRepository {self.name}")
+        self.adapter.job.logger.info(f"Updating GitRepository {self.name}")
         _update_git_repo = ORMGitRepository.objects.get(name=self.name)
         if attrs.get("url"):
             _update_git_repo.remote_url = attrs["url"]
@@ -1954,26 +1958,26 @@ class NautobotGitRepository(GitRepository):
 
     def delete(self):
         """Delete GitRepository in Nautobot from NautobotGitRepository object."""
-        self.diffsync.job.logger.debug(f"Delete GitRepository uuid: {self.uuid}")
+        self.adapter.job.logger.debug(f"Delete GitRepository uuid: {self.uuid}")
         try:
             git_repo = ORMGitRepository.objects.get(id=self.uuid)
             super().delete()
             git_repo.delete()
             return self
         except ORMGitRepository.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find GitRepository {self.uuid} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find GitRepository {self.uuid} for deletion. {err}")
 
 
 class NautobotDynamicGroup(DynamicGroup):
     """Nautobot implementation of Bootstrap DynamicGroup model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create DynamicGroup in Nautobot from NautobotDynamicGroup object."""
-        diffsync.job.logger.info(f'Creating Nautobot Dynamic Group: {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot Dynamic Group: {ids["name"]}')
         _content_type_id = lookup_content_type_id(nb_model="dynamic_groups", model_path=ids["content_type"])
         if _content_type_id is None:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f'Could not find ContentType for {ids["label"]} with ContentType {ids["content_type"]}'
             )
         _content_type = ContentType.objects.get_for_id(id=_content_type_id)
@@ -1995,11 +1999,11 @@ class NautobotDynamicGroup(DynamicGroup):
                 _new_nb_dg.description = attrs["description"]
             _new_nb_dg.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
             _new_nb_dg.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update DynamicGroups in Nautobot from NautobotDynamicGroup object."""
-        self.diffsync.job.logger.info(f"Updating DynamicGroup {self.name}")
+        self.adapter.job.logger.info(f"Updating DynamicGroup {self.name}")
         _update_dyn_group = ORMDynamicGroup.objects.get(name=self.name)
         if attrs.get("dynamic_filter"):
             _update_dyn_group.filter = attrs["dynamic_filter"]
@@ -2013,26 +2017,26 @@ class NautobotDynamicGroup(DynamicGroup):
 
     def delete(self):
         """Delete DynamicGroup in Nautobot from NautobotDynamicGroup object."""
-        self.diffsync.job.logger.debug(f"Delete DynamicGroup uuid: {self.name}")
+        self.adapter.job.logger.debug(f"Delete DynamicGroup uuid: {self.name}")
         try:
             dyn_group = ORMDynamicGroup.objects.get(name=self.name)
             super().delete()
             dyn_group.delete()
             return self
         except ORMDynamicGroup.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find DynamicGroup {self.name} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find DynamicGroup {self.name} for deletion. {err}")
 
 
 class NautobotComputedField(ComputedField):
     """Nautobot implementation of Bootstrap ComputedField model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create ComputedField in Nautobot from NautobotComputedField object."""
-        diffsync.job.logger.info(f'Creating Nautobot Computed Field: {ids["label"]}')
+        adapter.job.logger.info(f'Creating Nautobot Computed Field: {ids["label"]}')
         _content_type_id = lookup_content_type_id(nb_model="custom_fields", model_path=attrs["content_type"])
         if _content_type_id is None:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f'Could not find ContentType for {ids["label"]} with ContentType {attrs["content_type"]}'
             )
         _content_type = ContentType.objects.get_for_id(id=_content_type_id)
@@ -2040,16 +2044,16 @@ class NautobotComputedField(ComputedField):
             label=ids["label"], content_type=_content_type, template=attrs["template"]
         )
         _new_computed_field.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update ComputedField in Nautobot from NautobotComputedField object."""
-        self.diffsync.job.logger.info(f"Updating ComputedField {self.label}")
+        self.adapter.job.logger.info(f"Updating ComputedField {self.label}")
         comp_field = ORMComputedField.objects.get(label=self.label)
         if attrs.get("content_type"):
             _content_type_id = lookup_content_type_id(nb_model="custom_fields", model_path=attrs["content_type"])
             if _content_type_id is None:
-                self.diffsync.job.logger.warning(
+                self.adapter.job.logger.warning(
                     f'Could not find ContentType for {self["label"]} with ContentType {attrs["content_type"]}'
                 )
             _content_type = ContentType.objects.get_for_id(id=_content_type_id)
@@ -2061,26 +2065,26 @@ class NautobotComputedField(ComputedField):
 
     def delete(self):
         """Delete ComputedField in Nautobot from NautobotComputedField object."""
-        self.diffsync.job.logger.debug(f"Delete ComputedField: {self.label}")
+        self.adapter.job.logger.debug(f"Delete ComputedField: {self.label}")
         try:
             comp_field = ORMComputedField.objects.get(label=self.label)
             super().delete()
             comp_field.delete()
             return self
         except ORMComputedField.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find ComputedField {self.label} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find ComputedField {self.label} for deletion. {err}")
 
 
 class NautobotTag(Tag):
     """Nautobot implementation of Bootstrap Tag model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Tag in Nautobot from NautobotTag object."""
         _content_types = []
-        diffsync.job.logger.info(f'Creating Nautobot Tag: {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot Tag: {ids["name"]}')
         for _model in attrs["content_types"]:
-            diffsync.job.logger.debug(f"Looking up {_model} in content types.")
+            adapter.job.logger.debug(f"Looking up {_model} in content types.")
             _content_types.append(lookup_content_type_for_taggable_model_path(_model))
         _new_tag = ORMTag(
             name=ids["name"],
@@ -2092,18 +2096,18 @@ class NautobotTag(Tag):
         _new_tag.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_tag.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
         _new_tag.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Tag in Nautobot from NautobotTag object."""
-        self.diffsync.job.logger.info(f"Updating Tag {self.name}")
+        self.adapter.job.logger.info(f"Updating Tag {self.name}")
         _update_tag = ORMTag.objects.get(name=self.name)
         if attrs.get("color"):
             _update_tag.color = attrs["color"]
         if attrs.get("content_types"):
             _content_types = []
             for _model in attrs["content_types"]:
-                self.diffsync.job.logger.debug(f"Looking up {_model} in content types.")
+                self.adapter.job.logger.debug(f"Looking up {_model} in content types.")
                 _content_types.append(lookup_content_type_for_taggable_model_path(_model))
             _update_tag.content_types.set(_content_types)
         if attrs.get("description"):
@@ -2116,30 +2120,30 @@ class NautobotTag(Tag):
 
     def delete(self):
         """Delete Tag in Nautobot from NautobotTag object."""
-        self.diffsync.job.logger.debug(f"Delete Tag: {self.name}")
+        self.adapter.job.logger.debug(f"Delete Tag: {self.name}")
         try:
             _tag = ORMTag.objects.get(name=self.name)
             super().delete()
             _tag.delete()
             return self
         except ORMTag.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find Tag {self.name} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find Tag {self.name} for deletion. {err}")
 
 
 class NautobotGraphQLQuery(GraphQLQuery):
     """Nautobot implementation of Bootstrap GraphQLQuery model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create GraphQLQuery in Nautobot from NautobotGraphQLQuery object."""
-        diffsync.job.logger.info(f'Creating Nautobot GraphQLQuery: {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot GraphQLQuery: {ids["name"]}')
         _new_query = ORMGraphQLQuery(name=ids["name"], query=attrs["query"])
         _new_query.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update GraphQLQuery in Nautobot from NautobotGraphQLQuery object."""
-        self.diffsync.job.logger.info(f"Updating GraphQLQuery: {self.name}.")
+        self.adapter.job.logger.info(f"Updating GraphQLQuery: {self.name}.")
         _query = ORMGraphQLQuery.objects.get(name=self.name)
         if attrs.get("query"):
             _query.query = attrs["query"]
@@ -2148,14 +2152,14 @@ class NautobotGraphQLQuery(GraphQLQuery):
 
     def delete(self):
         """Delete GraphQLQuery in Nautobot from NautobotGraphQLQuery object."""
-        self.diffsync.job.logger.debug(f"Delete GraphQLQuery: {self.name}")
+        self.adapter.job.logger.debug(f"Delete GraphQLQuery: {self.name}")
         try:
             _query = ORMGraphQLQuery.objects.get(name=self.name)
             super().delete()
             _query.delete()
             return self
         except ORMGraphQLQuery.DoesNotExist as err:
-            self.diffsync.job.logger.warning(f"Unable to find GraphQLQuery {self.name} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find GraphQLQuery {self.name} for deletion. {err}")
 
 
 if LIFECYCLE_MGMT:
@@ -2164,9 +2168,9 @@ if LIFECYCLE_MGMT:
         """Nautobot implementation of Bootstrap Software model."""
 
         @classmethod
-        def create(cls, diffsync, ids, attrs):
+        def create(cls, adapter, ids, attrs):
             """Create Software in Nautobot from NautobotSoftware object."""
-            diffsync.job.logger.info(f'Creating Nautobot Software object {ids["platform"]} - {ids["version"]}.')
+            adapter.job.logger.info(f'Creating Nautobot Software object {ids["platform"]} - {ids["version"]}.')
             _tags = []
             for tag in attrs["tags"]:
                 _tags.append(ORMTag.objects.get(name=tag))
@@ -2188,11 +2192,11 @@ if LIFECYCLE_MGMT:
             _new_software.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
             _new_software.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
             _new_software.validated_save()
-            return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+            return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
         def update(self, attrs):
             """Update Software in Nautobot from NautobotSoftware object."""
-            self.diffsync.job.logger.info(f"Updating Software: {self.platform} - {self.version}.")
+            self.adapter.job.logger.info(f"Updating Software: {self.platform} - {self.version}.")
             _tags = []  # noqa: F841
             _platform = ORMPlatform.objects.get(name=self.platform)
             _update_software = ORMSoftware.objects.get(version=self.version, device_platform=_platform)
@@ -2232,7 +2236,7 @@ if LIFECYCLE_MGMT:
                 _software.delete()
                 return self
             except ORMSoftware.DoesNotExist as err:
-                self.diffsync.job.logger.warning(
+                self.adapter.job.logger.warning(
                     f"Unable to find Software {self.platform} - {self.version} for deletion. {err}"
                 )
 
@@ -2240,7 +2244,7 @@ if LIFECYCLE_MGMT:
         """Nautobot implementation of Bootstrap SoftwareImage model."""
 
         @classmethod
-        def create(cls, diffsync, ids, attrs):
+        def create(cls, adapter, ids, attrs):
             """Create SoftwareImage in Nautobot from NautobotSoftwareImage object."""
             _tags = []
             if attrs["tags"] is not None:
@@ -2264,11 +2268,11 @@ if LIFECYCLE_MGMT:
             _new_soft_image.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
             _new_soft_image.custom_field_data.update({"ssot_last_synchronized": datetime.today().date().isoformat()})
             _new_soft_image.validated_save()
-            return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+            return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
         def update(self, attrs):
             """Update SoftwareImage in Nautobot from NautobotSoftwareImage object."""
-            self.diffsync.job.logger.info(f"Updating Software Image: {self.platform} - {self.software_version}.")
+            self.adapter.job.logger.info(f"Updating Software Image: {self.platform} - {self.software_version}.")
             _platform = ORMPlatform.objects.get(name=self.platform)
             _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
             _update_soft_image = ORMSoftwareImage.objects.get(software=_software)
@@ -2309,13 +2313,13 @@ if LIFECYCLE_MGMT:
                 _soft_image.delete()
                 return self
             except ORMSoftwareImage.DoesNotExist as err:
-                self.diffsync.job.logger.warning(f"Unable to find SoftwareImage {self.software} for deletion. {err}")
+                self.adapter.job.logger.warning(f"Unable to find SoftwareImage {self.software} for deletion. {err}")
 
     class NautobotValidatedSoftware(ValidatedSoftware):
         """Nautobot implementation of Bootstrap ValidatedSoftware model."""
 
         @classmethod
-        def create(cls, diffsync, ids, attrs):
+        def create(cls, adapter, ids, attrs):
             """Create ValidatedSoftware in Nautobot from NautobotValidatedSoftware object."""
             _devices = []  # noqa: F841
             _device_types = []  # noqa: F841
@@ -2367,11 +2371,11 @@ if LIFECYCLE_MGMT:
                     for _tag in attrs["tags"]:
                         _new_validated_software.tags.add(ORMTag.objects.get(name=_tag))
             _new_validated_software.validated_save()
-            return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+            return super().create(diffsync=adapter, ids=ids, attrs=attrs)
 
         def update(self, attrs):
             """Update ValidatedSoftware in Nautobot from NautobotValidatedSoftware object."""
-            self.diffsync.job.logger.info(f"Updating Validated Software - {self} with attrs {attrs}.")
+            self.adapter.job.logger.info(f"Updating Validated Software - {self} with attrs {attrs}.")
             _tags = []  # noqa: F841
             _devices = []  # noqa: F841
             _device_types = []  # noqa: F841
@@ -2447,4 +2451,4 @@ if LIFECYCLE_MGMT:
                 _validated_software.delete()
                 return self
             except ORMValidatedSoftware.DoesNotExist as err:
-                self.diffsync.job.logger.warning(f"Unable to find ValidatedSoftware {self} for deletion. {err}")
+                self.adapter.job.logger.warning(f"Unable to find ValidatedSoftware {self} for deletion. {err}")
