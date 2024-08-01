@@ -47,40 +47,45 @@ def sort_relationships(diffsync: DiffSync):
 
     NOTE: The listed attribute MUST be a list of dictionaries indicating many-to-many relationships on either side
     or a one-to-many relationship from the many side.
-
     """
     if not hasattr(diffsync, "_sorted_relationships"):
         # Nothing to do
         return
+    if not isinstance(diffsync, DiffSync):
+        raise TypeError("Parameter for `sort_relationships()` must be of type DiffSync.")
+    if not diffsync._sorted_relationships:
+        return
 
     for entry in diffsync._sorted_relationships:
-        if not isinstance(entry, tuple) and not isinstance(entry, list):
-            diffsync.job.logger.error(f"{type(entry)} not allowed for sorting. Skipping entry.")
-            continue
 
-        if len(entry) != 3:
-            diffsync.job.logger.error(
-                "Sort Error: Invalid input. Defined objects sort must be a tuple with three entries "
-                "(object name, attribute name, and sort by key). Skipping entry."
-            )
-            continue
+        if not isinstance(entry, tuple) and not isinstance(entry, list):
+            raise TypeError(f"Invalid type: {type(entry)}. Valid types include tuples or lists.")
 
         obj_name = entry[0]
         attr_name = entry[1]
         sort_by_key = entry[2]
 
-        if not isinstance(obj_name, str) or not isinstance(attr_name, str) or not isinstance(sort_by_key, str):
-            diffsync.job.logger.error("Paramaters for `_sorted_relationship` entries must all be strings.")
-            continue
+        # if not isinstance(obj_name, str) or not isinstance(attr_name, str) or not isinstance(sort_by_key, str):
+        #     diffsync.job.logger.error("Paramaters for `_sorted_relationship` entries must all be strings.")
+        #     continue
 
         for obj in diffsync.get_all(obj_name):
+            sorted_data = sorted(
+                getattr(obj, attr_name),
+                key=lambda x: x[sort_by_key],
+            )
+            setattr(obj, attr_name, sorted_data)
+
             setattr(
                 obj,
                 attr_name,
-                sorted(getattr(obj, attr_name), key=lambda x: x[sort_by_key]),
+                sorted(
+                    getattr(obj, attr_name),
+                    key=lambda x: x[sort_by_key]
+                ),
             )
             diffsync.update(obj)
-    
+
 
 class NautobotAdapter(DiffSync):
     """

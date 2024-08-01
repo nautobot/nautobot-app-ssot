@@ -1,6 +1,6 @@
 """Base classes for contrib testing."""
 
-from typing import Optional, List
+from typing import Optional, List, TypedDict
 from unittest import skip
 from unittest.mock import MagicMock
 from diffsync.exceptions import ObjectNotCreated, ObjectNotUpdated, ObjectNotDeleted
@@ -527,3 +527,21 @@ class ProviderModelCustomRelationship(NautobotModel):
     tenants: Annotated[
         List[TenantDict], CustomRelationshipAnnotation(name="Test Relationship", side=RelationshipSideEnum.SOURCE)
     ] = []
+
+
+class CustomRelationshipTypedDict(TypedDict):
+    """Typed dictionary for testing custom many to many relationships."""
+
+    name: str
+
+
+class TenantModelCustomManyTomanyRelationship(NautobotModel):
+    """"""
+
+    _model = tenancy_models.Tenant
+    _modelname = "tenant"
+    _identifiers = ("name",)
+    _attributes = ("tenants",)
+
+    name: str
+    tenants: list[TenantDict] = []
