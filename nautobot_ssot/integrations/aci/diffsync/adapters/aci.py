@@ -8,7 +8,7 @@ import os
 import re
 from typing import Optional
 from ipaddress import ip_network
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.exceptions import ObjectNotFound
 from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG, HAS_ACI_MODELS
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotTenant
@@ -31,7 +31,7 @@ from nautobot_ssot.integrations.aci.diffsync.utils import load_yamlfile
 logger = logging.getLogger(__name__)
 
 
-class AciAdapter(DiffSync):
+class AciAdapter(Adapter):
     """DiffSync adapter for Cisco ACI."""
 
     tenant = NautobotTenant
@@ -75,15 +75,9 @@ class AciAdapter(DiffSync):
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
-        self.conn = AciApi(
-            username=client["username"],
-            password=client["password"],
-            base_uri=client["base_uri"],
-            verify=client["verify"],
-            site=client["site"],
-        )
+        self.conn = client
         self.site = client.get("site")
-        self.tenant_prefix = client.get("tenant_prefix")
+        self.tenant_prefix = tenant_prefix
         self.nodes = self.conn.get_nodes()
         self.controllers = self.conn.get_controllers()
         self.nodes.update(self.controllers)
@@ -451,6 +445,11 @@ class AciAdapter(DiffSync):
                 pod_id=value["pod_id"],
                 site=self.site,
                 site_tag=self.site,
+                controller_group=(
+                    self.job.apic.controller_managed_device_group.name
+                    if self.job.apic.controller_managed_device_group
+                    else ""
+                ),
             )
             self.add(new_device)
 

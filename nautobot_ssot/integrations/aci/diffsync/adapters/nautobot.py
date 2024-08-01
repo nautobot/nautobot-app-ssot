@@ -4,7 +4,7 @@
 
 import logging
 from collections import defaultdict
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.enum import DiffSyncModelFlags
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import ProtectedError
@@ -38,7 +38,7 @@ if HAS_ACI_MODELS:
 logger = logging.getLogger(__name__)
 
 
-class NautobotAdapter(DiffSync):
+class NautobotAdapter(Adapter):
     """Nautobot adapter for DiffSync."""
 
     objects_to_delete = defaultdict(list)
@@ -73,29 +73,28 @@ class NautobotAdapter(DiffSync):
         "aci_apptermination",
     ]
 
-    def __init__(self, *args, job=None, sync=None, client, **kwargs):
+    def __init__(self, *args, job=None, sync=None, site_name: str, **kwargs):
         """Initialize Nautobot.
 
         Args:
             job (object, optional): Nautobot job. Defaults to None.
             sync (object, optional): Nautobot DiffSync. Defaults to None.
-            client (object): ACI credentials.
+            site_name (str): Name of Site to filter objects on.
         """
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
-        self.site = client.get("site")
+        self.site = site_name
         self.site_tag = Tag.objects.get_or_create(name=self.site)[0]
-        self.tenant_prefix = client.get("tenant_prefix")
 
-    def sync_complete(self, source: DiffSync, *args, **kwargs):
+    def sync_complete(self, source: Adapter, *args, **kwargs):
         """Clean up function for DiffSync sync.
 
         Once the sync is complete, this function runs deleting any objects
         from Nautobot that need to be deleted in a specific order.
 
         Args:
-            source (DiffSync): DiffSync
+            source (Adapter): DiffSync Adapter
         """
         for grouping in (
             "aci_apptermination",
@@ -212,6 +211,9 @@ class NautobotAdapter(DiffSync):
                 node_id=nbdevice.custom_field_data["aci_node_id"],
                 pod_id=nbdevice.custom_field_data["aci_pod_id"],
                 site_tag=self.site,
+                controller_group=(
+                    nbdevice.controller_managed_device_group.name if nbdevice.controller_managed_device_group else ""
+                ),
             )
             self.add(_device)
 

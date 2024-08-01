@@ -5,6 +5,7 @@ from ipaddress import ip_network
 from django.db import IntegrityError
 from django.contrib.contenttypes.models import ContentType
 from nautobot.tenancy.models import Tenant as OrmTenant
+from nautobot.dcim.models import ControllerManagedDeviceGroup
 from nautobot.dcim.models import DeviceType as OrmDeviceType
 from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import InterfaceTemplate as OrmInterfaceTemplate
@@ -45,7 +46,7 @@ class NautobotTenant(Tenant):
     """Nautobot implementation of the Tenant Model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Tenant object in Nautobot."""
         _tenant = OrmTenant(name=ids["name"], description=attrs["description"], comments=attrs["comments"])
         if attrs["msite_tag"]:
@@ -55,7 +56,7 @@ class NautobotTenant(Tenant):
         _tenant.validated_save()
 
         Namespace.objects.get_or_create(name=ids["name"])
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update Tenant object in Nautobot."""
@@ -67,10 +68,10 @@ class NautobotTenant(Tenant):
 
     def delete(self):
         """Delete Tenant object in Nautobot."""
-        self.diffsync.job.logger.warning(f"Tenant {self.name} will be deleted.")
+        self.adapter.job.logger.warning(f"Tenant {self.name} will be deleted.")
         super().delete()
         _tenant = OrmTenant.objects.get(name=self.name)
-        self.diffsync.objects_to_delete["tenant"].append(_tenant)
+        self.adapter.objects_to_delete["tenant"].append(_tenant)
         return self
 
 
@@ -78,14 +79,14 @@ class NautobotVrf(Vrf):
     """Nautobot implementation of the VRF Model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create VRF object in Nautobot."""
         _tenant = OrmTenant.objects.get(name=ids["tenant"])
         _vrf = OrmVrf(name=ids["name"], tenant=_tenant, namespace=Namespace.objects.get(name=attrs["namespace"]))
         _vrf.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _vrf.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _vrf.validated_save()
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update VRF object in Nautobot."""
@@ -93,20 +94,20 @@ class NautobotVrf(Vrf):
         _vrf = OrmVrf.objects.get(name=self.name, tenant=_tenant)
         if attrs.get("description"):
             _vrf.description = attrs["description"]
-            self.diffsync.job.logger.info(f"VRF Update tenant: {_tenant} vrf: {_vrf} desc: {_vrf.description}")
+            self.adapter.job.logger.info(f"VRF Update tenant: {_tenant} vrf: {_vrf} desc: {_vrf.description}")
         if attrs.get("rd"):
             _vrf.rd = attrs["rd"]
         _vrf.validated_save()
-        self.diffsync.job.logger.info(f"VRF updated for tenant: {_tenant}")
+        self.adapter.job.logger.info(f"VRF updated for tenant: {_tenant}")
         return super().update(attrs)
 
     def delete(self):
         """Delete VRF object in Nautobot."""
-        self.diffsync.job.logger.warning(f"VRF {self.name} will be deleted.")
+        self.adapter.job.logger.warning(f"VRF {self.name} will be deleted.")
         super().delete()
         _tenant = OrmTenant.objects.get(name=self.tenant)
         _vrf = OrmVrf.objects.get(name=self.name, tenant=_tenant)
-        self.diffsync.objects_to_delete["vrf"].append(_vrf)  # pylint: disable=protected-access
+        self.adapter.objects_to_delete["vrf"].append(_vrf)  # pylint: disable=protected-access
         return self
 
 
@@ -114,7 +115,7 @@ class NautobotDeviceType(DeviceType):
     """Nautobot implementation of the DeviceType Model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create DeviceType object in Nautobot."""
         _devicetype = OrmDeviceType(
             model=ids["model"],
@@ -127,7 +128,7 @@ class NautobotDeviceType(DeviceType):
         _devicetype.tags.add(_tag)
         _devicetype.validated_save()
 
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update DeviceType object in Nautobot."""
@@ -143,7 +144,7 @@ class NautobotDeviceType(DeviceType):
 
     def delete(self):
         """Delete DeviceType object in Nautobot."""
-        self.diffsync.job.logger.warning(f"Device Type {self.model} will be deleted.")
+        self.adapter.job.logger.warning(f"Device Type {self.model} will be deleted.")
         _devicetype = OrmDeviceType.objects.get(model=self.model)
         _devicetype.delete()
         return super().delete()
@@ -153,12 +154,12 @@ class NautobotDeviceRole(DeviceRole):
     """Nautobot implementation of the DeviceRole Model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create DeviceRole object in Nautobot."""
         _devicerole = Role.objects.create(name=ids["name"], description=attrs["description"])
         _devicerole.content_types.add(ContentType.objects.get_for_model(OrmDevice))
         _devicerole.validated_save()
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update DeviceRole object in Nautobot."""
@@ -170,7 +171,7 @@ class NautobotDeviceRole(DeviceRole):
 
     def delete(self):
         """Delete DeviceRole object in Nautobot."""
-        self.diffsync.job.logger.warning(f"Device Role {self.name} will be deleted.")
+        self.adapter.job.logger.warning(f"Device Role {self.name} will be deleted.")
         _devicerole = Role.objects.get(name=self.name)
         _devicerole.delete()
         return super().delete()
@@ -180,7 +181,7 @@ class NautobotDevice(Device):
     """Nautobot implementation of the Device Model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Device object in Nautobot."""
         _device = OrmDevice(
             name=ids["name"],
@@ -188,6 +189,7 @@ class NautobotDevice(Device):
             device_type=OrmDeviceType.objects.get(model=attrs["device_type"]),
             serial=attrs["serial"],
             comments=attrs["comments"],
+            controller_managed_device_group=ControllerManagedDeviceGroup.objects.get(name=attrs["controller_group"]),
             location=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
             status=Status.objects.get(name="Active"),
         )
@@ -197,7 +199,7 @@ class NautobotDevice(Device):
         _device.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _device.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _device.validated_save()
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update Device object in Nautobot."""
@@ -213,6 +215,10 @@ class NautobotDevice(Device):
             _device.role = Role.objects.get(name=attrs["device_role"])
         if attrs.get("comments"):
             _device.comments = attrs["comments"]
+        if attrs.get("controller_group"):
+            _device.controller_managed_device_group = ControllerManagedDeviceGroup.objects.get(
+                name=attrs["controller_group"]
+            )
         if attrs.get("node_id"):
             _device.custom_field_data["aci_node_id"] = attrs["node_id"]
         if attrs.get("pod_id"):
@@ -222,13 +228,13 @@ class NautobotDevice(Device):
 
     def delete(self):
         """Delete Device object in Nautobot."""
-        self.diffsync.job.logger.warning(f"Device {self.name} will be deleted.")
+        self.adapter.job.logger.warning(f"Device {self.name} will be deleted.")
         super().delete()
         _device = OrmDevice.objects.get(
             name=self.name,
             location=Location.objects.get(name=self.site, location_type=LocationType.objects.get(name="Site")),
         )
-        self.diffsync.objects_to_delete["device"].append(_device)  # pylint: disable=protected-access
+        self.adapter.objects_to_delete["device"].append(_device)  # pylint: disable=protected-access
         return self
 
 
@@ -236,7 +242,7 @@ class NautobotInterfaceTemplate(InterfaceTemplate):
     """Nautobot implementation of the InterfaceTemplate Model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create InterfaceTemplate object in Nautobot."""
         _interfacetemplate = OrmInterfaceTemplate(
             device_type=OrmDeviceType.objects.get(model=ids["device_type"]),
@@ -246,7 +252,7 @@ class NautobotInterfaceTemplate(InterfaceTemplate):
         )
         _interfacetemplate.validated_save()
 
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update InterfaceTemplate object in Nautobot."""
@@ -261,7 +267,7 @@ class NautobotInterfaceTemplate(InterfaceTemplate):
 
     def delete(self):
         """Delete InterfaceTemplate object in Nautobot."""
-        self.diffsync.job.logger.warning(f"Interface Template {self.name} will be deleted.")
+        self.adapter.job.logger.warning(f"Interface Template {self.name} will be deleted.")
         _interfacetemplate = OrmInterfaceTemplate.objects.get(
             name=self.name,
             device_type=OrmDeviceType.objects.get(model=self.device_type),
@@ -274,7 +280,7 @@ class NautobotInterface(Interface):
     """Nautobot implementation of the Interface Model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Interface object in Nautobot."""
         _interface = OrmInterface(
             name=ids["name"],
@@ -296,7 +302,7 @@ class NautobotInterface(Interface):
             _interface.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag_down")))
         _interface.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _interface.validated_save()
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update Interface object in Nautobot."""
@@ -330,14 +336,14 @@ class NautobotInterface(Interface):
 
     def delete(self):
         """Delete Interface object in Nautobot."""
-        self.diffsync.job.logger.warning(f"Interface {self.name} will be deleted.")
+        self.adapter.job.logger.warning(f"Interface {self.name} will be deleted.")
         try:
             device = OrmDevice.objects.get(
                 name=self.device,
                 location=Location.objects.get(name=self.site, location_type=LocationType.objects.get(name="Site")),
             )
         except OrmDevice.DoesNotExist:
-            self.diffsync.job.logger.warning(
+            self.adapter.job.logger.warning(
                 f"Device {self.device} does not exist, skipping deletion of interface {self.name}"
             )
         else:
@@ -350,7 +356,7 @@ class NautobotIPAddress(IPAddress):
     """Nautobot implementation of the IPAddress Model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create IPAddress object in Nautobot."""
         _device = attrs["device"]
         _interface = attrs["interface"]
@@ -361,9 +367,9 @@ class NautobotIPAddress(IPAddress):
                     name=_interface, device__name=_device, device__location__name=ids["site"]
                 )
             except OrmInterface.DoesNotExist:
-                diffsync.job.logger.warning(f"{_device} missing interface {_interface} to assign {ids['address']}.")
+                adapter.job.logger.warning(f"{_device} missing interface {_interface} to assign {ids['address']}.")
             except OrmInterface.MultipleObjectsReturned:
-                diffsync.job.logger.warning(f"Found Multiple {_interface} in {_device} to assign {ids['address']}.")
+                adapter.job.logger.warning(f"Found Multiple {_interface} in {_device} to assign {ids['address']}.")
         if ids["tenant"]:
             _tenant = OrmTenant.objects.get(name=ids["tenant"])
         else:
@@ -372,10 +378,10 @@ class NautobotIPAddress(IPAddress):
             _namespace = Namespace.objects.get(name=ids["namespace"])
             _parent = OrmPrefix.objects.get(prefix=attrs["prefix"], namespace=_namespace)
         except Namespace.DoesNotExist:
-            diffsync.job.logger.warning(f"{ids['namespace']} missing Namespace to assign IP address: {ids['address']}")
+            adapter.job.logger.warning(f"{ids['namespace']} missing Namespace to assign IP address: {ids['address']}")
             return None
         except OrmPrefix.DoesNotExist:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f"{attrs['prefix']} missing Parent Prefix to assign IP address: {ids['address']}"
             )
             return None
@@ -389,7 +395,7 @@ class NautobotIPAddress(IPAddress):
                 tenant=_tenant,
             )
         except IntegrityError:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f"Unable to create IP Address {ids['address']}. Duplicate Address or Parent Prefix: {attrs['prefix']} in Namespace: {ids['namespace']}"
             )
             return None
@@ -408,7 +414,7 @@ class NautobotIPAddress(IPAddress):
             )
             device.primary_ip4 = OrmIPAddress.objects.get(address=ids["address"])
             device.save()
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update IPAddress object in Nautobot."""
@@ -436,13 +442,13 @@ class NautobotIPAddress(IPAddress):
 
     def delete(self):
         """Delete IPAddress object in Nautobot."""
-        self.diffsync.job.logger.warning(f"IP Address {self.address} will be deleted.")
+        self.adapter.job.logger.warning(f"IP Address {self.address} will be deleted.")
         super().delete()
         _ipaddress = OrmIPAddress.objects.get(
             address=self.address,
             tenant=OrmTenant.objects.get(name=self.tenant),
         )
-        self.diffsync.objects_to_delete["ipaddress"].append(_ipaddress)  # pylint: disable=protected-access
+        self.adapter.objects_to_delete["ipaddress"].append(_ipaddress)  # pylint: disable=protected-access
         return self
 
 
@@ -450,12 +456,12 @@ class NautobotPrefix(Prefix):
     """Nautobot implementation of the Prefix Model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Prefix object in Nautobot."""
         try:
             vrf_tenant = OrmTenant.objects.get(name=attrs["vrf_tenant"])
         except OrmTenant.DoesNotExist:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f"Tenant {attrs['vrf_tenant']} not found for VRF while creating Prefix: {ids['prefix']}"
             )
             vrf_tenant = None
@@ -465,7 +471,7 @@ class NautobotPrefix(Prefix):
             try:
                 vrf = OrmVrf.objects.get(name=ids["vrf"], tenant=OrmTenant.objects.get(name=attrs["vrf_tenant"]))
             except OrmVrf.DoesNotExist:
-                diffsync.job.logger.warning(f"VRF {ids['vrf']} not found to associate prefix {ids['prefix']}")
+                adapter.job.logger.warning(f"VRF {ids['vrf']} not found to associate prefix {ids['prefix']}")
                 vrf = None
         else:
             vrf = None
@@ -479,7 +485,7 @@ class NautobotPrefix(Prefix):
         )
 
         if not created:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f"Prefix: {_prefix.prefix} duplicate in Namespace: {_prefix.namespace.name}. Skipping .."
             )
             return None
@@ -488,7 +494,7 @@ class NautobotPrefix(Prefix):
         _prefix.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _prefix.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _prefix.validated_save()
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update Prefix object in Nautobot."""
@@ -508,7 +514,7 @@ class NautobotPrefix(Prefix):
 
     def delete(self):
         """Delete Prefix object in Nautobot."""
-        self.diffsync.job.logger.warning(f"Prefix {self.prefix} will be deleted.")
+        self.adapter.job.logger.warning(f"Prefix {self.prefix} will be deleted.")
         super().delete()
 
         try:
@@ -526,7 +532,7 @@ class NautobotPrefix(Prefix):
             tenant=tenant,
             vrfs=OrmVrf.objects.get(name=self.vrf, tenant=vrf_tenant),
         )
-        self.diffsync.objects_to_delete["prefix"].append(_prefix)  # pylint: disable=protected-access
+        self.adapter.objects_to_delete["prefix"].append(_prefix)  # pylint: disable=protected-access
         return self
 
 
@@ -534,16 +540,16 @@ class NautobotApplicationProfile(ApplicationProfile):
     """Nautobot implementation of the AppProfile Model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create AP object in Nautobot."""
         _tenant = OrmTenant.objects.get(name=ids["tenant"])
         _appprofile = OrmApplicationProfile(name=ids["name"], tenant=_tenant, description=attrs["description"])
         _appprofile.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _appprofile.tags.add(Tag.objects.get(name=attrs["site_tag"]))
-        if diffsync.job.debug:
-            diffsync.job.logger.debug(f"App Profile Created for tenant: {_tenant}")
+        if adapter.job.debug:
+            adapter.job.logger.debug(f"App Profile Created for tenant: {_tenant}")
         _appprofile.validated_save()
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update AP object in Nautobot."""
@@ -551,17 +557,17 @@ class NautobotApplicationProfile(ApplicationProfile):
         _appprofile = OrmApplicationProfile.objects.get(name=self.name, tenant=_tenant)
         _appprofile.description = attrs.get("description", "")
         _appprofile.validated_save()
-        if diffsync.job.debug:
-            self.diffsync.job.logger.debug(f"App Profile updated for tenant: {_tenant}")
+        if adapter.job.debug:
+            self.adapter.job.logger.debug(f"App Profile updated for tenant: {_tenant}")
         return super().update(attrs)
 
     def delete(self):
         """Delete AP object in Nautobot."""
-        self.diffsync.job.logger.warning(f"App Profile {self.name} will be deleted.")
+        self.adapter.job.logger.warning(f"App Profile {self.name} will be deleted.")
         super().delete()
         _tenant = OrmTenant.objects.get(name=self.tenant)
         _appprofile = OrmApplicationProfile.objects.get(name=self.name, tenant=_tenant)
-        self.diffsync.objects_to_delete["aci_appprofile"].append(_appprofile)  # pylint: disable=protected-access
+        self.adapter.objects_to_delete["aci_appprofile"].append(_appprofile)  # pylint: disable=protected-access
         return self
 
 
@@ -569,7 +575,7 @@ class NautobotBridgeDomain(BridgeDomain):
     """Nautobot implementation of the VRF Model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create BD object in Nautobot."""
         try:
             _tenant = OrmTenant.objects.get(name=ids["tenant"])
@@ -580,17 +586,17 @@ class NautobotBridgeDomain(BridgeDomain):
                 _vrf_tenant = OrmTenant.objects.get(name=ids["vrf"]["vrf_tenant"])
             _vrf = OrmVrf.objects.get(name=ids["vrf"]["name"], tenant=_vrf_tenant, namespace=_namespace)
         except OrmTenant.DoesNotExist:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 msg=f"Cannot create BD: {ids['name']} - Tenant: {ids['vrf']['vrf_tenant']} does not exist."
             )
             return
         except OrmVrf.DoesNotExist:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 msg=f"Cannot create BD: {ids['name']} - VRF: {ids['vrf']['name']} does not exist."
             )
             return
         except Namespace.DoesNotExist:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 msg=f"Cannot create BD: {ids['name']} - Namespace: {ids['vrf']['namespace']} does not exist."
             )
             return
@@ -600,8 +606,8 @@ class NautobotBridgeDomain(BridgeDomain):
             vrf=_vrf,
             description=attrs["description"],
         )
-        if diffsync.job.debug:
-            diffsync.job.logger.debug(
+        if adapter.job.debug:
+            adapter.job.logger.debug(
                 msg=f"Creating Bridge Domain: {ids['name']} in Tenant {ids['tenant']} VRF: {ids['vrf']['name']}"
             )
         # saving to attach M2M relationships
@@ -618,7 +624,7 @@ class NautobotBridgeDomain(BridgeDomain):
                     parent__namespace=_namespace,
                 )
             except OrmIPAddress.DoesNotExist:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     msg=f"Cannot attach Gateway: {ip_address} - to BD: {ids['name']} IP Address does not exist."
                 )
                 continue
@@ -626,7 +632,7 @@ class NautobotBridgeDomain(BridgeDomain):
 
         _bd.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _bd.tags.add(Tag.objects.get(name=attrs["site_tag"]))
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update BD object in Nautobot."""
@@ -636,12 +642,12 @@ class NautobotBridgeDomain(BridgeDomain):
             )
             _bd = OrmBridgeDomain.objects.get(name=self.name, vrf=_vrf, tenant__name=self.tenant)
         except OrmVrf.DoesNotExist:
-            self.diffsync.job.logger.warning(
+            self.adapter.job.logger.warning(
                 msg=f"Cannot update BD: {self.name} - VRF: {self.vrf['name']} does not exist."
             )
             return
         except OrmBridgeDomain.DoesNotExist:
-            self.diffsync.job.logger.warning(msg=f"Cannot update BD: {self.name} - BD does not exist.")
+            self.adapter.job.logger.warning(msg=f"Cannot update BD: {self.name} - BD does not exist.")
             return
         if attrs.get("description"):
             _bd.description = attrs["description"]
@@ -658,7 +664,7 @@ class NautobotBridgeDomain(BridgeDomain):
                         tenant=_vrf.tenant,
                     )
                 except OrmIPAddress.DoesNotExist:
-                    self.diffsync.job.logger.warning(
+                    self.adapter.job.logger.warning(
                         msg=f"Cannot attach Gateway: {ip_address} - to BD: {self.name} IP Address does not exist."
                     )
                     continue
@@ -668,13 +674,13 @@ class NautobotBridgeDomain(BridgeDomain):
             # clean ip address rel list if empty.
             _bd.ip_addresses.set([])
         _bd.validated_save()
-        if self.diffsync.job.debug:
-            self.diffsync.job.logger.debug(f"BD {_bd.name} updated in VRF: {_vrf.name}")
+        if self.adapter.job.debug:
+            self.adapter.job.logger.debug(f"BD {_bd.name} updated in VRF: {_vrf.name}")
         return super().update(attrs)
 
     def delete(self):
         """Delete BD object in Nautobot."""
-        self.diffsync.job.logger.warning(f"BD {self.name} will be deleted.")
+        self.adapter.job.logger.warning(f"BD {self.name} will be deleted.")
         super().delete()
         _vrf = OrmVrf.objects.get(
             name=self.vrf["name"],
@@ -682,7 +688,7 @@ class NautobotBridgeDomain(BridgeDomain):
             namespace__name=self.vrf["namespace"],
         )
         _bd = OrmBridgeDomain.objects.get(name=self.name, vrf=_vrf, tenant__name=self.tenant)
-        self.diffsync.objects_to_delete["aci_bridgedomain"].append(_bd)  # pylint: disable=protected-access
+        self.adapter.objects_to_delete["aci_bridgedomain"].append(_bd)  # pylint: disable=protected-access
         return self
 
 
@@ -690,7 +696,7 @@ class NautobotEPG(EPG):
     """Nautobot implementation of the EPG Model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create BD object in Nautobot."""
         try:
             _tenant = OrmTenant.objects.get(name=ids["tenant"])
@@ -701,27 +707,27 @@ class NautobotEPG(EPG):
                 _bd_tenant = f"{ids['tenant'].split(':')[0]}:common"
                 _bd = OrmBridgeDomain.objects.get(name="default", tenant__name=_bd_tenant)
         except OrmApplicationProfile.DoesNotExist:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 msg=f"Cannot create EPG: {ids['name']} - App Profile: {ids['application']} does not exist in Tenant {ids['tenant']}."
             )
             return
         except OrmBridgeDomain.DoesNotExist:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 msg=f"Cannot create EPG: {ids['name']} - BD: {attrs['bridge_domain']} does not exist in Tenant {ids['tenant']}."
             )
             return
         except OrmBridgeDomain.MultipleObjectsReturned:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 msg=f"Cannot create EPG: {ids['name']} - BD: {attrs['bridge_domain']} has duplicates in Tenant: {ids['tenant']}."
             )
             return
         except OrmTenant.DoesNotExist:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 msg=f"Cannot create EPG: {ids['name']} - Tenant: {ids['tenant']} does not exist."
             )
             return
-        if diffsync.job.debug:
-            diffsync.job.logger.debug(msg=f"Creating EPG: {ids['name']} in APP Profile: {ids['application']}")
+        if adapter.job.debug:
+            adapter.job.logger.debug(msg=f"Creating EPG: {ids['name']} in APP Profile: {ids['application']}")
         _epg = OrmEPG(
             name=ids["name"],
             tenant=_tenant,
@@ -732,7 +738,7 @@ class NautobotEPG(EPG):
         _epg.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _epg.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _epg.validated_save()
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update EPG object in Nautobot."""
@@ -741,12 +747,12 @@ class NautobotEPG(EPG):
             _appprofile = OrmApplicationProfile.objects.get(name=self.application, tenant=_tenant)
             _epg = OrmEPG.objects.get(name=self.name, tenant=_tenant, application=_appprofile)
         except OrmTenant.DoesNotExist:
-            self.diffsync.job.logger.warning(
+            self.adapter.job.logger.warning(
                 msg=f"Cannot Update EPG: {self.name} - Tenant: {self.tenant} does not exist."
             )
             return
         except OrmApplicationProfile.DoesNotExist:
-            self.diffsync.job.logger.warning(
+            self.adapter.job.logger.warning(
                 msg=f"Cannot Update EPG: {self.name} - App Profile: {ids['application']} does not exist in Tenant {self.tenant}."
             )
             return
@@ -760,31 +766,31 @@ class NautobotEPG(EPG):
                     _bd_tenant = f"{self.tenant.split(':')[0]}:common"
                     _bd = OrmBridgeDomain.objects.get(name="default", tenant__name=_bd_tenant, vrf__name="default")
             except OrmBridgeDomain.DoesNotExist:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     msg=f"Cannot Update EPG: {self.name} - BD: {attrs['bridge_domain']} does not exist in Tenant {self.tenant}."
                 )
                 return
             except OrmBridgeDomain.MultipleObjectsReturned:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     msg=f"Cannot Update EPG: {self.name} - Multiple BD: {attrs['bridge_domain']} in Tenant {self.tenant}."
                 )
                 return
             _epg.bridge_domain = _bd
         _epg.validated_save()
-        if self.diffsync.job.debug:
-            self.diffsync.job.logger.debug(f"EPG {self.name} updated in Tenant: {self.tenant}")
+        if self.adapter.job.debug:
+            self.adapter.job.logger.debug(f"EPG {self.name} updated in Tenant: {self.tenant}")
         return super().update(attrs)
 
     def delete(self):
         """Delete EPG object in Nautobot."""
-        self.diffsync.job.logger.warning(f"EPG {self.name} will be deleted.")
+        self.adapter.job.logger.warning(f"EPG {self.name} will be deleted.")
         super().delete()
         _epg = OrmEPG.objects.get(
             name=self.name,
             application__name=self.application,
             tenant__name=self.tenant,
         )
-        self.diffsync.objects_to_delete["aci_epg"].append(_epg)  # pylint: disable=protected-access
+        self.adapter.objects_to_delete["aci_epg"].append(_epg)  # pylint: disable=protected-access
         return self
 
 
@@ -792,7 +798,7 @@ class NautobotApplicationTermination(ApplicationTermination):
     """Nautobot implementation of the EPG Path Model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create EPG Path object in Nautobot."""
         try:
             _epg = OrmEPG.objects.get(
@@ -805,12 +811,12 @@ class NautobotApplicationTermination(ApplicationTermination):
                 device__name=ids["interface"]["device"],
             )
         except OrmEPG.DoesNotExist:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 msg=f"Cannot create Path: {ids['interface']['device']}:{ids['interface']['name']}:{ids['vlan']}. EPG {ids['epg']['name']} does not exist."
             )
             return
         except OrmInterface.DoesNotExist:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 msg=f"Cannot create Path: {ids['interface']['device']}:{ids['interface']['name']}:{ids['vlan']}. Interface does not exist."
             )
             return
@@ -829,7 +835,7 @@ class NautobotApplicationTermination(ApplicationTermination):
             _vlan.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
             _vlan.tags.add(Tag.objects.get(name=_site_tag))
             _vlan.validated_save()
-            diffsync.job.logger.info(
+            adapter.job.logger.info(
                 msg=f"Created VLAN: {_vlan_id} for EPG Path: {_interface.device.name}:{_interface.name}:{_vlan_id}"
             )
         _path_name = f"{_interface.device.name}:{_interface.name}:{_vlan_id}"
@@ -844,10 +850,10 @@ class NautobotApplicationTermination(ApplicationTermination):
         )
         _epgpath.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _epgpath.tags.add(Tag.objects.get(name=_site_tag))
-        if diffsync.job.debug:
-            diffsync.job.logger.debug(msg=f"Created EPG Path: {_interface.device.name}:{_interface.name}:{_vlan_id}")
+        if adapter.job.debug:
+            adapter.job.logger.debug(msg=f"Created EPG Path: {_interface.device.name}:{_interface.name}:{_vlan_id}")
         _epgpath.validated_save()
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update EPGPath object in Nautobot."""
@@ -868,17 +874,17 @@ class NautobotApplicationTermination(ApplicationTermination):
                 status=Status.objects.get(name="Active"),
             )
         except OrmEPG.DoesNotExist:
-            self.diffsync.job.logger.warning(
+            self.adapter.job.logger.warning(
                 msg=f"Cannot Update Path: {_interface.device.name}:{_interface.name}:{ids['vlan']}. EPG {ids['epg']['name']} does not exist."
             )
             return
         except OrmInterface.DoesNotExist:
-            self.diffsync.job.logger.warning(
+            self.adapter.job.logger.warning(
                 msg=f"Cannot Update Path: {_interface.device.name}:{_interface.name}:{ids['vlan']}. Interface does not exist."
             )
             return
         except VLAN.DoesNotExist:
-            self.diffsync.job.logger.warning(
+            self.adapter.job.logger.warning(
                 msg=f"Cannot Update Path: {_interface.device.name}:{_interface.name}:{ids['vlan']}. VLAN {ids['vlan']} does not exist."
             )
             return
@@ -894,13 +900,13 @@ class NautobotApplicationTermination(ApplicationTermination):
             _epgpath.description = attrs["description"]
 
         _epgpath.validated_save()
-        if self.diffsync.job.debug:
-            self.diffsync.job.logger.debug(f"EPG Path: {ids['name']} Updated.")
+        if self.adapter.job.debug:
+            self.adapter.job.logger.debug(f"EPG Path: {ids['name']} Updated.")
         return super().update(attrs)
 
     def delete(self):
         """Delete App Termination object in Nautobot."""
-        self.diffsync.job.logger.warning(f"Application Termination {self.name} will be deleted.")
+        self.adapter.job.logger.warning(f"Application Termination {self.name} will be deleted.")
         super().delete()
         try:
             _epgpath = OrmApplicationTermination.objects.get(
@@ -910,9 +916,9 @@ class NautobotApplicationTermination(ApplicationTermination):
                 vlan__vid=self.vlan,
                 )
         except ApplicationTermination.DoesNotExist:
-            self.diffsync.job.logger.warning(f"Unable to Delete Application Termination {self.name}, does not exist in DB.")
+            self.adapter.job.logger.warning(f"Unable to Delete Application Termination {self.name}, does not exist in DB.")
             return self
-        self.diffsync.objects_to_delete["aci_apptermination"].append(_epgpath)  # pylint: disable=protected-access
+        self.adapter.objects_to_delete["aci_apptermination"].append(_epgpath)  # pylint: disable=protected-access
         return self
 
 NautobotDevice.update_forward_refs()
