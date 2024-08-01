@@ -5,6 +5,7 @@ from copy import deepcopy
 from datetime import datetime, timedelta
 from ipaddress import ip_network
 
+import itertools
 import logging
 import re
 import sys
@@ -19,8 +20,10 @@ from .utils import (
     pod_from_dn,
     fex_id_from_dn,
     interface_from_dn,
+    epg_from_dn,
     bd_from_dn,
 )
+from copy import deepcopy
 
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -596,3 +599,99 @@ class AciApi:
         if resp.ok:
             return True
         return self._handle_error(resp)
+
+    def _solve_port_blocks(self, portblk: dict) -> list:
+        from_card, from_port = (
+            portblk["infraPortBlk"]["attributes"]["fromCard"],
+            portblk["infraPortBlk"]["attributes"]["fromPort"],
+        )
+        to_card, to_port = (
+            portblk["infraPortBlk"]["attributes"]["toCard"],
+            portblk["infraPortBlk"]["attributes"]["toPort"],
+        )
+        if from_card != to_card:
+            logger.warning(msg="Chassis Port Blocks not supported!!!!")
+            return
+        elif from_port == to_port:
+            return [f"Ethernet{to_card}/{to_port}"]
+        else:
+            ports = [f"Ethernet{from_card}/{port}" for port in list(range(int(from_port), int(to_port) + 1))]
+            return ports
+
+    def get_static_path_all(self) -> list:
+        """Return static path mapping details for an EPG."""
+        resp = self._get(
+            f'/api/node/class/fvStPathAtt.json?query-target=subtree&target-subtree-class=fvIfConn&query-target-filter=wcard(fvIfConn.dn,"fv-")'
+        )
+        sp_list = []
+        node_list = self.get_nodes()
+        for obj in resp.json()["imdata"]:
+            sp_dict = {"encap": obj["fvIfConn"]["attributes"]["encap"]}
+            tDn = obj["fvIfConn"]["attributes"]["dn"]
+            pattern = re.compile(r"\[(.*?)\]|node-(\d+)")
+            obj_match = [match[0] if match[0] else match[1] for match in pattern.findall(tDn)]
+            try:
+                sp_dict["epg"] = epg_from_dn(tDn)
+                sp_dict["ap"] = ap_from_dn(tDn)
+                sp_dict["tenant"] = tenant_from_dn(tDn)
+                sp_dict["node-id"] = node_from_dn(tDn)
+                sp_dict["node"] = node_list[sp_dict["node-id"]]["name"]
+            except AttributeError:
+                logging.warning(
+                    msg=f"Path {tDn} does not qualify as an Application Termination Path. Skipping Path..."
+                )
+                continue
+            except KeyError:
+                logging.warning(
+                    msg=f"EPG {sp_dict['epg']} has a Path associated with a non-registered Node: {sp_dict['node-id']}. Skipping Path..."
+                )
+                continue
+            if "stpathatt-[eth" in tDn:
+                # Leaf Port Case
+                sp_dict["type"] = "LeafPort"
+                sp_dict["intf"] = obj_match[2].replace("eth", "Ethernet")
+                sp_list.append(sp_dict)
+            elif "stpathatt-[" in tDn:
+                # PortChannel or vPC
+                intf_list = []
+                sp_dict["type"] = "Bundle"
+                polgrp = obj_match[2]
+                resp = self._get(
+                    f"/api/node/mo/uni/infra/funcprof/accbundle-{polgrp}.json?query-target=subtree&target-subtree-class=infraRtAccBaseGrp&query-target-filter=wcard(infraNode.dn,\"{sp_dict['node-id']}\")"
+                )
+                # FOUND ACI BUG here - portblks not filtering by polgrp when VPC bundle
+                # resp = self._get(f"/api/node/class/infraPortBlk.json?query-target=self&query-target-filter=and(wcard(infraNode.dn,\"{sp_dict['node-id']}\"),wcard(infraAccBndlGrp.dn,\"{polgrp}\"))")
+                # SCAN ALL interface profiles for a polgroup
+                for data in resp.json()["imdata"]:
+                    intf_list = []
+                    tDn = data["infraRtAccBaseGrp"]["attributes"]["tDn"]
+                    pattern = "-.*/"
+                    resp = self._get(f"/api/node/mo/{tDn}.json?query-target=subtree&target-subtree-class=infraPortBlk")
+                    # expand port blocks
+                    intf_list.extend([self._solve_port_blocks(data) for data in resp.json()["imdata"]])
+                # flatten list of lists
+                intfs = list(itertools.chain.from_iterable(intf_list))
+                bundle_list = [{**sp_dict, "intf": intf} for intf in intfs]
+                sp_list.extend(bundle_list)
+            else:
+                logging.warning(
+                    msg=f"EPG {sp_dict['epg']} has an Unsupported Path in node {sp_dict['node-id']}. Skipping Path..."
+                )
+                continue
+        return sp_list
+
+    def get_bd_to_epg_rs(self) -> list:
+        """Retrieve a list of EPGs and their rels to BDs."""
+        resp = self._get("/api/node/class/fvRsBd.json")
+        if resp.json()["totalCount"] == "0":
+            return []
+        epg_list = []
+        for data in resp.json()["imdata"]:
+            _tenant = tenant_from_dn(data["fvRsBd"]["attributes"]["dn"])
+            _ap = ap_from_dn(data["fvRsBd"]["attributes"]["dn"])
+            _epg = epg_from_dn(data["fvRsBd"]["attributes"]["dn"])
+            _bd = data["fvRsBd"]["attributes"]["tnFvBDName"] or "default"
+            new_epg = (_epg, _tenant, _ap, _bd)
+            if new_epg not in epg_list:
+                epg_list.append(new_epg)
+        return epg_list

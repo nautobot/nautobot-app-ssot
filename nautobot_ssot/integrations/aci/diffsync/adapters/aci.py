@@ -10,7 +10,7 @@ from typing import Optional
 from ipaddress import ip_network
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectNotFound
-from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
+from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG, HAS_ACI_MODELS
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotTenant
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotVrf
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotDeviceType
@@ -20,6 +20,10 @@ from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterfaceTemp
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterface
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotIPAddress
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotPrefix
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotApplicationProfile
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotBridgeDomain
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotEPG
+from nautobot_ssot.integrations.aci.diffsync.models import NautobotApplicationTermination
 from nautobot_ssot.integrations.aci.diffsync.client import AciApi
 from nautobot_ssot.integrations.aci.diffsync.utils import load_yamlfile
 
@@ -39,6 +43,10 @@ class AciAdapter(DiffSync):
     ip_address = NautobotIPAddress
     prefix = NautobotPrefix
     interface = NautobotInterface
+    aci_appprofile = NautobotApplicationProfile
+    aci_bridgedomain = NautobotBridgeDomain
+    aci_epg = NautobotEPG
+    aci_apptermination = NautobotApplicationTermination
 
     top_level = [
         "tenant",
@@ -50,6 +58,10 @@ class AciAdapter(DiffSync):
         "interface",
         "prefix",
         "ip_address",
+        "aci_appprofile",
+        "aci_bridgedomain",
+        "aci_epg",
+        "aci_apptermination",
     ]
 
     def __init__(self, *args, job=None, sync=None, client, **kwargs):
@@ -442,6 +454,131 @@ class AciAdapter(DiffSync):
             )
             self.add(new_device)
 
+    def load_appprofiles(self):
+        """Load APs from ACI."""
+        tenant_list = self.conn.get_tenants()
+        for _tnt in tenant_list:
+            ap_list = self.conn.get_aps(tenant=_tnt["name"])
+            # logger.info(msg=f"App profiles in Tenant {_tnt} from APIC {ap_list}")
+            for ap in ap_list:
+                _name = ap["ap"]
+                _tenant_name = f"{self.tenant_prefix}:{ap['tenant']}"
+                _description = f"Application Profile {_name} from Tenant {_tenant_name} synced from APIC"
+
+                new_ap = self.aci_appprofile(
+                    name=_name, tenant=_tenant_name, description=_description, site_tag=self.site
+                )
+                if _tnt["name"] not in PLUGIN_CFG.get("ignore_tenants"):
+                    if self.job.debug:
+                        self.job.logger.info(msg=f"Loading Application Profile from APIC {new_ap}")
+                    self.add(new_ap)
+
+    def load_bridgedomains(self):
+        """Load Bridge domains from ACI."""
+        bd_dict = self.conn.get_bds(tenant="all")
+        # pylint: disable-next=too-many-nested-blocks
+        for _, bd_value in bd_dict.items():
+            if bd_value.get("tenant") not in PLUGIN_CFG.get("ignore_tenants"):
+                tenant_name = f"{self.tenant_prefix}:{bd_value.get('tenant')}"
+                if bd_value["vrf_tenant"]:
+                    # If no vrf tenant we assign by default to common tenant
+                    vrf_tenant = f"{self.tenant_prefix}:{bd_value.get('vrf_tenant','common')}"
+                    # subnet namespace should match the tenant the vrf belongs to
+                    # If no vrf tenant we assign by default to Global namespace
+                    if bd_value.get("vrf_tenant") == "mgmt":
+                        namespace = "Global"
+                    else:
+                        namespace = f"{self.tenant_prefix}:{bd_value.get('vrf_tenant', 'Global')}"
+                else:
+                    self.job.logger.warning(
+                        msg=f"Cannot find VRF - Tenant association for BD: {bd_value['name']}. Skipping..."
+                    )
+                    continue
+                if bd_value.get("subnets"):
+                    ip_addresses = sorted([subnet[0] for subnet in bd_value.get("subnets")], key=hash)
+                else:
+                    ip_addresses = []
+                if not bd_value["vrf"] or (bd_value["vrf"] and not vrf_tenant):
+                    self.job.logger.warning(
+                        f"VRF configured on Bridge Domain {bd_value['name']} in tenant {tenant_name} is invalid. Skipping...",
+                    )
+                    continue
+
+                else:
+                    # Using Try/Except to check for an existing loaded object
+                    # If the object doesn't exist we can create it
+                    # Otherwise we log a message warning the user of the duplicate.
+                    new_bd = self.aci_bridgedomain(
+                        name=bd_value["name"],
+                        description=f"ACI Bridge Domain: {bd_value['name']}",
+                        tenant=tenant_name,
+                        ip_addresses=ip_addresses,
+                        vrf={
+                            "name": bd_value["vrf"],
+                            "namespace": namespace,
+                            "vrf_tenant": vrf_tenant,
+                        },
+                        site_tag=self.site,
+                    )
+                    try:
+                        self.get(obj=new_bd, identifier=new_bd.get_unique_id())
+                        self.job.logger.warning(
+                            f"Skipping BridgeDomain: {bd_value['name']} in tenant {tenant_name}. Duplicate Bridge Domain.",
+                        )
+                    except ObjectNotFound:
+                        if self.job.debug:
+                            self.job.logger.debug(f"Loading BridgeDomain: {bd_value['name']} in Tenant: {tenant_name}.")
+                        self.add(new_bd)
+                    else:
+                        self.job.logger.warning(
+                            f"Duplicate DiffSync BD Object found: {bd_value['name']} in tenant: {tenant_name} and has not been loaded."
+                        )
+
+    def load_epgs(self):
+        """Load EPGs from ACI."""
+        epg_list = self.conn.get_bd_to_epg_rs()
+        for epg in epg_list:
+            if epg[1] in PLUGIN_CFG.get("ignore_tenants"):
+                continue
+            _description = f"EPG {epg[0]} from Bridge Domain {epg[3]} synced from APIC"
+            new_epg = self.aci_epg(
+                name=epg[0],
+                tenant=f"{self.tenant_prefix}:{epg[1]}",
+                application=epg[2],
+                bridge_domain=epg[3],
+                description=_description,
+                site_tag=self.site,
+            )
+            if self.job.debug:
+                self.job.logger.debug(msg=f"Loading EPG: {new_epg} from APIC.")
+            self.add(new_epg)
+
+    def load_appterminations(self):
+        """Load EPGs Paths from ACI."""
+        path_list = self.conn.get_static_path_all()
+        for path in path_list:
+            if path.get("tenant") in PLUGIN_CFG.get("ignore_tenants"):
+                continue
+            _ap_name, _epg_name = path.get("ap"), path.get("epg")
+            _tenant_name, _intf_name = f"{self.tenant_prefix}:{path.get('tenant')}", path.get("intf")
+            _device_name, _vlan_id = path.get("node"), path.get("encap").replace("vlan-", "")
+            _description = f"Path {_device_name}:{_intf_name}:{_vlan_id} synced from APIC"
+            _epg_attrs = {"name": _epg_name, "tenant": _tenant_name, "application": _ap_name}
+            _intf_attrs = {"name": _intf_name, "device": _device_name}
+            _path_name = f"{_device_name}:{_intf_name}:{_vlan_id}"
+
+            new_epgpath = self.aci_apptermination(
+                name=_path_name,
+                epg=_epg_attrs,
+                interface=_intf_attrs,
+                vlan=_vlan_id,
+                description=_description,
+                site_tag=self.site,
+            )
+            if self.job.debug:
+                self.job.logger.debug(msg=f"Path {_device_name}:{_intf_name}:{_vlan_id} synced from APIC")
+            self.add(new_epgpath)
+
     def load(self):
         """Method for one stop shop loading of all models."""
         self.load_tenants()
@@ -452,3 +589,8 @@ class AciAdapter(DiffSync):
         self.load_interfaces()
         self.load_prefixes()
         self.load_ipaddresses()
+        if HAS_ACI_MODELS:
+            self.load_appprofiles()
+            self.load_bridgedomains()
+            self.load_epgs()
+            self.load_appterminations()

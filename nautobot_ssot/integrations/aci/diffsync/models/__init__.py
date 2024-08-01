@@ -10,6 +10,10 @@ from .nautobot import (
     NautobotInterface,
     NautobotPrefix,
     NautobotIPAddress,
+    NautobotApplicationProfile,
+    NautobotBridgeDomain,
+    NautobotEPG,
+    NautobotApplicationTermination,
 )
 
 __all__ = [
@@ -22,4 +26,8 @@ __all__ = [
     "NautobotInterface",
     "NautobotPrefix",
     "NautobotIPAddress",
+    "NautobotApplicationProfile",
+    "NautobotBridgeDomain",
+    "NautobotEPG",
+    "NautobotApplicationTermination",
 ]
