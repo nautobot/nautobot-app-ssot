@@ -34,6 +34,54 @@ from nautobot_ssot.contrib.types import (
 ParameterSet = FrozenSet[Tuple[str, Hashable]]
 
 
+def sort_relationships(diffsync: DiffSync):
+    """Helper function for SSoT adapters for sorting relationships entries to avoid false updates actions.
+    
+    This function checks the `_sorted_relationships` attribute in the DiffSync object/adpater. If present, it will
+    loop through all entries of the attribute and sort the objects accordingly.
+
+    The `_sorted_relationships` should be a list or tuple of lists/tuples. Each entry must have three strings:
+        - Name of the DiffSync model with attribute to be sorted
+        - Name of the attribute to be sorted
+        - Name of the key within the attribute to be sorted by
+
+    NOTE: The listed attribute MUST be a list of dictionaries indicating many-to-many relationships on either side
+    or a one-to-many relationship from the many side.
+
+    """
+    if not hasattr(diffsync, "_sorted_relationships"):
+        # Nothing to do
+        return
+
+    for entry in diffsync._sorted_relationships:
+        if not isinstance(entry, tuple) and not isinstance(entry, list):
+            diffsync.job.logger.error(f"{type(entry)} not allowed for sorting. Skipping entry.")
+            continue
+
+        if len(entry) != 3:
+            diffsync.job.logger.error(
+                "Sort Error: Invalid input. Defined objects sort must be a tuple with three entries "
+                "(object name, attribute name, and sort by key). Skipping entry."
+            )
+            continue
+
+        obj_name = entry[0]
+        attr_name = entry[1]
+        sort_by_key = entry[2]
+
+        if not isinstance(obj_name, str) or not isinstance(attr_name, str) or not isinstance(sort_by_key, str):
+            diffsync.job.logger.error("Paramaters for `_sorted_relationship` entries must all be strings.")
+            continue
+
+        for obj in diffsync.get_all(obj_name):
+            setattr(
+                obj,
+                attr_name,
+                sorted(getattr(obj, attr_name), key=lambda x: x[sort_by_key]),
+            )
+            diffsync.update(obj)
+    
+
 class NautobotAdapter(DiffSync):
     """
     Adapter for loading data from Nautobot through the ORM.
@@ -44,6 +92,7 @@ class NautobotAdapter(DiffSync):
     # This dictionary acts as an ORM cache.
     _cache: DefaultDict[str, Dict[ParameterSet, Model]]
     _cache_hits: DefaultDict[str, int] = defaultdict(int)
+    _sorted_relationships = ()
 
     def __init__(self, *args, job, sync=None, **kwargs):
         """Instantiate this class, but do not load data immediately from the local system."""
@@ -173,6 +222,8 @@ class NautobotAdapter(DiffSync):
             # This function directly mutates the diffsync store, i.e. it will create and load the objects
             # for this specific model class as well as its children without returning anything.
             self._load_objects(diffsync_model)
+
+        sort_relationships(self)
 
     def _get_diffsync_class(self, model_name):
         """Given a model name, return the diffsync class."""
