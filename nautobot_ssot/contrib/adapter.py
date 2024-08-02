@@ -68,15 +68,9 @@ def sort_relationships(diffsync: DiffSync):
         for obj in diffsync.get_all(obj_name):
             sorted_data = sorted(
                 getattr(obj, attr_name),
-                key=lambda x: x[sort_by_key],
+                key=lambda x: x[sort_by_key],  # pylint-ignore=cell-var-from-loop
             )
             setattr(obj, attr_name, sorted_data)
-
-            setattr(
-                obj,
-                attr_name,
-                sorted(getattr(obj, attr_name), key=lambda x: x[sort_by_key]),
-            )
             diffsync.update(obj)
 
 
