@@ -37,10 +37,10 @@ ParameterSet = FrozenSet[Tuple[str, Hashable]]
 def sort_relationships(diffsync: DiffSync):
     """Helper function for SSoT adapters for sorting relationships entries to avoid false updates actions.
 
-    This function checks the `_sorted_relationships` attribute in the DiffSync object/adpater. If present, it will
+    This function checks the `sorted_relationships` attribute in the DiffSync object/adpater. If present, it will
     loop through all entries of the attribute and sort the objects accordingly.
 
-    The `_sorted_relationships` should be a list or tuple of lists/tuples. Each entry must have three strings:
+    The `sorted_relationships` should be a list or tuple of lists/tuples. Each entry must have three strings:
         - Name of the DiffSync model with attribute to be sorted
         - Name of the attribute to be sorted
         - Name of the key within the attribute to be sorted by
@@ -48,15 +48,15 @@ def sort_relationships(diffsync: DiffSync):
     NOTE: The listed attribute MUST be a list of dictionaries indicating many-to-many relationships on either side
     or a one-to-many relationship from the many side.
     """
-    if not hasattr(diffsync, "_sorted_relationships"):
+    if not hasattr(diffsync, "sorted_relationships"):
         # Nothing to do
         return
     if not isinstance(diffsync, DiffSync):
         raise TypeError("Parameter for `sort_relationships()` must be of type DiffSync.")
-    if not diffsync._sorted_relationships:
+    if not diffsync.sorted_relationships:
         return
 
-    for entry in diffsync._sorted_relationships:
+    for entry in diffsync.sorted_relationships:
 
         if not isinstance(entry, tuple) and not isinstance(entry, list):
             raise TypeError(f"Invalid type: {type(entry)}. Valid types include tuples or lists.")
@@ -64,10 +64,6 @@ def sort_relationships(diffsync: DiffSync):
         obj_name = entry[0]
         attr_name = entry[1]
         sort_by_key = entry[2]
-
-        # if not isinstance(obj_name, str) or not isinstance(attr_name, str) or not isinstance(sort_by_key, str):
-        #     diffsync.job.logger.error("Paramaters for `_sorted_relationship` entries must all be strings.")
-        #     continue
 
         for obj in diffsync.get_all(obj_name):
             sorted_data = sorted(
@@ -94,7 +90,7 @@ class NautobotAdapter(DiffSync):
     # This dictionary acts as an ORM cache.
     _cache: DefaultDict[str, Dict[ParameterSet, Model]]
     _cache_hits: DefaultDict[str, int] = defaultdict(int)
-    _sorted_relationships = ()
+    sorted_relationships = ()
 
     def __init__(self, *args, job, sync=None, **kwargs):
         """Instantiate this class, but do not load data immediately from the local system."""

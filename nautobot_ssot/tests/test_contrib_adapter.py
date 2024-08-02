@@ -362,7 +362,7 @@ class AdapterCustomRelationshipSortingTest(NautobotAdapter):
 
     top_level = ["tenant"]
     tenant = TenantModelCustomManyTomanyRelationship
-    _sorted_relationships = (
+    sorted_relationships = (
         (
             "tenant",
             "tenants",
@@ -405,6 +405,6 @@ class TestSortedRelationships(TestCase):
 
     def test_invalid_type(self):
         """Test passing invalid type to function."""
-        self.adapter._sorted_relationships = {"Entry 1": "Value 1"}
+        self.adapter.sorted_relationships = {"Entry 1": "Value 1"}
         with self.assertRaises(TypeError):
             sort_relationships(self.adapter)

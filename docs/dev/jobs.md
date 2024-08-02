@@ -185,7 +185,7 @@ If you are not syncing any many-to-many relationships (M2M) or many-to-one (N:1)
 
 Loading M2M and N:1 relationship data from source and target destinations are typically not in the same order as each other. For example, the order of a device's interfaces from the source data may differ compared to the order Nautobot loads the data.
 
-To resolve this, each relationships must be properly sorted before the source and target are compared against eachater. An additional attribute called `_sorted_relationships` must be defined in both the source and target adapters. This attribute must be identical between both adapters.
+To resolve this, each relationships must be properly sorted before the source and target are compared against eachater. An additional attribute called `sorted_relationships` must be defined in both the source and target adapters. This attribute must be identical between both adapters.
 
 M2M and N:1 relationships are stored in the DiffSync store as a list of dictionaries. To sort a list of dictionaries, we must specify a dictionary key to sort by and do so by using code similar to the following:
 
@@ -199,13 +199,13 @@ for obj in diffsync.get_all("model_name"):
     diffsync.update(obj)
 ```
 
-The `_sorted_relationships` attribute was added is a tuple of tuples. Each entry must have three string values indicating:
+The `sorted_relationships` attribute was added is a tuple of tuples. Each entry must have three string values indicating:
 
 1. Name of the model with attribute to be sorted
 2. Attribute within the model to sort
 3. Dictionary key name to sort by
 
-The helper function `sort_relationships` has been added to contrib to assist in sorting relationships. The `NautobotAdapter` will automatically call this function and process any entries added to `_sorted_relationships`. 
+The helper function `sort_relationships` has been added to contrib to assist in sorting relationships. The `NautobotAdapter` will automatically call this function and process any entries added to `sorted_relationships`. 
 
 For integrations other than the `NautobotAdapter`, you must also import and add the `sort_relationships` into into the `load()` method and simply pass the DiffSync/Adapter object through using `self`. This must be done after all other loading logic is completed.
 
@@ -215,7 +215,7 @@ from nautobot_ssot.contrib import sort_relationships
 
 class SourceAdapter(DiffSync):
 
-    _sorted_relationships = (
+    sorted_relationships = (
         ("tenant", "relationship", "name"),
     )
 
