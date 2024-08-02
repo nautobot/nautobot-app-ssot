@@ -167,7 +167,7 @@ The methods [`calculate_diff`][nautobot_ssot.jobs.base.DataSyncBaseJob.calculate
 Optionally, on your Job class, also implement the [`lookup_object`][nautobot_ssot.jobs.base.DataSyncBaseJob.lookup_object], [`data_mapping`][nautobot_ssot.jobs.base.DataSyncBaseJob.data_mappings], and/or [`config_information`][nautobot_ssot.jobs.base.DataSyncBaseJob.config_information] APIs (to provide more information to the end user about the details of this Job), as well as the various metadata properties on your Job's Meta inner class. Refer to the example Jobs provided in this Nautobot app for examples and further details.
 Install your Job via any of the supported Nautobot methods (installation into the `JOBS_ROOT` directory, inclusion in a Git repository, or packaging as part of an app) and it should automatically become available!
 
-### Extra Step: Implementing `create`, `update` and `delete`
+### Extra Step 1: Implementing `create`, `update` and `delete`
 
 If you are synchronizing data _to_ Nautobot and not _from_ Nautobot, you can entirely skip this step. The `nautobot_ssot.contrib.NautobotModel` class provides this functionality automatically.
 
@@ -178,3 +178,51 @@ If you need to perform the `create`, `update` and `delete` operations on the rem
 
 !!! warning
     Special care should be taken when synchronizing new Devices with children Interfaces into a Nautobot instance that also defines Device Types with Interface components of the same name. When the new Device is created in Nautobot, its Interfaces will also be created as defined in the respective Device Type. As a result, when SSoT will attempt to create the children Interfaces loaded by the remote adapter, these will already exist in the target Nautobot system. In this scenario, if not properly handled, the sync will fail! Possible remediation steps may vary depending on the specific use-case, therefore this is left as an exercise to the reader/developer to solve for their specific context.
+
+### Extra Step 2: Sorting Many-to-Many and Many-to-One Relationships
+
+If you are not syncing any many-to-many relationships (M2M) or many-to-one (N:1) relationships from the many side, you can skip this step.
+
+Loading M2M and N:1 relationship data from source and target destinations are typically not in the same order as each other. For example, the order of a device's interfaces from the source data may differ compared to the order Nautobot loads the data.
+
+To resolve this, each relationships must be properly sorted before the source and target are compared against eachater. An additional attribute called `_sorted_relationships` must be defined in both the source and target adapters. This attribute must be identical between both adapters.
+
+M2M and N:1 relationships are stored in the DiffSync store as a list of dictionaries. To sort a list of dictionaries, we must specify a dictionary key to sort by and do so by using code similar to the following:
+
+```
+for obj in diffsync.get_all("model_name"):
+    sorted_data = sorted(
+        obj.attribute_name,
+        key=lamda x: x["sort_by_key_name"]
+    )
+    obj.attribute_name = sorted_data
+    diffsync.update(obj)
+```
+
+The `_sorted_relationships` attribute was added is a tuple of tuples. Each entry must have three string values indicating:
+
+1. Name of the model with attribute to be sorted
+2. Attribute within the model to sort
+3. Dictionary key name to sort by
+
+The helper function `sort_relationships` has been added to contrib to assist in sorting relationships. The `NautobotAdapter` will automatically call this function and process any entries added to `_sorted_relationships`. 
+
+For integrations other than the `NautobotAdapter`, you must also import and add the `sort_relationships` into into the `load()` method and simply pass the DiffSync/Adapter object through using `self`. This must be done after all other loading logic is completed.
+
+Example:
+```
+from nautobot_ssot.contrib import sort_relationships
+
+class SourceAdapter(DiffSync):
+
+    _sorted_relationships = (
+        ("tenant", "relationship", "name"),
+    )
+
+    def load(self):
+        ...
+        # Primary load logic
+        ...
+        sort_relationships(self)
+```
+
