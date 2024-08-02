@@ -362,25 +362,31 @@ class AdapterCustomRelationshipSortingTest(NautobotAdapter):
 
     top_level = ["tenant"]
     tenant = TenantModelCustomManyTomanyRelationship
-    _sorted_relationships = (("tenant", "tenants", "name",),)
+    _sorted_relationships = (
+        (
+            "tenant",
+            "tenants",
+            "name",
+        ),
+    )
 
 
 class TestSortedRelationships(TestCase):
     """Tests for `sort_relationships` function."""
 
     def setUp(self):
-        self.adapter = AdapterCustomRelationshipSortingTest(
-            job=MagicMock()
-        )
+        self.adapter = AdapterCustomRelationshipSortingTest(job=MagicMock())
 
-        self.adapter.add(self.adapter.tenant(
-            name="Tenant 1",
-            tenants=[
-                {"name": "C"},
-                {"name": "B"},
-                {"name": "A"},
-            ]
-        ))
+        self.adapter.add(
+            self.adapter.tenant(
+                name="Tenant 1",
+                tenants=[
+                    {"name": "C"},
+                    {"name": "B"},
+                    {"name": "A"},
+                ],
+            )
+        )
 
     def test_valid_sorting(self):
         """Test to ensure the function properly sorts basic information."""

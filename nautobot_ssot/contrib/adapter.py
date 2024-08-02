@@ -36,7 +36,7 @@ ParameterSet = FrozenSet[Tuple[str, Hashable]]
 
 def sort_relationships(diffsync: DiffSync):
     """Helper function for SSoT adapters for sorting relationships entries to avoid false updates actions.
-    
+
     This function checks the `_sorted_relationships` attribute in the DiffSync object/adpater. If present, it will
     loop through all entries of the attribute and sort the objects accordingly.
 
@@ -79,10 +79,7 @@ def sort_relationships(diffsync: DiffSync):
             setattr(
                 obj,
                 attr_name,
-                sorted(
-                    getattr(obj, attr_name),
-                    key=lambda x: x[sort_by_key]
-                ),
+                sorted(getattr(obj, attr_name), key=lambda x: x[sort_by_key]),
             )
             diffsync.update(obj)
 
