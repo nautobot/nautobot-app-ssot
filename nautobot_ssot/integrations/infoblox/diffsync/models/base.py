@@ -14,7 +14,7 @@ class Namespace(DiffSyncModel):
     _attributes = ("ext_attrs",)
 
     name: str
-    ext_attrs: Optional[dict]
+    ext_attrs: Optional[dict] = None
     pk: Optional[uuid.UUID] = None
 
 
@@ -31,7 +31,7 @@ class Network(DiffSyncModel):
     network_type: Optional[str] = None
     ext_attrs: Optional[dict] = None
     vlans: Optional[dict] = None
-    ranges: Optional[list] = None
+    ranges: Optional[list] = []
     pk: Optional[uuid.UUID] = None
 
 
@@ -94,8 +94,8 @@ class IPAddress(DiffSyncModel):
     has_host_record: bool = False
     has_ptr_record: bool = False
     has_fixed_address: bool = False
-    mac_address: Optional[str]
-    fixed_address_comment: Optional[str]
+    mac_address: Optional[str] = None
+    fixed_address_comment: Optional[str] = None
 
     pk: Optional[uuid.UUID] = None
     fixed_address_ref: Optional[str] = None
@@ -121,9 +121,9 @@ class DnsARecord(DiffSyncModel):
     namespace: str
     dns_name: str
     ip_addr_type: str
-    description: Optional[str]
-    status: Optional[str]
-    ext_attrs: Optional[dict]
+    description: Optional[str] = None
+    status: Optional[str] = None
+    ext_attrs: Optional[dict] = None
 
     pk: Optional[uuid.UUID] = None
     ref: Optional[str] = None
@@ -148,9 +148,9 @@ class DnsHostRecord(DiffSyncModel):
     namespace: str
     dns_name: str
     ip_addr_type: str
-    description: Optional[str]
-    status: Optional[str]
-    ext_attrs: Optional[dict]
+    description: Optional[str] = None
+    status: Optional[str] = None
+    ext_attrs: Optional[dict] = None
 
     pk: Optional[uuid.UUID] = None
     ref: Optional[str] = None
@@ -175,9 +175,9 @@ class DnsPTRRecord(DiffSyncModel):
     namespace: str
     dns_name: str
     ip_addr_type: str
-    description: Optional[str]
-    status: Optional[str]
-    ext_attrs: Optional[dict]
+    description: Optional[str] = None
+    status: Optional[str] = None
+    ext_attrs: Optional[dict] = None
 
     pk: Optional[uuid.UUID] = None
     ref: Optional[str] = None
