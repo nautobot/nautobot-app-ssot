@@ -1,6 +1,6 @@
 """Base classes for contrib testing."""
 
-from typing import Optional, List, TypedDict
+from typing import Optional, List
 from unittest import skip
 from unittest.mock import MagicMock
 from diffsync.exceptions import ObjectNotCreated, ObjectNotUpdated, ObjectNotDeleted
