@@ -536,7 +536,7 @@ class CustomRelationshipTypedDict(TypedDict):
 
 
 class TenantModelCustomManyTomanyRelationship(NautobotModel):
-    """"""
+    """Model for testing sorting custom relationships."""
 
     _model = tenancy_models.Tenant
     _modelname = "tenant"
