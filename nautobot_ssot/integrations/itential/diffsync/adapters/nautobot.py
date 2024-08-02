@@ -3,7 +3,7 @@
 import re
 import traceback
 
-from diffsync import DiffSync
+from diffsync import Adapter
 
 from nautobot.extras.models import Status
 from nautobot.dcim.models import Device
@@ -17,7 +17,7 @@ from nautobot_ssot.integrations.itential.diffsync.models.nautobot import (
 )
 
 
-class NautobotAnsibleDeviceAdapter(DiffSync):
+class NautobotAnsibleDeviceAdapter(Adapter):
     """Nautobot => Itential Ansible Device Diffsync Adapter."""
 
     device = NautobotAnsibleDeviceModel
