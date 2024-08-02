@@ -544,4 +544,4 @@ class TenantModelCustomManyTomanyRelationship(NautobotModel):
     _attributes = ("tenants",)
 
     name: str
-    tenants: list[TenantDict] = []
+    tenants: List[TenantDict] = []
