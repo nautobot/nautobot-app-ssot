@@ -35,6 +35,9 @@ interfaces:
   - name: ILO
     type: 1000base-t
     mgmt_only: true
+  - name: mgmt0
+    type: 10gbase-t
+    mgmt_only: true
   - name: LAN-1
     type: 10gbase-t
     mgmt_only: true

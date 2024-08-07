@@ -1,1 +1,0 @@
-Fixed call in CVP integration to pass `import_active` config setting to get_devices() function call.

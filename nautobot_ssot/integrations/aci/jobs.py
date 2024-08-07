@@ -2,7 +2,6 @@
 
 from django.templatetags.static import static
 from django.urls import reverse
-from diffsync import DiffSyncFlags
 from nautobot.core.settings_funcs import is_truthy
 from nautobot.extras.jobs import BooleanVar, ChoiceVar, Job
 from nautobot_ssot.jobs.base import DataMapping, DataSource
@@ -52,9 +51,7 @@ class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method
     def __init__(self):
         """Initialize ExampleYAMLDataSource."""
         super().__init__()
-        self.diffsync_flags = (
-            self.diffsync_flags | DiffSyncFlags.SKIP_UNMATCHED_DST  # pylint: disable=unsupported-binary-operation
-        )
+        self.diffsync_flags = (self.diffsync_flags,)
 
     @classmethod
     def data_mappings(cls):

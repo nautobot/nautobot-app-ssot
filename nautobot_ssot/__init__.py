@@ -25,6 +25,7 @@ _CONFLICTING_APP_NAMES = [
 ]
 
 _MIN_NAUTOBOT_VERSION = {
+    "nautobot_ssot_aristacv": "2.1",
     "nautobot_ssot_infoblox": "2.1",
 }
 

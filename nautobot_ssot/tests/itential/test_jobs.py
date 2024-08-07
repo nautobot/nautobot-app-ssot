@@ -1,5 +1,6 @@
 """Itential SSoT Jobs Test Cases."""
 
+from django.test import override_settings
 from nautobot.extras.models import Job, JobLogEntry
 from nautobot.apps.testing import run_job_for_testing
 
@@ -8,6 +9,13 @@ from nautobot_ssot.tests.itential.fixtures import base
 from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
 
 
+@override_settings(
+    PLUGINS_CONFIG={
+        "nautobot_ssot": {
+            "enable_itential": True,
+        }
+    }
+)
 class ItentialSSoTJobsTestCase(base.ItentialSSoTBaseTransactionTestCase):
     """Itential SSoT Jobs Test Cases."""
 

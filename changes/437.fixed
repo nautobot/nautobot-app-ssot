@@ -1,1 +1,0 @@
-Fixed link from list view to filtered sync log view by changing filter query to `sync` from overview.
