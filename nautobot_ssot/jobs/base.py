@@ -159,7 +159,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         if memory_profiling:
             record_memory_trace("diff")
 
-        if self.dryrun:
+        if self.sync.dry_run:
             self.logger.info("As `dryrun` is set, skipping the actual data sync.")
         else:
             self.logger.info("Syncing from %s to %s...", self.source_adapter, self.target_adapter)
