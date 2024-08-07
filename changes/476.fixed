@@ -1,0 +1,1 @@
+Fixed AttributeError in `get_target_url` and `get_source_url`.

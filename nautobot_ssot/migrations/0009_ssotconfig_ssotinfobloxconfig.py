@@ -10,7 +10,6 @@ import uuid
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("extras", "0102_set_null_objectchange_contenttype"),
         ("nautobot_ssot", "0008_auto_20240110_1019"),

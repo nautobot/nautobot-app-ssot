@@ -9,7 +9,6 @@ import uuid
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("extras", "0102_set_null_objectchange_contenttype"),
         ("dcim", "0052_fix_interface_redundancy_group_created"),
