@@ -197,6 +197,9 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             raise HTTPError(exc_msg, response=err.response) from err
         return resp
 
+    def _request_paging(self, method):
+        pass
+
     def _delete(self, resource):
         """Delete a resource from Infoblox.
 
@@ -1217,6 +1220,8 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             url_path = "network"
 
         params = {
+            "_paging": 1,
+            "_return_as_object": 1,
             "_return_fields": "network,network_view,comment,extattrs,rir_organization,rir,vlans",
             "_max_results": 10000,
         }
