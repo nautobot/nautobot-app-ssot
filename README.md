@@ -8,7 +8,7 @@
   <a href="https://pypi.org/project/nautobot-ssot/"><img src="https://img.shields.io/pypi/v/nautobot-ssot"></a>
   <a href="https://pypi.org/project/nautobot-ssot/"><img src="https://img.shields.io/pypi/dm/nautobot-ssot"></a>
   <br>
-  An <a href="https://www.networktocode.com/nautobot/apps/">App</a> for <a href="https://nautobot.com/">Nautobot</a>.
+  An <a href="https://networktocode.com/nautobot-apps/">App</a> for <a href="https://nautobot.com/">Nautobot</a>.
 </p>
 
 

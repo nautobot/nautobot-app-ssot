@@ -1,6 +1,6 @@
 """App declaration for nautobot_ssot."""
 
-import os
+# Metadata is inherited from Nautobot. If not including Nautobot in the environment, this should be added
 from importlib import metadata
 
 
