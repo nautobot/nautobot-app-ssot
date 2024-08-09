@@ -1,24 +1,25 @@
 """Base classes for contrib testing."""
 
-from typing import Optional, List
+from typing import List, Optional
 from unittest import skip
 from unittest.mock import MagicMock
-from diffsync.exceptions import ObjectNotCreated, ObjectNotUpdated, ObjectNotDeleted
-from django.contrib.contenttypes.models import ContentType
+
 import nautobot.circuits.models as circuits_models
-from nautobot.dcim.choices import InterfaceTypeChoices
-import nautobot.extras.models as extras_models
 import nautobot.dcim.models as dcim_models
+import nautobot.extras.models as extras_models
 import nautobot.ipam.models as ipam_models
 import nautobot.tenancy.models as tenancy_models
+from diffsync.exceptions import ObjectNotCreated, ObjectNotDeleted, ObjectNotUpdated
+from django.contrib.contenttypes.models import ContentType
 from nautobot.core.testing import TestCase
-from typing_extensions import TypedDict, Annotated
+from nautobot.dcim.choices import InterfaceTypeChoices
+from typing_extensions import Annotated, TypedDict
 
 from nautobot_ssot.contrib import (
-    NautobotModel,
-    NautobotAdapter,
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
+    NautobotAdapter,
+    NautobotModel,
     RelationshipSideEnum,
 )
 

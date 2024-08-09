@@ -1,15 +1,16 @@
 # pylint: disable=duplicate-code
 """DiffSync adapter for ServiceNow."""
-from base64 import b64encode
+
 import json
 import os
-
+from base64 import b64encode
 from collections import defaultdict
+
+import yaml
 from diffsync import DiffSync
 from diffsync.enum import DiffSyncFlags
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from jinja2 import Environment, FileSystemLoader
-import yaml
 
 from . import models
 

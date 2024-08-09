@@ -6,23 +6,23 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
 from django.test import TestCase
-from nautobot.dcim.models import DeviceType, Manufacturer, Location, LocationType, Platform
+from nautobot.core.choices import ColorChoices
+from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer, Platform
 from nautobot.dcim.models.devices import Device
+from nautobot.extras.models import Role
 from nautobot.extras.models.statuses import Status
 from nautobot.ipam.models import VLAN, IPAddress, Prefix, get_default_namespace
-from nautobot.core.choices import ColorChoices
-from nautobot.extras.models import Role
 
 from nautobot_ssot.integrations.ipfabric.utilities import (
-    get_or_create_device_role_object,
     create_device_type_object,
-    create_location,
-    create_manufacturer,
     # create_interface,
     create_ip,
+    create_location,
+    create_manufacturer,
     create_platform_object,
     create_status,
     create_vlan,
+    get_or_create_device_role_object,
 )
 
 

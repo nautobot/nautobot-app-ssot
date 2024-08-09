@@ -103,7 +103,7 @@ def create_default_infoblox_config(infoblox_url="infoblox.example.com"):
 
 def localhost_client_infoblox(localhost_url):
     """Return InfobloxAPI client for testing."""
-    return client.InfobloxApi(  # nosec
+    return client.InfobloxApi(
         url=localhost_url,
         username="test-user",
         password="test-password",

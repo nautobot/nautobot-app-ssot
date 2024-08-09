@@ -43,7 +43,7 @@ def aci_create_tag(apps, **kwargs):
         if ("SITE" in key or "STAGE" in key) and not tag.objects.filter(name=apics[key]).exists():
             tag.objects.update_or_create(
                 name=apics[key],
-                color="".join([random.choice("ABCDEF0123456789") for i in range(6)]),  # nosec
+                color="".join([random.choice("ABCDEF0123456789") for i in range(6)]),  # noqa: S311
             )
 
 

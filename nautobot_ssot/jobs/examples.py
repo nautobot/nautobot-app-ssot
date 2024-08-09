@@ -8,11 +8,15 @@ try:
 except ImportError:
     from typing import TypedDict  # Python>=3.9
 
-from typing import Optional, Mapping, List
+from typing import List, Mapping, Optional
+
+import requests
+from diffsync import DiffSync
+from diffsync.enum import DiffSyncFlags
+from diffsync.exceptions import ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
 from django.templatetags.static import static
 from django.urls import reverse
-
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer, Platform
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.jobs import ObjectVar, StringVar
@@ -20,16 +24,9 @@ from nautobot.extras.models import ExternalIntegration, Role, Status
 from nautobot.ipam.models import IPAddress, Namespace, Prefix
 from nautobot.tenancy.models import Tenant
 
-from diffsync import DiffSync
-from diffsync.enum import DiffSyncFlags
-from diffsync.exceptions import ObjectNotFound
-
-import requests
-
-from nautobot_ssot.contrib import NautobotModel, NautobotAdapter
-from nautobot_ssot.tests.contrib_base_classes import ContentTypeDict
+from nautobot_ssot.contrib import NautobotAdapter, NautobotModel
 from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
-
+from nautobot_ssot.tests.contrib_base_classes import ContentTypeDict
 
 # In a more complex Job, you would probably want to move the DiffSyncModel subclasses into a separate Python module(s).
 

@@ -4,13 +4,12 @@
 from django.templatetags.static import static
 from django.urls import reverse
 from nautobot.extras.jobs import BooleanVar
-from nautobot_ssot.jobs.base import DataMapping, DataSource
 
 from nautobot_ssot.integrations.device42.constant import PLUGIN_CFG
 from nautobot_ssot.integrations.device42.diffsync.adapters.device42 import Device42Adapter
 from nautobot_ssot.integrations.device42.diffsync.adapters.nautobot import NautobotAdapter
 from nautobot_ssot.integrations.device42.utils.device42 import Device42API
-
+from nautobot_ssot.jobs.base import DataMapping, DataSource
 
 name = "SSoT - Device42"  # pylint: disable=invalid-name
 

@@ -4,7 +4,6 @@ import re
 
 from nautobot_ssot.integrations.ipfabric.constants import DEFAULT_INTERFACE_TYPE
 
-
 VIRTUAL = "virtual"
 BRIDGE = "bridge"
 LAG = "lag"

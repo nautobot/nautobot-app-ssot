@@ -1,12 +1,13 @@
 """DiffSyncModel Asset subclasses for Nautobot Device42 data sync."""
 
 from django.core.exceptions import ValidationError
-from nautobot.dcim.models import Device, DeviceType, FrontPort, RearPort, Location
+from nautobot.dcim.models import Device, DeviceType, FrontPort, Location, RearPort
+
 from nautobot_ssot.integrations.device42.constant import PLUGIN_CFG
 from nautobot_ssot.integrations.device42.diffsync.models.base.assets import (
     PatchPanel,
-    PatchPanelRearPort,
     PatchPanelFrontPort,
+    PatchPanelRearPort,
 )
 from nautobot_ssot.integrations.device42.diffsync.models.nautobot.dcim import NautobotRack
 from nautobot_ssot.integrations.device42.utils import nautobot

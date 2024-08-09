@@ -1,13 +1,13 @@
 """App declaration for nautobot_ssot."""
 
 # Metadata is inherited from Nautobot. If not including Nautobot in the environment, this should be added
+import os
 from importlib import metadata
 
-
-from django.conf import settings
-from nautobot.extras.plugins import NautobotAppConfig
-from nautobot.core.settings_funcs import is_truthy
 import packaging
+from django.conf import settings
+from nautobot.core.settings_funcs import is_truthy
+from nautobot.extras.plugins import NautobotAppConfig
 
 from nautobot_ssot.integrations.utils import each_enabled_integration_module
 from nautobot_ssot.utils import logger

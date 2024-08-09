@@ -1,20 +1,22 @@
 """Tests of Nautobot utility methods."""
 
-from uuid import UUID
 from unittest.mock import MagicMock, patch
+from uuid import UUID
+
 from diffsync.exceptions import ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
 from nautobot.core.testing import TransactionTestCase
-from nautobot.dcim.models import Manufacturer, Location, LocationType, Device, DeviceType, Interface
+from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Role, Status
 from nautobot.ipam.models import VLAN
+
 from nautobot_ssot.integrations.device42.diffsync.models.nautobot.dcim import NautobotDevice
 from nautobot_ssot.integrations.device42.utils.nautobot import (
-    verify_platform,
+    apply_vlans_to_port,
     determine_vc_position,
     update_custom_fields,
-    apply_vlans_to_port,
+    verify_platform,
 )
 
 
@@ -91,6 +93,7 @@ class TestNautobotUtils(TransactionTestCase):  # pylint: disable=too-many-instan
             from nautobot_device_lifecycle_mgmt.models import (  # noqa: F401 # pylint: disable=import-outside-toplevel, unused-import
                 SoftwareLCM,
             )
+
             from nautobot_ssot.integrations.device42.utils.nautobot import (  # noqa: F401 # pylint: disable=import-outside-toplevel, unused-import
                 LIFECYCLE_MGMT,
             )

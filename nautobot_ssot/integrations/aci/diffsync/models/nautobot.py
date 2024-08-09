@@ -1,32 +1,32 @@
 """Nautobot Models for Cisco ACI integration with SSoT app."""
 
 import logging
+
 from django.contrib.contenttypes.models import ContentType
-from nautobot.tenancy.models import Tenant as OrmTenant
-from nautobot.dcim.models import DeviceType as OrmDeviceType
 from nautobot.dcim.models import Device as OrmDevice
-from nautobot.dcim.models import InterfaceTemplate as OrmInterfaceTemplate
+from nautobot.dcim.models import DeviceType as OrmDeviceType
 from nautobot.dcim.models import Interface as OrmInterface
-from nautobot.dcim.models import Location, LocationType
-from nautobot.ipam.models import IPAddress as OrmIPAddress
-from nautobot.ipam.models import Namespace, IPAddressToInterface
-from nautobot.ipam.models import Prefix as OrmPrefix
-from nautobot.ipam.models import VRF as OrmVrf
-from nautobot.dcim.models import Manufacturer
+from nautobot.dcim.models import InterfaceTemplate as OrmInterfaceTemplate
+from nautobot.dcim.models import Location, LocationType, Manufacturer
 from nautobot.extras.models import Role, Status, Tag
+from nautobot.ipam.models import VRF as OrmVrf
+from nautobot.ipam.models import IPAddress as OrmIPAddress
+from nautobot.ipam.models import IPAddressToInterface, Namespace
+from nautobot.ipam.models import Prefix as OrmPrefix
+from nautobot.tenancy.models import Tenant as OrmTenant
+
+from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
 from nautobot_ssot.integrations.aci.diffsync.models.base import (
-    Tenant,
-    Vrf,
-    DeviceType,
-    DeviceRole,
     Device,
-    InterfaceTemplate,
+    DeviceRole,
+    DeviceType,
     Interface,
+    InterfaceTemplate,
     IPAddress,
     Prefix,
+    Tenant,
+    Vrf,
 )
-from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
-
 
 logger = logging.getLogger(__name__)
 

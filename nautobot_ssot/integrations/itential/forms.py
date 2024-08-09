@@ -1,7 +1,6 @@
 """Itential SSoT Forms."""
 
 from django import forms
-
 from nautobot.apps.forms import BootstrapMixin, BulkEditForm, NautobotModelForm
 
 from nautobot_ssot.integrations.itential import models

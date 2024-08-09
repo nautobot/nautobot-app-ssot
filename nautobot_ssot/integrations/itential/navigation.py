@@ -2,7 +2,6 @@
 
 from nautobot.apps.ui import NavMenuItem
 
-
 nav_items = [
     NavMenuItem(
         link="plugins:nautobot_ssot:automationgatewaymodel_list",

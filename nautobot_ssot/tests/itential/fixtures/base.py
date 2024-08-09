@@ -2,18 +2,16 @@
 
 import os
 import unittest
+
 import requests_mock
 
 # from unittest import TestCase
-
-from nautobot.apps.testing import TestCase
-from nautobot.apps.testing import TransactionTestCase
-
+from nautobot.apps.testing import TestCase, TransactionTestCase
 from nautobot.extras.models import Status
 
-from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
 from nautobot_ssot.integrations.itential.diffsync.adapters import itential, nautobot
-from nautobot_ssot.tests.itential.fixtures import gateways, urls, clients, devices
+from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
+from nautobot_ssot.tests.itential.fixtures import clients, devices, gateways, urls
 
 
 class ItentialSSoTBaseTestCase(TestCase):

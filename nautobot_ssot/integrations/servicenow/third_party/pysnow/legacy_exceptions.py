@@ -51,9 +51,7 @@ class UnexpectedResponse(Exception):
     :param error_details: Details about the error
     """
 
-    def __init__(
-        self, code_expected, code_actual, http_method, error_summary, error_details
-    ):
+    def __init__(self, code_expected, code_actual, http_method, error_summary, error_details):
         if code_expected == code_actual:
             message = "Unexpected response on HTTP %s from server: %s" % (
                 http_method,

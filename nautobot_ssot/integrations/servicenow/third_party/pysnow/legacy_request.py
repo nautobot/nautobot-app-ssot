@@ -2,21 +2,21 @@
 
 import itertools
 import json
-import os
-import six
 import ntpath
+import os
 import warnings
 
-from .query_builder import QueryBuilder
+import six
 
 from .legacy_exceptions import (
-    NoRequestExecuted,
-    MultipleResults,
-    NoResults,
     InvalidUsage,
-    UnexpectedResponse,
     MissingResult,
+    MultipleResults,
+    NoRequestExecuted,
+    NoResults,
+    UnexpectedResponse,
 )
+from .query_builder import QueryBuilder
 
 
 class LegacyRequest(object):
@@ -55,20 +55,18 @@ class LegacyRequest(object):
 
     @last_response.setter
     def last_response(self, response):
-        """ Sets last_response property
+        """Sets last_response property
         :param response: `requests.request` response
         """
         self._last_response = response
 
     @property
     def count(self):
-        """ Returns the number of records the query would yield"""
+        """Returns the number of records the query would yield"""
         self.request_params.update({"sysparm_count": True})
         response = self.session.get(
             self._get_stats_url(),
-            params=self._get_formatted_query(
-                fields=list(), limit=None, order_by=list(), offset=None
-            ),
+            params=self._get_formatted_query(fields=list(), limit=None, order_by=list(), offset=None),
         )
 
         content = self._get_content(response)
@@ -123,9 +121,7 @@ class LegacyRequest(object):
         :return:
             - Iterable chain object
         """
-        return itertools.chain.from_iterable(
-            self._all_inner(fields, limit, order_by, offset)
-        )
+        return itertools.chain.from_iterable(self._all_inner(fields, limit, order_by, offset))
 
     def get_one(self, fields=list()):
         """Convenience function for queries returning only one result. Validates response before returning.
@@ -138,9 +134,7 @@ class LegacyRequest(object):
         """
         response = self.session.get(
             self._get_table_url(),
-            params=self._get_formatted_query(
-                fields, limit=None, order_by=list(), offset=None
-            ),
+            params=self._get_formatted_query(fields, limit=None, order_by=list(), offset=None),
         )
 
         content = self._get_content(response)
@@ -208,9 +202,7 @@ class LegacyRequest(object):
         if not isinstance(payload, dict):
             raise InvalidUsage("Update payload must be of type dict")
 
-        response = self.session.put(
-            self._get_table_url(sys_id=result["sys_id"]), data=json.dumps(payload)
-        )
+        response = self.session.put(self._get_table_url(sys_id=result["sys_id"]), data=json.dumps(payload))
         return self._get_content(response)
 
     def clone(self, reset_fields=list()):
@@ -258,9 +250,7 @@ class LegacyRequest(object):
         except UnexpectedResponse as e:
             if e.status_code == 403:
                 # User likely attempted to clone a record without resetting a unique field
-                e.args = (
-                    "Unable to create clone. Make sure unique fields has been reset.",
-                )
+                e.args = ("Unable to create clone. Make sure unique fields has been reset.",)
             raise
 
     def attach(self, file):
@@ -278,16 +268,12 @@ class LegacyRequest(object):
             if "sys_id" not in result:
                 raise NoResults()
         except MultipleResults:
-            raise MultipleResults(
-                "Attaching a file to multiple records is not supported"
-            )
+            raise MultipleResults("Attaching a file to multiple records is not supported")
         except NoResults:
             raise NoResults("Attempted to attach file to a non-existing record")
 
         if not os.path.isfile(file):
-            raise InvalidUsage(
-                "Attachment '%s' must be an existing regular file" % file
-            )
+            raise InvalidUsage("Attachment '%s' must be an existing regular file" % file)
 
         response = self.session.post(
             self._get_attachment_url("upload"),
@@ -348,9 +334,7 @@ class LegacyRequest(object):
                 server_error["details"],
             )
         # It seems that Helsinki and later returns status 200 instead of 404 on empty result sets
-        if (
-            "result" in content_json and len(content_json["result"]) == 0
-        ) or response.status_code == 404:
+        if ("result" in content_json and len(content_json["result"]) == 0) or response.status_code == 404:
             if self.raise_on_empty is True:
                 raise NoResults("Query yielded no results")
         elif "error" in content_json:
@@ -363,9 +347,7 @@ class LegacyRequest(object):
             )
 
         if "result" not in content_json:
-            raise MissingResult(
-                "The request was successful but the content didn't contain the expected 'result'"
-            )
+            raise MissingResult("The request was successful but the content didn't contain the expected 'result'")
 
         return content_json["result"]
 
@@ -418,15 +400,11 @@ class LegacyRequest(object):
         if isinstance(self.query, QueryBuilder):
             sysparm_query = str(self.query)
         elif isinstance(self.query, dict):  # Dict-type query
-            sysparm_query = "^".join(
-                ["%s=%s" % (k, v) for k, v in six.iteritems(self.query)]
-            )
+            sysparm_query = "^".join(["%s=%s" % (k, v) for k, v in six.iteritems(self.query)])
         elif isinstance(self.query, six.string_types):  # String-type query
             sysparm_query = self.query
         else:
-            raise InvalidUsage(
-                "Query must be instance of %s, %s or %s" % (QueryBuilder, str, dict)
-            )
+            raise InvalidUsage("Query must be instance of %s, %s or %s" % (QueryBuilder, str, dict))
 
         for field in order_by:
             if field[0] == "-":
@@ -438,9 +416,7 @@ class LegacyRequest(object):
         params.update(self.request_params)
 
         if limit is not None:
-            params.update(
-                {"sysparm_limit": limit, "sysparm_suppress_pagination_header": True}
-            )
+            params.update({"sysparm_limit": limit, "sysparm_suppress_pagination_header": True})
 
         if offset is not None:
             params.update({"sysparm_offset": offset})

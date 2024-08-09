@@ -18,13 +18,8 @@ import os
 
 from django.core.management import call_command
 from nautobot.core.settings_funcs import is_truthy
-from nautobot.extras.choices import SecretsGroupAccessTypeChoices
-from nautobot.extras.choices import SecretsGroupSecretTypeChoices
-from nautobot.extras.models import ExternalIntegration
-from nautobot.extras.models import Job
-from nautobot.extras.models import Secret
-from nautobot.extras.models import SecretsGroup
-from nautobot.extras.models import SecretsGroupAssociation
+from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
+from nautobot.extras.models import ExternalIntegration, Job, Secret, SecretsGroup, SecretsGroupAssociation
 
 _TOKEN = 40 * "a"
 os.environ["NAUTOBOT_DEMO_TOKEN"] = _TOKEN

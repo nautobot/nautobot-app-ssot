@@ -1,9 +1,8 @@
 """Template tag for rendering a DiffSync diff dictionary in a more human-readable form."""
 
 from django import template
-from django.utils.safestring import mark_safe
 from django.utils.html import format_html
-
+from django.utils.safestring import mark_safe
 
 register = template.Library()
 
@@ -55,7 +54,7 @@ def render_diff_recursive(diff):
                 child_result += render_diff_recursive(child_diffs)
 
             child_result += "</ul></li>"
-        result += format_html("<li>{}<ul>{}</ul></li>", record_type, mark_safe(child_result))  # nosec
+        result += format_html("<li>{}<ul>{}</ul></li>", record_type, mark_safe(child_result))  # noqa: S308
     return result
 
 
@@ -63,4 +62,4 @@ def render_diff_recursive(diff):
 def render_diff(diff):
     """Render a DiffSync diff dict to HTML."""
     html_text = render_diff_recursive(diff)
-    return format_html("<ul>{}</ul>", mark_safe(html_text))  # nosec
+    return format_html("<ul>{}</ul>", mark_safe(html_text))  # noqa: S308

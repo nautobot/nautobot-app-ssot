@@ -2,7 +2,8 @@
 
 # pylint: disable=import-outside-toplevel, invalid-name
 import unittest
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
+
 from nautobot_ssot.integrations.aci.diffsync.client import AciApi, RequestHTTPError
 
 
@@ -15,11 +16,11 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         self.mock_login.ok = True
         self.aci_obj = AciApi(
             username="fakeuser",
-            password="fakepwd",  # nosec
+            password="fakepwd",
             base_uri="fakeuri",
             verify=False,
             site="ACI",
-        )  # nosec
+        )
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -950,7 +951,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
 
         mocked_login.return_value = self.mock_login
         mocked_handle_request.return_value = mocked_response
-        self.assertRaises(RequestHTTPError, self.aci_obj.get_interfaces, ["101"])  # nosec
+        self.assertRaises(RequestHTTPError, self.aci_obj.get_interfaces, ["101"])
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -992,4 +993,4 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         mocked_login.return_value = self.mock_login
         mocked_handle_request.return_value = mocked_resp
 
-        self.assertRaises(RequestHTTPError, self.aci_obj.register_node, "TEP-1-101", "101", "Leaf101")  # nosec
+        self.assertRaises(RequestHTTPError, self.aci_obj.register_node, "TEP-1-101", "101", "Leaf101")

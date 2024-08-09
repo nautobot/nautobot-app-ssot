@@ -55,7 +55,6 @@ httpx = { version = ">=0.23.3", optional = true }
 retry = "^0.9.2"
 
 [tool.poetry.group.dev.dependencies]
-bandit = "*"
 coverage = "*"
 django-debug-toolbar = "*"
 invoke = "*"
@@ -197,7 +196,6 @@ target-version = "py38"
 select = [
     "D",  # pydocstyle
     "F", "E", "W",  # flake8
-    "PL",  # pylint
     "S",  # bandit
     "I",  # isort
 ]

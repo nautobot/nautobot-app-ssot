@@ -1,8 +1,7 @@
 from django.db import migrations
-from nautobot.dcim.models import Device, DeviceType, Interface, Manufacturer, Location
+from nautobot.dcim.models import Device, DeviceType, Interface, Location, Manufacturer
 from nautobot.extras.models import Role
-from nautobot.extras.utils import FeatureQuery
-from nautobot.ipam.models import IPAddress, VLAN
+from nautobot.ipam.models import VLAN, IPAddress
 
 CF_KEY_CHANGE_MAP = {
     "ssot_synced_to_servicenow": "ssot-synced-to-servicenow",

@@ -1,6 +1,8 @@
 """Nautobot DiffSync models for AristaCV SSoT."""
 
+import distutils
 import logging
+
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from nautobot.core.settings_funcs import is_truthy
@@ -11,10 +13,9 @@ from nautobot.extras.models import Relationship as OrmRelationship
 from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
 from nautobot.extras.models import Status as OrmStatus
 from nautobot.ipam.models import IPAddress as OrmIPAddress
-from nautobot.ipam.models import Prefix as OrmPrefix
-from nautobot.ipam.models import Namespace as OrmNamespace
 from nautobot.ipam.models import IPAddressToInterface
-import distutils
+from nautobot.ipam.models import Namespace as OrmNamespace
+from nautobot.ipam.models import Prefix as OrmPrefix
 
 from nautobot_ssot.integrations.aristacv.constants import (
     ARISTA_PLATFORM,
@@ -22,8 +23,8 @@ from nautobot_ssot.integrations.aristacv.constants import (
     DEFAULT_DEVICE_ROLE_COLOR,
 )
 from nautobot_ssot.integrations.aristacv.diffsync.models.base import (
-    Device,
     CustomField,
+    Device,
     IPAddress,
     IPAssignment,
     Namespace,

@@ -1,13 +1,15 @@
 """Test DiffSync IPAM models for Nautobot."""
 
 from unittest.mock import MagicMock, patch
+
+from diffsync import DiffSync
 from django.contrib.contenttypes.models import ContentType
 from django.forms import ValidationError
-from diffsync import DiffSync
 from nautobot.core.testing import TransactionTestCase
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer, Platform
 from nautobot.extras.models import Role, Status
-from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix, VLAN, VRF
+from nautobot.ipam.models import VLAN, VRF, IPAddress, IPAddressToInterface, Namespace, Prefix
+
 from nautobot_ssot.integrations.device42.diffsync.models.nautobot import ipam
 
 
@@ -129,7 +131,7 @@ class TestNautobotSubnet(TransactionTestCase):
     def test_create_container_type(self):
         """Validate the NautobotSubnet.create() functionality with setting Prefix to container type."""
         self.prefix.delete()
-        ids = {"network": "0.0.0.0", "mask_bits": 0, "vrf": "Test"}  # nosec
+        ids = {"network": "0.0.0.0", "mask_bits": 0, "vrf": "Test"}
         attrs = {"description": "", "tags": [], "custom_fields": {}}
         result = ipam.NautobotSubnet.create(self.diffsync, ids, attrs)
         self.assertIsInstance(result, ipam.NautobotSubnet)

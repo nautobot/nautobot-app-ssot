@@ -1,14 +1,15 @@
 """Jobs for ACI SSoT app."""
 
+from diffsync import DiffSyncFlags
 from django.templatetags.static import static
 from django.urls import reverse
-from diffsync import DiffSyncFlags
 from nautobot.core.settings_funcs import is_truthy
 from nautobot.extras.jobs import BooleanVar, ChoiceVar, Job
-from nautobot_ssot.jobs.base import DataMapping, DataSource
+
+from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
 from nautobot_ssot.integrations.aci.diffsync.adapters.aci import AciAdapter
 from nautobot_ssot.integrations.aci.diffsync.adapters.nautobot import NautobotAdapter
-from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
+from nautobot_ssot.jobs.base import DataMapping, DataSource
 
 name = "Cisco ACI SSoT"  # pylint: disable=invalid-name, abstract-method
 

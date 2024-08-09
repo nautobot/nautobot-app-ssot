@@ -13,15 +13,15 @@ from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import DeviceType as OrmDeviceType
 from nautobot.dcim.models import FrontPort as OrmFrontPort
 from nautobot.dcim.models import Interface as OrmInterface
+from nautobot.dcim.models import Location as OrmSite
+from nautobot.dcim.models import LocationType as OrmLocationType
 from nautobot.dcim.models import Manufacturer as OrmManufacturer
 from nautobot.dcim.models import Rack as OrmRack
 from nautobot.dcim.models import RackGroup as OrmRackGroup
-from nautobot.dcim.models import Location as OrmSite
-from nautobot.dcim.models import LocationType as OrmLocationType
 from nautobot.dcim.models import VirtualChassis as OrmVC
 from nautobot.extras.models import RelationshipAssociation
 from nautobot.extras.models import Status as OrmStatus
-from nautobot_ssot.jobs.base import DataSource
+
 from nautobot_ssot.integrations.device42.constant import DEFAULTS, INTF_SPEED_MAP, PLUGIN_CFG
 from nautobot_ssot.integrations.device42.diffsync.models.base.dcim import (
     Building,
@@ -35,6 +35,7 @@ from nautobot_ssot.integrations.device42.diffsync.models.base.dcim import (
     Vendor,
 )
 from nautobot_ssot.integrations.device42.utils import device42, nautobot
+from nautobot_ssot.jobs.base import DataSource
 
 try:
     from nautobot_device_lifecycle_mgmt.models import SoftwareLCM

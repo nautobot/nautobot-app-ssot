@@ -1,6 +1,7 @@
 """DiffSyncModel IPAM subclasses for Nautobot Device42 data sync."""
 
 import re
+
 from django.forms import ValidationError
 from nautobot.dcim.models import Interface as OrmInterface
 from nautobot.extras.models import Status as OrmStatus
@@ -10,6 +11,7 @@ from nautobot.ipam.models import IPAddress as OrmIPAddress
 from nautobot.ipam.models import IPAddressToInterface
 from nautobot.ipam.models import Namespace as OrmNamespace
 from nautobot.ipam.models import Prefix as OrmPrefix
+
 from nautobot_ssot.integrations.device42.constant import PLUGIN_CFG
 from nautobot_ssot.integrations.device42.diffsync.models.base.ipam import VLAN, IPAddress, Subnet, VRFGroup
 from nautobot_ssot.integrations.device42.utils import nautobot

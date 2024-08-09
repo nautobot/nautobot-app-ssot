@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 
-import ijson
-
-from ijson.common import ObjectBuilder
 from itertools import chain
+
+import ijson
+from ijson.common import ObjectBuilder
+
 from .exceptions import (
-    ResponseError,
-    NoResults,
-    InvalidUsage,
-    MultipleResults,
     EmptyContent,
+    InvalidUsage,
     MissingResult,
+    MultipleResults,
+    NoResults,
+    ResponseError,
 )
 
 
@@ -71,9 +72,7 @@ class Response(object):
 
         builder = ObjectBuilder()
 
-        for prefix, event, value in ijson.parse(
-            response.raw, buf_size=self._chunk_size
-        ):
+        for prefix, event, value in ijson.parse(response.raw, buf_size=self._chunk_size):
             if (prefix, event) == ("error", "start_map"):
                 # Matched ServiceNow `error` object at the root
                 has_error = True
@@ -114,12 +113,8 @@ class Response(object):
         if (has_result_single or has_result_many) and self.count == 0:  # Results empty
             return
 
-        if not (
-            has_result_single or has_result_many or has_error
-        ):  # None of the expected keys were found
-            raise MissingResult(
-                "The expected `result` key was missing in the response. Cannot continue"
-            )
+        if not (has_result_single or has_result_many or has_error):  # None of the expected keys were found
+            raise MissingResult("The expected `result` key was missing in the response. Cannot continue")
 
     def _get_response(self):
         response = self._response
@@ -129,11 +124,7 @@ class Response(object):
 
         if response.request.method == "GET" and response.status_code == 202:
             # GET request with a "202: no content" response: Raise NoContent Exception.
-            raise EmptyContent(
-                "Unexpected empty content in response for GET request: {}".format(
-                    response.request.url
-                )
-            )
+            raise EmptyContent("Unexpected empty content in response for GET request: {}".format(response.request.url))
 
         return response
 
@@ -159,9 +150,7 @@ class Response(object):
         result = self._response.json().get("result", None)
 
         if result is None:
-            raise MissingResult(
-                "The expected `result` key was missing in the response. Cannot continue"
-            )
+            raise MissingResult("The expected `result` key was missing in the response. Cannot continue")
 
         length = 0
 

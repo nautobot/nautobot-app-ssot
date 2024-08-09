@@ -2,27 +2,27 @@
 # pylint: disable=too-many-arguments
 # Load method is packed with conditionals  #  pylint: disable=too-many-branches
 """DiffSync adapter class for Nautobot as source-of-truth."""
+
+import logging
 from collections import defaultdict
 from typing import Any, ClassVar, List, Optional
-import logging
 
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectAlreadyExists
 from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError, Q
+from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import Device, Location
 from nautobot.extras.models import Tag
 from nautobot.ipam.models import VLAN, Interface
-from nautobot.core.choices import ColorChoices
-from netutils.mac import mac_to_format
 from netutils.ip import cidr_to_netmask
-
-from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
+from netutils.mac import mac_to_format
 
 from nautobot_ssot.integrations.ipfabric.constants import (
-    DEFAULT_INTERFACE_MTU,
     DEFAULT_INTERFACE_MAC,
+    DEFAULT_INTERFACE_MTU,
 )
+from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 
 logger = logging.getLogger("nautobot.ssot.ipfabric")
 

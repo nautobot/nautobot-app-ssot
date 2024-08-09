@@ -2,11 +2,11 @@
 
 from diffsync import DiffSync
 
+from nautobot_ssot.integrations.itential.clients import AutomationGatewayClient
 from nautobot_ssot.integrations.itential.diffsync.models.itential import (
     ItentialAnsibleDeviceModel,
     ItentialDefaultAnsibleGroupModel,
 )
-from nautobot_ssot.integrations.itential.clients import AutomationGatewayClient
 
 
 class ItentialAnsibleDeviceAdapter(DiffSync):

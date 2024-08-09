@@ -1,19 +1,17 @@
 """Itential SsoT Nautobot device fixtures."""
 
 from django.contrib.contenttypes.models import ContentType
-
 from nautobot.dcim.models import (
+    Device,
+    DeviceType,
+    Interface,
     Location,
     LocationType,
     Manufacturer,
     Platform,
-    Device,
-    DeviceType,
-    Interface,
 )
-from nautobot.extras.models import Status, Role
-from nautobot.ipam.models import Prefix, IPAddress, Namespace
-
+from nautobot.extras.models import Role, Status
+from nautobot.ipam.models import IPAddress, Namespace, Prefix
 
 data = [
     {

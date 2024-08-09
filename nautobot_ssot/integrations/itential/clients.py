@@ -3,7 +3,6 @@
 from typing import List, Optional, Union
 
 import requests
-
 from retry import retry
 
 from nautobot_ssot.integrations.itential.constants import BACKOFF, DELAY, RETRIES
@@ -303,5 +302,5 @@ class AutomationGatewayClient:  # pylint: disable=too-many-instance-attributes
         if response.ok:
             self.job.logger.info(f"Deleting {device_name} from {group_name} group on {self.host}.")
             return response.json()
-        self.job.logger.warning(f"Failed to delete {device_name} from {group_name} group on {self.host}.")  # nosec
+        self.job.logger.warning(f"Failed to delete {device_name} from {group_name} group on {self.host}.")
         return response.raise_for_status()

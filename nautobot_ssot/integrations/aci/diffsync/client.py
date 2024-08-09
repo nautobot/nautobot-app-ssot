@@ -2,17 +2,16 @@
 
 # pylint: disable=invalid-name
 
-import sys
 import logging
-from datetime import datetime
-from datetime import timedelta
 import re
+import sys
+from datetime import datetime, timedelta
 from ipaddress import ip_network
+
 import requests
 import urllib3
 
-from .utils import tenant_from_dn, ap_from_dn, node_from_dn, pod_from_dn, fex_id_from_dn, interface_from_dn
-
+from .utils import ap_from_dn, fex_id_from_dn, interface_from_dn, node_from_dn, pod_from_dn, tenant_from_dn
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -385,16 +384,13 @@ class AciApi:
         resp = self._get('/api/class/topSystem.json?query-target-filter=ne(topSystem.role,"controller")')
 
         for node in resp.json()["imdata"]:
-            if node["topSystem"]["attributes"]["oobMgmtAddr"] != "0.0.0.0":  # nosec: B104
+            if node["topSystem"]["attributes"]["oobMgmtAddr"] != "0.0.0.0":  # noqa: S104
                 mgmt_addr = f"{node['topSystem']['attributes']['oobMgmtAddr']}/{node['topSystem']['attributes']['oobMgmtAddrMask']}"
-            elif (
-                node["topSystem"]["attributes"]["address"] != "0.0.0.0"  # nosec: B104
-                and node["topSystem"]["attributes"]["tepPool"]
-            ):
+            elif node["topSystem"]["attributes"]["address"] != "0.0.0.0" and node["topSystem"]["attributes"]["tepPool"]:  # noqa: S104
                 mgmt_addr = f"{node['topSystem']['attributes']['address']}/{ip_network(node['topSystem']['attributes']['tepPool'], strict=False).prefixlen}"
             else:
                 mgmt_addr = ""
-            if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
+            if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # noqa: S104
                 subnet = node["topSystem"]["attributes"]["tepPool"]
             elif mgmt_addr:
                 subnet = ip_network(mgmt_addr, strict=False).with_prefixlen
@@ -438,16 +434,13 @@ class AciApi:
             node_dict[node_id]["site"] = self.site
         resp = self._get('/api/class/topSystem.json?query-target-filter=eq(topSystem.role,"controller")')
         for node in resp.json()["imdata"]:
-            if node["topSystem"]["attributes"]["oobMgmtAddr"] != "0.0.0.0":  # nosec: B104
+            if node["topSystem"]["attributes"]["oobMgmtAddr"] != "0.0.0.0":  # noqa: S104
                 mgmt_addr = f"{node['topSystem']['attributes']['oobMgmtAddr']}/{node['topSystem']['attributes']['oobMgmtAddrMask']}"
-            elif (
-                node["topSystem"]["attributes"]["address"] != "0.0.0.0"  # nosec: B104
-                and node["topSystem"]["attributes"]["tepPool"]
-            ):
+            elif node["topSystem"]["attributes"]["address"] != "0.0.0.0" and node["topSystem"]["attributes"]["tepPool"]:  # noqa: S104
                 mgmt_addr = f"{node['topSystem']['attributes']['address']}/{ip_network(node['topSystem']['attributes']['tepPool'], strict=False).prefixlen}"
             else:
                 mgmt_addr = ""
-            if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
+            if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # noqa: S104
                 subnet = node["topSystem"]["attributes"]["tepPool"]
             elif mgmt_addr:
                 subnet = ip_network(mgmt_addr, strict=False).with_prefixlen

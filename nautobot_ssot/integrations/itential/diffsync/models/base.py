@@ -1,6 +1,7 @@
 """Itential SSoT shared diffsync models."""
 
 from typing import Optional
+
 from diffsync import DiffSyncModel
 
 

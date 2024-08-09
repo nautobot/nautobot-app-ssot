@@ -1,7 +1,6 @@
 """Tests of CloudVision utility methods."""
 
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from cloudvision.Connector.codec.custom_types import FrozenDict
 from django.test import override_settings
@@ -30,7 +29,7 @@ class TestCloudvisionApi(TestCase):
         """Test that AuthFailure is thrown when no credentials are passed."""
         config = get_config()
         with self.assertRaises(cloudvision.AuthFailure):
-            cloudvision.CloudvisionApi(config)  # nosec
+            cloudvision.CloudvisionApi(config)
 
     @override_settings(
         PLUGINS_CONFIG={

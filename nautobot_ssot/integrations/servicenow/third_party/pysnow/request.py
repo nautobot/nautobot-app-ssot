@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 
-import logging
 import json
+import logging
+
 import six
 
-from .response import Response
 from .exceptions import InvalidUsage
+from .response import Response
 
 logger = logging.getLogger("pysnow")
 
@@ -49,19 +50,14 @@ class SnowRequest(object):
         params = self._parameters.as_dict()
         use_stream = kwargs.pop("stream", False)
 
-        logger.debug(
-            "(REQUEST_SEND) Method: %s, Resource: %s" % (method, self._resource)
-        )
+        logger.debug("(REQUEST_SEND) Method: %s, Resource: %s" % (method, self._resource))
 
         response = self._session.request(
             method, self._url, stream=use_stream, params=params, timeout=self._timeout, **kwargs
         )
         response.raw.decode_content = True
 
-        logger.debug(
-            "(RESPONSE_RECEIVE) Code: %d, Resource: %s"
-            % (response.status_code, self._resource)
-        )
+        logger.debug("(RESPONSE_RECEIVE) Code: %d, Resource: %s" % (response.status_code, self._resource))
 
         return Response(
             response=response,
@@ -75,8 +71,7 @@ class SnowRequest(object):
             value = value["value"]
         elif not isinstance(value, six.string_types):
             raise InvalidUsage(
-                "Argument 'path_append' must be a string in the following format: "
-                "/path-to-append[/.../...]"
+                "Argument 'path_append' must be a string in the following format: " "/path-to-append[/.../...]"
             )
 
         segment = value if value.startswith("/") else "/{0}".format(value)
@@ -103,13 +98,9 @@ class SnowRequest(object):
         if "display_value" in kwargs:
             self._parameters.display_value = kwargs.pop("display_value")
         if "exclude_reference_link" in kwargs:
-            self._parameters.exclude_reference_link = kwargs.pop(
-                "exclude_reference_link"
-            )
+            self._parameters.exclude_reference_link = kwargs.pop("exclude_reference_link")
         if "suppress_pagination_header" in kwargs:
-            self._parameters.suppress_pagination_header = kwargs.pop(
-                "suppress_pagination_header"
-            )
+            self._parameters.suppress_pagination_header = kwargs.pop("suppress_pagination_header")
 
         return self._get_response("GET", stream=kwargs.pop("stream", False))
 

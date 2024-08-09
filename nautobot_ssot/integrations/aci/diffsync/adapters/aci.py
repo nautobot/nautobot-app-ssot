@@ -2,27 +2,29 @@
 
 # pylint: disable=duplicate-code
 
-
 import logging
 import os
 import re
-from typing import Optional
 from ipaddress import ip_network
+from typing import Optional
+
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectNotFound
-from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotTenant
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotVrf
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotDeviceType
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotDeviceRole
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotDevice
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterfaceTemplate
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterface
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotIPAddress
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotPrefix
-from nautobot_ssot.integrations.aci.diffsync.client import AciApi
-from nautobot_ssot.integrations.aci.diffsync.utils import load_yamlfile
 
+from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
+from nautobot_ssot.integrations.aci.diffsync.client import AciApi
+from nautobot_ssot.integrations.aci.diffsync.models import (
+    NautobotDevice,
+    NautobotDeviceRole,
+    NautobotDeviceType,
+    NautobotInterface,
+    NautobotInterfaceTemplate,
+    NautobotIPAddress,
+    NautobotPrefix,
+    NautobotTenant,
+    NautobotVrf,
+)
+from nautobot_ssot.integrations.aci.diffsync.utils import load_yamlfile
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +83,7 @@ class AciAdapter(DiffSync):
         """Load tenants from ACI."""
         tenant_list = self.conn.get_tenants()
         for _tenant in tenant_list:
-            if not _tenant["name"] in PLUGIN_CFG.get("ignore_tenants"):
+            if _tenant["name"] not in PLUGIN_CFG.get("ignore_tenants"):
                 tenant_name = f"{self.tenant_prefix}:{_tenant['name']}"
                 new_tenant = self.tenant(
                     name=tenant_name,
@@ -135,7 +137,7 @@ class AciAdapter(DiffSync):
         # Leaf/Spine management IP addresses
         mgmt_tenant = f"{self.tenant_prefix}:mgmt"
         for node in node_dict.values():
-            if node.get("oob_ip"):  # nosec
+            if node.get("oob_ip"):
                 if node.get("subnet"):
                     subnet = node["subnet"]
                 else:
@@ -174,7 +176,7 @@ class AciAdapter(DiffSync):
         controller_dict = self.conn.get_controllers()
         # Controller IP addresses
         for controller in controller_dict.values():
-            if controller.get("oob_ip"):  # nosec
+            if controller.get("oob_ip"):
                 if controller.get("subnet"):
                     subnet = controller["subnet"]
                 else:

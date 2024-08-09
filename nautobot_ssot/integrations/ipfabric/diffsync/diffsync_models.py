@@ -2,29 +2,35 @@
 # Ignore return statements for updates and deletes, #  pylint:disable=R1710
 # Ignore too many args #  pylint:disable=too-many-locals
 """DiffSyncModel subclasses for Nautobot-to-IPFabric data sync."""
+
+import logging
 from typing import Any, ClassVar, List, Optional
 from uuid import UUID
-import logging
-
-from netutils.ip import netmask_to_cidr
 
 from diffsync import DiffSyncModel
 from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
 from django.db.models import Q
+from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import (
     Device as NautobotDevice,
+)
+from nautobot.dcim.models import (
     DeviceType,
-    Interface as NautobotInterface,
-    Location as NautobotLocation,
     Manufacturer,
     VirtualChassis,
+)
+from nautobot.dcim.models import (
+    Interface as NautobotInterface,
+)
+from nautobot.dcim.models import (
+    Location as NautobotLocation,
 )
 from nautobot.extras.models import Role, Tag
 from nautobot.extras.models.statuses import Status
 from nautobot.ipam.models import VLAN, IPAddress
-from nautobot.core.choices import ColorChoices
-from nautobot_ssot.integrations.ipfabric.constants import LAST_SYNCHRONIZED_CF_NAME
+from netutils.ip import netmask_to_cidr
+
 import nautobot_ssot.integrations.ipfabric.utilities.nbutils as tonb_nbutils
 from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_DEVICE_ROLE,
@@ -32,12 +38,12 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_DEVICE_STATUS,
     DEFAULT_DEVICE_STATUS_COLOR,
     DEFAULT_INTERFACE_MAC,
-    SAFE_DELETE_LOCATION_STATUS,
+    LAST_SYNCHRONIZED_CF_NAME,
     SAFE_DELETE_DEVICE_STATUS,
     SAFE_DELETE_IPADDRESS_STATUS,
+    SAFE_DELETE_LOCATION_STATUS,
     SAFE_DELETE_VLAN_STATUS,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -60,9 +66,7 @@ class DiffSyncExtras(DiffSyncModel):
             logger.warning(f"{nautobot_object} will be deleted as safe delete mode is not enabled.")
             # This allows private class naming of nautobot objects to be ordered for delete()
             # Example definition in adapter class var: _site = Location
-            self.diffsync.objects_to_delete[f"_{nautobot_object.__class__.__name__.lower()}"].append(
-                nautobot_object
-            )  # pylint: disable=protected-access
+            self.diffsync.objects_to_delete[f"_{nautobot_object.__class__.__name__.lower()}"].append(nautobot_object)  # pylint: disable=protected-access
             super().delete()
         else:
             if safe_delete_status:
