@@ -173,7 +173,8 @@ no-docstring-rgx="^(_|test_|Meta$)"
 
 [tool.pylint.messages_control]
 disable = """,
-    line-too-long
+    line-too-long,
+    too-few-public-methods,
 """
 
 [tool.pylint.miscellaneous]
@@ -216,6 +217,10 @@ ignore = [
     "D407",  # Missing dashed underline after section
     "D416",  # Section name ends in colon
     "E501",  # Line too long
+
+    # Package specific ignores
+    "D104",
+    "D417",
 ]
 
 [tool.ruff.lint.pydocstyle]
