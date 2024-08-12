@@ -26,7 +26,7 @@ class Term(object):
             else:
                 caller = inspect.currentframe().f_back.f_code.co_name
                 raise QueryTypeError("Invalid type passed to %s() , expected list or tuple" % (caller))
-        elif isinstance(value, ValueWrapper) and (value.type_ in types or (value.type_ == list and list_type)):
+        elif isinstance(value, ValueWrapper) and (value.type_ in types or (value.type_ == list and list_type)):  # noqa: E721
             return value
         # allow other types than datetime, as long as they have strftime
         elif hasattr(value, "strftime") and datetime in types:
