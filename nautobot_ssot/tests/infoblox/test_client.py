@@ -487,7 +487,7 @@ class TestInfobloxTest(unittest.TestCase):
         expected[1]["ranges"] = ["10.220.65.200-10.220.65.255"]
 
         with requests_mock.Mocker() as req:
-            req.register_uri("GET", f"/_page_id=123456789")
+            req.register_uri("GET", "/_page_id=123456789")
             req.get(
                 f"{LOCALHOST}/{mock_uri}?_paging=1&_return_as_object=1&_return_fields=network,network_view,comment,extattrs,rir_organization,rir,vlans&_max_results=10000",
                 json=mock_subnets_response_page_1,
