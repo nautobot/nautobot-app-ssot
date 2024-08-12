@@ -1214,6 +1214,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             },
         ]
         """
+        results = []
         if ipv6:
             url_path = "ipv6network"
         else:
@@ -1236,22 +1237,30 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             return []
         try:
             logger.debug(response.json())
-            json_response = response.json()
         except json.decoder.JSONDecodeError:
             logger.error(response.text)
             return response.text
+        results.extend(response.json().get("result"))
+        counter = 1
+        print(response.json())
+        while response.json().get("next_page_id"):
+            logger.info(f"Call {counter} for 'get_all_subnets()'.")
+            params["_page_id"] = response.json().get("next_page_id")
+            response = self._request("GET", url_path, params=params)
+            results.extend(response.json().get("result"))
+            counter += 1
         # In-place update json_response containing prefixes with DHCP ranges, if found.
         # This should be an opt-in
         if not ipv6:
             ranges = self.get_all_ranges(prefix=prefix, network_view=network_view)
-            for returned_prefix in json_response:
+            for returned_prefix in results:
                 network_view_ranges = ranges.get(returned_prefix["network_view"], {})
                 prefix_ranges = network_view_ranges.get(returned_prefix["network"])
                 if prefix_ranges:
                     returned_prefix["ranges"] = prefix_ranges
         else:
             logger.info("Support for DHCP Ranges is not currently supported for IPv6 Networks.")
-        return json_response
+        return results
 
     def get_authoritative_zone(self, network_view: Optional[str] = None):
         """Get authoritative zones.

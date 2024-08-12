@@ -213,9 +213,14 @@ def get_dhcp_lease_from_hostname():
     return _json_read_fixture("get_dhcp_lease_from_hostname.json")
 
 
-def get_all_subnets():
+def get_all_subnets_page_1():
     """Return a get all subnets response."""
-    return _json_read_fixture("get_all_subnets.json")
+    return _json_read_fixture("get_all_subnets_page_1.json")
+
+
+def get_all_subnets_page_2():
+    """Return a get all subnets response."""
+    return _json_read_fixture("get_all_subnets_page_2.json")
 
 
 def get_authoritative_zone():
