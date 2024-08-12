@@ -197,9 +197,6 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             raise HTTPError(exc_msg, response=err.response) from err
         return resp
 
-    def _request_paging(self, method):
-        pass
-
     def _delete(self, resource):
         """Delete a resource from Infoblox.
 
@@ -1242,7 +1239,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             return response.text
         results.extend(response.json().get("result"))
         counter = 1
-        print(response.json())
+
         while response.json().get("next_page_id"):
             logger.info(f"Call {counter} for 'get_all_subnets()'.")
             params["_page_id"] = response.json().get("next_page_id")
