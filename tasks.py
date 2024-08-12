@@ -187,23 +187,15 @@ def run_command(context, command, **kwargs):
     # Check if nautobot is running, no need to start another nautobot container to run a command
     docker_compose_status = "ps --services --filter status=running"
     results = docker_compose(context, docker_compose_status, hide="out")
+
+    command_env_args = ""
+    for env_name in env:
+        command_env_args += f" --env={env_name}"
+
     if "nautobot" in results.stdout:
-        compose_command = "exec"
+        compose_command = f"exec{command_env_args} nautobot {command}"
     else:
-        # Check if nautobot is running, no need to start another nautobot container to run a command
-        docker_compose_status = "ps --services --filter status=running"
-        results = docker_compose(context, docker_compose_status, hide="out")
-
-        command_env_args = ""
-        if "command_env" in kwargs:
-            command_env = kwargs.pop("command_env")
-            for key, value in command_env.items():
-                command_env_args += f' --env="{key}={value}"'
-
-        if "nautobot" in results.stdout:
-            compose_command = f"exec{command_env_args} nautobot {command}"
-        else:
-            compose_command = f"run{command_env_args} --rm --entrypoint='{command}' nautobot"
+        compose_command = f"run{command_env_args} --rm --entrypoint='{command}' nautobot"
 
     pty = kwargs.pop("pty", True)
 
