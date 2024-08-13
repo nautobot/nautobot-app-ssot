@@ -1,14 +1,15 @@
 """Jobs for ACI SSoT app."""
 
+from diffsync.enum import DiffSyncFlags
 from django.templatetags.static import static
 from django.urls import reverse
-from diffsync.enum import DiffSyncFlags
 from nautobot.dcim.models import Controller, Location
 from nautobot.extras.jobs import BooleanVar, Job, ObjectVar
-from nautobot_ssot.jobs.base import DataMapping, DataSource
+
 from nautobot_ssot.integrations.aci.diffsync.adapters.aci import AciAdapter
 from nautobot_ssot.integrations.aci.diffsync.adapters.nautobot import NautobotAdapter
 from nautobot_ssot.integrations.aci.diffsync.client import AciApi
+from nautobot_ssot.jobs.base import DataMapping, DataSource
 from nautobot_ssot.utils import get_username_password_https_from_secretsgroup, verify_controller_managed_device_group
 
 name = "Cisco ACI SSoT"  # pylint: disable=invalid-name, abstract-method
