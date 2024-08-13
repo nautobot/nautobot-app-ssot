@@ -1,13 +1,15 @@
 """Test Adapter IPAM models for Nautobot."""
 
 from unittest.mock import MagicMock, patch
+
+from diffsync import Adapter
 from django.contrib.contenttypes.models import ContentType
 from django.forms import ValidationError
-from diffsync import Adapter
 from nautobot.core.testing import TransactionTestCase
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer, Platform
 from nautobot.extras.models import Role, Status
-from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix, VLAN, VRF
+from nautobot.ipam.models import VLAN, VRF, IPAddress, IPAddressToInterface, Namespace, Prefix
+
 from nautobot_ssot.integrations.device42.diffsync.models.nautobot import ipam
 
 
