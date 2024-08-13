@@ -62,7 +62,7 @@ class SSOTInfobloxConfigForm(NautobotModelForm):  # pylint: disable=too-many-anc
         fields = "__all__"
 
 
-class SSOTInfobloxConfigFilterForm(NautobotFilterForm):
+class SSOTInfobloxConfigFilterForm(NautobotFilterForm):  # pylint: disable=too-many-ancestors
     """Filter form for SSOTInfobloxConfig filter searches."""
 
     model = SSOTInfobloxConfig
