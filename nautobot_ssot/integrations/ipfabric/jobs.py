@@ -23,6 +23,7 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import Nautob
 from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import DiffSyncExtras
 from nautobot_ssot.jobs.base import DataMapping, DataSource
+from nautobot_ssot.utils import verify_controller_managed_device_group
 
 LAST = "$last"
 PREV = "$prev"
@@ -245,6 +246,7 @@ class IpFabricDataSource(DataSource):
     ):
         """Run the job."""
         self.controller = controller
+        verify_controller_managed_device_group(controller=self.controller)
         self.kwargs = {
             "snapshot": snapshot,
             "dryrun": dryrun,
