@@ -30,7 +30,7 @@ class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method, too-ma
         display_field="name",
         required=False,
         label="Device(s) Location",
-        help_text="New devices will be placed into this location.",
+        description="New devices will be placed into this location.",
     )
 
     debug = BooleanVar(description="Enable for verbose debug logging.")
