@@ -2,7 +2,7 @@
 
 import logging
 
-import requests  # pylint: disable=wrong-import-order
+import requests
 
 # from pysnow import Client
 from nautobot_ssot.integrations.servicenow.third_party.pysnow import Client
