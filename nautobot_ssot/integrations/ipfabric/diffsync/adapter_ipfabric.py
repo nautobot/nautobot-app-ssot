@@ -170,6 +170,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     sn_length = len(serial_number)
                     args = base_args.copy()
                     args["name"] = device_name
+                    args["controller_group"] = self.job.controller.controller_managed_device_group.name
                     args["serial_number"] = serial_number if sn_length < device_serial_max_length else ""
                     member_devices = [args]
                 else:
@@ -198,6 +199,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                         else:
                             args["name"] = f"{device_name}-member{member_field}"
                             args["vc_master"] = False
+                        args["controller_group"] = self.job.controller.controller_managed_device_group.name
                         member_devices.append(args)
 
                 device_primary_ip = device["loginIp"]

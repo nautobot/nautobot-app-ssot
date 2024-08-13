@@ -136,6 +136,9 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 vendor=str(device_record.device_type.manufacturer),
                 status=device_record.status.name,
                 serial_number=device_record.serial if device_record.serial else "",
+                controller_group=device_record.controller_managed_device_group.name
+                if device_record.controller_managed_device_group
+                else "",
             )
             if device_record.platform:
                 device.platform = device_record.platform.name
