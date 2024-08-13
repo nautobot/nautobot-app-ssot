@@ -180,6 +180,7 @@ class Device(DiffSyncExtras):
     _modelname = "device"
     _identifiers = ("name",)
     _attributes = (
+        "controller_group",
         "location_name",
         "model",
         "vendor",
@@ -206,6 +207,7 @@ class Device(DiffSyncExtras):
     vc_priority: Optional[int] = None
     vc_position: Optional[int] = None
     vc_master: Optional[bool] = None
+    controller_group: str
 
     mgmt_address: Optional[str] = None
 
@@ -313,6 +315,9 @@ class Device(DiffSyncExtras):
                     device_type=device_type_object,
                     role=device_role_object,
                     location=location_object,
+                    controller_managed_device_group=ControllerManagedDeviceGroup.objects.get(
+                        name=attrs["controller_group"]
+                    ),
                     defaults={"platform": platform_object},
                 )
             except NautobotDevice.MultipleObjectsReturned:
@@ -383,6 +388,10 @@ class Device(DiffSyncExtras):
             self.adapter.job.logger.error(f"Unable to find a Device with the name {self.name} to update")
         else:
             return_super = True
+            if attrs.get("controller_group"):
+                _device.controller_managed_device_group = ControllerManagedDeviceGroup.objects.get(
+                    name=attrs["controller_group"]
+                )
             if attrs.get("status") == "Active":
                 safe_delete_tag, _ = Tag.objects.get_or_create(name="SSoT Safe Delete")
                 if not _device.status == "Active":
