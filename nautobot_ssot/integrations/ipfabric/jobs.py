@@ -140,7 +140,9 @@ class IpFabricDataSource(DataSource):
         description = "Sync data from IP Fabric into Nautobot."
         field_order = (
             "debug",
+            "controller",
             "snapshot",
+            "location_filter",
             "safe_delete_mode",
             "sync_ipfabric_tagged_only",
             "dryrun",
