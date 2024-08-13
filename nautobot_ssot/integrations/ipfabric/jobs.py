@@ -145,6 +145,14 @@ class IpFabricDataSource(DataSource):
             "dryrun",
         )
 
+    def __init__(self):
+        """Initialize client upon Job load."""
+        super().__init__()
+        if self.client is None:
+            self.client = self._init_ipf_client()  # pylint: disable=no-value-for-parameter
+        else:
+            self.client.update()
+
     def _init_ipf_client(self):
         token = self.controller.external_integration.secrets_group.get_secret_value(
             access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
@@ -169,11 +177,6 @@ class IpFabricDataSource(DataSource):
         This also initializes them.
         """
         got_vars = super()._get_vars()
-
-        if cls.client is None:
-            cls.client = cls._init_ipf_client()  # pylint: disable=no-value-for-parameter
-        else:
-            cls.client.update()
 
         formatted_snapshots = get_formatted_snapshots(cls.client)
         if formatted_snapshots:
