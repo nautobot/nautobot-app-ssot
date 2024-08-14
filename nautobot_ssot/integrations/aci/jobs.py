@@ -15,6 +15,10 @@ from nautobot_ssot.utils import get_username_password_https_from_secretsgroup, v
 name = "Cisco ACI SSoT"  # pylint: disable=invalid-name, abstract-method
 
 
+class ConfigurationError(Exception):
+    """Exception thrown when Job configuration is wrong."""
+
+
 class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method, too-many-instance-attributes
     """ACI SSoT Data Source."""
 
@@ -62,6 +66,12 @@ class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method, too-ma
         if not self.device_site:
             self.logger.info("Device Location is unspecified so will revert to specified Controller's Location.")
         verify_controller_managed_device_group(controller=self.apic)
+        if not self.apic.external_integration:
+            self.logger.error("ExternalIntegration was not found on specified Controller.")
+            raise ConfigurationError
+        if not self.apic.external_integration.secrets_group:
+            self.logger.error("SecretsGroup not found on %s", self.apic.external_integration)
+            raise ConfigurationError
         username, password = get_username_password_https_from_secretsgroup(
             group=self.apic.external_integration.secrets_group
         )
