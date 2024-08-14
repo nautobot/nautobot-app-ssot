@@ -62,7 +62,7 @@ class AciAdapter(Adapter):
         self.job = job
         self.sync = sync
         self.conn = client
-        self.site = client.get("site")
+        self.site = client.site
         self.tenant_prefix = tenant_prefix
         self.nodes = self.conn.get_nodes()
         self.controllers = self.conn.get_controllers()
