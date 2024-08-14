@@ -1,5 +1,6 @@
 # pylint: disable=invalid-name, no-member
 """Utility functions for CloudVision Resource API."""
+
 import ssl
 from datetime import datetime
 from typing import Any, Iterable, List, Optional, Tuple, Union

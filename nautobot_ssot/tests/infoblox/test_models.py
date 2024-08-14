@@ -1,5 +1,6 @@
 # pylint: disable=R0801
 """Infoblox Integration model tests."""
+
 import os
 from copy import deepcopy
 from unittest import mock
