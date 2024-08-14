@@ -3,7 +3,6 @@
 #  pylint: disable=too-many-locals
 """IP Fabric Data Target Job."""
 
-import os
 import uuid
 
 from diffsync.enum import DiffSyncFlags
