@@ -86,7 +86,7 @@ class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method, too-ma
             job=self,
             sync=self.sync,
             client=client,
-            tenant_prefix=self.apic.external_integration.extra_config.get("tenant_prefix"),
+            tenant_prefix=self.apic.external_integration.extra_config.get("tenant_prefix", "ACI"),
         )
         self.source_adapter.load()
 
