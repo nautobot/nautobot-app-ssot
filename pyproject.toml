@@ -52,6 +52,8 @@ six = { version = ">=1.13.0", optional = true }
 httpx = { version = ">=0.23.3", optional = true }
 # Used by the Itential SSoT as a retry mechanism for HTTP failures in the AutomationGatewayClient.
 retry = "^0.9.2"
+# used for DNA Center integration
+dnacentersdk = "^2.5.6"
 
 [tool.poetry.group.dev.dependencies]
 bandit = "*"
