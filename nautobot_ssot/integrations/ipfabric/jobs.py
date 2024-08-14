@@ -13,9 +13,8 @@ from django.urls import reverse
 from httpx import ConnectError
 from ipfabric import IPFClient
 from nautobot.core.forms import DynamicModelChoiceField
-from nautobot.dcim.models import Controller, Location
-from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
-from nautobot.extras.jobs import BooleanVar, ChoiceVar, ObjectVar, ScriptVariable
+from nautobot.dcim.models import Location
+from nautobot.extras.jobs import BooleanVar, ChoiceVar, ScriptVariable
 
 from nautobot_ssot.integrations.ipfabric import constants
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabricDiffSync
@@ -23,7 +22,6 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import Nautob
 from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import DiffSyncExtras
 from nautobot_ssot.jobs.base import DataMapping, DataSource
-from nautobot_ssot.utils import verify_controller_managed_device_group
 
 LAST = "$last"
 PREV = "$prev"
@@ -107,13 +105,6 @@ class IpFabricDataSource(DataSource):
 
     client = None
     snapshot = None
-    controller = ObjectVar(
-        model=Controller,
-        queryset=Controller.objects.all(),
-        display_field="name",
-        required=True,
-        label="IPFabric Controller",
-    )
     debug = BooleanVar(description="Enable for more verbose debug logging")
     safe_delete_mode = BooleanVar(
         description="Records are not deleted. Status fields are updated as necessary.",
@@ -141,33 +132,20 @@ class IpFabricDataSource(DataSource):
         description = "Sync data from IP Fabric into Nautobot."
         field_order = (
             "debug",
-            "controller",
             "snapshot",
-            "location_filter",
             "safe_delete_mode",
             "sync_ipfabric_tagged_only",
             "dryrun",
         )
 
-    def __init__(self):
-        """Initialize client upon Job load."""
-        super().__init__()
-        if self.client is None:
-            self.client = self._init_ipf_client()  # pylint: disable=no-value-for-parameter
-        else:
-            self.client.update()
-
-    def _init_ipf_client(self):
-        token = self.controller.external_integration.secrets_group.get_secret_value(
-            access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
-            secret_type=SecretsGroupSecretTypeChoices.TYPE_TOKEN,
-        )
+    @staticmethod
+    def _init_ipf_client():
         try:
             return IPFClient(
-                base_url=self.controller.external_integration.remote_url,
-                auth=token,
-                verify=self.controller.external_integration.verify_ssl,
-                timeout=self.controller.external_integration.timeout,
+                base_url=constants.IPFABRIC_HOST,
+                auth=constants.IPFABRIC_API_TOKEN,
+                verify=constants.IPFABRIC_SSL_VERIFY,
+                timeout=constants.IPFABRIC_TIMEOUT,
                 unloaded=False,
             )
         except (RuntimeError, ConnectError) as error:
@@ -181,6 +159,11 @@ class IpFabricDataSource(DataSource):
         This also initializes them.
         """
         got_vars = super()._get_vars()
+
+        if cls.client is None:
+            cls.client = cls._init_ipf_client()
+        else:
+            cls.client.update()
 
         formatted_snapshots = get_formatted_snapshots(cls.client)
         if formatted_snapshots:
@@ -215,7 +198,8 @@ class IpFabricDataSource(DataSource):
     def config_information(cls):
         """Dictionary describing the configuration of this DataSource."""
         return {
-            "Nautobot Host URL": os.getenv("NAUTOBOT_HOST"),
+            "IP Fabric host": constants.IPFABRIC_HOST,
+            "Nautobot Host URL": constants.NAUTOBOT_HOST,
             "Default Device Role": constants.DEFAULT_DEVICE_ROLE,
             "Default Device Role Color": constants.DEFAULT_DEVICE_ROLE_COLOR,
             "Default Device Status": constants.DEFAULT_DEVICE_STATUS,
@@ -235,7 +219,6 @@ class IpFabricDataSource(DataSource):
         self,
         dryrun,
         memory_profiling,
-        controller,
         debug,
         snapshot=None,
         safe_delete_mode=True,
@@ -245,8 +228,6 @@ class IpFabricDataSource(DataSource):
         **kwargs,
     ):
         """Run the job."""
-        self.controller = controller
-        verify_controller_managed_device_group(controller=self.controller)
         self.kwargs = {
             "snapshot": snapshot,
             "dryrun": dryrun,
