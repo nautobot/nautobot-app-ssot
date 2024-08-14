@@ -43,11 +43,8 @@ class Client(object):
         use_ssl=True,
         session=None,
     ):
-
         if (host and instance) is not None:
-            raise InvalidUsage(
-                "Arguments 'instance' and 'host' are mutually exclusive, you cannot use both."
-            )
+            raise InvalidUsage("Arguments 'instance' and 'host' are mutually exclusive, you cannot use both.")
 
         if type(use_ssl) is not bool:
             raise InvalidUsage("Argument 'use_ssl' must be of type bool")
@@ -56,8 +53,7 @@ class Client(object):
             self.raise_on_empty = True
         elif type(raise_on_empty) is bool:
             warnings.warn(
-                "The use of the `raise_on_empty` argument is deprecated and will be removed in a "
-                "future release.",
+                "The use of the `raise_on_empty` argument is deprecated and will be removed in a " "future release.",
                 DeprecationWarning,
             )
 
@@ -70,13 +66,9 @@ class Client(object):
 
         if not isinstance(self, pysnow.OAuthClient):
             if not (user and password) and not session:
-                raise InvalidUsage(
-                    "You must supply either username and password or a session object"
-                )
+                raise InvalidUsage("You must supply either username and password or a session object")
             elif (user and session) is not None:
-                raise InvalidUsage(
-                    "Provide either username and password or a session, not both."
-                )
+                raise InvalidUsage("Provide either username and password or a session, not both.")
 
         self.parameters = ParamsBuilder()
 
@@ -160,7 +152,7 @@ class Client(object):
             session=self.session,
             instance=self.instance,
             base_url=self.base_url,
-            **kwargs
+            **kwargs,
         )
 
     def resource(self, api_path=None, base_path="/api/now", chunk_size=None, **kwargs):
@@ -186,7 +178,7 @@ class Client(object):
             chunk_size=chunk_size or 8192,
             session=self.session,
             base_url=self.base_url,
-            **kwargs
+            **kwargs,
         )
 
     def query(self, table, **kwargs):

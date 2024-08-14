@@ -1,5 +1,6 @@
 # Disable dispatcher from chatops unused. # pylint: disable=unused-argument
 """Chat Ops Worker."""
+
 import uuid
 
 from django.contrib.contenttypes.models import ContentType

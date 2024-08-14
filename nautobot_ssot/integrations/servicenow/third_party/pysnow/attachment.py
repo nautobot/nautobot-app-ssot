@@ -37,13 +37,9 @@ class Attachment(object):
         """
 
         if sys_id:
-            return self.resource.get(
-                query={"table_sys_id": sys_id, "table_name": self.table_name}
-            ).all()
+            return self.resource.get(query={"table_sys_id": sys_id, "table_name": self.table_name}).all()
 
-        return self.resource.get(
-            query={"table_name": self.table_name}, limit=limit
-        ).all()
+        return self.resource.get(query={"table_name": self.table_name}, limit=limit).all()
 
     def upload(self, sys_id, file_path, name=None, multipart=False):
         """Attaches a new file to the provided record
@@ -63,9 +59,7 @@ class Attachment(object):
         if name is None:
             name = os.path.basename(file_path)
 
-        resource.parameters.add_custom(
-            {"table_name": self.table_name, "table_sys_id": sys_id, "file_name": name}
-        )
+        resource.parameters.add_custom({"table_name": self.table_name, "table_sys_id": sys_id, "file_name": name})
 
         data = open(file_path, "rb").read()
         headers = {}
@@ -74,14 +68,10 @@ class Attachment(object):
             headers["Content-Type"] = "multipart/form-data"
             path_append = "/upload"
         else:
-            headers["Content-Type"] = (
-                magic.from_file(file_path, mime=True) if HAS_MAGIC else "text/plain"
-            )
+            headers["Content-Type"] = magic.from_file(file_path, mime=True) if HAS_MAGIC else "text/plain"
             path_append = "/file"
 
-        return resource.request(
-            method="POST", data=data, headers=headers, path_append=path_append
-        )
+        return resource.request(method="POST", data=data, headers=headers, path_append=path_append)
 
     def delete(self, sys_id):
         """Deletes the provided attachment record
