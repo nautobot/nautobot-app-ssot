@@ -1,2 +1,0 @@
-Infoblox integration - configuration settings defined in `nautobot_config.py` have been removed.
-Infoblox integration - configuration settings defined in environmental variables have been removed.
