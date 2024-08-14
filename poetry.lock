@@ -670,13 +670,13 @@ testing = ["pytest (>=7.2.1)", "pytest-cov (>=4.0.0)", "tox (>=4.4.3)"]
 
 [[package]]
 name = "cloudvision"
-version = "1.21.0"
+version = "1.21.1"
 description = "A Python library for Arista's CloudVision APIs and Provisioning Action integrations."
 optional = true
 python-versions = ">=3.7.0"
 files = [
-    {file = "cloudvision-1.21.0-py3-none-any.whl", hash = "sha256:1adf599817d77a0a822a733f678b6e79700d5fa1b43c951e60d6a7471f6f0526"},
-    {file = "cloudvision-1.21.0.tar.gz", hash = "sha256:4e8c56a0d40413916a762758d4b23c5030bc39ad79ba65738f30d2dff8d991e4"},
+    {file = "cloudvision-1.21.1-py3-none-any.whl", hash = "sha256:961115a34c4ed59d5094a0a4e4a8f2fc6181e0d3dfb23d90464e7768debce3cd"},
+    {file = "cloudvision-1.21.1.tar.gz", hash = "sha256:6d7abd15de30d974be1be15711e0e14c65c460362defe6d8bd9ff765021d1984"},
 ]
 
 [package.dependencies]
@@ -4892,13 +4892,13 @@ files = [
 
 [[package]]
 name = "tomlkit"
-version = "0.13.0"
+version = "0.13.2"
 description = "Style preserving TOML library"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "tomlkit-0.13.0-py3-none-any.whl", hash = "sha256:7075d3042d03b80f603482d69bf0c8f345c2b30e41699fd8883227f89972b264"},
-    {file = "tomlkit-0.13.0.tar.gz", hash = "sha256:08ad192699734149f5b97b45f1f18dad7eb1b6d16bc72ad0c2335772650d7b72"},
+    {file = "tomlkit-0.13.2-py3-none-any.whl", hash = "sha256:7a974427f6e119197f670fbbbeae7bef749a6c14e793db934baefc1b5f03efde"},
+    {file = "tomlkit-0.13.2.tar.gz", hash = "sha256:fff5fe59a87295b278abd31bec92c15d9bc4a06885ab12bcea52c71119392e79"},
 ]
 
 [[package]]
@@ -5118,4 +5118,4 @@ servicenow = ["Jinja2", "PyYAML", "ijson", "oauthlib", "python-magic", "pytz", "
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.12"
-content-hash = "ae5eb71ee51dfb6cac25bf0cf9ecaa9fac084346decabae9f944deb0ea423eef"
+content-hash = "eaee8ce023f984f90a1c4e1be8baaa74f1bb16171cad7b7bd52c3000568a20c5"
