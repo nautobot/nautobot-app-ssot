@@ -32,7 +32,7 @@ From the Dashboard, you can also view more information about the App by clicking
 
 ![Detail View](../../images/device42_detail-view.png)
 
-To start the synchronization, simply click the `Sync Now` button on the Dashboard to start the Job. You should be presented with the Job form below:
+To start the synchronization, simply select the ExternalIntegration that corresponds to your desired instance and then click the `Sync Now` button on the Dashboard to start the Job. You should be presented with the Job form below:
 
 ![Job Form](../../images/device42_job-form.png)
 
