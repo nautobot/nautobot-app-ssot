@@ -5,7 +5,6 @@ import uuid
 
 from django.contrib.contenttypes.models import ContentType
 from nautobot.core.settings_funcs import is_truthy
-from nautobot.dcim.models import Controller
 from nautobot.extras.models import JobResult
 
 # pylint: disable-next=import-error
@@ -17,8 +16,8 @@ from nautobot_chatops.dispatchers import Dispatcher
 # pylint: disable-next=import-error
 from nautobot_chatops.workers import handle_subcommands, subcommand_of
 
-from nautobot_ssot.integrations.ipfabric.jobs import IpFabricDataSource
 from nautobot_ssot.integrations.ipfabric import constants
+from nautobot_ssot.integrations.ipfabric.jobs import IpFabricDataSource
 
 # from nautobot.dcim.models import Site
 
@@ -34,17 +33,6 @@ def prompt_for_bool(dispatcher: Dispatcher, action_id: str, help_text: str):
     choices = [("Yes", "True"), ("No", "False")]
     dispatcher.prompt_from_menu(action_id, help_text, choices, default=("Yes", "True"))
     return False
-
-
-def prompt_for_controller(dispatcher: Dispatcher, action_id: str, help_text: str, controllers=None, offset=0):
-    """Prompt the user to select a valid Controller from a drop-down menu."""
-    if controllers is None:
-        controllers = Controller.objects.all().order_by("name")
-    if not controllers:
-        dispatcher.send_error("No Controllers were found.")
-        return (CommandStatusChoices.STATUS_FAILED, "No Controllers found.")
-    choices = [(f"{controller.name}: {controller.name}", controller.name) for controller in controllers]
-    return dispatcher.prompt_from_menu(action_id, help_text, choices, offset=offset)
 
 
 # def prompt_for_site(dispatcher: Dispatcher, action_id: str, help_text: str, sites=None, offset=0):
