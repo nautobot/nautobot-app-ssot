@@ -58,7 +58,6 @@ class NautobotVRFGroup(VRFGroup):
 
         Because VRF has a direct relationship with many other objects it can't be deleted before anything else.
         The self.adapter.objects_to_delete dictionary stores all objects for deletion and removes them from Nautobot
-        The self.adapter.objects_to_delete dictionary stores all objects for deletion and removes them from Nautobot
         in the correct order. This is used in the Nautobot adapter sync_complete function.
         """
         if PLUGIN_CFG.get("device42_delete_on_sync"):
@@ -118,7 +117,6 @@ class NautobotSubnet(Subnet):
         """Delete Subnet object from Nautobot.
 
         Because Subnet has a direct relationship with many other objects it can't be deleted before anything else.
-        The self.adapter.objects_to_delete dictionary stores all objects for deletion and removes them from Nautobot
         The self.adapter.objects_to_delete dictionary stores all objects for deletion and removes them from Nautobot
         in the correct order. This is used in the Nautobot adapter sync_complete function.
         """
@@ -190,7 +188,6 @@ class NautobotIPAddress(IPAddress):
                     "IP Address passed to update but can't be found. This shouldn't happen. Why is this happening?!?!"
                 )
             return
-        self.adapter.job.logger.info(f"Updating IPAddress {_ipaddr.address}")
         self.adapter.job.logger.info(f"Updating IPAddress {_ipaddr.address}")
         if "available" in attrs:
             _ipaddr.status = (
