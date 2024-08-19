@@ -4,11 +4,10 @@ import logging
 import os
 from importlib import metadata
 
-
-from django.conf import settings
-from nautobot.extras.plugins import NautobotAppConfig
-from nautobot.core.settings_funcs import is_truthy
 import packaging
+from django.conf import settings
+from nautobot.core.settings_funcs import is_truthy
+from nautobot.extras.plugins import NautobotAppConfig
 
 from nautobot_ssot.integrations.utils import each_enabled_integration_module
 
@@ -26,8 +25,7 @@ _CONFLICTING_APP_NAMES = [
 ]
 
 _MIN_NAUTOBOT_VERSION = {
-    "nautobot_ssot_aristacv": "2.1",
-    "nautobot_ssot_infoblox": "2.1",
+    "nautobot_ssot_aci": "2.2",
 }
 
 
@@ -70,7 +68,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
     description = "Nautobot app that enables Single Source of Truth.  Allows users to aggregate distributed data sources and/or distribute Nautobot data to other data sources such as databases and SDN controllers."
     base_url = "ssot"
     required_settings = []
-    min_version = "2.2.0"
+    min_version = "2.1.0"
     max_version = "2.9999"
     default_settings = {
         "aci_tag": "",
