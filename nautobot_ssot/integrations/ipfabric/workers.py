@@ -59,24 +59,19 @@ def ipfabric(subcommand, **kwargs):
 @subcommand_of("ipfabric")
 def ssot_sync_to_nautobot(
     dispatcher,
-    controller=None,
     dry_run=None,
     safe_delete_mode=None,
     sync_ipfabric_tagged_only=None,
 ):
     """Start an SSoT sync from IPFabric to Nautobot."""
-    if controller is None:
-        prompt_for_controller(dispatcher, f"{BASE_CMD} ssot-sync-to-nautobot", "Which APIC should we synchronize with?")
-        return (CommandStatusChoices.STATUS_SUCCEEDED, "Success")
-
     if dry_run is None:
-        prompt_for_bool(dispatcher, f"{BASE_CMD} ssot-sync-to-nautobot {controller}", "Do you want to run a `Dry Run`?")
+        prompt_for_bool(dispatcher, f"{BASE_CMD} ssot-sync-to-nautobot", "Do you want to run a `Dry Run`?")
         return (CommandStatusChoices.STATUS_SUCCEEDED, "Success")
 
     if safe_delete_mode is None:
         prompt_for_bool(
             dispatcher,
-            f"{BASE_CMD} ssot-sync-to-nautobot {controller} {dry_run}",
+            f"{BASE_CMD} ssot-sync-to-nautobot {dry_run}",
             "Do you want to run in `Safe Delete Mode`?",
         )
         return (CommandStatusChoices.STATUS_SUCCEEDED, "Success")
@@ -84,7 +79,7 @@ def ssot_sync_to_nautobot(
     if sync_ipfabric_tagged_only is None:
         prompt_for_bool(
             dispatcher,
-            f"{BASE_CMD} ssot-sync-to-nautobot {controller} {dry_run} {safe_delete_mode}",
+            f"{BASE_CMD} ssot-sync-to-nautobot {dry_run} {safe_delete_mode}",
             "Do you want to sync against `ssot-tagged-from-ipfabric` tagged objects only?",
         )
         return (CommandStatusChoices.STATUS_SUCCEEDED, "Success")
@@ -118,7 +113,6 @@ def ssot_sync_to_nautobot(
     )
 
     sync_job.run(
-        controller=controller,
         dryrun=is_truthy(dry_run),
         memory_profiling=False,
         safe_delete_mode=is_truthy(safe_delete_mode),
