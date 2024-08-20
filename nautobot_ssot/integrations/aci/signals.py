@@ -39,12 +39,13 @@ def aci_create_tag(apps, **kwargs):
         color=PLUGIN_CFG.get("tag_down_color"),
     )
     apics = PLUGIN_CFG.get("apics")
-    for key in apics:
-        if ("SITE" in key or "STAGE" in key) and not tag.objects.filter(name=apics[key]).exists():
-            tag.objects.update_or_create(
-                name=apics[key],
-                color="".join([random.choice("ABCDEF0123456789") for i in range(6)]),  # nosec
-            )
+    if apics:
+        for key in apics:
+            if ("SITE" in key or "STAGE" in key) and not tag.objects.filter(name=apics[key]).exists():
+                tag.objects.update_or_create(
+                    name=apics[key],
+                    color="".join([random.choice("ABCDEF0123456789") for i in range(6)]),  # nosec
+                )
 
 
 def aci_create_manufacturer(apps, **kwargs):
@@ -69,10 +70,11 @@ def aci_create_site(apps, **kwargs):
     loc_type.content_types.add(ContentType.objects.get_for_model(Device))
     loc_type.content_types.add(ContentType.objects.get_for_model(Prefix))
     active_status = status.objects.update_or_create(name="Active")[0]
-    for key in apics:
-        if "SITE" in key:
-            logger.info(f"Creating Site: {apics[key]}")
-            Site.objects.update_or_create(name=apics[key], location_type=loc_type, status=active_status)
+    if apics:
+        for key in apics:
+            if "SITE" in key:
+                logger.info(f"Creating Site: {apics[key]}")
+                Site.objects.update_or_create(name=apics[key], location_type=loc_type, status=active_status)
 
 
 def device_custom_fields(apps, **kwargs):

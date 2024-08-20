@@ -2,7 +2,6 @@
 
 # pylint: disable=duplicate-code
 
-
 import logging
 import os
 import re
@@ -20,7 +19,6 @@ from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterfaceTemp
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterface
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotIPAddress
 from nautobot_ssot.integrations.aci.diffsync.models import NautobotPrefix
-from nautobot_ssot.integrations.aci.diffsync.client import AciApi
 from nautobot_ssot.integrations.aci.diffsync.utils import load_yamlfile
 
 
@@ -52,7 +50,7 @@ class AciAdapter(Adapter):
         "ip_address",
     ]
 
-    def __init__(self, *args, job=None, sync=None, client, **kwargs):
+    def __init__(self, *args, job=None, sync=None, client, tenant_prefix, **kwargs):
         """Initialize ACI.
 
         Args:
@@ -63,15 +61,9 @@ class AciAdapter(Adapter):
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
-        self.conn = AciApi(
-            username=client["username"],
-            password=client["password"],
-            base_uri=client["base_uri"],
-            verify=client["verify"],
-            site=client["site"],
-        )
-        self.site = client.get("site")
-        self.tenant_prefix = client.get("tenant_prefix")
+        self.conn = client
+        self.site = client.site
+        self.tenant_prefix = tenant_prefix
         self.nodes = self.conn.get_nodes()
         self.controllers = self.conn.get_controllers()
         self.nodes.update(self.controllers)
@@ -426,6 +418,11 @@ class AciAdapter(Adapter):
                 pod_id=value["pod_id"],
                 site=self.site,
                 site_tag=self.site,
+                controller_group=(
+                    self.job.apic.controller_managed_device_group.name
+                    if self.job.apic.controller_managed_device_group
+                    else ""
+                ),
             )
             self.add(new_device)
 

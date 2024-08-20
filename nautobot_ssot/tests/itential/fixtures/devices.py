@@ -1,19 +1,17 @@
 """Itential SsoT Nautobot device fixtures."""
 
 from django.contrib.contenttypes.models import ContentType
-
 from nautobot.dcim.models import (
+    Device,
+    DeviceType,
+    Interface,
     Location,
     LocationType,
     Manufacturer,
     Platform,
-    Device,
-    DeviceType,
-    Interface,
 )
-from nautobot.extras.models import Status, Role
-from nautobot.ipam.models import Prefix, IPAddress, Namespace
-
+from nautobot.extras.models import Role, Status
+from nautobot.ipam.models import IPAddress, Namespace, Prefix
 
 data = [
     {
@@ -78,40 +76,40 @@ def add_content_type(model: object, content_type: object, changed: bool):
 
 
 def update_or_create_device_object(
-    status: str,
-    role: str,
+    status_name: str,
+    role_name: str,
     name: str,
-    location: str,
-    manufacturer: str,
-    platform: str,
+    location_name: str,
+    manufacturer_name: str,
+    platform_name: str,
     network_driver: str,
     model: str,
-    interface: str,
-    ip_address: str,
+    interface_name: str,
+    ip_host: str,
     config_context: dict = {},
 ):  # pylint: disable=dangerous-default-value,too-many-arguments,too-many-locals
     """Create or update device fixtures."""
-    status, _ = Status.objects.get_or_create(name=status)
+    status, _ = Status.objects.get_or_create(name=status_name)
     namespace, _ = Namespace.objects.get_or_create(name="Global")
     Prefix.objects.update_or_create(prefix="192.0.2.0/24", namespace=namespace, status=status)
     device_content_type = ContentType.objects.get_for_model(Device)
-    role, role_changed = Role.objects.update_or_create(name=role)
+    role, role_changed = Role.objects.update_or_create(name=role_name)
     add_content_type(model=role, content_type=device_content_type, changed=role_changed)
     location_type, location_type_changed = LocationType.objects.get_or_create(name="Region")
     add_content_type(model=location_type, content_type=device_content_type, changed=location_type_changed)
-    location, _ = Location.objects.get_or_create(name=location, location_type=location_type, status=status)
-    manufacturer, _ = Manufacturer.objects.update_or_create(name=manufacturer)
+    location, _ = Location.objects.get_or_create(name=location_name, location_type=location_type, status=status)
+    manufacturer, _ = Manufacturer.objects.update_or_create(name=manufacturer_name)
     platform, _ = Platform.objects.update_or_create(
-        name=platform, manufacturer=manufacturer, network_driver=network_driver
+        name=platform_name, manufacturer=manufacturer, network_driver=network_driver
     )
     device_type, _ = DeviceType.objects.update_or_create(manufacturer=manufacturer, model=model)
     device, _ = Device.objects.update_or_create(
         name=name, role=role, device_type=device_type, location=location, status=status, platform=platform
     )
-    interface, _ = Interface.objects.update_or_create(name=interface, status=status, device=device)
+    Interface.objects.update_or_create(name=interface_name, status=status, device=device)
 
-    if ip_address:
-        ip_address, _ = IPAddress.objects.update_or_create(host=ip_address, mask_length=32, status=status)
+    if ip_host:
+        ip_address, _ = IPAddress.objects.get_or_create(host=ip_host, defaults={"mask_length": 32, "status": status})
         ip_address.primary_ip4_for.add(device)
 
     device.local_config_context_data = config_context

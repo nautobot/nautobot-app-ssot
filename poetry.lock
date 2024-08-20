@@ -670,13 +670,13 @@ testing = ["pytest (>=7.2.1)", "pytest-cov (>=4.0.0)", "tox (>=4.4.3)"]
 
 [[package]]
 name = "cloudvision"
-version = "1.21.0"
+version = "1.21.1"
 description = "A Python library for Arista's CloudVision APIs and Provisioning Action integrations."
 optional = true
 python-versions = ">=3.7.0"
 files = [
-    {file = "cloudvision-1.21.0-py3-none-any.whl", hash = "sha256:1adf599817d77a0a822a733f678b6e79700d5fa1b43c951e60d6a7471f6f0526"},
-    {file = "cloudvision-1.21.0.tar.gz", hash = "sha256:4e8c56a0d40413916a762758d4b23c5030bc39ad79ba65738f30d2dff8d991e4"},
+    {file = "cloudvision-1.21.1-py3-none-any.whl", hash = "sha256:961115a34c4ed59d5094a0a4e4a8f2fc6181e0d3dfb23d90464e7768debce3cd"},
+    {file = "cloudvision-1.21.1.tar.gz", hash = "sha256:6d7abd15de30d974be1be15711e0e14c65c460362defe6d8bd9ff765021d1984"},
 ]
 
 [package.dependencies]
@@ -1146,17 +1146,17 @@ Django = "*"
 
 [[package]]
 name = "django-debug-toolbar"
-version = "4.4.6"
+version = "4.3.0"
 description = "A configurable set of panels that display various debug information about the current request/response."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "django_debug_toolbar-4.4.6-py3-none-any.whl", hash = "sha256:3beb671c9ec44ffb817fad2780667f172bd1c067dbcabad6268ce39a81335f45"},
-    {file = "django_debug_toolbar-4.4.6.tar.gz", hash = "sha256:36e421cb908c2f0675e07f9f41e3d1d8618dc386392ec82d23bcfcd5d29c7044"},
+    {file = "django_debug_toolbar-4.3.0-py3-none-any.whl", hash = "sha256:e09b7dcb8417b743234dfc57c95a7c1d1d87a88844abd13b4c5387f807b31bf6"},
+    {file = "django_debug_toolbar-4.3.0.tar.gz", hash = "sha256:0b0dddee5ea29b9cb678593bc0d7a6d76b21d7799cb68e091a2148341a80f3c4"},
 ]
 
 [package.dependencies]
-django = ">=4.2.9"
+django = ">=3.2.4"
 sqlparse = ">=0.2"
 
 [[package]]
@@ -4892,13 +4892,13 @@ files = [
 
 [[package]]
 name = "tomlkit"
-version = "0.13.0"
+version = "0.13.2"
 description = "Style preserving TOML library"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "tomlkit-0.13.0-py3-none-any.whl", hash = "sha256:7075d3042d03b80f603482d69bf0c8f345c2b30e41699fd8883227f89972b264"},
-    {file = "tomlkit-0.13.0.tar.gz", hash = "sha256:08ad192699734149f5b97b45f1f18dad7eb1b6d16bc72ad0c2335772650d7b72"},
+    {file = "tomlkit-0.13.2-py3-none-any.whl", hash = "sha256:7a974427f6e119197f670fbbbeae7bef749a6c14e793db934baefc1b5f03efde"},
+    {file = "tomlkit-0.13.2.tar.gz", hash = "sha256:fff5fe59a87295b278abd31bec92c15d9bc4a06885ab12bcea52c71119392e79"},
 ]
 
 [[package]]
@@ -5118,4 +5118,4 @@ servicenow = ["Jinja2", "PyYAML", "ijson", "oauthlib", "python-magic", "pytz", "
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.12"
-content-hash = "eaee8ce023f984f90a1c4e1be8baaa74f1bb16171cad7b7bd52c3000568a20c5"
+content-hash = "8d324bb020995dc37e377741ae73d9fa26052189dd7518a8391e053453950e81"

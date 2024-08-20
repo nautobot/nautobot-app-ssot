@@ -1,5 +1,6 @@
 # Disable dispatcher from chatops unused. # pylint: disable=unused-argument
 """Chat Ops Worker."""
+
 import uuid
 
 from django.contrib.contenttypes.models import ContentType
@@ -15,8 +16,8 @@ from nautobot_chatops.dispatchers import Dispatcher
 # pylint: disable-next=import-error
 from nautobot_chatops.workers import handle_subcommands, subcommand_of
 
-from nautobot_ssot.integrations.ipfabric.jobs import IpFabricDataSource
 from nautobot_ssot.integrations.ipfabric import constants
+from nautobot_ssot.integrations.ipfabric.jobs import IpFabricDataSource
 
 # from nautobot.dcim.models import Site
 
@@ -69,7 +70,9 @@ def ssot_sync_to_nautobot(
 
     if safe_delete_mode is None:
         prompt_for_bool(
-            dispatcher, f"{BASE_CMD} ssot-sync-to-nautobot {dry_run}", "Do you want to run in `Safe Delete Mode`?"
+            dispatcher,
+            f"{BASE_CMD} ssot-sync-to-nautobot {dry_run}",
+            "Do you want to run in `Safe Delete Mode`?",
         )
         return (CommandStatusChoices.STATUS_SUCCEEDED, "Success")
 

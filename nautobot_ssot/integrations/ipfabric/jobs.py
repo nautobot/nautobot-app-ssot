@@ -2,24 +2,25 @@
 #  pylint: disable=too-few-public-methods
 #  pylint: disable=too-many-locals
 """IP Fabric Data Target Job."""
+
 import uuid
+
 from diffsync.enum import DiffSyncFlags
 from diffsync.exceptions import ObjectNotCreated
 from django.templatetags.static import static
 from django.urls import reverse
 from httpx import ConnectError
 from ipfabric import IPFClient
-from nautobot.dcim.models import Location
-from nautobot.extras.jobs import BooleanVar, ScriptVariable, ChoiceVar
 from nautobot.core.forms import DynamicModelChoiceField
-from nautobot_ssot.jobs.base import DataMapping, DataSource
+from nautobot.dcim.models import Location
+from nautobot.extras.jobs import BooleanVar, ChoiceVar, ScriptVariable
 
+from nautobot_ssot.integrations.ipfabric import constants
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabricDiffSync
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
 from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import DiffSyncExtras
-from nautobot_ssot.integrations.ipfabric import constants
-
+from nautobot_ssot.jobs.base import DataMapping, DataSource
 
 LAST = "$last"
 PREV = "$prev"

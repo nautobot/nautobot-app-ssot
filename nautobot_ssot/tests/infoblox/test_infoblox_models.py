@@ -1,5 +1,6 @@
 # pylint: disable=too-many-lines,too-many-public-methods
 """Unit tests for the Infoblox Diffsync models."""
+
 import unittest
 from unittest.mock import Mock
 
