@@ -2,18 +2,16 @@
 
 import os
 import unittest
+
 import requests_mock
 
 # from unittest import TestCase
-
-from nautobot.apps.testing import TestCase
-from nautobot.apps.testing import TransactionTestCase
-
+from nautobot.apps.testing import TestCase, TransactionTestCase
 from nautobot.extras.models import Status
 
-from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
 from nautobot_ssot.integrations.itential.diffsync.adapters import itential, nautobot
-from nautobot_ssot.tests.itential.fixtures import gateways, urls, clients, devices
+from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
+from nautobot_ssot.tests.itential.fixtures import clients, devices, gateways, urls
 
 
 class ItentialSSoTBaseTestCase(TestCase):
@@ -59,16 +57,16 @@ class ItentialSSoTBaseTestCase(TestCase):
 
         for device in devices.data:
             devices.update_or_create_device_object(
-                status=device.get("status"),
-                role=device.get("role"),
+                status_name=device.get("status"),
+                role_name=device.get("role"),
                 name=device.get("name"),
-                location=device.get("location"),
-                manufacturer=device.get("manufacturer"),
-                platform=device.get("platform"),
+                location_name=device.get("location"),
+                manufacturer_name=device.get("manufacturer"),
+                platform_name=device.get("platform"),
                 network_driver=device.get("network_driver"),
                 model=device.get("model"),
-                interface=device.get("interface"),
-                ip_address=device.get("ip_address"),
+                interface_name=device.get("interface"),
+                ip_host=device.get("ip_address"),
                 config_context=device.get("config_context"),
             )
 
@@ -131,16 +129,16 @@ class ItentialSSoTBaseTransactionTestCase(TransactionTestCase):
 
         for device in devices.data:
             devices.update_or_create_device_object(
-                status=device.get("status"),
-                role=device.get("role"),
+                status_name=device.get("status"),
+                role_name=device.get("role"),
                 name=device.get("name"),
-                location=device.get("location"),
-                manufacturer=device.get("manufacturer"),
-                platform=device.get("platform"),
+                location_name=device.get("location"),
+                manufacturer_name=device.get("manufacturer"),
+                platform_name=device.get("platform"),
                 network_driver=device.get("network_driver"),
                 model=device.get("model"),
-                interface=device.get("interface"),
-                ip_address=device.get("ip_address"),
+                interface_name=device.get("interface"),
+                ip_host=device.get("ip_address"),
                 config_context=device.get("config_context"),
             )
 
