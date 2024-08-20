@@ -132,6 +132,7 @@ device42 = [
 ]
 dna_center = [
     "dnacentersdk",
+    "netutils"
 ]
 infoblox = [
     "dnspython",
