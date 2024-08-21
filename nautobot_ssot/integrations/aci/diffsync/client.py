@@ -1,27 +1,25 @@
 """All interactions with ACI."""  # pylint: disable=too-many-lines, too-many-instance-attributes, too-many-arguments
 
 # pylint: disable=invalid-name
-from copy import deepcopy
-from datetime import datetime, timedelta
-from ipaddress import ip_network
-
 import logging
 import re
 import sys
+from copy import deepcopy
+from datetime import datetime, timedelta
+from ipaddress import ip_network
 
 import requests
 import urllib3
 
 from .utils import (
-    tenant_from_dn,
     ap_from_dn,
-    node_from_dn,
-    pod_from_dn,
+    bd_from_dn,
     fex_id_from_dn,
     interface_from_dn,
-    bd_from_dn,
+    node_from_dn,
+    pod_from_dn,
+    tenant_from_dn,
 )
-
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -339,7 +337,7 @@ class AciApi:
 
     def get_bds(self, tenant: str = "all") -> dict:
         """Return Bridge Domains and Subnets from the Cisco APIC."""
-        # TODO: rewrite using one API call -> https://10.101.40.2/api/node/class/fvBD.json?query-target=subtree&target-subtree-class=fvBD,fvRsCtx,fvSubnet
+        # TODO: rewrite using one API call -> https://<ip>/api/node/class/fvBD.json?query-target=subtree&target-subtree-class=fvBD,fvRsCtx,fvSubnet
         if tenant == "all":
             resp = self._get(
                 "/api/node/class/fvBD.json?query-target=subtree&target-subtree-class=fvBD,fvRsCtx,fvSubnet"
@@ -432,12 +430,6 @@ class AciApi:
                 subnet = node["topSystem"]["attributes"]["tepPool"]
             else:
                 subnet = ""
-            # if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
-            #    subnet = node["topSystem"]["attributes"]["tepPool"]
-            # elif mgmt_addr:
-            #    subnet = ip_network(mgmt_addr, strict=False).with_prefixlen
-            # else:
-            #    subnet = ""
             node_id = node["topSystem"]["attributes"]["id"]
             node_dict[node_id]["oob_ip"] = mgmt_addr
             node_dict[node_id]["subnet"] = subnet
@@ -491,12 +483,6 @@ class AciApi:
                 subnet = node["topSystem"]["attributes"]["tepPool"]
             else:
                 subnet = ""
-            # if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
-            #    subnet = node["topSystem"]["attributes"]["tepPool"]
-            # elif mgmt_addr:
-            #    subnet = ip_network(mgmt_addr, strict=False).with_prefixlen
-            # else:
-            #    subnet = ""
             node_id = node["topSystem"]["attributes"]["id"]
             node_dict[node_id]["pod_id"] = node["topSystem"]["attributes"]["podId"]
             node_dict[node_id]["oob_ip"] = mgmt_addr

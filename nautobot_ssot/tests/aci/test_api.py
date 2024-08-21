@@ -2,7 +2,8 @@
 
 # pylint: disable=import-outside-toplevel, invalid-name
 import unittest
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
+
 from nautobot_ssot.integrations.aci.diffsync.client import AciApi, RequestHTTPError
 
 
@@ -20,7 +21,6 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
             verify=False,
             site="ACI",
         )  # nosec
-        self.maxDiff = None
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
