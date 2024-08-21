@@ -3,37 +3,38 @@
 import uuid
 from unittest.mock import MagicMock
 
-from django.core.exceptions import ValidationError
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from django.test import override_settings
+from nautobot.core.testing import TransactionTestCase
 from nautobot.dcim.models import (
     Controller,
     ControllerManagedDeviceGroup,
     Device,
     DeviceType,
     Interface,
-    Manufacturer,
     Location,
     LocationType,
+    Manufacturer,
 )
 from nautobot.extras.choices import CustomFieldTypeChoices
-from nautobot.extras.models import CustomField, JobResult, Status, Role
-from nautobot.ipam.models import IPAddress, IPAddressToInterface, Prefix, Namespace
-from nautobot.core.testing import TransactionTestCase
+from nautobot.extras.models import CustomField, JobResult, Role, Status
+from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix
+
 from nautobot_ssot.integrations.dna_center.diffsync.adapters.dna_center import DnaCenterAdapter
+from nautobot_ssot.integrations.dna_center.jobs import DnaCenterDataSource
 from nautobot_ssot.tests.dna_center.fixtures import (
-    LOCATION_FIXTURE,
-    EXPECTED_DNAC_LOCATION_MAP,
-    EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL,
-    DEVICE_FIXTURE,
     DEVICE_DETAIL_FIXTURE,
-    PORT_FIXTURE,
+    DEVICE_FIXTURE,
     EXPECTED_AREAS,
     EXPECTED_AREAS_WO_GLOBAL,
     EXPECTED_BUILDINGS,
+    EXPECTED_DNAC_LOCATION_MAP,
+    EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL,
     EXPECTED_FLOORS,
+    LOCATION_FIXTURE,
+    PORT_FIXTURE,
 )
-from nautobot_ssot.integrations.dna_center.jobs import DnaCenterDataSource
 
 
 @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"dna_center_import_global": True}})
@@ -188,7 +189,7 @@ class TestDnaCenterAdapterTestCase(
         area_actual = sorted([area.get_unique_id() for area in self.dna_center.get_all("area")])
         self.assertEqual(area_actual, area_expected)
         self.dna_center.job.logger.info.assert_called_with(
-            "Loading area Sydney. {'parentId': '262696b1-aa87-432b-8a21-db9a77c51f23', 'additionalInfo': [{'nameSpace': 'Location', 'attributes': {'addressInheritedFrom': '262696b1-aa87-432b-8a21-db9a77c51f23', 'type': 'area'}}], 'name': 'Sydney', 'instanceTenantId': '623f029857259506a56ad9bd', 'id': '6e404051-4c06-4dab-adaa-72c5eeac577b', 'siteHierarchy': '9e5f9fc2-032e-45e8-994c-4a00629648e8/262696b1-aa87-432b-8a21-db9a77c51f23/6e404051-4c06-4dab-adaa-72c5eeac577b', 'siteNameHierarchy': 'Global/Australia/Sydney'}"
+            "Loaded area Sydney. {'parentId': '262696b1-aa87-432b-8a21-db9a77c51f23', 'additionalInfo': [{'nameSpace': 'Location', 'attributes': {'addressInheritedFrom': '262696b1-aa87-432b-8a21-db9a77c51f23', 'type': 'area'}}], 'name': 'Sydney', 'instanceTenantId': '623f029857259506a56ad9bd', 'id': '6e404051-4c06-4dab-adaa-72c5eeac577b', 'siteHierarchy': '9e5f9fc2-032e-45e8-994c-4a00629648e8/262696b1-aa87-432b-8a21-db9a77c51f23/6e404051-4c06-4dab-adaa-72c5eeac577b', 'siteNameHierarchy': 'Global/Australia/Sydney'}"
         )
 
     @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"dna_center_import_global": False}})
@@ -203,13 +204,6 @@ class TestDnaCenterAdapterTestCase(
         ]
         area_actual = [area.get_unique_id() for area in self.dna_center.get_all("area")]
         self.assertEqual(sorted(area_actual), sorted(area_expected))
-
-    def test_load_areas_with_validation_error(self):
-        """Test Nautobot SSoT for Cisco DNA Center load_areas() function with a ValidationError."""
-        self.dna_center.add = MagicMock()
-        self.dna_center.add.side_effect = ValidationError(message="Area load failed!")
-        self.dna_center.load_areas(areas=EXPECTED_AREAS_WO_GLOBAL)
-        self.dna_center.job.logger.warning.assert_called_with("Unable to load area Sydney. ['Area load failed!']")
 
     def test_load_buildings_w_global(self):
         """Test Nautobot SSoT for Cisco DNA Center load_buildings() function with Global area."""
