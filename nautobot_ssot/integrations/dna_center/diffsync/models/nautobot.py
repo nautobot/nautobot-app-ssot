@@ -105,7 +105,7 @@ class NautobotBuilding(base.Building):
         if "address" in attrs:
             site.physical_address = attrs["address"]
         if "area" in attrs:
-            site.parent_id = self.adapter.region_map[attrs["area"]]
+            site.parent_id = self.adapter.region_map[attrs["area_parent"]][attrs["area"]]
         if "latitude" in attrs:
             site.latitude = attrs["latitude"]
         if "longitude" in attrs:
