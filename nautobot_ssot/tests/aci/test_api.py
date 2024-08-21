@@ -2,7 +2,8 @@
 
 # pylint: disable=import-outside-toplevel, invalid-name
 import unittest
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
+
 from nautobot_ssot.integrations.aci.diffsync.client import AciApi, RequestHTTPError
 
 
@@ -29,8 +30,8 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         mock_fvTenant.status_code = 200
         mock_fvTenant.json.return_value = {
             "imdata": [
-                {"fvTenant": {"attributes": {"name": "test_tenant_1", "descr": "test_desc_1"}}},
-                {"fvTenant": {"attributes": {"name": "test_tenant_2", "descr": "test_desc_2"}}},
+                {"fvTenant": {"attributes": {"name": "test_tenant_1", "descr": "test_desc_1", "annotation": ""}}},
+                {"fvTenant": {"attributes": {"name": "test_tenant_2", "descr": "test_desc_2", "annotation": ""}}},
             ]
         }
 
@@ -40,8 +41,8 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         self.assertEqual(
             self.aci_obj.get_tenants(),
             [
-                {"name": "test_tenant_1", "description": "test_desc_1"},
-                {"name": "test_tenant_2", "description": "test_desc_2"},
+                {"name": "test_tenant_1", "description": "test_desc_1", "annotation": ""},
+                {"name": "test_tenant_2", "description": "test_desc_2", "annotation": ""},
             ],
         )
 
@@ -470,7 +471,25 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
                             "mac": "00:22:BD:F8:19:FF",
                             "unkMacUcastAct": "proxy",
                         }
-                    }
+                    },
+                },
+                {
+                    "fvRsCtx": {
+                        "attributes": {
+                            "dn": "uni/tn-ntc-chatops/BD-Vlan100_Web/rsctx",
+                            "tnFvCtxName": "vrf1",
+                            "tDn": "uni/tn-ntc-chatops/ctx-vrf1",
+                        }
+                    },
+                },
+                {
+                    "fvSubnet": {
+                        "attributes": {
+                            "dn": "uni/tn-ntc-chatops/BD-Vlan100_Web/subnet-[10.1.1.1/24]",
+                            "ip": "10.1.1.1/24",
+                            "scope": "public",
+                        }
+                    },
                 },
                 {
                     "fvBD": {
@@ -482,62 +501,48 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
                             "mac": "00:22:BD:F8:19:FF",
                             "unkMacUcastAct": "proxy",
                         }
-                    }
+                    },
+                },
+                {
+                    "fvRsCtx": {
+                        "attributes": {
+                            "dn": "uni/tn-ntc-chatops/BD-Vlan101_App/rsctx",
+                            "tnFvCtxName": "vrf2",
+                            "tDn": "uni/tn-ntc-chatops/ctx-vrf1",
+                        }
+                    },
+                },
+                {
+                    "fvSubnet": {
+                        "attributes": {
+                            "dn": "uni/tn-ntc-chatops/BD-Vlan101_App/subnet-[10.2.2.2/24]",
+                            "ip": "10.2.2.2/24",
+                            "scope": "public",
+                        }
+                    },
                 },
             ]
-        }
-
-        mocked_fvRsCtx_1 = Mock()
-        mocked_fvRsCtx_1.status_code = 200
-        mocked_fvRsCtx_1.json.return_value = {
-            "imdata": [{"fvRsCtx": {"attributes": {"tnFvCtxName": "vrf1", "tDn": "uni/tn-ntc-chatops/ctx-vrf1"}}}]
-        }
-
-        mocked_fvRsCtx_2 = Mock()
-        mocked_fvRsCtx_2.status_code = 200
-        mocked_fvRsCtx_2.json.return_value = {
-            "imdata": [{"fvRsCtx": {"attributes": {"tnFvCtxName": "vrf2", "tDn": "uni/tn-ntc-chatops/ctx-vrf1"}}}]
-        }
-
-        mocked_fvSubnet_1 = Mock()
-        mocked_fvSubnet_1.status_code = 200
-        mocked_fvSubnet_1.json.return_value = {
-            "imdata": [{"fvSubnet": {"attributes": {"ip": "10.1.1.1/24", "scope": "public"}}}]
-        }
-
-        mocked_fvSubnet_2 = Mock()
-        mocked_fvSubnet_2.status_code = 200
-        mocked_fvSubnet_2.json.return_value = {
-            "imdata": [{"fvSubnet": {"attributes": {"ip": "10.2.2.2/24", "scope": "public"}}}]
         }
 
         mocked_login.return_value = self.mock_login
         mocked_handle_request.side_effect = [
             mocked_fvBD,
-            mocked_fvRsCtx_1,
-            mocked_fvSubnet_1,
-            mocked_fvRsCtx_2,
-            mocked_fvSubnet_2,
         ]
 
         expected_data = {
-            "Vlan100_Web": {
+            "Vlan100_Web:ntc-chatops": {
+                "name": "Vlan100_Web",
                 "tenant": "ntc-chatops",
                 "vrf_tenant": "ntc-chatops",
                 "description": "WEB",
-                "unicast_routing": "yes",
-                "mac": "00:22:BD:F8:19:FF",
-                "l2unicast": "proxy",
                 "vrf": "vrf1",
                 "subnets": [("10.1.1.1/24", "public")],
             },
-            "Vlan101_App": {
+            "Vlan101_App:ntc-chatops": {
+                "name": "Vlan101_App",
                 "tenant": "ntc-chatops",
                 "vrf_tenant": "ntc-chatops",
                 "description": "APP",
-                "unicast_routing": "yes",
-                "mac": "00:22:BD:F8:19:FF",
-                "l2unicast": "proxy",
                 "vrf": "vrf2",
                 "subnets": [("10.2.2.2/24", "public")],
             },
@@ -728,7 +733,7 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
                 "fabric_ip": "10.0.0.1",
                 "site": "ACI",
                 "pod_id": "1",
-                "subnet": "10.0.0.0/24",
+                "subnet": "10.1.1.0/24",
                 "oob_ip": "10.1.1.1/24",
                 "uptime": "05:22:43:18.000",
             },

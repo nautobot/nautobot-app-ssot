@@ -1,6 +1,7 @@
 """Nautobot Models for Cisco ACI integration with SSoT app."""
 
 import logging
+from django.db import IntegrityError
 from django.contrib.contenttypes.models import ContentType
 from nautobot.tenancy.models import Tenant as OrmTenant
 from nautobot.dcim.models import DeviceType as OrmDeviceType
@@ -8,11 +9,11 @@ from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import InterfaceTemplate as OrmInterfaceTemplate
 from nautobot.dcim.models import Interface as OrmInterface
 from nautobot.dcim.models import Location, LocationType
+from nautobot.dcim.models import Manufacturer
 from nautobot.ipam.models import IPAddress as OrmIPAddress
 from nautobot.ipam.models import Namespace, IPAddressToInterface
 from nautobot.ipam.models import Prefix as OrmPrefix
 from nautobot.ipam.models import VRF as OrmVrf
-from nautobot.dcim.models import Manufacturer
 from nautobot.extras.models import Role, Status, Tag
 from nautobot_ssot.integrations.aci.diffsync.models.base import (
     Tenant,
@@ -38,20 +39,20 @@ class NautobotTenant(Tenant):
     def create(cls, diffsync, ids, attrs):
         """Create Tenant object in Nautobot."""
         _tenant = OrmTenant(name=ids["name"], description=attrs["description"], comments=attrs["comments"])
+        if attrs["msite_tag"]:
+            _tenant.tags.add(Tag.objects.get(name="ACI_MULTISITE"))
         _tenant.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _tenant.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _tenant.validated_save()
 
-        Namespace.objects.create(name=ids["name"])
+        Namespace.objects.get_or_create(name=ids["name"])
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
     def update(self, attrs):
         """Update Tenant object in Nautobot."""
         _tenant = OrmTenant.objects.get(name=self.name)
-        if attrs.get("description"):
-            _tenant.description = attrs["description"]
-        if attrs.get("comments"):
-            _tenant.comments = attrs["comments"]
+        _tenant.description = attrs.get("description", "")
+        _tenant.comments = attrs.get("comments", "")
         _tenant.validated_save()
         return super().update(attrs)
 
@@ -347,23 +348,43 @@ class NautobotIPAddress(IPAddress):
         intf = None
         if attrs["device"] and attrs["interface"]:
             try:
-                intf = OrmInterface.objects.get(name=_interface, device__name=_device)
+                intf = OrmInterface.objects.get(
+                    name=_interface, device__name=_device, device__location__name=ids["site"]
+                )
             except OrmInterface.DoesNotExist:
-                diffsync.job.logger.warning(f"{_device} missing interface {_interface} to assign {ids['address']}")
+                diffsync.job.logger.warning(f"{_device} missing interface {_interface} to assign {ids['address']}.")
+            except OrmInterface.MultipleObjectsReturned:
+                diffsync.job.logger.warning(f"Found Multiple {_interface} in {_device} to assign {ids['address']}.")
         if ids["tenant"]:
-            tenant_name = OrmTenant.objects.get(name=ids["tenant"])
+            _tenant = OrmTenant.objects.get(name=ids["tenant"])
         else:
-            tenant_name = None
+            _tenant = None
+        try:
+            _namespace = Namespace.objects.get(name=ids["namespace"])
+            _parent = OrmPrefix.objects.get(prefix=attrs["prefix"], namespace=_namespace)
+        except Namespace.DoesNotExist:
+            diffsync.job.logger.warning(f"{ids['namespace']} missing Namespace to assign IP address: {ids['address']}")
+            return None
+        except OrmPrefix.DoesNotExist:
+            diffsync.job.logger.warning(
+                f"{attrs['prefix']} missing Parent Prefix to assign IP address: {ids['address']}"
+            )
+            return None
+        try:
+            _ipaddress = OrmIPAddress.objects.create(
+                address=ids["address"],
+                status=Status.objects.get(name=attrs["status"]),
+                description=attrs["description"],
+                namespace=_namespace,
+                parent=_parent,
+                tenant=_tenant,
+            )
+        except IntegrityError:
+            diffsync.job.logger.warning(
+                f"Unable to create IP Address {ids['address']}. Duplicate Address or Parent Prefix: {attrs['prefix']} in Namespace: {ids['namespace']}"
+            )
+            return None
 
-        namespace = Namespace.objects.get(name=ids["namespace"])
-        _ipaddress = OrmIPAddress.objects.create(
-            address=ids["address"],
-            status=Status.objects.get(name=attrs["status"]),
-            description=attrs["description"],
-            namespace=namespace,
-            parent=OrmPrefix.objects.get(prefix=attrs["prefix"], namespace=namespace),
-            tenant=tenant_name,
-        )
         if intf:
             mapping = IPAddressToInterface.objects.create(ip_address=_ipaddress, interface=intf)
             mapping.validated_save()
@@ -382,13 +403,19 @@ class NautobotIPAddress(IPAddress):
 
     def update(self, attrs):
         """Update IPAddress object in Nautobot."""
-        _ipaddress = OrmIPAddress.objects.get(address=self.address)
+        _ipaddress = OrmIPAddress.objects.get(
+            address=self.address, tenant__name=self.tenant, parent__namespace__name=self.namespace
+        )
         if attrs.get("description"):
             _ipaddress.description = attrs["description"]
         if attrs.get("tenant"):
             _ipaddress.tenant = OrmTenant.objects.get(name=self.tenant)
         if attrs.get("device") and attrs.get("interface"):
-            intf = OrmInterface.objects.get(name=attrs["interface"], device__name=attrs["device"])
+            intf = OrmInterface.objects.get(
+                name=attrs["interface"],
+                device__name=attrs["device"],
+                device__location__name=self.site,
+            )
             mapping = IPAddressToInterface.objects.create(ip_address=_ipaddress, interface=intf)
             mapping.validated_save()
         if attrs.get("status"):
@@ -419,8 +446,11 @@ class NautobotPrefix(Prefix):
         try:
             vrf_tenant = OrmTenant.objects.get(name=attrs["vrf_tenant"])
         except OrmTenant.DoesNotExist:
-            diffsync.job.logger.warning(f"Tenant {attrs['vrf_tenant']} not found for VRF {attrs['vrf']}")
+            diffsync.job.logger.warning(
+                f"Tenant {attrs['vrf_tenant']} not found for VRF while creating Prefix: {ids['prefix']}"
+            )
             vrf_tenant = None
+            return None
 
         if ids["vrf"] and vrf_tenant:
             try:
@@ -430,7 +460,7 @@ class NautobotPrefix(Prefix):
                 vrf = None
         else:
             vrf = None
-        _prefix = OrmPrefix.objects.create(
+        _prefix, created = OrmPrefix.objects.get_or_create(
             prefix=ids["prefix"],
             status=Status.objects.get(name=attrs["status"]),
             description=attrs["description"],
@@ -438,6 +468,12 @@ class NautobotPrefix(Prefix):
             tenant=OrmTenant.objects.get(name=attrs["vrf_tenant"]),
             location=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
         )
+
+        if not created:
+            diffsync.job.logger.warning(
+                f"Prefix: {_prefix.prefix} duplicate in Namespace: {_prefix.namespace.name}. Skipping .."
+            )
+            return None
         if vrf:
             _prefix.vrfs.add(vrf)
         _prefix.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
@@ -479,7 +515,7 @@ class NautobotPrefix(Prefix):
         _prefix = OrmPrefix.objects.get(
             prefix=self.prefix,
             tenant=tenant,
-            vrf=OrmVrf.objects.get(name=self.vrf, tenant=vrf_tenant),
+            vrfs=OrmVrf.objects.get(name=self.vrf, tenant=vrf_tenant),
         )
         self.diffsync.objects_to_delete["prefix"].append(_prefix)  # pylint: disable=protected-access
         return self
