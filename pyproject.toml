@@ -42,7 +42,7 @@ packaging = ">=21.3, <24"
 prometheus-client = ">=0.17.1"
 ijson = { version = ">=2.5.1", optional = true }
 ipfabric = { version = "^6.0.0", optional = true }
-netutils = { version = "^1.0.0", optional = true }
+netutils = { version = "^1.9.0", optional = true }
 oauthlib = { version = ">=3.1.0", optional = true }
 python-magic = { version = ">=0.4.15", optional = true }
 pytz = { version = ">=2019.3", optional = true }
@@ -52,6 +52,8 @@ six = { version = ">=1.13.0", optional = true }
 httpx = { version = ">=0.23.3", optional = true }
 # Used by the Itential SSoT as a retry mechanism for HTTP failures in the AutomationGatewayClient.
 retry = "^0.9.2"
+# used for DNA Center integration
+dnacentersdk = { version = "^2.5.6", optional = true }
 
 [tool.poetry.group.dev.dependencies]
 bandit = "*"
@@ -78,8 +80,8 @@ mkdocs-material = "9.1.15"
 # Render custom markdown for version added/changed/remove notes
 mkdocs-version-annotations = "1.0.0"
 # Automatic documentation from sources, for MkDocs
-mkdocstrings = "0.22.0"
-mkdocstrings-python = "1.5.2"
+mkdocstrings = "*"
+mkdocstrings-python = "*"
 towncrier = "~23.6.0"
 requests-mock = "^1.10.0"
 parameterized = "^0.8.1"
@@ -119,6 +121,7 @@ all = [
     "requests",
     "requests-oauthlib",
     "six",
+    "dnacentersdk",
 ]
 aristacv = [
     "cloudvision",
@@ -126,6 +129,10 @@ aristacv = [
 ]
 device42 = [
     "requests",
+]
+dna_center = [
+    "dnacentersdk",
+    "netutils"
 ]
 infoblox = [
     "dnspython",
