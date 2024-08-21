@@ -430,7 +430,7 @@ class TestNautobotVLAN(TransactionTestCase):
         self.diffsync.job = MagicMock()
         self.diffsync.job.logger.info = MagicMock()
         self.diffsync.status_map = {"Active": self.status_active.id}
-        self.diffsync.site_map = {"HQ": self.test_site.id}
+        self.diffsync.site_map = {"HQ": self.test_site}
         self.diffsync.vlan_map = {"HQ": {}}
         self.ids = {
             "vlan_id": 1,

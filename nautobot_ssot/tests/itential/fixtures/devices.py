@@ -1,19 +1,17 @@
 """Itential SsoT Nautobot device fixtures."""
 
 from django.contrib.contenttypes.models import ContentType
-
 from nautobot.dcim.models import (
+    Device,
+    DeviceType,
+    Interface,
     Location,
     LocationType,
     Manufacturer,
     Platform,
-    Device,
-    DeviceType,
-    Interface,
 )
-from nautobot.extras.models import Status, Role
-from nautobot.ipam.models import Prefix, IPAddress, Namespace
-
+from nautobot.extras.models import Role, Status
+from nautobot.ipam.models import IPAddress, Namespace, Prefix
 
 data = [
     {
@@ -111,7 +109,7 @@ def update_or_create_device_object(
     interface, _ = Interface.objects.update_or_create(name=interface, status=status, device=device)
 
     if ip_address:
-        ip_address, _ = IPAddress.objects.update_or_create(host=ip_address, mask_length=32, status=status)
+        ip_address, _ = IPAddress.objects.get_or_create(host=ip_address, defaults={"mask_length": 32, "status": status})
         ip_address.primary_ip4_for.add(device)
 
     device.local_config_context_data = config_context

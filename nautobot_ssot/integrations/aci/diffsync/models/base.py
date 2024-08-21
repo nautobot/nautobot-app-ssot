@@ -9,12 +9,13 @@ class Tenant(DiffSyncModel):
 
     _modelname = "tenant"
     _identifiers = ("name",)
-    _attributes = ("description", "comments", "site_tag")
+    _attributes = ("description", "comments", "site_tag", "msite_tag")
 
     name: str
     description: Optional[str]
     comments: Optional[str]
     site_tag: str
+    msite_tag: bool
 
 
 class Vrf(DiffSyncModel):
