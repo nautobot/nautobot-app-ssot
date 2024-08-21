@@ -125,21 +125,22 @@ class DnaCenterAdapter(Adapter):
             if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
                 if location["name"] == "Global":
                     continue
-            if self.job.debug:
-                self.job.logger.info(f"Loading area {location['name']}. {location}")
             parent_name = None
             if location.get("parentId") and location["parentId"] in self.dnac_location_map:
                 parent_name = self.dnac_location_map[location["parentId"]]["name"]
                 self.dnac_location_map[location["id"]]["parent"] = parent_name
-            new_area = self.area(
-                name=location["name"],
-                parent=parent_name,
-                uuid=None,
+            _, loaded = self.get_or_instantiate(
+                self.area,
+                ids={"name": location["name"], "parent": parent_name},
+                attrs={
+                    "uuid": None,
+                },
             )
-            try:
-                self.add(new_area)
-            except ValidationError as err:
-                self.job.logger.warning(f"Unable to load area {location['name']}. {err}")
+            if loaded:
+                if self.job.debug:
+                    self.job.logger.info(f"Loaded area {location['name']}. {location}")
+            else:
+                self.job.logger.warning(f"Duplicate area {location['name']} attempting to be loaded.")
 
     def load_buildings(self, buildings: List[dict]):
         """Load building data from DNAC into DiffSync model.
