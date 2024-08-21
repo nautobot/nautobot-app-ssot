@@ -86,8 +86,6 @@ towncrier = "~23.6.0"
 requests-mock = "^1.10.0"
 parameterized = "^0.8.1"
 myst-parser = "^2.0.0"
-# commenting out nautobot-chatops until diffsync can be updated in the app
-# nautobot-chatops = { version = "^3.0.0", extras = ["ipfabric"], optional = true }
 responses = "^0.14.0"
 to-json-schema = "*"
 jsonschema = "*"
