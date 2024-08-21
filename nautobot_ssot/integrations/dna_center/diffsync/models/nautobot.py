@@ -1,6 +1,7 @@
 """Nautobot DiffSync models for DNA Center SSoT."""
 
 from datetime import datetime
+
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
@@ -8,12 +9,13 @@ from nautobot.dcim.models import (
     Device,
     DeviceType,
     Interface,
-    Manufacturer,
     Location,
     LocationType,
+    Manufacturer,
 )
 from nautobot.extras.models import Role
-from nautobot.ipam.models import IPAddress, IPAddressToInterface, Prefix, Namespace
+from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix
+
 from nautobot_ssot.integrations.dna_center.diffsync.models import base
 from nautobot_ssot.integrations.dna_center.utils.nautobot import (
     add_software_lcm,
