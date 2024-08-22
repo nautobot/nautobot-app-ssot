@@ -765,13 +765,6 @@ def ruff(context, action=None, target=None, fix=False, output_format="concise"):
 
 
 @task
-def bandit(context):
-    """Run bandit to validate basic static code security analysis."""
-    command = "bandit --recursive . --configfile .bandit.yml"
-    run_command(context, command)
-
-
-@task
 def yamllint(context):
     """Run yamllint to validate formatting adheres to NTC defined YAML standards.
 
@@ -852,8 +845,6 @@ def tests(context, failfast=False, keepdb=False, lint_only=False):
     # Sorted loosely from fastest to slowest
     print("Running ruff...")
     ruff(context)
-    print("Running bandit...")
-    bandit(context)
     print("Running yamllint...")
     yamllint(context)
     print("Running poetry check...")
