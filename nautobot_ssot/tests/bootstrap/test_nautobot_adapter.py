@@ -10,20 +10,23 @@ def remove_object_keys(data):
     """Remove DiffSync model_flags and system_of_record from objects."""
     if isinstance(data, list):
         return [remove_object_keys(item) for item in data]
-    elif isinstance(data, dict):
+    if isinstance(data, dict):
         return {
             key: remove_object_keys(value)
             for key, value in data.items()
             if key not in ["model_flags", "system_of_record", "terminations", "uuid"]
         }
-    else:
-        return data
+    return data
 
 
 class TestNautobotAdapterTestCase(TransactionTestCase):
     """Test NautobotAdapter class."""
 
     databases = ("default", "job_logs")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max_diff = None
 
     def setUp(self):
         """Initialize test case."""
@@ -34,7 +37,7 @@ class TestNautobotAdapterTestCase(TransactionTestCase):
     def test_data_loading(self):
         """Test Bootstrap Nautobot load() function."""
         self.nb_adapter.load()
-        self.maxDiff = None
+        self.max_diff = None
 
         self.assertEqual(sorted(self.nb_adapter.dict()["tenant_group"]), sorted(GLOBAL_JSON_SETTINGS["tenant_group"]))
         self.assertEqual(

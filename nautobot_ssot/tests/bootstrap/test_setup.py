@@ -3,9 +3,9 @@
 # test_setup.py
 
 import json
+from unittest.mock import MagicMock
 import yaml
 import pytz
-from unittest.mock import MagicMock
 from django.contrib.contenttypes.models import ContentType
 from django.utils.text import slugify
 from nautobot.dcim.models import Device, DeviceType, InventoryItem, Location, LocationType, Manufacturer, Platform
@@ -52,6 +52,7 @@ DEVELOP_YAML_SETTINGS = load_yaml("./nautobot_ssot/tests/bootstrap/fixtures/deve
 
 
 def is_valid_timezone(tz):
+    """Return whether timezone passed is a valid timezone in pytz."""
     try:
         pytz.timezone(tz)
         return True
@@ -59,7 +60,21 @@ def is_valid_timezone(tz):
         return False
 
 
+class PrefixInfo:
+    """Definition for a prefix object"""
+
+    def __init__(self, namespace, prefix_type, role, rir, vlan, tenant):  # pylint: disable=too-many-arguments
+        self.namespace = namespace
+        self.prefix_type = prefix_type
+        self.role = role
+        self.rir = rir
+        self.vlan = vlan
+        self.tenant = tenant
+
+
 class NautobotTestSetup:
+    """Setup basic database information to be used in other tests."""
+
     def __init__(self):
         self.job = BootstrapDataSource()
         self.job.job_result = JobResult.objects.create(
@@ -71,6 +86,7 @@ class NautobotTestSetup:
         self.bs_adapter = BootstrapAdapter(job=self.job, sync=None)
         self.bs_adapter.job = MagicMock()
         self.bs_adapter.job.logger.info = MagicMock()
+        self.status_active = None
         self._initialize_data()
 
     def _initialize_data(self):
@@ -138,7 +154,7 @@ class NautobotTestSetup:
         ]
         for _content_type in _content_types:
             _con_type = ContentType.objects.get(
-                app_label=_content_type.split(".")[0], model=_content_type.split(".")[1]
+                app_label=_content_type.split(".", maxsplit=1)[0], model=_content_type.split(".")[1]
             )
             self.status_active.content_types.add(_con_type)
         self.status_active.refresh_from_db()
@@ -146,90 +162,43 @@ class NautobotTestSetup:
             status, _ = Status.objects.get_or_create(name=_status)
             for _content_type in _content_types:
                 _con_type = ContentType.objects.get(
-                    app_label=_content_type.split(".")[0], model=_content_type.split(".")[1]
+                    app_label=_content_type.split(".", maxsplit=1)[0], model=_content_type.split(".")[1]
                 )
                 status.content_types.add(_con_type)
             status.validated_save()
 
     def _setup_locations(self):
-        for _location_type in GLOBAL_YAML_SETTINGS["location_type"]:
-            _parent = None
-            _content_types = []
-            if _location_type["parent"]:
-                _parent = LocationType.objects.get(name=_location_type["parent"])
-            try:
-                location_type = LocationType.objects.get(name=_location_type["name"], parent=_parent)
-            except LocationType.DoesNotExist:
-                location_type = LocationType.objects.create(
-                    name=_location_type["name"],
-                    parent=_parent,
-                    nestable=_location_type["nestable"] if _location_type["nestable"] != "" else False,
-                    description=_location_type["description"],
-                )
-            location_type.validated_save()
-            location_type.custom_field_data["system_of_record"] = "Bootstrap"
-            for _con_type in _location_type["content_types"]:
-                _content_types.append(
-                    ContentType.objects.get(app_label=_con_type.split(".")[0], model=_con_type.split(".")[1])
-                )
-            location_type.content_types.set(_content_types)
+        for location_type_data in GLOBAL_YAML_SETTINGS["location_type"]:
+            location_type = self._get_or_create_location_type(location_type_data)
+            self._set_location_type_content_types(location_type, location_type_data["content_types"])
             location_type.validated_save()
 
-        for _location in GLOBAL_YAML_SETTINGS["location"]:
-            _parent = None
-            _tenant = None
-            _timezone = None
-            _tags = []
-            _location_type = LocationType.objects.get(name=_location["location_type"])
-            _status = Status.objects.get(name=_location["status"])
-            if "parent" in _location:
-                if _location["parent"]:
-                    _parent = Location.objects.get(name=_location["parent"])
-            if "tenant" in _location:
-                if _location["tenant"]:
-                    _tenant = Tenant.objects.get(name=_location["tenant"])
-            if "time_zone" in _location:
-                if _location["time_zone"]:
-                    if is_valid_timezone(_location["time_zone"]):
-                        _timezone = _location["time_zone"]
-            if "tags" in _location:
-                for _tag in _location["tags"]:
-                    _tags.append(Tag.get(name=_tag))
-            location, _ = Location.objects.get_or_create(
-                name=_location["name"],
-                location_type=_location_type,
-                parent=_parent if not None else None,
-                status=_status,
+    def _get_or_create_location_type(self, location_type_data):
+        """Get or create a LocationType based on the provided data."""
+        parent = self._get_location_type_parent(location_type_data["parent"])
+        try:
+            return LocationType.objects.get(name=location_type_data["name"], parent=parent)
+        except LocationType.DoesNotExist:
+            return LocationType.objects.create(
+                name=location_type_data["name"],
+                parent=parent,
+                nestable=location_type_data["nestable"] if location_type_data["nestable"] != "" else False,
+                description=location_type_data["description"],
             )
-            if _location["facility"]:
-                location.facility = _location["facility"]
-            if _location["asn"]:
-                location.asn = _location["asn"]
-            if _timezone is not None:
-                location.time_zone = _timezone
-            if _location["description"]:
-                location.description = _location["description"]
-            if _tenant is not None:
-                location.tenant = (_tenant,)
-            if _location["physical_address"]:
-                location.physical_address = _location["physical_address"]
-            if _location["shipping_address"]:
-                location.shipping_address = _location["shipping_address"]
-            if _location["latitude"]:
-                location.latitude = _location["latitude"]
-            if _location["longitude"]:
-                location.longitude = _location["longitude"]
-            if _location["contact_name"]:
-                location.contact_name = _location["contact_name"]
-            if _location["contact_phone"]:
-                location.contact_phone = _location["contact_phone"]
-            if _location["contact_email"]:
-                location.contact_email = _location["contact_email"]
-            location.validated_save()
-            location.custom_field_data["system_of_record"] = "Bootstrap"
-            for _tag in _tags:
-                location.tags.add(_tag)
-            location.validated_save()
+
+    def _get_location_type_parent(self, parent_name):
+        """Retrieve the parent LocationType if it exists."""
+        if parent_name:
+            return LocationType.objects.get(name=parent_name)
+        return None
+
+    def _set_location_type_content_types(self, location_type, content_types):
+        """Set the content types for a LocationType."""
+        content_type_objects = [
+            ContentType.objects.get(app_label=ct.split(".")[0], model=ct.split(".")[1]) for ct in content_types
+        ]
+        location_type.content_types.set(content_type_objects)
+        location_type.custom_field_data["system_of_record"] = "Bootstrap"
 
     def _setup_tenant_groups(self):
         _tenant_groups = [
@@ -497,68 +466,108 @@ class NautobotTestSetup:
             vrf.tags.set(_tags)
 
     def _setup_prefixes(self):
-        for _prefix in GLOBAL_YAML_SETTINGS["prefix"]:
-            _namespace = Namespace.objects.get(name="Global")
-            _prefix_type = "network"
-            _role = None
-            _rir = None
-            _vrfs = []
-            _locations = []
-            _vlan = None
-            _tenant = None
-            _tags = []
-            if _prefix["namespace"] and _prefix["namespace"] != "Global":
-                _namespace = Namespace.objects.get(name=_prefix["namespace"])
-            if _prefix["prefix_type"] and _prefix["prefix_type"] != "network":
-                _prefix_type = _prefix["prefix_type"]
-            if _prefix["role"]:
-                _role = Role.objects.get(name=_prefix["role"])
-            if _prefix["rir"]:
-                _rir = RIR.objects.get(name=_prefix["rir"])
-            if _prefix["vrfs"]:
-                for _v in _prefix["vrfs"]:
-                    _namespace = Namespace.objects.get(name=_v.split("__")[1])
-                    _vrfs.append(VRF.objects.get(name=_v.split("__")[0], namespace=_namespace))
-            if _prefix["locations"]:
-                for _l in _prefix["locations"]:
-                    _locations.append(Location.objects.get(name=_l))
-            if _prefix["vlan"]:
-                _name, _vid, _group = _prefix["vlan"].split("__", 2)
-                if _group is not None:
-                    _vlan_group = VLANGroup.objects.get(name=_group)
-                _vlan = VLAN.objects.get(name=_name, vid=_vid, vlan_group=_vlan_group)
-            if _prefix["tenant"]:
-                _tenant = Tenant.objects.get(name=_prefix["tenant"])
-            if _prefix["tags"]:
-                for _t in _prefix["tags"]:
-                    _tags.append(Tag.objects.get(name=_t))
-            try:
-                prefix = Prefix.objects.get(
-                    network=_prefix["network"].split("/")[0],
-                    prefix_length=_prefix["network"].split("/")[1],
-                    namespace=_namespace,
-                    type=_prefix_type,
-                )
-            except Prefix.DoesNotExist:
-                prefix = Prefix.objects.create(
-                    network=_prefix["network"].split("/")[0],
-                    prefix_length=_prefix["network"].split("/")[1],
-                    namespace=_namespace,
-                    type=_prefix_type,
-                    status=Status.objects.get(name=_prefix["status"]),
-                    role=_role,
-                    rir=_rir,
-                    date_allocated=_prefix["date_allocated"],
-                    description=_prefix["description"],
-                    vlan=_vlan,
-                    tenant=_tenant,
-                )
-            prefix.custom_field_data["system_of_record"] = "Bootstrap"
-            prefix.validated_save()
-            for _l in _locations:
-                prefix.locations.add(_l)
-            for _v in _vrfs:
-                prefix.vrfs.add(_v)
+        for prefix_data in GLOBAL_YAML_SETTINGS["prefix"]:
+            namespace = self._get_namespace(prefix_data)
+            prefix_type = self._get_prefix_type(prefix_data)
+            role = self._get_role(prefix_data)
+            rir = self._get_rir(prefix_data)
+            vrfs = self._get_vrfs(prefix_data)
+            locations = self._get_locations(prefix_data)
+            vlan = self._get_vlan(prefix_data)
+            tenant = self._get_tenant(prefix_data)
+            tags = self._get_prefix_tags(prefix_data)
+
+            prefix_info = PrefixInfo(namespace, prefix_type, role, rir, vlan, tenant)
+            prefix = self._get_or_create_prefix(prefix_data, prefix_info)
+            self._update_prefix(prefix, locations, vrfs, tags)
+
+    def _get_namespace(self, prefix_data):
+        if prefix_data["namespace"] and prefix_data["namespace"] != "Global":
+            return Namespace.objects.get(name=prefix_data["namespace"])
+        return Namespace.objects.get(name="Global")
+
+    def _get_prefix_type(self, prefix_data):
+        if prefix_data["prefix_type"] and prefix_data["prefix_type"] != "network":
+            return prefix_data["prefix_type"]
+        return "network"
+
+    def _get_role(self, prefix_data):
+        if prefix_data["role"]:
+            return Role.objects.get(name=prefix_data["role"])
+        return None
+
+    def _get_rir(self, prefix_data):
+        if prefix_data["rir"]:
+            return RIR.objects.get(name=prefix_data["rir"])
+        return None
+
+    def _get_vrfs(self, prefix_data):
+        vrfs = []
+        if prefix_data["vrfs"]:
+            for vrf in prefix_data["vrfs"]:
+                namespace = Namespace.objects.get(name=vrf.split("__")[1])
+                vrfs.append(VRF.objects.get(name=vrf.split("__")[0], namespace=namespace))
+        return vrfs
+
+    def _get_locations(self, prefix_data):
+        locations = []
+        if prefix_data["locations"]:
+            for loc in prefix_data["locations"]:
+                locations.append(Location.objects.get(name=loc))
+        return locations
+
+    def _get_vlan(self, prefix_data):
+        if prefix_data["vlan"]:
+            name, vid, group = prefix_data["vlan"].split("__", 2)
+            vlan_group = VLANGroup.objects.get(name=group) if group else None
+            return VLAN.objects.get(name=name, vid=vid, vlan_group=vlan_group)
+        return None
+
+    def _get_tenant(self, prefix_data):
+        if prefix_data["tenant"]:
+            return Tenant.objects.get(name=prefix_data["tenant"])
+        return None
+
+    def _get_prefix_tags(self, prefix_data):
+        tags = []
+        if prefix_data["tags"]:
+            for tag in prefix_data["tags"]:
+                tags.append(Tag.objects.get(name=tag))
+        return tags
+
+    def _get_or_create_prefix(self, prefix_data, prefix_info):
+        try:
+            return Prefix.objects.get(
+                network=prefix_data["network"].split("/")[0],
+                prefix_length=prefix_data["network"].split("/")[1],
+                namespace=prefix_info.namespace,
+                type=prefix_info.prefix_type,
+            )
+        except Prefix.DoesNotExist:
+            return Prefix.objects.create(
+                network=prefix_data["network"].split("/")[0],
+                prefix_length=prefix_data["network"].split("/")[1],
+                namespace=prefix_info.namespace,
+                type=prefix_info.prefix_type,
+                status=Status.objects.get(name=prefix_data["status"]),
+                role=prefix_info.role,
+                rir=prefix_info.rir,
+                date_allocated=prefix_data["date_allocated"],
+                description=prefix_data["description"],
+                vlan=prefix_info.vlan,
+                tenant=prefix_info.tenant,
+            )
+
+    def _update_prefix(self, prefix, locations, vrfs, tags):
+        prefix.custom_field_data["system_of_record"] = "Bootstrap"
+        prefix.validated_save()
+        for loc in locations:
+            prefix.locations.add(loc)
+        for vrf in vrfs:
+            prefix.vrfs.add(vrf)
+        for tag in tags:
+            prefix.tags.add(tag)
+        prefix.validated_save()
 
     def _setup_manufacturers_and_platforms(self):
         _manufacturers = ["Arista", "Palo Alto Networks", "Cisco", "Generic"]
@@ -755,41 +764,60 @@ class NautobotTestSetup:
             _soft_image.refresh_from_db()
 
     def _setup_validated_software(self):
-        for _validated_software in GLOBAL_YAML_SETTINGS["validated_software"]:
-            _tags = []
-            _devices = []
-            _device_types = []
-            _device_roles = []
-            _inventory_items = []
-            _object_tags = []
-            for _tag in _validated_software["tags"]:
-                _tags.append(Tag.objects.get(name=_tag))
-            for _dev in _validated_software["devices"]:
-                _devices.append(Device.objects.get(name=_dev))
-            for _dev_type in _validated_software["device_types"]:
-                _device_types.append(DeviceType.objects.get(model=_dev_type))
-            for _dev_role in _validated_software["device_roles"]:
-                _device_roles.append(Role.objects.get(name=_dev_role))
-            for _inv_item in _validated_software["inventory_items"]:
-                _inventory_items.append(InventoryItem.objects.get(name=_inv_item))
-            for _obj_tag in _validated_software["object_tags"]:
-                _object_tags.append(Tag.objects.get(name=_obj_tag))
-            _platform = Platform.objects.get(name=_validated_software["software"].split(" - ")[0])
-            _software = SoftwareLCM.objects.get(
-                version=_validated_software["software"].split(" - ")[1], device_platform=_platform
+        for validated_software_data in GLOBAL_YAML_SETTINGS["validated_software"]:
+            tags = self._get_validated_software_tags(validated_software_data["tags"])
+            devices = self._get_devices(validated_software_data["devices"])
+            device_types = self._get_device_types(validated_software_data["device_types"])
+            device_roles = self._get_device_roles(validated_software_data["device_roles"])
+            inventory_items = self._get_inventory_items(validated_software_data["inventory_items"])
+            object_tags = self._get_object_tags(validated_software_data["object_tags"])
+
+            software = self._get_software(validated_software_data["software"])
+
+            validated_software = ValidatedSoftwareLCM.objects.create(
+                software=software,
+                start=validated_software_data["valid_since"],
+                end=validated_software_data["valid_until"],
+                preferred=validated_software_data["preferred_version"],
+                tags=tags,
             )
-            _valid_software = ValidatedSoftwareLCM.objects.create(
-                software=_software,
-                start=_validated_software["valid_since"],
-                end=_validated_software["valid_until"],
-                preferred=_validated_software["preferred_version"],
-                tags=_tags,
+            validated_software.custom_field_data["system_of_record"] = "Bootstrap"
+            validated_software.validated_save()
+
+            self._set_validated_software_relations(
+                validated_software, devices, device_types, device_roles, inventory_items, object_tags
             )
-            _valid_software.custom_field_data["system_of_record"] = "Bootstrap"
-            _valid_software.validated_save()
-            _valid_software.devices.set(_devices)
-            _valid_software.device_types.set(_device_types)
-            _valid_software.device_roles.set(_device_roles)
-            _valid_software.inventory_items.set(_inventory_items)
-            _valid_software.object_tags.set(_object_tags)
-            _valid_software.validated_save()
+
+    def _get_validated_software_tags(self, tag_names):
+        return [Tag.objects.get(name=tag_name) for tag_name in tag_names]
+
+    def _get_devices(self, device_names):
+        return [Device.objects.get(name=device_name) for device_name in device_names]
+
+    def _get_device_types(self, device_type_names):
+        return [DeviceType.objects.get(model=device_type_name) for device_type_name in device_type_names]
+
+    def _get_device_roles(self, device_role_names):
+        return [Role.objects.get(name=device_role_name) for device_role_name in device_role_names]
+
+    def _get_inventory_items(self, inventory_item_names):
+        return [InventoryItem.objects.get(name=inventory_item_name) for inventory_item_name in inventory_item_names]
+
+    def _get_object_tags(self, object_tag_names):
+        return [Tag.objects.get(name=object_tag_name) for object_tag_name in object_tag_names]
+
+    def _get_software(self, software_name):
+        _, software_version = software_name.split(" - ")
+        platform = Platform.objects.get(name=_)
+        software = SoftwareLCM.objects.get(version=software_version, device_platform=platform)
+        return software
+
+    def _set_validated_software_relations(
+        self, validated_software, devices, device_types, device_roles, inventory_items, object_tags
+    ):  # pylint: disable=too-many-arguments
+        validated_software.devices.set(devices)
+        validated_software.device_types.set(device_types)
+
+        _ = device_roles
+        _ = inventory_items
+        _ = object_tags

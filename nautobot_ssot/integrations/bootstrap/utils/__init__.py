@@ -14,14 +14,11 @@ from nautobot_ssot.integrations.bootstrap.constants import content_model_path_ma
 
 def check_sor_field(model):
     """Check if the System of Record field is present and is set to "Bootstrap"."""
-    if (
+    return (
         "system_of_record" in model.custom_field_data
         and model.custom_field_data["system_of_record"] is not None
         and os.getenv("SYSTEM_OF_RECORD", "Bootstrap") in model.custom_field_data["system_of_record"]
-    ):
-        return True
-    else:
-        return False
+    )
 
 
 def get_sor_field_nautobot_object(nb_object):

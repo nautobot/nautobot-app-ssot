@@ -7,7 +7,7 @@ from nautobot.extras.choices import CustomFieldTypeChoices
 
 
 try:
-    import nautobot_device_lifecycle_mgmt  # noqa: F401, W0611
+    import nautobot_device_lifecycle_mgmt  # noqa: F401 # pylint: disable=unused-import
 
     LIFECYCLE_MGMT = True
 except ImportError:
@@ -86,10 +86,16 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         "secrets_group": SecretsGroup,
         "dynamic_group": DynamicGroup,
         "git_repository": GitRepository,
-        "software": SoftwareLCM,
-        "software_image": SoftwareImageLCM,
-        "validated_software": ValidatedSoftwareLCM,
     }
+
+    if LIFECYCLE_MGMT:
+        signal_to_model_mapping.update(
+            {
+                "software": SoftwareLCM,
+                "software_image": SoftwareImageLCM,
+                "validated_software": ValidatedSoftwareLCM,
+            }
+        )
 
     region = LocationType.objects.update_or_create(name="Region", defaults={"nestable": True})[0]
     site = LocationType.objects.update_or_create(name="Site", defaults={"nestable": False, "parent": region})[0]

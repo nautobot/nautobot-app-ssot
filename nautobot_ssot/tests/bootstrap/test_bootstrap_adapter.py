@@ -1,9 +1,9 @@
 """Test bootstrap adapter."""
 
 import json
-import yaml
 import os
 from unittest.mock import MagicMock
+import yaml
 
 from nautobot.extras.models import JobResult
 from nautobot.core.testing import TransactionTestCase
@@ -35,6 +35,10 @@ class TestBootstrapAdapterTestCase(TransactionTestCase):
 
     databases = ("default", "job_logs")
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max_diff = None
+
     def setUp(self):
         """Initialize test case."""
         self.job = BootstrapDataSource()
@@ -61,7 +65,7 @@ class TestBootstrapAdapterTestCase(TransactionTestCase):
     def test_data_loading(self):
         """Test Nautobot Ssot Bootstrap load() function."""
         self.bootstrap.load()
-        self.maxDiff = None
+        self.max_diff = None
 
         self.assertEqual(
             sorted(self.bootstrap.dict()["tenant_group"], key=lambda x: x[1]),
