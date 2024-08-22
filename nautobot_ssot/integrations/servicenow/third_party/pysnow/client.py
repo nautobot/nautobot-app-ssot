@@ -1,18 +1,19 @@
 # -*- coding: utf-8 -*-
 
-import logging
 import inspect
+import logging
 import warnings
 
 import requests
+from requests.auth import HTTPBasicAuth
+
 from nautobot_ssot.integrations.servicenow.third_party import pysnow
 
-from requests.auth import HTTPBasicAuth
-from .legacy_request import LegacyRequest
 from .exceptions import InvalidUsage
+from .legacy_request import LegacyRequest
+from .params_builder import ParamsBuilder
 from .resource import Resource
 from .url_builder import URLBuilder
-from .params_builder import ParamsBuilder
 
 logger = logging.getLogger("pysnow")
 

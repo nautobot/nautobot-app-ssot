@@ -1,26 +1,23 @@
 """Base Job classes for sync workers."""
 
+import tracemalloc
 from collections import namedtuple
 from datetime import datetime
-import tracemalloc
 from typing import Iterable, Optional
 
+import structlog
+
+# pylint-django doesn't understand classproperty, and complains unnecessarily. We disable this specific warning:
+# pylint: disable=no-self-argument
+from diffsync.enum import DiffSyncFlags
 from django.db.utils import OperationalError
 from django.templatetags.static import static
 from django.utils import timezone
 from django.utils.functional import classproperty
-
-# pylint-django doesn't understand classproperty, and complains unnecessarily. We disable this specific warning:
-# pylint: disable=no-self-argument
-
-from diffsync.enum import DiffSyncFlags
-import structlog
-
-from nautobot.extras.jobs import DryRunVar, Job, BooleanVar
+from nautobot.extras.jobs import BooleanVar, DryRunVar, Job
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices
 from nautobot_ssot.models import BaseModel, Sync, SyncLogEntry
-
 
 DataMapping = namedtuple("DataMapping", ["source_name", "source_url", "target_name", "target_url"])
 """Entry in the list returned by a job's data_mappings() API.

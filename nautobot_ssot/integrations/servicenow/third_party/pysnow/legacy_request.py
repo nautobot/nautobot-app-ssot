@@ -2,21 +2,21 @@
 
 import itertools
 import json
-import os
-import six
 import ntpath
+import os
 import warnings
 
-from .query_builder import QueryBuilder
+import six
 
 from .legacy_exceptions import (
-    NoRequestExecuted,
-    MultipleResults,
-    NoResults,
     InvalidUsage,
-    UnexpectedResponse,
     MissingResult,
+    MultipleResults,
+    NoRequestExecuted,
+    NoResults,
+    UnexpectedResponse,
 )
+from .query_builder import QueryBuilder
 
 
 class LegacyRequest(object):

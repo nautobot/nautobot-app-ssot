@@ -9,6 +9,7 @@ except ImportError:
 
 from collections import defaultdict
 from typing import Optional
+
 from diffsync import Adapter
 from diffsync.enum import DiffSyncModelFlags
 from diffsync.exceptions import ObjectNotFound
@@ -19,15 +20,15 @@ from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import Interface as OrmInterface
 from nautobot.dcim.models import Location as OrmLocation
 from nautobot.dcim.models import LocationType as OrmLocationType
-from nautobot.extras.models import Status as OrmStatus
 from nautobot.extras.models import Relationship as OrmRelationship
 from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
+from nautobot.extras.models import Status as OrmStatus
 from nautobot.ipam.models import IPAddress as OrmIPAddress
 from nautobot.ipam.models import IPAddressToInterface as OrmIPAddressToInterface
 from nautobot.ipam.models import Namespace
 from nautobot.ipam.models import Prefix as OrmPrefix
 from nautobot.tenancy.models import Tenant as OrmTenant
-from nautobot_ssot.jobs.base import DataTarget
+
 from nautobot_ssot.integrations.dna_center.constants import PLUGIN_CFG
 from nautobot_ssot.integrations.dna_center.diffsync.models.nautobot import (
     NautobotArea,
@@ -35,10 +36,11 @@ from nautobot_ssot.integrations.dna_center.diffsync.models.nautobot import (
     NautobotDevice,
     NautobotFloor,
     NautobotIPAddress,
+    NautobotIPAddressOnInterface,
     NautobotPort,
     NautobotPrefix,
-    NautobotIPAddressOnInterface,
 )
+from nautobot_ssot.jobs.base import DataTarget
 
 
 class NautobotAdapter(Adapter):

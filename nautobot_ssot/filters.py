@@ -2,7 +2,6 @@
 
 import django_filters
 from django.db.models import Q
-
 from nautobot.apps.filters import BaseFilterSet
 
 from .models import Sync, SyncLogEntry

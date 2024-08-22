@@ -1,12 +1,12 @@
 """Views implementation for SSOT Infoblox."""
 
-from nautobot.extras.views import ObjectChangeLogView, ObjectNotesView
 from nautobot.apps.views import (
     ObjectDestroyViewMixin,
     ObjectDetailViewMixin,
     ObjectEditViewMixin,
     ObjectListViewMixin,
 )
+from nautobot.extras.views import ObjectChangeLogView, ObjectNotesView
 
 from .api.serializers import SSOTInfobloxConfigSerializer
 from .filters import SSOTInfobloxConfigFilterSet

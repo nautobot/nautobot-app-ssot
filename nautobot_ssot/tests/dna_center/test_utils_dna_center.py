@@ -1,10 +1,13 @@
 """Tests of DNA Center utility methods."""
 
-from unittest.mock import MagicMock, patch, create_autospec
-from requests import Response
-from parameterized import parameterized
-from nautobot.core.testing import TestCase
+from unittest.mock import MagicMock, create_autospec, patch
+
 from dnacentersdk.exceptions import dnacentersdkException
+from nautobot.core.testing import TestCase
+from parameterized import parameterized
+from requests import Response
+
+from nautobot_ssot.integrations.dna_center.utils.dna_center import DnaCenterClient
 from nautobot_ssot.tests.dna_center.fixtures import (
     DEVICE_DETAIL_FIXTURE,
     DEVICE_FIXTURE,
@@ -15,7 +18,6 @@ from nautobot_ssot.tests.dna_center.fixtures import (
     RECV_LOCATION_FIXTURE,
     RECV_PORT_FIXTURE,
 )
-from nautobot_ssot.integrations.dna_center.utils.dna_center import DnaCenterClient
 
 
 class TestDnaCenterClient(TestCase):  # pylint: disable=too-many-public-methods

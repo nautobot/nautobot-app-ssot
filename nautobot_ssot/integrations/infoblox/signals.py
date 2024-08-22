@@ -4,6 +4,7 @@
 
 import ipaddress
 
+from django.conf import settings
 from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import (
     CustomFieldTypeChoices,
@@ -11,10 +12,9 @@ from nautobot.extras.choices import (
     SecretsGroupAccessTypeChoices,
     SecretsGroupSecretTypeChoices,
 )
-from django.conf import settings
-from nautobot_ssot.integrations.infoblox.constant import TAG_COLOR
-from nautobot_ssot.integrations.infoblox.choices import DNSRecordTypeChoices, FixedAddressTypeChoices
 
+from nautobot_ssot.integrations.infoblox.choices import DNSRecordTypeChoices, FixedAddressTypeChoices
+from nautobot_ssot.integrations.infoblox.constant import TAG_COLOR
 
 config = settings.PLUGINS_CONFIG["nautobot_ssot"]
 
@@ -24,9 +24,7 @@ def register_signals(sender):
     nautobot_database_ready.connect(nautobot_database_ready_callback, sender=sender)
 
 
-def nautobot_database_ready_callback(
-    sender, *, apps, **kwargs
-):  # pylint: disable=unused-argument,too-many-locals,too-many-statements
+def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disable=unused-argument,too-many-locals,too-many-statements
     """Create Tag and CustomField to note System of Record for SSoT.
 
     Callback function triggered by the nautobot_database_ready signal when the Nautobot database is fully ready.

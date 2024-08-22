@@ -4,6 +4,7 @@ from nautobot.apps.api import NautobotModelViewSet
 
 from nautobot_ssot.integrations.infoblox.filters import SSOTInfobloxConfigFilterSet
 from nautobot_ssot.integrations.infoblox.models import SSOTInfobloxConfig
+
 from .serializers import SSOTInfobloxConfigSerializer
 
 

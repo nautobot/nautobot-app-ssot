@@ -238,9 +238,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             logger.error(response.text)
             return response.text
 
-    def _get_network_ref(
-        self, prefix, network_view: Optional[str] = None
-    ):  # pylint: disable=inconsistent-return-statements
+    def _get_network_ref(self, prefix, network_view: Optional[str] = None):  # pylint: disable=inconsistent-return-statements
         """Fetch the _ref of a prefix resource.
 
         Args:
@@ -268,9 +266,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             return results[0].get("_ref")
         return None
 
-    def _get_network_container_ref(
-        self, prefix, network_view: Optional[str] = None
-    ):  # pylint: disable=inconsistent-return-statements
+    def _get_network_container_ref(self, prefix, network_view: Optional[str] = None):  # pylint: disable=inconsistent-return-statements
         """Fetch the _ref of a networkcontainer resource.
 
         Args:
@@ -872,9 +868,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             logger.error(response.text)
             return response.text
 
-    def get_ptr_record_by_ip(
-        self, ip_address, network_view: Optional[str] = None
-    ):  # pylint: disable=inconsistent-return-statements
+    def get_ptr_record_by_ip(self, ip_address, network_view: Optional[str] = None):  # pylint: disable=inconsistent-return-statements
         """Get the PTR record by FQDN.
 
         Args:

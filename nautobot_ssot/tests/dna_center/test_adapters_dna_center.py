@@ -38,9 +38,7 @@ from nautobot_ssot.tests.dna_center.fixtures import (
 
 
 @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"dna_center_import_global": True}})
-class TestDnaCenterAdapterTestCase(
-    TransactionTestCase
-):  # pylint: disable=too-many-public-methods, too-many-instance-attributes
+class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-public-methods, too-many-instance-attributes
     """Test NautobotSsotDnaCenterAdapter class."""
 
     databases = ("default", "job_logs")

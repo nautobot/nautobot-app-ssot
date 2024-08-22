@@ -1,24 +1,26 @@
 """Test the DiffSync models for Nautobot."""
 
 from unittest.mock import MagicMock, patch
-from django.test import override_settings
+
 from diffsync import Adapter
+from django.test import override_settings
+from nautobot.core.testing import TransactionTestCase
 from nautobot.dcim.models import (
     Controller,
     ControllerManagedDeviceGroup,
+    DeviceType,
     Location,
     LocationType,
-    DeviceType,
     Manufacturer,
 )
-from nautobot.extras.models import Status, Role
+from nautobot.extras.models import Role, Status
 from nautobot.tenancy.models import Tenant
-from nautobot.core.testing import TransactionTestCase
+
 from nautobot_ssot.integrations.dna_center.diffsync.models.nautobot import (
     NautobotArea,
     NautobotBuilding,
-    NautobotFloor,
     NautobotDevice,
+    NautobotFloor,
 )
 
 

@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 
-import logging
 import json
+import logging
+
 import six
 
-from .response import Response
 from .exceptions import InvalidUsage
+from .response import Response
 
 logger = logging.getLogger("pysnow")
 

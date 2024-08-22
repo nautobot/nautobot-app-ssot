@@ -1,7 +1,8 @@
 """DiffSyncModel subclasses for Nautobot-to-DNA Center data sync."""
 
-from typing import Optional, List
+from typing import List, Optional
 from uuid import UUID
+
 from diffsync import DiffSyncModel
 
 

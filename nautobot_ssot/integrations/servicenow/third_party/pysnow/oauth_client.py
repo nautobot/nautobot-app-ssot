@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import warnings
 import logging
+import warnings
 
 from oauthlib.oauth2 import LegacyApplicationClient
 from oauthlib.oauth2.rfc6749.errors import OAuth2Error

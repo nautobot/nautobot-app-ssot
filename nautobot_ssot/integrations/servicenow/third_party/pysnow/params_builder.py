@@ -3,9 +3,8 @@
 import six
 
 from .criterion import Criterion
-from .query_builder import QueryBuilder
-
 from .exceptions import InvalidUsage
+from .query_builder import QueryBuilder
 
 
 class ParamsBuilder(object):

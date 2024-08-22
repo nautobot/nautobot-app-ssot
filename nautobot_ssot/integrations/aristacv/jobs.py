@@ -5,15 +5,13 @@ from django.templatetags.static import static
 from django.urls import reverse
 from nautobot.core.utils.lookup import get_route_for_model
 from nautobot.dcim.models import DeviceType
-from nautobot.extras.jobs import BooleanVar
-from nautobot.extras.jobs import Job
+from nautobot.extras.jobs import BooleanVar, Job
+
 from nautobot_ssot.integrations.aristacv.diffsync.adapters.cloudvision import CloudvisionAdapter
 from nautobot_ssot.integrations.aristacv.diffsync.adapters.nautobot import NautobotAdapter
 from nautobot_ssot.integrations.aristacv.utils.cloudvision import CloudvisionApi
 from nautobot_ssot.integrations.aristacv.utils.nautobot import get_config
-from nautobot_ssot.jobs.base import DataMapping
-from nautobot_ssot.jobs.base import DataSource
-from nautobot_ssot.jobs.base import DataTarget
+from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
 
 name = "SSoT - Arista CloudVision"  # pylint: disable=invalid-name
 

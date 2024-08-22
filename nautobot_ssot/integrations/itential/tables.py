@@ -1,7 +1,6 @@
 """Itential SSoT tables."""
 
 import django_tables2 as tables
-
 from nautobot.apps.tables import (
     BaseTable,
     ButtonsColumn,

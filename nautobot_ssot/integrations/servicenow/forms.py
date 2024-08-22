@@ -1,9 +1,8 @@
 """User-facing forms for nautobot-ssot-servicenow."""
 
 from django import forms
-
-from nautobot.extras.models import SecretsGroup
 from nautobot.core.forms import DynamicModelChoiceField
+from nautobot.extras.models import SecretsGroup
 
 from .models import SSOTServiceNowConfig
 

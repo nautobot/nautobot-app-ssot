@@ -5,22 +5,25 @@
 import logging
 import os
 import re
-from typing import Optional
 from ipaddress import ip_network
+from typing import Optional
+
 from diffsync import Adapter
 from diffsync.exceptions import ObjectNotFound
-from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotTenant
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotVrf
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotDeviceType
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotDeviceRole
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotDevice
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterfaceTemplate
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterface
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotIPAddress
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotPrefix
-from nautobot_ssot.integrations.aci.diffsync.utils import load_yamlfile
 
+from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
+from nautobot_ssot.integrations.aci.diffsync.models import (
+    NautobotDevice,
+    NautobotDeviceRole,
+    NautobotDeviceType,
+    NautobotInterface,
+    NautobotInterfaceTemplate,
+    NautobotIPAddress,
+    NautobotPrefix,
+    NautobotTenant,
+    NautobotVrf,
+)
+from nautobot_ssot.integrations.aci.diffsync.utils import load_yamlfile
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +76,7 @@ class AciAdapter(Adapter):
         """Load tenants from ACI."""
         tenant_list = self.conn.get_tenants()
         for _tenant in tenant_list:
-            if not _tenant["name"] in PLUGIN_CFG.get("ignore_tenants"):
+            if _tenant["name"] not in PLUGIN_CFG.get("ignore_tenants"):
                 tenant_name = f"{self.tenant_prefix}:{_tenant['name']}"
                 if ":mso" in _tenant.get("annotation").lower():  # pylint: disable=simplifiable-if-statement
                     _msite_tag = True

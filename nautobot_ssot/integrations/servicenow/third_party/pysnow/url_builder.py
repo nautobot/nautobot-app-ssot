@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import re
+
 import six
+
 from .exceptions import InvalidUsage
 
 

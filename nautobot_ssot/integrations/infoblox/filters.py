@@ -1,10 +1,8 @@
 """Filtering implementation for SSOT Infoblox."""
 
 import django_filters
-
 from django.db.models import Q
 from nautobot.apps.filters import NautobotFilterSet
-
 
 from .models import SSOTInfobloxConfig
 

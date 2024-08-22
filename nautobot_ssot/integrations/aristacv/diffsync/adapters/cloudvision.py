@@ -11,11 +11,11 @@ from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from nautobot_ssot.integrations.aristacv.diffsync.models.cloudvision import (
     CloudvisionCustomField,
     CloudvisionDevice,
+    CloudvisionIPAddress,
+    CloudvisionIPAssignment,
     CloudvisionNamespace,
     CloudvisionPort,
     CloudvisionPrefix,
-    CloudvisionIPAddress,
-    CloudvisionIPAssignment,
 )
 from nautobot_ssot.integrations.aristacv.types import CloudVisionAppConfig
 from nautobot_ssot.integrations.aristacv.utils import cloudvision
