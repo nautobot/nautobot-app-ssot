@@ -72,12 +72,13 @@ Markdown = "*"
 # Render custom markdown for version added/changed/remove notes
 markdown-version-annotations = "1.0.1"
 # Rendering docs to HTML
-mkdocs = "1.5.2"
+mkdocs = "1.6.0"
 # Material for MkDocs theme
-mkdocs-material = "9.1.15"
+mkdocs-material = "9.5.32"
 # Automatic documentation from sources, for MkDocs
 mkdocstrings = "0.25.2"
 mkdocstrings-python = "1.10.8"
+griffe = "1.1.1"
 towncrier = "~23.6.0"
 requests-mock = "^1.10.0"
 parameterized = "^0.8.1"
