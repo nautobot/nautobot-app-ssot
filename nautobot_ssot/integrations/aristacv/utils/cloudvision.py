@@ -63,8 +63,8 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
                 )
             if token:
                 call_creds = grpc.access_token_call_credentials(token)
-            elif config.cvp_user != "" and config.cvp_password != "":  # nosec
-                response = requests.post(  # nosec
+            elif config.cvp_user != "" and config.cvp_password != "":
+                response = requests.post(
                     f"{parsed_url.hostname}:{parsed_url.port}/cvpservice/login/authenticate.do",
                     auth=(config.cvp_user, config.cvp_password),
                     timeout=60,
@@ -685,7 +685,7 @@ def get_cvp_version(config: CloudVisionAppConfig):
             client.connect(
                 nodes=[config.url],
                 username="",
-                password="",  # nosec: B106
+                password="",
                 is_cvaas=True,
                 api_token=config.token,
             )

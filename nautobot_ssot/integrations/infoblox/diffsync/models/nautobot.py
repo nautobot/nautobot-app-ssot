@@ -320,7 +320,7 @@ class NautobotIPAddress(IPAddress):
 
         if self.adapter.config.fixed_address_type == FixedAddressTypeChoices.DONT_CREATE_RECORD:
             self.adapter.job.logger.warning(
-                f"Did not update Fixed Address {self.address}/{self.prefix_length}-{self.namespace}. "  # nosec: B608
+                f"Did not update Fixed Address {self.address}/{self.prefix_length}-{self.namespace}. "  # noqa: S608
                 "It exists in Infoblox but Nautobot config has `fixed_address_type` set to `DONT_CREATE_RECORD`."
             )
             return super().update(attrs)
@@ -510,7 +510,7 @@ class NautobotDnsARecord(DnsARecord):
             DNSRecordTypeChoices.A_AND_PTR_RECORD,
         ):
             adapter.job.logger.warning(
-                f"Can't create/update A record data for IP Address: {addr_w_pfxl}-{ids['namespace']}. Nautobot config is not set for A record operations."  # nosec: B608
+                f"Can't create/update A record data for IP Address: {addr_w_pfxl}-{ids['namespace']}. Nautobot config is not set for A record operations."  # noqa: S608
             )
             return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
@@ -554,7 +554,7 @@ class NautobotDnsARecord(DnsARecord):
             DNSRecordTypeChoices.A_AND_PTR_RECORD,
         ):
             self.adapter.job.logger.warning(
-                f"Can't update A record data for IP Address: {self.address}/{self.prefix_length}-{self.namespace}. Nautobot config is not set for A record operations."  # nosec: B608
+                f"Can't update A record data for IP Address: {self.address}/{self.prefix_length}-{self.namespace}. Nautobot config is not set for A record operations."  # noqa: S608
             )
             return super().update(attrs)
 
@@ -613,7 +613,7 @@ class NautobotDnsHostRecord(DnsHostRecord):
 
         if adapter.config.dns_record_type != DNSRecordTypeChoices.HOST_RECORD:
             adapter.job.logger.warning(
-                f"Can't create/update Host record data for IP Address: {addr_w_pfxl}-{ids['namespace']}. Nautobot config is not set for Host record operations."  # nosec: B608
+                f"Can't create/update Host record data for IP Address: {addr_w_pfxl}-{ids['namespace']}. Nautobot config is not set for Host record operations."  # noqa: S608
             )
             return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
@@ -656,7 +656,7 @@ class NautobotDnsHostRecord(DnsHostRecord):
         """Update Host Record data on IPAddress object in Nautobot."""
         if self.adapter.config.dns_record_type != DNSRecordTypeChoices.HOST_RECORD:
             self.adapter.job.logger.warning(
-                f"Can't update Host record data for IP Address: {self.address}/{self.prefix_length}-{self.namespace}. Nautobot config is not set for Host record operations."  # nosec: B608
+                f"Can't update Host record data for IP Address: {self.address}/{self.prefix_length}-{self.namespace}. Nautobot config is not set for Host record operations."  # noqa: S608
             )
             return super().update(attrs)
 
@@ -712,7 +712,7 @@ class NautobotDnsPTRRecord(DnsPTRRecord):
 
         if adapter.config.dns_record_type != DNSRecordTypeChoices.A_AND_PTR_RECORD:
             adapter.job.logger.warning(
-                f"Can't create/update PTR record data for IP Address: {addr_w_pfxl}-{ids['namespace']}. Nautobot config is not set for PTR record operations."  # nosec: B608
+                f"Can't create/update PTR record data for IP Address: {addr_w_pfxl}-{ids['namespace']}. Nautobot config is not set for PTR record operations."  # noqa: S608
             )
             return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
@@ -743,7 +743,7 @@ class NautobotDnsPTRRecord(DnsPTRRecord):
         """Update PTR Record data on IPAddress object in Nautobot."""
         if self.adapter.config.dns_record_type != DNSRecordTypeChoices.A_AND_PTR_RECORD:
             self.adapter.job.logger.warning(
-                f"Can't update PTR record data for IP Address: {self.address}/{self.prefix_length}-{self.namespace}. Nautobot config is not set for PTR record operations."  # nosec: B608
+                f"Can't update PTR record data for IP Address: {self.address}/{self.prefix_length}-{self.namespace}. Nautobot config is not set for PTR record operations."  # noqa: S608
             )
             return super().update(attrs)
 

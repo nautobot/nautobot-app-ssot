@@ -29,7 +29,7 @@ class TestDnaCenterClient(TestCase):  # pylint: disable=too-many-public-methods
         """Setup DNAC instance."""
         self.url = "https://dnac.testexample.com"
         self.username = "testuser"
-        self.password = "testpassword"  # nosec B105
+        self.password = "testpassword"  # noqa: S105
         self.verify = False
         self.dnac = DnaCenterClient(self.url, self.username, self.password, verify=self.verify)
         self.dnac.conn = MagicMock()
@@ -48,7 +48,7 @@ class TestDnaCenterClient(TestCase):  # pylint: disable=too-many-public-methods
     @patch("nautobot_ssot.integrations.dna_center.utils.dna_center.api.DNACenterAPI")
     def test_connect_success(self, mock_api):
         self.dnac.connect()
-        mock_api.assert_called_once_with(  # nosec B106
+        mock_api.assert_called_once_with(  # noqa: S106
             base_url="https://dnac.testexample.com:443", username="testuser", password="testpassword", verify=False
         )
         self.assertIsNotNone(self.dnac.conn)
@@ -59,7 +59,7 @@ class TestDnaCenterClient(TestCase):  # pylint: disable=too-many-public-methods
         mock_api.side_effect = dnacentersdkException(self.mock_response)
         with self.assertRaises(dnacentersdkException):
             self.dnac.connect()
-        mock_api.assert_called_once_with(  # nosec B106
+        mock_api.assert_called_once_with(  # noqa: S106
             base_url="https://dnac.testexample.com:443", password="testpassword", username="testuser", verify=False
         )
         self.assertIsNone(self.dnac.conn)

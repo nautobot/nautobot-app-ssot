@@ -344,7 +344,7 @@ def create_ip(
         except (DjangoBaseDBError, ValidationError):
             try:
                 parent, _ = Prefix.objects.get_or_create(
-                    network="0.0.0.0",  # nosec B104
+                    network="0.0.0.0",  # noqa: S104
                     prefix_length=0,
                     type=PrefixTypeChoices.TYPE_NETWORK,
                     status=Status.objects.get_for_model(Prefix).get(name="Active"),

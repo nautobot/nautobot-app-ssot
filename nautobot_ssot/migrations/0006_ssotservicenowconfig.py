@@ -27,7 +27,7 @@ def _move_data(apps, schema_editor):
 
     with schema_editor.connection.cursor() as cursor:
         # Table names are from trusted source (this script)
-        cursor.execute(f"INSERT INTO {new_table_name} SELECT * FROM {old_table_name};")  # nosec
+        cursor.execute(f"INSERT INTO {new_table_name} SELECT * FROM {old_table_name};")  # noqa: S608
 
     # Update the content type to point to the new model
     old_content_type = ContentType.objects.get(app_label=_OLD_APP_LABEL, model=_MODEL_NAME.lower())

@@ -135,7 +135,7 @@ class AciAdapter(Adapter):
         # Leaf/Spine management IP addresses
         mgmt_tenant = f"{self.tenant_prefix}:mgmt"
         for node in node_dict.values():
-            if node.get("oob_ip"):  # nosec
+            if node.get("oob_ip"):
                 if node.get("subnet"):
                     subnet = node["subnet"]
                 else:
@@ -174,7 +174,7 @@ class AciAdapter(Adapter):
         controller_dict = self.conn.get_controllers()
         # Controller IP addresses
         for controller in controller_dict.values():
-            if controller.get("oob_ip"):  # nosec
+            if controller.get("oob_ip"):
                 if controller.get("subnet"):
                     subnet = controller["subnet"]
                 else:

@@ -138,7 +138,7 @@ class LegacyRequest(object):
         )
 
         content = self._get_content(response)
-        l = len(content)
+        l = len(content)  # noqa: E741
         if l > 1:
             raise MultipleResults("Multiple results for get_one()")
 
