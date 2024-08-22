@@ -29,6 +29,7 @@ This Nautobot application framework includes the following integrations:
 - Cisco ACI
 - Arista CloudVision
 - Device42
+- Cisco DNA Center
 - Infoblox
 - IPFabric
 - Itential
@@ -79,6 +80,7 @@ The SSoT framework includes a number of integrations with external Systems of Re
 * Cisco ACI
 * Arista CloudVision
 * Device42
+* Cisco DNA Center
 * Infoblox
 * Itential
 * ServiceNow
@@ -117,6 +119,9 @@ This project includes code originally written in separate Nautobot apps, which h
     [@qduk](https://github.com/qduk),
     [@ubajze](https://github.com/ubajze)
 - [nautobot-plugin-ssot-device42](https://github.com/nautobot/nautobot-plugin-ssot-device42):
+    Thanks
+    [@jdrew82](https://github.com/jdrew82)
+- [nautobot-plugin-ssot-dna-center](https://github.com/nautobot/nautobot-plugin-ssot-dna-center):
     Thanks
     [@jdrew82](https://github.com/jdrew82)
 - [nautobot-plugin-ssot-infoblox](https://github.com/nautobot/nautobot-plugin-ssot-infoblox):

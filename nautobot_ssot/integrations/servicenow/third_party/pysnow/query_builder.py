@@ -100,9 +100,7 @@ class QueryBuilder(object):
         elif isinstance(data, list):
             return self._add_condition("IN", ",".join(map(str, data)), types=[str])
 
-        raise QueryTypeError(
-            "Expected value of type `str` or `list`, not %s" % type(data)
-        )
+        raise QueryTypeError("Expected value of type `str` or `list`, not %s" % type(data))
 
     def not_equals(self, data):
         """Adds new `NOT IN` or `!=` condition depending on if a list or string was provided
@@ -117,9 +115,7 @@ class QueryBuilder(object):
         elif isinstance(data, list):
             return self._add_condition("NOT IN", ",".join(data), types=[str])
 
-        raise QueryTypeError(
-            "Expected value of type `str` or `list`, not %s" % type(data)
-        )
+        raise QueryTypeError("Expected value of type `str` or `list`, not %s" % type(data))
 
     def greater_than(self, greater_than):
         """Adds new `>` condition
@@ -132,10 +128,7 @@ class QueryBuilder(object):
         if hasattr(greater_than, "strftime"):
             greater_than = datetime_as_utc(greater_than).strftime("%Y-%m-%d %H:%M:%S")
         elif isinstance(greater_than, six.string_types):
-            raise QueryTypeError(
-                "Expected value of type `int` or instance of `datetime`, not %s"
-                % type(greater_than)
-            )
+            raise QueryTypeError("Expected value of type `int` or instance of `datetime`, not %s" % type(greater_than))
 
         return self._add_condition(">", greater_than, types=[int, str])
 
@@ -150,10 +143,7 @@ class QueryBuilder(object):
         if hasattr(greater_than, "strftime"):
             greater_than = datetime_as_utc(greater_than).strftime("%Y-%m-%d %H:%M:%S")
         elif isinstance(greater_than, six.string_types):
-            raise QueryTypeError(
-                "Expected value of type `int` or instance of `datetime`, not %s"
-                % type(greater_than)
-            )
+            raise QueryTypeError("Expected value of type `int` or instance of `datetime`, not %s" % type(greater_than))
 
         return self._add_condition(">=", greater_than, types=[int, str])
 
@@ -168,10 +158,7 @@ class QueryBuilder(object):
         if hasattr(less_than, "strftime"):
             less_than = datetime_as_utc(less_than).strftime("%Y-%m-%d %H:%M:%S")
         elif isinstance(less_than, six.string_types):
-            raise QueryTypeError(
-                "Expected value of type `int` or instance of `datetime`, not %s"
-                % type(less_than)
-            )
+            raise QueryTypeError("Expected value of type `int` or instance of `datetime`, not %s" % type(less_than))
 
         return self._add_condition("<", less_than, types=[int, str])
 
@@ -186,10 +173,7 @@ class QueryBuilder(object):
         if hasattr(less_than, "strftime"):
             less_than = datetime_as_utc(less_than).strftime("%Y-%m-%d %H:%M:%S")
         elif isinstance(less_than, six.string_types):
-            raise QueryTypeError(
-                "Expected value of type `int` or instance of `datetime`, not %s"
-                % type(less_than)
-            )
+            raise QueryTypeError("Expected value of type `int` or instance of `datetime`, not %s" % type(less_than))
 
         return self._add_condition("<=", less_than, types=[int, str])
 
@@ -203,11 +187,7 @@ class QueryBuilder(object):
         """
 
         if hasattr(start, "strftime") and hasattr(end, "strftime"):
-            dt_between = (
-                'javascript:gs.dateGenerate("%(start)s")'
-                "@"
-                'javascript:gs.dateGenerate("%(end)s")'
-            ) % {
+            dt_between = ('javascript:gs.dateGenerate("%(start)s")' "@" 'javascript:gs.dateGenerate("%(end)s")') % {
                 "start": start.strftime("%Y-%m-%d %H:%M:%S"),
                 "end": end.strftime("%Y-%m-%d %H:%M:%S"),
             }
@@ -250,9 +230,7 @@ class QueryBuilder(object):
 
         elif not type(operand) in types:
             caller = inspect.currentframe().f_back.f_code.co_name
-            raise QueryTypeError(
-                "Invalid type passed to %s() , expected: %s" % (caller, types)
-            )
+            raise QueryTypeError("Invalid type passed to %s() , expected: %s" % (caller, types))
 
         elif self.c_oper:
             raise QueryMultipleExpressions("Expected logical operator after expression")
@@ -279,9 +257,7 @@ class QueryBuilder(object):
         """
 
         if not self.c_oper:
-            raise QueryExpressionError(
-                "Logical operators must be preceded by an expression"
-            )
+            raise QueryExpressionError("Logical operators must be preceded by an expression")
 
         self.current_field = None
         self.c_oper = None

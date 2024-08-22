@@ -12,16 +12,21 @@ pip install nautobot-ssot[device42]
 
 ## Configuration
 
-Integration behavior can be controlled with the following settings:
+Access to your Device42 instance is defined using the [ExternalIntegration](https://docs.nautobot.com/projects/core/en/stable/user-guide/platform-functionality/externalintegration/) model which allows you to utilize this integration with multiple instances concurrently. Please bear in mind that it will synchronize all data 1:1 with the specified instance to match exactly, meaning it will delete data missing from an instance, unless you have the `device42_delete_on_sync` option set to False.  Each ExternalIntegration must specify a SecretsGroup that contains Secrets that contain the Device42 Username and Password to authenticate against that instance. You can find Secrets and SecretsGroups available under the Secrets menu.
 
-| Configuration Variable | Type    | Usage                                                                                                 |
-| ---------------------- | ------- | ----------------------------------------------------------------------------------------------------- |
-| device42_host          | string  | This defines the FQDN of the Device42 instance, ie `https://device42.example.com`.                    |
-| device42_username      | string  | This defines the username of the account used to connect to the Device42 API endpoint.                |
-| device42_password      | string  | This defines the password of the account used to connect to the Device42 API endpoint.                |
-| device42_verify        | boolean | This denotes whether SSL validation of the Device42 endpoint should be enabled or not.                |
+![Device42 Username](../../images/device42_username.png)
 
-When creating Sites and Racks in Nautobot it is required to define a Status for each. It is also required to define a Role for your Device when created. You may define the default for each of those objects being imported with the respective values in your `nautobot_config.py` file.
+![Device42 Password](../../images/device42_password.png)
+
+![Device42 SecretsGroup](../../images/device42_secretsgroup.png)
+
+Please note that is it imperative for the SecretsGroup used with the specified Controller uses HTTP(S) Access type and Username and Password respectively for each Secret. Also note that the name of the Secrets or SecretsGroup are irrelevant but are recommended to be relevant to the instance in question.
+
+Once the SecretsGroup is created you'll need to create the ExternalIntegration. You'll find this under the Extensibility menu.
+
+![Device42 ExternalIntegration](../../images/device42_externalintegration.png)
+
+When creating Locations and Racks in Nautobot it is required to define a Status for each. It is also required to define a Role for your Device when created. You may define the default for each of those objects being imported with the respective values in your `nautobot_config.py` file.
 
 | Configuration Variable                              | Type   | Usage                                                      | Default              |
 | --------------------------------------------------- | ------ | ---------------------------------------------------------- | -------------------- |

@@ -44,22 +44,22 @@ class BaseModelCustomRelationshipOneToManyTest(TestCase):
         cls.provider_two = circuits_models.Provider.objects.create(name="Test Provider 2")
 
     def test_custom_relationship_add_foreign_key(self):
-        diffsync_tenant = TenantModelCustomRelationship(
+        adapter_tenant = TenantModelCustomRelationship(
             name=self.tenant_one.name,
             pk=self.tenant_one.pk,
         )
-        diffsync_tenant.diffsync = CustomRelationShipTestAdapterDestination(job=MagicMock())
-        diffsync_tenant.update({"provider__name": self.provider_one.name})
+        adapter_tenant.adapter = CustomRelationShipTestAdapterDestination(job=MagicMock())
+        adapter_tenant.update({"provider__name": self.provider_one.name})
         self.assertEqual(extras_models.RelationshipAssociation.objects.count(), 1)
 
     def test_custom_relationship_update_foreign_key(self):
-        diffsync_tenant = TenantModelCustomRelationship(
+        adapter_tenant = TenantModelCustomRelationship(
             name=self.tenant_one.name,
             pk=self.tenant_one.pk,
         )
-        diffsync_tenant.diffsync = CustomRelationShipTestAdapterDestination(job=MagicMock())
-        diffsync_tenant.update({"provider__name": self.provider_one.name})
-        diffsync_tenant.update({"provider__name": self.provider_two.name})
+        adapter_tenant.adapter = CustomRelationShipTestAdapterDestination(job=MagicMock())
+        adapter_tenant.update({"provider__name": self.provider_one.name})
+        adapter_tenant.update({"provider__name": self.provider_two.name})
         self.assertEqual(extras_models.RelationshipAssociation.objects.first().source, self.provider_two)
 
     def test_custom_relationship_add_to_many(self):
@@ -67,7 +67,7 @@ class BaseModelCustomRelationshipOneToManyTest(TestCase):
             name=self.provider_one.name,
             pk=self.provider_one.pk,
         )
-        diffsync_provider.diffsync = CustomRelationShipTestAdapterSource(job=MagicMock())
+        diffsync_provider.adapter = CustomRelationShipTestAdapterSource(job=MagicMock())
         diffsync_provider.update({"tenants": [{"name": self.tenant_one.name}, {"name": self.tenant_two.name}]})
         self.assertEqual(extras_models.RelationshipAssociation.objects.count(), 2)
 
@@ -76,7 +76,7 @@ class BaseModelCustomRelationshipOneToManyTest(TestCase):
             name=self.provider_one.name,
             pk=self.provider_one.pk,
         )
-        diffsync_provider.diffsync = CustomRelationShipTestAdapterSource(job=MagicMock())
+        diffsync_provider.adapter = CustomRelationShipTestAdapterSource(job=MagicMock())
         diffsync_provider.update({"tenants": [{"name": self.tenant_one.name}]})
         diffsync_provider.update({"tenants": [{"name": self.tenant_two.name}]})
         self.assertEqual(extras_models.RelationshipAssociation.objects.count(), 1)
@@ -132,7 +132,7 @@ class BaseModelCustomRelationshipTestWithDeviceData(TestCaseWithDeviceData):
         )
 
         CableModel.create(
-            diffsync=NautobotAdapter(job=MagicMock()),
+            adapter=NautobotAdapter(job=MagicMock()),
             ids={
                 "termination_a__device__name": device.name,
                 "termination_a__name": interface_a.name,
@@ -164,9 +164,9 @@ class BaseModelManyToManyTest(TestCase):
         tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
         tenant.tags.add(self.tags[0])
 
-        diffsync_tenant = NautobotTenant(name=self.tenant_name, tags=[{"name": self.tags[0].name}], pk=tenant.pk)
-        diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
-        diffsync_tenant.update(attrs={"tags": [{"name": tag.name} for tag in self.tags]})
+        adapter_tenant = NautobotTenant(name=self.tenant_name, tags=[{"name": self.tags[0].name}], pk=tenant.pk)
+        adapter_tenant.adapter = NautobotAdapter(job=None, sync=None)
+        adapter_tenant.update(attrs={"tags": [{"name": tag.name} for tag in self.tags]})
 
         tenant.refresh_from_db()
         self.assertEqual(
@@ -180,11 +180,11 @@ class BaseModelManyToManyTest(TestCase):
         tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
         tenant.tags.set(self.tags)
 
-        diffsync_tenant = NautobotTenant(
+        adapter_tenant = NautobotTenant(
             name=self.tenant_name, tags=[{"name": tag.name} for tag in self.tags], pk=tenant.pk
         )
-        diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
-        diffsync_tenant.update(attrs={"tags": [{"name": self.tags[0].name}]})
+        adapter_tenant.adapter = NautobotAdapter(job=None, sync=None)
+        adapter_tenant.update(attrs={"tags": [{"name": self.tags[0].name}]})
 
         tenant.refresh_from_db()
         self.assertEqual(
@@ -198,11 +198,11 @@ class BaseModelManyToManyTest(TestCase):
         tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
         tenant.tags.set(self.tags)
 
-        diffsync_tenant = NautobotTenant(
+        adapter_tenant = NautobotTenant(
             name=self.tenant_name, tags=[{"name": tag.name} for tag in self.tags], pk=tenant.pk
         )
-        diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
-        diffsync_tenant.update(attrs={"tags": []})
+        adapter_tenant.adapter = NautobotAdapter(job=None, sync=None)
+        adapter_tenant.update(attrs={"tags": []})
 
         tenant.refresh_from_db()
         self.assertEqual(
@@ -218,7 +218,7 @@ class BaseModelManyToManyTest(TestCase):
 
         content_types = [{"app_label": "dcim", "model": "device"}, {"app_label": "circuits", "model": "provider"}]
         tag_diffsync = TagModel(name=name, pk=tag.pk)
-        tag_diffsync.diffsync = NautobotAdapter(job=None, sync=None)
+        tag_diffsync.adapter = NautobotAdapter(job=None, sync=None)
         tag_diffsync.update(attrs={"content_types": content_types})
 
         tag.refresh_from_db()
@@ -237,7 +237,7 @@ class BaseModelManyToManyTest(TestCase):
         tag.content_types.set([ContentType.objects.get(**parameters) for parameters in content_types])
 
         tag_diffsync = TagModel(name=name, pk=tag.pk)
-        tag_diffsync.diffsync = NautobotAdapter(job=None, sync=None)
+        tag_diffsync.adapter = NautobotAdapter(job=None, sync=None)
         tag_diffsync.update(attrs={"content_types": []})
 
         tag.refresh_from_db()

@@ -2,27 +2,27 @@
 # pylint: disable=too-many-arguments
 # Load method is packed with conditionals  #  pylint: disable=too-many-branches
 """DiffSync adapter class for Nautobot as source-of-truth."""
+
+import logging
 from collections import defaultdict
 from typing import Any, ClassVar, List, Optional
-import logging
 
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists
 from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError, Q
+from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import Device, Location
 from nautobot.extras.models import Tag
 from nautobot.ipam.models import VLAN, Interface
-from nautobot.core.choices import ColorChoices
-from netutils.mac import mac_to_format
 from netutils.ip import cidr_to_netmask
-
-from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
+from netutils.mac import mac_to_format
 
 from nautobot_ssot.integrations.ipfabric.constants import (
-    DEFAULT_INTERFACE_MTU,
     DEFAULT_INTERFACE_MAC,
+    DEFAULT_INTERFACE_MTU,
 )
+from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 
 logger = logging.getLogger("nautobot.ssot.ipfabric")
 
@@ -53,14 +53,14 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         self.sync_ipfabric_tagged_only = sync_ipfabric_tagged_only
         self.location_filter = location_filter
 
-    def sync_complete(self, source: DiffSync, *args, **kwargs):
+    def sync_complete(self, source: Adapter, *args, **kwargs):
         """Clean up function for DiffSync sync.
 
         Once the sync is complete, this function runs deleting any objects
         from Nautobot that need to be deleted in a specific order.
 
         Args:
-            source (DiffSync): DiffSync
+            source (Adapter): DiffSync Adapter
         """
         for grouping in (
             "_vlan",
@@ -98,7 +98,6 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 ip_address = None
                 subnet_mask = None
             interface = self.interface(
-                diffsync=self,
                 status=device_record.status.name,
                 name=interface_record.name,
                 device_name=device_record.name,
@@ -126,7 +125,6 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             if self.job.debug:
                 logger.debug("Loading Nautobot Device: %s", device_record.name)
             device = self.device(
-                diffsync=self,
                 name=device_record.name,
                 model=str(device_record.device_type),
                 role=(
@@ -161,7 +159,6 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             if not vlan_record:
                 continue
             vlan = self.vlan(
-                diffsync=self,
                 name=vlan_record.name,
                 location=vlan_record.location.name,
                 status=vlan_record.status.name if vlan_record.status else "Active",
@@ -219,7 +216,6 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             for location_record in location_objects:
                 try:
                     location = self.location(
-                        diffsync=self,
                         name=location_record.name,
                         site_id=location_record.custom_field_data.get("ipfabric_site_id"),
                         status=location_record.status.name,

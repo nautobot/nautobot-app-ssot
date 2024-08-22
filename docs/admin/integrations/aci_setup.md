@@ -12,11 +12,13 @@ pip install nautobot-ssot[aci]
 
 ## Configuration
 
+!!! note
+    Legacy configuration settings defined in `nautobot_config.py` for `aci_apics` is now deprecated. All information related to communicating to an APIC has been updated to use the Controller and its related ExternalIntegration objects.
+
 Integration behavior can be controlled with the following settings:
 
 | Setting Name<br>(* required) | Type | Description |
 |---|:---:|---|
-| <p>aci_apics_*</p> |  | Per-APIC settings. See per-APIC settings section for details. |
 | aci_tag* | _String_ | Tag which is created and applied to all <br>synchronized objects. |
 | aci_tag_color* | _String_ | Hex color code used for the tag. |
 | aci_tag_up* | _String_ | Tag indicating the state applied to synchronized <br>interfaces. |
@@ -33,8 +35,6 @@ Below is an example snippet from `nautobot_config.py` that demonstrates how to e
 PLUGINS_CONFIG = {
     "nautobot_ssot": {
         "enable_aci": True,
-        # URL and credentials should be configured as environment variables on the host system
-        "aci_apics": {x: os.environ[x] for x in os.environ if "APIC" in x},
         # Tag which will be created and applied to all synchronized objects.
         "aci_tag": "ACI",
         "aci_tag_color": "0047AB",
@@ -54,36 +54,21 @@ PLUGINS_CONFIG = {
 
 ### Per-APIC settings
 
-The APIC URL and credentials need to be created as environment variables on the host system.
+All APIC specific settings have been updated to use the Controller and related ExternalIntegration objects. The ExternalIntegration object that is assigned to the Controller will define the APIC base URL, user credentials, and SSL verification. It will also have a `tenant_prefix` key in the `extra_config` section of the ExternalIntegration to define the Tenant prefix.
 
-You can configure multiple APIC instances for synchronization. To do this, append `_` character, followed by an identifier, to the names of environment variables.
-
-In the example below, configured APIC uses `NTC` for an identifier. Instead of `NTC` you could, for example, use `CHCG01` to configure an APIC instance in your Chicago facility.
-
-```bash
-export NAUTOBOT_APIC_BASE_URI_NTC=https://aci.cloud.networktocode.com
-export NAUTOBOT_APIC_USERNAME_NTC=admin
-export NAUTOBOT_APIC_PASSWORD_NTC=not_so_secret_password
-export NAUTOBOT_APIC_VERIFY_NTC=False
-export NAUTOBOT_APIC_SITE_NTC="NTC ACI"
-export NAUTOBOT_APIC_TENANT_PREFIX_NTC="NTC_ACI"
-```
-
-The identifier is used to select APIC from the SSoT dashboard when initiating a synchronization job:
-
-![image](../../images/aci-dashboard-apic.png)
+The `aci_apics` setting from the `nautobot_config.py` file is no longer used and any configuration found for it will be automatically migrated into a Controller and an ExternalIntegration object.
 
 ## Nautobot Objects Affected by Settings
 
-A Site will be created in Nautobot with the name specified in the `NAUTOBOT_APIC_SITE` environment variable and resources created by the integration will be assigned to this site.
+The Job form has been updated to allow specifying a Location for the imported objects. If that is left unspecified then the Location associated to the specified Controller will be used.
 
-Tenants imported from ACI will be prepended with the unique name specified by the corresponding `TENANT_PREFIX` variable. This uniquely identifies tenants which might have the same name, but belong to two different APIC clusters.
+Tenants imported from ACI will be prefixed with the unique name specified by the corresponding `tenant_prefix` key in the Controller's associated ExternalIntegration `extra_config`. This uniquely identifies tenants which might have the same name, but belong to two different APIC clusters.
 
 ## Configuring Device Templates
 
 To create a new Nautobot Device Type mapping to a specific ACI leaf or spine switch model you need to provide YAML file describing that model.  This model definition includes interface template with the ports and transceiver types (ex. 10GE SFP+) specification.
 
-The YAML files need to be placed in the `nautobot_ssot/integrations/aci/diffsync/device-types` directory. Their names need to match the model name as it appears in the ACI  Fabric Membership area of the APIC dashboard.
+The YAML files need to be placed in the `nautobot_ssot/integrations/aci/diffsync/device-types` directory. Their names need to match the model name as it appears in the ACI Fabric Membership area of the APIC dashboard.
 
 For example, given a Model name of `N9K-C9396PX` as shown below, the YAML file should be named `N9K-C9396PX.yaml`.
 
@@ -114,7 +99,6 @@ There are example YAML files for a few common switch models in `nautobot_ssot/in
     PLUGINS_CONFIG = {
         # "nautobot_ssot_aci": {  REMOVE THIS APP CONFIGURATION
         #     MOVE CONFIGURATION TO `nautobot_ssot` SECTION
-        #     "apics": {x: os.environ[x] for x in os.environ if "NAUTOBOT_APIC" in x},
         #     "tag": "ACI",
         #     ...
         # }
@@ -122,7 +106,6 @@ There are example YAML files for a few common switch models in `nautobot_ssot/in
             # Enable Cisco ACI integration
             "enable_aci": True,
             # Following lines are moved from `nautobot_ssot_aci` and prefixed with `aci_`
-            "aci_apics": {x: os.environ[x] for x in os.environ if "NAUTOBOT_APIC" in x},
             "aci_tag": "ACI",
             ...
         }
@@ -133,5 +116,4 @@ There are example YAML files for a few common switch models in `nautobot_ssot/in
     Configuration keys are prefixed with `aci_`.
 
 !!! note
-    Environment variables defining APICs access must contain `APIC`.
     Other environment variables for this integration are prefixed with `NAUTOBOT_SSOT_ACI_`.

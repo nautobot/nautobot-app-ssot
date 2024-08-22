@@ -1,17 +1,17 @@
 """App declaration for nautobot_ssot."""
 
+import logging
 import os
 from importlib import metadata
 
-
-from django.conf import settings
-from nautobot.extras.plugins import NautobotAppConfig
-from nautobot.core.settings_funcs import is_truthy
 import packaging
+from django.conf import settings
+from nautobot.core.settings_funcs import is_truthy
+from nautobot.extras.plugins import NautobotAppConfig
 
 from nautobot_ssot.integrations.utils import each_enabled_integration_module
-from nautobot_ssot.utils import logger
 
+logger = logging.getLogger("nautobot.ssot")
 __version__ = metadata.version(__name__)
 
 
@@ -19,14 +19,14 @@ _CONFLICTING_APP_NAMES = [
     "nautobot_ssot_aci",
     "nautobot_ssot_aristacv",
     "nautobot_ssot_device42",
+    "nautobot_ssot_dna_center",
     "nautobot_ssot_infoblox",
     "nautobot_ssot_ipfabric",
     "nautobot_ssot_servicenow",
 ]
 
 _MIN_NAUTOBOT_VERSION = {
-    "nautobot_ssot_aristacv": "2.1",
-    "nautobot_ssot_infoblox": "2.1",
+    "nautobot_ssot_aci": "2.2",
 }
 
 
@@ -69,10 +69,9 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
     description = "Nautobot app that enables Single Source of Truth.  Allows users to aggregate distributed data sources and/or distribute Nautobot data to other data sources such as databases and SDN controllers."
     base_url = "ssot"
     required_settings = []
-    min_version = "2.0.0"
+    min_version = "2.1.0"
     max_version = "2.9999"
     default_settings = {
-        "aci_apics": [],
         "aci_tag": "",
         "aci_tag_color": "",
         "aci_tag_up": "",
@@ -113,9 +112,14 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "device42_role_prepend": "",
         "device42_ignore_tag": "",
         "device42_hostname_mapping": [],
+        "dna_center_import_global": True,
+        "dna_center_import_merakis": False,
+        "dna_center_update_locations": True,
+        "dna_center_show_failures": True,
         "enable_aci": False,
         "enable_aristacv": False,
         "enable_device42": False,
+        "enable_dna_center": False,
         "enable_infoblox": False,
         "enable_ipfabric": False,
         "enable_servicenow": False,

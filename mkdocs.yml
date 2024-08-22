@@ -134,6 +134,7 @@ nav:
       - Compatibility Matrix: "admin/compatibility_matrix.md"
       - Release Notes:
           - "admin/release_notes/index.md"
+          - v3.0: "admin/release_notes/version_3.0.md"
           - v2.8: "admin/release_notes/version_2.8.md"
           - v2.7: "admin/release_notes/version_2.7.md"
           - v2.6: "admin/release_notes/version_2.6.md"
@@ -156,6 +157,7 @@ nav:
       - Debugging Jobs: "dev/debugging.md"
       - Contributing to the App: "dev/contributing.md"
       - Development Environment: "dev/dev_environment.md"
+      - Upgrading SSoT Apps: "dev/upgrade.md"
       - Code Reference:
           - "dev/code_reference/index.md"
           - Package: "dev/code_reference/package.md"

@@ -14,15 +14,15 @@ class Building(DiffSyncModel):
     _attributes = ("address", "latitude", "longitude", "contact_name", "contact_phone", "tags", "custom_fields")
     _children = {"room": "rooms"}
     name: str
-    address: Optional[str]
-    latitude: Optional[float]
-    longitude: Optional[float]
-    contact_name: Optional[str]
-    contact_phone: Optional[str]
-    rooms: List["Room"] = list()
-    tags: Optional[List[str]]
-    custom_fields: Optional[dict]
-    uuid: Optional[UUID]
+    address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    contact_name: Optional[str] = None
+    contact_phone: Optional[str] = None
+    rooms: List["Room"] = []
+    tags: Optional[List[str]] = None
+    custom_fields: Optional[dict] = None
+    uuid: Optional[UUID] = None
 
 
 class Room(DiffSyncModel):
@@ -34,10 +34,10 @@ class Room(DiffSyncModel):
     _children = {"rack": "racks"}
     name: str
     building: str
-    notes: Optional[str]
-    racks: List["Rack"] = list()
-    custom_fields: Optional[dict]
-    uuid: Optional[UUID]
+    notes: Optional[str] = None
+    racks: List["Rack"] = []
+    custom_fields: Optional[dict] = None
+    uuid: Optional[UUID] = None
 
 
 class Rack(DiffSyncModel):
@@ -52,9 +52,9 @@ class Rack(DiffSyncModel):
     room: str
     height: int
     numbering_start_from_bottom: str
-    tags: Optional[List[str]]
-    custom_fields: Optional[dict]
-    uuid: Optional[UUID]
+    tags: Optional[List[str]] = None
+    custom_fields: Optional[dict] = None
+    uuid: Optional[UUID] = None
 
 
 class Vendor(DiffSyncModel):
@@ -65,8 +65,8 @@ class Vendor(DiffSyncModel):
     _attributes = ("custom_fields",)
     _children = {}
     name: str
-    custom_fields: Optional[dict]
-    uuid: Optional[UUID]
+    custom_fields: Optional[dict] = None
+    uuid: Optional[UUID] = None
 
 
 class Hardware(DiffSyncModel):
@@ -79,10 +79,10 @@ class Hardware(DiffSyncModel):
     name: str
     manufacturer: str
     size: float
-    depth: Optional[str]
-    part_number: Optional[str]
-    custom_fields: Optional[dict]
-    uuid: Optional[UUID]
+    depth: Optional[str] = None
+    part_number: Optional[str] = None
+    custom_fields: Optional[dict] = None
+    uuid: Optional[UUID] = None
 
 
 class Cluster(DiffSyncModel):
@@ -93,10 +93,10 @@ class Cluster(DiffSyncModel):
     _attributes = ("tags", "custom_fields")
     _children = {}
     name: str
-    members: Optional[List[str]]
-    tags: Optional[List[str]]
-    custom_fields: Optional[dict]
-    uuid: Optional[UUID]
+    members: Optional[List[str]] = None
+    tags: Optional[List[str]] = None
+    custom_fields: Optional[dict] = None
+    uuid: Optional[UUID] = None
 
 
 class Device(DiffSyncModel):
@@ -124,22 +124,22 @@ class Device(DiffSyncModel):
     _children = {"port": "interfaces"}
     name: str
     building: str
-    room: Optional[str]
-    rack: Optional[str]
-    rack_position: Optional[float]
-    rack_orientation: Optional[str]
+    room: Optional[str] = None
+    rack: Optional[str] = None
+    rack_position: Optional[float] = None
+    rack_orientation: Optional[str] = None
     hardware: str
     os: Optional[str]
-    os_version: Optional[str]
-    in_service: Optional[bool]
+    os_version: Optional[str] = None
+    in_service: Optional[bool] = None
     interfaces: Optional[List["Port"]] = []
-    serial_no: Optional[str]
-    tags: Optional[List[str]]
-    cluster_host: Optional[str]
+    serial_no: Optional[str] = None
+    tags: Optional[List[str]] = None
+    cluster_host: Optional[str] = None
     master_device: bool
-    vc_position: Optional[int]
-    custom_fields: Optional[dict]
-    uuid: Optional[UUID]
+    vc_position: Optional[int] = None
+    custom_fields: Optional[dict] = None
+    uuid: Optional[UUID] = None
 
 
 class Port(DiffSyncModel):
@@ -162,17 +162,17 @@ class Port(DiffSyncModel):
     _children = {}
     name: str
     device: str
-    enabled: Optional[bool]
-    mtu: Optional[int]
-    description: Optional[str]
-    mac_addr: Optional[str]
+    enabled: Optional[bool] = None
+    mtu: Optional[int] = None
+    description: Optional[str] = None
+    mac_addr: Optional[str] = None
     type: str
-    tags: Optional[List[str]]
+    tags: Optional[List[str]] = None
     mode: str
     status: str
     vlans: Optional[List[int]] = []
-    custom_fields: Optional[dict]
-    uuid: Optional[UUID]
+    custom_fields: Optional[dict] = None
+    uuid: Optional[UUID] = None
 
 
 class Connection(DiffSyncModel):
@@ -186,15 +186,15 @@ class Connection(DiffSyncModel):
     src_device: str
     src_port: str
     src_type: str
-    src_port_mac: Optional[str]
+    src_port_mac: Optional[str] = None
     dst_device: str
     dst_port: str
     dst_type: str
-    dst_port_mac: Optional[str]
-    tags: Optional[List[str]]
-    uuid: Optional[UUID]
+    dst_port_mac: Optional[str] = None
+    tags: Optional[List[str]] = None
+    uuid: Optional[UUID] = None
 
 
-Building.update_forward_refs()
-Room.update_forward_refs()
-Device.update_forward_refs()
+Building.model_rebuild()
+Room.model_rebuild()
+Device.model_rebuild()
