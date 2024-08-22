@@ -1,0 +1,1 @@
+Fix the dependencies for mkdocstrings and mkdocstrings-python to fix RTD build.
