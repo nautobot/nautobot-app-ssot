@@ -1,6 +1,5 @@
 """Jobs for ACI SSoT app."""
 
-from diffsync.enum import DiffSyncFlags
 from django.templatetags.static import static
 from django.urls import reverse
 from nautobot.dcim.models import Controller, Location

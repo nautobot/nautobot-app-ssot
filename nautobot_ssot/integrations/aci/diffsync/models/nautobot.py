@@ -1,34 +1,33 @@
 """Nautobot Models for Cisco ACI integration with SSoT app."""
 
 import logging
-from django.db import IntegrityError
+
 from django.contrib.contenttypes.models import ContentType
-from nautobot.tenancy.models import Tenant as OrmTenant
-from nautobot.dcim.models import ControllerManagedDeviceGroup
-from nautobot.dcim.models import DeviceType as OrmDeviceType
+from django.db import IntegrityError
+from nautobot.dcim.models import ControllerManagedDeviceGroup, Location, LocationType, Manufacturer
 from nautobot.dcim.models import Device as OrmDevice
-from nautobot.dcim.models import InterfaceTemplate as OrmInterfaceTemplate
+from nautobot.dcim.models import DeviceType as OrmDeviceType
 from nautobot.dcim.models import Interface as OrmInterface
-from nautobot.dcim.models import Location, LocationType
-from nautobot.dcim.models import Manufacturer
-from nautobot.ipam.models import IPAddress as OrmIPAddress
-from nautobot.ipam.models import Namespace, IPAddressToInterface
-from nautobot.ipam.models import Prefix as OrmPrefix
-from nautobot.ipam.models import VRF as OrmVrf
+from nautobot.dcim.models import InterfaceTemplate as OrmInterfaceTemplate
 from nautobot.extras.models import Role, Status, Tag
+from nautobot.ipam.models import VRF as OrmVrf
+from nautobot.ipam.models import IPAddress as OrmIPAddress
+from nautobot.ipam.models import IPAddressToInterface, Namespace
+from nautobot.ipam.models import Prefix as OrmPrefix
+from nautobot.tenancy.models import Tenant as OrmTenant
+
+from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
 from nautobot_ssot.integrations.aci.diffsync.models.base import (
-    Tenant,
-    Vrf,
-    DeviceType,
-    DeviceRole,
     Device,
-    InterfaceTemplate,
+    DeviceRole,
+    DeviceType,
     Interface,
+    InterfaceTemplate,
     IPAddress,
     Prefix,
+    Tenant,
+    Vrf,
 )
-from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
-
 
 logger = logging.getLogger(__name__)
 
@@ -367,10 +366,10 @@ class NautobotIPAddress(IPAddress):
             _namespace = Namespace.objects.get(name=ids["namespace"])
             _parent = OrmPrefix.objects.get(prefix=attrs["prefix"], namespace=_namespace)
         except Namespace.DoesNotExist:
-            diffsync.job.logger.warning(f"{ids['namespace']} missing Namespace to assign IP address: {ids['address']}")
+            adapter.job.logger.warning(f"{ids['namespace']} missing Namespace to assign IP address: {ids['address']}")
             return None
         except OrmPrefix.DoesNotExist:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f"{attrs['prefix']} missing Parent Prefix to assign IP address: {ids['address']}"
             )
             return None
@@ -384,7 +383,7 @@ class NautobotIPAddress(IPAddress):
                 tenant=_tenant,
             )
         except IntegrityError:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f"Unable to create IP Address {ids['address']}. Duplicate Address or Parent Prefix: {attrs['prefix']} in Namespace: {ids['namespace']}"
             )
             return None
@@ -472,7 +471,7 @@ class NautobotPrefix(Prefix):
         )
 
         if not created:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f"Prefix: {_prefix.prefix} duplicate in Namespace: {_prefix.namespace.name}. Skipping .."
             )
             return None

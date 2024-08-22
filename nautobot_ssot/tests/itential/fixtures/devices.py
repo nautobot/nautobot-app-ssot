@@ -5,16 +5,11 @@ from nautobot.dcim.models import (
     Device,
     DeviceType,
     Interface,
-    Device,
-    DeviceType,
-    Interface,
     Location,
     LocationType,
     Manufacturer,
     Platform,
 )
-from nautobot.extras.models import Role, Status
-from nautobot.ipam.models import IPAddress, Namespace, Prefix
 from nautobot.extras.models import Role, Status
 from nautobot.ipam.models import IPAddress, Namespace, Prefix
 
