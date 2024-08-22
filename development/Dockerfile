@@ -64,7 +64,7 @@ RUN if [ -z "${CI+x}" ]; then \
     poetry add --lock nautobot@${INSTALLED_NAUTOBOT_VER} --python ${PYTHON_VER}; fi
 
 # Install the app
-RUN poetry install
+RUN poetry install --extras all --with dev
 
 COPY development/nautobot_config.py ${NAUTOBOT_ROOT}/nautobot_config.py
 # !!! USE CAUTION WHEN MODIFYING LINES ABOVE
