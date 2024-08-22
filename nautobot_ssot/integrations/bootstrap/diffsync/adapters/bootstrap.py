@@ -834,7 +834,11 @@ class BootstrapAdapter(Adapter, LabelMixin):
     def load(self):
         """Load data from Bootstrap into DiffSync models."""
         environment_label = settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_nautobot_environment_branch"]
-        load_type = os.getenv("NAUTOBOT_BOOTSTRAP_SSOT_LOAD_SOURCE", "file")
+
+        if self.job.load_source == "env_var":
+            load_type = os.getenv("NAUTOBOT_BOOTSTRAP_SSOT_LOAD_SOURCE", "file")
+        else:
+            load_type = self.job.load_source
 
         if load_type == "file":
             directory_path = "nautobot_ssot/integrations/bootstrap/fixtures"

@@ -1,7 +1,7 @@
 """Jobs for bootstrap SSoT integration."""
 
 import os
-from nautobot.apps.jobs import BooleanVar
+from nautobot.apps.jobs import BooleanVar, ChoiceVar
 from nautobot_ssot.jobs.base import DataSource, DataTarget, DataMapping
 from nautobot_ssot.integrations.bootstrap.diffsync.adapters import bootstrap, nautobot
 
@@ -13,6 +13,15 @@ class BootstrapDataSource(DataSource):
     """Bootstrap SSoT Data Source."""
 
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
+    load_source = ChoiceVar(
+        choices=(
+            ("file", "File"),
+            ("git", "Git"),
+        ),
+        description="Where to load the yaml files from",
+        label="Load Source",
+        default="git",
+    )
 
     class Meta:  # pylint: disable=too-few-public-methods
         """Meta data for bootstrap."""
@@ -80,11 +89,12 @@ class BootstrapDataSource(DataSource):
         self.target_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync)
         self.target_adapter.load()
 
-    def run(self, dryrun, memory_profiling, debug, *args, **kwargs):  # pylint: disable=arguments-differ
+    def run(self, load_source, dryrun, memory_profiling, debug, *args, **kwargs):  # pylint: disable=arguments-differ
         """Perform data synchronization."""
         self.debug = debug
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
+        self.load_source = load_source
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 
@@ -92,6 +102,16 @@ class BootstrapDataTarget(DataTarget):
     """bootstrap SSoT Data Target."""
 
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
+    write_destination = ChoiceVar(
+        choices=(
+            ("file", "File"),
+            ("git", "Git"),
+            ("env_var", "Environment Variable"),
+        ),
+        description="Where to load the yaml files from",
+        label="Load Source",
+        default="env_var",
+    )
 
     class Meta:  # pylint: disable=too-few-public-methods
         """Meta data for Bootstrap."""
@@ -121,11 +141,14 @@ class BootstrapDataTarget(DataTarget):
         self.target_adapter = bootstrap.BootstrapAdapter(job=self, sync=self.sync)
         self.target_adapter.load()
 
-    def run(self, dryrun, memory_profiling, debug, *args, **kwargs):  # pylint: disable=arguments-differ
+    def run(
+        self, write_destination, dryrun, memory_profiling, debug, *args, **kwargs
+    ):  # pylint: disable=arguments-differ
         """Perform data synchronization."""
         self.debug = debug
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
+        self.write_destination = write_destination
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 
