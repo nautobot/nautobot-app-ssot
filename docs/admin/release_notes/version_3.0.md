@@ -12,7 +12,7 @@ Second, this release also adds a new integration supporting Cisco's DNA Center p
 
 ### Changed
 
-- [471](https://github.com/nautobot/nautobot-app-ssot/pull/471) - Updated ACI, Device42, and DNA Center integrations to use Controller or ExternalIntegration instead of PLUGINS_CONFIG settings.
+- [#471](https://github.com/nautobot/nautobot-app-ssot/pull/471) - Updated ACI, Device42, and DNA Center integrations to use Controller or ExternalIntegration instead of PLUGINS_CONFIG settings.
 
 ### Removed
 
