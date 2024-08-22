@@ -1,11 +1,12 @@
 # pylint: disable=duplicate-code
 """DiffSync adapter for ServiceNow."""
+
 from base64 import b64encode
 import json
 import os
 
 from collections import defaultdict
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.enum import DiffSyncFlags
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from jinja2 import Environment, FileSystemLoader
@@ -14,7 +15,7 @@ import yaml
 from . import models
 
 
-class ServiceNowDiffSync(DiffSync):
+class ServiceNowDiffSync(Adapter):
     """DiffSync adapter using pysnow to communicate with a ServiceNow server."""
 
     # create defaultdict object to store objects that should be deleted from ServiceNow if they do not
@@ -187,6 +188,7 @@ class ServiceNowDiffSync(DiffSync):
             elif "reference" in mapping:
                 # Reference by sys_id to a field in a record in another table
                 table = mapping["reference"]["table"]
+                sys_id = None
                 if "key" in mapping["reference"]:
                     key = mapping["reference"]["key"]
                     if key not in record:

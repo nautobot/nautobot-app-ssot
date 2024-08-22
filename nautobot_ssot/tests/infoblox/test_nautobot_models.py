@@ -1,5 +1,6 @@
 # pylint: disable=too-many-lines,too-many-public-methods,R0801
 """Unit tests for the Infoblox Diffsync models."""
+
 from unittest.mock import Mock
 
 from django.contrib.contenttypes.models import ContentType

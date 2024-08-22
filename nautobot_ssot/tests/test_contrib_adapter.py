@@ -310,7 +310,7 @@ class TestNestedRelationships(TestCase):
         class VLANDict(TypedDict):
             """Test VLAN dict."""
 
-            id: int
+            vid: int
             location__name: str
 
         class VLANGroupModel(NautobotModel):
