@@ -2,7 +2,7 @@
 
 # Skip colon check for multiple statements on one line.
 # flake8: noqa: E701
-
+# pylint: disable=too-many-lines
 try:
     from typing_extensions import TypedDict  # Python<3.9
 except ImportError:
@@ -904,6 +904,13 @@ class ExampleDataSource(DataSource):
 class ExampleDataTarget(DataTarget):
     """Sync Region and Site data from the local Nautobot instance to a remote Nautobot instance."""
 
+    target = ObjectVar(
+        model=ExternalIntegration,
+        queryset=ExternalIntegration.objects.all(),
+        display_field="display",
+        label="Nautobot Target Instance",
+        required=False,
+    )
     target_url = StringVar(description="Remote Nautobot instance to update", default="https://demo.nautobot.com")
     target_token = StringVar(description="REST API authentication token for remote Nautobot instance", default="a" * 40)
 
@@ -939,6 +946,38 @@ class ExampleDataTarget(DataTarget):
             DataMapping("Device (local)", reverse("dcim:device_list"), "Device (remote)", None),
             DataMapping("Interface (local)", reverse("dcim:interface_list"), "Interface (remote)", None),
         )
+
+    def run(  # pylint: disable=too-many-arguments, arguments-differ
+        self,
+        dryrun,
+        memory_profiling,
+        target,
+        target_url,
+        target_token,
+        *args,
+        **kwargs,
+    ):
+        """Run sync."""
+        self.dryrun = dryrun
+        self.memory_profiling = memory_profiling
+        try:
+            if target:
+                self.logger.info(f"Using external integration '{target}'")
+                self.target_url = target.remote_url
+                secrets_group = target.secrets_group
+                self.target_token = secrets_group.get_secret_value(
+                    access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
+                    secret_type=SecretsGroupSecretTypeChoices.TYPE_TOKEN,
+                )
+            else:
+                self.target_url = target_url
+                self.target_token = target_token
+        except Exception as error:
+            # TBD: Why are these exceptions swallowed?
+            self.logger.error("Error setting up job: %s", error)
+            raise
+
+        super().run(dryrun, memory_profiling, *args, **kwargs)
 
     def load_source_adapter(self):
         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""
