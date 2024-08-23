@@ -24,7 +24,7 @@ class NautobotAdapter(Adapter)
 
 ## Set defaults for Optional
 
-One of the changes with pydantic v2 is that any variables that are Optional must have a default of None defined. This needs to be done on your class attributes like below:
+One of the changes with Pydantic v2 is that any variables that are Optional must have a default of None defined. This needs to be done on your class attributes like below:
 
 ```python
 class DeviceModel(NautobotModel):
@@ -46,11 +46,11 @@ class DeviceModel(NautobotModel):
     name: str
     location__name: str
     location__location_type__name: str
-    location__parent__name: Optional[str]
-    location__parent__location_type__name: Optional[str]
+    location__parent__name: Optional[str]                        # Pydantic v1, replace
+    location__parent__location_type__name: Optional[str]         # Pydantic v1, replace
     device_type__manufacturer__name: str
     device_type__model: str
-    platform__name: Optional[str]
+    platform__name: Optional[str]                                # Pydantic v1, replace
     role__name: str
     serial: str
     status__name: str
@@ -78,11 +78,11 @@ class DeviceModel(NautobotModel):
     name: str
     location__name: str
     location__location_type__name: str
-    location__parent__name: Optional[str] = None
-    location__parent__location_type__name: Optional[str] = None
+    location__parent__name: Optional[str] = None                 # Pydantic v2 compatibile
+    location__parent__location_type__name: Optional[str] = None  # Pydantic v2 compatibile
     device_type__manufacturer__name: str
     device_type__model: str
-    platform__name: Optional[str] = None
+    platform__name: Optional[str] = None                         # Pydantic v2 compatibile
     role__name: str
     serial: str
     status__name: str
@@ -95,6 +95,8 @@ Any instances where you're referring to the diffsync kwarg needs to be updated t
 ```python
 self.diffsync.job.logger.warning("Example")
 ```
+
+is changed to the following:
 
 ```python
 self.adapter.job.logger.warning("Example")
