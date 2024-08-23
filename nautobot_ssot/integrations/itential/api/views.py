@@ -2,7 +2,7 @@
 
 from nautobot.apps.api import NautobotModelViewSet
 
-from nautobot_ssot.integrations.itential import models, filters
+from nautobot_ssot.integrations.itential import filters, models
 from nautobot_ssot.integrations.itential.api import serializers
 
 

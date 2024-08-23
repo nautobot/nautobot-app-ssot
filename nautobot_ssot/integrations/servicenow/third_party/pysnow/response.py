@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 
-import ijson
-
-from ijson.common import ObjectBuilder
 from itertools import chain
+
+import ijson
+from ijson.common import ObjectBuilder
+
 from .exceptions import (
-    ResponseError,
-    NoResults,
-    InvalidUsage,
-    MultipleResults,
     EmptyContent,
+    InvalidUsage,
     MissingResult,
+    MultipleResults,
+    NoResults,
+    ResponseError,
 )
 
 

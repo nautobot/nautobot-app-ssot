@@ -1,7 +1,6 @@
 """Tables implementation for SSOT Infoblox."""
 
 import django_tables2 as tables
-
 from nautobot.apps.tables import BaseTable, BooleanColumn, ButtonsColumn
 
 from .models import SSOTInfobloxConfig

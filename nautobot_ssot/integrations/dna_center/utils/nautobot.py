@@ -1,10 +1,11 @@
 """Utility functions for working with Nautobot."""
 
 from uuid import UUID
+
 from django.contrib.contenttypes.models import ContentType
-from netutils.lib_mapper import ANSIBLE_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER_REVERSE
 from nautobot.dcim.models import Device, Platform
 from nautobot.extras.models import Relationship, RelationshipAssociation
+from netutils.lib_mapper import ANSIBLE_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER_REVERSE
 
 try:
     from nautobot_device_lifecycle_mgmt.models import SoftwareLCM

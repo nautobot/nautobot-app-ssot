@@ -2,21 +2,21 @@
 
 import itertools
 import json
-import os
-import six
 import ntpath
+import os
 import warnings
 
-from .query_builder import QueryBuilder
+import six
 
 from .legacy_exceptions import (
-    NoRequestExecuted,
-    MultipleResults,
-    NoResults,
     InvalidUsage,
-    UnexpectedResponse,
     MissingResult,
+    MultipleResults,
+    NoRequestExecuted,
+    NoResults,
+    UnexpectedResponse,
 )
+from .query_builder import QueryBuilder
 
 
 class LegacyRequest(object):
@@ -138,7 +138,7 @@ class LegacyRequest(object):
         )
 
         content = self._get_content(response)
-        l = len(content)
+        l = len(content)  # noqa: E741
         if l > 1:
             raise MultipleResults("Multiple results for get_one()")
 

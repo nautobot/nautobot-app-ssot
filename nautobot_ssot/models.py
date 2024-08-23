@@ -27,16 +27,14 @@ from django.db import models
 from django.urls import reverse
 from django.utils.formats import date_format
 from django.utils.timezone import now
-
-
 from nautobot.core.models import BaseModel
 from nautobot.extras.choices import JobResultStatusChoices
 from nautobot.extras.models import JobResult
 from nautobot.extras.utils import extras_features
 
-from nautobot_ssot.integrations.servicenow.models import SSOTServiceNowConfig
 from nautobot_ssot.integrations.infoblox.models import SSOTInfobloxConfig
 from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
+from nautobot_ssot.integrations.servicenow.models import SSOTServiceNowConfig
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 

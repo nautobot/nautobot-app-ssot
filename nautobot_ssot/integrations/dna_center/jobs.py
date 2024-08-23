@@ -1,16 +1,16 @@
 """Jobs for DNA Center SSoT integration."""
 
-from django.urls import reverse
 from django.templatetags.static import static
+from django.urls import reverse
+from nautobot.core.celery import register_jobs
 from nautobot.dcim.models import Controller, ControllerManagedDeviceGroup
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.jobs import BooleanVar, ObjectVar
 from nautobot.tenancy.models import Tenant
-from nautobot.core.celery import register_jobs
-from nautobot_ssot.jobs.base import DataSource, DataMapping
+
 from nautobot_ssot.integrations.dna_center.diffsync.adapters import dna_center, nautobot
 from nautobot_ssot.integrations.dna_center.utils.dna_center import DnaCenterClient
-
+from nautobot_ssot.jobs.base import DataMapping, DataSource
 
 name = "DNA Center SSoT"  # pylint: disable=invalid-name
 

@@ -1,7 +1,6 @@
 """Utility functions for nautobot_ssot integrations."""
 
 import logging
-
 from importlib import import_module
 from pathlib import Path
 from types import ModuleType

@@ -3,9 +3,8 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.templatetags.static import static
 from django.urls import reverse
-
-from nautobot.dcim.models import Device, DeviceType, Interface, Manufacturer, Location
-from nautobot.extras.jobs import Job, BooleanVar, ObjectVar
+from nautobot.dcim.models import Device, DeviceType, Interface, Location, Manufacturer
+from nautobot.extras.jobs import BooleanVar, Job, ObjectVar
 
 from nautobot_ssot.jobs.base import DataMapping, DataTarget
 
@@ -13,7 +12,6 @@ from .diffsync.adapter_nautobot import NautobotDiffSync
 from .diffsync.adapter_servicenow import ServiceNowDiffSync
 from .servicenow import ServiceNowClient
 from .utils import get_servicenow_parameters
-
 
 name = "SSoT - ServiceNow"  # pylint: disable=invalid-name
 

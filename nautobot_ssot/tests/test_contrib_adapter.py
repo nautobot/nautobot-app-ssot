@@ -9,9 +9,8 @@ from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
-from nautobot.core.testing import TestCase
 from nautobot.circuits import models as circuits_models
-
+from nautobot.core.testing import TestCase
 from nautobot.dcim import models as dcim_models
 from nautobot.extras import models as extras_models
 from nautobot.extras.choices import RelationshipTypeChoices
@@ -19,16 +18,16 @@ from nautobot.ipam import models as ipam_models
 from nautobot.tenancy import models as tenancy_models
 from typing_extensions import Annotated, TypedDict
 
-from nautobot_ssot.contrib import NautobotAdapter, NautobotModel, CustomFieldAnnotation
+from nautobot_ssot.contrib import CustomFieldAnnotation, NautobotAdapter, NautobotModel
 from nautobot_ssot.tests.contrib_base_classes import (
-    TestCaseWithDeviceData,
-    NautobotDevice,
     NautobotCable,
-    TestAdapter,
-    NautobotTenantGroup,
+    NautobotDevice,
     NautobotTenant,
-    TenantModelCustomRelationship,
+    NautobotTenantGroup,
     ProviderModelCustomRelationship,
+    TenantModelCustomRelationship,
+    TestAdapter,
+    TestCaseWithDeviceData,
 )
 
 

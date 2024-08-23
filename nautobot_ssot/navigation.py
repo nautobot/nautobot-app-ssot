@@ -1,8 +1,8 @@
 """App additions to the Nautobot navigation menu."""
 
 from nautobot.apps.ui import NavMenuGroup, NavMenuItem, NavMenuTab
-from .integrations.utils import each_enabled_integration_module
 
+from .integrations.utils import each_enabled_integration_module
 
 items = [
     NavMenuItem(

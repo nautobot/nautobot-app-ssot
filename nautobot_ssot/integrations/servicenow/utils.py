@@ -3,11 +3,9 @@
 import logging
 
 from django.conf import settings
-
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 
 from .models import SSOTServiceNowConfig
-
 
 logger = logging.getLogger(__name__)
 

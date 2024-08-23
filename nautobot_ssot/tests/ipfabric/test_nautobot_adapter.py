@@ -4,7 +4,6 @@ import unittest
 
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
-
 from nautobot.dcim.models import (
     Device,
     DeviceType,

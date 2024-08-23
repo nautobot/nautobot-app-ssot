@@ -6,7 +6,6 @@ from nautobot.dcim.models import Controller, ControllerManagedDeviceGroup
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.models import SecretsGroup
 
-
 logger = logging.getLogger("nautobot.ssot")
 
 
