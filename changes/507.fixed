@@ -1,1 +1,1 @@
-Fix DataTarget example Job to include run() function for using ExternalIntegration or supplied URL and token.
+Fixed DataTarget example Job to include run() function for using ExternalIntegration or supplied URL and token.
