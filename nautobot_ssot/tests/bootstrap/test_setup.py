@@ -3,6 +3,7 @@
 # test_setup.py
 
 import json
+import os
 from unittest.mock import MagicMock
 import yaml
 import pytz
@@ -46,9 +47,12 @@ def load_json(path):
         return json.loads(file.read())
 
 
-GLOBAL_JSON_SETTINGS = load_json("./nautobot_ssot/tests/bootstrap/fixtures/global_settings.json")
-GLOBAL_YAML_SETTINGS = load_yaml("./nautobot_ssot/tests/bootstrap/fixtures/global_settings.yml")
-DEVELOP_YAML_SETTINGS = load_yaml("./nautobot_ssot/tests/bootstrap/fixtures/develop.yml")
+FIXTURES_DIR = os.path.join("./nautobot_ssot/integrations/bootstrap/fixtures")
+GLOBAL_YAML_SETTINGS = load_yaml(os.path.join(FIXTURES_DIR, "global_settings.yml"))
+DEVELOP_YAML_SETTINGS = load_yaml(os.path.join(FIXTURES_DIR, "develop.yml"))
+
+TESTS_FIXTURES_DIR = os.path.join("./nautobot_ssot/tests/bootstrap/fixtures")
+GLOBAL_JSON_SETTINGS = load_json(os.path.join(TESTS_FIXTURES_DIR, "global_settings.json"))
 
 
 def is_valid_timezone(tz):
@@ -168,10 +172,54 @@ class NautobotTestSetup:
             status.validated_save()
 
     def _setup_locations(self):
-        for location_type_data in GLOBAL_YAML_SETTINGS["location_type"]:
-            location_type = self._get_or_create_location_type(location_type_data)
-            self._set_location_type_content_types(location_type, location_type_data["content_types"])
-            location_type.validated_save()
+        """Set up location types and locations."""
+
+        # First, ensure location types are created
+        location_types_data = GLOBAL_YAML_SETTINGS.get("location_type", [])
+        for loc_type_data in location_types_data:
+            location_type = self._get_or_create_location_type(loc_type_data)
+            self._set_location_type_content_types(location_type, loc_type_data["content_types"])
+
+        locations_data = GLOBAL_YAML_SETTINGS.get("location", [])
+        for location_data in locations_data:
+            location_type = LocationType.objects.get(name=location_data["location_type"])
+            parent_location = None
+            tenant = None
+            tags = []
+
+            status = Status.objects.get(name=location_data["status"])
+
+            if location_data["parent"]:
+                parent_location = Location.objects.get(name=location_data["parent"])
+
+            if location_data["tenant"]:
+                tenant = Tenant.objects.get(name=location_data["tenant"])
+
+            if location_data["tags"]:
+                tags = [Tag.objects.get(name=tag) for tag in location_data["tags"]]
+
+            location, created = Location.objects.get_or_create(
+                name=location_data["name"],
+                location_type=location_type,
+                defaults={
+                    "parent": parent_location,
+                    "status": status,
+                    "facility": location_data.get("facility", ""),
+                    "asn": location_data.get("asn"),
+                    "time_zone": location_data.get("time_zone", ""),
+                    "description": location_data.get("description", ""),
+                    "tenant": tenant,
+                    "physical_address": location_data.get("physical_address", ""),
+                    "shipping_address": location_data.get("shipping_address", ""),
+                    "latitude": location_data.get("latitude"),
+                    "longitude": location_data.get("longitude"),
+                    "contact_name": location_data.get("contact_name", ""),
+                    "contact_phone": location_data.get("contact_phone", ""),
+                    "contact_email": location_data.get("contact_email", ""),
+                },
+            )
+            if created:
+                location.validated_save()
 
     def _get_or_create_location_type(self, location_type_data):
         """Get or create a LocationType based on the provided data."""
@@ -182,14 +230,18 @@ class NautobotTestSetup:
             return LocationType.objects.create(
                 name=location_type_data["name"],
                 parent=parent,
-                nestable=location_type_data["nestable"] if location_type_data["nestable"] != "" else False,
+                nestable=location_type_data.get("nestable", False),
                 description=location_type_data["description"],
             )
 
     def _get_location_type_parent(self, parent_name):
         """Retrieve the parent LocationType if it exists."""
         if parent_name:
-            return LocationType.objects.get(name=parent_name)
+            try:
+                return LocationType.objects.get(name=parent_name)
+            except LocationType.DoesNotExist:
+                self.job.logger.warning(f"Parent LocationType '{parent_name}' does not exist.")
+                return None
         return None
 
     def _set_location_type_content_types(self, location_type, content_types):
@@ -199,22 +251,10 @@ class NautobotTestSetup:
         ]
         location_type.content_types.set(content_type_objects)
         location_type.custom_field_data["system_of_record"] = "Bootstrap"
+        location_type.save()
 
     def _setup_tenant_groups(self):
-        _tenant_groups = [
-            {
-                "name": "Group1",
-                "parent": "",
-            },
-            {
-                "name": "Group2",
-                "parent": "",
-            },
-            {
-                "name": "Group3",
-                "parent": "Group1",
-            },
-        ]
+        _tenant_groups = GLOBAL_YAML_SETTINGS.get("tenant_group", [])
         for _tenant_group in _tenant_groups:
             if _tenant_group["parent"]:
                 _parent = TenantGroup.objects.get(name=_tenant_group["parent"])
@@ -226,9 +266,14 @@ class NautobotTestSetup:
             _tenant_group.refresh_from_db()
 
     def _setup_tenants(self):
-        _tenants = ["Backbone", "Datacenter"]
+        _tenants = GLOBAL_YAML_SETTINGS.get("tenant", [])
         for _ten in _tenants:
-            _tenant = Tenant.objects.create(name=_ten)
+            _tenant_group = None
+            if _ten["tenant_group"]:
+                _tenant_group = TenantGroup.objects.get(name=_ten["tenant_group"])
+            _tenant = Tenant.objects.create(
+                name=_ten["name"], description=_ten["description"], tenant_group=_tenant_group
+            )
             _tenant.custom_field_data["system_of_record"] = "Bootstrap"
             _tenant.validated_save()
             _tenant.refresh_from_db()
