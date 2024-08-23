@@ -12,7 +12,7 @@ from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 
 from nautobot.extras.datasources.git import ensure_git_repository
 from nautobot.extras.models import GitRepository
-from nautobot_ssot.integrations.bootstrap.utils import lookup_content_type
+from nautobot_ssot.integrations.bootstrap.utils import lookup_content_type, is_running_tests
 
 from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (
     BootstrapSecret,
@@ -251,7 +251,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         except ObjectNotFound:
             new_role = self.role(
                 name=bs_role["name"],
-                weight=bs_role["weight"],
+                weight=bs_role["weight"] if bs_role["weight"] else None,
                 description=bs_role["description"],
                 color=bs_role["color"] if not None else "9e9e9e",
                 content_types=_content_types,
@@ -835,10 +835,15 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load data from Bootstrap into DiffSync models."""
         environment_label = settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_nautobot_environment_branch"]
 
-        if self.job.load_source == "env_var":
+        if is_running_tests():
+            load_type = "file"
+        elif self.job.load_source == "env_var":
             load_type = os.getenv("NAUTOBOT_BOOTSTRAP_SSOT_LOAD_SOURCE", "file")
         else:
             load_type = self.job.load_source
+
+        global global_settings
+        global_settings = None
 
         if load_type == "file":
             directory_path = "nautobot_ssot/integrations/bootstrap/fixtures"
@@ -849,9 +854,11 @@ class BootstrapAdapter(Adapter, LabelMixin):
                         yaml_data = yaml.safe_load(file)
                     variable_name = os.path.splitext(filename)[0]
                     globals()[variable_name] = yaml_data
-            branch_vars = globals()[environment_label]
 
-        if load_type == "git":
+            branch_vars = globals()[environment_label]
+            global_settings = globals().get("global_settings")
+
+        elif load_type == "git":
             repo = GitRepository.objects.filter(
                 name__icontains="Bootstrap", provided_contents__icontains="extras.configcontext"
             )
@@ -873,7 +880,14 @@ class BootstrapAdapter(Adapter, LabelMixin):
                             yaml_data = yaml.safe_load(file)
                         variable_name = os.path.splitext(filename)[0]
                         globals()[variable_name] = yaml_data
+
                 branch_vars = globals()[environment_label]
+                global_settings = globals().get("global_settings")
+
+        # Ensure global_settings is loaded
+        if global_settings is None:
+            self.job.logger.error("global_settings not loaded. Check if the file exists in the correct directory.")
+            return
 
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["tenant_group"]:
             if global_settings["tenant_group"] is not None:  # noqa: F821

@@ -1,5 +1,6 @@
 """Utility functions for working with bootstrap and Nautobot."""
 
+import inspect
 import os
 
 from nautobot.extras.datasources.registry import get_datasource_content_choices
@@ -10,6 +11,13 @@ from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.db import models
 from nautobot_ssot.integrations.bootstrap.constants import content_model_path_mapping
+
+
+def is_running_tests():
+    for frame in inspect.stack():
+        if frame.filename.endswith("unittest/case.py"):
+            return True
+    return False
 
 
 def check_sor_field(model):

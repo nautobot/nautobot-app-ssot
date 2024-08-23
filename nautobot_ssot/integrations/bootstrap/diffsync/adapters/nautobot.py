@@ -400,7 +400,10 @@ class NautobotAdapter(Adapter):
                 else:
                     _parent = None
                 if nb_location.time_zone is not None:
-                    _time_zone = nb_location.time_zone.zone
+                    try:
+                        _time_zone = nb_location.timezone.zone
+                    except AttributeError:
+                        _time_zone = nb_location.time_zone.key
                 else:
                     _time_zone = None
                 if nb_location.tenant is not None:

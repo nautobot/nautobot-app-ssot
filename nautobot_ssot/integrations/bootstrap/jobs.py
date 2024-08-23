@@ -17,10 +17,11 @@ class BootstrapDataSource(DataSource):
         choices=(
             ("file", "File"),
             ("git", "Git"),
+            ("env_var", "Environment Variable"),
         ),
         description="Where to load the yaml files from",
         label="Load Source",
-        default="git",
+        default="env_var",
     )
 
     class Meta:  # pylint: disable=too-few-public-methods
