@@ -1,6 +1,6 @@
 ---
 dev_addr: "127.0.0.1:8001"
-edit_uri: "edit/main/nautobot-app-ssot/docs"
+edit_uri: "edit/main/docs"
 site_dir: "nautobot_ssot/static/nautobot_ssot/docs"
 site_name: "Single Source of Truth Documentation"
 site_url: "https://docs.nautobot.com/projects/ssot/en/latest/"

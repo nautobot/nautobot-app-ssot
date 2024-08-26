@@ -17,6 +17,7 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 packages = [
     { include = "nautobot_ssot" },
@@ -27,7 +28,7 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.12"
+python = ">=3.8,<3.13"
 # Used for local development
 nautobot = "^2.1.0"
 diffsync = "^2.0.0"
@@ -168,12 +169,12 @@ nautobot-device-lifecycle-mgmt = [
 
 [tool.pylint.master]
 # Include the pylint_django plugin to avoid spurious warnings about Django patterns
-load-plugins="pylint_django, pylint_nautobot"
-ignore=".venv"
+load-plugins = "pylint_django, pylint_nautobot"
+ignore = ".venv"
 
 [tool.pylint.basic]
 # No docstrings required for private methods (Pylint default), or for test_ functions, or for inner Meta classes.
-no-docstring-rgx="^(_|test_|Meta$)"
+no-docstring-rgx = "^(_|test_|Meta$)"
 
 [tool.pylint.messages_control]
 disable = """,
@@ -199,10 +200,11 @@ target-version = "py38"
 
 [tool.ruff.lint]
 select = [
-    "D", # pydocstyle
-    "F", "E", "W", # flake8
-    "S", # bandit
-    "I", # isort
+    "D",  # pydocstyle
+    "F", "E", "W",  # flake8
+    "PL", # pylint
+    "S",  # bandit
+    "I",  # isort
 ]
 ignore = [
     # warning: `one-blank-line-before-class` (D203) and `no-blank-line-before-class` (D211) are incompatible.
@@ -221,10 +223,6 @@ ignore = [
     "D407", # Missing dashed underline after section
     "D416", # Section name ends in colon
     "E501", # Line too long
-
-    # Package specific ignores
-    "D104", # Missing docstring in public package
-    "D417", # Missing argument descriptions in the docstring for ...
 ]
 
 [tool.ruff.lint.pydocstyle]
