@@ -1,13 +1,13 @@
 """Nautobot SSoT framework level metrics."""
 
 from django.conf import settings
-from prometheus_client.core import GaugeMetricFamily
 from nautobot.extras.choices import JobResultStatusChoices
 from nautobot.extras.models.jobs import Job
+from prometheus_client.core import GaugeMetricFamily
+
 from nautobot_ssot.jobs import get_data_jobs
 from nautobot_ssot.jobs.base import DataSource, DataTarget
 from nautobot_ssot.models import Sync
-
 
 PLUGIN_SETTINGS = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
 

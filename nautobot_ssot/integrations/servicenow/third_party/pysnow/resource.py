@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import logging
-
 from copy import copy, deepcopy
 
-from .request import SnowRequest
 from .attachment import Attachment
-from .url_builder import URLBuilder
 from .exceptions import InvalidUsage
+from .request import SnowRequest
+from .url_builder import URLBuilder
 
 logger = logging.getLogger("pysnow")
 

@@ -1,12 +1,11 @@
 """Itential SSoT Jobs Test Cases."""
 
 from django.test import override_settings
-from nautobot.extras.models import Job, JobLogEntry
 from nautobot.apps.testing import run_job_for_testing
-
-from nautobot_ssot.tests.itential.fixtures import base
+from nautobot.extras.models import Job, JobLogEntry
 
 from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
+from nautobot_ssot.tests.itential.fixtures import base
 
 
 @override_settings(

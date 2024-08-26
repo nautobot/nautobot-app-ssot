@@ -1,8 +1,7 @@
 """Itential SSoT serializers."""
 
-from rest_framework import serializers
-
 from nautobot.apps.api import NautobotModelSerializer
+from rest_framework import serializers
 
 from nautobot_ssot.integrations.itential import models
 

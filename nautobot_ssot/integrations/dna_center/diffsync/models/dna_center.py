@@ -3,12 +3,12 @@
 from nautobot_ssot.integrations.dna_center.diffsync.models.base import (
     Area,
     Building,
-    Floor,
     Device,
-    Port,
-    Prefix,
+    Floor,
     IPAddress,
     IPAddressOnInterface,
+    Port,
+    Prefix,
 )
 
 

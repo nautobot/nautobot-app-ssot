@@ -1,22 +1,24 @@
 """DiffSync adapter for Device42."""
 
+import ipaddress
 import re
 from decimal import Decimal
 from typing import List
-import ipaddress
+
 from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from nautobot.core.settings_funcs import is_truthy
 from netutils.bandwidth import name_to_bits
 from netutils.dns import fqdn_to_ip, is_fqdn_resolvable
+
 from nautobot_ssot.integrations.device42.constant import PLUGIN_CFG
 from nautobot_ssot.integrations.device42.diffsync.models.base import assets, circuits, dcim, ipam
 from nautobot_ssot.integrations.device42.utils.device42 import (
-    get_facility,
-    get_intf_type,
-    get_intf_status,
-    get_netmiko_platform,
     get_custom_field_dict,
+    get_facility,
+    get_intf_status,
+    get_intf_type,
+    get_netmiko_platform,
     load_vlan,
 )
 from nautobot_ssot.integrations.device42.utils.nautobot import determine_vc_position

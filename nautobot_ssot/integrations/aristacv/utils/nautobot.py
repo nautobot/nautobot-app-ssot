@@ -9,21 +9,18 @@ from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from nautobot.core.models.utils import slugify
 from nautobot.core.settings_funcs import is_truthy
-from nautobot.dcim.models import Device
-from nautobot.dcim.models import DeviceType
-from nautobot.dcim.models import Location
-from nautobot.dcim.models import LocationType
-from nautobot.dcim.models import Manufacturer
-from nautobot.extras.choices import SecretsGroupAccessTypeChoices
-from nautobot.extras.choices import SecretsGroupSecretTypeChoices
-from nautobot.extras.models import ExternalIntegration
-from nautobot.extras.models import Relationship
-from nautobot.extras.models import Role
-from nautobot.extras.models import Secret
-from nautobot.extras.models import SecretsGroup
-from nautobot.extras.models import SecretsGroupAssociation
-from nautobot.extras.models import Status
-from nautobot.extras.models import Tag
+from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Manufacturer
+from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
+from nautobot.extras.models import (
+    ExternalIntegration,
+    Relationship,
+    Role,
+    Secret,
+    SecretsGroup,
+    SecretsGroupAssociation,
+    Status,
+    Tag,
+)
 
 from nautobot_ssot.integrations.aristacv import constants
 from nautobot_ssot.integrations.aristacv.types import CloudVisionAppConfig

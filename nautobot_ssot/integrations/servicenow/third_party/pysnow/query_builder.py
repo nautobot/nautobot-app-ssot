@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import inspect
-import six
+
 import pytz
+import six
 
 from .exceptions import (
     QueryEmpty,
@@ -228,7 +229,7 @@ class QueryBuilder(object):
         if not self.current_field:
             raise QueryMissingField("Conditions requires a field()")
 
-        elif not type(operand) in types:
+        elif type(operand) not in types:
             caller = inspect.currentframe().f_back.f_code.co_name
             raise QueryTypeError("Invalid type passed to %s() , expected: %s" % (caller, types))
 

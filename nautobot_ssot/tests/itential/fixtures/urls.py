@@ -2,7 +2,6 @@
 
 from nautobot_ssot.tests.itential.fixtures import gateways
 
-
 data = [
     {
         "method": "POST",

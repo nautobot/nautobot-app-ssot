@@ -16,9 +16,7 @@ LOGGER = logging.getLogger(__name__)
 class DnaCenterClient:
     """Client for handling all interactions with DNA Center."""
 
-    def __init__(
-        self, url: str, username: str, password: str, port: int = 443, verify: bool = True
-    ):  # pylint: disable=too-many-arguments
+    def __init__(self, url: str, username: str, password: str, port: int = 443, verify: bool = True):  # pylint: disable=too-many-arguments
         """Initialize instance of client."""
         self.url = url
         self.port = port

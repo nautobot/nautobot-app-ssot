@@ -6,27 +6,27 @@ import logging
 from typing import Any, Optional
 
 from django.contrib.contenttypes.models import ContentType
-from django.db import Error as DjangoBaseDBError
 from django.core.exceptions import ValidationError
-from netutils.ip import netmask_to_cidr
-from netutils.lib_mapper import NAPALM_LIB_MAPPER
+from django.db import Error as DjangoBaseDBError
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import (
     Device,
     DeviceType,
     Interface,
-    Manufacturer,
     Location,
     LocationType,
+    Manufacturer,
     Platform,
 )
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Role, Tag
 from nautobot.extras.models.statuses import Status
-from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix, VLAN
 from nautobot.ipam.choices import PrefixTypeChoices
-from nautobot_ssot.integrations.ipfabric.constants import LAST_SYNCHRONIZED_CF_NAME
+from nautobot.ipam.models import VLAN, IPAddress, IPAddressToInterface, Namespace, Prefix
+from netutils.ip import netmask_to_cidr
+from netutils.lib_mapper import NAPALM_LIB_MAPPER
 
+from nautobot_ssot.integrations.ipfabric.constants import LAST_SYNCHRONIZED_CF_NAME
 
 # pylint: disable=too-many-branches
 
@@ -344,7 +344,7 @@ def create_ip(
         except (DjangoBaseDBError, ValidationError):
             try:
                 parent, _ = Prefix.objects.get_or_create(
-                    network="0.0.0.0",  # nosec B104
+                    network="0.0.0.0",  # noqa: S104
                     prefix_length=0,
                     type=PrefixTypeChoices.TYPE_NETWORK,
                     status=Status.objects.get_for_model(Prefix).get(name="Active"),

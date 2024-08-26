@@ -4,19 +4,18 @@
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
 from collections import defaultdict
+from typing import ClassVar, Optional
 from uuid import UUID
 
-from typing import ClassVar, Optional
-
 from diffsync import DiffSyncModel
-from diffsync.exceptions import ObjectCrudException, ObjectNotUpdated, ObjectNotDeleted, ObjectNotCreated
+from diffsync.exceptions import ObjectCrudException, ObjectNotCreated, ObjectNotDeleted, ObjectNotUpdated
 from django.contrib.contenttypes.models import ContentType
-from django.core.exceptions import ValidationError, MultipleObjectsReturned
+from django.core.exceptions import MultipleObjectsReturned, ValidationError
 from django.db.models import Model, ProtectedError
-from nautobot.extras.models import Relationship, RelationshipAssociation
 from nautobot.extras.choices import RelationshipTypeChoices
-
+from nautobot.extras.models import Relationship, RelationshipAssociation
 from typing_extensions import get_type_hints
+
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
@@ -110,9 +109,7 @@ class NautobotModel(DiffSyncModel):
         return super().create(adapter, ids, attrs)
 
     @classmethod
-    def _handle_single_field(
-        cls, field, obj, value, relationship_fields, adapter
-    ):  # pylint: disable=too-many-arguments,too-many-locals, too-many-branches
+    def _handle_single_field(cls, field, obj, value, relationship_fields, adapter):  # pylint: disable=too-many-arguments,too-many-locals, too-many-branches
         """Set a single field on a Django object to a given value, or, for relationship fields, prepare setting.
 
         :param field: The name of the field to set.
@@ -152,9 +149,9 @@ class NautobotModel(DiffSyncModel):
             # Custom relationship foreign keys
             if custom_relationship_annotation:
                 relationship_fields["custom_relationship_foreign_keys"][related_model][lookup] = value
-                relationship_fields["custom_relationship_foreign_keys"][related_model][
-                    "_annotation"
-                ] = custom_relationship_annotation
+                relationship_fields["custom_relationship_foreign_keys"][related_model]["_annotation"] = (
+                    custom_relationship_annotation
+                )
             # Normal foreign keys
             else:
                 django_field = cls._model._meta.get_field(related_model)

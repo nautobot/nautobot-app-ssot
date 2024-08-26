@@ -14,6 +14,7 @@ from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Relationship, Role, Tag
 from netutils.lib_mapper import ANSIBLE_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER_REVERSE
 from taggit.managers import TaggableManager
+
 from nautobot_ssot.integrations.device42.diffsync.models.base.dcim import Device as NautobotDevice
 
 logger = logging.getLogger(__name__)
@@ -38,7 +39,7 @@ def get_random_color() -> str:
     Returns:
         str: Hex code value for a color with hash stripped.
     """
-    return f"{random.randint(0, 0xFFFFFF):06x}"  # nosec: B311
+    return f"{random.randint(0, 0xFFFFFF):06x}"  # noqa: S311
 
 
 def verify_device_role(adapter, role_name: str, role_color: str = "") -> UUID:

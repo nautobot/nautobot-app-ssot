@@ -1,11 +1,11 @@
 """Unit tests for the Nautobot DiffSync adapter."""
 
-from nautobot.dcim.models import Device, DeviceType, Interface, Manufacturer, Location, LocationType
-from nautobot.extras.models import JobResult, Role, Status
 from nautobot.core.testing import TransactionTestCase
+from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer
+from nautobot.extras.models import JobResult, Role, Status
 
-from nautobot_ssot.integrations.servicenow.jobs import ServiceNowDataTarget
 from nautobot_ssot.integrations.servicenow.diffsync.adapter_nautobot import NautobotDiffSync
+from nautobot_ssot.integrations.servicenow.jobs import ServiceNowDataTarget
 
 
 class NautobotDiffSyncTestCase(TransactionTestCase):

@@ -2,22 +2,24 @@
 
 import uuid
 from unittest.mock import MagicMock, patch
+
 from diffsync.exceptions import ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
+from nautobot.core.testing import TransactionTestCase
 from nautobot.dcim.models import (
-    Manufacturer,
-    Location,
-    LocationType,
     Device,
     DeviceType,
-    Platform,
     Interface,
+    Location,
+    LocationType,
+    Manufacturer,
+    Platform,
 )
-from nautobot.extras.models import Status, JobResult, Role
-from nautobot.ipam.models import IPAddress, Namespace, Prefix, IPAddressToInterface
-from nautobot.core.testing import TransactionTestCase
-from nautobot_ssot.integrations.dna_center.jobs import DnaCenterDataSource
+from nautobot.extras.models import JobResult, Role, Status
+from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix
+
 from nautobot_ssot.integrations.dna_center.diffsync.adapters.nautobot import NautobotAdapter
+from nautobot_ssot.integrations.dna_center.jobs import DnaCenterDataSource
 
 
 class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many-instance-attributes

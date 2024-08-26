@@ -6,24 +6,21 @@ from datetime import datetime
 from typing import Any, Iterable, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
+import cloudvision.Connector.gen.notification_pb2 as ntf
+import cloudvision.Connector.gen.router_pb2 as rtr
+import cloudvision.Connector.gen.router_pb2_grpc as rtr_client
 import google.protobuf.timestamp_pb2 as pbts
 import grpc
 import requests
 from arista.inventory.v1 import models, services
 from arista.tag.v2 import models as tag_models
 from arista.tag.v2 import services as tag_services
-
-from google.protobuf.wrappers_pb2 import StringValue  # pylint: disable=no-name-in-module
-
-from cvprac.cvp_client import CvpClient
-from cvprac.cvp_client import CvpLoginError
-import cloudvision.Connector.gen.notification_pb2 as ntf
-import cloudvision.Connector.gen.router_pb2 as rtr
-import cloudvision.Connector.gen.router_pb2_grpc as rtr_client
 from cloudvision.Connector import codec
 from cloudvision.Connector.codec import Wildcard
 from cloudvision.Connector.codec.custom_types import FrozenDict
 from cloudvision.Connector.grpc_client.grpcClient import create_query, to_pbts
+from cvprac.cvp_client import CvpClient, CvpLoginError
+from google.protobuf.wrappers_pb2 import StringValue  # pylint: disable=no-name-in-module
 
 from nautobot_ssot.integrations.aristacv.constants import PORT_TYPE_MAP
 from nautobot_ssot.integrations.aristacv.types import CloudVisionAppConfig
@@ -66,8 +63,8 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
                 )
             if token:
                 call_creds = grpc.access_token_call_credentials(token)
-            elif config.cvp_user != "" and config.cvp_password != "":  # nosec
-                response = requests.post(  # nosec
+            elif config.cvp_user != "" and config.cvp_password != "":
+                response = requests.post(
                     f"{parsed_url.hostname}:{parsed_url.port}/cvpservice/login/authenticate.do",
                     auth=(config.cvp_user, config.cvp_password),
                     timeout=60,
@@ -688,7 +685,7 @@ def get_cvp_version(config: CloudVisionAppConfig):
             client.connect(
                 nodes=[config.url],
                 username="",
-                password="",  # nosec: B106
+                password="",
                 is_cvaas=True,
                 api_token=config.token,
             )

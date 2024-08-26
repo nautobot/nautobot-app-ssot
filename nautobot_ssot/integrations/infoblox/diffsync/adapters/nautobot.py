@@ -296,9 +296,7 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
 
         return all_ipaddresses
 
-    def load_ipaddresses(
-        self, include_ipv4: bool, include_ipv6: bool, sync_filters: list
-    ):  # pylint: disable=too-many-branches
+    def load_ipaddresses(self, include_ipv4: bool, include_ipv6: bool, sync_filters: list):  # pylint: disable=too-many-branches
         """Load IP Addresses from Nautobot.
 
         Args:
