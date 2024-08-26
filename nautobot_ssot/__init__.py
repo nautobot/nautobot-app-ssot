@@ -18,7 +18,6 @@ __version__ = metadata.version(__name__)
 _CONFLICTING_APP_NAMES = [
     "nautobot_ssot_aci",
     "nautobot_ssot_aristacv",
-    "nautobot_ssot_bootstrap",
     "nautobot_ssot_device42",
     "nautobot_ssot_dna_center",
     "nautobot_ssot_infoblox",
@@ -119,7 +118,6 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "dna_center_show_failures": True,
         "enable_aci": False,
         "enable_aristacv": False,
-        "enable_bootstrap": False,
         "enable_device42": False,
         "enable_dna_center": False,
         "enable_infoblox": False,
