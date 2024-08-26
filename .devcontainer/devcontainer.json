@@ -1,5 +1,5 @@
 {
-  "name": "bootstrap",
+  "name": "nautobot-ssot",
   // "build": {
   // 	"context": "../",
   // 	"dockerfile": "development/Dockerfile"
@@ -12,11 +12,11 @@
   ],
   "containerEnv": {
     "DJANGO_SETTINGS_MODULE": "nautobot.core.settings",
-    "NAUTOBOT_VER": "2.2.7",
+    "NAUTOBOT_VER": "2.3.1",
     "PYTHON_VER": 3.11
   },
   "remoteEnv": {
-    "NAUTOBOT_VER": "2.2.7",
+    "NAUTOBOT_VER": "2.3.1",
     "PYTHON_VER": 3.11
   },
   "service": "nautobot",
