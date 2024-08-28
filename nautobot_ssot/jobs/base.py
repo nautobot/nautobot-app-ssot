@@ -118,7 +118,12 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             setattr(self.sync, f"{step}_memory_final", memory_final)
             setattr(self.sync, f"{step}_memory_peak", memory_peak)
             self.sync.save()
-            self.logger.info("Traced memory for %s (Final, Peak): %s bytes, %s bytes", step, memory_final, memory_peak)
+            self.logger.info(
+                "Traced memory for %s (Final, Peak): %s, %s",
+                step,
+                tracemalloc._format_size(memory_final, ""),
+                tracemalloc._format_size(memory_peak, ""),
+            )
             tracemalloc.clear_traces()
 
         if not self.sync:
