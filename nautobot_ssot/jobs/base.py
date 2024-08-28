@@ -112,6 +112,17 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         - self.job_result (as per Job API)
         """
 
+        def format_size(size):
+            """Format a size in bytes to a human-readable string. Borrowed from stdlib tracemalloc."""
+            for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
+                if abs(size) < 100 and unit != "B":
+                    # 3 digits (xx.x UNIT)
+                    return "%.1f %s" % (size, unit)
+                if abs(size) < 10 * 1024 or unit == "TiB":
+                    # 4 or 5 digits (xxxx UNIT)
+                    return "%.0f %s" % (size, unit)
+                size /= 1024
+
         def record_memory_trace(step: str):
             """Helper function to record memory usage and reset tracemalloc stats."""
             memory_final, memory_peak = tracemalloc.get_traced_memory()
@@ -121,8 +132,8 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             self.logger.info(
                 "Traced memory for %s (Final, Peak): %s, %s",
                 step,
-                tracemalloc._format_size(memory_final, ""),
-                tracemalloc._format_size(memory_peak, ""),
+                format_size(memory_final),
+                format_size(memory_peak),
             )
             tracemalloc.clear_traces()
 
