@@ -1,17 +1,32 @@
 """Setup/Create Nautobot objects for use in unit testing."""
 
-# test_setup.py
-
 import json
 import os
 from unittest.mock import MagicMock
-import yaml
+
 import pytz
+import yaml
 from django.contrib.contenttypes.models import ContentType
 from django.utils.text import slugify
-from nautobot.dcim.models import Device, DeviceType, InventoryItem, Location, LocationType, Manufacturer, Platform
+from nautobot.circuits.models import (
+    Circuit,
+    CircuitTermination,
+    CircuitType,
+    Provider,
+    ProviderNetwork,
+)
+from nautobot.dcim.models import (
+    Device,
+    DeviceType,
+    InventoryItem,
+    Location,
+    LocationType,
+    Manufacturer,
+    Platform,
+)
 from nautobot.extras.models import (
     ComputedField,
+    Contact,
     DynamicGroup,
     GitRepository,
     GraphQLQuery,
@@ -23,15 +38,21 @@ from nautobot.extras.models import (
     Status,
     Tag,
     Team,
-    Contact,
 )
-from nautobot.circuits.models import Provider, ProviderNetwork, Circuit, CircuitType, CircuitTermination
-from nautobot.ipam.models import Namespace, RIR, Prefix, VLAN, VLANGroup, VRF
+from nautobot.ipam.models import RIR, VLAN, VRF, Namespace, Prefix, VLANGroup
 from nautobot.tenancy.models import Tenant, TenantGroup
-from nautobot_device_lifecycle_mgmt.models import SoftwareImageLCM, SoftwareLCM, ValidatedSoftwareLCM
+from nautobot_device_lifecycle_mgmt.models import (
+    SoftwareImageLCM,
+    SoftwareLCM,
+    ValidatedSoftwareLCM,
+)
 
-from nautobot_ssot.integrations.bootstrap.diffsync.adapters.nautobot import NautobotAdapter
-from nautobot_ssot.integrations.bootstrap.diffsync.adapters.bootstrap import BootstrapAdapter
+from nautobot_ssot.integrations.bootstrap.diffsync.adapters.bootstrap import (
+    BootstrapAdapter,
+)
+from nautobot_ssot.integrations.bootstrap.diffsync.adapters.nautobot import (
+    NautobotAdapter,
+)
 from nautobot_ssot.integrations.bootstrap.jobs import BootstrapDataSource
 
 
@@ -53,6 +74,39 @@ DEVELOP_YAML_SETTINGS = load_yaml(os.path.join(FIXTURES_DIR, "develop.yml"))
 
 TESTS_FIXTURES_DIR = os.path.join("./nautobot_ssot/tests/bootstrap/fixtures")
 GLOBAL_JSON_SETTINGS = load_json(os.path.join(TESTS_FIXTURES_DIR, "global_settings.json"))
+
+MODELS_TO_SYNC = [
+    "tenant_group",
+    "tenant",
+    "role",
+    "manufacturer",
+    "platform",
+    "location_type",
+    "location",
+    "team",
+    "contact",
+    "provider",
+    "provider_network",
+    "circuit_type",
+    "circuit",
+    "circuit_termination",
+    "secret",
+    "secrets_group",
+    "git_repository",
+    "dynamic_group",
+    "computed_field",
+    "tag",
+    "graph_ql_query",
+    "software",
+    "software_image",
+    "validated_software",
+    "namespace",
+    "rir",
+    "vlan_group",
+    "vlan",
+    "vrf",
+    "prefix",
+]
 
 
 def is_valid_timezone(tz):
@@ -158,7 +212,8 @@ class NautobotTestSetup:
         ]
         for _content_type in _content_types:
             _con_type = ContentType.objects.get(
-                app_label=_content_type.split(".", maxsplit=1)[0], model=_content_type.split(".")[1]
+                app_label=_content_type.split(".", maxsplit=1)[0],
+                model=_content_type.split(".")[1],
             )
             self.status_active.content_types.add(_con_type)
         self.status_active.refresh_from_db()
@@ -166,7 +221,8 @@ class NautobotTestSetup:
             status, _ = Status.objects.get_or_create(name=_status)
             for _content_type in _content_types:
                 _con_type = ContentType.objects.get(
-                    app_label=_content_type.split(".", maxsplit=1)[0], model=_content_type.split(".")[1]
+                    app_label=_content_type.split(".", maxsplit=1)[0],
+                    model=_content_type.split(".")[1],
                 )
                 status.content_types.add(_con_type)
             status.validated_save()
@@ -216,6 +272,7 @@ class NautobotTestSetup:
                     "contact_name": location_data.get("contact_name", ""),
                     "contact_phone": location_data.get("contact_phone", ""),
                     "contact_email": location_data.get("contact_email", ""),
+                    "tags": tags,
                 },
             )
             if created:
@@ -272,7 +329,9 @@ class NautobotTestSetup:
             if _ten["tenant_group"]:
                 _tenant_group = TenantGroup.objects.get(name=_ten["tenant_group"])
             _tenant = Tenant.objects.create(
-                name=_ten["name"], description=_ten["description"], tenant_group=_tenant_group
+                name=_ten["name"],
+                description=_ten["description"],
+                tenant_group=_tenant_group,
             )
             _tenant.custom_field_data["system_of_record"] = "Bootstrap"
             _tenant.validated_save()
@@ -286,7 +345,9 @@ class NautobotTestSetup:
             for _type in _role["content_types"]:
                 _con_types.append(ContentType.objects.get(app_label=_type.split(".")[0], model=_type.split(".")[1]))
             _r, created = Role.objects.get_or_create(
-                name=_role["name"], color=_role["color"], description=_role["description"]
+                name=_role["name"],
+                color=_role["color"],
+                description=_role["description"],
             )
             if created:
                 _r.content_types.set(_con_types)
@@ -297,7 +358,10 @@ class NautobotTestSetup:
     def _setup_teams(self):
         for _team in GLOBAL_YAML_SETTINGS["team"]:
             team = Team.objects.create(
-                name=_team["name"], phone=_team["phone"], email=_team["email"], address=_team["address"]
+                name=_team["name"],
+                phone=_team["phone"],
+                email=_team["email"],
+                address=_team["address"],
             )
             team.custom_field_data["system_of_record"] = "Bootstrap"
             team.validated_save()
@@ -305,7 +369,10 @@ class NautobotTestSetup:
     def _setup_contacts(self):
         for _contact in GLOBAL_YAML_SETTINGS["contact"]:
             contact = Contact.objects.create(
-                name=_contact["name"], phone=_contact["phone"], email=_contact["email"], address=_contact["address"]
+                name=_contact["name"],
+                phone=_contact["phone"],
+                email=_contact["email"],
+                address=_contact["address"],
             )
             contact.validated_save()
             for _team in _contact["teams"]:
@@ -720,10 +787,13 @@ class NautobotTestSetup:
     def _setup_computed_fields(self):
         for _comp_field in GLOBAL_YAML_SETTINGS["computed_field"]:
             _content_type = ContentType.objects.get(
-                app_label=_comp_field["content_type"].split(".")[0], model=_comp_field["content_type"].split(".")[1]
+                app_label=_comp_field["content_type"].split(".")[0],
+                model=_comp_field["content_type"].split(".")[1],
             )
             _computed_field = ComputedField.objects.create(
-                label=_comp_field["label"], content_type=_content_type, template=_comp_field["template"]
+                label=_comp_field["label"],
+                content_type=_content_type,
+                template=_comp_field["template"],
             )
             _computed_field.save()
             _computed_field.refresh_from_db()
@@ -757,7 +827,8 @@ class NautobotTestSetup:
     def _setup_dynamic_groups(self):
         for _group in GLOBAL_YAML_SETTINGS["dynamic_group"]:
             _content_type = ContentType.objects.get(
-                app_label=_group["content_type"].split(".")[0], model=_group["content_type"].split(".")[1]
+                app_label=_group["content_type"].split(".")[0],
+                model=_group["content_type"].split(".")[1],
             )
             _dynamic_group = DynamicGroup.objects.create(
                 name=_group["name"],
@@ -830,7 +901,12 @@ class NautobotTestSetup:
             validated_software.validated_save()
 
             self._set_validated_software_relations(
-                validated_software, devices, device_types, device_roles, inventory_items, object_tags
+                validated_software,
+                devices,
+                device_types,
+                device_roles,
+                inventory_items,
+                object_tags,
             )
 
     def _get_validated_software_tags(self, tag_names):
@@ -858,7 +934,13 @@ class NautobotTestSetup:
         return software
 
     def _set_validated_software_relations(
-        self, validated_software, devices, device_types, device_roles, inventory_items, object_tags
+        self,
+        validated_software,
+        devices,
+        device_types,
+        device_roles,
+        inventory_items,
+        object_tags,
     ):  # pylint: disable=too-many-arguments
         validated_software.devices.set(devices)
         validated_software.device_types.set(device_types)

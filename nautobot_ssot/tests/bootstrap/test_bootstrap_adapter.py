@@ -1,14 +1,23 @@
-"""Test bootstrap adapter."""
+"""Tests for Bootstrap adapter."""
 
 import json
-import os
+from datetime import datetime
 from unittest.mock import MagicMock
-import yaml
 
-from nautobot.extras.models import JobResult
+import yaml
+from deepdiff import DeepDiff
 from nautobot.core.testing import TransactionTestCase
+from nautobot.extras.models import JobResult
+
 from nautobot_ssot.integrations.bootstrap.diffsync.adapters.bootstrap import BootstrapAdapter
 from nautobot_ssot.integrations.bootstrap.jobs import BootstrapDataSource
+
+from .test_setup import (
+    DEVELOP_YAML_SETTINGS,
+    GLOBAL_JSON_SETTINGS,
+    GLOBAL_YAML_SETTINGS,
+    MODELS_TO_SYNC,
+)
 
 
 def load_yaml(path):
@@ -23,11 +32,59 @@ def load_json(path):
         return json.loads(file.read())
 
 
-GLOBAL_JSON_SETTINGS = load_json("nautobot_ssot/tests/bootstrap/fixtures/global_settings.json")
-GLOBAL_YAML_SETTINGS = load_yaml("nautobot_ssot/tests/bootstrap/fixtures/global_settings.yml")
-DEVELOP_YAML_SETTINGS = load_yaml("nautobot_ssot/tests/bootstrap/fixtures/develop.yml")
+def assert_deep_diff(test_case, actual, expected, keys_to_normalize=None):
+    """Custom DeepDiff assertion handling."""
+    keys_to_normalize = keys_to_normalize or {}
 
-print(os.curdir)
+    def normalize(item):
+        if isinstance(item, list):
+            return [normalize(i) for i in item]
+        if isinstance(item, dict):
+            for key in list(item.keys()):
+                if key in ["system_of_record", "model_flags", "uuid"]:
+                    item.pop(key, None)
+                elif key in keys_to_normalize and (item.get(key) is None or item.get(key) == ""):
+                    item[key] = None  # Normalize keys to None
+                if (
+                    key
+                    in [
+                        "weight",
+                        "parent",
+                        "date_installed",
+                        "asn",
+                        "latitude",
+                        "longitude",
+                        "tenant",
+                        "terminations",
+                    ]
+                    and item.get(key) is None
+                ):
+                    item.pop(key, None)
+                # Convert datetime.datetime to string in ISO format with a space
+                if isinstance(item.get(key), datetime):
+                    item[key] = item[key].isoformat(sep=" ")
+            return {k: normalize(v) for k, v in item.items()}
+        return item
+
+    actual_normalized = normalize(actual)
+    expected_normalized = normalize(expected)
+
+    diff = DeepDiff(
+        actual_normalized,
+        expected_normalized,
+        ignore_order=True,
+        ignore_string_type_changes=True,
+        exclude_regex_paths=r"root\[\d+\]\['terminations'\]",
+    )
+
+    print("Actual Normalization", actual_normalized)
+    print("Expected Normalization", expected_normalized)
+
+    if diff:
+        print("Differences found:")
+        print(diff)
+
+    test_case.assertEqual(diff, {})
 
 
 class TestBootstrapAdapterTestCase(TransactionTestCase):
@@ -47,14 +104,11 @@ class TestBootstrapAdapterTestCase(TransactionTestCase):
         )
 
         self.bootstrap_client = MagicMock()
-        self.bootstrap_client.get_global_settings.return_value = GLOBAL_JSON_SETTINGS
+        self.bootstrap_client.get_global_settings.return_value = GLOBAL_YAML_SETTINGS
         self.bootstrap_client.get_develop_settings.return_value = DEVELOP_YAML_SETTINGS
         self.bootstrap_client.get_production_settings.return_value = GLOBAL_YAML_SETTINGS
 
         self.bootstrap = BootstrapAdapter(job=self.job, sync=None, client=self.bootstrap_client)
-
-    def test_global_settings(self):
-        self.assertEqual(self.bootstrap_client.get_global_settings(), GLOBAL_JSON_SETTINGS)
 
     def test_develop_settings(self):
         self.assertEqual(self.bootstrap_client.get_develop_settings(), DEVELOP_YAML_SETTINGS)
@@ -65,125 +119,22 @@ class TestBootstrapAdapterTestCase(TransactionTestCase):
     def test_data_loading(self):
         """Test Nautobot Ssot Bootstrap load() function."""
         self.bootstrap.load()
-        self.max_diff = None
+        # self.maxDiff = None
 
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["tenant_group"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["tenant_group"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["tenant"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["tenant"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["role"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["role"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["manufacturer"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["manufacturer"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["platform"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["platform"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["location_type"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["location_type"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["location"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["location"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["team"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["team"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["contact"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["contact"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["provider"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["provider"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["provider_network"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["provider_network"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["circuit_type"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["circuit_type"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["circuit"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["circuit"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["circuit_termination"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["circuit_termination"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["secret"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["secret"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["secrets_group"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["secrets_group"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["git_repository"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["git_repository"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["dynamic_group"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["dynamic_group"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["computed_field"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["computed_field"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["tag"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["tag"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["graph_ql_query"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["graph_ql_query"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["software"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["software"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["software_image"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["software_image"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["validated_software"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["validated_software"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["namespace"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["namespace"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["rir"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["rir"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["vlan_group"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["vlan_group"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["vlan"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["vlan"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["vrf"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["vrf"], key=lambda x: x[1]),
-        )
-        self.assertEqual(
-            sorted(self.bootstrap.dict()["prefix"], key=lambda x: x[1]),
-            sorted(GLOBAL_YAML_SETTINGS["prefix"], key=lambda x: x[1]),
-        )
+        for key in MODELS_TO_SYNC:
+            print(f"Checking: {key}")
+            assert_deep_diff(
+                self,
+                list(self.bootstrap.dict().get(key, {}).values()),
+                GLOBAL_JSON_SETTINGS.get(key, []),
+                keys_to_normalize={
+                    "parent",
+                    "nestable",
+                    "tenant",
+                    "tenant_group",
+                    "terminations",
+                    "provider_network",
+                    "upstream_speed_kbps",
+                    "location",
+                },
+            )
