@@ -3,17 +3,19 @@
 import inspect
 import os
 
-from nautobot.extras.datasources.registry import get_datasource_content_choices
-from nautobot.extras.models import Team, Contact
-from nautobot.extras.utils import FeatureQuery, TaggableClassesQuery, RoleModelsQuery
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.db import models
+from nautobot.extras.datasources.registry import get_datasource_content_choices
+from nautobot.extras.models import Contact, Team
+from nautobot.extras.utils import FeatureQuery, RoleModelsQuery, TaggableClassesQuery
+
 from nautobot_ssot.integrations.bootstrap.constants import content_model_path_mapping
 
 
 def is_running_tests():
+    """Check whether running unittests or actual job."""
     for frame in inspect.stack():
         if frame.filename.endswith("unittest/case.py"):
             return True
