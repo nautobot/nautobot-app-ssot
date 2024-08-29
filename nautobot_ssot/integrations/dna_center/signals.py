@@ -3,6 +3,8 @@
 from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices
 
+from nautobot_ssot.utils import create_or_update_custom_field
+
 
 def register_signals(sender):
     """Register signals for DNA Center integration."""
@@ -38,18 +40,16 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     }
     ver_field, _ = CustomField.objects.get_or_create(key=ver_dict["key"], defaults=ver_dict)
     ver_field.content_types.add(ContentType.objects.get_for_model(Device))
-    sor_cf_dict = {
-        "type": CustomFieldTypeChoices.TYPE_TEXT,
-        "key": "system_of_record",
-        "label": "System of Record",
-    }
-    sor_custom_field, _ = CustomField.objects.update_or_create(key=sor_cf_dict["key"], defaults=sor_cf_dict)
-    sync_cf_dict = {
-        "type": CustomFieldTypeChoices.TYPE_DATE,
-        "key": "last_synced_from_sor",
-        "label": "Last sync from System of Record",
-    }
-    sync_custom_field, _ = CustomField.objects.update_or_create(key=sync_cf_dict["key"], defaults=sync_cf_dict)
+    sor_custom_field, _ = create_or_update_custom_field(
+        key="system_of_record",
+        field_type=CustomFieldTypeChoices.TYPE_TEXT,
+        label="System of Record"
+    )
+    sync_custom_field, _ = create_or_update_custom_field(
+        key="last_synced_from_sor",
+        field_type=CustomFieldTypeChoices.TYPE_DATE,
+        label="Last sync from System of Record"
+    )
     for model in [Device, Interface, IPAddress, Prefix, Rack, RackGroup]:
         sor_custom_field.content_types.add(ContentType.objects.get_for_model(model))
         sync_custom_field.content_types.add(ContentType.objects.get_for_model(model))

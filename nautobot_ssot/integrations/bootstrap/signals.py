@@ -4,6 +4,8 @@ from django.conf import settings
 from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices
 
+from nautobot_ssot.utils import create_or_update_custom_field
+
 try:
     import nautobot_device_lifecycle_mgmt  # noqa: F401 # pylint: disable=unused-import
 
@@ -24,7 +26,6 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     """
     # pylint: disable=invalid-name, too-many-locals
     ContentType = apps.get_model("contenttypes", "ContentType")
-    CustomField = apps.get_model("extras", "CustomField")
     Device = apps.get_model("dcim", "Device")
     Manufacturer = apps.get_model("dcim", "Manufacturer")
     Platform = apps.get_model("dcim", "Platform")
@@ -101,18 +102,16 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     for ct in [Device, Prefix]:
         site.content_types.add(ContentType.objects.get_for_model(ct))
 
-    sor_cf_dict = {
-        "type": CustomFieldTypeChoices.TYPE_TEXT,
-        "key": "system_of_record",
-        "label": "System of Record",
-    }
-    sor_custom_field, _ = CustomField.objects.update_or_create(key=sor_cf_dict["key"], defaults=sor_cf_dict)
-    sync_cf_dict = {
-        "type": CustomFieldTypeChoices.TYPE_DATE,
-        "key": "last_synced_from_sor",
-        "label": "Last sync from System of Record",
-    }
-    sync_custom_field, _ = CustomField.objects.update_or_create(key=sync_cf_dict["key"], defaults=sync_cf_dict)
+    sor_custom_field, _ = create_or_update_custom_field(
+        key="system_of_record",
+        field_type=CustomFieldTypeChoices.TYPE_TEXT,
+        label="System of Record"
+    )
+    sync_custom_field, _ = create_or_update_custom_field(
+        key="last_synced_from_sor",
+        field_type=CustomFieldTypeChoices.TYPE_DATE,
+        label="Last sync from System of Record"
+    )
 
     models_to_sync = settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]
     no_cf = ["computed_field", "graph_ql_query"]
