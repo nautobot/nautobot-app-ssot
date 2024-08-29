@@ -29,3 +29,21 @@ Updating DiffSync required changes to imports and many files changed `from diffs
 ### Housekeeping
 
 - [#433](https://github.com/nautobot/nautobot-app-ssot/issues/433) - Black 24.4.0 includes new formatting which was applied to all python files.
+
+## [v3.0.1 (2024-08-23)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.0.1)
+
+### Fixed
+
+- [#507](https://github.com/nautobot/nautobot-app-ssot/issues/507) - Fixed DataTarget example Job to include run() function for using ExternalIntegration or supplied URL and token.
+
+### Dependencies
+
+- [#516](https://github.com/nautobot/nautobot-app-ssot/issues/516) - Fix the dependencies for mkdocstrings and mkdocstrings-python to fix RTD build.
+
+### Documentation
+
+- [#518](https://github.com/nautobot/nautobot-app-ssot/issues/518) - Minor doc updates on upgrade to 3.0.
+
+### Housekeeping
+
+- [#515](https://github.com/nautobot/nautobot-app-ssot/issues/515) - Rebaked from the cookie `nautobot-app-v2.3.0`.

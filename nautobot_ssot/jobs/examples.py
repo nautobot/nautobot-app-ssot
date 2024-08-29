@@ -8,7 +8,7 @@ try:
 except ImportError:
     from typing import TypedDict  # Python>=3.9
 
-from typing import List, Mapping, Optional
+from typing import Generator, List, Optional
 
 import requests
 from diffsync import Adapter
@@ -494,7 +494,7 @@ class NautobotRemote(Adapter):
             "Authorization": f"Token {self.token}",
         }
 
-    def _get_api_data(self, url_path: str) -> Mapping:
+    def _get_api_data(self, url_path: str) -> Generator:
         """Returns data from a url_path using pagination."""
         data = requests.get(
             f"{self.url}/{url_path}",
@@ -505,8 +505,7 @@ class NautobotRemote(Adapter):
         result_data = data["results"]
         while data["next"]:
             data = requests.get(data["next"], headers=self.headers, params={"limit": 200}, timeout=60).json()
-            result_data.extend(data["results"])
-        return result_data
+            yield from data["results"]
 
     def load(self):
         """Load data from the remote Nautobot instance."""
