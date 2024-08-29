@@ -1,0 +1,2 @@
+Updated the ExampleDataSource job to improve memory utilization with large data sets.
+Changed memory profiling logging output to format bytes into KiB/MiB.
