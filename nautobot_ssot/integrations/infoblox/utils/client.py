@@ -988,7 +988,10 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         ]
         """
         url_path = "view"
-        params = {"_return_fields": "is_default,name,network_view", "_return_as_object": 1}
+        params = {
+            "_return_fields": "is_default,name,network_view",
+            "_return_as_object": 1,
+        }
         response = self._request("GET", url_path, params=params)
         try:
             logger.debug(response.json())
@@ -998,7 +1001,13 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             logger.error(response.text)
             return response.text
 
-    def create_a_record(self, fqdn, ip_address, comment: Optional[str] = None, network_view: Optional[str] = None):
+    def create_a_record(
+        self,
+        fqdn,
+        ip_address,
+        comment: Optional[str] = None,
+        network_view: Optional[str] = None,
+    ):
         """Create an A record for a given FQDN.
 
         Args:
@@ -1150,7 +1159,10 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         }
         """
         url_path = "range"
-        params = {"_return_fields": "network,network_view,start_addr,end_addr", "_max_results": 10000}
+        params = {
+            "_return_fields": "network,network_view,start_addr,end_addr",
+            "_max_results": 10000,
+        }
         if network_view:
             params["network_view"] = network_view
         if prefix:
@@ -1553,7 +1565,13 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             logger.error(response.text)
             return response.text
 
-    def create_host_record(self, fqdn, ip_address, comment: Optional[str] = None, network_view: Optional[str] = None):
+    def create_host_record(
+        self,
+        fqdn,
+        ip_address,
+        comment: Optional[str] = None,
+        network_view: Optional[str] = None,
+    ):
         """Create a host record for a given FQDN.
 
         Args:
@@ -1571,7 +1589,11 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         """
         url_path = "record:host"
         params = {"_return_fields": "name", "_return_as_object": 1}
-        payload = {"name": fqdn, "configure_for_dns": False, "ipv4addrs": [{"ipv4addr": ip_address}]}
+        payload = {
+            "name": fqdn,
+            "configure_for_dns": False,
+            "ipv4addrs": [{"ipv4addr": ip_address}],
+        }
         if network_view:
             payload["network_view"] = network_view
         if comment:
@@ -1653,7 +1675,13 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         logger.debug(response)
         return response
 
-    def create_ptr_record(self, fqdn, ip_address, comment: Optional[str] = None, network_view: Optional[str] = None):
+    def create_ptr_record(
+        self,
+        fqdn,
+        ip_address,
+        comment: Optional[str] = None,
+        network_view: Optional[str] = None,
+    ):
         """Create a PTR record for a given FQDN.
 
         Args:
@@ -1673,7 +1701,10 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         }
         """
         url_path = "record:ptr"
-        params = {"_return_fields": "name,ptrdname,ipv4addr,view", "_return_as_object": 1}
+        params = {
+            "_return_fields": "name,ptrdname,ipv4addr,view",
+            "_return_as_object": 1,
+        }
         reverse_host = str(reversename.from_address(ip_address))[
             0:-1
         ]  # infoblox does not accept the top most domain '.', so we strip it
@@ -2057,7 +2088,11 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             logger.debug(data)
             response = self._request("PUT", path=ipv4_ref, params=params, json=data)
         except HTTPError as err:
-            logger.error("Could not update IP address: %s for ref %s", err.response.text, ipv4_ref)
+            logger.error(
+                "Could not update IP address: %s for ref %s",
+                err.response.text,
+                ipv4_ref,
+            )
             return None
         try:
             logger.debug("Infoblox IP Address updated: %s", response.json())

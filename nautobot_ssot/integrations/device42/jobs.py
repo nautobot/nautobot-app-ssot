@@ -6,8 +6,12 @@ from django.urls import reverse
 from nautobot.extras.jobs import BooleanVar, ObjectVar
 from nautobot.extras.models import ExternalIntegration
 
-from nautobot_ssot.integrations.device42.diffsync.adapters.device42 import Device42Adapter
-from nautobot_ssot.integrations.device42.diffsync.adapters.nautobot import NautobotAdapter
+from nautobot_ssot.integrations.device42.diffsync.adapters.device42 import (
+    Device42Adapter,
+)
+from nautobot_ssot.integrations.device42.diffsync.adapters.nautobot import (
+    NautobotAdapter,
+)
 from nautobot_ssot.integrations.device42.utils.device42 import Device42API
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 from nautobot_ssot.utils import get_username_password_https_from_secretsgroup
@@ -26,7 +30,10 @@ class Device42DataSource(DataSource):  # pylint: disable=too-many-instance-attri
         label="Device42 Instance",
     )
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
-    bulk_import = BooleanVar(description="Enable using bulk create option for object creation.", default=False)
+    bulk_import = BooleanVar(
+        description="Enable using bulk create option for object creation.",
+        default=False,
+    )
 
     class Meta:
         """Meta data for Device42."""
@@ -46,7 +53,10 @@ class Device42DataSource(DataSource):  # pylint: disable=too-many-instance-attri
         """List describing the data mappings involved in this DataSource."""
         return (
             DataMapping(
-                "Buildings", "<Device42 Remote URL>/admin/rackraj/building/", "Sites", reverse("dcim:site_list")
+                "Buildings",
+                "<Device42 Remote URL>/admin/rackraj/building/",
+                "Sites",
+                reverse("dcim:site_list"),
             ),
             DataMapping(
                 "Rooms",
@@ -54,7 +64,12 @@ class Device42DataSource(DataSource):  # pylint: disable=too-many-instance-attri
                 "Rack Groups",
                 reverse("dcim:rackgroup_list"),
             ),
-            DataMapping("Racks", "<Device42 Remote URL>/admin/rackraj/rack/", "Racks", reverse("dcim:rack_list")),
+            DataMapping(
+                "Racks",
+                "<Device42 Remote URL>/admin/rackraj/rack/",
+                "Racks",
+                reverse("dcim:rack_list"),
+            ),
             DataMapping(
                 "Vendors",
                 "<Device42 Remote URL>/admin/rackraj/organisation/",
@@ -68,7 +83,10 @@ class Device42DataSource(DataSource):  # pylint: disable=too-many-instance-attri
                 reverse("dcim:devicetype_list"),
             ),
             DataMapping(
-                "Devices", "<Device42 Remote URL>/admin/rackraj/device/", "Devices", reverse("dcim:device_list")
+                "Devices",
+                "<Device42 Remote URL>/admin/rackraj/device/",
+                "Devices",
+                reverse("dcim:device_list"),
             ),
             DataMapping(
                 "Ports",
@@ -76,7 +94,12 @@ class Device42DataSource(DataSource):  # pylint: disable=too-many-instance-attri
                 "Interfaces",
                 reverse("dcim:interface_list"),
             ),
-            DataMapping("Cables", "<Device42 Remote URL>/admin/rackraj/cable/", "Cables", reverse("dcim:cable_list")),
+            DataMapping(
+                "Cables",
+                "<Device42 Remote URL>/admin/rackraj/cable/",
+                "Cables",
+                reverse("dcim:cable_list"),
+            ),
             DataMapping(
                 "VPC (VRF Groups)",
                 "<Device42 Remote URL>/admin/rackraj/vrfgroup/",
@@ -84,7 +107,10 @@ class Device42DataSource(DataSource):  # pylint: disable=too-many-instance-attri
                 reverse("ipam:vrf_list"),
             ),
             DataMapping(
-                "Subnets", "<Device42 Remote URL>/admin/rackraj/vlan/", "Prefixes", reverse("ipam:prefix_list")
+                "Subnets",
+                "<Device42 Remote URL>/admin/rackraj/vlan/",
+                "Prefixes",
+                reverse("ipam:prefix_list"),
             ),
             DataMapping(
                 "IP Addresses",
@@ -93,7 +119,10 @@ class Device42DataSource(DataSource):  # pylint: disable=too-many-instance-attri
                 reverse("ipam:ipaddress_list"),
             ),
             DataMapping(
-                "VLANs", "<Device42 Remote URL>/admin/rackraj/switch_vlan/", "VLANs", reverse("ipam:vlan_list")
+                "VLANs",
+                "<Device42 Remote URL>/admin/rackraj/switch_vlan/",
+                "VLANs",
+                reverse("ipam:vlan_list"),
             ),
             DataMapping(
                 "Vendors",

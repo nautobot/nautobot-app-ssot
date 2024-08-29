@@ -17,8 +17,19 @@ from diffsync.exceptions import ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
 from django.templatetags.static import static
 from django.urls import reverse
-from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer, Platform
-from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
+from nautobot.dcim.models import (
+    Device,
+    DeviceType,
+    Interface,
+    Location,
+    LocationType,
+    Manufacturer,
+    Platform,
+)
+from nautobot.extras.choices import (
+    SecretsGroupAccessTypeChoices,
+    SecretsGroupSecretTypeChoices,
+)
 from nautobot.extras.jobs import ObjectVar, StringVar
 from nautobot.extras.models import ExternalIntegration, Role, Status
 from nautobot.ipam.models import IPAddress, Namespace, Prefix
@@ -152,7 +163,13 @@ class IPAddressModel(NautobotModel):
     # Metadata about this model
     _model = IPAddress
     _modelname = "ipaddress"
-    _identifiers = ("host", "mask_length", "parent__network", "parent__prefix_length", "parent__namespace__name")
+    _identifiers = (
+        "host",
+        "mask_length",
+        "parent__network",
+        "parent__prefix_length",
+        "parent__namespace__name",
+    )
     _attributes = (
         "status__name",
         "ip_version",
@@ -317,7 +334,7 @@ class LocationRemoteModel(LocationModel):
                 "description": attrs["description"],
                 "status": attrs["status__name"],
                 "location_type": attrs["location_type__name"],
-                "parent": {"name": attrs["parent__name"]} if attrs["parent__name"] else None,
+                "parent": ({"name": attrs["parent__name"]} if attrs["parent__name"] else None),
             },
         )
         return super().create(adapter, ids=ids, attrs=attrs)
@@ -388,8 +405,8 @@ class PrefixRemoteModel(PrefixModel):
             {
                 "network": ids["network"],
                 "prefix_length": ids["prefix_length"],
-                "tenant": {"name": ids["tenant__name"]} if ids["tenant__name"] else None,
-                "namespace": {"name": attrs["namespace__name"]} if attrs["namespace__name"] else None,
+                "tenant": ({"name": ids["tenant__name"]} if ids["tenant__name"] else None),
+                "namespace": ({"name": attrs["namespace__name"]} if attrs["namespace__name"] else None),
                 "description": attrs["description"],
                 "status": attrs["status__name"],
             },
@@ -479,7 +496,12 @@ class NautobotRemote(Adapter):
 
     def _get_api_data(self, url_path: str) -> Mapping:
         """Returns data from a url_path using pagination."""
-        data = requests.get(f"{self.url}/{url_path}", headers=self.headers, params={"limit": 200}, timeout=60).json()
+        data = requests.get(
+            f"{self.url}/{url_path}",
+            headers=self.headers,
+            params={"limit": 200},
+            timeout=60,
+        ).json()
         result_data = data["results"]
         while data["next"]:
             data = requests.get(data["next"], headers=self.headers, params={"limit": 200}, timeout=60).json()
@@ -510,7 +532,7 @@ class NautobotRemote(Adapter):
                 name=lt_entry["name"],
                 description=lt_entry["description"],
                 nestable=lt_entry["nestable"],
-                parent__name=lt_entry["parent"]["name"] if lt_entry.get("parent") else None,
+                parent__name=(lt_entry["parent"]["name"] if lt_entry.get("parent") else None),
                 content_types=content_types,
                 pk=lt_entry["id"],
             )
@@ -522,9 +544,9 @@ class NautobotRemote(Adapter):
         for loc_entry in self._get_api_data("api/dcim/locations/?depth=3"):
             location_args = {
                 "name": loc_entry["name"],
-                "status__name": loc_entry["status"]["name"] if loc_entry["status"].get("name") else "Active",
+                "status__name": (loc_entry["status"]["name"] if loc_entry["status"].get("name") else "Active"),
                 "location_type__name": loc_entry["location_type"]["name"],
-                "tenant__name": loc_entry["tenant"]["name"] if loc_entry.get("tenant") else None,
+                "tenant__name": (loc_entry["tenant"]["name"] if loc_entry.get("tenant") else None),
                 "description": loc_entry["description"],
                 "pk": loc_entry["id"],
             }
@@ -586,11 +608,14 @@ class NautobotRemote(Adapter):
                 namespace__name=prefix_entry["namespace"]["name"],
                 description=prefix_entry["description"],
                 locations=[
-                    {"name": x["name"], "location_type__name": x["location_type"]["name"]}
+                    {
+                        "name": x["name"],
+                        "location_type__name": x["location_type"]["name"],
+                    }
                     for x in prefix_entry["locations"]
                 ],
-                status__name=prefix_entry["status"]["name"] if prefix_entry["status"].get("name") else "Active",
-                tenant__name=prefix_entry["tenant"]["name"] if prefix_entry["tenant"] else "",
+                status__name=(prefix_entry["status"]["name"] if prefix_entry["status"].get("name") else "Active"),
+                tenant__name=(prefix_entry["tenant"]["name"] if prefix_entry["tenant"] else ""),
                 pk=prefix_entry["id"],
             )
             self.add(prefix)
@@ -607,7 +632,7 @@ class NautobotRemote(Adapter):
                 parent__namespace__name=ipaddr_entry["parent"]["namespace"]["name"],
                 status__name=ipaddr_entry["status"]["name"],
                 ip_version=ipaddr_entry["ip_version"],
-                tenant__name=ipaddr_entry["tenant"]["name"] if ipaddr_entry.get("tenant") else "",
+                tenant__name=(ipaddr_entry["tenant"]["name"] if ipaddr_entry.get("tenant") else ""),
                 pk=ipaddr_entry["id"],
             )
             self.add(ipaddr)
@@ -672,7 +697,7 @@ class NautobotRemote(Adapter):
                 location__location_type__name=device["location"]["location_type"]["name"],
                 device_type__manufacturer__name=device["device_type"]["manufacturer"]["name"],
                 device_type__model=device["device_type"]["model"],
-                platform__name=device["platform"]["name"] if device.get("platform") else None,
+                platform__name=(device["platform"]["name"] if device.get("platform") else None),
                 role__name=device["role"]["name"],
                 asset_tag=device["asset_tag"] if device.get("asset_tag") else None,
                 serial=device["serial"] if device.get("serial") else "",
@@ -805,9 +830,13 @@ class ExampleDataSource(DataSource):
         required=False,
     )
     source_url = StringVar(
-        description="Remote Nautobot instance to load Sites and Regions from", default="https://demo.nautobot.com"
+        description="Remote Nautobot instance to load Sites and Regions from",
+        default="https://demo.nautobot.com",
     )
-    source_token = StringVar(description="REST API authentication token for remote Nautobot instance", default="a" * 40)
+    source_token = StringVar(
+        description="REST API authentication token for remote Nautobot instance",
+        default="a" * 40,
+    )
 
     def __init__(self):
         """Initialize ExampleDataSource."""
@@ -828,18 +857,63 @@ class ExampleDataSource(DataSource):
     def data_mappings(cls):
         """This Job maps Region and Site objects from the remote system to the local system."""
         return (
-            DataMapping("LocationType (remote)", None, "LocationType (local)", reverse("dcim:locationtype_list")),
-            DataMapping("Location (remote)", None, "Location (local)", reverse("dcim:location_list")),
+            DataMapping(
+                "LocationType (remote)",
+                None,
+                "LocationType (local)",
+                reverse("dcim:locationtype_list"),
+            ),
+            DataMapping(
+                "Location (remote)",
+                None,
+                "Location (local)",
+                reverse("dcim:location_list"),
+            ),
             DataMapping("Role (remote)", None, "Role (local)", reverse("extras:role_list")),
-            DataMapping("Namespace (remote)", None, "Namespace (local)", reverse("ipam:namespace_list")),
+            DataMapping(
+                "Namespace (remote)",
+                None,
+                "Namespace (local)",
+                reverse("ipam:namespace_list"),
+            ),
             DataMapping("Prefix (remote)", None, "Prefix (local)", reverse("ipam:prefix_list")),
-            DataMapping("IPAddress (remote)", None, "IPAddress (local)", reverse("ipam:ipaddress_list")),
-            DataMapping("Tenant (remote)", None, "Tenant (local)", reverse("tenancy:tenant_list")),
-            DataMapping("DeviceType (remote)", None, "DeviceType (local)", reverse("dcim:devicetype_list")),
-            DataMapping("Manufacturer (remote)", None, "Manufacturer (local)", reverse("dcim:manufacturer_list")),
-            DataMapping("Platform (remote)", None, "Platform (local)", reverse("dcim:platform_list")),
+            DataMapping(
+                "IPAddress (remote)",
+                None,
+                "IPAddress (local)",
+                reverse("ipam:ipaddress_list"),
+            ),
+            DataMapping(
+                "Tenant (remote)",
+                None,
+                "Tenant (local)",
+                reverse("tenancy:tenant_list"),
+            ),
+            DataMapping(
+                "DeviceType (remote)",
+                None,
+                "DeviceType (local)",
+                reverse("dcim:devicetype_list"),
+            ),
+            DataMapping(
+                "Manufacturer (remote)",
+                None,
+                "Manufacturer (local)",
+                reverse("dcim:manufacturer_list"),
+            ),
+            DataMapping(
+                "Platform (remote)",
+                None,
+                "Platform (local)",
+                reverse("dcim:platform_list"),
+            ),
             DataMapping("Device (remote)", None, "Device (local)", reverse("dcim:device_list")),
-            DataMapping("Interface (remote)", None, "Interface (local)", reverse("dcim:interface_list")),
+            DataMapping(
+                "Interface (remote)",
+                None,
+                "Interface (local)",
+                reverse("dcim:interface_list"),
+            ),
         )
 
     def run(  # pylint: disable=too-many-arguments, arguments-differ
@@ -889,7 +963,8 @@ class ExampleDataSource(DataSource):
         if model_name == "prefix":
             try:
                 return Prefix.objects.get(
-                    prefix=unique_id.split("__")[0], tenant__name=unique_id.split("__")[1] or None
+                    prefix=unique_id.split("__")[0],
+                    tenant__name=unique_id.split("__")[1] or None,
                 )
             except Prefix.DoesNotExist:
                 pass
@@ -911,8 +986,14 @@ class ExampleDataTarget(DataTarget):
         label="Nautobot Target Instance",
         required=False,
     )
-    target_url = StringVar(description="Remote Nautobot instance to update", default="https://demo.nautobot.com")
-    target_token = StringVar(description="REST API authentication token for remote Nautobot instance", default="a" * 40)
+    target_url = StringVar(
+        description="Remote Nautobot instance to update",
+        default="https://demo.nautobot.com",
+    )
+    target_token = StringVar(
+        description="REST API authentication token for remote Nautobot instance",
+        default="a" * 40,
+    )
 
     def __init__(self):
         """Initialize ExampleDataTarget."""
@@ -933,18 +1014,63 @@ class ExampleDataTarget(DataTarget):
     def data_mappings(cls):
         """This Job maps Region and Site objects from the local system to the remote system."""
         return (
-            DataMapping("LocationType (local)", reverse("dcim:locationtype_list"), "LocationType (remote)", None),
-            DataMapping("Location (local)", reverse("dcim:location_list"), "Location (remote)", None),
+            DataMapping(
+                "LocationType (local)",
+                reverse("dcim:locationtype_list"),
+                "LocationType (remote)",
+                None,
+            ),
+            DataMapping(
+                "Location (local)",
+                reverse("dcim:location_list"),
+                "Location (remote)",
+                None,
+            ),
             DataMapping("Role (local)", reverse("extras:role_list"), "Role (remote)", None),
-            DataMapping("Namespace (local)", reverse("ipam:prefix_list"), "Namespace (remote)", None),
+            DataMapping(
+                "Namespace (local)",
+                reverse("ipam:prefix_list"),
+                "Namespace (remote)",
+                None,
+            ),
             DataMapping("Prefix (local)", reverse("ipam:prefix_list"), "Prefix (remote)", None),
-            DataMapping("IPAddress (local)", reverse("ipam:ipaddress_list"), "IPAddress (remote)", None),
-            DataMapping("Tenant (local)", reverse("tenancy:tenant_list"), "Tenant (remote)", None),
-            DataMapping("DeviceType (local)", reverse("dcim:devicetype_list"), "DeviceType (remote)", None),
-            DataMapping("Manufacturer (local)", reverse("dcim:manufacturer_list"), "Manufacturer (remote)", None),
-            DataMapping("Platform (local)", reverse("dcim:platform_list"), "Platform (remote)", None),
+            DataMapping(
+                "IPAddress (local)",
+                reverse("ipam:ipaddress_list"),
+                "IPAddress (remote)",
+                None,
+            ),
+            DataMapping(
+                "Tenant (local)",
+                reverse("tenancy:tenant_list"),
+                "Tenant (remote)",
+                None,
+            ),
+            DataMapping(
+                "DeviceType (local)",
+                reverse("dcim:devicetype_list"),
+                "DeviceType (remote)",
+                None,
+            ),
+            DataMapping(
+                "Manufacturer (local)",
+                reverse("dcim:manufacturer_list"),
+                "Manufacturer (remote)",
+                None,
+            ),
+            DataMapping(
+                "Platform (local)",
+                reverse("dcim:platform_list"),
+                "Platform (remote)",
+                None,
+            ),
             DataMapping("Device (local)", reverse("dcim:device_list"), "Device (remote)", None),
-            DataMapping("Interface (local)", reverse("dcim:interface_list"), "Interface (remote)", None),
+            DataMapping(
+                "Interface (local)",
+                reverse("dcim:interface_list"),
+                "Interface (remote)",
+                None,
+            ),
         )
 
     def run(  # pylint: disable=too-many-arguments, arguments-differ
@@ -994,7 +1120,8 @@ class ExampleDataTarget(DataTarget):
         if model_name == "prefix":
             try:
                 return Prefix.objects.get(
-                    prefix=unique_id.split("__")[0], tenant__name=unique_id.split("__")[1] or None
+                    prefix=unique_id.split("__")[0],
+                    tenant__name=unique_id.split("__")[1] or None,
                 )
             except Prefix.DoesNotExist:
                 pass

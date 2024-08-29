@@ -9,9 +9,16 @@ from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Status, Tag
 from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix, VLANGroup
 
-from nautobot_ssot.integrations.infoblox.choices import DNSRecordTypeChoices, FixedAddressTypeChoices
-from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import InfobloxAdapter
-from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import NautobotAdapter
+from nautobot_ssot.integrations.infoblox.choices import (
+    DNSRecordTypeChoices,
+    FixedAddressTypeChoices,
+)
+from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import (
+    InfobloxAdapter,
+)
+from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import (
+    NautobotAdapter,
+)
 from nautobot_ssot.tests.infoblox.fixtures_infoblox import create_prefix_relationship
 
 from .fixtures_infoblox import create_default_infoblox_config

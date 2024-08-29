@@ -101,7 +101,10 @@ class TestUtils(SimpleTestCase):  # pylint: disable=too-many-public-methods
         self.assertEqual("800gbase-x-osfp", utils.convert_media_type("800G", "EiHunGi1"))
 
     def test_unknown_interface_uses_default_interface(self):
-        self.assertEqual(DEFAULT_INTERFACE_TYPE, utils.convert_media_type("ThisShouldGiveTheDefault", ""))
+        self.assertEqual(
+            DEFAULT_INTERFACE_TYPE,
+            utils.convert_media_type("ThisShouldGiveTheDefault", ""),
+        )
 
     def test_interface_name_lag(self):
         self.assertEqual("lag", utils.convert_media_type("", "Po1"))
@@ -136,7 +139,10 @@ class TestUtils(SimpleTestCase):  # pylint: disable=too-many-public-methods
         self.assertEqual("10gbase-x-sfpp", utils.convert_media_type("", "Te1"))
 
     def test_interface_name_twentyfivegigethernet(self):
-        self.assertEqual("25gbase-x-sfp28", utils.convert_media_type("", "TwentyFiveGigabitEthernet1"))
+        self.assertEqual(
+            "25gbase-x-sfp28",
+            utils.convert_media_type("", "TwentyFiveGigabitEthernet1"),
+        )
 
     def test_interface_name_fortygigethernet(self):
         self.assertEqual("40gbase-x-qsfpp", utils.convert_media_type("", "FortyGigabitEthernet1"))
@@ -151,4 +157,7 @@ class TestUtils(SimpleTestCase):  # pylint: disable=too-many-public-methods
         self.assertEqual("100gbase-x-qsfp28", utils.convert_media_type("", "Hu1"))
 
     def test_interface_name_twohundredgigethernet(self):
-        self.assertEqual("200gbase-x-qsfp56", utils.convert_media_type("", "TwoHundredGigabitEthernet1"))
+        self.assertEqual(
+            "200gbase-x-qsfp56",
+            utils.convert_media_type("", "TwoHundredGigabitEthernet1"),
+        )

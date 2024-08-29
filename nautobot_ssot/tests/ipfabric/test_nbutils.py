@@ -7,7 +7,13 @@ from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
 from django.test import TestCase
 from nautobot.core.choices import ColorChoices
-from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer, Platform
+from nautobot.dcim.models import (
+    DeviceType,
+    Location,
+    LocationType,
+    Manufacturer,
+    Platform,
+)
 from nautobot.dcim.models.devices import Device
 from nautobot.extras.models import Role
 from nautobot.extras.models.statuses import Status
@@ -55,7 +61,9 @@ class TestNautobotUtils(TestCase):
         )
         self.status.content_types.set([self.content_type])
         self.prefix = Prefix.objects.get_or_create(
-            prefix="192.168.0.0/16", namespace=get_default_namespace(), status=status_active
+            prefix="192.168.0.0/16",
+            namespace=get_default_namespace(),
+            status=status_active,
         )[0]
         self.ip_address = IPAddress.objects.create(address="192.168.0.1/32", status=status_active, parent=self.prefix)
 
@@ -112,7 +120,8 @@ class TestNautobotUtils(TestCase):
         self.assertEqual(test_location.cf["ipfabric_site_id"], "Test-Location-new")
 
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Location.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Location.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("logging.Logger", autospec=True)
@@ -126,7 +135,8 @@ class TestNautobotUtils(TestCase):
         mock_tag_object.assert_not_called()
 
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Location.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Location.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("logging.Logger", autospec=True)
@@ -140,7 +150,8 @@ class TestNautobotUtils(TestCase):
         mock_tag_object.assert_not_called()
 
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Location.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Location.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("logging.Logger", autospec=True)
@@ -187,9 +198,13 @@ class TestNautobotUtils(TestCase):
         test_device_type = create_device_type_object(device_type="Test-DeviceType", vendor_name="Test-Manufacturer")
         self.assertEqual(test_device_type.id, self.device_type.id)
 
-    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.create_manufacturer", autospec=True)
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.DeviceType.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.create_manufacturer",
+        autospec=True,
+    )
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.DeviceType.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_device_type_fail_to_get_manufacturer(self, mock_logger, mock_device_type, mock_create_manufacturer):
@@ -197,7 +212,9 @@ class TestNautobotUtils(TestCase):
         mock_create_manufacturer.return_value = None
         logger = mock_logger("nb_job")
         test_device_type = create_device_type_object(
-            device_type="Test-DeviceType", vendor_name="Test-Manufacturer", logger=logger
+            device_type="Test-DeviceType",
+            vendor_name="Test-Manufacturer",
+            logger=logger,
         )
         mock_device_type.assert_not_called()
         logger.warning.assert_called_with(
@@ -206,7 +223,8 @@ class TestNautobotUtils(TestCase):
         self.assertEqual(test_device_type, None)
 
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.DeviceType.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.DeviceType.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_device_type_multiple_device_types_returned(self, mock_logger, mock_device_type):
@@ -214,7 +232,9 @@ class TestNautobotUtils(TestCase):
         mock_device_type.side_effect = [DeviceType.MultipleObjectsReturned]
         logger = mock_logger("nb_job")
         test_device_type = create_device_type_object(
-            device_type="Test-DeviceType", vendor_name="Test-Manufacturer", logger=logger
+            device_type="Test-DeviceType",
+            vendor_name="Test-Manufacturer",
+            logger=logger,
         )
         logger.error.assert_called_with(
             "Multiple DeviceTypes returned with name Test-DeviceType and Manufacturer name Test-Manufacturer"
@@ -222,7 +242,8 @@ class TestNautobotUtils(TestCase):
         self.assertEqual(test_device_type, None)
 
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.DeviceType.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.DeviceType.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_device_type_db_error(self, mock_logger, mock_device_type):
@@ -230,7 +251,9 @@ class TestNautobotUtils(TestCase):
         mock_device_type.side_effect = [DjangoBaseDBError]
         logger = mock_logger("nb_job")
         test_device_type = create_device_type_object(
-            device_type="Test-DeviceType", vendor_name="Test-Manufacturer", logger=logger
+            device_type="Test-DeviceType",
+            vendor_name="Test-Manufacturer",
+            logger=logger,
         )
         logger.error.assert_called_with(
             "Unable to create a new DeviceType named Test-DeviceType with Manufacturer named Test-Manufacturer"
@@ -238,7 +261,8 @@ class TestNautobotUtils(TestCase):
         self.assertEqual(test_device_type, None)
 
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.DeviceType.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.DeviceType.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_device_type_validation_error(self, mock_logger, mock_device_type):
@@ -246,7 +270,9 @@ class TestNautobotUtils(TestCase):
         mock_device_type.side_effect = [ValidationError("failure")]
         logger = mock_logger("nb_job")
         test_device_type = create_device_type_object(
-            device_type="Test-DeviceType", vendor_name="Test-Manufacturer", logger=logger
+            device_type="Test-DeviceType",
+            vendor_name="Test-Manufacturer",
+            logger=logger,
         )
         logger.error.assert_called_with(
             "Unable to create a new DeviceType named Test-DeviceType with Manufacturer named Test-Manufacturer"
@@ -260,7 +286,9 @@ class TestNautobotUtils(TestCase):
         mock_tag_object.side_effect = [None, DjangoBaseDBError]
         logger = mock_logger("nb_job")
         test_device_type = create_device_type_object(
-            device_type="Test-DeviceType-new", vendor_name="Test-Manufacturer", logger=logger
+            device_type="Test-DeviceType-new",
+            vendor_name="Test-Manufacturer",
+            logger=logger,
         )
         self.assertEqual(test_device_type.model, "Test-DeviceType-new")
         logger.warning.assert_called_with(
@@ -274,7 +302,9 @@ class TestNautobotUtils(TestCase):
         mock_tag_object.side_effect = [None, ValidationError("failure")]
         logger = mock_logger("nb_job")
         test_device_type = create_device_type_object(
-            device_type="Test-DeviceType-new", vendor_name="Test-Manufacturer", logger=logger
+            device_type="Test-DeviceType-new",
+            vendor_name="Test-Manufacturer",
+            logger=logger,
         )
         self.assertEqual(test_device_type.model, "Test-DeviceType-new")
         logger.warning.assert_called_with(
@@ -365,10 +395,12 @@ class TestNautobotUtils(TestCase):
         self.assertEqual(test_ip.id, self.ip_address.id)
 
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model",
+        autospec=True,
     )
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_ip_fail_to_get_status_multiple_returned(self, mock_logger, mock_ipaddress, mock_status):
@@ -383,10 +415,12 @@ class TestNautobotUtils(TestCase):
         self.assertEqual(test_ip, None)
 
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model",
+        autospec=True,
     )
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_ip_fail_to_get_status_does_not_exist(self, mock_logger, mock_ipaddress, mock_status):
@@ -401,7 +435,8 @@ class TestNautobotUtils(TestCase):
         self.assertEqual(test_ip, None)
 
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddressToInterface")
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
@@ -417,14 +452,17 @@ class TestNautobotUtils(TestCase):
         mock_tag_object.assert_not_called()
 
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model",
+        autospec=True,
     )
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddressToInterface")
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Prefix.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Prefix.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("logging.Logger", autospec=True)
@@ -458,14 +496,17 @@ class TestNautobotUtils(TestCase):
         mock_tag_object.assert_called_with(nautobot_object="mock_ipaddress", custom_field=mock_last_sync)
 
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model",
+        autospec=True,
     )
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddressToInterface")
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Prefix.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Prefix.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("logging.Logger", autospec=True)
@@ -499,15 +540,18 @@ class TestNautobotUtils(TestCase):
         mock_tag_object.assert_called_with(nautobot_object="mock_ipaddress", custom_field=mock_last_sync)
 
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model",
+        autospec=True,
     )
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Interface", autospec=True)
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddressToInterface")
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Prefix.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Prefix.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("logging.Logger", autospec=True)
@@ -547,15 +591,18 @@ class TestNautobotUtils(TestCase):
         )
 
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model",
+        autospec=True,
     )
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Interface", autospec=True)
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddressToInterface")
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Prefix.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Prefix.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("logging.Logger", autospec=True)
@@ -595,19 +642,28 @@ class TestNautobotUtils(TestCase):
         )
 
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model",
+        autospec=True,
     )
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddressToInterface")
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Prefix.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Prefix.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_ip_error_on_first_try_db_error_on_prefix(
-        self, mock_logger, mock_tag_object, mock_prefix, mock_ipaddress_to_interface, mock_ip, mock_status
+        self,
+        mock_logger,
+        mock_tag_object,
+        mock_prefix,
+        mock_ipaddress_to_interface,
+        mock_ip,
+        mock_status,
     ):
         """Test `create_device_type_object` Utility."""
         mock_status.return_value.get.return_value = "mock_status"
@@ -622,19 +678,28 @@ class TestNautobotUtils(TestCase):
         logger.error.assert_called_with("Unable to create a new IPAddress of 192.168.0.1/255.255.255.255")
 
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model",
+        autospec=True,
     )
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddressToInterface")
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Prefix.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Prefix.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_ip_error_on_first_try_validation_error_on_prefix(
-        self, mock_logger, mock_tag_object, mock_prefix, mock_ipaddress_to_interface, mock_ip, mock_status
+        self,
+        mock_logger,
+        mock_tag_object,
+        mock_prefix,
+        mock_ipaddress_to_interface,
+        mock_ip,
+        mock_status,
     ):
         """Test `create_device_type_object` Utility."""
         mock_status.return_value.get.return_value = "mock_status"
@@ -649,19 +714,28 @@ class TestNautobotUtils(TestCase):
         logger.error.assert_called_with("Unable to create a new IPAddress of 192.168.0.1/255.255.255.255")
 
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model",
+        autospec=True,
     )
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddressToInterface")
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Prefix.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Prefix.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_ip_error_on_first_try_db_error_on_second_try(
-        self, mock_logger, mock_tag_object, mock_prefix, mock_ipaddress_to_interface, mock_ip, mock_status
+        self,
+        mock_logger,
+        mock_tag_object,
+        mock_prefix,
+        mock_ipaddress_to_interface,
+        mock_ip,
+        mock_status,
     ):
         """Test `create_device_type_object` Utility."""
         mock_status.return_value.get.return_value = "mock_status"
@@ -681,19 +755,28 @@ class TestNautobotUtils(TestCase):
         logger.error.assert_called_with("Unable to create a new IPAddress of 192.168.0.1/255.255.255.255")
 
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model",
+        autospec=True,
     )
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddressToInterface")
     @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Prefix.objects.get_or_create", autospec=True
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Prefix.objects.get_or_create",
+        autospec=True,
     )
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_ip_error_on_first_try_validation_error_on_second_try(
-        self, mock_logger, mock_tag_object, mock_prefix, mock_ipaddress_to_interface, mock_ip, mock_status
+        self,
+        mock_logger,
+        mock_tag_object,
+        mock_prefix,
+        mock_ipaddress_to_interface,
+        mock_ip,
+        mock_status,
     ):
         """Test `create_device_type_object` Utility."""
         mock_status.return_value.get.return_value = "mock_status"

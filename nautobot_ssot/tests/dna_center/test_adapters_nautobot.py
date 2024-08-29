@@ -18,7 +18,9 @@ from nautobot.dcim.models import (
 from nautobot.extras.models import JobResult, Role, Status
 from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix
 
-from nautobot_ssot.integrations.dna_center.diffsync.adapters.nautobot import NautobotAdapter
+from nautobot_ssot.integrations.dna_center.diffsync.adapters.nautobot import (
+    NautobotAdapter,
+)
 from nautobot_ssot.integrations.dna_center.jobs import DnaCenterDataSource
 
 
@@ -53,7 +55,9 @@ class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many
         self.nb_adapter.job.logger.info = MagicMock()
         self.nb_adapter.job.logger.warning = MagicMock()
 
-    def build_nautobot_objects(self):  # pylint: disable=too-many-locals, too-many-statements
+    def build_nautobot_objects(
+        self,
+    ):  # pylint: disable=too-many-locals, too-many-statements
         """Build out Nautobot objects to test loading."""
         global_region = Location.objects.create(
             name="Global", status=self.status_active, location_type=self.reg_loc_type
@@ -61,12 +65,18 @@ class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many
         global_region.custom_field_data["system_of_record"] = "DNA Center"
         global_region.validated_save()
         self.ny_region = Location.objects.create(
-            name="NY", location_type=self.reg_loc_type, parent=global_region, status=self.status_active
+            name="NY",
+            location_type=self.reg_loc_type,
+            parent=global_region,
+            status=self.status_active,
         )
         self.ny_region.custom_field_data["system_of_record"] = "DNA Center"
         self.ny_region.validated_save()
         self.hq_site = Location.objects.create(
-            parent=self.ny_region, name="HQ", status=self.status_active, location_type=self.site_loc_type
+            parent=self.ny_region,
+            name="HQ",
+            status=self.status_active,
+            location_type=self.site_loc_type,
         )
         self.hq_site.custom_field_data["system_of_record"] = "DNA Center"
         self.hq_site.validated_save()

@@ -14,9 +14,16 @@ from nautobot_ssot.integrations.infoblox.choices import (
     FixedAddressTypeChoices,
     NautobotDeletableModelChoices,
 )
-from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import InfobloxAdapter
-from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import NautobotAdapter
-from nautobot_ssot.tests.infoblox.fixtures_infoblox import create_default_infoblox_config, create_prefix_relationship
+from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import (
+    InfobloxAdapter,
+)
+from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import (
+    NautobotAdapter,
+)
+from nautobot_ssot.tests.infoblox.fixtures_infoblox import (
+    create_default_infoblox_config,
+    create_prefix_relationship,
+)
 
 
 def _get_ip_address_dict(attrs):
@@ -110,7 +117,10 @@ class TestModelNautobotNetwork(TestCase):
         "Test class set up."
         create_prefix_relationship()
         self.config = create_default_infoblox_config()
-        self.config.infoblox_sync_filters = [{"network_view": "default"}, {"network_view": "dev"}]
+        self.config.infoblox_sync_filters = [
+            {"network_view": "default"},
+            {"network_view": "dev"},
+        ]
         self.namespace_dev, _ = Namespace.objects.get_or_create(name="dev")
         self.status_active, _ = Status.objects.get_or_create(name="Active")
         self.tag_sync_from_infoblox, _ = Tag.objects.get_or_create(name="SSoT Synced from Infoblox")
@@ -188,7 +198,10 @@ class TestModelNautobotIPAddress(TestCase):
         "Test class set up."
         create_prefix_relationship()
         self.config = create_default_infoblox_config()
-        self.config.infoblox_sync_filters = [{"network_view": "default"}, {"network_view": "dev"}]
+        self.config.infoblox_sync_filters = [
+            {"network_view": "default"},
+            {"network_view": "dev"},
+        ]
         self.namespace_dev, _ = Namespace.objects.get_or_create(name="dev")
         self.status_active, _ = Status.objects.get_or_create(name="Active")
         self.tag_sync_from_infoblox, _ = Tag.objects.get_or_create(name="SSoT Synced from Infoblox")
@@ -284,7 +297,10 @@ class TestModelNautobotIPAddress(TestCase):
         self.assertEqual("Active", ipaddress.status.name)
         self.assertEqual("FixedAddressReserved", ipaddress.description)
         self.assertEqual("dhcp", ipaddress.type)
-        self.assertEqual("Created From FA Reserved", ipaddress.custom_field_data.get("fixed_address_comment"))
+        self.assertEqual(
+            "Created From FA Reserved",
+            ipaddress.custom_field_data.get("fixed_address_comment"),
+        )
         self.assertIn(self.tag_sync_from_infoblox, ipaddress.tags.all())
 
     def test_ip_address_create_from_fixed_address_mac(self):
@@ -324,7 +340,10 @@ class TestModelNautobotIPAddress(TestCase):
         self.assertEqual("FixedAddressMAC", ipaddress.description)
         self.assertEqual("dhcp", ipaddress.type)
         self.assertEqual("52:1f:83:d4:9a:2e", ipaddress.custom_field_data.get("mac_address"))
-        self.assertEqual("Created From FA MAC", ipaddress.custom_field_data.get("fixed_address_comment"))
+        self.assertEqual(
+            "Created From FA MAC",
+            ipaddress.custom_field_data.get("fixed_address_comment"),
+        )
         self.assertIn(self.tag_sync_from_infoblox, ipaddress.tags.all())
 
     def test_ip_address_create_from_dns_a_record(self):
@@ -397,7 +416,10 @@ class TestModelNautobotIPAddress(TestCase):
         self.assertEqual("dev", ipaddress.parent.namespace.name)
         self.assertEqual("Active", ipaddress.status.name)
         self.assertEqual("server1.nautobot.local.net", ipaddress.dns_name)
-        self.assertEqual("Test Host Record", ipaddress.custom_field_data.get("dns_host_record_comment"))
+        self.assertEqual(
+            "Test Host Record",
+            ipaddress.custom_field_data.get("dns_host_record_comment"),
+        )
         self.assertEqual("", ipaddress.description)
         self.assertEqual("host", ipaddress.type)
         self.assertIn(self.tag_sync_from_infoblox, ipaddress.tags.all())
@@ -447,7 +469,10 @@ class TestModelNautobotIPAddress(TestCase):
         self.assertEqual("FixedAddressMAC", ipaddress.description)
         self.assertEqual("dhcp", ipaddress.type)
         self.assertEqual("52:1f:83:d4:9a:2e", ipaddress.custom_field_data.get("mac_address"))
-        self.assertEqual("Created From FA MAC", ipaddress.custom_field_data.get("fixed_address_comment"))
+        self.assertEqual(
+            "Created From FA MAC",
+            ipaddress.custom_field_data.get("fixed_address_comment"),
+        )
         self.assertEqual("Test A Record", ipaddress.custom_field_data.get("dns_a_record_comment"))
         self.assertIn(self.tag_sync_from_infoblox, ipaddress.tags.all())
 
@@ -502,7 +527,10 @@ class TestModelNautobotIPAddress(TestCase):
         self.assertEqual("FixedAddressMAC", ipaddress.description)
         self.assertEqual("dhcp", ipaddress.type)
         self.assertEqual("52:1f:83:d4:9a:2e", ipaddress.custom_field_data.get("mac_address"))
-        self.assertEqual("Created From FA MAC", ipaddress.custom_field_data.get("fixed_address_comment"))
+        self.assertEqual(
+            "Created From FA MAC",
+            ipaddress.custom_field_data.get("fixed_address_comment"),
+        )
         self.assertEqual("Test A Record", ipaddress.custom_field_data.get("dns_a_record_comment"))
         self.assertEqual("Test PTR Record", ipaddress.custom_field_data.get("dns_ptr_record_comment"))
         self.assertIn(self.tag_sync_from_infoblox, ipaddress.tags.all())
@@ -552,8 +580,14 @@ class TestModelNautobotIPAddress(TestCase):
         self.assertEqual("FixedAddressMAC", ipaddress.description)
         self.assertEqual("dhcp", ipaddress.type)
         self.assertEqual("52:1f:83:d4:9a:2e", ipaddress.custom_field_data.get("mac_address"))
-        self.assertEqual("Created From FA MAC", ipaddress.custom_field_data.get("fixed_address_comment"))
-        self.assertEqual("Test Host Record", ipaddress.custom_field_data.get("dns_host_record_comment"))
+        self.assertEqual(
+            "Created From FA MAC",
+            ipaddress.custom_field_data.get("fixed_address_comment"),
+        )
+        self.assertEqual(
+            "Test Host Record",
+            ipaddress.custom_field_data.get("dns_host_record_comment"),
+        )
         self.assertIn(self.tag_sync_from_infoblox, ipaddress.tags.all())
 
     ############
@@ -603,7 +637,10 @@ class TestModelNautobotIPAddress(TestCase):
         self.assertEqual("Active", ipaddress.status.name)
         self.assertEqual("FixedAddressReserved", ipaddress.description)
         self.assertEqual("dhcp", ipaddress.type)
-        self.assertEqual("Created From FA Reserved", ipaddress.custom_field_data.get("fixed_address_comment"))
+        self.assertEqual(
+            "Created From FA Reserved",
+            ipaddress.custom_field_data.get("fixed_address_comment"),
+        )
         self.assertEqual("10.0.0.254", ipaddress.custom_field_data.get("gateway"))
 
     def test_ip_address_update_address_from_fixed_address_mac(self):
@@ -654,7 +691,10 @@ class TestModelNautobotIPAddress(TestCase):
         self.assertEqual("FixedAddressMAC", ipaddress.description)
         self.assertEqual("dhcp", ipaddress.type)
         self.assertEqual("52:1f:83:d4:9a:2e", ipaddress.custom_field_data.get("mac_address"))
-        self.assertEqual("Created From FA MAC", ipaddress.custom_field_data.get("fixed_address_comment"))
+        self.assertEqual(
+            "Created From FA MAC",
+            ipaddress.custom_field_data.get("fixed_address_comment"),
+        )
 
     def test_ip_address_update_address_from_dns_a_record(self):
         """Validate ip address gets created from Infoblox DNS A record."""
@@ -714,7 +754,10 @@ class TestModelNautobotIPAddress(TestCase):
         self.assertEqual("Active", ipaddress.status.name)
         self.assertEqual("FixedAddressReserved", ipaddress.description)
         self.assertEqual("server1.nautobot.local.net", ipaddress.dns_name)
-        self.assertEqual("Created From FA Reserved", ipaddress.custom_field_data.get("fixed_address_comment"))
+        self.assertEqual(
+            "Created From FA Reserved",
+            ipaddress.custom_field_data.get("fixed_address_comment"),
+        )
         self.assertEqual("Test A Record", ipaddress.custom_field_data.get("dns_a_record_comment"))
         self.assertEqual("dhcp", ipaddress.type)
 
@@ -847,7 +890,10 @@ class TestModelNautobotIPAddress(TestCase):
         self.assertEqual("Active", ipaddress.status.name)
         self.assertEqual("FixedAddressReserved", ipaddress.description)
         self.assertEqual("", ipaddress.dns_name)
-        self.assertEqual("Created From FA Reserved", ipaddress.custom_field_data.get("fixed_address_comment"))
+        self.assertEqual(
+            "Created From FA Reserved",
+            ipaddress.custom_field_data.get("fixed_address_comment"),
+        )
         self.assertEqual("", ipaddress.custom_field_data.get("dns_a_record_comment"))
         self.assertEqual("dhcp", ipaddress.type)
 
@@ -902,7 +948,10 @@ class TestModelNautobotIPAddress(TestCase):
         self.assertEqual("Active", ipaddress.status.name)
         self.assertEqual("FixedAddressReserved", ipaddress.description)
         self.assertEqual("", ipaddress.dns_name)
-        self.assertEqual("Created From FA Reserved", ipaddress.custom_field_data.get("fixed_address_comment"))
+        self.assertEqual(
+            "Created From FA Reserved",
+            ipaddress.custom_field_data.get("fixed_address_comment"),
+        )
         self.assertEqual("", ipaddress.custom_field_data.get("dns_host_record_comment"))
         self.assertEqual("dhcp", ipaddress.type)
 
@@ -961,7 +1010,10 @@ class TestModelNautobotIPAddress(TestCase):
         self.assertEqual("Active", ipaddress.status.name)
         self.assertEqual("FixedAddressReserved", ipaddress.description)
         self.assertEqual("", ipaddress.dns_name)
-        self.assertEqual("Created From FA Reserved", ipaddress.custom_field_data.get("fixed_address_comment"))
+        self.assertEqual(
+            "Created From FA Reserved",
+            ipaddress.custom_field_data.get("fixed_address_comment"),
+        )
         self.assertEqual("", ipaddress.custom_field_data.get("dns_a_record_comment"))
         self.assertEqual("", ipaddress.custom_field_data.get("dns_ptr_record_comment"))
         self.assertEqual("dhcp", ipaddress.type)

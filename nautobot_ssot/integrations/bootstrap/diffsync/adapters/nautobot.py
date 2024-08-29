@@ -1,86 +1,84 @@
 """Nautobot Adapter for bootstrap SSoT plugin."""
 
-from django.conf import settings
 from diffsync import Adapter
 from diffsync.enum import DiffSyncModelFlags
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
-
+from django.conf import settings
 from nautobot.circuits.models import (
+    Circuit,
+    CircuitTermination,
+    CircuitType,
     Provider,
     ProviderNetwork,
-    Circuit,
-    CircuitType,
-    CircuitTermination,
 )
 from nautobot.dcim.models import (
+    Location,
+    LocationType,
     Manufacturer,
     Platform,
-    LocationType,
-    Location,
 )
 from nautobot.extras.models import (
+    ComputedField,
+    Contact,
+    DynamicGroup,
+    GitRepository,
+    GraphQLQuery,
+    Role,
     Secret,
     SecretsGroup,
-    GitRepository,
-    DynamicGroup,
-    ComputedField,
-    Role,
-    Team,
-    Contact,
-    Tag,
-    GraphQLQuery,
     Status,
+    Tag,
+    Team,
 )
 from nautobot.ipam.models import (
-    Namespace,
     RIR,
-    VLANGroup,
     VLAN,
     VRF,
+    Namespace,
     Prefix,
+    VLANGroup,
 )
 from nautobot.tenancy.models import Tenant, TenantGroup
+
+from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import (
+    NautobotCircuit,
+    NautobotCircuitTermination,
+    NautobotCircuitType,
+    NautobotComputedField,
+    NautobotContact,
+    NautobotDynamicGroup,
+    NautobotGitRepository,
+    NautobotGraphQLQuery,
+    NautobotLocation,
+    NautobotLocationType,
+    NautobotManufacturer,
+    NautobotNamespace,
+    NautobotPlatform,
+    NautobotPrefix,
+    NautobotProvider,
+    NautobotProviderNetwork,
+    NautobotRiR,
+    NautobotRole,
+    NautobotSecret,
+    NautobotSecretsGroup,
+    NautobotTag,
+    NautobotTeam,
+    NautobotTenant,
+    NautobotTenantGroup,
+    NautobotVLAN,
+    NautobotVLANGroup,
+    NautobotVRF,
+)
 from nautobot_ssot.integrations.bootstrap.utils import (
-    lookup_content_type_model_path,
-    lookup_model_for_taggable_class_id,
-    lookup_model_for_role_id,
     check_sor_field,
     get_sor_field_nautobot_object,
+    lookup_content_type_model_path,
+    lookup_model_for_role_id,
+    lookup_model_for_taggable_class_id,
 )
-
 from nautobot_ssot.integrations.bootstrap.utils.nautobot import (
     get_prefix_location_assignments,
     get_vrf_prefix_assignments,
-)
-
-from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import (
-    NautobotSecret,
-    NautobotSecretsGroup,
-    NautobotGitRepository,
-    NautobotDynamicGroup,
-    NautobotComputedField,
-    NautobotTag,
-    NautobotGraphQLQuery,
-    NautobotTenantGroup,
-    NautobotTenant,
-    NautobotRole,
-    NautobotTeam,
-    NautobotContact,
-    NautobotManufacturer,
-    NautobotPlatform,
-    NautobotLocationType,
-    NautobotLocation,
-    NautobotProvider,
-    NautobotProviderNetwork,
-    NautobotCircuit,
-    NautobotCircuitType,
-    NautobotCircuitTermination,
-    NautobotNamespace,
-    NautobotRiR,
-    NautobotVLANGroup,
-    NautobotVLAN,
-    NautobotVRF,
-    NautobotPrefix,
 )
 
 try:
@@ -91,9 +89,20 @@ except ImportError:
     LIFECYCLE_MGMT = False
 
 if LIFECYCLE_MGMT:
-    from nautobot_device_lifecycle_mgmt.models import SoftwareLCM as ORMSoftware  # noqa: F401
-    from nautobot_device_lifecycle_mgmt.models import ValidatedSoftwareLCM as ORMValidatedSoftware  # noqa: F401
-    from nautobot_device_lifecycle_mgmt.models import SoftwareImageLCM as ORMSoftwareImage  # noqa: F401
+    # noqa: F401
+    from nautobot_device_lifecycle_mgmt.models import (
+        SoftwareImageLCM as ORMSoftwareImage,
+    )
+    from nautobot_device_lifecycle_mgmt.models import (
+        SoftwareLCM as ORMSoftware,
+    )
+
+    # noqa: F401
+    from nautobot_device_lifecycle_mgmt.models import (
+        ValidatedSoftwareLCM as ORMValidatedSoftware,
+    )
+
+    # noqa: F401
     from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import (  # noqa: F401
         NautobotSoftware,
         NautobotSoftwareImage,
@@ -647,7 +656,7 @@ class NautobotAdapter(Adapter):
                     date_installed=nb_circuit.install_date,
                     commit_rate_kbps=nb_circuit.commit_rate,
                     description=nb_circuit.description,
-                    tenant=nb_circuit.tenant.name if nb_circuit.tenant is not None else None,
+                    tenant=(nb_circuit.tenant.name if nb_circuit.tenant is not None else None),
                     tags=_tags,
                     system_of_record=_sor,
                     uuid=nb_circuit.id,
@@ -800,7 +809,7 @@ class NautobotAdapter(Adapter):
                     {
                         "name": nb_vlan.name,
                         "vid": nb_vlan.vid,
-                        "vlan_group": nb_vlan.vlan_group.name if nb_vlan.vlan_group else "",
+                        "vlan_group": (nb_vlan.vlan_group.name if nb_vlan.vlan_group else ""),
                     },
                 )
             except ObjectNotFound:
@@ -835,7 +844,10 @@ class NautobotAdapter(Adapter):
         for nb_vrf in VRF.objects.all():
             self.job.logger.debug(f"Loading Nautobot VRF {nb_vrf}, with ID {nb_vrf.id}")
             try:
-                self.get(self.vrf, {"name": nb_vrf.name, "namespace": {nb_vrf.namespace.name}})
+                self.get(
+                    self.vrf,
+                    {"name": nb_vrf.name, "namespace": {nb_vrf.namespace.name}},
+                )
             except ObjectNotFound:
                 _tags = []
                 _sor = get_sor_field_nautobot_object(nb_vrf)
@@ -847,7 +859,7 @@ class NautobotAdapter(Adapter):
                     namespace=Namespace.objects.get(id=nb_vrf.namespace_id).name,
                     route_distinguisher=nb_vrf.rd,
                     description=nb_vrf.description,
-                    tenant=Tenant.objects.get(id=nb_vrf.tenant_id).name if nb_vrf.tenant_id else None,
+                    tenant=(Tenant.objects.get(id=nb_vrf.tenant_id).name if nb_vrf.tenant_id else None),
                     tags=_tags,
                     system_of_record=_sor,
                     uuid=nb_vrf.id,
@@ -861,7 +873,13 @@ class NautobotAdapter(Adapter):
         for nb_prefix in Prefix.objects.all():
             self.job.logger.debug(f"Loading Nautobot Prefix {nb_prefix}, with ID {nb_prefix.id}")
             try:
-                self.get(self.prefix, {"network": nb_prefix.network, "namespace": nb_prefix.namespace.name})
+                self.get(
+                    self.prefix,
+                    {
+                        "network": nb_prefix.network,
+                        "namespace": nb_prefix.namespace.name,
+                    },
+                )
             except ObjectNotFound:
                 _tags = []
                 _vlan = None
@@ -883,13 +901,15 @@ class NautobotAdapter(Adapter):
                     prefix_type=nb_prefix.type,
                     status=Status.objects.get(id=nb_prefix.status_id).name,
                     role=nb_prefix.role.name if nb_prefix.role else None,
-                    rir=RIR.objects.get(id=nb_prefix.rir_id).name if nb_prefix.rir_id else None,
-                    date_allocated=nb_prefix.date_allocated.replace(tzinfo=None) if nb_prefix.date_allocated else None,
+                    rir=(RIR.objects.get(id=nb_prefix.rir_id).name if nb_prefix.rir_id else None),
+                    date_allocated=(
+                        nb_prefix.date_allocated.replace(tzinfo=None) if nb_prefix.date_allocated else None
+                    ),
                     description=nb_prefix.description,
                     vrfs=_vrfs,
                     locations=_locations,
                     vlan=_vlan,
-                    tenant=Tenant.objects.get(id=nb_prefix.tenant_id).name if nb_prefix.tenant_id else None,
+                    tenant=(Tenant.objects.get(id=nb_prefix.tenant_id).name if nb_prefix.tenant_id else None),
                     tags=_tags,
                     system_of_record=_sor,
                     uuid=nb_prefix.id,
@@ -1047,7 +1067,9 @@ class NautobotAdapter(Adapter):
                         f"Could not find ContentType for {nb_comp_field.label} with ContentType {nb_comp_field.content_type}, and ContentType ID {nb_comp_field.content_type.id}"
                     )
                 new_computed_field = self.computed_field(
-                    label=nb_comp_field.label, content_type=_content_type, template=nb_comp_field.template
+                    label=nb_comp_field.label,
+                    content_type=_content_type,
+                    template=nb_comp_field.template,
                 )
                 new_computed_field.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
                 self.add(new_computed_field)
@@ -1102,10 +1124,19 @@ class NautobotAdapter(Adapter):
         for nb_software in ORMSoftware.objects.all():
             self.job.logger.debug(f"Loading Nautobot SoftwareLCM {nb_software}")
             try:
-                self.get(self.software, {"version": nb_software.version, "platform": nb_software.device_platform.name})
+                self.get(
+                    self.software,
+                    {
+                        "version": nb_software.version,
+                        "platform": nb_software.device_platform.name,
+                    },
+                )
             except ObjectNotFound:
                 _tags = list(
-                    ORMSoftware.objects.get(version=nb_software.version, device_platform=nb_software.device_platform.id)
+                    ORMSoftware.objects.get(
+                        version=nb_software.version,
+                        device_platform=nb_software.device_platform.id,
+                    )
                     .tags.all()
                     .values_list("name", flat=True)
                 )
@@ -1192,7 +1223,9 @@ class NautobotAdapter(Adapter):
                 )
             except ObjectNotFound:
                 _val_software = ORMValidatedSoftware.objects.get(
-                    software=_software, start=nb_validated_software.start, end=nb_validated_software.end
+                    software=_software,
+                    start=nb_validated_software.start,
+                    end=nb_validated_software.end,
                 )
                 _tags = sorted(list(_val_software.tags.all().values_list("name", flat=True)))
                 _devices = sorted(list(_val_software.devices.all().values_list("name", flat=True)))

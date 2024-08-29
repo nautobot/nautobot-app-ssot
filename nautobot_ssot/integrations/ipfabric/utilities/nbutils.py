@@ -22,7 +22,13 @@ from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Role, Tag
 from nautobot.extras.models.statuses import Status
 from nautobot.ipam.choices import PrefixTypeChoices
-from nautobot.ipam.models import VLAN, IPAddress, IPAddressToInterface, Namespace, Prefix
+from nautobot.ipam.models import (
+    VLAN,
+    IPAddress,
+    IPAddressToInterface,
+    Namespace,
+    Prefix,
+)
 from netutils.ip import netmask_to_cidr
 from netutils.lib_mapper import NAPALM_LIB_MAPPER
 
@@ -155,7 +161,10 @@ def create_device_type_object(
                 )
         else:
             try:
-                tag_object(nautobot_object=device_type_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+                tag_object(
+                    nautobot_object=device_type_obj,
+                    custom_field=LAST_SYNCHRONIZED_CF_NAME,
+                )
             except (DjangoBaseDBError, ValidationError):
                 if logger:
                     logger.warning(
@@ -375,7 +384,10 @@ def create_ip(
                         )
                 try:
                     # Tag Interface (object_pk)
-                    tag_object(nautobot_object=object_pk, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+                    tag_object(
+                        nautobot_object=object_pk,
+                        custom_field=LAST_SYNCHRONIZED_CF_NAME,
+                    )
                 except (DjangoBaseDBError, ValidationError):
                     if logger:
                         logger.warning(
@@ -451,7 +463,10 @@ def create_interface(
                 )
         else:
             try:
-                tag_object(nautobot_object=interface_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+                tag_object(
+                    nautobot_object=interface_obj,
+                    custom_field=LAST_SYNCHRONIZED_CF_NAME,
+                )
             except (DjangoBaseDBError, ValidationError):
                 if logger:
                     logger.warning(
@@ -485,7 +500,10 @@ def create_vlan(  # pylint: disable=too-many-arguments
     """
     try:
         vlan_obj, _ = location_obj.vlans.get_or_create(
-            name=vlan_name, vid=vlan_id, status=Status.objects.get(name=vlan_status), description=description
+            name=vlan_name,
+            vid=vlan_id,
+            status=Status.objects.get(name=vlan_status),
+            description=description,
         )
     except VLAN.MultipleObjectsReturned:
         if logger:
@@ -505,7 +523,11 @@ def create_vlan(  # pylint: disable=too-many-arguments
     return None
 
 
-def tag_object(nautobot_object: Any, custom_field: str, tag_name: Optional[str] = "SSoT Synced from IPFabric"):
+def tag_object(
+    nautobot_object: Any,
+    custom_field: str,
+    tag_name: Optional[str] = "SSoT Synced from IPFabric",
+):
     """Apply the given tag and custom field to the identified object.
 
     Args:

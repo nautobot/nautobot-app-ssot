@@ -13,7 +13,12 @@ from nautobot.ipam.models import Namespace as OrmNamespace
 from nautobot.ipam.models import Prefix as OrmPrefix
 
 from nautobot_ssot.integrations.device42.constant import PLUGIN_CFG
-from nautobot_ssot.integrations.device42.diffsync.models.base.ipam import VLAN, IPAddress, Subnet, VRFGroup
+from nautobot_ssot.integrations.device42.diffsync.models.base.ipam import (
+    VLAN,
+    IPAddress,
+    Subnet,
+    VRFGroup,
+)
 from nautobot_ssot.integrations.device42.utils import nautobot
 
 
@@ -78,7 +83,7 @@ class NautobotSubnet(Subnet):
         _pf = OrmPrefix(
             prefix=prefix,
             description=attrs["description"],
-            namespace_id=adapter.namespace_map[ids["vrf"]] if ids["vrf"] in adapter.namespace_map else "Global",
+            namespace_id=(adapter.namespace_map[ids["vrf"]] if ids["vrf"] in adapter.namespace_map else "Global"),
             status_id=adapter.status_map["Active"],
         )
         _pf.validated_save()
@@ -137,7 +142,8 @@ class NautobotIPAddress(IPAddress):
         _address = ids["address"]
         try:
             prefix = OrmPrefix.objects.get(
-                prefix=ids["subnet"], namespace=OrmNamespace.objects.get(name=attrs["namespace"])
+                prefix=ids["subnet"],
+                namespace=OrmNamespace.objects.get(name=attrs["namespace"]),
             )
         except OrmPrefix.DoesNotExist:
             adapter.job.logger.error(f"Unable to find prefix {ids['subnet']} to create IPAddress {_address} for.")
@@ -145,7 +151,7 @@ class NautobotIPAddress(IPAddress):
         _ip = OrmIPAddress(
             address=_address,
             parent_id=prefix.id,
-            status_id=adapter.status_map["Active"] if not attrs.get("available") else adapter.status_map["Reserved"],
+            status_id=(adapter.status_map["Active"] if not attrs.get("available") else adapter.status_map["Reserved"]),
             description=attrs["label"] if attrs.get("label") else "",
         )
         _ip.validated_save()

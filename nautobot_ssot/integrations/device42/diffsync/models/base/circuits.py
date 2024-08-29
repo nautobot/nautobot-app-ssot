@@ -11,7 +11,13 @@ class Provider(DiffSyncModel):
 
     _modelname = "provider"
     _identifiers = ("name",)
-    _attributes = ("notes", "vendor_url", "vendor_acct", "vendor_contact1", "vendor_contact2")
+    _attributes = (
+        "notes",
+        "vendor_url",
+        "vendor_acct",
+        "vendor_contact1",
+        "vendor_contact2",
+    )
     _children = {}
 
     name: str

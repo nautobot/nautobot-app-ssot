@@ -1,50 +1,12 @@
 """Nautobot DiffSync models for bootstrap SSoT."""
 
-from datetime import datetime
 import os
-import pytz
+from datetime import datetime
 
+import pytz
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db.models.deletion import ProtectedError
-
-from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
-    Secret,
-    SecretsGroup,
-    GitRepository,
-    DynamicGroup,
-    ComputedField,
-    Tag,
-    GraphQLQuery,
-    TenantGroup,
-    Tenant,
-    Role,
-    Team,
-    Contact,
-    Location,
-    LocationType,
-    Manufacturer,
-    Platform,
-    Provider,
-    ProviderNetwork,
-    CircuitType,
-    Circuit,
-    CircuitTermination,
-    Namespace,
-    RiR,
-    VLANGroup,
-    VLAN,
-    VRF,
-    Prefix,
-)
-from nautobot_ssot.integrations.bootstrap.utils import (
-    lookup_content_type_id,
-    lookup_content_type_for_taggable_model_path,
-    lookup_team_for_contact,
-    # lookup_contact_for_team,
-    check_sor_field,
-)
-
 from nautobot.circuits.models import Circuit as ORMCircuit
 from nautobot.circuits.models import CircuitTermination as ORMCircuitTermination
 from nautobot.circuits.models import CircuitType as ORMCircuitType
@@ -57,26 +19,63 @@ from nautobot.dcim.models import Location as ORMLocation
 from nautobot.dcim.models import LocationType as ORMLocationType
 from nautobot.dcim.models import Manufacturer as ORMManufacturer
 from nautobot.dcim.models import Platform as ORMPlatform
+from nautobot.extras.models import ComputedField as ORMComputedField
+from nautobot.extras.models import Contact as ORMContact
+from nautobot.extras.models import DynamicGroup as ORMDynamicGroup
+from nautobot.extras.models import GitRepository as ORMGitRepository
+from nautobot.extras.models import GraphQLQuery as ORMGraphQLQuery
 from nautobot.extras.models import Role as ORMRole
 from nautobot.extras.models import Secret as ORMSecret
 from nautobot.extras.models import SecretsGroup as ORMSecretsGroup
 from nautobot.extras.models import SecretsGroupAssociation as ORMSecretsGroupAssociation
 from nautobot.extras.models import Status as ORMStatus
-from nautobot.extras.models import GitRepository as ORMGitRepository
-from nautobot.extras.models import DynamicGroup as ORMDynamicGroup
-from nautobot.extras.models import ComputedField as ORMComputedField
 from nautobot.extras.models import Tag as ORMTag
-from nautobot.extras.models import GraphQLQuery as ORMGraphQLQuery
 from nautobot.extras.models import Team as ORMTeam
-from nautobot.extras.models import Contact as ORMContact
-from nautobot.tenancy.models import TenantGroup as ORMTenantGroup
-from nautobot.tenancy.models import Tenant as ORMTenant
-from nautobot.ipam.models import Namespace as ORMNamespace
 from nautobot.ipam.models import RIR as ORMRiR
-from nautobot.ipam.models import VLANGroup as ORMVLANGroup
 from nautobot.ipam.models import VLAN as ORMVLAN
 from nautobot.ipam.models import VRF as ORMVRF
+from nautobot.ipam.models import Namespace as ORMNamespace
 from nautobot.ipam.models import Prefix as ORMPrefix
+from nautobot.ipam.models import VLANGroup as ORMVLANGroup
+from nautobot.tenancy.models import Tenant as ORMTenant
+from nautobot.tenancy.models import TenantGroup as ORMTenantGroup
+
+from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
+    VLAN,
+    VRF,
+    Circuit,
+    CircuitTermination,
+    CircuitType,
+    ComputedField,
+    Contact,
+    DynamicGroup,
+    GitRepository,
+    GraphQLQuery,
+    Location,
+    LocationType,
+    Manufacturer,
+    Namespace,
+    Platform,
+    Prefix,
+    Provider,
+    ProviderNetwork,
+    RiR,
+    Role,
+    Secret,
+    SecretsGroup,
+    Tag,
+    Team,
+    Tenant,
+    TenantGroup,
+    VLANGroup,
+)
+from nautobot_ssot.integrations.bootstrap.utils import (
+    # lookup_contact_for_team,
+    check_sor_field,
+    lookup_content_type_for_taggable_model_path,
+    lookup_content_type_id,
+    lookup_team_for_contact,
+)
 
 try:
     import nautobot_device_lifecycle_mgmt  # noqa: F401
@@ -86,14 +85,26 @@ except ImportError:
     LIFECYCLE_MGMT = False
 
 if LIFECYCLE_MGMT:
+    # noqa: F401
+    from nautobot_device_lifecycle_mgmt.models import (
+        SoftwareImageLCM as ORMSoftwareImage,
+    )
+
+    # noqa: F401
+    from nautobot_device_lifecycle_mgmt.models import (
+        SoftwareLCM as ORMSoftware,
+    )
+
+    # noqa: F401
+    from nautobot_device_lifecycle_mgmt.models import (
+        ValidatedSoftwareLCM as ORMValidatedSoftware,
+    )
+
     from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
         Software,
         SoftwareImage,
         ValidatedSoftware,
-    )  # noqa: F401
-    from nautobot_device_lifecycle_mgmt.models import SoftwareLCM as ORMSoftware  # noqa: F401
-    from nautobot_device_lifecycle_mgmt.models import SoftwareImageLCM as ORMSoftwareImage  # noqa: F401
-    from nautobot_device_lifecycle_mgmt.models import ValidatedSoftwareLCM as ORMValidatedSoftware  # noqa: F401
+    )
 
 
 class NautobotTenantGroup(TenantGroup):
@@ -163,7 +174,12 @@ class NautobotTenant(Tenant):
         if "description" in attrs:
             _description = attrs["description"]
         adapter.job.logger.info(f'Creating Nautobot Tenant: {ids["name"]}')
-        new_tenant = ORMTenant(name=ids["name"], tenant_group=_tenant_group, tags=_tags, description=_description)
+        new_tenant = ORMTenant(
+            name=ids["name"],
+            tenant_group=_tenant_group,
+            tags=_tags,
+            description=_description,
+        )
         new_tenant.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_tenant.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_tenant.validated_save()
@@ -891,7 +907,7 @@ class NautobotCircuit(Circuit):
             provider=_provider,
             circuit_type=_circuit_type,
             status=_status,
-            install_date=attrs["date_installed"] if attrs["date_installed"] is not None else None,
+            install_date=(attrs["date_installed"] if attrs["date_installed"] is not None else None),
             commit_rate=attrs["commit_rate_kbps"],
             description=attrs["description"],
             tenant=_tenant,
@@ -1535,7 +1551,9 @@ class NautobotPrefix(Prefix):
                 _vlan_name, _vlan_id, _vlan_group_name = attrs["vlan"].split("__", 2)
                 _vlan_group = ORMVLANGroup.objects.get(name=_vlan_group_name)
                 _vlan = ORMVLAN.objects.get(
-                    name=_vlan_name, vid=_vlan_id, vlan_group=_vlan_group if _vlan_group != "None" else None
+                    name=_vlan_name,
+                    vid=_vlan_id,
+                    vlan_group=_vlan_group if _vlan_group != "None" else None,
                 )
             else:
                 _vlan = None
@@ -1664,7 +1682,9 @@ class NautobotPrefix(Prefix):
                     _vlan_name, _vlan_id, _vlan_group_name = attrs["vlan"].split("__", 2)
                     _vlan_group = ORMVLANGroup.objects.get(name=_vlan_group_name)
                     _vlan = ORMVLAN.objects.get(
-                        name=_vlan_name, vid=_vlan_id, vlan_group=_vlan_group if _vlan_group != "None" else None
+                        name=_vlan_name,
+                        vid=_vlan_id,
+                        vlan_group=_vlan_group if _vlan_group != "None" else None,
                     )
                 else:
                     _vlan = None

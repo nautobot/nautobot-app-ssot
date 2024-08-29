@@ -10,7 +10,10 @@ from unittest.mock import patch
 import requests_mock
 from requests.models import HTTPError
 
-from nautobot_ssot.integrations.infoblox.utils.client import InvalidUrlScheme, get_dns_name
+from nautobot_ssot.integrations.infoblox.utils.client import (
+    InvalidUrlScheme,
+    get_dns_name,
+)
 
 from .fixtures_infoblox import (
     LOCALHOST,
@@ -554,7 +557,11 @@ class TestInfobloxTest(unittest.TestCase):
         mock_fqdn = "test-device.test-site"
         mock_ip_address = "10.1.1.1"
         mock_reverse_host = "wrong_reverse_dns"
-        mock_payload = {"name": mock_reverse_host, "ptrdname": mock_fqdn, "ipv4addr": mock_ip_address}
+        mock_payload = {
+            "name": mock_reverse_host,
+            "ptrdname": mock_fqdn,
+            "ipv4addr": mock_ip_address,
+        }
 
         with requests_mock.Mocker() as req:
             req.post(f"{LOCALHOST}/{mock_uri}", json=mock_payload, status_code=404)
@@ -615,7 +622,11 @@ class TestInfobloxTest(unittest.TestCase):
         self.assertEqual(response, [])
 
     def test_create_range_success(self):
-        params = {"network": "10.0.0.0/24", "start_addr": "10.0.0.200", "end_addr": "10.0.0.254"}
+        params = {
+            "network": "10.0.0.0/24",
+            "start_addr": "10.0.0.200",
+            "end_addr": "10.0.0.254",
+        }
         with patch.object(self.infoblox_client, "_request") as mock_request_function:
             self.infoblox_client.create_range("10.0.0.0/24", "10.0.0.200", "10.0.0.254")
         mock_request_function.assert_called_with("POST", "range", params=params)
@@ -922,7 +933,9 @@ class TestInfobloxTest(unittest.TestCase):
         with requests_mock.Mocker() as req:
             req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=200)
             with unittest.mock.patch.object(
-                self.infoblox_client, "network_view_to_dns_map", mock_network_view_to_dns_map
+                self.infoblox_client,
+                "network_view_to_dns_map",
+                mock_network_view_to_dns_map,
             ):
                 resp = self.infoblox_client.get_dns_view_for_network_view(mock_name)
 

@@ -84,7 +84,10 @@ class AutomationGatewayClient:  # pylint: disable=too-many-instance-attributes
 
     def login(self) -> Union[requests.Response, requests.HTTPError]:
         """Login to Automation Gateway."""
-        response = self._post(uri="login", json_data={"username": self.username, "password": self.password})
+        response = self._post(
+            uri="login",
+            json_data={"username": self.username, "password": self.password},
+        )
 
         if response.ok:
             self.job.logger.info(f"Logging into {self.host}.")

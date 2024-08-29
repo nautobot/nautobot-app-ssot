@@ -97,7 +97,15 @@ class Port(DiffSyncModel):
 
     _modelname = "port"
     _identifiers = ("name", "device")
-    _attributes = ("description", "mac_addr", "port_type", "port_mode", "mtu", "status", "enabled")
+    _attributes = (
+        "description",
+        "mac_addr",
+        "port_type",
+        "port_mode",
+        "mtu",
+        "status",
+        "enabled",
+    )
     _children = {}
 
     name: str

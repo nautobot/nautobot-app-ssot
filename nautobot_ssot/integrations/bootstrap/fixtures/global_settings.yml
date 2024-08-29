@@ -154,12 +154,12 @@ platform:
 location_type:
   - name: "Region"
     parent: ""
-    nestable: True
+    nestable: true
     description: ""
     content_types: []
   - name: "Site"
     parent: "Region"
-    nestable: True
+    nestable: true
     description: ""
     content_types:
       - "dcim.device"
@@ -170,7 +170,7 @@ location_type:
       - "circuits.circuittermination"
   - name: "Building"
     parent: "Site"
-    nestable: False
+    nestable: false
     description: ""
     content_types:
       - "dcim.device"

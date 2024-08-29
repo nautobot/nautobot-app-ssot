@@ -4,7 +4,12 @@ import logging
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import IntegrityError
-from nautobot.dcim.models import ControllerManagedDeviceGroup, Location, LocationType, Manufacturer
+from nautobot.dcim.models import (
+    ControllerManagedDeviceGroup,
+    Location,
+    LocationType,
+    Manufacturer,
+)
 from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import DeviceType as OrmDeviceType
 from nautobot.dcim.models import Interface as OrmInterface
@@ -38,7 +43,11 @@ class NautobotTenant(Tenant):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Tenant object in Nautobot."""
-        _tenant = OrmTenant(name=ids["name"], description=attrs["description"], comments=attrs["comments"])
+        _tenant = OrmTenant(
+            name=ids["name"],
+            description=attrs["description"],
+            comments=attrs["comments"],
+        )
         if attrs["msite_tag"]:
             _tenant.tags.add(Tag.objects.get(name="ACI_MULTISITE"))
         _tenant.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
@@ -72,7 +81,11 @@ class NautobotVrf(Vrf):
     def create(cls, adapter, ids, attrs):
         """Create VRF object in Nautobot."""
         _tenant = OrmTenant.objects.get(name=ids["tenant"])
-        _vrf = OrmVrf(name=ids["name"], tenant=_tenant, namespace=Namespace.objects.get(name=attrs["namespace"]))
+        _vrf = OrmVrf(
+            name=ids["name"],
+            tenant=_tenant,
+            namespace=Namespace.objects.get(name=attrs["namespace"]),
+        )
         _vrf.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
         _vrf.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _vrf.validated_save()
@@ -276,10 +289,13 @@ class NautobotInterface(Interface):
             name=ids["name"],
             device=OrmDevice.objects.get(
                 name=ids["device"],
-                location=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
+                location=Location.objects.get(
+                    name=ids["site"],
+                    location_type=LocationType.objects.get(name="Site"),
+                ),
             ),
             description=attrs["description"],
-            status=Status.objects.get(name="Active") if attrs["state"] == "up" else Status.objects.get(name="Failed"),
+            status=(Status.objects.get(name="Active") if attrs["state"] == "up" else Status.objects.get(name="Failed")),
             type=attrs["type"],
         )
         _interface.custom_field_data["gbic_vendor"] = attrs["gbic_vendor"]
@@ -354,7 +370,9 @@ class NautobotIPAddress(IPAddress):
         if attrs["device"] and attrs["interface"]:
             try:
                 intf = OrmInterface.objects.get(
-                    name=_interface, device__name=_device, device__location__name=ids["site"]
+                    name=_interface,
+                    device__name=_device,
+                    device__location__name=ids["site"],
                 )
             except OrmInterface.DoesNotExist:
                 adapter.job.logger.warning(f"{_device} missing interface {_interface} to assign {ids['address']}")
@@ -398,7 +416,10 @@ class NautobotIPAddress(IPAddress):
         if attrs["device"]:
             device = OrmDevice.objects.get(
                 name=_device,
-                location=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
+                location=Location.objects.get(
+                    name=ids["site"],
+                    location_type=LocationType.objects.get(name="Site"),
+                ),
             )
             device.primary_ip4 = OrmIPAddress.objects.get(address=ids["address"])
             device.save()
@@ -407,7 +428,9 @@ class NautobotIPAddress(IPAddress):
     def update(self, attrs):
         """Update IPAddress object in Nautobot."""
         _ipaddress = OrmIPAddress.objects.get(
-            address=self.address, tenant__name=self.tenant, parent__namespace__name=self.namespace
+            address=self.address,
+            tenant__name=self.tenant,
+            parent__namespace__name=self.namespace,
         )
         if attrs.get("description"):
             _ipaddress.description = attrs["description"]
@@ -455,7 +478,10 @@ class NautobotPrefix(Prefix):
 
         if ids["vrf"] and vrf_tenant:
             try:
-                vrf = OrmVrf.objects.get(name=ids["vrf"], tenant=OrmTenant.objects.get(name=attrs["vrf_tenant"]))
+                vrf = OrmVrf.objects.get(
+                    name=ids["vrf"],
+                    tenant=OrmTenant.objects.get(name=attrs["vrf_tenant"]),
+                )
             except OrmVrf.DoesNotExist:
                 adapter.job.logger.warning(f"VRF {ids['vrf']} not found to associate prefix {ids['prefix']}")
                 vrf = None
@@ -494,7 +520,10 @@ class NautobotPrefix(Prefix):
         if attrs.get("status"):
             _prefix.status = Status.objects.get(name=attrs["status"])
         if attrs.get("vrf") and attrs.get("vrf_tenant"):
-            _prefix.vrf = OrmVrf.objects.get(name=attrs["vrf"], tenant=OrmTenant.objects.get(name=attrs["vrf_tenant"]))
+            _prefix.vrf = OrmVrf.objects.get(
+                name=attrs["vrf"],
+                tenant=OrmTenant.objects.get(name=attrs["vrf_tenant"]),
+            )
         _prefix.validated_save()
         return super().update(attrs)
 

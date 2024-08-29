@@ -16,7 +16,9 @@ from nautobot_ssot.integrations.infoblox.utils.diffsync import (
     nautobot_vlan_status,
     validate_dns_name,
 )
-from nautobot_ssot.integrations.infoblox.utils.nautobot import build_vlan_map_from_relations
+from nautobot_ssot.integrations.infoblox.utils.nautobot import (
+    build_vlan_map_from_relations,
+)
 
 
 class TestUtils(unittest.TestCase):
@@ -50,7 +52,11 @@ class TestUtils(unittest.TestCase):
 
     def test_get_ext_attr_dict_exclusion_list(self):
         """Test get_ext_attr_dict correctly excludes attributes."""
-        test_dict = {"Site": {"value": "HQ"}, "Region": {"value": "Central"}, "Tenant": {"value": "NTC"}}
+        test_dict = {
+            "Site": {"value": "HQ"},
+            "Region": {"value": "Central"},
+            "Tenant": {"value": "NTC"},
+        }
         excluded_attrs = ["Tenant"]
         expected = {"site": "HQ", "region": "Central"}
         standardized_dict = get_ext_attr_dict(extattrs=test_dict, excluded_attrs=excluded_attrs)
@@ -85,16 +91,33 @@ class TestUtils(unittest.TestCase):
         namespace1 = "test"
         namespace2 = "Global"
 
-        self.assertEqual("dev", map_network_view_to_namespace(value=network_view1, direction="nv_to_ns"))
-        self.assertEqual("Global", map_network_view_to_namespace(value=network_view2, direction="nv_to_ns"))
-        self.assertEqual("test", map_network_view_to_namespace(value=namespace1, direction="ns_to_nv"))
-        self.assertEqual("default", map_network_view_to_namespace(value=namespace2, direction="ns_to_nv"))
+        self.assertEqual(
+            "dev",
+            map_network_view_to_namespace(value=network_view1, direction="nv_to_ns"),
+        )
+        self.assertEqual(
+            "Global",
+            map_network_view_to_namespace(value=network_view2, direction="nv_to_ns"),
+        )
+        self.assertEqual(
+            "test",
+            map_network_view_to_namespace(value=namespace1, direction="ns_to_nv"),
+        )
+        self.assertEqual(
+            "default",
+            map_network_view_to_namespace(value=namespace2, direction="ns_to_nv"),
+        )
 
     def test_get_valid_custom_fields(self):
         """Test get_valid_custom_fields."""
         excluded_cfs = ["synced_to_snow"]
 
-        cfs1 = {"ssot_synced_to_infoblox": True, "dhcp_ranges": [], "mac_address": "", "vlan": 100}
+        cfs1 = {
+            "ssot_synced_to_infoblox": True,
+            "dhcp_ranges": [],
+            "mac_address": "",
+            "vlan": 100,
+        }
         cfs2 = {"tenant": "NTC", "synced_to_snow": True}
 
         expected1 = {"vlan": 100}
@@ -119,7 +142,12 @@ class TestUtils(unittest.TestCase):
         cf_def_excl1.key = "ssot_synced_to_infoblox"
         cf_def_excl2.key = "dhcp_ranges"
 
-        custom_field.objects.filter.return_value = [cf1, cf2, cf_def_excl1, cf_def_excl2]
+        custom_field.objects.filter.return_value = [
+            cf1,
+            cf2,
+            cf_def_excl1,
+            cf_def_excl2,
+        ]
 
         expected = {"tenant": None, "site": None}
 

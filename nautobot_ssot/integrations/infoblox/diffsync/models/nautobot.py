@@ -234,7 +234,11 @@ class NautobotNetwork(Network):
             if len(current_vlans) < len(attrs["vlans"]):
                 for _, item in attrs["vlans"].items():
                     try:
-                        vlan = OrmVlan.objects.get(vid=item["vid"], name=item["name"], vlan_group__name=item["group"])
+                        vlan = OrmVlan.objects.get(
+                            vid=item["vid"],
+                            name=item["name"],
+                            vlan_group__name=item["group"],
+                        )
                         if vlan not in current_vlans:
                             if self.adapter.job.get("debug"):
                                 self.adapter.job.logger.debug(f"Adding VLAN {vlan.vid} to {_pf.prefix}.")

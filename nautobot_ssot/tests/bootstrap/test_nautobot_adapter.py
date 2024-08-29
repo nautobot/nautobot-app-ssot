@@ -3,7 +3,11 @@
 # test_nautobot_adapter.py
 
 from django.test import TransactionTestCase
-from .test_setup import NautobotTestSetup, GLOBAL_JSON_SETTINGS
+
+from .test_setup import (
+    GLOBAL_JSON_SETTINGS,
+    NautobotTestSetup,
+)
 
 
 def remove_object_keys(data):
@@ -39,7 +43,10 @@ class TestNautobotAdapterTestCase(TransactionTestCase):
         self.nb_adapter.load()
         self.max_diff = None
 
-        self.assertEqual(sorted(self.nb_adapter.dict()["tenant_group"]), sorted(GLOBAL_JSON_SETTINGS["tenant_group"]))
+        self.assertEqual(
+            sorted(self.nb_adapter.dict()["tenant_group"]),
+            sorted(GLOBAL_JSON_SETTINGS["tenant_group"]),
+        )
         self.assertEqual(
             sorted(self.nb_adapter.dict()["tenant"], key=lambda x: x[1]),
             sorted(GLOBAL_JSON_SETTINGS["tenant"], key=lambda x: x[1]),
@@ -83,7 +90,10 @@ class TestNautobotAdapterTestCase(TransactionTestCase):
         filtered_adapter_provider_networks = remove_object_keys(self.nb_adapter.dict()["provider_network"])
         self.assertEqual(
             sorted(filtered_adapter_provider_networks.values(), key=lambda x: x["name"]),
-            sorted(GLOBAL_JSON_SETTINGS["provider_network"].values(), key=lambda x: x["name"]),
+            sorted(
+                GLOBAL_JSON_SETTINGS["provider_network"].values(),
+                key=lambda x: x["name"],
+            ),
         )
         filtered_adapter_circuit_types = remove_object_keys(self.nb_adapter.dict()["circuit_type"])
         self.assertEqual(
@@ -98,7 +108,10 @@ class TestNautobotAdapterTestCase(TransactionTestCase):
         filtered_adapter_circuit_terminations = remove_object_keys(self.nb_adapter.dict()["circuit_termination"])
         self.assertEqual(
             sorted(filtered_adapter_circuit_terminations.values(), key=lambda x: x["name"]),
-            sorted(GLOBAL_JSON_SETTINGS["circuit_termination"].values(), key=lambda x: x["name"]),
+            sorted(
+                GLOBAL_JSON_SETTINGS["circuit_termination"].values(),
+                key=lambda x: x["name"],
+            ),
         )
         self.assertEqual(
             sorted(self.nb_adapter.dict()["secret"], key=lambda x: x[1]),

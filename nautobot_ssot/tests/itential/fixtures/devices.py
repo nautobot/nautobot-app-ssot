@@ -25,7 +25,10 @@ data = [
         "network_driver": "cisco_ios",
         "role": "Router",
         "status": "Active",
-        "config_context": {"ansible_port": 22, "ansible_connection": "ansible.netcommon.network_cli"},
+        "config_context": {
+            "ansible_port": 22,
+            "ansible_connection": "ansible.netcommon.network_cli",
+        },
     },
     {
         "name": "rtr2.example.net",
@@ -96,7 +99,11 @@ def update_or_create_device_object(
     role, role_changed = Role.objects.update_or_create(name=role_name)
     add_content_type(model=role, content_type=device_content_type, changed=role_changed)
     location_type, location_type_changed = LocationType.objects.get_or_create(name="Region")
-    add_content_type(model=location_type, content_type=device_content_type, changed=location_type_changed)
+    add_content_type(
+        model=location_type,
+        content_type=device_content_type,
+        changed=location_type_changed,
+    )
     location, _ = Location.objects.get_or_create(name=location_name, location_type=location_type, status=status)
     manufacturer, _ = Manufacturer.objects.update_or_create(name=manufacturer_name)
     platform, _ = Platform.objects.update_or_create(
@@ -104,7 +111,12 @@ def update_or_create_device_object(
     )
     device_type, _ = DeviceType.objects.update_or_create(manufacturer=manufacturer, model=model)
     device, _ = Device.objects.update_or_create(
-        name=name, role=role, device_type=device_type, location=location, status=status, platform=platform
+        name=name,
+        role=role,
+        device_type=device_type,
+        location=location,
+        status=status,
+        platform=platform,
     )
     Interface.objects.update_or_create(name=interface_name, status=status, device=device)
 

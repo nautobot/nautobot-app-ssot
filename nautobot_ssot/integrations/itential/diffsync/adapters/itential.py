@@ -16,7 +16,14 @@ class ItentialAnsibleDeviceAdapter(Adapter):
     all_group = ItentialDefaultAnsibleGroupModel
     top_level = ["all_group", "device"]
 
-    def __init__(self, api_client: AutomationGatewayClient, job: object, sync: object, *args, **kwargs):
+    def __init__(
+        self,
+        api_client: AutomationGatewayClient,
+        job: object,
+        sync: object,
+        *args,
+        **kwargs,
+    ):
         """Initialize Diffsync Adapter."""
         super().__init__(*args, **kwargs)
         self.api_client = api_client

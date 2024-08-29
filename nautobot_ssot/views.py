@@ -6,7 +6,12 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 from django.views import View as DjangoView
 from django_tables2 import RequestConfig
-from nautobot.core.views.generic import BulkDeleteView, ObjectDeleteView, ObjectListView, ObjectView
+from nautobot.core.views.generic import (
+    BulkDeleteView,
+    ObjectDeleteView,
+    ObjectListView,
+    ObjectView,
+)
 from nautobot.core.views.mixins import ContentTypePermissionRequiredMixin
 from nautobot.core.views.paginator import EnhancedPaginator
 from nautobot.extras.models import Job as JobModel
@@ -18,7 +23,12 @@ from .forms import SyncFilterForm, SyncLogEntryFilterForm
 from .jobs import get_data_jobs
 from .jobs.base import DataSource, DataTarget
 from .models import Sync, SyncLogEntry
-from .tables import DashboardTable, SyncLogEntryTable, SyncTable, SyncTableSingleSourceOrTarget
+from .tables import (
+    DashboardTable,
+    SyncLogEntryTable,
+    SyncTable,
+    SyncTableSingleSourceOrTarget,
+)
 
 
 class DashboardView(ObjectListView):
@@ -90,7 +100,7 @@ class DataSourceTargetView(ObjectView):
         return {
             "job_class": job_class,
             "table": table,
-            "source_or_target": "source" if issubclass(job_class, DataSource) else "target",
+            "source_or_target": ("source" if issubclass(job_class, DataSource) else "target"),
         }
 
 
@@ -196,4 +206,8 @@ class SSOTConfigView(ContentTypePermissionRequiredMixin, DjangoView):
     def get(self, request):
         """Return table with links to configuration pages for enabled integrations."""
         enabled_integrations = list(utils.each_enabled_integration())
-        return render(request, "nautobot_ssot/ssot_configs.html", {"enabled_integrations": enabled_integrations})
+        return render(
+            request,
+            "nautobot_ssot/ssot_configs.html",
+            {"enabled_integrations": enabled_integrations},
+        )

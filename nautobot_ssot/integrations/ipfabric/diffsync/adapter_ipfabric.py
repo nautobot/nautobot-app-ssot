@@ -43,7 +43,12 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         sites = self.client.inventory.sites.all()
         for site in sites:
             try:
-                location = self.location(adapter=self, name=site["siteName"], site_id=site["id"], status="Active")
+                location = self.location(
+                    adapter=self,
+                    name=site["siteName"],
+                    site_id=site["id"],
+                    status="Active",
+                )
                 self.add(location)
             except ObjectAlreadyExists:
                 logger.warning(f"Duplicate Location discovered, {site}")
@@ -152,15 +157,18 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             for device in location_devices:
                 device_name = device["hostname"]
                 stack_members = self.client.technology.platforms.stacks_members.all(
-                    filters={"master": ["eq", device_name], "siteName": ["eq", location.name]},
+                    filters={
+                        "master": ["eq", device_name],
+                        "siteName": ["eq", location.name],
+                    },
                     columns=["master", "member", "memberSn", "pn"],
                 )
                 base_args = {
                     "diffsync": self,
                     "location_name": device["siteName"],
-                    "model": device.get("model") if device.get("model") else f"Default-{device.get('vendor')}",
+                    "model": (device.get("model") if device.get("model") else f"Default-{device.get('vendor')}"),
                     "vendor": device.get("vendor").capitalize(),
-                    "role": device.get("devType") if device.get("devType") else DEFAULT_DEVICE_ROLE,
+                    "role": (device.get("devType") if device.get("devType") else DEFAULT_DEVICE_ROLE),
                     "status": DEFAULT_DEVICE_STATUS,
                     "platform": device.get("family"),
                 }

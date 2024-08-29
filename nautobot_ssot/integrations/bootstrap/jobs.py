@@ -1,10 +1,11 @@
 """Jobs for bootstrap SSoT integration."""
 
 import os
-from nautobot.apps.jobs import BooleanVar, ChoiceVar
-from nautobot_ssot.jobs.base import DataSource, DataTarget, DataMapping
-from nautobot_ssot.integrations.bootstrap.diffsync.adapters import bootstrap, nautobot
 
+from nautobot.apps.jobs import BooleanVar, ChoiceVar
+
+from nautobot_ssot.integrations.bootstrap.diffsync.adapters import bootstrap, nautobot
+from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
 
 name = "Bootstrap SSoT"  # pylint: disable=invalid-name
 
@@ -71,7 +72,12 @@ class BootstrapDataSource(DataSource):
             DataMapping("provider_network", "", "ProviderNetwork", "circuits.provider_network"),
             DataMapping("circuit_type", "", "CircuitType", "circuits.circuit_type"),
             DataMapping("circuit", "", "Circuit", "circuits.circuit"),
-            DataMapping("circuit_termination", "", "CircuitTermination", "circuits.circuit_termination"),
+            DataMapping(
+                "circuit_termination",
+                "",
+                "CircuitTermination",
+                "circuits.circuit_termination",
+            ),
             DataMapping("namespace", "", "Namespace", "ipam.namespcae"),
             DataMapping("rir", "", "RIR", "ipam.rir"),
             DataMapping("vlan_group", "", "VLANGroup", "ipam.vlan_group"),
@@ -142,9 +148,7 @@ class BootstrapDataTarget(DataTarget):
         self.target_adapter = bootstrap.BootstrapAdapter(job=self, sync=self.sync)
         self.target_adapter.load()
 
-    def run(
-        self, write_destination, dryrun, memory_profiling, debug, *args, **kwargs
-    ):  # pylint: disable=arguments-differ
+    def run(self, write_destination, dryrun, memory_profiling, debug, *args, **kwargs):  # pylint: disable=arguments-differ
         """Perform data synchronization."""
         self.debug = debug
         self.dryrun = dryrun

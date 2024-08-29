@@ -45,7 +45,10 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
       - `data_source_icon` and `data_target_icon`
     """
 
-    dryrun = DryRunVar(description="Perform a dry-run, making no actual changes to Nautobot data.", default=True)
+    dryrun = DryRunVar(
+        description="Perform a dry-run, making no actual changes to Nautobot data.",
+        default=True,
+    )
     memory_profiling = BooleanVar(description="Perform a memory profiling analysis.", default=False)
 
     def load_source_adapter(self):
@@ -118,7 +121,12 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             setattr(self.sync, f"{step}_memory_final", memory_final)
             setattr(self.sync, f"{step}_memory_peak", memory_peak)
             self.sync.save()
-            self.logger.info("Traced memory for %s (Final, Peak): %s bytes, %s bytes", step, memory_final, memory_peak)
+            self.logger.info(
+                "Traced memory for %s (Final, Peak): %s bytes, %s bytes",
+                step,
+                memory_final,
+                memory_peak,
+            )
             tracemalloc.clear_traces()
 
         if not self.sync:
@@ -134,7 +142,11 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         load_source_adapter_time = datetime.now()
         self.sync.source_load_time = load_source_adapter_time - start_time
         self.sync.save()
-        self.logger.info("Source Load Time from %s: %s", self.source_adapter, self.sync.source_load_time)
+        self.logger.info(
+            "Source Load Time from %s: %s",
+            self.source_adapter,
+            self.sync.source_load_time,
+        )
         if memory_profiling:
             record_memory_trace("source_load")
 
@@ -143,7 +155,11 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         load_target_adapter_time = datetime.now()
         self.sync.target_load_time = load_target_adapter_time - load_source_adapter_time
         self.sync.save()
-        self.logger.info("Target Load Time from %s: %s", self.target_adapter, self.sync.target_load_time)
+        self.logger.info(
+            "Target Load Time from %s: %s",
+            self.target_adapter,
+            self.sync.target_load_time,
+        )
         if memory_profiling:
             record_memory_trace("target_load")
 
@@ -305,7 +321,10 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
 
         # Add _structlog_to_sync_log_entry as a processor for structlog calls from DiffSync
         structlog.configure(
-            processors=[self._structlog_to_sync_log_entry, structlog.stdlib.render_to_log_kwargs],
+            processors=[
+                self._structlog_to_sync_log_entry,
+                structlog.stdlib.render_to_log_kwargs,
+            ],
             context_class=dict,
             logger_factory=structlog.stdlib.LoggerFactory(),
             wrapper_class=structlog.stdlib.BoundLogger,

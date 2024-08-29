@@ -37,7 +37,9 @@ from nautobot_ssot.integrations.aristacv.utils import nautobot
 logger = logging.getLogger(__name__)
 
 try:
-    from nautobot_device_lifecycle_mgmt.models import SoftwareLCM  # noqa: F401 # pylint: disable=unused-import
+    from nautobot_device_lifecycle_mgmt.models import (
+        SoftwareLCM,
+    )
 
     LIFECYCLE_MGMT = True
 except ImportError:
@@ -305,7 +307,8 @@ class NautobotIPAddress(IPAddress):
         new_ip = OrmIPAddress(
             address=ids["address"],
             parent=OrmPrefix.objects.get(
-                prefix=ids["prefix"], namespace=OrmNamespace.objects.get(name=ids["namespace"])
+                prefix=ids["prefix"],
+                namespace=OrmNamespace.objects.get(name=ids["namespace"]),
             ),
             status=OrmStatus.objects.get(name="Active"),
         )
@@ -328,7 +331,8 @@ class NautobotIPAssignment(IPAssignment):
         """Create IPAddressToInterface in Nautobot."""
         try:
             ipaddr = OrmIPAddress.objects.get(
-                address=ids["address"], parent__namespace=OrmNamespace.objects.get(name=ids["namespace"])
+                address=ids["address"],
+                parent__namespace=OrmNamespace.objects.get(name=ids["namespace"]),
             )
             intf = OrmInterface.objects.get(name=ids["interface"], device__name=ids["device"])
             new_map = IPAddressToInterface(ip_address=ipaddr, interface=intf)

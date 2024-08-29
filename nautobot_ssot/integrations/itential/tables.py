@@ -21,4 +21,11 @@ class AutomationGatewayModelTable(BaseTable):
         """Meta class definition."""
 
         model = models.AutomationGatewayModel
-        fields = ["name", "description", "location", "location_descendants", "gateway", "enabled"]
+        fields = [
+            "name",
+            "description",
+            "location",
+            "location_descendants",
+            "gateway",
+            "enabled",
+        ]

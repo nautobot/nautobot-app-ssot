@@ -24,7 +24,9 @@ class TestNautobotUtils(TestCase):
         """Test the verify_site method for existing Site."""
         loc_type = LocationType.objects.get_or_create(name="Site")[0]
         test_site, _ = Location.objects.get_or_create(
-            name="Test", location_type=loc_type, status=Status.objects.get(name="Active")
+            name="Test",
+            location_type=loc_type,
+            status=Status.objects.get(name="Active"),
         )
         result = nautobot.verify_site(site_name="Test")
         self.assertEqual(result, test_site)
@@ -104,7 +106,10 @@ class TestNautobotUtils(TestCase):
         mock_import = MagicMock()
         mock_import.LIFECYCLE_MGMT = False
 
-        with patch("nautobot_ssot.integrations.aristacv.utils.nautobot.LIFECYCLE_MGMT", mock_import.LIFECYCLE_MGMT):
+        with patch(
+            "nautobot_ssot.integrations.aristacv.utils.nautobot.LIFECYCLE_MGMT",
+            mock_import.LIFECYCLE_MGMT,
+        ):
             result = nautobot.get_device_version(mock_device)
         self.assertEqual(result, "1.0")
 

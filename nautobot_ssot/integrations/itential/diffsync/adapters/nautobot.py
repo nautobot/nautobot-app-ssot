@@ -5,7 +5,10 @@ import traceback
 
 from diffsync import Adapter
 from nautobot.dcim.models import Device
-from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
+from nautobot.extras.choices import (
+    SecretsGroupAccessTypeChoices,
+    SecretsGroupSecretTypeChoices,
+)
 from nautobot.extras.models import Status
 
 from nautobot_ssot.integrations.itential.diffsync.models.nautobot import (
@@ -23,7 +26,13 @@ class NautobotAnsibleDeviceAdapter(Adapter):
     top_level = ["all_group", "device"]
 
     def __init__(  # pylint disable=too-many-arguments
-        self, job: object, sync: object, gateway: AutomationGatewayModel, status: Status, *args, **kwargs
+        self,
+        job: object,
+        sync: object,
+        gateway: AutomationGatewayModel,
+        status: Status,
+        *args,
+        **kwargs,
     ):
         """Initialize Nautobot Itential Ansible Device Diffsync adapter."""
         super().__init__(*args, **kwargs)
@@ -84,7 +93,13 @@ class NautobotAnsibleDeviceAdapter(Adapter):
         # Add device attributes from config_context
         config_context = device_obj.get_config_context()
 
-        return {**ansible_host, **ansible_network_os, **ansible_username, **ansible_password, **config_context}
+        return {
+            **ansible_host,
+            **ansible_network_os,
+            **ansible_username,
+            **ansible_password,
+            **config_context,
+        }
 
     @property
     def _default_group_vars(self) -> dict:

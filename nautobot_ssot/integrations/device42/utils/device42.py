@@ -9,7 +9,13 @@ from diffsync.exceptions import ObjectNotFound
 from nautobot.core.settings_funcs import is_truthy
 from netutils.lib_mapper import PYATS_LIB_MAPPER
 
-from nautobot_ssot.integrations.device42.constant import DEFAULTS, FC_INTF_MAP, INTF_NAME_MAP, PHY_INTF_MAP, PLUGIN_CFG
+from nautobot_ssot.integrations.device42.constant import (
+    DEFAULTS,
+    FC_INTF_MAP,
+    INTF_NAME_MAP,
+    PHY_INTF_MAP,
+    PLUGIN_CFG,
+)
 from nautobot_ssot.integrations.device42.diffsync.models.base.ipam import VLAN
 
 

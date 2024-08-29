@@ -1,7 +1,12 @@
 """Forms implementation for SSOT Infoblox."""
 
 from django import forms
-from nautobot.apps.forms import JSONField, StaticSelect2, StaticSelect2Multiple, add_blank_choice
+from nautobot.apps.forms import (
+    JSONField,
+    StaticSelect2,
+    StaticSelect2Multiple,
+    add_blank_choice,
+)
 from nautobot.extras.forms import NautobotFilterForm, NautobotModelForm
 
 from .choices import (
@@ -17,7 +22,9 @@ class SSOTInfobloxConfigForm(NautobotModelForm):  # pylint: disable=too-many-anc
     """SSOTInfobloxConfig creation/edit form."""
 
     infoblox_sync_filters = JSONField(
-        required=True, label="Infoblox Sync Filters", help_text="Filters controlling data loaded from both systems."
+        required=True,
+        label="Infoblox Sync Filters",
+        help_text="Filters controlling data loaded from both systems.",
     )
     infoblox_dns_view_mapping = JSONField(
         required=False,

@@ -18,6 +18,10 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="synclogentry",
             name="diff",
-            field=models.JSONField(blank=True, encoder=django.core.serializers.json.DjangoJSONEncoder, null=True),
+            field=models.JSONField(
+                blank=True,
+                encoder=django.core.serializers.json.DjangoJSONEncoder,
+                null=True,
+            ),
         ),
     ]

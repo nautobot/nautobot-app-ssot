@@ -1,6 +1,12 @@
 """Data tables for Single Source of Truth (SSOT) views."""
 
-from django_tables2 import Column, DateTimeColumn, JSONColumn, LinkColumn, TemplateColumn
+from django_tables2 import (
+    Column,
+    DateTimeColumn,
+    JSONColumn,
+    LinkColumn,
+    TemplateColumn,
+)
 from nautobot.apps.tables import BaseTable, ToggleColumn
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
@@ -47,7 +53,13 @@ class DashboardTable(BaseTable):  # pylint: disable=nb-sub-class-name
         """Metaclass attributes of DashboardTable."""
 
         model = Sync
-        fields = ["source", "target", "start_time", "status", "dry_run"]  # pylint: disable=nb-use-fields-all
+        fields = [
+            "source",
+            "target",
+            "start_time",
+            "status",
+            "dry_run",
+        ]  # pylint: disable=nb-use-fields-all
         order_by = ["-start_time"]
 
 
@@ -65,38 +77,59 @@ class SyncTable(BaseTable):
     num_unchanged = TemplateColumn(
         template_code=ACTION_LOGS_LINK,
         verbose_name="No change",
-        extra_context={"link_class": "num_unchanged", "action": SyncLogEntryActionChoices.ACTION_NO_CHANGE},
+        extra_context={
+            "link_class": "num_unchanged",
+            "action": SyncLogEntryActionChoices.ACTION_NO_CHANGE,
+        },
     )
     num_created = TemplateColumn(
         template_code=ACTION_LOGS_LINK,
         verbose_name="Create",
-        extra_context={"link_class": "num_created", "action": SyncLogEntryActionChoices.ACTION_CREATE},
+        extra_context={
+            "link_class": "num_created",
+            "action": SyncLogEntryActionChoices.ACTION_CREATE,
+        },
     )
     num_updated = TemplateColumn(
         template_code=ACTION_LOGS_LINK,
         verbose_name="Update",
-        extra_context={"link_class": "num_updated", "action": SyncLogEntryActionChoices.ACTION_UPDATE},
+        extra_context={
+            "link_class": "num_updated",
+            "action": SyncLogEntryActionChoices.ACTION_UPDATE,
+        },
     )
     num_deleted = TemplateColumn(
         template_code=ACTION_LOGS_LINK,
         verbose_name="Delete",
-        extra_context={"link_class": "num_deleted", "action": SyncLogEntryActionChoices.ACTION_DELETE},
+        extra_context={
+            "link_class": "num_deleted",
+            "action": SyncLogEntryActionChoices.ACTION_DELETE,
+        },
     )
 
     num_succeeded = TemplateColumn(
         template_code=STATUS_LOGS_LINK,
         verbose_name="Success",
-        extra_context={"link_class": "num_succeeded", "status": SyncLogEntryStatusChoices.STATUS_SUCCESS},
+        extra_context={
+            "link_class": "num_succeeded",
+            "status": SyncLogEntryStatusChoices.STATUS_SUCCESS,
+        },
     )
     num_failed = TemplateColumn(
         template_code=STATUS_LOGS_LINK,
         verbose_name="Failure",
-        extra_context={"link_class": "num_failed", "status": SyncLogEntryStatusChoices.STATUS_FAILURE},
+        extra_context={
+            "link_class": "num_failed",
+            "status": SyncLogEntryStatusChoices.STATUS_FAILURE,
+        },
     )
     num_errored = TemplateColumn(
         template_code=STATUS_LOGS_LINK,
         verbose_name="Error",
-        extra_context={"link_class": "num_errored", "status": SyncLogEntryStatusChoices.STATUS_ERROR},
+        extra_context={
+            "link_class": "num_errored",
+            "status": SyncLogEntryStatusChoices.STATUS_ERROR,
+        },
     )
 
     class Meta(BaseTable.Meta):
@@ -196,5 +229,14 @@ class SyncLogEntryTable(BaseTable):
             "diff",
             "message",
         )
-        default_columns = ("pk", "timestamp", "sync", "action", "synced_object", "status", "diff", "message")
+        default_columns = (
+            "pk",
+            "timestamp",
+            "sync",
+            "action",
+            "synced_object",
+            "status",
+            "diff",
+            "message",
+        )
         order_by = ("-timestamp",)

@@ -3,7 +3,10 @@
 import logging
 
 from nautobot.dcim.models import Controller, ControllerManagedDeviceGroup
-from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
+from nautobot.extras.choices import (
+    SecretsGroupAccessTypeChoices,
+    SecretsGroupSecretTypeChoices,
+)
 from nautobot.extras.models import SecretsGroup
 
 logger = logging.getLogger("nautobot.ssot")
@@ -26,7 +29,9 @@ def get_username_password_https_from_secretsgroup(group: SecretsGroup):
     return username, password
 
 
-def verify_controller_managed_device_group(controller: Controller) -> ControllerManagedDeviceGroup:
+def verify_controller_managed_device_group(
+    controller: Controller,
+) -> ControllerManagedDeviceGroup:
     """Validate that Controller Managed Device Group exists or create it.
 
     Args:

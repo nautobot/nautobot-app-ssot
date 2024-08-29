@@ -1,12 +1,19 @@
 """Itential SSoT Jobs."""
 
-from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
+from nautobot.extras.choices import (
+    SecretsGroupAccessTypeChoices,
+    SecretsGroupSecretTypeChoices,
+)
 from nautobot.extras.jobs import ObjectVar
 from nautobot.extras.models import Status
 
 from nautobot_ssot.integrations.itential.clients import AutomationGatewayClient
-from nautobot_ssot.integrations.itential.diffsync.adapters.itential import ItentialAnsibleDeviceAdapter
-from nautobot_ssot.integrations.itential.diffsync.adapters.nautobot import NautobotAnsibleDeviceAdapter
+from nautobot_ssot.integrations.itential.diffsync.adapters.itential import (
+    ItentialAnsibleDeviceAdapter,
+)
+from nautobot_ssot.integrations.itential.diffsync.adapters.nautobot import (
+    NautobotAnsibleDeviceAdapter,
+)
 from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
 from nautobot_ssot.jobs.base import DataTarget
 
@@ -16,7 +23,11 @@ name = "SSoT - Itential"  # pylint: disable=invalid-name
 class ItentialAutomationGatewayDataTarget(DataTarget):  # pylint: disable=too-many-instance-attributes
     """Job syncing Nautobot to Itential Automation Gateway."""
 
-    gateway = ObjectVar(model=AutomationGatewayModel, description="Choose a gateway to sync to.", required=True)
+    gateway = ObjectVar(
+        model=AutomationGatewayModel,
+        description="Choose a gateway to sync to.",
+        required=True,
+    )
     status = ObjectVar(model=Status, description="Choose a device status to sync.", required=True)
 
     class Meta:

@@ -1,8 +1,17 @@
 """Itential Automation Gateway Fixtures."""
 
 from nautobot.dcim.models import Location, LocationType
-from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
-from nautobot.extras.models import ExternalIntegration, Secret, SecretsGroup, SecretsGroupAssociation, Status
+from nautobot.extras.choices import (
+    SecretsGroupAccessTypeChoices,
+    SecretsGroupSecretTypeChoices,
+)
+from nautobot.extras.models import (
+    ExternalIntegration,
+    Secret,
+    SecretsGroup,
+    SecretsGroupAssociation,
+    Status,
+)
 
 from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
 
@@ -54,11 +63,20 @@ responses = {
         "responses": {
             "login": {"token": "abc123="},
             "logout": "User was successfully logged out of session",
-            "poll": {"success": True, "hostname": "localhost", "serverId": "00:00:00:00:00:00:8443"},
+            "poll": {
+                "success": True,
+                "hostname": "localhost",
+                "serverId": "00:00:00:00:00:00:8443",
+            },
             "get_devices": {
                 "meta": {
                     "count": 1,
-                    "query_object": {"offset": None, "limit": None, "filter": None, "order": "ascending"},
+                    "query_object": {
+                        "offset": None,
+                        "limit": None,
+                        "filter": None,
+                        "order": "ascending",
+                    },
                     "total_count": 1,
                 },
                 "data": [
@@ -96,7 +114,10 @@ responses = {
             },
             "create_device": {
                 "name": "rtr11.example.net",
-                "variables": {"ansible_host": "192.0.2.11", "ansible_network_os": "cisco.iosxr.iosxr"},
+                "variables": {
+                    "ansible_host": "192.0.2.11",
+                    "ansible_network_os": "cisco.iosxr.iosxr",
+                },
             },
             "update_device": {
                 "name": "rtr10.example.net",
@@ -109,13 +130,21 @@ responses = {
             "get_groups": {
                 "meta": {
                     "count": 1,
-                    "query_object": {"offset": None, "limit": None, "filter": None, "order": "ascending"},
+                    "query_object": {
+                        "offset": None,
+                        "limit": None,
+                        "filter": None,
+                        "order": "ascending",
+                    },
                     "total_count": 1,
                 },
                 "data": [
                     {
                         "name": "rtr1.example.net",
-                        "variables": {"ansible_user": "testUser", "ansible_password": "testPass"},
+                        "variables": {
+                            "ansible_user": "testUser",
+                            "ansible_password": "testPass",
+                        },
                         "devices": ["rtr1.example.net"],
                         "childGroups": [],
                     }
@@ -123,7 +152,10 @@ responses = {
             },
             "get_group": {
                 "name": "all",
-                "variables": {"ansible_user": "testUser", "ansible_password": "testPass"},
+                "variables": {
+                    "ansible_user": "testUser",
+                    "ansible_password": "testPass",
+                },
                 "devices": ["rtr1.example.net"],
                 "childGroups": [],
             },
@@ -141,7 +173,11 @@ responses = {
             },
             "delete_group": {"code": 200, "status": 200, "message": "deleted"},
             "add_device_to_group": ["rtr1.example.net"],
-            "delete_device_from_group": {"code": 200, "status": 200, "message": "deleted"},
+            "delete_device_from_group": {
+                "code": 200,
+                "status": 200,
+                "message": "deleted",
+            },
         },
     },
 }
@@ -173,27 +209,37 @@ def update_or_create_automation_gateways(
 
     # Create a REST username secret
     secret_username, _ = Secret.objects.update_or_create(
-        name=username_env, provider="environment-variable", parameters={"variable": username_env}
+        name=username_env,
+        provider="environment-variable",
+        parameters={"variable": username_env},
     )
 
     # Create a REST password secret
     secret_password, _ = Secret.objects.update_or_create(
-        name=password_env, provider="environment-variable", parameters={"variable": password_env}
+        name=password_env,
+        provider="environment-variable",
+        parameters={"variable": password_env},
     )
 
     # Create Ansible VAULT secret
     ansible_vault, _ = Secret.objects.update_or_create(
-        name=ansible_vault_env, provider="environment-variable", parameters={"variable": ansible_vault_env}
+        name=ansible_vault_env,
+        provider="environment-variable",
+        parameters={"variable": ansible_vault_env},
     )
 
     # Create Device user secret
     device_user, _ = Secret.objects.update_or_create(
-        name=device_user_env, provider="environment-variable", parameters={"variable": device_user_env}
+        name=device_user_env,
+        provider="environment-variable",
+        parameters={"variable": device_user_env},
     )
 
     # Create Device pass secret
     device_pass, _ = Secret.objects.update_or_create(
-        name=device_pass_env, provider="environment-variable", parameters={"variable": device_pass_env}
+        name=device_pass_env,
+        provider="environment-variable",
+        parameters={"variable": device_pass_env},
     )
 
     # Create a secrets group
@@ -244,5 +290,9 @@ def update_or_create_automation_gateways(
 
     # Create the Automation Gateway object
     AutomationGatewayModel.objects.update_or_create(
-        name=name, description=description, location=location, gateway=gateway, enabled=enabled
+        name=name,
+        description=description,
+        location=location,
+        gateway=gateway,
+        enabled=enabled,
     )

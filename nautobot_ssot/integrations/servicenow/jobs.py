@@ -43,7 +43,12 @@ class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
         """List describing the data mappings involved in this DataTarget."""
         return (
             DataMapping("Device", reverse("dcim:device_list"), "IP Switch", None),
-            DataMapping("Device Type", reverse("dcim:devicetype_list"), "Hardware Product Model", None),
+            DataMapping(
+                "Device Type",
+                reverse("dcim:devicetype_list"),
+                "Hardware Product Model",
+                None,
+            ),
             DataMapping("Interface", reverse("dcim:interface_list"), "Interface", None),
             DataMapping("Manufacturer", reverse("dcim:manufacturer_list"), "Company", None),
             DataMapping("Location", reverse("dcim:location_list"), "Location", None),

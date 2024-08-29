@@ -103,17 +103,30 @@ class AciAdapter(Adapter):
             else:
                 namespace = vrf_tenant
             new_vrf = self.vrf(
-                name=vrf_name, namespace=namespace, tenant=vrf_tenant, description=vrf_description, site_tag=self.site
+                name=vrf_name,
+                namespace=namespace,
+                tenant=vrf_tenant,
+                description=vrf_description,
+                site_tag=self.site,
             )
             if _vrf["tenant"] not in PLUGIN_CFG.get("ignore_tenants"):
                 self.add(new_vrf)
 
     def load_subnet_as_prefix(
-        self, prefix: str, namespace: str, site: str, vrf: str, vrf_tenant: str, tenant: Optional[str] = None
+        self,
+        prefix: str,
+        namespace: str,
+        site: str,
+        vrf: str,
+        vrf_tenant: str,
+        tenant: Optional[str] = None,
     ):
         """Load Subnet into prefix DiffSync model."""
         try:
-            self.get(self.prefix, {"prefix": prefix, "site": site, "vrf": vrf, "tenant": tenant})
+            self.get(
+                self.prefix,
+                {"prefix": prefix, "site": site, "vrf": vrf, "tenant": tenant},
+            )
         except ObjectNotFound:
             new_pf = self.prefix(
                 prefix=prefix,
@@ -285,7 +298,10 @@ class AciAdapter(Adapter):
                             # If the object doesn't exist we can create it
                             # Otherwise we log a message warning the user of the duplicate.
                             try:
-                                self.get(obj=new_prefix, identifier=new_prefix.get_unique_id())
+                                self.get(
+                                    obj=new_prefix,
+                                    identifier=new_prefix.get_unique_id(),
+                                )
                             except ObjectNotFound:
                                 self.add(new_prefix)
                             else:

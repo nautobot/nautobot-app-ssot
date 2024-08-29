@@ -23,17 +23,31 @@ from nautobot.dcim.models import (
     VirtualChassis,
 )
 from nautobot.extras.models import Relationship, Role, Status
-from nautobot.ipam.models import VLAN, VRF, IPAddress, IPAddressToInterface, Namespace, Prefix
+from nautobot.ipam.models import (
+    VLAN,
+    VRF,
+    IPAddress,
+    IPAddressToInterface,
+    Namespace,
+    Prefix,
+)
 from netutils.lib_mapper import ANSIBLE_LIB_MAPPER
 
 from nautobot_ssot.integrations.device42.constant import PLUGIN_CFG
-from nautobot_ssot.integrations.device42.diffsync.models.nautobot import assets, circuits, dcim, ipam
+from nautobot_ssot.integrations.device42.diffsync.models.nautobot import (
+    assets,
+    circuits,
+    dcim,
+    ipam,
+)
 from nautobot_ssot.integrations.device42.utils import nautobot
 
 logger = logging.getLogger(__name__)
 
 try:
-    from nautobot_device_lifecycle_mgmt.models import SoftwareLCM  # noqa: F401 # pylint: disable=unused-import
+    from nautobot_device_lifecycle_mgmt.models import (
+        SoftwareLCM,
+    )
 
     LIFECYCLE_MGMT = True
 except ImportError:
@@ -273,7 +287,14 @@ class NautobotAdapter(Adapter):
     def load_devices(self):
         """Add Nautobot Device objects as DiffSync Device models."""
         for dev in Device.objects.select_related(
-            "status", "device_type", "role", "location", "rack", "platform", "vc_master_for", "virtual_chassis"
+            "status",
+            "device_type",
+            "role",
+            "location",
+            "rack",
+            "platform",
+            "vc_master_for",
+            "virtual_chassis",
         ).all():
             self.device_map[dev.name] = dev.id
             # As patch panels are added as Devices, we need to filter them out for their own load method.
@@ -511,10 +532,14 @@ class NautobotAdapter(Adapter):
                 dst_port_mac=None,
             )
             new_conn = self.add_src_connection(
-                cable_term_type=_cable.termination_a_type, cable_term_id=_cable.termination_a_id, connection=new_conn
+                cable_term_type=_cable.termination_a_type,
+                cable_term_id=_cable.termination_a_id,
+                connection=new_conn,
             )
             new_conn = self.add_dst_connection(
-                cable_term_type=_cable.termination_b_type, cable_term_id=_cable.termination_b_id, connection=new_conn
+                cable_term_type=_cable.termination_b_type,
+                cable_term_id=_cable.termination_b_id,
+                connection=new_conn,
             )
             self.add(new_conn)
             # # Now to ensure that diff matches, add a connection from reverse side.

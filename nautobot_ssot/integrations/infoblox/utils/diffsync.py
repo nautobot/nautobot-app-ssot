@@ -85,7 +85,11 @@ def build_vlan_map(vlans: list):
     """
     vlan_map = {}
     for vlan in vlans:
-        vlan_map[vlan["id"]] = {"vid": vlan["id"], "name": vlan["name"], "group": get_vlan_view_name(vlan["vlan"])}
+        vlan_map[vlan["id"]] = {
+            "vid": vlan["id"],
+            "name": vlan["name"],
+            "group": get_vlan_view_name(vlan["vlan"]),
+        }
     return vlan_map
 
 

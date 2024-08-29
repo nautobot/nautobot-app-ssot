@@ -1,10 +1,8 @@
 """Signals triggered when Nautobot starts to perform certain actions."""
 
 from django.conf import settings
-
 from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices
-
 
 try:
     import nautobot_device_lifecycle_mgmt  # noqa: F401 # pylint: disable=unused-import

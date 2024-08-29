@@ -86,12 +86,24 @@ class TestElongateInterfaceNames(TestCase):
 
     def test_pass_arg_devices_single(self):
         out = StringIO()
-        call_command("elongate_interface_names", "--no-color", "--skip-checks", devices="ssot_test_1", stdout=out)
+        call_command(
+            "elongate_interface_names",
+            "--no-color",
+            "--skip-checks",
+            devices="ssot_test_1",
+            stdout=out,
+        )
         self.assertEqual(out.getvalue().strip(), "Updating ssot_test_1.ge2 >> GigabitEthernet2")
 
     def test_pass_arg_devices_single_multiple_interfaces(self):
         out = StringIO()
-        call_command("elongate_interface_names", "--no-color", "--skip-checks", devices="ssot_test_4", stdout=out)
+        call_command(
+            "elongate_interface_names",
+            "--no-color",
+            "--skip-checks",
+            devices="ssot_test_4",
+            stdout=out,
+        )
         self.assertEqual(
             out.getvalue().strip(),
             "Updating ssot_test_4.ge1 >> GigabitEthernet1\nUpdating ssot_test_4.ge2 >> GigabitEthernet2",
@@ -100,7 +112,11 @@ class TestElongateInterfaceNames(TestCase):
     def test_pass_arg_devices_multiple(self):
         out = StringIO()
         call_command(
-            "elongate_interface_names", "--no-color", "--skip-checks", devices="ssot_test_1, ssot_test_2", stdout=out
+            "elongate_interface_names",
+            "--no-color",
+            "--skip-checks",
+            devices="ssot_test_1, ssot_test_2",
+            stdout=out,
         )
         self.assertEqual(
             out.getvalue().strip(),
@@ -109,7 +125,13 @@ class TestElongateInterfaceNames(TestCase):
 
     def test_pass_arg_locations_single(self):
         out = StringIO()
-        call_command("elongate_interface_names", "--no-color", "--skip-checks", locations="ssot_test_1", stdout=out)
+        call_command(
+            "elongate_interface_names",
+            "--no-color",
+            "--skip-checks",
+            locations="ssot_test_1",
+            stdout=out,
+        )
         self.assertEqual(
             out.getvalue().strip(),
             "Updating ssot_test_1.ge2 >> GigabitEthernet2\nUpdating ssot_test_2.ge2 >> GigabitEthernet2",
@@ -118,7 +140,11 @@ class TestElongateInterfaceNames(TestCase):
     def test_pass_arg_locations_multiple(self):
         out = StringIO()
         call_command(
-            "elongate_interface_names", "--no-color", "--skip-checks", locations="ssot_test_1, ssot_test_2", stdout=out
+            "elongate_interface_names",
+            "--no-color",
+            "--skip-checks",
+            locations="ssot_test_1, ssot_test_2",
+            stdout=out,
         )
         self.assertEqual(
             out.getvalue().strip(),
@@ -158,7 +184,11 @@ class TestElongateInterfaceNames(TestCase):
     def test_pass_cf_sor_arg_single(self):
         out = StringIO()
         call_command(
-            "elongate_interface_names", "--no-color", "--skip-checks", cf_systems_of_record="ipfabric", stdout=out
+            "elongate_interface_names",
+            "--no-color",
+            "--skip-checks",
+            cf_systems_of_record="ipfabric",
+            stdout=out,
         )
         self.assertEqual(out.getvalue().strip(), "Updating ssot_test_1.ge2 >> GigabitEthernet2")
 

@@ -3,7 +3,9 @@
 from nautobot.core.testing import TransactionTestCase
 from nautobot.extras.models import JobResult
 
-from nautobot_ssot.integrations.servicenow.diffsync.adapter_servicenow import ServiceNowDiffSync
+from nautobot_ssot.integrations.servicenow.diffsync.adapter_servicenow import (
+    ServiceNowDiffSync,
+)
 from nautobot_ssot.integrations.servicenow.jobs import ServiceNowDataTarget
 
 

@@ -39,7 +39,15 @@ class DnaCenterAdapter(Adapter):
 
     top_level = ["area", "building", "device", "prefix", "ipaddress", "ip_on_intf"]
 
-    def __init__(self, *args, job=None, sync=None, client: DnaCenterClient, tenant: Tenant, **kwargs):
+    def __init__(
+        self,
+        *args,
+        job=None,
+        sync=None,
+        client: DnaCenterClient,
+        tenant: Tenant,
+        **kwargs,
+    ):
         """Initialize DNA Center.
 
         Args:
@@ -78,7 +86,7 @@ class DnaCenterAdapter(Adapter):
                 ids={"name": self.job.dnac.location.name},
                 attrs={
                     "address": self.job.dnac.location.physical_address,
-                    "area": self.job.dnac.location.parent.name if self.job.dnac.location.parent else None,
+                    "area": (self.job.dnac.location.parent.name if self.job.dnac.location.parent else None),
                     "area_parent": (
                         self.job.dnac.location.parent.parent.name
                         if self.job.dnac.location.parent and self.job.dnac.location.parent.parent
@@ -86,7 +94,7 @@ class DnaCenterAdapter(Adapter):
                     ),
                     "latitude": str(self.job.dnac.location.latitude),
                     "longitude": str(self.job.dnac.location.longitude),
-                    "tenant": self.job.dnac.location.tenant.name if self.job.dnac.location.tenant else None,
+                    "tenant": (self.job.dnac.location.tenant.name if self.job.dnac.location.tenant else None),
                     "uuid": None,
                 },
             )
@@ -225,7 +233,10 @@ class DnaCenterAdapter(Adapter):
         """
         areas, buildings, floors = [], [], []
         for location in locations:
-            self.dnac_location_map[location["id"]] = {"name": location["name"], "loc_type": "area"}
+            self.dnac_location_map[location["id"]] = {
+                "name": location["name"],
+                "loc_type": "area",
+            }
         for location in locations:
             for info in location["additionalInfo"]:
                 if info["attributes"].get("type") == "building":
@@ -260,7 +271,11 @@ class DnaCenterAdapter(Adapter):
             if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
                 if loc["name"] == "Global":
                     continue
-            location_map[loc["id"]] = {"name": loc["name"], "parent": None, "loc_type": "area"}
+            location_map[loc["id"]] = {
+                "name": loc["name"],
+                "parent": None,
+                "loc_type": "area",
+            }
         return location_map
 
     def load_devices(self):
@@ -279,7 +294,8 @@ class DnaCenterAdapter(Adapter):
                 continue
             if PLUGIN_CFG.get("dna_center_hostname_mapping"):
                 dev_role = self.conn.parse_hostname_for_role(
-                    hostname_map=PLUGIN_CFG["dna_center_hostname_mapping"], device_hostname=dev["hostname"]
+                    hostname_map=PLUGIN_CFG["dna_center_hostname_mapping"],
+                    device_hostname=dev["hostname"],
                 )
             if dev_role == "Unknown":
                 dev_role = dev["role"]
@@ -298,7 +314,8 @@ class DnaCenterAdapter(Adapter):
             loc_data = {}
             if dev_details and dev_details.get("siteHierarchyGraphId"):
                 loc_data = self.conn.parse_site_hierarchy(
-                    location_map=self.dnac_location_map, site_hier=dev_details["siteHierarchyGraphId"]
+                    location_map=self.dnac_location_map,
+                    site_hier=dev_details["siteHierarchyGraphId"],
                 )
             if (
                 (dev_details and not dev_details.get("siteHierarchyGraphId"))
@@ -333,12 +350,12 @@ class DnaCenterAdapter(Adapter):
             except ObjectNotFound:
                 new_dev = self.device(
                     name=dev["hostname"],
-                    status="Active" if dev.get("reachabilityStatus") != "Unreachable" else "Offline",
+                    status=("Active" if dev.get("reachabilityStatus") != "Unreachable" else "Offline"),
                     role=dev_role,
                     vendor=vendor,
-                    model=self.conn.get_model_name(models=dev["platformId"]) if dev.get("platformId") else "Unknown",
+                    model=(self.conn.get_model_name(models=dev["platformId"]) if dev.get("platformId") else "Unknown"),
                     site=loc_data["building"],
-                    floor=f"{loc_data['building']} - {loc_data['floor']}" if loc_data.get("floor") else None,
+                    floor=(f"{loc_data['building']} - {loc_data['floor']}" if loc_data.get("floor") else None),
                     serial=dev["serialNumber"] if dev.get("serialNumber") else "",
                     version=dev.get("softwareVersion"),
                     platform=platform,
@@ -348,7 +365,11 @@ class DnaCenterAdapter(Adapter):
                 )
                 try:
                     self.add(new_dev)
-                    self.load_ports(device_id=dev["id"], dev=new_dev, mgmt_addr=dev["managementIpAddress"])
+                    self.load_ports(
+                        device_id=dev["id"],
+                        dev=new_dev,
+                        mgmt_addr=dev["managementIpAddress"],
+                    )
                 except ValidationError as err:
                     self.job.logger.warning(f"Unable to load device {dev['hostname']}. {err}")
                     dev["field_validation"] = {
@@ -374,7 +395,7 @@ class DnaCenterAdapter(Adapter):
                     {
                         "name": port["portName"],
                         "device": dev.name,
-                        "mac_addr": port["macAddress"].upper() if port.get("macAddress") else None,
+                        "mac_addr": (port["macAddress"].upper() if port.get("macAddress") else None),
                     },
                 )
                 if found_port:
@@ -394,7 +415,7 @@ class DnaCenterAdapter(Adapter):
                     enabled=True if port["adminStatus"] == "UP" else False,
                     port_type=port_type,
                     port_mode="tagged" if port["portMode"] == "trunk" else "access",
-                    mac_addr=port["macAddress"].upper() if port.get("macAddress") else None,
+                    mac_addr=(port["macAddress"].upper() if port.get("macAddress") else None),
                     mtu=port["mtu"] if port.get("mtu") else 1500,
                     status=port_status,
                     uuid=None,
@@ -476,7 +497,10 @@ class DnaCenterAdapter(Adapter):
             primary (str): Whether the IP is primary IP for assigned device. Defaults to False.
         """
         try:
-            self.get(self.ip_on_intf, {"host": host, "prefix": prefix, "device": device, "port": port})
+            self.get(
+                self.ip_on_intf,
+                {"host": host, "prefix": prefix, "device": device, "port": port},
+            )
         except ObjectNotFound:
             new_ipaddr_to_interface = self.ip_on_intf(host=host, device=device, port=port, primary=primary, uuid=None)
             self.add(new_ipaddr_to_interface)

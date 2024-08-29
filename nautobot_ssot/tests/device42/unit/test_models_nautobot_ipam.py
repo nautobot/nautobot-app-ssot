@@ -6,9 +6,24 @@ from diffsync import Adapter
 from django.contrib.contenttypes.models import ContentType
 from django.forms import ValidationError
 from nautobot.core.testing import TransactionTestCase
-from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer, Platform
+from nautobot.dcim.models import (
+    Device,
+    DeviceType,
+    Interface,
+    Location,
+    LocationType,
+    Manufacturer,
+    Platform,
+)
 from nautobot.extras.models import Role, Status
-from nautobot.ipam.models import VLAN, VRF, IPAddress, IPAddressToInterface, Namespace, Prefix
+from nautobot.ipam.models import (
+    VLAN,
+    VRF,
+    IPAddress,
+    IPAddressToInterface,
+    Namespace,
+    Prefix,
+)
 
 from nautobot_ssot.integrations.device42.diffsync.models.nautobot import ipam
 
@@ -29,7 +44,11 @@ class TestNautobotVRFGroup(TransactionTestCase):
         """Validate the NautobotVRFGroup create() method creates a VRF."""
         self.vrf.delete()
         ids = {"name": "Test"}
-        attrs = {"description": "Test VRF", "tags": ["est"], "custom_fields": {"Dept": {"key": "Dept", "value": "IT"}}}
+        attrs = {
+            "description": "Test VRF",
+            "tags": ["est"],
+            "custom_fields": {"Dept": {"key": "Dept", "value": "IT"}},
+        }
         result = ipam.NautobotVRFGroup.create(self.adapter, ids, attrs)
         self.assertIsInstance(result, ipam.NautobotVRFGroup)
         self.adapter.job.logger.info.assert_called_once_with("Creating VRF Test.")
@@ -45,7 +64,11 @@ class TestNautobotVRFGroup(TransactionTestCase):
     def test_update(self):
         """Validate the NautobotVRFGroup update() updates a VRF."""
         test_vrf = ipam.NautobotVRFGroup(
-            name="Test", description="Test VRF", tags=[], custom_fields={}, uuid=self.vrf.id
+            name="Test",
+            description="Test VRF",
+            tags=[],
+            custom_fields={},
+            uuid=self.vrf.id,
         )
         test_vrf.adapter = self.adapter
         update_attrs = {
@@ -83,7 +106,11 @@ class TestNautobotVRFGroup(TransactionTestCase):
     def test_delete(self, mock_vrf):
         """Validate the NautobotVRFGroup delete() deletes a VRF."""
         vrf_group = ipam.NautobotVRFGroup(
-            name="Test", description=None, tags=None, custom_fields=None, uuid=self.vrf.id
+            name="Test",
+            description=None,
+            tags=None,
+            custom_fields=None,
+            uuid=self.vrf.id,
         )
         vrf_group.adapter = self.adapter
         mock_vrf.return_value = self.vrf
@@ -117,13 +144,20 @@ class TestNautobotSubnet(TransactionTestCase):
         """Validate the NautobotSubnet create() method creates a Prefix."""
         self.prefix.delete()
         ids = {"network": "10.0.0.0", "mask_bits": 24, "vrf": "Test"}
-        attrs = {"description": "", "tags": ["Test"], "custom_fields": {"Test": {"key": "Test", "value": "test"}}}
+        attrs = {
+            "description": "",
+            "tags": ["Test"],
+            "custom_fields": {"Test": {"key": "Test", "value": "test"}},
+        }
         result = ipam.NautobotSubnet.create(self.adapter, ids, attrs)
         self.assertIsInstance(result, ipam.NautobotSubnet)
         self.adapter.job.logger.info.assert_called_once_with("Creating Prefix 10.0.0.0/24 in VRF Test.")
         subnet = Prefix.objects.get(prefix=f"{ids['network']}/{ids['mask_bits']}", namespace=self.test_ns)
         self.assertEqual(str(subnet.prefix), f"{ids['network']}/{ids['mask_bits']}")
-        self.assertEqual(self.adapter.prefix_map["Test"][f"{ids['network']}/{ids['mask_bits']}"], subnet.id)
+        self.assertEqual(
+            self.adapter.prefix_map["Test"][f"{ids['network']}/{ids['mask_bits']}"],
+            subnet.id,
+        )
         self.assertEqual(subnet.vrfs.all().first(), self.test_vrf)
         self.assertEqual(list(subnet.tags.names()), attrs["tags"])
         self.assertEqual(subnet.custom_field_data["Test"], "test")
@@ -226,13 +260,25 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
             status=self.status_active,
         )
         self.dev_eth0 = Interface.objects.create(
-            name="eth0", type="virtual", device=self.test_dev, status=self.status_active, mgmt_only=True
+            name="eth0",
+            type="virtual",
+            device=self.test_dev,
+            status=self.status_active,
+            mgmt_only=True,
         )
         self.dev2_eth0 = Interface.objects.create(
-            name="eth0", type="virtual", device=self.test_dev2, status=self.status_active, mgmt_only=True
+            name="eth0",
+            type="virtual",
+            device=self.test_dev2,
+            status=self.status_active,
+            mgmt_only=True,
         )
         self.dev2_mgmt = Interface.objects.create(
-            name="mgmt0", type="virtual", device=self.test_dev2, status=self.status_active, mgmt_only=True
+            name="mgmt0",
+            type="virtual",
+            device=self.test_dev2,
+            status=self.status_active,
+            mgmt_only=True,
         )
         self.test_ns = Namespace.objects.get_or_create(name="Test")[0]
         self.prefix = Prefix.objects.create(
@@ -256,7 +302,10 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         self.adapter = Adapter()
         self.adapter.objects_to_create = {"ports": []}
         self.adapter.namespace_map = {"Test": self.test_ns.id}
-        self.adapter.status_map = {"Active": self.status_active.id, "Reserved": status_reserved.id}
+        self.adapter.status_map = {
+            "Active": self.status_active.id,
+            "Reserved": status_reserved.id,
+        }
         self.adapter.prefix_map = {"10.0.0.0/24": self.prefix.id}
         self.adapter.device_map = {"Test Device": self.test_dev.id}
         self.adapter.port_map = {

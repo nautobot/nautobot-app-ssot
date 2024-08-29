@@ -1,33 +1,33 @@
 """Nautobot Ssot Bootstrap DiffSync models for Nautobot Ssot Bootstrap SSoT."""
 
 from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
-    Secret,
-    SecretsGroup,
-    GitRepository,
-    DynamicGroup,
-    ComputedField,
-    Tag,
-    GraphQLQuery,
-    TenantGroup,
-    Tenant,
-    Role,
-    Team,
-    Contact,
-    Manufacturer,
-    Platform,
-    Location,
-    LocationType,
-    Provider,
-    ProviderNetwork,
-    CircuitType,
-    Circuit,
-    CircuitTermination,
-    Namespace,
-    RiR,
-    VLANGroup,
     VLAN,
     VRF,
+    Circuit,
+    CircuitTermination,
+    CircuitType,
+    ComputedField,
+    Contact,
+    DynamicGroup,
+    GitRepository,
+    GraphQLQuery,
+    Location,
+    LocationType,
+    Manufacturer,
+    Namespace,
+    Platform,
     Prefix,
+    Provider,
+    ProviderNetwork,
+    RiR,
+    Role,
+    Secret,
+    SecretsGroup,
+    Tag,
+    Team,
+    Tenant,
+    TenantGroup,
+    VLANGroup,
 )
 
 try:
@@ -42,7 +42,7 @@ if LIFECYCLE_MGMT:
         Software,
         SoftwareImage,
         ValidatedSoftware,
-    )  # noqa: F401
+    )
 
 
 class BootstrapTenantGroup(TenantGroup):

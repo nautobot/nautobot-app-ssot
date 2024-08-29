@@ -17,7 +17,10 @@ from nautobot_ssot.integrations.infoblox.diffsync.models.base import (
     Vlan,
     VlanView,
 )
-from nautobot_ssot.integrations.infoblox.utils.diffsync import map_network_view_to_namespace, validate_dns_name
+from nautobot_ssot.integrations.infoblox.utils.diffsync import (
+    map_network_view_to_namespace,
+    validate_dns_name,
+)
 
 
 class InfobloxNetwork(Network):
@@ -32,11 +35,15 @@ class InfobloxNetwork(Network):
         try:
             if network_type != "container":
                 adapter.conn.create_network(
-                    prefix=network, comment=attrs.get("description", ""), network_view=network_view
+                    prefix=network,
+                    comment=attrs.get("description", ""),
+                    network_view=network_view,
                 )
             else:
                 adapter.conn.create_network_container(
-                    prefix=network, comment=attrs.get("description", ""), network_view=network_view
+                    prefix=network,
+                    comment=attrs.get("description", ""),
+                    network_view=network_view,
                 )
         except HTTPError as err:
             adapter.job.logger.warning(f"Failed to create {network}-{network_view} due to {err.response.text}")

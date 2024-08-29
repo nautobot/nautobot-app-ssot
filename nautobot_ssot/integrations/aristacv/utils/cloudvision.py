@@ -20,8 +20,11 @@ from cloudvision.Connector.codec import Wildcard
 from cloudvision.Connector.codec.custom_types import FrozenDict
 from cloudvision.Connector.grpc_client.grpcClient import create_query, to_pbts
 from cvprac.cvp_client import CvpClient, CvpLoginError
-from google.protobuf.wrappers_pb2 import StringValue  # pylint: disable=no-name-in-module
+from google.protobuf.wrappers_pb2 import (
+    StringValue,
+)
 
+# pylint: disable=no-name-in-module
 from nautobot_ssot.integrations.aristacv.constants import PORT_TYPE_MAP
 from nautobot_ssot.integrations.aristacv.types import CloudVisionAppConfig
 
@@ -59,7 +62,10 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
                 channel_creds = grpc.ssl_channel_credentials()
             else:
                 channel_creds = grpc.ssl_channel_credentials(
-                    bytes(ssl.get_server_certificate((parsed_url.hostname, parsed_url.port)), "utf-8")
+                    bytes(
+                        ssl.get_server_certificate((parsed_url.hostname, parsed_url.port)),
+                        "utf-8",
+                    )
                 )
             if token:
                 call_creds = grpc.access_token_call_credentials(token)
@@ -79,7 +85,8 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
                 call_creds = grpc.access_token_call_credentials(session_id)
             else:
                 raise AuthFailure(
-                    error_code="Missing Credentials", message="Unable to authenticate due to missing credentials."
+                    error_code="Missing Credentials",
+                    message="Unable to authenticate due to missing credentials.",
                 )
             self.metadata = ((self.AUTH_KEY_PATH, token),)
         else:
@@ -169,7 +176,11 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
             comp_pb = ntf.Notification.Update(key=self.encoder.encode(key), value=self.encoder.encode(value))
 
         req = rtr.PublishRequest(
-            batch=ntf.NotificationBatch(d="device", dataset=ntf.Dataset(type=dtype, name=dId), notifications=notifs),
+            batch=ntf.NotificationBatch(
+                d="device",
+                dataset=ntf.Dataset(type=dtype, name=dId),
+                notifications=notifs,
+            ),
             sync=sync,
             compare=comp_pb,
         )
@@ -235,7 +246,8 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
             end=end_ts,
             query=[
                 rtr.Query(
-                    dataset=ntf.Dataset(type=d_type, name=d_name), paths=[rtr.Path(path_elements=encoded_path_elements)]
+                    dataset=ntf.Dataset(type=d_type, name=d_name),
+                    paths=[rtr.Path(path_elements=encoded_path_elements)],
                 )
             ],
             result_size=result_size,
@@ -459,7 +471,17 @@ def get_interfaces_chassis(client: CloudvisionApi, dId):
 
     # Go through each linecard and get the state of all interfaces
     for lc in queryLC:
-        pathElts = ["Sysdb", "interface", "status", "eth", "phy", "slice", lc, "intfStatus", Wildcard()]
+        pathElts = [
+            "Sysdb",
+            "interface",
+            "status",
+            "eth",
+            "phy",
+            "slice",
+            lc,
+            "intfStatus",
+            Wildcard(),
+        ]
 
         query = [create_query([(pathElts, [])], dataset)]
 
@@ -490,7 +512,17 @@ def get_interfaces_fixed(client: CloudvisionApi, dId: str):
         client (CloudvisionApi): CloudVision connection.
         dId (str): Device ID to determine type for.
     """
-    pathElts = ["Sysdb", "interface", "status", "eth", "phy", "slice", "1", "intfStatus", Wildcard()]
+    pathElts = [
+        "Sysdb",
+        "interface",
+        "status",
+        "eth",
+        "phy",
+        "slice",
+        "1",
+        "intfStatus",
+        Wildcard(),
+    ]
     query = [create_query([(pathElts, [])], dId)]
     query = unfreeze_frozen_dict(query)
 
@@ -614,7 +646,17 @@ def get_interface_description(client: CloudvisionApi, dId: str, interface: str):
         dId (str): Device ID to get description for.
         interface (str): Name of interface to get description for.
     """
-    pathElts = ["Sysdb", "interface", "config", "eth", "phy", "slice", "1", "intfConfig", interface]
+    pathElts = [
+        "Sysdb",
+        "interface",
+        "config",
+        "eth",
+        "phy",
+        "slice",
+        "1",
+        "intfConfig",
+        interface,
+    ]
     query = [create_query([(pathElts, [])], dId)]
     query = unfreeze_frozen_dict(query)
 
@@ -697,7 +739,10 @@ def get_cvp_version(config: CloudVisionAppConfig):
                 is_cvaas=False,
             )
     except CvpLoginError as err:
-        raise AuthFailure(error_code="Failed Login", message=f"Unable to login to CloudVision Portal. {err}") from err
+        raise AuthFailure(
+            error_code="Failed Login",
+            message=f"Unable to login to CloudVision Portal. {err}",
+        ) from err
     version = client.api.get_cvp_info()
     if "version" in version:
         return version["version"]

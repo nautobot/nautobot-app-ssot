@@ -94,7 +94,10 @@ class DiffSyncExtras(DiffSyncModel):
                     logger.warning(f"Tagging {nautobot_object} with `SSoT Safe Delete`.")
                     update = True
             if update:
-                tonb_nbutils.tag_object(nautobot_object=nautobot_object, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+                tonb_nbutils.tag_object(
+                    nautobot_object=nautobot_object,
+                    custom_field=LAST_SYNCHRONIZED_CF_NAME,
+                )
             else:
                 logger.warning(f"{nautobot_object} has previously been tagged with `SSoT Safe Delete`. Skipping...")
 
@@ -329,7 +332,10 @@ class Device(DiffSyncExtras):
             else:
                 try:
                     # Validated save happens inside of tag_objet
-                    tonb_nbutils.tag_object(nautobot_object=new_device, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+                    tonb_nbutils.tag_object(
+                        nautobot_object=new_device,
+                        custom_field=LAST_SYNCHRONIZED_CF_NAME,
+                    )
                 except (DjangoBaseDBError, ValidationError) as error:
                     adapter.job.logger.error(
                         f"Unable to perform a validated_save() on Device {device_name} with an ID of {new_device.id}"
@@ -346,7 +352,12 @@ class Device(DiffSyncExtras):
                     vc_priority = attrs.get("vc_priority")
                     try:
                         cls._get_or_create_virtual_chassis(
-                            vc_name, new_device, adapter.job.logger, vc_master, vc_position, vc_priority
+                            vc_name,
+                            new_device,
+                            adapter.job.logger,
+                            vc_master,
+                            vc_position,
+                            vc_priority,
                         )
                     except (DjangoBaseDBError, ValidationError):
                         adapter.job.logger.error(
@@ -481,7 +492,12 @@ class Device(DiffSyncExtras):
                     vc_name = self.vc_name
                 try:
                     self._get_or_create_virtual_chassis(
-                        vc_name, _device, self.adapter.job.logger, vc_master, vc_position, vc_priority
+                        vc_name,
+                        _device,
+                        self.adapter.job.logger,
+                        vc_master,
+                        vc_position,
+                        vc_priority,
                     )
                 except (DjangoBaseDBError, ValidationError):
                     self.adapter.job.logger.error(f"Unable to update VirtualChassis {vc_name} for Device {self.name}")
@@ -779,7 +795,10 @@ class Interface(DiffSyncExtras):
                         )
                         return_super = False
                 try:
-                    tonb_nbutils.tag_object(nautobot_object=interface, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+                    tonb_nbutils.tag_object(
+                        nautobot_object=interface,
+                        custom_field=LAST_SYNCHRONIZED_CF_NAME,
+                    )
                 except (DjangoBaseDBError, ValidationError):
                     self.adapter.job.logger.error(
                         f"Unable to perform validated_save() on Interface named {self.name} "

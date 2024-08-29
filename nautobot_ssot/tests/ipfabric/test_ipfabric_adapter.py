@@ -6,7 +6,9 @@ from unittest.mock import MagicMock, patch
 
 from nautobot.extras.models import JobResult
 
-from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabricDiffSync
+from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import (
+    IPFabricDiffSync,
+)
 from nautobot_ssot.integrations.ipfabric.jobs import IpFabricDataSource
 
 
@@ -20,14 +22,20 @@ SITE_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_sites.json
 DEVICE_INVENTORY_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_device_inventory.json")
 VLAN_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_vlans.json")
 INTERFACE_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_interface_inventory.json")
-NETWORKS_FIXTURE = [{"net": "10.255.254.0/23", "siteName": "site1"}, {"net": "172.18.0.0/24", "siteName": "site2"}]
+NETWORKS_FIXTURE = [
+    {"net": "10.255.254.0/23", "siteName": "site1"},
+    {"net": "172.18.0.0/24", "siteName": "site2"},
+]
 STACKS_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_stack_members.json")
 
 
 class IPFabricDiffSyncTestCase(TestCase):
     """Test the IPFabricDiffSync adapter class."""
 
-    @patch("nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME", True)
+    @patch(
+        "nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME",
+        True,
+    )
     def setUp(self):
         # Create a mock client
         ipfabric_client = MagicMock()
@@ -65,7 +73,11 @@ class IPFabricDiffSyncTestCase(TestCase):
         # Assert each site has a device tied to it.
         for site in self.ipfabric.get_all("location"):
             if site.name != "stack":
-                self.assertEqual(len(site.devices), 1, f"{site} does not have the expected single device tied to it.")
+                self.assertEqual(
+                    len(site.devices),
+                    1,
+                    f"{site} does not have the expected single device tied to it.",
+                )
                 self.assertTrue(hasattr(site, "vlans"))
 
         # Assert each device has the necessary attributes

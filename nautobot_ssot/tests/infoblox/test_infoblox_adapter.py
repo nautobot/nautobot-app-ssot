@@ -3,7 +3,9 @@
 import unittest
 
 from nautobot_ssot.integrations.infoblox.choices import FixedAddressTypeChoices
-from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import InfobloxAdapter
+from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import (
+    InfobloxAdapter,
+)
 
 from .fixtures_infoblox import create_default_infoblox_config
 
@@ -14,7 +16,8 @@ class TestInfobloxAdapter(unittest.TestCase):
     def setUp(self):
         self.config = create_default_infoblox_config()
         with unittest.mock.patch(
-            "nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi", autospec=True
+            "nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi",
+            autospec=True,
         ) as mock_client:
             self.infoblox_adapter = InfobloxAdapter(
                 job=unittest.mock.Mock(),
@@ -93,7 +96,10 @@ class TestInfobloxAdapter(unittest.TestCase):
         self.infoblox_adapter.conn.get_all_subnets.assert_has_calls([unittest.mock.call(network_view="default")])
         subnet_with_attrs = self.infoblox_adapter.get("prefix", "10.0.0.0/23__Global")
         self.assertEqual(subnet_with_attrs.ext_attrs, {"attr1": "data", "attr2": "value"})
-        self.assertEqual(subnet_with_attrs.vlans, {10: {"vid": 10, "name": "ten", "group": "group_a"}})
+        self.assertEqual(
+            subnet_with_attrs.vlans,
+            {10: {"vid": 10, "name": "ten", "group": "group_a"}},
+        )
         self.assertEqual(subnet_with_attrs.ranges, ["10.0.0.150-10.0.0.254", "10.0.1.150-10.0.1.254"])
         subnet_without_attrs = self.infoblox_adapter.get("prefix", "10.0.100.0/24__Global")
         self.assertEqual(subnet_without_attrs.ext_attrs, {"attr1": "data"})
@@ -138,7 +144,10 @@ class TestInfobloxAdapter(unittest.TestCase):
                 "status": "container",
             },
         ]
-        self.infoblox_adapter.conn.get_tree_from_container.side_effect = [ten_container, []]
+        self.infoblox_adapter.conn.get_tree_from_container.side_effect = [
+            ten_container,
+            [],
+        ]
         ten_network = [
             {
                 "_ref": "network/ZG5zLm5ldHdvcmskMTAuNTguMTI4LjAvMTgvMA:10.0.1.0/23/default",
@@ -164,7 +173,12 @@ class TestInfobloxAdapter(unittest.TestCase):
             },
         ]
         self.infoblox_adapter.conn.get_all_subnets.side_effect = [one_nine_two_network]
-        sync_filters = [{"network_view": "default", "prefixes_ipv4": ["10.0.0.0/8", "192.168.0.0/16"]}]
+        sync_filters = [
+            {
+                "network_view": "default",
+                "prefixes_ipv4": ["10.0.0.0/8", "192.168.0.0/16"],
+            }
+        ]
         self.infoblox_adapter.load_prefixes(include_ipv4=True, include_ipv6=False, sync_filters=sync_filters)
         self.infoblox_adapter.conn.get_tree_from_container.assert_has_calls(
             [
@@ -329,10 +343,16 @@ class TestInfobloxAdapter(unittest.TestCase):
         mock_build_vlan_map.assert_called_once()
         self.assertEqual(len(self.infoblox_adapter.get_all("prefix")), 6)
         self.infoblox_adapter.conn.get_network_containers.assert_has_calls(
-            [unittest.mock.call(network_view="default"), unittest.mock.call(network_view="default", ipv6=True)]
+            [
+                unittest.mock.call(network_view="default"),
+                unittest.mock.call(network_view="default", ipv6=True),
+            ]
         )
         self.infoblox_adapter.conn.get_all_subnets.assert_has_calls(
-            [unittest.mock.call(network_view="default"), unittest.mock.call(network_view="default", ipv6=True)]
+            [
+                unittest.mock.call(network_view="default"),
+                unittest.mock.call(network_view="default", ipv6=True),
+            ]
         )
         ipv6_subnet = self.infoblox_adapter.get("prefix", "2001:5b0:4100::/40__Global")
         self.assertEqual(ipv6_subnet.ext_attrs, {"attr1": "data"})
@@ -357,7 +377,8 @@ class TestInfobloxAdapter(unittest.TestCase):
         """Test loading IP Addresses with one fixed address only."""
         self.config.fixed_address_type = FixedAddressTypeChoices.RESERVED
         with unittest.mock.patch(
-            "nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi", autospec=True
+            "nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi",
+            autospec=True,
         ) as mock_client:
             infoblox_adapter = InfobloxAdapter(
                 job=unittest.mock.Mock(),
@@ -397,7 +418,12 @@ class TestInfobloxAdapter(unittest.TestCase):
         infoblox_adapter.load_ipaddresses()
         ip_address = infoblox_adapter.get(
             "ipaddress",
-            {"address": "10.0.0.2", "prefix": "10.0.0.0/24", "prefix_length": 24, "namespace": "dev"},
+            {
+                "address": "10.0.0.2",
+                "prefix": "10.0.0.0/24",
+                "prefix_length": 24,
+                "namespace": "dev",
+            },
         )
 
         self.assertEqual("10.0.0.2", ip_address.address)
@@ -434,7 +460,8 @@ class TestInfobloxAdapter(unittest.TestCase):
         """Test loading IP Addresses with one fixed address, one A record and one PTR record."""
         self.config.fixed_address_type = FixedAddressTypeChoices.RESERVED
         with unittest.mock.patch(
-            "nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi", autospec=True
+            "nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi",
+            autospec=True,
         ) as mock_client:
             infoblox_adapter = InfobloxAdapter(
                 job=unittest.mock.Mock(),
@@ -492,7 +519,12 @@ class TestInfobloxAdapter(unittest.TestCase):
         infoblox_adapter.load_ipaddresses()
         ip_address = infoblox_adapter.get(
             "ipaddress",
-            {"address": "10.0.0.4", "prefix": "10.0.0.0/24", "prefix_length": 24, "namespace": "dev"},
+            {
+                "address": "10.0.0.4",
+                "prefix": "10.0.0.0/24",
+                "prefix_length": 24,
+                "namespace": "dev",
+            },
         )
         self.assertEqual("10.0.0.4", ip_address.address)
         self.assertEqual("10.0.0.0/24", ip_address.prefix)
@@ -507,7 +539,8 @@ class TestInfobloxAdapter(unittest.TestCase):
         self.assertEqual("fa server", ip_address.fixed_address_comment)
         self.assertEqual("RESERVED", ip_address.fixed_address_type)
         self.assertEqual(
-            "fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMC4wLjIuMi4u:10.0.0.4/dev", ip_address.fixed_address_ref
+            "fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMC4wLjIuMi4u:10.0.0.4/dev",
+            ip_address.fixed_address_ref,
         )
         self.assertEqual(True, ip_address.has_a_record)
         self.assertEqual(True, ip_address.has_ptr_record)
@@ -515,7 +548,12 @@ class TestInfobloxAdapter(unittest.TestCase):
 
         a_record = infoblox_adapter.get(
             "dnsarecord",
-            {"address": "10.0.0.4", "prefix": "10.0.0.0/24", "prefix_length": 24, "namespace": "dev"},
+            {
+                "address": "10.0.0.4",
+                "prefix": "10.0.0.0/24",
+                "prefix_length": 24,
+                "namespace": "dev",
+            },
         )
         self.assertEqual("10.0.0.4", a_record.address)
         self.assertEqual("10.0.0.0/24", a_record.prefix)
@@ -533,7 +571,12 @@ class TestInfobloxAdapter(unittest.TestCase):
 
         ptr_record = infoblox_adapter.get(
             "dnsptrrecord",
-            {"address": "10.0.0.4", "prefix": "10.0.0.0/24", "prefix_length": 24, "namespace": "dev"},
+            {
+                "address": "10.0.0.4",
+                "prefix": "10.0.0.0/24",
+                "prefix_length": 24,
+                "namespace": "dev",
+            },
         )
         self.assertEqual("10.0.0.4", ptr_record.address)
         self.assertEqual("10.0.0.0/24", ptr_record.prefix)
@@ -570,7 +613,8 @@ class TestInfobloxAdapter(unittest.TestCase):
         """Test loading IP Addresses with one fixed address and one Host record."""
         self.config.fixed_address_type = FixedAddressTypeChoices.RESERVED
         with unittest.mock.patch(
-            "nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi", autospec=True
+            "nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi",
+            autospec=True,
         ) as mock_client:
             infoblox_adapter = InfobloxAdapter(
                 job=unittest.mock.Mock(),
@@ -630,7 +674,12 @@ class TestInfobloxAdapter(unittest.TestCase):
         infoblox_adapter.load_ipaddresses()
         ip_address = infoblox_adapter.get(
             "ipaddress",
-            {"address": "10.0.0.4", "prefix": "10.0.0.0/24", "prefix_length": 24, "namespace": "dev"},
+            {
+                "address": "10.0.0.4",
+                "prefix": "10.0.0.0/24",
+                "prefix_length": 24,
+                "namespace": "dev",
+            },
         )
         self.assertEqual("10.0.0.4", ip_address.address)
         self.assertEqual("10.0.0.0/24", ip_address.prefix)
@@ -645,7 +694,8 @@ class TestInfobloxAdapter(unittest.TestCase):
         self.assertEqual("fa server", ip_address.fixed_address_comment)
         self.assertEqual("RESERVED", ip_address.fixed_address_type)
         self.assertEqual(
-            "fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMC4wLjQuMi4u:10.0.0.4/dev", ip_address.fixed_address_ref
+            "fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMC4wLjQuMi4u:10.0.0.4/dev",
+            ip_address.fixed_address_ref,
         )
         self.assertEqual(False, ip_address.has_a_record)
         self.assertEqual(False, ip_address.has_ptr_record)
@@ -653,7 +703,12 @@ class TestInfobloxAdapter(unittest.TestCase):
 
         host_record = infoblox_adapter.get(
             "dnshostrecord",
-            {"address": "10.0.0.4", "prefix": "10.0.0.0/24", "prefix_length": 24, "namespace": "dev"},
+            {
+                "address": "10.0.0.4",
+                "prefix": "10.0.0.0/24",
+                "prefix_length": 24,
+                "namespace": "dev",
+            },
         )
         self.assertEqual("10.0.0.4", host_record.address)
         self.assertEqual("10.0.0.0/24", host_record.prefix)

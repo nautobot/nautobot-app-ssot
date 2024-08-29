@@ -95,7 +95,11 @@ class NautobotAdapterGenericRelationTests(TestCaseWithDeviceData):
             "termination_b__device__name": "sw02",
         }
         for key, value in expected.items():
-            self.assertEqual(getattr(diffsync_cable, key), value, "Generic foreign key wasn't loaded correctly.")
+            self.assertEqual(
+                getattr(diffsync_cable, key),
+                value,
+                "Generic foreign key wasn't loaded correctly.",
+            )
 
     @skip("See docstring")
     def test_load_generic_relationship_backwards(self):
@@ -332,7 +336,9 @@ class TestNestedRelationships(TestCase):
         location_type = dcim_models.LocationType.objects.create(name="Building")
         location_type.content_types.add(ContentType.objects.get_for_model(ipam_models.VLAN))
         location = dcim_models.Location.objects.create(
-            name="Example Building", location_type=location_type, status=extras_models.Status.objects.get(name="Active")
+            name="Example Building",
+            location_type=location_type,
+            status=extras_models.Status.objects.get(name="Active"),
         )
         group = ipam_models.VLANGroup.objects.create(name="Test VLAN Group")
         amount_of_vlans = 5

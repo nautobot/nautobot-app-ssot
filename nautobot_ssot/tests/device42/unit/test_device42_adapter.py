@@ -309,8 +309,14 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         expected = ""
         self.assertEqual(get_site_from_mapping(device_name="dfw.test.com"), expected)
 
-    @patch("nautobot_ssot.integrations.device42.diffsync.adapters.device42.is_fqdn_resolvable", return_value=True)
-    @patch("nautobot_ssot.integrations.device42.diffsync.adapters.device42.fqdn_to_ip", return_value="192.168.0.1")
+    @patch(
+        "nautobot_ssot.integrations.device42.diffsync.adapters.device42.is_fqdn_resolvable",
+        return_value=True,
+    )
+    @patch(
+        "nautobot_ssot.integrations.device42.diffsync.adapters.device42.fqdn_to_ip",
+        return_value="192.168.0.1",
+    )
     def test_get_dns_a_record_success(self, mock_fqdn_to_ip, mock_is_fqdn_resolvable):
         """Test the get_dns_a_record method success."""
         result = get_dns_a_record("example.com")
@@ -318,7 +324,10 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         mock_fqdn_to_ip.assert_called_once_with("example.com")
         self.assertEqual(result, "192.168.0.1")
 
-    @patch("nautobot_ssot.integrations.device42.diffsync.adapters.device42.is_fqdn_resolvable", return_value=False)
+    @patch(
+        "nautobot_ssot.integrations.device42.diffsync.adapters.device42.is_fqdn_resolvable",
+        return_value=False,
+    )
     @patch("nautobot_ssot.integrations.device42.diffsync.adapters.device42.fqdn_to_ip")
     def test_get_dns_a_record_failure(self, mock_fqdn_to_ip, mock_is_fqdn_resolvable):
         """Test the get_dns_a_record method failure."""
@@ -363,7 +372,12 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
     @patch("nautobot_ssot.integrations.device42.diffsync.adapters.device42.Device42Adapter.add_management_interface")
     @patch("nautobot_ssot.integrations.device42.diffsync.adapters.device42.Device42Adapter.add_ipaddr")
     def test_set_primary_from_dns_with_valid_fqdn(  # pylint: disable=too-many-arguments
-        self, mock_add_ipaddr, mock_add_mgmt_intf, mock_get_mgmt_intf, mock_find_ipaddr, mock_dns_a_record
+        self,
+        mock_add_ipaddr,
+        mock_add_mgmt_intf,
+        mock_get_mgmt_intf,
+        mock_find_ipaddr,
+        mock_dns_a_record,
     ):
         """Method to test the set_primary_from_dns functionality with valid FQDN."""
         mock_dns_a_record.return_value = "10.0.0.1"
@@ -382,7 +396,10 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         mock_get_mgmt_intf.assert_called_once_with(dev_name=dev_name)
         mock_add_mgmt_intf.assert_not_called()
         mock_add_ipaddr.assert_called_once_with(
-            address="10.0.0.1/32", dev_name=dev_name, interface="eth0", namespace="Global"
+            address="10.0.0.1/32",
+            dev_name=dev_name,
+            interface="eth0",
+            namespace="Global",
         )
         self.assertEqual(mock_ip.device, "router.test-example.com")
         self.assertEqual(mock_ip.interface, "eth0")
@@ -394,7 +411,12 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
     @patch("nautobot_ssot.integrations.device42.diffsync.adapters.device42.Device42Adapter.add_management_interface")
     @patch("nautobot_ssot.integrations.device42.diffsync.adapters.device42.Device42Adapter.add_ipaddr")
     def test_set_primary_from_dns_with_invalid_fqdn(  # pylint: disable=too-many-arguments
-        self, mock_add_ipaddr, mock_add_mgmt_intf, mock_get_mgmt_intf, mock_find_ipaddr, mock_dns_a_record
+        self,
+        mock_add_ipaddr,
+        mock_add_mgmt_intf,
+        mock_get_mgmt_intf,
+        mock_find_ipaddr,
+        mock_dns_a_record,
     ):
         """Method to test the set_primary_from_dns functionality with invalid FQDN."""
         mock_dns_a_record.return_value = ""

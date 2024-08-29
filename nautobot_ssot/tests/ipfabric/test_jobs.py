@@ -20,7 +20,10 @@ class IPFabricJobTest(TestCase):
         self.assertEqual("IPFabric ⟹ Nautobot", jobs.IpFabricDataSource.name)
         self.assertEqual("IPFabric ⟹ Nautobot", jobs.IpFabricDataSource.Meta.name)
         self.assertEqual("IP Fabric", jobs.IpFabricDataSource.Meta.data_source)
-        self.assertEqual("Sync data from IP Fabric into Nautobot.", jobs.IpFabricDataSource.Meta.description)
+        self.assertEqual(
+            "Sync data from IP Fabric into Nautobot.",
+            jobs.IpFabricDataSource.Meta.description,
+        )
 
     def test_data_mapping(self):
         """Verify correctness of the data_mappings() API."""

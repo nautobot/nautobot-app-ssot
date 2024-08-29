@@ -80,7 +80,8 @@ def metric_syncs():
 
     for status_type in [x[1].lower() for x in JobResultStatusChoices]:
         sync_gauge.add_metric(
-            labels=[f"{status_type}_syncs"], value=Sync.objects.filter(job_result__status=status_type).count()
+            labels=[f"{status_type}_syncs"],
+            value=Sync.objects.filter(job_result__status=status_type).count(),
         )
 
     yield sync_gauge
@@ -93,7 +94,9 @@ def metric_sync_operations():
         GuageMetricFamily: Prometheus Metrics
     """
     sync_ops = GaugeMetricFamily(
-        "nautobot_ssot_operation_total", "Nautobot SSoT operations by Job", labels=["job", "operation"]
+        "nautobot_ssot_operation_total",
+        "Nautobot SSoT operations by Job",
+        labels=["job", "operation"],
     )
 
     for job in Job.objects.all():
@@ -122,7 +125,9 @@ def metric_memory_usage():
         GaugeMetricFamily: Prometheus Metrics
     """
     memory_gauge = GaugeMetricFamily(
-        "nautobot_ssot_sync_memory_usage_bytes", "Nautobot SSoT Sync Memory Usage", labels=["phase", "job"]
+        "nautobot_ssot_sync_memory_usage_bytes",
+        "Nautobot SSoT Sync Memory Usage",
+        labels=["phase", "job"],
     )
 
     for job in Job.objects.all():

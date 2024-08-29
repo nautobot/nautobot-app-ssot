@@ -115,7 +115,13 @@ class NautobotAdapter(Adapter):
                 )
                 self.add(new_ns)
             try:
-                self.get(self.prefix, {"prefix": str(ipaddr.parent.prefix), "namespace": ipaddr.parent.namespace.name})
+                self.get(
+                    self.prefix,
+                    {
+                        "prefix": str(ipaddr.parent.prefix),
+                        "namespace": ipaddr.parent.namespace.name,
+                    },
+                )
             except ObjectNotFound:
                 new_pf = self.prefix(
                     prefix=str(ipaddr.parent.prefix),

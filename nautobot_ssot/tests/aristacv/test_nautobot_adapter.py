@@ -3,10 +3,18 @@
 from unittest.mock import MagicMock, patch
 
 from nautobot.core.testing import TransactionTestCase
-from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Manufacturer
+from nautobot.dcim.models import (
+    Device,
+    DeviceType,
+    Location,
+    LocationType,
+    Manufacturer,
+)
 from nautobot.extras.models import JobResult, Role, Status
 
-from nautobot_ssot.integrations.aristacv.diffsync.adapters.nautobot import NautobotAdapter
+from nautobot_ssot.integrations.aristacv.diffsync.adapters.nautobot import (
+    NautobotAdapter,
+)
 from nautobot_ssot.integrations.aristacv.jobs import CloudVisionDataSource
 
 
@@ -58,7 +66,8 @@ class NautobotAdapterTestCase(TransactionTestCase):
         mock_nautobot.get_device_version.return_value = "1.0"
 
         with patch(
-            "nautobot_ssot.integrations.aristacv.utils.nautobot.get_device_version", mock_nautobot.get_device_version
+            "nautobot_ssot.integrations.aristacv.utils.nautobot.get_device_version",
+            mock_nautobot.get_device_version,
         ):
             self.nb_adapter.load_devices()
         self.assertEqual(

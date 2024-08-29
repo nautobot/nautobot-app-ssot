@@ -3,45 +3,46 @@
 import datetime
 import json
 import os
+
 import yaml
-
-from django.conf import settings
-
 from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
-
+from django.conf import settings
 from nautobot.extras.datasources.git import ensure_git_repository
 from nautobot.extras.models import GitRepository
-from nautobot_ssot.integrations.bootstrap.utils import lookup_content_type, is_running_tests
 
 from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (
-    BootstrapSecret,
-    BootstrapSecretsGroup,
-    BootstrapGitRepository,
-    BootstrapDynamicGroup,
-    BootstrapComputedField,
-    BootstrapTag,
-    BootstrapGraphQLQuery,
-    BootstrapTenantGroup,
-    BootstrapTenant,
-    BootstrapRole,
-    BootstrapTeam,
-    BootstrapContact,
-    BootstrapManufacturer,
-    BootstrapPlatform,
-    BootstrapLocationType,
-    BootstrapLocation,
-    BootstrapProvider,
-    BootstrapProviderNetwork,
-    BootstrapCircuitType,
     BootstrapCircuit,
     BootstrapCircuitTermination,
+    BootstrapCircuitType,
+    BootstrapComputedField,
+    BootstrapContact,
+    BootstrapDynamicGroup,
+    BootstrapGitRepository,
+    BootstrapGraphQLQuery,
+    BootstrapLocation,
+    BootstrapLocationType,
+    BootstrapManufacturer,
     BootstrapNamespace,
-    BootstrapRiR,
-    BootstrapVLANGroup,
-    BootstrapVLAN,
-    BootstrapVRF,
+    BootstrapPlatform,
     BootstrapPrefix,
+    BootstrapProvider,
+    BootstrapProviderNetwork,
+    BootstrapRiR,
+    BootstrapRole,
+    BootstrapSecret,
+    BootstrapSecretsGroup,
+    BootstrapTag,
+    BootstrapTeam,
+    BootstrapTenant,
+    BootstrapTenantGroup,
+    BootstrapVLAN,
+    BootstrapVLANGroup,
+    BootstrapVRF,
+)
+from nautobot_ssot.integrations.bootstrap.utils import (
+    is_running_tests,
+    lookup_content_type,
 )
 
 try:
@@ -251,7 +252,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         except ObjectNotFound:
             new_role = self.role(
                 name=bs_role["name"],
-                weight=bs_role["weight"] if bs_role["weight"] else None,
+                weight=bs_role["weight"],
                 description=bs_role["description"],
                 color=bs_role["color"] if not None else "9e9e9e",
                 content_types=_content_types,
@@ -483,7 +484,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 termination_type=bs_circuit_termination["termination_type"],
                 termination_side=_term_side,
                 circuit_id=_circuit_id,
-                location=bs_circuit_termination["location"] if bs_circuit_termination["location"] != "" else None,
+                location=(bs_circuit_termination["location"] if bs_circuit_termination["location"] != "" else None),
                 provider_network=(
                     bs_circuit_termination["provider_network"]
                     if bs_circuit_termination["provider_network"] != ""
@@ -557,7 +558,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 {
                     "name": bs_vlan["name"],
                     "vid": bs_vlan["vid"],
-                    "vlan_group": bs_vlan["vlan_group"] if bs_vlan["vlan_group"] else None,
+                    "vlan_group": (bs_vlan["vlan_group"] if bs_vlan["vlan_group"] else None),
                 },
             )
         except ObjectNotFound:
@@ -581,7 +582,10 @@ class BootstrapAdapter(Adapter, LabelMixin):
         try:
             self.get(
                 self.vrf,
-                {"name": bs_vrf["name"], "namespace": bs_vrf["namespace"] if bs_vrf["namespace"] else "Global"},
+                {
+                    "name": bs_vrf["name"],
+                    "namespace": (bs_vrf["namespace"] if bs_vrf["namespace"] else "Global"),
+                },
             )
         except ObjectNotFound:
             new_vrf = self.vrf(
@@ -613,8 +617,8 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 _date_allocated = None
             new_prefix = self.prefix(
                 network=bs_prefix["network"],
-                namespace=bs_prefix["namespace"] if bs_prefix["namespace"] else "Global",
-                prefix_type=bs_prefix["prefix_type"] if bs_prefix["prefix_type"] else "Network",
+                namespace=(bs_prefix["namespace"] if bs_prefix["namespace"] else "Global"),
+                prefix_type=(bs_prefix["prefix_type"] if bs_prefix["prefix_type"] else "Network"),
                 status=bs_prefix["status"] if bs_prefix["status"] else "Active",
                 role=bs_prefix["role"] if bs_prefix["role"] else None,
                 rir=bs_prefix["rir"] if bs_prefix["rir"] else None,
@@ -716,7 +720,9 @@ class BootstrapAdapter(Adapter, LabelMixin):
             self.get(self.computed_field, comp_field["label"])
         except ObjectNotFound:
             _new_comp_field = self.computed_field(
-                label=comp_field["label"], content_type=comp_field["content_type"], template=comp_field["template"]
+                label=comp_field["label"],
+                content_type=comp_field["content_type"],
+                template=comp_field["template"],
             )
             self.add(_new_comp_field)
 
@@ -753,7 +759,13 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load Software objects from Bootstrap into DiffSync Models."""
         self.job.logger.debug(f"Loading Bootstrap Software {software}")
         try:
-            self.get(self.software, {"version": software["version"], "platform": software["device_platform"]})
+            self.get(
+                self.software,
+                {
+                    "version": software["version"],
+                    "platform": software["device_platform"],
+                },
+            )
         except ObjectNotFound:
             try:
                 _release_date = datetime.datetime.strptime(software["release_date"], "%Y-%m-%d")
@@ -860,7 +872,8 @@ class BootstrapAdapter(Adapter, LabelMixin):
 
         elif load_type == "git":
             repo = GitRepository.objects.filter(
-                name__icontains="Bootstrap", provided_contents__icontains="extras.configcontext"
+                name__icontains="Bootstrap",
+                provided_contents__icontains="extras.configcontext",
             )
             if len(repo) == 0:
                 self.job.logger.warning(
@@ -945,7 +958,8 @@ class BootstrapAdapter(Adapter, LabelMixin):
             if global_settings["circuit_termination"] is not None:  # noqa: F821
                 for bs_circuit_termination in global_settings["circuit_termination"]:  # noqa: F821
                     self.load_circuit_termination(
-                        bs_circuit_termination=bs_circuit_termination, branch_vars=branch_vars
+                        bs_circuit_termination=bs_circuit_termination,
+                        branch_vars=branch_vars,
                     )
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["namespace"]:
             if global_settings["namespace"] is not None:  # noqa: F821

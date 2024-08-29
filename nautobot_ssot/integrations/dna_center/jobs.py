@@ -4,7 +4,10 @@ from django.templatetags.static import static
 from django.urls import reverse
 from nautobot.core.celery import register_jobs
 from nautobot.dcim.models import Controller, ControllerManagedDeviceGroup
-from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
+from nautobot.extras.choices import (
+    SecretsGroupAccessTypeChoices,
+    SecretsGroupSecretTypeChoices,
+)
 from nautobot.extras.jobs import BooleanVar, ObjectVar
 from nautobot.tenancy.models import Tenant
 

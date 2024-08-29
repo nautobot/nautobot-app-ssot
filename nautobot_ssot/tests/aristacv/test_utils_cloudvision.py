@@ -81,7 +81,10 @@ class TestCloudvisionUtils(TestCase):
         device_svc_stub = MagicMock()
         device_svc_stub.DeviceServiceStub.return_value.GetAll.return_value = device_list
 
-        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.services", device_svc_stub):
+        with patch(
+            "nautobot_ssot.integrations.aristacv.utils.cloudvision.services",
+            device_svc_stub,
+        ):
             results = cloudvision.get_devices(client=self.client, import_active=False)
         expected = fixtures.DEVICE_FIXTURE
         self.assertEqual(results, expected)
@@ -102,7 +105,10 @@ class TestCloudvisionUtils(TestCase):
         device_svc_stub = MagicMock()
         device_svc_stub.DeviceServiceStub.return_value.GetAll.return_value = device_list
 
-        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.services", device_svc_stub):
+        with patch(
+            "nautobot_ssot.integrations.aristacv.utils.cloudvision.services",
+            device_svc_stub,
+        ):
             results = cloudvision.get_devices(client=self.client, import_active=True)
         expected = [
             {
@@ -128,7 +134,10 @@ class TestCloudvisionUtils(TestCase):
         device_tag_stub = MagicMock()
         device_tag_stub.TagServiceStub.return_value.GetAll.return_value = [mock_tag]
 
-        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.tag_services", device_tag_stub):
+        with patch(
+            "nautobot_ssot.integrations.aristacv.utils.cloudvision.tag_services",
+            device_tag_stub,
+        ):
             results = cloudvision.get_tags_by_type(client=self.client)
         expected = [{"label": "test", "value": "test"}]
         self.assertEqual(results, expected)
@@ -145,7 +154,10 @@ class TestCloudvisionUtils(TestCase):
             mock_tag
         ]  # credit to @Eric-Jckson in https://github.com/nautobot/nautobot-plugin-ssot-arista-cloudvision/pull/164 for update to get_device_tags()
 
-        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.tag_services", tag_stub):
+        with patch(
+            "nautobot_ssot.integrations.aristacv.utils.cloudvision.tag_services",
+            tag_stub,
+        ):
             results = cloudvision.get_device_tags(client=self.client, device_id="JPE12345678")
         expected = [{"label": "ztp", "value": "enabled"}]
         self.assertEqual(results, expected)
@@ -166,7 +178,10 @@ class TestCloudvisionUtils(TestCase):
         mock_query = MagicMock()
         mock_query.return_value = {"fixedSystem": None}
 
-        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.unfreeze_frozen_dict", mock_query):
+        with patch(
+            "nautobot_ssot.integrations.aristacv.utils.cloudvision.unfreeze_frozen_dict",
+            mock_query,
+        ):
             results = cloudvision.get_device_type(client=self.client, dId="JPE12345678")
         self.assertEqual(results, "modular")
 
@@ -175,7 +190,10 @@ class TestCloudvisionUtils(TestCase):
         mock_query = MagicMock()
         mock_query.return_value = {"fixedSystem": True}
 
-        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.unfreeze_frozen_dict", mock_query):
+        with patch(
+            "nautobot_ssot.integrations.aristacv.utils.cloudvision.unfreeze_frozen_dict",
+            mock_query,
+        ):
             results = cloudvision.get_device_type(client=self.client, dId="JPE12345678")
         self.assertEqual(results, "fixedSystem")
 
@@ -184,7 +202,10 @@ class TestCloudvisionUtils(TestCase):
         mock_query = MagicMock()
         mock_query.return_value = {}
 
-        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.unfreeze_frozen_dict", mock_query):
+        with patch(
+            "nautobot_ssot.integrations.aristacv.utils.cloudvision.unfreeze_frozen_dict",
+            mock_query,
+        ):
             results = cloudvision.get_device_type(client=self.client, dId="JPE12345678")
         self.assertEqual(results, "Unknown")
 
@@ -229,7 +250,10 @@ class TestCloudvisionUtils(TestCase):
         mock_lc = MagicMock()
         mock_lc.return_value = {"Linecard1": None}
 
-        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.unfreeze_frozen_dict", mock_lc):
+        with patch(
+            "nautobot_ssot.integrations.aristacv.utils.cloudvision.unfreeze_frozen_dict",
+            mock_lc,
+        ):
             self.client.get = MagicMock()
             self.client.get.return_value = fixtures.CHASSIS_INTF_QUERY
             results = cloudvision.get_interfaces_chassis(client=self.client, dId="JPE12345678")
@@ -324,27 +348,64 @@ class TestCloudvisionUtils(TestCase):
         self.assertEqual(results, expected)
 
     port_types = [
-        ("built_in_gig", {"port_info": {}, "transceiver": "xcvr1000BaseT"}, "1000base-t"),
-        ("build_in_10g_sr", {"port_info": {}, "transceiver": "xcvr10GBaseSr"}, "10gbase-x-xfp"),
-        ("management_port", {"port_info": {"interface": "Management1"}, "transceiver": "Unknown"}, "1000base-t"),
-        ("vlan_port", {"port_info": {"interface": "Vlan100"}, "transceiver": "Unknown"}, "virtual"),
-        ("loopback_port", {"port_info": {"interface": "Loopback0"}, "transceiver": "Unknown"}, "virtual"),
-        ("port_channel_port", {"port_info": {"interface": "Port-Channel10"}, "transceiver": "Unknown"}, "lag"),
-        ("unknown_ethernet_port", {"port_info": {"interface": "Ethernet1"}, "transceiver": "Unknown"}, "other"),
+        (
+            "built_in_gig",
+            {"port_info": {}, "transceiver": "xcvr1000BaseT"},
+            "1000base-t",
+        ),
+        (
+            "build_in_10g_sr",
+            {"port_info": {}, "transceiver": "xcvr10GBaseSr"},
+            "10gbase-x-xfp",
+        ),
+        (
+            "management_port",
+            {"port_info": {"interface": "Management1"}, "transceiver": "Unknown"},
+            "1000base-t",
+        ),
+        (
+            "vlan_port",
+            {"port_info": {"interface": "Vlan100"}, "transceiver": "Unknown"},
+            "virtual",
+        ),
+        (
+            "loopback_port",
+            {"port_info": {"interface": "Loopback0"}, "transceiver": "Unknown"},
+            "virtual",
+        ),
+        (
+            "port_channel_port",
+            {"port_info": {"interface": "Port-Channel10"}, "transceiver": "Unknown"},
+            "lag",
+        ),
+        (
+            "unknown_ethernet_port",
+            {"port_info": {"interface": "Ethernet1"}, "transceiver": "Unknown"},
+            "other",
+        ),
     ]
 
     @parameterized.expand(port_types, skip_on_empty=True)
     def test_get_port_type(self, name, sent, received):  # pylint: disable=unused-argument
         """Test the get_port_type method."""
         self.assertEqual(
-            cloudvision.get_port_type(port_info=sent["port_info"], transceiver=sent["transceiver"]), received
+            cloudvision.get_port_type(port_info=sent["port_info"], transceiver=sent["transceiver"]),
+            received,
         )
 
     port_statuses = [
         ("active_port", {"link_status": "up", "oper_status": "up"}, "Active"),
         ("planned_port", {"link_status": "down", "oper_status": "up"}, "Planned"),
-        ("maintenance_port", {"link_status": "down", "oper_status": "down"}, "Maintenance"),
-        ("decommissioning_port", {"link_status": "up", "oper_status": "down"}, "Decommissioning"),
+        (
+            "maintenance_port",
+            {"link_status": "down", "oper_status": "down"},
+            "Maintenance",
+        ),
+        (
+            "decommissioning_port",
+            {"link_status": "up", "oper_status": "down"},
+            "Decommissioning",
+        ),
     ]
 
     @parameterized.expand(port_statuses, skip_on_empty=True)

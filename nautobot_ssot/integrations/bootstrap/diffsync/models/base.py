@@ -1,9 +1,10 @@
 """DiffSyncModel subclasses for Nautobot-to-bootstrap data sync."""
 
-from typing import Optional, List
-from uuid import UUID
-from diffsync import DiffSyncModel
 import datetime
+from typing import List, Optional
+from uuid import UUID
+
+from diffsync import DiffSyncModel
 
 
 class Secret(DiffSyncModel):
@@ -270,7 +271,13 @@ class Role(DiffSyncModel):
 
     _modelname = "role"
     _identifiers = ("name",)
-    _attributes = ("weight", "description", "color", "content_types", "system_of_record")
+    _attributes = (
+        "weight",
+        "description",
+        "color",
+        "content_types",
+        "system_of_record",
+    )
     _children = {}
 
     name: str
@@ -444,7 +451,15 @@ class Provider(DiffSyncModel):
 
     _modelname = "provider"
     _identifiers = ("name",)
-    _attributes = ("asn", "account_number", "portal_url", "noc_contact", "admin_contact", "tags", "system_of_record")
+    _attributes = (
+        "asn",
+        "account_number",
+        "portal_url",
+        "noc_contact",
+        "admin_contact",
+        "tags",
+        "system_of_record",
+    )
     _children = {}
 
     name: str

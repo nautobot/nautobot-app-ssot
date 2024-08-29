@@ -70,7 +70,12 @@ class NautobotAdapter(Adapter):
     ipaddr_map = {}
 
     def __init__(
-        self, *args, job: Optional[DataTarget] = None, sync=None, tenant: Optional[OrmTenant] = None, **kwargs
+        self,
+        *args,
+        job: Optional[DataTarget] = None,
+        sync=None,
+        tenant: Optional[OrmTenant] = None,
+        **kwargs,
     ):
         """Initialize Nautobot.
 
@@ -123,13 +128,19 @@ class NautobotAdapter(Adapter):
             for site in locations:
                 self.site_map[site.name] = site.id
                 try:
-                    self.get(self.building, {"name": site.name, "area": site.parent.name if site.parent else None})
+                    self.get(
+                        self.building,
+                        {
+                            "name": site.name,
+                            "area": site.parent.name if site.parent else None,
+                        },
+                    )
                 except ObjectNotFound:
                     new_building = self.building(
                         name=site.name,
                         address=site.physical_address,
                         area=site.parent.name if site.parent else "",
-                        area_parent=site.parent.parent.name if site.parent and site.parent.parent else None,
+                        area_parent=(site.parent.parent.name if site.parent and site.parent.parent else None),
                         latitude=str(site.latitude).rstrip("0"),
                         longitude=str(site.longitude).rstrip("0"),
                         tenant=site.tenant.name if site.tenant else None,
@@ -221,7 +232,7 @@ class NautobotAdapter(Adapter):
                 enabled=port.enabled,
                 port_type=port.type,
                 port_mode=port.mode,
-                mac_addr=str(port.mac_address) if getattr(port, "mac_address") else None,
+                mac_addr=(str(port.mac_address) if getattr(port, "mac_address") else None),
                 mtu=port.mtu if port.mtu else 1500,
                 status=port.status.name,
                 uuid=port.id,
@@ -301,7 +312,15 @@ class NautobotAdapter(Adapter):
         Args:
             source (Adapter): DiffSync
         """
-        for grouping in ["ipaddresses", "prefixes", "ports", "devices", "floors", "sites", "regions"]:
+        for grouping in [
+            "ipaddresses",
+            "prefixes",
+            "ports",
+            "devices",
+            "floors",
+            "sites",
+            "regions",
+        ]:
             for nautobot_obj in self.objects_to_delete[grouping]:
                 try:
                     self.job.logger.info(f"Deleting {nautobot_obj}.")

@@ -12,7 +12,12 @@ from netutils.bandwidth import name_to_bits
 from netutils.dns import fqdn_to_ip, is_fqdn_resolvable
 
 from nautobot_ssot.integrations.device42.constant import PLUGIN_CFG
-from nautobot_ssot.integrations.device42.diffsync.models.base import assets, circuits, dcim, ipam
+from nautobot_ssot.integrations.device42.diffsync.models.base import (
+    assets,
+    circuits,
+    dcim,
+    ipam,
+)
 from nautobot_ssot.integrations.device42.utils.device42 import (
     get_custom_field_dict,
     get_facility,
@@ -201,11 +206,11 @@ class Device42Adapter(Adapter):
                 _tags.sort()
             building = self.building(
                 name=record["name"],
-                address=sanitize_string(record["address"]) if record.get("address") else "",
+                address=(sanitize_string(record["address"]) if record.get("address") else ""),
                 latitude=float(round(Decimal(record["latitude"] if record["latitude"] else 0.0), 6)),
                 longitude=float(round(Decimal(record["longitude"] if record["longitude"] else 0.0), 6)),
-                contact_name=record["contact_name"] if record.get("contact_name") else "",
-                contact_phone=record["contact_phone"] if record.get("contact_phone") else "",
+                contact_name=(record["contact_name"] if record.get("contact_name") else ""),
+                contact_phone=(record["contact_phone"] if record.get("contact_phone") else ""),
                 rooms=record["rooms"] if record.get("rooms") else [],
                 custom_fields=get_custom_field_dict(record["custom_fields"]),
                 tags=_tags,
@@ -275,7 +280,12 @@ class Device42Adapter(Adapter):
                 try:
                     self.add(rack)
                     _room = self.get(
-                        self.room, {"name": record["room"], "building": record["building"], "room": record["room"]}
+                        self.room,
+                        {
+                            "name": record["room"],
+                            "building": record["building"],
+                            "room": record["room"],
+                        },
                     )
                     _room.add_child(child=rack)
                 except ObjectAlreadyExists as err:
@@ -422,10 +432,10 @@ class Device42Adapter(Adapter):
                     room=_record["room"] if _record.get("room") else "",
                     rack=_record["rack"] if _record.get("rack") else "",
                     rack_position=rack_position,
-                    rack_orientation="front" if _record.get("orientation") == 1 else "rear",
+                    rack_orientation=("front" if _record.get("orientation") == 1 else "rear"),
                     hardware=sanitize_string(_record["hw_model"]),
-                    os=get_netmiko_platform(_record["os"][:100]) if _record.get("os") else "",
-                    os_version=re.sub(r"^[a-zA-Z]+\s", "", _record["osver"]) if _record.get("osver") else "",
+                    os=(get_netmiko_platform(_record["os"][:100]) if _record.get("os") else ""),
+                    os_version=(re.sub(r"^[a-zA-Z]+\s", "", _record["osver"]) if _record.get("osver") else ""),
                     in_service=_record.get("in_service"),
                     serial_no=_record["serial_no"],
                     master_device=False,
@@ -514,7 +524,9 @@ class Device42Adapter(Adapter):
                 _device.vc_position = 1
             else:
                 _device.vc_position = determine_vc_position(
-                    vc_map=self.device42_clusters, virtual_chassis=cluster_host, device_name=_record["name"]
+                    vc_map=self.device42_clusters,
+                    virtual_chassis=cluster_host,
+                    device_name=_record["name"],
                 )
 
     def assign_version_to_master_devices(self):
@@ -598,7 +610,13 @@ class Device42Adapter(Adapter):
                         if _pk in self.d42_vlan_map and self.d42_vlan_map[_pk]["vid"] != 0:
                             # Need to ensure that there's a VLAN loaded for every one that's being tagged.
                             try:
-                                self.get(self.vlan, {"vlan_id": self.d42_vlan_map[_pk]["vid"], "building": building})
+                                self.get(
+                                    self.vlan,
+                                    {
+                                        "vlan_id": self.d42_vlan_map[_pk]["vid"],
+                                        "building": building,
+                                    },
+                                )
                             except ObjectNotFound:
                                 load_vlan(
                                     adapter=self,
@@ -836,7 +854,7 @@ class Device42Adapter(Adapter):
                 notes=_tc["notes"],
                 type=_tc["type_name"],
                 status=get_circuit_status(_tc["status"]),
-                install_date=_tc["turn_on_date"] if _tc.get("turn_on_date") else _tc["provision_date"],
+                install_date=(_tc["turn_on_date"] if _tc.get("turn_on_date") else _tc["provision_date"]),
                 origin_int=origin_int if origin_int else None,
                 origin_dev=origin_dev if origin_dev else None,
                 endpoint_int=endpoint_int if endpoint_int else None,
@@ -856,7 +874,7 @@ class Device42Adapter(Adapter):
                         if _tc["origin_type"] == "Device"
                         else None
                     ),
-                    src_type="interface" if _tc["origin_type"] == "Device Port" else "patch panel",
+                    src_type=("interface" if _tc["origin_type"] == "Device Port" else "patch panel"),
                     dst_device=_tc["circuit_id"],
                     dst_port=_tc["circuit_id"],
                     dst_type="circuit",
@@ -878,7 +896,7 @@ class Device42Adapter(Adapter):
                         if _tc["end_point_type"] == "Device"
                         else None
                     ),
-                    dst_type="interface" if _tc["end_point_type"] == "Device Port" else "patch panel",
+                    dst_type=("interface" if _tc["end_point_type"] == "Device Port" else "patch panel"),
                     src_port_mac=None,
                     tags=None,
                     uuid=None,
@@ -970,7 +988,10 @@ class Device42Adapter(Adapter):
                 mgmt_intf = self.add_management_interface(dev_name=dev_name)
             if not _ip:
                 _ip = self.add_ipaddr(
-                    address=f"{_a_record}/32", dev_name=dev_name, interface=mgmt_intf.name, namespace="Global"
+                    address=f"{_a_record}/32",
+                    dev_name=dev_name,
+                    interface=mgmt_intf.name,
+                    namespace="Global",
                 )
             if mgmt_intf and _ip.device != dev_name:
                 _ip.device = dev_name
@@ -1053,7 +1074,7 @@ class Device42Adapter(Adapter):
                     vendor=panel["vendor"],
                     model=panel["model_name"],
                     position=panel["position"],
-                    orientation="front" if panel.get("orientation") == "Front" else "rear",
+                    orientation=("front" if panel.get("orientation") == "Front" else "rear"),
                     num_ports=panel["number_of_ports"],
                     rack=_rack,
                     serial_no=panel["serial_no"],

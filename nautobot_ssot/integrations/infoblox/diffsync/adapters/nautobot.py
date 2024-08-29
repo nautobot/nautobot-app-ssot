@@ -14,7 +14,10 @@ from nautobot.ipam.choices import IPAddressTypeChoices
 from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix, VLANGroup
 from nautobot.tenancy.models import Tenant
 
-from nautobot_ssot.integrations.infoblox.choices import DNSRecordTypeChoices, FixedAddressTypeChoices
+from nautobot_ssot.integrations.infoblox.choices import (
+    DNSRecordTypeChoices,
+    FixedAddressTypeChoices,
+)
 from nautobot_ssot.integrations.infoblox.constant import TAG_COLOR
 from nautobot_ssot.integrations.infoblox.diffsync.models import (
     NautobotDnsARecord,
@@ -32,7 +35,10 @@ from nautobot_ssot.integrations.infoblox.utils.diffsync import (
     map_network_view_to_namespace,
     nautobot_vlan_status,
 )
-from nautobot_ssot.integrations.infoblox.utils.nautobot import build_vlan_map_from_relations, get_prefix_vlans
+from nautobot_ssot.integrations.infoblox.utils.nautobot import (
+    build_vlan_map_from_relations,
+    get_prefix_vlans,
+)
 
 
 class NautobotMixin:
@@ -109,7 +115,16 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
     dnsarecord = NautobotDnsARecord
     dnsptrrecord = NautobotDnsPTRRecord
 
-    top_level = ["namespace", "vlangroup", "vlan", "prefix", "ipaddress", "dnshostrecord", "dnsarecord", "dnsptrrecord"]
+    top_level = [
+        "namespace",
+        "vlangroup",
+        "vlan",
+        "prefix",
+        "ipaddress",
+        "dnshostrecord",
+        "dnsarecord",
+        "dnsptrrecord",
+    ]
 
     status_map = {}
     location_map = {}
@@ -175,7 +190,8 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
             all_namespaces = Namespace.objects.all()
 
         default_cfs = get_default_custom_fields(
-            cf_contenttype=ContentType.objects.get_for_model(Namespace), excluded_cfs=self.excluded_cfs
+            cf_contenttype=ContentType.objects.get_for_model(Namespace),
+            excluded_cfs=self.excluded_cfs,
         )
         for namespace in all_namespaces:
             self.namespace_map[namespace.name] = namespace.id
@@ -236,11 +252,14 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
         if self.job.debug:
             self.job.logger.debug("Loading Prefixes from Nautobot.")
         all_prefixes = self._load_all_prefixes_filtered(
-            sync_filters=sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6
+            sync_filters=sync_filters,
+            include_ipv4=include_ipv4,
+            include_ipv6=include_ipv6,
         )
 
         default_cfs = get_default_custom_fields(
-            cf_contenttype=ContentType.objects.get_for_model(Prefix), excluded_cfs=self.excluded_cfs
+            cf_contenttype=ContentType.objects.get_for_model(Prefix),
+            excluded_cfs=self.excluded_cfs,
         )
         for prefix in all_prefixes:
             self.prefix_map[(prefix.namespace.name), str(prefix.prefix)] = prefix.id
@@ -307,10 +326,13 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
         if self.job.debug:
             self.job.logger.debug("Loading IP Addresses from Nautobot.")
         default_cfs = get_default_custom_fields(
-            cf_contenttype=ContentType.objects.get_for_model(IPAddress), excluded_cfs=self.excluded_cfs
+            cf_contenttype=ContentType.objects.get_for_model(IPAddress),
+            excluded_cfs=self.excluded_cfs,
         )
         all_ipaddresses = self._load_all_ipaddresses_filtered(
-            sync_filters=sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6
+            sync_filters=sync_filters,
+            include_ipv4=include_ipv4,
+            include_ipv6=include_ipv6,
         )
         for ipaddr in all_ipaddresses:
             addr = ipaddr.host
@@ -371,21 +393,29 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
                 if self.config.dns_record_type == DNSRecordTypeChoices.HOST_RECORD:
                     _ip.has_host_record = True
                     self._load_dns_host_record_for_ip(
-                        ip_record=_ip, dns_name=ipaddr.dns_name, cfs=ipaddr.custom_field_data
+                        ip_record=_ip,
+                        dns_name=ipaddr.dns_name,
+                        cfs=ipaddr.custom_field_data,
                     )
                 elif self.config.dns_record_type == DNSRecordTypeChoices.A_RECORD:
                     _ip.has_a_record = True
                     self._load_dns_a_record_for_ip(
-                        ip_record=_ip, dns_name=ipaddr.dns_name, cfs=ipaddr.custom_field_data
+                        ip_record=_ip,
+                        dns_name=ipaddr.dns_name,
+                        cfs=ipaddr.custom_field_data,
                     )
                 elif self.config.dns_record_type == DNSRecordTypeChoices.A_AND_PTR_RECORD:
                     _ip.has_a_record = True
                     _ip.has_ptr_record = True
                     self._load_dns_ptr_record_for_ip(
-                        ip_record=_ip, dns_name=ipaddr.dns_name, cfs=ipaddr.custom_field_data
+                        ip_record=_ip,
+                        dns_name=ipaddr.dns_name,
+                        cfs=ipaddr.custom_field_data,
                     )
                     self._load_dns_a_record_for_ip(
-                        ip_record=_ip, dns_name=ipaddr.dns_name, cfs=ipaddr.custom_field_data
+                        ip_record=_ip,
+                        dns_name=ipaddr.dns_name,
+                        cfs=ipaddr.custom_field_data,
                     )
 
             try:
@@ -467,7 +497,8 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
         if self.job.debug:
             self.job.logger.debug("Loading VLAN Groups from Nautobot.")
         default_cfs = get_default_custom_fields(
-            cf_contenttype=ContentType.objects.get_for_model(VLANGroup), excluded_cfs=self.excluded_cfs
+            cf_contenttype=ContentType.objects.get_for_model(VLANGroup),
+            excluded_cfs=self.excluded_cfs,
         )
         for grp in VLANGroup.objects.all():
             self.vlangroup_map[grp.name] = grp.id
@@ -485,7 +516,8 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
         if self.job.debug:
             self.job.logger.debug("Loading VLANs from Nautobot.")
         default_cfs = get_default_custom_fields(
-            cf_contenttype=ContentType.objects.get_for_model(VLAN), excluded_cfs=self.excluded_cfs
+            cf_contenttype=ContentType.objects.get_for_model(VLAN),
+            excluded_cfs=self.excluded_cfs,
         )
         # To ensure we are only dealing with VLANs imported from Infoblox we need to filter to those with a
         # VLAN Group assigned to match how Infoblox requires a VLAN View to be associated to VLANs.
@@ -520,11 +552,19 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
         if "namespace" in self.dict():
             self.job.logger.info(f"Loaded {len(self.dict()['namespace'])} Namespaces from Nautobot.")
         if self.config.import_subnets:
-            self.load_prefixes(sync_filters=sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6)
+            self.load_prefixes(
+                sync_filters=sync_filters,
+                include_ipv4=include_ipv4,
+                include_ipv6=include_ipv6,
+            )
         if "prefix" in self.dict():
             self.job.logger.info(f"Loaded {len(self.dict()['prefix'])} prefixes from Nautobot.")
         if self.config.import_ip_addresses:
-            self.load_ipaddresses(sync_filters=sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6)
+            self.load_ipaddresses(
+                sync_filters=sync_filters,
+                include_ipv4=include_ipv4,
+                include_ipv6=include_ipv6,
+            )
         if "ipaddress" in self.dict():
             self.job.logger.info(f"Loaded {len(self.dict()['ipaddress'])} IP addresses from Nautobot.")
         if self.config.import_vlan_views:

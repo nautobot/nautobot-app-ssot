@@ -9,7 +9,10 @@ from nautobot_ssot.integrations.aci.diffsync.adapters.aci import AciAdapter
 from nautobot_ssot.integrations.aci.diffsync.adapters.nautobot import NautobotAdapter
 from nautobot_ssot.integrations.aci.diffsync.client import AciApi
 from nautobot_ssot.jobs.base import DataMapping, DataSource
-from nautobot_ssot.utils import get_username_password_https_from_secretsgroup, verify_controller_managed_device_group
+from nautobot_ssot.utils import (
+    get_username_password_https_from_secretsgroup,
+    verify_controller_managed_device_group,
+)
 
 name = "Cisco ACI SSoT"  # pylint: disable=invalid-name, abstract-method
 
@@ -54,7 +57,12 @@ class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method, too-ma
             DataMapping("Tenant", None, "Tenant", reverse("tenancy:tenant_list")),
             DataMapping("Node", None, "Device", reverse("dcim:device_list")),
             DataMapping("Model", None, "Device Type", reverse("dcim:devicetype_list")),
-            DataMapping("Controller/Leaf/Spine OOB Mgmt IP", None, "IP Address", reverse("ipam:ipaddress_list")),
+            DataMapping(
+                "Controller/Leaf/Spine OOB Mgmt IP",
+                None,
+                "IP Address",
+                reverse("ipam:ipaddress_list"),
+            ),
             DataMapping("Subnet", None, "Prefix", reverse("ipam:prefix_list")),
             DataMapping("Interface", None, "Interface", reverse("dcim:interface_list")),
             DataMapping("VRF", None, "VRF", reverse("ipam:vrf_list")),
@@ -92,7 +100,9 @@ class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method, too-ma
     def load_target_adapter(self):
         """Method to instantiate and load the Nautobot adapter into `self.target_adapter`."""
         self.target_adapter = NautobotAdapter(
-            job=self, sync=self.sync, site_name=self.device_site.name if self.device_site else self.apic.location.name
+            job=self,
+            sync=self.sync,
+            site_name=(self.device_site.name if self.device_site else self.apic.location.name),
         )
         self.target_adapter.load()
 

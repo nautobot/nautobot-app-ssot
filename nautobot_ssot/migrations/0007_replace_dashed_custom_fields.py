@@ -23,7 +23,16 @@ def replace_dashed_custom_fields(apps, schema_editor):
                 custom_field.key = new_key
                 custom_field.save()
 
-    for model in [Device, DeviceType, Interface, Manufacturer, Location, VLAN, Role, IPAddress]:
+    for model in [
+        Device,
+        DeviceType,
+        Interface,
+        Manufacturer,
+        Location,
+        VLAN,
+        Role,
+        IPAddress,
+    ]:
         cf_list = []
         for instance in model.objects.all():
             for new_cf, old_cf in CF_KEY_CHANGE_MAP.items():

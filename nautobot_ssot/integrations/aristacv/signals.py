@@ -91,7 +91,11 @@ def post_migrate_create_custom_fields(apps=global_apps, **kwargs):
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "label": "Topology Network Type",
         },
-        {"key": "arista_topology_type", "type": CustomFieldTypeChoices.TYPE_TEXT, "label": "Topology Type"},
+        {
+            "key": "arista_topology_type",
+            "type": CustomFieldTypeChoices.TYPE_TEXT,
+            "label": "Topology Type",
+        },
         {
             "key": "arista_topology_rack",
             "type": CustomFieldTypeChoices.TYPE_TEXT,

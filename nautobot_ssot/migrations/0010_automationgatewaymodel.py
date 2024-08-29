@@ -23,14 +23,22 @@ class Migration(migrations.Migration):
                 (
                     "id",
                     models.UUIDField(
-                        default=uuid.uuid4, editable=False, primary_key=True, serialize=False, unique=True
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                        unique=True,
                     ),
                 ),
                 ("created", models.DateTimeField(auto_now_add=True, null=True)),
                 ("last_updated", models.DateTimeField(auto_now=True, null=True)),
                 (
                     "_custom_field_data",
-                    models.JSONField(blank=True, default=dict, encoder=django.core.serializers.json.DjangoJSONEncoder),
+                    models.JSONField(
+                        blank=True,
+                        default=dict,
+                        encoder=django.core.serializers.json.DjangoJSONEncoder,
+                    ),
                 ),
                 ("name", models.CharField(max_length=255, unique=True)),
                 ("description", models.CharField(blank=True, max_length=512)),
@@ -38,10 +46,19 @@ class Migration(migrations.Migration):
                 ("enabled", models.BooleanField(default=False)),
                 (
                     "gateway",
-                    models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to="extras.externalintegration"),
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="extras.externalintegration",
+                    ),
                 ),
-                ("location", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="dcim.location")),
-                ("tags", nautobot.core.models.fields.TagsField(through="extras.TaggedItem", to="extras.Tag")),
+                (
+                    "location",
+                    models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="dcim.location"),
+                ),
+                (
+                    "tags",
+                    nautobot.core.models.fields.TagsField(through="extras.TaggedItem", to="extras.Tag"),
+                ),
             ],
             options={
                 "verbose_name": "Automation Gateway Management",

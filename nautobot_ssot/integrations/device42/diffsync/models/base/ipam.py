@@ -45,7 +45,16 @@ class IPAddress(DiffSyncModel):
 
     _modelname = "ipaddr"
     _identifiers = ("address", "subnet")
-    _attributes = ("namespace", "available", "label", "device", "interface", "primary", "tags", "custom_fields")
+    _attributes = (
+        "namespace",
+        "available",
+        "label",
+        "device",
+        "interface",
+        "primary",
+        "tags",
+        "custom_fields",
+    )
     _children = {}
 
     address: str

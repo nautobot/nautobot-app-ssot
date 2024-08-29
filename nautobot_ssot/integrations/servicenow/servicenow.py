@@ -8,7 +8,9 @@ import requests  # pylint: disable=wrong-import-order
 from nautobot_ssot.integrations.servicenow.third_party.pysnow import Client
 
 # from pysnow.exceptions import MultipleResults
-from nautobot_ssot.integrations.servicenow.third_party.pysnow.exceptions import MultipleResults
+from nautobot_ssot.integrations.servicenow.third_party.pysnow.exceptions import (
+    MultipleResults,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +50,11 @@ class ServiceNowClient(Client):
             logger.error("HTTP error encountered: %s", exc)
             return None
         except MultipleResults:
-            logger.error('Multiple results unexpectedly returned when querying table "%s" with "%s"', table, query)
+            logger.error(
+                'Multiple results unexpectedly returned when querying table "%s" with "%s"',
+                table,
+                query,
+            )
             return None
 
         if not result:

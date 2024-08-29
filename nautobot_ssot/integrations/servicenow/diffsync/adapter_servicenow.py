@@ -265,7 +265,10 @@ class ServiceNowDiffSync(Adapter):
 
             sn_response = sn_resource.request(
                 "POST",
-                headers={"Content-Type": "application/json", "Accept": "application/json"},
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                },
                 data=json.dumps(request_data),
             )
 

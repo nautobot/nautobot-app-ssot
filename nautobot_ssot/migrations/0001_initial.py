@@ -21,7 +21,11 @@ class Migration(migrations.Migration):
                 (
                     "id",
                     models.UUIDField(
-                        default=uuid.uuid4, editable=False, primary_key=True, serialize=False, unique=True
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                        unique=True,
                     ),
                 ),
                 ("source", models.CharField(max_length=64)),
@@ -32,7 +36,10 @@ class Migration(migrations.Migration):
                 (
                     "job_result",
                     models.ForeignKey(
-                        blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, to="extras.jobresult"
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        to="extras.jobresult",
                     ),
                 ),
             ],
@@ -46,7 +53,11 @@ class Migration(migrations.Migration):
                 (
                     "id",
                     models.UUIDField(
-                        default=uuid.uuid4, editable=False, primary_key=True, serialize=False, unique=True
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                        unique=True,
                     ),
                 ),
                 ("timestamp", models.DateTimeField(auto_now_add=True)),
@@ -54,7 +65,10 @@ class Migration(migrations.Migration):
                 ("status", models.CharField(max_length=32)),
                 ("diff", models.JSONField(blank=True, null=True)),
                 ("synced_object_id", models.UUIDField(blank=True, null=True)),
-                ("object_repr", models.CharField(blank=True, default="", editable=False, max_length=200)),
+                (
+                    "object_repr",
+                    models.CharField(blank=True, default="", editable=False, max_length=200),
+                ),
                 ("message", models.CharField(blank=True, max_length=511)),
                 (
                     "sync",

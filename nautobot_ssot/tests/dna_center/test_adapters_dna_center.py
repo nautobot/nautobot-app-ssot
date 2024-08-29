@@ -21,7 +21,9 @@ from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, JobResult, Role, Status
 from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix
 
-from nautobot_ssot.integrations.dna_center.diffsync.adapters.dna_center import DnaCenterAdapter
+from nautobot_ssot.integrations.dna_center.diffsync.adapters.dna_center import (
+    DnaCenterAdapter,
+)
 from nautobot_ssot.integrations.dna_center.jobs import DnaCenterDataSource
 from nautobot_ssot.tests.dna_center.fixtures import (
     DEVICE_DETAIL_FIXTURE,
@@ -77,7 +79,10 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         self.site_loc_type = LocationType.objects.get_or_create(name="Site", parent=self.reg_loc_type)[0]
         self.site_loc_type.content_types.add(ContentType.objects.get_for_model(Device))
         self.hq_site = Location.objects.create(
-            name="HQ", parent=self.hq_area, location_type=self.site_loc_type, status=self.status_active
+            name="HQ",
+            parent=self.hq_area,
+            location_type=self.site_loc_type,
+            status=self.status_active,
         )
         self.hq_site.validated_save()
 
@@ -97,7 +102,10 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         )
         self.test_dev.validated_save()
         self.intf = Interface.objects.create(
-            name="Vlan823", type="virtual", device=self.test_dev, status=self.status_active
+            name="Vlan823",
+            type="virtual",
+            device=self.test_dev,
+            status=self.status_active,
         )
         self.intf.validated_save()
 

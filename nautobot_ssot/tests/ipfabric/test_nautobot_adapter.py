@@ -15,7 +15,9 @@ from nautobot.dcim.models import (
 )
 from nautobot.extras.models import Role, Status
 
-from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
+from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import (
+    NautobotDiffSync,
+)
 
 
 class TestNautobotAdapter(TestCase):
@@ -105,7 +107,10 @@ class TestNautobotAdapter(TestCase):
             location_filter=None,
         )
 
-    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models.Location", autospec=True)
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models.Location",
+        autospec=True,
+    )
     @unittest.mock.patch.object(NautobotDiffSync, "load_interfaces")
     def test_load_device(self, mock_load_interfaces, mock_location):
         self.nb_adapter.load_device(Device.objects.filter(location=self.site1), mock_location)
@@ -128,7 +133,10 @@ class TestNautobotAdapter(TestCase):
             else:
                 self.assertEqual(device.platform, "")
 
-    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models.Location", autospec=True)
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models.Location",
+        autospec=True,
+    )
     def test_load_device_stacks(self, mock_location):
         self.nb_adapter.load_device(Device.objects.filter(location=self.stack_site), mock_location)
         loaded_devices = self.nb_adapter.get_all("device")

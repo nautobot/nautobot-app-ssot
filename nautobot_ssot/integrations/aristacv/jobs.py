@@ -7,8 +7,12 @@ from nautobot.core.utils.lookup import get_route_for_model
 from nautobot.dcim.models import DeviceType
 from nautobot.extras.jobs import BooleanVar, Job
 
-from nautobot_ssot.integrations.aristacv.diffsync.adapters.cloudvision import CloudvisionAdapter
-from nautobot_ssot.integrations.aristacv.diffsync.adapters.nautobot import NautobotAdapter
+from nautobot_ssot.integrations.aristacv.diffsync.adapters.cloudvision import (
+    CloudvisionAdapter,
+)
+from nautobot_ssot.integrations.aristacv.diffsync.adapters.nautobot import (
+    NautobotAdapter,
+)
 from nautobot_ssot.integrations.aristacv.utils.cloudvision import CloudvisionApi
 from nautobot_ssot.integrations.aristacv.utils.nautobot import get_config
 from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
@@ -69,7 +73,12 @@ class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
             DataMapping("topology_network_type", None, "Topology Network Type", None),
             DataMapping("mlag", None, "MLAG", None),
             DataMapping("mpls", None, "mpls", None),
-            DataMapping("model", None, "Device Type", reverse(get_route_for_model(DeviceType, "list"))),
+            DataMapping(
+                "model",
+                None,
+                "Device Type",
+                reverse(get_route_for_model(DeviceType, "list")),
+            ),
             DataMapping("systype", None, "systype", None),
             DataMapping("serialnumber", None, "Device Serial Number", None),
             DataMapping("pimbidir", None, "pimbidir", None),

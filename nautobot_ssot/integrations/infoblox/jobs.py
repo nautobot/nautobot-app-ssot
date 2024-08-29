@@ -4,7 +4,10 @@ from diffsync.enum import DiffSyncFlags
 from django.templatetags.static import static
 from django.urls import reverse
 from nautobot.apps.jobs import ObjectVar
-from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
+from nautobot.extras.choices import (
+    SecretsGroupAccessTypeChoices,
+    SecretsGroupSecretTypeChoices,
+)
 from nautobot.extras.jobs import BooleanVar
 
 from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget

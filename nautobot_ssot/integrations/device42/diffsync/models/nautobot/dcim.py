@@ -22,7 +22,11 @@ from nautobot.dcim.models import VirtualChassis as OrmVC
 from nautobot.extras.models import RelationshipAssociation
 from nautobot.extras.models import Status as OrmStatus
 
-from nautobot_ssot.integrations.device42.constant import DEFAULTS, INTF_SPEED_MAP, PLUGIN_CFG
+from nautobot_ssot.integrations.device42.constant import (
+    DEFAULTS,
+    INTF_SPEED_MAP,
+    PLUGIN_CFG,
+)
 from nautobot_ssot.integrations.device42.diffsync.models.base.dcim import (
     Building,
     Cluster,
@@ -401,7 +405,8 @@ class NautobotDevice(Device):
             _status = adapter.status_map["Offline"]
         if attrs.get("tags") and len(attrs["tags"]) > 0:
             _role = nautobot.verify_device_role(
-                adapter=adapter, role_name=device42.find_device_role_from_tags(tag_list=attrs["tags"])
+                adapter=adapter,
+                role_name=device42.find_device_role_from_tags(tag_list=attrs["tags"]),
             )
         else:
             _role = nautobot.verify_device_role(adapter=adapter, role_name=DEFAULTS.get("device_role"))
@@ -439,7 +444,10 @@ class NautobotDevice(Device):
                 manu_id = new_device.device_type.manufacturer.id
                 if manu_id:
                     soft_lcm = cls._add_software_lcm(
-                        adapter=adapter, os=attrs["os"], version=attrs["os_version"], manufacturer=manu_id
+                        adapter=adapter,
+                        os=attrs["os"],
+                        version=attrs["os_version"],
+                        manufacturer=manu_id,
                     )
                     cls._assign_version_to_device(adapter=adapter, device=new_device.id, software_lcm=soft_lcm)
             else:
@@ -527,7 +535,7 @@ class NautobotDevice(Device):
                     attrs["custom_fields"].append(
                         {
                             "key": "OS Version",
-                            "value": attrs["os_version"] if attrs.get("os_version") else self.os_version,
+                            "value": (attrs["os_version"] if attrs.get("os_version") else self.os_version),
                         }
                     )
         if "in_service" in attrs:
@@ -540,12 +548,14 @@ class NautobotDevice(Device):
             _dev.serial = attrs["serial_no"]
         if _dev.role.name == "Unknown" and self.tags:
             _dev.role_id = nautobot.verify_device_role(
-                adapter=self.adapter, role_name=device42.find_device_role_from_tags(tag_list=self.tags)
+                adapter=self.adapter,
+                role_name=device42.find_device_role_from_tags(tag_list=self.tags),
             )
         if "tags" in attrs:
             if attrs.get("tags"):
                 _dev.role_id = nautobot.verify_device_role(
-                    adapter=self.adapter, role_name=device42.find_device_role_from_tags(tag_list=attrs["tags"])
+                    adapter=self.adapter,
+                    role_name=device42.find_device_role_from_tags(tag_list=attrs["tags"]),
                 )
             else:
                 _dev.role_id = nautobot.verify_device_role(adapter=self.adapter, role_name=DEFAULTS.get("device_role"))
@@ -690,7 +700,11 @@ class NautobotPort(Port):
             nautobot.update_custom_fields(new_cfields=attrs["custom_fields"], update_obj=new_intf)
         if attrs.get("vlans"):
             nautobot.apply_vlans_to_port(
-                adapter=adapter, device_name=ids["device"], mode=attrs["mode"], vlans=attrs["vlans"], port=new_intf
+                adapter=adapter,
+                device_name=ids["device"],
+                mode=attrs["mode"],
+                vlans=attrs["vlans"],
+                port=new_intf,
             )
         new_intf.validated_save()
         if ids["device"] not in adapter.port_map:
@@ -735,7 +749,11 @@ class NautobotPort(Port):
             else:
                 _device = self.device
             nautobot.apply_vlans_to_port(
-                adapter=self.adapter, device_name=_device, mode=_mode, vlans=attrs["vlans"], port=_port
+                adapter=self.adapter,
+                device_name=_device,
+                mode=_mode,
+                vlans=attrs["vlans"],
+                port=_port,
             )
         try:
             _port.validated_save()

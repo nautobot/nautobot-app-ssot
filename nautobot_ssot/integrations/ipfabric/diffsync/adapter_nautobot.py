@@ -74,7 +74,10 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 try:
                     nautobot_object.delete()
                 except ProtectedError:
-                    logger.warning("Deletion failed protected object", extra={"object": nautobot_object})
+                    logger.warning(
+                        "Deletion failed protected object",
+                        extra={"object": nautobot_object},
+                    )
                 except IntegrityError:
                     logger.warning(f"Deletion failed due to IntegrityError with {nautobot_object}")
 
@@ -101,7 +104,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 status=device_record.status.name,
                 name=interface_record.name,
                 device_name=device_record.name,
-                description=interface_record.description if interface_record.description else None,
+                description=(interface_record.description if interface_record.description else None),
                 enabled=True,
                 mac_address=(
                     mac_to_format(str(interface_record.mac_address), "MAC_COLON_TWO").upper()
@@ -109,11 +112,11 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                     else DEFAULT_INTERFACE_MAC
                 ),
                 subnet_mask=subnet_mask,
-                mtu=interface_record.mtu if interface_record.mtu else DEFAULT_INTERFACE_MTU,
+                mtu=(interface_record.mtu if interface_record.mtu else DEFAULT_INTERFACE_MTU),
                 type=interface_record.type,
-                mgmt_only=interface_record.mgmt_only if interface_record.mgmt_only else False,
+                mgmt_only=(interface_record.mgmt_only if interface_record.mgmt_only else False),
                 pk=interface_record.pk,
-                ip_is_primary=ip_address_obj == device_primary_ip if device_primary_ip else False,
+                ip_is_primary=(ip_address_obj == device_primary_ip if device_primary_ip else False),
                 ip_address=ip_address,
             )
             self.add(interface)
@@ -210,7 +213,10 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         location_objects = self.get_initial_location(ssot_tag)
         # The parent object that stores all children, is the Location.
         if self.job.debug:
-            logger.debug("Found %s Nautobot Location objects to start sync from", location_objects.count())
+            logger.debug(
+                "Found %s Nautobot Location objects to start sync from",
+                location_objects.count(),
+            )
 
         if location_objects:
             for location_record in location_objects:
@@ -222,7 +228,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                     )
                 except AttributeError:
                     logger.error(
-                        "Error loading %s, invalid or missing attributes on object. Skipping...", location_record
+                        "Error loading %s, invalid or missing attributes on object. Skipping...",
+                        location_record,
                     )
                     continue
                 self.add(location)

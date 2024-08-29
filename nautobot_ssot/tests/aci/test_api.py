@@ -30,8 +30,24 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         mock_fvTenant.status_code = 200
         mock_fvTenant.json.return_value = {
             "imdata": [
-                {"fvTenant": {"attributes": {"name": "test_tenant_1", "descr": "test_desc_1", "annotation": ""}}},
-                {"fvTenant": {"attributes": {"name": "test_tenant_2", "descr": "test_desc_2", "annotation": ""}}},
+                {
+                    "fvTenant": {
+                        "attributes": {
+                            "name": "test_tenant_1",
+                            "descr": "test_desc_1",
+                            "annotation": "",
+                        }
+                    }
+                },
+                {
+                    "fvTenant": {
+                        "attributes": {
+                            "name": "test_tenant_2",
+                            "descr": "test_desc_2",
+                            "annotation": "",
+                        }
+                    }
+                },
             ]
         }
 
@@ -41,8 +57,16 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         self.assertEqual(
             self.aci_obj.get_tenants(),
             [
-                {"name": "test_tenant_1", "description": "test_desc_1", "annotation": ""},
-                {"name": "test_tenant_2", "description": "test_desc_2", "annotation": ""},
+                {
+                    "name": "test_tenant_1",
+                    "description": "test_desc_1",
+                    "annotation": "",
+                },
+                {
+                    "name": "test_tenant_2",
+                    "description": "test_desc_2",
+                    "annotation": "",
+                },
             ],
         )
 
@@ -64,8 +88,22 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         mock_fvAp = Mock()
         mock_fvAp.json.return_value = {
             "imdata": [
-                {"fvAp": {"attributes": {"dn": "uni/tn-test-tenant-1/ap-test-ap-1", "name": "test-ap-1"}}},
-                {"fvAp": {"attributes": {"dn": "uni/tn-test-tenant-1/ap-test-ap-2", "name": "test-ap-2"}}},
+                {
+                    "fvAp": {
+                        "attributes": {
+                            "dn": "uni/tn-test-tenant-1/ap-test-ap-1",
+                            "name": "test-ap-1",
+                        }
+                    }
+                },
+                {
+                    "fvAp": {
+                        "attributes": {
+                            "dn": "uni/tn-test-tenant-1/ap-test-ap-2",
+                            "name": "test-ap-2",
+                        }
+                    }
+                },
             ]
         }
 
@@ -100,12 +138,18 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
             "imdata": [
                 {
                     "fvAEPg": {
-                        "attributes": {"dn": "uni/tn-test-tenant-1/ap-test-ap1/epg-test-epg-1", "name": "test-epg-1"}
+                        "attributes": {
+                            "dn": "uni/tn-test-tenant-1/ap-test-ap1/epg-test-epg-1",
+                            "name": "test-epg-1",
+                        }
                     }
                 },
                 {
                     "fvAEPg": {
-                        "attributes": {"dn": "uni/tn-test-tenant-1/ap-test-ap1/epg-test-epg-2", "name": "test-epg-2"}
+                        "attributes": {
+                            "dn": "uni/tn-test-tenant-1/ap-test-ap1/epg-test-epg-2",
+                            "name": "test-epg-2",
+                        }
                     }
                 },
             ]
@@ -181,14 +225,40 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
 
         mock_vzEntry = Mock()
         mock_vzEntry.json.return_value = {
-            "imdata": [{"vzEntry": {"attributes": {"name": "web", "dToPort": 80, "etherT": "ip", "prot": "tcp"}}}]
+            "imdata": [
+                {
+                    "vzEntry": {
+                        "attributes": {
+                            "name": "web",
+                            "dToPort": 80,
+                            "etherT": "ip",
+                            "prot": "tcp",
+                        }
+                    }
+                }
+            ]
         }
         mocked_login.return_value = self.mock_login
-        mocked_handle_request.side_effect = [mock_vzSubj, mock_vzRsSubjFiltAtt, mock_vzEntry]
+        mocked_handle_request.side_effect = [
+            mock_vzSubj,
+            mock_vzRsSubjFiltAtt,
+            mock_vzEntry,
+        ]
 
-        expected_data = [{"name": "web", "dstport": 80, "etype": "ip", "prot": "tcp", "action": "permit"}]
+        expected_data = [
+            {
+                "name": "web",
+                "dstport": 80,
+                "etype": "ip",
+                "prot": "tcp",
+                "action": "permit",
+            }
+        ]
 
-        self.assertEqual(self.aci_obj.get_contract_filters("test-tenant", "test-contract"), expected_data)
+        self.assertEqual(
+            self.aci_obj.get_contract_filters("test-tenant", "test-contract"),
+            expected_data,
+        )
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -209,7 +279,10 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
             "imdata": [
                 {
                     "fvRsPathAtt": {
-                        "attributes": {"encap": "vlan-102", "tDn": "topology/pod-1/paths-101/pathep-[eth1/20]"}
+                        "attributes": {
+                            "encap": "vlan-102",
+                            "tDn": "topology/pod-1/paths-101/pathep-[eth1/20]",
+                        }
                     }
                 }
             ]
@@ -224,11 +297,26 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         }
 
         mocked_login.return_value = self.mock_login
-        mocked_handle_request.side_effect = [mock_fvRsPathAtt, mock_fabricPathEpCont, mock_fabricPathEp]
+        mocked_handle_request.side_effect = [
+            mock_fvRsPathAtt,
+            mock_fabricPathEpCont,
+            mock_fabricPathEp,
+        ]
 
-        expected_data = [{"encap": "vlan-102", "node_id": 102, "intf": "eth1/20", "pathtype": "leaf", "type": "non-PC"}]
+        expected_data = [
+            {
+                "encap": "vlan-102",
+                "node_id": 102,
+                "intf": "eth1/20",
+                "pathtype": "leaf",
+                "type": "non-PC",
+            }
+        ]
 
-        self.assertEqual(self.aci_obj.get_static_path("test-tenant", "test-ap", "test-epg"), expected_data)
+        self.assertEqual(
+            self.aci_obj.get_static_path("test-tenant", "test-ap", "test-epg"),
+            expected_data,
+        )
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -319,7 +407,10 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
             }
         ]
 
-        self.assertEqual(self.aci_obj.get_static_path("test-tenant", "test-ap", "test-epg"), expected_data)
+        self.assertEqual(
+            self.aci_obj.get_static_path("test-tenant", "test-ap", "test-epg"),
+            expected_data,
+        )
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -367,8 +458,24 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
 
         mocked_get_bd_subnet.return_value = "10.1.1.1/24"
         mocked_get_contract_filters.side_effect = [
-            [{"name": "mysql", "dstport": "3306", "etype": "ip", "prot": "tcp", "action": "permit"}],
-            [{"name": "tcp8080", "dstport": "8080", "etype": "ip", "prot": "tcp", "action": "permit"}],
+            [
+                {
+                    "name": "mysql",
+                    "dstport": "3306",
+                    "etype": "ip",
+                    "prot": "tcp",
+                    "action": "permit",
+                }
+            ],
+            [
+                {
+                    "name": "tcp8080",
+                    "dstport": "8080",
+                    "etype": "ip",
+                    "prot": "tcp",
+                    "action": "permit",
+                }
+            ],
         ]
         mocked_get_static_path.return_value = [
             {
@@ -393,14 +500,28 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
                 {
                     "name": "Web-to-App",
                     "filters": [
-                        {"name": "tcp8080", "dstport": "8080", "etype": "ip", "prot": "tcp", "action": "permit"}
+                        {
+                            "name": "tcp8080",
+                            "dstport": "8080",
+                            "etype": "ip",
+                            "prot": "tcp",
+                            "action": "permit",
+                        }
                     ],
                 }
             ],
             "consumed_contracts": [
                 {
                     "name": "App-to-DB",
-                    "filters": [{"name": "mysql", "dstport": "3306", "etype": "ip", "prot": "tcp", "action": "permit"}],
+                    "filters": [
+                        {
+                            "name": "mysql",
+                            "dstport": "3306",
+                            "etype": "ip",
+                            "prot": "tcp",
+                            "action": "permit",
+                        }
+                    ],
                 }
             ],
             "domains": ["PHYS"],
@@ -419,7 +540,10 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
             "name": "App",
         }
 
-        self.assertEqual(self.aci_obj.get_epg_details("test-tenant", "3-Tier-App", "App"), expected_data)
+        self.assertEqual(
+            self.aci_obj.get_epg_details("test-tenant", "3-Tier-App", "App"),
+            expected_data,
+        )
 
     @patch.object(AciApi, "_handle_request")
     @patch.object(AciApi, "_login")
@@ -428,8 +552,22 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         mock_fvCtx = Mock()
         mock_fvCtx.json.return_value = {
             "imdata": [
-                {"fvCtx": {"attributes": {"dn": "uni/tn-ntc-chatops/ctx-vrf-1", "name": "vrf-1"}}},
-                {"fvCtx": {"attributes": {"dn": "uni/tn-ntc-chatops/ctx-vrf-2", "name": "vrf-2"}}},
+                {
+                    "fvCtx": {
+                        "attributes": {
+                            "dn": "uni/tn-ntc-chatops/ctx-vrf-1",
+                            "name": "vrf-1",
+                        }
+                    }
+                },
+                {
+                    "fvCtx": {
+                        "attributes": {
+                            "dn": "uni/tn-ntc-chatops/ctx-vrf-2",
+                            "name": "vrf-2",
+                        }
+                    }
+                },
             ]
         }
         mocked_login.return_value = mocked_login
@@ -634,7 +772,11 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
         mock_eqptExtCh.json.return_value = {"imdata": []}
 
         mocked_login.return_value = self.mock_login
-        mocked_handle_request.side_effect = [mock_fabricNode, mock_topSystem, mock_eqptExtCh]
+        mocked_handle_request.side_effect = [
+            mock_fabricNode,
+            mock_topSystem,
+            mock_eqptExtCh,
+        ]
 
         expected_data = {
             "101": {
@@ -849,7 +991,10 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
                         "children": [
                             {
                                 "ethpmPhysIf": {
-                                    "attributes": {"operSt": "down", "operStQual": "admin-down"},
+                                    "attributes": {
+                                        "operSt": "down",
+                                        "operStQual": "admin-down",
+                                    },
                                     "children": [
                                         {
                                             "ethpmFcot": {
@@ -884,7 +1029,10 @@ class TestAciMethods(unittest.TestCase):  # pylint: disable=too-many-public-meth
                         "children": [
                             {
                                 "ethpmPhysIf": {
-                                    "attributes": {"operSt": "down", "operStQual": "admin-down"},
+                                    "attributes": {
+                                        "operSt": "down",
+                                        "operStQual": "admin-down",
+                                    },
                                     "children": [
                                         {
                                             "ethpmFcot": {

@@ -5,9 +5,25 @@ from unittest import mock
 
 from django.test import TestCase, override_settings
 from django.urls import reverse
-from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer
-from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
-from nautobot.extras.models import Role, Secret, SecretsGroup, SecretsGroupAssociation, Status
+from nautobot.dcim.models import (
+    Device,
+    DeviceType,
+    Interface,
+    Location,
+    LocationType,
+    Manufacturer,
+)
+from nautobot.extras.choices import (
+    SecretsGroupAccessTypeChoices,
+    SecretsGroupSecretTypeChoices,
+)
+from nautobot.extras.models import (
+    Role,
+    Secret,
+    SecretsGroup,
+    SecretsGroupAssociation,
+    Status,
+)
 
 from nautobot_ssot.integrations.servicenow.jobs import ServiceNowDataTarget
 from nautobot_ssot.integrations.servicenow.models import SSOTServiceNowConfig
@@ -21,8 +37,14 @@ class ServiceNowDataTargetJobTestCase(TestCase):
         self.assertEqual("Nautobot ⟹ ServiceNow", ServiceNowDataTarget.name)
         self.assertEqual("Nautobot ⟹ ServiceNow", ServiceNowDataTarget.Meta.name)
         self.assertEqual("ServiceNow", ServiceNowDataTarget.Meta.data_target)
-        self.assertEqual("Synchronize data from Nautobot into ServiceNow.", ServiceNowDataTarget.description)
-        self.assertEqual("Synchronize data from Nautobot into ServiceNow.", ServiceNowDataTarget.Meta.description)
+        self.assertEqual(
+            "Synchronize data from Nautobot into ServiceNow.",
+            ServiceNowDataTarget.description,
+        )
+        self.assertEqual(
+            "Synchronize data from Nautobot into ServiceNow.",
+            ServiceNowDataTarget.Meta.description,
+        )
 
     def test_data_mappings(self):
         """Verify correctness of the data_mappings() API."""

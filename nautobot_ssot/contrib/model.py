@@ -8,7 +8,12 @@ from typing import ClassVar, Optional
 from uuid import UUID
 
 from diffsync import DiffSyncModel
-from diffsync.exceptions import ObjectCrudException, ObjectNotCreated, ObjectNotDeleted, ObjectNotUpdated
+from diffsync.exceptions import (
+    ObjectCrudException,
+    ObjectNotCreated,
+    ObjectNotDeleted,
+    ObjectNotUpdated,
+)
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import MultipleObjectsReturned, ValidationError
 from django.db.models import Model, ProtectedError

@@ -8,8 +8,13 @@ from nautobot.extras.models import RelationshipAssociation, Status
 from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix, VLANGroup
 
 from nautobot_ssot.integrations.infoblox.choices import DNSRecordTypeChoices
-from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import NautobotAdapter
-from nautobot_ssot.tests.infoblox.fixtures_infoblox import create_default_infoblox_config, create_prefix_relationship
+from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import (
+    NautobotAdapter,
+)
+from nautobot_ssot.tests.infoblox.fixtures_infoblox import (
+    create_default_infoblox_config,
+    create_prefix_relationship,
+)
 
 
 class TestNautobotAdapter(TestCase):
@@ -162,7 +167,12 @@ class TestNautobotAdapter(TestCase):
 
     def test_load_vlans_loads_expected_vlans(self):
         self.nb_adapter.load_vlans()
-        expected_vlans = {"20__twenty__one", "30__thirty__one", "40__forty__two", "50__fifty__two"}
+        expected_vlans = {
+            "20__twenty__one",
+            "30__thirty__one",
+            "40__forty__two",
+            "50__fifty__two",
+        }
         actual_vlans = {vlan.get_unique_id() for vlan in self.nb_adapter.get_all("vlan")}
         self.assertEqual(expected_vlans, actual_vlans)
 

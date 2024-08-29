@@ -10,7 +10,8 @@ class AutomationGatewayModelBulkEditForm(BootstrapMixin, BulkEditForm):
     """AutomationGatewayModel BulkEdit form."""
 
     pk = forms.ModelMultipleChoiceField(
-        queryset=models.AutomationGatewayModel.objects.all(), widget=forms.MultipleHiddenInput
+        queryset=models.AutomationGatewayModel.objects.all(),
+        widget=forms.MultipleHiddenInput,
     )
     enabled = forms.BooleanField(required=False)
 
@@ -39,4 +40,11 @@ class AutomationGatewayModelForm(NautobotModelForm):  # pylint: disable=too-many
         """Meta class definition."""
 
         model = models.AutomationGatewayModel
-        fields = ["name", "description", "location", "location_descendants", "gateway", "enabled"]
+        fields = [
+            "name",
+            "description",
+            "location",
+            "location_descendants",
+            "gateway",
+            "enabled",
+        ]

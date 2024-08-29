@@ -16,7 +16,14 @@ LOGGER = logging.getLogger(__name__)
 class DnaCenterClient:
     """Client for handling all interactions with DNA Center."""
 
-    def __init__(self, url: str, username: str, password: str, port: int = 443, verify: bool = True):  # pylint: disable=too-many-arguments
+    def __init__(
+        self,
+        url: str,
+        username: str,
+        password: str,
+        port: int = 443,
+        verify: bool = True,
+    ):  # pylint: disable=too-many-arguments
         """Initialize instance of client."""
         self.url = url
         self.port = port
@@ -30,7 +37,10 @@ class DnaCenterClient:
         """Connect to Cisco DNA Center."""
         try:
             self.conn = api.DNACenterAPI(
-                base_url=self.base_url, username=self.username, password=self.password, verify=self.verify
+                base_url=self.base_url,
+                username=self.username,
+                password=self.password,
+                verify=self.verify,
             )
         except dnacentersdkException as err:
             raise dnacentersdkException(f"Unable to connect to DNA Center: {err}") from err
@@ -83,7 +93,10 @@ class DnaCenterClient:
         """
         for element in info:
             if element["nameSpace"] == "Location":
-                return (element["attributes"]["latitude"], element["attributes"]["longitude"])
+                return (
+                    element["attributes"]["latitude"],
+                    element["attributes"]["longitude"],
+                )
         return ("", "")
 
     def get_devices(self):

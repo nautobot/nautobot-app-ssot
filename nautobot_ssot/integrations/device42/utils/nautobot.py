@@ -15,12 +15,16 @@ from nautobot.extras.models import CustomField, Relationship, Role, Tag
 from netutils.lib_mapper import ANSIBLE_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER_REVERSE
 from taggit.managers import TaggableManager
 
-from nautobot_ssot.integrations.device42.diffsync.models.base.dcim import Device as NautobotDevice
+from nautobot_ssot.integrations.device42.diffsync.models.base.dcim import (
+    Device as NautobotDevice,
+)
 
 logger = logging.getLogger(__name__)
 
 try:
-    from nautobot_device_lifecycle_mgmt.models import SoftwareLCM  # noqa: F401 # pylint: disable=unused-import
+    from nautobot_device_lifecycle_mgmt.models import (
+        SoftwareLCM,
+    )
 
     LIFECYCLE_MGMT = True
 except ImportError:
@@ -227,7 +231,8 @@ def update_custom_fields(new_cfields: dict, update_obj: object):
     for old_cf, old_cf_dict in current_cf.items():
         if old_cf not in new_cfields:
             removed_cf = CustomField.objects.get(
-                label=old_cf_dict["key"], content_types=ContentType.objects.get_for_model(type(update_obj))
+                label=old_cf_dict["key"],
+                content_types=ContentType.objects.get_for_model(type(update_obj)),
             )
             removed_cf.delete()
     for new_cf, new_cf_dict in new_cfields.items():

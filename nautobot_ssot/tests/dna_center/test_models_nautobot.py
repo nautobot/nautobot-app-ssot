@@ -62,7 +62,12 @@ class TestNautobotArea(TransactionTestCase):
 
 
 @override_settings(
-    PLUGINS_CONFIG={"nautobot_ssot": {"dna_center_delete_locations": True, "dna_center_update_locations": True}}
+    PLUGINS_CONFIG={
+        "nautobot_ssot": {
+            "dna_center_delete_locations": True,
+            "dna_center_update_locations": True,
+        }
+    }
 )
 class TestNautobotBuilding(TransactionTestCase):
     """Test the NautobotBuilding class."""
@@ -84,7 +89,10 @@ class TestNautobotBuilding(TransactionTestCase):
         loc_type = LocationType.objects.get_or_create(name="Site", parent=reg_loc)[0]
         self.adapter.locationtype_map = {"Region": reg_loc.id, "Site": loc_type.id}
         self.sec_site = Location.objects.create(
-            name="Site 2", parent=ny_region, status=Status.objects.get(name="Active"), location_type=loc_type
+            name="Site 2",
+            parent=ny_region,
+            status=Status.objects.get(name="Active"),
+            location_type=loc_type,
         )
         self.sec_site.validated_save()
         self.adapter.site_map = {"NY": ny_region.id, "Site 2": self.sec_site.id}
@@ -112,7 +120,9 @@ class TestNautobotBuilding(TransactionTestCase):
             "tenant": "G&A",
         }
         ny_area = Location.objects.get_or_create(
-            name="NY", location_type=LocationType.objects.get(name="Region"), status=Status.objects.get(name="Active")
+            name="NY",
+            location_type=LocationType.objects.get(name="Region"),
+            status=Status.objects.get(name="Active"),
         )[0]
         ny_area.validated_save()
         self.adapter.region_map = {None: {"NY": ny_area.id}}
@@ -184,9 +194,14 @@ class TestNautobotFloor(TransactionTestCase):
         self.adapter.tenant_map = {"G&A": ga_tenant.id}
         site_loc_type = LocationType.objects.get_or_create(name="Site")[0]
         self.floor_loc_type = LocationType.objects.get_or_create(name="Floor", parent=site_loc_type)[0]
-        self.adapter.locationtype_map = {"Site": site_loc_type.id, "Floor": self.floor_loc_type.id}
+        self.adapter.locationtype_map = {
+            "Site": site_loc_type.id,
+            "Floor": self.floor_loc_type.id,
+        }
         self.hq_site, _ = Location.objects.get_or_create(
-            name="HQ", location_type=site_loc_type, status=Status.objects.get(name="Active")
+            name="HQ",
+            location_type=site_loc_type,
+            status=Status.objects.get(name="Active"),
         )
         self.adapter.site_map = {"HQ": self.hq_site.id}
         self.adapter.floor_map = {}
@@ -311,7 +326,10 @@ class TestNautobotDevice(TransactionTestCase):
         }
         self.adapter.objects_to_create = {"devices": []}  # pylint: disable=no-member
 
-    @patch("nautobot_ssot.integrations.dna_center.diffsync.models.nautobot.LIFECYCLE_MGMT", True)
+    @patch(
+        "nautobot_ssot.integrations.dna_center.diffsync.models.nautobot.LIFECYCLE_MGMT",
+        True,
+    )
     def test_create(self):
         """Test the NautobotDevice create() method creates a Device."""
         floor_lt = LocationType.objects.get_or_create(name="Floor", parent=self.site_lt)[0]
@@ -326,7 +344,8 @@ class TestNautobotDevice(TransactionTestCase):
         self.assertEqual(
             new_dev.device_type,
             DeviceType.objects.get(
-                model=self.attrs["model"], manufacturer=Manufacturer.objects.get(name=self.attrs["vendor"])
+                model=self.attrs["model"],
+                manufacturer=Manufacturer.objects.get(name=self.attrs["vendor"]),
             ),
         )
         self.assertEqual(new_dev.platform.network_driver, self.attrs["platform"])

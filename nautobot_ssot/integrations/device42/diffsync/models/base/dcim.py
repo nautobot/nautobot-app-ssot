@@ -11,7 +11,15 @@ class Building(DiffSyncModel):
 
     _modelname = "building"
     _identifiers = ("name",)
-    _attributes = ("address", "latitude", "longitude", "contact_name", "contact_phone", "tags", "custom_fields")
+    _attributes = (
+        "address",
+        "latitude",
+        "longitude",
+        "contact_name",
+        "contact_phone",
+        "tags",
+        "custom_fields",
+    )
     _children = {"room": "rooms"}
     name: str
     address: Optional[str] = None
@@ -179,7 +187,14 @@ class Connection(DiffSyncModel):
     """Base Connection model."""
 
     _modelname = "conn"
-    _identifiers = ("src_device", "src_port", "src_port_mac", "dst_device", "dst_port", "dst_port_mac")
+    _identifiers = (
+        "src_device",
+        "src_port",
+        "src_port_mac",
+        "dst_device",
+        "dst_port",
+        "dst_port_mac",
+    )
     _attributes = ("src_type", "dst_type")
     _children = {}
 

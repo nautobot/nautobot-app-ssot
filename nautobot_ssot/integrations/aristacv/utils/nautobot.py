@@ -9,8 +9,17 @@ from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from nautobot.core.models.utils import slugify
 from nautobot.core.settings_funcs import is_truthy
-from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Manufacturer
-from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
+from nautobot.dcim.models import (
+    Device,
+    DeviceType,
+    Location,
+    LocationType,
+    Manufacturer,
+)
+from nautobot.extras.choices import (
+    SecretsGroupAccessTypeChoices,
+    SecretsGroupSecretTypeChoices,
+)
 from nautobot.extras.models import (
     ExternalIntegration,
     Relationship,
@@ -28,7 +37,9 @@ from nautobot_ssot.integrations.aristacv.types import CloudVisionAppConfig
 logger = logging.getLogger(__name__)
 
 try:
-    from nautobot_device_lifecycle_mgmt.models import SoftwareLCM  # noqa: F401 # pylint: disable=unused-import
+    from nautobot_device_lifecycle_mgmt.models import (
+        SoftwareLCM,
+    )
 
     LIFECYCLE_MGMT = True
 except ImportError:
@@ -109,16 +120,21 @@ def get_config() -> CloudVisionAppConfig:
     config = {
         "is_on_premise": bool(app_settings.get("aristacv_cvp_host")),
         "delete_devices_on_sync": is_truthy(
-            app_settings.get("aristacv_delete_devices_on_sync", constants.DEFAULT_DELETE_DEVICES_ON_SYNC)
+            app_settings.get(
+                "aristacv_delete_devices_on_sync",
+                constants.DEFAULT_DELETE_DEVICES_ON_SYNC,
+            )
         ),
         "from_cloudvision_default_site": app_settings.get(
             "aristacv_from_cloudvision_default_site", constants.DEFAULT_SITE
         ),
         "from_cloudvision_default_device_role": app_settings.get(
-            "aristacv_from_cloudvision_default_device_role", constants.DEFAULT_DEVICE_ROLE
+            "aristacv_from_cloudvision_default_device_role",
+            constants.DEFAULT_DEVICE_ROLE,
         ),
         "from_cloudvision_default_device_role_color": app_settings.get(
-            "aristacv_from_cloudvision_default_device_role_color", constants.DEFAULT_DEVICE_ROLE_COLOR
+            "aristacv_from_cloudvision_default_device_role_color",
+            constants.DEFAULT_DEVICE_ROLE_COLOR,
         ),
         "apply_import_tag": is_truthy(
             app_settings.get("aristacv_apply_import_tag", constants.DEFAULT_APPLY_IMPORT_TAG)

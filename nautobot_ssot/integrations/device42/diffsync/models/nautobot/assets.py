@@ -11,7 +11,9 @@ from nautobot_ssot.integrations.device42.diffsync.models.base.assets import (
     PatchPanelFrontPort,
     PatchPanelRearPort,
 )
-from nautobot_ssot.integrations.device42.diffsync.models.nautobot.dcim import NautobotRack
+from nautobot_ssot.integrations.device42.diffsync.models.nautobot.dcim import (
+    NautobotRack,
+)
 from nautobot_ssot.integrations.device42.utils import nautobot
 
 
@@ -57,7 +59,11 @@ class NautobotPatchPanel(PatchPanel):
         except KeyError:
             pp_site = find_site(adapter=adapter, attrs=attrs)
             pp_rack = cls.find_rack(
-                cls, adapter=adapter, building=attrs.get("building"), room=attrs.get("room"), rack=attrs.get("rack")
+                cls,
+                adapter=adapter,
+                building=attrs.get("building"),
+                room=attrs.get("room"),
+                rack=attrs.get("rack"),
             )
             pp_role = nautobot.verify_device_role(adapter=adapter, role_name="patch panel")
             if attrs.get("in_service"):

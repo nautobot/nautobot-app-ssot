@@ -14,7 +14,10 @@ class DnaCenterDataSourceJobTest(TestCase):
         self.assertEqual("DNA Center to Nautobot", jobs.DnaCenterDataSource.name)
         self.assertEqual("DNA Center to Nautobot", jobs.DnaCenterDataSource.Meta.name)
         self.assertEqual("DNA Center", jobs.DnaCenterDataSource.data_source)
-        self.assertEqual("Sync information from DNA Center to Nautobot", jobs.DnaCenterDataSource.description)
+        self.assertEqual(
+            "Sync information from DNA Center to Nautobot",
+            jobs.DnaCenterDataSource.description,
+        )
 
     def test_data_mapping(self):
         mappings = jobs.DnaCenterDataSource.data_mappings()
@@ -52,4 +55,7 @@ class DnaCenterDataSourceJobTest(TestCase):
     def test_config_information(self):
         """Verify the config_information() API."""
         config_information = jobs.DnaCenterDataSource.config_information()
-        self.assertEqual(config_information, {"Instances": "Found in Extensibility -> External Integrations menu."})
+        self.assertEqual(
+            config_information,
+            {"Instances": "Found in Extensibility -> External Integrations menu."},
+        )

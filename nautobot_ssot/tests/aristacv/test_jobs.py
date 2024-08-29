@@ -15,7 +15,10 @@ class CloudVisionDataSourceJobTest(TestCase):
         self.assertEqual("CloudVision ⟹ Nautobot", jobs.CloudVisionDataSource.name)
         self.assertEqual("CloudVision ⟹ Nautobot", jobs.CloudVisionDataSource.Meta.name)
         self.assertEqual("CloudVision", jobs.CloudVisionDataSource.data_source)
-        self.assertEqual("Sync system tag data from CloudVision to Nautobot", jobs.CloudVisionDataSource.description)
+        self.assertEqual(
+            "Sync system tag data from CloudVision to Nautobot",
+            jobs.CloudVisionDataSource.description,
+        )
 
     def test_data_mapping(self):  # pylint: disable=too-many-statements
         """Verify correctness of the data_mappings() API."""
@@ -156,7 +159,10 @@ class CloudVisionDataTargetJobTest(TestCase):
         self.assertEqual("Nautobot ⟹ CloudVision", jobs.CloudVisionDataTarget.name)
         self.assertEqual("Nautobot ⟹ CloudVision", jobs.CloudVisionDataTarget.Meta.name)
         self.assertEqual("Nautobot", jobs.CloudVisionDataTarget.data_source)
-        self.assertEqual("Sync tag data from Nautobot to CloudVision", jobs.CloudVisionDataTarget.description)
+        self.assertEqual(
+            "Sync tag data from Nautobot to CloudVision",
+            jobs.CloudVisionDataTarget.description,
+        )
 
     def test_data_mapping(self):  # pylint: disable=too-many-statements
         """Verify correctness of the data_mappings() API."""

@@ -21,7 +21,10 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="SSOTConfig",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False)),
+                (
+                    "id",
+                    models.BigAutoField(auto_created=True, primary_key=True, serialize=False),
+                ),
             ],
             options={
                 "managed": False,
@@ -34,18 +37,29 @@ class Migration(migrations.Migration):
                 (
                     "id",
                     models.UUIDField(
-                        default=uuid.uuid4, editable=False, primary_key=True, serialize=False, unique=True
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                        unique=True,
                     ),
                 ),
                 ("created", models.DateTimeField(auto_now_add=True, null=True)),
                 ("last_updated", models.DateTimeField(auto_now=True, null=True)),
                 (
                     "_custom_field_data",
-                    models.JSONField(blank=True, default=dict, encoder=django.core.serializers.json.DjangoJSONEncoder),
+                    models.JSONField(
+                        blank=True,
+                        default=dict,
+                        encoder=django.core.serializers.json.DjangoJSONEncoder,
+                    ),
                 ),
                 ("name", models.CharField(max_length=255, unique=True)),
                 ("description", models.CharField(blank=True, max_length=255)),
-                ("infoblox_wapi_version", models.CharField(default="v2.12", max_length=255)),
+                (
+                    "infoblox_wapi_version",
+                    models.CharField(default="v2.12", max_length=255),
+                ),
                 ("enable_sync_to_infoblox", models.BooleanField(default=False)),
                 ("enable_sync_to_nautobot", models.BooleanField(default=True)),
                 ("import_ip_addresses", models.BooleanField(default=False)),
@@ -61,7 +75,11 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "infoblox_dns_view_mapping",
-                    models.JSONField(blank=True, default=dict, encoder=django.core.serializers.json.DjangoJSONEncoder),
+                    models.JSONField(
+                        blank=True,
+                        default=dict,
+                        encoder=django.core.serializers.json.DjangoJSONEncoder,
+                    ),
                 ),
                 (
                     "cf_fields_ignore",
@@ -73,23 +91,46 @@ class Migration(migrations.Migration):
                 ),
                 ("import_ipv4", models.BooleanField(default=True)),
                 ("import_ipv6", models.BooleanField(default=False)),
-                ("dns_record_type", models.CharField(default="create-host-record", max_length=255)),
-                ("fixed_address_type", models.CharField(default="do-not-create-record", max_length=255)),
+                (
+                    "dns_record_type",
+                    models.CharField(default="create-host-record", max_length=255),
+                ),
+                (
+                    "fixed_address_type",
+                    models.CharField(default="do-not-create-record", max_length=255),
+                ),
                 ("job_enabled", models.BooleanField(default=False)),
                 (
                     "infoblox_deletable_models",
-                    models.JSONField(blank=True, default=list, encoder=django.core.serializers.json.DjangoJSONEncoder),
+                    models.JSONField(
+                        blank=True,
+                        default=list,
+                        encoder=django.core.serializers.json.DjangoJSONEncoder,
+                    ),
                 ),
                 (
                     "nautobot_deletable_models",
-                    models.JSONField(blank=True, default=list, encoder=django.core.serializers.json.DjangoJSONEncoder),
+                    models.JSONField(
+                        blank=True,
+                        default=list,
+                        encoder=django.core.serializers.json.DjangoJSONEncoder,
+                    ),
                 ),
-                ("default_status", models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to="extras.status")),
+                (
+                    "default_status",
+                    models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to="extras.status"),
+                ),
                 (
                     "infoblox_instance",
-                    models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to="extras.externalintegration"),
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        to="extras.externalintegration",
+                    ),
                 ),
-                ("tags", nautobot.core.models.fields.TagsField(through="extras.TaggedItem", to="extras.Tag")),
+                (
+                    "tags",
+                    nautobot.core.models.fields.TagsField(through="extras.TaggedItem", to="extras.Tag"),
+                ),
             ],
             options={
                 "verbose_name": "SSOT Infoblox Config",

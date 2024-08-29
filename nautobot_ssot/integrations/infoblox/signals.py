@@ -13,7 +13,10 @@ from nautobot.extras.choices import (
     SecretsGroupSecretTypeChoices,
 )
 
-from nautobot_ssot.integrations.infoblox.choices import DNSRecordTypeChoices, FixedAddressTypeChoices
+from nautobot_ssot.integrations.infoblox.choices import (
+    DNSRecordTypeChoices,
+    FixedAddressTypeChoices,
+)
 from nautobot_ssot.integrations.infoblox.constant import TAG_COLOR
 
 config = settings.PLUGINS_CONFIG["nautobot_ssot"]

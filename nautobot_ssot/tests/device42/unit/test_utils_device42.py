@@ -37,9 +37,22 @@ class TestUtilsDevice42(TestCase):
 
     def test_merge_offset_dicts(self):
         first_dict = {"total_count": 10, "limit": 2, "offset": 2, "Objects": ["a", "b"]}
-        second_dict = {"total_count": 10, "limit": 2, "offset": 4, "Objects": ["c", "d"]}
-        result_dict = {"total_count": 10, "limit": 2, "offset": 4, "Objects": ["a", "b", "c", "d"]}
-        self.assertEqual(device42.merge_offset_dicts(orig_dict=first_dict, offset_dict=second_dict), result_dict)
+        second_dict = {
+            "total_count": 10,
+            "limit": 2,
+            "offset": 4,
+            "Objects": ["c", "d"],
+        }
+        result_dict = {
+            "total_count": 10,
+            "limit": 2,
+            "offset": 4,
+            "Objects": ["a", "b", "c", "d"],
+        }
+        self.assertEqual(
+            device42.merge_offset_dicts(orig_dict=first_dict, offset_dict=second_dict),
+            result_dict,
+        )
 
     def test_get_intf_type_eth_intf(self):
         # test physical Ethernet interfaces
@@ -276,9 +289,16 @@ class TestDevice42Api(TestCase):  # pylint: disable=too-many-public-methods
             json=test_query,
             status=200,
         )
-        with open("./nautobot_ssot/tests/device42/fixtures/get_building_pks_recv.json", "r", encoding="utf-8") as file:
+        with open(
+            "./nautobot_ssot/tests/device42/fixtures/get_building_pks_recv.json",
+            "r",
+            encoding="utf-8",
+        ) as file:
             json_data = file.read()
-        expected = json.loads(json_data, object_hook=lambda d: {int(k) if k.isdigit() else k: v for k, v in d.items()})
+        expected = json.loads(
+            json_data,
+            object_hook=lambda d: {int(k) if k.isdigit() else k: v for k, v in d.items()},
+        )
         response = self.dev42.get_building_pks()
         self.assertEqual(response, expected)
         self.assertTrue(len(responses.calls) == 1)
@@ -308,9 +328,16 @@ class TestDevice42Api(TestCase):  # pylint: disable=too-many-public-methods
             json=test_query,
             status=200,
         )
-        with open("./nautobot_ssot/tests/device42/fixtures/get_room_pks_recv.json", "r", encoding="utf-8") as file:
+        with open(
+            "./nautobot_ssot/tests/device42/fixtures/get_room_pks_recv.json",
+            "r",
+            encoding="utf-8",
+        ) as file:
             json_data = file.read()
-        expected = json.loads(json_data, object_hook=lambda d: {int(k) if k.isdigit() else k: v for k, v in d.items()})
+        expected = json.loads(
+            json_data,
+            object_hook=lambda d: {int(k) if k.isdigit() else k: v for k, v in d.items()},
+        )
         response = self.dev42.get_room_pks()
         self.assertEqual(response, expected)
         self.assertTrue(len(responses.calls) == 1)
@@ -340,9 +367,16 @@ class TestDevice42Api(TestCase):  # pylint: disable=too-many-public-methods
             json=test_query,
             status=200,
         )
-        with open("./nautobot_ssot/tests/device42/fixtures/get_rack_pks_recv.json", "r", encoding="utf-8") as file:
+        with open(
+            "./nautobot_ssot/tests/device42/fixtures/get_rack_pks_recv.json",
+            "r",
+            encoding="utf-8",
+        ) as file:
             json_data = file.read()
-        expected = json.loads(json_data, object_hook=lambda d: {int(k) if k.isdigit() else k: v for k, v in d.items()})
+        expected = json.loads(
+            json_data,
+            object_hook=lambda d: {int(k) if k.isdigit() else k: v for k, v in d.items()},
+        )
         response = self.dev42.get_rack_pks()
         self.assertEqual(response, expected)
         self.assertTrue(len(responses.calls) == 1)
@@ -456,7 +490,11 @@ class TestDevice42Api(TestCase):  # pylint: disable=too-many-public-methods
         )
         expected = {
             "EOL Date": {"key": "EOL Date", "value": None, "notes": None},
-            "Software Version": {"key": "Software Version", "value": None, "notes": None},
+            "Software Version": {
+                "key": "Software Version",
+                "value": None,
+                "notes": None,
+            },
         }
         response = self.dev42.get_port_default_custom_fields()
         self.assertEqual(response, expected)
@@ -642,9 +680,16 @@ class TestDevice42Api(TestCase):  # pylint: disable=too-many-public-methods
             json=test_query,
             status=200,
         )
-        with open("./nautobot_ssot/tests/device42/fixtures/get_device_pks_recv.json", "r", encoding="utf-8") as file:
+        with open(
+            "./nautobot_ssot/tests/device42/fixtures/get_device_pks_recv.json",
+            "r",
+            encoding="utf-8",
+        ) as file:
             json_data = file.read()
-        expected = json.loads(json_data, object_hook=lambda d: {int(k) if k.isdigit() else k: v for k, v in d.items()})
+        expected = json.loads(
+            json_data,
+            object_hook=lambda d: {int(k) if k.isdigit() else k: v for k, v in d.items()},
+        )
         response = self.dev42.get_device_pks()
         self.assertEqual(response, expected)
         self.assertTrue(len(responses.calls) == 1)
@@ -659,9 +704,16 @@ class TestDevice42Api(TestCase):  # pylint: disable=too-many-public-methods
             json=test_query,
             status=200,
         )
-        with open("./nautobot_ssot/tests/device42/fixtures/get_port_pks_recv.json", "r", encoding="utf-8") as file:
+        with open(
+            "./nautobot_ssot/tests/device42/fixtures/get_port_pks_recv.json",
+            "r",
+            encoding="utf-8",
+        ) as file:
             json_data = file.read()
-        expected = json.loads(json_data, object_hook=lambda d: {int(k) if k.isdigit() else k: v for k, v in d.items()})
+        expected = json.loads(
+            json_data,
+            object_hook=lambda d: {int(k) if k.isdigit() else k: v for k, v in d.items()},
+        )
         response = self.dev42.get_port_pks()
         self.assertEqual(response, expected)
         self.assertTrue(len(responses.calls) == 1)
@@ -706,9 +758,16 @@ class TestDevice42Api(TestCase):  # pylint: disable=too-many-public-methods
             json=test_query,
             status=200,
         )
-        with open("./nautobot_ssot/tests/device42/fixtures/get_vendor_pks_recv.json", "r", encoding="utf-8") as file:
+        with open(
+            "./nautobot_ssot/tests/device42/fixtures/get_vendor_pks_recv.json",
+            "r",
+            encoding="utf-8",
+        ) as file:
             json_data = file.read()
-        expected = json.loads(json_data, object_hook=lambda d: {int(k) if k.isdigit() else k: v for k, v in d.items()})
+        expected = json.loads(
+            json_data,
+            object_hook=lambda d: {int(k) if k.isdigit() else k: v for k, v in d.items()},
+        )
         response = self.dev42.get_vendor_pks()
         self.assertEqual(response, expected)
         self.assertTrue(len(responses.calls) == 1)
@@ -739,10 +798,15 @@ class TestDevice42Api(TestCase):  # pylint: disable=too-many-public-methods
             status=200,
         )
         with open(
-            "./nautobot_ssot/tests/device42/fixtures/get_patch_panel_port_pks_recv.json", "r", encoding="utf-8"
+            "./nautobot_ssot/tests/device42/fixtures/get_patch_panel_port_pks_recv.json",
+            "r",
+            encoding="utf-8",
         ) as file:
             json_data = file.read()
-        expected = json.loads(json_data, object_hook=lambda d: {int(k) if k.isdigit() else k: v for k, v in d.items()})
+        expected = json.loads(
+            json_data,
+            object_hook=lambda d: {int(k) if k.isdigit() else k: v for k, v in d.items()},
+        )
         response = self.dev42.get_patch_panel_port_pks()
         self.assertEqual(response, expected)
         self.assertTrue(len(responses.calls) == 1)
@@ -757,9 +821,16 @@ class TestDevice42Api(TestCase):  # pylint: disable=too-many-public-methods
             json=test_query,
             status=200,
         )
-        with open("./nautobot_ssot/tests/device42/fixtures/get_customer_pks_recv.json", "r", encoding="utf-8") as file:
+        with open(
+            "./nautobot_ssot/tests/device42/fixtures/get_customer_pks_recv.json",
+            "r",
+            encoding="utf-8",
+        ) as file:
             json_data = file.read()
-        expected = json.loads(json_data, object_hook=lambda d: {int(k) if k.isdigit() else k: v for k, v in d.items()})
+        expected = json.loads(
+            json_data,
+            object_hook=lambda d: {int(k) if k.isdigit() else k: v for k, v in d.items()},
+        )
         response = self.dev42.get_customer_pks()
         self.assertEqual(response, expected)
         self.assertTrue(len(responses.calls) == 1)

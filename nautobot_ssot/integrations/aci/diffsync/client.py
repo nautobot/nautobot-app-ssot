@@ -67,7 +67,13 @@ class AciApi:
             self.refresh_timeout = int(resp.json()["imdata"][0]["aaaLogin"]["attributes"]["refreshTimeoutSeconds"])
         return resp
 
-    def _handle_request(self, url: str, params: dict = None, request_type: str = "get", data: dict = None) -> object:
+    def _handle_request(
+        self,
+        url: str,
+        params: dict = None,
+        request_type: str = "get",
+        data: dict = None,
+    ) -> object:
         """Send a REST API call to the APIC."""
         try:
             resp = requests.request(
@@ -153,7 +159,10 @@ class AciApi:
             resp = self._get(f"/api/node/mo/uni/tn-{tenant}.json?query-target=children&target-subtree-class=fvAp")
 
         ap_list = [
-            {"tenant": tenant_from_dn(data["fvAp"]["attributes"]["dn"]), "ap": data["fvAp"]["attributes"]["name"]}
+            {
+                "tenant": tenant_from_dn(data["fvAp"]["attributes"]["dn"]),
+                "ap": data["fvAp"]["attributes"]["name"],
+            }
             for data in resp.json()["imdata"]
         ]
         return ap_list
@@ -330,7 +339,10 @@ class AciApi:
         else:
             resp = self._get(f"/api/node/mo/uni/tn-{tenant}.json?query-target=children&target-subtree-class=fvCtx")
         vrf_list = [
-            {"name": data["fvCtx"]["attributes"]["name"], "tenant": tenant_from_dn(data["fvCtx"]["attributes"]["dn"])}
+            {
+                "name": data["fvCtx"]["attributes"]["name"],
+                "tenant": tenant_from_dn(data["fvCtx"]["attributes"]["dn"]),
+            }
             for data in resp.json()["imdata"]
         ]
         return vrf_list
@@ -389,7 +401,10 @@ class AciApi:
                     bd_dict[unique_name]
                 except KeyError:
                     bd_dict.setdefault(unique_name, deepcopy(bd_dict_schema))
-                subnet = (data["fvSubnet"]["attributes"]["ip"], data["fvSubnet"]["attributes"]["scope"])
+                subnet = (
+                    data["fvSubnet"]["attributes"]["ip"],
+                    data["fvSubnet"]["attributes"]["scope"],
+                )
                 (bd_dict[unique_name]["subnets"]).append(subnet)
             else:
                 logger.error(

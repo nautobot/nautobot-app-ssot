@@ -180,7 +180,16 @@ class Interface(DiffSyncModel):
         "device",
         "site",
     )
-    _attributes = ("description", "gbic_sn", "gbic_vendor", "gbic_type", "gbic_model", "state", "type", "site_tag")
+    _attributes = (
+        "description",
+        "gbic_sn",
+        "gbic_vendor",
+        "gbic_type",
+        "gbic_model",
+        "state",
+        "type",
+        "site_tag",
+    )
 
     name: str
     device: str

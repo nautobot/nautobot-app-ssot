@@ -8,8 +8,13 @@ from nautobot.circuits.models import Provider as OrmProvider
 from nautobot.dcim.models import Cable as OrmCable
 
 from nautobot_ssot.integrations.device42.constant import INTF_SPEED_MAP, PLUGIN_CFG
-from nautobot_ssot.integrations.device42.diffsync.models.base.circuits import Circuit, Provider
-from nautobot_ssot.integrations.device42.diffsync.models.nautobot.dcim import NautobotDevice
+from nautobot_ssot.integrations.device42.diffsync.models.base.circuits import (
+    Circuit,
+    Provider,
+)
+from nautobot_ssot.integrations.device42.diffsync.models.nautobot.dcim import (
+    NautobotDevice,
+)
 from nautobot_ssot.integrations.device42.utils import nautobot
 
 
@@ -27,8 +32,8 @@ class NautobotProvider(Provider):
                 name=ids["name"],
                 account=attrs["vendor_acct"] if attrs.get("vendor_acct") else "",
                 portal_url=attrs["vendor_url"] if attrs.get("vendor_url") else "",
-                noc_contact=attrs["vendor_contact1"] if attrs.get("vendor_contact1") else "",
-                admin_contact=attrs["vendor_contact2"] if attrs.get("vendor_contact2") else "",
+                noc_contact=(attrs["vendor_contact1"] if attrs.get("vendor_contact1") else ""),
+                admin_contact=(attrs["vendor_contact2"] if attrs.get("vendor_contact2") else ""),
                 comments=attrs["notes"] if attrs.get("notes") else "",
             )
             _provider.validated_save()
@@ -93,7 +98,7 @@ class NautobotCircuit(Circuit):
                 provider_id=adapter.provider_map[ids["provider"]],
                 circuit_type=nautobot.verify_circuit_type(attrs["type"]),
                 status_id=adapter.status_map[attrs["status"]],
-                install_date=attrs["install_date"] if attrs.get("install_date") else None,
+                install_date=(attrs["install_date"] if attrs.get("install_date") else None),
                 commit_rate=attrs["bandwidth"] if attrs.get("bandwidth") else None,
                 comments=attrs["notes"] if attrs.get("notes") else "",
             )

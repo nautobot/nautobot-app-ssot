@@ -7,10 +7,22 @@ from unittest import mock
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
-from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
-from nautobot.extras.models import ExternalIntegration, Secret, SecretsGroup, SecretsGroupAssociation, Status
+from nautobot.extras.choices import (
+    SecretsGroupAccessTypeChoices,
+    SecretsGroupSecretTypeChoices,
+)
+from nautobot.extras.models import (
+    ExternalIntegration,
+    Secret,
+    SecretsGroup,
+    SecretsGroupAssociation,
+    Status,
+)
 
-from nautobot_ssot.integrations.infoblox.choices import DNSRecordTypeChoices, FixedAddressTypeChoices
+from nautobot_ssot.integrations.infoblox.choices import (
+    DNSRecordTypeChoices,
+    FixedAddressTypeChoices,
+)
 from nautobot_ssot.integrations.infoblox.models import SSOTInfobloxConfig
 
 
@@ -107,7 +119,10 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
         self.assertEqual(inf_cfg_db.import_vlans, False)
         self.assertEqual(inf_cfg_db.infoblox_sync_filters, [{"network_view": "default"}])
         self.assertEqual(inf_cfg_db.infoblox_dns_view_mapping, {})
-        self.assertEqual(inf_cfg_db.cf_fields_ignore, {"custom_fields": [], "extensible_attributes": []})
+        self.assertEqual(
+            inf_cfg_db.cf_fields_ignore,
+            {"custom_fields": [], "extensible_attributes": []},
+        )
         self.assertEqual(inf_cfg_db.import_ipv4, True)
         self.assertEqual(inf_cfg_db.import_ipv6, False)
         self.assertEqual(inf_cfg_db.fixed_address_type, FixedAddressTypeChoices.DONT_CREATE_RECORD)
@@ -131,7 +146,10 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
             job_enabled=True,
             infoblox_sync_filters=[{"network_view": "dev"}],
             infoblox_dns_view_mapping={"default": "default.default"},
-            cf_fields_ignore={"extensible_attributes": ["aws_id"], "custom_fields": ["po_no"]},
+            cf_fields_ignore={
+                "extensible_attributes": ["aws_id"],
+                "custom_fields": ["po_no"],
+            },
             fixed_address_type=FixedAddressTypeChoices.MAC_ADDRESS,
             dns_record_type=DNSRecordTypeChoices.A_RECORD,
         )
@@ -151,7 +169,10 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
         self.assertEqual(inf_cfg_db.import_vlans, True)
         self.assertEqual(inf_cfg_db.infoblox_sync_filters, [{"network_view": "dev"}])
         self.assertEqual(inf_cfg_db.infoblox_dns_view_mapping, {"default": "default.default"})
-        self.assertEqual(inf_cfg_db.cf_fields_ignore, {"extensible_attributes": ["aws_id"], "custom_fields": ["po_no"]})
+        self.assertEqual(
+            inf_cfg_db.cf_fields_ignore,
+            {"extensible_attributes": ["aws_id"], "custom_fields": ["po_no"]},
+        )
         self.assertEqual(inf_cfg_db.import_ipv4, False)
         self.assertEqual(inf_cfg_db.import_ipv6, True)
         self.assertEqual(inf_cfg_db.fixed_address_type, FixedAddressTypeChoices.MAC_ADDRESS)
@@ -186,7 +207,10 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
         with self.assertRaises(ValidationError) as failure_exception:
             infoblox_config.full_clean()
         self.assertIn("infoblox_sync_filters", failure_exception.exception.error_dict)
-        self.assertIn("Invalid keys found in the sync filter", failure_exception.exception.messages[0])
+        self.assertIn(
+            "Invalid keys found in the sync filter",
+            failure_exception.exception.messages[0],
+        )
 
     def test_infoblox_sync_filters_no_network_view_key(self):
         """Prefix filter must have a `network_view` key defined."""
@@ -196,7 +220,10 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
         with self.assertRaises(ValidationError) as failure_exception:
             infoblox_config.full_clean()
         self.assertIn("infoblox_sync_filters", failure_exception.exception.error_dict)
-        self.assertEqual(failure_exception.exception.messages[0], "Sync filter must have `network_view` key defined.")
+        self.assertEqual(
+            failure_exception.exception.messages[0],
+            "Sync filter must have `network_view` key defined.",
+        )
 
     def test_infoblox_sync_filters_network_view_invalid_type(self):
         """Key `network_view` must be a string."""
@@ -206,17 +233,26 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
         with self.assertRaises(ValidationError) as failure_exception:
             infoblox_config.full_clean()
         self.assertIn("infoblox_sync_filters", failure_exception.exception.error_dict)
-        self.assertEqual(failure_exception.exception.messages[0], "Value of the `network_view` key must be a string.")
+        self.assertEqual(
+            failure_exception.exception.messages[0],
+            "Value of the `network_view` key must be a string.",
+        )
 
     def test_infoblox_sync_filters_duplicate_network_view(self):
         """Duplicate values for `network_view` are not allowed."""
         inf_dict = deepcopy(self.infoblox_config_dict)
-        inf_dict["infoblox_sync_filters"] = [{"network_view": "dev"}, {"network_view": "dev"}]
+        inf_dict["infoblox_sync_filters"] = [
+            {"network_view": "dev"},
+            {"network_view": "dev"},
+        ]
         infoblox_config = SSOTInfobloxConfig(**inf_dict)
         with self.assertRaises(ValidationError) as failure_exception:
             infoblox_config.full_clean()
         self.assertIn("infoblox_sync_filters", failure_exception.exception.error_dict)
-        self.assertEqual(failure_exception.exception.messages[0], "Duplicate value for the `network_view` found: dev.")
+        self.assertEqual(
+            failure_exception.exception.messages[0],
+            "Duplicate value for the `network_view` found: dev.",
+        )
 
     def test_infoblox_sync_filters_prefixes_ipv4_must_be_list(self):
         """Value of `prefixes_ipv4` key must be a list."""
@@ -226,7 +262,10 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
         with self.assertRaises(ValidationError) as failure_exception:
             infoblox_config.full_clean()
         self.assertIn("infoblox_sync_filters", failure_exception.exception.error_dict)
-        self.assertEqual(failure_exception.exception.messages[0], "Value of the `prefixes_ipv4` key must be a list.")
+        self.assertEqual(
+            failure_exception.exception.messages[0],
+            "Value of the `prefixes_ipv4` key must be a list.",
+        )
 
     def test_infoblox_sync_filters_prefixes_ipv4_must_not_be_an_empty_list(self):
         """Value of `prefixes_ipv4` key must not be an empty list."""
@@ -237,7 +276,8 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
             infoblox_config.full_clean()
         self.assertIn("infoblox_sync_filters", failure_exception.exception.error_dict)
         self.assertEqual(
-            failure_exception.exception.messages[0], "Value of the `prefixes_ipv4` key must not be an empty list."
+            failure_exception.exception.messages[0],
+            "Value of the `prefixes_ipv4` key must not be an empty list.",
         )
 
     def test_infoblox_sync_filters_prefixes_ipv4_must_have_prefix_length(self):
@@ -271,7 +311,10 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
         with self.assertRaises(ValidationError) as failure_exception:
             infoblox_config.full_clean()
         self.assertIn("infoblox_sync_filters", failure_exception.exception.error_dict)
-        self.assertEqual(failure_exception.exception.messages[0], "Value of the `prefixes_ipv6` key must be a list.")
+        self.assertEqual(
+            failure_exception.exception.messages[0],
+            "Value of the `prefixes_ipv6` key must be a list.",
+        )
 
     def test_infoblox_sync_filters_prefixes_ipv6_must_not_be_an_empty_list(self):
         """Value of `prefixes_ipv6` key must not be an empty list."""
@@ -282,7 +325,8 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
             infoblox_config.full_clean()
         self.assertIn("infoblox_sync_filters", failure_exception.exception.error_dict)
         self.assertEqual(
-            failure_exception.exception.messages[0], "Value of the `prefixes_ipv6` key must not be an empty list."
+            failure_exception.exception.messages[0],
+            "Value of the `prefixes_ipv6` key must not be an empty list.",
         )
 
     def test_infoblox_sync_filters_prefixes_ipv6_must_have_prefix_length(self):
@@ -317,7 +361,8 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
             infoblox_config.full_clean()
         self.assertIn("infoblox_instance", failure_exception.exception.error_dict)
         self.assertEqual(
-            failure_exception.exception.messages[0], "Infoblox instance must have Secrets groups assigned."
+            failure_exception.exception.messages[0],
+            "Infoblox instance must have Secrets groups assigned.",
         )
 
     def test_infoblox_instance_must_have_secrets_rest_username(self):
@@ -387,7 +432,10 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
         with self.assertRaises(ValidationError) as failure_exception:
             infoblox_config.full_clean()
         self.assertIn("cf_fields_ignore", failure_exception.exception.error_dict)
-        self.assertEqual(failure_exception.exception.messages[0], "`cf_fields_ignore` must be a dictionary.")
+        self.assertEqual(
+            failure_exception.exception.messages[0],
+            "`cf_fields_ignore` must be a dictionary.",
+        )
 
     def test_infoblox_infoblox_cf_fields_key_names_must_be_valid(self):
         """Only `extensible_attributes` and `custom_fields` keys are allowed in `cf_fields_ignore`."""
@@ -411,7 +459,8 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
             infoblox_config.full_clean()
         self.assertIn("cf_fields_ignore", failure_exception.exception.error_dict)
         self.assertEqual(
-            failure_exception.exception.messages[0], "Value of key `extensible_attributes` must be a list of strings."
+            failure_exception.exception.messages[0],
+            "Value of key `extensible_attributes` must be a list of strings.",
         )
 
         inf_dict["cf_fields_ignore"] = {"custom_fields": ["cf1", 2]}
@@ -420,5 +469,6 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
             infoblox_config.full_clean()
         self.assertIn("cf_fields_ignore", failure_exception.exception.error_dict)
         self.assertEqual(
-            failure_exception.exception.messages[0], "Value of key `custom_fields` must be a list of strings."
+            failure_exception.exception.messages[0],
+            "Value of key `custom_fields` must be a list of strings.",
         )

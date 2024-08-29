@@ -185,7 +185,9 @@ class InfobloxAdapter(Adapter):
             self.job.logger.debug("Loading Subnets from Infoblox.")
         try:
             containers, subnets = self._load_all_prefixes_filtered(
-                sync_filters=sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6
+                sync_filters=sync_filters,
+                include_ipv4=include_ipv4,
+                include_ipv6=include_ipv6,
             )
         except requests.exceptions.HTTPError as err:
             self.job.logger.error(f"Error while loading prefixes: {str(err)}")
@@ -212,7 +214,9 @@ class InfobloxAdapter(Adapter):
             except ObjectAlreadyExists:
                 self.job.logger.warning(f"Duplicate prefix found: {new_pf}.")
 
-    def load_ipaddresses(self):  # pylint: disable=too-many-branches,too-many-locals,too-many-statements
+    def load_ipaddresses(
+        self,
+    ):  # pylint: disable=too-many-branches,too-many-locals,too-many-statements
         """Load InfobloxIPAddress DiffSync model."""
         if self.job.debug:
             self.job.logger.debug("Loading IP addresses from Infoblox.")
@@ -426,7 +430,11 @@ class InfobloxAdapter(Adapter):
 
         self.load_network_views(sync_filters=sync_filters)
         if self.config.import_subnets:
-            self.load_prefixes(include_ipv4=include_ipv4, include_ipv6=include_ipv6, sync_filters=sync_filters)
+            self.load_prefixes(
+                include_ipv4=include_ipv4,
+                include_ipv6=include_ipv6,
+                sync_filters=sync_filters,
+            )
         if self.config.import_ip_addresses:
             self.load_ipaddresses()
         if self.config.import_vlan_views:

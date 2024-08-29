@@ -8,7 +8,10 @@ test_params = [
     (
         {
             "region": {
-                "Catalonia": {"+": {"parent_name": None}, "-": {"parent_name": "Europe"}},
+                "Catalonia": {
+                    "+": {"parent_name": None},
+                    "-": {"parent_name": "Europe"},
+                },
             }
         },
         '<ul><li>region<ul><li class="diff-changed">Catalonia<ul><li class="diff-added">parent_name: None</li><li class="diff-subtracted">parent_name: Europe</li></ul></li></ul></li></ul>',

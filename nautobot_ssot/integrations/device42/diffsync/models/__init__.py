@@ -5,7 +5,10 @@ from nautobot_ssot.integrations.device42.diffsync.models.base.assets import (
     PatchPanelFrontPort,
     PatchPanelRearPort,
 )
-from nautobot_ssot.integrations.device42.diffsync.models.base.circuits import Circuit, Provider
+from nautobot_ssot.integrations.device42.diffsync.models.base.circuits import (
+    Circuit,
+    Provider,
+)
 from nautobot_ssot.integrations.device42.diffsync.models.base.dcim import (
     Building,
     Cluster,
@@ -17,13 +20,21 @@ from nautobot_ssot.integrations.device42.diffsync.models.base.dcim import (
     Room,
     Vendor,
 )
-from nautobot_ssot.integrations.device42.diffsync.models.base.ipam import VLAN, IPAddress, Subnet, VRFGroup
+from nautobot_ssot.integrations.device42.diffsync.models.base.ipam import (
+    VLAN,
+    IPAddress,
+    Subnet,
+    VRFGroup,
+)
 from nautobot_ssot.integrations.device42.diffsync.models.nautobot.assets import (
     NautobotPatchPanel,
     NautobotPatchPanelFrontPort,
     NautobotPatchPanelRearPort,
 )
-from nautobot_ssot.integrations.device42.diffsync.models.nautobot.circuits import NautobotCircuit, NautobotProvider
+from nautobot_ssot.integrations.device42.diffsync.models.nautobot.circuits import (
+    NautobotCircuit,
+    NautobotProvider,
+)
 from nautobot_ssot.integrations.device42.diffsync.models.nautobot.dcim import (
     NautobotBuilding,
     NautobotCluster,

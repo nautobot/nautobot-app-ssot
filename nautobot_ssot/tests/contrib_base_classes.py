@@ -252,7 +252,11 @@ class BaseModelErrorTests(TestCase):
                 "Unable to populate many to many relationship 'tags'",
             ),
             # Validation error because description is too long
-            ({"name": "Test Tenant"}, {"description": "a" * 1000}, "Validated save failed for Django object"),
+            (
+                {"name": "Test Tenant"},
+                {"description": "a" * 1000},
+                "Validated save failed for Django object",
+            ),
         ]:
             with self.subTest(ids=ids, attrs=attrs):
                 with self.assertRaises(ObjectNotCreated) as exception_context:
@@ -280,7 +284,11 @@ class BaseModelErrorTests(TestCase):
                 "Unable to populate many to many relationship 'tags'",
             ),
             # Validation error because description is too long
-            ({"name": tenant.name}, {"description": "a" * 1000}, "Validated save failed for Django object"),
+            (
+                {"name": tenant.name},
+                {"description": "a" * 1000},
+                "Validated save failed for Django object",
+            ),
         ]:
             with self.subTest(base_parameters=base_parameters, updated_attrs=updated_attrs):
                 diffsync_tenant = NautobotTenant(pk=tenant.pk, **base_parameters)
@@ -338,7 +346,9 @@ class BaseModelTests(TestCase):
         diffsync_tenant.update(attrs={"description": description})
         tenant.refresh_from_db()
         self.assertEqual(
-            tenant.description, description, "Basic object updating through 'NautobotModel' does not work."
+            tenant.description,
+            description,
+            "Basic object updating through 'NautobotModel' does not work.",
         )
 
     def test_basic_deletion(self):
@@ -411,7 +421,9 @@ class BaseModelForeignKeyTest(TestCase):
 
         tenant.refresh_from_db()
         self.assertEqual(
-            group, tenant.tenant_group, "Foreign key update from None through 'NautobotModel' does not work."
+            group,
+            tenant.tenant_group,
+            "Foreign key update from None through 'NautobotModel' does not work.",
         )
 
     def test_foreign_key_remove(self):
@@ -419,12 +431,20 @@ class BaseModelForeignKeyTest(TestCase):
         group = tenancy_models.TenantGroup.objects.create(name=self.tenant_group_name)
         tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name, tenant_group=group)
 
-        diffsync_tenant = NautobotTenant(name=self.tenant_name, tenant_group__name=self.tenant_group_name, pk=tenant.pk)
+        diffsync_tenant = NautobotTenant(
+            name=self.tenant_name,
+            tenant_group__name=self.tenant_group_name,
+            pk=tenant.pk,
+        )
         diffsync_tenant.adapter = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"tenant_group__name": None})
 
         tenant.refresh_from_db()
-        self.assertEqual(None, tenant.tenant_group, "Foreign key update to None through 'NautobotModel' does not work.")
+        self.assertEqual(
+            None,
+            tenant.tenant_group,
+            "Foreign key update to None through 'NautobotModel' does not work.",
+        )
 
     def test_foreign_key_add_multiple_fields(self):
         """Test whether setting a foreign key using multiple fields works."""
@@ -433,10 +453,14 @@ class BaseModelForeignKeyTest(TestCase):
         location_type_a.content_types.set([ContentType.objects.get_for_model(ipam_models.Prefix)])
         location_type_b.content_types.set([ContentType.objects.get_for_model(ipam_models.Prefix)])
         location_a = dcim_models.Location.objects.create(
-            name="Room A", location_type=location_type_a, status=extras_models.Status.objects.get(name="Active")
+            name="Room A",
+            location_type=location_type_a,
+            status=extras_models.Status.objects.get(name="Active"),
         )
         location_b = dcim_models.Location.objects.create(
-            name="Room B", location_type=location_type_b, status=extras_models.Status.objects.get(name="Active")
+            name="Room B",
+            location_type=location_type_b,
+            status=extras_models.Status.objects.get(name="Active"),
         )
 
         class PrefixModel(NautobotModel):
@@ -470,7 +494,10 @@ class BaseModelForeignKeyTest(TestCase):
         prefix_diffsync.adapter = NautobotAdapter(job=None, sync=None)
 
         prefix_diffsync.update(
-            attrs={"location__name": location_b.name, "location__location_type__name": location_b.location_type.name}
+            attrs={
+                "location__name": location_b.name,
+                "location__location_type__name": location_b.location_type.name,
+            }
         )
         prefix.refresh_from_db()
 
@@ -506,7 +533,8 @@ class TenantModelCustomRelationship(NautobotModel):
 
     name: str
     provider__name: Annotated[
-        Optional[str], CustomRelationshipAnnotation(name="Test Relationship", side=RelationshipSideEnum.DESTINATION)
+        Optional[str],
+        CustomRelationshipAnnotation(name="Test Relationship", side=RelationshipSideEnum.DESTINATION),
     ] = None
 
 
@@ -526,5 +554,6 @@ class ProviderModelCustomRelationship(NautobotModel):
 
     name: str
     tenants: Annotated[
-        List[TenantDict], CustomRelationshipAnnotation(name="Test Relationship", side=RelationshipSideEnum.SOURCE)
+        List[TenantDict],
+        CustomRelationshipAnnotation(name="Test Relationship", side=RelationshipSideEnum.SOURCE),
     ] = []

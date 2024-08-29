@@ -16,7 +16,10 @@ from .tables import SSOTInfobloxConfigTable
 
 
 class SSOTInfobloxConfigUIViewSet(
-    ObjectDestroyViewMixin, ObjectDetailViewMixin, ObjectListViewMixin, ObjectEditViewMixin
+    ObjectDestroyViewMixin,
+    ObjectDetailViewMixin,
+    ObjectListViewMixin,
+    ObjectEditViewMixin,
 ):  # pylint: disable=abstract-method
     """SSOTInfobloxConfig UI ViewSet."""
 

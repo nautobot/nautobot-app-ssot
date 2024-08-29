@@ -49,7 +49,10 @@ class TestDnaCenterClient(TestCase):  # pylint: disable=too-many-public-methods
     def test_connect_success(self, mock_api):
         self.dnac.connect()
         mock_api.assert_called_once_with(  # noqa: S106
-            base_url="https://dnac.testexample.com:443", username="testuser", password="testpassword", verify=False
+            base_url="https://dnac.testexample.com:443",
+            username="testuser",
+            password="testpassword",
+            verify=False,
         )
         self.assertIsNotNone(self.dnac.conn)
 
@@ -60,7 +63,10 @@ class TestDnaCenterClient(TestCase):  # pylint: disable=too-many-public-methods
         with self.assertRaises(dnacentersdkException):
             self.dnac.connect()
         mock_api.assert_called_once_with(  # noqa: S106
-            base_url="https://dnac.testexample.com:443", password="testpassword", username="testuser", verify=False
+            base_url="https://dnac.testexample.com:443",
+            password="testpassword",
+            username="testuser",
+            verify=False,
         )
         self.assertIsNone(self.dnac.conn)
 
@@ -134,7 +140,10 @@ class TestDnaCenterClient(TestCase):  # pylint: disable=too-many-public-methods
         self.dnac.conn.devices.get_device_detail.side_effect = dnacentersdkException(self.mock_response)
         with self.assertLogs(level="ERROR") as log:
             self.dnac.get_device_detail(dev_id="1234567890")
-            self.assertIn("Unable to get device detail information from DNA Center.", log.output[0])
+            self.assertIn(
+                "Unable to get device detail information from DNA Center.",
+                log.output[0],
+            )
 
     def test_parse_site_hierarchy(self):
         """Test the parse_site_hierarchy method in DnaCenterClient."""
@@ -176,9 +185,21 @@ class TestDnaCenterClient(TestCase):  # pylint: disable=too-many-public-methods
 
     mock_port_types = [
         ("SVI", {"portType": "Ethernet SVI"}, "virtual"),
-        ("Service Module Interface", {"portType": "Service Module Interface"}, "virtual"),
-        ("FastEthernet", {"portType": "Ethernet Port", "portName": "FastEth0"}, "100base-tx"),
-        ("GigabitEthernet", {"portType": "Ethernet Port", "portName": "GigabitEthernet0/1"}, "1000base-t"),
+        (
+            "Service Module Interface",
+            {"portType": "Service Module Interface"},
+            "virtual",
+        ),
+        (
+            "FastEthernet",
+            {"portType": "Ethernet Port", "portName": "FastEth0"},
+            "100base-tx",
+        ),
+        (
+            "GigabitEthernet",
+            {"portType": "Ethernet Port", "portName": "GigabitEthernet0/1"},
+            "1000base-t",
+        ),
         ("Number port", {"portType": "Ethernet Port", "portName": "0/1"}, "other"),
     ]
 
