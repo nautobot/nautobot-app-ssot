@@ -53,7 +53,7 @@ class DashboardTable(BaseTable):  # pylint: disable=nb-sub-class-name
         """Metaclass attributes of DashboardTable."""
 
         model = Sync
-        fields = [ # pylint: disable=nb-use-fields-all
+        fields = [  # pylint: disable=nb-use-fields-all
             "source",
             "target",
             "start_time",

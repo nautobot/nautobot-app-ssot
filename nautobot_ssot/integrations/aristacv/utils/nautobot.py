@@ -43,6 +43,7 @@ module_spec = importlib.util.find_spec("nautobot_device_lifecycle_mgmt.models")
 if module_spec:
     try:
         from nautobot_device_lifecycle_mgmt.models import SoftwareLCM  # noqa: F401 # pylint:disable=unused-import
+
         LIFECYCLE_MGMT = True
     except RuntimeError:
         logger.warning(

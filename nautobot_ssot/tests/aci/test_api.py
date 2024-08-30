@@ -1,4 +1,4 @@
-"""Tests for API""" # pylint: disable=too-many-lines
+"""Tests for API"""  # pylint: disable=too-many-lines
 
 # pylint: disable=import-outside-toplevel, invalid-name
 import unittest

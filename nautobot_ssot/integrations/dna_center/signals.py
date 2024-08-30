@@ -41,14 +41,10 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     ver_field, _ = CustomField.objects.get_or_create(key=ver_dict["key"], defaults=ver_dict)
     ver_field.content_types.add(ContentType.objects.get_for_model(Device))
     sor_custom_field, _ = create_or_update_custom_field(
-        key="system_of_record",
-        field_type=CustomFieldTypeChoices.TYPE_TEXT,
-        label="System of Record"
+        key="system_of_record", field_type=CustomFieldTypeChoices.TYPE_TEXT, label="System of Record"
     )
     sync_custom_field, _ = create_or_update_custom_field(
-        key="last_synced_from_sor",
-        field_type=CustomFieldTypeChoices.TYPE_DATE,
-        label="Last sync from System of Record"
+        key="last_synced_from_sor", field_type=CustomFieldTypeChoices.TYPE_DATE, label="Last sync from System of Record"
     )
     for model in [Device, Interface, IPAddress, Prefix, Rack, RackGroup]:
         sor_custom_field.content_types.add(ContentType.objects.get_for_model(model))
