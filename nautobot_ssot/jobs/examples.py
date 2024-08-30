@@ -502,7 +502,6 @@ class NautobotRemote(Adapter):
             params={"limit": 200},
             timeout=60,
         ).json()
-        result_data = data["results"]
         while data["next"]:
             data = requests.get(data["next"], headers=self.headers, params={"limit": 200}, timeout=60).json()
             yield from data["results"]

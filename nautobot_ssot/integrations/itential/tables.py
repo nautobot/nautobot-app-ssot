@@ -16,7 +16,7 @@ class AutomationGatewayModelTable(BaseTable):
     pk = ToggleColumn()
     name = tables.LinkColumn()
     actions = ButtonsColumn(models.AutomationGatewayModel)
-
+    # pylint: disable=duplicate-code
     class Meta:
         """Meta class definition."""
 

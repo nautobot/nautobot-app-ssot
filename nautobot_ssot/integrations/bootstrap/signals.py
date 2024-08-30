@@ -102,15 +102,15 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     for ct in [Device, Prefix]:
         site.content_types.add(ContentType.objects.get_for_model(ct))
 
-    sor_custom_field, _ = create_or_update_custom_field(
-        key="system_of_record",
-        field_type=CustomFieldTypeChoices.TYPE_TEXT,
-        label="System of Record"
-    )
     sync_custom_field, _ = create_or_update_custom_field(
         key="last_synced_from_sor",
         field_type=CustomFieldTypeChoices.TYPE_DATE,
         label="Last sync from System of Record"
+    )
+    sor_custom_field, _ = create_or_update_custom_field(
+        key="system_of_record",
+        field_type=CustomFieldTypeChoices.TYPE_TEXT,
+        label="System of Record"
     )
 
     models_to_sync = settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]

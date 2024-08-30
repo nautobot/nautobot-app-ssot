@@ -115,7 +115,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         - self.job_result (as per Job API)
         """
 
-        def format_size(size):  # pylint: disable=inconsistent-return-statements
+        def format_size(size):  # pylint: disable=inconsistent-return-statements, unused-variable
             """Format a size in bytes to a human-readable string. Borrowed from stdlib tracemalloc."""
             for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
                 if abs(size) < 100 and unit != "B":

@@ -64,6 +64,7 @@ class SyncTestCase(TestCase):
         self.assertIsNone(self.target_sync.get_source_url())
         self.assertIsNone(self.source_sync.get_target_url())
 
+        # pylint: disable=duplicate-code
         self.source_sync.job_result = JobResult(
             name="ExampleDataSource",
             job_model=Job.objects.get(

@@ -35,7 +35,7 @@ class AutomationGatewayModelFilterForm(BootstrapMixin, forms.Form):
 
 class AutomationGatewayModelForm(NautobotModelForm):  # pylint: disable=too-many-ancestors
     """AutomationGatewayModel Form form."""
-
+    # pylint: disable=duplicate-code
     class Meta:
         """Meta class definition."""
 

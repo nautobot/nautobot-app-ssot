@@ -28,6 +28,7 @@ class SyncViewsTestCase(  # pylint: disable=too-many-ancestors
     def setUpTestData(cls):
         """One-time setup of test data for this class."""
         for i in range(0, 3):
+            # pylint: disable=duplicate-code
             job_result = JobResult.objects.create(
                 name="ExampleDataSource",
                 job_model=Job.objects.get(
