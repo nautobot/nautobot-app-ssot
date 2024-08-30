@@ -1,18 +1,14 @@
 """Signals triggered when Nautobot starts to perform certain actions."""
 
+import importlib.util
+
 from django.conf import settings
 from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices
 
 from nautobot_ssot.utils import create_or_update_custom_field
 
-try:
-    import nautobot_device_lifecycle_mgmt  # noqa: F401 # pylint: disable=unused-import
-
-    LIFECYCLE_MGMT = True
-except ImportError:
-    LIFECYCLE_MGMT = False
-
+LIFECYCLE_MGMT = bool(importlib.util.find_spec("nautobot_device_lifecycle_mgmt"))
 
 def register_signals(sender):
     """Register signals for IPFabric integration."""

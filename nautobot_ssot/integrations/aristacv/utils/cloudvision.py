@@ -20,11 +20,8 @@ from cloudvision.Connector.codec import Wildcard
 from cloudvision.Connector.codec.custom_types import FrozenDict
 from cloudvision.Connector.grpc_client.grpcClient import create_query, to_pbts
 from cvprac.cvp_client import CvpClient, CvpLoginError
-from google.protobuf.wrappers_pb2 import (
-    StringValue,
-)
+from google.protobuf.wrappers_pb2 import StringValue  # pylint: disable=no-name-in-module
 
-# pylint: disable=no-name-in-module
 from nautobot_ssot.integrations.aristacv.constants import PORT_TYPE_MAP
 from nautobot_ssot.integrations.aristacv.types import CloudVisionAppConfig
 
