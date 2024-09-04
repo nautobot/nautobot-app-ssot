@@ -17,7 +17,7 @@ pip install nautobot-ssot[infoblox]
 
 The integration with Infoblox utilizes [External Integrations](https://docs.nautobot.com/projects/core/en/stable/user-guide/platform-functionality/externalintegration/?h=external) to specify your Infoblox host information. To enable this integration, the only modification needed is to activate it in the nautobot_config.py file.
 
-Below is an example snippet from `nautobot_config.py` that demonstrates how to enable the Itential integration:
+Below is an example snippet from `nautobot_config.py` that demonstrates how to enable the Infoblox integration:
 
 ```python
 PLUGINS_CONFIG = {
