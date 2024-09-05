@@ -213,11 +213,11 @@ class ValidatedSoftware(DiffSyncModel):
     )
     _children = {}
 
-    devices: Optional[list[str]] = None
-    device_types: Optional[list[str]] = None
-    device_roles: Optional[list[str]] = None
-    inventory_items: Optional[list[str]] = None
-    object_tags: Optional[list[str]] = None
+    devices: Optional[List[str]] = None
+    device_types: Optional[List[str]] = None
+    device_roles: Optional[List[str]] = None
+    inventory_items: Optional[List[str]] = None
+    object_tags: Optional[List[str]] = None
     software: str
     platform: str
     software_version: str
