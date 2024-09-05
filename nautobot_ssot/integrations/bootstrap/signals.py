@@ -25,7 +25,6 @@ def nautobot_database_ready_callback(
     """
     # pylint: disable=invalid-name, too-many-locals
     ContentType = apps.get_model("contenttypes", "ContentType")
-    Device = apps.get_model("dcim", "Device")
     Manufacturer = apps.get_model("dcim", "Manufacturer")
     Platform = apps.get_model("dcim", "Platform")
     TenantGroup = apps.get_model("tenancy", "TenantGroup")
@@ -97,16 +96,6 @@ def nautobot_database_ready_callback(
                 "validated_software": ValidatedSoftwareLCM,
             }
         )
-
-    region = LocationType.objects.update_or_create(
-        name="Region", defaults={"nestable": True}
-    )[0]
-    site = LocationType.objects.update_or_create(
-        name="Site", defaults={"nestable": False, "parent": region}
-    )[0]
-
-    for ct in [Device, Prefix]:
-        site.content_types.add(ContentType.objects.get_for_model(ct))
 
     sync_custom_field, _ = create_or_update_custom_field(
         key="last_synced_from_sor",
