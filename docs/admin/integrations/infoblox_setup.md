@@ -15,7 +15,19 @@ pip install nautobot-ssot[infoblox]
 !!! note
     Legacy configuration settings defined in the `nautobot_config.py` and environmental variables are deprecated. These settings are migrated on a best-effort basis on the first startup following migration to the Nautobot SSOT 2.7.0 or higher.
 
-Integration configuration is defined in the instance of the `SSOTInfobloxConfig` model. Multiple configuration instances are supported. Synchronization jobs take the `Config` parameter which specifies the configuration instance to use.
+The integration with Infoblox utilizes [External Integrations](https://docs.nautobot.com/projects/core/en/stable/user-guide/platform-functionality/externalintegration/?h=external) to specify your Infoblox host information. To enable this integration, the only modification needed is to activate it in the nautobot_config.py file.
+
+Below is an example snippet from `nautobot_config.py` that demonstrates how to enable the Infoblox integration:
+
+```python
+PLUGINS_CONFIG = {
+    "nautobot_ssot": {
+        "enable_infoblox": True,
+    }
+}
+```
+
+The remaining integration configuration is defined in the instance of the `SSOTInfobloxConfig` model. Multiple configuration instances are supported. Synchronization jobs take the `Config` parameter which specifies the configuration instance to use.
 
 To access integration configuration navigate to `Apps -> Installed Apps` and click on the cog icon in the `Single Source of Truth` entry. Then in the table `SSOT Integration Configs` click on the `Infoblox Configuration List` link. This will take you to the view where you can view/modify existing config instances or create new ones.
 
