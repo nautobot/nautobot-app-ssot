@@ -194,7 +194,9 @@ class NautobotAdapter(Adapter):
     def load_tenant_group(self):
         """Method to load TenantGroup objects from Nautobot into NautobotTenantGroup DiffSync models."""
         for nb_tenant_group in TenantGroup.objects.all():
-            self.job.logger.debug(f"Loading Nautobot TenantGroup: {nb_tenant_group}, with ID: {nb_tenant_group.id}")
+            self.job.logger.debug(
+                f"Loading Nautobot TenantGroup: {nb_tenant_group}, with ID: {nb_tenant_group.id}"
+            )
             try:
                 self.get(self.tenant_group, nb_tenant_group.name)
             except ObjectNotFound:
@@ -206,7 +208,8 @@ class NautobotAdapter(Adapter):
                 if "system_of_record" in nb_tenant_group.custom_field_data:
                     _sor = (
                         nb_tenant_group.custom_field_data["system_of_record"]
-                        if nb_tenant_group.custom_field_data["system_of_record"] is not None
+                        if nb_tenant_group.custom_field_data["system_of_record"]
+                        is not None
                         else ""
                     )
                 new_tenant_group = self.tenant_group(
@@ -216,7 +219,9 @@ class NautobotAdapter(Adapter):
                     system_of_record=_sor,
                     uuid=nb_tenant_group.id,
                 )
-                self.job.logger.info(f"Loading Nautobot Tenant Group - {nb_tenant_group.name}")
+                self.job.logger.info(
+                    f"Loading Nautobot Tenant Group - {nb_tenant_group.name}"
+                )
 
                 if not check_sor_field(nb_tenant_group):
                     new_tenant_group.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
@@ -226,7 +231,9 @@ class NautobotAdapter(Adapter):
     def load_tenant(self):
         """Method to load Tenant objects from Nautobot into NautobotTenant DiffSync models."""
         for nb_tenant in Tenant.objects.all():
-            self.job.logger.debug(f"Loading Nautobot Tenant: {nb_tenant}, with ID: {nb_tenant.id}")
+            self.job.logger.debug(
+                f"Loading Nautobot Tenant: {nb_tenant}, with ID: {nb_tenant.id}"
+            )
             _tags = sorted(list(nb_tenant.tags.all().values_list("name", flat=True)))
             try:
                 self.get(self.tenant, nb_tenant.name)
@@ -260,7 +267,9 @@ class NautobotAdapter(Adapter):
     def load_role(self):
         """Method to load Role objects from Nautobot into NautobotRole DiffSync models."""
         for nb_role in Role.objects.all():
-            self.job.logger.debug(f"Loading Nautobot Role: {nb_role}, with ID {nb_role.id}")
+            self.job.logger.debug(
+                f"Loading Nautobot Role: {nb_role}, with ID {nb_role.id}"
+            )
             try:
                 self.get(self.role, nb_role.name)
             except ObjectNotFound:
@@ -294,7 +303,9 @@ class NautobotAdapter(Adapter):
     def load_manufacturer(self):
         """Method to load Manufacturer objects from Nautobot into NautobotManufacturer DiffSync models."""
         for nb_manufacturer in Manufacturer.objects.all():
-            self.job.logger.debug(f"Loading Nautobot Manufacturer: {nb_manufacturer}, with ID {nb_manufacturer.id}")
+            self.job.logger.debug(
+                f"Loading Nautobot Manufacturer: {nb_manufacturer}, with ID {nb_manufacturer.id}"
+            )
             try:
                 self.get(self.manufacturer, nb_manufacturer.name)
             except ObjectNotFound:
@@ -302,7 +313,8 @@ class NautobotAdapter(Adapter):
                 if "system_of_record" in nb_manufacturer.custom_field_data:
                     _sor = (
                         nb_manufacturer.custom_field_data["system_of_record"]
-                        if nb_manufacturer.custom_field_data["system_of_record"] is not None
+                        if nb_manufacturer.custom_field_data["system_of_record"]
+                        is not None
                         else ""
                     )
                 new_manufacturer = self.manufacturer(
@@ -320,7 +332,9 @@ class NautobotAdapter(Adapter):
     def load_platform(self):
         """Method to load Platform objects from Nautobot into NautobotPlatform DiffSync models."""
         for nb_platform in Platform.objects.all():
-            self.job.logger.debug(f"Loading Nautobot Platform: {nb_platform}, with ID {nb_platform.id}")
+            self.job.logger.debug(
+                f"Loading Nautobot Platform: {nb_platform}, with ID {nb_platform.id}"
+            )
             try:
                 self.get(self.platform, nb_platform.name)
             except ObjectNotFound:
@@ -354,18 +368,26 @@ class NautobotAdapter(Adapter):
     def load_location_type(self):
         """Method to load LocationType objects from Nautobot into NautobotLocationType DiffSync models."""
         for nb_location_type in LocationType.objects.all():
-            self.job.logger.debug(f"Loading Nautobot LocationType: {nb_location_type}, with ID {nb_location_type.id}")
+            self.job.logger.debug(
+                f"Loading Nautobot LocationType: {nb_location_type}, with ID {nb_location_type.id}"
+            )
             try:
                 self.get(self.location_type, nb_location_type.name)
             except ObjectNotFound:
                 _content_types = []
-                _content_uuids = nb_location_type.content_types.values_list("id", flat=True)
+                _content_uuids = nb_location_type.content_types.values_list(
+                    "id", flat=True
+                )
                 if nb_location_type.parent is not None:
                     _parent = nb_location_type.parent.name
                 else:
                     _parent = None
                 for _uuid in _content_uuids:
-                    _content_types.append(lookup_content_type_model_path(nb_model="locations", content_id=_uuid))
+                    _content_types.append(
+                        lookup_content_type_model_path(
+                            nb_model="locations", content_id=_uuid
+                        )
+                    )
                 if len(_content_types) > 1:
                     try:
                         _content_types.sort()
@@ -377,7 +399,8 @@ class NautobotAdapter(Adapter):
                 if "system_of_record" in nb_location_type.custom_field_data:
                     _sor = (
                         nb_location_type.custom_field_data["system_of_record"]
-                        if nb_location_type.custom_field_data["system_of_record"] is not None
+                        if nb_location_type.custom_field_data["system_of_record"]
+                        is not None
                         else ""
                     )
                 new_location_type = self.location_type(
@@ -391,7 +414,9 @@ class NautobotAdapter(Adapter):
                 )
 
                 if not check_sor_field(nb_location_type):
-                    new_location_type.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+                    new_location_type.model_flags = (
+                        DiffSyncModelFlags.SKIP_UNMATCHED_DST
+                    )
 
                 self.add(new_location_type)
                 _content_types.clear()
@@ -399,7 +424,9 @@ class NautobotAdapter(Adapter):
     def load_location(self):
         """Method to load Location objects from Nautobot into NautobotLocation DiffSync models."""
         for nb_location in Location.objects.all():
-            self.job.logger.debug(f"Loading Nautobot Location: {nb_location}, with ID {nb_location.id}")
+            self.job.logger.debug(
+                f"Loading Nautobot Location: {nb_location}, with ID {nb_location.id}"
+            )
             try:
                 self.get(self.location, nb_location.name)
             except ObjectNotFound:
@@ -410,9 +437,9 @@ class NautobotAdapter(Adapter):
                     _parent = None
                 if nb_location.time_zone is not None:
                     try:
-                        _time_zone = nb_location.timezone.zone
+                        _time_zone = nb_location.time_zone.zone
                     except AttributeError:
-                        _time_zone = nb_location.time_zone.key
+                        _time_zone = nb_location.time_zone
                 else:
                     _time_zone = None
                 if nb_location.tenant is not None:
@@ -459,7 +486,9 @@ class NautobotAdapter(Adapter):
     def load_team(self):
         """Method to load Team objects from Nautobot into NautobotTeam DiffSync models."""
         for nb_team in Team.objects.all():
-            self.job.logger.debug(f"Loading Nautobot Team: {nb_team}, with ID: {nb_team.id}")
+            self.job.logger.debug(
+                f"Loading Nautobot Team: {nb_team}, with ID: {nb_team.id}"
+            )
             try:
                 self.get(self.team, nb_team.name)
             except ObjectNotFound:
@@ -494,7 +523,9 @@ class NautobotAdapter(Adapter):
     def load_contact(self):
         """Method to load Contact Objects from Nautobot into NautobotContact DiffSync models."""
         for nb_contact in Contact.objects.all():
-            self.job.logger.debug(f"Loading Nautobot contact: {nb_contact}, with ID: {nb_contact.id}")
+            self.job.logger.debug(
+                f"Loading Nautobot contact: {nb_contact}, with ID: {nb_contact.id}"
+            )
             try:
                 self.get(self.contact, nb_contact.name)
             except ObjectNotFound:
@@ -528,7 +559,9 @@ class NautobotAdapter(Adapter):
     def load_provider(self):
         """Method to load Provider objects from Nautobot into NautobotProvider DiffSync models."""
         for nb_provider in Provider.objects.all():
-            self.job.logger.debug(f"Loading Nautobot Provider: {nb_provider}, with ID {nb_provider.id}")
+            self.job.logger.debug(
+                f"Loading Nautobot Provider: {nb_provider}, with ID {nb_provider.id}"
+            )
             try:
                 self.get(self.provider, nb_provider.name)
             except ObjectNotFound:
@@ -583,7 +616,8 @@ class NautobotAdapter(Adapter):
                 if "system_of_record" in nb_provider_network.custom_field_data:
                     _sor = (
                         nb_provider_network.custom_field_data["system_of_record"]
-                        if nb_provider_network.custom_field_data["system_of_record"] is not None
+                        if nb_provider_network.custom_field_data["system_of_record"]
+                        is not None
                         else ""
                     )
                 new_provider_network = self.provider_network(
@@ -597,14 +631,18 @@ class NautobotAdapter(Adapter):
                 )
 
                 if not check_sor_field(nb_provider_network):
-                    new_provider_network.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+                    new_provider_network.model_flags = (
+                        DiffSyncModelFlags.SKIP_UNMATCHED_DST
+                    )
 
                 self.add(new_provider_network)
 
     def load_circuit_type(self):
         """Method to load CircuitType objects from Nautobot into NautobotCircuitType DiffSync models."""
         for nb_circuit_type in CircuitType.objects.all():
-            self.job.logger.debug(f"Loading Nautobot CircuitType: {nb_circuit_type}, with ID {nb_circuit_type.id}")
+            self.job.logger.debug(
+                f"Loading Nautobot CircuitType: {nb_circuit_type}, with ID {nb_circuit_type.id}"
+            )
             try:
                 self.get(self.circuit_type, nb_circuit_type.name)
             except ObjectNotFound:
@@ -612,7 +650,8 @@ class NautobotAdapter(Adapter):
                 if "system_of_record" in nb_circuit_type.custom_field_data:
                     _sor = (
                         nb_circuit_type.custom_field_data["system_of_record"]
-                        if nb_circuit_type.custom_field_data["system_of_record"] is not None
+                        if nb_circuit_type.custom_field_data["system_of_record"]
+                        is not None
                         else ""
                     )
                 new_circuit_type = self.circuit_type(
@@ -630,7 +669,9 @@ class NautobotAdapter(Adapter):
     def load_circuit(self):
         """Method to load Circuit objects from Nautobot into NautobotCircuit DiffSync models."""
         for nb_circuit in Circuit.objects.all():
-            self.job.logger.debug(f"Loading Nautobot Circuit: {nb_circuit}, with ID {nb_circuit.id}")
+            self.job.logger.debug(
+                f"Loading Nautobot Circuit: {nb_circuit}, with ID {nb_circuit.id}"
+            )
             try:
                 self.get(self.circuit, nb_circuit.cid)
             except ObjectNotFound:
@@ -656,7 +697,11 @@ class NautobotAdapter(Adapter):
                     date_installed=nb_circuit.install_date,
                     commit_rate_kbps=nb_circuit.commit_rate,
                     description=nb_circuit.description,
-                    tenant=(nb_circuit.tenant.name if nb_circuit.tenant is not None else None),
+                    tenant=(
+                        nb_circuit.tenant.name
+                        if nb_circuit.tenant is not None
+                        else None
+                    ),
                     tags=_tags,
                     system_of_record=_sor,
                     uuid=nb_circuit.id,
@@ -679,7 +724,9 @@ class NautobotAdapter(Adapter):
             except ObjectNotFound:
                 if nb_circuit_termination.tags is not None:
                     _tags = []
-                    for _tag in nb_circuit_termination.tags.values_list("name", flat=True):
+                    for _tag in nb_circuit_termination.tags.values_list(
+                        "name", flat=True
+                    ):
                         _tags.append(_tag)
                         _tags.sort()
                 else:
@@ -688,7 +735,8 @@ class NautobotAdapter(Adapter):
                 if "system_of_record" in nb_circuit_termination.custom_field_data:
                     _sor = (
                         nb_circuit_termination.custom_field_data["system_of_record"]
-                        if nb_circuit_termination.custom_field_data["system_of_record"] is not None
+                        if nb_circuit_termination.custom_field_data["system_of_record"]
+                        is not None
                         else ""
                     )
                 if nb_circuit_termination.provider_network:
@@ -706,7 +754,9 @@ class NautobotAdapter(Adapter):
                         else None
                     ),
                     location=(
-                        nb_circuit_termination.location.name if nb_circuit_termination.location is not None else None
+                        nb_circuit_termination.location.name
+                        if nb_circuit_termination.location is not None
+                        else None
                     ),
                     port_speed_kbps=nb_circuit_termination.port_speed,
                     upstream_speed_kbps=nb_circuit_termination.upstream_speed,
@@ -719,7 +769,9 @@ class NautobotAdapter(Adapter):
                 )
 
                 if not check_sor_field(nb_circuit_termination):
-                    new_circuit_termination.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+                    new_circuit_termination.model_flags = (
+                        DiffSyncModelFlags.SKIP_UNMATCHED_DST
+                    )
 
                 self.add(new_circuit_termination)
                 try:
@@ -732,12 +784,16 @@ class NautobotAdapter(Adapter):
                     )
                     _circuit.add_child(new_circuit_termination)
                 except ObjectAlreadyExists as err:
-                    self.job.logger.warning(f"CircuitTermination for {_circuit} already exists. {err}")
+                    self.job.logger.warning(
+                        f"CircuitTermination for {_circuit} already exists. {err}"
+                    )
 
     def load_namespace(self):
         """Method to load Namespace objects from Nautobot into NautobotNamespace DiffSync models."""
         for nb_namespace in Namespace.objects.all():
-            self.job.logger.debug(f"Loading Nautobot Namespace {nb_namespace}, with ID: {nb_namespace.id}")
+            self.job.logger.debug(
+                f"Loading Nautobot Namespace {nb_namespace}, with ID: {nb_namespace.id}"
+            )
             try:
                 self.get(self.namespace, nb_namespace.name)
             except ObjectNotFound:
@@ -779,7 +835,9 @@ class NautobotAdapter(Adapter):
     def load_vlan_group(self):
         """Method to load VLANGroup objects from Nautobot into NautobotVLANGroup DiffSync models."""
         for nb_vlan_group in VLANGroup.objects.all():
-            self.job.logger.debug(f"Loading Nautobot VLANGroup {nb_vlan_group}, with ID {nb_vlan_group.id}")
+            self.job.logger.debug(
+                f"Loading Nautobot VLANGroup {nb_vlan_group}, with ID {nb_vlan_group.id}"
+            )
             try:
                 self.get(self.vlan_group, nb_vlan_group.name)
             except ObjectNotFound:
@@ -802,14 +860,18 @@ class NautobotAdapter(Adapter):
     def load_vlan(self):
         """Method to load VLAN objects from Nautobot into NautobotVLAN DiffSync models."""
         for nb_vlan in VLAN.objects.all():
-            self.job.logger.debug(f"Loading Nautobot VLAN {nb_vlan}, with ID {nb_vlan.id}")
+            self.job.logger.debug(
+                f"Loading Nautobot VLAN {nb_vlan}, with ID {nb_vlan.id}"
+            )
             try:
                 self.get(
                     self.vlan,
                     {
                         "name": nb_vlan.name,
                         "vid": nb_vlan.vid,
-                        "vlan_group": (nb_vlan.vlan_group.name if nb_vlan.vlan_group else ""),
+                        "vlan_group": (
+                            nb_vlan.vlan_group.name if nb_vlan.vlan_group else ""
+                        ),
                     },
                 )
             except ObjectNotFound:
@@ -859,7 +921,11 @@ class NautobotAdapter(Adapter):
                     namespace=Namespace.objects.get(id=nb_vrf.namespace_id).name,
                     route_distinguisher=nb_vrf.rd,
                     description=nb_vrf.description,
-                    tenant=(Tenant.objects.get(id=nb_vrf.tenant_id).name if nb_vrf.tenant_id else None),
+                    tenant=(
+                        Tenant.objects.get(id=nb_vrf.tenant_id).name
+                        if nb_vrf.tenant_id
+                        else None
+                    ),
                     tags=_tags,
                     system_of_record=_sor,
                     uuid=nb_vrf.id,
@@ -871,7 +937,9 @@ class NautobotAdapter(Adapter):
     def load_prefix(self):
         """Method to load Prefix objects from Nautobot into NautobotPrefix DiffSync models."""
         for nb_prefix in Prefix.objects.all():
-            self.job.logger.debug(f"Loading Nautobot Prefix {nb_prefix}, with ID {nb_prefix.id}")
+            self.job.logger.debug(
+                f"Loading Nautobot Prefix {nb_prefix}, with ID {nb_prefix.id}"
+            )
             try:
                 self.get(
                     self.prefix,
@@ -901,15 +969,25 @@ class NautobotAdapter(Adapter):
                     prefix_type=nb_prefix.type,
                     status=Status.objects.get(id=nb_prefix.status_id).name,
                     role=nb_prefix.role.name if nb_prefix.role else None,
-                    rir=(RIR.objects.get(id=nb_prefix.rir_id).name if nb_prefix.rir_id else None),
+                    rir=(
+                        RIR.objects.get(id=nb_prefix.rir_id).name
+                        if nb_prefix.rir_id
+                        else None
+                    ),
                     date_allocated=(
-                        nb_prefix.date_allocated.replace(tzinfo=None) if nb_prefix.date_allocated else None
+                        nb_prefix.date_allocated.replace(tzinfo=None)
+                        if nb_prefix.date_allocated
+                        else None
                     ),
                     description=nb_prefix.description,
                     vrfs=_vrfs,
                     locations=_locations,
                     vlan=_vlan,
-                    tenant=(Tenant.objects.get(id=nb_prefix.tenant_id).name if nb_prefix.tenant_id else None),
+                    tenant=(
+                        Tenant.objects.get(id=nb_prefix.tenant_id).name
+                        if nb_prefix.tenant_id
+                        else None
+                    ),
                     tags=_tags,
                     system_of_record=_sor,
                     uuid=nb_prefix.id,
@@ -921,7 +999,9 @@ class NautobotAdapter(Adapter):
     def load_secret(self):
         """Method to load Secrets objects from Nautobot into NautobotSecrets DiffSync models."""
         for nb_secret in Secret.objects.all():
-            self.job.logger.debug(f"Loading Nautobot Secret: {nb_secret}, with ID: {nb_secret.id}")
+            self.job.logger.debug(
+                f"Loading Nautobot Secret: {nb_secret}, with ID: {nb_secret.id}"
+            )
             try:
                 self.get(self.secret, nb_secret.name)
             except ObjectNotFound:
@@ -1035,7 +1115,8 @@ class NautobotAdapter(Adapter):
                 if "system_of_record" in nb_dyn_group.custom_field_data:
                     _sor = (
                         nb_dyn_group.custom_field_data["system_of_record"]
-                        if nb_dyn_group.custom_field_data["system_of_record"] is not None
+                        if nb_dyn_group.custom_field_data["system_of_record"]
+                        is not None
                         else ""
                     )
                 new_dyn_group = self.dynamic_group(
@@ -1169,12 +1250,16 @@ class NautobotAdapter(Adapter):
     def load_software_image(self):
         """Method to load SoftwareImage objects from Nautobot into NautobotSoftwareImage Models."""
         for nb_software_image in ORMSoftwareImage.objects.all():
-            self.job.logger.debug(f"Loading Nautobot SoftwareImageLCM {nb_software_image}")
+            self.job.logger.debug(
+                f"Loading Nautobot SoftwareImageLCM {nb_software_image}"
+            )
             try:
                 self.get(self.software_image, nb_software_image.image_file_name)
             except ObjectNotFound:
                 _tags = list(
-                    ORMSoftwareImage.objects.get(image_file_name=nb_software_image.image_file_name)
+                    ORMSoftwareImage.objects.get(
+                        image_file_name=nb_software_image.image_file_name
+                    )
                     .tags.all()
                     .values_list("name", flat=True)
                 )
@@ -1182,7 +1267,8 @@ class NautobotAdapter(Adapter):
                 if "system_of_record" in nb_software_image.custom_field_data:
                     _sor = (
                         nb_software_image.custom_field_data["system_of_record"]
-                        if nb_software_image.custom_field_data["system_of_record"] is not None
+                        if nb_software_image.custom_field_data["system_of_record"]
+                        is not None
                         else ""
                     )
                 new_software_image = self.software_image(
@@ -1200,14 +1286,18 @@ class NautobotAdapter(Adapter):
                 )
 
                 if not check_sor_field(nb_software_image):
-                    new_software_image.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+                    new_software_image.model_flags = (
+                        DiffSyncModelFlags.SKIP_UNMATCHED_DST
+                    )
 
                 self.add(new_software_image)
 
     def load_validated_software(self):
         """Method to load ValidatedSoftware objects from Nautobot into NautobotValidatedSoftware Models."""
         for nb_validated_software in ORMValidatedSoftware.objects.all():
-            self.job.logger.debug(f"Loading Nautobot ValidatedSoftwareLCM {nb_validated_software}")
+            self.job.logger.debug(
+                f"Loading Nautobot ValidatedSoftwareLCM {nb_validated_software}"
+            )
             try:
                 _software = ORMSoftware.objects.get(
                     version=nb_validated_software.software.version,
@@ -1227,17 +1317,38 @@ class NautobotAdapter(Adapter):
                     start=nb_validated_software.start,
                     end=nb_validated_software.end,
                 )
-                _tags = sorted(list(_val_software.tags.all().values_list("name", flat=True)))
-                _devices = sorted(list(_val_software.devices.all().values_list("name", flat=True)))
-                _device_types = sorted(list(_val_software.device_types.all().values_list("model", flat=True)))
-                _device_roles = sorted(list(_val_software.device_roles.all().values_list("name", flat=True)))
-                _inventory_items = sorted(list(_val_software.inventory_items.all().values_list("name", flat=True)))
-                _object_tags = sorted(list(_val_software.object_tags.all().values_list("name", flat=True)))
+                _tags = sorted(
+                    list(_val_software.tags.all().values_list("name", flat=True))
+                )
+                _devices = sorted(
+                    list(_val_software.devices.all().values_list("name", flat=True))
+                )
+                _device_types = sorted(
+                    list(
+                        _val_software.device_types.all().values_list("model", flat=True)
+                    )
+                )
+                _device_roles = sorted(
+                    list(
+                        _val_software.device_roles.all().values_list("name", flat=True)
+                    )
+                )
+                _inventory_items = sorted(
+                    list(
+                        _val_software.inventory_items.all().values_list(
+                            "name", flat=True
+                        )
+                    )
+                )
+                _object_tags = sorted(
+                    list(_val_software.object_tags.all().values_list("name", flat=True))
+                )
                 _sor = ""
                 if "system_of_record" in nb_validated_software.custom_field_data:
                     _sor = (
                         nb_validated_software.custom_field_data["system_of_record"]
-                        if nb_validated_software.custom_field_data["system_of_record"] is not None
+                        if nb_validated_software.custom_field_data["system_of_record"]
+                        is not None
                         else ""
                     )
                 new_validated_software = self.validated_software(
@@ -1258,70 +1369,120 @@ class NautobotAdapter(Adapter):
                 )
 
                 if not check_sor_field(nb_validated_software):
-                    new_validated_software.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+                    new_validated_software.model_flags = (
+                        DiffSyncModelFlags.SKIP_UNMATCHED_DST
+                    )
 
                 self.add(new_validated_software)
 
     def load(self):
         """Load data from Nautobot into DiffSync models."""
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["tenant_group"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "tenant_group"
+        ]:
             self.load_tenant_group()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["tenant"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "tenant"
+        ]:
             self.load_tenant()
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["role"]:
             self.load_role()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["manufacturer"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "manufacturer"
+        ]:
             self.load_manufacturer()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["platform"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "platform"
+        ]:
             self.load_platform()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["location_type"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "location_type"
+        ]:
             self.load_location_type()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["location"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "location"
+        ]:
             self.load_location()
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["team"]:
             self.load_team()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["contact"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "contact"
+        ]:
             self.load_contact()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["provider"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "provider"
+        ]:
             self.load_provider()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["provider_network"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "provider_network"
+        ]:
             self.load_provider_network()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["circuit_type"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "circuit_type"
+        ]:
             self.load_circuit_type()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["circuit"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "circuit"
+        ]:
             self.load_circuit()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["circuit_termination"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "circuit_termination"
+        ]:
             self.load_circuit_termination()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["namespace"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "namespace"
+        ]:
             self.load_namespace()
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["rir"]:
             self.load_rir()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["vlan_group"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "vlan_group"
+        ]:
             self.load_vlan_group()
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["vlan"]:
             self.load_vlan()
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["vrf"]:
             self.load_vrf()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["prefix"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "prefix"
+        ]:
             self.load_prefix()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["secret"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "secret"
+        ]:
             self.load_secret()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["secrets_group"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "secrets_group"
+        ]:
             self.load_secrets_group()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["git_repository"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "git_repository"
+        ]:
             self.load_git_repository()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["dynamic_group"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "dynamic_group"
+        ]:
             self.load_dynamic_group()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["computed_field"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "computed_field"
+        ]:
             self.load_computed_field()
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["tag"]:
             self.load_tag()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["graph_ql_query"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "graph_ql_query"
+        ]:
             self.load_graph_ql_query()
         if LIFECYCLE_MGMT:
-            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software"]:
+            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+                "software"
+            ]:
                 self.load_software()
-            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software_image"]:
+            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+                "software_image"
+            ]:
                 self.load_software_image()
-            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["validated_software"]:
+            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+                "validated_software"
+            ]:
                 self.load_validated_software()

@@ -159,7 +159,7 @@ location_type:
     content_types: []
   - name: "Site"
     parent: "Region"
-    nestable: true
+    nestable: false
     description: ""
     content_types:
       - "dcim.device"

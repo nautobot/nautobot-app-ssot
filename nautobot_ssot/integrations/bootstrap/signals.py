@@ -10,12 +10,15 @@ from nautobot_ssot.utils import create_or_update_custom_field
 
 LIFECYCLE_MGMT = bool(importlib.util.find_spec("nautobot_device_lifecycle_mgmt"))
 
+
 def register_signals(sender):
     """Register signals for IPFabric integration."""
     nautobot_database_ready.connect(nautobot_database_ready_callback, sender=sender)
 
 
-def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disable=unused-argument
+def nautobot_database_ready_callback(
+    sender, *, apps, **kwargs
+):  # pylint: disable=unused-argument
     """Adds OS Version and Physical Address CustomField to Devices and System of Record and Last Sync'd to Device, and IPAddress.
 
     Callback function triggered by the nautobot_database_ready signal when the Nautobot database is fully ready.
@@ -51,11 +54,14 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
 
     if LIFECYCLE_MGMT:
         SoftwareLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "SoftwareLCM")
-        SoftwareImageLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "SoftwareImageLCM")
-        ValidatedSoftwareLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "ValidatedSoftwareLCM")
+        SoftwareImageLCM = apps.get_model(
+            "nautobot_device_lifecycle_mgmt", "SoftwareImageLCM"
+        )
+        ValidatedSoftwareLCM = apps.get_model(
+            "nautobot_device_lifecycle_mgmt", "ValidatedSoftwareLCM"
+        )
 
     signal_to_model_mapping = {
-        "device": Device,
         "manufacturer": Manufacturer,
         "platform": Platform,
         "role": Role,
@@ -92,22 +98,39 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
             }
         )
 
-    region = LocationType.objects.update_or_create(name="Region", defaults={"nestable": True})[0]
-    site = LocationType.objects.update_or_create(name="Site", defaults={"nestable": False, "parent": region})[0]
+    region = LocationType.objects.update_or_create(
+        name="Region", defaults={"nestable": True}
+    )[0]
+    site = LocationType.objects.update_or_create(
+        name="Site", defaults={"nestable": False, "parent": region}
+    )[0]
 
     for ct in [Device, Prefix]:
         site.content_types.add(ContentType.objects.get_for_model(ct))
 
     sync_custom_field, _ = create_or_update_custom_field(
-        key="last_synced_from_sor", field_type=CustomFieldTypeChoices.TYPE_DATE, label="Last sync from System of Record"
+        key="last_synced_from_sor",
+        field_type=CustomFieldTypeChoices.TYPE_DATE,
+        label="Last sync from System of Record",
     )
     sor_custom_field, _ = create_or_update_custom_field(
-        key="system_of_record", field_type=CustomFieldTypeChoices.TYPE_TEXT, label="System of Record"
+        key="system_of_record",
+        field_type=CustomFieldTypeChoices.TYPE_TEXT,
+        label="System of Record",
     )
 
-    models_to_sync = settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]
+    models_to_sync = settings.PLUGINS_CONFIG.get("nautobot_ssot", {}).get(
+        "bootstrap_models_to_sync", {}
+    )
     no_cf = ["computed_field", "graph_ql_query"]
-    for model in models_to_sync:
-        if model not in no_cf and models_to_sync[model] is True:
-            sor_custom_field.content_types.add(ContentType.objects.get_for_model(signal_to_model_mapping[model]))
-            sync_custom_field.content_types.add(ContentType.objects.get_for_model(signal_to_model_mapping[model]))
+    try:
+        for model in models_to_sync:
+            if model not in no_cf and models_to_sync[model] is True:
+                model_ct = ContentType.objects.get_for_model(
+                    signal_to_model_mapping[model]
+                )
+                sor_custom_field.content_types.add(model_ct.id)
+                sync_custom_field.content_types.add(model_ct.id)
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        raise

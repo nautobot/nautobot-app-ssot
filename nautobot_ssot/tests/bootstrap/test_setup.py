@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 """Setup/Create Nautobot objects for use in unit testing."""
 
 import json
@@ -73,7 +74,9 @@ GLOBAL_YAML_SETTINGS = load_yaml(os.path.join(FIXTURES_DIR, "global_settings.yml
 DEVELOP_YAML_SETTINGS = load_yaml(os.path.join(FIXTURES_DIR, "develop.yml"))
 
 TESTS_FIXTURES_DIR = os.path.join("./nautobot_ssot/tests/bootstrap/fixtures")
-GLOBAL_JSON_SETTINGS = load_json(os.path.join(TESTS_FIXTURES_DIR, "global_settings.json"))
+GLOBAL_JSON_SETTINGS = load_json(
+    os.path.join(TESTS_FIXTURES_DIR, "global_settings.json")
+)
 
 MODELS_TO_SYNC = [
     "tenant_group",
@@ -121,7 +124,9 @@ def is_valid_timezone(tz):
 class PrefixInfo:
     """Definition for a prefix object"""
 
-    def __init__(self, namespace, prefix_type, role, rir, vlan, tenant):  # pylint: disable=too-many-arguments
+    def __init__(
+        self, namespace, prefix_type, role, rir, vlan, tenant
+    ):  # pylint: disable=too-many-arguments
         self.namespace = namespace
         self.prefix_type = prefix_type
         self.role = role
@@ -130,7 +135,7 @@ class PrefixInfo:
         self.tenant = tenant
 
 
-class NautobotTestSetup:
+class NautobotTestSetup():
     """Setup basic database information to be used in other tests."""
 
     def __init__(self):
@@ -161,7 +166,8 @@ class NautobotTestSetup:
         self._setup_circuit_types()
         self._setup_circuits()
         self._setup_circuit_terminations()
-        self._setup_manufacturers_and_platforms()
+        self._setup_manufacturers()
+        self._setup_platforms()
         self._setup_device_types_and_devices()
         self._setup_inventory_items()
         self._setup_secrets_and_groups()
@@ -183,7 +189,9 @@ class NautobotTestSetup:
             _content_types = []
             for _con_type in _tag["content_types"]:
                 _content_types.append(
-                    ContentType.objects.get(app_label=_con_type.split(".")[0], model=_con_type.split(".")[1])
+                    ContentType.objects.get(
+                        app_label=_con_type.split(".")[0], model=_con_type.split(".")[1]
+                    )
                 )
             _new_tag = Tag.objects.create(
                 name=_tag["name"],
@@ -234,11 +242,15 @@ class NautobotTestSetup:
         location_types_data = GLOBAL_YAML_SETTINGS.get("location_type", [])
         for loc_type_data in location_types_data:
             location_type = self._get_or_create_location_type(loc_type_data)
-            self._set_location_type_content_types(location_type, loc_type_data["content_types"])
+            self._set_location_type_content_types(
+                location_type, loc_type_data["content_types"]
+            )
 
         locations_data = GLOBAL_YAML_SETTINGS.get("location", [])
         for location_data in locations_data:
-            location_type = LocationType.objects.get(name=location_data["location_type"])
+            location_type = LocationType.objects.get(
+                name=location_data["location_type"]
+            )
             parent_location = None
             tenant = None
             tags = []
@@ -282,12 +294,14 @@ class NautobotTestSetup:
         """Get or create a LocationType based on the provided data."""
         parent = self._get_location_type_parent(location_type_data["parent"])
         try:
-            return LocationType.objects.get(name=location_type_data["name"], parent=parent)
+            return LocationType.objects.get(
+                name=location_type_data["name"], parent=parent
+            )
         except LocationType.DoesNotExist:
             return LocationType.objects.create(
                 name=location_type_data["name"],
                 parent=parent,
-                nestable=location_type_data.get("nestable", False),
+                nestable=location_type_data.get("nestable"),
                 description=location_type_data["description"],
             )
 
@@ -297,14 +311,17 @@ class NautobotTestSetup:
             try:
                 return LocationType.objects.get(name=parent_name)
             except LocationType.DoesNotExist:
-                self.job.logger.warning(f"Parent LocationType '{parent_name}' does not exist.")
+                self.job.logger.warning(
+                    f"Parent LocationType '{parent_name}' does not exist."
+                )
                 return None
         return None
 
     def _set_location_type_content_types(self, location_type, content_types):
         """Set the content types for a LocationType."""
         content_type_objects = [
-            ContentType.objects.get(app_label=ct.split(".")[0], model=ct.split(".")[1]) for ct in content_types
+            ContentType.objects.get(app_label=ct.split(".")[0], model=ct.split(".")[1])
+            for ct in content_types
         ]
         location_type.content_types.set(content_type_objects)
         location_type.custom_field_data["system_of_record"] = "Bootstrap"
@@ -315,7 +332,9 @@ class NautobotTestSetup:
         for _tenant_group in _tenant_groups:
             if _tenant_group["parent"]:
                 _parent = TenantGroup.objects.get(name=_tenant_group["parent"])
-                _tenant_group = TenantGroup.objects.create(name=_tenant_group["name"], parent=_parent)
+                _tenant_group = TenantGroup.objects.create(
+                    name=_tenant_group["name"], parent=_parent
+                )
             else:
                 _tenant_group = TenantGroup.objects.create(name=_tenant_group["name"])
             _tenant_group.custom_field_data["system_of_record"] = "Bootstrap"
@@ -334,6 +353,9 @@ class NautobotTestSetup:
                 tenant_group=_tenant_group,
             )
             _tenant.custom_field_data["system_of_record"] = "Bootstrap"
+            if _ten["tags"]:
+                for _tag in _ten["tags"]:
+                    _tenant.tags.add(Tag.objects.get(name=_tag))
             _tenant.validated_save()
             _tenant.refresh_from_db()
 
@@ -343,7 +365,11 @@ class NautobotTestSetup:
         # _roles.remove(["Administrative", "Anycast", "Billing", "CARP", "GLBP", "HSRP", "Loopback", "On Site", ])
         for _role in _roles:
             for _type in _role["content_types"]:
-                _con_types.append(ContentType.objects.get(app_label=_type.split(".")[0], model=_type.split(".")[1]))
+                _con_types.append(
+                    ContentType.objects.get(
+                        app_label=_type.split(".")[0], model=_type.split(".")[1]
+                    )
+                )
             _r, created = Role.objects.get_or_create(
                 name=_role["name"],
                 color=_role["color"],
@@ -457,7 +483,9 @@ class NautobotTestSetup:
             _circuit = Circuit.objects.get(cid=_circuit_id, provider=_provider)
 
             if _circuit_termination["termination_type"] == "Provider Network":
-                _provider_network = ProviderNetwork.objects.get(name=_circuit_termination["provider_network"])
+                _provider_network = ProviderNetwork.objects.get(
+                    name=_circuit_termination["provider_network"]
+                )
                 circuit_termination = CircuitTermination.objects.create(
                     provider_network=_provider_network,
                     circuit=_circuit,
@@ -504,7 +532,7 @@ class NautobotTestSetup:
             rir, _ = RIR.objects.get_or_create(
                 name=_rir["name"],
             )
-            rir.private = _rir["private"]
+            rir.is_private = _rir["private"]
             rir.description = _rir["description"]
             rir.custom_field_data["system_of_record"] = "Bootstrap"
             rir.validated_save()
@@ -514,7 +542,9 @@ class NautobotTestSetup:
             _location = None
             if _vlan_group["location"]:
                 _location = Location.objects.get(name=_vlan_group["location"])
-            vlan_group, _ = VLANGroup.objects.get_or_create(name=_vlan_group["name"], location=_location)
+            vlan_group, _ = VLANGroup.objects.get_or_create(
+                name=_vlan_group["name"], location=_location
+            )
             vlan_group.description = _vlan_group["description"]
             vlan_group.custom_field_data["system_of_record"] = "Bootstrap"
             vlan_group.validated_save()
@@ -576,6 +606,7 @@ class NautobotTestSetup:
             vrf.tenant = _tenant
             vrf.custom_field_data["system_of_record"] = "Bootstrap"
             vrf.tags.set(_tags)
+            vrf.validated_save()
 
     def _setup_prefixes(self):
         for prefix_data in GLOBAL_YAML_SETTINGS["prefix"]:
@@ -618,7 +649,9 @@ class NautobotTestSetup:
         if prefix_data["vrfs"]:
             for vrf in prefix_data["vrfs"]:
                 namespace = Namespace.objects.get(name=vrf.split("__")[1])
-                vrfs.append(VRF.objects.get(name=vrf.split("__")[0], namespace=namespace))
+                vrfs.append(
+                    VRF.objects.get(name=vrf.split("__")[0], namespace=namespace)
+                )
         return vrfs
 
     def _get_locations(self, prefix_data):
@@ -681,20 +714,25 @@ class NautobotTestSetup:
             prefix.tags.add(tag)
         prefix.validated_save()
 
-    def _setup_manufacturers_and_platforms(self):
-        _manufacturers = ["Arista", "Palo Alto Networks", "Cisco", "Generic"]
-        _platforms = [
-            {"manufacturer": "Arista", "platform": "arista_eos"},
-            {"manufacturer": "Palo Alto Networks", "platform": "paloalto_panos"},
-            {"manufacturer": "Cisco", "platform": "cisco_ios"},
-        ]
-        for _manufacturer in _manufacturers:
-            _manufac = Manufacturer.objects.create(name=_manufacturer)
+    def _setup_manufacturers(self):
+        for _manufacturer in GLOBAL_YAML_SETTINGS["manufacturer"]:
+            _manufac = Manufacturer.objects.create(
+                name=_manufacturer["name"], description=_manufacturer["description"]
+            )
             _manufac.custom_field_data["system_of_record"] = "Bootstrap"
             _manufac.validated_save()
-        for _platform in _platforms:
+
+    def _setup_platforms(self):
+        for _platform in GLOBAL_YAML_SETTINGS["platform"]:
             _manufac = Manufacturer.objects.get(name=_platform["manufacturer"])
-            _platf = Platform.objects.create(name=_platform["platform"], manufacturer=_manufac)
+            _platf = Platform.objects.create(
+                name=_platform["name"],
+                manufacturer=_manufac,
+                description=_platform["description"],
+                network_driver=_platform["network_driver"],
+                napalm_args=_platform["napalm_arguments"],
+                napalm_driver=_platform["napalm_driver"],
+            )
             _platf.custom_field_data["system_of_record"] = "Bootstrap"
             _platf.validated_save()
 
@@ -724,7 +762,9 @@ class NautobotTestSetup:
 
         for _dev_type in _device_types:
             _manufacturer = Manufacturer.objects.get(name=_dev_type["manufacturer"])
-            _dev_type = DeviceType.objects.create(model=_dev_type["model"], manufacturer=_manufacturer)
+            _dev_type = DeviceType.objects.create(
+                model=_dev_type["model"], manufacturer=_manufacturer
+            )
             _dev_type.custom_field_data["system_of_record"] = "Bootstrap"
             _dev_type.validated_save()
 
@@ -747,7 +787,9 @@ class NautobotTestSetup:
             _device.refresh_from_db()
 
     def _setup_inventory_items(self):
-        _inventory_items = [{"name": "sfp-module", "device": "Switch1", "manufacturer": "Cisco"}]
+        _inventory_items = [
+            {"name": "sfp-module", "device": "Switch1", "manufacturer": "Cisco"}
+        ]
         for _inv_item in _inventory_items:
             _dev = Device.objects.get(name=_inv_item["device"])
             _manufacturer = Manufacturer.objects.get(name=_inv_item["manufacturer"])
@@ -772,7 +814,7 @@ class NautobotTestSetup:
         for _sec_group in GLOBAL_YAML_SETTINGS["secrets_group"]:
             _secrets_group = SecretsGroup.objects.create(name=_sec_group["name"])
             _secrets_group.custom_field_data["system_of_record"] = "Bootstrap"
-            _secrets_group.save()
+            _secrets_group.validated_save()
             _secrets_group.refresh_from_db()
             for _sec in _sec_group["secrets"]:
                 _sga = SecretsGroupAssociation.objects.create(
@@ -781,7 +823,7 @@ class NautobotTestSetup:
                     access_type=_sec["access_type"],
                     secret_type=_sec["secret_type"],
                 )
-                _sga.save()
+                _sga.validated_save()
                 _sga.refresh_from_db()
 
     def _setup_computed_fields(self):
@@ -800,7 +842,9 @@ class NautobotTestSetup:
 
     def _setup_graphql_queries(self):
         for _gql_query in GLOBAL_YAML_SETTINGS["graph_ql_query"]:
-            _qglq = GraphQLQuery.objects.create(name=_gql_query["name"], query=_gql_query["query"])
+            _qglq = GraphQLQuery.objects.create(
+                name=_gql_query["name"], query=_gql_query["query"]
+            )
             _qglq.save()
             _qglq.refresh_from_db()
 
@@ -811,8 +855,10 @@ class NautobotTestSetup:
             else:
                 _git_branch = DEVELOP_YAML_SETTINGS["git_branch"]
             _secrets_group = None
-            if _repo.get("secrets_group"):
-                _secrets_group = SecretsGroup.objects.get(name=_repo["secrets_group"])
+            if _repo.get("secrets_group_name"):
+                _secrets_group = SecretsGroup.objects.get(
+                    name=_repo["secrets_group_name"]
+                )
             _git_repo = GitRepository.objects.create(
                 name=_repo["name"],
                 slug=slugify(_repo["name"]),
@@ -865,7 +911,9 @@ class NautobotTestSetup:
             for _tag in _software_image["tags"]:
                 _tags.append(Tag.objects.get(name=_tag))
             _platform = Platform.objects.get(name=_software_image["platform"])
-            _software = SoftwareLCM.objects.get(version=_software_image["software_version"], device_platform=_platform)
+            _software = SoftwareLCM.objects.get(
+                version=_software_image["software_version"], device_platform=_platform
+            )
             _soft_image = SoftwareImageLCM.objects.create(
                 software=_software,
                 image_file_name=_software_image["file_name"],
@@ -883,9 +931,15 @@ class NautobotTestSetup:
         for validated_software_data in GLOBAL_YAML_SETTINGS["validated_software"]:
             tags = self._get_validated_software_tags(validated_software_data["tags"])
             devices = self._get_devices(validated_software_data["devices"])
-            device_types = self._get_device_types(validated_software_data["device_types"])
-            device_roles = self._get_device_roles(validated_software_data["device_roles"])
-            inventory_items = self._get_inventory_items(validated_software_data["inventory_items"])
+            device_types = self._get_device_types(
+                validated_software_data["device_types"]
+            )
+            device_roles = self._get_device_roles(
+                validated_software_data["device_roles"]
+            )
+            inventory_items = self._get_inventory_items(
+                validated_software_data["inventory_items"]
+            )
             object_tags = self._get_object_tags(validated_software_data["object_tags"])
 
             software = self._get_software(validated_software_data["software"])
@@ -916,21 +970,35 @@ class NautobotTestSetup:
         return [Device.objects.get(name=device_name) for device_name in device_names]
 
     def _get_device_types(self, device_type_names):
-        return [DeviceType.objects.get(model=device_type_name) for device_type_name in device_type_names]
+        return [
+            DeviceType.objects.get(model=device_type_name)
+            for device_type_name in device_type_names
+        ]
 
     def _get_device_roles(self, device_role_names):
-        return [Role.objects.get(name=device_role_name) for device_role_name in device_role_names]
+        return [
+            Role.objects.get(name=device_role_name)
+            for device_role_name in device_role_names
+        ]
 
     def _get_inventory_items(self, inventory_item_names):
-        return [InventoryItem.objects.get(name=inventory_item_name) for inventory_item_name in inventory_item_names]
+        return [
+            InventoryItem.objects.get(name=inventory_item_name)
+            for inventory_item_name in inventory_item_names
+        ]
 
     def _get_object_tags(self, object_tag_names):
-        return [Tag.objects.get(name=object_tag_name) for object_tag_name in object_tag_names]
+        return [
+            Tag.objects.get(name=object_tag_name)
+            for object_tag_name in object_tag_names
+        ]
 
     def _get_software(self, software_name):
         _, software_version = software_name.split(" - ")
         platform = Platform.objects.get(name=_)
-        software = SoftwareLCM.objects.get(version=software_version, device_platform=platform)
+        software = SoftwareLCM.objects.get(
+            version=software_version, device_platform=platform
+        )
         return software
 
     def _set_validated_software_relations(

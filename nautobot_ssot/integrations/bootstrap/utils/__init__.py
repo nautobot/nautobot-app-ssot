@@ -27,7 +27,8 @@ def check_sor_field(model):
     return (
         "system_of_record" in model.custom_field_data
         and model.custom_field_data["system_of_record"] is not None
-        and os.getenv("SYSTEM_OF_RECORD", "Bootstrap") in model.custom_field_data["system_of_record"]
+        and os.getenv("SYSTEM_OF_RECORD", "Bootstrap")
+        in model.custom_field_data["system_of_record"]
     )
 
 

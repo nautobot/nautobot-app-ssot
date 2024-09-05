@@ -13,7 +13,9 @@ name = "Bootstrap SSoT"  # pylint: disable=invalid-name
 class BootstrapDataSource(DataSource):
     """Bootstrap SSoT Data Source."""
 
-    debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
+    debug = BooleanVar(
+        description="Enable for more verbose debug logging", default=False
+    )
     load_source = ChoiceVar(
         choices=(
             ("file", "File"),
@@ -54,7 +56,9 @@ class BootstrapDataSource(DataSource):
             DataMapping("location", "", "Location", "dcim.location"),
             DataMapping("secrets", "", "Secrets", "extras:secrets"),
             DataMapping("secrets_groups", "", "SecretsGroup", "extras:secrets-groups"),
-            DataMapping("git_repositories", "", "GitRepository", "extras:git-repositories"),
+            DataMapping(
+                "git_repositories", "", "GitRepository", "extras:git-repositories"
+            ),
             DataMapping("dynamic_groups", "", "DynamicGroup", "extras:dynamic-groups"),
             DataMapping("computed_field", "", "ComputedField", "extras:computed-field"),
             DataMapping("tags", "", "Tag", "extras.tag"),
@@ -69,7 +73,9 @@ class BootstrapDataSource(DataSource):
             DataMapping("team", "", "Team", "extras.team"),
             DataMapping("contact", "", "Contact", "extras.contact"),
             DataMapping("provider", "", "Provider", "circuits.provider"),
-            DataMapping("provider_network", "", "ProviderNetwork", "circuits.provider_network"),
+            DataMapping(
+                "provider_network", "", "ProviderNetwork", "circuits.provider_network"
+            ),
             DataMapping("circuit_type", "", "CircuitType", "circuits.circuit_type"),
             DataMapping("circuit", "", "Circuit", "circuits.circuit"),
             DataMapping(
@@ -96,19 +102,25 @@ class BootstrapDataSource(DataSource):
         self.target_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync)
         self.target_adapter.load()
 
-    def run(self, load_source, dryrun, memory_profiling, debug, *args, **kwargs):  # pylint: disable=arguments-differ
+    def run(
+        self, load_source, dryrun, memory_profiling, debug, *args, **kwargs
+    ):  # pylint: disable=arguments-differ
         """Perform data synchronization."""
         self.debug = debug
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
         self.load_source = load_source
-        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
+        super().run(
+            dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs
+        )
 
 
 class BootstrapDataTarget(DataTarget):
     """bootstrap SSoT Data Target."""
 
-    debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
+    debug = BooleanVar(
+        description="Enable for more verbose debug logging", default=False
+    )
     write_destination = ChoiceVar(
         choices=(
             ("file", "File"),
@@ -148,13 +160,17 @@ class BootstrapDataTarget(DataTarget):
         self.target_adapter = bootstrap.BootstrapAdapter(job=self, sync=self.sync)
         self.target_adapter.load()
 
-    def run(self, write_destination, dryrun, memory_profiling, debug, *args, **kwargs):  # pylint: disable=arguments-differ
+    def run(
+        self, write_destination, dryrun, memory_profiling, debug, *args, **kwargs
+    ):  # pylint: disable=arguments-differ
         """Perform data synchronization."""
         self.debug = debug
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
         self.write_destination = write_destination
-        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
+        super().run(
+            dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs
+        )
 
 
 jobs = [BootstrapDataSource, BootstrapDataTarget]

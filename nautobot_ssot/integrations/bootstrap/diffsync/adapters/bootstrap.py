@@ -118,7 +118,9 @@ class LabelMixin:
         def _label_object(nautobot_object):
             """Apply custom field to object, if applicable."""
             nautobot_object.custom_field_data["last_synced_from_sor"] = today
-            nautobot_object.custom_field_data["system_of_record"] = os.getenv("SYSTEM_OF_RECORD", "Bootstrap")
+            nautobot_object.custom_field_data["system_of_record"] = os.getenv(
+                "SYSTEM_OF_RECORD", "Bootstrap"
+            )
             nautobot_object.validated_save()
 
         today = datetime.today().date().isoformat()
@@ -420,7 +422,9 @@ class BootstrapAdapter(Adapter, LabelMixin):
 
     def load_provider_network(self, bs_provider_network, branch_vars):
         """Load ProviderNetwork objects from Bootstrap into DiffSync models."""
-        self.job.logger.debug(f"Loading Bootstrap ProviderNetwork {bs_provider_network}")
+        self.job.logger.debug(
+            f"Loading Bootstrap ProviderNetwork {bs_provider_network}"
+        )
 
         try:
             self.get(self.provider_network, bs_provider_network["name"])
@@ -437,7 +441,9 @@ class BootstrapAdapter(Adapter, LabelMixin):
 
     def load_circuit_type(self, bs_circuit_type, branch_vars):
         """Load CircuitType objects from Bootstrap into DiffSync models."""
-        self.job.logger.debug(f"Loading Bootstrap CircuitType {bs_circuit_type} into DiffSync models.")
+        self.job.logger.debug(
+            f"Loading Bootstrap CircuitType {bs_circuit_type} into DiffSync models."
+        )
 
         try:
             self.get(self.circuit_type, bs_circuit_type["name"])
@@ -451,7 +457,9 @@ class BootstrapAdapter(Adapter, LabelMixin):
 
     def load_circuit(self, bs_circuit, branch_vars):
         """Load Circuit objects from Bootstrap into DiffSync models."""
-        self.job.logger.debug(f"Loading Bootstrap Circuit {bs_circuit} into DiffSync models.")
+        self.job.logger.debug(
+            f"Loading Bootstrap Circuit {bs_circuit} into DiffSync models."
+        )
 
         try:
             self.get(self.circuit, bs_circuit["circuit_id"])
@@ -471,7 +479,9 @@ class BootstrapAdapter(Adapter, LabelMixin):
 
     def load_circuit_termination(self, bs_circuit_termination, branch_vars):
         """Load CircuitTermination objects from Bootstrap into DiffSync models."""
-        self.job.logger.debug(f"Loading Bootstrap CircuitTermination {bs_circuit_termination} into DiffSync models.")
+        self.job.logger.debug(
+            f"Loading Bootstrap CircuitTermination {bs_circuit_termination} into DiffSync models."
+        )
         _parts = bs_circuit_termination["name"].split("__")
         _circuit_id = _parts[0]
         _provider = _parts[1]
@@ -484,7 +494,11 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 termination_type=bs_circuit_termination["termination_type"],
                 termination_side=_term_side,
                 circuit_id=_circuit_id,
-                location=(bs_circuit_termination["location"] if bs_circuit_termination["location"] != "" else None),
+                location=(
+                    bs_circuit_termination["location"]
+                    if bs_circuit_termination["location"] != ""
+                    else None
+                ),
                 provider_network=(
                     bs_circuit_termination["provider_network"]
                     if bs_circuit_termination["provider_network"] != ""
@@ -500,10 +514,14 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_circuit_termination)
             try:
-                _circuit = self.get(self.circuit, {"circuit_id": _circuit_id, "provider": _provider})
+                _circuit = self.get(
+                    self.circuit, {"circuit_id": _circuit_id, "provider": _provider}
+                )
                 _circuit.add_child(new_circuit_termination)
             except ObjectAlreadyExists as err:
-                self.job.logger.warning(f"CircuitTermination for {_circuit} already exists. {err}")
+                self.job.logger.warning(
+                    f"CircuitTermination for {_circuit} already exists. {err}"
+                )
             except ObjectNotFound as err:
                 self.job.logger.warning(f"Circuit {_circuit_id} not found. {err}")
 
@@ -558,7 +576,9 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 {
                     "name": bs_vlan["name"],
                     "vid": bs_vlan["vid"],
-                    "vlan_group": (bs_vlan["vlan_group"] if bs_vlan["vlan_group"] else None),
+                    "vlan_group": (
+                        bs_vlan["vlan_group"] if bs_vlan["vlan_group"] else None
+                    ),
                 },
             )
         except ObjectNotFound:
@@ -584,7 +604,9 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 self.vrf,
                 {
                     "name": bs_vrf["name"],
-                    "namespace": (bs_vrf["namespace"] if bs_vrf["namespace"] else "Global"),
+                    "namespace": (
+                        bs_vrf["namespace"] if bs_vrf["namespace"] else "Global"
+                    ),
                 },
             )
         except ObjectNotFound:
@@ -607,18 +629,50 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 self.prefix,
                 {
                     "network": {bs_prefix["network"]},
-                    "namespace": {bs_prefix["namespace"] if bs_prefix["namespace"] else "Global"},
+                    "namespace": {
+                        bs_prefix["namespace"] if bs_prefix["namespace"] else "Global"
+                    },
                 },
             )
         except ObjectNotFound:
-            try:
-                _date_allocated = datetime.datetime.strptime(bs_prefix["date_allocated"], "%Y-%m-%d %H:%M:%S")
-            except TypeError:
-                _date_allocated = None
+            _date_allocated = None
+            if "date_allocated" in bs_prefix and bs_prefix["date_allocated"]:
+                if isinstance(
+                    bs_prefix["date_allocated"], (datetime.date, datetime.datetime)
+                ):
+                    _date_allocated = bs_prefix["date_allocated"]
+                    if isinstance(_date_allocated, datetime.date) and not isinstance(
+                        _date_allocated, datetime.datetime
+                    ):
+                        _date_allocated = datetime.datetime.combine(
+                            _date_allocated, datetime.time.min
+                        )
+                else:
+                    try:
+                        _date_allocated = datetime.datetime.strptime(
+                            bs_prefix["date_allocated"], "%Y-%m-%d %H:%M:%S"
+                        )
+                    except (TypeError, ValueError):
+                        try:
+                            _date_allocated = datetime.datetime.strptime(
+                                bs_prefix["date_allocated"], "%Y-%m-%d"
+                            )
+                            _date_allocated = _date_allocated.replace(
+                                hour=0, minute=0, second=0
+                            )
+                        except (TypeError, ValueError):
+                            _date_allocated = None
+                            self.job.logger.warning(
+                                f"Invalid date format for date_allocated: {bs_prefix['date_allocated']}"
+                            )
             new_prefix = self.prefix(
                 network=bs_prefix["network"],
-                namespace=(bs_prefix["namespace"] if bs_prefix["namespace"] else "Global"),
-                prefix_type=(bs_prefix["prefix_type"] if bs_prefix["prefix_type"] else "Network"),
+                namespace=(
+                    bs_prefix["namespace"] if bs_prefix["namespace"] else "Global"
+                ),
+                prefix_type=(
+                    bs_prefix["prefix_type"] if bs_prefix["prefix_type"] else "Network"
+                ),
                 status=bs_prefix["status"] if bs_prefix["status"] else "Active",
                 role=bs_prefix["role"] if bs_prefix["role"] else None,
                 rir=bs_prefix["rir"] if bs_prefix["rir"] else None,
@@ -640,10 +694,14 @@ class BootstrapAdapter(Adapter, LabelMixin):
         elif bs_secret["provider"] == "text-file":
             params = {"variable": bs_secret["parameters"]["path"]}
         else:
-            self.job.logger.warning(f"Secret: {bs_secret} is not formatted correctly in the yaml file.")
+            self.job.logger.warning(
+                f"Secret: {bs_secret} is not formatted correctly in the yaml file."
+            )
             return
 
-        self.job.logger.debug(f"Loading Bootstrap Secret: {bs_secret}, params: {params}")
+        self.job.logger.debug(
+            f"Loading Bootstrap Secret: {bs_secret}, params: {params}"
+        )
 
         try:
             self.get(self.secret, bs_secret["name"])
@@ -681,7 +739,9 @@ class BootstrapAdapter(Adapter, LabelMixin):
         except ObjectNotFound:
             _data_types = []
             for con_type in git_repo["provided_data_type"]:
-                _content_type = lookup_content_type(content_model_path="extras.gitrepository", content_type=con_type)
+                _content_type = lookup_content_type(
+                    content_model_path="extras.gitrepository", content_type=con_type
+                )
                 _data_types.append(_content_type)
             if git_repo.get("branch"):
                 _branch = git_repo["branch"]
@@ -752,7 +812,9 @@ class BootstrapAdapter(Adapter, LabelMixin):
         try:
             self.get(self.graph_ql_query, query["name"])
         except ObjectNotFound:
-            _new_graphqlq = self.graph_ql_query(name=query["name"], query=query["query"])
+            _new_graphqlq = self.graph_ql_query(
+                name=query["name"], query=query["query"]
+            )
         self.add(_new_graphqlq)
 
     def load_software(self, software):
@@ -768,7 +830,9 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
         except ObjectNotFound:
             try:
-                _release_date = datetime.datetime.strptime(software["release_date"], "%Y-%m-%d")
+                _release_date = datetime.datetime.strptime(
+                    software["release_date"], "%Y-%m-%d"
+                )
             except TypeError:
                 _release_date = None
             try:
@@ -815,7 +879,9 @@ class BootstrapAdapter(Adapter, LabelMixin):
 
     def load_validated_software(self, validated_software):
         """Load ValidatedSoftware objects from Bootstrap into DiffSync Models."""
-        self.job.logger.debug(f"Loading Bootstrap ValidatedSoftware {validated_software}")
+        self.job.logger.debug(
+            f"Loading Bootstrap ValidatedSoftware {validated_software}"
+        )
         try:
             self.get(
                 self.validated_software,
@@ -845,7 +911,9 @@ class BootstrapAdapter(Adapter, LabelMixin):
 
     def load(self):
         """Load data from Bootstrap into DiffSync models."""
-        environment_label = settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_nautobot_environment_branch"]
+        environment_label = settings.PLUGINS_CONFIG["nautobot_ssot"][
+            "bootstrap_nautobot_environment_branch"
+        ]
 
         if is_running_tests():
             load_type = "file"
@@ -899,14 +967,22 @@ class BootstrapAdapter(Adapter, LabelMixin):
 
         # Ensure global_settings is loaded
         if global_settings is None:
-            self.job.logger.error("global_settings not loaded. Check if the file exists in the correct directory.")
+            self.job.logger.error(
+                "global_settings not loaded. Check if the file exists in the correct directory."
+            )
             return
 
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["tenant_group"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "tenant_group"
+        ]:
             if global_settings["tenant_group"] is not None:  # noqa: F821
                 for bs_tenant_group in global_settings["tenant_group"]:  # noqa: F821
-                    self.load_tenant_group(bs_tenant_group=bs_tenant_group, branch_vars=branch_vars)
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["tenant"]:
+                    self.load_tenant_group(
+                        bs_tenant_group=bs_tenant_group, branch_vars=branch_vars
+                    )
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "tenant"
+        ]:
             if global_settings["tenant"] is not None:  # noqa: F821
                 for bs_tenant in global_settings["tenant"]:  # noqa: F821
                     self.load_tenant(bs_tenant=bs_tenant, branch_vars=branch_vars)
@@ -914,19 +990,31 @@ class BootstrapAdapter(Adapter, LabelMixin):
             if global_settings["role"] is not None:  # noqa: F821
                 for bs_role in global_settings["role"]:  # noqa: F821
                     self.load_role(bs_role=bs_role, branch_vars=branch_vars)
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["manufacturer"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "manufacturer"
+        ]:
             if global_settings["manufacturer"] is not None:  # noqa: F821
                 for bs_manufacturer in global_settings["manufacturer"]:  # noqa: F821
-                    self.load_manufacturer(bs_manufacturer=bs_manufacturer, branch_vars=branch_vars)
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["platform"]:
+                    self.load_manufacturer(
+                        bs_manufacturer=bs_manufacturer, branch_vars=branch_vars
+                    )
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "platform"
+        ]:
             if global_settings["platform"] is not None:  # noqa: F821
                 for bs_platform in global_settings["platform"]:  # noqa: F821
                     self.load_platform(bs_platform=bs_platform, branch_vars=branch_vars)
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["location_type"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "location_type"
+        ]:
             if global_settings["location_type"] is not None:  # noqa: F821
                 for bs_location_type in global_settings["location_type"]:  # noqa: F821
-                    self.load_location_type(bs_location_type=bs_location_type, branch_vars=branch_vars)
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["location"]:
+                    self.load_location_type(
+                        bs_location_type=bs_location_type, branch_vars=branch_vars
+                    )
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "location"
+        ]:
             if global_settings["location"] is not None:  # noqa: F821
                 for bs_location in global_settings["location"]:  # noqa: F821
                     self.load_location(bs_location=bs_location, branch_vars=branch_vars)
@@ -934,45 +1022,73 @@ class BootstrapAdapter(Adapter, LabelMixin):
             if global_settings["team"] is not None:  # noqa: F821
                 for bs_team in global_settings["team"]:  # noqa: F821
                     self.load_team(bs_team=bs_team, branch_vars=branch_vars)
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["contact"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "contact"
+        ]:
             if global_settings["contact"] is not None:  # noqa: F821
                 for bs_contact in global_settings["contact"]:  # noqa: F821
                     self.load_contact(bs_contact=bs_contact, branch_vars=branch_vars)
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["provider"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "provider"
+        ]:
             if global_settings["provider"] is not None:  # noqa: F821
                 for bs_provider in global_settings["provider"]:  # noqa: F821
                     self.load_provider(bs_provider=bs_provider, branch_vars=branch_vars)
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["provider_network"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "provider_network"
+        ]:
             if global_settings["provider_network"] is not None:  # noqa: F821
-                for bs_provider_network in global_settings["provider_network"]:  # noqa: F821
-                    self.load_provider_network(bs_provider_network=bs_provider_network, branch_vars=branch_vars)
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["circuit_type"]:
+                for bs_provider_network in global_settings[
+                    "provider_network"
+                ]:  # noqa: F821
+                    self.load_provider_network(
+                        bs_provider_network=bs_provider_network, branch_vars=branch_vars
+                    )
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "circuit_type"
+        ]:
             if global_settings["circuit_type"] is not None:  # noqa: F821
                 for bs_circuit_type in global_settings["circuit_type"]:  # noqa: F821
-                    self.load_circuit_type(bs_circuit_type=bs_circuit_type, branch_vars=branch_vars)
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["circuit"]:
+                    self.load_circuit_type(
+                        bs_circuit_type=bs_circuit_type, branch_vars=branch_vars
+                    )
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "circuit"
+        ]:
             if global_settings["circuit"] is not None:  # noqa: F821
                 for bs_circuit in global_settings["circuit"]:  # noqa: F821
                     self.load_circuit(bs_circuit=bs_circuit, branch_vars=branch_vars)
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["circuit_termination"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "circuit_termination"
+        ]:
             if global_settings["circuit_termination"] is not None:  # noqa: F821
-                for bs_circuit_termination in global_settings["circuit_termination"]:  # noqa: F821
+                for bs_circuit_termination in global_settings[
+                    "circuit_termination"
+                ]:  # noqa: F821
                     self.load_circuit_termination(
                         bs_circuit_termination=bs_circuit_termination,
                         branch_vars=branch_vars,
                     )
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["namespace"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "namespace"
+        ]:
             if global_settings["namespace"] is not None:  # noqa: F821
                 for bs_namespace in global_settings["namespace"]:  # noqa: F821
-                    self.load_namespace(bs_namespace=bs_namespace, branch_vars=branch_vars)
+                    self.load_namespace(
+                        bs_namespace=bs_namespace, branch_vars=branch_vars
+                    )
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["rir"]:
             if global_settings["rir"] is not None:  # noqa: F821
                 for bs_rir in global_settings["rir"]:  # noqa: F821
                     self.load_rir(bs_rir=bs_rir, branch_vars=branch_vars)
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["vlan_group"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "vlan_group"
+        ]:
             if global_settings["vlan_group"] is not None:  # noqa: F821
                 for bs_vlan_group in global_settings["vlan_group"]:  # noqa: F821
-                    self.load_vlan_group(bs_vlan_group=bs_vlan_group, branch_vars=branch_vars)
+                    self.load_vlan_group(
+                        bs_vlan_group=bs_vlan_group, branch_vars=branch_vars
+                    )
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["vlan"]:
             if global_settings["vlan"] is not None:  # noqa: F821
                 for bs_vlan in global_settings["vlan"]:  # noqa: F821
@@ -981,27 +1097,39 @@ class BootstrapAdapter(Adapter, LabelMixin):
             if global_settings["vrf"] is not None:  # noqa: F821
                 for bs_vrf in global_settings["vrf"]:  # noqa: F821
                     self.load_vrf(bs_vrf=bs_vrf, branch_vars=branch_vars)
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["prefix"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "prefix"
+        ]:
             if global_settings["prefix"] is not None:  # noqa: F821
                 for bs_prefix in global_settings["prefix"]:  # noqa: F821
                     self.load_prefix(bs_prefix=bs_prefix, branch_vars=branch_vars)
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["secret"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "secret"
+        ]:
             if global_settings["secret"] is not None:  # noqa: F821
                 for bs_secret in global_settings["secret"]:  # noqa: F821
                     self.load_secret(bs_secret=bs_secret, branch_vars=branch_vars)
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["secrets_group"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "secrets_group"
+        ]:
             if global_settings["secrets_group"] is not None:  # noqa: F821
                 for bs_sg in global_settings["secrets_group"]:  # noqa: F821
                     self.load_secrets_group(bs_sg=bs_sg, branch_vars=branch_vars)
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["git_repository"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "git_repository"
+        ]:
             if global_settings["git_repository"] is not None:  # noqa: F821
                 for git_repo in global_settings["git_repository"]:  # noqa: F821
                     self.load_git_repository(git_repo=git_repo, branch_vars=branch_vars)
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["dynamic_group"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "dynamic_group"
+        ]:
             if global_settings["dynamic_group"] is not None:  # noqa: F821
                 for dyn_group in global_settings["dynamic_group"]:  # noqa: F821
                     self.load_dynamic_group(dyn_group=dyn_group)
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["computed_field"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "computed_field"
+        ]:
             if global_settings["computed_field"] is not None:  # noqa: F821
                 for computed_field in global_settings["computed_field"]:  # noqa: F821
                     self.load_computed_field(comp_field=computed_field)
@@ -1009,17 +1137,27 @@ class BootstrapAdapter(Adapter, LabelMixin):
             if global_settings["tag"] is not None:  # noqa: F821
                 for tag in global_settings["tag"]:  # noqa: F821
                     self.load_tag(tag=tag)
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["graph_ql_query"]:
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+            "graph_ql_query"
+        ]:
             if global_settings["graph_ql_query"] is not None:  # noqa F821
                 for graph_ql_query in global_settings["graph_ql_query"]:  # noqa F821
                     self.load_graph_ql_query(query=graph_ql_query)
         if LIFECYCLE_MGMT:
-            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software"]:
+            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+                "software"
+            ]:
                 for software in global_settings["software"]:  # noqa: F821
                     self.load_software(software=software)
-            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software_image"]:
+            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+                "software_image"
+            ]:
                 for software_image in global_settings["software_image"]:  # noqa: F821
                     self.load_software_image(software_image=software_image)
-            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["validated_software"]:
-                for validated_software in global_settings["validated_software"]:  # noqa: F821
+            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"][
+                "validated_software"
+            ]:
+                for validated_software in global_settings[
+                    "validated_software"
+                ]:  # noqa: F821
                     self.load_validated_software(validated_software=validated_software)

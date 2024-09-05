@@ -223,7 +223,7 @@
     {
       "name": "Site",
       "parent": "Region",
-      "nestable": true,
+      "nestable": false,
       "description": "",
       "content_types": ["dcim.device", "ipam.namespace", "ipam.prefix", "ipam.vlan", "ipam.vlangroup", "circuits.circuittermination"]
     },
@@ -428,14 +428,16 @@
         "name": "Github_Service_Acct",
         "provider": "environment-variable",
         "parameters": {
-            "variable": "GITHUB_SERVICE_ACCT"
+            "variable": "GITHUB_SERVICE_ACCT",
+            "path": null
         }
     },
     {
         "name": "Github_Service_Token",
         "provider": "environment-variable",
         "parameters": {
-            "variable": "GITHUB_SERVICE_TOKEN"
+            "variable": "GITHUB_SERVICE_TOKEN",
+            "path": null
         }
     }
   ],
@@ -462,26 +464,26 @@
         "url": "https://github.com/nautobot/backbone-config-contexts.git",
         "branch": "main",
         "secrets_group": "Github_Service_Account",
-        "provided_contents": ["extras.configcontext"]
+        "provided_contents": ["config contexts"]
     },
     {
         "name": "Datacenter Config Contexts",
         "url": "https://github.com/nautobot/datacenter-config-contexts.git",
         "branch": "develop",
         "secrets_group": "Github_Service_Account",
-        "provided_contents": ["extras.configcontext"]
+        "provided_contents": ["config contexts"]
     },
     {
         "name": "Metro Config Contexts",
         "url": "https://github.com/nautobot/metro-config-contexts.git",
         "branch": "develop",
-        "provided_contents": ["extras.configcontext"]
+        "provided_contents": ["config contexts"]
     },
     {
         "name": "Access Config Contexts",
         "url": "https://github.com/nautobot/access-config-contexts.git",
         "branch": "develop",
-        "provided_contents": ["extras.configcontext"]
+        "provided_contents": ["config contexts"]
     }
   ],
   "dynamic_group": [
@@ -692,6 +694,7 @@
         "status": "Active",
         "role": "Data Network",
         "rir": "RFC1918",
+        "date_allocated": "2024-06-01 00:00:00",
         "description": "",
         "tags": []
     },
