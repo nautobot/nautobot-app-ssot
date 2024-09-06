@@ -205,16 +205,7 @@ def run_command(context, command, **kwargs):
 
     pty = kwargs.pop("pty", True)
 
-        if "nautobot" in results.stdout:
-            compose_command = f"exec{command_env_args} nautobot {command}"
-        else:
-            compose_command = (
-                f"run{command_env_args} --rm --entrypoint='{command}' nautobot"
-            )
-
-        pty = kwargs.pop("pty", True)
-
-        docker_compose(context, compose_command, pty=pty, **kwargs)
+    return docker_compose(context, compose_command, **kwargs, pty=pty, env=env)
 
 
 # ------------------------------------------------------------------------------

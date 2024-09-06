@@ -202,7 +202,6 @@ target-version = "py38"
 select = [
     "D",  # pydocstyle
     "F", "E", "W",  # flake8
-    "PL", # pylint
     "S",  # bandit
     "I",  # isort
 ]
@@ -223,6 +222,10 @@ ignore = [
     "D407", # Missing dashed underline after section
     "D416", # Section name ends in colon
     "E501", # Line too long
+
+    # Package specific ignores
+    "D104", # Missing docstring in public package
+    "D417", # Missing argument descriptions in the docstring for ...
 ]
 
 [tool.ruff.lint.pydocstyle]
