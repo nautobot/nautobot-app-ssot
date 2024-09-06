@@ -1,1 +1,0 @@
-Fixed generalized Exception with SecretsGroup and add custom Exception in case SecretsGroup not found on ExternalIntegration.
