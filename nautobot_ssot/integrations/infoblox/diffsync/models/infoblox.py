@@ -81,7 +81,7 @@ class InfobloxVLAN(Vlan):
     """Infoblox implementation of the VLAN Model."""
 
 
-class InfobloxIPAddress(IPAddress):
+class InfobloxIPAddress(IPAddress):  # pylint: disable=too-many-instance-attributes
     """Infoblox implementation of the VLAN Model."""
 
     @classmethod

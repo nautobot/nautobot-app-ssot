@@ -39,4 +39,4 @@ class AutomationGatewayModelForm(NautobotModelForm):  # pylint: disable=too-many
         """Meta class definition."""
 
         model = models.AutomationGatewayModel
-        fields = ["name", "description", "location", "location_descendants", "gateway", "enabled"]
+        fields = "__all__"
