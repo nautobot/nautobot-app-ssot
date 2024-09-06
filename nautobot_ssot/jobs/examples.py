@@ -37,8 +37,6 @@ name = "SSoT Examples"  # pylint: disable=invalid-name
 class MissingSecretsGroupException(Exception):
     """Custom Exception in case SecretsGroup is not found on ExternalIntegration."""
 
-    pass
-
 
 class LocationTypeModel(NautobotModel):
     """Shared data model representing a LocationType in either of the local or remote Nautobot instances."""
@@ -867,7 +865,8 @@ class ExampleDataSource(DataSource):
                 self.source_url = source.remote_url
                 if not source.secrets_group:
                     self.logger.error(
-                        f"{source} is missing a SecretsGroup. You must specify a SecretsGroup to synchronize with this Nautobot instance."
+                        "%s is missing a SecretsGroup. You must specify a SecretsGroup to synchronize with this Nautobot instance.",
+                        source,
                     )
                     raise MissingSecretsGroupException(message="Missing SecretsGroup on specified ExternalIntegration.")
                 secrets_group = source.secrets_group
@@ -976,9 +975,10 @@ class ExampleDataTarget(DataTarget):
                 self.target_url = target.remote_url
                 if not target.secrets_group:
                     self.logger.error(
-                        f"{target} is missing a SecretsGroup. You must specify a SecretsGroup to synchronize with this Nautobot instance."
+                        "%s is missing a SecretsGroup. You must specify a SecretsGroup to synchronize with this Nautobot instance.",
+                        target,
                     )
-                    raise MissingSecretsGroupException(message="Missing SecretsGroup on specified ExternalIntegration.")
+                    raise MissingSecretsGroupException("Missing SecretsGroup on specified ExternalIntegration.")
                 secrets_group = target.secrets_group
                 self.target_token = secrets_group.get_secret_value(
                     access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
