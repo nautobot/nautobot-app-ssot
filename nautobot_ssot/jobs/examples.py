@@ -879,7 +879,6 @@ class ExampleDataSource(DataSource):
                 self.source_url = source_url
                 self.source_token = source_token
         except SecretError as error:
-            # TBD: Why are these exceptions swallowed?
             self.logger.error("Error setting up job: %s", error)
             raise
 
