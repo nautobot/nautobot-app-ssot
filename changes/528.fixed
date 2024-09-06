@@ -1,0 +1,2 @@
+Fixed bug preventing use of Nautobot 2.1 due to ACI requiring 2.2.
+Fixed JobResult association to Sync object to CASCADE instead of PROTECT so Sync object is deleted when JobResult is instead of preventing deletion.

@@ -1,0 +1,1 @@
+Added DNA Center integration to _MIN_NAUTOBOT_VERSION as it requires Nautobot 2.2 for Controller object.

@@ -82,7 +82,7 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
     diff = models.JSONField(blank=True, encoder=DiffJSONEncoder)
     summary = models.JSONField(blank=True, null=True)
 
-    job_result = models.ForeignKey(to=JobResult, on_delete=models.PROTECT, blank=True, null=True)
+    job_result = models.ForeignKey(to=JobResult, on_delete=models.CASCADE, blank=True, null=True)
 
     class Meta:
         """Metaclass attributes of Sync model."""
