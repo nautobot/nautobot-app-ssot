@@ -21,6 +21,7 @@ from nautobot.dcim.models import Device, DeviceType, Interface, Location, Locati
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.jobs import ObjectVar, StringVar
 from nautobot.extras.models import ExternalIntegration, Role, Status
+from nautobot.extras.secrets.exceptions import SecretError
 from nautobot.ipam.models import IPAddress, Namespace, Prefix
 from nautobot.tenancy.models import Tenant
 
@@ -31,6 +32,12 @@ from nautobot_ssot.tests.contrib_base_classes import ContentTypeDict
 # In a more complex Job, you would probably want to move the DiffSyncModel subclasses into a separate Python module(s).
 
 name = "SSoT Examples"  # pylint: disable=invalid-name
+
+
+class MissingSecretsGroupException(Exception):
+    """Custom Exception in case SecretsGroup is not found on ExternalIntegration."""
+
+    pass
 
 
 class LocationTypeModel(NautobotModel):
@@ -858,6 +865,11 @@ class ExampleDataSource(DataSource):
             if source:
                 self.logger.info(f"Using external integration '{source}'")
                 self.source_url = source.remote_url
+                if not source.secrets_group:
+                    self.logger.error(
+                        f"{source} is missing a SecretsGroup. You must specify a SecretsGroup to synchronize with this Nautobot instance."
+                    )
+                    raise MissingSecretsGroupException(message="Missing SecretsGroup on specified ExternalIntegration.")
                 secrets_group = source.secrets_group
                 self.source_token = secrets_group.get_secret_value(
                     access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
@@ -866,7 +878,7 @@ class ExampleDataSource(DataSource):
             else:
                 self.source_url = source_url
                 self.source_token = source_token
-        except Exception as error:
+        except SecretError as error:
             # TBD: Why are these exceptions swallowed?
             self.logger.error("Error setting up job: %s", error)
             raise
@@ -963,6 +975,11 @@ class ExampleDataTarget(DataTarget):
             if target:
                 self.logger.info(f"Using external integration '{target}'")
                 self.target_url = target.remote_url
+                if not target.secrets_group:
+                    self.logger.error(
+                        f"{target} is missing a SecretsGroup. You must specify a SecretsGroup to synchronize with this Nautobot instance."
+                    )
+                    raise MissingSecretsGroupException(message="Missing SecretsGroup on specified ExternalIntegration.")
                 secrets_group = target.secrets_group
                 self.target_token = secrets_group.get_secret_value(
                     access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
@@ -971,8 +988,7 @@ class ExampleDataTarget(DataTarget):
             else:
                 self.target_url = target_url
                 self.target_token = target_token
-        except Exception as error:
-            # TBD: Why are these exceptions swallowed?
+        except SecretError as error:
             self.logger.error("Error setting up job: %s", error)
             raise
 
