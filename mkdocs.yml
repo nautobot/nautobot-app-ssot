@@ -1,6 +1,6 @@
 ---
 dev_addr: "127.0.0.1:8001"
-edit_uri: "edit/main/nautobot-app-ssot/docs"
+edit_uri: "edit/main/docs"
 site_dir: "nautobot_ssot/static/nautobot_ssot/docs"
 site_name: "Single Source of Truth Documentation"
 site_url: "https://docs.nautobot.com/projects/ssot/en/latest/"
@@ -135,6 +135,7 @@ nav:
       - Compatibility Matrix: "admin/compatibility_matrix.md"
       - Release Notes:
           - "admin/release_notes/index.md"
+          - v3.1: "admin/release_notes/version_3.1.md"
           - v3.0: "admin/release_notes/version_3.0.md"
           - v2.8: "admin/release_notes/version_2.8.md"
           - v2.7: "admin/release_notes/version_2.7.md"

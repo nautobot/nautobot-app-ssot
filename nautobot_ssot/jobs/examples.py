@@ -8,7 +8,7 @@ try:
 except ImportError:
     from typing import TypedDict  # Python>=3.9
 
-from typing import List, Mapping, Optional
+from typing import Generator, List, Optional
 
 import requests
 from diffsync import Adapter
@@ -21,6 +21,7 @@ from nautobot.dcim.models import Device, DeviceType, Interface, Location, Locati
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.jobs import ObjectVar, StringVar
 from nautobot.extras.models import ExternalIntegration, Role, Status
+from nautobot.extras.secrets.exceptions import SecretError
 from nautobot.ipam.models import IPAddress, Namespace, Prefix
 from nautobot.tenancy.models import Tenant
 
@@ -31,6 +32,10 @@ from nautobot_ssot.tests.contrib_base_classes import ContentTypeDict
 # In a more complex Job, you would probably want to move the DiffSyncModel subclasses into a separate Python module(s).
 
 name = "SSoT Examples"  # pylint: disable=invalid-name
+
+
+class MissingSecretsGroupException(Exception):
+    """Custom Exception in case SecretsGroup is not found on ExternalIntegration."""
 
 
 class LocationTypeModel(NautobotModel):
@@ -477,14 +482,13 @@ class NautobotRemote(Adapter):
             "Authorization": f"Token {self.token}",
         }
 
-    def _get_api_data(self, url_path: str) -> Mapping:
+    def _get_api_data(self, url_path: str) -> Generator:
         """Returns data from a url_path using pagination."""
         data = requests.get(f"{self.url}/{url_path}", headers=self.headers, params={"limit": 200}, timeout=60).json()
-        result_data = data["results"]
+        yield from data["results"]
         while data["next"]:
             data = requests.get(data["next"], headers=self.headers, params={"limit": 200}, timeout=60).json()
-            result_data.extend(data["results"])
-        return result_data
+            yield from data["results"]
 
     def load(self):
         """Load data from the remote Nautobot instance."""
@@ -859,6 +863,12 @@ class ExampleDataSource(DataSource):
             if source:
                 self.logger.info(f"Using external integration '{source}'")
                 self.source_url = source.remote_url
+                if not source.secrets_group:
+                    self.logger.error(
+                        "%s is missing a SecretsGroup. You must specify a SecretsGroup to synchronize with this Nautobot instance.",
+                        source,
+                    )
+                    raise MissingSecretsGroupException(message="Missing SecretsGroup on specified ExternalIntegration.")
                 secrets_group = source.secrets_group
                 self.source_token = secrets_group.get_secret_value(
                     access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
@@ -867,8 +877,7 @@ class ExampleDataSource(DataSource):
             else:
                 self.source_url = source_url
                 self.source_token = source_token
-        except Exception as error:
-            # TBD: Why are these exceptions swallowed?
+        except SecretError as error:
             self.logger.error("Error setting up job: %s", error)
             raise
 
@@ -964,6 +973,12 @@ class ExampleDataTarget(DataTarget):
             if target:
                 self.logger.info(f"Using external integration '{target}'")
                 self.target_url = target.remote_url
+                if not target.secrets_group:
+                    self.logger.error(
+                        "%s is missing a SecretsGroup. You must specify a SecretsGroup to synchronize with this Nautobot instance.",
+                        target,
+                    )
+                    raise MissingSecretsGroupException("Missing SecretsGroup on specified ExternalIntegration.")
                 secrets_group = target.secrets_group
                 self.target_token = secrets_group.get_secret_value(
                     access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
@@ -972,8 +987,7 @@ class ExampleDataTarget(DataTarget):
             else:
                 self.target_url = target_url
                 self.target_token = target_token
-        except Exception as error:
-            # TBD: Why are these exceptions swallowed?
+        except SecretError as error:
             self.logger.error("Error setting up job: %s", error)
             raise
 
