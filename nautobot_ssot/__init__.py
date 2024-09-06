@@ -27,6 +27,7 @@ _CONFLICTING_APP_NAMES = [
 
 _MIN_NAUTOBOT_VERSION = {
     "nautobot_ssot_aci": "2.2",
+    "nautobot_ssot_dna_center": "2.2",
 }
 
 
