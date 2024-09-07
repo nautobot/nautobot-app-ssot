@@ -4,12 +4,11 @@ import logging
 import os
 from importlib import metadata
 
-import packaging
 from django.conf import settings
 from nautobot.core.settings_funcs import is_truthy
 from nautobot.extras.plugins import NautobotAppConfig
 
-from nautobot_ssot.integrations.utils import each_enabled_integration, each_enabled_integration_module
+from nautobot_ssot.integrations.utils import each_enabled_integration_module
 
 logger = logging.getLogger("nautobot.ssot")
 __version__ = metadata.version(__name__)
@@ -25,28 +24,6 @@ _CONFLICTING_APP_NAMES = [
     "nautobot_ssot_servicenow",
 ]
 
-_MIN_NAUTOBOT_VERSION = {
-    "nautobot_ssot_aci": "2.2",
-    "nautobot_ssot_dna_center": "2.2",
-}
-
-
-def _check_min_nautobot_version_met():
-    incompatible_apps_msg = []
-    nautobot_version = metadata.version("nautobot")
-    enabled_integrations = list(each_enabled_integration())
-    for app, nb_ver in _MIN_NAUTOBOT_VERSION.items():
-        if app.replace("nautobot_ssot_", "") in enabled_integrations and packaging.version.parse(
-            nb_ver
-        ) > packaging.version.parse(nautobot_version):
-            incompatible_apps_msg.append(f"The `{app}` requires Nautobot version {nb_ver} or higher.\n")
-
-    if incompatible_apps_msg:
-        raise RuntimeError(
-            f"This version of Nautobot ({nautobot_version}) does not meet minimum requirements for the following apps:\n {''.join(incompatible_apps_msg)}."
-            "See: https://docs.nautobot.com/projects/ssot/en/latest/admin/upgrade/#potential-apps-conflicts"
-        )
-
 
 def _check_for_conflicting_apps():
     intersection = set(_CONFLICTING_APP_NAMES).intersection(set(settings.PLUGINS))
@@ -59,8 +36,6 @@ def _check_for_conflicting_apps():
 
 if not is_truthy(os.getenv("NAUTOBOT_SSOT_ALLOW_CONFLICTING_APPS", "False")):
     _check_for_conflicting_apps()
-
-_check_min_nautobot_version_met()
 
 
 class NautobotSSOTAppConfig(NautobotAppConfig):
