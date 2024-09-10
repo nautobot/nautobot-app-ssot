@@ -17,7 +17,7 @@ In brief, the following general steps can be followed:
 2. Define a `DiffSync` adapter class for loading initial data from Nautobot and constructing instances of each `DiffSyncModel` class to represent that data.
 3. Define a `DiffSync` adapter class for loading initial data from the Data Source or Data Target system and constructing instances of the `DiffSyncModel` classes to represent that data.
 
-4. Develop a Job class, derived from either the `DataSource` or `DataTarget` classes provided by this app, and implement the adapters to populate the `self.source_adapter` and `self.target_adapter` that are used by the built-in implementation of `sync_data`. This `sync_data` method is an opinionated way of running the process including some performance data, more in [next section](#analyze-job-performance), but you could overwrite it completely or any of the key hooks that it calls:
+4. Develop a Job class, derived from either the `DataSource` or `DataTarget` classes provided by this app, and implement the adapters to populate the `self.source_adapter` and `self.target_adapter` that are used by the built-in implementation of `sync_data`. This `sync_data` method is an opinionated way of running the process including some performance data, more in [next section](#optimizing-for-execution-time), but you could overwrite it completely or any of the key hooks that it calls:
 
    - `self.load_source_adapter`: This is mandatory to be implemented. As an example:
 
