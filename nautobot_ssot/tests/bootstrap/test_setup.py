@@ -110,10 +110,10 @@ MODELS_TO_SYNC = [
 ]
 
 
-def is_valid_timezone(tz):
+def is_valid_timezone(timezone):
     """Return whether timezone passed is a valid timezone in pytz."""
     try:
-        pytz.timezone(tz)
+        pytz.timezone(timezone)
         return True
     except pytz.UnknownTimeZoneError:
         return False
