@@ -436,7 +436,7 @@ class NautobotAdapter(Adapter):
                     status=nb_location.status.name,
                     facility=nb_location.facility,
                     asn=nb_location.asn,
-                    time_zone=_time_zone,
+                    time_zone=str(_time_zone),
                     description=nb_location.description,
                     tenant=_tenant,
                     physical_address=nb_location.physical_address,
