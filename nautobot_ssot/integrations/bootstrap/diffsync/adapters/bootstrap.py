@@ -221,7 +221,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 description=bs_tenant_group["description"],
                 system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
             )
-        self.add(new_tenant_group)
+            self.add(new_tenant_group)
 
     def load_tenant(self, bs_tenant, branch_vars):
         """Load Tenant objects from Bootstrap into DiffSync models."""
@@ -238,7 +238,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 tags=bs_tenant["tags"],
                 system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
             )
-        self.add(new_tenant)
+            self.add(new_tenant)
 
     def load_role(self, bs_role, branch_vars):
         """Load Role objects from Bootstrap into DiffSync models."""
@@ -785,7 +785,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 description=tag["description"],
                 system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
             )
-        self.add(_new_tag)
+            self.add(_new_tag)
 
     def load_graph_ql_query(self, query):
         """Load GraphQLQuery objects from Bootstrap into DiffSync Models."""
@@ -795,7 +795,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             self.get(self.graph_ql_query, query["name"])
         except ObjectNotFound:
             _new_graphqlq = self.graph_ql_query(name=query["name"], query=query["query"])
-        self.add(_new_graphqlq)
+            self.add(_new_graphqlq)
 
     def load_software(self, software):
         """Load Software objects from Bootstrap into DiffSync Models."""
