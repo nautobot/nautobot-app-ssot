@@ -108,7 +108,7 @@ git_branch: develop
 
 ## Content Types
 
-There are a couple models like Tags and Git Repositories that have associated content types. These require a specific format when listing them in the yaml file. The format of these is the `app_label`.`model`, though models can somewhat vary from App to App. Here is a list of some of the most common ones:
+There are a couple models like Tags and Git Repositories that have associated content types. These require a specific format when listing them in the YAML file. The format of these is the `app_label`.`model`, though models can somewhat vary from App to App. Here is a list of some of the most common ones:
 
 ```yaml
 - "circuits.circuit"
