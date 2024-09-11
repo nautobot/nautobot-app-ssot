@@ -11,8 +11,6 @@ from nautobot.extras.datasources.registry import get_datasource_content_choices
 from nautobot.extras.models import Contact, Team
 from nautobot.extras.utils import FeatureQuery, RoleModelsQuery, TaggableClassesQuery
 
-from nautobot_ssot.integrations.bootstrap.constants import content_model_path_mapping
-
 
 def is_running_tests():
     """Check whether running unittests or actual job."""
@@ -45,8 +43,6 @@ def get_sor_field_nautobot_object(nb_object):
 
 def lookup_content_type(content_model_path, content_type):
     """Lookup content type for a GitRepository object."""
-    if content_type in content_model_path_mapping:
-        return content_model_path_mapping[content_type]
     _choices = get_datasource_content_choices(content_model_path)
     _found_type = None
     for _element in _choices:

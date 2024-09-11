@@ -109,13 +109,13 @@ class BootstrapDataTarget(DataTarget):
     """bootstrap SSoT Data Target."""
 
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
-    write_destination = ChoiceVar(
+    read_destination = ChoiceVar(
         choices=(
             ("file", "File"),
             ("git", "Git"),
             ("env_var", "Environment Variable"),
         ),
-        description="Where to load the yaml files from",
+        description="Where to load the YAML files from",
         label="Load Source",
         default="env_var",
     )
@@ -148,12 +148,12 @@ class BootstrapDataTarget(DataTarget):
         self.target_adapter = bootstrap.BootstrapAdapter(job=self, sync=self.sync)
         self.target_adapter.load()
 
-    def run(self, write_destination, dryrun, memory_profiling, debug, *args, **kwargs):  # pylint: disable=arguments-differ
+    def run(self, read_destination, dryrun, memory_profiling, debug, *args, **kwargs):  # pylint: disable=arguments-differ
         """Perform data synchronization."""
         self.debug = debug
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
-        self.write_destination = write_destination
+        self.read_destination = read_destination
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 
