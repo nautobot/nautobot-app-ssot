@@ -2,7 +2,7 @@
 
 ### Data structures
 
-#### global_settings.yml (see '../nautobot_ssot_bootstrap/fixtures/global_settings.yml for examples of supported models)
+#### global_settings.yml (see '../bootstrap/fixtures/global_settings.yml for examples of supported models)
 
 ```yaml
 secret:
