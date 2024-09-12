@@ -26,16 +26,13 @@ from nautobot.ipam.models import IPAddress, Namespace, Prefix
 from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.contrib import NautobotAdapter, NautobotModel
+from nautobot_ssot.exceptions import MissingSecretsGroupException
 from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
 from nautobot_ssot.tests.contrib_base_classes import ContentTypeDict
 
 # In a more complex Job, you would probably want to move the DiffSyncModel subclasses into a separate Python module(s).
 
 name = "SSoT Examples"  # pylint: disable=invalid-name
-
-
-class MissingSecretsGroupException(Exception):
-    """Custom Exception in case SecretsGroup is not found on ExternalIntegration."""
 
 
 class LocationTypeModel(NautobotModel):

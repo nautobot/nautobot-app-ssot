@@ -13,20 +13,6 @@ from nautobot_ssot.integrations.device42.constant import DEFAULTS, FC_INTF_MAP, 
 from nautobot_ssot.integrations.device42.diffsync.models.base.ipam import VLAN
 
 
-class MissingConfigSetting(Exception):
-    """Exception raised for missing configuration settings.
-
-    Attributes:
-        message (str): Returned explanation of Error.
-    """
-
-    def __init__(self, setting):
-        """Initialize Exception with Setting that is missing and message."""
-        self.setting = setting
-        self.message = f"Missing configuration setting - {setting}!"
-        super().__init__(self.message)
-
-
 def merge_offset_dicts(orig_dict: dict, offset_dict: dict) -> dict:
     """Method to merge two dicts and merge a list if found.
 

@@ -7,6 +7,7 @@ from nautobot.core.utils.lookup import get_route_for_model
 from nautobot.dcim.models import DeviceType
 from nautobot.extras.jobs import BooleanVar, Job
 
+from nautobot_ssot.exceptions import MissingConfigSetting
 from nautobot_ssot.integrations.aristacv.diffsync.adapters.cloudvision import CloudvisionAdapter
 from nautobot_ssot.integrations.aristacv.diffsync.adapters.nautobot import NautobotAdapter
 from nautobot_ssot.integrations.aristacv.utils.cloudvision import CloudvisionApi
@@ -14,20 +15,6 @@ from nautobot_ssot.integrations.aristacv.utils.nautobot import get_config
 from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
 
 name = "SSoT - Arista CloudVision"  # pylint: disable=invalid-name
-
-
-class MissingConfigSetting(Exception):
-    """Exception raised for missing configuration settings.
-
-    Attributes:
-        message (str): Returned explanation of Error.
-    """
-
-    def __init__(self, setting):
-        """Initialize Exception with Setting that is missing and message."""
-        self.setting = setting
-        self.message = f"Missing configuration setting - {setting}!"
-        super().__init__(self.message)
 
 
 class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
