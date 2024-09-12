@@ -69,6 +69,7 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
         data_target = "Nautobot"
         description = "Sync information from DNA Center to Nautobot"
         data_source_icon = static("nautobot_ssot_dna_center/dna_center_logo.png")
+        has_sensitive_variables = False
         field_order = [
             "dryrun",
             "bulk_import",
