@@ -72,7 +72,38 @@ class DnaCenterAdapter(Adapter):
 
     def load_controller_locations(self):
         """Load location data for Controller specified in Job form."""
-        if self.job.dnac.location.location_type.name == "Site":
+        if self.job.dnac.location.location_type == self.job.floor_loctype:
+            self.get_or_instantiate(
+                self.floor,
+                ids={
+                    "name": self.job.dnac.location.name,
+                    "building": self.job.dnac.location.parent.name,
+                    "location_type": self.job.floor_loctype.name,
+                },
+                attrs={
+                    "tenant": self.job.dnac.location.tenant.name if self.job.dnac.location.tenant else None,
+                    "uuid": None,
+                },
+            )
+        if (
+            self.job.dnac.location.parent.parent
+            and self.job.dnac.location.parent.parent.location_type == self.job.building_loctype
+        ):
+            self.get_or_instantiate(
+                self.building,
+                ids={
+                    "name": self.job.dnac.location.parent.parent.name,
+                    "location_type": self.job.area_loctype.name,
+                    "parent": (
+                        self.job.dnac.location.parent.parent.parent.name
+                        if self.job.dnac.location.parent.parent.parent
+                        else None
+                    ),
+                },
+                attrs={"uuid": None},
+            )
+
+        if self.job.dnac.location.location_type == self.job.building_loctype:
             self.get_or_instantiate(
                 self.building,
                 ids={"name": self.job.dnac.location.name, "location_type": self.job.building_loctype.name},
@@ -90,7 +121,7 @@ class DnaCenterAdapter(Adapter):
                     "uuid": None,
                 },
             )
-        if self.job.dnac.location.parent.location_type.name == "Region":
+        if self.job.dnac.location.parent.location_type == self.job.area_loctype:
             self.get_or_instantiate(
                 self.area,
                 ids={
@@ -102,7 +133,10 @@ class DnaCenterAdapter(Adapter):
                 },
                 attrs={"uuid": None},
             )
-        if self.job.dnac.location.parent.parent and self.job.dnac.location.parent.parent.location_type.name == "Region":
+        if (
+            self.job.dnac.location.parent.parent
+            and self.job.dnac.location.parent.parent.location_type == self.job.area_loctype
+        ):
             self.get_or_instantiate(
                 self.area,
                 ids={
