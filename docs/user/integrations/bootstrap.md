@@ -1,5 +1,22 @@
 ## Usage
 
+## Process
+
+### Bootstrap as DataSource
+
+Synchronization of data follows this workflow:
+1. Load data from Bootstrap YAML file (limited to `models_to_sync`)
+2. Load data from Nautobot (limited to `models_to_sync`, and objects that also have the `CustomField` `system_of_record` set to "Bootstrap".)
+3. DiffSync determines Creates, Updates, Deletes
+4. If an object is being created (an object loaded from Bootstrap was not loaded from Nautobot) Bootstrap will first check to see if an object with the same name exists in Nautobot but does not have the `system_of_record` field set. If it finds an object, it will update it with the Bootstrap values and set the `system_of_record` field to "Bootstrap".
+5. If an object needs to be updated it will be updated with the values provided by Bootstrap data.
+6. If an object needs to be deleted it will be deleted.
+
+
+### Bootstrap as DataTarget
+
+NotYetImplemented
+
 ### Data structures
 
 #### global_settings.yml (see '../bootstrap/fixtures/global_settings.yml for examples of supported models)

@@ -62,7 +62,13 @@ PLUGINS_CONFIG = {
 
 ### Bootstrap data
 
-Bootstrap data can be stored in 2 fashions. Firstly, it can be stored within the `nautobot_ssot_bootstrap/fixtures` directory, or you may create a Git Repository within an existing Nautobot instance that contains the word `Bootstrap` in the name and provides `config context` data. Using local files is not recommended as this requires a fork of the plugin and locally editing the YAML data files in the fixtures folder. The suggested method is to use the Git Datasource. The data structure is flat files, and there is a naming scheme to these files. The first one required is `global_settings.yml`. This contains the main data structures of what data can be loaded `Secrets,SecretsGroups,GitRepository,DynamicGroup,Tag,etc`. You can then create additional `.yml` files with naming of your CI environments, i.e. production, development, etc. This is where the environment variables described below would be matched to pull in additional data from the other YAML files defined in the directory. A simple structure would look something like this:
+Bootstrap data can be stored in 2 fashions.
+
+1. (Reccomended) Bootstrap data can be stored in a Git Repository and referenced in the app as a Git Datasource. A user should create a Git Repository in Nautobot (including any necessary Secrets and SecretsGroups for access) with the word "Bootstrap" in the name, and with a provided content type of `config contexts`. This is how the App will locate the correct repository. The data structure is flat files, and there is a naming scheme to these files. The first one required is `global_settings.yml`. This contains the main data structures of what data can be loaded `Secrets,SecretsGroups,GitRepository,DynamicGroup,Tag,etc`. You can then create additional `.yml` files with naming of your CI environments, i.e. production, development, etc for default values for specific items. This is where the environment variables described below would be matched to pull in additional data from the other YAML files defined in the directory.
+
+2. Bootstrap data can be stored within the `nautobot_ssot/bootstrap/fixtures` directory. Using local files is not recommended as this requires a fork of the plugin and locally editing the YAML data files in the fixtures folder.
+
+A simple structure would look something like this:
 
 ```text
 global_settings.yml
@@ -76,20 +82,3 @@ There are 2 environment variables that control how certain things are loaded in 
   1. `NAUTOBOT_BOOTSTRAP_SSOT_LOAD_SOURCE` - defines whether to load from the local `fixtures` folder or a GitRepository already present in Nautobot. This setting will get overridden if the user selects something other than `env_var` in the job's GUI settings.
     - Acceptable options are `file` or `git`.
   2. `NAUTOBOT_BOOTSTRAP_SSOT_ENVIRONMENT_BRANCH` - Defines the environment and settings you want to import. I.e. production, develop, staging.
-
-## Process
-
-### Bootstrap as DataSource
-
-Synchronization of data follows this workflow:
-1. Load data from Bootstrap YAML file (limited to `models_to_sync`)
-2. Load data from Nautobot (limited to `models_to_sync`, and objects that also have the `CustomField` `system_of_record` set to "Bootstrap".)
-3. DiffSync determines Creates, Updates, Deletes
-4. If an object is being created (an object loaded from Bootstrap was not loaded from Nautobot) Bootstrap will first check to see if an object with the same name exists in Nautobot but does not have the `system_of_record` field set. If it finds an object, it will update it with the Bootstrap values and set the `system_of_record` field to "Bootstrap".
-5. If an object needs to be updated it will be updated with the values provided by Bootstrap data.
-6. If an object needs to be deleted it will be deleted.
-
-
-### Bootstrap as DataTarget
-
-NotYetImplemented
