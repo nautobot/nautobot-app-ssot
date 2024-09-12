@@ -44,7 +44,7 @@ class TestNautobotArea(TransactionTestCase):
         self.adapter.status_map = {"Active": status_active.id}
         global_region = Location.objects.create(name="Global", location_type=self.region_type, status=status_active)
         self.adapter.region_map = {None: {"Global": global_region.id}}
-        ids = {"name": "NY", "parent": "Global"}
+        ids = {"name": "NY", "parent": "Global", "location_type": "Region"}
         attrs = {}
         result = NautobotArea.create(self.adapter, ids, attrs)
         self.assertIsInstance(result, NautobotArea)
@@ -55,7 +55,7 @@ class TestNautobotArea(TransactionTestCase):
 
     def test_create_missing_parent(self):
         """Validate the NautobotArea create() method with missing parent Region."""
-        ids = {"name": "TX", "parent": "USA"}
+        ids = {"name": "TX", "parent": "USA", "location_type": "Region"}
         attrs = {}
         NautobotArea.create(self.adapter, ids, attrs)
         self.adapter.job.logger.warning.assert_called_once_with("Unable to find Region USA for TX.")
@@ -90,6 +90,7 @@ class TestNautobotBuilding(TransactionTestCase):
         self.adapter.site_map = {"NY": ny_region.id, "Site 2": self.sec_site.id}
         self.test_bldg = NautobotBuilding(
             name="Site 2",
+            location_type="Site",
             address="",
             area="NY",
             area_parent=None,
@@ -102,7 +103,7 @@ class TestNautobotBuilding(TransactionTestCase):
 
     def test_create(self):
         """Validate the NautobotBuilding create() method creates a Site."""
-        ids = {"name": "HQ"}
+        ids = {"name": "HQ", "location_type": "Site"}
         attrs = {
             "address": "123 Main St",
             "area": "NY",
@@ -157,6 +158,7 @@ class TestNautobotBuilding(TransactionTestCase):
     def test_delete(self):
         """Validate the NautobotBuilding delete() method deletes a Site."""
         ds_mock_site = MagicMock(spec=Location)
+        ds_mock_site.location_type = "Site"
         ds_mock_site.uuid = "1234567890"
         ds_mock_site.adapter = MagicMock()
         ds_mock_site.adapter.job.logger.info = MagicMock()
@@ -194,7 +196,7 @@ class TestNautobotFloor(TransactionTestCase):
 
     def test_create(self):
         """Test the NautobotFloor create() method creates a LocationType: Floor."""
-        ids = {"name": "HQ - Floor 1", "building": "HQ"}
+        ids = {"name": "HQ - Floor 1", "building": "HQ", "location_type": "Floor"}
         attrs = {"tenant": "G&A"}
         result = NautobotFloor.create(self.adapter, ids, attrs)
         self.assertIsInstance(result, NautobotFloor)
@@ -214,7 +216,9 @@ class TestNautobotFloor(TransactionTestCase):
             status=Status.objects.get(name="Active"),
         )
         mock_floor.validated_save()
-        test_floor = NautobotFloor(name="HQ - Floor 2", building="HQ", tenant="", uuid=mock_floor.id)
+        test_floor = NautobotFloor(
+            name="HQ - Floor 2", building="HQ", location_type="Floor", tenant="", uuid=mock_floor.id
+        )
         test_floor.adapter = self.adapter
         update_attrs = {
             "tenant": "G&A",
@@ -235,7 +239,9 @@ class TestNautobotFloor(TransactionTestCase):
             status=Status.objects.get(name="Active"),
         )
         mock_floor.validated_save()
-        test_floor = NautobotFloor(name="HQ - Floor 2", building="HQ", tenant="", uuid=mock_floor.id)
+        test_floor = NautobotFloor(
+            name="HQ - Floor 2", building="HQ", location_type="Floor", tenant="", uuid=mock_floor.id
+        )
         test_floor.adapter = MagicMock()
         test_floor.adapter.job.logger.info = MagicMock()
         update_attrs = {
@@ -249,6 +255,7 @@ class TestNautobotFloor(TransactionTestCase):
     def test_delete(self):
         """Validate the NautobotFloor delete() method deletes a LocationType: Floor."""
         ds_mock_floor = MagicMock(spec=Location)
+        ds_mock_floor.location_type = "Floor"
         ds_mock_floor.uuid = "1234567890"
         ds_mock_floor.adapter = MagicMock()
         ds_mock_floor.adapter.job.logger.info = MagicMock()

@@ -81,6 +81,9 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         )
         self.hq_site.validated_save()
 
+        self.floor_loc_type = LocationType.objects.get_or_create(name="Floor", parent=self.site_loc_type)[0]
+        self.floor_loc_type.content_types.add(ContentType.objects.get_for_model(Device))
+
         cisco_manu = Manufacturer.objects.get_or_create(name="Cisco")[0]
         catalyst_devicetype = DeviceType.objects.get_or_create(model="WS-C3850-24P-L", manufacturer=cisco_manu)[0]
         core_role, created = Role.objects.get_or_create(name="CORE")
@@ -120,6 +123,9 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
 
         dnac = Controller.objects.get_or_create(name="DNA Center", status=self.status_active, location=self.hq_site)[0]
         self.job = DnaCenterDataSource()
+        self.job.area_loctype = self.reg_loc_type
+        self.job.building_loctype = self.site_loc_type
+        self.job.floor_loctype = self.floor_loc_type
         self.job.dnac = dnac
         self.job.controller_group = ControllerManagedDeviceGroup.objects.get_or_create(
             name="DNA Center Managed Devices", controller=dnac
@@ -182,7 +188,11 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         """Test Nautobot SSoT for Cisco DNA Center load_areas() function with Global area."""
         self.dna_center.load_areas(areas=EXPECTED_AREAS)
         area_expected = sorted(
-            [f"{x['name']}__{x['parent']}" for x in EXPECTED_DNAC_LOCATION_MAP.values() if x["loc_type"] == "area"]
+            [
+                f"{x['name']}__Region__{x['parent']}"
+                for x in EXPECTED_DNAC_LOCATION_MAP.values()
+                if x["loc_type"] == "area"
+            ]
         )
         area_actual = sorted([area.get_unique_id() for area in self.dna_center.get_all("area")])
         self.assertEqual(area_actual, area_expected)
@@ -196,7 +206,7 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         self.dna_center.dnac_location_map = EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL
         self.dna_center.load_areas(areas=EXPECTED_AREAS_WO_GLOBAL)
         area_expected = [
-            f"{x['name']}__{x['parent']}"
+            f"{x['name']}__Region__{x['parent']}"
             for x in EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL.values()
             if x["loc_type"] == "area"
         ]
@@ -216,7 +226,9 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
             ("", "building"),
         ]
         self.dna_center.load_buildings(buildings=EXPECTED_BUILDINGS)
-        building_expected = [x["name"] for x in EXPECTED_DNAC_LOCATION_MAP.values() if x["loc_type"] == "building"]
+        building_expected = [
+            f"{x['name']}__Site" for x in EXPECTED_DNAC_LOCATION_MAP.values() if x["loc_type"] == "building"
+        ]
         building_actual = [building.get_unique_id() for building in self.dna_center.get_all("building")]
         self.assertEqual(building_actual, building_expected)
 
@@ -235,7 +247,7 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         self.dna_center.dnac_location_map = EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL
         self.dna_center.load_buildings(buildings=EXPECTED_BUILDINGS)
         building_expected = [
-            x["name"] for x in EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL.values() if x["loc_type"] == "building"
+            f"{x['name']}__Site" for x in EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL.values() if x["loc_type"] == "building"
         ]
         building_actual = [building.get_unique_id() for building in self.dna_center.get_all("building")]
         self.assertEqual(sorted(building_actual), sorted(building_expected))
@@ -269,11 +281,11 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         """Test Nautobot SSoT for Cisco DNA Center load_floors() function."""
         self.dna_center.load_floors(floors=EXPECTED_FLOORS)
         floor_expected = [
-            "Building1 - Floor1__Building1",
-            "1 - 1__1",
-            "Deep Space - 1st Floor__Deep Space",
-            "Building 1 - Lab__Building 1",
-            "secretlab - Floor 2__secretlab",
+            "Building1 - Floor1__Building1__Floor",
+            "1 - 1__1__Floor",
+            "Deep Space - 1st Floor__Deep Space__Floor",
+            "Building 1 - Lab__Building 1__Floor",
+            "secretlab - Floor 2__secretlab__Floor",
         ]
         floor_actual = [floor.get_unique_id() for floor in self.dna_center.get_all("floor")]
         self.assertEqual(floor_actual, floor_expected)
