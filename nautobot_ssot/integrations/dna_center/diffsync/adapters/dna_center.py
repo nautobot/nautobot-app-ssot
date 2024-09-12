@@ -75,7 +75,7 @@ class DnaCenterAdapter(Adapter):
         if self.job.dnac.location.location_type.name == "Site":
             self.get_or_instantiate(
                 self.building,
-                ids={"name": self.job.dnac.location.name},
+                ids={"name": self.job.dnac.location.name, "location_type": self.job.building_loctype.name},
                 attrs={
                     "address": self.job.dnac.location.physical_address,
                     "area": self.job.dnac.location.parent.name if self.job.dnac.location.parent else None,
@@ -95,6 +95,7 @@ class DnaCenterAdapter(Adapter):
                 self.area,
                 ids={
                     "name": self.job.dnac.location.parent.name,
+                    "location_type": self.job.area_loctype.name,
                     "parent": (
                         self.job.dnac.location.parent.parent.name if self.job.dnac.location.parent.parent else None
                     ),
@@ -106,6 +107,7 @@ class DnaCenterAdapter(Adapter):
                 self.area,
                 ids={
                     "name": self.job.dnac.location.parent.parent.name,
+                    "location_type": self.job.area_loctype.name,
                     "parent": (
                         self.job.dnac.location.parent.parent.parent.name
                         if self.job.dnac.location.parent.parent.parent
@@ -131,7 +133,7 @@ class DnaCenterAdapter(Adapter):
                 self.dnac_location_map[location["id"]]["parent"] = parent_name
             _, loaded = self.get_or_instantiate(
                 self.area,
-                ids={"name": location["name"], "parent": parent_name},
+                ids={"name": location["name"], "location_type": self.job.area_loctype.name, "parent": parent_name},
                 attrs={
                     "uuid": None,
                 },
@@ -150,7 +152,7 @@ class DnaCenterAdapter(Adapter):
         """
         for location in buildings:
             try:
-                self.get(self.building, location["name"])
+                self.get(self.building, {"name": location["name"], "location_type": self.job.building_loctype.name})
                 self.job.logger.warning(f"Building {location['name']} already loaded so skipping.")
                 continue
             except ObjectNotFound:
@@ -164,6 +166,7 @@ class DnaCenterAdapter(Adapter):
                     _area = {"name": "Global", "parent": None}
                 new_building = self.building(
                     name=location["name"],
+                    location_type=self.job.building_loctype.name,
                     address=address if address else "",
                     area=_area["name"],
                     area_parent=_area["parent"],
@@ -193,11 +196,15 @@ class DnaCenterAdapter(Adapter):
                 continue
             floor_name = f"{_building['name']} - {location['name']}"
             try:
-                self.get(self.floor, {"name": floor_name, "building": _building["name"]})
+                self.get(
+                    self.floor,
+                    {"name": floor_name, "building": _building["name"], "location_type": self.job.floor_loctype.name},
+                )
                 self.job.logger.warning(f"Duplicate Floor {floor_name} attempting to be loaded.")
             except ObjectNotFound:
                 new_floor = self.floor(
                     name=floor_name,
+                    location_type=self.job.floor_loctype.name,
                     building=_building["name"],
                     tenant=self.tenant.name if self.tenant else None,
                     uuid=None,
@@ -205,11 +212,13 @@ class DnaCenterAdapter(Adapter):
                 try:
                     self.add(new_floor)
                     try:
-                        parent = self.get(self.building, _building["name"])
+                        parent = self.get(
+                            self.building, {"name": _building["name"], "location_type": self.job.building_loctype.name}
+                        )
                         parent.add_child(new_floor)
                     except ObjectNotFound as err:
                         self.job.logger.warning(
-                            f"Unable to find building {_building['name']} for floor {floor_name}. {err}"
+                            f"Unable to find {self.job.building_loctype.name} {_building['name']} for {self.job.floor_loctype.name} {floor_name}. {err}"
                         )
                 except ValidationError as err:
                     self.job.logger.warning(f"Unable to load floor {floor_name}. {err}")

@@ -40,7 +40,6 @@ from nautobot_ssot.integrations.dna_center.diffsync.models.nautobot import (
     NautobotPort,
     NautobotPrefix,
 )
-from nautobot_ssot.jobs.base import DataTarget
 
 
 class NautobotAdapter(Adapter):
@@ -69,13 +68,11 @@ class NautobotAdapter(Adapter):
     prefix_map = {}
     ipaddr_map = {}
 
-    def __init__(
-        self, *args, job: Optional[DataTarget] = None, sync=None, tenant: Optional[OrmTenant] = None, **kwargs
-    ):
+    def __init__(self, *args, job, sync=None, tenant: Optional[OrmTenant] = None, **kwargs):
         """Initialize Nautobot.
 
         Args:
-            job (DataTarget, optional): Nautobot job. Defaults to None.
+            job (DataSource): Nautobot job.
             sync (object, optional): Nautobot DiffSync. Defaults to None.
             tenant (OrmTenant, optional): Tenant defined in Job form that all non-location objects should belong to.
         """
@@ -89,9 +86,7 @@ class NautobotAdapter(Adapter):
     def load_regions(self):
         """Load Region data from Nautobt into DiffSync models."""
         try:
-            locations = OrmLocation.objects.filter(location_type=self.locationtype_map["Region"]).select_related(
-                "parent"
-            )
+            locations = OrmLocation.objects.filter(location_type=self.job.area_loctype).select_related("parent")
             for region in locations:
                 parent = None
                 if region.parent:
@@ -100,12 +95,15 @@ class NautobotAdapter(Adapter):
                     self.region_map[parent] = {}
                 self.region_map[parent][region.name] = region.id
                 try:
-                    self.get(self.area, {"name": region.name, "parent": parent})
+                    self.get(
+                        self.area, {"name": region.name, "parent": parent, "location_type": self.job.area_loctype.name}
+                    )
                     self.job.logger.warning(f"Region {region.name} already loaded so skipping duplicate.")
                 except ObjectNotFound:
                     new_region = self.area(
                         name=region.name,
                         parent=parent,
+                        location_type=self.job.area_loctype.name,
                         uuid=region.id,
                     )
                     if not PLUGIN_CFG.get("dna_center_delete_locations"):
@@ -119,14 +117,22 @@ class NautobotAdapter(Adapter):
     def load_sites(self):
         """Load Site data from Nautobot into DiffSync models."""
         try:
-            locations = OrmLocation.objects.filter(location_type=self.locationtype_map["Site"])
+            locations = OrmLocation.objects.filter(location_type=self.job.building_loctype)
             for site in locations:
                 self.site_map[site.name] = site.id
                 try:
-                    self.get(self.building, {"name": site.name, "area": site.parent.name if site.parent else None})
+                    self.get(
+                        self.building,
+                        {
+                            "name": site.name,
+                            "area": site.parent.name if site.parent else None,
+                            "location_type": self.job.building_loctype.name,
+                        },
+                    )
                 except ObjectNotFound:
                     new_building = self.building(
                         name=site.name,
+                        location_type=self.job.building_loctype.name,
                         address=site.physical_address,
                         area=site.parent.name if site.parent else "",
                         area_parent=site.parent.parent.name if site.parent and site.parent.parent else None,
@@ -144,12 +150,12 @@ class NautobotAdapter(Adapter):
     def load_floors(self):
         """Load LocationType floors from Nautobot into DiffSync models."""
         try:
-            loc_type = OrmLocationType.objects.get(name="Floor")
-            locations = OrmLocation.objects.filter(location_type=loc_type)
+            locations = OrmLocation.objects.filter(location_type=self.job.floor_loctype)
             for location in locations:
                 self.floor_map[location.name] = location.id
                 new_floor = self.floor(
                     name=location.name,
+                    location_type=self.job.floor_loctype.name,
                     building=location.parent.name if location.parent else "",
                     tenant=location.tenant.name if location.tenant else None,
                     uuid=location.id,
@@ -157,7 +163,10 @@ class NautobotAdapter(Adapter):
                 self.add(new_floor)
                 try:
                     if location.parent:
-                        building = self.get(self.building, location.parent.name)
+                        building = self.get(
+                            self.building,
+                            {"name": location.parent.name, "location_type": self.job.building_loctype.name},
+                        )
                         building.add_child(new_floor)
                 except ObjectNotFound as err:
                     self.job.logger.warning(
@@ -190,7 +199,9 @@ class NautobotAdapter(Adapter):
                 vendor=dev.device_type.manufacturer.name,
                 model=dev.device_type.model,
                 site=dev.location.parent.name if dev.location.parent else None,
+                site_loctype=self.job.building_loctype.name,
                 floor=dev.location.name if dev.location else None,
+                floor_loctype=self.job.floor_loctype.name,
                 serial=dev.serial,
                 version=version,
                 platform=dev.platform.network_driver if dev.platform else "",

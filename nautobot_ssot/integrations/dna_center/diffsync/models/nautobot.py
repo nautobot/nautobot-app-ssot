@@ -41,7 +41,7 @@ class NautobotArea(base.Area):
             adapter.job.logger.info(f"Creating Region {ids['name']} in {ids['parent']}.")
         new_region = Location(
             name=ids["name"],
-            location_type_id=adapter.locationtype_map["Region"],
+            location_type_id=adapter.locationtype_map[ids["location_type"]],
             status_id=adapter.status_map["Active"],
         )
         try:
@@ -50,7 +50,7 @@ class NautobotArea(base.Area):
                 parents_parent = None
             new_region.parent_id = adapter.region_map[parents_parent][ids["parent"]]
         except KeyError:
-            adapter.job.logger.warning(f"Unable to find Region {ids['parent']} for {ids['name']}.")
+            adapter.job.logger.warning(f"Unable to find {ids['location_type']} {ids['parent']} for {ids['name']}.")
         new_region.validated_save()
         if ids["parent"] not in adapter.region_map:
             adapter.region_map[ids["parent"]] = {}
@@ -81,7 +81,7 @@ class NautobotBuilding(base.Building):
             adapter.job.logger.info(f"Creating Site {ids['name']}.")
         new_site = Location(
             name=ids["name"],
-            location_type_id=adapter.locationtype_map["Site"],
+            location_type_id=adapter.locationtype_map[ids["location_type"]],
             parent_id=adapter.region_map[attrs["area_parent"]][attrs["area"]],
             physical_address=attrs["address"] if attrs.get("address") else "",
             status_id=adapter.status_map["Active"],
@@ -129,7 +129,7 @@ class NautobotBuilding(base.Building):
             return None
         site = Location.objects.get(id=self.uuid)
         if self.adapter.job.debug:
-            self.adapter.job.logger.info(f"Deleting Site {site.name}.")
+            self.adapter.job.logger.info(f"Deleting {self.location_type} {site.name}.")
         self.adapter.objects_to_delete["sites"].append(site)
         return self
 
@@ -141,12 +141,12 @@ class NautobotFloor(base.Floor):
     def create(cls, adapter, ids, attrs):
         """Create LocationType: Floor in Nautobot from Floor object."""
         if adapter.job.debug:
-            adapter.job.logger.info(f"Creating Floor {ids['name']}.")
+            adapter.job.logger.info(f"Creating {ids['location_type']} {ids['name']}.")
         new_floor = Location(
             name=ids["name"],
             status_id=adapter.status_map["Active"],
             parent_id=adapter.site_map[ids["building"]],
-            location_type_id=adapter.locationtype_map["Floor"],
+            location_type_id=adapter.locationtype_map[ids["location_type"]],
         )
         if attrs.get("tenant"):
             new_floor.tenant_id = adapter.tenant_map[attrs["tenant"]]
@@ -156,9 +156,9 @@ class NautobotFloor(base.Floor):
 
     def update(self, attrs):
         """Update LocationType: Floor in Nautobot from Floor object."""
-        floor = Location.objects.get(name=self.name, location_type=LocationType.objects.get(name="Floor"))
+        floor = Location.objects.get(name=self.name, location_type=LocationType.objects.get(name=self.location_type))
         if self.adapter.job.debug:
-            self.adapter.job.logger.info(f"Updating Floor {floor.name} with {attrs}")
+            self.adapter.job.logger.info(f"Updating {self.location_type} {floor.name} with {attrs}")
         if "tenant" in attrs:
             if attrs.get("tenant"):
                 floor.tenant_id = self.adapter.tenant_map[attrs["tenant"]]
@@ -176,7 +176,7 @@ class NautobotFloor(base.Floor):
             return None
         floor = Location.objects.get(id=self.uuid)
         if self.adapter.job.debug:
-            self.adapter.job.logger.info(f"Deleting Floor {floor.name} in {floor.parent.name}.")
+            self.adapter.job.logger.info(f"Deleting {self.location_type} {floor.name} in {floor.parent.name}.")
         self.adapter.objects_to_delete["floors"].append(floor)
         return self
 
