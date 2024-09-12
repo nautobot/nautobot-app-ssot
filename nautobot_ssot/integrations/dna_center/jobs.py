@@ -2,12 +2,13 @@
 
 from django.templatetags.static import static
 from django.urls import reverse
+from nautobot.apps.jobs import BooleanVar, JSONVar, ObjectVar
 from nautobot.core.celery import register_jobs
-from nautobot.dcim.models import Controller, ControllerManagedDeviceGroup
+from nautobot.dcim.models import Controller, ControllerManagedDeviceGroup, LocationType
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
-from nautobot.extras.jobs import BooleanVar, ObjectVar
 from nautobot.tenancy.models import Tenant
 
+from nautobot_ssot.exceptions import ConfigurationError
 from nautobot_ssot.integrations.dna_center.diffsync.adapters import dna_center, nautobot
 from nautobot_ssot.integrations.dna_center.utils.dna_center import DnaCenterClient
 from nautobot_ssot.jobs.base import DataMapping, DataSource
@@ -25,6 +26,37 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
         required=True,
         label="DNA Center Controller",
     )
+    area_loctype = ObjectVar(
+        model=LocationType,
+        queryset=LocationType.objects.all(),
+        display_field="display",
+        required=True,
+        label="Area LocationType",
+        description="LocationType to use for imported DNA Center Areas. Must allow nesting.",
+    )
+    building_loctype = ObjectVar(
+        model=LocationType,
+        queryset=LocationType.objects.all(),
+        display_field="display",
+        required=True,
+        label="Building LocationType",
+        description="LocationType to use for imported DNA Center Buildings.",
+    )
+    floor_loctype = ObjectVar(
+        model=LocationType,
+        queryset=LocationType.objects.all(),
+        display_field="display",
+        required=True,
+        label="Floor LocationType",
+        description="LocationType to use for imported DNA Center Floors.",
+    )
+    location_map = JSONVar(
+        label="Location Mapping",
+        required=False,
+        default={},
+        description="Map of information regarding Locations in DNA Center.",
+    )
+
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
     bulk_import = BooleanVar(description="Perform bulk operations when importing data", default=False)
     tenant = ObjectVar(model=Tenant, label="Tenant", required=False)
@@ -37,6 +69,17 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
         data_target = "Nautobot"
         description = "Sync information from DNA Center to Nautobot"
         data_source_icon = static("nautobot_ssot_dna_center/dna_center_logo.png")
+        field_order = [
+            "dryrun",
+            "bulk_import",
+            "debug",
+            "dnac",
+            "area_loctype",
+            "building_loctype",
+            "floor_loctype",
+            "location_map",
+            "tenant",
+        ]
 
     def __init__(self):
         """Initiailize Job vars."""
@@ -105,6 +148,10 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
         memory_profiling,
         debug,
         dnac,
+        area_loctype,
+        building_loctype,
+        floor_loctype,
+        location_map,
         bulk_import,
         tenant,
         *args,
@@ -112,6 +159,13 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
     ):
         """Perform data synchronization."""
         self.dnac = dnac
+        self.area_loctype = area_loctype
+        if not self.area_loctype.nestable:
+            self.logger.error("Area LocationType is not nestable.")
+            raise ConfigurationError("Area LocationType is not nestable.")
+        self.building_loctype = building_loctype
+        self.floor_loctype = floor_loctype
+        self.location_map = location_map
         self.tenant = tenant
         self.debug = debug
         self.bulk_import = bulk_import
