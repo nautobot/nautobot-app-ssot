@@ -56,7 +56,7 @@ class Device42DataSource(DataSource):  # pylint: disable=too-many-instance-attri
         """List describing the data mappings involved in this DataSource."""
         return (
             DataMapping(
-                "Buildings", "<Device42 Remote URL>/admin/rackraj/building/", "Sites", reverse("dcim:site_list")
+                "Buildings", "<Device42 Remote URL>/admin/rackraj/building/", "Locations", reverse("dcim:location_list")
             ),
             DataMapping(
                 "Rooms",
