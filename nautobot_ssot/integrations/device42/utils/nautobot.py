@@ -9,9 +9,10 @@ from uuid import UUID
 from diffsync.exceptions import ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
 from nautobot.circuits.models import CircuitType
-from nautobot.dcim.models import Device, Interface, Platform
+from nautobot.dcim.models import Device, Interface, Location, LocationType, Platform, Rack, RackGroup, VirtualChassis
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Relationship, Role, Tag
+from nautobot.ipam.models import VLAN, Prefix
 from netutils.lib_mapper import ANSIBLE_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER_REVERSE
 from taggit.managers import TaggableManager
 
@@ -362,3 +363,14 @@ def apply_vlans_to_port(adapter, device_name: str, mode: str, vlans: list, port:
                 tagged_vlans.append(tagged_vlan)
         port.tagged_vlans.set(tagged_vlans)
         port.validated_save()
+
+
+def ensure_contenttypes_on_location_type(location_type: LocationType):
+    """Ensure that the required ContentTypes are on the specified Building LocationType.
+
+    Args:
+        location_type (LocationType): The specified LocationType to use when importing Building Locations.
+    """
+    for obj_type in [Location, RackGroup, Rack, Device, VirtualChassis, Prefix, VLAN]:
+        location_type.content_types.add(ContentType.objects.get_for_model(obj_type))
+    location_type.save()

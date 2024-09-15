@@ -201,6 +201,7 @@ class Device42Adapter(Adapter):
                 _tags.sort()
             building = self.building(
                 name=record["name"],
+                location_type=self.job.building_loctype.name,
                 address=sanitize_string(record["address"]) if record.get("address") else "",
                 latitude=float(round(Decimal(record["latitude"] if record["latitude"] else 0.0), 6)),
                 longitude=float(round(Decimal(record["longitude"] if record["longitude"] else 0.0), 6)),
@@ -235,6 +236,7 @@ class Device42Adapter(Adapter):
                 room = self.room(
                     name=record["name"],
                     building=record["building"],
+                    building_loctype=self.job.building_loctype.name,
                     notes=record["notes"] if record.get("notes") else "",
                     custom_fields=get_custom_field_dict(record["custom_fields"]),
                     tags=_tags,
@@ -242,7 +244,9 @@ class Device42Adapter(Adapter):
                 )
                 try:
                     self.add(room)
-                    _site = self.get(self.building, record.get("building"))
+                    _site = self.get(
+                        self.building, {"name": record.get("building"), "location_type": self.job.building_loctype.name}
+                    )
                     _site.add_child(child=room)
                 except ObjectAlreadyExists as err:
                     if self.job.debug:
@@ -275,7 +279,13 @@ class Device42Adapter(Adapter):
                 try:
                     self.add(rack)
                     _room = self.get(
-                        self.room, {"name": record["room"], "building": record["building"], "room": record["room"]}
+                        self.room,
+                        {
+                            "name": record["room"],
+                            "building": record["building"],
+                            "building_loctype": self.job.building_loctype.name,
+                            "room": record["room"],
+                        },
                     )
                     _room.add_child(child=rack)
                 except ObjectAlreadyExists as err:
