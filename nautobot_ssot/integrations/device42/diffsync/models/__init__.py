@@ -35,6 +35,12 @@ from nautobot_ssot.integrations.device42.diffsync.models.nautobot.dcim import (
     NautobotRoom,
     NautobotVendor,
 )
+from nautobot_ssot.integrations.device42.diffsync.models.nautobot.ipam import (
+    NautobotIPAddress,
+    NautobotSubnet,
+    NautobotVLAN,
+    NautobotVRFGroup,
+)
 
 __all__ = (
     "PatchPanel",
@@ -65,8 +71,12 @@ __all__ = (
     "NautobotConnection",
     "NautobotDevice",
     "NautobotHardware",
+    "NautobotIPAddress",
     "NautobotPort",
     "NautobotRack",
     "NautobotRoom",
+    "NautobotSubnet",
     "NautobotVendor",
+    "NautobotVLAN",
+    "NautobotVRFGroup",
 )
