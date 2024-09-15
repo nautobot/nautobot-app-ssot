@@ -1,1 +1,2 @@
 Added support for specifying LocationType for Areas, Buildings, and Floors in DNA Center integration.
+Added support for specifying LocationType for Buildings in Device42 integration.
