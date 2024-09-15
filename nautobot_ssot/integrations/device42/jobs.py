@@ -3,12 +3,14 @@
 
 from django.templatetags.static import static
 from django.urls import reverse
+from nautobot.dcim.models import LocationType
 from nautobot.extras.jobs import BooleanVar, ObjectVar
 from nautobot.extras.models import ExternalIntegration
 
 from nautobot_ssot.integrations.device42.diffsync.adapters.device42 import Device42Adapter
 from nautobot_ssot.integrations.device42.diffsync.adapters.nautobot import NautobotAdapter
 from nautobot_ssot.integrations.device42.utils.device42 import Device42API
+from nautobot_ssot.integrations.device42.utils.nautobot import ensure_contenttypes_on_location_type
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 from nautobot_ssot.utils import get_username_password_https_from_secretsgroup
 
@@ -18,6 +20,8 @@ name = "SSoT - Device42"  # pylint: disable=invalid-name
 class Device42DataSource(DataSource):  # pylint: disable=too-many-instance-attributes
     """Device42 SSoT Data Source."""
 
+    debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
+    bulk_import = BooleanVar(description="Enable using bulk create option for object creation.", default=False)
     integration = ObjectVar(
         model=ExternalIntegration,
         queryset=ExternalIntegration.objects.all(),
@@ -25,8 +29,14 @@ class Device42DataSource(DataSource):  # pylint: disable=too-many-instance-attri
         required=True,
         label="Device42 Instance",
     )
-    debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
-    bulk_import = BooleanVar(description="Enable using bulk create option for object creation.", default=False)
+    building_loctype = ObjectVar(
+        model=LocationType,
+        queryset=LocationType.objects.all(),
+        display_field="name",
+        required=False,
+        label="Building LocationType",
+        description="LocationType to use for imported Buildings from Device42. If unspecified, will revert to Site LocationType.",
+    )
 
     class Meta:
         """Meta data for Device42."""
@@ -134,11 +144,15 @@ class Device42DataSource(DataSource):  # pylint: disable=too-many-instance-attri
         self.target_adapter.load()
 
     def run(  # pylint: disable=arguments-differ, too-many-arguments
-        self, dryrun, memory_profiling, integration, debug, bulk_import, *args, **kwargs
+        self, dryrun, memory_profiling, integration, debug, bulk_import, building_loctype, *args, **kwargs
     ):
         """Perform data synchronization."""
         self.integration = integration
         self.bulk_import = bulk_import
+        self.building_loctype = building_loctype
+        if not self.building_loctype:
+            self.building_loctype = LocationType.objects.get_or_create(name="Site")[0]
+        ensure_contenttypes_on_location_type(location_type=self.building_loctype)
         self.debug = debug
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
