@@ -16,12 +16,19 @@ from distutils.util import strtobool
 from invoke import Collection, task as invoke_task
 import os
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+
+    HAS_DOTENV = True
+except ImportError:
+    HAS_DOTENV = False
 
 
 def _load_dotenv():
-    load_dotenv("./development/development.env")
-    load_dotenv("./development/creds.env")
+    """Load environment variables from .env file."""
+    if HAS_DOTENV:
+        load_dotenv("./development/development.env")
+        load_dotenv("./development/creds.env")
 
 
 def is_truthy(arg):
@@ -104,7 +111,9 @@ def docker_compose(context, command, **kwargs):
     ]
 
     for compose_file in context.nautobot_ssot.compose_files:
-        compose_file_path = os.path.join(context.nautobot_ssot.compose_dir, compose_file)
+        compose_file_path = os.path.join(
+            context.nautobot_ssot.compose_dir, compose_file
+        )
         compose_command_tokens.append(f' -f "{compose_file_path}"')
 
     compose_command_tokens.append(command)
@@ -201,7 +210,9 @@ def restart(context, service=""):
 def stop(context, service=""):
     """Stop specified or all services, if service is not specified, remove all containers."""
     print("Stopping Nautobot...")
-    docker_compose(context, "stop" if service else "down --remove-orphans", service=service)
+    docker_compose(
+        context, "stop" if service else "down --remove-orphans", service=service
+    )
 
 
 @task
@@ -409,7 +420,9 @@ def dbshell(context, query="", input="", output=""):
     if output:
         command += [f"> '{output}'"]
 
-    docker_compose(context, " ".join(command), env=env_vars, pty=not (input or output or query))
+    docker_compose(
+        context, " ".join(command), env=env_vars, pty=not (input or output or query)
+    )
 
 
 @task(
@@ -507,7 +520,9 @@ def backup_db(context, output="dump.sql", readable=True):
     print(50 * "=")
     print("The database backup has been successfully completed and saved to the file:")
     print(output)
-    print("If you want to import this database backup, please execute the following command:")
+    print(
+        "If you want to import this database backup, please execute the following command:"
+    )
     print(f"invoke import-db --input '{output}'")
     print(50 * "=")
 
@@ -536,7 +551,9 @@ def docs(context):
         print("Serving Documentation...")
         run_command(context, command)
     else:
-        print("Only used when developing locally (i.e. context.nautobot_ssot.local=True)!")
+        print(
+            "Only used when developing locally (i.e. context.nautobot_ssot.local=True)!"
+        )
 
 
 # ------------------------------------------------------------------------------
@@ -609,7 +626,7 @@ def yamllint(context):
 @task
 def check_migrations(context):
     """Check for missing migrations."""
-    command = "nautobot-server --config=nautobot/core/tests/nautobot_config.py makemigrations --dry-run --check"
+    command = "nautobot-server makemigrations --dry-run --check"
 
     run_command(context, command)
 
@@ -623,7 +640,14 @@ def check_migrations(context):
         "pattern": "Run specific test methods, classes, or modules instead of all tests",
     }
 )
-def unittest(context, keepdb=False, label="nautobot_ssot", failfast=False, buffer=True, pattern=""):
+def unittest(
+    context,
+    keepdb=False,
+    label="nautobot_ssot",
+    failfast=False,
+    buffer=True,
+    pattern="",
+):
     """Run Nautobot unit tests."""
     command = f"coverage run --module nautobot.core.cli test {label}"
 
@@ -641,7 +665,9 @@ def unittest(context, keepdb=False, label="nautobot_ssot", failfast=False, buffe
 @task
 def unittest_coverage(context):
     """Report on code test coverage as measured by 'invoke unittest'."""
-    command = "coverage report --skip-covered --include 'nautobot_ssot/*' --omit *migrations*"
+    command = (
+        "coverage report --skip-covered --include 'nautobot_ssot/*' --omit *migrations*"
+    )
 
     run_command(context, command)
 
