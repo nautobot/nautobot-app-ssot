@@ -13,7 +13,7 @@ on: # yamllint disable-line rule:truthy rule:comments
   pull_request: ~
 
 env:
-  PLUGIN_NAME: "nautobot-plugin-ssot"
+  PLUGIN_NAME: "nautobot-ssot"
 
 jobs:
   black:
