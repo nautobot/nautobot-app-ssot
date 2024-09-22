@@ -16,12 +16,19 @@ from distutils.util import strtobool
 from invoke import Collection, task as invoke_task
 import os
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+
+    HAS_DOTENV = True
+except ImportError:
+    HAS_DOTENV = False
 
 
 def _load_dotenv():
-    load_dotenv("./development/development.env")
-    load_dotenv("./development/creds.env")
+    """Load environment variables from .env file."""
+    if HAS_DOTENV:
+        load_dotenv("./development/development.env")
+        load_dotenv("./development/creds.env")
 
 
 def is_truthy(arg):
@@ -609,7 +616,7 @@ def yamllint(context):
 @task
 def check_migrations(context):
     """Check for missing migrations."""
-    command = "nautobot-server --config=nautobot/core/tests/nautobot_config.py makemigrations --dry-run --check"
+    command = "nautobot-server makemigrations --dry-run --check"
 
     run_command(context, command)
 
@@ -623,7 +630,14 @@ def check_migrations(context):
         "pattern": "Run specific test methods, classes, or modules instead of all tests",
     }
 )
-def unittest(context, keepdb=False, label="nautobot_ssot", failfast=False, buffer=True, pattern=""):
+def unittest(
+    context,
+    keepdb=False,
+    label="nautobot_ssot",
+    failfast=False,
+    buffer=True,
+    pattern="",
+):
     """Run Nautobot unit tests."""
     command = f"coverage run --module nautobot.core.cli test {label}"
 
