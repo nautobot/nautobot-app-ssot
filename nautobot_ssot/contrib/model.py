@@ -207,6 +207,13 @@ class NautobotModel(DiffSyncModel):
         setattr(obj, field, value)
 
     @classmethod
+    def save_to_db(cls, obj, adapter):
+        if obj._state.adding:
+            adapter.create(obj)
+        else:
+            adapter.save(obj)
+
+    @classmethod
     def _update_obj_with_parameters(cls, obj, parameters, adapter):
         """Update a given Nautobot ORM object with the given parameters."""
         relationship_fields = {
@@ -227,7 +234,7 @@ class NautobotModel(DiffSyncModel):
 
         # Save the object to the database
         try:
-            obj.validated_save()
+            cls.save_to_db(obj, adapter)
         except ValidationError as error:
             raise ObjectCrudException(f"Validated save failed for Django object. Parameters: {parameters}") from error
 

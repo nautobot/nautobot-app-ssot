@@ -6,13 +6,18 @@
 from collections import defaultdict
 from typing import DefaultDict, Dict, FrozenSet, Hashable, Tuple, Type, get_args
 
+from diffsync.diff import Diff
+from diffsync.enum import DiffSyncFlags
 import pydantic
 from diffsync import Adapter
 from diffsync.exceptions import ObjectCrudException
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
+from django.db.models import signals
+from django.db import transaction
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
+from structlog import BoundLogger
 from typing_extensions import get_type_hints
 
 from nautobot_ssot.contrib.types import (
@@ -44,12 +49,17 @@ class NautobotAdapter(Adapter):
     # This dictionary acts as an ORM cache.
     _cache: DefaultDict[str, Dict[ParameterSet, Model]]
     _cache_hits: DefaultDict[str, int] = defaultdict(int)
+    bulk_create_interval = 0
 
     def __init__(self, *args, job, sync=None, **kwargs):
         """Instantiate this class, but do not load data immediately from the local system."""
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
+        self.bulk_create_index = None
+        self.bulk_create_count = 0
+        if self.bulk_create_interval > 0:
+            self.bulk_create_index = defaultdict(list)
         self.invalidate_cache()
 
     def invalidate_cache(self, zero_out_hits=True):
@@ -57,6 +67,38 @@ class NautobotAdapter(Adapter):
         self._cache = defaultdict(dict)
         if zero_out_hits:
             self._cache_hits = defaultdict(int)
+
+    def bulk_create(self, model_class, models):
+        with transaction.atomic():
+            for model in models:
+                signals.pre_save.send(sender=model_class, instance=model)
+
+            model_class.objects.bulk_create(models)
+            for model in models:
+                signals.post_save.send(sender=model_class, instance=model)
+
+    def sync_complete(self, source: Adapter, diff: Diff, flags: DiffSyncFlags = DiffSyncFlags.NONE, logger: BoundLogger | None = None) -> None:
+        if self.bulk_create_count > 0:
+            for model_class, models in self.bulk_create_index.items():
+                if models:
+                    self.bulk_create(model_class, models)
+        return super().sync_complete(source, diff, flags, logger)
+
+    def save(self, obj):
+        obj.validated_save()
+
+    def create(self, obj):
+        if self.bulk_create_interval > 0:
+            self.bulk_create_index[obj.__class__].append(obj)
+            self.bulk_create_count += 1
+            if self.bulk_create_count == self.bulk_create_interval:
+                for model_class, models in self.bulk_create_index.items():
+                    if models:
+                        self.bulk_create(model_class, models)
+                        models.clear()
+                self.bulk_create_count = 0
+        else:
+            obj.validated_save()
 
     def get_from_orm_cache(self, parameters: Dict, model_class: Type[Model]):
         """Retrieve an object from the ORM or the cache."""
