@@ -1,0 +1,1 @@
+Fixed Infoblox Configuration List Bug when on Nautobot 2.3 by disabling SSOTInfobloxConfig from being a saved view.
