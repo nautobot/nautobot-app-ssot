@@ -37,6 +37,7 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
     """SSOT Infoblox Configuration model."""
 
     name = models.CharField(max_length=CHARFIELD_MAX_LENGTH, unique=True)
+    is_saved_view_model = False
     description = models.CharField(
         max_length=CHARFIELD_MAX_LENGTH,
         blank=True,
