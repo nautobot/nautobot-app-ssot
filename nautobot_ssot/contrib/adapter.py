@@ -75,6 +75,7 @@ class NautobotAdapter(Adapter):
 
             model_class.objects.bulk_create(models)
             for model in models:
+                model.full_clean()
                 signals.post_save.send(sender=model_class, instance=model)
 
     def sync_complete(self, source: Adapter, diff: Diff, flags: DiffSyncFlags = DiffSyncFlags.NONE, logger: BoundLogger | None = None) -> None:
