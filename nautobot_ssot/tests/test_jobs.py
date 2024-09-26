@@ -139,6 +139,9 @@ class BaseJobTestCase(TransactionTestCase):
         self.job.logger.warning = Mock()
         self.job.source_adapter.diff_to().dict.return_value = {}
         self.job.calculate_diff()
+        self.job.logger.warning.assert_any_call(
+            "Unable to save JSON diff to the database; likely the diff is too large."
+        )
 
     def test_calculate_diff_fail_diff_save_generic(self):
         """Test calculate_diff() method logs failure."""
