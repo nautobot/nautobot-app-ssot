@@ -120,16 +120,16 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
                 if abs(size) < 100 and unit != "B":
                     # 3 digits (xx.x UNIT)
-                    return "%.1f %s" % (
+                    return "%.1f %s" % ( # pylint: disable=consider-using-f-string
                         size,
                         unit,
-                    )  # pylint: disable=consider-using-f-string
+                    )
                 if abs(size) < 10 * 1024 or unit == "TiB":
                     # 4 or 5 digits (xxxx UNIT)
-                    return "%.0f %s" % (
+                    return "%.0f %s" % ( # pylint: disable=consider-using-f-string
                         size,
                         unit,
-                    )  # pylint: disable=consider-using-f-string
+                    )
                 size /= 1024
 
         def record_memory_trace(step: str):
@@ -202,10 +202,10 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             if memory_profiling:
                 record_memory_trace("sync")
 
-    def lookup_object(
+    def lookup_object( # pylint: disable=unused-argument
         self,
         model_name,
-        unique_id,  # pylint: disable=unused-argument
+        unique_id,
     ) -> Optional[BaseModel]:
         """Look up the Nautobot record, if any, identified by the args.
 
