@@ -111,7 +111,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
                 "Not both adapters were properly initialized prior to synchronization."
             )
 
-    def sync_data(self, memory_profiling):
+    def sync_data(self, memory_profiling):  # pylint: disable=too-many-statements
         """Method to load data from adapters, calculate diffs and sync (if not dry-run).
 
         It is composed by 4 methods:
