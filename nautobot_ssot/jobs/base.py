@@ -19,9 +19,7 @@ from nautobot.extras.jobs import BooleanVar, DryRunVar, Job
 from nautobot_ssot.choices import SyncLogEntryActionChoices
 from nautobot_ssot.models import BaseModel, Sync, SyncLogEntry
 
-DataMapping = namedtuple(
-    "DataMapping", ["source_name", "source_url", "target_name", "target_url"]
-)
+DataMapping = namedtuple("DataMapping", ["source_name", "source_url", "target_name", "target_url"])
 """Entry in the list returned by a job's data_mappings() API.
 
 The idea here is to provide insight into how various classes of data are mapped between Nautobot
@@ -51,9 +49,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         description="Perform a dry-run, making no actual changes to Nautobot data.",
         default=True,
     )
-    memory_profiling = BooleanVar(
-        description="Perform a memory profiling analysis.", default=False
-    )
+    memory_profiling = BooleanVar(description="Perform a memory profiling analysis.", default=False)
 
     def load_source_adapter(self):
         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`.
@@ -79,9 +75,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         This is a generic implementation that you could overwrite completely in your custom logic.
         """
         if self.source_adapter is not None and self.target_adapter is not None:
-            self.diff = self.source_adapter.diff_to(
-                self.target_adapter, flags=self.diffsync_flags
-            )
+            self.diff = self.source_adapter.diff_to(self.target_adapter, flags=self.diffsync_flags)
             self.sync.diff = {}
             self.sync.summary = self.diff.summary()
             self.sync.save()
@@ -89,15 +83,11 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
                 self.sync.diff = self.diff.dict()
                 self.sync.save()
             except OperationalError:
-                self.logger.warning(
-                    "Unable to save JSON diff to the database; likely the diff is too large."
-                )
+                self.logger.warning("Unable to save JSON diff to the database; likely the diff is too large.")
                 self.sync.refresh_from_db()
             self.logger.info(self.diff.summary())
         else:
-            self.logger.warning(
-                "Not both adapters were properly initialized prior to diff calculation."
-            )
+            self.logger.warning("Not both adapters were properly initialized prior to diff calculation.")
 
     def execute_sync(self):
         """Method to synchronize the difference from `self.diff`, from SOURCE to TARGET adapter.
@@ -107,9 +97,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         if self.source_adapter is not None and self.target_adapter is not None:
             self.source_adapter.sync_to(self.target_adapter, flags=self.diffsync_flags)
         else:
-            self.logger.warning(
-                "Not both adapters were properly initialized prior to synchronization."
-            )
+            self.logger.warning("Not both adapters were properly initialized prior to synchronization.")
 
     def sync_data(self, memory_profiling):  # pylint: disable=too-many-statements
         """Method to load data from adapters, calculate diffs and sync (if not dry-run).
@@ -204,9 +192,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         if self.sync.dry_run:
             self.logger.info("As `dryrun` is set, skipping the actual data sync.")
         else:
-            self.logger.info(
-                "Syncing from %s to %s...", self.source_adapter, self.target_adapter
-            )
+            self.logger.info("Syncing from %s to %s...", self.source_adapter, self.target_adapter)
             print("I'm executing the sync now")
             self.execute_sync()
             execute_sync_time = datetime.now()
@@ -274,23 +260,15 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
 
     def _structlog_to_sync_log_entry(self, _logger, _log_method, event_dict):
         """Capture certain structlog messages from DiffSync into the Nautobot database."""
-        if all(
-            key in event_dict
-            for key in ("src", "dst", "action", "model", "unique_id", "diffs", "status")
-        ):
+        if all(key in event_dict for key in ("src", "dst", "action", "model", "unique_id", "diffs", "status")):
             # The DiffSync log gives us a model name (string) and unique_id (string).
             # Try to look up the actual Nautobot object that this describes.
             synced_object = self.lookup_object(  # pylint: disable=assignment-from-none
                 event_dict["model"], event_dict["unique_id"]
             )
-            object_repr = (
-                repr(synced_object)
-                if synced_object
-                else f"{event_dict['model']} {event_dict['unique_id']}"
-            )
+            object_repr = repr(synced_object) if synced_object else f"{event_dict['model']} {event_dict['unique_id']}"
             self.sync_log(
-                action=event_dict["action"]
-                or SyncLogEntryActionChoices.ACTION_NO_CHANGE,
+                action=event_dict["action"] or SyncLogEntryActionChoices.ACTION_NO_CHANGE,
                 diff=event_dict["diffs"] if event_dict["action"] else None,
                 status=event_dict["status"],
                 message=event_dict["event"],
@@ -322,16 +300,12 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         self.source_adapter = None
         self.target_adapter = None
         # Default diffsync flags. You can overwrite them at any time.
-        self.diffsync_flags = (
-            DiffSyncFlags.CONTINUE_ON_FAILURE | DiffSyncFlags.LOG_UNCHANGED_RECORDS
-        )
+        self.diffsync_flags = DiffSyncFlags.CONTINUE_ON_FAILURE | DiffSyncFlags.LOG_UNCHANGED_RECORDS
 
     @classmethod
     def as_form(cls, data=None, files=None, initial=None, approval_view=False):
         """Render this instance as a Django form for user inputs, including a "Dry run" field."""
-        form = super().as_form(
-            data=data, files=files, initial=initial, approval_view=approval_view
-        )
+        form = super().as_form(data=data, files=files, initial=initial, approval_view=approval_view)
         # Set the "dryrun" widget's initial value based on our Meta attribute, if any
         form.fields["dryrun"].initial = getattr(cls.Meta, "dryrun_default", True)
         return form
@@ -356,9 +330,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         """Icon corresponding to the data_target."""
         return getattr(cls.Meta, "data_target_icon", None)
 
-    def run(
-        self, dryrun, memory_profiling, *args, **kwargs
-    ):  # pylint:disable=arguments-differ
+    def run(self, dryrun, memory_profiling, *args, **kwargs):  # pylint:disable=arguments-differ
         """Job entry point from Nautobot - do not override!"""
         self.sync = Sync.objects.create(
             source=self.data_source,
