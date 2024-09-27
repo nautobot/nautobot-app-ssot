@@ -182,9 +182,6 @@ class NautobotTenant(Tenant):
         )
         new_tenant.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_tenant.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
-        if "tags" in attrs:
-            for _tag in attrs["tags"]:
-                new_tenant.tags.add(_tag)
         new_tenant.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
@@ -396,7 +393,7 @@ class NautobotLocationType(LocationType):
                 _parent = ORMLocationType.objects.get(name=attrs["parent"])
             except ORMLocationType.DoesNotExist:
                 adapter.job.logger.warning(
-                    f'Could not find LocationType {ids["parent"]} in Nautobot, ensure it exists.'
+                    f'Could not find LocationType {attrs["parent"]} in Nautobot, ensure it exists.'
                 )
         _new_location_type = ORMLocationType(
             name=ids["name"],
