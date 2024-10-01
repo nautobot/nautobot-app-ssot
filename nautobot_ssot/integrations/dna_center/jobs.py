@@ -54,11 +54,14 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
         label="Location Mapping",
         required=False,
         default={},
-        description="Map of information regarding Locations in DNA Center.",
+        description="Map of information regarding Locations in DNA Center. Ex: {'<Location Name>': {'parent': '<Parent location Name>'}}",
     )
 
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
-    bulk_import = BooleanVar(description="Perform bulk operations when importing data", default=False)
+    bulk_import = BooleanVar(
+        description="Perform bulk operations when importing data. CAUTION! Might cause bad data to be pushed to Nautobot.",
+        default=False,
+    )
     tenant = ObjectVar(model=Tenant, label="Tenant", required=False)
 
     class Meta:  # pylint: disable=too-few-public-methods
