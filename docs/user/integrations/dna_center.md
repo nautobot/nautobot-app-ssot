@@ -9,7 +9,7 @@ From Cisco DNA Center into Nautobot, it synchronizes the following objects:
 | Areas                   | Location*                    |
 | Buildings               | Location*                    |
 | Floors                  | Location*                    |
-| Devices                 | Devices                      |
+| Devices                 | Devices**                    |
 | Ports                   | Interfaces                   |
 | Prefixes                | Prefixes                     |
 | IP Addresses            | IP Addresses                 |
