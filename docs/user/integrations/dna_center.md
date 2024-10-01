@@ -78,6 +78,6 @@ Running this Job will redirect you to a `Nautobot Job Result` view.
 
 ![JobResult View](../../images/dnac_jobresult.png)
 
-Once the Job has finished you can access the `SSoT Sync Details` page to see detailed information about the data that was synchronized from DNA Center and the outcome of the sync Job.
+Once the Job has finished you can click on the `SSoT Sync Details` button at the top right of the Job Result page to see detailed information about the data that was synchronized from DNA Center and the outcome of the sync Job.
 
 ![SSoT Sync Details](../../images/dnac_ssot-sync-details.png)
