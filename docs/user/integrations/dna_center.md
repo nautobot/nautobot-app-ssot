@@ -58,7 +58,7 @@ With the SecretsGroup defined containing your instance credentials you'll then n
 
 ![DNAC ExternalIntegration](../../images/dnac_external_integration_adv.png)
 
-The final step before running the Job is to create a Controller that references the ExternalIntegration that you just created. You can attach a `Managed Device Group` to the Controller for all imported Devices to be placed in. If you don't create one, one will be created automatically and associated to the specified Controller with the name of `<Controller name> Managed Devices`.
+The final step before running the Job is to create a Controller that references the ExternalIntegration that you just created. You can attach a `Managed Device Group` to the Controller for all imported Devices to be placed in. If you don't create a Managed Device Group, one will be created automatically and associated to the specified Controller with the name of `<Controller name> Managed Devices`.
 
 ![DNAC Controller](../../images/dnac_controller.png)
 
