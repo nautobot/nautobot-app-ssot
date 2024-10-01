@@ -56,6 +56,8 @@ With the SecretsGroup defined containing your instance credentials you'll then n
 
 > The only required portions are the Name, Remote URL, Verify SSL, and Secrets Group. The `Extra Config` section allows you to specify the port that DNA Center is running on. It will default to 443 if unspecified.
 
+![DNAC ExternalIntegration](../../images/dnac_external_integration_adv.png)
+
 The final step before running the Job is to create a Controller that references the ExternalIntegration that you just created. You can attach a `Managed Device Group` to the Controller for all imported Devices to be placed in. If you don't create one, one will be created automatically and associated to the specified Controller with the name of `<Controller name> Managed Devices`.
 
 ![DNAC Controller](../../images/dnac_controller.png)
