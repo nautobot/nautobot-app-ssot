@@ -6,7 +6,7 @@ class AdapterLoadException(Exception):
 
 
 class AuthFailure(Exception):
-    """Exception raised when authenticating to on-prem CVP fails."""
+    """Exception raised when authenticating to endpoint fails."""
 
     def __init__(self, error_code, message):
         """Populate exception information."""
@@ -37,7 +37,7 @@ class InvalidUrlScheme(Exception):
 
     def __init__(self, scheme):
         """Initialize Exception with wrong scheme in message."""
-        self.message = f"Invalid URL scheme '{scheme}' found for Infoblox URL. Please correct to use HTTPS."
+        self.message = f"Invalid URL scheme '{scheme}' found!"
         super().__init__(self.message)
 
 
