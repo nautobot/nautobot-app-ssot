@@ -373,4 +373,3 @@ def ensure_contenttypes_on_location_type(location_type: LocationType):
     """
     for obj_type in [Location, RackGroup, Rack, Device, VirtualChassis, Prefix, VLAN]:
         location_type.content_types.add(ContentType.objects.get_for_model(obj_type))
-    location_type.validated_save()
