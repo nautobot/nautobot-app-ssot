@@ -21,7 +21,8 @@ class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
 
     debug = BooleanVar(description="Enable for more verbose logging.")
 
-    delete_records = BooleanVar(description="Delete synced records from ServiceNow if not present in Nautobot")
+    # TODO: Implement or remove
+    # delete_records = BooleanVar(description="Delete synced records from ServiceNow if not present in Nautobot")
 
     site_filter = ObjectVar(
         description="Only sync records belonging to a single Site.",
