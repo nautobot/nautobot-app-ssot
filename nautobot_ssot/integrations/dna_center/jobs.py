@@ -146,6 +146,26 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
         self.target_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync, tenant=self.tenant)
         self.target_adapter.load()
 
+    def validate_locationtypes(self):
+        """Validate the LocationTypes specified are related and configured correctly."""
+        if not self.area_loctype.nestable:
+            self.logger.error("Area LocationType is not nestable.")
+            raise ConfigurationError("Area LocationType is not nestable.")
+        if self.building_loctype.parent != self.area_loctype:
+            self.logger.error(
+                f"LocationType {self.area_loctype.name} is not the parent of {self.building_loctype.name} LocationType. The Area and Building LocationTypes specified must be related."
+            )
+            raise ConfigurationError(
+                f"{self.area_loctype.name} is not parent to {self.building_loctype.name}. Please correct."
+            )
+        if self.floor_loctype.parent != self.building_loctype:
+            self.logger.error(
+                f"LocationType {self.building_loctype.name} is not the parent of {self.floor_loctype.name} LocationType. The Building and Floor LocationTypes specified must be related."
+            )
+            raise ConfigurationError(
+                f"{self.building_loctype.name} is not parent to {self.floor_loctype.name}. Please correct."
+            )
+
     def run(
         self,
         dryrun,
@@ -164,11 +184,9 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
         """Perform data synchronization."""
         self.dnac = dnac
         self.area_loctype = area_loctype
-        if not self.area_loctype.nestable:
-            self.logger.error("Area LocationType is not nestable.")
-            raise ConfigurationError("Area LocationType is not nestable.")
         self.building_loctype = building_loctype
         self.floor_loctype = floor_loctype
+        self.validate_locationtypes()
         self.location_map = location_map
         self.tenant = tenant
         self.debug = debug
