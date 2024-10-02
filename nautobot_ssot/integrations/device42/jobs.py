@@ -21,7 +21,10 @@ class Device42DataSource(DataSource):  # pylint: disable=too-many-instance-attri
     """Device42 SSoT Data Source."""
 
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
-    bulk_import = BooleanVar(description="Enable using bulk create option for object creation.", default=False)
+    bulk_import = BooleanVar(
+        description="Perform bulk operations when importing data. CAUTION! Might cause bad data to be pushed to Nautobot.",
+        default=False,
+    )
     integration = ObjectVar(
         model=ExternalIntegration,
         queryset=ExternalIntegration.objects.all(),
