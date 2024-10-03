@@ -449,7 +449,7 @@ class NautobotPrefix(Prefix):
         try:
             vrf_tenant = OrmTenant.objects.get(name=attrs["vrf_tenant"])
         except OrmTenant.DoesNotExist:
-            adapter.job.logger.warning(f"Tenant {attrs['vrf_tenant']} not found for VRF {attrs['vrf']}")
+            adapter.job.logger.warning(f"Tenant {attrs['vrf_tenant']} not found for VRF {ids['vrf']}")
             vrf_tenant = None
             return None
 
