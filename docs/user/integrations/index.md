@@ -6,6 +6,7 @@ This Nautobot app supports the following integrations:
 - [Arista CloudVision](./aristacv.md)
 - [Bootstrap](./bootstrap.md)
 - [Device42](./device42.md)
+- [Cisco DNA Center](./dna_center.md)
 - [Infoblox](./infoblox.md)
 - [IPFabric](./ipfabric.md)
 - [Itential](./itential.md)

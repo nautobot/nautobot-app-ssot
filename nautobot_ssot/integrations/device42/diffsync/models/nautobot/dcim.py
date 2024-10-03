@@ -14,7 +14,6 @@ from nautobot.dcim.models import DeviceType as OrmDeviceType
 from nautobot.dcim.models import FrontPort as OrmFrontPort
 from nautobot.dcim.models import Interface as OrmInterface
 from nautobot.dcim.models import Location as OrmSite
-from nautobot.dcim.models import LocationType as OrmLocationType
 from nautobot.dcim.models import Manufacturer as OrmManufacturer
 from nautobot.dcim.models import Rack as OrmRack
 from nautobot.dcim.models import RackGroup as OrmRackGroup
@@ -52,16 +51,15 @@ class NautobotBuilding(Building):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Site object in Nautobot."""
-        adapter.job.logger.info(f"Creating Site {ids['name']}.")
+        adapter.job.logger.info(f"Creating {ids['location_type']} {ids['name']}.")
         def_site_status = adapter.status_map[DEFAULTS.get("site_status")]
-        loc_type = OrmLocationType.objects.get_or_create(name="Site")[0]
         new_site = OrmSite(
             name=ids["name"],
             status_id=def_site_status,
             physical_address=attrs["address"] if attrs.get("address") else "",
             latitude=round(Decimal(attrs["latitude"] if attrs["latitude"] else 0.0), 6),
             longitude=round(Decimal(attrs["longitude"] if attrs["longitude"] else 0.0), 6),
-            location_type=loc_type,
+            location_type=adapter.job.building_loctype,
             contact_name=attrs["contact_name"] if attrs.get("contact_name") else "",
             contact_phone=attrs["contact_phone"] if attrs.get("contact_phone") else "",
         )

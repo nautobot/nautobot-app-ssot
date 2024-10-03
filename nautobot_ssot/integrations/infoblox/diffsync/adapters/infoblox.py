@@ -8,6 +8,7 @@ from diffsync.enum import DiffSyncFlags
 from diffsync.exceptions import ObjectAlreadyExists
 from nautobot.extras.plugins.exceptions import PluginImproperlyConfigured
 
+from nautobot_ssot.exceptions import AdapterLoadException
 from nautobot_ssot.integrations.infoblox.choices import FixedAddressTypeChoices
 from nautobot_ssot.integrations.infoblox.diffsync.models.infoblox import (
     InfobloxDnsARecord,
@@ -25,10 +26,6 @@ from nautobot_ssot.integrations.infoblox.utils.diffsync import (
     get_ext_attr_dict,
     map_network_view_to_namespace,
 )
-
-
-class AdapterLoadException(Exception):
-    """Raised when there's an error while loading data."""
 
 
 class InfobloxAdapter(Adapter):

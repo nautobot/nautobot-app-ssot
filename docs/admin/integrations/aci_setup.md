@@ -56,7 +56,7 @@ PLUGINS_CONFIG = {
 
 All APIC specific settings have been updated to use the Controller and related ExternalIntegration objects. The ExternalIntegration object that is assigned to the Controller will define the APIC base URL, user credentials, and SSL verification. It will also have a `tenant_prefix` key in the `extra_config` section of the ExternalIntegration to define the Tenant prefix.
 
-The `aci_apics` setting from the `nautobot_config.py` file is no longer used and any configuration found for it will be automatically migrated into a Controller and an ExternalIntegration object.
+The `aci_apics` setting from the `nautobot_config.py` file is no longer used. Any configuration found for the APICs that were defined in `aci_apics` will need to be manually input into the Nautobot UI to create the required ExternalIntegration and Controller objects.
 
 ## Nautobot Objects Affected by Settings
 
@@ -82,14 +82,19 @@ There are example YAML files for a few common switch models in `nautobot_ssot/in
     When upgrading from `nautobot-plugin-ssot-aci` app, it's necessary to [avoid conflicts](../upgrade.md#potential-apps-conflicts).
 
 - Uninstall the old app:
+
     ```shell
     pip uninstall nautobot-plugin-ssot-aci
     ```
+
 - Upgrade the app with required extras:
+
     ```shell
     pip install --upgrade nautobot-ssot[aci]
     ```
+
 - Fix `nautobot_config.py` by removing `nautobot_ssot_aci` from `PLUGINS` and merging app configuration into `nautobot_ssot`:
+
     ```python
     PLUGINS = [
         "nautobot_ssot",

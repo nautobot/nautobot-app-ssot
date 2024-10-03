@@ -22,6 +22,7 @@ from cloudvision.Connector.grpc_client.grpcClient import create_query, to_pbts
 from cvprac.cvp_client import CvpClient, CvpLoginError
 from google.protobuf.wrappers_pb2 import StringValue  # pylint: disable=no-name-in-module
 
+from nautobot_ssot.exceptions import AuthFailure
 from nautobot_ssot.integrations.aristacv.constants import PORT_TYPE_MAP
 from nautobot_ssot.integrations.aristacv.types import CloudVisionAppConfig
 
@@ -29,16 +30,6 @@ RPC_TIMEOUT = 30
 TIME_TYPE = Union[pbts.Timestamp, datetime]
 UPDATE_TYPE = Tuple[Any, Any]
 UPDATES_TYPE = List[UPDATE_TYPE]
-
-
-class AuthFailure(Exception):
-    """Exception raised when authenticating to on-prem CVP fails."""
-
-    def __init__(self, error_code, message):
-        """Populate exception information."""
-        self.expression = error_code
-        self.message = message
-        super().__init__(self.message)
 
 
 class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-arguments
