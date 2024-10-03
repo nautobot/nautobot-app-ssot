@@ -188,16 +188,12 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         """Test Nautobot SSoT for Cisco DNA Center load_areas() function with Global area."""
         self.dna_center.load_areas(areas=EXPECTED_AREAS)
         area_expected = sorted(
-            [
-                f"{x['name']}__Region__{x['parent']}"
-                for x in EXPECTED_DNAC_LOCATION_MAP.values()
-                if x["loc_type"] == "area"
-            ]
+            [f"{x['name']}__{x['parent']}" for x in EXPECTED_DNAC_LOCATION_MAP.values() if x["loc_type"] == "area"]
         )
         area_actual = sorted([area.get_unique_id() for area in self.dna_center.get_all("area")])
         self.assertEqual(area_actual, area_expected)
         self.dna_center.job.logger.info.assert_called_with(
-            "Loaded area Sydney. {'parentId': '262696b1-aa87-432b-8a21-db9a77c51f23', 'additionalInfo': [{'nameSpace': 'Location', 'attributes': {'addressInheritedFrom': '262696b1-aa87-432b-8a21-db9a77c51f23', 'type': 'area'}}], 'name': 'Sydney', 'instanceTenantId': '623f029857259506a56ad9bd', 'id': '6e404051-4c06-4dab-adaa-72c5eeac577b', 'siteHierarchy': '9e5f9fc2-032e-45e8-994c-4a00629648e8/262696b1-aa87-432b-8a21-db9a77c51f23/6e404051-4c06-4dab-adaa-72c5eeac577b', 'siteNameHierarchy': 'Global/Australia/Sydney'}"
+            "Loaded Region Sydney. {'parentId': '262696b1-aa87-432b-8a21-db9a77c51f23', 'additionalInfo': [{'nameSpace': 'Location', 'attributes': {'addressInheritedFrom': '262696b1-aa87-432b-8a21-db9a77c51f23', 'type': 'area'}}], 'name': 'Sydney', 'instanceTenantId': '623f029857259506a56ad9bd', 'id': '6e404051-4c06-4dab-adaa-72c5eeac577b', 'siteHierarchy': '9e5f9fc2-032e-45e8-994c-4a00629648e8/262696b1-aa87-432b-8a21-db9a77c51f23/6e404051-4c06-4dab-adaa-72c5eeac577b', 'siteNameHierarchy': 'Global/Australia/Sydney'}"
         )
 
     @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"dna_center_import_global": False}})
@@ -206,7 +202,7 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         self.dna_center.dnac_location_map = EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL
         self.dna_center.load_areas(areas=EXPECTED_AREAS_WO_GLOBAL)
         area_expected = [
-            f"{x['name']}__Region__{x['parent']}"
+            f"{x['name']}__{x['parent']}"
             for x in EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL.values()
             if x["loc_type"] == "area"
         ]
@@ -227,7 +223,7 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         ]
         self.dna_center.load_buildings(buildings=EXPECTED_BUILDINGS)
         building_expected = [
-            f"{x['name']}__Site" for x in EXPECTED_DNAC_LOCATION_MAP.values() if x["loc_type"] == "building"
+            f"{x['name']}__{x['parent']}" for x in EXPECTED_DNAC_LOCATION_MAP.values() if x["loc_type"] == "building"
         ]
         building_actual = [building.get_unique_id() for building in self.dna_center.get_all("building")]
         self.assertEqual(building_actual, building_expected)
@@ -247,7 +243,9 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         self.dna_center.dnac_location_map = EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL
         self.dna_center.load_buildings(buildings=EXPECTED_BUILDINGS)
         building_expected = [
-            f"{x['name']}__Site" for x in EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL.values() if x["loc_type"] == "building"
+            f"{x['name']}__{x['parent']}"
+            for x in EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL.values()
+            if x["loc_type"] == "building"
         ]
         building_actual = [building.get_unique_id() for building in self.dna_center.get_all("building")]
         self.assertEqual(sorted(building_actual), sorted(building_expected))
@@ -266,7 +264,7 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         ]
         self.dna_center.load_buildings(buildings=EXPECTED_BUILDINGS)
         self.dna_center.load_buildings(buildings=[EXPECTED_BUILDINGS[0]])
-        self.dna_center.job.logger.warning.assert_called_with("Building Building1 already loaded so skipping.")
+        self.dna_center.job.logger.warning.assert_called_with("Site Building1 already loaded so skipping.")
 
     def test_load_buildings_with_validation_error(self):
         """Test Nautobot SSoT for Cisco DNA Center load_buildings() function with a ValidationError."""
@@ -281,11 +279,11 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         """Test Nautobot SSoT for Cisco DNA Center load_floors() function."""
         self.dna_center.load_floors(floors=EXPECTED_FLOORS)
         floor_expected = [
-            "Building1 - Floor1__Building1__Floor",
-            "1 - 1__1__Floor",
-            "Deep Space - 1st Floor__Deep Space__Floor",
-            "Building 1 - Lab__Building 1__Floor",
-            "secretlab - Floor 2__secretlab__Floor",
+            "Building1 - Floor1__Building1",
+            "1 - 1__1",
+            "Deep Space - 1st Floor__Deep Space",
+            "Building 1 - Lab__Building 1",
+            "secretlab - Floor 2__secretlab",
         ]
         floor_actual = [floor.get_unique_id() for floor in self.dna_center.get_all("floor")]
         self.assertEqual(floor_actual, floor_expected)

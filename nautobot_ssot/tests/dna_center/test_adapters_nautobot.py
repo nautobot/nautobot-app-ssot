@@ -257,15 +257,15 @@ class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many
         self.build_nautobot_objects()
         self.nb_adapter.load()
         self.assertEqual(
-            ["Global__Region__None", "NY__Region__Global"],
+            ["Global__None", "NY__Global"],
             sorted(loc.get_unique_id() for loc in self.nb_adapter.get_all("area")),
         )
         self.assertEqual(
-            ["HQ__Site"],
+            ["HQ__NY"],
             sorted(site.get_unique_id() for site in self.nb_adapter.get_all("building")),
         )
         self.assertEqual(
-            ["HQ Floor 1__HQ__Floor"],
+            ["HQ Floor 1__HQ"],
             sorted(loc.get_unique_id() for loc in self.nb_adapter.get_all("floor")),
         )
         self.assertEqual(
@@ -291,11 +291,11 @@ class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many
             sorted(ipaddr.get_unique_id() for ipaddr in self.nb_adapter.get_all("ipaddress")),
         )
 
-    def test_load_regions_failure(self):
-        """Test the load_regions method failing with loading duplicate Regions."""
+    def test_load_areas_failure(self):
+        """Test the load_areas method failing with loading duplicate Areas."""
         self.build_nautobot_objects()
         self.nb_adapter.load()
-        self.nb_adapter.load_regions()
+        self.nb_adapter.load_areas()
         self.nb_adapter.job.logger.warning.assert_called_with("Region NY already loaded so skipping duplicate.")
 
     @patch("nautobot_ssot.integrations.dna_center.diffsync.adapters.nautobot.OrmLocationType")
@@ -314,7 +314,7 @@ class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many
         self.nb_adapter.get.side_effect = [ObjectNotFound()]
         self.nb_adapter.load_floors()
         self.nb_adapter.job.logger.warning.assert_called_with(
-            "Unable to load building Missing for floor HQ - Floor 1. "
+            "Unable to load Site Missing for Floor HQ - Floor 1. "
         )
 
     def test_sync_complete(self):

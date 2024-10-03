@@ -30,11 +30,12 @@ class TestNautobotArea(TransactionTestCase):
 
     def setUp(self):
         super().setUp()
+        self.region_type = LocationType.objects.get_or_create(name="Region", nestable=True)[0]
         self.adapter = Adapter()
         self.adapter.job = MagicMock()
+        self.adapter.job.area_loctype = self.region_type
         self.adapter.job.logger.info = MagicMock()
         self.adapter.region_map = {}
-        self.region_type = LocationType.objects.get_or_create(name="Region", nestable=True)[0]
         self.adapter.locationtype_map = {"Region": self.region_type.id}
         self.adapter.status_map = {"Active": Status.objects.get(name="Active").id}
 
@@ -44,7 +45,7 @@ class TestNautobotArea(TransactionTestCase):
         self.adapter.status_map = {"Active": status_active.id}
         global_region = Location.objects.create(name="Global", location_type=self.region_type, status=status_active)
         self.adapter.region_map = {None: {"Global": global_region.id}}
-        ids = {"name": "NY", "parent": "Global", "location_type": "Region"}
+        ids = {"name": "NY", "parent": "Global"}
         attrs = {}
         result = NautobotArea.create(self.adapter, ids, attrs)
         self.assertIsInstance(result, NautobotArea)
@@ -55,7 +56,7 @@ class TestNautobotArea(TransactionTestCase):
 
     def test_create_missing_parent(self):
         """Validate the NautobotArea create() method with missing parent Region."""
-        ids = {"name": "TX", "parent": "USA", "location_type": "Region"}
+        ids = {"name": "TX", "parent": "USA"}
         attrs = {}
         NautobotArea.create(self.adapter, ids, attrs)
         self.adapter.job.logger.warning.assert_called_once_with("Unable to find Region USA for TX.")
@@ -72,17 +73,21 @@ class TestNautobotBuilding(TransactionTestCase):
     def setUp(self):
         super().setUp()
 
+        self.reg_loc = LocationType.objects.get_or_create(name="Region", nestable=True)[0]
+        loc_type = LocationType.objects.get_or_create(name="Site", parent=self.reg_loc)[0]
         self.adapter = Adapter()
         self.adapter.job = MagicMock()
         self.adapter.job.debug = True
+        self.adapter.job.area_loctype = self.reg_loc
+        self.adapter.job.building_loctype = loc_type
         self.adapter.job.logger.info = MagicMock()
         self.adapter.status_map = {"Active": Status.objects.get(name="Active").id}
         ga_tenant = Tenant.objects.create(name="G&A")
         self.adapter.tenant_map = {"G&A": ga_tenant.id}
-        reg_loc = LocationType.objects.get_or_create(name="Region", nestable=True)[0]
-        ny_region = Location.objects.create(name="NY", location_type=reg_loc, status=Status.objects.get(name="Active"))
-        loc_type = LocationType.objects.get_or_create(name="Site", parent=reg_loc)[0]
-        self.adapter.locationtype_map = {"Region": reg_loc.id, "Site": loc_type.id}
+        ny_region = Location.objects.create(
+            name="NY", location_type=self.reg_loc, status=Status.objects.get(name="Active")
+        )
+        self.adapter.locationtype_map = {"Region": self.reg_loc.id, "Site": loc_type.id}
         self.sec_site = Location.objects.create(
             name="Site 2", parent=ny_region, status=Status.objects.get(name="Active"), location_type=loc_type
         )
@@ -90,7 +95,6 @@ class TestNautobotBuilding(TransactionTestCase):
         self.adapter.site_map = {"NY": ny_region.id, "Site 2": self.sec_site.id}
         self.test_bldg = NautobotBuilding(
             name="Site 2",
-            location_type="Site",
             address="",
             area="NY",
             area_parent=None,
@@ -103,10 +107,9 @@ class TestNautobotBuilding(TransactionTestCase):
 
     def test_create(self):
         """Validate the NautobotBuilding create() method creates a Site."""
-        ids = {"name": "HQ", "location_type": "Site"}
+        ids = {"name": "HQ", "area": "NY"}
         attrs = {
             "address": "123 Main St",
-            "area": "NY",
             "area_parent": None,
             "latitude": "12.345",
             "longitude": "-67.890",
@@ -122,7 +125,7 @@ class TestNautobotBuilding(TransactionTestCase):
         self.adapter.job.logger.info.assert_called_once_with("Creating Site HQ.")
         site_obj = Location.objects.get(name=ids["name"], location_type__name="Site")
         self.assertEqual(site_obj.name, ids["name"])
-        self.assertEqual(site_obj.parent.name, attrs["area"])
+        self.assertEqual(site_obj.parent.name, ids["area"])
         self.assertEqual(site_obj.physical_address, attrs["address"])
         self.assertEqual(site_obj.tenant.name, attrs["tenant"])
 
@@ -161,13 +164,16 @@ class TestNautobotBuilding(TransactionTestCase):
         ds_mock_site.location_type = "Site"
         ds_mock_site.uuid = "1234567890"
         ds_mock_site.adapter = MagicMock()
+        ds_mock_site.adapter.job.building_loctype = self.adapter.job.building_loctype
         ds_mock_site.adapter.job.logger.info = MagicMock()
         mock_site = MagicMock(spec=Location)
         mock_site.name = "Test"
         site_get_mock = MagicMock(return_value=mock_site)
         with patch.object(Location.objects, "get", site_get_mock):
             result = NautobotBuilding.delete(ds_mock_site)
-        ds_mock_site.adapter.job.logger.info.assert_called_once_with("Deleting Site Test.")
+        ds_mock_site.adapter.job.logger.info.assert_called_once_with(
+            f"Deleting {self.adapter.job.building_loctype.name} Test."
+        )
         self.assertEqual(ds_mock_site, result)
 
 
@@ -179,13 +185,16 @@ class TestNautobotFloor(TransactionTestCase):
     def setUp(self):
         super().setUp()
 
+        site_loc_type = LocationType.objects.get_or_create(name="Site")[0]
+        self.floor_loc_type = LocationType.objects.get_or_create(name="Floor", parent=site_loc_type)[0]
         self.adapter = Adapter()
         self.adapter.job = MagicMock()
+        self.adapter.job.building_loctype = site_loc_type
+        self.adapter.job.floor_loctype = self.floor_loc_type
         self.adapter.job.logger.info = MagicMock()
         ga_tenant = Tenant.objects.create(name="G&A")
         self.adapter.tenant_map = {"G&A": ga_tenant.id}
-        site_loc_type = LocationType.objects.get_or_create(name="Site")[0]
-        self.floor_loc_type = LocationType.objects.get_or_create(name="Floor", parent=site_loc_type)[0]
+
         self.adapter.locationtype_map = {"Site": site_loc_type.id, "Floor": self.floor_loc_type.id}
         self.hq_site, _ = Location.objects.get_or_create(
             name="HQ", location_type=site_loc_type, status=Status.objects.get(name="Active")
@@ -193,10 +202,11 @@ class TestNautobotFloor(TransactionTestCase):
         self.adapter.site_map = {"HQ": self.hq_site.id}
         self.adapter.floor_map = {}
         self.adapter.status_map = {"Active": Status.objects.get(name="Active").id}
+        self.adapter.objects_to_delete = {"floors": []}
 
     def test_create(self):
         """Test the NautobotFloor create() method creates a LocationType: Floor."""
-        ids = {"name": "HQ - Floor 1", "building": "HQ", "location_type": "Floor"}
+        ids = {"name": "HQ - Floor 1", "building": "HQ"}
         attrs = {"tenant": "G&A"}
         result = NautobotFloor.create(self.adapter, ids, attrs)
         self.assertIsInstance(result, NautobotFloor)
@@ -208,17 +218,14 @@ class TestNautobotFloor(TransactionTestCase):
 
     def test_update_w_tenant(self):
         """Test the NautobotFloor update() method updates a LocationType: Floor with tenant."""
-        floor_type = LocationType.objects.get(name="Floor")
         mock_floor = Location.objects.create(
             name="HQ - Floor 2",
-            location_type=floor_type,
+            location_type=self.floor_loc_type,
             parent=self.hq_site,
             status=Status.objects.get(name="Active"),
         )
         mock_floor.validated_save()
-        test_floor = NautobotFloor(
-            name="HQ - Floor 2", building="HQ", location_type="Floor", tenant="", uuid=mock_floor.id
-        )
+        test_floor = NautobotFloor(name="HQ - Floor 2", building="HQ", tenant="", uuid=mock_floor.id)
         test_floor.adapter = self.adapter
         update_attrs = {
             "tenant": "G&A",
@@ -239,11 +246,8 @@ class TestNautobotFloor(TransactionTestCase):
             status=Status.objects.get(name="Active"),
         )
         mock_floor.validated_save()
-        test_floor = NautobotFloor(
-            name="HQ - Floor 2", building="HQ", location_type="Floor", tenant="", uuid=mock_floor.id
-        )
-        test_floor.adapter = MagicMock()
-        test_floor.adapter.job.logger.info = MagicMock()
+        test_floor = NautobotFloor(name="HQ - Floor 2", building="HQ", tenant="", uuid=mock_floor.id)
+        test_floor.adapter = self.adapter
         update_attrs = {
             "tenant": None,
         }
@@ -257,15 +261,16 @@ class TestNautobotFloor(TransactionTestCase):
         ds_mock_floor = MagicMock(spec=Location)
         ds_mock_floor.location_type = "Floor"
         ds_mock_floor.uuid = "1234567890"
-        ds_mock_floor.adapter = MagicMock()
-        ds_mock_floor.adapter.job.logger.info = MagicMock()
+        ds_mock_floor.adapter = self.adapter
         mock_floor = MagicMock(spec=Location)
         mock_floor.name = "Test"
         mock_floor.parent.name = "HQ"
         floor_get_mock = MagicMock(return_value=mock_floor)
         with patch.object(Location.objects, "get", floor_get_mock):
             result = NautobotFloor.delete(ds_mock_floor)
-        ds_mock_floor.adapter.job.logger.info.assert_called_once_with("Deleting Floor Test in HQ.")
+        ds_mock_floor.adapter.job.logger.info.assert_called_once_with(
+            f"Deleting {self.adapter.job.floor_loctype.name} Test in HQ."
+        )
         self.assertEqual(ds_mock_floor, result)
 
 
