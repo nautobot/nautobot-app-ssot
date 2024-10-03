@@ -6,7 +6,7 @@ From Device42 into Nautobot, it synchronizes the following objects:
 
 | Device42                | Nautobot                     |
 | ----------------------- | ---------------------------- |
-| Buildings               | Sites                        |
+| Buildings               | Locations                    |
 | Rooms                   | RackGroups                   |
 | Racks                   | Racks                        |
 | Vendors                 | Manufacturers                |
@@ -36,7 +36,9 @@ To start the synchronization, simply select the ExternalIntegration that corresp
 
 ![Job Form](../../images/device42_job-form.png)
 
-If you wish to just test the synchronization but not have any data created in Nautobot you'll want to select the `Dry run` toggle. Clicking the `Debug` toggle will enable more verbose logging to inform you of what is occuring behind the scenes. Finally, the `Bulk import` option will enable bulk create and update operations to be used when the synchronization is complete. This can improve performance times for the App by forsaking validation of the imported data. Be aware that this could potentially cause bad data to be pushed into Nautobot.
+> As of SSoT 3.2.0 you now have the option to define the LocationType to use for imported Buildings. If unspecifed in the Job form it will resort to using the Site LocationType as it did previously.
+
+If you wish to just test the synchronization but not have any data created in Nautobot you'll want to select the `Dryrun` toggle. Clicking the `Debug` toggle will enable more verbose logging to inform you of what is occuring behind the scenes. Finally, the `Bulk import` option will enable bulk create and update operations to be used when the synchronization is complete. This can improve performance times for the App by forsaking validation of the imported data. Be aware that this could potentially cause bad data to be pushed into Nautobot.
 
 Running this Job will redirect you to a `Nautobot Job Result` view.
 

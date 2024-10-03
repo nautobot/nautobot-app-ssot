@@ -1,7 +1,7 @@
 """Test the Job classes in nautobot_ssot."""
 
 import os.path
-from unittest.mock import Mock, call
+from unittest.mock import Mock, call, patch
 
 from django.db.utils import IntegrityError, OperationalError
 from django.test import override_settings
@@ -90,8 +90,52 @@ class BaseJobTestCase(TransactionTestCase):
         self.assertIsNone(self.job.sync.sync_time)
         self.assertEqual(self.job.sync.source, self.job.data_source)
         self.assertEqual(self.job.sync.target, self.job.data_target)
-        self.assertTrue(self.job.dryrun)
+        self.assertTrue(self.job.sync.dry_run)
         self.assertEqual(self.job.job_result, self.job.sync.job_result)
+
+    def test_job_dryrun_false(self):
+        """Test the job is not ran in dryrun mode."""
+        with patch.object(DataSyncBaseJob, "execute_sync") as mock_execute_sync:
+            isolated_job = DataSyncBaseJob()
+
+            isolated_job.job_result = JobResult.objects.create(
+                name="fake job no dryrun",
+                task_name="fake job no dryrun",
+                worker="default",
+            )
+            isolated_job.load_source_adapter = lambda *x, **y: None
+            isolated_job.load_target_adapter = lambda *x, **y: None
+            isolated_job.run(dryrun=False, memory_profiling=False)
+            self.assertFalse(isolated_job.sync.dry_run)
+            mock_execute_sync.assert_called()
+
+    def test_job_dryrun_true(self):
+        """Test the job is ran in dryrun mode."""
+        with patch.object(DataSyncBaseJob, "execute_sync") as mock_execute_sync:
+            isolated_job = DataSyncBaseJob()
+
+            isolated_job.job_result = JobResult.objects.create(
+                name="fake job",
+                task_name="fake job",
+                worker="default",
+            )
+            isolated_job.load_source_adapter = lambda *x, **y: None
+            isolated_job.load_target_adapter = lambda *x, **y: None
+            isolated_job.run(dryrun=True, memory_profiling=False)
+            self.assertTrue(isolated_job.sync.dry_run)
+            mock_execute_sync.assert_not_called()
+
+    @patch("tracemalloc.start")
+    def test_job_memory_profiling_true(self, mock_malloc_start):
+        """Test the job is ran in dryrun mode."""
+        self.job.run(dryrun=False, memory_profiling=True)
+        mock_malloc_start.assert_called()
+
+    @patch("tracemalloc.start")
+    def test_job_memory_profiling_false(self, mock_malloc_start):
+        """Test the job is ran in dryrun mode."""
+        self.job.run(dryrun=False, memory_profiling=False)
+        mock_malloc_start.assert_not_called()
 
     def test_calculate_diff(self):
         """Test calculate_diff() method."""

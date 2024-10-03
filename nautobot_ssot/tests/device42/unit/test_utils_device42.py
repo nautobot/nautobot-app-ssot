@@ -7,6 +7,7 @@ import responses
 from nautobot.core.testing import TestCase
 from parameterized import parameterized
 
+from nautobot_ssot.exceptions import MissingConfigSetting
 from nautobot_ssot.integrations.device42.jobs import Device42DataSource
 from nautobot_ssot.integrations.device42.utils import device42
 
@@ -23,7 +24,7 @@ class TestMissingConfigSetting(TestCase):
     def setUp(self):
         """Setup MissingConfigSetting instance."""
         self.setting = "D42_URL"
-        self.missing_setting = device42.MissingConfigSetting(setting=self.setting)
+        self.missing_setting = MissingConfigSetting(setting=self.setting)
 
     def test_missingconfigsetting(self):
         self.assertTrue(self.missing_setting.setting == "D42_URL")
