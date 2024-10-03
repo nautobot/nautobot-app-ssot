@@ -9,6 +9,7 @@ from nautobot.core.celery import register_jobs
 from nautobot.core.settings_funcs import is_truthy
 from nautobot.extras.models import Job
 
+from nautobot_ssot.exceptions import JobException
 from nautobot_ssot.integrations.utils import each_enabled_integration, each_enabled_integration_module
 from nautobot_ssot.jobs.base import DataSource, DataTarget
 from nautobot_ssot.jobs.examples import ExampleDataSource, ExampleDataTarget
@@ -26,15 +27,6 @@ if is_truthy(hide_jobs_setting):
     jobs = []
 else:
     jobs = [ExampleDataSource, ExampleDataTarget]
-
-
-class JobException(Exception):
-    """Exception raised when failure loading integration Job."""
-
-    def __init__(self, message):
-        """Populate exception information."""
-        self.message = message
-        super().__init__(self.message)
 
 
 def _check_min_nautobot_version_met():

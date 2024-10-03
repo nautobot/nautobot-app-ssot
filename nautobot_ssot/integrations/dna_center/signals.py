@@ -17,19 +17,12 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     # pylint: disable=invalid-name
     ContentType = apps.get_model("contenttypes", "ContentType")
     CustomField = apps.get_model("extras", "CustomField")
-    LocationType = apps.get_model("dcim", "LocationType")
     Device = apps.get_model("dcim", "Device")
     Rack = apps.get_model("dcim", "Rack")
     RackGroup = apps.get_model("dcim", "RackGroup")
     Interface = apps.get_model("dcim", "Interface")
     IPAddress = apps.get_model("ipam", "IPAddress")
     Prefix = apps.get_model("ipam", "Prefix")
-
-    region = LocationType.objects.update_or_create(name="Region", defaults={"nestable": True})[0]
-    site = LocationType.objects.update_or_create(name="Site", defaults={"nestable": False, "parent": region})[0]
-    site.content_types.add(ContentType.objects.get_for_model(Device))
-    floor = LocationType.objects.update_or_create(name="Floor", defaults={"nestable": False, "parent": site})[0]
-    floor.content_types.add(ContentType.objects.get_for_model(Device))
 
     ver_dict = {
         "key": "os_version",

@@ -48,10 +48,12 @@ class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many
         job.job_result = JobResult.objects.create(
             name=job.class_path, task_name="fake task", user=None, id=uuid.uuid4()
         )
+        job.logger.info = MagicMock()
+        job.logger.warning = MagicMock()
+        job.area_loctype = self.reg_loc_type
+        job.building_loctype = self.site_loc_type
+        job.floor_loctype = self.floor_loc_type
         self.nb_adapter = NautobotAdapter(job=job, sync=None)
-        self.nb_adapter.job = MagicMock()
-        self.nb_adapter.job.logger.info = MagicMock()
-        self.nb_adapter.job.logger.warning = MagicMock()
 
     def build_nautobot_objects(self):  # pylint: disable=too-many-locals, too-many-statements
         """Build out Nautobot objects to test loading."""
@@ -259,7 +261,7 @@ class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many
             sorted(loc.get_unique_id() for loc in self.nb_adapter.get_all("area")),
         )
         self.assertEqual(
-            ["HQ"],
+            ["HQ__NY"],
             sorted(site.get_unique_id() for site in self.nb_adapter.get_all("building")),
         )
         self.assertEqual(
@@ -289,11 +291,11 @@ class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many
             sorted(ipaddr.get_unique_id() for ipaddr in self.nb_adapter.get_all("ipaddress")),
         )
 
-    def test_load_regions_failure(self):
-        """Test the load_regions method failing with loading duplicate Regions."""
+    def test_load_areas_failure(self):
+        """Test the load_areas method failing with loading duplicate Areas."""
         self.build_nautobot_objects()
         self.nb_adapter.load()
-        self.nb_adapter.load_regions()
+        self.nb_adapter.load_areas()
         self.nb_adapter.job.logger.warning.assert_called_with("Region NY already loaded so skipping duplicate.")
 
     @patch("nautobot_ssot.integrations.dna_center.diffsync.adapters.nautobot.OrmLocationType")
@@ -311,9 +313,7 @@ class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many
         self.nb_adapter.get = MagicMock()
         self.nb_adapter.get.side_effect = [ObjectNotFound()]
         self.nb_adapter.load_floors()
-        self.nb_adapter.job.logger.warning.assert_called_with(
-            "Unable to load building Missing for floor HQ - Floor 1. "
-        )
+        self.nb_adapter.job.logger.warning.assert_called_with("Unable to load Site Missing for Floor HQ - Floor 1. ")
 
     def test_sync_complete(self):
         """Test the sync_complete() method in the NautobotAdapter."""

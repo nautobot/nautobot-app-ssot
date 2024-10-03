@@ -10,10 +10,11 @@ class Building(DiffSyncModel):
     """Base Building model."""
 
     _modelname = "building"
-    _identifiers = ("name",)
+    _identifiers = ("name", "location_type")
     _attributes = ("address", "latitude", "longitude", "contact_name", "contact_phone", "tags", "custom_fields")
     _children = {"room": "rooms"}
     name: str
+    location_type: str
     address: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
@@ -29,11 +30,12 @@ class Room(DiffSyncModel):
     """Base Room model."""
 
     _modelname = "room"
-    _identifiers = ("name", "building")
+    _identifiers = ("name", "building", "building_loctype")
     _attributes = ("notes", "custom_fields")
     _children = {"rack": "racks"}
     name: str
     building: str
+    building_loctype: str
     notes: Optional[str] = None
     racks: List["Rack"] = []
     custom_fields: Optional[dict] = None
