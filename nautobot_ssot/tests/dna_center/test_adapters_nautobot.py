@@ -313,9 +313,7 @@ class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many
         self.nb_adapter.get = MagicMock()
         self.nb_adapter.get.side_effect = [ObjectNotFound()]
         self.nb_adapter.load_floors()
-        self.nb_adapter.job.logger.warning.assert_called_with(
-            "Unable to load Site Missing for Floor HQ - Floor 1. "
-        )
+        self.nb_adapter.job.logger.warning.assert_called_with("Unable to load Site Missing for Floor HQ - Floor 1. ")
 
     def test_sync_complete(self):
         """Test the sync_complete() method in the NautobotAdapter."""
