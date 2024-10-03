@@ -7,7 +7,11 @@ This App will sync data from YAML files into Nautobot to create baseline environ
 
 ## Installation
 
-Add the Nautobot SSoT App to your poetry environment `poetry install nautobot-ssot`, then configure your `nautobot_config.py` to include the app and the settings.
+Before configuring the integration, please ensure, that `nautobot-ssot` app was [installed with Bootstrap integration extra dependencies](../install.md#install-guide).
+
+```shell
+pip install nautobot-ssot[bootstrap]
+```
 
 
 ### nautobot_config.py
