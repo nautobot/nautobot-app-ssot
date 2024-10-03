@@ -66,6 +66,8 @@ The final step before running the Job is to create a Controller that references 
 
 With those configured, you will then need to define a LocationType to use for each DNA Center location type of Areas, Buildings, and Floors. With those created, you can run the Job to start the synchronization:
 
+> When creating the Area LocationType you must check the "Nestable" option.
+
 ![Job Form](../../images/dnac_job_form.png)
 
 If you wish to just test the synchronization but not have any data created in Nautobot you'll want to select the `Dryrun` toggle. Clicking the `Debug` toggle will enable more verbose logging to inform you of what is occuring behind the scenes. Finally, the `Bulk import` option will enable bulk create and update operations to be used when the synchronization is complete. This can improve performance times for the integration by forsaking validation of the imported data. Be aware that this could potentially cause bad data to be pushed into Nautobot. After those toggles there are also dropdowns that allow you to specify the DNA Center Controller to synchronize with and to define the LocationTypes to use for the imported Areas, Buildings, and Floors from DNA Center. In addition, there are also some optional settings on the Job form:
