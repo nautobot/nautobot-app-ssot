@@ -1,0 +1,1 @@
+Bug in IP Fabric that causes some network columns to return host bits set; changed `ip_network` to use `strict=False`.

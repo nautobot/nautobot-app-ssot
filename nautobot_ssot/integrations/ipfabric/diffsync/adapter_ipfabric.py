@@ -120,7 +120,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             filters={"net": ["empty", False], "siteName": ["empty", False]},
             columns=["net", "siteName"],
         ):
-            networks[network["siteName"]].append(ipaddress.ip_network(network["net"]))
+            # IPF bug NIM-15635 Fix Version 7.0: 'net' column has host bits set.
+            networks[network["siteName"]].append(ipaddress.ip_network(network["net"], strict=False))
         for location in self.get_all(self.location):
             if location.name is None:
                 continue
