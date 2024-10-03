@@ -78,7 +78,6 @@ class DnaCenterAdapter(Adapter):
                 ids={
                     "name": self.job.dnac.location.name,
                     "building": self.job.dnac.location.parent.name,
-                    "location_type": self.job.floor_loctype.name,
                 },
                 attrs={
                     "tenant": self.job.dnac.location.tenant.name if self.job.dnac.location.tenant else None,
@@ -93,7 +92,6 @@ class DnaCenterAdapter(Adapter):
                 self.building,
                 ids={
                     "name": self.job.dnac.location.parent.parent.name,
-                    "location_type": self.job.area_loctype.name,
                     "parent": (
                         self.job.dnac.location.parent.parent.parent.name
                         if self.job.dnac.location.parent.parent.parent
@@ -106,10 +104,12 @@ class DnaCenterAdapter(Adapter):
         if self.job.dnac.location.location_type == self.job.building_loctype:
             self.get_or_instantiate(
                 self.building,
-                ids={"name": self.job.dnac.location.name, "location_type": self.job.building_loctype.name},
+                ids={
+                    "name": self.job.dnac.location.name,
+                    "area": self.job.dnac.location.parent.name if self.job.dnac.location.parent else None,
+                },
                 attrs={
                     "address": self.job.dnac.location.physical_address,
-                    "area": self.job.dnac.location.parent.name if self.job.dnac.location.parent else None,
                     "area_parent": (
                         self.job.dnac.location.parent.parent.name
                         if self.job.dnac.location.parent and self.job.dnac.location.parent.parent
@@ -126,7 +126,6 @@ class DnaCenterAdapter(Adapter):
                 self.area,
                 ids={
                     "name": self.job.dnac.location.parent.name,
-                    "location_type": self.job.area_loctype.name,
                     "parent": (
                         self.job.dnac.location.parent.parent.name if self.job.dnac.location.parent.parent else None
                     ),
@@ -141,7 +140,6 @@ class DnaCenterAdapter(Adapter):
                 self.area,
                 ids={
                     "name": self.job.dnac.location.parent.parent.name,
-                    "location_type": self.job.area_loctype.name,
                     "parent": (
                         self.job.dnac.location.parent.parent.parent.name
                         if self.job.dnac.location.parent.parent.parent
@@ -167,16 +165,18 @@ class DnaCenterAdapter(Adapter):
                 self.dnac_location_map[location["id"]]["parent"] = parent_name
             _, loaded = self.get_or_instantiate(
                 self.area,
-                ids={"name": location["name"], "location_type": self.job.area_loctype.name, "parent": parent_name},
+                ids={"name": location["name"], "parent": parent_name},
                 attrs={
                     "uuid": None,
                 },
             )
             if loaded:
                 if self.job.debug:
-                    self.job.logger.info(f"Loaded area {location['name']}. {location}")
+                    self.job.logger.info(f"Loaded {self.job.area_loctype.name} {location['name']}. {location}")
             else:
-                self.job.logger.warning(f"Duplicate area {location['name']} attempting to be loaded.")
+                self.job.logger.warning(
+                    f"Duplicate {self.job.area_loctype.name} {location['name']} attempting to be loaded."
+                )
 
     def load_buildings(self, buildings: List[dict]):
         """Load building data from DNAC into DiffSync model.
@@ -185,22 +185,23 @@ class DnaCenterAdapter(Adapter):
             buildings (List[dict]): List of dictionaries containing location information about a building.
         """
         for location in buildings:
+            if location["parentId"] in self.dnac_location_map:
+                _area = self.dnac_location_map[location["parentId"]]
+            else:
+                _area = {"name": "Global", "parent": None}
             try:
-                self.get(self.building, {"name": location["name"], "location_type": self.job.building_loctype.name})
-                self.job.logger.warning(f"Building {location['name']} already loaded so skipping.")
+                self.get(self.building, {"name": location["name"], "area": _area["name"]})
+                self.job.logger.warning(
+                    f"{self.job.building_loctype.name} {location['name']} already loaded so skipping."
+                )
                 continue
             except ObjectNotFound:
                 if self.job.debug:
-                    self.job.logger.info(f"Loading building {location['name']}. {location}")
+                    self.job.logger.info(f"Loading {self.job.building_loctype.name} {location['name']}. {location}")
                 address, _ = self.conn.find_address_and_type(info=location["additionalInfo"])
                 latitude, longitude = self.conn.find_latitude_and_longitude(info=location["additionalInfo"])
-                if location["parentId"] in self.dnac_location_map:
-                    _area = self.dnac_location_map[location["parentId"]]
-                else:
-                    _area = {"name": "Global", "parent": None}
                 new_building = self.building(
                     name=location["name"],
-                    location_type=self.job.building_loctype.name,
                     address=address if address else "",
                     area=_area["name"],
                     area_parent=_area["parent"],
@@ -232,13 +233,12 @@ class DnaCenterAdapter(Adapter):
             try:
                 self.get(
                     self.floor,
-                    {"name": floor_name, "building": _building["name"], "location_type": self.job.floor_loctype.name},
+                    {"name": floor_name, "building": _building["name"]},
                 )
                 self.job.logger.warning(f"Duplicate Floor {floor_name} attempting to be loaded.")
             except ObjectNotFound:
                 new_floor = self.floor(
                     name=floor_name,
-                    location_type=self.job.floor_loctype.name,
                     building=_building["name"],
                     tenant=self.tenant.name if self.tenant else None,
                     uuid=None,
@@ -247,7 +247,8 @@ class DnaCenterAdapter(Adapter):
                     self.add(new_floor)
                     try:
                         parent = self.get(
-                            self.building, {"name": _building["name"], "location_type": self.job.building_loctype.name}
+                            self.building,
+                            {"name": _building["name"], "area": self.dnac_location_map[location["parentId"]]["parent"]},
                         )
                         parent.add_child(new_floor)
                     except ObjectNotFound as err:

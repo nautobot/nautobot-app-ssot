@@ -10,12 +10,11 @@ class Area(DiffSyncModel):
     """DiffSync model for DNA Center areas."""
 
     _modelname = "area"
-    _identifiers = ("name", "location_type", "parent")
+    _identifiers = ("name", "parent")
     _attributes = ()
     _children = {}
 
     name: str
-    location_type: str
     parent: Optional[str] = None
 
     uuid: Optional[UUID] = None
@@ -25,12 +24,11 @@ class Building(DiffSyncModel):
     """DiffSync model for DNA Center buildings."""
 
     _modelname = "building"
-    _identifiers = ("name", "location_type")
-    _attributes = ("address", "area", "area_parent", "latitude", "longitude", "tenant")
+    _identifiers = ("name", "area")
+    _attributes = ("address", "area_parent", "latitude", "longitude", "tenant")
     _children = {"floor": "floors"}
 
     name: str
-    location_type: str
     address: Optional[str] = None
     area: str
     area_parent: Optional[str] = None
@@ -46,12 +44,11 @@ class Floor(DiffSyncModel):
     """DiffSync model for DNA Center floors."""
 
     _modelname = "floor"
-    _identifiers = ("name", "building", "location_type")
+    _identifiers = ("name", "building")
     _attributes = ("tenant",)
     _children = {}
 
     name: str
-    location_type: str
     building: str
     tenant: Optional[str] = None
 
