@@ -150,20 +150,24 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
         """Validate the LocationTypes specified are related and configured correctly."""
         if not self.area_loctype.nestable:
             self.logger.error("Area LocationType is not nestable.")
-            raise ConfigurationError("Area LocationType is not nestable.")
+            raise ConfigurationError(f"{self.area_loctype.name} LocationType is not nestable.")
         if self.building_loctype.parent != self.area_loctype:
             self.logger.error(
-                f"LocationType {self.area_loctype.name} is not the parent of {self.building_loctype.name} LocationType. The Area and Building LocationTypes specified must be related."
+                "LocationType %s is not the parent of %s LocationType. The Area and Building LocationTypes specified must be related.",
+                self.area_loctype.name,
+                self.building_loctype.name,
             )
             raise ConfigurationError(
-                f"{self.area_loctype.name} is not parent to {self.building_loctype.name}. Please correct."
+                f"{self.area_loctype.name} is not parent to {self.building_loctype.name}. Please correct.",
             )
         if self.floor_loctype.parent != self.building_loctype:
             self.logger.error(
-                f"LocationType {self.building_loctype.name} is not the parent of {self.floor_loctype.name} LocationType. The Building and Floor LocationTypes specified must be related."
+                "LocationType %s is not the parent of %s LocationType. The Building and Floor LocationTypes specified must be related.",
+                self.building_loctype.name,
+                self.floor_loctype.name,
             )
             raise ConfigurationError(
-                f"{self.building_loctype.name} is not parent to {self.floor_loctype.name}. Please correct."
+                f"{self.building_loctype.name} is not parent to {self.floor_loctype.name}. Please correct.",
             )
 
     def run(
