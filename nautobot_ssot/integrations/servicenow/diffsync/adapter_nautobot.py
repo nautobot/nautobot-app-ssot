@@ -63,6 +63,7 @@ class NautobotDiffSync(Adapter):
             ancestor = self.site_filter.parent
             while ancestor is not None:
                 locations.insert(0, ancestor)
+                ancestor = ancestor.parent
         else:
             locations = Location.objects.all()
 
