@@ -4,7 +4,7 @@ import logging
 
 from nautobot.dcim.models import Controller, ControllerManagedDeviceGroup
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
-from nautobot.extras.models import SecretsGroup
+from nautobot.extras.models import CustomField, SecretsGroup
 
 logger = logging.getLogger("nautobot.ssot")
 
@@ -38,3 +38,13 @@ def verify_controller_managed_device_group(controller: Controller) -> Controller
     return ControllerManagedDeviceGroup.objects.get_or_create(
         controller=controller, defaults={"name": f"{controller.name} Managed Devices"}
     )[0]
+
+
+def create_or_update_custom_field(key, field_type, label):
+    """Create or update a custom field object."""
+    cf_dict = {
+        "type": field_type,
+        "key": key,
+        "label": label,
+    }
+    return CustomField.objects.update_or_create(key=cf_dict["key"], defaults=cf_dict)
