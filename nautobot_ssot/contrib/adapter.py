@@ -168,6 +168,10 @@ class NautobotAdapter(Adapter):
             raise ValueError("'top_level' needs to be set on the class.")
 
         for model_name in self.top_level:
+            if hasattr(self, f"load_{model_name}"):
+                getattr(self, f"load_{model_name}")()
+                continue
+
             diffsync_model = self._get_diffsync_class(model_name)
 
             # This function directly mutates the diffsync store, i.e. it will create and load the objects
