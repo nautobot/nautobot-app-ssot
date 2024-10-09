@@ -208,6 +208,53 @@ class NautobotAdapterTests(TestCase):
         self.assertEqual(new_tenant_name, diffsync_tenant.name)
 
 
+class NautobotAdapterTestCustomModelLoad(TestCaseWithDeviceData):
+    """methods for testing custom model loading."""
+
+    def standard_adapter(self):
+        """Return standard test adapter."""
+        class Adapter(NautobotAdapter):
+            """Adapter for loading a device."""
+
+            top_level = ("device",)
+            device = NautobotDevice
+
+        return Adapter(job=MagicMock())
+    
+    def custom_adapter(self):
+        """Return test adapter with custom model loading."""
+        class Adapter(NautobotAdapter):
+            """Adapter for loading a device."""
+
+            top_level = ("device",)
+            device = NautobotDevice
+
+            def load_device(self):
+                """"""
+                diffsync_model = self._get_diffsync_class("device")
+                self._load_objects(diffsync_model)
+                self.test_attr = True
+
+        return Adapter(job=MagicMock())
+    
+    def test_standard_model_load(self):
+        """Test to to validate standard loading."""
+        device = dcim_models.Device.objects.first()
+        adapter = self.standard_adapter()
+        adapter.load()
+        diffsync_device = adapter.get(NautobotDevice, {"name": device.name})
+        self.assertEqual(device.name, diffsync_device.name)
+
+    def test_custom_model_load(self):
+        """Test to to validate custom loading."""
+        device = dcim_models.Device.objects.first()
+        adapter = self.custom_adapter()
+        adapter.load()
+        diffsync_device = adapter.get(NautobotDevice, {"name": device.name})
+        self.assertEqual(device.name, diffsync_device.name)
+        self.assertTrue(adapter.test_attr)
+
+
 class CustomRelationShipTestAdapterSource(NautobotAdapter):
     """Adapter for testing custom relationship support."""
 
