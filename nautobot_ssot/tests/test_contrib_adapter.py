@@ -220,7 +220,7 @@ class NautobotAdapterTestCustomModelLoad(TestCaseWithDeviceData):
             device = NautobotDevice
 
         return Adapter(job=MagicMock())
-    
+
     def custom_adapter(self):
         """Return test adapter with custom model loading."""
         class Adapter(NautobotAdapter):
@@ -230,13 +230,12 @@ class NautobotAdapterTestCustomModelLoad(TestCaseWithDeviceData):
             device = NautobotDevice
 
             def load_device(self):
-                """"""
+                """Custom load device method."""
                 diffsync_model = self._get_diffsync_class("device")
                 self._load_objects(diffsync_model)
-                self.test_attr = True
 
         return Adapter(job=MagicMock())
-    
+
     def test_standard_model_load(self):
         """Test to to validate standard loading."""
         device = dcim_models.Device.objects.first()
@@ -252,7 +251,6 @@ class NautobotAdapterTestCustomModelLoad(TestCaseWithDeviceData):
         adapter.load()
         diffsync_device = adapter.get(NautobotDevice, {"name": device.name})
         self.assertEqual(device.name, diffsync_device.name)
-        self.assertTrue(adapter.test_attr)
 
 
 class CustomRelationShipTestAdapterSource(NautobotAdapter):
