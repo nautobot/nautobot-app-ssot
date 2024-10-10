@@ -14,7 +14,7 @@ To avoid extra work and temporary links, make sure that publishing docs (or merg
   <img src="https://raw.githubusercontent.com/nautobot/nautobot-app-ssot/develop/docs/images/icon-nautobot-ssot.png" class="logo" height="200px">
   <br>
   <a href="https://github.com/nautobot/nautobot-app-ssot/actions"><img src="https://github.com/nautobot/nautobot-app-ssot/actions/workflows/ci.yml/badge.svg?branch=main"></a>
-  <a href="https://docs.nautobot.com/projects/ssot/en/latest/"><img src="https://readthedocs.org/projects/nautobot-plugin-ssot/badge/"></a>
+  <a href="https://docs.nautobot.com/projects/ssot/en/latest/"><img src="https://readthedocs.org/projects/nautobot-app-ssot/badge/"></a>
   <a href="https://pypi.org/project/nautobot-ssot/"><img src="https://img.shields.io/pypi/v/nautobot-ssot"></a>
   <a href="https://pypi.org/project/nautobot-ssot/"><img src="https://img.shields.io/pypi/dm/nautobot-ssot"></a>
   <br>
