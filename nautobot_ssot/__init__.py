@@ -115,15 +115,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "servicenow_username": "",
     }
     caching_config = {}
-    config_view_name = "plugins:nautobot_ssot:config"
-
-    def ready(self):
-        """Trigger callback when database is ready."""
-        super().ready()
-
-        for module in each_enabled_integration_module("signals"):
-            logger.debug("Registering signals for %s", module.__file__)
-            module.register_signals(self)
+    docs_view_name = "plugins:nautobot_ssot:docs"
 
 
 config = NautobotSSOTAppConfig  # pylint:disable=invalid-name
