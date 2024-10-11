@@ -56,9 +56,10 @@ class MySSoTRemoteAdapter(Adapter):
     vlan = VLANModel
     top_level = ("vlan",)
 
-    def __init__(self, *args, api_client, **kwargs):
+    def __init__(self, *args, api_client, job=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.api_client = api_client
+        self.job = job
 
     def load(self):
         for vlan in self.api_client.get_vlans():
@@ -76,7 +77,7 @@ class ExampleDataSource(DataSource, Job):
         self.source_adapter.load()
 
     def load_target_adapter(self):
-        self.target_adapter = MySSoTNautobotAdapter()
+        self.target_adapter = MySSoTNautobotAdapter(job=self)
         self.target_adapter.load()
 
 jobs = [ExampleDataSource]
