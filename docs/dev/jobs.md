@@ -73,7 +73,7 @@ class ExampleDataSource(DataSource, Job):
         name = "Example Data Source"
 
     def load_source_adapter(self):
-        self.source_adapter = MySSoTRemoteAdapter(api_client=APIClient())
+        self.source_adapter = MySSoTRemoteAdapter(api_client=APIClient(), job=self)
         self.source_adapter.load()
 
     def load_target_adapter(self):
