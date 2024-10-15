@@ -185,22 +185,15 @@ def run_command(context, command, **kwargs):
     """Wrapper to run a command locally or inside the nautobot container."""
     env = _read_command_env(kwargs.pop("env", None))
     if is_truthy(context.nautobot_ssot.local):
-        if "command_env" in kwargs:
-            kwargs["env"] = {
-                **kwargs.get("env", {}),
-                **kwargs.pop("command_env"),
-            }
-        return context.run(command, **kwargs)
+        return context.run(command, **kwargs, env=env)
     else:
         # Check if nautobot is running, no need to start another nautobot container to run a command
         docker_compose_status = "ps --services --filter status=running"
         results = docker_compose(context, docker_compose_status, hide="out")
 
         command_env_args = ""
-        if "command_env" in kwargs:
-            command_env = kwargs.pop("command_env")
-            for key, value in command_env.items():
-                command_env_args += f' --env="{key}={value}"'
+        for env_name in env:
+            command_env_args += f" --env={env_name}"
 
         if "nautobot" in results.stdout:
             compose_command = f"exec{command_env_args} nautobot {command}"
@@ -209,7 +202,7 @@ def run_command(context, command, **kwargs):
 
         pty = kwargs.pop("pty", True)
 
-        docker_compose(context, compose_command, pty=pty, **kwargs)
+        return docker_compose(context, compose_command, **kwargs, pty=pty, env=env)
 
 
 # ------------------------------------------------------------------------------
@@ -289,7 +282,9 @@ def lock(context, check=False, constrain_nautobot_ver=False, constrain_python_ve
             print(output.stderr, file=sys.stderr, end="")
         except UnexpectedExit:
             print("Unable to add Nautobot dependency with version constraint, falling back to git branch.")
-            command = f"poetry add --lock git+https://github.com/nautobot/nautobot.git#{context.nautobot_ssot.nautobot_ver}"
+            command = (
+                f"poetry add --lock git+https://github.com/nautobot/nautobot.git#{context.nautobot_ssot.nautobot_ver}"
+            )
             if constrain_python_ver:
                 command += f" --python {context.nautobot_ssot.python_ver}"
             run_command(context, command)
