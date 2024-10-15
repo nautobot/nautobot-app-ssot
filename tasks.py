@@ -192,9 +192,15 @@ def run_command(context, command, **kwargs):
             }
         return context.run(command, **kwargs)
     else:
-        compose_command = f"run{command_env_args} --rm --entrypoint='{command}' nautobot"
+        # Check if nautobot is running, no need to start another nautobot container to run a command
+        docker_compose_status = "ps --services --filter status=running"
+        results = docker_compose(context, docker_compose_status, hide="out")
 
-    pty = kwargs.pop("pty", True)
+        command_env_args = ""
+        if "command_env" in kwargs:
+            command_env = kwargs.pop("command_env")
+            for key, value in command_env.items():
+                command_env_args += f' --env="{key}={value}"'
 
         if "nautobot" in results.stdout:
             compose_command = f"exec{command_env_args} nautobot {command}"
@@ -203,7 +209,7 @@ def run_command(context, command, **kwargs):
 
         pty = kwargs.pop("pty", True)
 
-        return docker_compose(context, compose_command, pty=pty, **kwargs)
+        docker_compose(context, compose_command, pty=pty, **kwargs)
 
 
 # ------------------------------------------------------------------------------
@@ -278,7 +284,6 @@ def lock(context, check=False, constrain_nautobot_ver=False, constrain_python_ve
         if constrain_python_ver:
             command += f" --python {context.nautobot_ssot.python_ver}"
         try:
-            run_command(context, command, hide=True)
             output = run_command(context, command, hide=True)
             print(output.stdout, end="")
             print(output.stderr, file=sys.stderr, end="")
