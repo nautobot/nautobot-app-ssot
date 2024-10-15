@@ -126,4 +126,5 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
             logger.debug("Registering signals for %s", module.__file__)
             module.register_signals(self)
 
+
 config = NautobotSSOTAppConfig  # pylint:disable=invalid-name
