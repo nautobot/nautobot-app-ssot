@@ -135,7 +135,34 @@ class YourSSoTNautobotAdapter(NautobotAdapter):
 
 The `load` function is already implemented on this adapter and will automatically and recursively traverse any children relationships for you, provided the models are [defined correctly](../user/modeling.md).
 
-Developers are able to override the default loading of basic parameters to control how that parameter is loaded from Nautobot.
+
+#### 2.1.1 - Override Model Loading
+
+Developers are able to override the default loading of `top_level` models to control how that model is loaded from Nautobot. 
+
+This is recommended only if overriding the `_get_queryset()` method in the DiffSync model does not achieve the desired results.
+
+To override a top level model load, add `load_{model_name}(self)` to the Nautobot adapter class.
+
+```python
+from nautobot_ssot.contrib import NautobotAdapter
+
+class YourSSoTNautobotAdapter(NautobotAdapter):
+
+    top_level = [
+        "prefix",
+        "ip_address",
+    ]
+    ...
+    def load_ip_address(self):
+        """Custom loader for `ip_address` models."""
+        # Custom load logic
+```
+
+
+#### 2.1.2 - Override Parameter Loading
+
+Developers are also able to override the default loading of basic parameters to control how that parameter is loaded from Nautobot.
 
 This only works with basic parameters belonging to the model and does not override more complex parameters (foreign keys, custom fields, custom relationships, etc.).
 
