@@ -485,7 +485,9 @@ class BootstrapAdapter(Adapter, LabelMixin):
     def load_circuit_termination(self, bs_circuit_termination, branch_vars):
         """Load CircuitTermination objects from Bootstrap into DiffSync models."""
         if self.job.debug:
-            self.job.logger.debug(f"Loading Bootstrap CircuitTermination {bs_circuit_termination} into DiffSync models.")
+            self.job.logger.debug(
+                f"Loading Bootstrap CircuitTermination {bs_circuit_termination} into DiffSync models."
+            )
         _parts = bs_circuit_termination["name"].split("__")
         _circuit_id = _parts[0]
         _provider = _parts[1]

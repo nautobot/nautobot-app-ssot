@@ -1,6 +1,8 @@
 """Django urlpatterns declaration for nautobot_ssot app."""
 
+from django.templatetags.static import static
 from django.urls import path
+from django.views.generic import RedirectView
 
 from . import views
 from .integrations.utils import each_enabled_integration_module
@@ -17,6 +19,7 @@ urlpatterns = [
     path("history/<uuid:pk>/logs/", views.SyncLogEntriesView.as_view(), name="sync_logentries"),
     path("logs/", views.SyncLogEntryListView.as_view(), name="synclogentry_list"),
     path("config/", views.SSOTConfigView.as_view(), name="config"),
+    path("docs/", RedirectView.as_view(url=static("nautobot_ssot/docs/index.html")), name="docs"),
 ]
 
 

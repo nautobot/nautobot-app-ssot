@@ -360,7 +360,9 @@ class NautobotAdapter(Adapter):
         """Method to load LocationType objects from Nautobot into NautobotLocationType DiffSync models."""
         for nb_location_type in LocationType.objects.all():
             if self.job.debug:
-                self.job.logger.debug(f"Loading Nautobot LocationType: {nb_location_type}, with ID {nb_location_type.id}")
+                self.job.logger.debug(
+                    f"Loading Nautobot LocationType: {nb_location_type}, with ID {nb_location_type.id}"
+                )
             try:
                 self.get(self.location_type, nb_location_type.name)
             except ObjectNotFound:
