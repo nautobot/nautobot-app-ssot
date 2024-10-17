@@ -4,6 +4,7 @@
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
 from collections import defaultdict
+from contextlib import contextmanager
 from typing import DefaultDict, Dict, FrozenSet, Hashable, Tuple, Type, get_args
 
 from diffsync.diff import Diff
@@ -39,6 +40,17 @@ from nautobot_ssot.contrib.types import (
 ParameterSet = FrozenSet[Tuple[str, Hashable]]
 
 
+@contextmanager
+def pre_post_signals(model_class, models):
+    for model in models:
+        signals.pre_save.send(sender=model_class, instance=model)
+
+    yield models
+    for model in models:
+        model.full_clean()
+        signals.post_save.send(sender=model_class, instance=model)
+
+
 class NautobotAdapter(Adapter):
     """
     Adapter for loading data from Nautobot through the ORM.
@@ -49,17 +61,18 @@ class NautobotAdapter(Adapter):
     # This dictionary acts as an ORM cache.
     _cache: DefaultDict[str, Dict[ParameterSet, Model]]
     _cache_hits: DefaultDict[str, int] = defaultdict(int)
-    bulk_create_interval = 0
+    bulk_operation_interval = 0
 
     def __init__(self, *args, job, sync=None, **kwargs):
         """Instantiate this class, but do not load data immediately from the local system."""
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
-        self.bulk_create_index = None
-        self.bulk_create_count = 0
-        if self.bulk_create_interval > 0:
-            self.bulk_create_index = defaultdict(list)
+        self.bulk_operation_interval = 0
+        self.bulk_create_queue = []
+        self.bulk_update_queue = []
+        self.last_model_class = None
+        self.last_model_fields = None
         self.invalidate_cache()
 
     def invalidate_cache(self, zero_out_hits=True):
@@ -68,38 +81,47 @@ class NautobotAdapter(Adapter):
         if zero_out_hits:
             self._cache_hits = defaultdict(int)
 
-    def bulk_create(self, model_class, models):
-        with transaction.atomic():
-            for model in models:
-                signals.pre_save.send(sender=model_class, instance=model)
+    def bulk_save(self, model, attributes):
+        model_class = model.__class__
+        if model_class is not self.last_model_class:
+            self.flush_bulk_create()
+            self.flush_bulk_update()
+            self.last_model_fields = [attr.split("__", 1)[0] for attr in attributes]
 
-            model_class.objects.bulk_create(models)
-            for model in models:
-                model.full_clean()
-                signals.post_save.send(sender=model_class, instance=model)
+        if model._state.adding:
+            self.bulk_create_queue.append(model)
+        else:
+            self.bulk_update_queue.append(model)
+
+        if len(self.bulk_create_queue) >= self.bulk_operation_interval:
+            self.flush_bulk_create()
+        if len(self.bulk_update_queue) >= self.bulk_operation_interval:
+            self.flush_bulk_update()
+        self.last_model_class = model_class
+
+    def flush_bulk_create(self):
+        if not self.bulk_create_queue:
+            return
+
+        model_class = self.bulk_create_queue[0].__class__
+        with transaction.atomic():
+            with pre_post_signals(model_class, self.bulk_create_queue):
+                model_class.objects.bulk_create(self.bulk_create_queue)
+            self.bulk_create_queue.clear()
+
+    def flush_bulk_update(self):
+        if not self.bulk_update_queue:
+            return
+        model_class = self.bulk_update_queue[0].__class__
+        with transaction.atomic():
+            with pre_post_signals(model_class, self.bulk_update_queue):
+                model_class.objects.bulk_update(self.bulk_update_queue, self.last_model_fields)
+            self.bulk_update_queue.clear()
 
     def sync_complete(self, source: Adapter, diff: Diff, flags: DiffSyncFlags = DiffSyncFlags.NONE, logger: BoundLogger | None = None) -> None:
-        if self.bulk_create_count > 0:
-            for model_class, models in self.bulk_create_index.items():
-                if models:
-                    self.bulk_create(model_class, models)
+        self.flush_bulk_create()
+        self.flush_bulk_update()
         return super().sync_complete(source, diff, flags, logger)
-
-    def save(self, obj):
-        obj.validated_save()
-
-    def create(self, obj):
-        if self.bulk_create_interval > 0:
-            self.bulk_create_index[obj.__class__].append(obj)
-            self.bulk_create_count += 1
-            if self.bulk_create_count == self.bulk_create_interval:
-                for model_class, models in self.bulk_create_index.items():
-                    if models:
-                        self.bulk_create(model_class, models)
-                        models.clear()
-                self.bulk_create_count = 0
-        else:
-            obj.validated_save()
 
     def get_from_orm_cache(self, parameters: Dict, model_class: Type[Model]):
         """Retrieve an object from the ORM or the cache."""
