@@ -67,5 +67,5 @@ class Migration(migrations.Migration):
                 "abstract": False,
             },
         ),
-        migrations.RunPython(_move_data),
+        migrations.RunPython(code=_move_data, reverse_code=migrations.RunPython.noop),
     ]
