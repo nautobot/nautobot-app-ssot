@@ -56,7 +56,7 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
                 call_creds = grpc.access_token_call_credentials(token)
             elif config.cvp_user != "" and config.cvp_password != "":
                 response = requests.post(
-                    f"{parsed_url.hostname}:{parsed_url.port}/cvpservice/login/authenticate.do",
+                    f"{parsed_url.scheme}://{parsed_url.hostname}:{parsed_url.port}/cvpservice/login/authenticate.do",
                     auth=(config.cvp_user, config.cvp_password),
                     timeout=60,
                     verify=config.verify_ssl,
