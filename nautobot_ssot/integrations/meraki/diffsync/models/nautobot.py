@@ -138,7 +138,7 @@ class NautobotDevice(Device):
             role_id=adapter.devicerole_map[attrs["role"]],
             device_type_id=adapter.devicetype_map[attrs["model"]],
             location=adapter.site_map[attrs["network"]],
-            controller_managed_device_group=adapter.job.instance.controller_group,
+            controller_managed_device_group=adapter.job.instance.controller_managed_device_groups.first(),
         )
         if attrs.get("notes"):
             new_note = Note(
@@ -170,7 +170,7 @@ class NautobotDevice(Device):
         """Update Device in Nautobot from NautobotDevice object."""
         device = NewDevice.objects.get(id=self.uuid)
         if "controller_group" in attrs:
-            device.controller_managed_device_group = self.adapter.job.instance.controller_group
+            device.controller_managed_device_group = self.adapter.job.instance.controller_managed_device_groups.first()
         if "serial" in attrs:
             device.serial = attrs["serial"]
         if "status" in attrs:

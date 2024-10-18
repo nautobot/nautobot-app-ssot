@@ -107,7 +107,9 @@ class MerakiAdapter(Adapter):
                         self.device,
                         ids={"name": dev["name"]},
                         attrs={
-                            "controller_group": self.job.instance.controller_group.name,
+                            "controller_group": self.job.instance.controller_managed_device_groups.first().name
+                            if self.job.instance.controller_managed_device_groups.count() != 0
+                            else "",
                             "notes": dev["notes"].rstrip(),
                             "serial": dev["serial"],
                             "status": status,

@@ -26,7 +26,7 @@ class MerakiDataSource(DataSource):  # pylint: disable=too-many-instance-attribu
         queryset=Controller.objects.all(),
         description="Controller with ExternalIntegration containing information for connecting to Meraki dashboard.",
         display_field="display",
-        label="Meraki Instance",
+        label="Meraki Controller",
         required=True,
     )
     network_loctype = ObjectVar(
