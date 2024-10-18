@@ -166,7 +166,7 @@ class NautobotDevice(Device):
         adapter.port_map[new_device.name] = {}
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
-    def update(self, attrs):
+    def update(self, attrs):  # pylint: disable=too-many-branches
         """Update Device in Nautobot from NautobotDevice object."""
         device = NewDevice.objects.get(id=self.uuid)
         if "controller_group" in attrs:

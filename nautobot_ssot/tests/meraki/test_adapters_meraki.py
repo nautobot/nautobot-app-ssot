@@ -35,6 +35,10 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         site_loctype.content_types.add(ContentType.objects.get_for_model(Device))
         self.job = MerakiDataSource()
         self.job.logger.warning = MagicMock()
+        self.job.instance = MagicMock()
+        self.job.instance.controller_managed_device_groups = MagicMock()
+        self.job.instance.controller_managed_device_groups.first().name = "Meraki Managed Device Group"
+        self.job.instance.controller_managed_device_groups.count().return_value = 1
         self.job.hostname_mapping = []
         self.job.devicetype_mapping = [("MS", "Switch"), ("MX", "Firewall")]
         self.job.network_loctype = site_loctype
