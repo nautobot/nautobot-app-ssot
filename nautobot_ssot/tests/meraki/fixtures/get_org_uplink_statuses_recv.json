@@ -1,0 +1,66 @@
+{
+    "D7JB-OH13-QFAG": {
+        "networkId": "H_203630551508078460",
+        "serial": "D7JB-OH13-QFAG",
+        "model": "MX400",
+        "highAvailability": {
+            "enabled": true,
+            "role": "spare"
+        },
+        "lastReportedAt": "2877-54-74T26:13:64K",
+        "uplinks": [
+            {
+                "interface": "wan1",
+                "status": "active",
+                "ip": "47.88.30.14",
+                "gateway": "47.88.30.1",
+                "publicIp": "47.88.30.14",
+                "primaryDns": "1.1.1.1",
+                "secondaryDns": "1.0.0.1",
+                "ipAssignedBy": "static"
+            },
+            {
+                "interface": "wan2",
+                "status": "not connected",
+                "ip": null,
+                "gateway": null,
+                "publicIp": null,
+                "primaryDns": null,
+                "secondaryDns": null,
+                "ipAssignedBy": null
+            }
+        ]
+    },
+    "V4GD-ABDP-YVCK": {
+        "networkId": "L_165471703274884707",
+        "serial": "V4GD-ABDP-YVCK",
+        "model": "MX400",
+        "highAvailability": {
+            "enabled": true,
+            "role": "spare"
+        },
+        "lastReportedAt": "7376-34-61L20:55:35X",
+        "uplinks": [
+            {
+                "interface": "wan1",
+                "status": "active",
+                "ip": "36.54.12.32",
+                "gateway": "36.54.12.1",
+                "publicIp": "36.54.12.32",
+                "primaryDns": "1.1.1.1",
+                "secondaryDns": "1.0.0.1",
+                "ipAssignedBy": "static"
+            },
+            {
+                "interface": "wan2",
+                "status": "not connected",
+                "ip": null,
+                "gateway": null,
+                "publicIp": null,
+                "primaryDns": null,
+                "secondaryDns": null,
+                "ipAssignedBy": null
+            }
+        ]
+    }
+}
