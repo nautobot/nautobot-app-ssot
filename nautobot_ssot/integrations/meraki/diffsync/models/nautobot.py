@@ -160,7 +160,7 @@ class NautobotDevice(Device):
         if attrs.get("version"):
             new_device.software_version_id = adapter.version_map[attrs["version"]]
         new_device.cf["system_of_record"] = "Meraki SSoT"
-        new_device.cf["ssot_last_synchronized"] = datetime.today().date().isoformat()
+        new_device.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
         adapter.objects_to_create["devices"].append(new_device)
         adapter.device_map[new_device.name] = new_device.id
         adapter.port_map[new_device.name] = {}
@@ -201,7 +201,7 @@ class NautobotDevice(Device):
         if "version" in attrs:
             device.software_version_id = self.adapter.version_map[attrs["version"]]
         device.cf["system_of_record"] = "Meraki SSoT"
-        device.cf["ssot_last_synchronized"] = datetime.today().date().isoformat()
+        device.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
         device.validated_save()
         return super().update(attrs)
 
@@ -229,7 +229,7 @@ class NautobotPort(Port):
             status_id=adapter.status_map[attrs["port_status"]],
         )
         new_port.custom_field_data["system_of_record"] = "Meraki SSoT"
-        new_port.custom_field_data["ssot_last_synchronized"] = datetime.today().date().isoformat()
+        new_port.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         adapter.objects_to_create["ports"].append(new_port)
         adapter.port_map[ids["device"]][ids["name"]] = new_port.id
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -248,7 +248,7 @@ class NautobotPort(Port):
         if "port_status" in attrs:
             port.status_id = self.adapter.status_map[attrs["port_status"]]
         port.custom_field_data["system_of_record"] = "Meraki SSoT"
-        port.custom_field_data["ssot_last_synchronized"] = datetime.today().date().isoformat()
+        port.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         port.validated_save()
         return super().update(attrs)
 
@@ -275,7 +275,7 @@ class NautobotPrefix(Prefix):
         if attrs.get("location"):
             adapter.objects_to_create["prefix_locs"].append((new_pf.id, adapter.site_map[attrs["location"]]))
         new_pf.custom_field_data["system_of_record"] = "Meraki SSoT"
-        new_pf.custom_field_data["ssot_last_synchronized"] = datetime.today().date().isoformat()
+        new_pf.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         adapter.objects_to_create["prefixes"].append(new_pf)
         adapter.prefix_map[ids["prefix"]] = new_pf.id
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -294,7 +294,7 @@ class NautobotPrefix(Prefix):
             else:
                 prefix.tenant = None
         prefix.custom_field_data["system_of_record"] = "Meraki SSoT"
-        prefix.custom_field_data["ssot_last_synchronized"] = datetime.today().date().isoformat()
+        prefix.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         prefix.validated_save()
         return super().update(attrs)
 
@@ -321,7 +321,7 @@ class NautobotIPAddress(IPAddress):
         )
         adapter.objects_to_create["ipaddrs-to-prefixes"].append((new_ip, adapter.prefix_map[ids["prefix"]]))
         new_ip.cf["system_of_record"] = "Meraki SSoT"
-        new_ip.cf["ssot_last_synchronized"] = datetime.today().date().isoformat()
+        new_ip.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
         adapter.objects_to_create["ipaddrs"].append(new_ip)
         if namespace not in adapter.ipaddr_map:
             adapter.ipaddr_map[namespace] = {}
@@ -337,7 +337,7 @@ class NautobotIPAddress(IPAddress):
             else:
                 ipaddr.tenant = None
         ipaddr.cf["system_of_record"] = "Meraki SSoT"
-        ipaddr.cf["ssot_last_synchronized"] = datetime.today().date().isoformat()
+        ipaddr.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
         ipaddr.validated_save()
         return super().update(attrs)
 
