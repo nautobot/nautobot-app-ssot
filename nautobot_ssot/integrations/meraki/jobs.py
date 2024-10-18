@@ -81,6 +81,17 @@ class MerakiDataSource(DataSource):  # pylint: disable=too-many-instance-attribu
         data_source = "Meraki"
         data_target = "Nautobot"
         description = "Sync information from Meraki to Nautobot"
+        field_order = [
+            "dryrun",
+            "debug",
+            "instance",
+            "network_loctype",
+            "parent_location",
+            "location_map",
+            "hostname_mapping",
+            "devicetype_mapping",
+            "tenant",
+        ]
 
     @classmethod
     def config_information(cls):
