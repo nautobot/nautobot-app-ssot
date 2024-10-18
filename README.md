@@ -43,16 +43,19 @@ Read more about integrations [here](https://docs.nautobot.com/projects/ssot/en/l
 ---
 
 The dashboard view of the app.
+
 ![Dashboard View](https://raw.githubusercontent.com/nautobot/nautobot-app-ssot/develop/docs/images/dashboard_initial.png)
 
 ---
 
 The detailed view of the example data source that is prepackaged within this app.
+
 ![Data Source Detail View](https://raw.githubusercontent.com/nautobot/nautobot-app-ssot/develop/docs/images/data_source_detail.png)
 
 ---
 
 The detailed view of an executed sync.
+
 ![Sync Detail View](https://raw.githubusercontent.com/nautobot/nautobot-app-ssot/develop/docs/images/sync_detail.png)
 
 ---
@@ -84,6 +87,7 @@ The SSoT framework includes a number of integrations with external Systems of Re
 * Cisco DNA Center
 * Infoblox
 * Itential
+* Cisco Meraki
 * ServiceNow
 
 > Note that the Arista CloudVision integration is currently incompatible with the [Arista Labs](https://labs.arista.com/) environment due to a TLS issue. It has been confirmed to work in on-prem environments previously.
