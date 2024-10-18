@@ -207,6 +207,25 @@ class NautobotModel(DiffSyncModel):
         setattr(obj, field, value)
 
     @classmethod
+    def validated_save(cls, obj, adapter):
+        """Perform a validated save of the model object.
+
+        This method will do one of two things:
+            1. In normal operation, it simply passthrough calls `validated_save`
+               on the model object.
+            2. In bulk create mode, it will check if the object is a new object
+               and it will be added to the bulk create queue. If the object
+               is existing, then it will be added to the bulk update queue.
+
+        :param obj: The Django ORM object to validate and save.
+        :param adapter: The related diffsync adapter used for looking up things in the cache.
+        """
+        if adapter.bulk_operation_interval > 0:
+            adapter.bulk_save(obj, cls._attributes)
+        else:
+            obj.validated_save()
+
+    @classmethod
     def _update_obj_with_parameters(cls, obj, parameters, adapter):
         """Update a given Nautobot ORM object with the given parameters."""
         relationship_fields = {
@@ -227,7 +246,7 @@ class NautobotModel(DiffSyncModel):
 
         # Save the object to the database
         try:
-            obj.validated_save()
+            cls.validated_save(obj, adapter)
         except ValidationError as error:
             raise ObjectCrudException(f"Validated save failed for Django object. Parameters: {parameters}") from error
 
