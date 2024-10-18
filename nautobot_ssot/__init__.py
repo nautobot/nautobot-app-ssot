@@ -22,6 +22,7 @@ _CONFLICTING_APP_NAMES = [
     "nautobot_ssot_dna_center",
     "nautobot_ssot_infoblox",
     "nautobot_ssot_ipfabric",
+    "nautobot_ssot_itential",
     "nautobot_ssot_meraki",
     "nautobot_ssot_servicenow",
 ]
