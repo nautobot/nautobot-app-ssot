@@ -107,7 +107,7 @@ class MerakiDataSource(DataSource):  # pylint: disable=too-many-instance-attribu
         """Load data from Meraki into DiffSync models."""
         verify_controller_managed_device_group(controller=self.instance)
         self.validate_settings()
-        _sg = self.instance.secrets_group
+        _sg = self.instance.external_integration.secrets_group
         org_id = _sg.get_secret_value(
             access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
             secret_type=SecretsGroupSecretTypeChoices.TYPE_USERNAME,
