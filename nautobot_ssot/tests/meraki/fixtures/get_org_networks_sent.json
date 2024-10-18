@@ -1,0 +1,37 @@
+[
+    {
+        "id": "H_203630551508078460",
+        "organizationId": "123456",
+        "name": "Lab",
+        "productTypes": [
+            "appliance",
+            "wireless"
+        ],
+        "timeZone": "US/Eastern",
+        "tags": [
+            "Lab"
+        ],
+        "enrollmentString": null,
+        "url": "https://s875.meraki.com/Lab/n/AYWjEr1b/manage/usage/list",
+        "notes": "Lab",
+        "isBoundToConfigTemplate": false
+    },
+    {
+        "id": "L_165471703274884707",
+        "organizationId": "123456",
+        "name": "HQ",
+        "productTypes": [
+            "appliance",
+            "switch",
+            "wireless"
+        ],
+        "timeZone": "US/Central",
+        "tags": [
+            "HQ"
+        ],
+        "enrollmentString": null,
+        "url": "https://o217.meraki.com/HQ/n/fpwVLq4i/manage/usage/list",
+        "notes": "",
+        "isBoundToConfigTemplate": false
+    }
+]

@@ -55,6 +55,7 @@ httpx = { version = ">=0.23.3", optional = true }
 retry = "^0.9.2"
 # used for DNA Center integration
 dnacentersdk = { version = "^2.5.6", optional = true }
+meraki = { version = "^1.37.2,<1.46.0", optional = true }
 
 [tool.poetry.group.dev.dependencies]
 coverage = "*"
@@ -118,6 +119,7 @@ all = [
     "requests-oauthlib",
     "six",
     "dnacentersdk",
+    "meraki"
 ]
 aristacv = [
     "cloudvision",
@@ -137,6 +139,9 @@ ipfabric = [
     "httpx",
     "ipfabric",
     "netutils",
+]
+meraki = [
+    "meraki",
 ]
 # pysnow = "^0.7.17"
 # PySNow is currently pinned to an older version of pytz as a dependency, which blocks compatibility with newer
