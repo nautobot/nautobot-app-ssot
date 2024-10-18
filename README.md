@@ -33,6 +33,7 @@ This Nautobot application framework includes the following integrations:
 - Infoblox
 - IPFabric
 - Itential
+- Cisco Meraki
 - ServiceNow
 
 Read more about integrations [here](https://docs.nautobot.com/projects/ssot/en/latest/user/integrations). To enable and configure integrations follow the instructions from [the install guide](https://docs.nautobot.com/projects/ssot/en/latest/admin/install/#integrations-configuration).
