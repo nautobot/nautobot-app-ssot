@@ -3,6 +3,7 @@
 from ast import literal_eval
 
 from diffsync.enum import DiffSyncFlags
+from django.urls import reverse
 from nautobot.core.celery import register_jobs
 from nautobot.dcim.models import Controller, Location, LocationType
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
@@ -12,7 +13,7 @@ from nautobot.tenancy.models import Tenant
 from nautobot_ssot.exceptions import JobException
 from nautobot_ssot.integrations.meraki.diffsync.adapters import meraki, nautobot
 from nautobot_ssot.integrations.meraki.utils.meraki import DashboardClient
-from nautobot_ssot.jobs.base import DataSource
+from nautobot_ssot.jobs.base import DataMapping, DataSource
 from nautobot_ssot.utils import verify_controller_managed_device_group
 
 name = "Meraki SSoT"  # pylint: disable=invalid-name
@@ -89,7 +90,13 @@ class MerakiDataSource(DataSource):  # pylint: disable=too-many-instance-attribu
     @classmethod
     def data_mappings(cls):
         """List describing the data mappings involved in this DataSource."""
-        return ()
+        return (
+            DataMapping("Networks", None, "Locations", reverse("dcim:location_list")),
+            DataMapping("Devices", None, "Devices", reverse("dcim:device_list")),
+            DataMapping("Ports", None, "Interfaces", reverse("dcim:interface_list")),
+            DataMapping("Prefixes", None, "Prefixes", reverse("ipam:prefix_list")),
+            DataMapping("IP Addresses", None, "IP Addresses", reverse("ipam:ipaddress_list")),
+        )
 
     def validate_settings(self):
         """Confirm the settings in the Job form are valid."""
