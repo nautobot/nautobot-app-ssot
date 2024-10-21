@@ -1,1 +1,0 @@
-Fixed the ACI integration's retrieval of Controller Managed Device Group name that was breaking ACI adapter.
