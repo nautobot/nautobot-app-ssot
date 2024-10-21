@@ -1,0 +1,1 @@
+Updated DNA Center Job to use SSoT verify_controller_managed_device_group utility function so code is more DRY.

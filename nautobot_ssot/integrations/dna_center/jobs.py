@@ -4,7 +4,7 @@ from django.templatetags.static import static
 from django.urls import reverse
 from nautobot.apps.jobs import BooleanVar, JSONVar, ObjectVar
 from nautobot.core.celery import register_jobs
-from nautobot.dcim.models import Controller, ControllerManagedDeviceGroup, LocationType
+from nautobot.dcim.models import Controller, LocationType
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.tenancy.models import Tenant
 
@@ -12,6 +12,7 @@ from nautobot_ssot.exceptions import ConfigurationError
 from nautobot_ssot.integrations.dna_center.diffsync.adapters import dna_center, nautobot
 from nautobot_ssot.integrations.dna_center.utils.dna_center import DnaCenterClient
 from nautobot_ssot.jobs.base import DataMapping, DataSource
+from nautobot_ssot.utils import verify_controller_managed_device_group
 
 name = "DNA Center SSoT"  # pylint: disable=invalid-name
 
@@ -107,16 +108,10 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
             DataMapping("IP Addresses", None, "IP Addresses", reverse("ipam:ipaddress_list")),
         )
 
-    def get_controller_group(self):
-        """Method to get or create ControllerManagedDeviceGroup for imported Devices."""
-        self.controller_group = ControllerManagedDeviceGroup.objects.update_or_create(
-            controller=self.dnac, defaults={"name": f"{self.dnac.name} Managed Devices"}
-        )[0]
-
     def load_source_adapter(self):
         """Load data from DNA Center into DiffSync models."""
         self.logger.info(f"Loading data from {self.dnac.name}")
-        self.get_controller_group()
+        verify_controller_managed_device_group(controller=self.dnac)
         _sg = self.dnac.external_integration.secrets_group
         username = _sg.get_secret_value(
             access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
