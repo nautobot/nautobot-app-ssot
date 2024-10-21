@@ -14,11 +14,12 @@ limitations under the License.
 
 import os
 import re
+import sys
 from pathlib import Path
 from time import sleep
 
 from invoke.collection import Collection
-from invoke.exceptions import Exit
+from invoke.exceptions import Exit, UnexpectedExit
 from invoke.tasks import task as invoke_task
 
 
@@ -72,9 +73,7 @@ def _is_compose_included(context, name):
 
 
 def _await_healthy_service(context, service):
-    container_id = docker_compose(
-        context, f"ps -q -- {service}", pty=False, echo=False, hide=True
-    ).stdout.strip()
+    container_id = docker_compose(context, f"ps -q -- {service}", pty=False, echo=False, hide=True).stdout.strip()
     _await_healthy_container(context, container_id)
 
 
@@ -166,9 +165,7 @@ def docker_compose(context, command, **kwargs):
     ]
 
     for compose_file in context.nautobot_ssot.compose_files:
-        compose_file_path = os.path.join(
-            context.nautobot_ssot.compose_dir, compose_file
-        )
+        compose_file_path = os.path.join(context.nautobot_ssot.compose_dir, compose_file)
         compose_command_tokens.append(f' -f "{compose_file_path}"')
 
     compose_command_tokens.append(command)
@@ -189,23 +186,23 @@ def run_command(context, command, **kwargs):
     env = _read_command_env(kwargs.pop("env", None))
     if is_truthy(context.nautobot_ssot.local):
         return context.run(command, **kwargs, env=env)
-
-    # Check if nautobot is running, no need to start another nautobot container to run a command
-    docker_compose_status = "ps --services --filter status=running"
-    results = docker_compose(context, docker_compose_status, hide="out")
-
-    command_env_args = ""
-    for env_name in env:
-        command_env_args += f" --env={env_name}"
-
-    if "nautobot" in results.stdout:
-        compose_command = f"exec{command_env_args} nautobot {command}"
     else:
-        compose_command = f"run{command_env_args} --rm --entrypoint='{command}' nautobot"
+        # Check if nautobot is running, no need to start another nautobot container to run a command
+        docker_compose_status = "ps --services --filter status=running"
+        results = docker_compose(context, docker_compose_status, hide="out")
 
-    pty = kwargs.pop("pty", True)
+        command_env_args = ""
+        for env_name in env:
+            command_env_args += f" --env={env_name}"
 
-    return docker_compose(context, compose_command, **kwargs, pty=pty, env=env)
+        if "nautobot" in results.stdout:
+            compose_command = f"exec{command_env_args} nautobot {command}"
+        else:
+            compose_command = f"run{command_env_args} --rm --entrypoint='{command}' nautobot"
+
+        pty = kwargs.pop("pty", True)
+
+        return docker_compose(context, compose_command, **kwargs, pty=pty, env=env)
 
 
 # ------------------------------------------------------------------------------
@@ -244,20 +241,10 @@ def _get_docker_nautobot_version(context, nautobot_ver=None, python_ver=None):
     if python_ver is None:
         python_ver = context.nautobot_ssot.python_ver
     dockerfile_path = os.path.join(context.nautobot_ssot.compose_dir, "Dockerfile")
-    base_image = (
-        context.run(f"grep --max-count=1 '^FROM ' {dockerfile_path}", hide=True)
-        .stdout.strip()
-        .split(" ")[1]
-    )
-    base_image = base_image.replace(r"${NAUTOBOT_VER}", nautobot_ver).replace(
-        r"${PYTHON_VER}", python_ver
-    )
-    pip_nautobot_ver = context.run(
-        f"docker run --rm --entrypoint '' {base_image} pip show nautobot", hide=True
-    )
-    match_version = re.search(
-        r"^Version: (.+)$", pip_nautobot_ver.stdout.strip(), flags=re.MULTILINE
-    )
+    base_image = context.run(f"grep --max-count=1 '^FROM ' {dockerfile_path}", hide=True).stdout.strip().split(" ")[1]
+    base_image = base_image.replace(r"${NAUTOBOT_VER}", nautobot_ver).replace(r"${PYTHON_VER}", python_ver)
+    pip_nautobot_ver = context.run(f"docker run --rm --entrypoint '' {base_image} pip show nautobot", hide=True)
+    match_version = re.search(r"^Version: (.+)$", pip_nautobot_ver.stdout.strip(), flags=re.MULTILINE)
     if match_version:
         return match_version.group(1)
     else:
@@ -282,18 +269,28 @@ def _get_docker_nautobot_version(context, nautobot_ver=None, python_ver=None):
         ),
     }
 )
-def lock(
-    context, check=False, constrain_nautobot_ver=False, constrain_python_ver=False
-):
+def lock(context, check=False, constrain_nautobot_ver=False, constrain_python_ver=False):
     """Generate poetry.lock file."""
     if constrain_nautobot_ver:
         docker_nautobot_version = _get_docker_nautobot_version(context)
         command = f"poetry add --lock nautobot@{docker_nautobot_version}"
         if constrain_python_ver:
             command += f" --python {context.nautobot_ssot.python_ver}"
+        try:
+            output = run_command(context, command, hide=True)
+            print(output.stdout, end="")
+            print(output.stderr, file=sys.stderr, end="")
+        except UnexpectedExit:
+            print("Unable to add Nautobot dependency with version constraint, falling back to git branch.")
+            command = (
+                f"poetry add --lock git+https://github.com/nautobot/nautobot.git#{context.nautobot_ssot.nautobot_ver}"
+            )
+            if constrain_python_ver:
+                command += f" --python {context.nautobot_ssot.python_ver}"
+            run_command(context, command)
     else:
         command = f"poetry {'check' if check else 'lock --no-update'}"
-    run_command(context, command)
+        run_command(context, command)
 
 
 # ------------------------------------------------------------------------------
@@ -324,9 +321,7 @@ def restart(context, service=""):
 def stop(context, service=""):
     """Stop specified or all services, if service is not specified, remove all containers."""
     print("Stopping Nautobot...")
-    docker_compose(
-        context, "stop" if service else "down --remove-orphans", service=service
-    )
+    docker_compose(context, "stop" if service else "down --remove-orphans", service=service)
 
 
 @task(
@@ -345,9 +340,7 @@ def destroy(context, volumes=True, import_db_file=""):
         return
 
     if not volumes:
-        raise ValueError(
-            "Cannot specify `--no-volumes` and `--import-db-file` arguments at the same time."
-        )
+        raise ValueError("Cannot specify `--no-volumes` and `--import-db-file` arguments at the same time.")
 
     print(f"Importing database file: {import_db_file}...")
 
@@ -364,16 +357,12 @@ def destroy(context, volumes=True, import_db_file=""):
         "db",
     ]
 
-    container_id = docker_compose(
-        context, " ".join(command), pty=False, echo=False, hide=True
-    ).stdout.strip()
+    container_id = docker_compose(context, " ".join(command), pty=False, echo=False, hide=True).stdout.strip()
     _await_healthy_container(context, container_id)
     print("Stopping database container...")
     context.run(f"docker stop {container_id}", pty=False, echo=False, hide=True)
 
-    print(
-        "Database import complete, you can start Nautobot with the following command:"
-    )
+    print("Database import complete, you can start Nautobot with the following command:")
     print("invoke start")
 
 
@@ -549,9 +538,7 @@ def dbshell(context, db_name="", input_file="", output_file="", query=""):
     if input_file and query:
         raise ValueError("Cannot specify both, `input_file` and `query` arguments")
     if output_file and not (input_file or query):
-        raise ValueError(
-            "`output_file` argument requires `input_file` or `query` argument"
-        )
+        raise ValueError("`output_file` argument requires `input_file` or `query` argument")
 
     env = {}
     if query:
@@ -689,9 +676,7 @@ def backup_db(context, db_name="", output_file="dump.sql", readable=True):
     docker_compose(context, " ".join(command), pty=False)
 
     print(50 * "=")
-    print(
-        "The database backup has been successfully completed and saved to the following file:"
-    )
+    print("The database backup has been successfully completed and saved to the following file:")
     print(output_file)
     print("You can import this database backup with the following command:")
     print(f"invoke import-db --input-file '{output_file}'")
@@ -739,10 +724,13 @@ def help_task(context):
 )
 def generate_release_notes(context, version=""):
     """Generate Release Notes using Towncrier."""
-    command = "env DJANGO_SETTINGS_MODULE=nautobot.core.settings towncrier build"
+    command = "poetry run towncrier build"
     if version:
         command += f" --version {version}"
-    run_command(context, command)
+    else:
+        command += " --version `poetry version -s`"
+    # Due to issues with git repo ownership in the containers, this must always run locally.
+    context.run(command)
 
 
 # ------------------------------------------------------------------------------
@@ -760,8 +748,27 @@ def hadolint(context):
 @task
 def pylint(context):
     """Run pylint code analysis."""
-    command = 'pylint --init-hook "import nautobot; nautobot.setup()" --rcfile pyproject.toml nautobot_ssot'
-    run_command(context, command)
+    exit_code = 0
+
+    base_pylint_command = 'pylint --verbose --init-hook "import nautobot; nautobot.setup()" --rcfile pyproject.toml'
+    command = f"{base_pylint_command} nautobot_ssot"
+    if not run_command(context, command, warn=True):
+        exit_code = 1
+
+    # run the pylint_django migrations checkers on the migrations directory, if one exists
+    migrations_dir = Path(__file__).absolute().parent / Path("nautobot_ssot") / Path("migrations")
+    if migrations_dir.is_dir():
+        migrations_pylint_command = (
+            f"{base_pylint_command} --load-plugins=pylint_django.checkers.migrations"
+            " --disable=all --enable=fatal,new-db-field-with-default,missing-backwards-migration-callable"
+            " nautobot_ssot.migrations"
+        )
+        if not run_command(context, migrations_pylint_command, warn=True):
+            exit_code = 1
+    else:
+        print("No migrations directory found, skipping migrations checks.")
+
+    raise Exit(code=exit_code)
 
 
 @task(aliases=("a",))
@@ -786,12 +793,15 @@ def ruff(context, action=None, target=None, fix=False, output_format="concise"):
     if not target:
         target = ["."]
 
+    exit_code = 0
+
     if "format" in action:
         command = "ruff format "
         if not fix:
             command += "--check "
         command += " ".join(target)
-        run_command(context, command, warn=True)
+        if not run_command(context, command, warn=True):
+            exit_code = 1
 
     if "lint" in action:
         command = "ruff check "
@@ -799,7 +809,10 @@ def ruff(context, action=None, target=None, fix=False, output_format="concise"):
             command += "--fix "
         command += f"--output-format {output_format} "
         command += " ".join(target)
-        run_command(context, command, warn=True)
+        if not run_command(context, command, warn=True):
+            exit_code = 1
+
+    raise Exit(code=exit_code)
 
 
 @task
@@ -860,9 +873,7 @@ def unittest(  # noqa: PLR0913
 @task
 def unittest_coverage(context):
     """Report on code test coverage as measured by 'invoke unittest'."""
-    command = (
-        "coverage report --skip-covered --include 'nautobot_ssot/*' --omit *migrations*"
-    )
+    command = "coverage report --skip-covered --include 'nautobot_ssot/*' --omit *migrations*"
 
     run_command(context, command)
 

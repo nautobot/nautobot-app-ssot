@@ -18,12 +18,8 @@ if DEBUG and not _TESTING:
 
     if "debug_toolbar" not in INSTALLED_APPS:  # noqa: F405
         INSTALLED_APPS.append("debug_toolbar")  # noqa: F405
-    if (
-        "debug_toolbar.middleware.DebugToolbarMiddleware" not in MIDDLEWARE
-    ):  # noqa: F405
-        MIDDLEWARE.insert(
-            0, "debug_toolbar.middleware.DebugToolbarMiddleware"
-        )  # noqa: F405
+    if "debug_toolbar.middleware.DebugToolbarMiddleware" not in MIDDLEWARE:  # noqa: F405
+        MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")  # noqa: F405
 
 #
 # Misc. settings
@@ -55,9 +51,7 @@ DATABASES = {
             "NAUTOBOT_DB_PORT",
             default_db_settings[nautobot_db_engine]["NAUTOBOT_DB_PORT"],
         ),  # Database port, default to postgres
-        "CONN_MAX_AGE": int(
-            os.getenv("NAUTOBOT_DB_TIMEOUT", "300")
-        ),  # Database timeout
+        "CONN_MAX_AGE": int(os.getenv("NAUTOBOT_DB_TIMEOUT", "300")),  # Database timeout
         "ENGINE": nautobot_db_engine,
     }
 }
@@ -192,13 +186,48 @@ PLUGINS_CONFIG = {
             "atl01": "Atlanta",
         },
         "aristacv_verify": is_truthy(os.getenv("NAUTOBOT_ARISTACV_VERIFY", "true")),
+        "bootstrap_nautobot_environment_branch": os.getenv("NAUTOBOT_BOOTSTRAP_SSOT_ENVIRONMENT_BRANCH", "develop"),
+        "bootstrap_models_to_sync": {
+            "secret": True,
+            "secrets_group": True,
+            "git_repository": True,
+            "dynamic_group": True,
+            "computed_field": True,
+            "tag": True,
+            "graph_ql_query": True,
+            "software": False,
+            "software_image": False,
+            "validated_software": False,
+            "tenant_group": True,
+            "tenant": True,
+            "role": True,
+            "manufacturer": True,
+            "platform": True,
+            "location_type": True,
+            "location": True,
+            "team": True,
+            "contact": True,
+            "provider": True,
+            "provider_network": True,
+            "circuit_type": True,
+            "circuit": True,
+            "circuit_termination": True,
+            "namespace": True,
+            "rir": True,
+            "vlan_group": True,
+            "vlan": True,
+            "vrf": True,
+            "prefix": True,
+        },
         "enable_aci": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ACI")),
         "enable_aristacv": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ARISTACV")),
+        "enable_bootstrap": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_BOOTSTRAP", "false")),
         "enable_device42": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_DEVICE42")),
         "enable_dna_center": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_DNA_CENTER")),
         "enable_infoblox": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_INFOBLOX")),
         "enable_ipfabric": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_IPFABRIC")),
         "enable_itential": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ITENTIAL")),
+        "enable_meraki": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_MERAKI")),
         "enable_servicenow": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_SERVICENOW")),
         "hide_example_jobs": is_truthy(os.getenv("NAUTOBOT_SSOT_HIDE_EXAMPLE_JOBS")),
         "device42_defaults": {

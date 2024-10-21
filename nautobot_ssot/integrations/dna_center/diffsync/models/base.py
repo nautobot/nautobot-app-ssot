@@ -24,8 +24,8 @@ class Building(DiffSyncModel):
     """DiffSync model for DNA Center buildings."""
 
     _modelname = "building"
-    _identifiers = ("name",)
-    _attributes = ("address", "area", "area_parent", "latitude", "longitude", "tenant")
+    _identifiers = ("name", "area")
+    _attributes = ("address", "area_parent", "latitude", "longitude", "tenant")
     _children = {"floor": "floors"}
 
     name: str

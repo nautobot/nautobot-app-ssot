@@ -17,6 +17,7 @@ from requests.auth import HTTPBasicAuth
 from requests.compat import urljoin
 from requests.exceptions import HTTPError
 
+from nautobot_ssot.exceptions import InvalidUrlScheme
 from nautobot_ssot.integrations.infoblox.utils.diffsync import get_ext_attr_dict
 
 logger = logging.getLogger("nautobot.ssot.infoblox")
@@ -84,19 +85,6 @@ def get_dns_name(possible_fqdn: str) -> str:
         if match:
             dns_name = match.group("fqdn")
     return dns_name
-
-
-class InvalidUrlScheme(Exception):
-    """Exception raised for wrong scheme being passed for URL.
-
-    Attributes:
-        message (str): Returned explanation of Error.
-    """
-
-    def __init__(self, scheme):
-        """Initialize Exception with wrong scheme in message."""
-        self.message = f"Invalid URL scheme '{scheme}' found for Infoblox URL. Please correct to use HTTPS."
-        super().__init__(self.message)
 
 
 class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instance-attributes

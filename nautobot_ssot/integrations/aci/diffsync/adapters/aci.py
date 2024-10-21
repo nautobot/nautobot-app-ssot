@@ -435,8 +435,8 @@ class AciAdapter(Adapter):
                 site=self.site,
                 site_tag=self.site,
                 controller_group=(
-                    self.job.apic.controller_managed_device_group.name
-                    if self.job.apic.controller_managed_device_group
+                    self.job.apic.controller_managed_device_groups.first().name
+                    if self.job.apic.controller_managed_device_groups.count() != 0
                     else ""
                 ),
             )

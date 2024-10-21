@@ -11,6 +11,8 @@ from ipaddress import ip_network
 import requests
 import urllib3
 
+from nautobot_ssot.exceptions import RequestConnectError, RequestHTTPError
+
 from .utils import (
     ap_from_dn,
     bd_from_dn,
@@ -24,14 +26,6 @@ from .utils import (
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger(__name__)
-
-
-class RequestConnectError(Exception):
-    """Exception class to be raised upon requests module connection errors."""
-
-
-class RequestHTTPError(Exception):
-    """Exception class to be raised upon requests module HTTP errors."""
 
 
 class AciApi:

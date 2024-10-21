@@ -14,7 +14,6 @@ from nautobot.dcim.models import (
     FrontPort,
     Interface,
     Location,
-    LocationType,
     Manufacturer,
     Platform,
     Rack,
@@ -161,11 +160,12 @@ class NautobotAdapter(Adapter):
 
     def load_sites(self):
         """Add Nautobot Site objects as DiffSync Building models."""
-        for site in Location.objects.filter(location_type=LocationType.objects.get_or_create(name="Site")[0]):
+        for site in Location.objects.filter(location_type=self.job.building_loctype.name):
             self.site_map[site.name] = site.id
             try:
                 building = self.building(
                     name=site.name,
+                    location_type=self.job.building_loctype.name,
                     address=site.physical_address,
                     latitude=site.latitude,
                     longitude=site.longitude,
@@ -191,12 +191,15 @@ class NautobotAdapter(Adapter):
             room = self.room(
                 name=_rg.name,
                 building=_rg.location.name,
+                building_loctype=self.job.building_loctype.name,
                 notes=_rg.description,
                 custom_fields=nautobot.get_custom_field_dict(_rg.get_custom_fields()),
                 uuid=_rg.id,
             )
             self.add(room)
-            _site = self.get(self.building, _rg.location.name)
+            _site = self.get(
+                self.building, {"name": _rg.location.name, "location_type": self.job.building_loctype.name}
+            )
             _site.add_child(child=room)
 
     def load_racks(self):

@@ -91,8 +91,11 @@ Set up each integration using the specific guides:
 
 - [Cisco ACI](./integrations/aci_setup.md)
 - [Arista CloudVision](./integrations/aristacv_setup.md)
+- [Bootstrap](./integrations/bootstrap_setup.md)
 - [Device42](./integrations/device42_setup.md)
 - [Cisco DNA Center](./integrations/dna_center_setup.md)
 - [Infoblox](./integrations/infoblox_setup.md)
 - [IPFabric](./integrations/ipfabric_setup.md)
+- [Itential](./integrations/itential_setup.md)
+- [Cisco Meraki](./integrations/meraki_setup.md)
 - [ServiceNow](./integrations/servicenow_setup.md)

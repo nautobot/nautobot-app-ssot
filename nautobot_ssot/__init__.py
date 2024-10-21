@@ -17,10 +17,13 @@ __version__ = metadata.version(__name__)
 _CONFLICTING_APP_NAMES = [
     "nautobot_ssot_aci",
     "nautobot_ssot_aristacv",
+    "nautobot_ssot_bootstrap",
     "nautobot_ssot_device42",
     "nautobot_ssot_dna_center",
     "nautobot_ssot_infoblox",
     "nautobot_ssot_ipfabric",
+    "nautobot_ssot_itential",
+    "nautobot_ssot_meraki",
     "nautobot_ssot_servicenow",
 ]
 
@@ -115,6 +118,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
     }
     caching_config = {}
     config_view_name = "plugins:nautobot_ssot:config"
+    docs_view_name = "plugins:nautobot_ssot:docs"
 
     def ready(self):
         """Trigger callback when database is ready."""
