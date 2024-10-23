@@ -49,11 +49,6 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     GitRepository = apps.get_model("extras", "GitRepository")
     Role = apps.get_model("extras", "Role")
 
-    if LIFECYCLE_MGMT:
-        SoftwareLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "SoftwareLCM")
-        SoftwareImageLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "SoftwareImageLCM")
-        ValidatedSoftwareLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "ValidatedSoftwareLCM")
-
     signal_to_model_mapping = {
         "manufacturer": Manufacturer,
         "platform": Platform,
@@ -83,13 +78,19 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     }
 
     if LIFECYCLE_MGMT:
-        signal_to_model_mapping.update(
-            {
-                "software": SoftwareLCM,
-                "software_image": SoftwareImageLCM,
-                "validated_software": ValidatedSoftwareLCM,
-            }
-        )
+        try:
+            SoftwareLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "SoftwareLCM")
+            SoftwareImageLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "SoftwareImageLCM")
+            ValidatedSoftwareLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "ValidatedSoftwareLCM")
+            signal_to_model_mapping.update(
+                {
+                    "software": SoftwareLCM,
+                    "software_image": SoftwareImageLCM,
+                    "validated_software": ValidatedSoftwareLCM,
+                }
+            )
+        except LookupError as err:
+            print("Unable to find Device Lifecycle Management related models. %s", err)
 
     sync_custom_field, _ = create_or_update_custom_field(
         key="last_synced_from_sor",
