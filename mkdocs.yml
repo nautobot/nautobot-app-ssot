@@ -67,9 +67,9 @@ extra:
     - icon: "fontawesome/brands/github"
       link: "https://github.com/nautobot/nautobot"
       name: "GitHub Repo"
-    - icon: "fontawesome/brands/twitter"
-      link: "https://twitter.com/networktocode"
-      name: "Network to Code Twitter"
+    - icon: "fontawesome/brands/x-twitter"
+      link: "https://x.com/networktocode"
+      name: "Network to Code X (formerly Twitter)"
 markdown_extensions:
   - "markdown_version_annotations":
       admonition_tag: "???"
