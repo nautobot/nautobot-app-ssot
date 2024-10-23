@@ -232,7 +232,7 @@ class CloudvisionAdapter(Adapter):
     def load_device_tags(self, device):
         """Load device tags from CloudVision."""
         system_tags = cloudvision.get_tags_by_type(
-            client=self.conn.comm_channel, creator_type=TAG.models.CREATOR_TYPE_SYSTEM
+            client=self.conn.comm_channel, logger=self.job.logger, creator_type=TAG.models.CREATOR_TYPE_SYSTEM
         )
         dev_tags = [
             tag

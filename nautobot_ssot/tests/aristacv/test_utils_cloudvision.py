@@ -129,7 +129,7 @@ class TestCloudvisionUtils(TestCase):
         device_tag_stub.TagServiceStub.return_value.GetAll.return_value = [mock_tag]
 
         with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.tag_services", device_tag_stub):
-            results = cloudvision.get_tags_by_type(client=self.client)
+            results = cloudvision.get_tags_by_type(client=self.client, logger=MagicMock())
         expected = [{"label": "test", "value": "test"}]
         self.assertEqual(results, expected)
 
