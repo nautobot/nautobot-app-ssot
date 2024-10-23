@@ -193,7 +193,6 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             self.logger.info("As `dryrun` is set, skipping the actual data sync.")
         else:
             self.logger.info("Syncing from %s to %s...", self.source_adapter, self.target_adapter)
-            print("I'm executing the sync now")
             self.execute_sync()
             execute_sync_time = datetime.now()
             self.sync.sync_time = execute_sync_time - calculate_diff_time
