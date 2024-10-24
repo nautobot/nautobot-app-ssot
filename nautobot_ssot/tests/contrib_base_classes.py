@@ -173,10 +173,12 @@ class NautobotInterface(NautobotModel):
         "name",
         "device__name",
     )
-    _attributes = ("ip_addresses",)
+    _attributes = ("ip_addresses", "status__name", "type")
 
     name: str
     device__name: str
+    status__name: str = None
+    type: str = ""
     ip_addresses: List[IPAddressDict] = []
 
 
@@ -190,12 +192,20 @@ class NautobotDevice(NautobotModel):
         "primary_ip4__host",
         "primary_ip4__mask_length",
         "role__name",
+        "device_type__model",
+        "status__name",
+        "location__name",
+        "serial",
     )
 
     name: str
     role__name: str
+    device_type__model: str = None
+    status__name: str = None
+    location__name: str = None
     primary_ip4__host: Optional[str] = None
     primary_ip4__mask_length: Optional[int] = None
+    serial: str = None
 
 
 class NautobotCable(NautobotModel):

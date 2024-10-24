@@ -22,6 +22,7 @@ from nautobot_ssot.contrib import CustomFieldAnnotation, NautobotAdapter, Nautob
 from nautobot_ssot.tests.contrib_base_classes import (
     NautobotCable,
     NautobotDevice,
+    NautobotInterface,
     NautobotTenant,
     NautobotTenantGroup,
     ProviderModelCustomRelationship,
@@ -353,3 +354,99 @@ class TestNestedRelationships(TestCase):
         self.assertEqual(amount_of_vlans, len(diffsync_vlan_group.vlans))
         for vlan in diffsync_vlan_group.vlans:
             self.assertEqual(location.name, vlan["location__name"])
+
+class TestBulkOperations(TestCaseWithDeviceData):
+    class BulkAdapter(NautobotAdapter):
+        top_level = ("device", "interface")
+        device = NautobotDevice
+        interface = NautobotInterface
+
+    def setUp(self):
+        self.bulk_interval = 5
+        self.adapter = self.BulkAdapter(job=MagicMock())
+        self.adapter.bulk_operation_interval = self.bulk_interval
+        return super().setUp()
+
+    def test_bulk_create(self):
+        num_devices = 9
+        num_interfaces = 9
+        for i in range(1, num_devices+1):
+            NautobotDevice.create(
+                self.adapter,
+                {"name": f"bulk_device{i}"},
+                {
+                    "role__name": self.device_role.name,
+                    "device_type__model": self.device_type.model,
+                    "status__name": "Active",
+                    "location__name": self.location.name,
+                }
+            )
+            if i % self.bulk_interval == 0:
+                self.assertEqual(i, dcim_models.Device.objects.filter(name__startswith="bulk_device").count())
+            else:
+                self.assertEqual(self.bulk_interval * int(i/self.bulk_interval), dcim_models.Device.objects.filter(name__startswith="bulk_").count())
+
+        for i in range(1, num_interfaces+1):
+            NautobotInterface.create(
+                self.adapter,
+                {"name": f"bulk_interface{i}", "device__name": "bulk_device1"},
+                {"status__name": "Active", "type": "virtual"}
+            )
+            if i == 1:
+                self.assertEqual(num_devices, dcim_models.Device.objects.filter(name__startswith="bulk_device").count())
+
+            if i % self.bulk_interval == 0:
+                self.assertEqual(i, dcim_models.Interface.objects.filter(device__name="bulk_device1").count())
+            else:
+                self.assertEqual(self.bulk_interval * int(i/self.bulk_interval), dcim_models.Interface.objects.filter(device__name="bulk_device1").count())
+
+        self.adapter.flush_bulk_create()
+        self.assertEqual(num_interfaces, dcim_models.Interface.objects.filter(device__name="bulk_device1").count())
+
+    def test_bulk_update(self):
+        num_devices = 9
+        devices = {}
+        for i in range(1, num_devices+1):
+            device = dcim_models.Device.objects.create(
+                name=f"bulk_device{i}",
+                status=extras_models.Status.objects.get(name="Active"),
+                role=self.device_role,
+                device_type=self.device_type,
+                location=self.location,
+                serial=f"Serial {i}",
+            )
+            devices[device.name] = device
+
+        for i in range(1, num_devices+1):
+            adapter_device = NautobotDevice(
+                pk=devices[f"bulk_device{i}"].pk,
+                name=f"bulk_device{i}",
+                role__name=self.device_role.name,
+                device_type__model=self.device_type.model,
+                status__name="Active",
+                location__name=self.location.name,
+                serial=f"Serial {i}",
+            )
+            adapter_device.adapter = self.adapter
+            attrs = {"status__name": "Planned"}
+            if i % 2 == 0:
+                attrs["serial"] = f"New Serial {i}"
+            adapter_device.update(attrs=attrs)
+            start = self.bulk_interval * int(i/self.bulk_interval) + 1
+            end = start + (i % self.bulk_interval)
+            if i % self.bulk_interval == 0:
+                check_status = "Planned"
+            else:
+                check_status = "Active"
+
+            for check_i in range(start, end):
+                device = devices[f"bulk_device{check_i}"]
+                device.refresh_from_db()
+                self.assertEqual(device.status.name, check_status)
+                if check_status == "Planned":
+                    if check_i % 2 == 0:
+                        self.assertEqual(device.serial, f"New Serial {check_i}")
+                    else:
+                        self.assertEqual(device.serial, f"Serial {check_i}", device.name)
+                else:
+                    self.assertEqual(device.serial, f"Serial {check_i}", device.name)
