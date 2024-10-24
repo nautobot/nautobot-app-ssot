@@ -6,10 +6,10 @@ This App will sync data from YAML files into Nautobot to create baseline environ
 
 ## Installation
 
-Before configuring the integration, please ensure, that `nautobot-ssot` app was [installed](../install.md#install-guide).
+Before configuring the integration, please ensure, that `nautobot-ssot` app was [installed with Bootstrap integration extra dependencies](../install.md#install-guide).
 
 ```shell
-pip install nautobot-ssot
+pip install nautobot-ssot[bootstrap]
 ```
 
 ## Configuration
