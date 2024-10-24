@@ -78,33 +78,40 @@ from nautobot_ssot.integrations.bootstrap.utils import (
 )
 
 try:
-    import nautobot_device_lifecycle_mgmt  # noqa: F401
-
-    LIFECYCLE_MGMT = True
-except ImportError:
-    LIFECYCLE_MGMT = False
-
-if LIFECYCLE_MGMT:
-    # noqa: F401
-    from nautobot_device_lifecycle_mgmt.models import (
-        SoftwareImageLCM as ORMSoftwareImage,
-    )
-
     # noqa: F401
     from nautobot_device_lifecycle_mgmt.models import (
         SoftwareLCM as ORMSoftware,
     )
 
+    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import Software
+
+    SOFTWARE_LIFECYCLE_MGMT = True
+except (ImportError, RuntimeError):
+    SOFTWARE_LIFECYCLE_MGMT = False
+
+try:
+    # noqa: F401
+    from nautobot_device_lifecycle_mgmt.models import (
+        SoftwareImageLCM as ORMSoftwareImage,
+    )
+
+    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import SoftwareImage
+
+    SOFTWARE_IMAGE_LIFECYCLE_MGMT = True
+except (ImportError, RuntimeError):
+    SOFTWARE_IMAGE_LIFECYCLE_MGMT = False
+
+try:
     # noqa: F401
     from nautobot_device_lifecycle_mgmt.models import (
         ValidatedSoftwareLCM as ORMValidatedSoftware,
     )
 
-    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
-        Software,
-        SoftwareImage,
-        ValidatedSoftware,
-    )
+    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import ValidatedSoftware
+
+    VALID_SOFTWARE_LIFECYCLE_MGMT = True
+except (ImportError, RuntimeError):
+    VALID_SOFTWARE_LIFECYCLE_MGMT = False
 
 
 class NautobotTenantGroup(TenantGroup):
@@ -2176,7 +2183,7 @@ class NautobotGraphQLQuery(GraphQLQuery):
             self.adapter.job.logger.warning(f"Unable to find GraphQLQuery {self.name} for deletion. {err}")
 
 
-if LIFECYCLE_MGMT:
+if SOFTWARE_LIFECYCLE_MGMT:
 
     class NautobotSoftware(Software):
         """Nautobot implementation of Bootstrap Software model."""
@@ -2254,6 +2261,9 @@ if LIFECYCLE_MGMT:
                     f"Unable to find Software {self.platform} - {self.version} for deletion. {err}"
                 )
 
+
+if SOFTWARE_IMAGE_LIFECYCLE_MGMT:
+
     class NautobotSoftwareImage(SoftwareImage):
         """Nautobot implementation of Bootstrap SoftwareImage model."""
 
@@ -2328,6 +2338,9 @@ if LIFECYCLE_MGMT:
                 return self
             except ORMSoftwareImage.DoesNotExist as err:
                 self.adapter.job.logger.warning(f"Unable to find SoftwareImage {self.software} for deletion. {err}")
+
+
+if VALID_SOFTWARE_LIFECYCLE_MGMT:
 
     class NautobotValidatedSoftware(ValidatedSoftware):
         """Nautobot implementation of Bootstrap ValidatedSoftware model."""

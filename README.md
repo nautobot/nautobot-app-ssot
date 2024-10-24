@@ -82,6 +82,7 @@ Full documentation for this app can be found over on the [Nautobot Docs](https:/
 The SSoT framework includes a number of integrations with external Systems of Record:
 
 * Cisco ACI
+* Bootstrap
 * Arista CloudVision
 * Device42
 * Cisco DNA Center

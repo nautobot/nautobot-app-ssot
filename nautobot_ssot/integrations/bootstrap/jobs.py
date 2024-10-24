@@ -157,4 +157,4 @@ class BootstrapDataTarget(DataTarget):
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 
-jobs = [BootstrapDataSource, BootstrapDataTarget]
+jobs = [BootstrapDataSource]
