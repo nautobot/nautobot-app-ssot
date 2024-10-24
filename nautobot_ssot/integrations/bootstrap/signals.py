@@ -16,7 +16,7 @@ def register_signals(sender):
     nautobot_database_ready.connect(nautobot_database_ready_callback, sender=sender)
 
 
-def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disable=unused-argument
+def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disable=unused-argument, too-many-statements
     """Adds OS Version and Physical Address CustomField to Devices and System of Record and Last Sync'd to Device, and IPAddress.
 
     Callback function triggered by the nautobot_database_ready signal when the Nautobot database is fully ready.
