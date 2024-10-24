@@ -82,32 +82,40 @@ from nautobot_ssot.integrations.bootstrap.utils.nautobot import (
 )
 
 try:
-    import nautobot_device_lifecycle_mgmt  # noqa: F401
-
-    LIFECYCLE_MGMT = True
-except ImportError:
-    LIFECYCLE_MGMT = False
-
-if LIFECYCLE_MGMT:
     # noqa: F401
-    from nautobot_device_lifecycle_mgmt.models import (
-        SoftwareImageLCM as ORMSoftwareImage,
-    )
     from nautobot_device_lifecycle_mgmt.models import (
         SoftwareLCM as ORMSoftware,
     )
 
+    from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import NautobotSoftware
+
+    SOFTWARE_LIFECYCLE_MGMT = True
+except (ImportError, RuntimeError):
+    SOFTWARE_LIFECYCLE_MGMT = False
+
+try:
+    # noqa: F401
+    from nautobot_device_lifecycle_mgmt.models import (
+        SoftwareImageLCM as ORMSoftwareImage,
+    )
+
+    from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import NautobotSoftwareImage
+
+    SOFTWARE_IMAGE_LIFECYCLE_MGMT = True
+except (ImportError, RuntimeError):
+    SOFTWARE_IMAGE_LIFECYCLE_MGMT = False
+
+try:
     # noqa: F401
     from nautobot_device_lifecycle_mgmt.models import (
         ValidatedSoftwareLCM as ORMValidatedSoftware,
     )
 
-    # noqa: F401
-    from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import (  # noqa: F401
-        NautobotSoftware,
-        NautobotSoftwareImage,
-        NautobotValidatedSoftware,
-    )
+    from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import NautobotValidatedSoftware
+
+    VALID_SOFTWARE_LIFECYCLE_MGMT = True
+except (ImportError, RuntimeError):
+    VALID_SOFTWARE_LIFECYCLE_MGMT = False
 
 
 class NautobotAdapter(Adapter):
@@ -141,9 +149,11 @@ class NautobotAdapter(Adapter):
     tag = NautobotTag
     graph_ql_query = NautobotGraphQLQuery
 
-    if LIFECYCLE_MGMT:
+    if SOFTWARE_LIFECYCLE_MGMT:
         software = NautobotSoftware
+    if SOFTWARE_IMAGE_LIFECYCLE_MGMT:
         software_image = NautobotSoftwareImage
+    if VALID_SOFTWARE_LIFECYCLE_MGMT:
         validated_software = NautobotValidatedSoftware
 
     top_level = [
@@ -175,9 +185,11 @@ class NautobotAdapter(Adapter):
         "graph_ql_query",
     ]
 
-    if LIFECYCLE_MGMT:
+    if SOFTWARE_LIFECYCLE_MGMT:
         top_level.append("software")
+    if SOFTWARE_IMAGE_LIFECYCLE_MGMT:
         top_level.append("software_image")
+    if VALID_SOFTWARE_LIFECYCLE_MGMT:
         top_level.append("validated_software")
 
     def __init__(self, *args, job=None, sync=None, **kwargs):  # noqa: D417
@@ -1350,10 +1362,12 @@ class NautobotAdapter(Adapter):
             self.load_tag()
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["graph_ql_query"]:
             self.load_graph_ql_query()
-        if LIFECYCLE_MGMT:
+        if SOFTWARE_LIFECYCLE_MGMT:
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software"]:
                 self.load_software()
+        if SOFTWARE_IMAGE_LIFECYCLE_MGMT:
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software_image"]:
                 self.load_software_image()
+        if VALID_SOFTWARE_LIFECYCLE_MGMT:
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["validated_software"]:
                 self.load_validated_software()
