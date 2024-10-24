@@ -82,17 +82,17 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
             SoftwareLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "SoftwareLCM")
             signal_to_model_mapping["software"] = SoftwareLCM
         except LookupError as err:
-            print("Unable to find SoftwareLCM model from Device Lifecycle Management App. %s", err)
+            print(f"Unable to find SoftwareLCM model from Device Lifecycle Management App. {err}")
         try:
             SoftwareImageLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "SoftwareImageLCM")
             signal_to_model_mapping["software_image"] = SoftwareImageLCM
         except LookupError as err:
-            print("Unable to find SoftwareImageLCM model from Device Lifecycle Management App. %s", err)
+            print(f"Unable to find SoftwareImageLCM model from Device Lifecycle Management App. {err}")
         try:
             ValidatedSoftwareLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "ValidatedSoftwareLCM")
             signal_to_model_mapping["validated_software"] = ValidatedSoftwareLCM
         except LookupError as err:
-            print("Unable to find ValidatedSoftwareLCM model from Device Lifecycle Management App. %s", err)
+            print(f"Unable to find ValidatedSoftwareLCM model from Device Lifecycle Management App. {err}")
 
     sync_custom_field, _ = create_or_update_custom_field(
         key="last_synced_from_sor",
