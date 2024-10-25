@@ -43,7 +43,7 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
 
     databases = ("default", "job_logs")
 
-    def setUp(self):
+    def setUp(self):  # pylint: disable=too-many-statements
         """Initialize test case."""
         super().setUp()
         self.dna_center_client = MagicMock()
