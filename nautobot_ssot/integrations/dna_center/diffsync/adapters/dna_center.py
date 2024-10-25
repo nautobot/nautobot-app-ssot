@@ -321,9 +321,9 @@ class DnaCenterAdapter(Adapter):
                 }
                 self.failed_import_devices.append(dev)
                 continue
-            if self.job.hostname_mapping:
+            if self.job.hostname_map:
                 dev_role = self.conn.parse_hostname_for_role(
-                    hostname_map=self.job.hostname_mapping, device_hostname=dev["hostname"]
+                    hostname_map=self.job.hostname_map, device_hostname=dev["hostname"]
                 )
             if dev_role == "Unknown":
                 dev_role = dev["role"]
