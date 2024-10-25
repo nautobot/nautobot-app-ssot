@@ -127,6 +127,11 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         self.job.building_loctype = self.site_loc_type
         self.job.floor_loctype = self.floor_loc_type
         self.job.dnac = dnac
+        self.job.location_map = {}
+        self.job.hostname_map = {}
+        self.job.logger.warning = MagicMock()
+        self.job.logger.error = MagicMock()
+        self.job.logger.info = MagicMock()
         self.job.controller_group = ControllerManagedDeviceGroup.objects.get_or_create(
             name="DNA Center Managed Devices", controller=dnac
         )[0]
@@ -135,9 +140,6 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
             name=self.job.class_path, task_name="fake task", user=None, id=uuid.uuid4()
         )
         self.dna_center = DnaCenterAdapter(job=self.job, sync=None, client=self.dna_center_client, tenant=None)
-        self.dna_center.job.logger.warning = MagicMock()
-        self.dna_center.job.logger.error = MagicMock()
-        self.dna_center.job.logger.info = MagicMock()
         self.dna_center.dnac_location_map = EXPECTED_DNAC_LOCATION_MAP
 
     def test_build_dnac_location_map(self):
