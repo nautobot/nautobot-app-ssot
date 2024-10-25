@@ -214,7 +214,6 @@ class NautobotDevice(base.Device):
         if attrs.get("tenant"):
             new_device.tenant_id = adapter.tenant_map[attrs["tenant"]]
         if attrs.get("version"):
-            new_device.custom_field_data.update({"os_version": attrs["version"]})
             if LIFECYCLE_MGMT:
                 lcm_obj = add_software_lcm(adapter=adapter, platform=platform.network_driver, version=attrs["version"])
                 assign_version_to_device(adapter=adapter, device=new_device, software_lcm=lcm_obj)
@@ -260,7 +259,6 @@ class NautobotDevice(base.Device):
         if "controller_group" in attrs:
             device.controller_managed_device_group = self.adapter.job.controller_group
         if "version" in attrs:
-            device.custom_field_data.update({"os_version": attrs["version"]})
             if LIFECYCLE_MGMT:
                 platform_network_driver = attrs["platform"] if attrs.get("platform") else self.platform
                 lcm_obj = add_software_lcm(
