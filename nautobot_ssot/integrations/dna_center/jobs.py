@@ -59,11 +59,11 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
         default={},
         description="Map of information regarding Locations in DNA Center. Ex: {'<Location Name>': {'parent': '<Parent location Name>'}}",
     )
-    hostname_mapping = StringVar(
-        label="Hostname Mapping",
-        required=False,
+    hostname_map = StringVar(
         default=[],
         description="List of tuples containing Device hostnames to assign to specified Role. ex: [('core-router.com', 'router')]",
+        label="Hostname Mapping",
+        required=False,
     )
 
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
@@ -91,7 +91,7 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
             "building_loctype",
             "floor_loctype",
             "location_map",
-            "hostname_mapping",
+            "hostname_map",
             "tenant",
         ]
 
@@ -184,7 +184,7 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
         building_loctype,
         floor_loctype,
         location_map,
-        hostname_mapping,
+        hostname_map,
         bulk_import,
         tenant,
         *args,
@@ -197,7 +197,7 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
         self.floor_loctype = floor_loctype
         self.validate_locationtypes()
         self.location_map = location_map
-        self.hostname_mapping = literal_eval(hostname_mapping)
+        self.hostname_map = literal_eval(hostname_map)
         self.tenant = tenant
         self.debug = debug
         self.bulk_import = bulk_import
