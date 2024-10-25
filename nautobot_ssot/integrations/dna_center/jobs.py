@@ -1,8 +1,10 @@
 """Jobs for DNA Center SSoT integration."""
 
+from ast import literal_eval
+
 from django.templatetags.static import static
 from django.urls import reverse
-from nautobot.apps.jobs import BooleanVar, JSONVar, ObjectVar
+from nautobot.apps.jobs import BooleanVar, JSONVar, ObjectVar, StringVar
 from nautobot.core.celery import register_jobs
 from nautobot.dcim.models import Controller, LocationType
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
@@ -57,6 +59,12 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
         default={},
         description="Map of information regarding Locations in DNA Center. Ex: {'<Location Name>': {'parent': '<Parent location Name>'}}",
     )
+    hostname_mapping = StringVar(
+        label="Hostname Mapping",
+        required=False,
+        default=[],
+        description="List of tuples containing Device hostnames to assign to specified Role. ex: [('core-router.com', 'router')]",
+    )
 
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
     bulk_import = BooleanVar(
@@ -83,6 +91,7 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
             "building_loctype",
             "floor_loctype",
             "location_map",
+            "hostname_mapping",
             "tenant",
         ]
 
@@ -111,7 +120,7 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
     def load_source_adapter(self):
         """Load data from DNA Center into DiffSync models."""
         self.logger.info(f"Loading data from {self.dnac.name}")
-        verify_controller_managed_device_group(controller=self.dnac)
+        self.controller_group = verify_controller_managed_device_group(controller=self.dnac)
         _sg = self.dnac.external_integration.secrets_group
         username = _sg.get_secret_value(
             access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
@@ -175,6 +184,7 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
         building_loctype,
         floor_loctype,
         location_map,
+        hostname_mapping,
         bulk_import,
         tenant,
         *args,
@@ -187,6 +197,7 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
         self.floor_loctype = floor_loctype
         self.validate_locationtypes()
         self.location_map = location_map
+        self.hostname_mapping = literal_eval(hostname_mapping)
         self.tenant = tenant
         self.debug = debug
         self.bulk_import = bulk_import
