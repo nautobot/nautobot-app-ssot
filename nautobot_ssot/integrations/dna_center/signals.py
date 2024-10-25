@@ -24,13 +24,6 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     IPAddress = apps.get_model("ipam", "IPAddress")
     Prefix = apps.get_model("ipam", "Prefix")
 
-    ver_dict = {
-        "key": "os_version",
-        "type": CustomFieldTypeChoices.TYPE_TEXT,
-        "label": "OS Version",
-    }
-    ver_field, _ = CustomField.objects.get_or_create(key=ver_dict["key"], defaults=ver_dict)
-    ver_field.content_types.add(ContentType.objects.get_for_model(Device))
     sor_cf_dict = {
         "type": CustomFieldTypeChoices.TYPE_TEXT,
         "key": "system_of_record",

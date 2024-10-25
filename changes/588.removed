@@ -1,0 +1,1 @@
+Removed use of OS Version CustomField in DNA Center integration. Now uses Software Version from Nautobot 2.2 and/or Device Lifecycle Management SoftwareLCM object if found.
