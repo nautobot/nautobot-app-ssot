@@ -168,15 +168,22 @@ class NautobotAdapter(Adapter):
             devices = OrmDevice.objects.filter(_custom_field_data__system_of_record="DNA Center")
         for dev in devices:
             self.device_map[dev.name] = dev.id
-            version = dev.custom_field_data.get("os_version")
+            version = None
+            if getattr(dev, "software_version"):
+                version = dev.software_version.version
             if LIFECYCLE_MGMT:
+                dlm_version = None
                 try:
                     soft_lcm = OrmRelationship.objects.get(label="Software on Device")
-                    version = OrmRelationshipAssociation.objects.get(
+                    dlm_version = OrmRelationshipAssociation.objects.get(
                         relationship=soft_lcm, destination_id=dev.id
                     ).source.version
+                except OrmRelationship.DoesNotExist:
+                    pass
                 except OrmRelationshipAssociation.DoesNotExist:
                     pass
+                if dlm_version != version:
+                    version = None
             new_dev = self.device(
                 name=dev.name,
                 status=dev.status.name,

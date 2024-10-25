@@ -23,11 +23,18 @@ from nautobot_ssot.integrations.dna_center.utils.nautobot import (
 )
 
 try:
-    import nautobot_device_lifecycle_mgmt  # noqa: F401
+    import nautobot_device_lifecycle_mgmt import SoftwareLCM  # noqa: F401
 
     LIFECYCLE_MGMT = True
 except ImportError:
     LIFECYCLE_MGMT = False
+
+try:
+    import nautobot.dcim.models import SoftwareVersion  # noqa: F401
+
+    SOFTWARE_VERSION_FOUND = True
+except ImportError:
+    SOFTWARE_VERSION_FOUND = False
 
 
 class NautobotArea(base.Area):
@@ -217,6 +224,8 @@ class NautobotDevice(base.Device):
             if LIFECYCLE_MGMT:
                 lcm_obj = add_software_lcm(adapter=adapter, platform=platform.network_driver, version=attrs["version"])
                 assign_version_to_device(adapter=adapter, device=new_device, software_lcm=lcm_obj)
+            if SOFTWARE_VERSION_FOUND:
+                new_device.software_version = SoftwareVersion.objects.get_or_create(version=attrs["version"], platform=platform, defaults={"status_id": adapter.status_map["Active"]})[0]
         new_device.custom_field_data.update({"system_of_record": "DNA Center"})
         new_device.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         adapter.objects_to_create["devices"].append(new_device)
@@ -265,6 +274,12 @@ class NautobotDevice(base.Device):
                     adapter=self.adapter, platform=platform_network_driver, version=attrs["version"]
                 )
                 assign_version_to_device(adapter=self.adapter, device=device, software_lcm=lcm_obj)
+            if SOFTWARE_VERSION_FOUND:
+                if attrs.get("platform"):
+                    platform = attrs["platform"]
+                else:
+                    platform = self.platform
+                device.software_version = SoftwareVersion.objects.get_or_create(version=attrs["version"], platform__name=platform, defaults={"status_id": self.adapter.status_map["Active"]})[0]
         device.custom_field_data.update({"system_of_record": "DNA Center"})
         device.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         device.validated_save()
