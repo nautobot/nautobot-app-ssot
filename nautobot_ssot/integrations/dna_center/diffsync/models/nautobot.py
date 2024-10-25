@@ -23,14 +23,14 @@ from nautobot_ssot.integrations.dna_center.utils.nautobot import (
 )
 
 try:
-    import nautobot_device_lifecycle_mgmt import SoftwareLCM  # noqa: F401
+    from nautobot_device_lifecycle_mgmt import SoftwareLCM  # noqa: F401
 
     LIFECYCLE_MGMT = True
 except ImportError:
     LIFECYCLE_MGMT = False
 
 try:
-    import nautobot.dcim.models import SoftwareVersion  # noqa: F401
+    from nautobot.dcim.models import SoftwareImageFile, SoftwareVersion  # noqa: F401
 
     SOFTWARE_VERSION_FOUND = True
 except ImportError:
@@ -225,7 +225,16 @@ class NautobotDevice(base.Device):
                 lcm_obj = add_software_lcm(adapter=adapter, platform=platform.network_driver, version=attrs["version"])
                 assign_version_to_device(adapter=adapter, device=new_device, software_lcm=lcm_obj)
             if SOFTWARE_VERSION_FOUND:
-                new_device.software_version = SoftwareVersion.objects.get_or_create(version=attrs["version"], platform=platform, defaults={"status_id": adapter.status_map["Active"]})[0]
+                soft_version = SoftwareVersion.objects.get_or_create(
+                    version=attrs["version"], platform=platform, defaults={"status_id": adapter.status_map["Active"]}
+                )[0]
+                image, _ = SoftwareImageFile.objects.get_or_create(
+                    image_file_name=f"{platform.name}-{attrs['version']}-dnac-ssot-placeholder",
+                    software_version=soft_version,
+                    status_id=adapter.status_map["Active"],
+                )
+                image.device_types.add(device_type)
+                new_device.software_version = soft_version
         new_device.custom_field_data.update({"system_of_record": "DNA Center"})
         new_device.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         adapter.objects_to_create["devices"].append(new_device)
@@ -279,7 +288,11 @@ class NautobotDevice(base.Device):
                     platform = attrs["platform"]
                 else:
                     platform = self.platform
-                device.software_version = SoftwareVersion.objects.get_or_create(version=attrs["version"], platform__name=platform, defaults={"status_id": self.adapter.status_map["Active"]})[0]
+                device.software_version = SoftwareVersion.objects.get_or_create(
+                    version=attrs["version"],
+                    platform__name=platform,
+                    defaults={"status_id": self.adapter.status_map["Active"]},
+                )[0]
         device.custom_field_data.update({"system_of_record": "DNA Center"})
         device.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         device.validated_save()
