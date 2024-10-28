@@ -162,7 +162,9 @@ class DnaCenterAdapter(Adapter):
             parent_name = None
             if location.get("parentId") and location["parentId"] in self.dnac_location_map:
                 parent_name = self.dnac_location_map[location["parentId"]]["name"]
-                self.dnac_location_map[location["id"]]["parent"] = parent_name
+            if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global") and parent_name == "Global":
+                parent_name = None
+            self.dnac_location_map[location["id"]]["parent"] = parent_name
             _, loaded = self.get_or_instantiate(
                 self.area,
                 ids={"name": location["name"], "parent": parent_name},
@@ -188,7 +190,10 @@ class DnaCenterAdapter(Adapter):
             if location["parentId"] in self.dnac_location_map:
                 _area = self.dnac_location_map[location["parentId"]]
             else:
-                _area = {"name": "Global", "parent": None}
+                if settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
+                    _area = {"name": "Global", "parent": None}
+                else:
+                    _area = {"name": None, "parent": None}
             try:
                 self.get(self.building, {"name": location["name"], "area": _area["name"]})
                 self.job.logger.warning(
