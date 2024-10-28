@@ -316,7 +316,10 @@ class DnaCenterAdapter(Adapter):
         """Load Device data from DNA Center info DiffSync models."""
         devices = self.conn.get_devices()
         for dev in devices:
-            if not PLUGIN_CFG.get("dna_center_import_merakis") and dev.get("family") and "Meraki" in dev["family"]:
+            if not PLUGIN_CFG.get("dna_center_import_merakis") and (
+                (dev.get("family") and "Meraki" in dev["family"])
+                or (dev.get("errorDescription") and "Meraki" in dev["errorDescription"])
+            ):
                 continue
             platform = "unknown"
             dev_role = "Unknown"
