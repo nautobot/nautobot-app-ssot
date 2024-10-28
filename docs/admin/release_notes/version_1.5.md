@@ -5,4 +5,4 @@
 ## Changed
 
 - [206](https://github.com/nautobot/nautobot-plugin-ssot/pull/206) - Update docs pins for py3.7 compatibility by @cmsirbu
-- [207][https://github.com/nautobot/nautobot-plugin-ssot/pull/207] Drop Python 3.7 Support by @jdrew82
+- [207](https://github.com/nautobot/nautobot-plugin-ssot/pull/207) - Drop Python 3.7 Support by @jdrew82
