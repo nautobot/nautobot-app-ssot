@@ -32,9 +32,9 @@ except ImportError:
 try:
     from nautobot.dcim.models import SoftwareImageFile, SoftwareVersion  # noqa: F401
 
-    SOFTWARE_VERSION_FOUND = True
+    SOFTWARE_VERSION_FOUND_IN_CORE = True
 except ImportError:
-    SOFTWARE_VERSION_FOUND = False
+    SOFTWARE_VERSION_FOUND_IN_CORE = False
 
 
 class NautobotArea(base.Area):
@@ -224,7 +224,7 @@ class NautobotDevice(base.Device):
             if LIFECYCLE_MGMT:
                 lcm_obj = add_software_lcm(adapter=adapter, platform=platform.network_driver, version=attrs["version"])
                 assign_version_to_device(adapter=adapter, device=new_device, software_lcm=lcm_obj)
-            if SOFTWARE_VERSION_FOUND:
+            if SOFTWARE_VERSION_FOUND_IN_CORE:
                 soft_version = SoftwareVersion.objects.get_or_create(
                     version=attrs["version"], platform=platform, defaults={"status_id": adapter.status_map["Active"]}
                 )[0]
@@ -283,7 +283,7 @@ class NautobotDevice(base.Device):
                     adapter=self.adapter, platform=platform_network_driver, version=attrs["version"]
                 )
                 assign_version_to_device(adapter=self.adapter, device=device, software_lcm=lcm_obj)
-            if SOFTWARE_VERSION_FOUND:
+            if SOFTWARE_VERSION_FOUND_IN_CORE:
                 if attrs.get("platform"):
                     platform = attrs["platform"]
                 else:
