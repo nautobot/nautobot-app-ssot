@@ -128,6 +128,16 @@ class IPAddressDict(TypedDict):
     prefix_length: int
 ```
 
+!!! note
+    Common `TypedDict` objects are included with `nautobot_ssot.contrib.typeddicts` including:
+
+    `ContentTypeDict`, `TagDict`, `LocationDict`, `DeviceDict`, `InterfaceDict`, `PrefixDict`, `VLANDict`, `IPAddressDict`, `VirtualMachineDict`
+
+    ```
+    # Example
+    from nautobot_ssot.contrib.typeddicts import LocationDict
+    ```
+
 Having defined this, we can now define our diffsync model:
 
 ```python
