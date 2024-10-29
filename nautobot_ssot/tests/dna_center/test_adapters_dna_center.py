@@ -302,6 +302,38 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         self.assertEqual(loaded_bldg.area, "SanDiego")
         self.assertEqual(loaded_bldg.area_parent, "California")
 
+    def test_load_buildings_w_location_map_area_and_bldg_change(self):
+        """Test Nautobot SSoT for Cisco DNA Center load_buildings() function with Job location_map and area and building data."""
+        self.job.location_map = {"HQ": {"parent": "New York", "area_parent": "USA"}, "New York": {"parent": "New York"}}
+        self.dna_center_client.find_address_and_type.side_effect = [("", "building")]
+
+        self.dna_center.load_area = MagicMock()
+        test_bldg = [
+            {
+                "parentId": "04509ce4-6c88-40a3-b444-9e00f2cd97f2",
+                "additionalInfo": [
+                    {
+                        "nameSpace": "Location",
+                        "attributes": {
+                            "latitude": "39.156233",
+                            "type": "building",
+                            "longitude": "-74.690192",
+                        },
+                    }
+                ],
+                "name": "HQ",
+                "id": "2d0d8545-b6de-4dda-a0f7-93bcd7d0e738",
+                "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/04509ce4-6c88-40a3-b444-9e00f2cd97f2/2d0d8545-b6de-4dda-a0f7-93bcd7d0e738",
+                "siteNameHierarchy": "Global/SanDiego/HQ",
+            }
+        ]
+        self.dna_center.load_buildings(buildings=test_bldg)
+        self.dna_center.load_area.assert_called_with(area="New York", area_parent="USA")
+        loaded_bldg = self.dna_center.get("building", {"name": "HQ", "area": "New York"})
+        self.assertEqual(loaded_bldg.name, "HQ")
+        self.assertEqual(loaded_bldg.area, "New York")
+        self.assertEqual(loaded_bldg.area_parent, "USA")
+
     def test_load_floors(self):
         """Test Nautobot SSoT for Cisco DNA Center load_floors() function."""
         self.dna_center.load_floors(floors=EXPECTED_FLOORS)
