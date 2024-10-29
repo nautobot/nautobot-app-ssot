@@ -1,4 +1,4 @@
-"""Common TypedDict definitions used in Many-to-Many relationships. """
+"""Common TypedDict definitions used in Many-to-Many relationships."""
 
 from typing import TypedDict
 
