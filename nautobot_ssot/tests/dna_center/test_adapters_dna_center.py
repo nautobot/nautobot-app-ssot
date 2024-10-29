@@ -276,14 +276,31 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         self.dna_center.load_buildings(buildings=[EXPECTED_BUILDINGS[0]])
         self.dna_center.job.logger.warning.assert_called_with("Site Building1 already loaded so skipping.")
 
-    def test_load_buildings_with_validation_error(self):
-        """Test Nautobot SSoT for Cisco DNA Center load_buildings() function with a ValidationError."""
-        self.dna_center.add = MagicMock()
-        self.dna_center.add.side_effect = ValidationError(message="Building load failed!")
-        self.dna_center.load_buildings(buildings=[EXPECTED_BUILDINGS[0]])
-        self.dna_center.job.logger.warning.assert_called_with(
-            "Unable to load building Building1. ['Building load failed!']"
-        )
+    def test_load_buildings_w_location_map_building_change(self):
+        """Test Nautobot SSoT for Cisco DNA Center load_buildings() function with Job location_map and building data."""
+        self.job.location_map = {"Rome": {"parent": "Italy", "area_parent": "Europe"}}
+        self.dna_center_client.find_address_and_type.side_effect = [("", "building")]
+
+        self.dna_center.load_area = MagicMock()
+        self.dna_center.load_buildings(buildings=[EXPECTED_BUILDINGS[7]])
+        self.dna_center.load_area.assert_called_with(area="Italy", area_parent="Europe")
+        loaded_bldg = self.dna_center.get("building", {"name": "Rome", "area": "Italy"})
+        self.assertEqual(loaded_bldg.name, "Rome")
+        self.assertEqual(loaded_bldg.area, "Italy")
+        self.assertEqual(loaded_bldg.area_parent, "Europe")
+
+    def test_load_buildings_w_location_map_area_change(self):
+        """Test Nautobot SSoT for Cisco DNA Center load_buildings() function with Job location_map and area data."""
+        self.job.location_map = {"SanDiego": {"parent": "California"}}
+        self.dna_center_client.find_address_and_type.side_effect = [("", "building")]
+
+        self.dna_center.load_area = MagicMock()
+        self.dna_center.load_buildings(buildings=[EXPECTED_BUILDINGS[5]])
+        self.dna_center.load_area.assert_called_with(area="SanDiego", area_parent="California")
+        loaded_bldg = self.dna_center.get("building", {"name": "1", "area": "SanDiego"})
+        self.assertEqual(loaded_bldg.name, "1")
+        self.assertEqual(loaded_bldg.area, "SanDiego")
+        self.assertEqual(loaded_bldg.area_parent, "California")
 
     def test_load_floors(self):
         """Test Nautobot SSoT for Cisco DNA Center load_floors() function."""
