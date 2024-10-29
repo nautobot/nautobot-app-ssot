@@ -1,7 +1,7 @@
 """Nautobot SSoT for Cisco DNA Center Adapter for DNA Center SSoT plugin."""
 
 import json
-from typing import List
+from typing import List, Optional
 
 from diffsync import Adapter
 from diffsync.exceptions import ObjectNotFound
@@ -64,7 +64,6 @@ class DnaCenterAdapter(Adapter):
             # to ensure we process locations in the appropriate order we need to split them into their own list of locations
             self.dnac_location_map = self.build_dnac_location_map(locations)
             areas, buildings, floors = self.parse_and_sort_locations(locations)
-            self.load_areas(areas)
             self.load_buildings(buildings)
             self.load_floors(floors)
         else:
@@ -149,36 +148,14 @@ class DnaCenterAdapter(Adapter):
                 attrs={"uuid": None},
             )
 
-    def load_areas(self, areas: List[dict]):
-        """Load areas from DNAC into DiffSync model.
+    def load_area(self, area: str, area_parent: Optional[str] = None):
+        """Load area from DNAC into DiffSync model.
 
         Args:
-            areas (List[dict]): List of dictionaries containing location information about a building.
+            area (str): Name of area to be loaded.
+            area_parent (Optional[str], optional): Name of area's parent if defined. Defaults to None.
         """
-        for location in areas:
-            if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
-                if location["name"] == "Global":
-                    continue
-            parent_name = None
-            if location.get("parentId") and location["parentId"] in self.dnac_location_map:
-                parent_name = self.dnac_location_map[location["parentId"]]["name"]
-            if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global") and parent_name == "Global":
-                parent_name = None
-            self.dnac_location_map[location["id"]]["parent"] = parent_name
-            _, loaded = self.get_or_instantiate(
-                self.area,
-                ids={"name": location["name"], "parent": parent_name},
-                attrs={
-                    "uuid": None,
-                },
-            )
-            if loaded:
-                if self.job.debug:
-                    self.job.logger.info(f"Loaded {self.job.area_loctype.name} {location['name']}. {location}")
-            else:
-                self.job.logger.warning(
-                    f"Duplicate {self.job.area_loctype.name} {location['name']} attempting to be loaded."
-                )
+        self.get_or_instantiate(self.area, ids={"name": area, "parent": area_parent}, attrs={"uuid": None})
 
     def load_buildings(self, buildings: List[dict]):
         """Load building data from DNAC into DiffSync model.
@@ -187,38 +164,43 @@ class DnaCenterAdapter(Adapter):
             buildings (List[dict]): List of dictionaries containing location information about a building.
         """
         for location in buildings:
-            if location["parentId"] in self.dnac_location_map:
-                _area = self.dnac_location_map[location["parentId"]]
-            else:
-                if settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
-                    _area = {"name": "Global", "parent": None}
-                else:
-                    _area = {"name": None, "parent": None}
-            try:
-                self.get(self.building, {"name": location["name"], "area": _area["name"]})
-                self.job.logger.warning(
-                    f"{self.job.building_loctype.name} {location['name']} already loaded so skipping."
-                )
-                continue
-            except ObjectNotFound:
-                if self.job.debug:
-                    self.job.logger.info(f"Loading {self.job.building_loctype.name} {location['name']}. {location}")
-                address, _ = self.conn.find_address_and_type(info=location["additionalInfo"])
-                latitude, longitude = self.conn.find_latitude_and_longitude(info=location["additionalInfo"])
-                new_building = self.building(
-                    name=location["name"],
-                    address=address if address else "",
-                    area=_area["name"],
-                    area_parent=_area["parent"],
-                    latitude=latitude[:9].rstrip("0"),
-                    longitude=longitude[:7].rstrip("0"),
-                    tenant=self.tenant.name if self.tenant else None,
-                    uuid=None,
-                )
-                try:
-                    self.add(new_building)
-                except ValidationError as err:
-                    self.job.logger.warning(f"Unable to load building {location['name']}. {err}")
+            if self.job.debug:
+                self.job.logger.info(f"Loading {self.job.building_loctype.name} {location['name']}. {location}")
+            bldg_name = location["name"]
+            _area, _area_parent = None, None
+            if bldg_name in self.job.location_map and "parent" in self.job.location_map[bldg_name]:
+                _area = self.job.location_map[bldg_name]["parent"]
+                if "area_parent" in self.job.location_map[bldg_name]:
+                    _area_parent = self.job.location_map[bldg_name]["area_parent"]
+            elif location["parentId"] in self.dnac_location_map:
+                _area = self.dnac_location_map[location["parentId"]]["name"]
+                _area_parent = self.dnac_location_map[location["parentId"]]["parent"]
+            print(f"Area: {_area}")
+            if _area in self.job.location_map and "parent" in self.job.location_map[_area]:
+                _area_parent = self.job.location_map[_area]["parent"]
+            if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
+                if _area == "Global":
+                    _area = None
+                if _area_parent == "Global":
+                    _area_parent = None
+            if _area:
+                self.load_area(area=_area, area_parent=_area_parent)
+            address, _ = self.conn.find_address_and_type(info=location["additionalInfo"])
+            latitude, longitude = self.conn.find_latitude_and_longitude(info=location["additionalInfo"])
+            _, loaded = self.get_or_instantiate(
+                self.building,
+                ids={"name": bldg_name, "area": _area},
+                attrs={
+                    "address": address if address else "",
+                    "area_parent": _area_parent,
+                    "latitude": latitude[:9].rstrip("0"),
+                    "longitude": longitude[:7].rstrip("0"),
+                    "tenant": self.tenant.name if self.tenant else None,
+                    "uuid": None,
+                },
+            )
+            if not loaded:
+                self.job.logger.warning(f"{self.job.building_loctype.name} {bldg_name} already loaded so skipping.")
 
     def load_floors(self, floors: List[dict]):
         """Load floor data from DNAC into DiffSync model.
