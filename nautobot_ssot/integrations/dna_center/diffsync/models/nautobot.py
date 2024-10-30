@@ -443,6 +443,8 @@ class NautobotIPAddress(base.IPAddress):
     def update(self, attrs):
         """Update IPAddress in Nautobot from IPAddress object."""
         ipaddr = IPAddress.objects.get(id=self.uuid)
+        if "mask_length" in attrs:
+            ipaddr.mask_length = attrs["mask_length"]
         if "tenant" in attrs:
             if attrs.get("tenant"):
                 ipaddr.tenant_id = self.adapter.tenant_map[attrs["tenant"]]
