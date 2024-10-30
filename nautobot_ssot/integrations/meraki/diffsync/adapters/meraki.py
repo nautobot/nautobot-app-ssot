@@ -14,6 +14,7 @@ from nautobot_ssot.integrations.meraki.diffsync.models.meraki import (
     MerakiOSVersion,
     MerakiPort,
     MerakiPrefix,
+    MerakiPrefixLocation,
 )
 from nautobot_ssot.integrations.meraki.utils.meraki import get_role_from_devicetype, parse_hostname_for_role
 
@@ -27,10 +28,11 @@ class MerakiAdapter(Adapter):
     device = MerakiDevice
     port = MerakiPort
     prefix = MerakiPrefix
+    prefixlocation = MerakiPrefixLocation
     ipaddress = MerakiIPAddress
     ipassignment = MerakiIPAssignment
 
-    top_level = ["network", "hardware", "osversion", "device", "prefix", "ipaddress", "ipassignment"]
+    top_level = ["network", "hardware", "osversion", "device", "prefix", "prefixlocation", "ipaddress", "ipassignment"]
 
     def __init__(self, job, sync, client, tenant=None):
         """Initialize Meraki.
@@ -176,9 +178,10 @@ class MerakiAdapter(Adapter):
                 if port_uplink_settings["svis"]["ipv4"]["assignmentMode"] == "static":
                     port_svis = port_uplink_settings["svis"]["ipv4"]
                     prefix = ipaddress_interface(ip=port_svis["address"], attr="network.with_prefixlen")
-                    self.load_prefix(
-                        location=self.conn.network_map[network_id]["name"],
+                    self.load_prefix(prefix=prefix)
+                    self.load_prefix_location(
                         prefix=prefix,
+                        location=self.conn.network_map[network_id]["name"],
                     )
                     self.load_ipaddress(
                         address=port_svis["address"],
@@ -245,9 +248,10 @@ class MerakiAdapter(Adapter):
                         ip=f"{mgmt_ports[port]['staticIp']}/{netmask_to_cidr(netmask=mgmt_ports[port]['staticSubnetMask'])}",
                         attr="network.with_prefixlen",
                     )
-                    self.load_prefix(
-                        location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
+                    self.load_prefix(prefix=prefix)
+                    self.load_prefix_location(
                         prefix=prefix,
+                        location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
                     )
                     self.load_ipaddress(
                         address=f"{mgmt_ports[port]['staticIp']}/{netmask_to_cidr(mgmt_ports[port]['staticSubnetMask'])}",
@@ -299,9 +303,10 @@ class MerakiAdapter(Adapter):
                         ip=f"{mgmt_ports[port]['staticIp']}/{netmask_to_cidr(netmask=mgmt_ports[port]['staticSubnetMask'])}",
                         attr="network.with_prefixlen",
                     )
-                    self.load_prefix(
-                        location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
+                    self.load_prefix(prefix=prefix)
+                    self.load_prefix_location(
                         prefix=prefix,
+                        location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
                     )
                     self.load_ipaddress(
                         address=f"{mgmt_ports[port]['staticIp']}/{netmask_to_cidr(mgmt_ports[port]['staticSubnetMask'])}",
@@ -314,23 +319,25 @@ class MerakiAdapter(Adapter):
                         primary=True,
                     )
 
-    def load_prefix(self, location: str, prefix: str):
+    def load_prefix(self, prefix: str):
         """Load Prefixes of devices into DiffSync models."""
         if self.tenant:
             namespace = self.tenant.name
         else:
             namespace = "Global"
-        try:
-            self.get(self.prefix, {"prefix": prefix, "namespace": namespace})
-        except ObjectNotFound:
-            new_pf = self.prefix(
-                prefix=prefix,
-                location=location,
-                namespace=namespace,
-                tenant=self.tenant.name if self.tenant else None,
-                uuid=None,
-            )
-            self.add(new_pf)
+        self.get_or_instantiate(
+            self.prefix,
+            ids={"prefix": prefix, "namespace": namespace},
+            attrs={"tenant": self.tenant.name if self.tenant else None, "uuid": None},
+        )
+
+    def load_prefix_location(self, prefix: str, location: str):
+        """Load Prefix Locations of devices into DiffSync models."""
+        self.get_or_instantiate(
+            self.prefixlocation,
+            ids={"prefix": prefix, "location": location},
+            attrs={"uuid": None},
+        )
 
     def load_ipaddress(self, address: str, prefix: str):
         """Load IPAddresses of devices into DiffSync models."""

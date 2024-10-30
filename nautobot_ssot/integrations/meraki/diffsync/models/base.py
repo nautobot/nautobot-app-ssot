@@ -103,13 +103,26 @@ class Prefix(DiffSyncModel):
 
     _modelname = "prefix"
     _identifiers = ("prefix", "namespace")
-    _attributes = ("location", "tenant")
+    _attributes = ("tenant",)
     _children = {}
 
     prefix: str
     namespace: str
-    location: str
     tenant: Optional[str] = None
+
+    uuid: Optional[UUID] = None
+
+
+class PrefixLocation(DiffSyncModel):
+    """DiffSync model for tracking Locations assigned to Prefixes in Meraki."""
+
+    _modelname = "prefixlocation"
+    _identifiers = ("prefix", "location")
+    _attributes = ()
+    _children = {}
+
+    prefix: str
+    location: str
 
     uuid: Optional[UUID] = None
 
