@@ -308,7 +308,8 @@ class DnaCenterAdapter(Adapter):
             dev_role = "Unknown"
             vendor = "Cisco"
             if not dev.get("hostname"):
-                self.job.logger.warning(f"Device {dev['id']} is missing hostname so will be skipped.")
+                if self.job.debug:
+                    self.job.logger.warning(f"Device {dev['id']} is missing hostname so will be skipped.")
                 dev["field_validation"] = {
                     "reason": "Failed due to missing hostname.",
                 }
@@ -340,7 +341,8 @@ class DnaCenterAdapter(Adapter):
                 or loc_data.get("building") == "Unassigned"
                 or not loc_data.get("building")
             ):
-                self.job.logger.warning(f"Device {dev['hostname']} is missing building so will not be imported.")
+                if self.job.debug:
+                    self.job.logger.warning(f"Device {dev['hostname']} is missing building so will not be imported.")
                 dev["field_validation"] = {
                     "reason": "Missing building assignment.",
                     "device_details": dev_details,
@@ -355,9 +357,10 @@ class DnaCenterAdapter(Adapter):
                     )
                 device_found = self.get(self.device, dev["hostname"])
                 if device_found:
-                    self.job.logger.warning(
-                        f"Duplicate device attempting to be loaded for {dev['hostname']} with ID: {dev['id']} so will not be imported."
-                    )
+                    if self.job.debug:
+                        self.job.logger.warning(
+                            f"Duplicate device attempting to be loaded for {dev['hostname']} with ID: {dev['id']} so will not be imported."
+                        )
                     dev["field_validation"] = {
                         "reason": "Failed due to duplicate device found.",
                         "device_details": dev_details,
@@ -385,7 +388,8 @@ class DnaCenterAdapter(Adapter):
                     self.add(new_dev)
                     self.load_ports(device_id=dev["id"], dev=new_dev, mgmt_addr=dev["managementIpAddress"])
                 except ValidationError as err:
-                    self.job.logger.warning(f"Unable to load device {dev['hostname']}. {err}")
+                    if self.job.debug:
+                        self.job.logger.warning(f"Unable to load device {dev['hostname']}. {err}")
                     dev["field_validation"] = {
                         "reason": f"Failed validation. {err}",
                         "device_details": dev_details,
@@ -412,7 +416,7 @@ class DnaCenterAdapter(Adapter):
                         "mac_addr": port["macAddress"].upper() if port.get("macAddress") else None,
                     },
                 )
-                if found_port:
+                if found_port and self.job.debug:
                     self.job.logger.warning(
                         f"Duplicate port attempting to be loaded, {port['portName']} for {dev.name}"
                     )
@@ -486,7 +490,7 @@ class DnaCenterAdapter(Adapter):
             self.add(new_prefix)
         try:
             ip_found = self.get(self.ipaddress, {"host": host, "namespace": namespace})
-            if ip_found:
+            if ip_found and self.job.debug:
                 self.job.logger.warning(f"Duplicate IP Address attempting to be loaded: {host} in {prefix}")
         except ObjectNotFound:
             if self.job.debug:
