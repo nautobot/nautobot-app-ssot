@@ -31,6 +31,7 @@ from nautobot_ssot.integrations.meraki.diffsync.models.nautobot import (
     NautobotOSVersion,
     NautobotPort,
     NautobotPrefix,
+    NautobotPrefixLocation,
 )
 from nautobot_ssot.integrations.meraki.utils.nautobot import get_tag_strings
 
@@ -44,10 +45,11 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
     device = NautobotDevice
     port = NautobotPort
     prefix = NautobotPrefix
+    prefixlocation = NautobotPrefixLocation
     ipaddress = NautobotIPAddress
     ipassignment = NautobotIPAssignment
 
-    top_level = ["network", "hardware", "osversion", "device", "prefix", "ipaddress", "ipassignment"]
+    top_level = ["network", "hardware", "osversion", "device", "prefix", "prefixlocation", "ipaddress", "ipassignment"]
 
     status_map = {}
     tenant_map = {}
@@ -188,11 +190,27 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
         for prefix in prefixes:
             new_pf = self.prefix(
                 prefix=str(prefix.prefix),
-                location=prefix.location.name if prefix.location else "",
                 namespace=prefix.namespace.name,
                 tenant=prefix.tenant.name if prefix.tenant else None,
                 uuid=prefix.id,
             )
+            if getattr(prefix, "locations"):
+                for location in prefix.locations.all():
+                    pf_loc, loaded = self.get_or_instantiate(
+                        self.prefixlocation,
+                        ids={"prefix": str(prefix.prefix), "location": location.name},
+                        attrs={"uuid": location.id},
+                    )
+                    if loaded and self.tenant:
+                        pf_loc.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+            if getattr(prefix, "location"):
+                pf_loc, loaded = self.get_or_instantiate(
+                    self.prefixlocation,
+                    ids={"prefix": str(prefix.prefix), "location": prefix.location.name},
+                    attrs={"uuid": prefix.location.id},
+                )
+                if loaded and self.tenant:
+                    pf_loc.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
             if self.tenant:
                 new_pf.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
             self.add(new_pf)
