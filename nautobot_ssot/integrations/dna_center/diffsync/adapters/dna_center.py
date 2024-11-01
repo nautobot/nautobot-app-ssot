@@ -214,39 +214,30 @@ class DnaCenterAdapter(Adapter):
         for location in floors:
             if self.job.debug:
                 self.job.logger.info(f"Loading floor {location['name']}. {location}")
+            area_name = None
             if location["parentId"] in self.dnac_location_map:
-                _building = self.dnac_location_map[location["parentId"]]
+                bldg_name = self.dnac_location_map[location["parentId"]]["name"]
+                area_name = self.dnac_location_map[location["parentId"]]["parent"]
             else:
                 self.job.logger.warning(f"Parent to {location['name']} can't be found so will be skipped.")
                 continue
-            floor_name = f"{_building['name']} - {location['name']}"
+            if bldg_name in self.job.location_map and "name" in self.job.location_map[bldg_name]:
+                bldg_name = self.job.location_map[bldg_name]["name"]
+                area_name = self.job.location_map[bldg_name]["parent"]
+            floor_name = f"{bldg_name} - {location['name']}"
             try:
-                self.get(
+                parent = self.get(self.building, {"name": bldg_name, "area": area_name})
+                new_floor, loaded = self.get_or_instantiate(
                     self.floor,
-                    {"name": floor_name, "building": _building["name"]},
+                    ids={"name": floor_name, "building": bldg_name},
+                    attrs={"tenant": self.tenant.name if self.tenant else None, "uuid": None},
                 )
-                self.job.logger.warning(f"Duplicate Floor {floor_name} attempting to be loaded.")
-            except ObjectNotFound:
-                new_floor = self.floor(
-                    name=floor_name,
-                    building=_building["name"],
-                    tenant=self.tenant.name if self.tenant else None,
-                    uuid=None,
+                if loaded:
+                    parent.add_child(new_floor)
+            except ObjectNotFound as err:
+                self.job.logger.warning(
+                    f"Unable to find {self.job.building_loctype.name} {bldg_name} for {self.job.floor_loctype.name} {floor_name}. {err}"
                 )
-                try:
-                    self.add(new_floor)
-                    try:
-                        parent = self.get(
-                            self.building,
-                            {"name": _building["name"], "area": self.dnac_location_map[location["parentId"]]["parent"]},
-                        )
-                        parent.add_child(new_floor)
-                    except ObjectNotFound as err:
-                        self.job.logger.warning(
-                            f"Unable to find {self.job.building_loctype.name} {_building['name']} for {self.job.floor_loctype.name} {floor_name}. {err}"
-                        )
-                except ValidationError as err:
-                    self.job.logger.warning(f"Unable to load floor {floor_name}. {err}")
 
     def parse_and_sort_locations(self, locations: List[dict]):
         """Separate locations into areas, buildings, and floors for processing. Also sort by siteHierarchy.
