@@ -63,7 +63,7 @@ class DnaCenterAdapter(Adapter):
         if locations:
             # to ensure we process locations in the appropriate order we need to split them into their own list of locations
             self.dnac_location_map = self.build_dnac_location_map(locations)
-            areas, buildings, floors = self.parse_and_sort_locations(locations)
+            _, buildings, floors = self.parse_and_sort_locations(locations)
             self.load_buildings(buildings)
             self.load_floors(floors)
         else:
@@ -172,6 +172,8 @@ class DnaCenterAdapter(Adapter):
                 _area = self.job.location_map[bldg_name]["parent"]
                 if "area_parent" in self.job.location_map[bldg_name]:
                     _area_parent = self.job.location_map[bldg_name]["area_parent"]
+                if "name" in self.job.location_map[bldg_name]:
+                    bldg_name = self.job.location_map[bldg_name]
             elif location["parentId"] in self.dnac_location_map:
                 _area = self.dnac_location_map[location["parentId"]]["name"]
                 _area_parent = self.dnac_location_map[location["parentId"]]["parent"]
