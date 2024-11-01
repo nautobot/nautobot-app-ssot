@@ -222,8 +222,8 @@ class DnaCenterAdapter(Adapter):
                 self.job.logger.warning(f"Parent to {location['name']} can't be found so will be skipped.")
                 continue
             if bldg_name in self.job.location_map and "name" in self.job.location_map[bldg_name]:
-                bldg_name = self.job.location_map[bldg_name]["name"]
                 area_name = self.job.location_map[bldg_name]["parent"]
+                bldg_name = self.job.location_map[bldg_name]["name"]
             floor_name = f"{bldg_name} - {location['name']}"
             try:
                 parent = self.get(self.building, {"name": bldg_name, "area": area_name})
