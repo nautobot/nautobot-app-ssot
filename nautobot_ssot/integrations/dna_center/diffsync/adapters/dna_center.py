@@ -173,7 +173,7 @@ class DnaCenterAdapter(Adapter):
                 if "area_parent" in self.job.location_map[bldg_name]:
                     _area_parent = self.job.location_map[bldg_name]["area_parent"]
                 if "name" in self.job.location_map[bldg_name]:
-                    bldg_name = self.job.location_map[bldg_name]
+                    bldg_name = self.job.location_map[bldg_name]["name"]
             elif location["parentId"] in self.dnac_location_map:
                 _area = self.dnac_location_map[location["parentId"]]["name"]
                 _area_parent = self.dnac_location_map[location["parentId"]]["parent"]
