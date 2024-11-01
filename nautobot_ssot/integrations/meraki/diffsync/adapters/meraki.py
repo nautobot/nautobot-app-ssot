@@ -61,8 +61,8 @@ class MerakiAdapter(Adapter):
                     parent_name = self.job.parent_location.name
                 elif self.job.location_map and network_name in self.job.location_map:
                     parent_name = self.job.location_map[network_name]["parent"]
-                elif self.job.location_map and net in self.job.location_map:
-                    parent_name = self.job.location_map[net]["parent"]
+                    if "name" in self.job.location_map[network_name]:
+                        network_name = self.job.location_map[network_name]
                 else:
                     self.job.logger.error(
                         f"Parent Location is required for {self.job.network_loctype.name} but can't determine parent to be assigned to {net}."
