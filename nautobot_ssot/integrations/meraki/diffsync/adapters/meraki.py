@@ -54,10 +54,13 @@ class MerakiAdapter(Adapter):
     def load_networks(self):
         """Load networks from Meraki dashboard into DiffSync models."""
         for net in self.conn.get_org_networks():
+            network_name = net["name"]
             parent_name = None
             if self.job.network_loctype.parent:
                 if self.job.parent_location:
                     parent_name = self.job.parent_location.name
+                elif self.job.location_map and network_name in self.job.location_map:
+                    parent_name = self.job.location_map[network_name]["parent"]
                 elif self.job.location_map and net in self.job.location_map:
                     parent_name = self.job.location_map[net]["parent"]
                 else:
@@ -67,7 +70,7 @@ class MerakiAdapter(Adapter):
                     continue
             self.get_or_instantiate(
                 self.network,
-                ids={"name": net["name"], "parent": parent_name},
+                ids={"name": network_name, "parent": parent_name},
                 attrs={
                     "timezone": net["timeZone"],
                     "notes": net["notes"].rstrip() if net.get("notes") else "",
