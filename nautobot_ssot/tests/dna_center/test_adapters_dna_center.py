@@ -336,6 +336,8 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
 
     def test_load_floors(self):
         """Test Nautobot SSoT for Cisco DNA Center load_floors() function."""
+        self.job.location_map = {}
+        self.dna_center.get = MagicMock()
         self.dna_center.load_floors(floors=EXPECTED_FLOORS)
         floor_expected = [
             "Building1 - Floor1__Building1",
