@@ -39,11 +39,11 @@ class DnaCenterAdapter(Adapter):
 
     top_level = ["area", "building", "device", "prefix", "ipaddress", "ip_on_intf"]
 
-    def __init__(self, *args, job=None, sync=None, client: DnaCenterClient, tenant: Tenant, **kwargs):
+    def __init__(self, *args, job, sync=None, client: DnaCenterClient, tenant: Tenant, **kwargs):
         """Initialize DNA Center.
 
         Args:
-            job (object, optional): DNA Center job. Defaults to None.
+            job (Union[DataSource, DataTarget]): DNA Center job.
             sync (object, optional): DNA Center DiffSync. Defaults to None.
             client (DnaCenterClient): DNA Center API client connection object.
             tenant (Tenant): Tenant to attach to imported objects. Can be set to None for no Tenant to be attached.
