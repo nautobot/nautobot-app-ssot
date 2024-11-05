@@ -184,14 +184,20 @@ class NautobotAdapter(Adapter):
                     pass
                 if dlm_version != version:
                     version = None
+            bldg_name, floor_name = None, None
+            if dev.location.location_type == self.job.floor_loctype:
+                floor_name = dev.location.name
+                bldg_name = dev.location.parent.name
+            if dev.location.location_type == self.job.building_loctype:
+                bldg_name = dev.location.name
             new_dev = self.device(
                 name=dev.name,
                 status=dev.status.name,
                 role=dev.role.name,
                 vendor=dev.device_type.manufacturer.name,
                 model=dev.device_type.model,
-                site=dev.location.parent.name if dev.location.parent else None,
-                floor=dev.location.name if dev.location else None,
+                site=bldg_name,
+                floor=floor_name,
                 serial=dev.serial,
                 version=version,
                 platform=dev.platform.network_driver if dev.platform else "",

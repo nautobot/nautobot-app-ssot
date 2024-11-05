@@ -1,1 +1,2 @@
 Fixed Meraki loading of Nautobot Prefixes that have multiple Locations assigned.
+Fixed DNA Center loading incorrect location names for Devices.
