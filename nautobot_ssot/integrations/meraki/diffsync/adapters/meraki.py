@@ -162,42 +162,43 @@ class MerakiAdapter(Adapter):
                 for link in uplinks:
                     if link["interface"] == port and link["status"] == "active":
                         uplink_status = "Active"
-            port_uplink_settings = uplink_settings[port]
-            new_port, loaded = self.get_or_instantiate(
-                self.port,
-                ids={"name": port, "device": device.name},
-                attrs={
-                    "management": True,
-                    "enabled": port_uplink_settings["enabled"],
-                    "port_type": "1000base-t",
-                    "port_status": uplink_status,
-                    "tagging": port_uplink_settings["vlanTagging"]["enabled"],
-                    "uuid": None,
-                },
-            )
-            if loaded:
-                self.add(new_port)
-                device.add_child(new_port)
-                if port_uplink_settings["svis"]["ipv4"]["assignmentMode"] == "static":
-                    port_svis = port_uplink_settings["svis"]["ipv4"]
-                    prefix = ipaddress_interface(ip=port_svis["address"], attr="network.with_prefixlen")
-                    self.load_prefix(prefix=prefix)
-                    self.load_prefix_location(
-                        prefix=prefix,
-                        location=self.conn.network_map[network_id]["name"],
-                    )
-                    self.load_ipaddress(
-                        address=port_svis["address"],
-                        prefix=prefix,
-                    )
-                    self.load_ipassignment(
-                        address=port_svis["address"],
-                        dev_name=device.name,
-                        port=port,
-                        primary=bool(uplink_status == "Active" and not primary_found),
-                    )
-                if uplink_status == "Active":
-                    primary_found = True
+            if uplink_settings.get(port):
+                port_uplink_settings = uplink_settings[port]
+                new_port, loaded = self.get_or_instantiate(
+                    self.port,
+                    ids={"name": port, "device": device.name},
+                    attrs={
+                        "management": True,
+                        "enabled": port_uplink_settings["enabled"],
+                        "port_type": "1000base-t",
+                        "port_status": uplink_status,
+                        "tagging": port_uplink_settings["vlanTagging"]["enabled"],
+                        "uuid": None,
+                    },
+                )
+                if loaded:
+                    self.add(new_port)
+                    device.add_child(new_port)
+                    if port_uplink_settings["svis"]["ipv4"]["assignmentMode"] == "static":
+                        port_svis = port_uplink_settings["svis"]["ipv4"]
+                        prefix = ipaddress_interface(ip=port_svis["address"], attr="network.with_prefixlen")
+                        self.load_prefix(prefix=prefix)
+                        self.load_prefix_location(
+                            prefix=prefix,
+                            location=self.conn.network_map[network_id]["name"],
+                        )
+                        self.load_ipaddress(
+                            address=port_svis["address"],
+                            prefix=prefix,
+                        )
+                        self.load_ipassignment(
+                            address=port_svis["address"],
+                            dev_name=device.name,
+                            port=port,
+                            primary=bool(uplink_status == "Active" and not primary_found),
+                        )
+                    if uplink_status == "Active":
+                        primary_found = True
         if lan_ports:
             self.process_lan_ports(device, lan_ports)
 
