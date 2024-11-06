@@ -1,0 +1,1 @@
+Fixed imports in CustomFields migration that was causing installation issues.
