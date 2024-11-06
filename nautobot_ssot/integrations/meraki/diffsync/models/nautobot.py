@@ -307,7 +307,7 @@ class NautobotPrefixLocation(PrefixLocation):
     def create(cls, adapter, ids, attrs):
         """Create PrefixLocationAssignment in Nautobot from NautobotPrefixLocation object."""
         new_assignment = PrefixLocationAssignment(
-            prefix_id=adapter.prefix_map[ids["prefix"]], location_id=adapter.site_map[ids["location"]]
+            prefix_id=adapter.prefix_map[ids["prefix"]], location=adapter.site_map[ids["location"]]
         )
         adapter.objects_to_create["prefix_locs"].append(new_assignment)
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
