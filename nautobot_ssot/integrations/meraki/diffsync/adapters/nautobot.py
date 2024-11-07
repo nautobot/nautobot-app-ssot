@@ -203,7 +203,7 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                     )
                     if loaded and self.tenant:
                         pf_loc.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
-            if getattr(prefix, "location"):
+            elif getattr(prefix, "location"):
                 pf_loc, loaded = self.get_or_instantiate(
                     self.prefixlocation,
                     ids={"prefix": str(prefix.prefix), "location": prefix.location.name},
