@@ -2414,7 +2414,7 @@ class NautobotValidatedSoftware(ValidatedSoftware):
             _software = ORMSoftwareVersion.objects.get(version=attrs["software_version"], platform=_platform)
         else:
             adapter.job.logger.error(
-                f"Model to represent Software version not found so skipping creation of ValidatedSoftware for {self.software}."
+                f"Model to represent Software version not found so skipping creation of ValidatedSoftware {attrs['software_version']} for {attrs['platform']}."
             )
             return None
         _new_validated_software = ORMValidatedSoftware(
