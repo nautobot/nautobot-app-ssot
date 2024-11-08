@@ -95,15 +95,6 @@ except (ImportError, RuntimeError):
 
 try:
     # noqa: F401
-    from nautobot.dcim.models import SoftwareVersion as ORMSoftware
-
-    SOFTWARE_VERSION_FOUND = True
-except (ImportError, RuntimeError):
-    SOFTWARE_VERSION_FOUND = False
-
-
-try:
-    # noqa: F401
     from nautobot_device_lifecycle_mgmt.models import (
         SoftwareImageLCM as ORMSoftwareImage,
     )
@@ -1261,59 +1252,44 @@ class NautobotAdapter(Adapter):
         for nb_validated_software in ORMValidatedSoftware.objects.all():
             if self.job.debug:
                 self.job.logger.debug(f"Loading Nautobot ValidatedSoftwareLCM {nb_validated_software}")
-            try:
-                _software = ORMSoftware.objects.get(
-                    version=nb_validated_software.software.version,
-                    device_platform=nb_validated_software.software.device_platform.id,
-                )
-                self.get(
-                    self.validated_software,
-                    {
-                        "software": {nb_validated_software.software},
-                        "valid_since": {nb_validated_software.start},
-                        "valid_until": {nb_validated_software.end},
-                    },
-                )
-            except ObjectNotFound:
-                _val_software = ORMValidatedSoftware.objects.get(
-                    software=_software,
-                    start=nb_validated_software.start,
-                    end=nb_validated_software.end,
-                )
-                _tags = sorted(list(_val_software.tags.all().values_list("name", flat=True)))
-                _devices = sorted(list(_val_software.devices.all().values_list("name", flat=True)))
-                _device_types = sorted(list(_val_software.device_types.all().values_list("model", flat=True)))
-                _device_roles = sorted(list(_val_software.device_roles.all().values_list("name", flat=True)))
-                _inventory_items = sorted(list(_val_software.inventory_items.all().values_list("name", flat=True)))
-                _object_tags = sorted(list(_val_software.object_tags.all().values_list("name", flat=True)))
-                _sor = ""
-                if "system_of_record" in nb_validated_software.custom_field_data:
-                    _sor = (
-                        nb_validated_software.custom_field_data["system_of_record"]
-                        if nb_validated_software.custom_field_data["system_of_record"] is not None
-                        else ""
-                    )
-                new_validated_software = self.validated_software(
-                    software=f"{nb_validated_software.software.device_platform} - {nb_validated_software.software.version}",
-                    software_version=nb_validated_software.software.version,
-                    platform=nb_validated_software.software.device_platform.name,
-                    valid_since=nb_validated_software.start,
-                    valid_until=nb_validated_software.end,
-                    preferred_version=nb_validated_software.preferred,
-                    devices=_devices,
-                    device_types=_device_types,
-                    device_roles=_device_roles,
-                    inventory_items=_inventory_items,
-                    object_tags=_object_tags,
-                    tags=_tags,
-                    system_of_record=_sor,
-                    uuid=nb_validated_software.id,
-                )
 
-                if not check_sor_field(nb_validated_software):
-                    new_validated_software.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+            _tags = sorted(list(nb_validated_software.tags.all().values_list("name", flat=True)))
+            _devices = sorted(list(nb_validated_software.devices.all().values_list("name", flat=True)))
+            _device_types = sorted(list(nb_validated_software.device_types.all().values_list("model", flat=True)))
+            _device_roles = sorted(list(nb_validated_software.device_roles.all().values_list("name", flat=True)))
+            _inventory_items = sorted(list(nb_validated_software.inventory_items.all().values_list("name", flat=True)))
+            _object_tags = sorted(list(nb_validated_software.object_tags.all().values_list("name", flat=True)))
+            _sor = ""
+            if "system_of_record" in nb_validated_software.custom_field_data:
+                _sor = (
+                    nb_validated_software.custom_field_data["system_of_record"]
+                    if nb_validated_software.custom_field_data["system_of_record"] is not None
+                    else ""
+                )
+            new_validated_software, _ = self.get_or_instantiate(
+                self.validated_software,
+                ids={
+                    "software": {nb_validated_software.software},
+                    "valid_since": {nb_validated_software.start},
+                    "valid_until": {nb_validated_software.end},
+                },
+                attrs={
+                    "software_version": nb_validated_software.software.version,
+                    "platform": nb_validated_software.software.device_platform.name,
+                    "preferred_version": nb_validated_software.preferred,
+                    "devices": _devices,
+                    "device_types": _device_types,
+                    "device_roles": _device_roles,
+                    "inventory_items": _inventory_items,
+                    "object_tags": _object_tags,
+                    "tags": _tags,
+                    "system_of_record": _sor,
+                    "uuid": nb_validated_software.id,
+                },
+            )
 
-                self.add(new_validated_software)
+            if not check_sor_field(nb_validated_software):
+                new_validated_software.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
 
     def load(self):
         """Load data from Nautobot into DiffSync models."""
@@ -1377,6 +1353,6 @@ class NautobotAdapter(Adapter):
         if SOFTWARE_IMAGE_LIFECYCLE_MGMT:
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software_image"]:
                 self.load_software_image()
-        if VALID_SOFTWARE_LIFECYCLE_MGMT and (SOFTWARE_LIFECYCLE_MGMT or SOFTWARE_VERSION_FOUND):
+        if VALID_SOFTWARE_LIFECYCLE_MGMT:
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["validated_software"]:
                 self.load_validated_software()
