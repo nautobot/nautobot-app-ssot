@@ -95,6 +95,15 @@ except (ImportError, RuntimeError):
 
 try:
     # noqa: F401
+    from nautobot.dcim.models import SoftwareVersion as ORMSoftware
+
+    SOFTWARE_VERSION_FOUND = True
+except (ImportError, RuntimeError):
+    SOFTWARE_VERSION_FOUND = False
+
+
+try:
+    # noqa: F401
     from nautobot_device_lifecycle_mgmt.models import (
         SoftwareImageLCM as ORMSoftwareImage,
     )
@@ -1368,6 +1377,6 @@ class NautobotAdapter(Adapter):
         if SOFTWARE_IMAGE_LIFECYCLE_MGMT:
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software_image"]:
                 self.load_software_image()
-        if VALID_SOFTWARE_LIFECYCLE_MGMT:
+        if VALID_SOFTWARE_LIFECYCLE_MGMT and (SOFTWARE_LIFECYCLE_MGMT or SOFTWARE_VERSION_FOUND):
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["validated_software"]:
                 self.load_validated_software()
