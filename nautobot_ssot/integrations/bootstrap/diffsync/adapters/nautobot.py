@@ -1266,6 +1266,10 @@ class NautobotAdapter(Adapter):
                     if nb_validated_software.custom_field_data["system_of_record"] is not None
                     else ""
                 )
+            if getattr(nb_validated_software.software, "device_platform"):
+                platform = nb_validated_software.software.device_platform.name
+            else:
+                platform = nb_validated_software.software.platform.name
             new_validated_software, _ = self.get_or_instantiate(
                 self.validated_software,
                 ids={
@@ -1275,7 +1279,7 @@ class NautobotAdapter(Adapter):
                 },
                 attrs={
                     "software_version": nb_validated_software.software.version,
-                    "platform": nb_validated_software.software.device_platform.name,
+                    "platform": platform,
                     "preferred_version": nb_validated_software.preferred,
                     "devices": _devices,
                     "device_types": _device_types,
