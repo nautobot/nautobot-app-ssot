@@ -1273,9 +1273,9 @@ class NautobotAdapter(Adapter):
             new_validated_software, _ = self.get_or_instantiate(
                 self.validated_software,
                 ids={
-                    "software": {nb_validated_software.software},
-                    "valid_since": {nb_validated_software.start},
-                    "valid_until": {nb_validated_software.end},
+                    "software": str(nb_validated_software.software),
+                    "valid_since": nb_validated_software.start,
+                    "valid_until": nb_validated_software.end,
                 },
                 attrs={
                     "software_version": nb_validated_software.software.version,
