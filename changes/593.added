@@ -1,1 +1,2 @@
 Added ability to rename Network in Meraki and Datacenter in DNA Center integrations using location_map.
+Added support for SoftwareVersion in Bootstrap integration.
