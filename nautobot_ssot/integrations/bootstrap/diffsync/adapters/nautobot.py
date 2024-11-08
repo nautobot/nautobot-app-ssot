@@ -1266,7 +1266,7 @@ class NautobotAdapter(Adapter):
                     if nb_validated_software.custom_field_data["system_of_record"] is not None
                     else ""
                 )
-            if getattr(nb_validated_software.software, "device_platform"):
+            if hasattr(nb_validated_software.software, "device_platform"):
                 platform = nb_validated_software.software.device_platform.name
             else:
                 platform = nb_validated_software.software.platform.name
