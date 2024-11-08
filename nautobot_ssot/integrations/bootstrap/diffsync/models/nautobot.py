@@ -236,7 +236,10 @@ class NautobotRole(Role):
         _content_types = []
         adapter.job.logger.info(f'Creating Nautobot Role: {ids["name"]}')
         for _model in attrs["content_types"]:
-            _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+            try:
+                _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+            except ContentType.DoesNotExist:
+                adapter.job.logger.error(f"Unable to find ContentType for {_model}.")
         _new_role = ORMRole(
             name=ids["name"],
             weight=attrs["weight"],
@@ -264,7 +267,10 @@ class NautobotRole(Role):
         if "content_types" in attrs:
             for _model in attrs["content_types"]:
                 self.adapter.job.logger.debug(f"Looking up {_model} in content types.")
-                _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+                try:
+                    _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+                except ContentType.DoesNotExist:
+                    self.adapter.job.logger.error(f"Unable to find ContentType for {_model}.")
             _update_role.content_types.set(_content_types)
         if not check_sor_field(_update_role):
             _update_role.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
@@ -394,7 +400,10 @@ class NautobotLocationType(LocationType):
         adapter.job.logger.info(f'Creating Nautobot LocationType: {ids["name"]}')
         _parent = None
         for _model in attrs["content_types"]:
-            _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+            try:
+                _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+            except ContentType.DoesNotExist:
+                adapter.job.logger.error(f"Unable to find ContentType for {_model}.")
         if "parent" in attrs:
             try:
                 _parent = ORMLocationType.objects.get(name=attrs["parent"])
@@ -411,7 +420,10 @@ class NautobotLocationType(LocationType):
         _new_location_type.validated_save()
         for _model in attrs["content_types"]:
             adapter.job.logger.debug(f"Looking up {_model} in content types.")
-            _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+            try:
+                _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+            except ContentType.DoesNotExist:
+                adapter.job.logger.error(f"Unable to find ContentType for {_model}.")
         _new_location_type.content_types.set(_content_types)
         _new_location_type.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_location_type.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
@@ -438,7 +450,10 @@ class NautobotLocationType(LocationType):
         if "content_types" in attrs:
             for _model in attrs["content_types"]:
                 self.adapter.job.logger.debug(f"Looking up {_model} in content types.")
-                _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+                try:
+                    _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+                except ContentType.DoesNotExist:
+                    self.adapter.job.logger.error(f"Unable to find ContentType for {_model}.")
             _update_location_type.content_types.set(_content_types)
         if not check_sor_field(_update_location_type):
             _update_location_type.custom_field_data.update(
@@ -2106,7 +2121,10 @@ class NautobotTag(Tag):
         adapter.job.logger.info(f'Creating Nautobot Tag: {ids["name"]}')
         for _model in attrs["content_types"]:
             adapter.job.logger.debug(f"Looking up {_model} in content types.")
-            _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+            try:
+                _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+            except ContentType.DoesNotExist:
+                adapter.job.logger.error(f"Unable to find ContentType for {_model}.")
         _new_tag = ORMTag(
             name=ids["name"],
             color=attrs["color"],
@@ -2129,7 +2147,10 @@ class NautobotTag(Tag):
             _content_types = []
             for _model in attrs["content_types"]:
                 self.adapter.job.logger.debug(f"Looking up {_model} in content types.")
-                _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+                try:
+                    _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+                except ContentType.DoesNotExist:
+                    self.adapter.job.logger.error(f"Unable to find ContentType for {_model}.")
             _update_tag.content_types.set(_content_types)
         if attrs.get("description"):
             _update_tag.description = attrs["description"]
