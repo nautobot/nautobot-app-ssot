@@ -10,6 +10,7 @@ from nautobot_ssot.integrations.meraki.diffsync.models.base import (
     OSVersion,
     Port,
     Prefix,
+    PrefixLocation,
 )
 
 
@@ -112,6 +113,23 @@ class MerakiPrefix(Prefix):
 
     def delete(self):
         """Delete Prefix in Meraki from MerakiPrefix object."""
+        return self
+
+
+class MerakiPrefixLocation(PrefixLocation):
+    """Meraki implementation of PrefixLocation DiffSync model."""
+
+    @classmethod
+    def create(cls, adapter, ids, attrs):
+        """Create PrefixLocation in Meraki from MerakiPrefixLocation object."""
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update PrefixLocation in Meraki from MerakiPrefixLocation object."""
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete PrefixLocation in Meraki from MerakiPrefixLocation object."""
         return self
 
 

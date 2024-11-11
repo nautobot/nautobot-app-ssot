@@ -4,6 +4,9 @@
 /nautobot_ssot/integrations/aristacv/ @qduk @jdrew82 @nautobot/plugin-ssot
 /nautobot_ssot/integrations/bootstrap/ @bile0026 @nautobot/plugin-ssot
 /nautobot_ssot/integrations/device42/ @jdrew82 @nautobot/plugin-ssot
+/nautobot_ssot/integrations/dna_center/ @jdrew82 @nautobot/plugin-ssot
 /nautobot_ssot/integrations/infoblox/ @qduk @jdrew82 @nautobot/plugin-ssot
 /nautobot_ssot/integrations/ipfabric/ @alhogan @nautobot/plugin-ssot
+/nautobot_ssot/integrations/itential/ @jtdub @nautobot/plugin-ssot
+/nautobot_ssot/integrations/meraki/ @jdrew82 @nautobot/plugin-ssot
 /nautobot_ssot/integrations/servicenow/ @glennmatthews @qduk @nautobot/plugin-ssot

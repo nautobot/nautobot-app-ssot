@@ -6,7 +6,7 @@ from nautobot.dcim.models import Device as NewDevice
 from nautobot.dcim.models import DeviceType, Interface, Location, SoftwareVersion
 from nautobot.extras.models import Note, Role
 from nautobot.ipam.models import IPAddress as OrmIPAddress
-from nautobot.ipam.models import IPAddressToInterface
+from nautobot.ipam.models import IPAddressToInterface, PrefixLocationAssignment
 from nautobot.ipam.models import Prefix as OrmPrefix
 
 from nautobot_ssot.integrations.meraki.diffsync.models.base import (
@@ -18,6 +18,7 @@ from nautobot_ssot.integrations.meraki.diffsync.models.base import (
     OSVersion,
     Port,
     Prefix,
+    PrefixLocation,
 )
 
 
@@ -261,7 +262,7 @@ class NautobotPort(Port):
 
 
 class NautobotPrefix(Prefix):
-    """Nautobot implementation of Meraki Port model."""
+    """Nautobot implementation of Meraki Prefix model."""
 
     @classmethod
     def create(cls, adapter, ids, attrs):
@@ -272,8 +273,6 @@ class NautobotPrefix(Prefix):
             status_id=adapter.status_map["Active"],
             tenant_id=adapter.tenant_map[attrs["tenant"]] if attrs.get("tenant") else None,
         )
-        if attrs.get("location"):
-            adapter.objects_to_create["prefix_locs"].append((new_pf.id, adapter.site_map[attrs["location"]]))
         new_pf.custom_field_data["system_of_record"] = "Meraki SSoT"
         new_pf.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         adapter.objects_to_create["prefixes"].append(new_pf)
@@ -283,11 +282,6 @@ class NautobotPrefix(Prefix):
     def update(self, attrs):
         """Update Prefix in Nautobot from NautobotPrefix object."""
         prefix = OrmPrefix.objects.get(id=self.uuid)
-        if "location" in attrs:
-            if attrs.get("location"):
-                prefix.locations.add(self.adapter.site_map[attrs["location"]])
-            else:
-                prefix.locations.remove(self.adapter.site_map[self.location])
         if "tenant" in attrs:
             if attrs.get("tenant"):
                 prefix.tenant_id = self.adapter.tenant_map[attrs["tenant"]]
@@ -303,6 +297,26 @@ class NautobotPrefix(Prefix):
         del_pf = OrmPrefix.objects.get(id=self.uuid)
         super().delete()
         self.adapter.objects_to_delete["prefixes"].append(del_pf)
+        return self
+
+
+class NautobotPrefixLocation(PrefixLocation):
+    """Nautobot implementation of Meraki PrefixLocation model."""
+
+    @classmethod
+    def create(cls, adapter, ids, attrs):
+        """Create PrefixLocationAssignment in Nautobot from NautobotPrefixLocation object."""
+        new_assignment = PrefixLocationAssignment(
+            prefix_id=adapter.prefix_map[ids["prefix"]], location=adapter.site_map[ids["location"]]
+        )
+        adapter.objects_to_create["prefix_locs"].append(new_assignment)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
+
+    def delete(self):
+        """Delete Prefix in Nautobot from NautobotPrefix object."""
+        del_pf = PrefixLocationAssignment.objects.get(id=self.uuid)
+        super().delete()
+        del_pf.delete()
         return self
 
 

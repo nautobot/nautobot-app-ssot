@@ -14,6 +14,7 @@ from nautobot_ssot.integrations.meraki.diffsync.models.meraki import (
     MerakiOSVersion,
     MerakiPort,
     MerakiPrefix,
+    MerakiPrefixLocation,
 )
 from nautobot_ssot.integrations.meraki.utils.meraki import get_role_from_devicetype, parse_hostname_for_role
 
@@ -27,10 +28,11 @@ class MerakiAdapter(Adapter):
     device = MerakiDevice
     port = MerakiPort
     prefix = MerakiPrefix
+    prefixlocation = MerakiPrefixLocation
     ipaddress = MerakiIPAddress
     ipassignment = MerakiIPAssignment
 
-    top_level = ["network", "hardware", "osversion", "device", "prefix", "ipaddress", "ipassignment"]
+    top_level = ["network", "hardware", "osversion", "device", "prefix", "prefixlocation", "ipaddress", "ipassignment"]
 
     def __init__(self, job, sync, client, tenant=None):
         """Initialize Meraki.
@@ -52,12 +54,15 @@ class MerakiAdapter(Adapter):
     def load_networks(self):
         """Load networks from Meraki dashboard into DiffSync models."""
         for net in self.conn.get_org_networks():
+            network_name = net["name"]
             parent_name = None
             if self.job.network_loctype.parent:
                 if self.job.parent_location:
                     parent_name = self.job.parent_location.name
-                elif self.job.location_map and net in self.job.location_map:
-                    parent_name = self.job.location_map[net]["parent"]
+                elif self.job.location_map and network_name in self.job.location_map:
+                    parent_name = self.job.location_map[network_name]["parent"]
+                    if "name" in self.job.location_map[network_name]:
+                        network_name = self.job.location_map[network_name]
                 else:
                     self.job.logger.error(
                         f"Parent Location is required for {self.job.network_loctype.name} but can't determine parent to be assigned to {net}."
@@ -65,7 +70,7 @@ class MerakiAdapter(Adapter):
                     continue
             self.get_or_instantiate(
                 self.network,
-                ids={"name": net["name"], "parent": parent_name},
+                ids={"name": network_name, "parent": parent_name},
                 attrs={
                     "timezone": net["timeZone"],
                     "notes": net["notes"].rstrip() if net.get("notes") else "",
@@ -157,41 +162,43 @@ class MerakiAdapter(Adapter):
                 for link in uplinks:
                     if link["interface"] == port and link["status"] == "active":
                         uplink_status = "Active"
-            port_uplink_settings = uplink_settings[port]
-            new_port, loaded = self.get_or_instantiate(
-                self.port,
-                ids={"name": port, "device": device.name},
-                attrs={
-                    "management": True,
-                    "enabled": port_uplink_settings["enabled"],
-                    "port_type": "1000base-t",
-                    "port_status": uplink_status,
-                    "tagging": port_uplink_settings["vlanTagging"]["enabled"],
-                    "uuid": None,
-                },
-            )
-            if loaded:
-                self.add(new_port)
-                device.add_child(new_port)
-                if port_uplink_settings["svis"]["ipv4"]["assignmentMode"] == "static":
-                    port_svis = port_uplink_settings["svis"]["ipv4"]
-                    prefix = ipaddress_interface(ip=port_svis["address"], attr="network.with_prefixlen")
-                    self.load_prefix(
-                        location=self.conn.network_map[network_id]["name"],
-                        prefix=prefix,
-                    )
-                    self.load_ipaddress(
-                        address=port_svis["address"],
-                        prefix=prefix,
-                    )
-                    self.load_ipassignment(
-                        address=port_svis["address"],
-                        dev_name=device.name,
-                        port=port,
-                        primary=bool(uplink_status == "Active" and not primary_found),
-                    )
-                if uplink_status == "Active":
-                    primary_found = True
+            if uplink_settings.get(port):
+                port_uplink_settings = uplink_settings[port]
+                new_port, loaded = self.get_or_instantiate(
+                    self.port,
+                    ids={"name": port, "device": device.name},
+                    attrs={
+                        "management": True,
+                        "enabled": port_uplink_settings["enabled"],
+                        "port_type": "1000base-t",
+                        "port_status": uplink_status,
+                        "tagging": port_uplink_settings["vlanTagging"]["enabled"],
+                        "uuid": None,
+                    },
+                )
+                if loaded:
+                    self.add(new_port)
+                    device.add_child(new_port)
+                    if port_uplink_settings["svis"]["ipv4"]["assignmentMode"] == "static":
+                        port_svis = port_uplink_settings["svis"]["ipv4"]
+                        prefix = ipaddress_interface(ip=port_svis["address"], attr="network.with_prefixlen")
+                        self.load_prefix(prefix=prefix)
+                        self.load_prefix_location(
+                            prefix=prefix,
+                            location=self.conn.network_map[network_id]["name"],
+                        )
+                        self.load_ipaddress(
+                            address=port_svis["address"],
+                            prefix=prefix,
+                        )
+                        self.load_ipassignment(
+                            address=port_svis["address"],
+                            dev_name=device.name,
+                            port=port,
+                            primary=bool(uplink_status == "Active" and not primary_found),
+                        )
+                    if uplink_status == "Active":
+                        primary_found = True
         if lan_ports:
             self.process_lan_ports(device, lan_ports)
 
@@ -245,9 +252,10 @@ class MerakiAdapter(Adapter):
                         ip=f"{mgmt_ports[port]['staticIp']}/{netmask_to_cidr(netmask=mgmt_ports[port]['staticSubnetMask'])}",
                         attr="network.with_prefixlen",
                     )
-                    self.load_prefix(
-                        location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
+                    self.load_prefix(prefix=prefix)
+                    self.load_prefix_location(
                         prefix=prefix,
+                        location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
                     )
                     self.load_ipaddress(
                         address=f"{mgmt_ports[port]['staticIp']}/{netmask_to_cidr(mgmt_ports[port]['staticSubnetMask'])}",
@@ -299,9 +307,10 @@ class MerakiAdapter(Adapter):
                         ip=f"{mgmt_ports[port]['staticIp']}/{netmask_to_cidr(netmask=mgmt_ports[port]['staticSubnetMask'])}",
                         attr="network.with_prefixlen",
                     )
-                    self.load_prefix(
-                        location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
+                    self.load_prefix(prefix=prefix)
+                    self.load_prefix_location(
                         prefix=prefix,
+                        location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
                     )
                     self.load_ipaddress(
                         address=f"{mgmt_ports[port]['staticIp']}/{netmask_to_cidr(mgmt_ports[port]['staticSubnetMask'])}",
@@ -314,23 +323,25 @@ class MerakiAdapter(Adapter):
                         primary=True,
                     )
 
-    def load_prefix(self, location: str, prefix: str):
+    def load_prefix(self, prefix: str):
         """Load Prefixes of devices into DiffSync models."""
         if self.tenant:
             namespace = self.tenant.name
         else:
             namespace = "Global"
-        try:
-            self.get(self.prefix, {"prefix": prefix, "namespace": namespace})
-        except ObjectNotFound:
-            new_pf = self.prefix(
-                prefix=prefix,
-                location=location,
-                namespace=namespace,
-                tenant=self.tenant.name if self.tenant else None,
-                uuid=None,
-            )
-            self.add(new_pf)
+        self.get_or_instantiate(
+            self.prefix,
+            ids={"prefix": prefix, "namespace": namespace},
+            attrs={"tenant": self.tenant.name if self.tenant else None, "uuid": None},
+        )
+
+    def load_prefix_location(self, prefix: str, location: str):
+        """Load Prefix Locations of devices into DiffSync models."""
+        self.get_or_instantiate(
+            self.prefixlocation,
+            ids={"prefix": prefix, "location": location},
+            attrs={"uuid": None},
+        )
 
     def load_ipaddress(self, address: str, prefix: str):
         """Load IPAddresses of devices into DiffSync models."""
