@@ -1,7 +1,6 @@
 """App template content extensions of base Nautobot views."""
 
 from django.urls import reverse
-
 from nautobot.extras.plugins import PluginTemplateExtension
 
 from nautobot_ssot.models import Sync

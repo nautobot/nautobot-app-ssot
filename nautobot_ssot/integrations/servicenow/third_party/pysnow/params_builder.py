@@ -3,9 +3,8 @@
 import six
 
 from .criterion import Criterion
-from .query_builder import QueryBuilder
-
 from .exceptions import InvalidUsage
+from .query_builder import QueryBuilder
 
 
 class ParamsBuilder(object):
@@ -43,9 +42,7 @@ class ParamsBuilder(object):
             # Regular string-type query
             return query
         else:
-            raise InvalidUsage(
-                "Query must be of type string, dict, QueryBuilder, or Criterion"
-            )
+            raise InvalidUsage("Query must be of type string, dict, QueryBuilder, or Criterion")
 
     def add_custom(self, params):
         """Adds new custom parameter after making sure it's of type dict.

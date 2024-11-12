@@ -8,7 +8,7 @@
   <a href="https://pypi.org/project/nautobot-ssot/"><img src="https://img.shields.io/pypi/v/nautobot-ssot"></a>
   <a href="https://pypi.org/project/nautobot-ssot/"><img src="https://img.shields.io/pypi/dm/nautobot-ssot"></a>
   <br>
-  An <a href="https://www.networktocode.com/nautobot/apps/">App</a> for <a href="https://nautobot.com/">Nautobot</a>.
+  An <a href="https://networktocode.com/nautobot-apps/">App</a> for <a href="https://nautobot.com/">Nautobot</a>.
 </p>
 
 
@@ -29,9 +29,11 @@ This Nautobot application framework includes the following integrations:
 - Cisco ACI
 - Arista CloudVision
 - Device42
+- Cisco DNA Center
 - Infoblox
 - IPFabric
 - Itential
+- Cisco Meraki
 - ServiceNow
 
 Read more about integrations [here](https://docs.nautobot.com/projects/ssot/en/latest/user/integrations). To enable and configure integrations follow the instructions from [the install guide](https://docs.nautobot.com/projects/ssot/en/latest/admin/install/#integrations-configuration).
@@ -41,16 +43,19 @@ Read more about integrations [here](https://docs.nautobot.com/projects/ssot/en/l
 ---
 
 The dashboard view of the app.
+
 ![Dashboard View](https://raw.githubusercontent.com/nautobot/nautobot-app-ssot/develop/docs/images/dashboard_initial.png)
 
 ---
 
 The detailed view of the example data source that is prepackaged within this app.
+
 ![Data Source Detail View](https://raw.githubusercontent.com/nautobot/nautobot-app-ssot/develop/docs/images/data_source_detail.png)
 
 ---
 
 The detailed view of an executed sync.
+
 ![Sync Detail View](https://raw.githubusercontent.com/nautobot/nautobot-app-ssot/develop/docs/images/sync_detail.png)
 
 ---
@@ -77,10 +82,13 @@ Full documentation for this app can be found over on the [Nautobot Docs](https:/
 The SSoT framework includes a number of integrations with external Systems of Record:
 
 * Cisco ACI
+* Bootstrap
 * Arista CloudVision
 * Device42
+* Cisco DNA Center
 * Infoblox
 * Itential
+* Cisco Meraki
 * ServiceNow
 
 > Note that the Arista CloudVision integration is currently incompatible with the [Arista Labs](https://labs.arista.com/) environment due to a TLS issue. It has been confirmed to work in on-prem environments previously.
@@ -117,6 +125,9 @@ This project includes code originally written in separate Nautobot apps, which h
     [@qduk](https://github.com/qduk),
     [@ubajze](https://github.com/ubajze)
 - [nautobot-plugin-ssot-device42](https://github.com/nautobot/nautobot-plugin-ssot-device42):
+    Thanks
+    [@jdrew82](https://github.com/jdrew82)
+- [nautobot-plugin-ssot-dna-center](https://github.com/nautobot/nautobot-plugin-ssot-dna-center):
     Thanks
     [@jdrew82](https://github.com/jdrew82)
 - [nautobot-plugin-ssot-infoblox](https://github.com/nautobot/nautobot-plugin-ssot-infoblox):

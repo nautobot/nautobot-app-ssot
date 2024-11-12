@@ -1,0 +1,19 @@
+{
+    "wan1": {
+        "wanEnabled": "not configured",
+        "usingStaticIp": true,
+        "staticIp": "10.1.15.10",
+        "staticSubnetMask": "255.255.255.0",
+        "staticGatewayIp": "10.1.15.1",
+        "staticDns": [
+            "1.1.1.1",
+            "1.0.0.1"
+        ],
+        "vlan": null
+    },
+    "wan2": {
+        "wanEnabled": "not configured",
+        "usingStaticIp": false,
+        "vlan": null
+    }
+}

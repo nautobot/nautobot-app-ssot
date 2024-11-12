@@ -3,7 +3,6 @@
 from typing import List, Optional, Union
 
 import requests
-
 from retry import retry
 
 from nautobot_ssot.integrations.itential.constants import BACKOFF, DELAY, RETRIES

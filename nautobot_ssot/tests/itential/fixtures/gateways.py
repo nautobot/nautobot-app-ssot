@@ -1,8 +1,8 @@
 """Itential Automation Gateway Fixtures."""
 
-from nautobot.extras.models import Secret, SecretsGroup, SecretsGroupAssociation, ExternalIntegration, Status
+from nautobot.dcim.models import Location, LocationType
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
-from nautobot.dcim.models import LocationType, Location
+from nautobot.extras.models import ExternalIntegration, Secret, SecretsGroup, SecretsGroupAssociation, Status
 
 from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
 

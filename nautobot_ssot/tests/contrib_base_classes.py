@@ -1,24 +1,25 @@
 """Base classes for contrib testing."""
 
-from typing import Optional, List
+from typing import List, Optional
 from unittest import skip
 from unittest.mock import MagicMock
-from diffsync.exceptions import ObjectNotCreated, ObjectNotUpdated, ObjectNotDeleted
-from django.contrib.contenttypes.models import ContentType
+
 import nautobot.circuits.models as circuits_models
-from nautobot.dcim.choices import InterfaceTypeChoices
-import nautobot.extras.models as extras_models
 import nautobot.dcim.models as dcim_models
+import nautobot.extras.models as extras_models
 import nautobot.ipam.models as ipam_models
 import nautobot.tenancy.models as tenancy_models
+from diffsync.exceptions import ObjectNotCreated, ObjectNotDeleted, ObjectNotUpdated
+from django.contrib.contenttypes.models import ContentType
 from nautobot.core.testing import TestCase
-from typing_extensions import TypedDict, Annotated
+from nautobot.dcim.choices import InterfaceTypeChoices
+from typing_extensions import Annotated, TypedDict
 
 from nautobot_ssot.contrib import (
-    NautobotModel,
-    NautobotAdapter,
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
+    NautobotAdapter,
+    NautobotModel,
     RelationshipSideEnum,
 )
 
@@ -255,7 +256,7 @@ class BaseModelErrorTests(TestCase):
         ]:
             with self.subTest(ids=ids, attrs=attrs):
                 with self.assertRaises(ObjectNotCreated) as exception_context:
-                    NautobotTenant.create(diffsync=NautobotAdapter(job=MagicMock()), ids=ids, attrs=attrs)
+                    NautobotTenant.create(adapter=NautobotAdapter(job=MagicMock()), ids=ids, attrs=attrs)
                 error_message = exception_context.exception.args[0].args[0]
                 self.assertTrue(
                     error_message.startswith(expected_error_prefix),
@@ -283,7 +284,7 @@ class BaseModelErrorTests(TestCase):
         ]:
             with self.subTest(base_parameters=base_parameters, updated_attrs=updated_attrs):
                 diffsync_tenant = NautobotTenant(pk=tenant.pk, **base_parameters)
-                diffsync_tenant.diffsync = NautobotAdapter(job=MagicMock())
+                diffsync_tenant.adapter = NautobotAdapter(job=MagicMock())
                 with self.assertRaises(ObjectNotUpdated) as exception_context:
                     diffsync_tenant.update(attrs=updated_attrs)
                 error_message = exception_context.exception.args[0].args[0]
@@ -303,7 +304,7 @@ class BaseModelErrorTests(TestCase):
             status=extras_models.Status.objects.get(name="Active"),
         )
         diffsync_tenant = NautobotTenant(pk=tenant.pk, name=tenant.name)
-        diffsync_tenant.diffsync = NautobotAdapter(job=MagicMock())
+        diffsync_tenant.adapter = NautobotAdapter(job=MagicMock())
         with self.assertRaises(ObjectNotDeleted) as exception_context:
             diffsync_tenant.delete()
         error_message = exception_context.exception.args[0]
@@ -322,7 +323,7 @@ class BaseModelTests(TestCase):
 
     def test_basic_creation(self):
         """Test whether a basic create of an object works."""
-        NautobotTenant.create(diffsync=None, ids={"name": self.tenant_name}, attrs={})
+        NautobotTenant.create(adapter=None, ids={"name": self.tenant_name}, attrs={})
         try:
             tenancy_models.Tenant.objects.get(name=self.tenant_name)
         except tenancy_models.Tenant.DoesNotExist:
@@ -333,7 +334,7 @@ class BaseModelTests(TestCase):
         tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
         description = "An updated description"
         diffsync_tenant = NautobotTenant(name=self.tenant_name, pk=tenant.pk)
-        diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
+        diffsync_tenant.adapter = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"description": description})
         tenant.refresh_from_db()
         self.assertEqual(
@@ -345,7 +346,7 @@ class BaseModelTests(TestCase):
         tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
 
         diffsync_tenant = NautobotTenant(name=self.tenant_name, pk=tenant.pk)
-        diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
+        diffsync_tenant.adapter = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.delete()
 
         try:
@@ -382,7 +383,7 @@ class BaseModelCustomFieldTest(TestCase):
 
         diffsync_provider = ProviderModel(name=provider_name, pk=provider.pk)
         updated_custom_field_value = True
-        diffsync_provider.diffsync = NautobotAdapter(job=None, sync=None)
+        diffsync_provider.adapter = NautobotAdapter(job=None, sync=None)
         diffsync_provider.update(attrs={"is_global": updated_custom_field_value})
 
         provider.refresh_from_db()
@@ -405,7 +406,7 @@ class BaseModelForeignKeyTest(TestCase):
         tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name)
 
         diffsync_tenant = NautobotTenant(name=self.tenant_name, pk=tenant.pk)
-        diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
+        diffsync_tenant.adapter = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"tenant_group__name": self.tenant_group_name})
 
         tenant.refresh_from_db()
@@ -419,7 +420,7 @@ class BaseModelForeignKeyTest(TestCase):
         tenant = tenancy_models.Tenant.objects.create(name=self.tenant_name, tenant_group=group)
 
         diffsync_tenant = NautobotTenant(name=self.tenant_name, tenant_group__name=self.tenant_group_name, pk=tenant.pk)
-        diffsync_tenant.diffsync = NautobotAdapter(job=None, sync=None)
+        diffsync_tenant.adapter = NautobotAdapter(job=None, sync=None)
         diffsync_tenant.update(attrs={"tenant_group__name": None})
 
         tenant.refresh_from_db()
@@ -466,7 +467,7 @@ class BaseModelForeignKeyTest(TestCase):
             location__location_type__name=location_a.location_type.name,
             pk=prefix.pk,
         )
-        prefix_diffsync.diffsync = NautobotAdapter(job=None, sync=None)
+        prefix_diffsync.adapter = NautobotAdapter(job=None, sync=None)
 
         prefix_diffsync.update(
             attrs={"location__name": location_b.name, "location__location_type__name": location_b.location_type.name}

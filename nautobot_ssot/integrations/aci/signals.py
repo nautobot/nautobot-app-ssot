@@ -38,13 +38,18 @@ def aci_create_tag(apps, **kwargs):
         name=PLUGIN_CFG.get("tag_down"),
         color=PLUGIN_CFG.get("tag_down_color"),
     )
+    tag.objects.update_or_create(
+        name="ACI_MULTISITE",
+        color="03a9f4",
+    )
     apics = PLUGIN_CFG.get("apics")
-    for key in apics:
-        if ("SITE" in key or "STAGE" in key) and not tag.objects.filter(name=apics[key]).exists():
-            tag.objects.update_or_create(
-                name=apics[key],
-                color="".join([random.choice("ABCDEF0123456789") for i in range(6)]),  # nosec
-            )
+    if apics:
+        for key in apics:
+            if ("SITE" in key or "STAGE" in key) and not tag.objects.filter(name=apics[key]).exists():
+                tag.objects.update_or_create(
+                    name=apics[key],
+                    color="".join([random.choice("ABCDEF0123456789") for i in range(6)]),  # noqa: S311
+                )
 
 
 def aci_create_manufacturer(apps, **kwargs):
@@ -62,17 +67,20 @@ def aci_create_site(apps, **kwargs):
     Device = apps.get_model("dcim", "Device")
     Site = apps.get_model("dcim", "Location")
     Prefix = apps.get_model("ipam", "Prefix")
+    Vlan = apps.get_model("ipam", "VLAN")
     location_type = apps.get_model("dcim", "LocationType")
     status = apps.get_model("extras", "Status")
     apics = PLUGIN_CFG.get("apics")
     loc_type = location_type.objects.update_or_create(name="Site")[0]
     loc_type.content_types.add(ContentType.objects.get_for_model(Device))
     loc_type.content_types.add(ContentType.objects.get_for_model(Prefix))
+    loc_type.content_types.add(ContentType.objects.get_for_model(Vlan))
     active_status = status.objects.update_or_create(name="Active")[0]
-    for key in apics:
-        if "SITE" in key:
-            logger.info(f"Creating Site: {apics[key]}")
-            Site.objects.update_or_create(name=apics[key], location_type=loc_type, status=active_status)
+    if apics:
+        for key in apics:
+            if "SITE" in key:
+                logger.info(f"Creating Site: {apics[key]}")
+                Site.objects.update_or_create(name=apics[key], location_type=loc_type, status=active_status)
 
 
 def device_custom_fields(apps, **kwargs):

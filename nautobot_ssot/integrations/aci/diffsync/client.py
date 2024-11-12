@@ -1,30 +1,31 @@
 """All interactions with ACI."""  # pylint: disable=too-many-lines, too-many-instance-attributes, too-many-arguments
 
 # pylint: disable=invalid-name
-
-import sys
 import logging
-from datetime import datetime
-from datetime import timedelta
 import re
+import sys
+from copy import deepcopy
+from datetime import datetime, timedelta
 from ipaddress import ip_network
+
 import requests
 import urllib3
 
-from .utils import tenant_from_dn, ap_from_dn, node_from_dn, pod_from_dn, fex_id_from_dn, interface_from_dn
+from nautobot_ssot.exceptions import RequestConnectError, RequestHTTPError
 
+from .utils import (
+    ap_from_dn,
+    bd_from_dn,
+    fex_id_from_dn,
+    interface_from_dn,
+    node_from_dn,
+    pod_from_dn,
+    tenant_from_dn,
+)
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger(__name__)
-
-
-class RequestConnectError(Exception):
-    """Exception class to be raised upon requests module connection errors."""
-
-
-class RequestHTTPError(Exception):
-    """Exception class to be raised upon requests module HTTP errors."""
 
 
 class AciApi:
@@ -132,6 +133,7 @@ class AciApi:
             {
                 "name": data["fvTenant"]["attributes"]["name"],
                 "description": data["fvTenant"]["attributes"]["descr"],
+                "annotation": data["fvTenant"]["attributes"].get("annotation", ""),
             }
             for data in resp.json()["imdata"]
         ]
@@ -327,45 +329,67 @@ class AciApi:
         ]
         return vrf_list
 
-    def get_bds(self, tenant: str) -> dict:
+    def get_bds(self, tenant: str = "all") -> dict:
         """Return Bridge Domains and Subnets from the Cisco APIC."""
+        # TODO: rewrite using one API call -> https://<ip>/api/node/class/fvBD.json?query-target=subtree&target-subtree-class=fvBD,fvRsCtx,fvSubnet
         if tenant == "all":
-            resp = self._get("/api/node/class/fvBD.json")
+            resp = self._get(
+                "/api/node/class/fvBD.json?query-target=subtree&target-subtree-class=fvBD,fvRsCtx,fvSubnet"
+            )
         else:
-            resp = self._get(f"/api/node/mo/uni/tn-{tenant}.json?query-target=children&target-subtree-class=fvBD")
-
+            resp = self._get(
+                f"/api/node/mo/uni/tn-{tenant}.json?query-target=children&target-subtree-class=fvBD"
+            )  # test this
         bd_dict = {}
+        bd_dict_schema = {
+            "name": "",
+            "tenant": "",
+            "description": "",
+            "vrf": None,
+            "vrf_tenant": None,
+            "subnets": [],
+        }
         for data in resp.json()["imdata"]:
-            bd_dict.setdefault(data["fvBD"]["attributes"]["name"], {})
-            bd_dict[data["fvBD"]["attributes"]["name"]]["tenant"] = tenant_from_dn(data["fvBD"]["attributes"]["dn"])
-            bd_dict[data["fvBD"]["attributes"]["name"]]["description"] = data["fvBD"]["attributes"]["descr"]
-            bd_dict[data["fvBD"]["attributes"]["name"]]["unicast_routing"] = data["fvBD"]["attributes"]["unicastRoute"]
-            bd_dict[data["fvBD"]["attributes"]["name"]]["mac"] = data["fvBD"]["attributes"]["mac"]
-            bd_dict[data["fvBD"]["attributes"]["name"]]["l2unicast"] = data["fvBD"]["attributes"]["unkMacUcastAct"]
+            if "fvBD" in data.keys():
+                bd_tenant = tenant_from_dn(data["fvBD"]["attributes"]["dn"])
+                bd_name = data["fvBD"]["attributes"]["name"]
+                unique_name = f"{bd_name}:{bd_tenant}"
+                try:
+                    bd_dict[unique_name]
+                except KeyError:
+                    bd_dict.setdefault(unique_name, deepcopy(bd_dict_schema))
+                bd_dict[unique_name]["tenant"] = tenant_from_dn(data["fvBD"]["attributes"]["dn"])
+                bd_dict[unique_name]["name"] = data["fvBD"]["attributes"]["name"]
+                bd_dict[unique_name]["description"] = data["fvBD"]["attributes"]["descr"]
 
-        for key, value in bd_dict.items():
-            # get the containing VRF
-            resp = self._get(
-                f"/api/node/mo/uni/tn-{value['tenant']}/BD-{key}.json?query-target=children&target-subtree-class=fvRsCtx"
-            )
-            for data in resp.json()["imdata"]:
-                value["vrf"] = data["fvRsCtx"]["attributes"].get("tnFvCtxName", "default")
-                vrf_tenant = data["fvRsCtx"]["attributes"].get("tDn", None)
+            elif "fvRsCtx" in data.keys():
+                bd_tenant = tenant_from_dn(data["fvRsCtx"]["attributes"]["dn"])
+                bd_name = bd_from_dn(data["fvRsCtx"]["attributes"]["dn"])
+                unique_name = f"{bd_name}:{bd_tenant}"
+                try:
+                    bd_dict[unique_name]
+                except KeyError:
+                    bd_dict.setdefault(unique_name, deepcopy(bd_dict_schema))
+                bd_dict[unique_name]["vrf"] = data["fvRsCtx"]["attributes"].get("tnFvCtxName") or "default"
+                vrf_tenant = data["fvRsCtx"]["attributes"].get("tDn")
                 if vrf_tenant:
-                    value["vrf_tenant"] = tenant_from_dn(vrf_tenant)
-                else:
-                    value["vrf_tenant"] = None
-            # get subnets
-            resp = self._get(
-                f"/api/node/mo/uni/tn-{value['tenant']}/BD-{key}.json?query-target=children&target-subtree-class=fvSubnet"
-            )
-            subnet_list = [
-                (data["fvSubnet"]["attributes"]["ip"], data["fvSubnet"]["attributes"]["scope"])
-                for data in resp.json()["imdata"]
-            ]
-            for subnet in subnet_list:
-                value.setdefault("subnets", [])
-                value["subnets"].append(subnet)
+                    bd_dict[unique_name]["vrf_tenant"] = tenant_from_dn(vrf_tenant)
+
+            elif "fvSubnet" in data.keys():
+                bd_tenant = tenant_from_dn(data["fvSubnet"]["attributes"]["dn"])
+                bd_name = bd_from_dn(data["fvSubnet"]["attributes"]["dn"])
+                unique_name = f"{bd_name}:{bd_tenant}"
+                try:
+                    bd_dict[unique_name]
+                except KeyError:
+                    bd_dict.setdefault(unique_name, deepcopy(bd_dict_schema))
+                subnet = (data["fvSubnet"]["attributes"]["ip"], data["fvSubnet"]["attributes"]["scope"])
+                (bd_dict[unique_name]["subnets"]).append(subnet)
+            else:
+                logger.error(
+                    msg=f"Failed to load Bridge Domains data, unexpected response in {data}. Skipping Record..."
+                )
+                continue
         return bd_dict
 
     def get_nodes(self) -> dict:
@@ -385,19 +409,19 @@ class AciApi:
         resp = self._get('/api/class/topSystem.json?query-target-filter=ne(topSystem.role,"controller")')
 
         for node in resp.json()["imdata"]:
-            if node["topSystem"]["attributes"]["oobMgmtAddr"] != "0.0.0.0":  # nosec: B104
+            if node["topSystem"]["attributes"]["oobMgmtAddr"] != "0.0.0.0":  # noqa: S104
                 mgmt_addr = f"{node['topSystem']['attributes']['oobMgmtAddr']}/{node['topSystem']['attributes']['oobMgmtAddrMask']}"
             elif (
-                node["topSystem"]["attributes"]["address"] != "0.0.0.0"  # nosec: B104
+                node["topSystem"]["attributes"]["address"] != "0.0.0.0"  # noqa: S104
                 and node["topSystem"]["attributes"]["tepPool"]
             ):
                 mgmt_addr = f"{node['topSystem']['attributes']['address']}/{ip_network(node['topSystem']['attributes']['tepPool'], strict=False).prefixlen}"
             else:
                 mgmt_addr = ""
-            if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
-                subnet = node["topSystem"]["attributes"]["tepPool"]
-            elif mgmt_addr:
+            if mgmt_addr:
                 subnet = ip_network(mgmt_addr, strict=False).with_prefixlen
+            elif node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # noqa: S104
+                subnet = node["topSystem"]["attributes"]["tepPool"]
             else:
                 subnet = ""
             node_id = node["topSystem"]["attributes"]["id"]
@@ -424,7 +448,7 @@ class AciApi:
         return node_dict
 
     def get_controllers(self) -> dict:
-        """Return list of Leaf/Spine nodes in the ACI fabric."""
+        """Return list of Controller nodes in the ACI fabric."""
         resp = self._get('/api/class/fabricNode.json?query-target-filter=eq(fabricNode.role,"controller")')
         node_dict = {}
         for node in resp.json()["imdata"]:
@@ -438,19 +462,19 @@ class AciApi:
             node_dict[node_id]["site"] = self.site
         resp = self._get('/api/class/topSystem.json?query-target-filter=eq(topSystem.role,"controller")')
         for node in resp.json()["imdata"]:
-            if node["topSystem"]["attributes"]["oobMgmtAddr"] != "0.0.0.0":  # nosec: B104
+            if node["topSystem"]["attributes"]["oobMgmtAddr"] != "0.0.0.0":  # noqa: S104
                 mgmt_addr = f"{node['topSystem']['attributes']['oobMgmtAddr']}/{node['topSystem']['attributes']['oobMgmtAddrMask']}"
             elif (
-                node["topSystem"]["attributes"]["address"] != "0.0.0.0"  # nosec: B104
+                node["topSystem"]["attributes"]["address"] != "0.0.0.0"  # noqa: S104
                 and node["topSystem"]["attributes"]["tepPool"]
             ):
                 mgmt_addr = f"{node['topSystem']['attributes']['address']}/{ip_network(node['topSystem']['attributes']['tepPool'], strict=False).prefixlen}"
             else:
                 mgmt_addr = ""
-            if node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # nosec: B104
-                subnet = node["topSystem"]["attributes"]["tepPool"]
-            elif mgmt_addr:
+            if mgmt_addr:
                 subnet = ip_network(mgmt_addr, strict=False).with_prefixlen
+            elif node["topSystem"]["attributes"]["tepPool"] != "0.0.0.0":  # noqa: S104
+                subnet = node["topSystem"]["attributes"]["tepPool"]
             else:
                 subnet = ""
             node_id = node["topSystem"]["attributes"]["id"]

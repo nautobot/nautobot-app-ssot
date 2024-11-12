@@ -1,6 +1,7 @@
 """Itential SSoT shared diffsync models."""
 
 from typing import Optional
+
 from diffsync import DiffSyncModel
 
 
@@ -12,7 +13,7 @@ class BaseAnsibleDeviceDiffsyncModel(DiffSyncModel):
     _attributes = ("variables",)
 
     name: str
-    variables: Optional[dict]
+    variables: Optional[dict] = None
 
 
 class BaseAnsibleDefaultGroupDiffsyncModel(DiffSyncModel):
@@ -23,4 +24,4 @@ class BaseAnsibleDefaultGroupDiffsyncModel(DiffSyncModel):
     _attributes = ("variables",)
 
     name: str
-    variables: Optional[dict]
+    variables: Optional[dict] = None

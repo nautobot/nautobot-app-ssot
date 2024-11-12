@@ -17,7 +17,7 @@ In brief, the following general steps can be followed:
 2. Define a `DiffSync` adapter class for loading initial data from Nautobot and constructing instances of each `DiffSyncModel` class to represent that data.
 3. Define a `DiffSync` adapter class for loading initial data from the Data Source or Data Target system and constructing instances of the `DiffSyncModel` classes to represent that data.
 
-4. Develop a Job class, derived from either the `DataSource` or `DataTarget` classes provided by this app, and implement the adapters to populate the `self.source_adapter` and `self.target_adapter` that are used by the built-in implementation of `sync_data`. This `sync_data` method is an opinionated way of running the process including some performance data, more in [next section](#analyze-job-performance), but you could overwrite it completely or any of the key hooks that it calls:
+4. Develop a Job class, derived from either the `DataSource` or `DataTarget` classes provided by this app, and implement the adapters to populate the `self.source_adapter` and `self.target_adapter` that are used by the built-in implementation of `sync_data`. This `sync_data` method is an opinionated way of running the process including some performance data, more in [next section](#optimizing-for-execution-time), but you could overwrite it completely or any of the key hooks that it calls:
 
    - `self.load_source_adapter`: This is mandatory to be implemented. As an example:
 
@@ -55,20 +55,20 @@ As an SSoT job typically has lots of Nautobot database interaction (i.e. Nautobo
 The following is an example of an inefficient `load` function that can be greatly improved:
 
 ```python
-from diffsync import DiffSync
+from diffsync import Adapter
 from nautobot.dcim.models import Region, Site, Location
 
 from my_package import ParentRegionModel, ChildRegionModel, SiteModel, LocationModel
 
-class ExampleAdapter(DiffSync):
+class ExampleAdapter(Adapter):
     parent_region = ParentRegionModel
     child_region = ChildRegionModel
     site = SiteModel
     location = LocationModel
     top_level = ("parent_region",)
-    
+
     ...
-    
+
     def load(self):
         for parent_region in Region.objects.filter(parent__isnull=True):
             parent_region_diffsync = self.parent_region(name=parent_region.name)
@@ -85,7 +85,7 @@ class ExampleAdapter(DiffSync):
                         location_diffsync = self.location(name=location.name)
                         self.add(location_diffsync)
                         site_diffsync.add_child(location_diffsync)
-        
+
 ```
 
 The problem with this admittedly intuitive approach is that each call to `Model.objects.filter()` produces a single database query. This means that if you have 5000 locations under 2000 sites under 30 child regions under 3 parent regions the code will have to issue 7033 database queries. This only gets worse as you add additional data and possible further complexity to this relatively simple example.
@@ -120,7 +120,7 @@ The essence of this is that you should make liberal use of `select_related` to j
 !!! warning
     If you are using Nautobot 1.4 or lower, `CACHEOPS_ENABLED` is set to `True` by default. As long as this is the case, you should use `select_related`'s cousin `prefetch_related` instead (see [here](https://github.com/Suor/django-cacheops#caveats) for cacheops documentation on that matter). In 1.5 this is disabled by default, but if you explicitly turn it on you will again need to use `prefetch_related` instead.
 
-    If you are using Nautobot 2.0 or higher, this warning can be ignored as cacheops has been removed from Nautobot. 
+    If you are using Nautobot 2.0 or higher, this warning can be ignored as cacheops has been removed from Nautobot.
 
 !!! note
     Check out the [Django documentation](https://docs.djangoproject.com/en/3.2/topics/db/optimization/) for a more comprehensive source on optimizing database access.

@@ -10,7 +10,7 @@ from nautobot.core.settings_funcs import is_truthy, parse_redis_connection
 # Debug
 #
 
-DEBUG = is_truthy(os.getenv("NAUTOBOT_DEBUG", False))
+DEBUG = is_truthy(os.getenv("NAUTOBOT_DEBUG", "false"))
 _TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
 
 if DEBUG and not _TESTING:
@@ -48,9 +48,10 @@ DATABASES = {
         "PASSWORD": os.getenv("NAUTOBOT_DB_PASSWORD", ""),  # Database password
         "HOST": os.getenv("NAUTOBOT_DB_HOST", "localhost"),  # Database server
         "PORT": os.getenv(
-            "NAUTOBOT_DB_PORT", default_db_settings[nautobot_db_engine]["NAUTOBOT_DB_PORT"]
+            "NAUTOBOT_DB_PORT",
+            default_db_settings[nautobot_db_engine]["NAUTOBOT_DB_PORT"],
         ),  # Database port, default to postgres
-        "CONN_MAX_AGE": int(os.getenv("NAUTOBOT_DB_TIMEOUT", 300)),  # Database timeout
+        "CONN_MAX_AGE": int(os.getenv("NAUTOBOT_DB_TIMEOUT", "300")),  # Database timeout
         "ENGINE": nautobot_db_engine,
     }
 }
@@ -128,7 +129,7 @@ if not _TESTING:
 
 # Enable installed Apps. Add the name of each App to the list.
 PLUGINS = [
-    "nautobot_chatops",
+    # "nautobot_chatops",
     "nautobot_device_lifecycle_mgmt",
     "nautobot_ssot",
 ]
@@ -136,17 +137,13 @@ PLUGINS = [
 # Apps configuration settings. These settings are used by various Apps that the user may have installed.
 # Each key in the dictionary is the name of an installed App and its value is a dictionary of settings.
 PLUGINS_CONFIG = {
-    "nautobot_chatops": {
-        "enable_slack": True,
-        "slack_api_token": os.getenv("SLACK_API_TOKEN"),
-        "slack_signing_secret": os.getenv("SLACK_SIGNING_SECRET"),
-        "session_cache_timeout": 3600,
-        "ipfabric_api_token": os.getenv("IPFABRIC_API_TOKEN"),
-        "ipfabric_host": os.getenv("IPFABRIC_HOST"),
-    },
+    # "nautobot_chatops": {
+    #     "enable_slack": True,
+    #     "slack_api_token": os.getenv("SLACK_API_TOKEN"),
+    #     "slack_signing_secret": os.getenv("SLACK_SIGNING_SECRET"),
+    #     "session_cache_timeout": 3600,
+    # },
     "nautobot_ssot": {
-        # URL and credentials should be configured as environment variables on the host system
-        "aci_apics": {x: os.environ[x] for x in os.environ if "APIC" in x},
         # Tag which will be created and applied to all synchronized objects.
         "aci_tag": os.getenv("NAUTOBOT_SSOT_ACI_TAG"),
         "aci_tag_color": os.getenv("NAUTOBOT_SSOT_ACI_TAG_COLOR"),
@@ -161,23 +158,21 @@ PLUGINS_CONFIG = {
         "aci_ignore_tenants": os.getenv("NAUTOBOT_SSOT_ACI_IGNORE_TENANTS", "").split(","),
         # The below value will appear in the Comments field on objects created in Nautobot
         "aci_comments": os.getenv("NAUTOBOT_SSOT_ACI_COMMENTS"),
-        # Site to associate objects. Specify existing, or a new site with this name will be created.
-        "aci_site": os.getenv("NAUTOBOT_SSOT_ACI_SITE"),
-        "aristacv_apply_import_tag": is_truthy(os.getenv("NAUTOBOT_ARISTACV_IMPORT_TAG", False)),
+        "aristacv_apply_import_tag": is_truthy(os.getenv("NAUTOBOT_ARISTACV_IMPORT_TAG", "false")),
         "aristacv_controller_site": os.getenv("NAUTOBOT_ARISTACV_CONTROLLER_SITE", ""),
-        "aristacv_create_controller": is_truthy(os.getenv("NAUTOBOT_ARISTACV_CREATE_CONTROLLER", False)),
+        "aristacv_create_controller": is_truthy(os.getenv("NAUTOBOT_ARISTACV_CREATE_CONTROLLER", "false")),
         "aristacv_cvaas_url": os.getenv("NAUTOBOT_ARISTACV_CVAAS_URL", "www.arista.io:443"),
         "aristacv_cvp_host": os.getenv("NAUTOBOT_ARISTACV_CVP_HOST", ""),
         "aristacv_cvp_password": os.getenv("NAUTOBOT_ARISTACV_CVP_PASSWORD", ""),
         "aristacv_cvp_port": os.getenv("NAUTOBOT_ARISTACV_CVP_PORT", "443"),
         "aristacv_cvp_token": os.getenv("NAUTOBOT_ARISTACV_CVP_TOKEN", ""),
         "aristacv_cvp_user": os.getenv("NAUTOBOT_ARISTACV_CVP_USERNAME", ""),
-        "aristacv_delete_devices_on_sync": is_truthy(os.getenv("NAUTOBOT_ARISTACV_DELETE_ON_SYNC", False)),
+        "aristacv_delete_devices_on_sync": is_truthy(os.getenv("NAUTOBOT_ARISTACV_DELETE_ON_SYNC", "false")),
         "aristacv_from_cloudvision_default_device_role": "network",
         "aristacv_from_cloudvision_default_device_role_color": "ff0000",
         "aristacv_from_cloudvision_default_site": "cloudvision_imported",
         "aristacv_hostname_patterns": [r"(?P<site>\w{2,3}\d+)-(?P<role>\w+)-\d+"],
-        "aristacv_import_active": is_truthy(os.getenv("NAUTOBOT_ARISTACV_IMPORT_ACTIVE", False)),
+        "aristacv_import_active": is_truthy(os.getenv("NAUTOBOT_ARISTACV_IMPORT_ACTIVE", "false")),
         "aristacv_role_mappings": {
             "bb": "backbone",
             "edge": "edge",
@@ -190,19 +185,51 @@ PLUGINS_CONFIG = {
             "ams01": "Amsterdam",
             "atl01": "Atlanta",
         },
-        "aristacv_verify": is_truthy(os.getenv("NAUTOBOT_ARISTACV_VERIFY", True)),
+        "aristacv_verify": is_truthy(os.getenv("NAUTOBOT_ARISTACV_VERIFY", "true")),
+        "bootstrap_nautobot_environment_branch": os.getenv("NAUTOBOT_BOOTSTRAP_SSOT_ENVIRONMENT_BRANCH", "develop"),
+        "bootstrap_models_to_sync": {
+            "secret": True,
+            "secrets_group": True,
+            "git_repository": True,
+            "dynamic_group": True,
+            "computed_field": True,
+            "tag": True,
+            "graph_ql_query": True,
+            "software": False,
+            "software_image": False,
+            "validated_software": False,
+            "tenant_group": True,
+            "tenant": True,
+            "role": True,
+            "manufacturer": True,
+            "platform": True,
+            "location_type": True,
+            "location": True,
+            "team": True,
+            "contact": True,
+            "provider": True,
+            "provider_network": True,
+            "circuit_type": True,
+            "circuit": True,
+            "circuit_termination": True,
+            "namespace": True,
+            "rir": True,
+            "vlan_group": True,
+            "vlan": True,
+            "vrf": True,
+            "prefix": True,
+        },
         "enable_aci": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ACI")),
         "enable_aristacv": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ARISTACV")),
+        "enable_bootstrap": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_BOOTSTRAP", "false")),
         "enable_device42": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_DEVICE42")),
+        "enable_dna_center": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_DNA_CENTER")),
         "enable_infoblox": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_INFOBLOX")),
         "enable_ipfabric": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_IPFABRIC")),
         "enable_itential": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ITENTIAL")),
+        "enable_meraki": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_MERAKI")),
         "enable_servicenow": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_SERVICENOW")),
         "hide_example_jobs": is_truthy(os.getenv("NAUTOBOT_SSOT_HIDE_EXAMPLE_JOBS")),
-        "device42_host": os.getenv("NAUTOBOT_SSOT_DEVICE42_HOST", ""),
-        "device42_username": os.getenv("NAUTOBOT_SSOT_DEVICE42_USERNAME", ""),
-        "device42_password": os.getenv("NAUTOBOT_SSOT_DEVICE42_PASSWORD", ""),
-        "device42_verify_ssl": False,
         "device42_defaults": {
             "site_status": "Active",
             "rack_status": "Active",
@@ -215,6 +242,11 @@ PLUGINS_CONFIG = {
         "device42_role_prepend": "",
         "device42_ignore_tag": "",
         "device42_hostname_mapping": [],
+        "dna_center_import_global": is_truthy(os.getenv("NAUTOBOT_DNAC_SSOT_DNA_CENTER_IMPORT_GLOBAL", "true")),
+        "dna_center_import_merakis": is_truthy(os.getenv("NAUTOBOT_DNAC_SSOT_DNA_CENTER_IMPORT_MERAKIS", "false")),
+        "dna_center_delete_locations": is_truthy(os.getenv("NAUTOBOT_DNAC_SSOT_DNA_CENTER_DELETE_LOCATIONS", "true")),
+        "dna_center_update_locations": is_truthy(os.getenv("NAUTOBOT_DNAC_SSOT_DNA_CENTER_UPDATE_LOCATIONS", "true")),
+        "dna_center_show_failures": is_truthy(os.getenv("NAUTOBOT_DNAC_SSOT_DNA_CENTER_SHOW_FAILURES", "true")),
         "infoblox_default_status": os.getenv("NAUTOBOT_SSOT_INFOBLOX_DEFAULT_STATUS", "active"),
         "infoblox_enable_sync_to_infoblox": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_ENABLE_SYNC_TO_INFOBLOX")),
         "infoblox_import_objects_ip_addresses": is_truthy(
@@ -230,13 +262,9 @@ PLUGINS_CONFIG = {
         "infoblox_password": os.getenv("NAUTOBOT_SSOT_INFOBLOX_PASSWORD"),
         "infoblox_url": os.getenv("NAUTOBOT_SSOT_INFOBLOX_URL"),
         "infoblox_username": os.getenv("NAUTOBOT_SSOT_INFOBLOX_USERNAME"),
-        "infoblox_verify_ssl": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_VERIFY_SSL", True)),
+        "infoblox_verify_ssl": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_VERIFY_SSL", "true")),
         "infoblox_wapi_version": os.getenv("NAUTOBOT_SSOT_INFOBLOX_WAPI_VERSION", "v2.12"),
         "infoblox_network_view": os.getenv("NAUTOBOT_SSOT_INFOBLOX_NETWORK_VIEW", ""),
-        "ipfabric_api_token": os.getenv("NAUTOBOT_SSOT_IPFABRIC_API_TOKEN"),
-        "ipfabric_host": os.getenv("NAUTOBOT_SSOT_IPFABRIC_HOST"),
-        "ipfabric_ssl_verify": is_truthy(os.getenv("NAUTOBOT_SSOT_IPFABRIC_SSL_VERIFY", "False")),
-        "nautobot_host": os.getenv("NAUTOBOT_HOST"),
         "servicenow_instance": os.getenv("SERVICENOW_INSTANCE", ""),
         "servicenow_password": os.getenv("SERVICENOW_PASSWORD", ""),
         "servicenow_username": os.getenv("SERVICENOW_USERNAME", ""),

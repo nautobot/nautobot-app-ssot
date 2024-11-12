@@ -2,7 +2,6 @@
 
 from django.contrib import messages
 from django.views.generic import UpdateView
-
 from nautobot.core.forms import restrict_form_fields
 
 from .forms import SSOTServiceNowConfigForm

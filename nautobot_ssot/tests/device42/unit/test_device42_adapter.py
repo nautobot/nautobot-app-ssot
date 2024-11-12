@@ -2,14 +2,17 @@
 
 import json
 from unittest.mock import MagicMock, patch
+
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from nautobot.core.testing import TransactionTestCase
+from nautobot.dcim.models import LocationType
 from nautobot.extras.models import JobResult
 from parameterized import parameterized
+
 from nautobot_ssot.integrations.device42.diffsync.adapters.device42 import (
     Device42Adapter,
-    get_dns_a_record,
     get_circuit_status,
+    get_dns_a_record,
     get_site_from_mapping,
 )
 from nautobot_ssot.integrations.device42.jobs import Device42DataSource
@@ -69,8 +72,11 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         self.d42_client.get_port_custom_fields.return_value = PORT_CUSTOM_FIELDS
         self.d42_client.get_ip_addrs.return_value = IPADDRESS_FIXTURE
         self.d42_client.get_ipaddr_custom_fields.return_value = IPADDRESS_CF_FIXTURE
+        self.d42_client.get_port_default_custom_fields.return_value = {}
+        self.d42_client.get_ipaddr_default_custom_fields.return_value = {}
 
         self.job = self.job_class()
+        self.job.building_loctype = LocationType.objects.get_or_create(name="Site")[0]
         self.job.logger = MagicMock()
         self.job.logger.info = MagicMock()
         self.job.logger.warning = MagicMock()
@@ -91,6 +97,7 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
     @patch(
         "nautobot_ssot.integrations.device42.utils.device42.PLUGIN_CFG",
         {
+            "enable_device42": True,
             "device42_customer_is_facility": True,
             "device42_facility_prepend": "sitecode-",
             "device42_hostname_mapping": [{"AUS": "Austin"}],
@@ -100,12 +107,12 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         """Test the load() function."""
         self.device42.load_buildings()
         self.assertEqual(
-            {site["name"] for site in BUILDING_FIXTURE},
+            {f"{site['name']}__{self.job.building_loctype.name}" for site in BUILDING_FIXTURE},
             {site.get_unique_id() for site in self.device42.get_all("building")},
         )
         self.device42.load_rooms()
         self.assertEqual(
-            {f"{room['name']}__{room['building']}" for room in ROOM_FIXTURE},
+            {f"{room['name']}__{room['building']}__{self.job.building_loctype.name}" for room in ROOM_FIXTURE},
             {room.get_unique_id() for room in self.device42.get_all("room")},
         )
         self.device42.load_racks()
@@ -152,7 +159,7 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         self.device42.load_buildings()
         self.device42.load_buildings()
         self.job.logger.warning.assert_called_with(
-            "Microsoft HQ is already loaded. ('Object Microsoft HQ already present', building \"Microsoft HQ\")"
+            "Microsoft HQ is already loaded. ('Object Microsoft HQ__Site already present', building \"Microsoft HQ__Site\")"
         )
 
     def test_load_rooms_duplicate_room(self):
@@ -161,7 +168,7 @@ class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-
         self.device42.load_rooms()
         self.device42.load_rooms()
         self.job.logger.warning.assert_called_with(
-            "Secondary IDF is already loaded. ('Object Secondary IDF__Microsoft HQ already present', room \"Secondary IDF__Microsoft HQ\")"
+            "Secondary IDF is already loaded. ('Object Secondary IDF__Microsoft HQ__Site already present', room \"Secondary IDF__Microsoft HQ__Site\")"
         )
 
     def test_load_rooms_missing_building(self):

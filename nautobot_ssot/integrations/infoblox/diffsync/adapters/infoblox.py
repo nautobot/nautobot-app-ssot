@@ -3,11 +3,12 @@
 import re
 
 import requests
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.enum import DiffSyncFlags
 from diffsync.exceptions import ObjectAlreadyExists
 from nautobot.extras.plugins.exceptions import PluginImproperlyConfigured
 
+from nautobot_ssot.exceptions import AdapterLoadException
 from nautobot_ssot.integrations.infoblox.choices import FixedAddressTypeChoices
 from nautobot_ssot.integrations.infoblox.diffsync.models.infoblox import (
     InfobloxDnsARecord,
@@ -27,11 +28,7 @@ from nautobot_ssot.integrations.infoblox.utils.diffsync import (
 )
 
 
-class AdapterLoadException(Exception):
-    """Raised when there's an error while loading data."""
-
-
-class InfobloxAdapter(DiffSync):
+class InfobloxAdapter(Adapter):
     """DiffSync adapter using requests to communicate to Infoblox server."""
 
     namespace = InfobloxNamespace
@@ -245,6 +242,7 @@ class InfobloxAdapter(DiffSync):
             # Record references to DNS Records linked to this IP Address.
             # Field `comment` in IP Address records can come from linked fixed address or DNS record.
             # We add extra logic to tell DNS record and fixed address comments apart.
+            a_record_ref, host_record_ref, ptr_record_ref = None, None, None
             for ref in _ip["objects"]:
                 obj_type = ref.split("/")[0]
                 if obj_type == "record:host":
@@ -281,11 +279,11 @@ class InfobloxAdapter(DiffSync):
                 new_ip.ip_addr_type = "dhcp"
 
             # Load individual DNS records
-            if new_ip.has_a_record:
+            if new_ip.has_a_record and a_record_ref:
                 self._load_dns_a_record_for_ip(ref=a_record_ref, ip_record=new_ip, namespace=namespace)
-            if new_ip.has_host_record:
+            if new_ip.has_host_record and host_record_ref:
                 self._load_dns_host_record_for_ip(ref=host_record_ref, ip_record=new_ip, namespace=namespace)
-            if new_ip.has_ptr_record:
+            if new_ip.has_ptr_record and ptr_record_ref:
                 self._load_dns_ptr_record_for_ip(ref=ptr_record_ref, ip_record=new_ip, namespace=namespace)
 
             if new_ip.has_fixed_address or new_ip.has_a_record or new_ip.has_host_record:

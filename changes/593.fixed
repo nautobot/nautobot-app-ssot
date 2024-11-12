@@ -1,0 +1,5 @@
+Fixed Meraki loading of Nautobot Prefixes that have multiple Locations assigned.
+Fixed DNA Center loading incorrect location names for Devices.
+Fixed KeyError being thrown when port is missing from uplink_settings dict in Meraki integration.
+Fixed error in Bootstrap integration in loading ValidatedSoftwareLCM when SoftwareLCM doesn't exist.
+Fixed DoesNotExist thrown when attempting to load ContentType that doesn't exist in Bootstrap integration.

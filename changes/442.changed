@@ -1,4 +1,0 @@
-Infoblox integration - configuration settings are now defined in the instances of the SSOTInfobloxConfig model.
-Infoblox integration - functionality provided by the `infoblox_import_subnets` settings has been replaced with the `infoblox_sync_filters` field in the SSOTInfobloxConfig instance.
-Infoblox integration - updated Infoblox client methods to support Network View.
-Infoblox integration - standardized `JSONDecoderError` handling in the Infoblox client.

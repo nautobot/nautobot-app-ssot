@@ -24,7 +24,7 @@ It contains 3 steps:
 # example_ssot_app/jobs.py
 from typing import Optional
 
-from diffsync import DiffSync
+from diffsync import Adapter
 from nautobot.ipam.models import VLAN
 from nautobot.extras.jobs import Job
 from nautobot_ssot.contrib import NautobotModel, NautobotAdapter
@@ -51,14 +51,15 @@ class MySSoTNautobotAdapter(NautobotAdapter):
     top_level = ("vlan",)
 
 # Step 2.2 - the remote adapter
-class MySSoTRemoteAdapter(DiffSync):
+class MySSoTRemoteAdapter(Adapter):
     """DiffSync adapter for remote system."""
     vlan = VLANModel
     top_level = ("vlan",)
-    
-    def __init__(self, *args, api_client, **kwargs):
+
+    def __init__(self, *args, api_client, job=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.api_client = api_client
+        self.job = job
 
     def load(self):
         for vlan in self.api_client.get_vlans():
@@ -72,11 +73,11 @@ class ExampleDataSource(DataSource, Job):
         name = "Example Data Source"
 
     def load_source_adapter(self):
-        self.source_adapter = MySSoTRemoteAdapter(api_client=APIClient())
+        self.source_adapter = MySSoTRemoteAdapter(api_client=APIClient(), job=self)
         self.source_adapter.load()
 
     def load_target_adapter(self):
-        self.target_adapter = MySSoTNautobotAdapter()
+        self.target_adapter = MySSoTNautobotAdapter(job=self)
         self.target_adapter.load()
 
 jobs = [ExampleDataSource]
@@ -135,7 +136,7 @@ class YourSSoTNautobotAdapter(NautobotAdapter):
 
 The `load` function is already implemented on this adapter and will automatically and recursively traverse any children relationships for you, provided the models are [defined correctly](../user/modeling.md).
 
-Developers are able to override the default loading of basic parameters to control how that parameter is loaded from Nautobot. 
+Developers are able to override the default loading of basic parameters to control how that parameter is loaded from Nautobot.
 
 This only works with basic parameters belonging to the model and does not override more complex parameters (foreign keys, custom fields, custom relationships, etc.).
 
@@ -145,7 +146,7 @@ To override a parameter, simply add a method with the name `load_param_{param_ke
 from nautobot_ssot.contrib import NautobotAdapter
 
 class YourSSoTNautobotAdapter(NautobotAdapter):
-    ...    
+    ...
     def load_param_time_zone(self, parameter_name, database_object):
         """Custom loader for `time_zone` parameter."""
         return str(getattr(database_object, parameter_name))

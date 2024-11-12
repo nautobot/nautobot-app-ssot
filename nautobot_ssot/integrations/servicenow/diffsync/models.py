@@ -1,7 +1,7 @@
 """DiffSyncModel subclasses for Nautobot-to-ServiceNow data sync."""
 
-from typing import List, Optional, Union
 import uuid
+from typing import List, Optional, Union
 
 from diffsync import DiffSyncModel
 from diffsync.enum import DiffSyncStatus
@@ -38,27 +38,28 @@ class ServiceNowCRUDMixin:
                     # Look in the cache first
                     sys_id = self._sys_id_cache.get(tablename, {}).get(column_name, {}).get(value, None)
                     if not sys_id:
-                        target = self.diffsync.client.get_by_query(tablename, {mapping["reference"]["column"]: value})
+                        target = self.adapter.client.get_by_query(tablename, {mapping["reference"]["column"]: value})
                         if target is None:
-                            self.diffsync.job.logger.warning(f"Unable to find reference target in {tablename}")
+                            self.adapter.job.logger.warning(f"Unable to find reference target in {tablename}")
                         else:
                             sys_id = target["sys_id"]
                             self._sys_id_cache.setdefault(tablename, {}).setdefault(column_name, {})[value] = sys_id
+
                 record[mapping["reference"]["key"]] = sys_id
             else:
                 raise NotImplementedError
 
-        self.diffsync.job.logger.debug(f"Mapped data {data} to record {record}")
+        self.adapter.job.logger.debug(f"Mapped data {data} to record {record}")
         return record
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create a new instance, data-driven by mappings."""
-        entry = diffsync.mapping_data[cls.get_type()]
+        entry = adapter.mapping_data[cls.get_type()]
 
-        model = super().create(diffsync, ids=ids, attrs=attrs)
+        model = super().create(adapter, ids=ids, attrs=attrs)
 
-        sn_resource = diffsync.client.resource(api_path=f"/table/{entry['table']}")
+        sn_resource = adapter.client.resource(api_path=f"/table/{entry['table']}")
         sn_record = model.map_data_to_sn_record(data={**ids, **attrs}, mapping_entry=entry)
         sn_resource.create(payload=sn_record)
 
@@ -66,14 +67,14 @@ class ServiceNowCRUDMixin:
 
     def update(self, attrs):
         """Update an existing instance, data-driven by mappings."""
-        entry = self.diffsync.mapping_data[self.get_type()]
+        entry = self.adapter.mapping_data[self.get_type()]
 
-        sn_resource = self.diffsync.client.resource(api_path=f"/table/{entry['table']}")
+        sn_resource = self.adapter.client.resource(api_path=f"/table/{entry['table']}")
         query = self.map_data_to_sn_record(data=self.get_identifiers(), mapping_entry=entry)
         try:
             record = sn_resource.get(query=query).one()
         except pysnow.exceptions.MultipleResults:
-            self.diffsync.job.logger.error(
+            self.adapter.job.logger.error(
                 f"Unsure which record to update, as query {query} matched more than one item "
                 f"in table {entry['table']}"
             )
@@ -87,20 +88,20 @@ class ServiceNowCRUDMixin:
 
     def delete(self):
         """Delete an existing instance in ServiceNow if it does not exist in Nautobot. This code adds the ServiceNow object to the objects_to_delete dict of lists. The actual delete occurs in the post-run method of adapter_servicenow.py."""
-        entry = self.diffsync.mapping_data[self.get_type()]
-        sn_resource = self.diffsync.client.resource(api_path=f"/table/{entry['table']}")
+        entry = self.adapter.mapping_data[self.get_type()]
+        sn_resource = self.adapter.client.resource(api_path=f"/table/{entry['table']}")
         query = self.map_data_to_sn_record(data=self.get_identifiers(), mapping_entry=entry)
         try:
             sn_resource.get(query=query).one()
         except pysnow.exceptions.MultipleResults:
-            self.diffsync.job.logger.error(
+            self.adapter.job.logger.error(
                 f"Unsure which record to update, as query {query} matched more than one item "
                 f"in table {entry['table']}"
             )
             return None
-        self.diffsync.job.logger.warning(f"{self._modelname} {self.get_identifiers()} will be deleted.")
+        self.adapter.job.logger.warning(f"{self._modelname} {self.get_identifiers()} will be deleted.")
         _object = sn_resource.get(query=query)
-        self.diffsync.objects_to_delete[self._modelname].append(_object)
+        self.adapter.objects_to_delete[self._modelname].append(_object)
         self.map_data_to_sn_record(
             data=self.get_identifiers(), mapping_entry=entry, clear_cache=True
         )  # remove device cache
@@ -192,15 +193,15 @@ class Device(ServiceNowCRUDMixin, DiffSyncModel):
 
     name: str
 
-    location_name: Optional[str]
-    asset_tag: Optional[str]
-    manufacturer_name: Optional[str]
-    model_name: Optional[str]
-    serial: Optional[str]
+    location_name: Optional[str] = None
+    asset_tag: Optional[str] = None
+    manufacturer_name: Optional[str] = None
+    model_name: Optional[str] = None
+    serial: Optional[str] = None
 
-    # platform: Optional[str]
-    # role: Optional[str]
-    # vendor: Optional[str]
+    # platform: Optional[str] = None
+    # role: Optional[str] = None
+    # vendor: Optional[str] = None
 
     interfaces: List["Interface"] = []
 
@@ -208,14 +209,12 @@ class Device(ServiceNowCRUDMixin, DiffSyncModel):
     pk: Optional[uuid.UUID] = None
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create a new Device instance, and set things up for eventual bulk-creation of its child Interfaces."""
-        model = super().create(diffsync, ids=ids, attrs=attrs)
+        model = super().create(adapter, ids=ids, attrs=attrs)
 
-        diffsync.job.logger.debug(
-            f'New Device "{ids["name"]}" is being created, will bulk-create its interfaces later.'
-        )
-        diffsync.interfaces_to_create_per_device[ids["name"]] = []
+        adapter.job.logger.debug(f'New Device "{ids["name"]}" is being created, will bulk-create its interfaces later.')
+        adapter.interfaces_to_create_per_device[ids["name"]] = []
 
         return model
 
@@ -237,20 +236,20 @@ class Interface(ServiceNowCRUDMixin, DiffSyncModel):
     name: str
     device_name: str
 
-    # access_vlan: Optional[int]
-    # active: Optional[bool]
+    # access_vlan: Optional[int] = None
+    # active: Optional[bool] = None
     allowed_vlans: List[str] = []
-    description: Optional[str]
-    # is_virtual: Optional[bool]
-    # is_lag: Optional[bool]
-    # is_lag_member: Optional[bool]
+    description: Optional[str] = None
+    # is_virtual: Optional[bool] = None
+    # is_lag: Optional[bool] = None
+    # is_lag_member: Optional[bool] = None
     lag_members: List[str] = []
-    # mode: Optional[str]  # TRUNK, ACCESS, L3, NONE
-    # mtu: Optional[int]
-    # parent: Optional[str]
-    # speed: Optional[int]
-    # switchport_mode: Optional[str]
-    # port_type: Optional[str]
+    # mode: Optional[str] = None  # TRUNK, ACCESS, L3, NONE
+    # mtu: Optional[int] = None
+    # parent: Optional[str] = None
+    # speed: Optional[int] = None
+    # switchport_mode: Optional[str] = None
+    # port_type: Optional[str] = None
 
     ip_addresses: List["IPAddress"] = []
 
@@ -258,20 +257,20 @@ class Interface(ServiceNowCRUDMixin, DiffSyncModel):
     pk: Optional[uuid.UUID] = None
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create an interface in isolation, or if the parent Device is new as well, defer for later bulk-creation."""
-        if ids["device_name"] in diffsync.interfaces_to_create_per_device:
-            diffsync.job.logger.debug(
+        if ids["device_name"] in adapter.interfaces_to_create_per_device:
+            adapter.job.logger.debug(
                 f'Device "{ids["device_name"]}" was just created; deferring creation of interface "{ids["name"]}"'
             )
             # copy-paste of DiffSyncModel's create() classmethod;
             # we don't want to call super().create() here as that would be ServiceNowCRUDMixin.create(),
             # which is what we're trying to avoid here!
-            model = cls(**ids, diffsync=diffsync, **attrs)
+            model = cls(**ids, adapter=adapter, **attrs)
             model.set_status(DiffSyncStatus.SUCCESS, "Deferred creation in ServiceNow")
-            diffsync.interfaces_to_create_per_device[ids["device_name"]].append(model)
+            adapter.interfaces_to_create_per_device[ids["device_name"]].append(model)
         else:
-            model = super().create(diffsync, ids=ids, attrs=attrs)
+            model = super().create(adapter, ids=ids, attrs=attrs)
         return model
 
 
@@ -287,15 +286,15 @@ class IPAddress(ServiceNowCRUDMixin, DiffSyncModel):
 
     address: str  # TODO: change to netaddr.IPAddress?
 
-    device_name: Optional[str]
-    interface_name: Optional[str]
+    device_name: Optional[str] = None
+    interface_name: Optional[str] = None
 
     sys_id: Optional[str] = None
     pk: Optional[uuid.UUID] = None
 
 
-Company.update_forward_refs()
-Device.update_forward_refs()
-Interface.update_forward_refs()
-Location.update_forward_refs()
-ProductModel.update_forward_refs()
+Company.model_rebuild()
+Device.model_rebuild()
+Interface.model_rebuild()
+Location.model_rebuild()
+ProductModel.model_rebuild()

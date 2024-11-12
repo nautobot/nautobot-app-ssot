@@ -6,23 +6,22 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
 from django.test import TestCase
-from nautobot.dcim.models import DeviceType, Manufacturer, Location, LocationType, Platform
+from nautobot.core.choices import ColorChoices
+from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer, Platform
 from nautobot.dcim.models.devices import Device
+from nautobot.extras.models import Role
 from nautobot.extras.models.statuses import Status
 from nautobot.ipam.models import VLAN, IPAddress, Prefix, get_default_namespace
-from nautobot.core.choices import ColorChoices
-from nautobot.extras.models import Role
 
 from nautobot_ssot.integrations.ipfabric.utilities import (
-    get_or_create_device_role_object,
     create_device_type_object,
+    create_ip,
     create_location,
     create_manufacturer,
-    # create_interface,
-    create_ip,
     create_platform_object,
     create_status,
     create_vlan,
+    get_or_create_device_role_object,
 )
 
 
@@ -374,7 +373,7 @@ class TestNautobotUtils(TestCase):
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_ip_fail_to_get_status_multiple_returned(self, mock_logger, mock_ipaddress, mock_status):
         """Test `create_device_type_object` Utility."""
-        mock_status().get.side_effect = [Status.MultipleObjectsReturned]
+        mock_status.return_value.get.side_effect = [Status.MultipleObjectsReturned]
         logger = mock_logger("nb_job")
         test_ip = create_ip("192.168.0.1", "255.255.255.255", logger=logger)
         mock_ipaddress.assert_not_called()
@@ -392,7 +391,7 @@ class TestNautobotUtils(TestCase):
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_ip_fail_to_get_status_does_not_exist(self, mock_logger, mock_ipaddress, mock_status):
         """Test `create_device_type_object` Utility."""
-        mock_status().get.side_effect = [Status.DoesNotExist]
+        mock_status.return_value.get.side_effect = [Status.DoesNotExist]
         logger = mock_logger("nb_job")
         test_ip = create_ip("192.168.0.1", "255.255.255.255", logger=logger)
         mock_ipaddress.assert_not_called()
@@ -441,7 +440,7 @@ class TestNautobotUtils(TestCase):
         mock_status,
     ):
         """Test `create_device_type_object` Utility."""
-        mock_status().get.return_value = "mock_status"
+        mock_status.return_value.get.return_value = "mock_status"
         mock_prefix.return_value = ("mock_prefix", False)
         mock_ip.side_effect = [DjangoBaseDBError, ("mock_ipaddress", True)]
         logger = mock_logger("nb_job")
@@ -482,7 +481,7 @@ class TestNautobotUtils(TestCase):
         mock_status,
     ):
         """Test `create_device_type_object` Utility."""
-        mock_status().get.return_value = "mock_status"
+        mock_status.return_value.get.return_value = "mock_status"
         mock_prefix.return_value = ("mock_prefix", False)
         mock_ip.side_effect = [ValidationError("failure"), ("mock_ipaddress", True)]
         logger = mock_logger("nb_job")
@@ -525,7 +524,7 @@ class TestNautobotUtils(TestCase):
         mock_status,
     ):
         """Test `create_device_type_object` Utility."""
-        mock_status().get.return_value = "mock_status"
+        mock_status.return_value.get.return_value = "mock_status"
         mock_prefix.return_value = ("mock_prefix", False)
         mock_ip.side_effect = [DjangoBaseDBError, ("mock_ipaddress", True)]
         logger = mock_logger("nb_job")
@@ -573,7 +572,7 @@ class TestNautobotUtils(TestCase):
         mock_status,
     ):
         """Test `create_device_type_object` Utility."""
-        mock_status().get.return_value = "mock_status"
+        mock_status.return_value.get.return_value = "mock_status"
         mock_prefix.return_value = ("mock_prefix", False)
         mock_ip.side_effect = [ValidationError("failure"), ("mock_ipaddress", True)]
         logger = mock_logger("nb_job")
@@ -611,7 +610,7 @@ class TestNautobotUtils(TestCase):
         self, mock_logger, mock_tag_object, mock_prefix, mock_ipaddress_to_interface, mock_ip, mock_status
     ):
         """Test `create_device_type_object` Utility."""
-        mock_status().get.return_value = "mock_status"
+        mock_status.return_value.get.return_value = "mock_status"
         mock_prefix.side_effect = [DjangoBaseDBError]
         mock_ip.side_effect = [ValidationError("failure")]
         logger = mock_logger("nb_job")
@@ -638,7 +637,7 @@ class TestNautobotUtils(TestCase):
         self, mock_logger, mock_tag_object, mock_prefix, mock_ipaddress_to_interface, mock_ip, mock_status
     ):
         """Test `create_device_type_object` Utility."""
-        mock_status().get.return_value = "mock_status"
+        mock_status.return_value.get.return_value = "mock_status"
         mock_prefix.side_effect = [ValidationError("failure")]
         mock_ip.side_effect = [ValidationError("failure")]
         logger = mock_logger("nb_job")
@@ -665,7 +664,7 @@ class TestNautobotUtils(TestCase):
         self, mock_logger, mock_tag_object, mock_prefix, mock_ipaddress_to_interface, mock_ip, mock_status
     ):
         """Test `create_device_type_object` Utility."""
-        mock_status().get.return_value = "mock_status"
+        mock_status.return_value.get.return_value = "mock_status"
         mock_prefix.return_value = ("mock_prefix", False)
         mock_ip.side_effect = [ValidationError("failure"), DjangoBaseDBError]
         logger = mock_logger("nb_job")
@@ -697,7 +696,7 @@ class TestNautobotUtils(TestCase):
         self, mock_logger, mock_tag_object, mock_prefix, mock_ipaddress_to_interface, mock_ip, mock_status
     ):
         """Test `create_device_type_object` Utility."""
-        mock_status().get.return_value = "mock_status"
+        mock_status.return_value.get.return_value = "mock_status"
         mock_prefix.return_value = ("mock_prefix", False)
         mock_ip.side_effect = [ValidationError("failure"), ValidationError("failure")]
         logger = mock_logger("nb_job")

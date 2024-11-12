@@ -2,34 +2,33 @@
 
 # Skip colon check for multiple statements on one line.
 # flake8: noqa: E701
-
+# pylint: disable=too-many-lines
 try:
     from typing_extensions import TypedDict  # Python<3.9
 except ImportError:
     from typing import TypedDict  # Python>=3.9
 
-from typing import Optional, Mapping, List
+from typing import Generator, List, Optional
+
+import requests
+from diffsync import Adapter
+from diffsync.enum import DiffSyncFlags
+from diffsync.exceptions import ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
 from django.templatetags.static import static
 from django.urls import reverse
-
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer, Platform
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.jobs import ObjectVar, StringVar
 from nautobot.extras.models import ExternalIntegration, Role, Status
+from nautobot.extras.secrets.exceptions import SecretError
 from nautobot.ipam.models import IPAddress, Namespace, Prefix
 from nautobot.tenancy.models import Tenant
 
-from diffsync import DiffSync
-from diffsync.enum import DiffSyncFlags
-from diffsync.exceptions import ObjectNotFound
-
-import requests
-
-from nautobot_ssot.contrib import NautobotModel, NautobotAdapter
-from nautobot_ssot.tests.contrib_base_classes import ContentTypeDict
+from nautobot_ssot.contrib import NautobotAdapter, NautobotModel
+from nautobot_ssot.exceptions import MissingSecretsGroupException
 from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
-
+from nautobot_ssot.tests.contrib_base_classes import ContentTypeDict
 
 # In a more complex Job, you would probably want to move the DiffSyncModel subclasses into a separate Python module(s).
 
@@ -50,7 +49,7 @@ class LocationTypeModel(NautobotModel):
     name: str
     description: str
     nestable: bool
-    parent__name: Optional[str]
+    parent__name: Optional[str] = None
     content_types: List[ContentTypeDict] = []
 
 
@@ -82,9 +81,9 @@ class LocationModel(NautobotModel):
     name: str
     location_type__name: str
     status__name: str
-    parent__name: Optional[str]
-    parent__location_type__name: Optional[str]
-    tenant__name: Optional[str]
+    parent__name: Optional[str] = None
+    parent__location_type__name: Optional[str] = None
+    tenant__name: Optional[str] = None
     description: str
 
 
@@ -142,7 +141,7 @@ class PrefixModel(NautobotModel):
     network: str
     namespace__name: str
     prefix_length: int
-    tenant__name: Optional[str]
+    tenant__name: Optional[str] = None
     status__name: str
     description: str
 
@@ -254,11 +253,11 @@ class DeviceModel(NautobotModel):
     name: str
     location__name: str
     location__location_type__name: str
-    location__parent__name: Optional[str]
-    location__parent__location_type__name: Optional[str]
+    location__parent__name: Optional[str] = None
+    location__parent__location_type__name: Optional[str] = None
     device_type__manufacturer__name: str
     device_type__model: str
-    platform__name: Optional[str]
+    platform__name: Optional[str] = None
     role__name: str
     serial: str
     status__name: str
@@ -305,15 +304,15 @@ class LocationRemoteModel(LocationModel):
     """Implementation of Location create/update/delete methods for updating remote Nautobot data."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create a new Location in remote Nautobot.
 
         Args:
-            diffsync (NautobotRemote): DiffSync adapter owning this Site
+            adapter (NautobotRemote): DiffSync adapter owning this Site
             ids (dict): Initial values for this model's _identifiers
             attrs (dict): Initial values for this model's _attributes
         """
-        diffsync.post(
+        adapter.post(
             "/api/dcim/locations/",
             {
                 "name": ids["name"],
@@ -323,7 +322,7 @@ class LocationRemoteModel(LocationModel):
                 "parent": {"name": attrs["parent__name"]} if attrs["parent__name"] else None,
             },
         )
-        return super().create(diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update an existing Site record in remote Nautobot.
@@ -341,12 +340,12 @@ class LocationRemoteModel(LocationModel):
                 data["parent"] = {"name": attrs["parent__name"]}
             else:
                 data["parent"] = None
-        self.diffsync.patch(f"/api/dcim/locations/{self.pk}/", data)
+        self.adapter.patch(f"/api/dcim/locations/{self.pk}/", data)
         return super().update(attrs)
 
     def delete(self):
         """Delete an existing Site record from remote Nautobot."""
-        self.diffsync.delete(f"/api/dcim/locations/{self.pk}/")
+        self.adapter.delete(f"/api/dcim/locations/{self.pk}/")
         return super().delete()
 
 
@@ -354,15 +353,15 @@ class TenantRemoteModel(TenantModel):
     """Implementation of Tenant create/update/delete methods for updating remote Nautobot data."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create a new Tenant in remote Nautobot."""
-        diffsync.post(
+        adapter.post(
             "/api/tenancy/tenants/",
             {
                 "name": ids["name"],
             },
         )
-        return super().create(diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Updating tenants is not supported because we don't have any attributes."""
@@ -370,7 +369,7 @@ class TenantRemoteModel(TenantModel):
 
     def delete(self):
         """Delete a Tenant in remote Nautobot."""
-        self.diffsync.delete(f"/api/tenancy/tenants/{self.pk}/")
+        self.adapter.delete(f"/api/tenancy/tenants/{self.pk}/")
         return super().delete()
 
 
@@ -378,15 +377,15 @@ class PrefixRemoteModel(PrefixModel):
     """Implementation of Prefix create/update/delete methods for updating remote Nautobot data."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create a new Prefix in remote Nautobot.
 
         Args:
-            diffsync (NautobotRemote): DiffSync adapter owning this Prefix
+            adapter (NautobotRemote): DiffSync adapter owning this Prefix
             ids (dict): Initial values for this model's _identifiers
             attrs (dict): Initial values for this model's _attributes
         """
-        diffsync.post(
+        adapter.post(
             "/api/ipam/prefixes/",
             {
                 "network": ids["network"],
@@ -397,7 +396,7 @@ class PrefixRemoteModel(PrefixModel):
                 "status": attrs["status__name"],
             },
         )
-        return super().create(diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update an existing Site record in remote Nautobot.
@@ -410,19 +409,19 @@ class PrefixRemoteModel(PrefixModel):
             data["description"] = attrs["description"]
         if "status__name" in attrs:
             data["status"] = attrs["status__name"]
-        self.diffsync.patch(f"/api/dcim/locations/{self.pk}/", data)
+        self.adapter.patch(f"/api/dcim/locations/{self.pk}/", data)
         return super().update(attrs)
 
     def delete(self):
         """Delete an existing Site record from remote Nautobot."""
-        self.diffsync.delete(f"/api/dcim/locations/{self.pk}/")
+        self.adapter.delete(f"/api/dcim/locations/{self.pk}/")
         return super().delete()
 
 
 # In a more complex Job, you would probably want to move each DiffSync subclass into a separate Python module.
 
 
-class NautobotRemote(DiffSync):
+class NautobotRemote(Adapter):
     """DiffSync adapter class for loading data from a remote Nautobot instance using Python requests.
 
     In a more realistic example, you'd probably use PyNautobot here instead of raw requests,
@@ -480,14 +479,13 @@ class NautobotRemote(DiffSync):
             "Authorization": f"Token {self.token}",
         }
 
-    def _get_api_data(self, url_path: str) -> Mapping:
+    def _get_api_data(self, url_path: str) -> Generator:
         """Returns data from a url_path using pagination."""
         data = requests.get(f"{self.url}/{url_path}", headers=self.headers, params={"limit": 200}, timeout=60).json()
-        result_data = data["results"]
+        yield from data["results"]
         while data["next"]:
             data = requests.get(data["next"], headers=self.headers, params={"limit": 200}, timeout=60).json()
-            result_data.extend(data["results"])
-        return result_data
+            yield from data["results"]
 
     def load(self):
         """Load data from the remote Nautobot instance."""
@@ -862,6 +860,12 @@ class ExampleDataSource(DataSource):
             if source:
                 self.logger.info(f"Using external integration '{source}'")
                 self.source_url = source.remote_url
+                if not source.secrets_group:
+                    self.logger.error(
+                        "%s is missing a SecretsGroup. You must specify a SecretsGroup to synchronize with this Nautobot instance.",
+                        source,
+                    )
+                    raise MissingSecretsGroupException(message="Missing SecretsGroup on specified ExternalIntegration.")
                 secrets_group = source.secrets_group
                 self.source_token = secrets_group.get_secret_value(
                     access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
@@ -870,8 +874,7 @@ class ExampleDataSource(DataSource):
             else:
                 self.source_url = source_url
                 self.source_token = source_token
-        except Exception as error:
-            # TBD: Why are these exceptions swallowed?
+        except SecretError as error:
             self.logger.error("Error setting up job: %s", error)
             raise
 
@@ -907,6 +910,13 @@ class ExampleDataSource(DataSource):
 class ExampleDataTarget(DataTarget):
     """Sync Region and Site data from the local Nautobot instance to a remote Nautobot instance."""
 
+    target = ObjectVar(
+        model=ExternalIntegration,
+        queryset=ExternalIntegration.objects.all(),
+        display_field="display",
+        label="Nautobot Target Instance",
+        required=False,
+    )
     target_url = StringVar(description="Remote Nautobot instance to update", default="https://demo.nautobot.com")
     target_token = StringVar(description="REST API authentication token for remote Nautobot instance", default="a" * 40)
 
@@ -942,6 +952,43 @@ class ExampleDataTarget(DataTarget):
             DataMapping("Device (local)", reverse("dcim:device_list"), "Device (remote)", None),
             DataMapping("Interface (local)", reverse("dcim:interface_list"), "Interface (remote)", None),
         )
+
+    def run(  # pylint: disable=too-many-arguments, arguments-differ
+        self,
+        dryrun,
+        memory_profiling,
+        target,
+        target_url,
+        target_token,
+        *args,
+        **kwargs,
+    ):
+        """Run sync."""
+        self.dryrun = dryrun
+        self.memory_profiling = memory_profiling
+        try:
+            if target:
+                self.logger.info(f"Using external integration '{target}'")
+                self.target_url = target.remote_url
+                if not target.secrets_group:
+                    self.logger.error(
+                        "%s is missing a SecretsGroup. You must specify a SecretsGroup to synchronize with this Nautobot instance.",
+                        target,
+                    )
+                    raise MissingSecretsGroupException("Missing SecretsGroup on specified ExternalIntegration.")
+                secrets_group = target.secrets_group
+                self.target_token = secrets_group.get_secret_value(
+                    access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
+                    secret_type=SecretsGroupSecretTypeChoices.TYPE_TOKEN,
+                )
+            else:
+                self.target_url = target_url
+                self.target_token = target_token
+        except SecretError as error:
+            self.logger.error("Error setting up job: %s", error)
+            raise
+
+        super().run(dryrun, memory_profiling, *args, **kwargs)
 
     def load_source_adapter(self):
         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""

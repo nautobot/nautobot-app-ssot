@@ -14,22 +14,23 @@
         "max_nautobot_version": "2.9999",
         "camel_name": "NautobotSSOTApp",
         "project_short_description": "Nautobot Single Source of Truth",
-        "model_class_name": "None",
+        "model_class_name": "Sync",
         "open_source_license": "Apache-2.0",
         "docs_base_url": "https://docs.nautobot.com",
         "docs_app_url": "https://docs.nautobot.com/projects/ssot/en/latest",
         "_drift_manager": {
             "template": "https://github.com/nautobot/cookiecutter-nautobot-app.git",
             "template_dir": "nautobot-app",
-            "template_ref": "refs/tags/nautobot-app-v2.2.1",
+            "template_ref": "refs/tags/nautobot-app-v2.4.0",
             "cookie_dir": "",
             "branch_prefix": "drift-manager",
             "pull_request_strategy": "create",
             "post_actions": [
-                "black"
+                "ruff",
+                "poetry"
             ],
-            "draft": true,
-            "baked_commit_ref": "88cb0d71afd4889658b76c64cfb86d5b347e7565"
+            "draft": false,
+            "baked_commit_ref": "671ef8a64a7bc40e991ade1dd64560d734f122bc"
         }
     }
 }

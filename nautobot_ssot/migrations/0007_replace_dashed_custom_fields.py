@@ -1,8 +1,4 @@
 from django.db import migrations
-from nautobot.dcim.models import Device, DeviceType, Interface, Manufacturer, Location
-from nautobot.extras.models import Role
-from nautobot.extras.utils import FeatureQuery
-from nautobot.ipam.models import IPAddress, VLAN
 
 CF_KEY_CHANGE_MAP = {
     "ssot_synced_to_servicenow": "ssot-synced-to-servicenow",
@@ -13,6 +9,7 @@ CF_KEY_CHANGE_MAP = {
 
 
 def replace_dashed_custom_fields(apps, schema_editor):
+    """Replace dashes in CustomField keys with underscore."""
     CustomField = apps.get_model("extras", "customfield")
 
     for new_key, old_key in CF_KEY_CHANGE_MAP.items():
@@ -24,7 +21,17 @@ def replace_dashed_custom_fields(apps, schema_editor):
                 custom_field.key = new_key
                 custom_field.save()
 
-    for model in [Device, DeviceType, Interface, Manufacturer, Location, VLAN, Role, IPAddress]:
+    for app, model in [
+        ("dcim", "Device"),
+        ("dcim", "DeviceType"),
+        ("dcim", "Interface"),
+        ("dcim", "Manufacturer"),
+        ("dcim", "Location"),
+        ("ipam", "VLAN"),
+        ("extras", "Role"),
+        ("ipam", "IPAddress"),
+    ]:
+        model = apps.get_model(app, model)
         cf_list = []
         for instance in model.objects.all():
             for new_cf, old_cf in CF_KEY_CHANGE_MAP.items():

@@ -1,6 +1,6 @@
 ---
 dev_addr: "127.0.0.1:8001"
-edit_uri: "edit/main/nautobot-app-ssot/docs"
+edit_uri: "edit/main/docs"
 site_dir: "nautobot_ssot/static/nautobot_ssot/docs"
 site_name: "Single Source of Truth Documentation"
 site_url: "https://docs.nautobot.com/projects/ssot/en/latest/"
@@ -71,6 +71,8 @@ extra:
       link: "https://twitter.com/networktocode"
       name: "Network to Code Twitter"
 markdown_extensions:
+  - "markdown_version_annotations":
+      admonition_tag: "???"
   - "admonition"
   - "toc":
       permalink: true
@@ -88,7 +90,6 @@ markdown_extensions:
   - "footnotes"
 plugins:
   - "search"
-  - "mkdocs-version-annotations"
   - "mkdocstrings":
       default_handler: "python"
       handlers:
@@ -109,9 +110,13 @@ nav:
           - "user/integrations/index.md"
           - Cisco ACI: "user/integrations/aci.md"
           - Arista CloudVision: "user/integrations/aristacv.md"
+          - Bootstrap: "user/integrations/bootstrap.md"
           - Device42: "user/integrations/device42.md"
+          - DNA Center: "user/integrations/dna_center.md"
           - Infoblox: "user/integrations/infoblox.md"
           - IPFabric: "user/integrations/ipfabric.md"
+          - Itential: "user/integrations/itential.md"
+          - Cisco Meraki: "user/integrations/meraki.md"
           - ServiceNow: "user/integrations/servicenow.md"
       - Modeling: "user/modeling.md"
       - Performance: "user/performance.md"
@@ -123,15 +128,24 @@ nav:
           - "admin/integrations/index.md"
           - Cisco ACI: "admin/integrations/aci_setup.md"
           - Arista CloudVision: "admin/integrations/aristacv_setup.md"
+          - Bootstrap: "admin/integrations/bootstrap_setup.md"
           - Device42: "admin/integrations/device42_setup.md"
+          - DNA Center: "admin/integrations/dna_center_setup.md"
           - Infoblox: "admin/integrations/infoblox_setup.md"
           - IPFabric: "admin/integrations/ipfabric_setup.md"
+          - Itential: "admin/integrations/itential_setup.md"
+          - Cisco Meraki: "admin/integrations/meraki_setup.md"
           - ServiceNow: "admin/integrations/servicenow_setup.md"
       - Upgrade: "admin/upgrade.md"
       - Uninstall: "admin/uninstall.md"
       - Compatibility Matrix: "admin/compatibility_matrix.md"
       - Release Notes:
           - "admin/release_notes/index.md"
+          - v3.2: "admin/release_notes/version_3.2.md"
+          - v3.1: "admin/release_notes/version_3.1.md"
+          - v3.0: "admin/release_notes/version_3.0.md"
+          - v2.8: "admin/release_notes/version_2.8.md"
+          - v2.7: "admin/release_notes/version_2.7.md"
           - v2.6: "admin/release_notes/version_2.6.md"
           - v2.5: "admin/release_notes/version_2.5.md"
           - v2.4: "admin/release_notes/version_2.4.md"
@@ -152,6 +166,7 @@ nav:
       - Debugging Jobs: "dev/debugging.md"
       - Contributing to the App: "dev/contributing.md"
       - Development Environment: "dev/dev_environment.md"
+      - Upgrading SSoT Apps: "dev/upgrade.md"
       - Code Reference:
           - "dev/code_reference/index.md"
           - Package: "dev/code_reference/package.md"

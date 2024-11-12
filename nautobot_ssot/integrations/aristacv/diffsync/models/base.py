@@ -1,8 +1,9 @@
 """DiffSyncModel subclasses for Nautobot-to-AristaCV data sync."""
 
-from uuid import UUID
-from diffsync import DiffSyncModel
 from typing import List, Optional
+from uuid import UUID
+
+from diffsync import DiffSyncModel
 
 
 class Device(DiffSyncModel):
@@ -22,9 +23,9 @@ class Device(DiffSyncModel):
     device_model: str
     serial: str
     status: str
-    version: Optional[str]
+    version: Optional[str] = None
     ports: List["Port"] = list()
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class Port(DiffSyncModel):
@@ -48,14 +49,14 @@ class Port(DiffSyncModel):
 
     name: str
     device: str
-    description: Optional[str]
+    description: Optional[str] = None
     mac_addr: str
     enabled: bool
     mode: str
-    mtu: Optional[int]
+    mtu: Optional[int] = None
     port_type: str
     status: str
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class Namespace(DiffSyncModel):
@@ -67,7 +68,7 @@ class Namespace(DiffSyncModel):
     _children = {}
 
     name: str
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class Prefix(DiffSyncModel):
@@ -80,7 +81,7 @@ class Prefix(DiffSyncModel):
 
     prefix: str
     namespace: str
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class IPAddress(DiffSyncModel):
@@ -98,7 +99,7 @@ class IPAddress(DiffSyncModel):
     address: str
     prefix: str
     namespace: str
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class IPAssignment(DiffSyncModel):
@@ -119,7 +120,7 @@ class IPAssignment(DiffSyncModel):
     device: str
     interface: str
     primary: bool
-    uuid: Optional[UUID]
+    uuid: Optional[UUID] = None
 
 
 class CustomField(DiffSyncModel):

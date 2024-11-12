@@ -1,17 +1,16 @@
 """Forms implementation for SSOT Infoblox."""
 
 from django import forms
+from nautobot.apps.forms import JSONField, StaticSelect2, StaticSelect2Multiple, add_blank_choice
+from nautobot.extras.forms import NautobotFilterForm, NautobotModelForm
 
-from nautobot.extras.forms import NautobotModelForm, NautobotFilterForm
-from nautobot.apps.forms import add_blank_choice, JSONField, StaticSelect2, StaticSelect2Multiple
-
-from .models import SSOTInfobloxConfig
 from .choices import (
-    FixedAddressTypeChoices,
     DNSRecordTypeChoices,
+    FixedAddressTypeChoices,
     InfobloxDeletableModelChoices,
     NautobotDeletableModelChoices,
 )
+from .models import SSOTInfobloxConfig
 
 
 class SSOTInfobloxConfigForm(NautobotModelForm):  # pylint: disable=too-many-ancestors
@@ -63,7 +62,7 @@ class SSOTInfobloxConfigForm(NautobotModelForm):  # pylint: disable=too-many-anc
         fields = "__all__"
 
 
-class SSOTInfobloxConfigFilterForm(NautobotFilterForm):
+class SSOTInfobloxConfigFilterForm(NautobotFilterForm):  # pylint: disable=too-many-ancestors
     """Filter form for SSOTInfobloxConfig filter searches."""
 
     model = SSOTInfobloxConfig

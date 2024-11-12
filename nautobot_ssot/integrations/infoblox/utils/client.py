@@ -17,6 +17,7 @@ from requests.auth import HTTPBasicAuth
 from requests.compat import urljoin
 from requests.exceptions import HTTPError
 
+from nautobot_ssot.exceptions import InvalidUrlScheme
 from nautobot_ssot.integrations.infoblox.utils.diffsync import get_ext_attr_dict
 
 logger = logging.getLogger("nautobot.ssot.infoblox")
@@ -84,19 +85,6 @@ def get_dns_name(possible_fqdn: str) -> str:
         if match:
             dns_name = match.group("fqdn")
     return dns_name
-
-
-class InvalidUrlScheme(Exception):
-    """Exception raised for wrong scheme being passed for URL.
-
-    Attributes:
-        message (str): Returned explanation of Error.
-    """
-
-    def __init__(self, scheme):
-        """Initialize Exception with wrong scheme in message."""
-        self.message = f"Invalid URL scheme '{scheme}' found for Infoblox URL. Please correct to use HTTPS."
-        super().__init__(self.message)
 
 
 class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instance-attributes
@@ -238,9 +226,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             logger.error(response.text)
             return response.text
 
-    def _get_network_ref(
-        self, prefix, network_view: Optional[str] = None
-    ):  # pylint: disable=inconsistent-return-statements
+    def _get_network_ref(self, prefix, network_view: Optional[str] = None):  # pylint: disable=inconsistent-return-statements
         """Fetch the _ref of a prefix resource.
 
         Args:
@@ -268,9 +254,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             return results[0].get("_ref")
         return None
 
-    def _get_network_container_ref(
-        self, prefix, network_view: Optional[str] = None
-    ):  # pylint: disable=inconsistent-return-statements
+    def _get_network_container_ref(self, prefix, network_view: Optional[str] = None):  # pylint: disable=inconsistent-return-statements
         """Fetch the _ref of a networkcontainer resource.
 
         Args:
@@ -872,9 +856,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             logger.error(response.text)
             return response.text
 
-    def get_ptr_record_by_ip(
-        self, ip_address, network_view: Optional[str] = None
-    ):  # pylint: disable=inconsistent-return-statements
+    def get_ptr_record_by_ip(self, ip_address, network_view: Optional[str] = None):  # pylint: disable=inconsistent-return-statements
         """Get the PTR record by FQDN.
 
         Args:
@@ -1211,12 +1193,15 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             },
         ]
         """
+        results = []
         if ipv6:
             url_path = "ipv6network"
         else:
             url_path = "network"
 
         params = {
+            "_paging": 1,
+            "_return_as_object": 1,
             "_return_fields": "network,network_view,comment,extattrs,rir_organization,rir,vlans",
             "_max_results": 10000,
         }
@@ -1231,22 +1216,30 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             return []
         try:
             logger.debug(response.json())
-            json_response = response.json()
         except json.decoder.JSONDecodeError:
             logger.error(response.text)
             return response.text
+        results.extend(response.json().get("result"))
+        counter = 1
+
+        while response.json().get("next_page_id"):
+            logger.info(f"Call {counter} for 'get_all_subnets()'.")
+            params["_page_id"] = response.json().get("next_page_id")
+            response = self._request("GET", url_path, params=params)
+            results.extend(response.json().get("result"))
+            counter += 1
         # In-place update json_response containing prefixes with DHCP ranges, if found.
         # This should be an opt-in
         if not ipv6:
             ranges = self.get_all_ranges(prefix=prefix, network_view=network_view)
-            for returned_prefix in json_response:
+            for returned_prefix in results:
                 network_view_ranges = ranges.get(returned_prefix["network_view"], {})
                 prefix_ranges = network_view_ranges.get(returned_prefix["network"])
                 if prefix_ranges:
                     returned_prefix["ranges"] = prefix_ranges
         else:
             logger.info("Support for DHCP Ranges is not currently supported for IPv6 Networks.")
-        return json_response
+        return results
 
     def get_authoritative_zone(self, network_view: Optional[str] = None):
         """Get authoritative zones.

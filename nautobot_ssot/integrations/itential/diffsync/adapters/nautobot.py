@@ -3,21 +3,19 @@
 import re
 import traceback
 
-from diffsync import DiffSync
-
-from nautobot.extras.models import Status
+from diffsync import Adapter
 from nautobot.dcim.models import Device
-
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
+from nautobot.extras.models import Status
 
-from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
 from nautobot_ssot.integrations.itential.diffsync.models.nautobot import (
     NautobotAnsibleDeviceModel,
     NautobotDefaultAnsibleGroupModel,
 )
+from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
 
 
-class NautobotAnsibleDeviceAdapter(DiffSync):
+class NautobotAnsibleDeviceAdapter(Adapter):
     """Nautobot => Itential Ansible Device Diffsync Adapter."""
 
     device = NautobotAnsibleDeviceModel

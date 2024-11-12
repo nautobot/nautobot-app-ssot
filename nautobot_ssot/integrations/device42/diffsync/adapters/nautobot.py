@@ -1,8 +1,9 @@
 """DiffSync adapter class for Nautobot as source-of-truth."""
 
-from collections import defaultdict
 import logging
-from diffsync import DiffSync
+from collections import defaultdict
+
+from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.db.models import ProtectedError
 from nautobot.circuits.models import Circuit, CircuitTermination, Provider
@@ -13,7 +14,6 @@ from nautobot.dcim.models import (
     FrontPort,
     Interface,
     Location,
-    LocationType,
     Manufacturer,
     Platform,
     Rack,
@@ -22,7 +22,7 @@ from nautobot.dcim.models import (
     VirtualChassis,
 )
 from nautobot.extras.models import Relationship, Role, Status
-from nautobot.ipam.models import VLAN, VRF, IPAddress, IPAddressToInterface, Prefix, Namespace
+from nautobot.ipam.models import VLAN, VRF, IPAddress, IPAddressToInterface, Namespace, Prefix
 from netutils.lib_mapper import ANSIBLE_LIB_MAPPER
 
 from nautobot_ssot.integrations.device42.constant import PLUGIN_CFG
@@ -45,7 +45,7 @@ except RuntimeError:
     LIFECYCLE_MGMT = False
 
 
-class NautobotAdapter(DiffSync):
+class NautobotAdapter(Adapter):
     """Nautobot adapter for DiffSync."""
 
     building = dcim.NautobotBuilding
@@ -122,14 +122,14 @@ class NautobotAdapter(DiffSync):
         self.objects_to_delete = defaultdict(list)
         self.objects_to_create = defaultdict(list)
 
-    def sync_complete(self, source: DiffSync, *args, **kwargs):
+    def sync_complete(self, source: Adapter, *args, **kwargs):
         """Clean up function for DiffSync sync.
 
         Once the sync is complete, this function runs deleting any objects
         from Nautobot that need to be deleted in a specific order.
 
         Args:
-            source (DiffSync): DiffSync
+            source (Adapter): DiffSync Adapter
         """
         if PLUGIN_CFG.get("device42_delete_on_sync"):
             for grouping in (
@@ -160,11 +160,12 @@ class NautobotAdapter(DiffSync):
 
     def load_sites(self):
         """Add Nautobot Site objects as DiffSync Building models."""
-        for site in Location.objects.filter(location_type=LocationType.objects.get_or_create(name="Site")[0]):
+        for site in Location.objects.filter(location_type=self.job.building_loctype.name):
             self.site_map[site.name] = site.id
             try:
                 building = self.building(
                     name=site.name,
+                    location_type=self.job.building_loctype.name,
                     address=site.physical_address,
                     latitude=site.latitude,
                     longitude=site.longitude,
@@ -190,12 +191,15 @@ class NautobotAdapter(DiffSync):
             room = self.room(
                 name=_rg.name,
                 building=_rg.location.name,
+                building_loctype=self.job.building_loctype.name,
                 notes=_rg.description,
                 custom_fields=nautobot.get_custom_field_dict(_rg.get_custom_fields()),
                 uuid=_rg.id,
             )
             self.add(room)
-            _site = self.get(self.building, _rg.location.name)
+            _site = self.get(
+                self.building, {"name": _rg.location.name, "location_type": self.job.building_loctype.name}
+            )
             _site.add_child(child=room)
 
     def load_racks(self):

@@ -1,14 +1,27 @@
 """App provision of Nautobot Job subclasses."""
 
-from django.conf import settings
+import logging
+from importlib import metadata
 
+import packaging
+from django.conf import settings
 from nautobot.core.celery import register_jobs
 from nautobot.core.settings_funcs import is_truthy
 from nautobot.extras.models import Job
-from nautobot_ssot.integrations.utils import each_enabled_integration_module
+
+from nautobot_ssot.exceptions import JobException
+from nautobot_ssot.integrations.utils import each_enabled_integration, each_enabled_integration_module
 from nautobot_ssot.jobs.base import DataSource, DataTarget
 from nautobot_ssot.jobs.examples import ExampleDataSource, ExampleDataTarget
-from nautobot_ssot.utils import logger
+
+logger = logging.getLogger("nautobot.ssot")
+
+_MIN_NAUTOBOT_VERSION = {
+    "nautobot_ssot_aci": "2.2",
+    "nautobot_ssot_dna_center": "2.2",
+    "nautobot_ssot_meraki": "2.2",
+}
+
 
 hide_jobs_setting = settings.PLUGINS_CONFIG["nautobot_ssot"].get("hide_example_jobs", False)
 if is_truthy(hide_jobs_setting):
@@ -17,13 +30,21 @@ else:
     jobs = [ExampleDataSource, ExampleDataTarget]
 
 
-class JobException(Exception):
-    """Exception raised when failure loading integration Job."""
+def _check_min_nautobot_version_met():
+    incompatible_apps_msg = []
+    nautobot_version = metadata.version("nautobot")
+    enabled_integrations = list(each_enabled_integration())
+    for app, nb_ver in _MIN_NAUTOBOT_VERSION.items():
+        if app.replace("nautobot_ssot_", "") in enabled_integrations and packaging.version.parse(
+            nb_ver
+        ) > packaging.version.parse(nautobot_version):
+            incompatible_apps_msg.append(f"The `{app}` requires Nautobot version {nb_ver} or higher.\n")
 
-    def __init__(self, message):
-        """Populate exception information."""
-        self.message = message
-        super().__init__(self.message)
+    if incompatible_apps_msg:
+        raise RuntimeError(
+            f"This version of Nautobot ({nautobot_version}) does not meet minimum requirements for the following apps:\n {''.join(incompatible_apps_msg)}."
+            "See: https://docs.nautobot.com/projects/ssot/en/latest/admin/upgrade/#potential-apps-conflicts"
+        )
 
 
 def _add_integrations():
@@ -35,6 +56,7 @@ def _add_integrations():
             jobs.append(job)
 
 
+_check_min_nautobot_version_met()
 _add_integrations()
 register_jobs(*jobs)
 

@@ -24,49 +24,49 @@ class InfobloxNetwork(Network):
     """Infoblox implementation of the Network Model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Network object in Infoblox."""
         network_type = attrs.get("network_type")
         network = ids["network"]
         network_view = map_network_view_to_namespace(value=ids["namespace"], direction="ns_to_nv")
         try:
             if network_type != "container":
-                diffsync.conn.create_network(
+                adapter.conn.create_network(
                     prefix=network, comment=attrs.get("description", ""), network_view=network_view
                 )
             else:
-                diffsync.conn.create_network_container(
+                adapter.conn.create_network_container(
                     prefix=network, comment=attrs.get("description", ""), network_view=network_view
                 )
         except HTTPError as err:
-            diffsync.job.logger.warning(f"Failed to create {network}-{network_view} due to {err.response.text}")
+            adapter.job.logger.warning(f"Failed to create {network}-{network_view} due to {err.response.text}")
         dhcp_ranges = attrs.get("ranges")
         if dhcp_ranges:
             for dhcp_range in dhcp_ranges:
                 start, end = dhcp_range.split("-")
                 try:
-                    diffsync.conn.create_range(
+                    adapter.conn.create_range(
                         prefix=network,
                         start=start.strip(),
                         end=end.strip(),
                         network_view=network_view,
                     )
                 except HTTPError as err:
-                    diffsync.job.logger.warning(
+                    adapter.job.logger.warning(
                         f"Failed to create {dhcp_range}-{network_view} due to {err.response.text}"
                     )
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update Network object in Infoblox."""
         network_view = map_network_view_to_namespace(value=self.get_identifiers()["namespace"], direction="ns_to_nv")
-        self.diffsync.conn.update_network(
+        self.adapter.conn.update_network(
             prefix=self.get_identifiers()["network"],
             network_view=network_view,
             comment=attrs.get("description", ""),
         )
         if attrs.get("ranges"):
-            self.diffsync.job.logger.warning(
+            self.adapter.job.logger.warning(
                 f"Prefix, {self.network}-{self.namespace}, has a change of Ranges in Nautobot, but"
                 " updating Ranges in InfoBlox is currently not supported."
             )
@@ -81,11 +81,11 @@ class InfobloxVLAN(Vlan):
     """Infoblox implementation of the VLAN Model."""
 
 
-class InfobloxIPAddress(IPAddress):
+class InfobloxIPAddress(IPAddress):  # pylint: disable=too-many-instance-attributes
     """Infoblox implementation of the VLAN Model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Creates Fixed Address record."""
         network_view = map_network_view_to_namespace(value=ids["namespace"], direction="ns_to_nv")
         ip_address = ids["address"]
@@ -94,16 +94,16 @@ class InfobloxIPAddress(IPAddress):
         fixed_address_name = attrs.get("description") or ""
         fixed_address_comment = attrs.get("fixed_address_comment") or ""
 
-        if diffsync.config.fixed_address_type == FixedAddressTypeChoices.RESERVED and has_fixed_address:
-            diffsync.conn.create_fixed_address(
+        if adapter.config.fixed_address_type == FixedAddressTypeChoices.RESERVED and has_fixed_address:
+            adapter.conn.create_fixed_address(
                 ip_address=ip_address,
                 name=fixed_address_name,
                 comment=fixed_address_comment,
                 match_client="RESERVED",
                 network_view=network_view,
             )
-            if diffsync.job.debug:
-                diffsync.job.logger.debug(
+            if adapter.job.debug:
+                adapter.job.logger.debug(
                     "Created fixed address reservation, address: %s, name: %s, network_view: %s, comment: %s",
                     ip_address,
                     fixed_address_name,
@@ -111,11 +111,11 @@ class InfobloxIPAddress(IPAddress):
                     fixed_address_comment,
                 )
         elif (
-            diffsync.config.fixed_address_type == FixedAddressTypeChoices.MAC_ADDRESS
+            adapter.config.fixed_address_type == FixedAddressTypeChoices.MAC_ADDRESS
             and mac_address
             and has_fixed_address
         ):
-            diffsync.conn.create_fixed_address(
+            adapter.conn.create_fixed_address(
                 ip_address=ip_address,
                 name=fixed_address_name,
                 mac_address=mac_address,
@@ -123,8 +123,8 @@ class InfobloxIPAddress(IPAddress):
                 comment=fixed_address_comment,
                 network_view=network_view,
             )
-            if diffsync.job.debug:
-                diffsync.job.logger.debug(
+            if adapter.job.debug:
+                adapter.job.logger.debug(
                     "Created fixed address with MAC, address: %s, name: %s, mac address: %s, network_view: %s, comment: %s",
                     ip_address,
                     fixed_address_name,
@@ -133,7 +133,7 @@ class InfobloxIPAddress(IPAddress):
                     fixed_address_comment,
                 )
 
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):  # pylint: disable=too-many-branches
         """Update IP Address object in Infoblox."""
@@ -155,13 +155,13 @@ class InfobloxIPAddress(IPAddress):
                 fa_update_data["comment"] = fixed_address_comment
 
             if (
-                self.diffsync.config.fixed_address_type == FixedAddressTypeChoices.RESERVED
+                self.adapter.config.fixed_address_type == FixedAddressTypeChoices.RESERVED
                 and self.fixed_address_type == "RESERVED"
                 and fa_update_data
             ):
-                self.diffsync.conn.update_fixed_address(ref=self.fixed_address_ref, data=fa_update_data)
-                if self.diffsync.job.debug:
-                    self.diffsync.job.logger.debug(
+                self.adapter.conn.update_fixed_address(ref=self.fixed_address_ref, data=fa_update_data)
+                if self.adapter.job.debug:
+                    self.adapter.job.logger.debug(
                         "Updated fixed address reservation, address: %s, network_view: %s, update data: %s",
                         ip_address,
                         network_view,
@@ -169,15 +169,15 @@ class InfobloxIPAddress(IPAddress):
                         extra={"grouping": "update"},
                     )
             elif (
-                self.diffsync.config.fixed_address_type == FixedAddressTypeChoices.MAC_ADDRESS
+                self.adapter.config.fixed_address_type == FixedAddressTypeChoices.MAC_ADDRESS
                 and self.fixed_address_type == "MAC_ADDRESS"
                 and (fa_update_data or mac_address)
             ):
                 if mac_address:
                     fa_update_data["mac"] = mac_address
-                self.diffsync.conn.update_fixed_address(ref=self.fixed_address_ref, data=fa_update_data)
-                if self.diffsync.job.debug:
-                    self.diffsync.job.logger.debug(
+                self.adapter.conn.update_fixed_address(ref=self.fixed_address_ref, data=fa_update_data)
+                if self.adapter.job.debug:
+                    self.adapter.job.logger.debug(
                         "Updated fixed address with MAC, address: %s, network_view: %s, update data: %s",
                         ip_address,
                         network_view,
@@ -187,18 +187,18 @@ class InfobloxIPAddress(IPAddress):
         # IP Address exists in Infoblox without Fixed Address object. Nautobot side is asking for Fixed Address so we need to create one.
         elif (
             attrs.get("has_fixed_address")
-            and self.diffsync.config.fixed_address_type != FixedAddressTypeChoices.DONT_CREATE_RECORD
+            and self.adapter.config.fixed_address_type != FixedAddressTypeChoices.DONT_CREATE_RECORD
         ):
-            if self.diffsync.config.fixed_address_type == FixedAddressTypeChoices.RESERVED:
-                self.diffsync.conn.create_fixed_address(
+            if self.adapter.config.fixed_address_type == FixedAddressTypeChoices.RESERVED:
+                self.adapter.conn.create_fixed_address(
                     ip_address=ip_address,
                     name=fixed_address_name,
                     comment=fixed_address_comment,
                     match_client="RESERVED",
                     network_view=network_view,
                 )
-                if self.diffsync.job.debug:
-                    self.diffsync.job.logger.debug(
+                if self.adapter.job.debug:
+                    self.adapter.job.logger.debug(
                         "Created fixed address reservation, address: %s, name: %s, network_view: %s, comment: %s",
                         ip_address,
                         fixed_address_name,
@@ -206,8 +206,8 @@ class InfobloxIPAddress(IPAddress):
                         fixed_address_comment,
                         extra={"grouping": "update"},
                     )
-            elif self.diffsync.config.fixed_address_type == FixedAddressTypeChoices.MAC_ADDRESS and mac_address:
-                self.diffsync.conn.create_fixed_address(
+            elif self.adapter.config.fixed_address_type == FixedAddressTypeChoices.MAC_ADDRESS and mac_address:
+                self.adapter.conn.create_fixed_address(
                     ip_address=ip_address,
                     name=fixed_address_name,
                     mac_address=mac_address,
@@ -215,8 +215,8 @@ class InfobloxIPAddress(IPAddress):
                     match_client="MAC_ADDRESS",
                     network_view=network_view,
                 )
-                if self.diffsync.job.debug:
-                    self.diffsync.job.logger.debug(
+                if self.adapter.job.debug:
+                    self.adapter.job.logger.debug(
                         "Created fixed address with MAC, address: %s, name: %s, mac address: %s, network_view: %s, comment: %s",
                         ip_address,
                         fixed_address_name,
@@ -230,15 +230,15 @@ class InfobloxIPAddress(IPAddress):
 
     def delete(self):
         """Delete Fixed Address in Infoblox."""
-        if InfobloxDeletableModelChoices.FIXED_ADDRESS not in self.diffsync.config.infoblox_deletable_models:
+        if InfobloxDeletableModelChoices.FIXED_ADDRESS not in self.adapter.config.infoblox_deletable_models:
             return super().delete()
 
-        if self.diffsync.config.fixed_address_type == FixedAddressTypeChoices.DONT_CREATE_RECORD:
+        if self.adapter.config.fixed_address_type == FixedAddressTypeChoices.DONT_CREATE_RECORD:
             return super().delete()
 
         network_view = map_network_view_to_namespace(value=self.namespace, direction="ns_to_nv")
-        self.diffsync.conn.delete_fixed_address_record_by_ref(self.fixed_address_ref)
-        self.diffsync.job.logger.info(
+        self.adapter.conn.delete_fixed_address_record_by_ref(self.fixed_address_ref)
+        self.adapter.job.logger.info(
             "Deleted Fixed Address record in Infoblox, address: %s, network_view: %s",
             self.address,
             network_view,
@@ -250,23 +250,23 @@ class InfobloxNamespace(Namespace):
     """Infoblox implementation of the Namespace model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Don't allow creating Network Views in Infoblox."""
-        diffsync.job.logger.error(
+        adapter.job.logger.error(
             f"Creating Network Views in Infoblox is not allowed. Nautobot Namespace: {ids['name']}"
         )
         raise NotImplementedError
 
     def update(self, attrs):
         """Don't allow updating Network Views in Infoblox."""
-        self.diffsync.job.logger.error(
+        self.adapter.job.logger.error(
             f"Updating Network Views in Infoblox is not allowed. Nautobot Namespace: {self.get_identifiers()['name']}"
         )
         raise NotImplementedError
 
     def delete(self):
         """Don't allow deleting Network Views in Infoblox."""
-        self.diffsync.job.logger.error(
+        self.adapter.job.logger.error(
             f"Deleting Network Views in Infoblox is not allowed. Nautobot Namespace: {self.get_identifiers()['name']}"
         )
         raise NotImplementedError
@@ -276,33 +276,33 @@ class InfobloxDnsARecord(DnsARecord):
     """Infoblox implementation of the DnsARecord Model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create DNS A record in Infoblox."""
         # DNS record not needed, we can return
-        if diffsync.config.dns_record_type not in (
+        if adapter.config.dns_record_type not in (
             DNSRecordTypeChoices.A_RECORD,
             DNSRecordTypeChoices.A_AND_PTR_RECORD,
         ):
-            return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+            return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
         network_view = map_network_view_to_namespace(value=ids["namespace"], direction="ns_to_nv")
         ip_address = ids["address"]
         dns_name = attrs.get("dns_name")
         dns_comment = attrs.get("description")
         if not dns_name:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f"Cannot create Infoblox DNS A record for IP Address {ip_address}. DNS name is not defined."
             )
-            return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+            return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
         # Nautobot side doesn't check if dns name is a FQDN. Additionally, Infoblox won't accept DNS name if the corresponding zone FQDN doesn't exist.
-        if not validate_dns_name(diffsync.conn, dns_name, network_view):
-            diffsync.job.logger.warning(f"Invalid zone fqdn in DNS name `{dns_name}` for IP Address {ip_address}.")
-            return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        if not validate_dns_name(adapter.conn, dns_name, network_view):
+            adapter.job.logger.warning(f"Invalid zone fqdn in DNS name `{dns_name}` for IP Address {ip_address}.")
+            return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
-        diffsync.conn.create_a_record(dns_name, ip_address, dns_comment, network_view=network_view)
-        if diffsync.job.debug:
-            diffsync.job.logger.debug(
+        adapter.conn.create_a_record(dns_name, ip_address, dns_comment, network_view=network_view)
+        if adapter.job.debug:
+            adapter.job.logger.debug(
                 "Created DNS A record, address: %s, dns_name: %s, network_view: %s, comment: %s",
                 ip_address,
                 dns_name,
@@ -310,12 +310,12 @@ class InfobloxDnsARecord(DnsARecord):
                 dns_comment,
             )
 
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update DNS A record in Infoblox."""
         # DNS record not needed, we can return
-        if self.diffsync.config.dns_record_type not in (
+        if self.adapter.config.dns_record_type not in (
             DNSRecordTypeChoices.A_RECORD,
             DNSRecordTypeChoices.A_AND_PTR_RECORD,
         ):
@@ -328,8 +328,8 @@ class InfobloxDnsARecord(DnsARecord):
             dns_payload["comment"] = dns_comment
         if attrs.get("dns_name"):
             # Nautobot side doesn't check if dns name is a FQDN. Additionally, Infoblox won't accept DNS name if the corresponding zone FQDN doesn't exist.
-            if not validate_dns_name(self.diffsync.conn, attrs.get("dns_name"), network_view):
-                self.diffsync.job.logger.warning(
+            if not validate_dns_name(self.adapter.conn, attrs.get("dns_name"), network_view):
+                self.adapter.job.logger.warning(
                     f"Invalid zone fqdn in DNS name `{attrs.get('dns_name')}` for IP Address {self.address}."
                 )
                 return super().update(attrs)
@@ -337,9 +337,9 @@ class InfobloxDnsARecord(DnsARecord):
             dns_payload["name"] = attrs.get("dns_name")
 
         if dns_payload:
-            self.diffsync.conn.update_a_record(ref=self.ref, data=dns_payload)
-            if self.diffsync.job.debug:
-                self.diffsync.job.logger.debug(
+            self.adapter.conn.update_a_record(ref=self.ref, data=dns_payload)
+            if self.adapter.job.debug:
+                self.adapter.job.logger.debug(
                     "Updated A record, address: %s, network_view: %s, update data: %s",
                     self.address,
                     network_view,
@@ -350,18 +350,18 @@ class InfobloxDnsARecord(DnsARecord):
 
     def delete(self):
         """Delete A Record in Infoblox."""
-        if InfobloxDeletableModelChoices.DNS_A_RECORD not in self.diffsync.config.infoblox_deletable_models:
+        if InfobloxDeletableModelChoices.DNS_A_RECORD not in self.adapter.config.infoblox_deletable_models:
             return super().delete()
 
-        if self.diffsync.config.dns_record_type not in (
+        if self.adapter.config.dns_record_type not in (
             DNSRecordTypeChoices.A_RECORD,
             DNSRecordTypeChoices.A_AND_PTR_RECORD,
         ):
             return super().delete()
 
         network_view = map_network_view_to_namespace(value=self.namespace, direction="ns_to_nv")
-        self.diffsync.conn.delete_a_record_by_ref(self.ref)
-        self.diffsync.job.logger.info(
+        self.adapter.conn.delete_a_record_by_ref(self.ref)
+        self.adapter.job.logger.info(
             "Deleted A record in Infoblox, address: %s, network_view: %s",
             self.address,
             network_view,
@@ -373,30 +373,30 @@ class InfobloxDnsHostRecord(DnsHostRecord):
     """Infoblox implementation of the DnsHostRecord Model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create DNS Host record in Infoblox."""
         # DNS record not needed, we can return
-        if diffsync.config.dns_record_type != DNSRecordTypeChoices.HOST_RECORD:
-            return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        if adapter.config.dns_record_type != DNSRecordTypeChoices.HOST_RECORD:
+            return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
         network_view = map_network_view_to_namespace(value=ids["namespace"], direction="ns_to_nv")
         ip_address = ids["address"]
         dns_name = attrs.get("dns_name")
         dns_comment = attrs.get("description")
         if not dns_name:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f"Cannot create Infoblox DNS Host record for IP Address {ip_address}. DNS name is not defined."
             )
-            return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+            return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
         # Nautobot side doesn't check if dns name is a FQDN. Additionally, Infoblox won't accept DNS name if the corresponding zone FQDN doesn't exist.
-        if not validate_dns_name(diffsync.conn, dns_name, network_view):
-            diffsync.job.logger.warning(f"Invalid zone fqdn in DNS name `{dns_name}` for IP Address {ip_address}.")
-            return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        if not validate_dns_name(adapter.conn, dns_name, network_view):
+            adapter.job.logger.warning(f"Invalid zone fqdn in DNS name `{dns_name}` for IP Address {ip_address}.")
+            return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
-        diffsync.conn.create_host_record(dns_name, ip_address, dns_comment, network_view=network_view)
-        if diffsync.job.debug:
-            diffsync.job.logger.debug(
+        adapter.conn.create_host_record(dns_name, ip_address, dns_comment, network_view=network_view)
+        if adapter.job.debug:
+            adapter.job.logger.debug(
                 "Created DNS Host record, address: %s, dns_name: %s, network_view: %s, comment: %s",
                 ip_address,
                 dns_name,
@@ -404,12 +404,12 @@ class InfobloxDnsHostRecord(DnsHostRecord):
                 dns_comment,
             )
 
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update DNS Host record in Infoblox."""
         # DNS record not needed, we can return
-        if self.diffsync.config.dns_record_type != DNSRecordTypeChoices.HOST_RECORD:
+        if self.adapter.config.dns_record_type != DNSRecordTypeChoices.HOST_RECORD:
             return super().update(attrs)
 
         network_view = map_network_view_to_namespace(value=self.namespace, direction="ns_to_nv")
@@ -419,8 +419,8 @@ class InfobloxDnsHostRecord(DnsHostRecord):
             dns_payload["comment"] = dns_comment
         if attrs.get("dns_name"):
             # Nautobot side doesn't check if dns name is a FQDN. Additionally, Infoblox won't accept DNS name if the corresponding zone FQDN doesn't exist.
-            if not validate_dns_name(self.diffsync.conn, attrs.get("dns_name"), network_view):
-                self.diffsync.job.logger.warning(
+            if not validate_dns_name(self.adapter.conn, attrs.get("dns_name"), network_view):
+                self.adapter.job.logger.warning(
                     f"Invalid zone fqdn in DNS name `{attrs.get('dns_name')}` for IP Address {self.address}."
                 )
                 return super().update(attrs)
@@ -428,9 +428,9 @@ class InfobloxDnsHostRecord(DnsHostRecord):
             dns_payload["name"] = attrs.get("dns_name")
 
         if dns_payload:
-            self.diffsync.conn.update_host_record(ref=self.ref, data=dns_payload)
-            if self.diffsync.job.debug:
-                self.diffsync.job.logger.debug(
+            self.adapter.conn.update_host_record(ref=self.ref, data=dns_payload)
+            if self.adapter.job.debug:
+                self.adapter.job.logger.debug(
                     "Updated Host record, address: %s, network_view: %s, update data: %s",
                     self.address,
                     network_view,
@@ -441,15 +441,15 @@ class InfobloxDnsHostRecord(DnsHostRecord):
 
     def delete(self):
         """Delete DNS Host record in Infoblox."""
-        if InfobloxDeletableModelChoices.DNS_HOST_RECORD not in self.diffsync.config.infoblox_deletable_models:
+        if InfobloxDeletableModelChoices.DNS_HOST_RECORD not in self.adapter.config.infoblox_deletable_models:
             return super().delete()
 
-        if self.diffsync.config.dns_record_type != DNSRecordTypeChoices.HOST_RECORD:
+        if self.adapter.config.dns_record_type != DNSRecordTypeChoices.HOST_RECORD:
             return super().delete()
 
         network_view = map_network_view_to_namespace(value=self.namespace, direction="ns_to_nv")
-        self.diffsync.conn.delete_host_record_by_ref(self.ref)
-        self.diffsync.job.logger.info(
+        self.adapter.conn.delete_host_record_by_ref(self.ref)
+        self.adapter.job.logger.info(
             "Deleted Host record in Infoblox, address: %s, network_view: %s",
             self.address,
             network_view,
@@ -461,30 +461,30 @@ class InfobloxDnsPTRRecord(DnsPTRRecord):
     """Infoblox implementation of the DnsPTRRecord Model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create PTR record in Infoblox."""
         # DNS record not needed, we can return
-        if diffsync.config.dns_record_type != DNSRecordTypeChoices.A_AND_PTR_RECORD:
-            return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        if adapter.config.dns_record_type != DNSRecordTypeChoices.A_AND_PTR_RECORD:
+            return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
         network_view = map_network_view_to_namespace(value=ids["namespace"], direction="ns_to_nv")
         ip_address = ids["address"]
         dns_name = attrs.get("dns_name")
         dns_comment = attrs.get("description")
         if not dns_name:
-            diffsync.job.logger.warning(
+            adapter.job.logger.warning(
                 f"Cannot create Infoblox PTR DNS record for IP Address {ip_address}. DNS name is not defined."
             )
-            return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+            return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
         # Nautobot side doesn't check if dns name is a FQDN. Additionally, Infoblox won't accept DNS name if the corresponding zone FQDN doesn't exist.
-        if not validate_dns_name(diffsync.conn, dns_name, network_view):
-            diffsync.job.logger.warning(f"Invalid zone fqdn in DNS name `{dns_name}` for IP Address {ip_address}.")
-            return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        if not validate_dns_name(adapter.conn, dns_name, network_view):
+            adapter.job.logger.warning(f"Invalid zone fqdn in DNS name `{dns_name}` for IP Address {ip_address}.")
+            return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
-        diffsync.conn.create_ptr_record(dns_name, ip_address, dns_comment, network_view=network_view)
-        if diffsync.job.debug:
-            diffsync.job.logger.debug(
+        adapter.conn.create_ptr_record(dns_name, ip_address, dns_comment, network_view=network_view)
+        if adapter.job.debug:
+            adapter.job.logger.debug(
                 "Created DNS PTR record, address: %s, dns_name: %s, network_view: %s, comment: %s",
                 ip_address,
                 dns_name,
@@ -492,11 +492,11 @@ class InfobloxDnsPTRRecord(DnsPTRRecord):
                 dns_comment,
             )
 
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update PTR record in Infoblox."""
-        if not self.diffsync.config.dns_record_type == DNSRecordTypeChoices.A_AND_PTR_RECORD:
+        if not self.adapter.config.dns_record_type == DNSRecordTypeChoices.A_AND_PTR_RECORD:
             return super().update(attrs)
 
         network_view = map_network_view_to_namespace(value=self.namespace, direction="ns_to_nv")
@@ -506,8 +506,8 @@ class InfobloxDnsPTRRecord(DnsPTRRecord):
             dns_payload["comment"] = dns_comment
         if attrs.get("dns_name"):
             # Nautobot side doesn't check if dns name is a FQDN. Additionally, Infoblox won't accept DNS name if the corresponding zone FQDN doesn't exist.
-            if not validate_dns_name(self.diffsync.conn, attrs.get("dns_name"), network_view):
-                self.diffsync.job.logger.warning(
+            if not validate_dns_name(self.adapter.conn, attrs.get("dns_name"), network_view):
+                self.adapter.job.logger.warning(
                     f"Invalid zone fqdn in DNS name `{attrs.get('dns_name')}` for IP Address {self.address}."
                 )
                 return super().update(attrs)
@@ -515,9 +515,9 @@ class InfobloxDnsPTRRecord(DnsPTRRecord):
             dns_payload["ptrdname"] = attrs.get("dns_name")
 
         if dns_payload:
-            self.diffsync.conn.update_ptr_record(ref=self.ref, data=dns_payload)
-            if self.diffsync.job.debug:
-                self.diffsync.job.logger.debug(
+            self.adapter.conn.update_ptr_record(ref=self.ref, data=dns_payload)
+            if self.adapter.job.debug:
+                self.adapter.job.logger.debug(
                     "Updated PTR record, address: %s, network_view: %s, update data: %s",
                     self.address,
                     network_view,
@@ -528,15 +528,15 @@ class InfobloxDnsPTRRecord(DnsPTRRecord):
 
     def delete(self):
         """Delete PTR Record in Infoblox."""
-        if InfobloxDeletableModelChoices.DNS_PTR_RECORD not in self.diffsync.config.infoblox_deletable_models:
+        if InfobloxDeletableModelChoices.DNS_PTR_RECORD not in self.adapter.config.infoblox_deletable_models:
             return super().delete()
 
-        if not self.diffsync.config.dns_record_type == DNSRecordTypeChoices.A_AND_PTR_RECORD:
+        if not self.adapter.config.dns_record_type == DNSRecordTypeChoices.A_AND_PTR_RECORD:
             return super().delete()
 
         network_view = map_network_view_to_namespace(value=self.namespace, direction="ns_to_nv")
-        self.diffsync.conn.delete_ptr_record_by_ref(self.ref)
-        self.diffsync.job.logger.info(
+        self.adapter.conn.delete_ptr_record_by_ref(self.ref)
+        self.adapter.job.logger.info(
             "Deleted PTR record in Infoblox, address: %s, network_view: %s",
             self.address,
             network_view,

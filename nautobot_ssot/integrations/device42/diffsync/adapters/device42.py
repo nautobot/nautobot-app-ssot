@@ -1,22 +1,24 @@
 """DiffSync adapter for Device42."""
 
+import ipaddress
 import re
 from decimal import Decimal
 from typing import List
-import ipaddress
-from diffsync import DiffSync
+
+from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from nautobot.core.settings_funcs import is_truthy
 from netutils.bandwidth import name_to_bits
 from netutils.dns import fqdn_to_ip, is_fqdn_resolvable
+
 from nautobot_ssot.integrations.device42.constant import PLUGIN_CFG
 from nautobot_ssot.integrations.device42.diffsync.models.base import assets, circuits, dcim, ipam
 from nautobot_ssot.integrations.device42.utils.device42 import (
-    get_facility,
-    get_intf_type,
-    get_intf_status,
-    get_netmiko_platform,
     get_custom_field_dict,
+    get_facility,
+    get_intf_status,
+    get_intf_type,
+    get_netmiko_platform,
     load_vlan,
 )
 from nautobot_ssot.integrations.device42.utils.nautobot import determine_vc_position
@@ -82,7 +84,7 @@ def get_dns_a_record(dev_name: str):
         return False
 
 
-class Device42Adapter(DiffSync):
+class Device42Adapter(Adapter):
     """DiffSync adapter using requests to communicate to Device42 server."""
 
     building = dcim.Building
@@ -199,6 +201,7 @@ class Device42Adapter(DiffSync):
                 _tags.sort()
             building = self.building(
                 name=record["name"],
+                location_type=self.job.building_loctype.name,
                 address=sanitize_string(record["address"]) if record.get("address") else "",
                 latitude=float(round(Decimal(record["latitude"] if record["latitude"] else 0.0), 6)),
                 longitude=float(round(Decimal(record["longitude"] if record["longitude"] else 0.0), 6)),
@@ -233,6 +236,7 @@ class Device42Adapter(DiffSync):
                 room = self.room(
                     name=record["name"],
                     building=record["building"],
+                    building_loctype=self.job.building_loctype.name,
                     notes=record["notes"] if record.get("notes") else "",
                     custom_fields=get_custom_field_dict(record["custom_fields"]),
                     tags=_tags,
@@ -240,7 +244,9 @@ class Device42Adapter(DiffSync):
                 )
                 try:
                     self.add(room)
-                    _site = self.get(self.building, record.get("building"))
+                    _site = self.get(
+                        self.building, {"name": record.get("building"), "location_type": self.job.building_loctype.name}
+                    )
                     _site.add_child(child=room)
                 except ObjectAlreadyExists as err:
                     if self.job.debug:
@@ -273,7 +279,13 @@ class Device42Adapter(DiffSync):
                 try:
                     self.add(rack)
                     _room = self.get(
-                        self.room, {"name": record["room"], "building": record["building"], "room": record["room"]}
+                        self.room,
+                        {
+                            "name": record["room"],
+                            "building": record["building"],
+                            "building_loctype": self.job.building_loctype.name,
+                            "room": record["room"],
+                        },
                     )
                     _room.add_child(child=rack)
                 except ObjectAlreadyExists as err:
@@ -599,7 +611,7 @@ class Device42Adapter(DiffSync):
                                 self.get(self.vlan, {"vlan_id": self.d42_vlan_map[_pk]["vid"], "building": building})
                             except ObjectNotFound:
                                 load_vlan(
-                                    diffsync=self,
+                                    adapter=self,
                                     vlan_id=self.d42_vlan_map[_pk]["vid"],
                                     site_name=building,
                                 )
@@ -749,7 +761,7 @@ class Device42Adapter(DiffSync):
             elif _info.get("building"):
                 building = _info["building"]
             load_vlan(
-                diffsync=self,
+                adapter=self,
                 vlan_id=int(_info["vid"]),
                 site_name=building if building else "Unknown",
                 vlan_name=_vlan_name,

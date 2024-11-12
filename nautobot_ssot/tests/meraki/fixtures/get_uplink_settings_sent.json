@@ -1,0 +1,40 @@
+{
+    "interfaces": {
+        "wan1": {
+            "enabled": true,
+            "vlanTagging": {
+                "enabled": false
+            },
+            "svis": {
+                "ipv4": {
+                    "assignmentMode": "static",
+                    "gateway": "10.1.15.1",
+                    "address": "10.1.15.34/24",
+                    "nameservers": {
+                        "addresses": [
+                            "1.1.1.1",
+                            "1.0.0.1"
+                        ]
+                    }
+                }
+            },
+            "pppoe": {
+                "enabled": false
+            }
+        },
+        "wan2": {
+            "enabled": true,
+            "vlanTagging": {
+                "enabled": false
+            },
+            "svis": {
+                "ipv4": {
+                    "assignmentMode": "dynamic"
+                }
+            },
+            "pppoe": {
+                "enabled": false
+            }
+        }
+    }
+}

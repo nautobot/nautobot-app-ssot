@@ -1,6 +1,9 @@
 """DiffSync adapter for Nautobot."""
 
 from collections import defaultdict
+
+from diffsync import Adapter
+from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import ProtectedError
 from nautobot.dcim.models import Device as OrmDevice
@@ -9,23 +12,21 @@ from nautobot.extras.models import Relationship as OrmRelationship
 from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
 from nautobot.ipam.models import IPAddress as OrmIPAddress
 from nautobot.ipam.models import IPAddressToInterface
-from diffsync import DiffSync
-from diffsync.exceptions import ObjectNotFound, ObjectAlreadyExists
 
 from nautobot_ssot.integrations.aristacv.diffsync.models.nautobot import (
-    NautobotDevice,
     NautobotCustomField,
-    NautobotNamespace,
-    NautobotPrefix,
+    NautobotDevice,
     NautobotIPAddress,
     NautobotIPAssignment,
+    NautobotNamespace,
     NautobotPort,
+    NautobotPrefix,
 )
 from nautobot_ssot.integrations.aristacv.types import CloudVisionAppConfig
 from nautobot_ssot.integrations.aristacv.utils import nautobot
 
 
-class NautobotAdapter(DiffSync):
+class NautobotAdapter(Adapter):
     """DiffSync adapter implementation for Nautobot custom fields."""
 
     device = NautobotDevice
@@ -145,11 +146,11 @@ class NautobotAdapter(DiffSync):
                 )
                 self.add(new_map)
 
-    def sync_complete(self, source: DiffSync, *args, **kwargs):
+    def sync_complete(self, source: Adapter, *args, **kwargs):
         """Perform actions after sync is completed.
 
         Args:
-            source (DiffSync): Source DiffSync DataSource adapter.
+            source (Adapter): Source DiffSync Adapter DataSource.
         """
         for grouping in (
             "ipaddresses",

@@ -13,20 +13,6 @@ from nautobot_ssot.integrations.device42.constant import DEFAULTS, FC_INTF_MAP, 
 from nautobot_ssot.integrations.device42.diffsync.models.base.ipam import VLAN
 
 
-class MissingConfigSetting(Exception):
-    """Exception raised for missing configuration settings.
-
-    Attributes:
-        message (str): Returned explanation of Error.
-    """
-
-    def __init__(self, setting):
-        """Initialize Exception with Setting that is missing and message."""
-        self.setting = setting
-        self.message = f"Missing configuration setting - {setting}!"
-        super().__init__(self.message)
-
-
 def merge_offset_dicts(orig_dict: dict, offset_dict: dict) -> dict:
     """Method to merge two dicts and merge a list if found.
 
@@ -184,7 +170,7 @@ def get_custom_field_dict(cfields: List[dict]) -> dict:
 
 
 def load_vlan(  # pylint: disable=dangerous-default-value, too-many-arguments
-    diffsync,
+    adapter,
     vlan_id: int,
     site_name: str,
     vlan_name: str = "",
@@ -195,7 +181,7 @@ def load_vlan(  # pylint: disable=dangerous-default-value, too-many-arguments
     """Find or create specified Site VLAN.
 
     Args:
-        diffsync (Device42Adapter): Device42Adapter with logger and get method.
+        adapter (Device42Adapter): Device42Adapter with logger and get method.
         vlan_id (int): VLAN ID for site.
         site_name (str): Site name for associated VLAN.
         vlan_name (str): Name of VLAN to be created.
@@ -204,10 +190,10 @@ def load_vlan(  # pylint: disable=dangerous-default-value, too-many-arguments
         tags (list): List of Tags to be applied to VLAN.
     """
     try:
-        diffsync.get(VLAN, {"vlan_id": vlan_id, "building": site_name})
-        diffsync.job.logger.warning(f"Duplicate VLAN attempted to be loaded: {vlan_id} {site_name}")
+        adapter.get(VLAN, {"vlan_id": vlan_id, "building": site_name})
+        adapter.job.logger.warning(f"Duplicate VLAN attempted to be loaded: {vlan_id} {site_name}")
     except ObjectNotFound:
-        diffsync.job.logger.info(f"Loading VLAN {vlan_id} {vlan_name} for {site_name}")
+        adapter.job.logger.info(f"Loading VLAN {vlan_id} {vlan_name} for {site_name}")
         new_vlan = VLAN(
             name=f"VLAN{vlan_id:04d}" if not vlan_name else vlan_name,
             vlan_id=vlan_id,
@@ -217,7 +203,7 @@ def load_vlan(  # pylint: disable=dangerous-default-value, too-many-arguments
             tags=tags,
             uuid=None,
         )
-        diffsync.add(new_vlan)
+        adapter.add(new_vlan)
 
 
 class Device42API:  # pylint: disable=too-many-public-methods

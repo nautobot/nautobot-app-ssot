@@ -3,8 +3,7 @@
 from django.urls import path
 from nautobot.apps.urls import NautobotUIViewSetRouter
 
-from . import views
-from . import models
+from . import models, views
 
 router = NautobotUIViewSetRouter()
 router.register("config/infoblox", viewset=views.SSOTInfobloxConfigUIViewSet)

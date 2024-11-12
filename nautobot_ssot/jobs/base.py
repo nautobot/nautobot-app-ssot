@@ -1,26 +1,23 @@
 """Base Job classes for sync workers."""
 
+import tracemalloc
 from collections import namedtuple
 from datetime import datetime
-import tracemalloc
 from typing import Iterable, Optional
 
+import structlog
+
+# pylint-django doesn't understand classproperty, and complains unnecessarily. We disable this specific warning:
+# pylint: disable=no-self-argument
+from diffsync.enum import DiffSyncFlags
 from django.db.utils import OperationalError
 from django.templatetags.static import static
 from django.utils import timezone
 from django.utils.functional import classproperty
-
-# pylint-django doesn't understand classproperty, and complains unnecessarily. We disable this specific warning:
-# pylint: disable=no-self-argument
-
-from diffsync.enum import DiffSyncFlags
-import structlog
-
-from nautobot.extras.jobs import DryRunVar, Job, BooleanVar
+from nautobot.extras.jobs import BooleanVar, DryRunVar, Job
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices
 from nautobot_ssot.models import BaseModel, Sync, SyncLogEntry
-
 
 DataMapping = namedtuple("DataMapping", ["source_name", "source_url", "target_name", "target_url"])
 """Entry in the list returned by a job's data_mappings() API.
@@ -48,7 +45,10 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
       - `data_source_icon` and `data_target_icon`
     """
 
-    dryrun = DryRunVar(description="Perform a dry-run, making no actual changes to Nautobot data.", default=True)
+    dryrun = DryRunVar(
+        description="Perform a dry-run, making no actual changes to Nautobot data.",
+        default=True,
+    )
     memory_profiling = BooleanVar(description="Perform a memory profiling analysis.", default=False)
 
     def load_source_adapter(self):
@@ -99,7 +99,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         else:
             self.logger.warning("Not both adapters were properly initialized prior to synchronization.")
 
-    def sync_data(self, memory_profiling):
+    def sync_data(self, memory_profiling):  # pylint: disable=too-many-statements
         """Method to load data from adapters, calculate diffs and sync (if not dry-run).
 
         It is composed by 4 methods:
@@ -115,13 +115,35 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         - self.job_result (as per Job API)
         """
 
+        def format_size(size):  # pylint: disable=inconsistent-return-statements
+            """Format a size in bytes to a human-readable string. Borrowed from stdlib tracemalloc."""
+            for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
+                if abs(size) < 100 and unit != "B":
+                    # 3 digits (xx.x UNIT)
+                    return "%.1f %s" % (  # pylint: disable=consider-using-f-string
+                        size,
+                        unit,
+                    )
+                if abs(size) < 10 * 1024 or unit == "TiB":
+                    # 4 or 5 digits (xxxx UNIT)
+                    return "%.0f %s" % (  # pylint: disable=consider-using-f-string
+                        size,
+                        unit,
+                    )
+                size /= 1024
+
         def record_memory_trace(step: str):
             """Helper function to record memory usage and reset tracemalloc stats."""
             memory_final, memory_peak = tracemalloc.get_traced_memory()
             setattr(self.sync, f"{step}_memory_final", memory_final)
             setattr(self.sync, f"{step}_memory_peak", memory_peak)
             self.sync.save()
-            self.logger.info("Traced memory for %s (Final, Peak): %s bytes, %s bytes", step, memory_final, memory_peak)
+            self.logger.info(
+                "Traced memory for %s (Final, Peak): %s, %s",
+                step,
+                format_size(memory_final),
+                format_size(memory_peak),
+            )
             tracemalloc.clear_traces()
 
         if not self.sync:
@@ -137,7 +159,11 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         load_source_adapter_time = datetime.now()
         self.sync.source_load_time = load_source_adapter_time - start_time
         self.sync.save()
-        self.logger.info("Source Load Time from %s: %s", self.source_adapter, self.sync.source_load_time)
+        self.logger.info(
+            "Source Load Time from %s: %s",
+            self.source_adapter,
+            self.sync.source_load_time,
+        )
         if memory_profiling:
             record_memory_trace("source_load")
 
@@ -146,7 +172,11 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         load_target_adapter_time = datetime.now()
         self.sync.target_load_time = load_target_adapter_time - load_source_adapter_time
         self.sync.save()
-        self.logger.info("Target Load Time from %s: %s", self.target_adapter, self.sync.target_load_time)
+        self.logger.info(
+            "Target Load Time from %s: %s",
+            self.target_adapter,
+            self.sync.target_load_time,
+        )
         if memory_profiling:
             record_memory_trace("target_load")
 
@@ -159,7 +189,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         if memory_profiling:
             record_memory_trace("diff")
 
-        if self.dryrun:
+        if self.sync.dry_run:
             self.logger.info("As `dryrun` is set, skipping the actual data sync.")
         else:
             self.logger.info("Syncing from %s to %s...", self.source_adapter, self.target_adapter)
@@ -172,7 +202,11 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             if memory_profiling:
                 record_memory_trace("sync")
 
-    def lookup_object(self, model_name, unique_id) -> Optional[BaseModel]:  # pylint: disable=unused-argument
+    def lookup_object(  # pylint: disable=unused-argument
+        self,
+        model_name,
+        unique_id,
+    ) -> Optional[BaseModel]:
         """Look up the Nautobot record, if any, identified by the args.
 
         Optional helper method used to build more detailed/accurate SyncLogEntry records from DiffSync logs.
@@ -308,7 +342,10 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
 
         # Add _structlog_to_sync_log_entry as a processor for structlog calls from DiffSync
         structlog.configure(
-            processors=[self._structlog_to_sync_log_entry, structlog.stdlib.render_to_log_kwargs],
+            processors=[
+                self._structlog_to_sync_log_entry,
+                structlog.stdlib.render_to_log_kwargs,
+            ],
             context_class=dict,
             logger_factory=structlog.stdlib.LoggerFactory(),
             wrapper_class=structlog.stdlib.BoundLogger,

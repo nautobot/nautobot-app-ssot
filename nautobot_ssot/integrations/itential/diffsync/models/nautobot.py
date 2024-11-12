@@ -7,7 +7,7 @@ class NautobotAnsibleDeviceModel(base.BaseAnsibleDeviceDiffsyncModel):
     """Nautobot => Itential Ansible Device DiffSyncModel."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create device in Nautobot.."""
         raise NotImplementedError
 
@@ -24,7 +24,7 @@ class NautobotDefaultAnsibleGroupModel(base.BaseAnsibleDefaultGroupDiffsyncModel
     """Nautobot => Itential Default Ansible Group DiffsyncModel."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create default group in Nautobot.."""
         raise NotImplementedError
 

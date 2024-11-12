@@ -1,29 +1,28 @@
 # pylint: disable=invalid-name, no-member
 """Utility functions for CloudVision Resource API."""
+
 import ssl
 from datetime import datetime
 from typing import Any, Iterable, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
+import cloudvision.Connector.gen.notification_pb2 as ntf
+import cloudvision.Connector.gen.router_pb2 as rtr
+import cloudvision.Connector.gen.router_pb2_grpc as rtr_client
 import google.protobuf.timestamp_pb2 as pbts
 import grpc
 import requests
 from arista.inventory.v1 import models, services
 from arista.tag.v2 import models as tag_models
 from arista.tag.v2 import services as tag_services
-
-from google.protobuf.wrappers_pb2 import StringValue  # pylint: disable=no-name-in-module
-
-from cvprac.cvp_client import CvpClient
-from cvprac.cvp_client import CvpLoginError
-import cloudvision.Connector.gen.notification_pb2 as ntf
-import cloudvision.Connector.gen.router_pb2 as rtr
-import cloudvision.Connector.gen.router_pb2_grpc as rtr_client
 from cloudvision.Connector import codec
 from cloudvision.Connector.codec import Wildcard
 from cloudvision.Connector.codec.custom_types import FrozenDict
 from cloudvision.Connector.grpc_client.grpcClient import create_query, to_pbts
+from cvprac.cvp_client import CvpClient, CvpLoginError
+from google.protobuf.wrappers_pb2 import StringValue  # pylint: disable=no-name-in-module
 
+from nautobot_ssot.exceptions import AuthFailure
 from nautobot_ssot.integrations.aristacv.constants import PORT_TYPE_MAP
 from nautobot_ssot.integrations.aristacv.types import CloudVisionAppConfig
 
@@ -31,16 +30,6 @@ RPC_TIMEOUT = 30
 TIME_TYPE = Union[pbts.Timestamp, datetime]
 UPDATE_TYPE = Tuple[Any, Any]
 UPDATES_TYPE = List[UPDATE_TYPE]
-
-
-class AuthFailure(Exception):
-    """Exception raised when authenticating to on-prem CVP fails."""
-
-    def __init__(self, error_code, message):
-        """Populate exception information."""
-        self.expression = error_code
-        self.message = message
-        super().__init__(self.message)
 
 
 class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-arguments
@@ -65,9 +54,9 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
                 )
             if token:
                 call_creds = grpc.access_token_call_credentials(token)
-            elif config.cvp_user != "" and config.cvp_password != "":  # nosec
-                response = requests.post(  # nosec
-                    f"{parsed_url.hostname}:{parsed_url.port}/cvpservice/login/authenticate.do",
+            elif config.cvp_user != "" and config.cvp_password != "":
+                response = requests.post(
+                    f"{parsed_url.scheme}://{parsed_url.hostname}:{parsed_url.port}/cvpservice/login/authenticate.do",
                     auth=(config.cvp_user, config.cvp_password),
                     timeout=60,
                     verify=config.verify_ssl,
@@ -278,18 +267,21 @@ def get_devices(client, import_active: bool):
     return devices
 
 
-def get_tags_by_type(client, creator_type: int = tag_models.CREATOR_TYPE_USER):
+def get_tags_by_type(client, logger, creator_type: int = tag_models.CREATOR_TYPE_USER):
     """Get tags by creator type from CloudVision."""
-    tag_stub = tag_services.TagServiceStub(client)
-    req = tag_services.TagStreamRequest(partial_eq_filter=[tag_models.Tag(creator_type=creator_type)])
-    responses = tag_stub.GetAll(req)
     tags = []
-    for resp in responses:
-        dev_tag = {
-            "label": resp.value.key.label.value,
-            "value": resp.value.key.value.value,
-        }
-        tags.append(dev_tag)
+    try:
+        tag_stub = tag_services.TagServiceStub(client)
+        req = tag_services.TagStreamRequest(partial_eq_filter=[tag_models.Tag(creator_type=creator_type)])
+        responses = tag_stub.GetAll(req)
+        for resp in responses:
+            dev_tag = {
+                "label": resp.value.key.label.value,
+                "value": resp.value.key.value.value,
+            }
+            tags.append(dev_tag)
+    except grpc.RpcError as err:
+        logger.error(f"Error when pulling Tags: {err}")
     return tags
 
 
@@ -687,7 +679,7 @@ def get_cvp_version(config: CloudVisionAppConfig):
             client.connect(
                 nodes=[config.url],
                 username="",
-                password="",  # nosec: B106
+                password="",
                 is_cvaas=True,
                 api_token=config.token,
             )

@@ -1,7 +1,8 @@
 """Itential SSoT Views."""
 
 from nautobot.apps import views
-from nautobot_ssot.integrations.itential import forms, filters, tables, models
+
+from nautobot_ssot.integrations.itential import filters, forms, models, tables
 from nautobot_ssot.integrations.itential.api import serializers
 
 

@@ -1,16 +1,14 @@
 """Itential SSoT Jobs."""
 
-from nautobot.extras.models import Status
-from nautobot.extras.jobs import ObjectVar
-
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
-from nautobot_ssot.jobs.base import DataTarget
+from nautobot.extras.jobs import ObjectVar
+from nautobot.extras.models import Status
 
-from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
 from nautobot_ssot.integrations.itential.clients import AutomationGatewayClient
 from nautobot_ssot.integrations.itential.diffsync.adapters.itential import ItentialAnsibleDeviceAdapter
 from nautobot_ssot.integrations.itential.diffsync.adapters.nautobot import NautobotAnsibleDeviceAdapter
-
+from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
+from nautobot_ssot.jobs.base import DataTarget
 
 name = "SSoT - Itential"  # pylint: disable=invalid-name
 

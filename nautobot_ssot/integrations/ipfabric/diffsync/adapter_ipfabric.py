@@ -1,5 +1,6 @@
 # pylint: disable=duplicate-code
 """DiffSync adapter class for Ip Fabric."""
+
 import ipaddress
 import logging
 from collections import defaultdict
@@ -7,19 +8,18 @@ from collections import defaultdict
 from diffsync import ObjectAlreadyExists
 from nautobot.dcim.models import Device
 from nautobot.ipam.models import VLAN
-from netutils.mac import mac_to_format
 from netutils.interface import canonical_interface_name
+from netutils.mac import mac_to_format
 
 from nautobot_ssot.integrations.ipfabric.constants import (
-    DEFAULT_INTERFACE_MTU,
-    DEFAULT_INTERFACE_MAC,
     DEFAULT_DEVICE_ROLE,
     DEFAULT_DEVICE_STATUS,
+    DEFAULT_INTERFACE_MAC,
+    DEFAULT_INTERFACE_MTU,
     IP_FABRIC_USE_CANONICAL_INTERFACE_NAME,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.utilities import utils as ipfabric_utils
-
 
 logger = logging.getLogger("nautobot.jobs")
 
@@ -43,7 +43,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         sites = self.client.inventory.sites.all()
         for site in sites:
             try:
-                location = self.location(diffsync=self, name=site["siteName"], site_id=site["id"], status="Active")
+                location = self.location(adapter=self, name=site["siteName"], site_id=site["id"], status="Active")
                 self.add(location)
             except ObjectAlreadyExists:
                 logger.warning(f"Duplicate Location discovered, {site}")
@@ -87,7 +87,6 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 iface_name = canonical_interface_name(iface_name)
             try:
                 interface = self.interface(
-                    diffsync=self,
                     name=iface_name,
                     device_name=iface.get("hostname"),
                     description=iface.get("dscr", ""),
@@ -121,7 +120,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             filters={"net": ["empty", False], "siteName": ["empty", False]},
             columns=["net", "siteName"],
         ):
-            networks[network["siteName"]].append(ipaddress.ip_network(network["net"]))
+            # IPF bug NIM-15635 Fix Version 7.0: 'net' column has host bits set.
+            networks[network["siteName"]].append(ipaddress.ip_network(network["net"], strict=False))
         for location in self.get_all(self.location):
             if location.name is None:
                 continue
@@ -139,7 +139,6 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     continue
                 try:
                     vlan = self.vlan(
-                        diffsync=self,
                         name=vlan_name,
                         location=vlan["siteName"],
                         vid=vlan["vlanId"],

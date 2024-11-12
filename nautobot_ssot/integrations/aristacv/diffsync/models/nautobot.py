@@ -1,6 +1,8 @@
 """Nautobot DiffSync models for AristaCV SSoT."""
 
+import distutils
 import logging
+
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from nautobot.core.settings_funcs import is_truthy
@@ -11,10 +13,9 @@ from nautobot.extras.models import Relationship as OrmRelationship
 from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
 from nautobot.extras.models import Status as OrmStatus
 from nautobot.ipam.models import IPAddress as OrmIPAddress
-from nautobot.ipam.models import Prefix as OrmPrefix
-from nautobot.ipam.models import Namespace as OrmNamespace
 from nautobot.ipam.models import IPAddressToInterface
-import distutils
+from nautobot.ipam.models import Namespace as OrmNamespace
+from nautobot.ipam.models import Prefix as OrmPrefix
 
 from nautobot_ssot.integrations.aristacv.constants import (
     ARISTA_PLATFORM,
@@ -22,8 +23,8 @@ from nautobot_ssot.integrations.aristacv.constants import (
     DEFAULT_DEVICE_ROLE_COLOR,
 )
 from nautobot_ssot.integrations.aristacv.diffsync.models.base import (
-    Device,
     CustomField,
+    Device,
     IPAddress,
     IPAssignment,
     Namespace,
@@ -55,9 +56,9 @@ class NautobotDevice(Device):
     """Nautobot Device Model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create device object in Nautobot."""
-        config: CloudVisionAppConfig = diffsync.job.app_config  # type: ignore
+        config: CloudVisionAppConfig = adapter.job.app_config  # type: ignore
         site_code, role_code = nautobot.parse_hostname(ids["name"].lower(), config.hostname_patterns)
         site_map = config.site_mappings
         role_map = config.role_mappings
@@ -109,10 +110,10 @@ class NautobotDevice(Device):
             new_device.validated_save()
             if LIFECYCLE_MGMT and attrs.get("version"):
                 software_lcm = cls._add_software_lcm(platform=platform.name, version=attrs["version"])
-                cls._assign_version_to_device(diffsync=diffsync, device=new_device, software_lcm=software_lcm)
-            return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+                cls._assign_version_to_device(adapter=adapter, device=new_device, software_lcm=software_lcm)
+            return super().create(ids=ids, adapter=adapter, attrs=attrs)
         except ValidationError as err:
-            diffsync.job.logger.warning(f"Unable to create Device {ids['name']}. {err}")
+            adapter.job.logger.warning(f"Unable to create Device {ids['name']}. {err}")
             return None
 
     def update(self, attrs):
@@ -129,21 +130,21 @@ class NautobotDevice(Device):
             dev.serial = attrs["serial"]
         if "version" in attrs and LIFECYCLE_MGMT:
             software_lcm = self._add_software_lcm(platform=dev.platform.name, version=attrs["version"])
-            self._assign_version_to_device(diffsync=self.diffsync, device=dev, software_lcm=software_lcm)
+            self._assign_version_to_device(adapter=self.adapter, device=dev, software_lcm=software_lcm)
         try:
             dev.validated_save()
             return super().update(attrs)
         except ValidationError as err:
-            self.diffsync.job.logger.warning(f"Unable to update Device {self.name}. {err}")
+            self.adapter.job.logger.warning(f"Unable to update Device {self.name}. {err}")
             return None
 
     def delete(self):
         """Delete device object in Nautobot."""
-        config: CloudVisionAppConfig = self.diffsync.job.app_config  # type: ignore
+        config: CloudVisionAppConfig = self.adapter.job.app_config  # type: ignore
         if config.delete_devices_on_sync:
-            self.diffsync.job.logger.warning(f"Device {self.name} will be deleted per app settings.")
+            self.adapter.job.logger.warning(f"Device {self.name} will be deleted per app settings.")
             device = OrmDevice.objects.get(id=self.uuid)
-            self.diffsync.objects_to_delete["devices"].append(device)
+            self.adapter.objects_to_delete["devices"].append(device)
             super().delete()
         return self
 
@@ -162,15 +163,15 @@ class NautobotDevice(Device):
         return os_ver
 
     @staticmethod
-    def _assign_version_to_device(diffsync, device, software_lcm):
+    def _assign_version_to_device(adapter, device, software_lcm):
         """Add Relationship between Device and SoftwareLCM."""
         software_relation = OrmRelationship.objects.get(label="Software on Device")
         relations = device.get_relationships()
         for _, relationships in relations.items():
             for relationship, queryset in relationships.items():
                 if relationship == software_relation:
-                    if diffsync.job.debug:
-                        diffsync.job.logger.warning(
+                    if adapter.job.debug:
+                        adapter.job.logger.warning(
                             f"Deleting Software Version Relationships for {device.name} to assign a new version."
                         )
                     queryset.delete()
@@ -189,7 +190,7 @@ class NautobotPort(Port):
     """Nautobot Port model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Interface in Nautobot."""
         device = OrmDevice.objects.get(name=ids["device"])
         new_port = OrmInterface(
@@ -205,9 +206,9 @@ class NautobotPort(Port):
         )
         try:
             new_port.validated_save()
-            return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+            return super().create(ids=ids, adapter=adapter, attrs=attrs)
         except ValidationError as err:
-            diffsync.job.logger.warning(err)
+            adapter.job.logger.warning(err)
             return None
 
     def update(self, attrs):
@@ -234,18 +235,18 @@ class NautobotPort(Port):
             _port.validated_save()
             return super().update(attrs)
         except ValidationError as err:
-            self.diffsync.job.logger.warning(f"Unable to update port {self.name} for {self.device} with {attrs}: {err}")
+            self.adapter.job.logger.warning(f"Unable to update port {self.name} for {self.device} with {attrs}: {err}")
             return None
 
     def delete(self):
         """Delete Interface in Nautobot."""
-        config: CloudVisionAppConfig = self.diffsync.job.app_config  # type: ignore
+        config: CloudVisionAppConfig = self.adapter.job.app_config  # type: ignore
         if config.delete_devices_on_sync:
             super().delete()
-            if self.diffsync.job.debug:
-                self.diffsync.job.logger.warning(f"Interface {self.name} for {self.device} will be deleted.")
+            if self.adapter.job.debug:
+                self.adapter.job.logger.warning(f"Interface {self.name} for {self.device} will be deleted.")
             _port = OrmInterface.objects.get(id=self.uuid)
-            self.diffsync.objects_to_delete["interfaces"].append(_port)
+            self.adapter.objects_to_delete["interfaces"].append(_port)
         return self
 
 
@@ -253,21 +254,21 @@ class NautobotNamespace(Namespace):
     """Nautobot Prefix model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Prefix in Nautobot from NautobotPrefix objects."""
-        if diffsync.job.debug:
-            diffsync.job.logger.info(f"Creating Namespace {ids['name']}.")
+        if adapter.job.debug:
+            adapter.job.logger.info(f"Creating Namespace {ids['name']}.")
         _ns = OrmNamespace(
             name=ids["name"],
         )
         _ns.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def delete(self):
         """Delete Namespace in Nautobot."""
         super().delete()
         _ns = OrmNamespace.objects.get(id=self.uuid)
-        self.diffsync.objects_to_delete["namespaces"].append(_ns)
+        self.adapter.objects_to_delete["namespaces"].append(_ns)
         return self
 
 
@@ -275,23 +276,23 @@ class NautobotPrefix(Prefix):
     """Nautobot Prefix model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Prefix in Nautobot from NautobotPrefix objects."""
-        if diffsync.job.debug:
-            diffsync.job.logger.info(f"Creating Prefix {ids['prefix']}.")
+        if adapter.job.debug:
+            adapter.job.logger.info(f"Creating Prefix {ids['prefix']}.")
         _pf = OrmPrefix(
             prefix=ids["prefix"],
             namespace=OrmNamespace.objects.get(name=ids["namespace"]),
             status=OrmStatus.objects.get(name="Active"),
         )
         _pf.validated_save()
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def delete(self):
         """Delete Prefix in Nautobot."""
         super().delete()
         _pf = OrmPrefix.objects.get(id=self.uuid)
-        self.diffsync.objects_to_delete["prefixes"].append(_pf)
+        self.adapter.objects_to_delete["prefixes"].append(_pf)
         return self
 
 
@@ -299,7 +300,7 @@ class NautobotIPAddress(IPAddress):
     """Nautobot IPAddress model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create IPAddress in Nautobot."""
         new_ip = OrmIPAddress(
             address=ids["address"],
@@ -309,13 +310,13 @@ class NautobotIPAddress(IPAddress):
             status=OrmStatus.objects.get(name="Active"),
         )
         new_ip.validated_save()
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def delete(self):
         """Delete IPAddress in Nautobot."""
         super().delete()
         ipaddr = OrmIPAddress.objects.get(id=self.uuid)
-        self.diffsync.objects_to_delete["ipaddresses"].append(ipaddr)
+        self.adapter.objects_to_delete["ipaddresses"].append(ipaddr)
         return self
 
 
@@ -323,7 +324,7 @@ class NautobotIPAssignment(IPAssignment):
     """Nautobot IPAssignment model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create IPAddressToInterface in Nautobot."""
         try:
             ipaddr = OrmIPAddress.objects.get(
@@ -341,9 +342,9 @@ class NautobotIPAssignment(IPAssignment):
                 else:
                     intf.device.primary_ip4 = ipaddr
                 intf.device.validated_save()
-            return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+            return super().create(ids=ids, adapter=adapter, attrs=attrs)
         except OrmInterface.DoesNotExist as err:
-            diffsync.job.logger.warning(f"Unable to find Interface {ids['interface']} for {ids['device']}. {err}")
+            adapter.job.logger.warning(f"Unable to find Interface {ids['interface']} for {ids['device']}. {err}")
 
     def update(self, attrs):
         """Update IPAddressToInterface in Nautobot."""
@@ -368,7 +369,7 @@ class NautobotCustomField(CustomField):
     """Nautobot CustomField model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Custom Field in Nautobot."""
         try:
             attrs["value"] = bool(distutils.util.strtobool(attrs["value"]))
@@ -381,12 +382,12 @@ class NautobotCustomField(CustomField):
             device.validated_save()
         except ValidationError:
             if ids["name"] not in MISSING_CUSTOM_FIELDS:
-                diffsync.job.logger.warning(
+                adapter.job.logger.warning(
                     f"Custom field {ids['name']} is not defined. You can create the custom field in the Admin UI."
                 )
             MISSING_CUSTOM_FIELDS.append(ids["name"])
 
-        return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def update(self, attrs):
         """Update Custom Field in Nautobot."""

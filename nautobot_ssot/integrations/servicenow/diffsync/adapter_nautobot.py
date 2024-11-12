@@ -3,20 +3,18 @@
 
 import datetime
 
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.exceptions import ObjectNotFound
-
 from django.contrib.contenttypes.models import ContentType
-
-from nautobot.dcim.models import Device, DeviceType, Interface, Manufacturer, Location
+from nautobot.core.choices import ColorChoices
+from nautobot.dcim.models import Device, DeviceType, Interface, Location, Manufacturer
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Tag
-from nautobot.core.choices import ColorChoices
 
 from . import models
 
 
-class NautobotDiffSync(DiffSync):
+class NautobotDiffSync(Adapter):
     """Nautobot adapter for DiffSync."""
 
     company = models.Company
@@ -40,11 +38,10 @@ class NautobotDiffSync(DiffSync):
     def load_manufacturers(self):
         """Add Manufacturers and their descendant DeviceTypes as DiffSyncModel instances."""
         for mfr_record in Manufacturer.objects.all():
-            mfr = self.company(diffsync=self, name=mfr_record.name, manufacturer=True, pk=mfr_record.id)
+            mfr = self.company(name=mfr_record.name, manufacturer=True, pk=mfr_record.id)
             self.add(mfr)
             for dtype_record in DeviceType.objects.filter(manufacturer=mfr_record):
                 dtype = self.product_model(
-                    diffsync=self,
                     manufacturer_name=mfr.name,
                     model_name=dtype_record.model,
                     model_number=dtype_record.model,
@@ -71,7 +68,6 @@ class NautobotDiffSync(DiffSync):
 
         for location_record in locations:
             location = self.location(
-                diffsync=self,
                 name=location_record.name,
                 pk=location_record.id,
                 parent_location_name=None,
@@ -85,7 +81,6 @@ class NautobotDiffSync(DiffSync):
     def load_interface(self, interface_record, device_model):
         """Import a single Nautobot Interface object as a DiffSync Interface model."""
         interface = self.interface(
-            diffsync=self,
             name=interface_record.name,
             device_name=device_model.name,
             description=interface_record.description,
@@ -105,7 +100,6 @@ class NautobotDiffSync(DiffSync):
                 continue
             for device_record in Device.objects.filter(location__id=location.pk):
                 device = self.device(
-                    diffsync=self,
                     name=device_record.name,
                     location_name=location.name,
                     asset_tag=device_record.asset_tag or "",

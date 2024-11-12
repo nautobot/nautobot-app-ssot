@@ -29,7 +29,8 @@ from .fixtures_infoblox import (
     get_all_ipv4address_networks_medium,
     get_all_network_views,
     get_all_ranges,
-    get_all_subnets,
+    get_all_subnets_page_1,
+    get_all_subnets_page_2,
     get_authoritative_zone,
     get_authoritative_zones_for_dns_view,
     get_dhcp_lease_from_hostname,
@@ -475,15 +476,28 @@ class TestInfobloxTest(unittest.TestCase):
 
     def test_get_all_subnets_success(self):
         """Test get_all_subnets success."""
-        mock_response = get_all_subnets()
+        mock_subnets_response_page_1 = get_all_subnets_page_1()
+        mock_subnets_response_page_2 = get_all_subnets_page_2()
         mock_uri = "network"
         mock_range_response = get_all_ranges()
 
-        expected = [result.copy() for result in mock_response]
+        expected = [result.copy() for result in mock_subnets_response_page_1.get("result")] + [
+            result.copy() for result in mock_subnets_response_page_2.get("result")
+        ]
         expected[1]["ranges"] = ["10.220.65.200-10.220.65.255"]
 
         with requests_mock.Mocker() as req:
-            req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=200)
+            req.register_uri("GET", "/_page_id=123456789")
+            req.get(
+                f"{LOCALHOST}/{mock_uri}?_paging=1&_return_as_object=1&_return_fields=network,network_view,comment,extattrs,rir_organization,rir,vlans&_max_results=10000",
+                json=mock_subnets_response_page_1,
+                status_code=200,
+            )
+            req.get(
+                f"{LOCALHOST}/{mock_uri}?_paging=1&_return_as_object=1&_return_fields=network,network_view,comment,extattrs,rir_organization,rir,vlans&_max_results=10000&_page_id=123456789",
+                json=mock_subnets_response_page_2,
+                status_code=200,
+            )
             req.get(f"{LOCALHOST}/range", json=mock_range_response, status_code=200)
             resp = self.infoblox_client.get_all_subnets()
 

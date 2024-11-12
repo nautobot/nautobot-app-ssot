@@ -1,15 +1,15 @@
 """Itential SSoT adapters."""
 
-from diffsync import DiffSync
+from diffsync import Adapter
 
+from nautobot_ssot.integrations.itential.clients import AutomationGatewayClient
 from nautobot_ssot.integrations.itential.diffsync.models.itential import (
     ItentialAnsibleDeviceModel,
     ItentialDefaultAnsibleGroupModel,
 )
-from nautobot_ssot.integrations.itential.clients import AutomationGatewayClient
 
 
-class ItentialAnsibleDeviceAdapter(DiffSync):
+class ItentialAnsibleDeviceAdapter(Adapter):
     """Itential Ansible Device Diffsync adapter."""
 
     device = ItentialAnsibleDeviceModel

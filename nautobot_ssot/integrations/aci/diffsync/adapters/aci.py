@@ -2,32 +2,33 @@
 
 # pylint: disable=duplicate-code
 
-
 import logging
 import os
 import re
-from typing import Optional
 from ipaddress import ip_network
-from diffsync import DiffSync
-from diffsync.exceptions import ObjectNotFound
-from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotTenant
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotVrf
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotDeviceType
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotDeviceRole
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotDevice
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterfaceTemplate
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotInterface
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotIPAddress
-from nautobot_ssot.integrations.aci.diffsync.models import NautobotPrefix
-from nautobot_ssot.integrations.aci.diffsync.client import AciApi
-from nautobot_ssot.integrations.aci.diffsync.utils import load_yamlfile
+from typing import Optional
 
+from diffsync import Adapter
+from diffsync.exceptions import ObjectNotFound
+
+from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
+from nautobot_ssot.integrations.aci.diffsync.models import (
+    NautobotDevice,
+    NautobotDeviceRole,
+    NautobotDeviceType,
+    NautobotInterface,
+    NautobotInterfaceTemplate,
+    NautobotIPAddress,
+    NautobotPrefix,
+    NautobotTenant,
+    NautobotVrf,
+)
+from nautobot_ssot.integrations.aci.diffsync.utils import load_yamlfile
 
 logger = logging.getLogger(__name__)
 
 
-class AciAdapter(DiffSync):
+class AciAdapter(Adapter):
     """DiffSync adapter for Cisco ACI."""
 
     tenant = NautobotTenant
@@ -52,7 +53,7 @@ class AciAdapter(DiffSync):
         "ip_address",
     ]
 
-    def __init__(self, *args, job=None, sync=None, client, **kwargs):
+    def __init__(self, *args, job=None, sync=None, client, tenant_prefix, **kwargs):
         """Initialize ACI.
 
         Args:
@@ -63,15 +64,9 @@ class AciAdapter(DiffSync):
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
-        self.conn = AciApi(
-            username=client["username"],
-            password=client["password"],
-            base_uri=client["base_uri"],
-            verify=client["verify"],
-            site=client["site"],
-        )
-        self.site = client.get("site")
-        self.tenant_prefix = client.get("tenant_prefix")
+        self.conn = client
+        self.site = client.site
+        self.tenant_prefix = tenant_prefix
         self.nodes = self.conn.get_nodes()
         self.controllers = self.conn.get_controllers()
         self.nodes.update(self.controllers)
@@ -81,13 +76,18 @@ class AciAdapter(DiffSync):
         """Load tenants from ACI."""
         tenant_list = self.conn.get_tenants()
         for _tenant in tenant_list:
-            if not _tenant["name"] in PLUGIN_CFG.get("ignore_tenants"):
+            if _tenant["name"] not in PLUGIN_CFG.get("ignore_tenants"):
                 tenant_name = f"{self.tenant_prefix}:{_tenant['name']}"
+                if ":mso" in _tenant.get("annotation").lower():  # pylint: disable=simplifiable-if-statement
+                    _msite_tag = True
+                else:
+                    _msite_tag = False
                 new_tenant = self.tenant(
                     name=tenant_name,
                     description=_tenant["description"],
                     comments=PLUGIN_CFG.get("comments", ""),
                     site_tag=self.site,
+                    msite_tag=_msite_tag,
                 )
                 self.add(new_tenant)
 
@@ -135,7 +135,7 @@ class AciAdapter(DiffSync):
         # Leaf/Spine management IP addresses
         mgmt_tenant = f"{self.tenant_prefix}:mgmt"
         for node in node_dict.values():
-            if node.get("oob_ip"):  # nosec
+            if node.get("oob_ip"):
                 if node.get("subnet"):
                     subnet = node["subnet"]
                 else:
@@ -174,7 +174,7 @@ class AciAdapter(DiffSync):
         controller_dict = self.conn.get_controllers()
         # Controller IP addresses
         for controller in controller_dict.values():
-            if controller.get("oob_ip"):  # nosec
+            if controller.get("oob_ip"):
                 if controller.get("subnet"):
                     subnet = controller["subnet"]
                 else:
@@ -210,15 +210,19 @@ class AciAdapter(DiffSync):
                     vrf_tenant = f"{self.tenant_prefix}:{bd_value['vrf_tenant']}"
                 else:
                     vrf_tenant = None
+                if bd_value.get("tenant") == "mgmt":
+                    _namespace = "Global"
+                else:
+                    _namespace = vrf_tenant or tenant_name
                 for subnet in bd_value["subnets"]:
                     prefix = ip_network(subnet[0], strict=False).with_prefixlen
                     self.load_subnet_as_prefix(
                         prefix=prefix,
-                        namespace=tenant_name,
+                        namespace=_namespace,
                         site=self.site,
                         vrf=bd_value["vrf"],
                         vrf_tenant=vrf_tenant,
-                        tenant=tenant_name,
+                        tenant=vrf_tenant or tenant_name,
                     )
                     new_ipaddress = self.ip_address(
                         address=subnet[0],
@@ -227,8 +231,8 @@ class AciAdapter(DiffSync):
                         description=f"ACI Bridge Domain: {bd_key}",
                         device=None,
                         interface=None,
-                        tenant=tenant_name,
-                        namespace=tenant_name,
+                        tenant=vrf_tenant or tenant_name,
+                        namespace=_namespace,
                         site=self.site,
                         site_tag=self.site,
                     )
@@ -241,7 +245,7 @@ class AciAdapter(DiffSync):
                         self.add(new_ipaddress)
                     else:
                         self.job.logger.warning(
-                            "Duplicate DiffSync IPAddress Object found and has not been loaded.",
+                            f"Duplicate DiffSync IPAddress Object found: {new_ipaddress.address} in Tenant {new_ipaddress.tenant} and has not been loaded.",
                         )
 
     def load_prefixes(self):
@@ -255,15 +259,19 @@ class AciAdapter(DiffSync):
                     vrf_tenant = f"{self.tenant_prefix}:{bd_value['vrf_tenant']}"
                 else:
                     vrf_tenant = None
-                if tenant_name not in PLUGIN_CFG.get("ignore_tenants"):
+                if bd_value.get("tenant") == "mgmt":
+                    _namespace = "Global"
+                else:
+                    _namespace = vrf_tenant or tenant_name
+                if bd_value.get("tenant") not in PLUGIN_CFG.get("ignore_tenants"):
                     for subnet in bd_value["subnets"]:
                         new_prefix = self.prefix(
                             prefix=str(ip_network(subnet[0], strict=False)),
-                            namespace=tenant_name,
+                            namespace=_namespace,
                             status="Active",
                             site=self.site,
                             description=f"ACI Bridge Domain: {bd_key}",
-                            tenant=tenant_name,
+                            tenant=vrf_tenant or tenant_name,
                             vrf=bd_value["vrf"] if bd_value.get("vrf") != "" else None,
                             vrf_tenant=vrf_tenant,
                             site_tag=self.site,
@@ -282,7 +290,7 @@ class AciAdapter(DiffSync):
                                 self.add(new_prefix)
                             else:
                                 self.job.logger.warning(
-                                    "Duplicate DiffSync Prefix Object found and has not been loaded.",
+                                    f"Duplicate DiffSync Prefix Object found {new_prefix.prefix} in Namespace {new_prefix.namespace} and has not been loaded.",
                                 )
 
     def load_devicetypes(self):
@@ -426,6 +434,11 @@ class AciAdapter(DiffSync):
                 pod_id=value["pod_id"],
                 site=self.site,
                 site_tag=self.site,
+                controller_group=(
+                    self.job.apic.controller_managed_device_groups.first().name
+                    if self.job.apic.controller_managed_device_groups.count() != 0
+                    else ""
+                ),
             )
             self.add(new_device)
 

@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import logging
-
 from copy import copy, deepcopy
 
-from .request import SnowRequest
 from .attachment import Attachment
-from .url_builder import URLBuilder
 from .exceptions import InvalidUsage
+from .request import SnowRequest
+from .url_builder import URLBuilder
 
 logger = logging.getLogger("pysnow")
 
@@ -23,10 +22,7 @@ class Resource(object):
     :param \*\*kwargs: Arguments to pass along to :class:`Request`
     """
 
-    def __init__(
-        self, base_url=None, base_path=None, api_path=None, parameters=None, **kwargs
-    ):
-
+    def __init__(self, base_url=None, base_path=None, api_path=None, parameters=None, **kwargs):
         self._base_url = base_url
         self._base_path = base_path
         self._api_path = api_path
@@ -35,10 +31,7 @@ class Resource(object):
         self.kwargs = kwargs
         self.parameters = deepcopy(parameters)
 
-        logger.debug(
-            "(RESOURCE_ADD) Object: %s, chunk_size: %d"
-            % (self, kwargs.get("chunk_size"))
-        )
+        logger.debug("(RESOURCE_ADD) Object: %s, chunk_size: %d" % (self, kwargs.get("chunk_size")))
 
     def __repr__(self):
         return "<%s [%s] at %s>" % (self.__class__.__name__, self.path, hex(id(self)))
@@ -55,15 +48,13 @@ class Resource(object):
     @property
     def attachments(self):
         """Provides an `Attachment` API for this resource.
-        Enables easy listing, deleting and creating new attachments.     
+        Enables easy listing, deleting and creating new attachments.
 
         :return: Attachment object
         """
 
         resource = copy(self)
-        resource._url_builder = URLBuilder(
-            self._base_url, self._base_path, "/attachment"
-        )
+        resource._url_builder = URLBuilder(self._base_url, self._base_path, "/attachment")
 
         path = self._api_path.strip("/").split("/")
 
@@ -81,12 +72,7 @@ class Resource(object):
 
         parameters = copy(self.parameters)
 
-        return SnowRequest(
-            url_builder=self._url_builder,
-            parameters=parameters,
-            resource=self,
-            **self.kwargs
-        )
+        return SnowRequest(url_builder=self._url_builder, parameters=parameters, resource=self, **self.kwargs)
 
     def get_record_link(self, sys_id):
         """Provides full URL to the provided sys_id
@@ -159,6 +145,4 @@ class Resource(object):
             - :class:`Response` object
         """
 
-        return self._request.custom(
-            method, path_append=path_append, headers=headers, **kwargs
-        )
+        return self._request.custom(method, path_append=path_append, headers=headers, **kwargs)
