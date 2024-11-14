@@ -7,6 +7,14 @@ from typing import List, Tuple
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.models import CustomField, SecretsGroup
 
+try:
+    from nautobot.dcim.models import Controller, ControllerManagedDeviceGroup
+
+    CONTROLLER_FOUND = True
+except (ImportError, RuntimeError):
+    CONTROLLER_FOUND = False
+
+
 logger = logging.getLogger("nautobot.ssot")
 
 
@@ -27,18 +35,20 @@ def get_username_password_https_from_secretsgroup(group: SecretsGroup):
     return username, password
 
 
-def verify_controller_managed_device_group(controller: Controller) -> ControllerManagedDeviceGroup:
-    """Validate that Controller Managed Device Group exists or create it.
+if CONTROLLER_FOUND:
 
-    Args:
-        controller (Controller): Controller for associated ManagedDeviceGroup.
+    def verify_controller_managed_device_group(controller: Controller) -> ControllerManagedDeviceGroup:
+        """Validate that Controller Managed Device Group exists or create it.
 
-    Returns:
-        ControllerManagedDeviceGroup: The ControllerManagedDeviceGroup that was either found or created for the Controller.
-    """
-    return ControllerManagedDeviceGroup.objects.get_or_create(
-        controller=controller, defaults={"name": f"{controller.name} Managed Devices"}
-    )[0]
+        Args:
+            controller (Controller): Controller for associated ManagedDeviceGroup.
+
+        Returns:
+            ControllerManagedDeviceGroup: The ControllerManagedDeviceGroup that was either found or created for the Controller.
+        """
+        return ControllerManagedDeviceGroup.objects.get_or_create(
+            controller=controller, defaults={"name": f"{controller.name} Managed Devices"}
+        )[0]
 
 
 def create_or_update_custom_field(key, field_type, label):
