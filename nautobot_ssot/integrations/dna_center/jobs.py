@@ -2,6 +2,7 @@
 
 from ast import literal_eval
 
+from diffsync.enum import DiffSyncFlags
 from django.templatetags.static import static
 from django.urls import reverse
 from nautobot.apps.jobs import BooleanVar, JSONVar, ObjectVar, StringVar
@@ -97,8 +98,9 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
 
     def __init__(self):
         """Initiailize Job vars."""
-        self.controller_group = None
         super().__init__()
+        self.controller_group = None
+        self.diffsync_flags = DiffSyncFlags.CONTINUE_ON_FAILURE
 
     @classmethod
     def config_information(cls):
