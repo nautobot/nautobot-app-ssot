@@ -1,4 +1,4 @@
-"""Test IPFabric Jobs."""
+"""Test Slurpit Jobs."""
 
 from copy import deepcopy
 
