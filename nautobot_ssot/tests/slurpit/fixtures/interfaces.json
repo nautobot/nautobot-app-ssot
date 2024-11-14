@@ -1,0 +1,614 @@
+[
+    {
+        "Interface": "tunnel-ip3",
+        "Line": "up",
+        "Protocol": "up",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "",
+        "IP_fqdn": "",
+        "IP": "Unknown",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "MgmtEth0/RP0/CPU0/0",
+        "Line": "up",
+        "Protocol": "up",
+        "MAC_normalized": "005056bfd307",
+        "MAC_vendor": "VMware, Inc.",
+        "MAC": "0050.56bf.d307",
+        "Description": "foo",
+        "IP_fqdn": "",
+        "IP": "10.10.20.175",
+        "Duplex": "Full",
+        "Speed": "1000Mb/s",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "GigabitEthernet0/0/0/0",
+        "Line": "administratively down",
+        "Protocol": "administratively down",
+        "MAC_normalized": "005056bfbb17",
+        "MAC_vendor": "VMware, Inc.",
+        "MAC": "0050.56bf.bb17",
+        "Description": "",
+        "IP_fqdn": "",
+        "IP": "Unknown",
+        "Duplex": "unknown",
+        "Speed": "1000Mb/s",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "GigabitEthernet0/0/0/1",
+        "Line": "administratively down",
+        "Protocol": "administratively down",
+        "MAC_normalized": "005056bf1337",
+        "MAC_vendor": "VMware, Inc.",
+        "MAC": "0050.56bf.1337",
+        "Description": "test",
+        "IP_fqdn": "",
+        "IP": "Unknown",
+        "Duplex": "unknown",
+        "Speed": "1000Mb/s",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "GigabitEthernet0/0/0/2",
+        "Line": "down",
+        "Protocol": "down",
+        "MAC_normalized": "005056bf8181",
+        "MAC_vendor": "VMware, Inc.",
+        "MAC": "0050.56bf.8181",
+        "Description": "#test#",
+        "IP_fqdn": "",
+        "IP": "Unknown",
+        "Duplex": "unknown",
+        "Speed": "1000Mb/s",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "GigabitEthernet0/0/0/3",
+        "Line": "administratively down",
+        "Protocol": "administratively down",
+        "MAC_normalized": "005056bfafc9",
+        "MAC_vendor": "VMware, Inc.",
+        "MAC": "0050.56bf.afc9",
+        "Description": "test",
+        "IP_fqdn": "",
+        "IP": "Unknown",
+        "Duplex": "unknown",
+        "Speed": "1000Mb/s",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "GigabitEthernet0/0/0/4",
+        "Line": "administratively down",
+        "Protocol": "administratively down",
+        "MAC_normalized": "005056bfbedb",
+        "MAC_vendor": "VMware, Inc.",
+        "MAC": "0050.56bf.bedb",
+        "Description": "",
+        "IP_fqdn": "",
+        "IP": "Unknown",
+        "Duplex": "unknown",
+        "Speed": "1000Mb/s",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "GigabitEthernet0/0/0/5",
+        "Line": "administratively down",
+        "Protocol": "administratively down",
+        "MAC_normalized": "005056bf3ee8",
+        "MAC_vendor": "VMware, Inc.",
+        "MAC": "0050.56bf.3ee8",
+        "Description": "port-test-eem",
+        "IP_fqdn": "",
+        "IP": "Unknown",
+        "Duplex": "unknown",
+        "Speed": "1000Mb/s",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "GigabitEthernet0/0/0/6",
+        "Line": "down",
+        "Protocol": "down",
+        "MAC_normalized": "005056bfee29",
+        "MAC_vendor": "VMware, Inc.",
+        "MAC": "0050.56bf.ee29",
+        "Description": "test06",
+        "IP_fqdn": "",
+        "IP": "Unknown",
+        "Duplex": "unknown",
+        "Speed": "1000Mb/s",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Loopback82",
+        "Line": "up",
+        "Protocol": "up",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "",
+        "IP_fqdn": "",
+        "IP": "88.88.88.88",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Loopback99",
+        "Line": "up",
+        "Protocol": "up",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "",
+        "IP_fqdn": "",
+        "IP": "88.88.88.88",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Loopback100",
+        "Line": "administratively down",
+        "Protocol": "administratively down",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "testing-eem",
+        "IP_fqdn": "",
+        "IP": "Unknown",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Loopback102",
+        "Line": "up",
+        "Protocol": "up",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "",
+        "IP_fqdn": "",
+        "IP": "192.168.102.2",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Loopback144",
+        "Line": "up",
+        "Protocol": "up",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "",
+        "IP_fqdn": "",
+        "IP": "88.88.88.88",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Loopback152",
+        "Line": "up",
+        "Protocol": "up",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "",
+        "IP_fqdn": "",
+        "IP": "10.0.152.1",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Loopback153",
+        "Line": "up",
+        "Protocol": "up",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "",
+        "IP_fqdn": "",
+        "IP": "10.0.152.2",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Loopback9999",
+        "Line": "up",
+        "Protocol": "up",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "",
+        "IP_fqdn": "",
+        "IP": "2.2.2.2/32",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Loopback2147483647",
+        "Line": "up",
+        "Protocol": "up",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "",
+        "IP_fqdn": "",
+        "IP": "10.0.0.23",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Null0",
+        "Line": "up",
+        "Protocol": "up",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "",
+        "IP_fqdn": "",
+        "IP": "Unknown",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Loopback1",
+        "Line": "up",
+        "Protocol": "up",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "Ruddy NETCONF loopback",
+        "IP_fqdn": "",
+        "IP": "10.1.1.1",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Loopback2",
+        "Line": "up",
+        "Protocol": "up",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "",
+        "IP_fqdn": "",
+        "IP": "10.10.35.50",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Loopback3",
+        "Line": "administratively down",
+        "Protocol": "administratively down",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "TEST-TRIGGER-EEM",
+        "IP_fqdn": "",
+        "IP": "Unknown",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Loopback4",
+        "Line": "up",
+        "Protocol": "up",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "Miguel Brito NETCONF loopback",
+        "IP_fqdn": "",
+        "IP": "10.1.1.20",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Loopback5",
+        "Line": "up",
+        "Protocol": "up",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "",
+        "IP_fqdn": "",
+        "IP": "192.168.5.1",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Loopback6",
+        "Line": "up",
+        "Protocol": "up",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "",
+        "IP_fqdn": "",
+        "IP": "192.168.1.4/32",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Loopback10",
+        "Line": "up",
+        "Protocol": "up",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "",
+        "IP_fqdn": "",
+        "IP": "192.168.10.1/32",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Loopback30",
+        "Line": "up",
+        "Protocol": "up",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "",
+        "IP_fqdn": "",
+        "IP": "192.168.8.2",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Loopback35",
+        "Line": "up",
+        "Protocol": "up",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "",
+        "IP_fqdn": "",
+        "IP": "192.168.35.2",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Loopback81",
+        "Line": "up",
+        "Protocol": "up",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "",
+        "IP_fqdn": "",
+        "IP": "10.10.10.10",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Bundle-Ether6.6477",
+        "Line": "down",
+        "Protocol": "down",
+        "MAC_normalized": "001795008f37",
+        "MAC_vendor": "Cisco Systems, Inc",
+        "MAC": "0017.9500.8f37",
+        "Description": "SBI-ML3-3-184671-AKC-4096k-STATE-BANK-OF-INDIA-3-4651111-30102023",
+        "IP_fqdn": "",
+        "IP": "10.171.221.134",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "2800",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Loopback0",
+        "Line": "up",
+        "Protocol": "up",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "Loopback Interface",
+        "IP_fqdn": "",
+        "IP": "192.168.9.2",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Bundle-Ether1",
+        "Line": "down",
+        "Protocol": "down",
+        "MAC_normalized": "001795008f38",
+        "MAC_vendor": "Cisco Systems, Inc",
+        "MAC": "0017.9500.8f38",
+        "Description": "",
+        "IP_fqdn": "",
+        "IP": "Unknown",
+        "Duplex": "Full",
+        "Speed": "0Kb/s",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "Bundle-Ether6",
+        "Line": "down",
+        "Protocol": "down",
+        "MAC_normalized": "001795008f37",
+        "MAC_vendor": "Cisco Systems, Inc",
+        "MAC": "0017.9500.8f37",
+        "Description": "#test#",
+        "IP_fqdn": "",
+        "IP": "Unknown",
+        "Duplex": "Full",
+        "Speed": "0Kb/s",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    },
+    {
+        "Interface": "BVI100",
+        "Line": "down",
+        "Protocol": "down",
+        "MAC_normalized": "",
+        "MAC_vendor": "",
+        "MAC": "",
+        "Description": "",
+        "IP_fqdn": "",
+        "IP": "192.168.10.1",
+        "Duplex": "",
+        "Speed": "",
+        "Vlan": "",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-14 0:12:00"
+        ]
+    }
+]
