@@ -23,6 +23,7 @@ from nautobot_ssot.integrations.dna_center.diffsync.models.dna_center import (
     DnaCenterPrefix,
 )
 from nautobot_ssot.integrations.dna_center.utils.dna_center import DnaCenterClient
+from nautobot_ssot.utils import parse_hostname_for_role
 
 
 class DnaCenterAdapter(Adapter):
@@ -309,8 +310,8 @@ class DnaCenterAdapter(Adapter):
                 self.failed_import_devices.append(dev)
                 continue
             if self.job.hostname_map:
-                dev_role = self.conn.parse_hostname_for_role(
-                    hostname_map=self.job.hostname_map, device_hostname=dev["hostname"]
+                dev_role = parse_hostname_for_role(
+                    hostname_map=self.job.hostname_map, device_hostname=dev["hostname"], default_role="Unknown"
                 )
             if dev_role == "Unknown":
                 dev_role = dev["role"]
