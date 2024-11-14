@@ -48,19 +48,14 @@ class SlurpitDiffSyncTestCase(TestCase):
         self.slurpit = SlurpitAdapter(job=job, api_client=slurpit_client)
 
         def site_effect(value):
-            if value == "hardware-info":
-                return INVENTORY_ITEM_FIXTURE
-            elif value == "vlans":
-                return VLANS_FIXTURE
-            elif value == "routing-table":
-                return ROUTING_TABLE_FIXTURE
-            elif value == "interfaces":
-                return INTERFACES_FIXTURE
-            else:
-                return []
+            return {
+                "hardware-info": INVENTORY_ITEM_FIXTURE,
+                "vlans": VLANS_FIXTURE,
+                "routing-table": ROUTING_TABLE_FIXTURE,
+                "interfaces": INTERFACES_FIXTURE,
+            }.get(value, [])
 
         self.slurpit.planning_results = MagicMock(return_value=PLANNING_FIXTURE, side_effect=site_effect)
-
         self.slurpit.load()
 
     def test_loading_data(self):
@@ -93,10 +88,10 @@ class SlurpitDiffSyncTestCase(TestCase):
             {device.name for device in self.slurpit.get_all("device")},
         )
 
-        inventory_item_names = []
-        for inventory_item in self.slurpit.planning_results("hardware-info"):
-            name = inventory_item.get("Name") if inventory_item.get("Name") else inventory_item.get("Product")
-            inventory_item_names.append(name)
+        inventory_item_names = [
+            inventory_item.get("Name") or inventory_item.get("Product")
+            for inventory_item in self.slurpit.planning_results("hardware-info")
+        ]
 
         self.assertEqual(
             set(inventory_item_names),
