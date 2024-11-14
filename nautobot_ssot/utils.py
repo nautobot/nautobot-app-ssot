@@ -1,8 +1,9 @@
 """Utility functions for Nautobot SSoT App."""
 
 import logging
+import re
+from typing import List, Tuple
 
-from nautobot.dcim.models import Controller, ControllerManagedDeviceGroup
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.models import CustomField, SecretsGroup
 
@@ -48,3 +49,23 @@ def create_or_update_custom_field(key, field_type, label):
         "label": label,
     }
     return CustomField.objects.update_or_create(key=cf_dict["key"], defaults=cf_dict)
+
+
+def parse_hostname_for_role(hostname_map: List[Tuple[str, str]], device_hostname: str, default_role: str):
+    """Parse device hostname from hostname_map to get Device Role.
+
+    Args:
+        hostname_map (List[Tuple[str, str]]): List of tuples containing regex to compare with hostname and associated DeviceRole name.
+        device_hostname (str): Hostname of Device to determine role of.
+        default_role (str): String representing default Role to return if no match found.
+
+    Returns:
+        str: Name of DeviceRole. Defaults to default_role.
+    """
+    device_role = default_role
+    if hostname_map:  # pylint: disable=duplicate-code
+        for entry in hostname_map:
+            match = re.match(pattern=entry[0], string=device_hostname)
+            if match:
+                device_role = entry[1]
+    return device_role
