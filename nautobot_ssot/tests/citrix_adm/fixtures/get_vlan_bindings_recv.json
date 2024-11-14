@@ -1,0 +1,146 @@
+[
+    [
+        {
+            "id": "1",
+            "vlan_interface_binding": [
+                {
+                    "id": "1",
+                    "ifnum": "LO/1",
+                    "tagged": false,
+                    "stateflag": "4"
+                }
+            ]
+        },
+        {
+            "id": "80",
+            "vlan_interface_binding": [
+                {
+                    "id": "80",
+                    "ifnum": "10/1",
+                    "tagged": true,
+                    "stateflag": "4"
+                }
+            ],
+            "vlan_nsip_binding": [
+                {
+                    "id": "80",
+                    "ipaddress": "192.168.0.1",
+                    "netmask": "255.255.255.0",
+                    "td": "0",
+                    "stateflag": "1",
+                    "ownergroup": ""
+                }
+            ]
+        }
+    ],
+    [
+        {
+            "id": "1",
+            "vlan_interface_binding": [
+                {
+                    "id": "1",
+                    "ifnum": "10/1",
+                    "tagged": false,
+                    "stateflag": "4"
+                },
+                {
+                    "id": "1",
+                    "ifnum": "LO/1",
+                    "tagged": false,
+                    "stateflag": "4"
+                }
+            ]
+        },
+        {
+            "id": "363",
+            "vlan_interface_binding": [
+                {
+                    "id": "363",
+                    "ifnum": "10/1",
+                    "tagged": true,
+                    "stateflag": "4"
+                }
+            ],
+            "vlan_nsip_binding": [
+                {
+                    "id": "363",
+                    "ipaddress": "192.168.1.2",
+                    "netmask": "255.255.255.0",
+                    "stateflag": "1"
+                }
+            ]
+        }
+    ],
+    [
+        {
+            "id": "1",
+            "vlan_interface_binding": [
+                {
+                    "id": "1",
+                    "ifnum": "LO/1",
+                    "tagged": false,
+                    "stateflag": "4"
+                }
+            ]
+        },
+        {
+            "id": "5",
+            "vlan_interface_binding": [
+                {
+                    "id": "5",
+                    "ifnum": "1/1",
+                    "tagged": false,
+                    "stateflag": "4"
+                }
+            ],
+            "vlan_nsip_binding": [
+                {
+                    "id": "5",
+                    "ipaddress": "192.168.1.3",
+                    "netmask": "255.255.255.224",
+                    "stateflag": "1"
+                }
+            ]
+        }
+    ],
+    [
+        {
+            "id": "1",
+            "vlan_interface_binding": [
+                {
+                    "id": "1",
+                    "ifnum": "10/1",
+                    "tagged": false,
+                    "stateflag": "4"
+                },
+                {
+                    "id": "1",
+                    "ifnum": "LO/1",
+                    "tagged": false,
+                    "stateflag": "4"
+                }
+            ]
+        },
+        {
+            "id": "250",
+            "vlan_interface_binding": [
+                {
+                    "id": "250",
+                    "ifnum": "10/1",
+                    "tagged": true,
+                    "stateflag": "4"
+                }
+            ],
+            "vlan_nsip_binding": [
+                {
+                    "id": "250",
+                    "ipaddress": "192.168.1.4",
+                    "netmask": "255.255.255.0",
+                    "td": "0",
+                    "stateflag": "1",
+                    "ownergroup": ""
+                }
+            ]
+        }
+    ]
+]
