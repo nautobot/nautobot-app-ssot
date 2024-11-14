@@ -1,0 +1,62 @@
+[
+    {
+        "gateway": "56.881.284.240",
+        "mgmt_ip_address": "128.08.54.48",
+        "description": "",
+        "serialnumber": "78NKST0SJ2",
+        "display_name": "172.18.77.78-172.18.77.79",
+        "type": "nsvpx",
+        "netmask": "255.255.255.192",
+        "ha_ip_address": "172.18.77.78",
+        "datacenter_id": "28aa2970-0160-4860-aca8-a85f89268803",
+        "hostname": "UYLLBFRCXM55-EA",
+        "ip_address": "172.18.77.79",
+        "version": "NetScaler NS12.1: Build 63.22.nc, Date: Oct 13 2021, 01:18:50   (64-bit)",
+        "instance_state": "Up"
+    },
+    {
+        "gateway": "48.14.5.5",
+        "mgmt_ip_address": "85.52.0.128",
+        "description": "",
+        "serialnumber": "44WDBA1XS3",
+        "display_name": "10.62.7.168-10.62.7.169",
+        "type": "nsvpx",
+        "netmask": "255.255.255.0",
+        "ha_ip_address": "10.62.7.168",
+        "datacenter_id": "28aa2970-0160-4860-aca8-a85f89268803",
+        "hostname": "OLQE-WHOO-KAL-WKH-SndJhcc3-X",
+        "ip_address": "10.62.7.169",
+        "version": "NetScaler NS13.1: Build 37.38.nc, Date: Nov 23 2022, 04:42:36   (64-bit)",
+        "instance_state": "Up"
+    },
+    {
+        "gateway": "64.131.96.4",
+        "mgmt_ip_address": "13.250.66.32",
+        "description": "",
+        "serialnumber": "AA7D14BP22",
+        "display_name": "10.220.11.138-10.220.11.139",
+        "type": "nsvpx",
+        "netmask": "255.255.255.192",
+        "ha_ip_address": "10.220.11.138",
+        "datacenter_id": "4f91c698-4a2f-4e08-bc57-827d6531a444",
+        "hostname": "AGSPAMKMRN53",
+        "ip_address": "10.220.11.139",
+        "version": "NetScaler NS12.1: Build 57.18.nc, Date: Jun  9 2020, 11:42:01   (64-bit)",
+        "instance_state": "Up"
+    },
+    {
+        "gateway": "1.81.7.1",
+        "mgmt_ip_address": "65.61.6.121",
+        "description": "",
+        "serialnumber": "98ATECSRNJ",
+        "display_name": "10.62.7.111-10.62.7.112",
+        "type": "nsvpx",
+        "netmask": "255.255.255.0",
+        "ha_ip_address": "10.62.7.110",
+        "datacenter_id": "28aa2970-0160-4860-aca8-a85f89268803",
+        "hostname": "OGI-MSCI-IMS-Mctdgj-Pqsf-M",
+        "ip_address": "10.62.7.111",
+        "version": "NetScaler NS12.1: Build 63.22.nc, Date: Oct 13 2021, 01:18:50   (64-bit)",
+        "instance_state": "Up"
+    }
+]
