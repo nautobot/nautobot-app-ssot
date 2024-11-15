@@ -27,6 +27,8 @@ The Nautobot SSoT app builds atop the [DiffSync](https://github.com/networktocod
 This Nautobot application framework includes the following integrations:
 
 - Cisco ACI
+- Bootstrap
+- Citrix ADM
 - Arista CloudVision
 - Device42
 - Cisco DNA Center
