@@ -1,3 +1,4 @@
+# pylint: disable=R0801
 """Data models for the DiffSync integration."""
 
 from typing import Annotated, List, Optional, Union
@@ -24,8 +25,7 @@ class ModelQuerySetMixin:
         if tagged:
             if hasattr(cls._model, "tags"):
                 return cls._model.objects.filter(tags__name="SSoT Synced from Slurpit")
-            else:
-                return cls._model.objects.filter(_custom_field_data__system_of_record="Slurpit")
+            return cls._model.objects.filter(_custom_field_data__system_of_record="Slurpit")
         return cls._model.objects.all()
 
     @classmethod

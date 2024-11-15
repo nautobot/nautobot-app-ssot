@@ -35,6 +35,8 @@ class SlurpitDataSource(DataSource, Job):
         description="Only sync objects that have the 'SSoT Synced from Slurpit' Tag.",
     )
 
+    kwargs = {}
+
     class Meta:
         """Metadata for the SlurpitDataSource job."""
 
@@ -86,6 +88,7 @@ class SlurpitDataSource(DataSource, Job):
         self.target_adapter = NautobotDiffSyncAdapter(job=self, data=self.kwargs)
         self.target_adapter.load()
 
+    # pylint: disable-next=too-many-arguments, arguments-differ
     def run(
         self,
         dryrun,

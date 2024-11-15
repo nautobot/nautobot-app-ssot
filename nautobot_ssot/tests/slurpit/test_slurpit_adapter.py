@@ -77,7 +77,7 @@ class SlurpitDiffSyncTestCase(TestCase):
         )
 
         self.assertEqual(
-            {platform for platform in self.slurpit.unique_platforms()},
+            set(self.slurpit.unique_platforms()),
             {platform.name for platform in self.slurpit.get_all("platform")},
         )
 

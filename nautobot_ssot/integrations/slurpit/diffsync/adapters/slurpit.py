@@ -1,3 +1,4 @@
+# pylint: disable=R0801
 """DiffSync adapter for Slurpit."""
 
 import asyncio
@@ -75,6 +76,8 @@ class SlurpitAdapter(Adapter):
         super().__init__(*args, **kwargs)
         self.client = api_client
         self.job = job
+        self.filtered_networks = []
+        self.ipaddress_by_device = {}
 
     # Utility for running async coroutines synchronously
     def run_async(self, coroutine):
@@ -299,7 +302,7 @@ class SlurpitAdapter(Adapter):
     def load_interfaces(self):
         """Load interfaces from Slurpit."""
         interfaces = self.planning_results("interfaces")
-        for interface in interfaces:
+        for interface in interfaces:  # pylint: disable=too-many-nested-blocks
             if interface.get("Interface", ""):
                 try:
                     # dev = self.get(self.device, {"name": interface["hostname"]})
@@ -326,12 +329,12 @@ class SlurpitAdapter(Adapter):
                     )
 
                     if ipaddress_info:
-                        for ip in ipaddress_info:
-                            ip.pop("status__name", None)
+                        for ip_address in ipaddress_info:
+                            ip_address.pop("status__name", None)
                             try:
-                                data["ip_addresses"].append(ip)
+                                data["ip_addresses"].append(ip_address)
                             except KeyError:
-                                data["ip_addresses"] = [ip]
+                                data["ip_addresses"] = [ip_address]
                     else:
                         data["ip_addresses"] = []
 
@@ -425,20 +428,20 @@ class SlurpitAdapter(Adapter):
     def load_ip_addresses(self):
         """Load IP addresses from Slurpit."""
         interfaces = self.planning_results("interfaces")
-        ips = self.run_async(self.filter_interfaces(interfaces))
+        ip_addresses = self.run_async(self.filter_interfaces(interfaces))
 
         self.ipaddress_by_device = {}
 
-        for ip in ips:
+        for ip_address in ip_addresses:
             try:
-                mask_length = int(ip.get("prefix", "").split("/")[1]) if ip.get("prefix") else 32
+                mask_length = int(ip_address.get("prefix", "").split("/")[1]) if ip_address.get("prefix") else 32
                 data = {
-                    "host": ip.get("normalized_address", "").split("/")[0],
+                    "host": ip_address.get("normalized_address", "").split("/")[0],
                     "mask_length": mask_length,
                     "status__name": "Active",
                     "assigned_object__app_label": "interface",
-                    "assigned_object__device__name": ip.get("hostname", ""),
-                    "assigned_object__name": ip.get("Interface", ""),
+                    "assigned_object__device__name": ip_address.get("hostname", ""),
+                    "assigned_object__name": ip_address.get("Interface", ""),
                     "assigned_object__model": "dcim",
                     "tags": [{"name": "SSoT Synced from Slurpit"}],
                     "system_of_record": "Slurpit",
@@ -446,15 +449,19 @@ class SlurpitAdapter(Adapter):
                 }
 
                 try:
-                    self.ipaddress_by_device[f"{ip.get('hostname', '')}__{ip.get('Interface')}"].append(data)
+                    self.ipaddress_by_device[f"{ip_address.get('hostname', '')}__{ip_address.get('Interface')}"].append(
+                        data
+                    )
                 except KeyError:
-                    self.ipaddress_by_device[f"{ip.get('hostname', '')}__{ip.get('Interface')}"] = [data]
-                if prefix := ip.get("prefix"):
+                    self.ipaddress_by_device[f"{ip_address.get('hostname', '')}__{ip_address.get('Interface')}"] = [
+                        data
+                    ]
+                if prefix := ip_address.get("prefix"):
                     network_data = prefix.split("/")[0]
                     mask_length_data = prefix.split("/")[1]
                 else:
-                    network_data = ip.get("normalized_address").split("/")[0]
-                    mask_length_data = ip.get("normalized_address").split("/")[1]
+                    network_data = ip_address.get("normalized_address").split("/")[0]
+                    mask_length_data = ip_address.get("normalized_address").split("/")[1]
 
                 try:
                     cached_prefix = self.get(self.prefix, {"network": network_data, "prefix_length": mask_length_data})
@@ -474,7 +481,7 @@ class SlurpitAdapter(Adapter):
                 new_ip = self.ipaddress(**data)
                 self.add(new_ip)
             except ObjectNotFound:
-                self.job.logger.warning(f"Interface {ip.get('Interface')} not found")
+                self.job.logger.warning(f"Interface {ip_address.get('Interface')} not found")
             except ObjectAlreadyExists as err:
                 self.job.logger.warning(f"Duplicate IP address {new_ip.host}. {err}")
 

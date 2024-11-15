@@ -1,3 +1,5 @@
+"""Slurpit Diffsync Models."""
+
 from .models import (
     DeviceModel,
     DeviceTypeModel,
