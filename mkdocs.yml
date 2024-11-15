@@ -109,8 +109,9 @@ nav:
       - Integrations:
           - "user/integrations/index.md"
           - Cisco ACI: "user/integrations/aci.md"
-          - Arista CloudVision: "user/integrations/aristacv.md"
           - Bootstrap: "user/integrations/bootstrap.md"
+          - Citrix ADM: "user/integrations/citrix_adm.md"
+          - Arista CloudVision: "user/integrations/aristacv.md"
           - Device42: "user/integrations/device42.md"
           - DNA Center: "user/integrations/dna_center.md"
           - Infoblox: "user/integrations/infoblox.md"
@@ -128,8 +129,9 @@ nav:
       - Integrations Installation:
           - "admin/integrations/index.md"
           - Cisco ACI: "admin/integrations/aci_setup.md"
-          - Arista CloudVision: "admin/integrations/aristacv_setup.md"
+          - Citrix ADM: "admin/integrations/citrix_adm_setup.md"
           - Bootstrap: "admin/integrations/bootstrap_setup.md"
+          - Arista CloudVision: "admin/integrations/aristacv_setup.md"
           - Device42: "admin/integrations/device42_setup.md"
           - DNA Center: "admin/integrations/dna_center_setup.md"
           - Infoblox: "admin/integrations/infoblox_setup.md"
