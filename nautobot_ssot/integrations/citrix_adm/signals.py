@@ -36,14 +36,15 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         },
     )
     ha_node_field, _ = create_or_update_custom_field(
-        key="ha_node", field_type=CustomFieldTypeChoices.TYPE_TEXT, label="HA Node"
+        apps, key="ha_node", field_type=CustomFieldTypeChoices.TYPE_TEXT, label="HA Node"
     )
     ha_node_field.content_types.add(ContentType.objects.get_for_model(Device))
 
     sor_custom_field = create_or_update_custom_field(
-        key="system_of_record", field_type=CustomFieldTypeChoices.TYPE_TEXT, label="System of Record"
+        apps, key="system_of_record", field_type=CustomFieldTypeChoices.TYPE_TEXT, label="System of Record"
     )[0]
     sync_custom_field = create_or_update_custom_field(
+        apps,
         key="last_synced_from_sor",
         field_type=CustomFieldTypeChoices.TYPE_DATE,
         label="Last sync from System of Record",

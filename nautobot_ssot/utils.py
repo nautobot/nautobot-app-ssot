@@ -5,7 +5,7 @@ import re
 from typing import List, Tuple
 
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
-from nautobot.extras.models import CustomField, SecretsGroup
+from nautobot.extras.models import SecretsGroup
 
 try:
     from nautobot.dcim.models import Controller, ControllerManagedDeviceGroup
@@ -51,8 +51,9 @@ if CONTROLLER_FOUND:
         )[0]
 
 
-def create_or_update_custom_field(key, field_type, label):
+def create_or_update_custom_field(apps, key, field_type, label):
     """Create or update a custom field object."""
+    CustomField = apps.get_model("extras", "CustomField")
     cf_dict = {
         "type": field_type,
         "key": key,
