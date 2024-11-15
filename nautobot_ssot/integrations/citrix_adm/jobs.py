@@ -1,6 +1,8 @@
 """Jobs for Citrix ADM SSoT integration."""
 
 from diffsync.enum import DiffSyncFlags
+from django.templatetags.static import static
+from django.urls import reverse
 from nautobot.core.celery import register_jobs
 from nautobot.dcim.models import Location, LocationType
 from nautobot.extras.jobs import BooleanVar, Job, JSONVar, MultiObjectVar, ObjectVar
@@ -9,7 +11,7 @@ from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.exceptions import JobException
 from nautobot_ssot.integrations.citrix_adm.diffsync.adapters import citrix_adm, nautobot
-from nautobot_ssot.jobs.base import DataSource, DataTarget
+from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
 
 name = "Citrix ADM SSoT"  # pylint: disable=invalid-name
 
@@ -50,7 +52,7 @@ class CitrixAdmDataSource(DataSource, Job):  # pylint: disable=too-many-instance
     )
     hostname_mapping = JSONVar(
         label="Hostname Mapping",
-        description="Mapping of Device hostname to Role. Ex: {'router01': 'router'.",
+        description="Mapping of Device hostname to Role. Ex: {'router01': 'router'}.",
         default={},
         required=False,
     )
@@ -63,7 +65,18 @@ class CitrixAdmDataSource(DataSource, Job):  # pylint: disable=too-many-instance
         name = "Citrix ADM to Nautobot"
         data_source = "Citrix ADM"
         data_target = "Nautobot"
+        data_source_icon = static("nautobot_ssot_citrix_adm/citrix_logo.png")
         description = "Sync information from Citrix ADM to Nautobot"
+        field_order = [
+            "dryrun",
+            "debug",
+            "instances",
+            "dc_loctype",
+            "parent_location",
+            "location_map",
+            "hostname_mapping",
+            "tenant",
+        ]
 
     def __init__(self):
         """Initialize job objects."""
@@ -79,7 +92,13 @@ class CitrixAdmDataSource(DataSource, Job):  # pylint: disable=too-many-instance
     @classmethod
     def data_mappings(cls):
         """List describing the data mappings involved in this DataSource."""
-        return ()
+        return (
+            DataMapping("Datacenters", None, "Locations", reverse("dcim:location_list")),
+            DataMapping("Devices", None, "Devices", reverse("dcim:device_list")),
+            DataMapping("Ports", None, "Interfaces", reverse("dcim:interface_list")),
+            DataMapping("Prefixes", None, "Prefixes", reverse("ipam:prefix_list")),
+            DataMapping("IP Addresses", None, "IP Addresses", reverse("ipam:ipaddress_list")),
+        )
 
     def load_source_adapter(self):
         """Load data from Citrix ADM into DiffSync models."""
