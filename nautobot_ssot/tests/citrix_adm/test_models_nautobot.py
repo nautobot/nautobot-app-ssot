@@ -12,6 +12,7 @@ from nautobot.extras.models import Status
 from nautobot_ssot.integrations.citrix_adm.diffsync.models.nautobot import NautobotDatacenter
 
 
+@override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"enable_citrix_adm": True}})
 class TestNautobotDatacenter(TransactionTestCase):
     """Test the NautobotDatacenter class."""
 
@@ -56,7 +57,7 @@ class TestNautobotDatacenter(TransactionTestCase):
         NautobotDatacenter.create(self.adapter, ids, attrs)
         self.adapter.job.logger.warning.assert_called_with("Site HQ already exists so skipping creation.")
 
-    @override_settings(PLUGINS_CONFIG={"nautobot_ssot.integrations.citrix_adm": {"update_sites": True}})
+    @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"citrix_adm_update_sites": True}})
     def test_update(self):
         """Validate the NautobotDatacenter update() method updates a Site."""
         self.test_dc.uuid = self.site_obj.id
@@ -70,7 +71,7 @@ class TestNautobotDatacenter(TransactionTestCase):
         self.assertEqual(float(self.site_obj.longitude), update_attrs["longitude"])
         self.assertEqual(actual, self.test_dc)
 
-    @override_settings(PLUGINS_CONFIG={"nautobot_ssot.integrations.citrix_adm": {"update_sites": False}})
+    @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"citrix_adm_update_sites": False}})
     def test_update_setting_disabled(self):
         """Validate the NautobotDatacenter update() method doesn't update a Site if setting is False."""
         self.test_dc.adapter = MagicMock()

@@ -49,7 +49,7 @@ class NautobotDatacenter(Datacenter):
 
     def update(self, attrs):
         """Update Site in Nautobot from NautobotDatacenter object."""
-        if not settings.PLUGINS_CONFIG.get("nautobot_ssot.integrations.citrix_adm").get("update_sites"):
+        if not settings.PLUGINS_CONFIG.get("nautobot_ssot").get("citrix_adm_update_sites"):
             self.adapter.job.logger.warning(f"Update sites setting is disabled so skipping updating {self.name}.")
             return None
         site = Location.objects.get(id=self.uuid)
