@@ -14,7 +14,7 @@ BACKUP_CONFIG = deepcopy(CONFIG)
 
 class SlurpitJobTest(TestCase):
     """Test the Slurpit job."""
-    
+
     def test_metadata(self):
         """Verify correctness of the Job Meta attributes."""
         meta = jobs.SlurpitDataSource.Meta
