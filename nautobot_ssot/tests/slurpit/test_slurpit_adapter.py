@@ -4,6 +4,7 @@ import json
 from unittest import TestCase
 from unittest.mock import AsyncMock, MagicMock
 
+from nautobot.dcim.models import LocationType
 from nautobot.extras.models import JobResult
 from slurpit.models.device import Device
 from slurpit.models.planning import Planning
@@ -38,6 +39,7 @@ class SlurpitDiffSyncTestCase(TestCase):
     """Test the SlurpitDiffSync adapter class."""
 
     def setUp(self):
+        LocationType.objects.update_or_create(name="Site")[0]
         slurpit_client = AsyncMock()
         slurpit_client.site.get_sites = AsyncMock(return_value=SITE_FIXTURE)
         slurpit_client.device.get_devices = AsyncMock(return_value=DEVICE_FIXTURE)
