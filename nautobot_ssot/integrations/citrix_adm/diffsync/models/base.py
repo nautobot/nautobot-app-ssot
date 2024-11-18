@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 """DiffSyncModel subclasses for Nautobot-to-Citrix ADM data sync."""
 
 from typing import List, Optional

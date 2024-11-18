@@ -25,7 +25,7 @@ from nautobot_ssot.integrations.citrix_adm.diffsync.models.nautobot import (
 from nautobot_ssot.integrations.citrix_adm.utils import nautobot
 
 
-class NautobotAdapter(Adapter):
+class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
     """DiffSync adapter for Nautobot."""
 
     datacenter = NautobotDatacenter
@@ -78,7 +78,7 @@ class NautobotAdapter(Adapter):
         for dev in devices:
             if self.job.debug:
                 self.job.logger.info(f"Loading Device {dev.name} from Nautobot.")
-            hanode = dev._custom_field_data.get("ha_node")
+            hanode = dev.custom_field_data.get("ha_node")
             new_dev = self.device(
                 name=dev.name,
                 model=dev.device_type.model,
@@ -137,12 +137,12 @@ class NautobotAdapter(Adapter):
             prefixes = Prefix.objects.filter(tenant=self.tenant)
         else:
             prefixes = Prefix.objects.filter(_custom_field_data__system_of_record="Citrix ADM")
-        for pf in prefixes:
+        for _pf in prefixes:
             new_pf = self.prefix(
-                prefix=str(pf.prefix),
-                namespace=pf.namespace.name,
-                tenant=pf.tenant.name if pf.tenant else None,
-                uuid=pf.id,
+                prefix=str(_pf.prefix),
+                namespace=_pf.namespace.name,
+                tenant=_pf.tenant.name if _pf.tenant else None,
+                uuid=_pf.id,
             )
             if self.tenant:
                 new_pf.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
