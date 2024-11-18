@@ -30,7 +30,7 @@ from nautobot_ssot.integrations.citrix_adm.utils.citrix_adm import (
 from nautobot_ssot.utils import parse_hostname_for_role
 
 
-class CitrixAdmAdapter(Adapter):
+class CitrixAdmAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
     """DiffSync adapter for Citrix ADM."""
 
     datacenter = CitrixAdmDatacenter
@@ -81,35 +81,35 @@ class CitrixAdmAdapter(Adapter):
         """
         if not site_info.get("name"):
             self.job.logger.error(f"Site is missing name so won't be loaded. {site_info}")
-            return None
-        site_name = site_info["name"]
-        if self.job.location_map and site_name in self.job.location_map:
-            parent_loc = self.job.location_map[site_name]["parent"]
-            if "name" in self.job.location_map[site_name]:
-                site_name = self.job.location_map[site_name]["name"]
-        elif self.job.parent_location:
-            parent_loc = self.job.parent_location.name
-        elif site_info.get("region"):
-            parent_loc = site_info["region"]
-            if (
-                self.job.location_map
-                and parent_loc in self.job.location_map
-                and "name" in self.job.location_map[parent_loc]
-            ):
-                parent_loc = self.job.location_map[parent_loc]["name"]
         else:
-            parent_loc = "Global"
-        _, loaded = self.get_or_instantiate(
-            self.datacenter,
-            ids={"name": site_name, "region": parent_loc},
-            attrs={
-                "latitude": float(round(Decimal(site_info["latitude"] if site_info["latitude"] else 0.0), 6)),
-                "longitude": float(round(Decimal(site_info["longitude"] if site_info["longitude"] else 0.0), 6)),
-                "uuid": None,
-            },
-        )
-        if loaded and self.job.debug:
-            self.job.logger.info(f"Loaded Datacenter from Citrix ADM: {site_name}")
+            site_name = site_info["name"]
+            if self.job.location_map and site_name in self.job.location_map:
+                parent_loc = self.job.location_map[site_name]["parent"]
+                if "name" in self.job.location_map[site_name]:
+                    site_name = self.job.location_map[site_name]["name"]
+            elif self.job.parent_location:
+                parent_loc = self.job.parent_location.name
+            elif site_info.get("region"):
+                parent_loc = site_info["region"]
+                if (
+                    self.job.location_map
+                    and parent_loc in self.job.location_map
+                    and "name" in self.job.location_map[parent_loc]
+                ):
+                    parent_loc = self.job.location_map[parent_loc]["name"]
+            else:
+                parent_loc = "Global"
+            _, loaded = self.get_or_instantiate(
+                self.datacenter,
+                ids={"name": site_name, "region": parent_loc},
+                attrs={
+                    "latitude": float(round(Decimal(site_info["latitude"] if site_info["latitude"] else 0.0), 6)),
+                    "longitude": float(round(Decimal(site_info["longitude"] if site_info["longitude"] else 0.0), 6)),
+                    "uuid": None,
+                },
+            )
+            if loaded and self.job.debug:
+                self.job.logger.info(f"Loaded Datacenter from Citrix ADM: {site_name}")
 
     def load_devices(self):
         """Load devices from Citrix ADM into DiffSync models."""
@@ -195,7 +195,7 @@ class CitrixAdmAdapter(Adapter):
                     _tags = port["tags"] if port.get("tags") else []
                     if len(_tags) > 1:
                         _tags.sort()
-                    _primary = True if "MGMT" in _tags or "MIP" in _tags else False
+                    _primary = bool("MGMT" in _tags or "MIP" in _tags)
                     self.load_address(
                         address=addr,
                         prefix=prefix,
@@ -253,7 +253,7 @@ class CitrixAdmAdapter(Adapter):
             )
             self.add(new_pf)
 
-    def load_address(self, address: str, prefix: str, tags: list = []):
+    def load_address(self, address: str, prefix: str, tags: Optional[list] = None):
         """Load CitrixAdmAddress DiffSync model with specified data.
 
         Args:
@@ -262,7 +262,7 @@ class CitrixAdmAdapter(Adapter):
             device (str): Device that IP resides on.
             port (str): Interface that IP is configured on.
             primary (str): Whether the IP is primary IP for assigned device. Defaults to False.
-            tags (list): List of tags assigned to IP. Defaults to [].
+            tags (list): List of tags assigned to IP. Defaults to None.
         """
         try:
             self.get(self.address, {"address": address, "prefix": prefix})
@@ -272,7 +272,7 @@ class CitrixAdmAdapter(Adapter):
                 prefix=prefix,
                 tenant=self.tenant.name if self.tenant else None,
                 uuid=None,
-                tags=tags,
+                tags=tags if tags else [],
             )
             self.add(new_addr)
 
@@ -297,18 +297,18 @@ class CitrixAdmAdapter(Adapter):
             self.job.logger.info(f"Loading data from {instance.name}.")
             if instance.secrets_group is not None:
                 _sg = instance.secrets_group
-                username = _sg.get_secret_value(
+                instance_username = _sg.get_secret_value(
                     access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
                     secret_type=SecretsGroupSecretTypeChoices.TYPE_USERNAME,
                 )
-                password = _sg.get_secret_value(
+                instance_password = _sg.get_secret_value(
                     access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
                     secret_type=SecretsGroupSecretTypeChoices.TYPE_PASSWORD,
                 )
                 self.conn = CitrixNitroClient(
                     base_url=instance.remote_url,
-                    user=username,
-                    password=password,
+                    user=instance_username,
+                    password=instance_password,
                     verify=instance.verify_ssl,
                     job=self.job,
                 )

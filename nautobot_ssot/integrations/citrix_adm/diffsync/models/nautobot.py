@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 """Nautobot DiffSync models for Citrix ADM SSoT."""
 
 from datetime import datetime
@@ -223,18 +224,18 @@ class NautobotSubnet(Subnet):
 
     def update(self, attrs):
         """Update IP Address in Nautobot from NautobotAddress object."""
-        pf = Prefix.objects.get(id=self.uuid)
+        _pf = Prefix.objects.get(id=self.uuid)
         if "tenant" in attrs:
             if attrs.get("tenant"):
-                pf.tenant = Tenant.objects.get(name=attrs["tenant"])
+                _pf.tenant = Tenant.objects.get(name=attrs["tenant"])
             else:
-                pf.tenant = None
-        pf.custom_field_data.update({"system_of_record": "Citrix ADM"})
-        pf.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
-        pf.validated_save()
+                _pf.tenant = None
+        _pf.custom_field_data.update({"system_of_record": "Citrix ADM"})
+        _pf.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
+        _pf.validated_save()
         return super().update(attrs)
 
-    def delete(self):
+    def delete(self):  # pylint: disable=inconsistent-return-statements
         """Delete Prefix in Nautobot."""
         try:
             _pf = Prefix.objects.get(id=self.uuid)
@@ -324,22 +325,22 @@ class NautobotIPAddressOnInterface(IPAddressOnInterface):
 
     def update(self, attrs):
         """Update IP Address in Nautobot from IPAddressOnInterface object."""
-        mapping = IPAddressToInterface.objects.get(id=self.uuid)
+        ip_to_intf = IPAddressToInterface.objects.get(id=self.uuid)
         if attrs.get("primary"):
-            if mapping.ip_address.ip_version == 4:
-                mapping.interface.device.primary_ip4 = mapping.ip_address
+            if ip_to_intf.ip_address.ip_version == 4:
+                ip_to_intf.interface.device.primary_ip4 = ip_to_intf.ip_address
             else:
-                mapping.interface.device.primary_ip6 = mapping.ip_address
-            mapping.interface.device.validated_save()
-        mapping.validated_save()
+                ip_to_intf.interface.device.primary_ip6 = ip_to_intf.ip_address
+            ip_to_intf.interface.device.validated_save()
+        ip_to_intf.validated_save()
         return super().update(attrs)
 
     def delete(self):
         """Delete IPAddressToInterface in Nautobot from NautobotIPAddressOnInterface object."""
-        mapping = IPAddressToInterface.objects.get(id=self.uuid)
+        ip_to_intf = IPAddressToInterface.objects.get(id=self.uuid)
         super().delete()
         self.adapter.job.logger.info(
             f"Deleting IPAddress to Interface mapping between {self.address} and {self.device}'s {self.port} port."
         )
-        mapping.delete()
+        ip_to_intf.delete()
         return self

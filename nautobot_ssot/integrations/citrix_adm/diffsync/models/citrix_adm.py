@@ -17,15 +17,15 @@ class CitrixAdmDatacenter(Datacenter):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Site in Citrix ADM from Datacenter object."""
-        return super().create(adapter=adapter, ids=ids, attrs=attrs)
+        raise NotImplementedError
 
     def update(self, attrs):
         """Update Site in Citrix ADM from Datacenter object."""
-        return super().update(attrs)
+        raise NotImplementedError
 
     def delete(self):
         """Delete Site in Citrix ADM from Datacenter object."""
-        return self
+        raise NotImplementedError
 
 
 class CitrixAdmOSVersion(OSVersion):
@@ -34,15 +34,15 @@ class CitrixAdmOSVersion(OSVersion):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create OSVersion in Citrix ADM from OSVersion object."""
-        return super().create(adapter=adapter, ids=ids, attrs=attrs)
+        raise NotImplementedError
 
     def update(self, attrs):
         """Update OSVersion in Citrix ADM from OSVersion object."""
-        return super().update(attrs)
+        raise NotImplementedError
 
     def delete(self):
         """Delete OSVersion in Citrix ADM from OSVersion object."""
-        return self
+        raise NotImplementedError
 
 
 class CitrixAdmDevice(Device):
@@ -51,15 +51,15 @@ class CitrixAdmDevice(Device):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Device in Citrix ADM from Device object."""
-        return super().create(adapter=adapter, ids=ids, attrs=attrs)
+        raise NotImplementedError
 
     def update(self, attrs):
         """Update Device in Citrix ADM from Device object."""
-        return super().update(attrs)
+        raise NotImplementedError
 
     def delete(self):
         """Delete Device in Citrix ADM from Device object."""
-        return self
+        raise NotImplementedError
 
 
 class CitrixAdmPort(Port):
@@ -68,15 +68,15 @@ class CitrixAdmPort(Port):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Interface in Citrix ADM from Port object."""
-        return super().create(adapter=adapter, ids=ids, attrs=attrs)
+        raise NotImplementedError
 
     def update(self, attrs):
         """Update Interface in Citrix ADM from Port object."""
-        return super().update(attrs)
+        raise NotImplementedError
 
     def delete(self):
         """Delete Interface in Citrix ADM from Port object."""
-        return self
+        raise NotImplementedError
 
 
 class CitrixAdmSubnet(Subnet):
@@ -85,15 +85,15 @@ class CitrixAdmSubnet(Subnet):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Prefix in Citrix ADM from Subnet object."""
-        return super().create(adapter=adapter, ids=ids, attrs=attrs)
+        raise NotImplementedError
 
     def update(self, attrs):
         """Update Prefix in Citrix ADM from Subnet object."""
-        return super().update(attrs)
+        raise NotImplementedError
 
     def delete(self):
         """Delete Prefix in Citrix ADM from Subnet object."""
-        return self
+        raise NotImplementedError
 
 
 class CitrixAdmAddress(Address):
@@ -102,15 +102,15 @@ class CitrixAdmAddress(Address):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create IP Address in Citrix ADM from Address object."""
-        return super().create(adapter=adapter, ids=ids, attrs=attrs)
+        raise NotImplementedError
 
     def update(self, attrs):
         """Update IP Address in Citrix ADM from Address object."""
-        return super().update(attrs)
+        raise NotImplementedError
 
     def delete(self):
         """Delete IP Address in Citrix ADM from Address object."""
-        return self
+        raise NotImplementedError
 
 
 class CitrixAdmIPAddressOnInterface(IPAddressOnInterface):
@@ -119,12 +119,12 @@ class CitrixAdmIPAddressOnInterface(IPAddressOnInterface):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create IPAddressToInterface in Citrix ADM from CitrixAdmIPAddressOnInterface object."""
-        return super().create(adapter=adapter, ids=ids, attrs=attrs)
+        raise NotImplementedError
 
     def update(self, attrs):
         """Update IPAddressToInterface in Citrix ADM from CitrixAdmIPAddressOnInterface object."""
-        return super().update(attrs)
+        raise NotImplementedError
 
     def delete(self):
         """Delete IPAddressToInterface in Citrix ADM from CitrixAdmIPAddressOnInterface object."""
-        return self
+        raise NotImplementedError
