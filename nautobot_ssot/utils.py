@@ -53,7 +53,7 @@ if CONTROLLER_FOUND:
 
 def create_or_update_custom_field(apps, key, field_type, label):
     """Create or update a custom field object."""
-    CustomField = apps.get_model("extras", "CustomField")
+    CustomField = apps.get_model("extras", "CustomField")  # pylint: disable=invalid-name
     cf_dict = {
         "type": field_type,
         "key": key,
