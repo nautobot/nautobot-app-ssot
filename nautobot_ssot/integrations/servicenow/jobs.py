@@ -17,7 +17,7 @@ from .utils import get_servicenow_parameters
 name = "SSoT - ServiceNow"  # pylint: disable=invalid-name
 
 
-class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
+class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method, too-many-instance-attributes
     """Job syncing data from Nautobot to ServiceNow."""
 
     debug = BooleanVar(description="Enable for more verbose logging.")
