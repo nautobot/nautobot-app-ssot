@@ -1,0 +1,1 @@
+Fix logic used for loading location records to make ServiceNow SSoT Nautobot 2.x compatible
