@@ -149,10 +149,10 @@ class NautobotAdapter(Adapter):
     def load_interfaces(self):
         """Method to load Interfaces from Nautobot."""
         for nbinterface in Interface.objects.filter(tags=self.site_tag):
-            if nbinterface.tags.filter(name=PLUGIN_CFG.get("tag_up")).count() > 0:
-                state = PLUGIN_CFG.get("tag_up").lower().replace(" ", "-")
+            if nbinterface.tags.filter(name=PLUGIN_CFG.get("aci_tag_up")).count() > 0:
+                state = PLUGIN_CFG.get("aci_tag_up").lower().replace(" ", "-")
             else:
-                state = PLUGIN_CFG.get("tag_down").lower().replace(" ", "-")
+                state = PLUGIN_CFG.get("aci_tag_down").lower().replace(" ", "-")
             _interface = self.interface(
                 name=nbinterface.name,
                 device=nbinterface.device.name,

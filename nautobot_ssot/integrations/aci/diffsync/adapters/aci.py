@@ -76,7 +76,7 @@ class AciAdapter(Adapter):
         """Load tenants from ACI."""
         tenant_list = self.conn.get_tenants()
         for _tenant in tenant_list:
-            if _tenant["name"] not in PLUGIN_CFG.get("ignore_tenants"):
+            if _tenant["name"] not in PLUGIN_CFG.get("aci_ignore_tenants"):
                 tenant_name = f"{self.tenant_prefix}:{_tenant['name']}"
                 if ":mso" in _tenant.get("annotation").lower():  # pylint: disable=simplifiable-if-statement
                     _msite_tag = True
@@ -85,7 +85,7 @@ class AciAdapter(Adapter):
                 new_tenant = self.tenant(
                     name=tenant_name,
                     description=_tenant["description"],
-                    comments=PLUGIN_CFG.get("comments", ""),
+                    comments=PLUGIN_CFG.get("aci_comments", ""),
                     site_tag=self.site,
                     msite_tag=_msite_tag,
                 )
@@ -105,7 +105,7 @@ class AciAdapter(Adapter):
             new_vrf = self.vrf(
                 name=vrf_name, namespace=namespace, tenant=vrf_tenant, description=vrf_description, site_tag=self.site
             )
-            if _vrf["tenant"] not in PLUGIN_CFG.get("ignore_tenants"):
+            if _vrf["tenant"] not in PLUGIN_CFG.get("aci_ignore_tenants"):
                 self.add(new_vrf)
 
     def load_subnet_as_prefix(
@@ -263,7 +263,7 @@ class AciAdapter(Adapter):
                     _namespace = "Global"
                 else:
                     _namespace = vrf_tenant or tenant_name
-                if bd_value.get("tenant") not in PLUGIN_CFG.get("ignore_tenants"):
+                if bd_value.get("tenant") not in PLUGIN_CFG.get("aci_ignore_tenants"):
                     for subnet in bd_value["subnets"]:
                         new_prefix = self.prefix(
                             prefix=str(ip_network(subnet[0], strict=False)),
@@ -301,9 +301,11 @@ class AciAdapter(Adapter):
             device_specs = load_yamlfile(os.path.join(devicetype_file_path, dt))
             _devicetype = self.device_type(
                 model=device_specs["model"],
-                manufacturer=PLUGIN_CFG.get("manufacturer_name"),
+                manufacturer=PLUGIN_CFG["aci_manufacturer_name"]
+                if PLUGIN_CFG.get("aci_manufacturer_name")
+                else "Cisco",
                 part_nbr=device_specs["part_number"],
-                comments=PLUGIN_CFG.get("comments", ""),
+                comments=PLUGIN_CFG.get("aci_comments", ""),
                 u_height=device_specs["u_height"],
             )
             self.add(_devicetype)
@@ -399,7 +401,7 @@ class AciAdapter(Adapter):
         """Load device roles from ACI device data."""
         device_roles = {value["role"] for value in self.devices.values()}
         for _devicerole in device_roles:
-            new_devicerole = self.device_role(name=_devicerole, description=PLUGIN_CFG.get("comments", ""))
+            new_devicerole = self.device_role(name=_devicerole, description=PLUGIN_CFG.get("aci_comments", ""))
             self.add(new_devicerole)
 
     def load_devices(self):
@@ -429,7 +431,7 @@ class AciAdapter(Adapter):
                 device_type=model,
                 device_role=value["role"],
                 serial=value["serial"],
-                comments=PLUGIN_CFG.get("comments", ""),
+                comments=PLUGIN_CFG.get("aci_comments", ""),
                 node_id=int(key),
                 pod_id=value["pod_id"],
                 site=self.site,

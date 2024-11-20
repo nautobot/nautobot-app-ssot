@@ -1,1 +1,2 @@
 Fixed loading of DeviceTypes in Nautobot adapter for ACI integration.
+Fixed other instances of incorrect PLUGIN_CFG key used in ACI integration.

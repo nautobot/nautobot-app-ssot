@@ -41,7 +41,7 @@ class NautobotTenant(Tenant):
         _tenant = OrmTenant(name=ids["name"], description=attrs["description"], comments=attrs["comments"])
         if attrs["msite_tag"]:
             _tenant.tags.add(Tag.objects.get(name="ACI_MULTISITE"))
-        _tenant.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
+        _tenant.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("aci_tag")))
         _tenant.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _tenant.validated_save()
 
@@ -73,7 +73,7 @@ class NautobotVrf(Vrf):
         """Create VRF object in Nautobot."""
         _tenant = OrmTenant.objects.get(name=ids["tenant"])
         _vrf = OrmVrf(name=ids["name"], tenant=_tenant, namespace=Namespace.objects.get(name=attrs["namespace"]))
-        _vrf.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
+        _vrf.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("aci_tag")))
         _vrf.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _vrf.validated_save()
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
@@ -114,7 +114,7 @@ class NautobotDeviceType(DeviceType):
             u_height=attrs["u_height"],
             comments=attrs["comments"],
         )
-        _tag = Tag.objects.get(name=PLUGIN_CFG.get("tag"))
+        _tag = Tag.objects.get(name=PLUGIN_CFG.get("aci_tag"))
         _devicetype.tags.add(_tag)
         _devicetype.validated_save()
 
@@ -186,7 +186,7 @@ class NautobotDevice(Device):
 
         _device.custom_field_data["aci_node_id"] = attrs["node_id"]
         _device.custom_field_data["aci_pod_id"] = attrs["pod_id"]
-        _device.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
+        _device.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("aci_tag")))
         _device.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _device.validated_save()
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
@@ -287,9 +287,9 @@ class NautobotInterface(Interface):
         _interface.custom_field_data["gbic_type"] = attrs["gbic_type"]
         _interface.custom_field_data["gbic_model"] = attrs["gbic_model"]
         if attrs.get("state") == "up":
-            _interface.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag_up")))
+            _interface.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("aci_tag_up")))
         else:
-            _interface.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag_down")))
+            _interface.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("aci_tag_down")))
         _interface.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _interface.validated_save()
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
@@ -316,11 +316,11 @@ class NautobotInterface(Interface):
         if attrs.get("gbic_model"):
             _interface.custom_field_data["gbic_model"] = attrs["gbic_model"]
         if attrs.get("state") == "up":
-            _interface.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag_up")))
-            _interface.tags.remove(Tag.objects.get(name=PLUGIN_CFG.get("tag_down")))
+            _interface.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("aci_tag_up")))
+            _interface.tags.remove(Tag.objects.get(name=PLUGIN_CFG.get("aci_tag_down")))
         else:
-            _interface.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag_down")))
-            _interface.tags.remove(Tag.objects.get(name=PLUGIN_CFG.get("tag_up")))
+            _interface.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("aci_tag_down")))
+            _interface.tags.remove(Tag.objects.get(name=PLUGIN_CFG.get("aci_tag_up")))
         _interface.validated_save()
         return super().update(attrs)
 
@@ -391,7 +391,7 @@ class NautobotIPAddress(IPAddress):
         if intf:
             mapping = IPAddressToInterface.objects.create(ip_address=_ipaddress, interface=intf)
             mapping.validated_save()
-        _ipaddress.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
+        _ipaddress.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("aci_tag")))
         _ipaddress.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _ipaddress.validated_save()
         # Update device with newly created address in the "Primary IPv4 field"
@@ -477,7 +477,7 @@ class NautobotPrefix(Prefix):
             return None
         if vrf:
             _prefix.vrfs.add(vrf)
-        _prefix.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("tag")))
+        _prefix.tags.add(Tag.objects.get(name=PLUGIN_CFG.get("aci_tag")))
         _prefix.tags.add(Tag.objects.get(name=attrs["site_tag"]))
         _prefix.validated_save()
         return super().create(ids=ids, adapter=adapter, attrs=attrs)

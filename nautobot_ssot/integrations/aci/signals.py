@@ -27,16 +27,16 @@ def aci_create_tag(apps, **kwargs):
     logger.info("Creating tags for ACI, interface status and Sites")
 
     tag.objects.update_or_create(
-        name=PLUGIN_CFG.get("tag"),
-        color=PLUGIN_CFG.get("tag_color"),
+        name=PLUGIN_CFG.get("aci_tag"),
+        color=PLUGIN_CFG.get("aci_tag_color"),
     )
     tag.objects.update_or_create(
-        name=PLUGIN_CFG.get("tag_up"),
-        color=PLUGIN_CFG.get("tag_up_color"),
+        name=PLUGIN_CFG.get("aci_tag_up"),
+        color=PLUGIN_CFG.get("aci_tag_up_color"),
     )
     tag.objects.update_or_create(
-        name=PLUGIN_CFG.get("tag_down"),
-        color=PLUGIN_CFG.get("tag_down_color"),
+        name=PLUGIN_CFG.get("aci_tag_down"),
+        color=PLUGIN_CFG.get("aci_tag_down_color"),
     )
     tag.objects.update_or_create(
         name="ACI_MULTISITE",
@@ -57,7 +57,7 @@ def aci_create_manufacturer(apps, **kwargs):
     manufacturer = apps.get_model("dcim", "Manufacturer")
     logger.info(f"Creating manufacturer: {PLUGIN_CFG.get('manufacturer_name')}")
     manufacturer.objects.update_or_create(
-        name=PLUGIN_CFG.get("manufacturer_name"),
+        name=PLUGIN_CFG.get("aci_manufacturer_name"),
     )
 
 
