@@ -1,0 +1,57 @@
+[
+    {
+        "city": "",
+        "zipcode": "",
+        "type": "1",
+        "name": "Default",
+        "region": "",
+        "country": "",
+        "longitude": "-1",
+        "id": "0c686cbd-dd4e-4402-afb3-0294f5b4cb93",
+        "latitude": "-1"
+    },
+    {
+        "city": "Atlanta",
+        "zipcode": "30009",
+        "type": "1",
+        "name": "Delta HQ",
+        "region": "East",
+        "country": "USA",
+        "longitude": "-84.320000",
+        "id": "28aa2970-0160-4860-aca8-a85f89268803",
+        "latitude": "34.030000"
+    },
+    {
+        "city": "Las Vegas",
+        "zipcode": "89044",
+        "type": "1",
+        "name": "ARIA",
+        "region": "West",
+        "country": "USA",
+        "longitude": "-115.1768183",
+        "id": "4f91c698-4a2f-4e08-bc57-827d6531a444",
+        "latitude": "36.1071859"
+    },
+    {
+        "city": "Austin",
+        "zipcode": "78732",
+        "type": "1",
+        "name": "Apple Inc.",
+        "region": "South",
+        "country": "USA",
+        "longitude": "-97.734766",
+        "id": "6fa14721-299c-4d5a-b584-75a8a3dddadc",
+        "latitude": "30.432546"
+    },
+    {
+        "city": "New York City",
+        "zipcode": "10018",
+        "type": "1",
+        "name": "NTC Corporate HQ",
+        "region": "North",
+        "country": "USA",
+        "longitude": "-73.989429",
+        "id": "7d29e100-ae0c-4580-ba86-b72df0b6cfd8",
+        "latitude": "40.753146"
+    }
+]

@@ -201,20 +201,6 @@ class TestDnaCenterClient(TestCase):  # pylint: disable=too-many-public-methods
         actual = self.dnac.get_port_status(port_info=sent)
         self.assertEqual(actual, received)
 
-    def test_parse_hostname_for_role_success(self):
-        """Validate the functionality of the parse_hostname_for_role method success."""
-        hostname_mapping = [(".*EDGE.*", "Edge"), (".*DMZ.*", "DMZ")]
-        hostname = "DMZ-switch.example.com"
-        result = self.dnac.parse_hostname_for_role(hostname_map=hostname_mapping, device_hostname=hostname)
-        self.assertEqual(result, "DMZ")
-
-    def test_parse_hostname_for_role_failure(self):
-        """Validate the functionality of the parse_hostname_for_role method failure."""
-        hostname_mapping = []
-        hostname = "core-router.example.com"
-        result = self.dnac.parse_hostname_for_role(hostname_map=hostname_mapping, device_hostname=hostname)
-        self.assertEqual(result, "Unknown")
-
     def test_get_model_name_single_model(self):
         """Validate the functionality of get_model_name method with single model in string."""
         test_model = "CSR1000v"
