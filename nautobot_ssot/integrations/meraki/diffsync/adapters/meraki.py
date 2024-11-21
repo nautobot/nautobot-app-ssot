@@ -16,7 +16,8 @@ from nautobot_ssot.integrations.meraki.diffsync.models.meraki import (
     MerakiPrefix,
     MerakiPrefixLocation,
 )
-from nautobot_ssot.integrations.meraki.utils.meraki import get_role_from_devicetype, parse_hostname_for_role
+from nautobot_ssot.integrations.meraki.utils.meraki import get_role_from_devicetype
+from nautobot_ssot.utils import parse_hostname_for_role
 
 
 class MerakiAdapter(Adapter):
@@ -97,7 +98,9 @@ class MerakiAdapter(Adapter):
                     if self.job.hostname_mapping and len(self.job.hostname_mapping) > 0:
                         if self.job.debug:
                             self.job.logger.debug(f"Parsing hostname for device {dev['name']} to determine role.")
-                        role = parse_hostname_for_role(dev_hostname=dev["name"], hostname_map=self.job.hostname_mapping)
+                        role = parse_hostname_for_role(
+                            device_hostname=dev["name"], hostname_map=self.job.hostname_mapping, default_role="Unknown"
+                        )
                     elif self.job.devicetype_mapping and len(self.job.devicetype_mapping) > 0:
                         if self.job.debug:
                             self.job.logger.debug(f"Parsing device model for device {dev['name']} to determine role.")
