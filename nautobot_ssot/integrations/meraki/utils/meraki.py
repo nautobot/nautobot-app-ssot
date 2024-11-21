@@ -1,7 +1,5 @@
 """Utility functions for working with Meraki."""
 
-import re
-
 import meraki
 
 
@@ -203,24 +201,6 @@ class DashboardClient:
                 f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
             )
         return ports
-
-
-def parse_hostname_for_role(dev_hostname: str, hostname_map: dict) -> str:
-    """Parse device hostname to get Device Role.
-
-    Args:
-        dev_hostname (str): Hostname of Device to determine role of.
-        hostname_map (dict): Dictionary of hostname's mapped to their Role.
-
-    Returns:
-        str: Name of DeviceRole. Defaults to Unknown.
-    """
-    dev_role = "Unknown"
-    for entry in hostname_map:
-        match = re.match(pattern=entry[0], string=dev_hostname)
-        if match:
-            dev_role = entry[1]
-    return dev_role
 
 
 def get_role_from_devicetype(dev_model: str, devicetype_map: dict) -> str:

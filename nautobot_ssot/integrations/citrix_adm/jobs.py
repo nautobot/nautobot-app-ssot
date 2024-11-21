@@ -1,11 +1,13 @@
 """Jobs for Citrix ADM SSoT integration."""
 
+from ast import literal_eval
+
 from diffsync.enum import DiffSyncFlags
 from django.templatetags.static import static
 from django.urls import reverse
 from nautobot.core.celery import register_jobs
 from nautobot.dcim.models import Location, LocationType
-from nautobot.extras.jobs import BooleanVar, Job, JSONVar, MultiObjectVar, ObjectVar
+from nautobot.extras.jobs import BooleanVar, Job, JSONVar, MultiObjectVar, ObjectVar, StringVar
 from nautobot.extras.models import ExternalIntegration
 from nautobot.tenancy.models import Tenant
 
@@ -50,10 +52,10 @@ class CitrixAdmDataSource(DataSource, Job):  # pylint: disable=too-many-instance
         default={},
         required=False,
     )
-    hostname_mapping = JSONVar(
+    hostname_mapping = StringVar(
         label="Hostname Mapping",
-        description="Mapping of Device hostname to Role. Ex: {'router01': 'router'}.",
-        default={},
+        description="List of tuples containing Device hostname regex patterns to assign to specified Role. ex: [('.*ilb.*', 'Internal Load-Balancer')]",
+        default=[],
         required=False,
     )
     tenant = ObjectVar(model=Tenant, queryset=Tenant.objects.all(), display_field="display_name", required=False)
@@ -135,7 +137,7 @@ class CitrixAdmDataSource(DataSource, Job):  # pylint: disable=too-many-instance
         self.dc_loctype = kwargs["dc_loctype"]
         self.parent_location = kwargs["parent_location"]
         self.location_map = kwargs["location_map"]
-        self.hostname_mapping = kwargs["hostname_mapping"]
+        self.hostname_mapping = literal_eval(kwargs["hostname_mapping"])
         self.validate_job_settings()
         self.memory_profiling = memory_profiling
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
