@@ -55,7 +55,7 @@ class CitrixAdmDataSource(DataSource, Job):  # pylint: disable=too-many-instance
     hostname_mapping = StringVar(
         label="Hostname Mapping",
         description="List of tuples containing Device hostname regex patterns to assign to specified Role. ex: [('.*ilb.*', 'Internal Load-Balancer')]",
-        default={},
+        default=[],
         required=False,
     )
     tenant = ObjectVar(model=Tenant, queryset=Tenant.objects.all(), display_field="display_name", required=False)
