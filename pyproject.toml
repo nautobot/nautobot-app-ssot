@@ -49,6 +49,7 @@ python-magic = { version = ">=0.4.15", optional = true }
 pytz = { version = ">=2019.3", optional = true }
 requests = { version = ">=2.21.0", optional = true }
 requests-oauthlib = { version = ">=1.3.0", optional = true }
+urllib3 = { version = "^2.2.3", optional = true }
 six = { version = ">=1.13.0", optional = true }
 httpx = { version = ">=0.23.3", optional = true }
 # Used by the Itential SSoT as a retry mechanism for HTTP failures in the AutomationGatewayClient.
@@ -119,6 +120,7 @@ all = [
     "requests",
     "requests-oauthlib",
     "six",
+    "urllib3",
     "dnacentersdk",
     "meraki",
     "slurpit_sdk",
@@ -129,6 +131,11 @@ aristacv = [
 ]
 bootstrap = [
     "pytz"
+]
+citrix_adm = [
+    "requests",
+    "urllib3",
+    "netutils",
 ]
 device42 = [
     "requests",

@@ -5917,9 +5917,10 @@ type = ["pytest-mypy"]
 
 [extras]
 aci = ["PyYAML"]
-all = ["Jinja2", "PyYAML", "cloudvision", "cvprac", "dnacentersdk", "dnspython", "ijson", "ipfabric", "meraki", "nautobot-device-lifecycle-mgmt", "netutils", "oauthlib", "python-magic", "pytz", "requests", "requests-oauthlib", "six", "slurpit-sdk"]
+all = ["Jinja2", "PyYAML", "cloudvision", "cvprac", "dnacentersdk", "dnspython", "ijson", "ipfabric", "meraki", "nautobot-device-lifecycle-mgmt", "netutils", "oauthlib", "python-magic", "pytz", "requests", "requests-oauthlib", "six", "slurpit-sdk", "urllib3"]
 aristacv = ["cloudvision", "cvprac"]
 bootstrap = ["pytz"]
+citrix-adm = ["netutils", "requests", "urllib3"]
 device42 = ["requests"]
 dna-center = ["dnacentersdk", "netutils"]
 infoblox = ["dnspython"]
@@ -5933,4 +5934,4 @@ slurpit = ["slurpit-sdk"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.13"
-content-hash = "b91fb58d03b96315c8f95b55e5b646dcdb829c9c641ae32ad0932a51729512ff"
+content-hash = "d1ec2e64b451203cf7196c47bc599d6c1b2bb75aae2aeb4876883cfea86b9eee"
