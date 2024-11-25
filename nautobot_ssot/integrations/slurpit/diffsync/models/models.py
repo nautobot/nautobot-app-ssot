@@ -1,14 +1,20 @@
 # pylint: disable=R0801
 """Data models for the DiffSync integration."""
 
-from typing import Annotated, List, Optional, Union
+from typing import List, Optional, Union
+
+try:
+    from typing import Annotated  # Python>=3.9
+except ImportError:
+    from typing_extensions import Annotated
+
 
 from nautobot.dcim.models import Device, DeviceType, Interface, InventoryItem, Location, Manufacturer, Platform
 from nautobot.extras.models import Role
 from nautobot.ipam.models import VLAN, VRF, IPAddress, Prefix
 from netaddr import EUI
 from pydantic import field_serializer
-from typing_extensions import TypedDict
+from typing_extensions import TypedDict  # pylint: disable=C0412
 
 from nautobot_ssot.contrib import CustomFieldAnnotation, NautobotModel
 from nautobot_ssot.integrations.slurpit import constants
