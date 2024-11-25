@@ -132,7 +132,7 @@ aristacv = [
 bootstrap = [
     "pytz"
 ]
-citrix_adm = [
+citrix-adm = [
     "requests",
     "urllib3",
     "netutils",
