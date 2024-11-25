@@ -35,6 +35,7 @@ This Nautobot application framework includes the following integrations:
 - Itential
 - Cisco Meraki
 - ServiceNow
+- Slurpit
 
 Read more about integrations [here](https://docs.nautobot.com/projects/ssot/en/latest/user/integrations). To enable and configure integrations follow the instructions from [the install guide](https://docs.nautobot.com/projects/ssot/en/latest/admin/install/#integrations-configuration).
 
@@ -90,6 +91,7 @@ The SSoT framework includes a number of integrations with external Systems of Re
 * Itential
 * Cisco Meraki
 * ServiceNow
+* Slurpit
 
 > Note that the Arista CloudVision integration is currently incompatible with the [Arista Labs](https://labs.arista.com/) environment due to a TLS issue. It has been confirmed to work in on-prem environments previously.
 
