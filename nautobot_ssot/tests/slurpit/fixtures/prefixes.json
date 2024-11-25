@@ -1,0 +1,495 @@
+[
+    {
+        "Vrf": "",
+        "Protocol": "L",
+        "Network": "192.168.10.1",
+        "Mask": "32",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback10",
+        "Uptime": "4d04h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "192.168.10.1/32"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "S",
+        "Network": "222.228.1.1",
+        "Mask": "32",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Null0",
+        "Uptime": "4d04h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "222.228.1.1/32"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "L",
+        "Network": "192.168.9.2",
+        "Mask": "32",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback0",
+        "Uptime": "4d04h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "192.168.9.2/32"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "C",
+        "Network": "192.168.102.0",
+        "Mask": "24",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback102",
+        "Uptime": "4d04h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "192.168.102.0/24"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "L",
+        "Network": "192.168.102.2",
+        "Mask": "32",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback102",
+        "Uptime": "4d04h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "192.168.102.2/32"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "C",
+        "Network": "192.168.35.0",
+        "Mask": "24",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback35",
+        "Uptime": "4d04h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "192.168.35.0/24"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "L",
+        "Network": "192.168.35.2",
+        "Mask": "32",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback35",
+        "Uptime": "4d04h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "192.168.35.2/32"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "C",
+        "Network": "192.168.5.0",
+        "Mask": "24",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback5",
+        "Uptime": "4d04h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "192.168.5.0/24"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "L",
+        "Network": "192.168.5.1",
+        "Mask": "32",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback5",
+        "Uptime": "4d04h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "192.168.5.1/32"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "C",
+        "Network": "192.168.9.0",
+        "Mask": "24",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback0",
+        "Uptime": "4d04h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "192.168.9.0/24"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "C",
+        "Network": "192.168.8.0",
+        "Mask": "24",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback30",
+        "Uptime": "1d17h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "192.168.8.0/24"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "L",
+        "Network": "192.168.8.2",
+        "Mask": "32",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback30",
+        "Uptime": "1d17h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "192.168.8.2/32"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "S",
+        "Network": "111.118.1.1",
+        "Mask": "32",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Null0",
+        "Uptime": "4d04h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "111.118.1.1/32"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "L",
+        "Network": "192.168.1.4",
+        "Mask": "32",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback6",
+        "Uptime": "4d04h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "192.168.1.4/32"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "C",
+        "Network": "10.10.20.0",
+        "Mask": "24",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "MgmtEth0/RP0/CPU0/0",
+        "Uptime": "4d04h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "10.10.20.0/24"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "L",
+        "Network": "10.10.20.175",
+        "Mask": "32",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "MgmtEth0/RP0/CPU0/0",
+        "Uptime": "4d04h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "10.10.20.175/32"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "L",
+        "Network": "10.1.1.1",
+        "Mask": "32",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback1",
+        "Uptime": "4d04h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "10.1.1.1/32"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "C",
+        "Network": "10.10.35.0",
+        "Mask": "24",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback2",
+        "Uptime": "4d04h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "10.10.35.0/24"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "L",
+        "Network": "10.10.35.50",
+        "Mask": "32",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback2",
+        "Uptime": "4d04h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "10.10.35.50/32"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "C",
+        "Network": "10.10.10.0",
+        "Mask": "28",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback81",
+        "Uptime": "3d11h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "10.10.10.0/28"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "L",
+        "Network": "10.10.10.10",
+        "Mask": "32",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback81",
+        "Uptime": "3d11h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "10.10.10.10/32"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "C",
+        "Network": "88.88.88.0",
+        "Mask": "24",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback82",
+        "Uptime": "3d08h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "88.88.88.0/24"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "L",
+        "Network": "88.88.88.88",
+        "Mask": "32",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback82",
+        "Uptime": "3d08h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "88.88.88.88/32"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "C",
+        "Network": "10.1.1.0",
+        "Mask": "24",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback1",
+        "Uptime": "4d04h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "10.1.1.0/24"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "C",
+        "Network": "10.0.152.0",
+        "Mask": "24",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback152",
+        "Uptime": "4d04h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "10.0.152.0/24"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "L",
+        "Network": "10.0.152.1",
+        "Mask": "32",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback152",
+        "Uptime": "4d04h",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "10.0.152.1/32"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "L",
+        "Network": "2.2.2.2",
+        "Mask": "32",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "Loopback9999",
+        "Uptime": "17:37:12",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "2.2.2.2/32"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "C",
+        "Network": "10.171.221.134",
+        "Mask": "32",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "",
+        "Uptime": "17:37:12",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "10.171.221.134/32"
+    },
+    {
+        "Vrf": "",
+        "Protocol": "C",
+        "Network": "10.0.0.23",
+        "Mask": "32",
+        "Distance": "",
+        "Metric": "",
+        "Type": "directly",
+        "Nexthop_ip": "connected",
+        "Nexthop_if": "",
+        "Uptime": "17:37:12",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 21:09:01"
+        ],
+        "normalized_prefix": "10.0.0.23/32"
+    }
+]

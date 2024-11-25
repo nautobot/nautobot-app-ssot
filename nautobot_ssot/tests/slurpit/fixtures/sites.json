@@ -1,0 +1,38 @@
+[
+    {
+      "id": "1",
+      "sitename": "Slurpit HQ",
+      "street": "Domplein",
+      "number": "9",
+      "city": "Utrecht",
+      "county": "",
+      "state": "",
+      "zipcode": "3512JC",
+      "country": "Utrecht",
+      "status": "1",
+      "description": "",
+      "phonenumber": "",
+      "longitude": "47.301.056",
+      "latitude": "52.099.108",
+      "createddate": "2024-10-15 09:11:16",
+      "changeddate": "2024-10-15 09:11:16"
+    },
+    {
+      "id": "2",
+      "sitename": "Cisco HQ",
+      "street": "Zanker Road",
+      "number": "3850",
+      "city": "San Jose",
+      "county": "Santa Clara County",
+      "state": "California",
+      "zipcode": "95134",
+      "country": "United States",
+      "status": "1",
+      "description": "Building 1",
+      "phonenumber": "",
+      "longitude": "-12.193.695.709.822.100",
+      "latitude": "3.741.466",
+      "createddate": "2024-10-15 09:11:16",
+      "changeddate": "2024-10-15 09:11:16"
+    }
+  ]
