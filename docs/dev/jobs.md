@@ -131,7 +131,7 @@ from nautobot_ssot.jobs.base import DataSource
 from nautobot.apps.jobs import Job, register_jobs
 from tutorial_ssot_app.ssot.adapters import MySSoTRemoteAdapter, MySSoTNautobotAdapter
 
-class TutorialDataSource(DataSource, Job):
+class TutorialDataSource(DataSource):
     class Meta:
         name = "Example Data Source"
 
