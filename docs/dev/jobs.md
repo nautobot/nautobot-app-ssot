@@ -1,6 +1,6 @@
 # Tutorial: Developing a Data Source Integration
 
-This tutorial will walk you through building a custom data source (i.e. synchronizing data _to_ Nautobot) SSoT integration with a remote system. We will be using static data as the remote system, but it should be easy enough to substitute this later for any external systemy ou want to integrate with.
+This tutorial will walk you through building a custom DataSource (i.e. synchronizing data _to_ Nautobot) SSoT integration with a remote system. We will be using static data as the remote system, but it should be easy enough to substitute this later for any external system you want to integrate with.
 
 *Familiarity with [DiffSync](https://diffsync.readthedocs.io/en/latest/) and with developing [Nautobot Jobs](https://nautobot.readthedocs.io/en/latest/additional-features/jobs/) is a plus, but important concepts will be explained or linked to along the way.**
 
