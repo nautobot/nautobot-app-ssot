@@ -1,0 +1,1 @@
+Fix delete function for NautobotValidatedSoftware so UUID is used to find object instead of querying for Platform and Software object.
