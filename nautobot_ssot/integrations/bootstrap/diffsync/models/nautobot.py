@@ -2549,11 +2549,7 @@ if VALID_SOFTWARE_LIFECYCLE_MGMT:
         def delete(self):
             """Delete ValidatedSoftware in Nautobot from NautobotValidatedSoftware object."""
             try:
-                _platform = ORMPlatform.objects.get(name=self.platform)
-                _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
-                _validated_software = ORMValidatedSoftware.objects.get(
-                    software=_software, start=self.valid_since, end=self.valid_until
-                )
+                _validated_software = ORMValidatedSoftware.objects.get(id=self.uuid)
                 super().delete()
                 _validated_software.delete()
                 return self
