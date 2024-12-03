@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from nautobot.dcim.models import LocationType
 from nautobot.extras.models import JobResult
+from nautobot.ipam.models import Namespace
 from slurpit.models.device import Device
 from slurpit.models.planning import Planning
 from slurpit.models.site import Site
@@ -39,7 +40,6 @@ class SlurpitDiffSyncTestCase(TestCase):
     """Test the SlurpitDiffSync adapter class."""
 
     def setUp(self):
-        LocationType.objects.update_or_create(name="Site")  # pylint: disable=W0106
         slurpit_client = AsyncMock()
         slurpit_client.site.get_sites = AsyncMock(return_value=SITE_FIXTURE)
         slurpit_client.device.get_devices = AsyncMock(return_value=DEVICE_FIXTURE)
@@ -47,6 +47,8 @@ class SlurpitDiffSyncTestCase(TestCase):
 
         job = SlurpitDataSource()
         job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
+        job.building_loctype = LocationType.objects.get_or_create(name="Site")[0]
+        job.namespace = Namespace.objects.get(name="Global")
         self.slurpit = SlurpitAdapter(job=job, api_client=slurpit_client)
 
         def site_effect(value):

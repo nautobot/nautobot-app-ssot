@@ -1,3 +1,4 @@
+# pylint: disable=R0801
 """Slurpit DataSource job class."""
 
 import slurpit
@@ -27,7 +28,7 @@ class SlurpitDataSource(DataSource, Job):  # pylint: disable=too-many-instance-a
         label="Slurpit Instance",
     )
 
-    building_loctype = ObjectVar( # pylint: disable=R0801
+    building_loctype = ObjectVar(
         model=LocationType,
         queryset=LocationType.objects.all(),
         display_field="name",
