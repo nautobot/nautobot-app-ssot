@@ -112,18 +112,21 @@ class SlurpitAdapter(Adapter):
 
     def filter_networks(self):
         """Filter out networks based on ignore prefixes and normalize network/mask fields."""
-        ignore_prefixes = [
-            "0.0.0.0/0",
-            "0.0.0.0/32",
-            "::/0",
-            "224.0.0.0/4",
-            "255.255.255.255",
-            "ff00::/8",
-            "169.254.0.0/16",
-            "fe80::/10",
-            "127.0.0.0/8",
-            "::1/128",
-        ]
+        if self.job.ignore_prefixes:
+            ignore_prefixes = [
+                "0.0.0.0/0",
+                "0.0.0.0/32",
+                "::/0",
+                "224.0.0.0/4",
+                "255.255.255.255",
+                "ff00::/8",
+                "169.254.0.0/16",
+                "fe80::/10",
+                "127.0.0.0/8",
+                "::1/128",
+            ]
+        else:
+            ignore_prefixes = []
 
         def normalize_network(entry):
             network = entry.get("Network", "")
@@ -220,7 +223,7 @@ class SlurpitAdapter(Adapter):
                 "longitude": format_latitude(site.longitude),
                 "contact_phone": site.phonenumber,
                 "physical_address": "\n".join(address),
-                "location_type__name": "Site",
+                "location_type__name": self.job.building_loctype.name,
                 "status__name": "Active",
                 "tags": [{"name": "SSoT Synced from Slurpit"}],
                 "system_of_record": "Slurpit",
@@ -292,7 +295,8 @@ class SlurpitAdapter(Adapter):
                 "platform__name": device.device_os,
                 "role__name": constants.DEFAULT_DEVICE_ROLE,
                 "status__name": "Active",
-                "location__location_type__name": "Site",
+                "primary_ip4__host": device.ipv4,
+                "location__location_type__name": self.job.building_loctype.name,
                 "tags": [{"name": "SSoT Synced from Slurpit"}],
                 "system_of_record": "Slurpit",
                 "last_synced_from_sor": datetime.today().date().isoformat(),
@@ -396,6 +400,7 @@ class SlurpitAdapter(Adapter):
             try:
                 data = {
                     "name": vrf,
+                    "namespace__name": self.job.namespace.name,
                     "tags": [{"name": "SSoT Synced from Slurpit"}],
                     "system_of_record": "Slurpit",
                     "last_synced_from_sor": datetime.today().date().isoformat(),
@@ -414,6 +419,7 @@ class SlurpitAdapter(Adapter):
                     "network": route.get("normalized_prefix", "").split("/")[0],
                     "prefix_length": route.get("normalized_prefix", "").split("/")[1],
                     "status__name": "Active",
+                    "namespace__name": self.job.namespace.name,
                     "tags": [{"name": "SSoT Synced from Slurpit"}],
                     "system_of_record": "Slurpit",
                     "last_synced_from_sor": datetime.today().date().isoformat(),
@@ -472,6 +478,7 @@ class SlurpitAdapter(Adapter):
                     prefix_data = {
                         "network": network_data,
                         "prefix_length": mask_length_data,
+                        "namespace__name": self.job.namespace.name,
                         "status__name": "Active",
                         "tags": [{"name": "SSoT Synced from Slurpit"}],
                         "system_of_record": "Slurpit",
@@ -493,10 +500,10 @@ class SlurpitAdapter(Adapter):
         self.load_device_types()
         self.load_platforms()
         self.load_roles()
-        self.load_devices()
-        self.load_inventory_items()
         self.load_vlans()
         self.load_vrfs()
         self.load_prefixes()
         self.load_ip_addresses()
         self.load_interfaces()
+        self.load_devices()
+        self.load_inventory_items()

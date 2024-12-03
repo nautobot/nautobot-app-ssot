@@ -14,13 +14,13 @@ It synchronizes the following objects:
 | Planning (Hardware Info) | Inventory Item               |
 | Planning (VLANs)         | VLAN                         |
 | Planning (Routing Table) | VRF                          |
-| Planning (Routing Table) | Prefixe                      |
+| Planning (Routing Table) | Prefix                       |
 | Planning (Interfaces)    | Interface                    |
 | Planning (Interfaces)    | IP Address                   |
 
 ## Usage
 
-Once the integration is installed and configured, from the Nautobot SSoT dashboard view (`/plugins/ssot/`), Slurpit will be shown as a Data Source. You can click the **Sync** button to access a form view from which you can run the Slurpit-to-Nautobot synchronization Job. Running the job will redirect you to a Nautobot **Job Result** view, from which you can access the **SSoT Sync Details** view to see detailed information about the outcome of the sync Job.
+Once the integration is installed and configured, from the Nautobot SSoT Dashboard view (`/plugins/ssot/`), Slurpit will be shown as a Data Source. You can click the **Sync** button to access a form view from which you can run the Slurpit-to-Nautobot synchronization Job. Running the job will redirect you to a Nautobot **Job Result** view, from which you can access the **SSoT Sync Details** view to see detailed information about the outcome of the sync Job.
 
 ## Screenshots
 

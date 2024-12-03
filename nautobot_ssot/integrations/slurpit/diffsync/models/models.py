@@ -144,7 +144,7 @@ class RoleModel(ModelQuerySetMixin, NautobotModel):
     last_synced_from_sor: Annotated[str, CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")]
 
     @classmethod
-    def get_queryset(cls, data):
+    def get_queryset(cls, data=None):
         """Get the queryset for the Role model."""
         return cls._model.objects.filter(name=constants.DEFAULT_DEVICE_ROLE)
 
@@ -166,6 +166,7 @@ class DeviceModel(ModelQuerySetMixin, NautobotModel):
         "role__name",
         "serial",
         "status__name",
+        "primary_ip4__host",
         "tags",
         "system_of_record",
         "last_synced_from_sor",
@@ -183,6 +184,7 @@ class DeviceModel(ModelQuerySetMixin, NautobotModel):
     role__name: str
     serial: Optional[str] = ""
     status__name: str
+    primary_ip4__host: Optional[str] = ""
     inventory_items: List["InventoryItemModel"] = []
     tags: List[TagDict] = []
     system_of_record: Annotated[str, CustomFieldAnnotation(name="system_of_record", key="system_of_record")]
@@ -236,9 +238,10 @@ class VRFModel(ModelQuerySetMixin, NautobotModel):
     _model = VRF
     _modelname = "vrf"
     _identifiers = ("name",)
-    _attributes = ("tags", "system_of_record", "last_synced_from_sor")
+    _attributes = ("namespace__name", "tags", "system_of_record", "last_synced_from_sor")
 
     name: str
+    namespace__name: str
     tags: List[TagDict] = []
     system_of_record: Annotated[str, CustomFieldAnnotation(name="system_of_record", key="system_of_record")]
     last_synced_from_sor: Annotated[str, CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")]
@@ -256,11 +259,20 @@ class PrefixModel(ModelQuerySetMixin, NautobotModel):
     _model = Prefix
     _modelname = "prefix"
     _identifiers = ("network",)
-    _attributes = ("prefix_length", "status__name", "vrfs", "tags", "system_of_record", "last_synced_from_sor")
+    _attributes = (
+        "prefix_length",
+        "status__name",
+        "namespace__name",
+        "vrfs",
+        "tags",
+        "system_of_record",
+        "last_synced_from_sor",
+    )
 
     network: str
     prefix_length: int
     status__name: str
+    namespace__name: str
     vrfs: List[VRFDict] = []
     tags: List[TagDict] = []
     system_of_record: Annotated[str, CustomFieldAnnotation(name="system_of_record", key="system_of_record")]

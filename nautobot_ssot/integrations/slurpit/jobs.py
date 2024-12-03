@@ -1,23 +1,21 @@
 """Slurpit DataSource job class."""
 
-import asyncio
-
 import slurpit
+from django.contrib.contenttypes.models import ContentType
 from django.templatetags.static import static
 from django.urls import reverse
+from nautobot.dcim.models import Device, LocationType
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.jobs import BooleanVar, Job, ObjectVar
 from nautobot.extras.models import ExternalIntegration
+from nautobot.ipam.models import Namespace
 
 from nautobot_ssot.integrations.slurpit import constants
 from nautobot_ssot.integrations.slurpit.diffsync.adapters.nautobot import NautobotDiffSyncAdapter
 from nautobot_ssot.integrations.slurpit.diffsync.adapters.slurpit import SlurpitAdapter
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 
-loop = asyncio.new_event_loop()
 
-
-# Step 3 - the job
 class SlurpitDataSource(DataSource, Job):
     """SSoT Job class."""
 
@@ -27,6 +25,30 @@ class SlurpitDataSource(DataSource, Job):
         display_field="name",
         required=True,
         label="Slurpit Instance",
+    )
+
+    building_loctype = ObjectVar(
+        model=LocationType,
+        queryset=LocationType.objects.all(),
+        display_field="name",
+        required=False,
+        label="Building LocationType",
+        description="LocationType to use for imported Sites from Slurpit. If unspecified, will revert to Site LocationType.",
+    )
+
+    namespace = ObjectVar(
+        model=Namespace,
+        queryset=Namespace.objects.all(),
+        display_field="name",
+        required=False,
+        label="IPAM Namespace",
+        description="Namespace to use for imported IPAM objects from Slurpit. If unspecified, will revert to Global Namespace.",
+    )
+
+    ignore_prefixes = BooleanVar(
+        default=True,
+        label="Ignore Routing Table Prefixes",
+        description="Ignore some prefixes that are used for routing tables and not IPAM such as 0.0.0.0/0.",
     )
 
     sync_slurpit_tagged_only = BooleanVar(
@@ -85,7 +107,7 @@ class SlurpitDataSource(DataSource, Job):
     def load_target_adapter(self):
         """Load the target adapter."""
         self.logger.info("Loading target adapter: Nautobot")
-        self.target_adapter = NautobotDiffSyncAdapter(job=self, data=self.kwargs)
+        self.target_adapter = NautobotDiffSyncAdapter(job=self)
         self.target_adapter.load()
 
     # pylint: disable-next=too-many-arguments, arguments-differ
@@ -94,6 +116,9 @@ class SlurpitDataSource(DataSource, Job):
         dryrun,
         memory_profiling,
         credentials,
+        building_loctype,
+        namespace,
+        ignore_prefixes,
         sync_slurpit_tagged_only,
         *args,
         **kwargs,
@@ -101,6 +126,15 @@ class SlurpitDataSource(DataSource, Job):
         """Run the Slurpit DataSource job."""
         self.logger.info("Running Slurpit DataSource job")
         self.credentials = credentials
+        self.building_loctype = building_loctype
+        if not self.building_loctype:
+            self.building_loctype = LocationType.objects.get_or_create(name="Site")[0]
+        self.building_loctype.content_types.add(ContentType.objects.get_for_model(Device))
+        self.namespace = namespace
+        if not self.namespace:
+            self.namespace = Namespace.objects.get(name="Global")
+        self.ignore_prefixes = ignore_prefixes
+
         self.kwargs = {
             "sync_slurpit_tagged_only": sync_slurpit_tagged_only,
         }

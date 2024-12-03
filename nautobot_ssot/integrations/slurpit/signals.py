@@ -58,7 +58,6 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     VRF = apps.get_model("ipam", "VRF")
     Prefix = apps.get_model("ipam", "Prefix")
     ContentType = apps.get_model("contenttypes", "ContentType")
-    location_type = apps.get_model("dcim", "LocationType")
     Tag = apps.get_model("extras", "Tag")
 
     synced_tag, _ = Tag.objects.get_or_create(
@@ -85,9 +84,6 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
             "color": ColorChoices.COLOR_RED,
         },
     )
-    ContentType = apps.get_model("contenttypes", "ContentType")
-    loc_type = location_type.objects.update_or_create(name="Site")[0]
-    loc_type.content_types.add(ContentType.objects.get_for_model(Device))
     synced_from_models = [
         Device,
         DeviceType,
