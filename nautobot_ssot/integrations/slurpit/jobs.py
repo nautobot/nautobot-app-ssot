@@ -28,12 +28,12 @@ class SlurpitDataSource(DataSource, Job):  # pylint: disable=too-many-instance-a
         label="Slurpit Instance",
     )
 
-    building_loctype = ObjectVar(
+    site_loctype = ObjectVar(
         model=LocationType,
         queryset=LocationType.objects.all(),
         display_field="name",
         required=False,
-        label="Building LocationType",
+        label="Site LocationType",
         description="LocationType to use for imported Sites from Slurpit. If unspecified, will revert to Site LocationType.",
     )
 
@@ -117,7 +117,7 @@ class SlurpitDataSource(DataSource, Job):  # pylint: disable=too-many-instance-a
         dryrun,
         memory_profiling,
         credentials,
-        building_loctype,
+        site_loctype,
         namespace,
         ignore_prefixes,
         sync_slurpit_tagged_only,
@@ -127,10 +127,10 @@ class SlurpitDataSource(DataSource, Job):  # pylint: disable=too-many-instance-a
         """Run the Slurpit DataSource job."""
         self.logger.info("Running Slurpit DataSource job")
         self.credentials = credentials
-        self.building_loctype = building_loctype
-        if not self.building_loctype:
-            self.building_loctype = LocationType.objects.get_or_create(name="Site")[0]
-        self.building_loctype.content_types.add(ContentType.objects.get_for_model(Device))
+        self.site_loctype = site_loctype
+        if not self.site_loctype:
+            self.site_loctype = LocationType.objects.get_or_create(name="Site")[0]
+        self.site_loctype.content_types.add(ContentType.objects.get_for_model(Device))
         self.namespace = namespace
         if not self.namespace:
             self.namespace = Namespace.objects.get(name="Global")

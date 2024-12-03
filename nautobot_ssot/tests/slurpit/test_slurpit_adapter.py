@@ -47,8 +47,8 @@ class SlurpitDiffSyncTestCase(TestCase):
 
         job = SlurpitDataSource()
         job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
-        job.building_loctype = LocationType.objects.get_or_create(name="Site")[0]
-        job.namespace = Namespace.objects.get(name="Global")
+        job.site_loctype = LocationType.objects.get_or_create(name="Site")[0]
+        job.namespace = Namespace.objects.get_or_create(name="Global")[0]
         self.slurpit = SlurpitAdapter(job=job, api_client=slurpit_client)
 
         def site_effect(value):
