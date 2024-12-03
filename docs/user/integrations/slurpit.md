@@ -27,12 +27,11 @@ There are several options available for the sync Job:
 - **Dryrun**: If enabled, the sync Job will only report the differences between the source and destination without synchronizing any data.
 - **Memory Profiling**: If enabled, the sync Job will collect memory profiling data and include it in the Job Result.
 - **Slurpit Instance**: The Slurpit instance to sync data from.
-- **Building LocationType**: The Nautobot LocationType to use for Sites.
+- **Site LocationType**: The Nautobot LocationType to use for imported Sites.
 - **IPAM Namespace**: The Namespace to use for all imported IPAM data.
 - **Ignore Routing Table Prefixes**: If enabled, the sync Job will not import some routing table prefixes such as `0.0.0.0/0`, `::/0`, `224.0.0.0/4` and more. 
 - **Sync tagged objects only**: If enabled, the sync Job will only import objects that have been tagged with the `SSoT Synced from Slurpit` tag in Nautobot.
 - **Task Queue**: The Task Queue to use for the sync Job.
-- **Profile job execution**: If enabled, the sync Job will collect profiling data and include it in the Job Result.
 
 ## Screenshots
 
