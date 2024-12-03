@@ -16,7 +16,7 @@ from nautobot_ssot.integrations.slurpit.diffsync.adapters.slurpit import Slurpit
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 
 
-class SlurpitDataSource(DataSource, Job):
+class SlurpitDataSource(DataSource, Job):  # pylint: disable=too-many-instance-attributes
     """SSoT Job class."""
 
     credentials = ObjectVar(
@@ -27,7 +27,7 @@ class SlurpitDataSource(DataSource, Job):
         label="Slurpit Instance",
     )
 
-    building_loctype = ObjectVar(
+    building_loctype = ObjectVar( # pylint: disable=R0801
         model=LocationType,
         queryset=LocationType.objects.all(),
         display_field="name",
