@@ -32,6 +32,7 @@ There are several options available for the sync Job:
 - **Ignore Routing Table Prefixes**: If enabled, the sync Job will not import some routing table prefixes such as `0.0.0.0/0`, `::/0`, `224.0.0.0/4` and more. 
 - **Sync tagged objects only**: If enabled, the sync Job will only import objects that have been tagged with the `SSoT Synced from Slurpit` tag in Nautobot.
 - **Task Queue**: The Task Queue to use for the sync Job.
+- **Profile job execution**: If enabled, the sync Job will collect profiling data and include it in the Job Result. This will only be present if Nautobot is running in debug mode.
 
 ## Screenshots
 
