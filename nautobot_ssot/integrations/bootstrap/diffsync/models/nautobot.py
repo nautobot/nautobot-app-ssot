@@ -351,7 +351,9 @@ class NautobotPlatform(Platform):
         """Create Platform in Nautobot from NautobotPlatform object."""
         adapter.job.logger.info(f'Creating Nautobot Platform {ids["name"]}')
         try:
-            _manufacturer = ORMManufacturer.objects.get(name=ids["manufacturer"])
+            _manufacturer = None
+            if ids["manufacturer"]:
+                _manufacturer = ORMManufacturer.objects.get(name=ids["manufacturer"])
             _new_platform = ORMPlatform(
                 name=ids["name"],
                 manufacturer=_manufacturer,
