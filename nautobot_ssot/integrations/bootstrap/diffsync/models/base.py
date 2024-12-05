@@ -362,7 +362,7 @@ class Platform(DiffSyncModel):
     _children = {}
 
     name: str
-    manufacturer: str
+    manufacturer: Optional[str] = None
     network_driver: Optional[str] = None
     napalm_driver: Optional[str] = None
     napalm_arguments: Optional[dict] = None

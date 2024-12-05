@@ -211,6 +211,14 @@
       "napalm_driver": "",
       "napalm_arguments": {},
       "description": "Arista Devices"
+    },
+    {
+      "name": "linux",
+      "manufacturer": "",
+      "network_driver": "",
+      "napalm_driver": "",
+      "napalm_arguments": {},
+      "description": "Linux Devices"
     }
   ],
   "location_type": [
