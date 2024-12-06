@@ -108,6 +108,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "enable_infoblox": False,
         "enable_ipfabric": False,
         "enable_servicenow": False,
+        "enable_slurpit": False,
         "enable_itential": False,
         "hide_example_jobs": True,
         "ipfabric_api_token": "",

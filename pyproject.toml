@@ -57,6 +57,7 @@ retry = "^0.9.2"
 # used for DNA Center integration
 dnacentersdk = { version = "^2.5.6", optional = true }
 meraki = { version = "^1.37.2,<1.46.0", optional = true }
+slurpit-sdk = { version = "^0.9.58", optional = true }
 
 [tool.poetry.group.dev.dependencies]
 coverage = "*"
@@ -121,7 +122,8 @@ all = [
     "six",
     "urllib3",
     "dnacentersdk",
-    "meraki"
+    "meraki",
+    "slurpit_sdk",
 ]
 aristacv = [
     "cloudvision",
@@ -152,6 +154,9 @@ ipfabric = [
 ]
 meraki = [
     "meraki",
+]
+slurpit = [
+    "slurpit_sdk",
 ]
 # pysnow = "^0.7.17"
 # PySNow is currently pinned to an older version of pytz as a dependency, which blocks compatibility with newer

@@ -99,3 +99,4 @@ Set up each integration using the specific guides:
 - [Itential](./integrations/itential_setup.md)
 - [Cisco Meraki](./integrations/meraki_setup.md)
 - [ServiceNow](./integrations/servicenow_setup.md)
+- [Slurpit](./integrations/slurpit_setup.md)
