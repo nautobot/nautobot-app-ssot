@@ -322,6 +322,13 @@ class DnaCenterAdapter(Adapter):
                     platform = "cisco_ios"
                 if not dev.get("softwareType") and dev.get("family") and "Meraki" in dev["family"]:
                     platform = "cisco_meraki"
+            if platform == "unknown":
+                self.job.logger.warning(f"Device {dev['hostname']} is missing Platform so will be skipped.")
+                dev["field_validation"] = {
+                    "reason": "Failed due to missing platform.",
+                }
+                self.failed_import_devices.append(dev)
+                continue
             if dev.get("type") and "Juniper" in dev["type"]:
                 vendor = "Juniper"
             dev_details = self.conn.get_device_detail(dev_id=dev["id"])
