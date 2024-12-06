@@ -211,6 +211,14 @@
       "napalm_driver": "",
       "napalm_arguments": {},
       "description": "Arista Devices"
+    },
+    {
+      "name": "linux",
+      "manufacturer": "",
+      "network_driver": "",
+      "napalm_driver": "",
+      "napalm_arguments": {},
+      "description": "Linux Devices"
     }
   ],
   "location_type": [
@@ -277,6 +285,20 @@
       "description": "",
       "physical_address": "450 Interstate to N PKWY\nAtlanta, GA 30339\nUnited States\n",
       "shipping_address": "Example Company\n450 Interstate to N PKWY\nLoading Dock 1\nAtlanta, GA 30339\nUnited States\n",
+      "contact_name": "",
+      "contact_phone": "",
+      "contact_email": "",
+      "tags": []
+    },
+    {
+      "name": "Southwest",
+      "location_type": "Region",
+      "status": "Active",
+      "facility": "OR1",
+      "time_zone": "",
+      "description": "",
+      "physical_address": "",
+      "shipping_address": "",
       "contact_name": "",
       "contact_phone": "",
       "contact_email": "",
