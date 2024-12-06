@@ -254,6 +254,23 @@ location:
     contact_phone: ""
     contact_email: ""
     tags: []
+  - name: "Southwest"
+    location_type: "Region"
+    parent: ""
+    status: "Active"
+    facility: "OR1"
+    asn:
+    time_zone: ""
+    description: ""
+    tenant: ""
+    physical_address: ""
+    shipping_address: ""
+    latitude:
+    longitude:
+    contact_name: ""
+    contact_phone: ""
+    contact_email: ""
+    tags: []
 team:
   - name: "Datacenter"
     phone: "123-456-7890"

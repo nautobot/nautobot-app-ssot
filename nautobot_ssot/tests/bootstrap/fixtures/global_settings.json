@@ -289,6 +289,20 @@
       "contact_phone": "",
       "contact_email": "",
       "tags": []
+    },
+    {
+      "name": "Southwest",
+      "location_type": "Region",
+      "status": "Active",
+      "facility": "OR1",
+      "time_zone": "",
+      "description": "",
+      "physical_address": "",
+      "shipping_address": "",
+      "contact_name": "",
+      "contact_phone": "",
+      "contact_email": "",
+      "tags": []
     }
   ],
   "team": [
