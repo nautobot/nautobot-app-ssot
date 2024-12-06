@@ -78,33 +78,52 @@ from nautobot_ssot.integrations.bootstrap.utils import (
 )
 
 try:
-    import nautobot_device_lifecycle_mgmt  # noqa: F401
-
-    LIFECYCLE_MGMT = True
-except ImportError:
-    LIFECYCLE_MGMT = False
-
-if LIFECYCLE_MGMT:
-    # noqa: F401
-    from nautobot_device_lifecycle_mgmt.models import (
-        SoftwareImageLCM as ORMSoftwareImage,
-    )
-
     # noqa: F401
     from nautobot_device_lifecycle_mgmt.models import (
         SoftwareLCM as ORMSoftware,
     )
 
+    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import Software
+
+    SOFTWARE_LIFECYCLE_MGMT = True
+except (ImportError, RuntimeError):
+    SOFTWARE_LIFECYCLE_MGMT = False
+
+try:
+    # noqa: F401
+    from nautobot.dcim.models import (
+        SoftwareVersion as ORMSoftwareVersion,
+    )
+
+    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import Software
+
+    SOFTWARE_VERSION_FOUND = True
+except (ImportError, RuntimeError):
+    SOFTWARE_VERSION_FOUND = False
+
+try:
+    # noqa: F401
+    from nautobot_device_lifecycle_mgmt.models import (
+        SoftwareImageLCM as ORMSoftwareImage,
+    )
+
+    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import SoftwareImage
+
+    SOFTWARE_IMAGE_LIFECYCLE_MGMT = True
+except (ImportError, RuntimeError):
+    SOFTWARE_IMAGE_LIFECYCLE_MGMT = False
+
+try:
     # noqa: F401
     from nautobot_device_lifecycle_mgmt.models import (
         ValidatedSoftwareLCM as ORMValidatedSoftware,
     )
 
-    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
-        Software,
-        SoftwareImage,
-        ValidatedSoftware,
-    )
+    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import ValidatedSoftware
+
+    VALID_SOFTWARE_LIFECYCLE_MGMT = True
+except (ImportError, RuntimeError):
+    VALID_SOFTWARE_LIFECYCLE_MGMT = False
 
 
 class NautobotTenantGroup(TenantGroup):
@@ -229,7 +248,10 @@ class NautobotRole(Role):
         _content_types = []
         adapter.job.logger.info(f'Creating Nautobot Role: {ids["name"]}')
         for _model in attrs["content_types"]:
-            _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+            try:
+                _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+            except ContentType.DoesNotExist:
+                adapter.job.logger.error(f"Unable to find ContentType for {_model}.")
         _new_role = ORMRole(
             name=ids["name"],
             weight=attrs["weight"],
@@ -257,7 +279,10 @@ class NautobotRole(Role):
         if "content_types" in attrs:
             for _model in attrs["content_types"]:
                 self.adapter.job.logger.debug(f"Looking up {_model} in content types.")
-                _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+                try:
+                    _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+                except ContentType.DoesNotExist:
+                    self.adapter.job.logger.error(f"Unable to find ContentType for {_model}.")
             _update_role.content_types.set(_content_types)
         if not check_sor_field(_update_role):
             _update_role.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
@@ -326,7 +351,9 @@ class NautobotPlatform(Platform):
         """Create Platform in Nautobot from NautobotPlatform object."""
         adapter.job.logger.info(f'Creating Nautobot Platform {ids["name"]}')
         try:
-            _manufacturer = ORMManufacturer.objects.get(name=ids["manufacturer"])
+            _manufacturer = None
+            if ids["manufacturer"]:
+                _manufacturer = ORMManufacturer.objects.get(name=ids["manufacturer"])
             _new_platform = ORMPlatform(
                 name=ids["name"],
                 manufacturer=_manufacturer,
@@ -387,7 +414,10 @@ class NautobotLocationType(LocationType):
         adapter.job.logger.info(f'Creating Nautobot LocationType: {ids["name"]}')
         _parent = None
         for _model in attrs["content_types"]:
-            _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+            try:
+                _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+            except ContentType.DoesNotExist:
+                adapter.job.logger.error(f"Unable to find ContentType for {_model}.")
         if "parent" in attrs:
             try:
                 _parent = ORMLocationType.objects.get(name=attrs["parent"])
@@ -404,7 +434,10 @@ class NautobotLocationType(LocationType):
         _new_location_type.validated_save()
         for _model in attrs["content_types"]:
             adapter.job.logger.debug(f"Looking up {_model} in content types.")
-            _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+            try:
+                _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+            except ContentType.DoesNotExist:
+                adapter.job.logger.error(f"Unable to find ContentType for {_model}.")
         _new_location_type.content_types.set(_content_types)
         _new_location_type.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_location_type.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
@@ -431,7 +464,10 @@ class NautobotLocationType(LocationType):
         if "content_types" in attrs:
             for _model in attrs["content_types"]:
                 self.adapter.job.logger.debug(f"Looking up {_model} in content types.")
-                _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+                try:
+                    _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+                except ContentType.DoesNotExist:
+                    self.adapter.job.logger.error(f"Unable to find ContentType for {_model}.")
             _update_location_type.content_types.set(_content_types)
         if not check_sor_field(_update_location_type):
             _update_location_type.custom_field_data.update(
@@ -2099,7 +2135,10 @@ class NautobotTag(Tag):
         adapter.job.logger.info(f'Creating Nautobot Tag: {ids["name"]}')
         for _model in attrs["content_types"]:
             adapter.job.logger.debug(f"Looking up {_model} in content types.")
-            _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+            try:
+                _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+            except ContentType.DoesNotExist:
+                adapter.job.logger.error(f"Unable to find ContentType for {_model}.")
         _new_tag = ORMTag(
             name=ids["name"],
             color=attrs["color"],
@@ -2122,7 +2161,10 @@ class NautobotTag(Tag):
             _content_types = []
             for _model in attrs["content_types"]:
                 self.adapter.job.logger.debug(f"Looking up {_model} in content types.")
-                _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+                try:
+                    _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+                except ContentType.DoesNotExist:
+                    self.adapter.job.logger.error(f"Unable to find ContentType for {_model}.")
             _update_tag.content_types.set(_content_types)
         if attrs.get("description"):
             _update_tag.description = attrs["description"]
@@ -2176,7 +2218,7 @@ class NautobotGraphQLQuery(GraphQLQuery):
             self.adapter.job.logger.warning(f"Unable to find GraphQLQuery {self.name} for deletion. {err}")
 
 
-if LIFECYCLE_MGMT:
+if SOFTWARE_LIFECYCLE_MGMT or SOFTWARE_VERSION_FOUND:
 
     class NautobotSoftware(Software):
         """Nautobot implementation of Bootstrap Software model."""
@@ -2184,20 +2226,36 @@ if LIFECYCLE_MGMT:
         @classmethod
         def create(cls, adapter, ids, attrs):
             """Create Software in Nautobot from NautobotSoftware object."""
-            adapter.job.logger.info(f'Creating Nautobot Software object {ids["platform"]} - {ids["version"]}.')
             _tags = []
             for tag in attrs["tags"]:
                 _tags.append(ORMTag.objects.get(name=tag))
             _platform = ORMPlatform.objects.get(name=ids["platform"])
-            _new_software = ORMSoftware(
-                version=ids["version"],
-                alias=attrs["alias"],
-                device_platform=_platform,
-                end_of_support=attrs["eos_date"],
-                long_term_support=attrs["long_term_support"],
-                pre_release=attrs["pre_release"],
-                documentation_url=attrs["documentation_url"],
-            )
+            if SOFTWARE_LIFECYCLE_MGMT:
+                _new_software = ORMSoftware(
+                    version=ids["version"],
+                    alias=attrs["alias"],
+                    device_platform=_platform,
+                    end_of_support=attrs["eos_date"],
+                    long_term_support=attrs["long_term_support"],
+                    pre_release=attrs["pre_release"],
+                    documentation_url=attrs["documentation_url"],
+                )
+            elif SOFTWARE_VERSION_FOUND:
+                _new_software = ORMSoftwareVersion(
+                    version=ids["version"],
+                    alias=attrs["alias"],
+                    platform=_platform,
+                    end_of_support_date=attrs["eos_date"],
+                    long_term_support=attrs["long_term_support"],
+                    pre_release=attrs["pre_release"],
+                    documentation_url=attrs["documentation_url"],
+                )
+            else:
+                adapter.job.logger.error(
+                    f"Software model not found so skipping creation of {ids['version']} for {ids['platform']}."
+                )
+                return None
+            adapter.job.logger.info(f'Creating Nautobot Software object {ids["platform"]} - {ids["version"]}.')
             if attrs.get("tags"):
                 _new_software.validated_save()
                 _new_software.tags.clear()
@@ -2210,10 +2268,15 @@ if LIFECYCLE_MGMT:
 
         def update(self, attrs):
             """Update Software in Nautobot from NautobotSoftware object."""
-            self.adapter.job.logger.info(f"Updating Software: {self.platform} - {self.version}.")
-            _tags = []  # noqa: F841
             _platform = ORMPlatform.objects.get(name=self.platform)
-            _update_software = ORMSoftware.objects.get(version=self.version, device_platform=_platform)
+            if SOFTWARE_IMAGE_LIFECYCLE_MGMT:
+                _update_software = ORMSoftware.objects.get(version=self.version, device_platform=_platform)
+            elif SOFTWARE_VERSION_FOUND:
+                _update_software = ORMSoftwareVersion.objects.get(version=self.version, platform=_platform)
+            else:
+                self.adapter.job.logger.error(f"Software model not found so skipping update of {self}.")
+                return None
+            self.adapter.job.logger.info(f"Updating Software: {self.platform} - {self.version}.")
             if "alias" in attrs:
                 _update_software.alias = attrs["alias"]
             if attrs.get("release_date"):
@@ -2254,12 +2317,20 @@ if LIFECYCLE_MGMT:
                     f"Unable to find Software {self.platform} - {self.version} for deletion. {err}"
                 )
 
+
+if SOFTWARE_IMAGE_LIFECYCLE_MGMT:
+
     class NautobotSoftwareImage(SoftwareImage):
         """Nautobot implementation of Bootstrap SoftwareImage model."""
 
         @classmethod
         def create(cls, adapter, ids, attrs):
             """Create SoftwareImage in Nautobot from NautobotSoftwareImage object."""
+            if not SOFTWARE_IMAGE_LIFECYCLE_MGMT:
+                adapter.job.logger.error(
+                    f"SoftwareImageLCM model not found so skipping creation of {attrs['software_version']} for {attrs['platform']}."
+                )
+                return None
             _tags = []
             if attrs["tags"] is not None:
                 for tag in attrs["tags"]:
@@ -2286,6 +2357,11 @@ if LIFECYCLE_MGMT:
 
         def update(self, attrs):
             """Update SoftwareImage in Nautobot from NautobotSoftwareImage object."""
+            if not SOFTWARE_IMAGE_LIFECYCLE_MGMT:
+                self.adapter.job.logger.error(
+                    f"SoftwareImageLCM model not found so skipping update of {self.software_version} for {self.platform}."
+                )
+                return None
             self.adapter.job.logger.info(f"Updating Software Image: {self.platform} - {self.software_version}.")
             _platform = ORMPlatform.objects.get(name=self.platform)
             _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
@@ -2329,6 +2405,9 @@ if LIFECYCLE_MGMT:
             except ORMSoftwareImage.DoesNotExist as err:
                 self.adapter.job.logger.warning(f"Unable to find SoftwareImage {self.software} for deletion. {err}")
 
+
+if VALID_SOFTWARE_LIFECYCLE_MGMT:
+
     class NautobotValidatedSoftware(ValidatedSoftware):
         """Nautobot implementation of Bootstrap ValidatedSoftware model."""
 
@@ -2341,7 +2420,15 @@ if LIFECYCLE_MGMT:
             _inventory_items = []  # noqa: F841
             _object_tags = []  # noqa: F841
             _platform = ORMPlatform.objects.get(name=attrs["platform"])
-            _software = ORMSoftware.objects.get(version=attrs["software_version"], device_platform=_platform)
+            if SOFTWARE_LIFECYCLE_MGMT:
+                _software = ORMSoftware.objects.get(version=attrs["software_version"], device_platform=_platform)
+            elif SOFTWARE_VERSION_FOUND:
+                _software = ORMSoftwareVersion.objects.get(version=attrs["software_version"], platform=_platform)
+            else:
+                adapter.job.logger.error(
+                    f"Model to represent Software version not found so skipping creation of ValidatedSoftware {attrs['software_version']} for {attrs['platform']}."
+                )
+                return None
             _new_validated_software = ORMValidatedSoftware(
                 software=_software,
                 start=ids["valid_since"] if not None else datetime.today().date(),
@@ -2389,7 +2476,6 @@ if LIFECYCLE_MGMT:
 
         def update(self, attrs):
             """Update ValidatedSoftware in Nautobot from NautobotValidatedSoftware object."""
-            self.adapter.job.logger.info(f"Updating Validated Software - {self} with attrs {attrs}.")
             _tags = []  # noqa: F841
             _devices = []  # noqa: F841
             _device_types = []  # noqa: F841
@@ -2397,7 +2483,16 @@ if LIFECYCLE_MGMT:
             _inventory_items = []  # noqa: F841
             _object_tags = []  # noqa: F841
             _platform = ORMPlatform.objects.get(name=self.platform)
-            _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
+            if SOFTWARE_LIFECYCLE_MGMT:
+                _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
+            elif SOFTWARE_VERSION_FOUND:
+                _software = ORMSoftwareVersion.objects.get(version=self.software_version, platform=_platform)
+            else:
+                self.adapter.job.logger.error(
+                    f"Model to represent Software version not found so skipping update of ValidatedSoftware for {self.software}."
+                )
+                return None
+            self.adapter.job.logger.info(f"Updating Validated Software - {self} with attrs {attrs}.")
             _update_validated_software = ORMValidatedSoftware.objects.get(
                 software=_software, start=self.valid_since, end=self.valid_until
             )
@@ -2456,11 +2551,7 @@ if LIFECYCLE_MGMT:
         def delete(self):
             """Delete ValidatedSoftware in Nautobot from NautobotValidatedSoftware object."""
             try:
-                _platform = ORMPlatform.objects.get(name=self.platform)
-                _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
-                _validated_software = ORMValidatedSoftware.objects.get(
-                    software=_software, start=self.valid_since, end=self.valid_until
-                )
+                _validated_software = ORMValidatedSoftware.objects.get(id=self.uuid)
                 super().delete()
                 _validated_software.delete()
                 return self

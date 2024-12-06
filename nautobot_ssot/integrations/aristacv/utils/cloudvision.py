@@ -267,18 +267,21 @@ def get_devices(client, import_active: bool):
     return devices
 
 
-def get_tags_by_type(client, creator_type: int = tag_models.CREATOR_TYPE_USER):
+def get_tags_by_type(client, logger, creator_type: int = tag_models.CREATOR_TYPE_USER):
     """Get tags by creator type from CloudVision."""
-    tag_stub = tag_services.TagServiceStub(client)
-    req = tag_services.TagStreamRequest(partial_eq_filter=[tag_models.Tag(creator_type=creator_type)])
-    responses = tag_stub.GetAll(req)
     tags = []
-    for resp in responses:
-        dev_tag = {
-            "label": resp.value.key.label.value,
-            "value": resp.value.key.value.value,
-        }
-        tags.append(dev_tag)
+    try:
+        tag_stub = tag_services.TagServiceStub(client)
+        req = tag_services.TagStreamRequest(partial_eq_filter=[tag_models.Tag(creator_type=creator_type)])
+        responses = tag_stub.GetAll(req)
+        for resp in responses:
+            dev_tag = {
+                "label": resp.value.key.label.value,
+                "value": resp.value.key.value.value,
+            }
+            tags.append(dev_tag)
+    except grpc.RpcError as err:
+        logger.error(f"Error when pulling Tags: {err}")
     return tags
 
 

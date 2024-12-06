@@ -695,7 +695,9 @@ class NautobotTestSetup:
 
     def _setup_platforms(self):
         for _platform in GLOBAL_YAML_SETTINGS["platform"]:
-            _manufac = Manufacturer.objects.get(name=_platform["manufacturer"])
+            _manufac = None
+            if _platform["manufacturer"]:
+                _manufac = Manufacturer.objects.get(name=_platform["manufacturer"])
             _platf = Platform.objects.create(
                 name=_platform["name"],
                 manufacturer=_manufac,

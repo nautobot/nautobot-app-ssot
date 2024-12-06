@@ -16,7 +16,7 @@ def register_signals(sender):
     nautobot_database_ready.connect(nautobot_database_ready_callback, sender=sender)
 
 
-def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disable=unused-argument
+def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disable=unused-argument, too-many-statements
     """Adds OS Version and Physical Address CustomField to Devices and System of Record and Last Sync'd to Device, and IPAddress.
 
     Callback function triggered by the nautobot_database_ready signal when the Nautobot database is fully ready.
@@ -49,11 +49,6 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     GitRepository = apps.get_model("extras", "GitRepository")
     Role = apps.get_model("extras", "Role")
 
-    if LIFECYCLE_MGMT:
-        SoftwareLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "SoftwareLCM")
-        SoftwareImageLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "SoftwareImageLCM")
-        ValidatedSoftwareLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "ValidatedSoftwareLCM")
-
     signal_to_model_mapping = {
         "manufacturer": Manufacturer,
         "platform": Platform,
@@ -83,20 +78,30 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     }
 
     if LIFECYCLE_MGMT:
-        signal_to_model_mapping.update(
-            {
-                "software": SoftwareLCM,
-                "software_image": SoftwareImageLCM,
-                "validated_software": ValidatedSoftwareLCM,
-            }
-        )
+        try:
+            SoftwareLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "SoftwareLCM")
+            signal_to_model_mapping["software"] = SoftwareLCM
+        except LookupError as err:
+            print(f"Unable to find SoftwareLCM model from Device Lifecycle Management App. {err}")
+        try:
+            SoftwareImageLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "SoftwareImageLCM")
+            signal_to_model_mapping["software_image"] = SoftwareImageLCM
+        except LookupError as err:
+            print(f"Unable to find SoftwareImageLCM model from Device Lifecycle Management App. {err}")
+        try:
+            ValidatedSoftwareLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "ValidatedSoftwareLCM")
+            signal_to_model_mapping["validated_software"] = ValidatedSoftwareLCM
+        except LookupError as err:
+            print(f"Unable to find ValidatedSoftwareLCM model from Device Lifecycle Management App. {err}")
 
     sync_custom_field, _ = create_or_update_custom_field(
+        apps,
         key="last_synced_from_sor",
         field_type=CustomFieldTypeChoices.TYPE_DATE,
         label="Last sync from System of Record",
     )
     sor_custom_field, _ = create_or_update_custom_field(
+        apps,
         key="system_of_record",
         field_type=CustomFieldTypeChoices.TYPE_TEXT,
         label="System of Record",

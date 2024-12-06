@@ -27,6 +27,8 @@ The Nautobot SSoT app builds atop the [DiffSync](https://github.com/networktocod
 This Nautobot application framework includes the following integrations:
 
 - Cisco ACI
+- Bootstrap
+- Citrix ADM
 - Arista CloudVision
 - Device42
 - Cisco DNA Center
@@ -35,6 +37,7 @@ This Nautobot application framework includes the following integrations:
 - Itential
 - Cisco Meraki
 - ServiceNow
+- Slurpit
 
 Read more about integrations [here](https://docs.nautobot.com/projects/ssot/en/latest/user/integrations). To enable and configure integrations follow the instructions from [the install guide](https://docs.nautobot.com/projects/ssot/en/latest/admin/install/#integrations-configuration).
 
@@ -82,6 +85,8 @@ Full documentation for this app can be found over on the [Nautobot Docs](https:/
 The SSoT framework includes a number of integrations with external Systems of Record:
 
 * Cisco ACI
+* Bootstrap
+* Citrix ADM
 * Arista CloudVision
 * Device42
 * Cisco DNA Center
@@ -89,6 +94,7 @@ The SSoT framework includes a number of integrations with external Systems of Re
 * Itential
 * Cisco Meraki
 * ServiceNow
+* Slurpit
 
 > Note that the Arista CloudVision integration is currently incompatible with the [Arista Labs](https://labs.arista.com/) environment due to a TLS issue. It has been confirmed to work in on-prem environments previously.
 
@@ -114,6 +120,12 @@ This project includes code originally written in separate Nautobot apps, which h
     [@dnewood](https://github.com/dnewood),
     [@progala](https://github.com/progala),
     [@ubajze](https://github.com/ubajze)
+- [nautobot-plugin-ssot-bootstrap](https://github.com/nautobot/nautobot-plugin-ssot-bootstrap):
+    Thanks
+    [@bile0026](https://github.com/bile0026)
+- [nautobot-plugin-ssot-citrix-adm](https://github.com/nautobot/nautobot-plugin-ssot-citrix-adm):
+    Thanks
+    [@jdrew82](https://github.com/jdrew82)
 - [nautobot-plugin-ssot-arista-cloudvision](https://github.com/nautobot/nautobot-plugin-ssot-arista-cloudvision):
     Thanks
     [@burnyd](https://github.com/burnyd),
@@ -151,6 +163,12 @@ This project includes code originally written in separate Nautobot apps, which h
     [@pke11y](https://github.com/pke11y),
     [@ubajze](https://github.com/ubajze)
     [@whitej6](https://github.com/whitej6),
+- [nautobot-plugin-ssot-device42](https://github.com/nautobot/nautobot-plugin-ssot-itential):
+    Thanks
+    [@jtdub](https://github.com/jtdub)
+- [nautobot-plugin-ssot-meraki](https://github.com/nautobot/nautobot-plugin-ssot-meraki):
+    Thanks
+    [@jdrew82](https://github.com/jdrew82)
 - [nautobot-plugin-ssot-servicenow](https://github.com/nautobot/nautobot-plugin-ssot-servicenow):
     Thanks
     [@chadell](https://github.com/chadell),

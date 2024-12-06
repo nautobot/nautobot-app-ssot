@@ -1,7 +1,7 @@
 """Nautobot SSoT for Cisco DNA Center Adapter for DNA Center SSoT plugin."""
 
 import json
-from typing import List
+from typing import List, Optional
 
 from diffsync import Adapter
 from diffsync.exceptions import ObjectNotFound
@@ -23,6 +23,7 @@ from nautobot_ssot.integrations.dna_center.diffsync.models.dna_center import (
     DnaCenterPrefix,
 )
 from nautobot_ssot.integrations.dna_center.utils.dna_center import DnaCenterClient
+from nautobot_ssot.utils import parse_hostname_for_role
 
 
 class DnaCenterAdapter(Adapter):
@@ -39,11 +40,11 @@ class DnaCenterAdapter(Adapter):
 
     top_level = ["area", "building", "device", "prefix", "ipaddress", "ip_on_intf"]
 
-    def __init__(self, *args, job=None, sync=None, client: DnaCenterClient, tenant: Tenant, **kwargs):
+    def __init__(self, *args, job, sync=None, client: DnaCenterClient, tenant: Tenant, **kwargs):
         """Initialize DNA Center.
 
         Args:
-            job (object, optional): DNA Center job. Defaults to None.
+            job (Union[DataSource, DataTarget]): DNA Center job.
             sync (object, optional): DNA Center DiffSync. Defaults to None.
             client (DnaCenterClient): DNA Center API client connection object.
             tenant (Tenant): Tenant to attach to imported objects. Can be set to None for no Tenant to be attached.
@@ -63,8 +64,7 @@ class DnaCenterAdapter(Adapter):
         if locations:
             # to ensure we process locations in the appropriate order we need to split them into their own list of locations
             self.dnac_location_map = self.build_dnac_location_map(locations)
-            areas, buildings, floors = self.parse_and_sort_locations(locations)
-            self.load_areas(areas)
+            _, buildings, floors = self.parse_and_sort_locations(locations)
             self.load_buildings(buildings)
             self.load_floors(floors)
         else:
@@ -149,34 +149,14 @@ class DnaCenterAdapter(Adapter):
                 attrs={"uuid": None},
             )
 
-    def load_areas(self, areas: List[dict]):
-        """Load areas from DNAC into DiffSync model.
+    def load_area(self, area: str, area_parent: Optional[str] = None):
+        """Load area from DNAC into DiffSync model.
 
         Args:
-            areas (List[dict]): List of dictionaries containing location information about a building.
+            area (str): Name of area to be loaded.
+            area_parent (Optional[str], optional): Name of area's parent if defined. Defaults to None.
         """
-        for location in areas:
-            if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
-                if location["name"] == "Global":
-                    continue
-            parent_name = None
-            if location.get("parentId") and location["parentId"] in self.dnac_location_map:
-                parent_name = self.dnac_location_map[location["parentId"]]["name"]
-                self.dnac_location_map[location["id"]]["parent"] = parent_name
-            _, loaded = self.get_or_instantiate(
-                self.area,
-                ids={"name": location["name"], "parent": parent_name},
-                attrs={
-                    "uuid": None,
-                },
-            )
-            if loaded:
-                if self.job.debug:
-                    self.job.logger.info(f"Loaded {self.job.area_loctype.name} {location['name']}. {location}")
-            else:
-                self.job.logger.warning(
-                    f"Duplicate {self.job.area_loctype.name} {location['name']} attempting to be loaded."
-                )
+        self.get_or_instantiate(self.area, ids={"name": area, "parent": area_parent}, attrs={"uuid": None})
 
     def load_buildings(self, buildings: List[dict]):
         """Load building data from DNAC into DiffSync model.
@@ -185,35 +165,46 @@ class DnaCenterAdapter(Adapter):
             buildings (List[dict]): List of dictionaries containing location information about a building.
         """
         for location in buildings:
-            if location["parentId"] in self.dnac_location_map:
-                _area = self.dnac_location_map[location["parentId"]]
-            else:
-                _area = {"name": "Global", "parent": None}
-            try:
-                self.get(self.building, {"name": location["name"], "area": _area["name"]})
-                self.job.logger.warning(
-                    f"{self.job.building_loctype.name} {location['name']} already loaded so skipping."
-                )
-                continue
-            except ObjectNotFound:
-                if self.job.debug:
-                    self.job.logger.info(f"Loading {self.job.building_loctype.name} {location['name']}. {location}")
-                address, _ = self.conn.find_address_and_type(info=location["additionalInfo"])
-                latitude, longitude = self.conn.find_latitude_and_longitude(info=location["additionalInfo"])
-                new_building = self.building(
-                    name=location["name"],
-                    address=address if address else "",
-                    area=_area["name"],
-                    area_parent=_area["parent"],
-                    latitude=latitude[:9].rstrip("0"),
-                    longitude=longitude[:7].rstrip("0"),
-                    tenant=self.tenant.name if self.tenant else None,
-                    uuid=None,
-                )
-                try:
-                    self.add(new_building)
-                except ValidationError as err:
-                    self.job.logger.warning(f"Unable to load building {location['name']}. {err}")
+            if self.job.debug:
+                self.job.logger.info(f"Loading {self.job.building_loctype.name} {location['name']}. {location}")
+            bldg_name = location["name"]
+            _area, _area_parent = None, None
+            if bldg_name in self.job.location_map and "parent" in self.job.location_map[bldg_name]:
+                _area = self.job.location_map[bldg_name]["parent"]
+                if "area_parent" in self.job.location_map[bldg_name]:
+                    _area_parent = self.job.location_map[bldg_name]["area_parent"]
+                if "name" in self.job.location_map[bldg_name]:
+                    bldg_name = self.job.location_map[bldg_name]["name"]
+            elif location["parentId"] in self.dnac_location_map:
+                _area = self.dnac_location_map[location["parentId"]]["name"]
+                _area_parent = self.dnac_location_map[location["parentId"]]["parent"]
+            if _area in self.job.location_map and (
+                "parent" in self.job.location_map[_area] and bldg_name not in self.job.location_map
+            ):
+                _area_parent = self.job.location_map[_area]["parent"]
+            if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
+                if _area == "Global":
+                    _area = None
+                if _area_parent == "Global":
+                    _area_parent = None
+            if _area:
+                self.load_area(area=_area, area_parent=_area_parent)
+            address, _ = self.conn.find_address_and_type(info=location["additionalInfo"])
+            latitude, longitude = self.conn.find_latitude_and_longitude(info=location["additionalInfo"])
+            _, loaded = self.get_or_instantiate(
+                self.building,
+                ids={"name": bldg_name, "area": _area},
+                attrs={
+                    "address": address if address else "",
+                    "area_parent": _area_parent,
+                    "latitude": latitude[:9].rstrip("0"),
+                    "longitude": longitude[:7].rstrip("0"),
+                    "tenant": self.tenant.name if self.tenant else None,
+                    "uuid": None,
+                },
+            )
+            if not loaded:
+                self.job.logger.warning(f"{self.job.building_loctype.name} {bldg_name} already loaded so skipping.")
 
     def load_floors(self, floors: List[dict]):
         """Load floor data from DNAC into DiffSync model.
@@ -224,39 +215,30 @@ class DnaCenterAdapter(Adapter):
         for location in floors:
             if self.job.debug:
                 self.job.logger.info(f"Loading floor {location['name']}. {location}")
+            area_name = None
             if location["parentId"] in self.dnac_location_map:
-                _building = self.dnac_location_map[location["parentId"]]
+                bldg_name = self.dnac_location_map[location["parentId"]]["name"]
+                area_name = self.dnac_location_map[location["parentId"]]["parent"]
             else:
                 self.job.logger.warning(f"Parent to {location['name']} can't be found so will be skipped.")
                 continue
-            floor_name = f"{_building['name']} - {location['name']}"
+            if bldg_name in self.job.location_map and "name" in self.job.location_map[bldg_name]:
+                area_name = self.job.location_map[bldg_name]["parent"]
+                bldg_name = self.job.location_map[bldg_name]["name"]
+            floor_name = f"{bldg_name} - {location['name']}"
             try:
-                self.get(
+                parent = self.get(self.building, {"name": bldg_name, "area": area_name})
+                new_floor, loaded = self.get_or_instantiate(
                     self.floor,
-                    {"name": floor_name, "building": _building["name"]},
+                    ids={"name": floor_name, "building": bldg_name},
+                    attrs={"tenant": self.tenant.name if self.tenant else None, "uuid": None},
                 )
-                self.job.logger.warning(f"Duplicate Floor {floor_name} attempting to be loaded.")
-            except ObjectNotFound:
-                new_floor = self.floor(
-                    name=floor_name,
-                    building=_building["name"],
-                    tenant=self.tenant.name if self.tenant else None,
-                    uuid=None,
+                if loaded:
+                    parent.add_child(new_floor)
+            except ObjectNotFound as err:
+                self.job.logger.warning(
+                    f"Unable to find {self.job.building_loctype.name} {bldg_name} for {self.job.floor_loctype.name} {floor_name}. {err}"
                 )
-                try:
-                    self.add(new_floor)
-                    try:
-                        parent = self.get(
-                            self.building,
-                            {"name": _building["name"], "area": self.dnac_location_map[location["parentId"]]["parent"]},
-                        )
-                        parent.add_child(new_floor)
-                    except ObjectNotFound as err:
-                        self.job.logger.warning(
-                            f"Unable to find {self.job.building_loctype.name} {_building['name']} for {self.job.floor_loctype.name} {floor_name}. {err}"
-                        )
-                except ValidationError as err:
-                    self.job.logger.warning(f"Unable to load floor {floor_name}. {err}")
 
     def parse_and_sort_locations(self, locations: List[dict]):
         """Separate locations into areas, buildings, and floors for processing. Also sort by siteHierarchy.
@@ -311,19 +293,25 @@ class DnaCenterAdapter(Adapter):
         """Load Device data from DNA Center info DiffSync models."""
         devices = self.conn.get_devices()
         for dev in devices:
+            if not PLUGIN_CFG.get("dna_center_import_merakis") and (
+                (dev.get("family") and "Meraki" in dev["family"])
+                or (dev.get("errorDescription") and "Meraki" in dev["errorDescription"])
+            ):
+                continue
             platform = "unknown"
             dev_role = "Unknown"
             vendor = "Cisco"
             if not dev.get("hostname"):
-                self.job.logger.warning(f"Device {dev['id']} is missing hostname so will be skipped.")
+                if self.job.debug:
+                    self.job.logger.warning(f"Device {dev['id']} is missing hostname so will be skipped.")
                 dev["field_validation"] = {
                     "reason": "Failed due to missing hostname.",
                 }
                 self.failed_import_devices.append(dev)
                 continue
-            if PLUGIN_CFG.get("dna_center_hostname_mapping"):
-                dev_role = self.conn.parse_hostname_for_role(
-                    hostname_map=PLUGIN_CFG["dna_center_hostname_mapping"], device_hostname=dev["hostname"]
+            if self.job.hostname_map:
+                dev_role = parse_hostname_for_role(
+                    hostname_map=self.job.hostname_map, device_hostname=dev["hostname"], default_role="Unknown"
                 )
             if dev_role == "Unknown":
                 dev_role = dev["role"]
@@ -333,9 +321,14 @@ class DnaCenterAdapter(Adapter):
                 if not dev.get("softwareType") and dev.get("type") and ("3800" in dev["type"] or "9130" in dev["type"]):
                     platform = "cisco_ios"
                 if not dev.get("softwareType") and dev.get("family") and "Meraki" in dev["family"]:
-                    if not PLUGIN_CFG.get("dna_center_import_merakis"):
-                        continue
                     platform = "cisco_meraki"
+            if platform == "unknown":
+                self.job.logger.warning(f"Device {dev['hostname']} is missing Platform so will be skipped.")
+                dev["field_validation"] = {
+                    "reason": "Failed due to missing platform.",
+                }
+                self.failed_import_devices.append(dev)
+                continue
             if dev.get("type") and "Juniper" in dev["type"]:
                 vendor = "Juniper"
             dev_details = self.conn.get_device_detail(dev_id=dev["id"])
@@ -349,7 +342,8 @@ class DnaCenterAdapter(Adapter):
                 or loc_data.get("building") == "Unassigned"
                 or not loc_data.get("building")
             ):
-                self.job.logger.warning(f"Device {dev['hostname']} is missing building so will not be imported.")
+                if self.job.debug:
+                    self.job.logger.warning(f"Device {dev['hostname']} is missing building so will not be imported.")
                 dev["field_validation"] = {
                     "reason": "Missing building assignment.",
                     "device_details": dev_details,
@@ -364,9 +358,10 @@ class DnaCenterAdapter(Adapter):
                     )
                 device_found = self.get(self.device, dev["hostname"])
                 if device_found:
-                    self.job.logger.warning(
-                        f"Duplicate device attempting to be loaded for {dev['hostname']} with ID: {dev['id']} so will not be imported."
-                    )
+                    if self.job.debug:
+                        self.job.logger.warning(
+                            f"Duplicate device attempting to be loaded for {dev['hostname']} with ID: {dev['id']} so will not be imported."
+                        )
                     dev["field_validation"] = {
                         "reason": "Failed due to duplicate device found.",
                         "device_details": dev_details,
@@ -394,7 +389,8 @@ class DnaCenterAdapter(Adapter):
                     self.add(new_dev)
                     self.load_ports(device_id=dev["id"], dev=new_dev, mgmt_addr=dev["managementIpAddress"])
                 except ValidationError as err:
-                    self.job.logger.warning(f"Unable to load device {dev['hostname']}. {err}")
+                    if self.job.debug:
+                        self.job.logger.warning(f"Unable to load device {dev['hostname']}. {err}")
                     dev["field_validation"] = {
                         "reason": f"Failed validation. {err}",
                         "device_details": dev_details,
@@ -421,7 +417,7 @@ class DnaCenterAdapter(Adapter):
                         "mac_addr": port["macAddress"].upper() if port.get("macAddress") else None,
                     },
                 )
-                if found_port:
+                if found_port and self.job.debug:
                     self.job.logger.warning(
                         f"Duplicate port attempting to be loaded, {port['portName']} for {dev.name}"
                     )
@@ -495,7 +491,7 @@ class DnaCenterAdapter(Adapter):
             self.add(new_prefix)
         try:
             ip_found = self.get(self.ipaddress, {"host": host, "namespace": namespace})
-            if ip_found:
+            if ip_found and self.job.debug:
                 self.job.logger.warning(f"Duplicate IP Address attempting to be loaded: {host} in {prefix}")
         except ObjectNotFound:
             if self.job.debug:

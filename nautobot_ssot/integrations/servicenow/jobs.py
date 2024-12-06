@@ -1,5 +1,6 @@
 """ServiceNow Data Target Job."""
 
+from diffsync.enum import DiffSyncFlags
 from django.core.exceptions import ObjectDoesNotExist
 from django.templatetags.static import static
 from django.urls import reverse
@@ -16,7 +17,7 @@ from .utils import get_servicenow_parameters
 name = "SSoT - ServiceNow"  # pylint: disable=invalid-name
 
 
-class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
+class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method, too-many-instance-attributes
     """Job syncing data from Nautobot to ServiceNow."""
 
     debug = BooleanVar(description="Enable for more verbose logging.")
@@ -79,11 +80,14 @@ class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
         self.target_adapter = ServiceNowDiffSync(client=snc, job=self, sync=self.sync, site_filter=self.site_filter)
         self.target_adapter.load()
 
-    def run(self, dryrun, memory_profiling, site_filter, *args, **kwargs):  # pylint:disable=arguments-differ
+    def run(self, dryrun, memory_profiling, delete_records, site_filter, *args, **kwargs):  # pylint:disable=arguments-differ
         """Run sync."""
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
         self.site_filter = site_filter
+        self.delete_records = delete_records
+        if not self.delete_records:
+            self.diffsync_flags |= DiffSyncFlags.SKIP_UNMATCHED_DST
         super().run(dryrun, memory_profiling, *args, **kwargs)
 
     def lookup_object(self, model_name, unique_id):

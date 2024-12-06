@@ -44,18 +44,17 @@ class TestNautobotPrefix(TransactionTestCase):  # pylint: disable=too-many-insta
         self.adapter.tenant_map = {"Test": self.test_tenant.id, "Update": self.update_tenant.id}
         self.adapter.status_map = {"Active": self.status_active.id}
         self.adapter.prefix_map = {}
-        self.adapter.objects_to_create = {"prefixes": [], "prefix_locs": []}
+        self.adapter.objects_to_create = {"prefixes": []}
         self.adapter.objects_to_delete = {"prefixes": []}
 
     def test_create(self):
         """Validate the NautobotPrefix create() method creates a Prefix."""
         self.prefix.delete()
         ids = {"prefix": "10.0.0.0/24", "namespace": "Test"}
-        attrs = {"location": "Test", "tenant": "Test"}
+        attrs = {"tenant": "Test"}
         result = NautobotPrefix.create(self.adapter, ids, attrs)
         self.assertIsInstance(result, NautobotPrefix)
         self.assertEqual(len(self.adapter.objects_to_create["prefixes"]), 1)
-        self.assertEqual(len(self.adapter.objects_to_create["prefix_locs"]), 1)
         subnet = self.adapter.objects_to_create["prefixes"][0]
         self.assertEqual(str(subnet.prefix), ids["prefix"])
         self.assertEqual(self.adapter.prefix_map[ids["prefix"]], subnet.id)
@@ -66,15 +65,13 @@ class TestNautobotPrefix(TransactionTestCase):  # pylint: disable=too-many-insta
         test_pf = NautobotPrefix(
             prefix="10.0.0.0/24",
             namespace="Test",
-            location="Test",
             tenant="Test",
             uuid=self.prefix.id,
         )
         test_pf.adapter = self.adapter
-        update_attrs = {"location": "Update", "tenant": "Update"}
+        update_attrs = {"tenant": "Update"}
         actual = NautobotPrefix.update(self=test_pf, attrs=update_attrs)
         self.prefix.refresh_from_db()
-        self.assertEqual(self.prefix.location, self.update_site)
         self.assertEqual(self.prefix.tenant, self.update_tenant)
         self.assertEqual(actual, test_pf)
 
@@ -84,7 +81,6 @@ class TestNautobotPrefix(TransactionTestCase):  # pylint: disable=too-many-insta
         test_pf = NautobotPrefix(
             prefix="10.0.0.0/24",
             namespace="Test",
-            location="Test",
             tenant="Test",
             uuid=self.prefix.id,
         )

@@ -43,7 +43,7 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
 
     databases = ("default", "job_logs")
 
-    def setUp(self):
+    def setUp(self):  # pylint: disable=too-many-statements
         """Initialize test case."""
         super().setUp()
         self.dna_center_client = MagicMock()
@@ -127,6 +127,11 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         self.job.building_loctype = self.site_loc_type
         self.job.floor_loctype = self.floor_loc_type
         self.job.dnac = dnac
+        self.job.location_map = {}
+        self.job.hostname_map = {}
+        self.job.logger.warning = MagicMock()
+        self.job.logger.error = MagicMock()
+        self.job.logger.info = MagicMock()
         self.job.controller_group = ControllerManagedDeviceGroup.objects.get_or_create(
             name="DNA Center Managed Devices", controller=dnac
         )[0]
@@ -135,9 +140,6 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
             name=self.job.class_path, task_name="fake task", user=None, id=uuid.uuid4()
         )
         self.dna_center = DnaCenterAdapter(job=self.job, sync=None, client=self.dna_center_client, tenant=None)
-        self.dna_center.job.logger.warning = MagicMock()
-        self.dna_center.job.logger.error = MagicMock()
-        self.dna_center.job.logger.info = MagicMock()
         self.dna_center.dnac_location_map = EXPECTED_DNAC_LOCATION_MAP
 
     def test_build_dnac_location_map(self):
@@ -166,13 +168,11 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
 
     def test_load_locations_success(self):
         """Test Nautobot SSoT for Cisco DNA Center load_locations() function successfully."""
-        self.dna_center.load_areas = MagicMock()
         self.dna_center.load_buildings = MagicMock()
         self.dna_center.load_floors = MagicMock()
         self.dna_center_client.get_location.return_value = [{"name": "NY"}]
         self.dna_center.load_locations()
         self.dna_center_client.get_locations.assert_called()
-        self.dna_center.load_areas.assert_called_once()
         self.dna_center.load_buildings.assert_called_once()
         self.dna_center.load_floors.assert_called_once()
 
@@ -184,23 +184,31 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
             "No location data was returned from DNAC. Unable to proceed."
         )
 
-    def test_load_areas_w_global(self):
-        """Test Nautobot SSoT for Cisco DNA Center load_areas() function with Global area."""
-        self.dna_center.load_areas(areas=EXPECTED_AREAS)
+    def test_load_area_w_global(self):
+        """Test Nautobot SSoT for Cisco DNA Center load_area() function with Global area."""
+        for area in EXPECTED_AREAS:
+            hierarchy = area["siteNameHierarchy"].split("/")
+            if isinstance(hierarchy, list) and len(hierarchy) > 1:
+                self.dna_center.load_area(area=hierarchy[-1], area_parent=hierarchy[-2])
+            else:
+                self.dna_center.load_area(area=hierarchy[0])
         area_expected = sorted(
             [f"{x['name']}__{x['parent']}" for x in EXPECTED_DNAC_LOCATION_MAP.values() if x["loc_type"] == "area"]
         )
         area_actual = sorted([area.get_unique_id() for area in self.dna_center.get_all("area")])
         self.assertEqual(area_actual, area_expected)
-        self.dna_center.job.logger.info.assert_called_with(
-            "Loaded Region Sydney. {'parentId': '262696b1-aa87-432b-8a21-db9a77c51f23', 'additionalInfo': [{'nameSpace': 'Location', 'attributes': {'addressInheritedFrom': '262696b1-aa87-432b-8a21-db9a77c51f23', 'type': 'area'}}], 'name': 'Sydney', 'instanceTenantId': '623f029857259506a56ad9bd', 'id': '6e404051-4c06-4dab-adaa-72c5eeac577b', 'siteHierarchy': '9e5f9fc2-032e-45e8-994c-4a00629648e8/262696b1-aa87-432b-8a21-db9a77c51f23/6e404051-4c06-4dab-adaa-72c5eeac577b', 'siteNameHierarchy': 'Global/Australia/Sydney'}"
-        )
 
     @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"dna_center_import_global": False}})
-    def test_load_areas_wo_global(self):
-        """Test Nautobot SSoT for Cisco DNA Center load_areas() function without Global area."""
+    def test_load_area_wo_global(self):
+        """Test Nautobot SSoT for Cisco DNA Center load_area() function without Global area."""
         self.dna_center.dnac_location_map = EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL
-        self.dna_center.load_areas(areas=EXPECTED_AREAS_WO_GLOBAL)
+        for area in EXPECTED_AREAS_WO_GLOBAL:
+            hierarchy = area["siteNameHierarchy"].split("/")
+            if hierarchy[-2] == "Global":
+                area_parent = None
+            else:
+                area_parent = hierarchy[-2]
+            self.dna_center.load_area(area=hierarchy[-1], area_parent=area_parent)
         area_expected = [
             f"{x['name']}__{x['parent']}"
             for x in EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL.values()
@@ -252,7 +260,9 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
 
     def test_load_buildings_duplicate(self):
         """Test Nautobot SSoT for Cisco DNA Center load_buildings() function with duplicate building."""
+        self.dna_center.load_area = MagicMock()
         self.dna_center_client.find_address_and_type.side_effect = [
+            ("", "building"),
             ("", "building"),
             ("", "building"),
             ("", "building"),
@@ -266,17 +276,68 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         self.dna_center.load_buildings(buildings=[EXPECTED_BUILDINGS[0]])
         self.dna_center.job.logger.warning.assert_called_with("Site Building1 already loaded so skipping.")
 
-    def test_load_buildings_with_validation_error(self):
-        """Test Nautobot SSoT for Cisco DNA Center load_buildings() function with a ValidationError."""
-        self.dna_center.add = MagicMock()
-        self.dna_center.add.side_effect = ValidationError(message="Building load failed!")
-        self.dna_center.load_buildings(buildings=[EXPECTED_BUILDINGS[0]])
-        self.dna_center.job.logger.warning.assert_called_with(
-            "Unable to load building Building1. ['Building load failed!']"
-        )
+    def test_load_buildings_w_location_map_building_change(self):
+        """Test Nautobot SSoT for Cisco DNA Center load_buildings() function with Job location_map and building data."""
+        self.job.location_map = {"Rome": {"parent": "Italy", "area_parent": "Europe"}}
+        self.dna_center_client.find_address_and_type.side_effect = [("", "building")]
+
+        self.dna_center.load_area = MagicMock()
+        self.dna_center.load_buildings(buildings=[EXPECTED_BUILDINGS[7]])
+        self.dna_center.load_area.assert_called_with(area="Italy", area_parent="Europe")
+        loaded_bldg = self.dna_center.get("building", {"name": "Rome", "area": "Italy"})
+        self.assertEqual(loaded_bldg.name, "Rome")
+        self.assertEqual(loaded_bldg.area, "Italy")
+        self.assertEqual(loaded_bldg.area_parent, "Europe")
+
+    def test_load_buildings_w_location_map_area_change(self):
+        """Test Nautobot SSoT for Cisco DNA Center load_buildings() function with Job location_map and area data."""
+        self.job.location_map = {"SanDiego": {"parent": "California"}}
+        self.dna_center_client.find_address_and_type.side_effect = [("", "building")]
+
+        self.dna_center.load_area = MagicMock()
+        self.dna_center.load_buildings(buildings=[EXPECTED_BUILDINGS[5]])
+        self.dna_center.load_area.assert_called_with(area="SanDiego", area_parent="California")
+        loaded_bldg = self.dna_center.get("building", {"name": "1", "area": "SanDiego"})
+        self.assertEqual(loaded_bldg.name, "1")
+        self.assertEqual(loaded_bldg.area, "SanDiego")
+        self.assertEqual(loaded_bldg.area_parent, "California")
+
+    def test_load_buildings_w_location_map_area_and_bldg_change(self):
+        """Test Nautobot SSoT for Cisco DNA Center load_buildings() function with Job location_map and area and building data."""
+        self.job.location_map = {"HQ": {"parent": "New York", "area_parent": "USA"}, "New York": {"parent": "New York"}}
+        self.dna_center_client.find_address_and_type.side_effect = [("", "building")]
+
+        self.dna_center.load_area = MagicMock()
+        test_bldg = [
+            {
+                "parentId": "04509ce4-6c88-40a3-b444-9e00f2cd97f2",
+                "additionalInfo": [
+                    {
+                        "nameSpace": "Location",
+                        "attributes": {
+                            "latitude": "39.156233",
+                            "type": "building",
+                            "longitude": "-74.690192",
+                        },
+                    }
+                ],
+                "name": "HQ",
+                "id": "2d0d8545-b6de-4dda-a0f7-93bcd7d0e738",
+                "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/04509ce4-6c88-40a3-b444-9e00f2cd97f2/2d0d8545-b6de-4dda-a0f7-93bcd7d0e738",
+                "siteNameHierarchy": "Global/SanDiego/HQ",
+            }
+        ]
+        self.dna_center.load_buildings(buildings=test_bldg)
+        self.dna_center.load_area.assert_called_with(area="New York", area_parent="USA")
+        loaded_bldg = self.dna_center.get("building", {"name": "HQ", "area": "New York"})
+        self.assertEqual(loaded_bldg.name, "HQ")
+        self.assertEqual(loaded_bldg.area, "New York")
+        self.assertEqual(loaded_bldg.area_parent, "USA")
 
     def test_load_floors(self):
         """Test Nautobot SSoT for Cisco DNA Center load_floors() function."""
+        self.job.location_map = {}
+        self.dna_center.get = MagicMock()
         self.dna_center.load_floors(floors=EXPECTED_FLOORS)
         floor_expected = [
             "Building1 - Floor1__Building1",

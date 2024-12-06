@@ -1,0 +1,519 @@
+[
+    {
+      "id": "3",
+      "name": "Interfaces",
+      "slug": "interfaces",
+      "comment": "Discover all interfaces",
+      "disabled": "0",
+      "createddate": "2023-04-03 12:41:24",
+      "changeddate": "2024-10-15 09:00:07",
+      "columns": [
+        {
+          "column": "Interface",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Line",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Protocol",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "IP",
+          "type": "ip",
+          "key": true
+        },
+        {
+          "column": "MAC",
+          "type": "mac",
+          "key": true
+        },
+        {
+          "column": "Description",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Duplex",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Speed",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Vlan",
+          "type": "text",
+          "key": true
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "name": "Hardware info",
+      "slug": "hardware-info",
+      "comment": "Discover all hardware information like serial numbers",
+      "disabled": "0",
+      "createddate": "2023-04-03 13:14:42",
+      "changeddate": "2024-10-15 09:00:07",
+      "columns": [
+        {
+          "column": "Name",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Descr",
+          "type": "text",
+          "key": false
+        },
+        {
+          "column": "Product",
+          "type": "text",
+          "key": false
+        },
+        {
+          "column": "Version",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Serial",
+          "type": "text",
+          "key": true
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "name": "Vlans",
+      "slug": "vlans",
+      "comment": "Discover all vlans",
+      "disabled": "0",
+      "createddate": "2023-04-03 13:14:53",
+      "changeddate": "2024-10-15 09:00:07",
+      "columns": [
+        {
+          "column": "Vlan",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Name",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Status",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Interfaces",
+          "type": "text",
+          "key": true
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "name": "Mac addresses",
+      "slug": "mac-addresses",
+      "comment": "Discover all Mac addresses",
+      "disabled": "0",
+      "createddate": "2023-04-03 13:15:22",
+      "changeddate": "2024-10-15 09:00:07",
+      "columns": [
+        {
+          "column": "Interface",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "MAC",
+          "type": "mac",
+          "key": true
+        },
+        {
+          "column": "Type",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Vlan",
+          "type": "text",
+          "key": true
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "name": "Software versions",
+      "slug": "software-versions",
+      "comment": "Discover all software versions",
+      "disabled": "0",
+      "createddate": "2023-04-03 13:15:36",
+      "changeddate": "2024-10-15 09:00:07",
+      "columns": [
+        {
+          "column": "Version",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "File",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Uptime",
+          "type": "text",
+          "key": false
+        },
+        {
+          "column": "Type",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Serial",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Boot",
+          "type": "text",
+          "key": false
+        },
+        {
+          "column": "Reboot Reason",
+          "type": "text",
+          "key": false
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "name": "ARP",
+      "slug": "arp",
+      "comment": "Discover all ARP entries",
+      "disabled": "0",
+      "createddate": "2023-04-03 13:17:02",
+      "changeddate": "2024-10-15 09:00:07",
+      "columns": [
+        {
+          "column": "IP Address",
+          "type": "ip",
+          "key": true
+        },
+        {
+          "column": "Age",
+          "type": "text",
+          "key": false
+        },
+        {
+          "column": "Mac",
+          "type": "mac",
+          "key": true
+        },
+        {
+          "column": "Type",
+          "type": "text",
+          "key": false
+        },
+        {
+          "column": "Interface",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "VRF",
+          "type": "text",
+          "key": true
+        }
+      ]
+    },
+    {
+      "id": "14",
+      "name": "LLDP",
+      "slug": "lldp",
+      "comment": "Discover neighbor information with LLDP",
+      "disabled": "0",
+      "createddate": "2023-07-03 18:11:08",
+      "changeddate": "2024-10-15 09:00:07",
+      "columns": [
+        {
+          "column": "Interface",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Neighbor_interface",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Neighbord_interface_desc",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Neighbor",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "System_description",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Management_ip",
+          "type": "ip",
+          "key": true
+        }
+      ]
+    },
+    {
+      "id": "15",
+      "name": "CDP",
+      "slug": "cdp",
+      "comment": "Discover Cisco neighbor information with CDP",
+      "disabled": "0",
+      "createddate": "2023-07-03 18:32:00",
+      "changeddate": "2024-10-15 09:00:07",
+      "columns": [
+        {
+          "column": "Destination_host",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Management_ip",
+          "type": "ip",
+          "key": true
+        },
+        {
+          "column": "Platform",
+          "type": "text",
+          "key": false
+        },
+        {
+          "column": "Remote_port",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Local_port",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Software_version",
+          "type": "text",
+          "key": false
+        },
+        {
+          "column": "Capabilities",
+          "type": "text",
+          "key": false
+        }
+      ]
+    },
+    {
+      "id": "16",
+      "name": "Clock",
+      "slug": "clock",
+      "comment": "Discover Clock information",
+      "disabled": "0",
+      "createddate": "2023-07-03 18:35:29",
+      "changeddate": "2024-10-15 09:00:07",
+      "columns": [
+        {
+          "column": "Time",
+          "type": "text",
+          "key": false
+        },
+        {
+          "column": "Timezone",
+          "type": "text",
+          "key": false
+        },
+        {
+          "column": "Dayweek",
+          "type": "text",
+          "key": false
+        },
+        {
+          "column": "Month",
+          "type": "text",
+          "key": false
+        },
+        {
+          "column": "Day",
+          "type": "text",
+          "key": false
+        },
+        {
+          "column": "Year",
+          "type": "text",
+          "key": false
+        }
+      ]
+    },
+    {
+      "id": "17",
+      "name": "Routing Table",
+      "slug": "routing-table",
+      "comment": "Discover the routing table",
+      "disabled": "0",
+      "createddate": "2023-07-03 18:38:49",
+      "changeddate": "2024-10-15 09:00:07",
+      "columns": [
+        {
+          "column": "Network",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Mask",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Vrf",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Nexthop_ip",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Nexthop_if",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Nexthop_vrf",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Protocol",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Type",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Distance",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Metric",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Uptime",
+          "type": "text",
+          "key": false
+        }
+      ]
+    },
+    {
+      "id": "18",
+      "name": "VRFs",
+      "slug": null,
+      "comment": "Discover all VRFs",
+      "disabled": "0",
+      "createddate": "2024-10-16 11:18:17",
+      "changeddate": "2024-10-16 11:18:17",
+      "columns": [
+        {
+          "column": "VRF",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "VRF_ID",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Interfaces",
+          "type": "text",
+          "key": true
+        }
+      ]
+    },
+    {
+      "id": "19",
+      "name": "License",
+      "slug": null,
+      "comment": "Discover the License status of your devices",
+      "disabled": "0",
+      "createddate": "2024-10-16 11:18:17",
+      "changeddate": "2024-10-16 11:18:17",
+      "columns": [
+        {
+          "column": "Feature",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Issued",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "Description",
+          "type": "text",
+          "key": false
+        },
+        {
+          "column": "Expires",
+          "type": "text",
+          "key": false
+        },
+        {
+          "column": "Period_used",
+          "type": "text",
+          "key": false
+        },
+        {
+          "column": "License_type",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "License_state",
+          "type": "text",
+          "key": false
+        },
+        {
+          "column": "License_count",
+          "type": "text",
+          "key": true
+        },
+        {
+          "column": "License_priority",
+          "type": "text",
+          "key": false
+        }
+      ]
+    }
+  ]

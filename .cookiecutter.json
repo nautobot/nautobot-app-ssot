@@ -14,7 +14,7 @@
         "max_nautobot_version": "2.9999",
         "camel_name": "NautobotSSOTApp",
         "project_short_description": "Nautobot Single Source of Truth",
-        "model_class_name": "None",
+        "model_class_name": "Sync",
         "open_source_license": "Apache-2.0",
         "docs_base_url": "https://docs.nautobot.com",
         "docs_app_url": "https://docs.nautobot.com/projects/ssot/en/latest",
