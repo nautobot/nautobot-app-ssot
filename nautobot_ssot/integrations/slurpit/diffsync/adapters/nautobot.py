@@ -10,6 +10,7 @@ from nautobot_ssot.integrations.slurpit.diffsync.models import (
     IPAddressModel,
     LocationModel,
     ManufacturerModel,
+    NautobotIPAddressToInterfaceModel,
     PlatformModel,
     PrefixModel,
     RoleModel,
@@ -39,6 +40,7 @@ class NautobotDiffSyncAdapter(NautobotAdapter):
     vrf = VRFModel
     prefix = PrefixModel
     ipaddress = IPAddressModel
+    ipassignment = NautobotIPAddressToInterfaceModel
     top_level = (
         "location",
         "manufacturer",
@@ -51,4 +53,5 @@ class NautobotDiffSyncAdapter(NautobotAdapter):
         "prefix",
         "ipaddress",
         "interface",
+        "ipassignment",
     )

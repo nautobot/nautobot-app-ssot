@@ -11,7 +11,7 @@ except ImportError:
 
 from nautobot.dcim.models import Device, DeviceType, Interface, InventoryItem, Location, Manufacturer, Platform
 from nautobot.extras.models import Role
-from nautobot.ipam.models import VLAN, VRF, IPAddress, Prefix
+from nautobot.ipam.models import VLAN, VRF, IPAddress, IPAddressToInterface, Prefix
 from netaddr import EUI
 from pydantic import field_serializer
 from typing_extensions import TypedDict  # pylint: disable=C0412
@@ -28,7 +28,7 @@ class ModelQuerySetMixin:
     def get_queryset(cls, data):
         """Get the queryset for the model."""
         tagged = data.get("sync_slurpit_tagged_only")
-        if tagged:
+        if tagged and hasattr(cls._model, "_custom_field_data"):
             if hasattr(cls._model, "tags"):
                 return cls._model.objects.filter(tags__name="SSoT Synced from Slurpit")
             return cls._model.objects.filter(_custom_field_data__system_of_record="Slurpit")
@@ -166,7 +166,6 @@ class DeviceModel(ModelQuerySetMixin, NautobotModel):
         "role__name",
         "serial",
         "status__name",
-        "primary_ip4__host",
         "tags",
         "system_of_record",
         "last_synced_from_sor",
@@ -184,7 +183,6 @@ class DeviceModel(ModelQuerySetMixin, NautobotModel):
     role__name: str
     serial: Optional[str] = ""
     status__name: str
-    primary_ip4__host: Optional[str] = ""
     inventory_items: List["InventoryItemModel"] = []
     tags: List[TagDict] = []
     system_of_record: Annotated[str, CustomFieldAnnotation(name="system_of_record", key="system_of_record")]
@@ -279,13 +277,6 @@ class PrefixModel(ModelQuerySetMixin, NautobotModel):
     last_synced_from_sor: Annotated[str, CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")]
 
 
-class IPAddressDict(TypedDict):
-    """IPAddress Typed Dict."""
-
-    host: str
-    mask_length: int
-
-
 class IPAddressModel(ModelQuerySetMixin, NautobotModel):
     """Data model representing an IPAddress."""
 
@@ -316,7 +307,6 @@ class InterfaceModel(ModelQuerySetMixin, NautobotModel):
         "mtu",
         "type",
         "status__name",
-        "ip_addresses",
         "tags",
         "system_of_record",
         "last_synced_from_sor",
@@ -331,7 +321,6 @@ class InterfaceModel(ModelQuerySetMixin, NautobotModel):
     name: str
     type: str
     status__name: str
-    ip_addresses: List[IPAddressDict] = []
     tags: List[TagDict] = []
     system_of_record: Annotated[str, CustomFieldAnnotation(name="system_of_record", key="system_of_record")]
     last_synced_from_sor: Annotated[str, CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")]
@@ -340,3 +329,82 @@ class InterfaceModel(ModelQuerySetMixin, NautobotModel):
     def serialize_mac_address(self, value):
         """Serialize a MAC address to a string."""
         return str(value)
+
+
+class IPAddressToInterfaceModel(ModelQuerySetMixin, NautobotModel):
+    """Shared data model representing an IPAddressToInterface."""
+
+    _model = IPAddressToInterface
+    _modelname = "ipassignment"
+    _identifiers = ("interface__device__name", "interface__name", "ip_address__host")
+    _attributes = (
+        "interface__device__primary_ip4__host",
+        "interface__device__primary_ip6__host",
+    )
+    _children = {}
+
+    interface__device__name: str
+    interface__name: str
+    ip_address__host: str
+    interface__device__primary_ip4__host: Optional[str] = None
+    interface__device__primary_ip6__host: Optional[str] = None
+
+
+class NautobotIPAddressToInterfaceModel(IPAddressToInterfaceModel):
+    """IPAddressToInterface model for Nautobot."""
+
+    @classmethod
+    def create(cls, adapter, ids, attrs):
+        """Create IPAddressToInterface in Nautobot."""
+        if adapter.job.logger.debug:
+            adapter.job.logger.debug(f"Creating IPAddressToInterface {ids} {attrs}")
+        intf = Interface.objects.get(name=ids["interface__name"], device__name=ids["interface__device__name"])
+        obj = IPAddressToInterface(
+            ip_address=IPAddress.objects.get(host=ids["ip_address__host"], tenant=intf.device.tenant),
+            interface=intf,
+        )
+        obj.validated_save()
+        if (
+            attrs.get("interface__device__primary_ip4__host")
+            and ids["ip_address__host"] == attrs["interface__device__primary_ip4__host"]
+        ):
+            obj.interface.device.primary_ip4 = IPAddress.objects.get(
+                host=attrs["interface__device__primary_ip4__host"],
+                tenant=obj.interface.device.tenant,
+            )
+            obj.interface.device.validated_save()
+        if (
+            attrs.get("interface__device__primary_ip6__host")
+            and ids["ip_address__host"] == attrs["interface__device__primary_ip6__host"]
+        ):
+            obj.interface.device.primary_ip6 = IPAddress.objects.get(
+                host=attrs["interface__device__primary_ip6__host"],
+                tenant=obj.interface.device.tenant,
+            )
+            obj.interface.device.validated_save()
+        return super().create_base(adapter=adapter, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update IPAddressToInterface in Nautobot."""
+        obj = self.get_from_db()
+        if (
+            attrs.get("interface__device__primary_ip4__host")
+            and self.ip_address__host == attrs["interface__device__primary_ip4__host"]
+        ):
+            obj.interface.device.primary_ip4 = IPAddress.objects.get(
+                host=attrs["interface__device__primary_ip4__host"], tenant=obj.interface.device.tenant
+            )
+            obj.interface.device.validated_save()
+        if (
+            attrs.get("interface__device__primary_ip6__host")
+            and self.ip_address__host == attrs["interface__device__primary_ip6__host"]
+        ):
+            obj.interface.device.primary_ip6 = IPAddress.objects.get(
+                host=attrs["interface__device__primary_ip6__host"], tenant=obj.interface.device.tenant
+            )
+            obj.interface.device.validated_save()
+        return super().update_base(attrs)
+
+    def delete(self):
+        """Delete IPAddressToInterface in Nautobot."""
+        return super().delete_base()

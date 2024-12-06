@@ -6,8 +6,10 @@ from .models import (
     InterfaceModel,
     InventoryItemModel,
     IPAddressModel,
+    IPAddressToInterfaceModel,
     LocationModel,
     ManufacturerModel,
+    NautobotIPAddressToInterfaceModel,
     PlatformModel,
     PrefixModel,
     RoleModel,
@@ -28,4 +30,6 @@ __all__ = (
     "VRFModel",
     "PrefixModel",
     "IPAddressModel",
+    "IPAddressToInterfaceModel",
+    "NautobotIPAddressToInterfaceModel",
 )

@@ -19,6 +19,7 @@ from nautobot_ssot.integrations.slurpit.diffsync.models import (
     InterfaceModel,
     InventoryItemModel,
     IPAddressModel,
+    IPAddressToInterfaceModel,
     LocationModel,
     ManufacturerModel,
     PlatformModel,
@@ -57,6 +58,7 @@ class SlurpitAdapter(Adapter):
     vrf = VRFModel
     prefix = PrefixModel
     ipaddress = IPAddressModel
+    ipassignment = IPAddressToInterfaceModel
     top_level = (
         "location",
         "manufacturer",
@@ -69,6 +71,7 @@ class SlurpitAdapter(Adapter):
         "prefix",
         "ipaddress",
         "interface",
+        "ipassignment",
     )
 
     def __init__(self, *args, api_client, job=None, **kwargs):
@@ -78,6 +81,7 @@ class SlurpitAdapter(Adapter):
         self.job = job
         self.filtered_networks = []
         self.ipaddress_by_device = {}
+        self.hostname_to_primary_ip = {}
 
     # Utility for running async coroutines synchronously
     def run_async(self, coroutine):
@@ -295,12 +299,13 @@ class SlurpitAdapter(Adapter):
                 "platform__name": device.device_os,
                 "role__name": constants.DEFAULT_DEVICE_ROLE,
                 "status__name": "Active",
-                "primary_ip4__host": device.ipv4,
                 "location__location_type__name": self.job.site_loctype.name,
                 "tags": [{"name": "SSoT Synced from Slurpit"}],
                 "system_of_record": "Slurpit",
                 "last_synced_from_sor": datetime.today().date().isoformat(),
             }
+            if device.ipv4:
+                self.hostname_to_primary_ip[device.hostname] = device.ipv4
             self.add(self.device(**data))
 
     def load_interfaces(self):
@@ -309,7 +314,6 @@ class SlurpitAdapter(Adapter):
         for interface in interfaces:  # pylint: disable=too-many-nested-blocks
             if interface.get("Interface", ""):
                 try:
-                    # dev = self.get(self.device, {"name": interface["hostname"]})
                     description = interface.get("Description", "")
                     mac = "" if isinstance(interface.get("MAC", ""), list) else interface.get("MAC", "")
                     enabled = "up" in interface.get("Line", "").lower()
@@ -331,16 +335,17 @@ class SlurpitAdapter(Adapter):
                     ipaddress_info = self.ipaddress_by_device.get(
                         f"{interface.get('hostname')}__{interface.get('Interface')}"
                     )
-
                     if ipaddress_info:
                         for ip_address in ipaddress_info:
-                            ip_address.pop("status__name", None)
-                            try:
-                                data["ip_addresses"].append(ip_address)
-                            except KeyError:
-                                data["ip_addresses"] = [ip_address]
-                    else:
-                        data["ip_addresses"] = []
+                            interface_match_data = {
+                                "interface__name": data["name"],
+                                "interface__device__name": interface.get("hostname"),
+                                "ip_address__host": ip_address.get("host"),
+                            }
+                            if self.hostname_to_primary_ip.get(interface.get("hostname")) == ip_address.get("host"):
+                                interface_match_data["interface__device__primary_ip4__host"] = ip_address.get("host")
+
+                            self.add(self.ipassignment(**interface_match_data))
 
                     new_interface = self.interface(**data)
                     self.add(new_interface)
@@ -500,10 +505,10 @@ class SlurpitAdapter(Adapter):
         self.load_device_types()
         self.load_platforms()
         self.load_roles()
+        self.load_devices()
+        self.load_inventory_items()
         self.load_vlans()
         self.load_vrfs()
         self.load_prefixes()
         self.load_ip_addresses()
         self.load_interfaces()
-        self.load_devices()
-        self.load_inventory_items()
