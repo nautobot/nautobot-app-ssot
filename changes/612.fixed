@@ -1,1 +1,0 @@
-Fixed AttributeError on attempting to load Platforms with no Manufacturer assigned.

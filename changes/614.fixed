@@ -1,2 +1,0 @@
-Fixed creating platforms with no Manufacturer assigned.
-Fixed time_zone attribute normalization on Location objects.
