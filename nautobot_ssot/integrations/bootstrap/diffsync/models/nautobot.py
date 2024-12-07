@@ -575,7 +575,7 @@ class NautobotLocation(Location):
         if "facility" in attrs:
             _update_location.facility = attrs["facility"]
         if "asn" in attrs:
-            _update_location.asn = attrs["location"]
+            _update_location.asn = attrs["asn"]
         if "time_zone" in attrs:
             if attrs["time_zone"]:
                 _timezone = pytz.timezone(attrs["time_zone"])
