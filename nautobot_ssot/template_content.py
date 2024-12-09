@@ -1,14 +1,14 @@
 """App template content extensions of base Nautobot views."""
 
 from django.urls import reverse
-from nautobot.extras.plugins import PluginTemplateExtension
+from nautobot.extras.plugins import TemplateExtension
 
 from nautobot_ssot.models import Sync
 
 # pylint: disable=abstract-method
 
 
-class JobResultSyncLink(PluginTemplateExtension):
+class JobResultSyncLink(TemplateExtension):
     """Add button linking to Sync data for relevant JobResults."""
 
     model = "extras.jobresult"
