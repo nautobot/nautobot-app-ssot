@@ -171,9 +171,9 @@ class DnaCenterAdapter(Adapter):
             _area, _area_parent = None, None
             if bldg_name in self.job.location_map and "parent" in self.job.location_map[bldg_name]:
                 _area = self.job.location_map[bldg_name]["parent"]
-                if "area_parent" in self.job.location_map[bldg_name]:
+                if self.job.location_map[bldg_name].get("area_parent"):
                     _area_parent = self.job.location_map[bldg_name]["area_parent"]
-                if "name" in self.job.location_map[bldg_name]:
+                if self.job.location_map[bldg_name].get("name"):
                     bldg_name = self.job.location_map[bldg_name]["name"]
             elif location["parentId"] in self.dnac_location_map:
                 _area = self.dnac_location_map[location["parentId"]]["name"]
@@ -222,9 +222,10 @@ class DnaCenterAdapter(Adapter):
             else:
                 self.job.logger.warning(f"Parent to {location['name']} can't be found so will be skipped.")
                 continue
-            if bldg_name in self.job.location_map and "name" in self.job.location_map[bldg_name]:
+            if self.job.location_map.get(bldg_name):
                 area_name = self.job.location_map[bldg_name]["parent"]
-                bldg_name = self.job.location_map[bldg_name]["name"]
+                if self.job.location_map[bldg_name].get("name"):
+                    bldg_name = self.job.location_map[bldg_name]["name"]
             floor_name = f"{bldg_name} - {location['name']}"
             try:
                 parent = self.get(self.building, {"name": bldg_name, "area": area_name})
