@@ -26,6 +26,7 @@ _CONFLICTING_APP_NAMES = [
     "nautobot_ssot_itential",
     "nautobot_ssot_meraki",
     "nautobot_ssot_servicenow",
+    "nautobot_ssot_solarwinds",
 ]
 
 
@@ -107,8 +108,10 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "enable_citrix_adm": False,
         "enable_infoblox": False,
         "enable_ipfabric": False,
+        "enable_meraki": False,
         "enable_servicenow": False,
         "enable_slurpit": False,
+        "enable_solarwinds": False,
         "enable_itential": False,
         "hide_example_jobs": True,
         "ipfabric_api_token": "",
