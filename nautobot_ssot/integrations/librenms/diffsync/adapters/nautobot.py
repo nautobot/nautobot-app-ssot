@@ -1,35 +1,16 @@
 """Nautobot Adapter for LibreNMS SSoT app."""
 
-import os
-
-from collections import defaultdict
-from typing import Optional
-
 from diffsync import DiffSync
 from diffsync.enum import DiffSyncModelFlags
 from diffsync.exceptions import ObjectNotFound
-from django.core.exceptions import ValidationError
-from django.db.models import ProtectedError
-from django.db.utils import IntegrityError
 from nautobot.dcim.models import Device as OrmDevice
-from nautobot.dcim.models import Interface as OrmInterface
 from nautobot.dcim.models import Location as OrmLocation
-from nautobot.dcim.models import LocationType as OrmLocationType
-from nautobot.extras.models import Relationship as OrmRelationship
-from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
-from nautobot.extras.models import Status as OrmStatus
-from nautobot.ipam.models import IPAddress as OrmIPAddress
-from nautobot.ipam.models import IPAddressToInterface as OrmIPAddressToInterface
-from nautobot.ipam.models import Namespace
-from nautobot.ipam.models import Prefix as OrmPrefix
-from nautobot.tenancy.models import Tenant as OrmTenant
 
-from nautobot_ssot.integrations.librenms.utils import check_sor_field, get_sor_field_nautobot_object
 from nautobot_ssot.integrations.librenms.diffsync.models.nautobot import (
     NautobotDevice,
     NautobotLocation,
 )
-from nautobot_ssot.jobs.base import DataTarget
+from nautobot_ssot.integrations.librenms.utils import check_sor_field, get_sor_field_nautobot_object
 
 
 class NautobotAdapter(DiffSync):

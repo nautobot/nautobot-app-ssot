@@ -5,10 +5,11 @@ import uuid
 from unittest.mock import MagicMock
 
 from django.contrib.contenttypes.models import ContentType
-from nautobot.extras.models import Job, JobResult
 from nautobot.core.testing import TransactionTestCase
-from nautobot_ssot_librenms.diffsync.adapters.librenms import LibrenmsAdapter
-from nautobot_ssot_librenms.jobs import LibrenmsDataSource
+from nautobot.extras.models import Job, JobResult
+
+from nautobot_ssot.integrations.librenms.diffsync.adapters.librenms import LibrenmsAdapter
+from nautobot_ssot.integrations.librenms.jobs import LibrenmsDataSource
 
 
 def load_json(path):

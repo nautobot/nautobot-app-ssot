@@ -4,11 +4,14 @@ import os
 
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectNotFound
-from django.core.exceptions import ValidationError
 
 from nautobot_ssot.integrations.librenms.constants import librenms_status_map, os_manufacturer_map
 from nautobot_ssot.integrations.librenms.diffsync.models.librenms import LibrenmsDevice, LibrenmsLocation
-from nautobot_ssot.integrations.librenms.utils import get_city_state_geocode, normalize_gps_coordinates, is_running_tests
+from nautobot_ssot.integrations.librenms.utils import (
+    get_city_state_geocode,
+    is_running_tests,
+    normalize_gps_coordinates,
+)
 from nautobot_ssot.integrations.librenms.utils.librenms import LibreNMSApi
 
 

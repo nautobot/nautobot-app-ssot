@@ -38,7 +38,7 @@ def get_city_state_geocode(latitude: str, longitude: str):
         # unauthenticated api limited to 1 request per second
         time.sleep(2)
         url = f"https://geocode.xyz/{latitude},{longitude}?json=1"
-    geo_info = requests.request(url=url, method="GET")
+    geo_info = requests.request(url=url, method="GET", timeout=30)
     geo_info.raise_for_status()
     geo_json = geo_info.json()
     try:

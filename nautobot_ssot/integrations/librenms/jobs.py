@@ -3,7 +3,7 @@
 import os
 
 from django.templatetags.static import static
-from nautobot.apps.jobs import BooleanVar, ObjectVar, ChoiceVar
+from nautobot.apps.jobs import BooleanVar, ChoiceVar, ObjectVar
 from nautobot.core.celery import register_jobs
 from nautobot.extras.choices import (
     SecretsGroupAccessTypeChoices,

@@ -1,24 +1,25 @@
 """Nautobot DiffSync models for LibreNMS SSoT."""
 
-from datetime import datetime
 import os
+from datetime import datetime
 
 from django.contrib.contenttypes.models import ContentType
-
 from nautobot.dcim.models import Device as ORMDevice
+from nautobot.dcim.models import DeviceType, LocationType
 from nautobot.dcim.models import Interface as ORMInterface
 from nautobot.dcim.models import Location as ORMLocation
-from nautobot.dcim.models import LocationType, DeviceType
 from nautobot.dcim.models import Manufacturer as ORMManufacturer
 from nautobot.dcim.models import Platform as ORMPlatform
-from nautobot.dcim.models import SoftwareVersion as ORMSoftwareVersion
 from nautobot.dcim.models import SoftwareImageFile as ORMSoftwareImageFile
-from nautobot.extras.models import Status, Role
-from nautobot_ssot.integrations.librenms.diffsync.models.base import Device, Location, Port
+from nautobot.dcim.models import SoftwareVersion as ORMSoftwareVersion
+from nautobot.extras.models import Role, Status
 
 from nautobot_ssot.integrations.librenms.constants import os_manufacturer_map
-from nautobot_ssot.integrations.librenms.utils.nautobot import add_software_lcm, assign_version_to_device, verify_platform
-from nautobot_ssot.integrations.librenms.utils import get_city_state_geocode, check_sor_field
+from nautobot_ssot.integrations.librenms.diffsync.models.base import Device, Location, Port
+from nautobot_ssot.integrations.librenms.utils import check_sor_field, get_city_state_geocode
+from nautobot_ssot.integrations.librenms.utils.nautobot import (
+    verify_platform,
+)
 
 
 def ensure_location(location_name: str, content_type, location_type_name: str = "Site"):
@@ -108,7 +109,7 @@ class NautobotLocation(Location):
             location.longitude = attrs["longitude"]
         if "status" in attrs:
             location.status = Status.objects.get(name=attrs["status"])
-        if "parent" in attrs and location.parent.name is not "Unknown":
+        if "parent" in attrs and location.parent.name != "Unknown":
             location.parent = ensure_location(
                 location_name=attrs["parent"], content_type=ORMDevice, location_type_name="Region"
             )

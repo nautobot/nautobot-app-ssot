@@ -2,7 +2,6 @@
 
 import importlib.util
 
-from django.conf import settings
 from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices
 
