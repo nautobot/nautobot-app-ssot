@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError
 
 from nautobot_ssot.integrations.librenms.constants import librenms_status_map, os_manufacturer_map
 from nautobot_ssot.integrations.librenms.diffsync.models.librenms import LibrenmsDevice, LibrenmsLocation
-from nautobot_ssot.integrations.librenms.utils import get_city_state_geocode, normalize_gps_coordinates
+from nautobot_ssot.integrations.librenms.utils import get_city_state_geocode, normalize_gps_coordinates, is_running_tests
 from nautobot_ssot.integrations.librenms.utils.librenms import LibreNMSApi
 
 
@@ -102,12 +102,25 @@ class LibrenmsAdapter(DiffSync):
             else self.job.hostname_field or "sysName"
         )
 
-        # all_devices = self.lnms_api.get_librenms_devices()
-        all_devices = self.lnms_api.get_librenms_devices_from_file()
+        if is_running_tests():
+            load_type = "file"
+        elif self.job.load_source == "env_var":
+            load_type = os.getenv("NAUTOBOT_BOOTSTRAP_SSOT_LOAD_SOURCE", "file")
+        else:
+            load_type = self.job.load_source
+
+        if load_type != "file":
+            all_devices = self.lnms_api.get_librenms_devices()
+        else:
+            all_devices = self.lnms_api.get_librenms_devices_from_file()
+
         self.job.logger.info(f'Loading {all_devices["count"]} Devices from LibreNMS.')
 
-        # all_locations = self.lnms_api.get_librenms_locations()
-        all_locations = self.lnms_api.get_librenms_locations_from_file()
+        if load_type != "file":
+            all_locations = self.lnms_api.get_librenms_locations()
+        else:
+            all_locations = self.lnms_api.get_librenms_locations_from_file()
+
         self.job.logger.info(f'Loading {all_locations["count"]} Locations from LibreNMS.')
 
         for _device in all_devices["devices"]:

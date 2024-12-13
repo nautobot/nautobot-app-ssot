@@ -1,5 +1,6 @@
 """Utility functions for working with LibreNMS and Nautobot."""
 
+import inspect
 import logging
 import os
 import time
@@ -72,3 +73,11 @@ def get_sor_field_nautobot_object(nb_object):
             else ""
         )
     return _sor
+
+
+def is_running_tests():
+    """Check whether running unittests or actual job."""
+    for frame in inspect.stack():
+        if frame.filename.endswith("unittest/case.py"):
+            return True
+    return False
