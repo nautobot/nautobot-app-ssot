@@ -12,6 +12,7 @@ from nautobot.dcim.models import (
     Location,
     LocationType,
     Manufacturer,
+    Platform,
 )
 from nautobot.extras.models import Role, Status
 from nautobot.tenancy.models import Tenant
@@ -290,6 +291,8 @@ class TestNautobotDevice(TransactionTestCase):
         self.adapter.device_map = {}
         self.adapter.floor_map = {}
         self.adapter.site_map = {}
+        ios_platform = Platform.objects.get_or_create(name="IOS", network_driver="cisco_ios")[0]
+        self.adapter.platform_map = {"cisco_ios": ios_platform.id}
         self.adapter.status_map = {"Active": self.status_active.id}
         self.adapter.tenant_map = {"G&A": self.ga_tenant.id}
 
