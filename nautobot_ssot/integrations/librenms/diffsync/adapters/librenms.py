@@ -102,6 +102,7 @@ class LibrenmsAdapter(DiffSync):
             else self.job.hostname_field or "sysName"
         )
 
+        load_type = "file" # file or api
         if is_running_tests():
             load_type = "file"
         elif self.job.load_source == "env_var":
