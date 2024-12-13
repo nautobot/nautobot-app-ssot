@@ -38,9 +38,7 @@ class LibrenmsDataSource(DataSource):
         label="Hostname Field",
         default="env_var",
     )
-    debug = BooleanVar(
-        description="Enable for more verbose debug logging", default=False
-    )
+    debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
 
     class Meta:  # pylint: disable=too-few-public-methods
         """Meta data for LibreNMS."""
@@ -77,10 +75,7 @@ class LibrenmsDataSource(DataSource):
     def load_source_adapter(self):
         """Load data from LibreNMS into DiffSync models."""
         self.logger.info(f"Loading data from {self.librenms_server.name}")
-        if (
-            self.librenms_server.extra_config is None
-            or "port" not in self.librenms_server.extra_config
-        ):
+        if self.librenms_server.extra_config is None or "port" not in self.librenms_server.extra_config:
             port = 443
         else:
             port = self.librenms_server.extra_config["port"]
@@ -97,16 +92,12 @@ class LibrenmsDataSource(DataSource):
             verify=self.librenms_server.verify_ssl,
         )
 
-        self.source_adapter = librenms.LibrenmsAdapter(
-            job=self, sync=self.sync, librenms_api=librenms_api
-        )
+        self.source_adapter = librenms.LibrenmsAdapter(job=self, sync=self.sync, librenms_api=librenms_api)
         self.source_adapter.load()
 
     def load_target_adapter(self):
         """Load data from Nautobot into DiffSync models."""
-        self.target_adapter = nautobot.NautobotAdapter(
-            job=self, sync=self.sync
-        )
+        self.target_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync)
         self.target_adapter.load()
 
     def run(
@@ -125,9 +116,7 @@ class LibrenmsDataSource(DataSource):
         self.debug = debug
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
-        super().run(
-            dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs
-        )
+        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 
 class LibrenmsDataTarget(DataTarget):
@@ -140,9 +129,7 @@ class LibrenmsDataTarget(DataTarget):
         required=True,
         label="LibreNMS Instance",
     )
-    debug = BooleanVar(
-        description="Enable for more verbose debug logging", default=False
-    )
+    debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
 
     class Meta:  # pylint: disable=too-few-public-methods
         """Meta data for LibreNMS."""
@@ -171,10 +158,7 @@ class LibrenmsDataTarget(DataTarget):
     def load_target_adapter(self):
         """Load data from LibreNMS into DiffSync models."""
         self.logger.info(f"Loading data from {self.librenms_server.name}")
-        if (
-            self.librenms_server.extra_config is None
-            or "port" not in self.librenms_server.extra_config
-        ):
+        if self.librenms_server.extra_config is None or "port" not in self.librenms_server.extra_config:
             port = 443
         else:
             port = self.librenms_server.extra_config["port"]
@@ -190,22 +174,16 @@ class LibrenmsDataTarget(DataTarget):
             token=token,
             verify=self.librenms_server.verify_ssl,
         )
-        self.target_adapter = librenms.LibrenmsAdapter(
-            job=self, sync=self.sync, librenms_api=librenms_api
-        )
+        self.target_adapter = librenms.LibrenmsAdapter(job=self, sync=self.sync, librenms_api=librenms_api)
         self.target_adapter.load()
 
-    def run(
-        self, dryrun, memory_profiling, debug, librenms_server, *args, **kwargs
-    ):  # pylint: disable=arguments-differ
+    def run(self, dryrun, memory_profiling, debug, librenms_server, *args, **kwargs):  # pylint: disable=arguments-differ
         """Perform data synchronization."""
         self.librenms_server = librenms_server
         self.debug = debug
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
-        super().run(
-            dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs
-        )
+        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 
 jobs = [LibrenmsDataSource]

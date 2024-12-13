@@ -86,9 +86,7 @@ class LibrenmsAdapter(DiffSync):
                 serial_no=device["serial"] if device["serial"] is not None else "",
                 status=_status,
                 manufacturer=(
-                    os_manufacturer_map.get(device["os"])
-                    if os_manufacturer_map.get(device["os"]) is not None
-                    else None
+                    os_manufacturer_map.get(device["os"]) if os_manufacturer_map.get(device["os"]) is not None else None
                 ),
                 device_type=device["hardware"] if device["hardware"] is not None else None,
                 platform=device["os"] if device["os"] is not None else None,
@@ -105,7 +103,7 @@ class LibrenmsAdapter(DiffSync):
             else self.job.hostname_field or "sysName"
         )
 
-        load_type = "file" # file or api
+        load_type = "file"  # file or api
         if is_running_tests():
             load_type = "file"
         elif self.job.load_source == "env_var":

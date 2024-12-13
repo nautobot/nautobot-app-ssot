@@ -16,6 +16,7 @@ def normalize_gps_coordinates(gps_coord):
     """Normalize GPS Coordinates to 6 decimal places which is all that is stored in Nautobot."""
     return round(gps_coord, 6)
 
+
 def normalize_setting(variable_name):
     """Get a value from Django settings (if specified there) or Constance configuration (otherwise)."""
     # Explicitly set in settings.py or nautobot_config.py takes precedence, for now
@@ -48,9 +49,7 @@ def get_city_state_geocode(latitude: str, longitude: str):
         else:
             return "Unknown"
     except (KeyError, TypeError):
-        LOGGER.warning(
-            f"Could not locate location info from Geocode. Response: {geo_json}"
-        )
+        LOGGER.warning(f"Could not locate location info from Geocode. Response: {geo_json}")
         return "Unknown"
 
 
@@ -59,7 +58,8 @@ def check_sor_field(model):
     return (
         "system_of_record" in model.custom_field_data
         and model.custom_field_data["system_of_record"] is not None
-        and os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS") in model.custom_field_data["system_of_record"]
+        and os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS")
+        in model.custom_field_data["system_of_record"]
     )
 
 

@@ -93,7 +93,9 @@ class NautobotLocation(Location):
             location_type=LocationType.objects.get(name="Site"),
             parent=_parent,
         )
-        new_location.custom_field_data.update({"system_of_record": os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS")})
+        new_location.custom_field_data.update(
+            {"system_of_record": os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS")}
+        )
         new_location.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_location.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -155,7 +157,9 @@ class NautobotDevice(Device):
                 device_type=_device_type,
             ),
         )
-        new_device.custom_field_data.update({"system_of_record": os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS")})
+        new_device.custom_field_data.update(
+            {"system_of_record": os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS")}
+        )
         new_device.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_device.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)

@@ -48,9 +48,7 @@ class ApiEndpoint:  # pylint: disable=too-few-public-methods
             return full_path
         return full_path
 
-    def api_call(
-        self, path: str, method: str = "GET", params: dict = {}, payload: dict = {}
-    ):  # pylint: disable=dangerous-default-value
+    def api_call(self, path: str, method: str = "GET", params: dict = {}, payload: dict = {}):  # pylint: disable=dangerous-default-value
         """Send Request to API endpoint of type `method`. Defaults to GET request.
 
         Args:
