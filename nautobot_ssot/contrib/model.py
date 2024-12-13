@@ -36,6 +36,10 @@ class NautobotModel(DiffSyncModel):
 
     _model: ClassVar[Model]
 
+    # This is used to populate the data mappings of the job automatically
+    _remote_model_name: ClassVar[Optional[str]] = None
+    _remote_model_url: ClassVar[Optional[str]] = None
+
     pk: Optional[UUID] = None
 
     @classmethod
