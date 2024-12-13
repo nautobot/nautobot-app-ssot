@@ -312,12 +312,7 @@ class DnaCenterAdapter(Adapter):
                 }
                 self.failed_import_devices.append(dev)
                 continue
-            if self.job.hostname_map:
-                dev_role = parse_hostname_for_role(
-                    hostname_map=self.job.hostname_map, device_hostname=dev["hostname"], default_role="Unknown"
-                )
-            if dev_role == "Unknown":
-                dev_role = dev["role"]
+            dev_role = self.get_device_role(dev)
             if dev["softwareType"] in DNA_CENTER_LIB_MAPPER:
                 platform = DNA_CENTER_LIB_MAPPER[dev["softwareType"]]
             else:
@@ -400,6 +395,23 @@ class DnaCenterAdapter(Adapter):
                         "location_data": loc_data,
                     }
                     self.failed_import_devices.append(dev)
+
+    def get_device_role(self, dev):
+        """Get Device Role from Job Hostname map or DNA Center 'role'.
+
+        Args:
+            dev (dict): Dictionary of information about Device from DNA Center.
+
+        Returns:
+            str: Device role that has been determined from Hostname map or DNA Center information.
+        """
+        if self.job.hostname_map:
+            dev_role = parse_hostname_for_role(
+                    hostname_map=self.job.hostname_map, device_hostname=dev["hostname"], default_role="Unknown"
+                )
+        if dev_role == "Unknown":
+            dev_role = dev["role"]
+        return dev_role
 
     def load_ports(self, device_id: str, dev: DnaCenterDevice, mgmt_addr: str = ""):
         """Load port info from DNAC into Port DiffSyncModel.
