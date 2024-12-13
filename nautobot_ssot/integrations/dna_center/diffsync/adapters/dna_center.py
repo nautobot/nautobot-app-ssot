@@ -179,9 +179,11 @@ class DnaCenterAdapter(Adapter):
                 _area = self.dnac_location_map[location["parentId"]]["name"]
                 _area_parent = self.dnac_location_map[location["parentId"]]["parent"]
             if _area in self.job.location_map and (
-                "parent" in self.job.location_map[_area] and bldg_name not in self.job.location_map
+                self.job.location_map[_area].get("parent") and bldg_name not in self.job.location_map
             ):
                 _area_parent = self.job.location_map[_area]["parent"]
+                if self.job.location_map[_area].get("name"):
+                    _area = self.job.location_map[_area]["name"]
             if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
                 if _area == "Global":
                     _area = None
