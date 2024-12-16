@@ -22,13 +22,17 @@ from nautobot_ssot.integrations.librenms.utils.nautobot import (
 )
 
 
-def ensure_location(location_name: str, content_type, location_type_name: str = "Site"):
+def ensure_location(location_name: str, content_type, parent, location_type_name: str = "Site"):
     """Safely returns a Location with a LocationType that support given ContentType."""
     location_type, _ = LocationType.objects.get_or_create(name=location_type_name)
     content_type = ContentType.objects.get_for_model(content_type)
     location_type.content_types.add(content_type)
     status = Status.objects.get(name="Active")
-    return ORMLocation.objects.get_or_create(name=location_name, location_type=location_type, status=status)[0]
+    if parent:
+        parent, _ = LocationType.objects.get_or_create(name=parent.name)
+        return ORMLocation.objects.get_or_create(name=location_name, location_type=location_type, status=status)[0]
+    else:
+        return ORMLocation.objects.get_or_create(name=location_name, location_type=location_type, status=status)[0]
 
 
 def ensure_role(role_name: str, content_type):
@@ -69,21 +73,23 @@ class NautobotLocation(Location):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Location in Nautobot from NautobotLocation object."""
-        adapter.job.logger.debug(f'Creating Nautobot Location {ids["name"]}')
+        if adapter.job.debug:
+            adapter.job.logger.debug(f'Creating Nautobot Location {ids["name"]}')
 
-        if "latitude" in attrs and "longitude" in attrs:
-            _parent = ensure_location(location_name="Unknown", content_type=ORMDevice, location_type_name="Region")
-            if attrs["latitude"] is not None and attrs["longitude"] is not None:
-                _location_info = get_city_state_geocode(latitude=attrs["latitude"], longitude=attrs["longitude"])
-                if _location_info:
-                    _location_sanitized = f'{_location_info["city"]}, {_location_info["state"]}'
-                    _parent = ensure_location(
-                        location_name=_location_sanitized, content_type=ORMDevice, location_type_name="Region"
-                    )
-                else:
-                    _parent = ensure_location(
-                        location_name="Unknown", content_type=ORMDevice, location_type_name="Region"
-                    )
+        _unknown_parent = ensure_location(location_name="Unknown", content_type=ORMDevice, parent=None, location_type_name="City")
+
+        if adapter.job.sync_location_parents:
+            if "latitude" in attrs and "longitude" in attrs:
+                if attrs["latitude"] is not None and attrs["longitude"] is not None:
+                    _location_info = get_city_state_geocode(latitude=attrs["latitude"], longitude=attrs["longitude"])
+                    if _location_info:
+                        _state = ensure_location(location_name=_location_info["state"], content_type=ORMDevice, parent=None, location_type_name="State")
+                        _city = ensure_location(
+                            location_name=_location_info["city"], content_type=ORMDevice, parent=_state, location_type_name="City"
+                        )
+                        _parent = _city
+
+        _parent = _unknown_parent
 
         new_location = ORMLocation(
             name=ids["name"],
@@ -102,7 +108,8 @@ class NautobotLocation(Location):
 
     def update(self, attrs):
         """Update Location in Nautobot from NautobotLocation object."""
-        self.adapter.job.logger.debug(f"Updating Nautobot Location {self.name}")
+        if self.adapter.job.debug:
+            self.adapter.job.logger.debug(f"Updating Nautobot Location {self.name}")
 
         location = ORMLocation.objects.get(name=self.name)
         if "latitude" in attrs:
@@ -113,7 +120,7 @@ class NautobotLocation(Location):
             location.status = Status.objects.get(name=attrs["status"])
         if "parent" in attrs and location.parent.name != "Unknown":
             location.parent = ensure_location(
-                location_name=attrs["parent"], content_type=ORMDevice, location_type_name="Region"
+                location_name=attrs["parent"], content_type=ORMDevice, location_type_name="City"
             )
         if not check_sor_field(location):
             location.custom_field_data.update(
@@ -147,7 +154,7 @@ class NautobotDevice(Device):
             device_type=_device_type,
             status=Status.objects.get_or_create(name=attrs["status"])[0],
             role=ensure_role(role_name=attrs["role"], content_type=ORMDevice),
-            location=ensure_location(location_name=attrs["location"], content_type=ORMDevice),
+            location=ORMLocation.objects.get(name=attrs["location"]),
             platform=_platform,
             serial=attrs["serial_no"],
             software_version=ensure_software_version(
@@ -173,7 +180,7 @@ class NautobotDevice(Device):
         if "role" in attrs:
             device.role = ensure_role(role_name=attrs["role"], content_type=ORMDevice)
         if "location" in attrs:
-            device.location = ensure_location(location_name=attrs["location"], content_type=ORMDevice)
+            device.location = ORMLocation.objects.get(name=attrs["location"])
         if "serial_no" in attrs:
             device.serial = attrs["serial_no"]
         if "platform" in attrs:
