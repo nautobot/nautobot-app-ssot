@@ -36,6 +36,8 @@ The way you add your LibreNMS server instance is through the "External Integrati
 
 Once this is created, go into the Extensibility Menu and select `External Integrations`. Add an External Intergration with the Remote URL being your LibreNMS server URL (including http(s)://), set the method to `GET`, and select any other headers/settings you might need for your specific instance. Select the secrets group you created as this will inject the API token. Once created, you will select this External Integration when you run the LibreNMS to Nautobot SSoT job.
 
+![LibreNMS External Integration](../../images/librenms-external-integration.png)
+
 #### LibreNMS as DataTarget
 
 NotYetImplemented
