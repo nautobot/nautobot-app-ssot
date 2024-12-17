@@ -55,6 +55,7 @@ class DnaCenterAdapter(Adapter):
         self.conn = client
         self.failed_import_devices = []
         self.dnac_location_map = {}
+        self.building_map = {}
         self.floors = []
         self.tenant = tenant
 
@@ -107,6 +108,8 @@ class DnaCenterAdapter(Adapter):
                 if info["attributes"].get("type"):
                     self.dnac_location_map[loc_id]["loc_type"] = info["attributes"]["type"]
                     if info["attributes"]["type"] in ["area", "building"]:
+                        if info["attributes"]["type"] == "building":
+                            self.building_map[loc_id] = location
                         if info["attributes"]["type"] == "building" and loc_name in self.job.location_map:
                             if self.job.location_map[loc_name].get("parent"):
                                 self.dnac_location_map[loc_id]["parent"] = self.job.location_map[loc_name]["parent"]
@@ -210,90 +213,54 @@ class DnaCenterAdapter(Adapter):
         """
         self.get_or_instantiate(self.area, ids={"name": area, "parent": area_parent}, attrs={"uuid": None})
 
-    def load_buildings(self, buildings: List[dict]):
+    def load_building(self, building: dict, area_name: Optional[str] = None, area_parent_name: Optional[str] = None):
         """Load building data from DNAC into DiffSync model.
 
         Args:
-            buildings (List[dict]): List of dictionaries containing location information about a building.
+            building (dict): Dictionary containing location information about a building.
         """
-        for location in buildings:
-            if self.job.debug:
-                self.job.logger.info(f"Loading {self.job.building_loctype.name} {location['name']}. {location}")
-            bldg_name = location["name"]
-            _area, _area_parent = None, None
-            if bldg_name in self.job.location_map and "parent" in self.job.location_map[bldg_name]:
-                _area = self.job.location_map[bldg_name]["parent"]
-                if self.job.location_map[bldg_name].get("area_parent"):
-                    _area_parent = self.job.location_map[bldg_name]["area_parent"]
-                if self.job.location_map[bldg_name].get("name"):
-                    bldg_name = self.job.location_map[bldg_name]["name"]
-            elif location["parentId"] in self.dnac_location_map:
-                _area = self.dnac_location_map[location["parentId"]]["name"]
-                _area_parent = self.dnac_location_map[location["parentId"]]["parent"]
-            if _area in self.job.location_map and (
-                self.job.location_map[_area].get("parent") and bldg_name not in self.job.location_map
-            ):
-                _area_parent = self.job.location_map[_area]["parent"]
-                if self.job.location_map[_area].get("name"):
-                    _area = self.job.location_map[_area]["name"]
-            if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
-                if _area == "Global":
-                    _area = None
-                if _area_parent == "Global":
-                    _area_parent = None
-            if _area:
-                self.load_area(area=_area, area_parent=_area_parent)
-            address, _ = self.conn.find_address_and_type(info=location["additionalInfo"])
-            latitude, longitude = self.conn.find_latitude_and_longitude(info=location["additionalInfo"])
-            _, loaded = self.get_or_instantiate(
-                self.building,
-                ids={"name": bldg_name, "area": _area},
-                attrs={
-                    "address": address if address else "",
-                    "area_parent": _area_parent,
-                    "latitude": latitude[:9].rstrip("0"),
-                    "longitude": longitude[:7].rstrip("0"),
-                    "tenant": self.tenant.name if self.tenant else None,
-                    "uuid": None,
-                },
-            )
-            if not loaded:
-                self.job.logger.warning(f"{self.job.building_loctype.name} {bldg_name} already loaded so skipping.")
+        if self.job.debug:
+            self.job.logger.info(f"Loading {self.job.building_loctype.name} {building['name']}. {building}")
+        bldg_name = building["name"]
+        address, _ = self.conn.find_address_and_type(info=building["additionalInfo"])
+        latitude, longitude = self.conn.find_latitude_and_longitude(info=building["additionalInfo"])
+        self.get_or_instantiate(
+            self.building,
+            ids={"name": bldg_name, "area": area_name},
+            attrs={
+                "address": address if address else "",
+                "area_parent": area_parent_name,
+                "latitude": latitude[:9].rstrip("0"),
+                "longitude": longitude[:7].rstrip("0"),
+                "tenant": self.tenant.name if self.tenant else None,
+                "uuid": None,
+            },
+        )
 
-    def load_floors(self, floors: List[dict]):
+    def load_floor(self, floor_name: str, bldg_name: str, area_name: str):
         """Load floor data from DNAC into DiffSync model.
 
         Args:
-            floors (List[dict]): List of dictionaries containing location information about a floor.
+            floor_name (str): Name of Floor location to be loaded.
+            bldg_name (str): Name of Building location that Floor is a part of.
+            area_name (str): Name of Area that Building location resides in.
         """
-        for location in floors:
-            if self.job.debug:
-                self.job.logger.info(f"Loading floor {location['name']}. {location}")
-            area_name = None
-            if location["parentId"] in self.dnac_location_map:
-                bldg_name = self.dnac_location_map[location["parentId"]]["name"]
-                area_name = self.dnac_location_map[location["parentId"]]["parent"]
-            else:
-                self.job.logger.warning(f"Parent to {location['name']} can't be found so will be skipped.")
-                continue
-            if self.job.location_map.get(bldg_name):
-                area_name = self.job.location_map[bldg_name]["parent"]
-                if self.job.location_map[bldg_name].get("name"):
-                    bldg_name = self.job.location_map[bldg_name]["name"]
-            floor_name = f"{bldg_name} - {location['name']}"
-            try:
-                parent = self.get(self.building, {"name": bldg_name, "area": area_name})
-                new_floor, loaded = self.get_or_instantiate(
-                    self.floor,
-                    ids={"name": floor_name, "building": bldg_name},
-                    attrs={"tenant": self.tenant.name if self.tenant else None, "uuid": None},
-                )
-                if loaded:
-                    parent.add_child(new_floor)
-            except ObjectNotFound as err:
-                self.job.logger.warning(
-                    f"Unable to find {self.job.building_loctype.name} {bldg_name} for {self.job.floor_loctype.name} {floor_name}. {err}"
-                )
+        if self.job.debug:
+            self.job.logger.info(f"Loading floor {floor_name} in {bldg_name} building in {area_name} area.")
+        floor_name = f"{bldg_name} - {floor_name}"
+        try:
+            parent = self.get(self.building, {"name": bldg_name, "area": area_name})
+            new_floor, loaded = self.get_or_instantiate(
+                self.floor,
+                ids={"name": floor_name, "building": bldg_name},
+                attrs={"tenant": self.tenant.name if self.tenant else None, "uuid": None},
+            )
+            if loaded:
+                parent.add_child(new_floor)
+        except ObjectNotFound as err:
+            self.job.logger.warning(
+                f"Unable to find {self.job.building_loctype.name} {bldg_name} for {self.job.floor_loctype.name} {floor_name}. {err}"
+            )
 
     def load_devices(self):
         """Load Device data from DNA Center info DiffSync models."""
@@ -345,6 +312,7 @@ class DnaCenterAdapter(Adapter):
                 }
                 self.failed_import_devices.append(dev)
                 continue
+            self.load_device_location_tree(dev_details, loc_data)
             try:
                 if self.job.debug:
                     self.job.logger.info(
@@ -392,6 +360,30 @@ class DnaCenterAdapter(Adapter):
                     }
                     self.failed_import_devices.append(dev)
 
+    def load_device_location_tree(self, dev_details: dict, loc_data: dict):
+        """Load Device locations into DiffSync models for Floor, Building, and Areas.
+
+        Args:
+            dev_details (dict): Dictionary of Device information.
+            loc_data (dict): Location data for the Device.
+        """
+        reversed_areas = loc_data["areas"][::-1]
+        for area in reversed_areas:
+            item_index = reversed_areas.index(area)
+            if item_index + 2 <= len(loc_data["areas"]):
+                self.load_area(area=area, area_parent=reversed_areas[item_index + 1])
+            else:
+                self.load_area(area=area, area_parent=None)
+        if loc_data.get("floor"):
+            building_id = dev_details["siteHierarchyGraphId"].lstrip("/").rstrip("/").split("/")[-2]
+            self.load_building(building=self.building_map[building_id], area_name=loc_data["areas"][-1])
+            self.load_floor(
+                floor_name=loc_data["floor"], bldg_name=loc_data["building"], area_name=loc_data["areas"][-1]
+            )
+        else:
+            building_id = dev_details["siteHierarchyGraphId"].lstrip("/").rstrip("/").split("/")[-1]
+            self.load_building(building=self.building_map[building_id], area_name=loc_data["areas"][-1])
+
     def get_device_role(self, dev):
         """Get Device Role from Job Hostname map or DNA Center 'role'.
 
@@ -403,9 +395,9 @@ class DnaCenterAdapter(Adapter):
         """
         if self.job.hostname_map:
             dev_role = parse_hostname_for_role(
-                    hostname_map=self.job.hostname_map, device_hostname=dev["hostname"], default_role="Unknown"
-                )
-        if dev_role == "Unknown":
+                hostname_map=self.job.hostname_map, device_hostname=dev["hostname"], default_role="Unknown"
+            )
+        else:
             dev_role = dev["role"]
         return dev_role
 
