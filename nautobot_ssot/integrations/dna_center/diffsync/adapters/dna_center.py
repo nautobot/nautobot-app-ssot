@@ -55,6 +55,7 @@ class DnaCenterAdapter(Adapter):
         self.conn = client
         self.failed_import_devices = []
         self.dnac_location_map = {}
+        self.floors = []
         self.tenant = tenant
 
     def load_locations(self):
@@ -62,13 +63,64 @@ class DnaCenterAdapter(Adapter):
         self.load_controller_locations()
         locations = self.conn.get_locations()
         if locations:
-            # to ensure we process locations in the appropriate order we need to split them into their own list of locations
-            self.dnac_location_map = self.build_dnac_location_map(locations)
-            _, buildings, floors = self.parse_and_sort_locations(locations)
-            self.load_buildings(buildings)
-            self.load_floors(floors)
+            self.floors = self.build_dnac_location_map(locations)
         else:
-            self.job.logger.error("No location data was returned from DNAC. Unable to proceed.")
+            self.job.logger.error("No location data was returned from DNA Center. Unable to proceed.")
+
+    def build_dnac_location_map(self, locations: List[dict]):  # pylint: disable=too-many-branches
+        """Build out the DNA Center location structure based off DNAC information or Job location_map field.
+
+        Args:
+            locations (List[dict]): List of Locations from DNA Center to be separated.
+        """
+        floors = []
+        for location in locations:
+            if (
+                not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global")
+                and location["name"] == "Global"
+            ):
+                continue
+            if location["name"] in self.job.location_map and self.job.location_map[location["name"]].get("name"):
+                loc_name = self.job.location_map[location["name"]]["name"]
+            else:
+                loc_name = location["name"]
+            self.dnac_location_map[location["id"]] = {
+                "name": loc_name,
+                "parent": None,
+                "parent_of_parent": None,
+            }
+        for location in locations:  # pylint: disable=too-many-nested-blocks
+            loc_id = location["id"]
+            loc_name = location["name"]
+            parent_id, parent_name = None, None
+            if location.get("parentId"):
+                parent_id = location["parentId"]
+                if self.dnac_location_map.get(parent_id):
+                    parent_name = self.dnac_location_map[parent_id]["name"]
+            if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
+                if loc_name == "Global":
+                    continue
+                if parent_name == "Global":
+                    parent_name = None
+            self.dnac_location_map[loc_id]["parent"] = parent_name
+            for info in location["additionalInfo"]:
+                if info["attributes"].get("type"):
+                    self.dnac_location_map[loc_id]["loc_type"] = info["attributes"]["type"]
+                    if info["attributes"]["type"] in ["area", "building"]:
+                        if info["attributes"]["type"] == "building" and loc_name in self.job.location_map:
+                            if self.job.location_map[loc_name].get("parent"):
+                                self.dnac_location_map[loc_id]["parent"] = self.job.location_map[loc_name]["parent"]
+                            if self.job.location_map[loc_name].get("area_parent"):
+                                self.dnac_location_map[loc_id]["parent_of_parent"] = self.job.location_map[loc_name][
+                                    "area_parent"
+                                ]
+                            else:
+                                self.dnac_location_map[loc_id]["parent_of_parent"] = parent_name
+                        if info["attributes"]["type"] == "floor":
+                            floors.append(location)
+                            if parent_name in self.job.location_map and self.dnac_location_map[parent_id].get("name"):
+                                self.dnac_location_map[loc_id]["parent"] = self.dnac_location_map[parent_id]["name"]
+        return floors
 
     def load_controller_locations(self):
         """Load location data for Controller specified in Job form."""
@@ -242,55 +294,6 @@ class DnaCenterAdapter(Adapter):
                 self.job.logger.warning(
                     f"Unable to find {self.job.building_loctype.name} {bldg_name} for {self.job.floor_loctype.name} {floor_name}. {err}"
                 )
-
-    def parse_and_sort_locations(self, locations: List[dict]):
-        """Separate locations into areas, buildings, and floors for processing. Also sort by siteHierarchy.
-
-        Args:
-            locations (List[dict]): List of Locations (Sites) from DNAC to be separated.
-
-        Returns:
-            tuple (List[dict], List[dict], List[dict]): Tuple containing lists of areas, buildings, and floors in DNAC to be processed.
-        """
-        areas, buildings, floors = [], [], []
-        for location in locations:
-            self.dnac_location_map[location["id"]] = {"name": location["name"], "loc_type": "area"}
-        for location in locations:
-            for info in location["additionalInfo"]:
-                if info["attributes"].get("type") == "building":
-                    buildings.append(location)
-                    self.dnac_location_map[location["id"]]["loc_type"] = "building"
-                    break
-                if info["attributes"].get("type") == "floor":
-                    floors.append(location)
-                    self.dnac_location_map[location["id"]]["loc_type"] = "floor"
-                    break
-            else:
-                areas.append(location)
-            if location.get("parentId") and location["parentId"] in self.dnac_location_map:
-                self.dnac_location_map[location["id"]]["parent"] = self.dnac_location_map[location["parentId"]]["name"]
-            else:
-                self.dnac_location_map[location["id"]]["parent"] = None
-        # sort areas by length of siteHierarchy so that parent areas loaded before child areas.
-        areas = sorted(areas, key=lambda x: len(x["siteHierarchy"].split("/")))
-        return areas, buildings, floors
-
-    def build_dnac_location_map(self, locations: List[dict]):
-        """Build out the initial DNAC location map for Location ID to name and type.
-
-        Args:
-            locations (List[dict]): List of Locations (Sites) from DNAC.
-
-        Returns:
-            dict: Dictionary of Locations mapped with ID to their name and location type.
-        """
-        location_map = {}
-        for loc in locations:
-            if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
-                if loc["name"] == "Global":
-                    continue
-            location_map[loc["id"]] = {"name": loc["name"], "parent": None, "loc_type": "area"}
-        return location_map
 
     def load_devices(self):
         """Load Device data from DNA Center info DiffSync models."""
