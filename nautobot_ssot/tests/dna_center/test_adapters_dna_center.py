@@ -26,6 +26,7 @@ from nautobot_ssot.integrations.dna_center.jobs import DnaCenterDataSource
 from nautobot_ssot.tests.dna_center.fixtures import (
     DEVICE_DETAIL_FIXTURE,
     DEVICE_FIXTURE,
+    EXPECTED_BUILDING_MAP,
     EXPECTED_DNAC_LOCATION_MAP,
     EXPECTED_DNAC_LOCATION_MAP_W_JOB_LOCATION_MAP,
     EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL,
@@ -138,6 +139,7 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         )
         self.dna_center = DnaCenterAdapter(job=self.job, sync=None, client=self.dna_center_client, tenant=None)
         self.dna_center.dnac_location_map = EXPECTED_DNAC_LOCATION_MAP
+        self.dna_center.building_map = EXPECTED_BUILDING_MAP
 
     def test_build_dnac_location_map(self):
         """Test Nautobot adapter build_dnac_location_map method."""
