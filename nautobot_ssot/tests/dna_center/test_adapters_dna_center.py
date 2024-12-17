@@ -182,6 +182,42 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
             "No location data was returned from DNA Center. Unable to proceed."
         )
 
+    def test_load_device_location_tree_w_floor(self):
+        """Test Nautobot SSoT for Cisco DNA Center load_device_location_tree() function with Device that has floor Location."""
+        self.dna_center.building_map = {
+            "3": {
+                "name": "HQ",
+                "additionalInfo": [
+                    {
+                        "nameSpace": "Location",
+                        "attributes": {
+                            "country": "United States",
+                            "address": "123 Broadway, New York City, New York 12345, United States",
+                            "latitude": "40.758746",
+                            "addressInheritedFrom": "2",
+                            "type": "building",
+                            "longitude": "-73.978660",
+                        },
+                    }
+                ],
+            }
+        }
+        mock_loc_data = {"areas": ["Global", "USA", "New York", "NYC"], "building": "HQ", "floor": "1st Floor"}
+        mock_dev_details = {"siteHierarchyGraphId": "/1/2/3/4/"}
+        self.dna_center.load_device_location_tree(dev_details=mock_dev_details, loc_data=mock_loc_data)
+        self.assertEqual(
+            {"HQ - 1st Floor__HQ"},
+            {dev.get_unique_id() for dev in self.dna_center.get_all("floor")},
+        )
+        self.assertEqual(
+            {"HQ__NYC"},
+            {dev.get_unique_id() for dev in self.dna_center.get_all("building")},
+        )
+        self.assertEqual(
+            {"Global__None", "USA__Global", "New York__USA", "NYC__New York"},
+            {dev.get_unique_id() for dev in self.dna_center.get_all("area")},
+        )
+
     def test_load_devices(self):
         """Test Nautobot SSoT for Cisco DNA Center load_devices() function."""
         self.dna_center.load_ports = MagicMock()
