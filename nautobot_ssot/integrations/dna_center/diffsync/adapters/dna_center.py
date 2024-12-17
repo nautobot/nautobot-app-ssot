@@ -304,7 +304,6 @@ class DnaCenterAdapter(Adapter):
                 or (dev.get("errorDescription") and "Meraki" in dev["errorDescription"])
             ):
                 continue
-            platform = "unknown"
             dev_role = "Unknown"
             vendor = "Cisco"
             if not dev.get("hostname"):
@@ -316,13 +315,7 @@ class DnaCenterAdapter(Adapter):
                 self.failed_import_devices.append(dev)
                 continue
             dev_role = self.get_device_role(dev)
-            if dev["softwareType"] in DNA_CENTER_LIB_MAPPER:
-                platform = DNA_CENTER_LIB_MAPPER[dev["softwareType"]]
-            else:
-                if not dev.get("softwareType") and dev.get("type") and ("3800" in dev["type"] or "9130" in dev["type"]):
-                    platform = "cisco_ios"
-                if not dev.get("softwareType") and dev.get("family") and "Meraki" in dev["family"]:
-                    platform = "cisco_meraki"
+            platform = self.get_device_platform(dev)
             if platform == "unknown":
                 self.job.logger.warning(f"Device {dev['hostname']} is missing Platform so will be skipped.")
                 dev["field_validation"] = {
@@ -415,6 +408,25 @@ class DnaCenterAdapter(Adapter):
         if dev_role == "Unknown":
             dev_role = dev["role"]
         return dev_role
+
+    def get_device_platform(self, dev):
+        """Get Device Platform from Job information.
+
+        Args:
+            dev (dict): Dictionary of information about Device from DNA Center.
+
+        Returns:
+            str: Device platform that has been determined from DNA Center information.
+        """
+        platform = "unknown"
+        if dev["softwareType"] in DNA_CENTER_LIB_MAPPER:
+            platform = DNA_CENTER_LIB_MAPPER[dev["softwareType"]]
+        else:
+            if not dev.get("softwareType") and dev.get("type") and ("3800" in dev["type"] or "9130" in dev["type"]):
+                platform = "cisco_ios"
+            if not dev.get("softwareType") and dev.get("family") and "Meraki" in dev["family"]:
+                platform = "cisco_meraki"
+        return platform
 
     def load_ports(self, device_id: str, dev: DnaCenterDevice, mgmt_addr: str = ""):
         """Load port info from DNAC into Port DiffSyncModel.
