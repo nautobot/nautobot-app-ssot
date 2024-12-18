@@ -72,7 +72,7 @@ class DnaCenterAdapter(Adapter):
         """Build out the DNA Center location structure based off DNAC information or Job location_map field.
 
         Args:
-            locations (List[dict]): List of Locations from DNA Center to be separated.
+            locations (List[dict]): List of Locations from DNA Center to be processed.
         """
         floors = []
         for location in locations:
@@ -121,8 +121,14 @@ class DnaCenterAdapter(Adapter):
                                 self.dnac_location_map[loc_id]["parent_of_parent"] = parent_name
                         if info["attributes"]["type"] == "floor":
                             floors.append(location)
-                            if parent_name in self.job.location_map and self.dnac_location_map[parent_id].get("name"):
+                            if self.job.location_map.get(parent_name) and self.dnac_location_map[parent_id].get("name"):
                                 self.dnac_location_map[loc_id]["parent"] = self.dnac_location_map[parent_id]["name"]
+                            if self.job.location_map.get(parent_name) and self.dnac_location_map[parent_id].get(
+                                "parent"
+                            ):
+                                self.dnac_location_map[loc_id]["parent_of_parent"] = self.dnac_location_map[parent_id][
+                                    "parent"
+                                ]
         if self.job.debug:
             self.job.logger.debug(f"Generated DNAC Location Map: {self.dnac_location_map}")
         return floors
