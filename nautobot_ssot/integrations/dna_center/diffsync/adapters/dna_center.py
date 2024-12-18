@@ -391,7 +391,9 @@ class DnaCenterAdapter(Adapter):
                 area_parent_name=self.dnac_location_map[building_id]["parent_of_parent"],
             )
             self.load_floor(
-                floor_name=loc_data["floor"], bldg_name=loc_data["building"], area_name=loc_data["areas"][-1]
+                floor_name=loc_data["floor"],
+                bldg_name=loc_data["building"],
+                area_name=self.dnac_location_map[building_id]["parent"],
             )
         else:
             building_id = dev_details["siteHierarchyGraphId"].lstrip("/").rstrip("/").split("/")[-1]
