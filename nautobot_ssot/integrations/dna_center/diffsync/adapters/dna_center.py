@@ -375,7 +375,7 @@ class DnaCenterAdapter(Adapter):
             if item_index + 2 <= len(loc_data["areas"]):
                 self.load_area(area=area, area_parent=reversed_areas[item_index + 1])
             else:
-                self.load_area(area=area, area_parent=None)
+                self.load_area(area=area)
         if loc_data.get("floor"):
             building_id = dev_details["siteHierarchyGraphId"].lstrip("/").rstrip("/").split("/")[-2]
             self.load_building(
