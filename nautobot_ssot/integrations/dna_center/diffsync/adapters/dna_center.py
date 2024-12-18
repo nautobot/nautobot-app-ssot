@@ -376,13 +376,21 @@ class DnaCenterAdapter(Adapter):
                 self.load_area(area=area, area_parent=None)
         if loc_data.get("floor"):
             building_id = dev_details["siteHierarchyGraphId"].lstrip("/").rstrip("/").split("/")[-2]
-            self.load_building(building=self.building_map[building_id], area_name=loc_data["areas"][-1])
+            self.load_building(
+                building=self.building_map[building_id],
+                area_name=self.dnac_location_map[building_id]["parent"],
+                area_parent_name=self.dnac_location_map[building_id]["parent_of_parent"],
+            )
             self.load_floor(
                 floor_name=loc_data["floor"], bldg_name=loc_data["building"], area_name=loc_data["areas"][-1]
             )
         else:
             building_id = dev_details["siteHierarchyGraphId"].lstrip("/").rstrip("/").split("/")[-1]
-            self.load_building(building=self.building_map[building_id], area_name=loc_data["areas"][-1])
+            self.load_building(
+                building=self.building_map[building_id],
+                area_name=self.dnac_location_map[building_id]["parent"],
+                area_parent_name=self.dnac_location_map[building_id]["parent_of_parent"],
+            )
 
     def get_device_role(self, dev):
         """Get Device Role from Job Hostname map or DNA Center 'role'.
