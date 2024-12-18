@@ -17,17 +17,16 @@ From LibreNMS into Nautobot, the app synchronizes devices, their interfaces, ass
 
 | LibreNMS objects        | Nautobot objects             |
 | ----------------------- | ---------------------------- |
-| geo location            | Location  `*`                |
+| geo location            | Location                     |
 | device                  | Device                       |
 | interface               | Interface                    |
-| device os               | Platform/Manufacturer `**`   |
+| device os               | Platform/Manufacturer `*`    |
 | os version              | Software/SoftwareImage       |
 | ip address              | IPAddress                    |
 | hardware                | DeviceType                   |
 
-`*` geo locations are looked up gia the [geocode api](https://geocode.xyz) if gps coordinates are set in LibreNMS and Regions will be created for City and State as parents for the actual location.
 
-`**` Device OS from LibreNMS is not standardized and therefore there is a mapping that can be updated in the `constants.py` file for the integration as more device manufacturers and platforms need to be added.
+`*` Device OS from LibreNMS is not standardized and therefore there is a mapping that can be updated in the `constants.py` file for the integration as more device manufacturers and platforms need to be added.
 
 ### LibreNMS as DataTarget
 

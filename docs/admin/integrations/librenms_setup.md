@@ -14,7 +14,7 @@ pip install nautobot-ssot[librenms]
 
 ## Configuration
 
-Once the SSoT package has been installed you simply need to enable the integration by setting `enable_librenms` to True. The `librenms_geocode_api_key` will give additional lookups to find City/State information based on GPS coordinates (if available/defined in LibreNMS) for Locations sync'd from LibreNMS. By default there are limits on how many queries can be performed so it might take a couple of job runs to get all the information into Nautobot.
+Once the SSoT package has been installed you simply need to enable the integration by setting `enable_librenms` to True.
 
 ```python
 PLUGINS = ["nautobot_ssot"]
@@ -23,7 +23,6 @@ PLUGINS_CONFIG = {
   "nautobot_ssot": {
         # Other nautobot_ssot settings ommitted.
         "enable_librenms": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_LIBRENMS", "true")),
-        "librenms_geocode_api_key": os.getenv("NAUTOBOT_SSOT_LIBRENMS_GEOCODE_API_KEY", ""),
   }
 }
 ```

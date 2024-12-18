@@ -25,47 +25,6 @@ def normalize_setting(variable_name):
     return getattr(constance_name, f"{variable_name.upper()}")
 
 
-def geocode_api_key():
-    """Function to get near constant so the data is fresh for `geocode_api_key`."""
-    return normalize_setting("librenms_geocode_api_key")
-
-
-def get_city_state_geocode(latitude: str, longitude: str):
-    """Lookup Geo information from latitude and longitude using GeoCode API."""
-    api_key = geocode_api_key()
-    if api_key:
-        url = f"https://geocode.xyz/{latitude},{longitude}?json=1&auth={api_key}"
-    else:
-        # unauthenticated api limited to 1 request per second
-        time.sleep(2)
-        url = f"https://geocode.xyz/{latitude},{longitude}?json=1"
-    geo_info = requests.request(url=url, method="GET", timeout=30)
-    geo_info.raise_for_status()
-    geo_json = geo_info.json()
-    city_info = {}
-    LOGGER.debug(f"Geocode response: {geo_json}")
-    try:
-        if "Throttled!" not in geo_json.values() and isinstance(geo_json, dict):
-            if geo_json.get("statename"):
-                city_info["state"] = geo_json["statename"]
-            elif geo_json.get("osmtags"):
-                if geo_json["osmtags"].get("is_in_state"):
-                    city_info["state"] = geo_json["osmtags"]["is_in_state"]
-            else:
-                city_info["state"] = "Unknown"
-            if geo_json.get("city") and "Throttled!" not in geo_json["city"]:
-                city_info["city"] = geo_json["city"]
-            else:
-                city_info["city"] = "Unknown"
-            return city_info
-        else:
-            return {"state": "Unknown", "city": "Unknown"}
-    except (KeyError, TypeError):
-        LOGGER.warning(f"Could not locate location info from Geocode. Response: {geo_json}")
-        city_info = {"state": "Unknown", "city": "Unknown"}
-        return city_info
-
-
 def check_sor_field(model):
     """Check if the System of Record field is present and is set to "LibreNMS"."""
     return (

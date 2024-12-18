@@ -10,7 +10,7 @@ from nautobot_ssot.integrations.librenms.diffsync.models.nautobot import (
     NautobotDevice,
     NautobotLocation,
 )
-from nautobot_ssot.integrations.librenms.utils import check_sor_field, get_sor_field_nautobot_object
+from nautobot_ssot.integrations.librenms.utils import check_sor_field, get_sor_field_nautobot_object, is_running_tests
 
 
 class NautobotAdapter(DiffSync):
@@ -90,6 +90,7 @@ class NautobotAdapter(DiffSync):
 
     def load(self):
         """Load data from Nautobot into DiffSync models."""
+
         if self.job.sync_locations:
             if self.job.debug:
                 self.job.logger.debug("Loading Nautobot Locations")
