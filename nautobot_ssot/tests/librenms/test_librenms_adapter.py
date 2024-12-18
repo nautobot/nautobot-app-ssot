@@ -1,17 +1,13 @@
-"""Unit test for LibreNMS Location and Device models."""
+"""Unit test for LibreNMS object models."""
 
 import json
-import os
-import uuid
-from unittest.mock import MagicMock, patch
-from typing import List, Optional
-from django.contrib.contenttypes.models import ContentType
+from unittest.mock import MagicMock
+
 from nautobot.core.testing import TransactionTestCase
-from nautobot.extras.models import Job, JobResult
+from nautobot.extras.models import JobResult
+
 from nautobot_ssot.integrations.librenms.diffsync.adapters.librenms import LibrenmsAdapter
 from nautobot_ssot.integrations.librenms.jobs import LibrenmsDataSource
-from nautobot_ssot.integrations.librenms.diffsync.models.nautobot import Location, Device
-from nautobot.extras.models import Status
 
 
 def load_json(path):
