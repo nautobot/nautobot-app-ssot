@@ -8,8 +8,14 @@ from django.contrib.contenttypes.models import ContentType
 from nautobot.dcim.models import Location, LocationType
 from nautobot.extras.models import Status
 
-from nautobot_ssot.integrations.librenms.constants import librenms_status_map, os_manufacturer_map
-from nautobot_ssot.integrations.librenms.diffsync.models.librenms import LibrenmsDevice, LibrenmsLocation
+from nautobot_ssot.integrations.librenms.constants import (
+    librenms_status_map,
+    os_manufacturer_map,
+)
+from nautobot_ssot.integrations.librenms.diffsync.models.librenms import (
+    LibrenmsDevice,
+    LibrenmsLocation,
+)
 from nautobot_ssot.integrations.librenms.utils import (
     is_running_tests,
     normalize_gps_coordinates,
@@ -78,16 +84,18 @@ class LibrenmsAdapter(DiffSync):
                 new_device = self.device(
                     name=device[self.hostname_field],
                     device_id=device["device_id"],
-                    location=device["location"] if device["location"] is not None else "Unknown",
+                    location=(device["location"] if device["location"] is not None else "Unknown"),
                     role=device["type"] if device["type"] is not None else None,
                     serial_no=device["serial"] if device["serial"] is not None else "",
                     status=_status,
                     manufacturer=(
-                        os_manufacturer_map.get(device["os"]) if os_manufacturer_map.get(device["os"]) is not None else "Unknown"
+                        os_manufacturer_map.get(device["os"])
+                        if os_manufacturer_map.get(device["os"]) is not None
+                        else "Unknown"
                     ),
-                    device_type=device["hardware"] if device["hardware"] is not None else "Unknown",
+                    device_type=(device["hardware"] if device["hardware"] is not None else "Unknown"),
                     platform=device["os"] if device["os"] is not None else "Unknown",
-                    os_version=device["version"] if device["version"] is not None else "Unknown",
+                    os_version=(device["version"] if device["version"] is not None else "Unknown"),
                     system_of_record=os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
                 )
                 self.add(new_device)
@@ -121,7 +129,11 @@ class LibrenmsAdapter(DiffSync):
             _site, _created = LocationType.objects.get_or_create(name="Site")
             if _created:
                 _site.content_types.add(ContentType.objects.get(app_label="dcim", model="device"))
-            Location.objects.get_or_create(name="Unknown", location_type=_site, status=Status.objects.get(name="Active"))
+            Location.objects.get_or_create(
+                name="Unknown",
+                location_type=_site,
+                status=Status.objects.get(name="Active"),
+            )
 
             if load_source != "file":
                 all_locations = self.lnms_api.get_librenms_locations()
@@ -133,4 +145,4 @@ class LibrenmsAdapter(DiffSync):
             for _location in all_locations["locations"]:
                 self.load_location(location=_location)
         else:
-            self.job.logger.info('Location Sync Disabled. Skipping loading locations.')
+            self.job.logger.info("Location Sync Disabled. Skipping loading locations.")

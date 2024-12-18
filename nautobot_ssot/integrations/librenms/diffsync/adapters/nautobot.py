@@ -92,9 +92,9 @@ class NautobotAdapter(DiffSync):
         """Load data from Nautobot into DiffSync models."""
         if self.job.sync_locations:
             if self.job.debug:
-                self.job.logger.debug('Loading Nautobot Locations')
+                self.job.logger.debug("Loading Nautobot Locations")
             self.load_location()
 
         if self.job.debug:
-            self.job.logger.debug('Loading Nautobot Devices')
+            self.job.logger.debug("Loading Nautobot Devices")
         self.load_device()

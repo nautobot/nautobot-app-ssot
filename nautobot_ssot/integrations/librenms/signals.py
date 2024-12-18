@@ -4,7 +4,6 @@ import importlib.util
 
 from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices
-from nautobot.dcim.models import LocationType
 
 from nautobot_ssot.utils import create_or_update_custom_field
 

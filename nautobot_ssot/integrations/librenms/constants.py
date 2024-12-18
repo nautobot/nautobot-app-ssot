@@ -23,5 +23,5 @@ os_manufacturer_map = {
     "cyberpower": "Cyberpower",
     "opnsense": "Opnsense",
     "epmp": "Cambium",
-    "tachyon": "Tachyon Networks"
+    "tachyon": "Tachyon Networks",
 }

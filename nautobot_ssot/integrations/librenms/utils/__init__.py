@@ -43,7 +43,7 @@ def get_city_state_geocode(latitude: str, longitude: str):
     geo_info.raise_for_status()
     geo_json = geo_info.json()
     city_info = {}
-    LOGGER.debug(f'Geocode response: {geo_json}')
+    LOGGER.debug(f"Geocode response: {geo_json}")
     try:
         if "Throttled!" not in geo_json.values() and isinstance(geo_json, dict):
             if geo_json.get("statename"):
@@ -53,7 +53,7 @@ def get_city_state_geocode(latitude: str, longitude: str):
                     city_info["state"] = geo_json["osmtags"]["is_in_state"]
             else:
                 city_info["state"] = "Unknown"
-            if geo_json.get("city") and 'Throttled!' not in geo_json["city"]:
+            if geo_json.get("city") and "Throttled!" not in geo_json["city"]:
                 city_info["city"] = geo_json["city"]
             else:
                 city_info["city"] = "Unknown"
