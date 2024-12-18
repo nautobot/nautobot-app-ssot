@@ -222,7 +222,9 @@ class DnaCenterAdapter(Adapter):
             building (dict): Dictionary containing location information about a building.
         """
         if self.job.debug:
-            self.job.logger.info(f"Loading {self.job.building_loctype.name} {building['name']}. {building}")
+            self.job.logger.info(
+                f"Loading {self.job.building_loctype.name} {building['name']} in {area_name} with parent {area_parent_name}. {building}"
+            )
         bldg_name = building["name"]
         address, _ = self.conn.find_address_and_type(info=building["additionalInfo"])
         latitude, longitude = self.conn.find_latitude_and_longitude(info=building["additionalInfo"])
