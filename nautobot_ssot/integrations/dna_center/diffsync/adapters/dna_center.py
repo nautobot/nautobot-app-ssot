@@ -247,9 +247,10 @@ class DnaCenterAdapter(Adapter):
             bldg_name (str): Name of Building location that Floor is a part of.
             area_name (str): Name of Area that Building location resides in.
         """
+        if bldg_name not in floor_name:
+            floor_name = f"{bldg_name} - {floor_name}"
         if self.job.debug:
-            self.job.logger.info(f"Loading floor {floor_name} in {bldg_name} building in {area_name} area.")
-        floor_name = f"{bldg_name} - {floor_name}"
+            self.job.logger.info(f"Loading floor {floor_name} in {area_name} area.")
         try:
             parent = self.get(self.building, {"name": bldg_name, "area": area_name})
             new_floor, loaded = self.get_or_instantiate(
