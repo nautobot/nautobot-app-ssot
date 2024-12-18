@@ -123,6 +123,8 @@ class DnaCenterAdapter(Adapter):
                             floors.append(location)
                             if parent_name in self.job.location_map and self.dnac_location_map[parent_id].get("name"):
                                 self.dnac_location_map[loc_id]["parent"] = self.dnac_location_map[parent_id]["name"]
+        if self.job.debug:
+            self.job.logger.debug(f"Generated DNAC Location Map: {self.dnac_location_map}")
         return floors
 
     def load_controller_locations(self):
