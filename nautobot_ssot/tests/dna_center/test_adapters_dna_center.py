@@ -186,8 +186,31 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
 
     def test_load_device_location_tree_w_floor(self):
         """Test Nautobot SSoT for Cisco DNA Center load_device_location_tree() function with Device that has floor Location."""
-        self.dna_center.building_map = {
+        self.dna_center.dnac_location_map = {
+            "1": {
+                "name": "Global",
+                "parent": None,
+                "parent_of_parent": None,
+            },
+            "2": {
+                "name": "USA",
+                "parent": "Global",
+                "parent_of_parent": None,
+            },
             "3": {
+                "name": "New York",
+                "parent": "USA",
+                "parent_of_parent": "Global",
+            },
+            "4": {
+                "name": "NYC",
+                "parent": "New York",
+                "parent_of_parent": "USA",
+            },
+            "5": {"name": "HQ", "parent": "NYC", "parent_of_parent": "New York"},
+        }
+        self.dna_center.building_map = {
+            "5": {
                 "name": "HQ",
                 "additionalInfo": [
                     {
@@ -202,10 +225,10 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
                         },
                     }
                 ],
-            }
+            },
         }
         mock_loc_data = {"areas": ["Global", "USA", "New York", "NYC"], "building": "HQ", "floor": "1st Floor"}
-        mock_dev_details = {"siteHierarchyGraphId": "/1/2/3/4/"}
+        mock_dev_details = {"siteHierarchyGraphId": "/1/2/3/4/5/6/"}
         self.dna_center.load_device_location_tree(dev_details=mock_dev_details, loc_data=mock_loc_data)
         self.assertEqual(
             {"HQ - 1st Floor__HQ"},
@@ -215,10 +238,60 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
             {"HQ__NYC"},
             {dev.get_unique_id() for dev in self.dna_center.get_all("building")},
         )
+        loaded_bldgs = self.dna_center.get_all("building")
+        self.assertEqual(loaded_bldgs[0].area_parent, "New York")
         self.assertEqual(
             {"Global__None", "USA__Global", "New York__USA", "NYC__New York"},
             {dev.get_unique_id() for dev in self.dna_center.get_all("area")},
         )
+
+    def test_load_device_location_tree_wo_floor(self):
+        """Test Nautobot SSoT for Cisco DNA Center load_device_location_tree() function with Device that doesn't have a floor Location."""
+        self.dna_center.dnac_location_map = {
+            "1": {
+                "name": "Global",
+                "parent": None,
+                "parent_of_parent": None,
+            },
+            "2": {
+                "name": "USA",
+                "parent": "Global",
+                "parent_of_parent": None,
+            },
+            "3": {
+                "name": "New York",
+                "parent": "USA",
+                "parent_of_parent": "Global",
+            },
+            "4": {
+                "name": "NYC",
+                "parent": "New York",
+                "parent_of_parent": "USA",
+            },
+            "5": {"name": "HQ", "parent": "NYC", "parent_of_parent": "New York"},
+        }
+        self.dna_center.building_map = {
+            "5": {
+                "name": "HQ",
+                "additionalInfo": [
+                    {
+                        "nameSpace": "Location",
+                        "attributes": {
+                            "country": "United States",
+                            "address": "123 Broadway, New York City, New York 12345, United States",
+                            "latitude": "40.758746",
+                            "addressInheritedFrom": "2",
+                            "type": "building",
+                            "longitude": "-73.978660",
+                        },
+                    }
+                ],
+            },
+        }
+        mock_loc_data = {"areas": ["Global", "USA", "New York", "NYC"], "building": "HQ"}
+        mock_dev_details = {"siteHierarchyGraphId": "/1/2/3/4/5/"}
+        self.dna_center.load_device_location_tree(dev_details=mock_dev_details, loc_data=mock_loc_data)
+        self.assertEqual(len(self.dna_center.get_all("floor")), 0)
 
     def test_load_devices(self):
         """Test Nautobot SSoT for Cisco DNA Center load_devices() function."""
