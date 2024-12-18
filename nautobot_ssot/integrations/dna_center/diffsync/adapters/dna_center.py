@@ -335,6 +335,12 @@ class DnaCenterAdapter(Adapter):
                     self.failed_import_devices.append(dev)
                     continue
             except ObjectNotFound:
+                if loc_data.get("floor") and loc_data["building"] not in loc_data["floor"]:
+                    floor_name = f"{loc_data['building']} - {loc_data['floor']}"
+                elif loc_data.get("floor"):
+                    floor_name = f"{loc_data['building']} - {loc_data['floor']}"
+                else:
+                    floor_name = None
                 new_dev = self.device(
                     name=dev["hostname"],
                     status="Active" if dev.get("reachabilityStatus") != "Unreachable" else "Offline",
@@ -342,7 +348,7 @@ class DnaCenterAdapter(Adapter):
                     vendor=vendor,
                     model=self.conn.get_model_name(models=dev["platformId"]) if dev.get("platformId") else "Unknown",
                     site=loc_data["building"],
-                    floor=f"{loc_data['building']} - {loc_data['floor']}" if loc_data.get("floor") else None,
+                    floor=floor_name,
                     serial=dev["serialNumber"] if dev.get("serialNumber") else "",
                     version=dev.get("softwareVersion"),
                     platform=platform,
