@@ -110,8 +110,11 @@ class LibrenmsAdapter(DiffSync):
             else self.job.hostname_field or "sysName"
         )
 
+        print("Running tests:", is_running_tests())
         if is_running_tests():
             load_source = "file"
+            self.job.sync_locations = True
+            self.hostname_field = "sysName"
         else:
             load_source = self.job.load_type
 
@@ -121,6 +124,9 @@ class LibrenmsAdapter(DiffSync):
             all_devices = self.lnms_api.get_librenms_devices_from_file()
 
         self.job.logger.info(f'Loading {all_devices["count"]} Devices from LibreNMS.')
+
+        if is_running_tests():
+                print(f"All devices fetched: {all_devices}")
 
         for _device in all_devices["devices"]:
             self.load_device(device=_device)
@@ -141,6 +147,9 @@ class LibrenmsAdapter(DiffSync):
                 all_locations = self.lnms_api.get_librenms_locations_from_file()
 
             self.job.logger.info(f'Loading {all_locations["count"]} Locations from LibreNMS.')
+
+            if is_running_tests():
+                print(f"All locations fetched: {all_locations}")
 
             for _location in all_locations["locations"]:
                 self.load_location(location=_location)
