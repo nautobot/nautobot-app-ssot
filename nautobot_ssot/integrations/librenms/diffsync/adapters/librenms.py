@@ -4,11 +4,13 @@ import os
 
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectNotFound
+from django.contrib.contenttypes.models import ContentType
+from nautobot.dcim.models import Location, LocationType
+from nautobot.extras.models import Status
 
 from nautobot_ssot.integrations.librenms.constants import librenms_status_map, os_manufacturer_map
 from nautobot_ssot.integrations.librenms.diffsync.models.librenms import LibrenmsDevice, LibrenmsLocation
 from nautobot_ssot.integrations.librenms.utils import (
-    get_city_state_geocode,
     is_running_tests,
     normalize_gps_coordinates,
 )
@@ -44,14 +46,6 @@ class LibrenmsAdapter(DiffSync):
         try:
             self.get(self.location, location["location"])
         except ObjectNotFound:
-            # FIXME: Need to fix false errors when API errors occur with GeoCode API causing models to falsely need updates.
-            _parent = "Unknown"
-            if self.job.sync_location_parents:
-                if location["lat"] and location["lng"]:
-                    _location_info = get_city_state_geocode(latitude=location["lat"], longitude=location["lng"])
-                    _parent = ""
-                    if _location_info != "Unknown":
-                        _parent = f'{_location_info["city"]}__{_location_info["state"]}'
             _latitude = None
             _longitude = None
             if location["lat"]:
@@ -62,7 +56,6 @@ class LibrenmsAdapter(DiffSync):
                 name=location["location"],
                 status="Active",
                 location_type="Site",
-                parent=_parent,
                 latitude=_latitude,
                 longitude=_longitude,
                 system_of_record=os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
@@ -92,12 +85,14 @@ class LibrenmsAdapter(DiffSync):
                     manufacturer=(
                         os_manufacturer_map.get(device["os"]) if os_manufacturer_map.get(device["os"]) is not None else "Unknown"
                     ),
-                    device_type=device["hardware"] if device["hardware"] is not None else "Unknwon",
+                    device_type=device["hardware"] if device["hardware"] is not None else "Unknown",
                     platform=device["os"] if device["os"] is not None else "Unknown",
                     os_version=device["version"] if device["version"] is not None else "Unknown",
                     system_of_record=os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
                 )
                 self.add(new_device)
+        else:
+            self.job.logger.info(f'Device {device[self.hostname_field]} is "ping-only". Skipping.')
 
     def load(self):
         """Load data from LibreNMS into DiffSync models."""
@@ -119,14 +114,23 @@ class LibrenmsAdapter(DiffSync):
 
         self.job.logger.info(f'Loading {all_devices["count"]} Devices from LibreNMS.')
 
-        if load_source != "file":
-            all_locations = self.lnms_api.get_librenms_locations()
-        else:
-            all_locations = self.lnms_api.get_librenms_locations_from_file()
-
-        self.job.logger.info(f'Loading {all_locations["count"]} Locations from LibreNMS.')
-
         for _device in all_devices["devices"]:
             self.load_device(device=_device)
-        for _location in all_locations["locations"]:
-            self.load_location(location=_location)
+
+        if self.job.sync_locations:
+            _site, _created = LocationType.objects.get_or_create(name="Site")
+            if _created:
+                _site.content_types.add(ContentType.objects.get(app_label="dcim", model="device"))
+            Location.objects.get_or_create(name="Unknown", location_type=_site, status=Status.objects.get(name="Active"))
+
+            if load_source != "file":
+                all_locations = self.lnms_api.get_librenms_locations()
+            else:
+                all_locations = self.lnms_api.get_librenms_locations_from_file()
+
+            self.job.logger.info(f'Loading {all_locations["count"]} Locations from LibreNMS.')
+
+            for _location in all_locations["locations"]:
+                self.load_location(location=_location)
+        else:
+            self.job.logger.info('Location Sync Disabled. Skipping loading locations.')

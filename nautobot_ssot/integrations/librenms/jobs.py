@@ -47,7 +47,7 @@ class LibrenmsDataSource(DataSource):
         label="Data Load Source",
         default="api",
     )
-    sync_location_parents = BooleanVar(description="Enable to lookup City and State as parents for locations using GPS Coordinates. (Make sure there is a LocationType of Site already created)", default=False)
+    sync_locations = BooleanVar(description="Whether to Sync Locations from LibreNMS to Nautobot.", default=False)
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
 
     class Meta:  # pylint: disable=too-few-public-methods
@@ -117,7 +117,7 @@ class LibrenmsDataSource(DataSource):
         debug,
         librenms_server,
         hostname_field,
-        sync_location_parents,
+        sync_locations,
         load_type,
         *args,
         **kwargs,
@@ -126,7 +126,7 @@ class LibrenmsDataSource(DataSource):
         self.librenms_server = librenms_server
         self.hostname_field = hostname_field
         self.load_type = load_type
-        self.sync_location_parents = sync_location_parents
+        self.sync_locations = sync_locations
         self.debug = debug
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling

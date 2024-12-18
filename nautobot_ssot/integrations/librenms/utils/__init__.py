@@ -42,15 +42,28 @@ def get_city_state_geocode(latitude: str, longitude: str):
     geo_info = requests.request(url=url, method="GET", timeout=30)
     geo_info.raise_for_status()
     geo_json = geo_info.json()
+    city_info = {}
+    LOGGER.debug(f'Geocode response: {geo_json}')
     try:
         if "Throttled!" not in geo_json.values() and isinstance(geo_json, dict):
-            city_info = {"state": geo_json["state"], "city": geo_json["city"]}
+            if geo_json.get("statename"):
+                city_info["state"] = geo_json["statename"]
+            elif geo_json.get("osmtags"):
+                if geo_json["osmtags"].get("is_in_state"):
+                    city_info["state"] = geo_json["osmtags"]["is_in_state"]
+            else:
+                city_info["state"] = "Unknown"
+            if geo_json.get("city") and 'Throttled!' not in geo_json["city"]:
+                city_info["city"] = geo_json["city"]
+            else:
+                city_info["city"] = "Unknown"
             return city_info
         else:
-            return "Unknown"
+            return {"state": "Unknown", "city": "Unknown"}
     except (KeyError, TypeError):
         LOGGER.warning(f"Could not locate location info from Geocode. Response: {geo_json}")
-        return "Unknown"
+        city_info = {"state": "Unknown", "city": "Unknown"}
+        return city_info
 
 
 def check_sor_field(model):

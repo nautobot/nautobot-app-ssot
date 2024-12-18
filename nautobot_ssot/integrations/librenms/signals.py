@@ -68,22 +68,6 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         except LookupError as err:
             print(f"Unable to find ValidatedSoftwareLCM model from Device Lifecycle Management App. {err}")
 
-    try:
-        _state = LocationType.objects.get(name="State")
-    except LocationType.DoesNotExist:
-        _state, _ = LocationType.objects.get_or_create(name="State")
-        _state.content_types.set(Device)
-    try:
-        _city = LocationType.objects.get(name="City")
-    except LocationType.DoesNotExist:
-        _city, _ = LocationType.objects.get_or_create(name="City", parent=_state)
-        _city.content_types.set(Device)
-    try:
-        _site = LocationType.objects.get(name="Site")
-    except LocationType.DoesNotExist:
-        _site, _ = LocationType.objects.get_or_create(name="Site", parent=_city)
-        _site.content_types.set(Device)
-
     sync_custom_field, _ = create_or_update_custom_field(
         apps,
         key="last_synced_from_sor",

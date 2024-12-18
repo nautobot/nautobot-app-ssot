@@ -16,23 +16,10 @@ from nautobot.extras.models import Role, Status
 
 from nautobot_ssot.integrations.librenms.constants import os_manufacturer_map
 from nautobot_ssot.integrations.librenms.diffsync.models.base import Device, Location, Port
-from nautobot_ssot.integrations.librenms.utils import check_sor_field, get_city_state_geocode
+from nautobot_ssot.integrations.librenms.utils import check_sor_field
 from nautobot_ssot.integrations.librenms.utils.nautobot import (
     verify_platform,
 )
-
-
-def ensure_location(location_name: str, content_type, parent, location_type_name: str = "Site"):
-    """Safely returns a Location with a LocationType that support given ContentType."""
-    location_type, _ = LocationType.objects.get_or_create(name=location_type_name)
-    content_type = ContentType.objects.get_for_model(content_type)
-    location_type.content_types.add(content_type)
-    status = Status.objects.get(name="Active")
-    if parent:
-        parent, _ = LocationType.objects.get_or_create(name=parent.name)
-        return ORMLocation.objects.get_or_create(name=location_name, location_type=location_type, status=status)[0]
-    else:
-        return ORMLocation.objects.get_or_create(name=location_name, location_type=location_type, status=status)[0]
 
 
 def ensure_role(role_name: str, content_type):
@@ -76,28 +63,12 @@ class NautobotLocation(Location):
         if adapter.job.debug:
             adapter.job.logger.debug(f'Creating Nautobot Location {ids["name"]}')
 
-        _unknown_parent = ensure_location(location_name="Unknown", content_type=ORMDevice, parent=None, location_type_name="City")
-
-        if adapter.job.sync_location_parents:
-            if "latitude" in attrs and "longitude" in attrs:
-                if attrs["latitude"] is not None and attrs["longitude"] is not None:
-                    _location_info = get_city_state_geocode(latitude=attrs["latitude"], longitude=attrs["longitude"])
-                    if _location_info:
-                        _state = ensure_location(location_name=_location_info["state"], content_type=ORMDevice, parent=None, location_type_name="State")
-                        _city = ensure_location(
-                            location_name=_location_info["city"], content_type=ORMDevice, parent=_state, location_type_name="City"
-                        )
-                        _parent = _city
-
-        _parent = _unknown_parent
-
         new_location = ORMLocation(
             name=ids["name"],
             latitude=attrs["latitude"],
             longitude=attrs["longitude"],
             status=Status.objects.get(name=attrs["status"]),
             location_type=LocationType.objects.get(name="Site"),
-            parent=_parent,
         )
         new_location.custom_field_data.update(
             {"system_of_record": os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS")}
@@ -118,10 +89,6 @@ class NautobotLocation(Location):
             location.longitude = attrs["longitude"]
         if "status" in attrs:
             location.status = Status.objects.get(name=attrs["status"])
-        if "parent" in attrs and location.parent.name != "Unknown":
-            location.parent = ensure_location(
-                location_name=attrs["parent"], content_type=ORMDevice, location_type_name="City"
-            )
         if not check_sor_field(location):
             location.custom_field_data.update(
                 {"system_of_record": os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS")}
@@ -145,16 +112,18 @@ class NautobotDevice(Device):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Device in Nautobot from NautobotDevice object."""
-        adapter.job.logger.debug(f'Creating Nautobot Device {ids["name"]}')
+        if adapter.job.debug:
+            adapter.job.logger.debug(f'Creating Nautobot Device {ids["name"]}')
         _manufacturer = ORMManufacturer.objects.get_or_create(name=os_manufacturer_map[attrs["platform"]])[0]
         _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=_manufacturer.name)
         _device_type = DeviceType.objects.get_or_create(model=attrs["device_type"], manufacturer=_manufacturer)[0]
+        adapter.job.logger.debug(f'Device Location {attrs["location"]}')
         new_device = ORMDevice(
             name=ids["name"],
             device_type=_device_type,
             status=Status.objects.get_or_create(name=attrs["status"])[0],
             role=ensure_role(role_name=attrs["role"], content_type=ORMDevice),
-            location=ORMLocation.objects.get(name=attrs["location"]),
+            location=ORMLocation.objects.get(name=attrs["location"], location_type=LocationType.objects.get(name="Site")),
             platform=_platform,
             serial=attrs["serial_no"],
             software_version=ensure_software_version(

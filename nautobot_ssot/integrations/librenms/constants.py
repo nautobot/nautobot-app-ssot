@@ -22,5 +22,6 @@ os_manufacturer_map = {
     "hpe-ilo": "HP",
     "cyberpower": "Cyberpower",
     "opnsense": "Opnsense",
-    "epmp": "Cambium"
+    "epmp": "Cambium",
+    "tachyon": "Tachyon Networks"
 }
