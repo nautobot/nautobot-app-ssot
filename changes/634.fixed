@@ -1,4 +1,1 @@
-ServiceNow Integration
-When running the Nautobot ⟹ ServiceNow job with a site filter set, you expect the job to sync only the specified locations to ServiceNow. 
-However, it appears that the job currently loads only the parent locations, not the specified location itself.
-This is fixed by initializing the locations list with the user-selected location and then loading the parent locations of that selection.
+Fixed load locations on the source adapter for the ServiceNow integration when a site filter is applied.
