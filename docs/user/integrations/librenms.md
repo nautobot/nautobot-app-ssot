@@ -12,6 +12,7 @@ The LibreNMS SSoT integration is built as part of the [Nautobot Single Source of
 - Librenms Server: External integration object pointing to the required LibreNMS instance.
 - hostname_field: Which LibreNMS field to use as the hostname in Nautobot. sysName or hostanme.
 - sync_location_parents: Whether to lookup City and State to add parent locations for geo locations.
+- tenant: This is used as a filter for objects synced with Nautobot and LibreNMS. This can be used to sync multiple LibreNMS instances into different tenants, like in an MSP environment. This affects which devices are loaded from Nautobot during the sync. It does not affect which devices are loaded from LibreNMS
 
 From LibreNMS into Nautobot, the app synchronizes devices, their interfaces, associated IP addresses, and Locations. Here is a table showing the data mappings when syncing from LibreNMS.
 
