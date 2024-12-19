@@ -6,7 +6,7 @@ This tutorial will walk you through building a custom DataSource (i.e. synchroni
 
 ## Creating a New Nautobot App
 
-To start building your own SSoT integration, you first need a project as well as the accompanying development environment. Network to Code provides the [Cookiecutter Nautobot App](https://github.com/nautobot/cookiecutter-nautobot-app) to make this as easy as possible for you. Check out the README of that project and bake a `nautobot-app` cookie.
+To start building your own SSoT integration, you first need a project as well as the accompanying development environment. Network to Code provides the [Cookiecutter Nautobot App](https://github.com/nautobot/cookiecutter-nautobot-app) to make this as easy as possible for you. Check out the README of that project and bake a `nautobot-app-ssot` cookie.
 
 Resume this tutorial whenever you have a folder on your development device with an up and running development environment.
 
@@ -26,7 +26,7 @@ from nautobot_ssot.contrib import NautobotModel
 
 class VLANModel(NautobotModel):
     _model = VLAN  # `NautobotModel` models need to have a 1-to-1 mapping with a concrete Nautobot model
-    _modelname = "vlan"  # This is the model name diffsync uses for its logging output 
+    _modelname = "vlan"  # This is the model name DiffSync uses for its logging output
     _identifiers = ("name",)  # These are the fields that uniquely identify a model instance
     _attributes = ("vid", "status__name", "description",)  # The rest of the data fields go here
     
