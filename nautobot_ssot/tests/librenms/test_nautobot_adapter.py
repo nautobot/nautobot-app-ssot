@@ -38,6 +38,7 @@ class TestNautobotAdapterTestCase(TransactionTestCase):
     def setUp(self):
         """Initialize test case and populate the database."""
         self.active_status, _ = Status.objects.get_or_create(name="Active")
+        self.active_status.content_types.add(ContentType.objects.get_for_model(ORMDevice))
 
         self.site_type, _ = LocationType.objects.get_or_create(name="Site")
         self.site_type.content_types.add(ContentType.objects.get_for_model(ORMDevice))

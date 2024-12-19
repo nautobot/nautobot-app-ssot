@@ -5,7 +5,7 @@ import os
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
-from nautobot.dcim.models import Location, LocationType
+from nautobot.dcim.models import Device, Location, LocationType
 from nautobot.extras.models import Status
 
 from nautobot_ssot.integrations.librenms.constants import (
@@ -135,10 +135,17 @@ class LibrenmsAdapter(DiffSync):
             _site, _created = LocationType.objects.get_or_create(name="Site")
             if _created:
                 _site.content_types.add(ContentType.objects.get(app_label="dcim", model="device"))
+            if is_running_tests():
+                _status = Status.objects.get_or_create(name="Active")[0]
+                _status.content_types.add(ContentType.objects.get_for_model(Device))
+                _status.content_types.add(ContentType.objects.get_for_model(Location))
+                _status.validated_save()
+            else:
+                _status = Status.objects.get(name="Active")
             Location.objects.get_or_create(
                 name="Unknown",
                 location_type=_site,
-                status=Status.objects.get(name="Active"),
+                status=_status,
             )
 
             if load_source != "file":
