@@ -1,10 +1,13 @@
 """Nautobot Adapter for LibreNMS SSoT app."""
 
+from typing import Optional
+
 from diffsync import DiffSync
 from diffsync.enum import DiffSyncModelFlags
 from diffsync.exceptions import ObjectNotFound
 from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import Location as OrmLocation
+from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.librenms.diffsync.models.nautobot import (
     NautobotDevice,
@@ -21,7 +24,7 @@ class NautobotAdapter(DiffSync):
 
     top_level = ["location", "device"]
 
-    def __init__(self, *args, job=None, sync=None, **kwargs):
+    def __init__(self, *args, job=None, sync=None, tenant: Optional[Tenant] = None, **kwargs):
         """Initialize Nautobot.
 
         Args:
@@ -29,13 +32,14 @@ class NautobotAdapter(DiffSync):
             sync (object, optional): Nautobot DiffSync. Defaults to None.
         """
         super().__init__(*args, **kwargs)
+        self.tenant = tenant
         self.job = job
         self.sync = sync
 
     def load_location(self):
         """Load Location objects from Nautobot into DiffSync Models."""
-        if self.job.tenant:
-            locations = OrmLocation.objects.filter(tenant=self.job.tenant)
+        if self.tenant:
+            locations = OrmLocation.objects.filter(tenant=self.tenant)
         else:
             locations = OrmLocation.objects.all()
         for nb_location in locations:
@@ -63,8 +67,8 @@ class NautobotAdapter(DiffSync):
 
     def load_device(self):
         """Load Device objects from Nautobot into DiffSync models."""
-        if self.job.tenant:
-            devices = OrmDevice.objects.filter(tenant=self.job.tenant)
+        if self.tenant:
+            devices = OrmDevice.objects.filter(tenant=self.tenant)
         else:
             devices = OrmDevice.objects.all()
         for nb_device in devices:

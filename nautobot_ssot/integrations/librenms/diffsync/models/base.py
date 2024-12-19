@@ -14,6 +14,7 @@ class Location(DiffSyncModel):
     _attributes = (
         "status",
         "location_type",
+        "tenant",
         "parent",
         "latitude",
         "longitude",
@@ -24,6 +25,7 @@ class Location(DiffSyncModel):
     name: str
     status: str
     location_type: str
+    tenant: Optional[str] = None
     parent: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
@@ -40,6 +42,7 @@ class Device(DiffSyncModel):
     _attributes = (
         "device_id",
         "location",
+        "tenant",
         "status",
         "device_type",
         "role",
@@ -55,6 +58,7 @@ class Device(DiffSyncModel):
     name: str
     device_id: Optional[int] = None
     location: str
+    tenant: Optional[str] = None
     status: str
     device_type: str
     role: Optional[str] = None
@@ -108,12 +112,14 @@ class Prefix(DiffSyncModel):
     _modelname = "prefix"
     _identifiers = (
         "network",
+        "tenant",
         "mask_bits",
         "vrf",
     )
     _attributes = ("description", "tags", "system_of_record")
     _children = {}
     network: str
+    tenant: Optional[str] = None
     mask_bits: int
     description: Optional[str] = None
     vrf: Optional[str] = None
@@ -131,6 +137,7 @@ class IPAddress(DiffSyncModel):
     _attributes = (
         "namespace",
         "available",
+        "tenant",
         "label",
         "device",
         "interface",
@@ -144,6 +151,7 @@ class IPAddress(DiffSyncModel):
     subnet: str
     namespace: str
     available: bool
+    tenant: Optional[str] = None
     label: Optional[str] = None
     device: Optional[str] = None
     interface: Optional[str] = None
