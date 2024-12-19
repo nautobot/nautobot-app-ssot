@@ -110,7 +110,7 @@ class DnaCenterAdapter(Adapter):
                     if info["attributes"]["type"] in ["area", "building"]:
                         if info["attributes"]["type"] == "building":
                             self.building_map[loc_id] = location
-                        if info["attributes"]["type"] == "building" and loc_name in self.job.location_map:
+                        if self.job.location_map.get(loc_name):
                             if self.job.location_map[loc_name].get("parent"):
                                 self.dnac_location_map[loc_id]["parent"] = self.job.location_map[loc_name]["parent"]
                             if self.job.location_map[loc_name].get("area_parent"):
