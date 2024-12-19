@@ -126,7 +126,7 @@ class LibrenmsAdapter(DiffSync):
         self.job.logger.info(f'Loading {all_devices["count"]} Devices from LibreNMS.')
 
         if is_running_tests():
-                print(f"All devices fetched: {all_devices}")
+            print(f"All devices fetched: {all_devices}")
 
         for _device in all_devices["devices"]:
             self.load_device(device=_device)

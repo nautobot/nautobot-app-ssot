@@ -3,9 +3,7 @@
 import inspect
 import logging
 import os
-import time
 
-import requests
 from constance import config as constance_name
 from django.conf import settings
 
