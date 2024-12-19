@@ -88,11 +88,9 @@ class NautobotAdapter(DiffSync):
                     device_id=_device_id,
                     location=nb_device.location.name,
                     status=nb_device.status.name,
-                    device_type=nb_device.device_type.display.split(f"{nb_device.platform.manufacturer.name}", 1)[
-                        1
-                    ].strip(),
+                    device_type=nb_device.device_type.model,
                     role=nb_device.role.name,
-                    manufacturer=nb_device.platform.manufacturer.name,
+                    manufacturer=nb_device.device_type.manufacturer.name,
                     platform=nb_device.platform.name,
                     os_version=_software_version,
                     serial_no=nb_device.serial,

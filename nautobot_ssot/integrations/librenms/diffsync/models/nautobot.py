@@ -33,12 +33,16 @@ def ensure_role(role_name: str, content_type):
 def ensure_platform(platform_name: str, manufacturer: str):
     """Safely returns a Platform that support Devices."""
     try:
-        _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer)[0]
+        _manufacturer, _ = ORMManufacturer.objects.get_or_create(name=manufacturer)
         _platform = ORMPlatform.objects.get(name=platform_name, manufacturer=_manufacturer)
         return _platform
     except ORMPlatform.DoesNotExist:
-        _platform = verify_platform(platform_name=platform_name, manu=_manufacturer.id)
-        return _platform
+        try:
+            _platform = ORMPlatform.objects.get(name=platform_name)
+            return _platform
+        except ORMPlatform.DoesNotExist:
+            _platform = verify_platform(platform_name=platform_name, manu=_manufacturer.id)
+            return _platform
 
 
 def ensure_software_version(platform: ORMPlatform, manufacturer: str, version: str, device_type: DeviceType):
@@ -119,7 +123,8 @@ class NautobotDevice(Device):
         _manufacturer = ORMManufacturer.objects.get_or_create(name=os_manufacturer_map[attrs["platform"]])[0]
         _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=_manufacturer.name)
         _device_type = DeviceType.objects.get_or_create(model=attrs["device_type"], manufacturer=_manufacturer)[0]
-        adapter.job.logger.debug(f'Device Location {attrs["location"]}')
+        if adapter.job.debug:
+            adapter.job.logger.debug(f'Device Location {attrs["location"]}')
         new_device = ORMDevice(
             name=ids["name"],
             device_type=_device_type,
