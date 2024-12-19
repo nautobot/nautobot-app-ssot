@@ -19,6 +19,7 @@ def load_json(path):
 DEVICE_FIXTURE = load_json("./nautobot_ssot/tests/librenms/fixtures/get_librenms_devices.json")["devices"]
 LOCATION_FIXTURE = load_json("./nautobot_ssot/tests/librenms/fixtures/get_librenms_locations.json")["locations"]
 
+
 class TestLibreNMSAdapterTestCase(TransactionTestCase):
     """Test NautobotSsotLibreNMSAdapter class."""
 
