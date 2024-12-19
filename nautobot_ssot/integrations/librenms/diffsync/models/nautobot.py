@@ -13,7 +13,6 @@ from nautobot.dcim.models import Platform as ORMPlatform
 from nautobot.dcim.models import SoftwareImageFile as ORMSoftwareImageFile
 from nautobot.dcim.models import SoftwareVersion as ORMSoftwareVersion
 from nautobot.extras.models import Role, Status
-from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.librenms.constants import os_manufacturer_map
 from nautobot_ssot.integrations.librenms.diffsync.models.base import Device, Location, Port
@@ -71,8 +70,8 @@ class NautobotLocation(Location):
             status=Status.objects.get(name=attrs["status"]),
             location_type=LocationType.objects.get(name="Site"),
         )
-        if adapter.job.tenant:
-            new_location.tenant = adapter.job.tenant.value
+        if adapter.tenant:
+            new_location.tenant = adapter.tenant
         new_location.custom_field_data.update(
             {"system_of_record": os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS")}
         )
@@ -123,7 +122,6 @@ class NautobotDevice(Device):
         adapter.job.logger.debug(f'Device Location {attrs["location"]}')
         new_device = ORMDevice(
             name=ids["name"],
-            device_id=attrs["device_id"],
             device_type=_device_type,
             status=Status.objects.get_or_create(name=attrs["status"])[0],
             role=ensure_role(role_name=attrs["role"], content_type=ORMDevice),
@@ -139,8 +137,9 @@ class NautobotDevice(Device):
                 device_type=_device_type,
             ),
         )
-        if adapter.job.tenant:
-            new_device.tenant = adapter.job.tenant.value
+        if adapter.tenant:
+            new_device.tenant = adapter.tenant
+        new_device.custom_field_data.update({"librenms_device_id": attrs["device_id"]})
         new_device.custom_field_data.update(
             {"system_of_record": os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS")}
         )
