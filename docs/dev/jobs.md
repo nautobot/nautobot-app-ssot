@@ -8,9 +8,6 @@ This tutorial will walk you through building a custom DataSource (i.e. synchroni
 
 To start building your own SSoT integration, you first need a project as well as the accompanying development environment. Network to Code provides the [Cookiecutter Nautobot App](https://github.com/nautobot/cookiecutter-nautobot-app) to make this as easy as possible for you. Check out the README of that project and bake a `nautobot-app` cookie.
 
-!!! note
-    The `nautobot-app-ssot` cookie is not yet updated to support the newest paradigms of building SSoT integrations, which is why it is recommended to instead use the `nautobot-app` cookie.
-
 Resume this tutorial whenever you have a folder on your development device with an up and running development environment.
 
 ## Building the model
@@ -28,7 +25,7 @@ from nautobot_ssot.contrib import NautobotModel
 
 
 class VLANModel(NautobotModel):
-    _model = VLAN  # SSoT models need to have a 1-to-1 mapping with a concrete Nautobot model
+    _model = VLAN  # `NautobotModel` models need to have a 1-to-1 mapping with a concrete Nautobot model
     _modelname = "vlan"  # This is the model name diffsync uses for its logging output 
     _identifiers = ("name",)  # These are the fields that uniquely identify a model instance
     _attributes = ("vid", "status__name", "description",)  # The rest of the data fields go here
@@ -38,20 +35,20 @@ class VLANModel(NautobotModel):
     vid: int
     description: Optional[str] = None
     
-    # This is a foreign key to the `extras.status` model - its instances can be uniquely identified through its `name`
-    # field, which is why we specify this here
+    # This is a foreign key to the `extras.status` model whose instances can be uniquely identified through its `name`
+    # field.
     status__name: str
 ```
 
 !!! note
-    This example is able to be so brief because usage of the `NautobotModel` class provides `create`, `update` and `delete` out of the box for the `VLANModel`. If you want to sync data _from_ Nautobot _to_ another remote system, you will need to implement those yourself using whatever client or SDK provides the ability to write to that system. For examples, check out the existing integrations under `nautobot_ssot/integrations`.
+    This example is able to be so brief because usage of the `NautobotModel` class provides `create`, `update` and `delete` methods out of the box for the `VLANModel`. If you want to sync data _from_ Nautobot _to_ another remote system, you will need to implement those yourself using whatever client or SDK provides the ability to write to that system. For examples, check out the existing integrations under `nautobot_ssot/integrations`.
 
 
 ## Building the Adapters
 
 On its own, the model is not particularly interesting. We have to combine it with an adapter to make it do interesting things. The adapter is responsible for pulling data out of Nautobot or your remote system (which is also Nautobot if you're following this tutorial). 
 
-### Building the Local adapter
+### Building the Local Adapter
 
 First, we define the adapter to load data from the local Nautobot instance - this is very straight-forward.
 
@@ -62,11 +59,11 @@ from tutorial_ssot_app.ssot.models import VLANModel
 
 
 class MySSoTNautobotAdapter(NautobotAdapter):
-    vlan = VLANModel  # Map your model into the adapter
-    top_level = ("vlan",)  # Tell the adapter to consider your model
+    vlan = VLANModel  # Map your model into your `NautobotAdapter` subclass
+    top_level = ("vlan",)  # Configure the order of model processing
 ```
 
-Now create a couple of VLANs in the web GUI of Nautobot so that the adapter has some data to load. Once you're done, you can try out the adapter as follows:
+Now create a couple of VLANs in the web GUI of Nautobot so that the adapter has some data to load. Once you're done, you can test the adapter using the Python REPL interface as follows:
 
 ```python
 from tutorial_ssot_app.ssot.adapters import MySSoTNautobotAdapter
@@ -82,18 +79,18 @@ test_vlan.delete()  # Verify the deletion has worked using the web GUI
 
 ### Building the Remote Adapter
 
-To synchronize a diff, we need to pull data from both sides. Therefore, we now need to build the remote adapter. In this example we are reading static data, but feel free to substitute this adapter with your remote system of choice.
+To synchronize a diff, we need to pull data from both Nautobot and the remote system of record. Therefore, we now need to build the remote adapter. In this example we are reading static data, but feel free to substitute this adapter with your remote system of choice.
 
 !!! note
     Note that we are not subclassing from `nautobot_ssot.contrib.NautobotAdapter` here as we don't want the SSoT framework to auto-derive the loading implementation of the adapter for us, but rather want to handle this ourselves.
 
 ```python
 # tutorial_ssot_app/ssot/adapters.py
-from diffsync import DiffSync
+from diffsync import Adapter
 
 from tutorial_ssot_app.ssot.models import VLANModel
 
-class MySSoTRemoteAdapter(DiffSync):
+class MySSoTRemoteAdapter(Adapter):
     """DiffSync adapter for remote system."""
     vlan = VLANModel
     top_level = ("vlan",)
@@ -146,6 +143,6 @@ class TutorialDataSource(DataSource):
 register_jobs(TutorialDataSource)
 ```
 
-At this point, the job will show up in the web GUI, and you can enable it and even run it! You should see the objects you specified in the remote adapter being synchronized into Nautobot now. Also take a look at the "SSoT Sync Details" button in the top right of the job result page to get some more information on what diffsync is doing.
+At this point, the job will show up in the web GUI, and you can enable it and even run it! You should see the objects you specified in the remote adapter being synchronized into Nautobot now. Clicking on the "SSoT Sync Details" button in the top right of the job result page provides additional information on what is happening during the synchronization process.
 
 The above example shows the simplest field type (an attribute on the model), however, to build a production implementation you will need to understand how to identify different variants of fields by following the [modeling docs](../dev/modeling.md).
