@@ -10,6 +10,7 @@ from nautobot.extras.choices import (
     SecretsGroupSecretTypeChoices,
 )
 from nautobot.extras.models import ExternalIntegration
+from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.librenms.diffsync.adapters import librenms, nautobot
 from nautobot_ssot.integrations.librenms.utils.librenms import LibreNMSApi
@@ -48,6 +49,14 @@ class LibrenmsDataSource(DataSource):
         default="api",
     )
     sync_locations = BooleanVar(description="Whether to Sync Locations from LibreNMS to Nautobot.", default=False)
+    tenant = ObjectVar(
+        model=Tenant,
+        queryset=Tenant.objects.all(),
+        description="Tenant to limit loading devices when syncing multiple LibreNMS Instances",
+        display_field="display",
+        label="Tenant Filter",
+        required=False,
+    )
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
 
     class Meta:  # pylint: disable=too-few-public-methods
@@ -118,6 +127,7 @@ class LibrenmsDataSource(DataSource):
         librenms_server,
         hostname_field,
         sync_locations,
+        tenant,
         load_type,
         *args,
         **kwargs,
@@ -127,6 +137,7 @@ class LibrenmsDataSource(DataSource):
         self.hostname_field = hostname_field
         self.load_type = load_type
         self.sync_locations = sync_locations
+        self.tenant = tenant
         self.debug = debug
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling

@@ -34,7 +34,11 @@ class NautobotAdapter(DiffSync):
 
     def load_location(self):
         """Load Location objects from Nautobot into DiffSync Models."""
-        for nb_location in OrmLocation.objects.all():
+        if self.job.tenant:
+            locations = OrmLocation.objects.filter(tenant=self.job.tenant)
+        else:
+            locations = OrmLocation.objects.all()
+        for nb_location in locations:
             self.job.logger.debug(f"Loading Nautobot Location {nb_location}")
             try:
                 self.get(self.location, nb_location.name)
@@ -59,7 +63,11 @@ class NautobotAdapter(DiffSync):
 
     def load_device(self):
         """Load Device objects from Nautobot into DiffSync models."""
-        for nb_device in OrmDevice.objects.all():
+        if self.job.tenant:
+            devices = OrmDevice.objects.filter(tenant=self.job.tenant)
+        else:
+            devices = OrmDevice.objects.all()
+        for nb_device in devices:
             self.job.logger.debug(f"Loading Nautobot Device {nb_device}")
             try:
                 self.get(self.device, nb_device.name)
@@ -68,8 +76,12 @@ class NautobotAdapter(DiffSync):
                     _software_version = nb_device.software_version.version
                 except AttributeError:
                     _software_version = None
+                _device_id = None
+                if nb_device.custom_field_data.get("librenms_device_id"):
+                    _device_id = nb_device.custom_field_data.get("librenms_device_id")
                 new_device = NautobotDevice(
                     name=nb_device.name,
+                    device_id=_device_id,
                     location=nb_device.location.name,
                     status=nb_device.status.name,
                     device_type=nb_device.device_type.display.split(f"{nb_device.platform.manufacturer.name}", 1)[

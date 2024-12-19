@@ -38,6 +38,7 @@ class Device(DiffSyncModel):
     _modelname = "device"
     _identifiers = ("name",)
     _attributes = (
+        "device_id",
         "location",
         "status",
         "device_type",
@@ -52,12 +53,12 @@ class Device(DiffSyncModel):
     _children = {"port": "interfaces"}
 
     name: str
+    device_id: Optional[int] = None
     location: str
     status: str
     device_type: str
     role: Optional[str] = None
     manufacturer: str
-    device_id: Optional[int] = None
     platform: Optional[str] = None
     os_version: Optional[str] = None
     interfaces: Optional[List["Port"]] = []

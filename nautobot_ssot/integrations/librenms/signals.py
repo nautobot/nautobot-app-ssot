@@ -79,8 +79,27 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         field_type=CustomFieldTypeChoices.TYPE_TEXT,
         label="System of Record",
     )
+    CustomField = apps.get_model("extras", "CustomField")  # pylint: disable=invalid-name
+    device_id_cf_dict = {
+        "type": CustomFieldTypeChoices.TYPE_INTEGER,
+        "key": "librenms_device_id",
+        "label": "LibreNMS Device ID",
+        "default": None,
+        "filter_logic": "exact",
+    }
+    device_id_custom_field, _ = CustomField.objects.update_or_create(
+        key=device_id_cf_dict["key"], defaults=device_id_cf_dict
+    )
+    device_id_custom_field.content_types.add(ContentType.objects.get_for_model(signal_to_model_mapping["device"]))
 
-    models_to_sync = ["device", "interface", "ip_address", "manufacturer", "device_type", "tag"]
+    models_to_sync = [
+        "device",
+        "interface",
+        "ip_address",
+        "manufacturer",
+        "device_type",
+        "tag",
+    ]
     try:
         for model in models_to_sync:
             model = ContentType.objects.get_for_model(signal_to_model_mapping[model])

@@ -120,6 +120,7 @@ class NautobotDevice(Device):
         adapter.job.logger.debug(f'Device Location {attrs["location"]}')
         new_device = ORMDevice(
             name=ids["name"],
+            device_id=attrs["device_id"],
             device_type=_device_type,
             status=Status.objects.get_or_create(name=attrs["status"])[0],
             role=ensure_role(role_name=attrs["role"], content_type=ORMDevice),
@@ -146,6 +147,8 @@ class NautobotDevice(Device):
         """Update Device in Nautobot from NautobotDevice object."""
         self.adapter.job.logger.debug(f"Updating Nautobot Device {self.name} with {attrs}")
         device = ORMDevice.objects.get(id=self.uuid)
+        if "device_id" in attrs:
+            device.custom_field_data["librenms_device_id"] = attrs["device_id"]
         if "status" in attrs:
             device.status = Status.objects.get_or_create(name=attrs["status"])[0]
         if "role" in attrs:
