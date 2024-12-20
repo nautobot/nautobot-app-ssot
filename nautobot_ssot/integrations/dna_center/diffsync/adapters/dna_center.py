@@ -68,7 +68,7 @@ class DnaCenterAdapter(Adapter):
         else:
             self.job.logger.error("No location data was returned from DNA Center. Unable to proceed.")
 
-    def build_dnac_location_map(self, locations: List[dict]):  # pylint: disable=too-many-statements
+    def build_dnac_location_map(self, locations: List[dict]):  # pylint: disable=too-many-statements, too-many-branches
         """Build out the DNA Center location structure based off DNAC information or Job location_map field.
 
         Args:
