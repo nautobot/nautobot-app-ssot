@@ -15,19 +15,19 @@
         "name": "Building1",
         "loc_type": "building",
         "parent": "SanJose",
-        "parent_of_parent": null
+        "parent_of_parent": "Global"
     },
     "49aa97a7-5d45-4303-89dd-f76dfbfc624a": {
         "name": "Floor1",
         "loc_type": "floor",
         "parent": "Building1",
-        "parent_of_parent": null
+        "parent_of_parent": "SanJose"
     },
     "925f1a03-05df-4d9a-b2e0-db1989367138": {
         "name": "1",
         "loc_type": "floor",
         "parent": "1",
-        "parent_of_parent": null
+        "parent_of_parent": "SanDiego"
     },
     "cf1746d3-4de0-4ef5-bd3a-a5e51191eee1": {
         "name": "OZ",
@@ -57,7 +57,7 @@
         "name": "VN_1",
         "loc_type": "building",
         "parent": "Texas",
-        "parent_of_parent": null
+        "parent_of_parent": "Global"
     },
     "20d34f71-f4db-4833-90f7-4208a349f876": {
         "name": "Antartica",
@@ -75,7 +75,7 @@
         "name": "Sydney",
         "loc_type": "area",
         "parent": "Australia",
-        "parent_of_parent": null
+        "parent_of_parent": "Global"
     },
     "63a7fb03-d4b2-408e-a6ab-b4df0a198643": {
         "name": "Sydney",
@@ -111,19 +111,19 @@
         "name": "Deep Space",
         "loc_type": "building",
         "parent": "Area 51",
-        "parent_of_parent": null
+        "parent_of_parent": "Global"
     },
     "42a47e36-01ea-4189-8e54-16a2fd063648": {
         "name": "1st Floor",
         "loc_type": "floor",
         "parent": "Deep Space",
-        "parent_of_parent": null
+        "parent_of_parent": "Area 51"
     },
     "398de1d9-d595-429d-8239-64b51d24f230": {
         "name": "Texas_building",
         "loc_type": "building",
         "parent": "Texas",
-        "parent_of_parent": null
+        "parent_of_parent": "Global"
     },
     "5c882916-4f65-45b5-a5cc-ca5fa927cba6": {
         "name": "Forschungszentrum",
@@ -135,19 +135,19 @@
         "name": "Building 1",
         "loc_type": "building",
         "parent": "Forschungszentrum",
-        "parent_of_parent": null
+        "parent_of_parent": "Global"
     },
     "0b1f8f7f-f0be-4d14-974d-69b1693d39ec": {
         "name": "Lab",
         "loc_type": "floor",
         "parent": "Building 1",
-        "parent_of_parent": null
+        "parent_of_parent": "Forschungszentrum"
     },
     "2d0d8545-b6de-4dda-a0f7-93bcd7d0e738": {
         "name": "1",
         "loc_type": "building",
         "parent": "SanDiego",
-        "parent_of_parent": null
+        "parent_of_parent": "Global"
     },
     "257c51d3-971d-49f4-83f7-c9baf334865a": {
         "name": "Texas",
@@ -171,18 +171,18 @@
         "name": "secretlab",
         "loc_type": "building",
         "parent": "Maryland",
-        "parent_of_parent": null
+        "parent_of_parent": "Global"
     },
     "fedd8d33-5334-413f-8a49-fb2459d7e337": {
         "name": "Rome",
         "loc_type": "building",
         "parent": "Treton",
-        "parent_of_parent": null
+        "parent_of_parent": "Global"
     },
     "f4ff8ca1-c062-4228-868a-d6cd0bc53852": {
         "name": "Floor 2",
         "loc_type": "floor",
         "parent": "secretlab",
-        "parent_of_parent": null
+        "parent_of_parent": "Maryland"
     }
 }

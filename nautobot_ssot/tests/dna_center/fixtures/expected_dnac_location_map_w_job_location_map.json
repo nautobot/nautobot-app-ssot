@@ -17,7 +17,7 @@
     "49aa97a7-5d45-4303-89dd-f76dfbfc624a": {
         "name": "Floor1",
         "parent": "Building1",
-        "parent_of_parent": null
+        "parent_of_parent": "San Jose"
     },
     "925f1a03-05df-4d9a-b2e0-db1989367138": {
         "name": "1",

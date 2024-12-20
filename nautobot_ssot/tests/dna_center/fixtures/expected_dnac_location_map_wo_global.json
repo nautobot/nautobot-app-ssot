@@ -15,13 +15,13 @@
         "name": "Floor1",
         "loc_type": "floor",
         "parent": "Building1",
-        "parent_of_parent": null
+        "parent_of_parent": "SanJose"
     },
     "925f1a03-05df-4d9a-b2e0-db1989367138": {
         "name": "1",
         "loc_type": "floor",
         "parent": "1",
-        "parent_of_parent": null
+        "parent_of_parent": "SanDiego"
     },
     "cf1746d3-4de0-4ef5-bd3a-a5e51191eee1": {
         "name": "OZ",
@@ -111,7 +111,7 @@
         "name": "1st Floor",
         "loc_type": "floor",
         "parent": "Deep Space",
-        "parent_of_parent": null
+        "parent_of_parent": "Area 51"
     },
     "398de1d9-d595-429d-8239-64b51d24f230": {
         "name": "Texas_building",
@@ -135,7 +135,7 @@
         "name": "Lab",
         "loc_type": "floor",
         "parent": "Building 1",
-        "parent_of_parent": null
+        "parent_of_parent": "Forschungszentrum"
     },
     "2d0d8545-b6de-4dda-a0f7-93bcd7d0e738": {
         "name": "1",
@@ -177,6 +177,6 @@
         "name": "Floor 2",
         "loc_type": "floor",
         "parent": "secretlab",
-        "parent_of_parent": null
+        "parent_of_parent": "Maryland"
     }
 }

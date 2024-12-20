@@ -30,6 +30,7 @@ from nautobot_ssot.tests.dna_center.fixtures import (
     EXPECTED_DNAC_LOCATION_MAP,
     EXPECTED_DNAC_LOCATION_MAP_W_JOB_LOCATION_MAP,
     EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL,
+    EXPECTED_FLOORS,
     LOCATION_FIXTURE,
     PORT_FIXTURE,
 )
@@ -144,9 +145,10 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
     def test_build_dnac_location_map(self):
         """Test Nautobot adapter build_dnac_location_map method."""
         self.dna_center.dnac_location_map = {}
-        self.dna_center.build_dnac_location_map(locations=LOCATION_FIXTURE)
+        actual_floors = self.dna_center.build_dnac_location_map(locations=LOCATION_FIXTURE)
         expected = EXPECTED_DNAC_LOCATION_MAP
-        self.assertEqual(sorted(self.dna_center.dnac_location_map), sorted(expected))
+        self.assertEqual(self.dna_center.dnac_location_map, expected)
+        self.assertEqual(actual_floors, EXPECTED_FLOORS)
 
     @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"dna_center_import_global": False}})
     def test_build_dnac_location_map_wo_global(self):
@@ -154,7 +156,7 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         self.dna_center.dnac_location_map = {}
         self.dna_center.build_dnac_location_map(locations=LOCATION_FIXTURE)
         expected = EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL
-        self.assertEqual(sorted(self.dna_center.dnac_location_map), sorted(expected))
+        self.assertEqual(self.dna_center.dnac_location_map, expected)
 
     def test_build_dnac_location_map_w_job_location_map(self):
         """Test Nautobot adapter build_dnac_location_map method when used with the Job location map."""
@@ -208,6 +210,7 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
                 "parent_of_parent": "USA",
             },
             "5": {"name": "HQ", "parent": "NYC", "parent_of_parent": "New York"},
+            "6": {"name": "1st Floor", "parent": "HQ"},
         }
         self.dna_center.building_map = {
             "5": {
