@@ -120,7 +120,6 @@ nav:
           - Cisco Meraki: "user/integrations/meraki.md"
           - ServiceNow: "user/integrations/servicenow.md"
           - Slurpit: "user/integrations/slurpit.md"
-      - Modeling: "user/modeling.md"
       - Performance: "user/performance.md"
       - Frequently Asked Questions: "user/faq.md"
       - External Interactions: "user/external_interactions.md"
