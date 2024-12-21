@@ -216,6 +216,8 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         self.dna_center.building_map = {
             "5": {
                 "name": "HQ",
+                "id": "5",
+                "parentId": "4",
                 "additionalInfo": [
                     {
                         "nameSpace": "Location",
@@ -229,6 +231,7 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
                         },
                     }
                 ],
+                "siteHierarchy": "/1/2/3/4/5/",
             },
         }
         mock_loc_data = {"areas": ["Global", "USA", "New York", "NYC"], "building": "HQ", "floor": "1st Floor"}
@@ -277,6 +280,8 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         self.dna_center.building_map = {
             "5": {
                 "name": "HQ",
+                "id": "5",
+                "parentId": "4",
                 "additionalInfo": [
                     {
                         "nameSpace": "Location",
@@ -290,6 +295,7 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
                         },
                     }
                 ],
+                "siteHierarchy": "/1/2/3/4/5/",
             },
         }
         mock_loc_data = {"areas": ["Global", "USA", "New York", "NYC"], "building": "HQ"}
