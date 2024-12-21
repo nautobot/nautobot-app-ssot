@@ -257,12 +257,14 @@ class DnaCenterAdapter(Adapter):
 
         Args:
             building (dict): Dictionary containing location information about a building.
+            area_name (str): Parent area for building.
+            area_parent_name (str): Parent of parent area for building.
         """
+        bldg_name = self.dnac_location_map[building["id"]]["name"]
         if self.job.debug:
             self.job.logger.info(
-                f"Loading {self.job.building_loctype.name} {building['name']} in {area_name} with parent {area_parent_name}. {building}"
+                f"Loading {self.job.building_loctype.name} {bldg_name} in {area_name} with parent {area_parent_name}. {building}"
             )
-        bldg_name = building["name"]
         address, _ = self.conn.find_address_and_type(info=building["additionalInfo"])
         latitude, longitude = self.conn.find_latitude_and_longitude(info=building["additionalInfo"])
         self.get_or_instantiate(
