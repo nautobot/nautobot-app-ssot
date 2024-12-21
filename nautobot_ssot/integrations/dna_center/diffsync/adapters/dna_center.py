@@ -149,8 +149,11 @@ class DnaCenterAdapter(Adapter):
                                 self.dnac_location_map[loc_id]["parent_of_parent"] = parent_name
                     elif info["attributes"]["type"] == "floor":
                         floors.append(location)
-                        self.dnac_location_map[loc_id]["parent"] = self.dnac_location_map[parent_id]["name"]
-                        self.dnac_location_map[loc_id]["parent_of_parent"] = self.dnac_location_map[parent_id]["parent"]
+                        if self.dnac_location_map.get(parent_id):
+                            self.dnac_location_map[loc_id]["parent"] = self.dnac_location_map[parent_id]["name"]
+                            self.dnac_location_map[loc_id]["parent_of_parent"] = self.dnac_location_map[parent_id][
+                                "parent"
+                            ]
                         if self.job.location_map.get(parent_name) and self.dnac_location_map[parent_id].get("name"):
                             self.dnac_location_map[loc_id]["parent"] = self.dnac_location_map[parent_id]["name"]
                         if self.job.location_map.get(parent_name) and self.dnac_location_map[parent_id].get("parent"):
