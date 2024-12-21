@@ -423,11 +423,12 @@ class DnaCenterAdapter(Adapter):
         areas = location_ids
 
         for area_id in reversed(areas):
-            area_name = self.dnac_location_map[area_id]["name"]
-            area_parent = self.dnac_location_map[area_id]["parent"]
-            if self.job.debug:
-                self.job.logger.debug(f"Loading area {area_name} in {area_parent}.")
-            self.load_area(area=area_name, area_parent=area_parent)
+            if self.dnac_location_map.get(area_id):
+                area_name = self.dnac_location_map[area_id]["name"]
+                area_parent = self.dnac_location_map[area_id]["parent"]
+                if self.job.debug:
+                    self.job.logger.debug(f"Loading area {area_name} in {area_parent}.")
+                self.load_area(area=area_name, area_parent=area_parent)
         if self.job.debug:
             self.job.logger.debug(
                 f"Loading building {self.dnac_location_map[building_id]['name']} in {self.dnac_location_map[building_id]['parent']} which exists in {self.dnac_location_map[building_id]['parent_of_parent']} area parent."
