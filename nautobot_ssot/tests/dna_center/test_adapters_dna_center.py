@@ -32,6 +32,7 @@ from nautobot_ssot.tests.dna_center.fixtures import (
     EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL,
     EXPECTED_FLOORS,
     LOCATION_FIXTURE,
+    LOCATION_WO_GLOBAL_FIXTURE,
     PORT_FIXTURE,
 )
 
@@ -154,7 +155,7 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
     def test_build_dnac_location_map_wo_global(self):
         """Test Nautobot adapter build_dnac_location_map method without global."""
         self.dna_center.dnac_location_map = {}
-        self.dna_center.build_dnac_location_map(locations=LOCATION_FIXTURE)
+        self.dna_center.build_dnac_location_map(locations=LOCATION_WO_GLOBAL_FIXTURE)
         expected = EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL
         self.assertEqual(self.dna_center.dnac_location_map, expected)
 
