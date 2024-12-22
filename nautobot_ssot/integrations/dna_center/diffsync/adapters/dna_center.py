@@ -85,6 +85,7 @@ class DnaCenterAdapter(Adapter):
                 loc_name = self.job.location_map[location["name"]]["name"]
             else:
                 loc_name = location["name"]
+
             self.dnac_location_map[location["id"]] = {
                 "name": loc_name,
                 "loc_type": "area",
@@ -106,15 +107,11 @@ class DnaCenterAdapter(Adapter):
                     continue
                 if parent_name == "Global":
                     parent_name = None
+            if location["name"] in self.job.location_map and self.job.location_map[location["name"]].get("parent"):
+                parent_name = self.job.location_map[location["name"]]["parent"]
             self.dnac_location_map[loc_id]["parent"] = parent_name
 
         # add parent of parent to the mapping
-        for location in locations:
-            if location.get("parentId") and self.dnac_location_map.get(location["parentId"]):
-                self.dnac_location_map[location["id"]]["parent_of_parent"] = self.dnac_location_map[
-                    location["parentId"]
-                ]["parent"]
-
         floors = []
         for location in locations:  # pylint: disable=too-many-nested-blocks
             if (
@@ -123,8 +120,10 @@ class DnaCenterAdapter(Adapter):
             ):
                 continue
             loc_id = location["id"]
-            loc_name = self.dnac_location_map[loc_id]["name"]
+            loc_name = location["name"]
             parent_id = location.get("parentId")
+            if self.dnac_location_map.get(parent_id):
+                self.dnac_location_map[loc_id]["parent_of_parent"] = self.dnac_location_map[parent_id]["parent"]
             parent_name = self.dnac_location_map[loc_id]["parent"]
             for info in location["additionalInfo"]:
                 if info["attributes"].get("type"):
@@ -145,8 +144,6 @@ class DnaCenterAdapter(Adapter):
                                 self.dnac_location_map[loc_id]["parent_of_parent"] = self.job.location_map[loc_name][
                                     "area_parent"
                                 ]
-                            else:
-                                self.dnac_location_map[loc_id]["parent_of_parent"] = parent_name
                     elif info["attributes"]["type"] == "floor":
                         floors.append(location)
                         if self.dnac_location_map.get(parent_id):
