@@ -53,8 +53,6 @@ def sort_relationships(diffsync: DiffSync):
         return
     if not isinstance(diffsync, DiffSync):
         raise TypeError("Parameter for `sort_relationships()` must be of type DiffSync.")
-    if not diffsync.sorted_relationships:
-        return
 
     for entry in diffsync.sorted_relationships:
 
