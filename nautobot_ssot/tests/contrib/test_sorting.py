@@ -86,7 +86,7 @@ class TestGetSortKeyFunction(TestCase):
     def test_no_sort_key(self):
         """Test function with no wort key."""
 
-        class TestClass(TypedDict):
+        class TestClass(TypedDict):  # pylint: disable=missing-class-docstring
             id: str
             name: str
 
