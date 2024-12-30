@@ -345,6 +345,11 @@ class NautobotAdapter(Adapter):
                     _napalm_args = {}
                 else:
                     _napalm_args = nb_platform.napalm_args
+
+                _manufacturer = ""
+                if nb_platform.manufacturer is not None:
+                    _manufacturer = nb_platform.manufacturer.name
+
                 _sor = ""
                 if "system_of_record" in nb_platform.custom_field_data:
                     _sor = (
@@ -354,7 +359,7 @@ class NautobotAdapter(Adapter):
                     )
                 new_platform = self.platform(
                     name=nb_platform.name,
-                    manufacturer=nb_platform.manufacturer.name,
+                    manufacturer=_manufacturer,
                     network_driver=nb_platform.network_driver,
                     napalm_driver=nb_platform.napalm_driver,
                     napalm_arguments=_napalm_args,
@@ -435,7 +440,7 @@ class NautobotAdapter(Adapter):
                     except AttributeError:
                         _time_zone = nb_location.time_zone
                 else:
-                    _time_zone = None
+                    _time_zone = ""
                 if nb_location.tenant is not None:
                     _tenant = nb_location.tenant.name
                 else:

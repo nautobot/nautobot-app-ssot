@@ -1,0 +1,1 @@
+Swapped out `nautobot.extras.plugins.PluginTemplateExtension` for `TemplateExtension`

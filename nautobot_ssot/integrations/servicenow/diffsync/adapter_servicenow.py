@@ -81,7 +81,7 @@ class ServiceNowDiffSync(Adapter):
                 # Load all Nautobot ancestor records as well
                 # This is so in case the Nautobot ancestors exist in ServiceNow but aren't linked to the record,
                 # we link them together instead of creating new, redundant ancestor records in ServiceNow.
-                ancestor = self.site_filter.region
+                ancestor = self.site_filter.parent
                 while ancestor is not None:
                     try:
                         self.get(self.location, ancestor.name)

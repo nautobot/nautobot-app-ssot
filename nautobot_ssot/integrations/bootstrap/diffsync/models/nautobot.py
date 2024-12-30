@@ -351,7 +351,9 @@ class NautobotPlatform(Platform):
         """Create Platform in Nautobot from NautobotPlatform object."""
         adapter.job.logger.info(f'Creating Nautobot Platform {ids["name"]}')
         try:
-            _manufacturer = ORMManufacturer.objects.get(name=ids["manufacturer"])
+            _manufacturer = None
+            if ids["manufacturer"]:
+                _manufacturer = ORMManufacturer.objects.get(name=ids["manufacturer"])
             _new_platform = ORMPlatform(
                 name=ids["name"],
                 manufacturer=_manufacturer,
@@ -573,7 +575,7 @@ class NautobotLocation(Location):
         if "facility" in attrs:
             _update_location.facility = attrs["facility"]
         if "asn" in attrs:
-            _update_location.asn = attrs["location"]
+            _update_location.asn = attrs["asn"]
         if "time_zone" in attrs:
             if attrs["time_zone"]:
                 _timezone = pytz.timezone(attrs["time_zone"])
@@ -2549,11 +2551,7 @@ if VALID_SOFTWARE_LIFECYCLE_MGMT:
         def delete(self):
             """Delete ValidatedSoftware in Nautobot from NautobotValidatedSoftware object."""
             try:
-                _platform = ORMPlatform.objects.get(name=self.platform)
-                _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
-                _validated_software = ORMValidatedSoftware.objects.get(
-                    software=_software, start=self.valid_since, end=self.valid_until
-                )
+                _validated_software = ORMValidatedSoftware.objects.get(id=self.uuid)
                 super().delete()
                 _validated_software.delete()
                 return self

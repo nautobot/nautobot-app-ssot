@@ -1,0 +1,35 @@
+[
+    {
+        "Name": "0/RP0",
+        "Descr": "Cisco IOS-XRv 9000 Centralized Route Processor",
+        "Product": "R-IOSXRV9000-RP-C",
+        "Version": "V01",
+        "Serial": "F2E02123A63",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 8:08:00"
+        ]
+    },
+    {
+        "Name": "Rack 0",
+        "Descr": "Cisco IOS-XRv 9000 Centralized Virtual Router",
+        "Product": "R-IOSXRV9000-CC",
+        "Version": "V01",
+        "Serial": "B550ED1D0D9",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 8:08:00"
+        ]
+    },
+    {
+        "Name": "0/0",
+        "Descr": "Cisco IOS-XRv 9000 Centralized Line Card",
+        "Product": "R-IOSXRV9000-LC-C",
+        "Version": "V01",
+        "Serial": "86E4A261046",
+        "hostname": "sandbox-xr",
+        "timestamp": [
+            "2024-11-13 8:08:00"
+        ]
+    }
+]

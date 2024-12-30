@@ -2,7 +2,7 @@
 
 import logging
 import re
-from typing import List, Tuple
+from typing import List
 
 from dnacentersdk import api
 from dnacentersdk.exceptions import dnacentersdkException
@@ -197,25 +197,6 @@ class DnaCenterClient:
         if port_info["status"] == "up" and port_info["adminStatus"] == "DOWN":
             status = "Planned"
         return status
-
-    @staticmethod
-    def parse_hostname_for_role(hostname_map: List[Tuple[str, str]], device_hostname: str):
-        """Parse device hostname from hostname_map to get Device Role.
-
-        Args:
-            hostname_map (List[Tuple[str, str]]): List of tuples containing regex to compare with hostname and associated DeviceRole name.
-            device_hostname (str): Hostname of Device to determine role of.
-
-        Returns:
-            str: Name of DeviceRole. Defaults to Unknown.
-        """
-        device_role = "Unknown"
-        if hostname_map:
-            for entry in hostname_map:
-                match = re.match(pattern=entry[0], string=device_hostname)
-                if match:
-                    device_role = entry[1]
-        return device_role
 
     @staticmethod
     def get_model_name(models: str) -> str:

@@ -23,6 +23,7 @@ from nautobot_ssot.integrations.dna_center.diffsync.models.dna_center import (
     DnaCenterPrefix,
 )
 from nautobot_ssot.integrations.dna_center.utils.dna_center import DnaCenterClient
+from nautobot_ssot.utils import parse_hostname_for_role
 
 
 class DnaCenterAdapter(Adapter):
@@ -170,9 +171,9 @@ class DnaCenterAdapter(Adapter):
             _area, _area_parent = None, None
             if bldg_name in self.job.location_map and "parent" in self.job.location_map[bldg_name]:
                 _area = self.job.location_map[bldg_name]["parent"]
-                if "area_parent" in self.job.location_map[bldg_name]:
+                if self.job.location_map[bldg_name].get("area_parent"):
                     _area_parent = self.job.location_map[bldg_name]["area_parent"]
-                if "name" in self.job.location_map[bldg_name]:
+                if self.job.location_map[bldg_name].get("name"):
                     bldg_name = self.job.location_map[bldg_name]["name"]
             elif location["parentId"] in self.dnac_location_map:
                 _area = self.dnac_location_map[location["parentId"]]["name"]
@@ -221,9 +222,10 @@ class DnaCenterAdapter(Adapter):
             else:
                 self.job.logger.warning(f"Parent to {location['name']} can't be found so will be skipped.")
                 continue
-            if bldg_name in self.job.location_map and "name" in self.job.location_map[bldg_name]:
+            if self.job.location_map.get(bldg_name):
                 area_name = self.job.location_map[bldg_name]["parent"]
-                bldg_name = self.job.location_map[bldg_name]["name"]
+                if self.job.location_map[bldg_name].get("name"):
+                    bldg_name = self.job.location_map[bldg_name]["name"]
             floor_name = f"{bldg_name} - {location['name']}"
             try:
                 parent = self.get(self.building, {"name": bldg_name, "area": area_name})
@@ -309,8 +311,8 @@ class DnaCenterAdapter(Adapter):
                 self.failed_import_devices.append(dev)
                 continue
             if self.job.hostname_map:
-                dev_role = self.conn.parse_hostname_for_role(
-                    hostname_map=self.job.hostname_map, device_hostname=dev["hostname"]
+                dev_role = parse_hostname_for_role(
+                    hostname_map=self.job.hostname_map, device_hostname=dev["hostname"], default_role="Unknown"
                 )
             if dev_role == "Unknown":
                 dev_role = dev["role"]
@@ -321,6 +323,13 @@ class DnaCenterAdapter(Adapter):
                     platform = "cisco_ios"
                 if not dev.get("softwareType") and dev.get("family") and "Meraki" in dev["family"]:
                     platform = "cisco_meraki"
+            if platform == "unknown":
+                self.job.logger.warning(f"Device {dev['hostname']} is missing Platform so will be skipped.")
+                dev["field_validation"] = {
+                    "reason": "Failed due to missing platform.",
+                }
+                self.failed_import_devices.append(dev)
+                continue
             if dev.get("type") and "Juniper" in dev["type"]:
                 vendor = "Juniper"
             dev_details = self.conn.get_device_detail(dev_id=dev["id"])

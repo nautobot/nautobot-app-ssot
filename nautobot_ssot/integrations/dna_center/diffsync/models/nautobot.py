@@ -207,6 +207,7 @@ class NautobotDevice(base.Device):
             device_role.validated_save()
         device_type, _ = DeviceType.objects.get_or_create(model=attrs["model"], manufacturer=manufacturer)
         platform = verify_platform(platform_name=attrs["platform"], manu=manufacturer.id)
+        adapter.platform_map[attrs["platform"]] = platform.id
         new_device = Device(
             name=ids["name"],
             status_id=adapter.status_map[attrs["status"]],
@@ -269,7 +270,9 @@ class NautobotDevice(base.Device):
         if "platform" in attrs:
             vendor = attrs["vendor"] if attrs.get("vendor") else self.vendor
             manufacturer = Manufacturer.objects.get(name=vendor)
-            device.platform = verify_platform(platform_name=attrs["platform"], manu=manufacturer.id)
+            platform = verify_platform(platform_name=attrs["platform"], manu=manufacturer.id)
+            device.platform = platform
+            self.adapter.platform_map[attrs["platform"]] = platform.id
         if "tenant" in attrs:
             if attrs.get("tenant"):
                 device.tenant_id = self.adapter.tenant_map[attrs["tenant"]]
@@ -291,7 +294,7 @@ class NautobotDevice(base.Device):
                     platform = self.platform
                 device.software_version = SoftwareVersion.objects.get_or_create(
                     version=attrs["version"],
-                    platform__name=platform,
+                    platform_id=self.adapter.platform_map[platform],
                     defaults={"status_id": self.adapter.status_map["Active"]},
                 )[0]
         device.custom_field_data.update({"system_of_record": "DNA Center"})

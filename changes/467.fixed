@@ -1,1 +1,0 @@
-Fix get_tags_by_type() to handle possible RpcError Exception being thrown.
