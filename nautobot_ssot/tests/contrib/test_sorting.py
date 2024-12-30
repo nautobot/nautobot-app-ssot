@@ -3,7 +3,7 @@
 from typing import List, Optional
 
 import nautobot.tenancy.models as tenancy_models
-from django.test import TestCase as TestCase
+from django.test import TestCase
 from typing_extensions import Annotated, TypedDict, get_type_hints
 
 from nautobot_ssot.contrib import NautobotModel
@@ -84,8 +84,7 @@ class TestGetSortKeyFunction(TestCase):
         self.assertEqual(test, "name")
 
     def test_no_sort_key(self):
-        """"""
-
+        """Test function with no wort key."""
         class TestClass(TypedDict):
             id: str
             name: str
@@ -113,7 +112,6 @@ class TestSortDiffSyncObjectFunction(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        """"""
         cls.obj_1 = NautobotTenant(
             name="",
             description="DiffSync object with a sortable field.",
@@ -159,4 +157,4 @@ class TestGetSortableObjectTypeFunction(TestCase):
 
 
 class TestSortRelationships(TestCase):
-    """"""
+    """Tests for `sort_relationships` function."""
