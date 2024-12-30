@@ -14,8 +14,8 @@ from nautobot_ssot.contrib.sorting import (
     sort_diffsync_object,
 )
 from nautobot_ssot.contrib.types import FieldType
-
-from nautobot_ssot.tests.contrib_base_classes import NautobotTenant as BasicNautobotTenant, TagDict as BasicTagDict
+from nautobot_ssot.tests.contrib_base_classes import NautobotTenant as BasicNautobotTenant
+from nautobot_ssot.tests.contrib_base_classes import TagDict as BasicTagDict
 
 
 class TagDict(BasicTagDict):
