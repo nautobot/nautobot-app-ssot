@@ -14,5 +14,4 @@ __all__ = (
     "NautobotAdapter",
     "NautobotModel",
     "RelationshipSideEnum",
-    "sort_relationships",
 )

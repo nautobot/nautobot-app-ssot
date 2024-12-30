@@ -18,7 +18,7 @@ from nautobot.ipam import models as ipam_models
 from nautobot.tenancy import models as tenancy_models
 from typing_extensions import Annotated, TypedDict
 
-from nautobot_ssot.contrib import CustomFieldAnnotation, NautobotAdapter, NautobotModel, sort_relationships
+from nautobot_ssot.contrib import CustomFieldAnnotation, NautobotAdapter, NautobotModel
 from nautobot_ssot.tests.contrib_base_classes import (
     NautobotCable,
     NautobotDevice,
@@ -368,42 +368,3 @@ class AdapterCustomRelationshipSortingTest(NautobotAdapter):
             "name",
         ),
     )
-
-
-class TestSortedRelationships(TestCase):
-    """Tests for `sort_relationships` function."""
-
-    def setUp(self):
-        self.adapter = AdapterCustomRelationshipSortingTest(job=MagicMock())
-
-        self.adapter.add(
-            self.adapter.tenant(
-                name="Tenant 1",
-                tenants=[
-                    {"name": "C"},
-                    {"name": "B"},
-                    {"name": "A"},
-                ],
-            )
-        )
-
-    def test_valid_sorting(self):
-        """Test to ensure the function properly sorts basic information."""
-        # Validate before settings
-        before = self.adapter.get("tenant", identifier="Tenant 1")
-        self.assertEqual(before.tenants[0]["name"], "C")
-        self.assertEqual(before.tenants[1]["name"], "B")
-        self.assertEqual(before.tenants[2]["name"], "A")
-
-        sort_relationships(self.adapter)
-
-        after = self.adapter.get("tenant", identifier="Tenant 1")
-        self.assertEqual(after.tenants[0]["name"], "A")
-        self.assertEqual(after.tenants[1]["name"], "B")
-        self.assertEqual(after.tenants[2]["name"], "C")
-
-    def test_invalid_type(self):
-        """Test passing invalid type to function."""
-        self.adapter.sorted_relationships = {"Entry 1": "Value 1"}
-        with self.assertRaises(TypeError):
-            sort_relationships(self.adapter)
