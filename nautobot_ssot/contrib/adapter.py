@@ -34,44 +34,6 @@ from nautobot_ssot.contrib.types import (
 ParameterSet = FrozenSet[Tuple[str, Hashable]]
 
 
-def sort_relationships(diffsync: DiffSync):
-    """Helper function for SSoT adapters for sorting relationships entries to avoid false updates actions.
-
-    This function checks the `sorted_relationships` attribute in the DiffSync object/adpater. If present, it will
-    loop through all entries of the attribute and sort the objects accordingly.
-
-    The `sorted_relationships` should be a list or tuple of lists/tuples. Each entry must have three strings:
-        - Name of the DiffSync model with attribute to be sorted
-        - Name of the attribute to be sorted
-        - Name of the key within the attribute to be sorted by
-
-    NOTE: The listed attribute MUST be a list of dictionaries indicating many-to-many relationships on either side
-    or a one-to-many relationship from the many side.
-    """
-    if not hasattr(diffsync, "sorted_relationships"):
-        # Nothing to do
-        return
-    if not isinstance(diffsync, DiffSync):
-        raise TypeError("Parameter for `sort_relationships()` must be of type DiffSync.")
-
-    for entry in diffsync.sorted_relationships:
-
-        if not isinstance(entry, tuple) and not isinstance(entry, list):
-            raise TypeError(f"Invalid type: {type(entry)}. Valid types include tuples or lists.")
-
-        obj_name = entry[0]
-        attr_name = entry[1]
-        sort_by_key = entry[2]
-
-        for obj in diffsync.get_all(obj_name):
-            sorted_data = sorted(
-                getattr(obj, attr_name),
-                key=lambda x: x[sort_by_key],  # pylint: disable=cell-var-from-loop
-            )
-            setattr(obj, attr_name, sorted_data)
-            diffsync.update(obj)
-
-
 class NautobotAdapter(DiffSync):
     """
     Adapter for loading data from Nautobot through the ORM.
@@ -213,7 +175,7 @@ class NautobotAdapter(DiffSync):
             # for this specific model class as well as its children without returning anything.
             self._load_objects(diffsync_model)
 
-        sort_relationships(self)
+        # sort_relationships(self)
 
     def _get_diffsync_class(self, model_name):
         """Given a model name, return the diffsync class."""

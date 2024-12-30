@@ -18,8 +18,7 @@ from nautobot.ipam import models as ipam_models
 from nautobot.tenancy import models as tenancy_models
 from typing_extensions import Annotated, TypedDict
 
-from nautobot_ssot.contrib import NautobotAdapter, NautobotModel, CustomFieldAnnotation, sort_relationships
-from nautobot_ssot.contrib import CustomFieldAnnotation, NautobotAdapter, NautobotModel
+from nautobot_ssot.contrib import CustomFieldAnnotation, NautobotAdapter, NautobotModel, sort_relationships
 from nautobot_ssot.tests.contrib_base_classes import (
     NautobotCable,
     NautobotDevice,

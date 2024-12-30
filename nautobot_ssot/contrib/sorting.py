@@ -1,18 +1,14 @@
-""""""
+"""Functions for sorting DiffSync model lists ensuring they are sorted to prevent false actions."""
 
-from typing import Annotated
-#from typing_extensions import get_type_hints
-#from dataclasses import dataclass
-from pprint import pprint
-from typing_extensions import get_type_hints
-from nautobot_ssot.contrib.types import FieldType
 from diffsync import Adapter, DiffSyncModel
+from typing_extensions import get_type_hints
+
+from nautobot_ssot.contrib.types import FieldType
 
 
 def _is_sortable_field(attribute_type_hints):
     """Checks type hints to verify if field labled as sortable or not."""
-    if attribute_type_hints.__name__ != "Annotated" or \
-            not hasattr(attribute_type_hints, "__metadata__"):
+    if attribute_type_hints.__name__ != "Annotated" or not hasattr(attribute_type_hints, "__metadata__"):
         return False
     for metadata in attribute_type_hints.__metadata__:
         if metadata == FieldType.SORTED_FIELD:
@@ -56,14 +52,16 @@ def _get_sortable_fields_from_model(model: DiffSyncModel):
         attribute_type_hints = model_type_hints.get(attribute_name)
         if not _is_sortable_field(attribute_type_hints):
             continue
-        
+
         sortable_obj_type = _get_sortable_obj_type(attribute_type_hints)
         sort_key = _get_sortable_obj_sort_key(sortable_obj_type)
 
-        sortable_fields.append({
-            "attribute": attribute_name,
-            "sort_key": sort_key,
-        })
+        sortable_fields.append(
+            {
+                "attribute": attribute_name,
+                "sort_key": sort_key,
+            }
+        )
     return sortable_fields
 
 
@@ -76,9 +74,7 @@ def _sort_diffsync_object(obj, attribute, key):
             key=lambda x: x[key],
         )
     else:
-        sorted_data = sorted(
-            getattr(obj, attribute)
-        )
+        sorted_data = sorted(getattr(obj, attribute))
     if sorted_data:
         setattr(obj, attribute, sorted_data)
     return obj

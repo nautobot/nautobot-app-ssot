@@ -1,22 +1,20 @@
+"""Unit tests for contrib sorting."""
 
 from typing import List, Optional
 
-from nautobot_ssot.contrib.types import FieldType
 import nautobot.tenancy.models as tenancy_models
 from django.test import TestCase as TestCase
-from typing_extensions import Annotated, TypedDict
-from typing_extensions import get_type_hints
-
-from nautobot_ssot.contrib.sorting import (
-    _get_sortable_fields_from_model,
-    _is_sortable_field,
-    _get_sortable_obj_type,
-    _get_sortable_obj_sort_key,
-    sort_relationships,
-    _sort_diffsync_object,
-)
+from typing_extensions import Annotated, TypedDict, get_type_hints
 
 from nautobot_ssot.contrib import NautobotModel
+from nautobot_ssot.contrib.sorting import (
+    _get_sortable_fields_from_model,
+    _get_sortable_obj_sort_key,
+    _get_sortable_obj_type,
+    _is_sortable_field,
+    _sort_diffsync_object,
+)
+from nautobot_ssot.contrib.types import FieldType
 
 
 class BasicTagDict(TypedDict):
@@ -63,7 +61,7 @@ class NautobotTenant(NautobotModel):
 
 
 class TestCaseIsSortableFieldFunction(TestCase):
-    """"""
+    """Tests for `_is_sortable_field` function."""
 
     @classmethod
     def setUpTestData(cls):
@@ -79,7 +77,7 @@ class TestCaseIsSortableFieldFunction(TestCase):
 
 
 class TestGetSortKeyFunction(TestCase):
-    """"""
+    """Tests for `_get_sortable_obj_key` function."""
 
     def test_get_sort_key(self):
         test = _get_sortable_obj_sort_key(TagDict)
@@ -87,9 +85,10 @@ class TestGetSortKeyFunction(TestCase):
 
     def test_no_sort_key(self):
         """"""
+
         class TestClass(TypedDict):
             id: str
-            name:str
+            name: str
 
         test = _get_sortable_obj_sort_key(TestClass)
         self.assertIsNone(test)
@@ -110,7 +109,7 @@ class TestCaseGetSortableFieldsFromModelFunction(TestCase):
 
 
 class TestSortDiffSyncObjectFunction(TestCase):
-    """"""
+    """Tests for `_sort_diffsync_object` function."""
 
     @classmethod
     def setUpTestData(cls):
@@ -129,7 +128,7 @@ class TestSortDiffSyncObjectFunction(TestCase):
                     name="a",
                     description="",
                 ),
-            ]
+            ],
         )
 
     def test_with_sortable_field(self):
@@ -137,7 +136,7 @@ class TestSortDiffSyncObjectFunction(TestCase):
         self.assertEqual(
             self.obj_1.tags[0]["name"],
             "b",
-            msg="List of `TagDict` entries must start with `name='b'` to verify proper sorting."
+            msg="List of `TagDict` entries must start with `name='b'` to verify proper sorting.",
         )
         test = _sort_diffsync_object(self.obj_1, "tags", "name")
         self.assertEqual(test.tags[0]["name"], "a")
@@ -152,7 +151,7 @@ class TestGetSortableObjectTypeFunction(TestCase):
         test = _get_sortable_obj_type(type_hints.get("tags"))
         self.assertTrue(test == TagDict)
 
-    def test_get_sortable_object_type(self):
+    def test_get_nonsortable_object_type(self):
         """Test to validate `_get_sortable_obj_type` function returns None."""
         type_hints = get_type_hints(BasicNautobotTenant, include_extras=True)
         test = _get_sortable_obj_type(type_hints["tags"])
