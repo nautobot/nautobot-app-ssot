@@ -85,6 +85,7 @@ class TestGetSortKeyFunction(TestCase):
 
     def test_no_sort_key(self):
         """Test function with no wort key."""
+
         class TestClass(TypedDict):
             id: str
             name: str
