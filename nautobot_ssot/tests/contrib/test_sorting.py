@@ -6,7 +6,6 @@ import nautobot.tenancy.models as tenancy_models
 from django.test import TestCase
 from typing_extensions import Annotated, TypedDict, get_type_hints
 
-from nautobot_ssot.contrib import NautobotModel
 from nautobot_ssot.contrib.sorting import (
     get_sortable_fields_from_model,
     get_sortable_obj_sort_key,
@@ -18,12 +17,6 @@ from nautobot_ssot.contrib.types import FieldType
 
 from nautobot_ssot.tests.contrib_base_classes import NautobotTenant as BasicNautobotTenant, TagDict as BasicTagDict
 
-# class BasicTagDict(TypedDict):
-#     """Many-to-many relationship typed dict explaining which fields are interesting."""
-
-#     id: int
-#     name: str
-
 
 class TagDict(BasicTagDict):
     """Many-to-many relationship typed dict explaining which fields are interesting."""
@@ -31,20 +24,6 @@ class TagDict(BasicTagDict):
     id: int
     name: Annotated[str, FieldType.SORT_BY]
     description: Optional[str] = ""
-
-
-# class BasicNautobotTenant(NautobotModel):
-#     """A tenant model for testing the `NautobotModel` base class."""
-
-#     _model = tenancy_models.Tenant
-#     _modelname = "tenant"
-#     _identifiers = ("name",)
-#     _attributes = ("description", "tenant_group__name", "tags")
-
-#     name: str
-#     description: Optional[str] = None
-#     tenant_group__name: Optional[str] = None
-#     tags: List[BasicTagDict] = []
 
 
 class NautobotTenant(BasicNautobotTenant):
