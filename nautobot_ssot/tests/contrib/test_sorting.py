@@ -2,7 +2,6 @@
 
 from typing import List, Optional
 
-import nautobot.tenancy.models as tenancy_models
 from django.test import TestCase
 from typing_extensions import Annotated, TypedDict, get_type_hints
 
