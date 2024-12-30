@@ -27,16 +27,8 @@ class TagDict(BasicTagDict):
 
 
 class NautobotTenant(BasicNautobotTenant):
-    """A tenant model for testing the `NautobotModel` base class."""
+    """A updated tenant model for testing the `NautobotModel` base class."""
 
-    _model = tenancy_models.Tenant
-    _modelname = "tenant"
-    _identifiers = ("name",)
-    _attributes = ("description", "tenant_group__name", "tags")
-
-    name: str
-    description: Optional[str] = None
-    tenant_group__name: Optional[str] = None
     tags: Annotated[List[TagDict], FieldType.SORTED_FIELD] = []
 
 
