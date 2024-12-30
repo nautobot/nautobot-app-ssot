@@ -16,15 +16,16 @@ from nautobot_ssot.contrib.sorting import (
 )
 from nautobot_ssot.contrib.types import FieldType
 
+from nautobot_ssot.tests.contrib_base_classes import NautobotTenant as BasicNautobotTenant, TagDict as BasicTagDict
 
-class BasicTagDict(TypedDict):
-    """Many-to-many relationship typed dict explaining which fields are interesting."""
+# class BasicTagDict(TypedDict):
+#     """Many-to-many relationship typed dict explaining which fields are interesting."""
 
-    id: int
-    name: str
+#     id: int
+#     name: str
 
 
-class TagDict(TypedDict):
+class TagDict(BasicTagDict):
     """Many-to-many relationship typed dict explaining which fields are interesting."""
 
     id: int
@@ -32,21 +33,21 @@ class TagDict(TypedDict):
     description: Optional[str] = ""
 
 
-class BasicNautobotTenant(NautobotModel):
-    """A tenant model for testing the `NautobotModel` base class."""
+# class BasicNautobotTenant(NautobotModel):
+#     """A tenant model for testing the `NautobotModel` base class."""
 
-    _model = tenancy_models.Tenant
-    _modelname = "tenant"
-    _identifiers = ("name",)
-    _attributes = ("description", "tenant_group__name", "tags")
+#     _model = tenancy_models.Tenant
+#     _modelname = "tenant"
+#     _identifiers = ("name",)
+#     _attributes = ("description", "tenant_group__name", "tags")
 
-    name: str
-    description: Optional[str] = None
-    tenant_group__name: Optional[str] = None
-    tags: List[BasicTagDict] = []
+#     name: str
+#     description: Optional[str] = None
+#     tenant_group__name: Optional[str] = None
+#     tags: List[BasicTagDict] = []
 
 
-class NautobotTenant(NautobotModel):
+class NautobotTenant(BasicNautobotTenant):
     """A tenant model for testing the `NautobotModel` base class."""
 
     _model = tenancy_models.Tenant
