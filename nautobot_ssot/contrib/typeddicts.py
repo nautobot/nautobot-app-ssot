@@ -1,32 +1,34 @@
 """Common TypedDict definitions used in Many-to-Many relationships."""
 
-from typing import TypedDict
+from typing import Annotated, TypedDict
+
+from nautobot_ssot.contrib.types import FieldType
 
 
 class ContentTypeDict(TypedDict):
     """TypedDict for Django Content Types."""
 
     app_label: str
-    model: str
+    model: Annotated[str, FieldType.SORT_BY]
 
 
 class TagDict(TypedDict):
     """TypedDict for Nautobot Tags."""
 
-    name: str
+    name: Annotated[str, FieldType.SORT_BY]
 
 
 class LocationDict(TypedDict):
     """TypedDict for DCIM Locations."""
 
-    name: str
+    name: Annotated[str, FieldType.SORT_BY]
     parent__name: str
 
 
 class DeviceDict(TypedDict):
     """TypedDict for DCIM Devices."""
 
-    name: str
+    name: Annotated[str, FieldType.SORT_BY]
     location__name: str
     tenant__name: str
     rack__name: str
@@ -40,14 +42,14 @@ class DeviceDict(TypedDict):
 class InterfaceDict(TypedDict):
     """TypedDict for DCIM INterfaces."""
 
-    name: str
+    name: Annotated[str, FieldType.SORT_BY]
     device__name: str
 
 
 class PrefixDict(TypedDict):
     """TypedDict for IPAM Prefixes."""
 
-    network: str
+    network: Annotated[str, FieldType.SORT_BY]
     prefix_length: int
     namespace__name: str
 
@@ -55,20 +57,20 @@ class PrefixDict(TypedDict):
 class VLANDict(TypedDict):
     """TypedDict for IPAM VLANs."""
 
-    vid: int
+    vid: Annotated[int, FieldType.SORT_BY]
     vlan_group__name: str
 
 
 class IPAddressDict(TypedDict):
     """TypedDict for IPAM IP Address."""
 
-    host: str
+    host: Annotated[str, FieldType.SORT_BY]
     prefix_length: int
 
 
 class VirtualMachineDict(TypedDict):
     """TypedDict for IPAM ."""
 
-    name: str
+    name: Annotated[str, FieldType.SORT_BY]
     cluster__name: str
     tenant__name: str
