@@ -82,11 +82,10 @@ def sort_diffsync_object(obj, attribute, key):
 
 def sort_relationships(source: Adapter, target: Adapter):
     """Sort relationships based on the metadata defined in the DiffSync model."""
-    if not isinstance(source, Adapter) or not isinstance(target, Adapter):
-        raise TypeError("Parameters for `sort_relationships()` must be of type DiffSync.")
-
+    if not source or not target:
+        return
     # Loop through Top Level entries
-    for level in target.top_level:
+    for level in getattr(target, "top_level", []):
         # Get the DiffSync Model
         model = getattr(target, level)
         if not model:
