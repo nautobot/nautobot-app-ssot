@@ -418,6 +418,7 @@ class BootstrapNamespace(Namespace):
         """Delete Namespace in Bootstrap from BootstrapNamespace object."""
         return self
 
+
 class BootstrapRiR(RiR):
     """Bootstrap implementation of Bootstrap RiR model."""
 
@@ -433,6 +434,7 @@ class BootstrapRiR(RiR):
     def delete(self):
         """Delete RiR in Bootstrap from BootstrapRiR object."""
         return self
+
 
 class BootstrapVLANGroup(VLANGroup):
     """Bootstrap implementation of Bootstrap VLANGroup model."""
@@ -450,6 +452,7 @@ class BootstrapVLANGroup(VLANGroup):
         """Delete VLANGroup in Bootstrap from BootstrapVLANGroup object."""
         return self
 
+
 class BootstrapVLAN(VLAN):
     """Bootstrap implementation of Bootstrap VLAN model."""
 
@@ -465,6 +468,7 @@ class BootstrapVLAN(VLAN):
     def delete(self):
         """Delete VLAN in Bootstrap from BootstrapVLAN object."""
         return self
+
 
 class BootstrapVRF(VRF):
     """Bootstrap implementation of Bootstrap VRF model."""
@@ -482,6 +486,7 @@ class BootstrapVRF(VRF):
         """Delete VRF in Bootstrap from BootstrapVRF object."""
         return self
 
+
 class BootstrapPrefix(Prefix):
     """Bootstrap implementation of Bootstrap Prefix model."""
 
@@ -497,6 +502,7 @@ class BootstrapPrefix(Prefix):
     def delete(self):
         """Delete Prefix in Bootstrap from BootstrapPrefix object."""
         return self
+
 
 if LIFECYCLE_MGMT:
 
