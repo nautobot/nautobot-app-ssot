@@ -51,6 +51,9 @@ jobs:
         run: "poetry run invoke build-and-check-docs"
   poetry:
     runs-on: "ubuntu-22.04"
+    strategy:
+      matrix:
+        poetry-version: ["1.8.4"]
     env:
       INVOKE_NAUTOBOT_SSOT_LOCAL: "True"
     steps:
