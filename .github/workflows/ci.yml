@@ -83,6 +83,7 @@ jobs:
       matrix:
         python-version: ["3.11"]
         nautobot-version: ["2.2.1"]
+        poetry-version: ["1.8.4"]
     env:
       INVOKE_NAUTOBOT_SSOT_PYTHON_VER: "${{ matrix.python-version }}"
       INVOKE_NAUTOBOT_SSOT_NAUTOBOT_VER: "${{ matrix.nautobot-version }}"
