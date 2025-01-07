@@ -1,39 +1,24 @@
-"""App additions to the Nautobot navigation menu."""
+"""Menu items."""
 
-from nautobot.apps.ui import NavMenuGroup, NavMenuItem, NavMenuTab
+from nautobot.apps.ui import NavMenuAddButton, NavMenuGroup, NavMenuItem, NavMenuTab
 
-from .integrations.utils import each_enabled_integration_module
-
-items = [
-    NavMenuItem(
-        link="plugins:nautobot_ssot:dashboard",
-        name="Dashboard",
-        permissions=["nautobot_ssot.view_sync"],
-    ),
+items = (
     NavMenuItem(
         link="plugins:nautobot_ssot:sync_list",
-        name="History",
+        name="Single Source of Truth",
         permissions=["nautobot_ssot.view_sync"],
+        buttons=(
+            NavMenuAddButton(
+                link="plugins:nautobot_ssot:sync_add",
+                permissions=["nautobot_ssot.add_sync"],
+            ),
+        ),
     ),
-    NavMenuItem(
-        link="plugins:nautobot_ssot:synclogentry_list",
-        name="Logs",
-        permissions=["nautobot_ssot.view_synclogentry"],
-    ),
-]
-
-
-def _add_integrations():
-    for module in each_enabled_integration_module("navigation"):
-        items.extend(module.nav_items)
-
-
-_add_integrations()
-
+)
 
 menu_items = (
     NavMenuTab(
-        name="Plugins",
-        groups=(NavMenuGroup(name="Single Source of Truth", weight=1000, items=tuple(items)),),
+        name="Apps",
+        groups=(NavMenuGroup(name="Single Source of Truth", items=tuple(items)),),
     ),
 )
