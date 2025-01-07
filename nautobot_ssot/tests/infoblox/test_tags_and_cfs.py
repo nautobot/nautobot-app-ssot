@@ -127,8 +127,7 @@ class TestTagging(TestCase):
         """Ensure objects synced to Infoblox have 'SSoT Synced to Infoblox' tag applied."""
         create_prefix_relationship()
         nb_prefix = Prefix(
-            network="10.0.0.0",
-            prefix_length=8,
+            prefix="10.0.0.0/8",
             description="Test Network",
             type="network",
             status=Status.objects.get_for_model(Prefix).first(),
@@ -204,8 +203,7 @@ class TestCustomFields(TestCase):
     def test_cf_updated_for_objects_synced_to_infoblox(self):
         """Ensure objects synced to Infoblox have cf 'ssot_synced_to_infoblox' correctly updated."""
         nb_prefix = Prefix(
-            network="10.0.0.0",
-            prefix_length=8,
+            prefix="10.0.0.0/8",
             description="Test Network",
             type="network",
             status=Status.objects.get_for_model(Prefix).first(),
