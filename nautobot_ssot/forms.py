@@ -1,47 +1,46 @@
-"""Forms for nautobot_ssot."""
+"""Forms for working with Sync and SyncLogEntry models."""
 
 from django import forms
-from nautobot.apps.forms import NautobotBulkEditForm, NautobotFilterForm, NautobotModelForm, TagsBulkEditFormMixin
+from nautobot.apps.forms import BootstrapMixin, add_blank_choice
+from nautobot.core.forms import BOOLEAN_WITH_BLANK_CHOICES
 
-from nautobot_ssot import models
-
-
-class SyncForm(NautobotModelForm):  # pylint: disable=too-many-ancestors
-    """Sync creation/edit form."""
-
-    class Meta:
-        """Meta attributes."""
-
-        model = models.Sync
-        fields = [
-            "name",
-            "description",
-        ]
+from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
+from .models import Sync, SyncLogEntry
 
 
-class SyncBulkEditForm(TagsBulkEditFormMixin, NautobotBulkEditForm):  # pylint: disable=too-many-ancestors
-    """Sync bulk edit form."""
+class SyncFilterForm(BootstrapMixin, forms.ModelForm):
+    """Form for filtering SyncOverview records."""
 
-    pk = forms.ModelMultipleChoiceField(queryset=models.Sync.objects.all(), widget=forms.MultipleHiddenInput)
-    description = forms.CharField(required=False)
+    dry_run = forms.ChoiceField(choices=BOOLEAN_WITH_BLANK_CHOICES, required=False)
 
     class Meta:
-        """Meta attributes."""
+        """Metaclass attributes of SyncFilterForm."""
 
-        nullable_fields = [
-            "description",
-        ]
+        model = Sync
+        fields = ["dry_run"]
 
 
-class SyncFilterForm(NautobotFilterForm):
-    """Filter form to filter searches."""
+class SyncLogEntryFilterForm(BootstrapMixin, forms.ModelForm):
+    """Form for filtering SyncLogEntry records."""
 
-    model = models.Sync
-    field_order = ["q", "name"]
+    q = forms.CharField(required=False, label="Search")
+    sync = forms.ModelChoiceField(queryset=Sync.objects.defer("diff").all(), required=False)
+    action = forms.ChoiceField(choices=add_blank_choice(SyncLogEntryActionChoices), required=False)
+    status = forms.ChoiceField(choices=add_blank_choice(SyncLogEntryStatusChoices), required=False)
 
-    q = forms.CharField(
+    class Meta:
+        """Metaclass attributes of SyncLogEntryFilterForm."""
+
+        model = SyncLogEntry
+        fields = ["sync", "action", "status"]
+
+
+class SyncForm(BootstrapMixin, forms.Form):  # pylint: disable=nb-incorrect-base-class
+    """Base class for dynamic form generation for a SyncWorker."""
+
+    dry_run = forms.BooleanField(
         required=False,
-        label="Search",
-        help_text="Search within Name or Slug.",
+        initial=True,
+        label="Dry run",
+        help_text="Perform a dry run, making no actual changes to the database.",
     )
-    name = forms.CharField(required=False, label="Name")
