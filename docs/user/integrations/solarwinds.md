@@ -15,11 +15,9 @@ From SolarWinds into Nautobot, it synchronizes the following objects:
 | Interfaces              | Interfaces                   |
 | IP Addresses            | IP Addresses                 |
 
-`*` As of SSoT 3.2.0 the LocationType for Networks can be defined in the Job form.
-
 ## Usage
 
-Once the app is installed and configured, you will be able to perform an inventory ingestion from SolarWinds into Nautobot. From the Nautobot SSoT Dashboard view (`/plugins/ssot/`), or via Apps -> Single Source of Truth -> Dashboard, SolarWinds will show as a Data Source.
+Once the app is installed and configured, you will be able to perform an inventory ingestion from SolarWinds Orion into Nautobot. From the Nautobot SSoT Dashboard view (`/plugins/ssot/`), or via Apps -> Single Source of Truth -> Dashboard, SolarWinds will show as a Data Source.
 
 ![Dashboard View](../../images/solarwinds_dashboard.png)
 
@@ -57,8 +55,13 @@ With the SecretsGroup defined containing your instance credentials you'll then n
 - The External Integration will need it's `http_method` set to `GET`. 
 - Keep the `verify_ssl` setting in mind, uncheck this if you are using untrusted certificates
 
-Extra settings can be configured in the Extra Config section if desired, example below:
-- There are a few extra settings that can be modified if desired, using the `extra_config` parameter of your External Integration. An example is below:
+Extra settings can be configured in the Extra Config section of your External Integration, example below:
+
+| Setting         | Default | Description                                                                       |
+| --------------- | ------- | --------------------------------------------------------------------------------- |
+| port            |   17774 | TCP port used for communication to the API                                        |
+| retries         |       5 | How many retries before considering the connection to Solarwinds failed           |
+| batch_size      |     100 | How many nodes to include in queries, this can be lowered to prevent API timeouts |
 
 ```json
 {
@@ -96,7 +99,7 @@ The Role Matching Attribute can be set to DeviceType or Hostname. You then provi
 }
 ```
 
-- Finally there is an option to specify a Tenant to be assigned to the imported Devices, Prefixes, and IPAddreses. This is handy for cases where you have multiple SolarWinds instances that are used by differing business units.
+- Finally there is an option to specify a Tenant to be assigned to the imported Devices, Prefixes, and IPAddresses. This is handy for cases where you have multiple SolarWinds instances that are used by differing business units.
 !!! info
     Tenant names will also be used as Namespace names for any IP Addresses and Prefixes created, these Namespaces must be created by you!
 
