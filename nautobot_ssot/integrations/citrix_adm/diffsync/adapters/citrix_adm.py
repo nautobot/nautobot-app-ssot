@@ -297,7 +297,8 @@ class CitrixAdmAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
         for ipaddr in self.get_all(obj="address"):
             for prefix in self.get_all(obj="prefix"):
                 if not is_ip_within(ipaddr.prefix, prefix.prefix):
-                    if is_ip_within(ipaddr.host, prefix.prefix):
+                    host_addr = ipaddr.address.split("/")[0]
+                    if is_ip_within(host_addr, prefix.prefix):
                         if self.job.debug:
                             self.job.logger.debug(
                                 "More specific Prefix %s found for IPAddress %s", prefix.prefix, ipaddr.address
