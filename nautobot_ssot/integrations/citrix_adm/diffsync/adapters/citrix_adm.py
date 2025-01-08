@@ -9,6 +9,7 @@ from diffsync.exceptions import ObjectNotFound
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.models import ExternalIntegration, Job
 from nautobot.tenancy.models import Tenant
+from netutils.ip import is_ip_within
 
 from nautobot_ssot.integrations.citrix_adm.constants import DEVICETYPE_MAP
 from nautobot_ssot.integrations.citrix_adm.diffsync.models.citrix_adm import (
@@ -291,6 +292,19 @@ class CitrixAdmAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
             new_map = self.ip_on_intf(address=address, device=device, port=port, primary=primary, uuid=None)
             self.add(new_map)
 
+    def find_closer_parent_prefix(self) -> None:
+        """Find more accurate parent Prefix for loaded IPAddresses."""
+        for ipaddr in self.get_all(obj="address"):
+            for prefix in self.get_all(obj="prefix"):
+                if not is_ip_within(ipaddr.prefix, prefix.prefix):
+                    if is_ip_within(ipaddr.host, prefix.prefix):
+                        if self.job.debug:
+                            self.job.logger.debug(
+                                "More specific Prefix %s found for IPAddress %s", prefix.prefix, ipaddr.address
+                            )
+                        ipaddr.prefix = prefix.prefix
+                        self.update(ipaddr)
+
     def load(self):
         """Load data from Citrix ADM into DiffSync models."""
         for instance in self.instances:
@@ -321,6 +335,7 @@ class CitrixAdmAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 self.create_port_map()
                 self.load_ports()
                 self.load_addresses()
+                self.find_closer_parent_prefix()
 
                 self.conn.logout()
             else:
