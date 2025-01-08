@@ -296,6 +296,11 @@ class CitrixAdmAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
         """Find more accurate parent Prefix for loaded IPAddresses."""
         for ipaddr in self.get_all(obj="address"):
             for prefix in self.get_all(obj="prefix"):
+                # check if prefixes are both IPv4 or IPv6
+                if (":" in ipaddr.prefix and ":" not in prefix.prefix) or (
+                    ":" in prefix.prefix and ":" not in ipaddr.prefix
+                ):
+                    continue
                 if not is_ip_within(ipaddr.prefix, prefix.prefix):
                     host_addr = ipaddr.address.split("/")[0]
                     if is_ip_within(host_addr, prefix.prefix):
