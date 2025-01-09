@@ -1,0 +1,2 @@
+Fixed Citrix ADM deleting SoftwareVersion in use with ValidatedSoftware.
+Fixed Meraki deleting SoftwareVersion in use with ValidatedSoftware.
