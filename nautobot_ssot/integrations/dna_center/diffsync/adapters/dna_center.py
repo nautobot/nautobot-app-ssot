@@ -376,7 +376,7 @@ class DnaCenterAdapter(Adapter):
                 if loc_data.get("floor") and loc_data["building"] not in loc_data["floor"]:
                     floor_name = f"{loc_data['building']} - {loc_data['floor']}"
                 elif loc_data.get("floor"):
-                    floor_name = f"{loc_data['building']} - {loc_data['floor']}"
+                    floor_name = loc_data["floor"]
                 else:
                     floor_name = None
                 new_dev = self.device(
