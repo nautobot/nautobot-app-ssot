@@ -1,11 +1,11 @@
-"""Filtering for nautobot_ssot."""
+"""Filtering logic for Sync and SyncLogEntry records."""
 
-from nautobot.apps.filters import NautobotFilterSet, SearchFilter
+from nautobot.apps.filters import BaseFilterSet, SearchFilter
 
 from nautobot_ssot import models
 
 
-class SyncFilterSet(NautobotFilterSet):  # pylint: disable=too-many-ancestors
+class SyncFilterSet(BaseFilterSet):  # pylint: disable=too-many-ancestors
     """Filter for Sync."""
 
     class Meta:
@@ -17,7 +17,7 @@ class SyncFilterSet(NautobotFilterSet):  # pylint: disable=too-many-ancestors
         fields = ["dry_run", "job_result"]  # pylint: disable=nb-use-fields-all
 
 
-class SyncLogEntryFilterSet(NautobotFilterSet):  # pylint: disable=too-many-ancestors
+class SyncLogEntryFilterSet(BaseFilterSet):  # pylint: disable=too-many-ancestors
     """Filter capabilities for SyncLogEntry instances."""
 
     q = SearchFilter(
