@@ -1,0 +1,157 @@
+{
+    "9e5f9fc2-032e-45e8-994c-4a00629648e8": {
+        "name": "Global",
+        "parent": null,
+        "parent_of_parent": null
+    },
+    "eed5ccc3-d76f-46e2-9d8d-97624f5418ac": {
+        "name": "San Jose",
+        "parent": "California",
+        "parent_of_parent": "USA"
+    },
+    "5c59e37a-f12d-4e84-a085-ac5c02f240d4": {
+        "name": "Building1",
+        "parent": "San Jose",
+        "parent_of_parent": null
+    },
+    "49aa97a7-5d45-4303-89dd-f76dfbfc624a": {
+        "name": "Floor1",
+        "parent": "Building1",
+        "parent_of_parent": "San Jose"
+    },
+    "925f1a03-05df-4d9a-b2e0-db1989367138": {
+        "name": "1",
+        "parent": "1",
+        "parent_of_parent": null
+    },
+    "cf1746d3-4de0-4ef5-bd3a-a5e51191eee1": {
+        "name": "OZ",
+        "parent": "Global",
+        "parent_of_parent": null
+    },
+    "04509ce4-6c88-40a3-b444-9e00f2cd97f2": {
+        "name": "SanDiego",
+        "parent": "Global",
+        "parent_of_parent": null
+    },
+    "73b2f82c-413e-439e-a614-0ab0d0378114": {
+        "name": "South Pole",
+        "parent": "Global",
+        "parent_of_parent": null
+    },
+    "4e84a340-efdb-4f06-878f-3235173036ef": {
+        "name": "Antartica3",
+        "parent": "Global",
+        "parent_of_parent": null
+    },
+    "6e1ebb51-62cd-400f-b130-a6959d81e775": {
+        "name": "VN_1",
+        "parent": "Texas",
+        "parent_of_parent": null
+    },
+    "20d34f71-f4db-4833-90f7-4208a349f876": {
+        "name": "Antartica",
+        "parent": "Global",
+        "parent_of_parent": null
+    },
+    "262696b1-aa87-432b-8a21-db9a77c51f23": {
+        "name": "Australia",
+        "parent": "Global",
+        "parent_of_parent": null
+    },
+    "6e404051-4c06-4dab-adaa-72c5eeac577b": {
+        "name": "Sydney",
+        "parent": "Australia",
+        "parent_of_parent": null
+    },
+    "63a7fb03-d4b2-408e-a6ab-b4df0a198643": {
+        "name": "Sydney",
+        "parent": "Global",
+        "parent_of_parent": null
+    },
+    "f5a19514-3c1e-4127-a2b5-2a64a963c934": {
+        "name": "Area_52",
+        "parent": "Global",
+        "parent_of_parent": null
+    },
+    "fa22b4e1-ee80-4aa8-8d76-83c4126d16ee": {
+        "name": "Area_51",
+        "parent": "Global",
+        "parent_of_parent": null
+    },
+    "f1c8b4ea-ccc1-4b26-9cfd-25c0eb4ca661": {
+        "name": "Area_51a",
+        "parent": "Global",
+        "parent_of_parent": null
+    },
+    "7760b82a-b07e-4fa7-8cad-91adfa12dd43": {
+        "name": "Area 51",
+        "parent": "Global",
+        "parent_of_parent": null
+    },
+    "331f7e36-1a45-4c9f-bfa9-3425a053f81a": {
+        "name": "Deep Space",
+        "parent": "Area 51",
+        "parent_of_parent": null
+    },
+    "42a47e36-01ea-4189-8e54-16a2fd063648": {
+        "name": "1st Floor",
+        "parent": "Deep Space",
+        "parent_of_parent": null
+    },
+    "398de1d9-d595-429d-8239-64b51d24f230": {
+        "name": "Texas_building",
+        "parent": "Texas",
+        "parent_of_parent": null
+    },
+    "5c882916-4f65-45b5-a5cc-ca5fa927cba6": {
+        "name": "Forschungszentrum",
+        "parent": "Global",
+        "parent_of_parent": null
+    },
+    "1c3bb089-2a74-4fdf-96e3-d1815ac67e38": {
+        "name": "Building 1",
+        "parent": "Forschungszentrum",
+        "parent_of_parent": null
+    },
+    "0b1f8f7f-f0be-4d14-974d-69b1693d39ec": {
+        "name": "Lab",
+        "parent": "Building 1",
+        "parent_of_parent": null
+    },
+    "2d0d8545-b6de-4dda-a0f7-93bcd7d0e738": {
+        "name": "1",
+        "parent": "SanDiego",
+        "parent_of_parent": null
+    },
+    "257c51d3-971d-49f4-83f7-c9baf334865a": {
+        "name": "Texas",
+        "parent": "Global",
+        "parent_of_parent": null
+    },
+    "f372dbbb-d689-4d9a-9a5e-887de33fbce5": {
+        "name": "Maryland",
+        "parent": "Global",
+        "parent_of_parent": null
+    },
+    "8004668a-eb96-47cc-b659-bcc9c04669ba": {
+        "name": "Treton",
+        "parent": "Global",
+        "parent_of_parent": null
+    },
+    "755faf69-0d07-48f7-b130-4806c32eb13e": {
+        "name": "secretlab",
+        "parent": "Maryland",
+        "parent_of_parent": null
+    },
+    "fedd8d33-5334-413f-8a49-fb2459d7e337": {
+        "name": "Rome",
+        "parent": "Treton",
+        "parent_of_parent": null
+    },
+    "f4ff8ca1-c062-4228-868a-d6cd0bc53852": {
+        "name": "Floor 2",
+        "parent": "secretlab",
+        "parent_of_parent": null
+    }
+}

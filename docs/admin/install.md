@@ -100,3 +100,4 @@ Set up each integration using the specific guides:
 - [Cisco Meraki](./integrations/meraki_setup.md)
 - [ServiceNow](./integrations/servicenow_setup.md)
 - [Slurpit](./integrations/slurpit_setup.md)
+- [SolarWinds](./integrations/solarwinds_setup.md)
