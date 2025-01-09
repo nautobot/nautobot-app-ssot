@@ -13,5 +13,5 @@ This Nautobot app supports the following integrations:
 - [Itential](./itential.md)
 - [Cisco Meraki](./meraki.md)
 - [ServiceNow](./servicenow.md)
-- [SolarWinds](./solarwinds.md)
 - [Slurpit](./slurpit.md)
+- [SolarWinds](./solarwinds.md)

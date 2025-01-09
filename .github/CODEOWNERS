@@ -11,6 +11,6 @@
 /nautobot_ssot/integrations/itential/ @jtdub @nautobot/plugin-ssot
 /nautobot_ssot/integrations/meraki/ @jdrew82 @nautobot/plugin-ssot
 /nautobot_ssot/integrations/servicenow/ @glennmatthews @qduk @nautobot/plugin-ssot
-/nautobot_ssot/integrations/solarwinds/ @jdrew82 @nopg @nautobot/plugin-ssot
 /nautobot_ssot/integrations/slurpit/ @lpconsulting321 @pietos @nautobot/plugin-ssot
+/nautobot_ssot/integrations/solarwinds/ @jdrew82 @nopg @nautobot/plugin-ssot
 
