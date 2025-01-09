@@ -79,8 +79,14 @@ class NautobotOSVersion(OSVersion):
     def delete(self):
         """Delete SoftwareVersion in Nautobot from NautobotOSVersion object."""
         ver = SoftwareVersion.objects.get(id=self.uuid)
-        super().delete()
-        ver.delete()
+        if hasattr(ver, "validatedsoftwarelcm_set"):
+            if ver.validatedsoftwarelcm_set.count() != 0:
+                self.adapter.job.logger.warning(
+                    f"SoftwareVersion {ver.version} for {ver.platform.name} is used with a ValidatedSoftware so won't be deleted."
+                )
+        else:
+            super().delete()
+            ver.delete()
         return self
 
 
