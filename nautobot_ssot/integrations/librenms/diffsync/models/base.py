@@ -208,4 +208,4 @@ class SSoTJob(DiffSyncModel):
     uuid: Optional[UUID] = None
 
 
-Device.update_forward_refs()
+Device.model_rebuild()

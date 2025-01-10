@@ -200,18 +200,21 @@ class NautobotPort(Port):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Port in Nautobot from NautobotPort object."""
+        raise NotImplementedError("NautobotPort create not yet implemented")
         adapter.job.logger.debug(f'Creating Nautobot Interface {ids["name"]}')
 
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Port in Nautobot from NautobotPort object."""
+        raise NotImplementedError("NautobotPort update not yet implemented")
         self.adapter.job.logger.debug(f"Updating Nautobot Interface {self.name}")
 
         return super().update(attrs)
 
     def delete(self):
         """Delete Port in Nautobot from NautobotPort object."""
+        raise NotImplementedError("NautobotPort delete not yet implemented")
         self.adapter.job.logger.debug(f"Deleting Nautobot Interface {self.name}")
 
         port = ORMInterface.objects.get(id=self.uuid)

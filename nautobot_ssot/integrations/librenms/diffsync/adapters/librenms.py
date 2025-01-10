@@ -110,7 +110,6 @@ class LibrenmsAdapter(DiffSync):
             else self.job.hostname_field or "sysName"
         )
 
-        print("Running tests:", is_running_tests())
         if is_running_tests():
             load_source = "file"
             self.job.sync_locations = True
