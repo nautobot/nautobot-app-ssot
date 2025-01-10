@@ -31,5 +31,5 @@ From LibreNMS into Nautobot, the app synchronizes devices, their interfaces, ass
 
 ### LibreNMS as DataTarget
 
-NotYetImplemented
+Not yet implemented.
 
