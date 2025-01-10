@@ -79,8 +79,14 @@ class NautobotOSVersion(OSVersion):
     def delete(self):
         """Delete SoftwareVersion in Nautobot from NautobotOSVersion object."""
         ver = SoftwareVersion.objects.get(id=self.uuid)
-        super().delete()
-        ver.delete()
+        if hasattr(ver, "validatedsoftwarelcm_set"):
+            if ver.validatedsoftwarelcm_set.count() != 0:
+                self.adapter.job.logger.warning(
+                    f"SoftwareVersion {ver.version} for {ver.platform.name} is used with a ValidatedSoftware so won't be deleted."
+                )
+        else:
+            super().delete()
+            ver.delete()
         return self
 
 
@@ -255,7 +261,7 @@ class NautobotAddress(Address):
         """Create IP Address in Nautobot from NautobotAddress object."""
         new_ip = IPAddress(
             address=ids["address"],
-            parent=Prefix.objects.filter(network__net_contains=ids["address"].split("/")[0]).last(),
+            parent=Prefix.objects.get(prefix=ids["prefix"]),
             status=Status.objects.get(name="Active"),
             namespace=(
                 Namespace.objects.get_or_create(name=attrs["tenant"])[0]
