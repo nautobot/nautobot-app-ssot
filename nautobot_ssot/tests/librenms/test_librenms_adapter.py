@@ -28,7 +28,7 @@ class TestLibreNMSAdapterTestCase(TransactionTestCase):
             name="Active",
             defaults={
                 "color": "4caf50",
-            }
+            },
         )
         self.active_status.content_types.add(ContentType.objects.get_for_model(Device))
         self.active_status.content_types.add(ContentType.objects.get_for_model(Location))
@@ -41,11 +41,11 @@ class TestLibreNMSAdapterTestCase(TransactionTestCase):
         # Mock device and location data
         self.librenms_client.get_librenms_devices_from_file.return_value = {
             "count": len(DEVICE_FIXTURE_RECV),
-            "devices": DEVICE_FIXTURE_RECV
+            "devices": DEVICE_FIXTURE_RECV,
         }
         self.librenms_client.get_librenms_locations_from_file.return_value = {
             "count": len(LOCATION_FIXURE_RECV),
-            "locations": LOCATION_FIXURE_RECV
+            "locations": LOCATION_FIXURE_RECV,
         }
 
         self.job = LibrenmsDataSource()

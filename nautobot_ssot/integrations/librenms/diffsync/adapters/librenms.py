@@ -118,7 +118,6 @@ class LibrenmsAdapter(DiffSync):
 
         self.job.logger.info(f'Loading {all_devices["count"]} Devices from LibreNMS.')
 
-
         for _device in all_devices["devices"]:
             self.load_device(device=_device)
 
@@ -139,7 +138,6 @@ class LibrenmsAdapter(DiffSync):
                 all_locations = self.lnms_api.get_librenms_locations_from_file()
 
             self.job.logger.info(f'Loading {all_locations["count"]} Locations from LibreNMS.')
-
 
             for _location in all_locations["locations"]:
                 self.load_location(location=_location)
