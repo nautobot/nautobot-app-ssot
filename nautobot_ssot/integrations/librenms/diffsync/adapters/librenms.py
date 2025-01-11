@@ -5,7 +5,7 @@ import os
 from diffsync import DiffSync
 from diffsync.exceptions import ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
-from nautobot.dcim.models import Device, Location, LocationType
+from nautobot.dcim.models import Location, LocationType
 from nautobot.extras.models import Status
 
 from nautobot_ssot.integrations.librenms.constants import (
@@ -17,7 +17,6 @@ from nautobot_ssot.integrations.librenms.diffsync.models.librenms import (
     LibrenmsLocation,
 )
 from nautobot_ssot.integrations.librenms.utils import (
-    is_running_tests,
     normalize_gps_coordinates,
 )
 from nautobot_ssot.integrations.librenms.utils.librenms import LibreNMSApi
@@ -110,12 +109,7 @@ class LibrenmsAdapter(DiffSync):
             else self.job.hostname_field or "sysName"
         )
 
-        if is_running_tests():
-            load_source = "file"
-            self.job.sync_locations = True
-            self.hostname_field = "sysName"
-        else:
-            load_source = self.job.load_type
+        load_source = self.job.load_type
 
         if load_source != "file":
             all_devices = self.lnms_api.get_librenms_devices()
@@ -124,8 +118,6 @@ class LibrenmsAdapter(DiffSync):
 
         self.job.logger.info(f'Loading {all_devices["count"]} Devices from LibreNMS.')
 
-        if is_running_tests():
-            print(f"All devices fetched: {all_devices}")
 
         for _device in all_devices["devices"]:
             self.load_device(device=_device)
@@ -134,13 +126,7 @@ class LibrenmsAdapter(DiffSync):
             _site, _created = LocationType.objects.get_or_create(name="Site")
             if _created:
                 _site.content_types.add(ContentType.objects.get(app_label="dcim", model="device"))
-            if is_running_tests():
-                _status = Status.objects.get_or_create(name="Active")[0]
-                _status.content_types.add(ContentType.objects.get_for_model(Device))
-                _status.content_types.add(ContentType.objects.get_for_model(Location))
-                _status.validated_save()
-            else:
-                _status = Status.objects.get(name="Active")
+            _status = Status.objects.get(name="Active")
             Location.objects.get_or_create(
                 name="Unknown",
                 location_type=_site,
@@ -154,8 +140,6 @@ class LibrenmsAdapter(DiffSync):
 
             self.job.logger.info(f'Loading {all_locations["count"]} Locations from LibreNMS.')
 
-            if is_running_tests():
-                print(f"All locations fetched: {all_locations}")
 
             for _location in all_locations["locations"]:
                 self.load_location(location=_location)
