@@ -74,3 +74,18 @@ class TestLibreNMSAdapterTestCase(TransactionTestCase):
         expected_devices = {dev["sysName"].strip() for dev in DEVICE_FIXTURE_RECV}
         loaded_devices = {dev.get_unique_id() for dev in self.librenms_adapter.get_all("device")}
         self.assertEqual(expected_devices, loaded_devices, "Devices are not loaded correctly.")
+
+    def test_as_form(self):
+        """Test the LibreNMS job form configuration."""
+        form = self.job.as_form()
+
+        # Test that all expected fields are present
+        expected_fields = ["dryrun", "load_type", "hostname_field", "sync_locations"]
+        for field in expected_fields:
+            self.assertIn(field, form.fields, f"Field {field} missing from form")
+
+        # Test default values
+        self.assertTrue(form.fields["dryrun"].initial)  # Should default to True for safety
+        self.assertEqual(form.fields["load_type"].initial, "api")  # Should default to "api"
+        self.assertEqual(form.fields["hostname_field"].initial, "env_var")  # Default to "env_var"
+        self.assertFalse(form.fields["sync_locations"].initial)  # Should default to False
