@@ -59,7 +59,7 @@ class NautobotModel(DiffSyncModel):
     @classmethod
     def _check_field(cls, name):
         """Check whether the given field name is defined on the diffsync (pydantic) model."""
-        if name not in cls.model_fields:
+        if name not in cls.model_fields:  # pylint: disable=unsupported-membership-test
             raise ObjectCrudException(f"Field {name} is not defined on the model.")
 
     def get_from_db(self):

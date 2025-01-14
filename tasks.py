@@ -181,13 +181,13 @@ def docker_compose(context, command, **kwargs):
     return context.run(compose_command, env=build_env, **kwargs)
 
 
-def run_command(context, command, **kwargs):
+def run_command(context, command, service="nautobot", **kwargs):
     """Wrapper to run a command locally or inside the nautobot container."""
     env = _read_command_env(kwargs.pop("env", None))
     if is_truthy(context.nautobot_ssot.local):
         return context.run(command, **kwargs, env=env)
     else:
-        # Check if nautobot is running, no need to start another nautobot container to run a command
+        # Check if service is running, no need to start another container to run a command
         docker_compose_status = "ps --services --filter status=running"
         results = docker_compose(context, docker_compose_status, hide="out")
 
@@ -195,10 +195,10 @@ def run_command(context, command, **kwargs):
         for env_name in env:
             command_env_args += f" --env={env_name}"
 
-        if "nautobot" in results.stdout:
-            compose_command = f"exec{command_env_args} nautobot {command}"
+        if service in results.stdout:
+            compose_command = f"exec{command_env_args} {service} {command}"
         else:
-            compose_command = f"run{command_env_args} --rm --entrypoint='{command}' nautobot"
+            compose_command = f"run{command_env_args} --rm --entrypoint='{command}' {service}"
 
         pty = kwargs.pop("pty", True)
 
@@ -443,10 +443,14 @@ def shell_plus(context):
     run_command(context, command)
 
 
-@task
-def cli(context):
-    """Launch a bash shell inside the Nautobot container."""
-    run_command(context, "bash")
+@task(
+    help={
+        "service": "Docker compose service name to launch cli in (default: nautobot).",
+    }
+)
+def cli(context, service="nautobot"):
+    """Launch a bash shell inside the container."""
+    run_command(context, "bash", service=service)
 
 
 @task(
@@ -768,7 +772,7 @@ def pylint(context):
     else:
         print("No migrations directory found, skipping migrations checks.")
 
-    if exit_code == 1:
+    if exit_code != 0:
         raise Exit(code=exit_code)
 
 
@@ -813,7 +817,7 @@ def ruff(context, action=None, target=None, fix=False, output_format="concise"):
         if not run_command(context, command, warn=True):
             exit_code = 1
 
-    if exit_code == 1:
+    if exit_code != 0:
         raise Exit(code=exit_code)
 
 
