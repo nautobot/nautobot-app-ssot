@@ -402,6 +402,108 @@ class BootstrapGraphQLQuery(GraphQLQuery):
         return self
 
 
+class BootstrapNamespace(Namespace):
+    """Bootstrap implementation of Bootstrap Namespace model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create Namespace in Bootstrap from BootstrapNamespace object."""
+        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update Namespace in Bootstrap from BootstrapNamespace object."""
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete Namespace in Bootstrap from BootstrapNamespace object."""
+        return self
+
+
+class BootstrapRiR(RiR):
+    """Bootstrap implementation of Bootstrap RiR model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create RiR in Bootstrap from BootstrapRiR object."""
+        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update RiR in Bootstrap from BootstrapRiR object."""
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete RiR in Bootstrap from BootstrapRiR object."""
+        return self
+
+
+class BootstrapVLANGroup(VLANGroup):
+    """Bootstrap implementation of Bootstrap VLANGroup model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create VLANGroup in Bootstrap from BootstrapVLANGroup object."""
+        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update VLANGroup in Bootstrap from BootstrapVLANGroup object."""
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete VLANGroup in Bootstrap from BootstrapVLANGroup object."""
+        return self
+
+
+class BootstrapVLAN(VLAN):
+    """Bootstrap implementation of Bootstrap VLAN model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create VLAN in Bootstrap from BootstrapVLAN object."""
+        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update VLAN in Bootstrap from BootstrapVLAN object."""
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete VLAN in Bootstrap from BootstrapVLAN object."""
+        return self
+
+
+class BootstrapVRF(VRF):
+    """Bootstrap implementation of Bootstrap VRF model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create VRF in Bootstrap from BootstrapVRF object."""
+        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update VRF in Bootstrap from BootstrapVRF object."""
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete VRF in Bootstrap from BootstrapVRF object."""
+        return self
+
+
+class BootstrapPrefix(Prefix):
+    """Bootstrap implementation of Bootstrap Prefix model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create Prefix in Bootstrap from BootstrapPrefix object."""
+        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update Prefix in Bootstrap from BootstrapPrefix object."""
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete Prefix in Bootstrap from BootstrapPrefix object."""
+        return self
+
+
 if LIFECYCLE_MGMT:
 
     class BootstrapSoftware(Software):
@@ -450,100 +552,4 @@ if LIFECYCLE_MGMT:
 
         def delete(self):
             """Delete ValidatedSoftware in Bootstrap from BootstrapValidatedSoftware object."""
-            return self
-
-    class BootstrapNamespace(Namespace):
-        """Bootstrap implementation of Bootstrap Namespace model."""
-
-        @classmethod
-        def create(cls, diffsync, ids, attrs):
-            """Create Namespace in Bootstrap from BootstrapNamespace object."""
-            return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
-
-        def update(self, attrs):
-            """Update Namespace in Bootstrap from BootstrapNamespace object."""
-            return super().update(attrs)
-
-        def delete(self):
-            """Delete Namespace in Bootstrap from BootstrapNamespace object."""
-            return self
-
-    class BootstrapRiR(RiR):
-        """Bootstrap implementation of Bootstrap RiR model."""
-
-        @classmethod
-        def create(cls, diffsync, ids, attrs):
-            """Create RiR in Bootstrap from BootstrapRiR object."""
-            return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
-
-        def update(self, attrs):
-            """Update RiR in Bootstrap from BootstrapRiR object."""
-            return super().update(attrs)
-
-        def delete(self):
-            """Delete RiR in Bootstrap from BootstrapRiR object."""
-            return self
-
-    class BootstrapVLANGroup(VLANGroup):
-        """Bootstrap implementation of Bootstrap VLANGroup model."""
-
-        @classmethod
-        def create(cls, diffsync, ids, attrs):
-            """Create VLANGroup in Bootstrap from BootstrapVLANGroup object."""
-            return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
-
-        def update(self, attrs):
-            """Update VLANGroup in Bootstrap from BootstrapVLANGroup object."""
-            return super().update(attrs)
-
-        def delete(self):
-            """Delete VLANGroup in Bootstrap from BootstrapVLANGroup object."""
-            return self
-
-    class BootstrapVLAN(VLAN):
-        """Bootstrap implementation of Bootstrap VLAN model."""
-
-        @classmethod
-        def create(cls, diffsync, ids, attrs):
-            """Create VLAN in Bootstrap from BootstrapVLAN object."""
-            return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
-
-        def update(self, attrs):
-            """Update VLAN in Bootstrap from BootstrapVLAN object."""
-            return super().update(attrs)
-
-        def delete(self):
-            """Delete VLAN in Bootstrap from BootstrapVLAN object."""
-            return self
-
-    class BootstrapVRF(VRF):
-        """Bootstrap implementation of Bootstrap VRF model."""
-
-        @classmethod
-        def create(cls, diffsync, ids, attrs):
-            """Create VRF in Bootstrap from BootstrapVRF object."""
-            return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
-
-        def update(self, attrs):
-            """Update VRF in Bootstrap from BootstrapVRF object."""
-            return super().update(attrs)
-
-        def delete(self):
-            """Delete VRF in Bootstrap from BootstrapVRF object."""
-            return self
-
-    class BootstrapPrefix(Prefix):
-        """Bootstrap implementation of Bootstrap Prefix model."""
-
-        @classmethod
-        def create(cls, diffsync, ids, attrs):
-            """Create Prefix in Bootstrap from BootstrapPrefix object."""
-            return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
-
-        def update(self, attrs):
-            """Update Prefix in Bootstrap from BootstrapPrefix object."""
-            return super().update(attrs)
-
-        def delete(self):
-            """Delete Prefix in Bootstrap from BootstrapPrefix object."""
             return self

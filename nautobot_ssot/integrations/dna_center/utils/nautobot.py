@@ -54,13 +54,12 @@ def add_software_lcm(adapter, platform: str, version: str):
     Returns:
         UUID: UUID of the OS Version that is being found or created.
     """
-    platform_obj = Platform.objects.get(network_driver=platform)
     try:
-        os_ver = SoftwareLCM.objects.get(device_platform=platform_obj, version=version).id
+        os_ver = SoftwareLCM.objects.get(device_platform_id=adapter.platform_map[platform], version=version).id
     except SoftwareLCM.DoesNotExist:
         adapter.job.logger.info(f"Creating Version {version} for {platform}.")
         os_ver = SoftwareLCM(
-            device_platform=platform_obj,
+            device_platform_id=adapter.platform_map[platform],
             version=version,
         )
         os_ver.validated_save()

@@ -19,6 +19,10 @@ NotYetImplemented
 
 ### Data structures
 
+### General Notes on Data in the YAML file
+
+Data values are generally normalized in the app code. If a value is supposed to be a string and you want it to be blank or none, include a blank string (`""`) in the value. Integers should be left completely blank. Lists should be set to an empty list (`[]`), and dictionaries should be set to a blank dictionary (`{}`) in the yaml file.
+
 #### global_settings.yml (see '../bootstrap/fixtures/global_settings.yml for examples of supported models)
 
 ```yaml

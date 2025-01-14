@@ -20,6 +20,7 @@ from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import Interface as OrmInterface
 from nautobot.dcim.models import Location as OrmLocation
 from nautobot.dcim.models import LocationType as OrmLocationType
+from nautobot.dcim.models import Platform
 from nautobot.extras.models import Relationship as OrmRelationship
 from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
 from nautobot.extras.models import Status as OrmStatus
@@ -63,6 +64,7 @@ class NautobotAdapter(Adapter):
     site_map = {}
     floor_map = {}
     device_map = {}
+    platform_map = {}
     port_map = {}
     namespace_map = {}
     prefix_map = {}
@@ -398,6 +400,9 @@ class NautobotAdapter(Adapter):
         self.status_map = {status.name: status.id for status in OrmStatus.objects.only("id", "name")}
         self.tenant_map = {tenant.name: tenant.id for tenant in OrmTenant.objects.only("id", "name")}
         self.namespace_map = {ns.name: ns.id for ns in Namespace.objects.only("id", "name")}
+        self.platform_map = {
+            platform.network_driver: platform.id for platform in Platform.objects.only("id", "network_driver")
+        }
 
         self.load_areas()
         self.load_buildings()
