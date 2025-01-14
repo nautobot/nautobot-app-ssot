@@ -1,0 +1,106 @@
+{
+    "10": {
+        "NodeHostname": "UNKNOWN_DEVICE_TYPE1",
+        "NodeID": 10,
+        "interfaces": {
+            "TenGigabitEthernet0/0/0": {
+                "Name": "TenGigabitEthernet0/0/0",
+                "Enabled": "Up",
+                "Status": "Up",
+                "TypeName": "ethernetCsmacd",
+                "Speed": 10000000000.0,
+                "MAC": "AA74D2BCD341",
+                "MTU": 9104
+            },
+            "TenGigabitEthernet0/1/0": {
+                "Name": "TenGigabitEthernet0/1/0",
+                "Enabled": "Unknown",
+                "Status": "Unknown",
+                "TypeName": "ethernetCsmacd",
+                "Speed": 10000000000.0,
+                "MAC": "B8D028D78C15",
+                "MTU": 9216
+            },
+            "TenGigabitEthernet0/1/0.75": {
+                "Name": "TenGigabitEthernet0/1/0.75",
+                "Enabled": "Unknown",
+                "Status": "Unknown",
+                "TypeName": "l2vlan",
+                "Speed": 10000000000.0,
+                "MAC": "G6F260AD2C18",
+                "MTU": 9216
+            }
+        },
+        "ipaddrs": {
+            "1.1.1.1": {
+                "IPAddress": "1.1.1.1",
+                "SubnetMask": 23,
+                "IPAddressType": "IPv4",
+                "IntfName": "TenGigabitEthernet0/0/0"
+            },
+            "10.10.1.2": {
+                "IPAddress": "10.10.1.2",
+                "SubnetMask": 23,
+                "IPAddressType": "IPv4",
+                "IntfName": "TenGigabitEthernet0/1/0.75"
+            }
+        }
+    },
+    "11": {
+        "NodeHostname": "Router01",
+        "NodeID": 11,
+        "Version": "03.11.01.E RELEASE SOFTWARE (fc4)",
+        "IPAddress": "172.16.5.2",
+        "PFLength": 24,
+        "SNMPLocation": "LOCATION STRING",
+        "Vendor": "Cisco",
+        "DeviceType": "Cisco Catalyst 4500 L3",
+        "Model": null,
+        "ServiceTag": null,
+        "interfaces": {
+            "TenGigabitEthernet1/1/1": {
+                "Name": "TenGigabitEthernet1/1/1",
+                "Enabled": "Unknown",
+                "Status": "Unknown",
+                "TypeName": "ethernetCsmacd",
+                "Speed": 1000000000.0,
+                "MAC": "F674BD01ADE4",
+                "MTU": 1500
+            },
+            "TenGigabitEthernet1/1/2": {
+                "Name": "TenGigabitEthernet1/1/2",
+                "Enabled": "Unknown",
+                "Status": "Unknown",
+                "TypeName": "ethernetCsmacd",
+                "Speed": 1000000000.0,
+                "MAC": "F674BD01ADE5",
+                "MTU": 1500
+            }
+        },
+        "ipaddrs": {
+            "10.11.1.1": {
+                "IPAddress": "10.11.1.1",
+                "SubnetMask": 23,
+                "IPAddressType": "IPv4",
+                "IntfName": "TenGigabitEthernet1/1/1"
+            },
+            "10.11.1.2": {
+                "IPAddress": "10.11.1.2",
+                "SubnetMask": 23,
+                "IPAddressType": "IPv4",
+                "IntfName": "TenGigabitEthernet1/1/2"
+            },
+            "172.16.1.1": {
+                "IPAddress": "172.16.1.1",
+                "SubnetMask": 24,
+                "IPAddressType": "IPv4",
+                "IntfName": "Ethernet0/1"
+            }
+        }
+    },
+    "12": {
+        "NodeHostname": "net-snmp Device",
+        "NodeID": 12,
+        "Vendor": "net-snmp"
+    }
+}

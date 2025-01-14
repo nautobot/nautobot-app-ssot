@@ -1,9 +1,12 @@
-"""Django urlpatterns declaration for nautobot_ssot API."""
+"""Django API urlpatterns declaration for nautobot_ssot app."""
+
+from nautobot.apps.api import OrderedDefaultRouter
 
 from nautobot_ssot.integrations.utils import each_enabled_integration_module
 
-app_name = "ssot"  # pylint: disable=invalid-name
 urlpatterns = []
+router = OrderedDefaultRouter()
+# add the name of your api endpoint, usually hyphenated model name in plural, e.g. "my-model-classes"
 
 
 def _add_integrations():
@@ -12,3 +15,5 @@ def _add_integrations():
 
 
 _add_integrations()
+
+urlpatterns += router.urls
