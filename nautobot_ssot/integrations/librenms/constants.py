@@ -17,6 +17,7 @@ os_manufacturer_map = {
     "ping": "Generic",
     "hpe-ilo": "HP",
     "proxmox": "Proxmox",
+    "opnsense": "Opnsense",
     # Types from LibreNMS/OS php files
     "aen": "Accedian OS",
     "airos": "Ubiquiti",
@@ -65,6 +66,7 @@ os_manufacturer_map = {
     "comware": "HPE",
     "coriant": "Coriant",
     "cumulus": "Cumulus Networks",
+    "cyberpower": "CyberPower",
     "danthermos": "Dantherm",
     "ddwrt": "DD-WRT",
     "deliberant": "Deliberant",
@@ -232,6 +234,7 @@ manufacturer_os_map = {
     # Other Types
     "Proxmox": ["proxmox"],
     "Generic": ["generic", "ping"],
+    "Opnsense": ["opnsense"],
     # Types imported from LibreNMS/OS php files
     "4RF": ["aprisa"],
     "3Com": ["threecom"],
