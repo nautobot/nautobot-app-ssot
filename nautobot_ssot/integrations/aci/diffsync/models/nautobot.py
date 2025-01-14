@@ -4,7 +4,7 @@ import logging
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import IntegrityError
-from nautobot.dcim.models import ControllerManagedDeviceGroup, Location, LocationType, Manufacturer
+from nautobot.dcim.models import ControllerManagedDeviceGroup, Location, Manufacturer
 from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import DeviceType as OrmDeviceType
 from nautobot.dcim.models import Interface as OrmInterface
@@ -180,7 +180,12 @@ class NautobotDevice(Device):
             serial=attrs["serial"],
             comments=attrs["comments"],
             controller_managed_device_group=ControllerManagedDeviceGroup.objects.get(name=attrs["controller_group"]),
-            location=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
+            location=Location.objects.get(
+                name=ids["site"],
+                location_type=adapter.job.device_site.location_type
+                if adapter.job.device_site
+                else adapter.job.apic.location.location_type,
+            ),
             status=Status.objects.get(name="Active"),
         )
 
@@ -195,7 +200,12 @@ class NautobotDevice(Device):
         """Update Device object in Nautobot."""
         _device = OrmDevice.objects.get(
             name=self.name,
-            location=Location.objects.get(name=self.site, location_type=LocationType.objects.get(name="Site")),
+            location=Location.objects.get(
+                name=self.site,
+                location_type=self.adapter.job.device_site.location_type
+                if self.adapter.job.device_site
+                else self.adapter.job.apic.location.location_type,
+            ),
         )
         if attrs.get("serial"):
             _device.serial = attrs["serial"]
@@ -222,7 +232,12 @@ class NautobotDevice(Device):
         super().delete()
         _device = OrmDevice.objects.get(
             name=self.name,
-            location=Location.objects.get(name=self.site, location_type=LocationType.objects.get(name="Site")),
+            location=Location.objects.get(
+                name=self.site,
+                location_type=self.adapter.job.device_site.location_type
+                if self.adapter.job.device_site
+                else self.adapter.job.apic.location.location_type,
+            ),
         )
         self.adapter.objects_to_delete["device"].append(_device)  # pylint: disable=protected-access
         return self
@@ -276,7 +291,12 @@ class NautobotInterface(Interface):
             name=ids["name"],
             device=OrmDevice.objects.get(
                 name=ids["device"],
-                location=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
+                location=Location.objects.get(
+                    name=ids["site"],
+                    location_type=adapter.job.device_site.location_type
+                    if adapter.job.device_site
+                    else adapter.job.apic.location.location_type,
+                ),
             ),
             description=attrs["description"],
             status=Status.objects.get(name="Active") if attrs["state"] == "up" else Status.objects.get(name="Failed"),
@@ -300,7 +320,12 @@ class NautobotInterface(Interface):
             name=self.name,
             device=OrmDevice.objects.get(
                 name=self.device,
-                location=Location.objects.get(name=self.site, location_type=LocationType.objects.get(name="Site")),
+                location=Location.objects.get(
+                    name=self.site,
+                    location_type=self.adapter.job.device_site.location_type
+                    if self.adapter.job.device_site
+                    else self.adapter.job.apic.location.location_type,
+                ),
             ),
         )
         if attrs.get("description"):
@@ -330,7 +355,12 @@ class NautobotInterface(Interface):
         try:
             device = OrmDevice.objects.get(
                 name=self.device,
-                location=Location.objects.get(name=self.site, location_type=LocationType.objects.get(name="Site")),
+                location=Location.objects.get(
+                    name=self.site,
+                    location_type=self.adapter.job.device_site.location_type
+                    if self.adapter.job.device_site
+                    else self.adapter.job.apic.location.location_type,
+                ),
             )
         except OrmDevice.DoesNotExist:
             self.adapter.job.logger.warning(
@@ -398,7 +428,12 @@ class NautobotIPAddress(IPAddress):
         if attrs["device"]:
             device = OrmDevice.objects.get(
                 name=_device,
-                location=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
+                location=Location.objects.get(
+                    name=ids["site"],
+                    location_type=adapter.job.device_site.location_type
+                    if adapter.job.device_site
+                    else adapter.job.apic.location.location_type,
+                ),
             )
             device.primary_ip4 = OrmIPAddress.objects.get(address=ids["address"])
             device.save()
@@ -467,7 +502,12 @@ class NautobotPrefix(Prefix):
             description=attrs["description"],
             namespace=Namespace.objects.get(name=attrs["namespace"]),
             tenant=OrmTenant.objects.get(name=attrs["vrf_tenant"]),
-            location=Location.objects.get(name=ids["site"], location_type=LocationType.objects.get(name="Site")),
+            location=Location.objects.get(
+                name=ids["site"],
+                location_type=adapter.job.device_site.location_type
+                if adapter.job.device_site
+                else adapter.job.apic.location.location_type,
+            ),
         )
 
         if not created:
