@@ -17,6 +17,7 @@ os_manufacturer_map = {
     "ping": "Generic",
     "hpe-ilo": "HP",
     "proxmox": "Proxmox",
+    "opnsense": "OPNsense",
     # Types from LibreNMS/OS php files
     "aen": "Accedian OS",
     "airos": "Ubiquiti",
@@ -233,6 +234,7 @@ manufacturer_os_map = {
     # Other Types
     "Proxmox": ["proxmox"],
     "Generic": ["generic", "ping"],
+    "OPNsense": ["opnsense"],
     # Types imported from LibreNMS/OS php files
     "4RF": ["aprisa"],
     "3Com": ["threecom"],
