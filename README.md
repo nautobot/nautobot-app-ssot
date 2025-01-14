@@ -35,6 +35,7 @@ This Nautobot application framework includes the following integrations:
 - Infoblox
 - IPFabric
 - Itential
+- LibreNMS
 - Cisco Meraki
 - ServiceNow
 - Slurpit
@@ -93,6 +94,7 @@ The SSoT framework includes a number of integrations with external Systems of Re
 * Cisco DNA Center
 * Infoblox
 * Itential
+* LibreNMS
 * Cisco Meraki
 * ServiceNow
 * Slurpit

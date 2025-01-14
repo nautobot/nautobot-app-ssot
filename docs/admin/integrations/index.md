@@ -11,6 +11,7 @@ This Nautobot app supports the following integrations:
 - [Infoblox](./infoblox_setup.md)
 - [IPFabric](./ipfabric_setup.md)
 - [Itential](./itential_setup.md)
+- [LibreNMS](./librenms_setup.md)
 - [Cisco Meraki](./meraki_setup.md)
 - [ServiceNow](./servicenow_setup.md)
 - [Slurpit](./slurpit_setup.md)

@@ -1,0 +1,22 @@
+{
+  "status": "ok",
+  "locations": [
+    {
+      "id": 1,
+      "location": "City Hall",
+      "lat": 41.874677429096174,
+      "lng": -87.62672768379687,
+      "timestamp": "2023-03-22 15:18:13",
+      "fixed_coordinates": 1
+    },
+    {
+      "id": 2,
+      "location": "GYM",
+      "lat": null,
+      "lng": null,
+      "timestamp": "2023-03-22 15:18:40",
+      "fixed_coordinates": 1
+    }
+  ],
+  "count": 2
+}
