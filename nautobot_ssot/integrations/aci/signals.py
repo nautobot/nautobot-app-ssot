@@ -4,6 +4,7 @@
 import logging
 import random
 
+from django.contrib.contenttypes.models import ContentType
 from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices
 
@@ -20,36 +21,30 @@ def register_signals(sender):
     nautobot_database_ready.connect(device_custom_fields, sender=sender)
     nautobot_database_ready.connect(interface_custom_fields, sender=sender)
 
+def _ensure_tag(apps, name, color):
+    """Ensure tag exists and properly configured."""
+    tag = apps.get_model("extras", "Tag")
+    _tag = tag.objects.get_or_create(name=name)[0]
+    _tag.color == color
+    for content_type in ContentType.objects.all():
+        if content_type not in _tag.content_types.all():
+            _tag.content_types.add(content_type)
+    _tag.validated_save()
 
 def aci_create_tag(apps, **kwargs):
     """Add a tag."""
     tag = apps.get_model("extras", "Tag")
     logger.info("Creating tags for ACI, interface status and Sites")
+    _ensure_tag(apps=apps, name=PLUGIN_CFG.get("tag"), color=PLUGIN_CFG.get("tag_color"))
+    _ensure_tag(apps=apps, name=PLUGIN_CFG.get("tag_up"), color=PLUGIN_CFG.get("tag_up_color"))
+    _ensure_tag(apps=apps, name=PLUGIN_CFG.get("tag_down"), color=PLUGIN_CFG.get("tag_down_color"))
+    _ensure_tag(apps=apps, name="ACI_MULTISITE", color="03a9f4")
 
-    tag.objects.update_or_create(
-        name=PLUGIN_CFG.get("tag"),
-        color=PLUGIN_CFG.get("tag_color"),
-    )
-    tag.objects.update_or_create(
-        name=PLUGIN_CFG.get("tag_up"),
-        color=PLUGIN_CFG.get("tag_up_color"),
-    )
-    tag.objects.update_or_create(
-        name=PLUGIN_CFG.get("tag_down"),
-        color=PLUGIN_CFG.get("tag_down_color"),
-    )
-    tag.objects.update_or_create(
-        name="ACI_MULTISITE",
-        color="03a9f4",
-    )
     apics = PLUGIN_CFG.get("apics")
     if apics:
         for key in apics:
             if ("SITE" in key or "STAGE" in key) and not tag.objects.filter(name=apics[key]).exists():
-                tag.objects.update_or_create(
-                    name=apics[key],
-                    color="".join([random.choice("ABCDEF0123456789") for i in range(6)]),  # noqa: S311
-                )
+                _ensure_tag(apps=apps, name=apics[key], color="".join([random.choice("ABCDEF0123456789") for i in range(6)]))  # noqa: S311
 
 
 def aci_create_manufacturer(apps, **kwargs):
