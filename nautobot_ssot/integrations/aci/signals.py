@@ -4,7 +4,6 @@
 import logging
 import random
 
-from django.contrib.contenttypes.models import ContentType
 from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices
 
@@ -24,6 +23,7 @@ def register_signals(sender):
 
 def _ensure_tag(apps, name, color):
     """Ensure tag exists and properly configured."""
+    ContentType = apps.get_model("contenttypes", "ContentType")
     tag = apps.get_model("extras", "Tag")
     _tag = tag.objects.get_or_create(name=name)[0]
     _tag.color == color
