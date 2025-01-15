@@ -47,8 +47,8 @@ def aci_create_tag(apps, **kwargs):
         for key in apics:
             if ("SITE" in key or "STAGE" in key) and not tag.objects.filter(name=apics[key]).exists():
                 _ensure_tag(
-                    apps=apps, name=apics[key], color="".join([random.choice("ABCDEF0123456789") for i in range(6)])
-                )  # noqa: S311
+                    apps=apps, name=apics[key], color="".join([random.choice("ABCDEF0123456789") for i in range(6)]) # noqa: S311
+                )
 
 
 def aci_create_manufacturer(apps, **kwargs):
