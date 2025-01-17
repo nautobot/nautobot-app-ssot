@@ -123,8 +123,7 @@ class NautobotAdapter(Adapter):
 
     def load_devicetypes(self):
         """Method to load Device Types from Nautobot."""
-        _tag = Tag.objects.get(name=PLUGIN_CFG.get("tag"))
-        for nbdevicetype in DeviceType.objects.filter(tags=_tag):
+        for nbdevicetype in DeviceType.objects.all():
             _devicetype = self.device_type(
                 model=nbdevicetype.model,
                 part_nbr=nbdevicetype.part_number,
@@ -136,7 +135,7 @@ class NautobotAdapter(Adapter):
 
     def load_interfacetemplates(self):
         """Method to load Interface Templates from Nautobot."""
-        for nbinterfacetemplate in InterfaceTemplate.objects.filter(tags=self.site_tag):
+        for nbinterfacetemplate in InterfaceTemplate.objects.all():
             _interfacetemplate = self.interface_template(
                 name=nbinterfacetemplate.name,
                 device_type=nbinterfacetemplate.device_type.model,
