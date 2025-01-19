@@ -1,1 +1,0 @@
-Fixed ACI integration LocationType usage in CRUD operations to match Job device_site or specified APIC Location's LocationType.

@@ -1,0 +1,2 @@
+Fixed ACI signal initializing Tags without ContentType or Color being populated
+Fixed ACI signal initializing Tag throwing duplicate key exception.
