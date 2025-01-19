@@ -3,14 +3,14 @@
   "devices": [
     {
       "hostname": "192.168.1.2",
-      "display": "librenmsdev",
+      "display": "LIBRENMSDEV",
       "location_id": 2,
       "port": 161,
       "transport": "udp",
       "poller_group": 0,
       "os": "linux",
       "status_reason": "",
-      "sysName": "librenmsdev",
+      "sysName": "LIBRENMSDEV",
       "port_association_mode": 1,
       "snmpver": "v3",
       "community": null,

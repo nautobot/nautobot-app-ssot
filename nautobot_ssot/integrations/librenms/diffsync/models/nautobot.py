@@ -70,7 +70,9 @@ class NautobotLocation(Location):
         try:
             _location_type = LocationType.objects.get(id=adapter.job.location_type.id)
         except LocationType.DoesNotExist:
-            adapter.job.logger.warning(f"Location Type {adapter.job.location_type} does not exist. Using default Site Location Type.")
+            adapter.job.logger.warning(
+                f"Location Type {adapter.job.location_type} does not exist. Using default Site Location Type."
+            )
             _location_type = LocationType.objects.get(name="Site")
 
         new_location = ORMLocation(

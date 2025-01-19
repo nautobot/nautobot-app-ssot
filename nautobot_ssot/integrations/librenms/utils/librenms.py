@@ -70,7 +70,9 @@ class ApiEndpoint:  # pylint: disable=too-few-public-methods
         else:
             params = {**self.params, **params}
 
-        LOGGER.debug(f"LibreNMS API Call: Headers: {self.headers} Method: {method} URL: {url} Params: {params} Payload: {payload}")
+        LOGGER.debug(
+            f"LibreNMS API Call: Headers: {self.headers} Method: {method} URL: {url} Params: {params} Payload: {payload}"
+        )
 
         resp = requests.request(
             method=method,

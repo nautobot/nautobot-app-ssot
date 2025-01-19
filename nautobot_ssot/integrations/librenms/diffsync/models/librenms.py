@@ -21,10 +21,14 @@ class LibrenmsLocation(Location):
                 adapter.job.logger.info(f"Creating location in LibreNMS: {location['location']}")
                 adapter.lnms_api.create_librenms_location(location)
             else:
-                adapter.job.logger.warning(f"Skipping location in LibreNMS: {ids['name']}. Latitude or Longitude is not set, which LibreNMS requires.")
+                adapter.job.logger.warning(
+                    f"Skipping location in LibreNMS: {ids['name']}. Latitude or Longitude is not set, which LibreNMS requires."
+                )
         else:
             if adapter.job.debug:
-                adapter.job.logger.debug(f"Skipping location in LibreNMS: {ids['name']}. Status is not Active or Staged.")
+                adapter.job.logger.debug(
+                    f"Skipping location in LibreNMS: {ids['name']}. Status is not Active or Staged."
+                )
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -73,7 +77,9 @@ class LibrenmsDevice(Device):
                     nautobot_device.save()
             else:
                 if adapter.job.debug:
-                    adapter.job.logger.debug(f"Skipping device in LibreNMS: {ids['name']}. No Primary IP address found.")
+                    adapter.job.logger.debug(
+                        f"Skipping device in LibreNMS: {ids['name']}. No Primary IP address found."
+                    )
         else:
             adapter.job.logger.info(f"Skipping device in LibreNMS: {ids['name']}. Status is not Active or Staged.")
         return super().create(adapter=adapter, ids=ids, attrs=attrs)

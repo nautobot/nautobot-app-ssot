@@ -239,7 +239,19 @@ class LibrenmsDataTarget(DataTarget):
         self.target_adapter = librenms.LibrenmsAdapter(job=self, sync=self.sync, librenms_api=librenms_api)
         self.target_adapter.load()
 
-    def run(self, dryrun, memory_profiling, debug, librenms_server, force_add, ping_fallback, sync_locations, location_type, *args, **kwargs):  # pylint: disable=arguments-differ
+    def run(
+        self,
+        dryrun,
+        memory_profiling,
+        debug,
+        librenms_server,
+        force_add,
+        ping_fallback,
+        sync_locations,
+        location_type,
+        *args,
+        **kwargs,
+    ):  # pylint: disable=arguments-differ
         """Perform data synchronization."""
         self.librenms_server = librenms_server
         self.force_add = force_add
