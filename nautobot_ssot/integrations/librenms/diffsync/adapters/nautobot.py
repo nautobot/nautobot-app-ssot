@@ -13,7 +13,11 @@ from nautobot_ssot.integrations.librenms.diffsync.models.nautobot import (
     NautobotDevice,
     NautobotLocation,
 )
-from nautobot_ssot.integrations.librenms.utils import check_sor_field, get_sor_field_nautobot_object, normalize_device_hostname
+from nautobot_ssot.integrations.librenms.utils import (
+    check_sor_field,
+    get_sor_field_nautobot_object,
+    normalize_device_hostname,
+)
 
 
 class NautobotAdapter(DiffSync):

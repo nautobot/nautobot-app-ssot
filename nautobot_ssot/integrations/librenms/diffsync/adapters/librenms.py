@@ -17,8 +17,8 @@ from nautobot_ssot.integrations.librenms.diffsync.models.librenms import (
     LibrenmsLocation,
 )
 from nautobot_ssot.integrations.librenms.utils import (
-    normalize_gps_coordinates,
     normalize_device_hostname,
+    normalize_gps_coordinates,
 )
 from nautobot_ssot.integrations.librenms.utils.librenms import LibreNMSApi
 

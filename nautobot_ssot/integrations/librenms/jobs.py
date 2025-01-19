@@ -5,12 +5,12 @@ import os
 from django.templatetags.static import static
 from nautobot.apps.jobs import BooleanVar, ChoiceVar, ObjectVar
 from nautobot.core.celery import register_jobs
+from nautobot.dcim.models import LocationType
 from nautobot.extras.choices import (
     SecretsGroupAccessTypeChoices,
     SecretsGroupSecretTypeChoices,
 )
 from nautobot.extras.models import ExternalIntegration
-from nautobot.dcim.models import LocationType
 from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.librenms.diffsync.adapters import librenms, nautobot

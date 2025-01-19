@@ -1,9 +1,9 @@
 """Utility functions for working with LibreNMS and Nautobot."""
 
 import inspect
+import ipaddress
 import logging
 import os
-import ipaddress
 
 from constance import config as constance_name
 from django.conf import settings
@@ -25,7 +25,7 @@ def normalize_setting(variable_name):
 
 
 def normalize_device_hostname(hostname):
-    """Normalize device hostname to be a valid LibreNMS or Nautobot hostname. Remove domain suffixes and uppercase the names for comparison (if not an IP Address)"""
+    """Normalize device hostname to be a valid LibreNMS or Nautobot hostname. Remove domain suffixes and uppercase the names for comparison (if not an IP Address)."""
     if isinstance(hostname, ipaddress.IPv4Address) or isinstance(hostname, ipaddress.IPv6Address):
         return hostname
     hostname = hostname.split(".")[0]

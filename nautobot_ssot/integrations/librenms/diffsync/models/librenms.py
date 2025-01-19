@@ -1,8 +1,8 @@
 """Nautobot Ssot Librenms DiffSync models for Nautobot Ssot Librenms SSoT."""
 
-from nautobot_ssot.integrations.librenms.diffsync.models.base import Device, Location
-from django.contrib.contenttypes.models import ContentType
 from nautobot.dcim.models import Device as NautobotDevice
+
+from nautobot_ssot.integrations.librenms.diffsync.models.base import Device, Location
 
 
 class LibrenmsLocation(Location):
