@@ -13,7 +13,7 @@ from nautobot_ssot.integrations.librenms.diffsync.models.nautobot import (
     NautobotDevice,
     NautobotLocation,
 )
-from nautobot_ssot.integrations.librenms.utils import check_sor_field, get_sor_field_nautobot_object
+from nautobot_ssot.integrations.librenms.utils import check_sor_field, get_sor_field_nautobot_object, normalize_device_hostname
 
 
 class NautobotAdapter(DiffSync):
@@ -80,11 +80,15 @@ class NautobotAdapter(DiffSync):
                     _software_version = nb_device.software_version.version
                 except AttributeError:
                     _software_version = None
+                try:
+                    _ip_address = nb_device.primary_ip.host
+                except AttributeError:
+                    _ip_address = None
                 _device_id = None
                 if nb_device.custom_field_data.get("librenms_device_id"):
                     _device_id = nb_device.custom_field_data.get("librenms_device_id")
                 new_device = NautobotDevice(
-                    name=nb_device.name,
+                    name=normalize_device_hostname(nb_device.name),
                     device_id=_device_id,
                     location=nb_device.location.name,
                     status=nb_device.status.name,
@@ -94,6 +98,7 @@ class NautobotAdapter(DiffSync):
                     platform=nb_device.platform.name,
                     os_version=_software_version,
                     serial_no=nb_device.serial,
+                    ip_address=_ip_address,
                     system_of_record=get_sor_field_nautobot_object(nb_device),
                     uuid=nb_device.id,
                 )

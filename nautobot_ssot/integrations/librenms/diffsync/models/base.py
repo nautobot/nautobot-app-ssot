@@ -61,6 +61,7 @@ class Device(DiffSyncModel):
     tenant: Optional[str] = None
     status: str
     device_type: str
+    ip_address: Optional[str] = None
     role: Optional[str] = None
     manufacturer: str
     platform: Optional[str] = None
