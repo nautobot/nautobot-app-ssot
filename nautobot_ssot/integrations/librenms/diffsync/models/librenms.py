@@ -1,6 +1,8 @@
 """Nautobot Ssot Librenms DiffSync models for Nautobot Ssot Librenms SSoT."""
 
 from nautobot_ssot.integrations.librenms.diffsync.models.base import Device, Location
+from django.contrib.contenttypes.models import ContentType
+from nautobot.dcim.models import Device as NautobotDevice
 
 
 class LibrenmsLocation(Location):
@@ -61,7 +63,15 @@ class LibrenmsDevice(Device):
                 if adapter.job.ping_fallback:
                     device["ping_fallback"] = True
                 adapter.job.logger.info(f"Creating device in LibreNMS: {device['hostname']}")
-                adapter.lnms_api.create_librenms_device(device)
+                response = adapter.lnms_api.create_librenms_device(device)
+                if response.get("status") == "error":
+                    adapter.job.logger.error(f"Error creating device in LibreNMS: {response['message']}")
+                elif response.get("status") == "ok" and response.get("devices"):
+                    # Get the device ID from the first device in the devices array
+                    librenms_device_id = response["devices"][0]["device_id"]
+                    nautobot_device = NautobotDevice.objects.get(name=ids["name"])
+                    nautobot_device.custom_field_data["librenms_device_id"] = librenms_device_id
+                    nautobot_device.save()
             else:
                 if adapter.job.debug:
                     adapter.job.logger.debug(f"Skipping device in LibreNMS: {ids['name']}. No Primary IP address found.")
