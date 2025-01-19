@@ -11,25 +11,47 @@ The LibreNMS SSoT integration is built as part of the [Nautobot Single Source of
 - Debug: Additional Logging
 - Librenms Server: External integration object pointing to the required LibreNMS instance.
 - hostname_field: Which LibreNMS field to use as the hostname in Nautobot. sysName or hostanme.
-- sync_location_parents: Whether to lookup City and State to add parent locations for geo locations.
+- location_type: This is used to filter which locations are synced to LibreNMS. This should be the Location Type that actually has devices assigned. For example, Site. Since LibreNMS does not support nested locations.
+- load_type: Whether to load data from a local fixture file or from the External Integration API. File is only used for testing.
 - tenant: This is used as a filter for objects synced with Nautobot and LibreNMS. This can be used to sync multiple LibreNMS instances into different tenants, like in an MSP environment. This affects which devices are loaded from Nautobot during the sync. It does not affect which devices are loaded from LibreNMS
 
-From LibreNMS into Nautobot, the app synchronizes devices, their interfaces, associated IP addresses, and Locations. Here is a table showing the data mappings when syncing from LibreNMS.
+From LibreNMS into Nautobot, the app synchronizes devices, and Locations. Here is a table showing the data mappings when syncing from LibreNMS to Nautobot.
 
 | LibreNMS objects        | Nautobot objects             |
 | ----------------------- | ---------------------------- |
 | geo location            | Location                     |
 | device                  | Device                       |
-| interface               | Interface                    |
+| interface               | Interface `**`               |
 | device os               | Platform/Manufacturer `*`    |
 | os version              | Software/SoftwareImage       |
-| ip address              | IPAddress                    |
+| ip address              | IPAddress `**`               |
 | hardware                | DeviceType                   |
 
 
-`*` Device OS from LibreNMS is not standardized and therefore there is a mapping that can be updated in the `constants.py` file for the integration as more device manufacturers and platforms need to be added.
+`*` Device OS from LibreNMS is not standardized and therefore there is a mapping that can be updated in the `constants.py` file for the integration as more device manufacturers and platforms need to be added. If new device manufacturers and platforms are added, open an issue or PR to add them.
+`**` Not yet implemented, but planned for the future.
 
 ### LibreNMS as DataTarget
 
-Not yet implemented.
+This is a job that can be used to sync data from Nautobot to LibreNMS. 
 
+#### Job Options
+
+- Debug: Additional Logging
+- Librenms Server: External integration object pointing to the required LibreNMS instance.
+- hostname_field: Which LibreNMS field to use as the hostname in Nautobot. sysName or hostanme.
+- sync_locations: Whether to sync locations from Nautobot to LibreNMS.
+- location_type: This is used to filter which locations are synced to LibreNMS. This should be the Location Type that actually has devices assigned. For example, Site. Since LibreNMS does not support nested locations.
+- tenant: This is used as a filter for objects synced with Nautobot and LibreNMS. This can be used to sync multiple LibreNMS instances into different tenants, like in an MSP environment. This affects which devices are loaded from Nautobot during the sync. It does not affect which devices are loaded from LibreNMS
+- force_add: Whether to force add devices to LibreNMS. This will bypass the ICMP check. Will not work correctly until SNMP credential support is added to the LibreNMSDataTarget job.
+- ping_fallback: Whether to add device as ping-only if device is not reachable via SNMP.
+
+From Nautobot into LibreNMS, the app synchronizes devices, and Locations. Here is a table showing the data mappings when syncing from Nautobot to LibreNMS.
+
+| Nautobot objects             | LibreNMS objects        |
+| ---------------------------- | ----------------------- |
+| Device                       | device `*`              |
+| Location                     | geo location `**`       |
+
+`*` Devices in Nautobot must have a primary IP address set for them to be added to LibreNMS.
+`**` Locations must have GPS coordinates set for them to be added to LibreNMS.
