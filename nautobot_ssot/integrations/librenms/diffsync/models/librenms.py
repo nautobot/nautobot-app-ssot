@@ -50,7 +50,6 @@ class LibrenmsDevice(Device):
     def create(cls, adapter, ids, attrs):
         """Create Device in LibreNMS from LibrenmsDevice object."""
         if attrs["status"] == "Active" or attrs["status"] == "Staged":
-            # Access the nested device dictionary correctly
             device_data = adapter.job.source_adapter.dict()["device"][ids["name"]]
             if device_data.get("ip_address"):
                 device = {
