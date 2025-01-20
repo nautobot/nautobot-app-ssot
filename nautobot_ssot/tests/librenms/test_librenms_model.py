@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 from diffsync import Adapter
 from django.test import TestCase
 from nautobot.dcim.models import Device as NautobotDevice
+from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer
 from nautobot.extras.models import Role, Status
 
 from nautobot_ssot.integrations.librenms.diffsync.models.librenms import LibrenmsDevice, LibrenmsLocation
@@ -98,18 +99,18 @@ class TestLibrenmsDevice(TestCase):
         """Set up test case."""
         super().setUp()
         self.adapter = TestAdapter()
-
-        self.success_response = ADD_LIBRENMS_DEVICE_SUCCESS
-        self.failure_response = ADD_LIBRENMS_DEVICE_FAILURE
-        self.ping_fallback_response = ADD_LIBRENMS_DEVICE_PING_FALLBACK
+        
+        self.responses = {
+            'success': ADD_LIBRENMS_DEVICE_SUCCESS,
+            'failure': ADD_LIBRENMS_DEVICE_FAILURE,
+            'ping_fallback': ADD_LIBRENMS_DEVICE_PING_FALLBACK
+        }
 
         self.status = Status.objects.get_or_create(
             name="Active", defaults={"color": "4caf50", "description": "Unit Testing Active Status"}
         )[0]
 
         device_type = self.create_device_dependencies()
-
-        from nautobot.dcim.models import Location, LocationType
 
         location_type = LocationType.objects.get_or_create(name="Site")[0]
         self.location = Location.objects.get_or_create(
@@ -133,7 +134,6 @@ class TestLibrenmsDevice(TestCase):
 
     def create_device_dependencies(self):
         """Create the minimum required objects for a Device."""
-        from nautobot.dcim.models import DeviceType, Manufacturer
 
         manufacturer = Manufacturer.objects.get_or_create(name="Generic")[0]
         device_type = DeviceType.objects.get_or_create(
@@ -146,7 +146,7 @@ class TestLibrenmsDevice(TestCase):
         return device_type
 
     @patch("nautobot.dcim.models.Device.objects.get")
-    def test_create_device_success(self, mock_device_get):
+    def test_create_device_success(self):
         """Test creating a device with valid data."""
         device_name = "test-device"
         ids = {"name": device_name}
@@ -199,7 +199,7 @@ class TestLibrenmsDevice(TestCase):
 
         self.adapter.job.source_adapter.dict.return_value = {"device": {device_name: attrs}}
 
-        self.adapter.lnms_api.create_librenms_device.return_value = self.success_response
+        self.adapter.lnms_api.create_librenms_device.return_value = self.responses['success']
 
         device = LibrenmsDevice.create(self.adapter, ids, attrs)
 
@@ -213,7 +213,7 @@ class TestLibrenmsDevice(TestCase):
             }
         )
 
-        self.assertEqual(device.name, self.success_response["devices"][0]["display"])
+        self.assertEqual(device.name, self.responses['success']["devices"][0]["display"])
 
     def test_create_device_with_ping_fallback(self):
         """Test creating a device with ping_fallback enabled."""
@@ -261,7 +261,7 @@ class TestLibrenmsDevice(TestCase):
         with self.assertRaises(Exception) as context:
             LibrenmsDevice.create(self.adapter, ids, attrs)
 
-        self.assertEqual(str(context.exception), self.failure_response["no_ping"]["message"])
+        self.assertEqual(str(context.exception), self.responses['failure']["no_ping"]["message"])
 
     def test_create_device_failure_no_snmp(self):
         """Test creating a device with SNMP failure."""
@@ -279,13 +279,13 @@ class TestLibrenmsDevice(TestCase):
         self.adapter.job.source_adapter.dict.return_value = {"device": {device_name: attrs}}
 
         self.adapter.lnms_api.create_librenms_device.side_effect = Exception(
-            self.failure_response["no_snmp"]["message"]
+            self.responses['failure']["no_snmp"]["message"]
         )
 
         with self.assertRaises(Exception) as context:
             LibrenmsDevice.create(self.adapter, ids, attrs)
 
-        self.assertEqual(str(context.exception), self.failure_response["no_snmp"]["message"])
+        self.assertEqual(str(context.exception), self.responses['failure']["no_snmp"]["message"])
 
     def test_create_device_no_ip(self):
         """Test creating a device without an IP address."""
