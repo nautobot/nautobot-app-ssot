@@ -17,10 +17,12 @@ from nautobot_ssot.tests.librenms.fixtures import (
 
 class TestAdapter(Adapter):
     """Test adapter class that inherits from diffsync.Adapter."""
+
     def __init__(self):
         super().__init__()
         self.job = MagicMock()
         self.lnms_api = MagicMock()
+
 
 class TestLibrenmsLocation(TestCase):
     """Test cases for LibrenmsLocation model."""
@@ -33,11 +35,7 @@ class TestLibrenmsLocation(TestCase):
         self.adapter = mock_adapter
 
         Status.objects.get_or_create(
-            name="Active",
-            defaults={
-                "color": "4caf50",
-                "description": "Unit Testing Active Status"
-            }
+            name="Active", defaults={"color": "4caf50", "description": "Unit Testing Active Status"}
         )
 
     def test_create_location_success(self):
@@ -106,32 +104,22 @@ class TestLibrenmsDevice(TestCase):
         self.ping_fallback_response = ADD_LIBRENMS_DEVICE_PING_FALLBACK
 
         self.status = Status.objects.get_or_create(
-            name="Active",
-            defaults={
-                "color": "4caf50",
-                "description": "Unit Testing Active Status"
-            }
+            name="Active", defaults={"color": "4caf50", "description": "Unit Testing Active Status"}
         )[0]
 
         device_type = self.create_device_dependencies()
 
         from nautobot.dcim.models import Location, LocationType
+
         location_type = LocationType.objects.get_or_create(name="Site")[0]
         self.location = Location.objects.get_or_create(
             name="Test Location",
             location_type=location_type,
             status=self.status,
-            defaults={
-                "description": "Test Location for Unit Tests"
-            }
+            defaults={"description": "Test Location for Unit Tests"},
         )[0]
 
-        self.device_role = Role.objects.get_or_create(
-            name="Test Role",
-            defaults={
-                "color": "ff0000"
-            }
-        )[0]
+        self.device_role = Role.objects.get_or_create(name="Test Role", defaults={"color": "ff0000"})[0]
 
         self.device = NautobotDevice.objects.get_or_create(
             name="test-device",
@@ -139,27 +127,25 @@ class TestLibrenmsDevice(TestCase):
                 "status": self.status,
                 "device_type": device_type,
                 "location": self.location,
-                "role": self.device_role
-            }
+                "role": self.device_role,
+            },
         )[0]
 
     def create_device_dependencies(self):
         """Create the minimum required objects for a Device."""
         from nautobot.dcim.models import DeviceType, Manufacturer
 
-        manufacturer = Manufacturer.objects.get_or_create(
-            name="Generic"
-        )[0]
+        manufacturer = Manufacturer.objects.get_or_create(name="Generic")[0]
         device_type = DeviceType.objects.get_or_create(
             manufacturer=manufacturer,
             model="Test Device Type",
             defaults={
                 "manufacturer": manufacturer,
-            }
+            },
         )[0]
         return device_type
 
-    @patch('nautobot.dcim.models.Device.objects.get')
+    @patch("nautobot.dcim.models.Device.objects.get")
     def test_create_device_success(self, mock_device_get):
         """Test creating a device with valid data."""
         device_name = "test-device"
@@ -177,13 +163,15 @@ class TestLibrenmsDevice(TestCase):
 
         LibrenmsDevice.create(self.adapter, ids, attrs)
 
-        self.adapter.lnms_api.create_librenms_device.assert_called_once_with({
-            'hostname': '192.168.1.1',
-            'display': device_name,
-            'location': 'City Hall',
-            'force_add': True,
-            'ping_fallback': True
-        })
+        self.adapter.lnms_api.create_librenms_device.assert_called_once_with(
+            {
+                "hostname": "192.168.1.1",
+                "display": device_name,
+                "location": "City Hall",
+                "force_add": True,
+                "ping_fallback": True,
+            }
+        )
 
     def test_create_device_default(self):
         """Test creating a device with default settings."""
@@ -205,8 +193,8 @@ class TestLibrenmsDevice(TestCase):
                 "status": self.status,
                 "device_type": device_type,
                 "location": self.location,
-                "role": self.device_role
-            }
+                "role": self.device_role,
+            },
         )
 
         self.adapter.job.source_adapter.dict.return_value = {"device": {device_name: attrs}}
@@ -215,13 +203,15 @@ class TestLibrenmsDevice(TestCase):
 
         device = LibrenmsDevice.create(self.adapter, ids, attrs)
 
-        self.adapter.lnms_api.create_librenms_device.assert_called_once_with({
-            'hostname': '192.168.1.2',
-            'display': device_name,
-            'location': 'City Hall',
-            'force_add': True,
-            'ping_fallback': True
-        })
+        self.adapter.lnms_api.create_librenms_device.assert_called_once_with(
+            {
+                "hostname": "192.168.1.2",
+                "display": device_name,
+                "location": "City Hall",
+                "force_add": True,
+                "ping_fallback": True,
+            }
+        )
 
         self.assertEqual(device.name, self.success_response["devices"][0]["display"])
 
@@ -239,7 +229,7 @@ class TestLibrenmsDevice(TestCase):
             "status": "Active",
             "os_version": "1.0",
             "device_id": "123",
-            "serial_no": "ABC123"
+            "serial_no": "ABC123",
         }
 
         mock_adapter = MagicMock(spec=Adapter)
@@ -259,7 +249,7 @@ class TestLibrenmsDevice(TestCase):
             "device_type": "Generic Device",
             "manufacturer": "Generic",
             "system_of_record": "LibreNMS",
-            "status": "Active"
+            "status": "Active",
         }
 
         self.adapter.job.source_adapter.dict.return_value = {"device": {device_name: attrs}}
@@ -283,7 +273,7 @@ class TestLibrenmsDevice(TestCase):
             "device_type": "Generic Device",
             "manufacturer": "Generic",
             "system_of_record": "LibreNMS",
-            "status": "Active"
+            "status": "Active",
         }
 
         self.adapter.job.source_adapter.dict.return_value = {"device": {device_name: attrs}}
