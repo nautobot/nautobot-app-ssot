@@ -99,11 +99,11 @@ class TestLibrenmsDevice(TestCase):
         """Set up test case."""
         super().setUp()
         self.adapter = TestAdapter()
-        
+
         self.responses = {
-            'success': ADD_LIBRENMS_DEVICE_SUCCESS,
-            'failure': ADD_LIBRENMS_DEVICE_FAILURE,
-            'ping_fallback': ADD_LIBRENMS_DEVICE_PING_FALLBACK
+            "success": ADD_LIBRENMS_DEVICE_SUCCESS,
+            "failure": ADD_LIBRENMS_DEVICE_FAILURE,
+            "ping_fallback": ADD_LIBRENMS_DEVICE_PING_FALLBACK,
         }
 
         self.status = Status.objects.get_or_create(
@@ -199,7 +199,7 @@ class TestLibrenmsDevice(TestCase):
 
         self.adapter.job.source_adapter.dict.return_value = {"device": {device_name: attrs}}
 
-        self.adapter.lnms_api.create_librenms_device.return_value = self.responses['success']
+        self.adapter.lnms_api.create_librenms_device.return_value = self.responses["success"]
 
         device = LibrenmsDevice.create(self.adapter, ids, attrs)
 
@@ -213,7 +213,7 @@ class TestLibrenmsDevice(TestCase):
             }
         )
 
-        self.assertEqual(device.name, self.responses['success']["devices"][0]["display"])
+        self.assertEqual(device.name, self.responses["success"]["devices"][0]["display"])
 
     def test_create_device_with_ping_fallback(self):
         """Test creating a device with ping_fallback enabled."""
@@ -261,7 +261,7 @@ class TestLibrenmsDevice(TestCase):
         with self.assertRaises(Exception) as context:
             LibrenmsDevice.create(self.adapter, ids, attrs)
 
-        self.assertEqual(str(context.exception), self.responses['failure']["no_ping"]["message"])
+        self.assertEqual(str(context.exception), self.responses["failure"]["no_ping"]["message"])
 
     def test_create_device_failure_no_snmp(self):
         """Test creating a device with SNMP failure."""
@@ -279,13 +279,13 @@ class TestLibrenmsDevice(TestCase):
         self.adapter.job.source_adapter.dict.return_value = {"device": {device_name: attrs}}
 
         self.adapter.lnms_api.create_librenms_device.side_effect = Exception(
-            self.responses['failure']["no_snmp"]["message"]
+            self.responses["failure"]["no_snmp"]["message"]
         )
 
         with self.assertRaises(Exception) as context:
             LibrenmsDevice.create(self.adapter, ids, attrs)
 
-        self.assertEqual(str(context.exception), self.responses['failure']["no_snmp"]["message"])
+        self.assertEqual(str(context.exception), self.responses["failure"]["no_snmp"]["message"])
 
     def test_create_device_no_ip(self):
         """Test creating a device without an IP address."""
