@@ -2,6 +2,7 @@
 
 import inspect
 import os
+from datetime import datetime
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
@@ -10,6 +11,8 @@ from django.db import models
 from nautobot.extras.datasources.registry import get_datasource_content_choices
 from nautobot.extras.models import Contact, Team
 from nautobot.extras.utils import FeatureQuery, RoleModelsQuery, TaggableClassesQuery
+
+from nautobot_ssot.exceptions import JobException
 
 
 def is_running_tests():
@@ -138,3 +141,36 @@ def lookup_contact_for_team(contact):
         return _contact
     except Contact.DoesNotExist:
         return None
+
+
+def get_scheduled_start_time(scheduled_job):
+    """Validate and return start_time is ISO 8601 format."""
+    start_time = scheduled_job.get("start_time")
+    if not start_time:
+        if scheduled_job.get("interval") == "custom":
+            return ""
+        raise JobException(
+            f"Invalid start_time: {start_time}, unable to load scheduled job {scheduled_job.get('name')}."
+        )
+    try:
+        start = datetime.fromisoformat(f"{start_time}+00:00").isoformat()  # UTC, the Job stores time_zone info
+    except ValueError as err:
+        raise JobException(
+            f"Invalid start_time: {start_time}, unable to load scheduled job {scheduled_job.get('name')}."
+        ) from err
+
+    return start
+
+
+def get_scheduled_interval(scheduled_job):
+    """Validate and return the scheduled interval."""
+    crontab = ""
+    interval = scheduled_job.get("interval")
+
+    if interval not in ("future", "hourly", "daily", "weekly", "custom"):
+        raise JobException(f"Invalid interval: {interval}, unable to load scheduled job.")
+
+    if interval == "custom":
+        crontab = scheduled_job.get("crontab")
+
+    return interval, crontab

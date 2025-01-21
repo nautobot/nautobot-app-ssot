@@ -2227,7 +2227,7 @@ class NautobotScheduledJob(ScheduledJob):
     def create(cls, adapter, ids, attrs):
         """Create ScheduledJob in Nautobot from NautobotScheduledJob object."""
         adapter.job.logger.error(
-            f"Creating scheduled jobs ({ids['name']}) is not supported. Please create manually and use Bootstrap to update times."
+            f"Creating scheduled job ({ids['name']}) is not supported. Please create the scheduled job first the the Nautobot UI, and use Bootstrap to set/update future changes."
         )
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 

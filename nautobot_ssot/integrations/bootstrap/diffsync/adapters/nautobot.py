@@ -1177,14 +1177,14 @@ class NautobotAdapter(Adapter):
             try:
                 self.get(self.scheduled_job, job.name)
             except ObjectNotFound:
-                self.add(
-                    self.scheduled_job(
-                        name=job.name,
-                        interval=job.interval,
-                        start_time=job.start_time.isoformat(),
-                        crontab=job.crontab,
-                    )
+                _scheduled_job = self.scheduled_job(
+                    name=job.name,
+                    interval=job.interval,
+                    start_time=job.start_time.isoformat(),
+                    crontab=job.crontab,
                 )
+                _scheduled_job.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+                self.add(_scheduled_job)
 
     def load_software(self):
         """Method to load Software objects from Nautobot into NautobotSoftware Models."""
