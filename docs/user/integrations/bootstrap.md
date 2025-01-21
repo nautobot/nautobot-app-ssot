@@ -94,6 +94,13 @@ graph_ql_query:
           }
         }
       }
+scheduled_job:
+  - name: "Scheduled Job Daily"
+    start_time: "2025-01-20 15:30:00" 
+    interval: "daily"
+  - name: "Scheduled Job Custom"
+    interval: "custom"
+    crontab: "*/15 * * * *"
 software:
   - device_platform: "arista_eos"
     version: "4.25.10M"
@@ -673,6 +680,17 @@ graph_ql_query:
 ```
 
 The `query:` key takes a graphql formatted string to retrieve the information required.
+
+### ScheduledJob
+Update Scheduled Jobs start_time and/or interval settings. This will not create scheduled jobs for you. You must manually create the scheduled job, at which point Bootstrap will be able to update times/schedules as needed.
+
+```yaml
+scheduled_job:
+  - name: # str
+    start_time: # str -- ISO 8601 format (YYYY-MM-DD HH:MM:SS) leave time_zone information out.
+    interval: # str -- Options are: daily, weekly, hourly, future, custom
+    crontab: # str -- Basic Crontab syntax. Use with interval 'custom'
+```
 
 ### Software
 

@@ -760,5 +760,23 @@ class SSoTJob(DiffSyncModel):
     uuid: Optional[UUID] = None
 
 
+class ScheduledJob(DiffSyncModel):
+    """DiffSync model for Scheduled Jobs."""
+
+    _modelname = "scheduled_job"
+    _identifiers = ("name",)
+    _attributes = (
+        "interval",
+        "start_time",
+        "crontab",
+    )
+    _children = {}
+
+    name: str
+    interval: str
+    start_time: str
+    crontab: str
+
+
 Circuit.model_rebuild()
 CircuitTermination.model_rebuild()

@@ -30,6 +30,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (
     BootstrapProviderNetwork,
     BootstrapRiR,
     BootstrapRole,
+    BootstrapScheduledJob,
     BootstrapSecret,
     BootstrapSecretsGroup,
     BootstrapTag,
@@ -41,6 +42,8 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (
     BootstrapVRF,
 )
 from nautobot_ssot.integrations.bootstrap.utils import (
+    get_scheduled_interval,
+    get_scheduled_start_time,
     is_running_tests,
     lookup_content_type,
 )
@@ -147,6 +150,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
     vlan = BootstrapVLAN
     vrf = BootstrapVRF
     prefix = BootstrapPrefix
+    scheduled_job = BootstrapScheduledJob
     secret = BootstrapSecret
     secrets_group = BootstrapSecretsGroup
     git_repository = BootstrapGitRepository
@@ -180,6 +184,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         "vlan",
         "vrf",
         "prefix",
+        "scheduled_job",
         "secret",
         "secrets_group",
         "git_repository",
@@ -799,6 +804,24 @@ class BootstrapAdapter(Adapter, LabelMixin):
             _new_graphqlq = self.graph_ql_query(name=query["name"], query=query["query"])
             self.add(_new_graphqlq)
 
+    def load_scheduled_job(self, scheduled_job):
+        """Load ScheduledJob objects from Bootstrap into DiffSync Models."""
+        if self.job.debug:
+            self.job.logger.debug(f"Loading Bootstrap ScheduledJob {scheduled_job}")
+        try:
+            self.get(self.scheduled_job, scheduled_job["name"])
+        except ObjectNotFound:
+            start_time = get_scheduled_start_time(scheduled_job)
+            interval, crontab = get_scheduled_interval(scheduled_job)
+
+            _scheduled_job = self.scheduled_job(
+                name=scheduled_job["name"],
+                interval=interval,
+                start_time=start_time,
+                crontab=crontab,
+            )
+            self.add(_scheduled_job)
+
     def load_software(self, software):
         """Load Software objects from Bootstrap into DiffSync Models."""
         if self.job.debug:
@@ -1061,6 +1084,11 @@ class BootstrapAdapter(Adapter, LabelMixin):
             if global_settings["graph_ql_query"] is not None:  # noqa F821
                 for graph_ql_query in global_settings["graph_ql_query"]:  # noqa F821
                     self.load_graph_ql_query(query=graph_ql_query)
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["scheduled_job"]:
+            if global_settings["scheduled_job"] is not None:  # noqa F821
+                for job in global_settings["scheduled_job"]:
+                    self.load_scheduled_job(scheduled_job=job)
+
         if LIFECYCLE_MGMT:
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software"]:
                 for software in global_settings["software"]:  # noqa: F821

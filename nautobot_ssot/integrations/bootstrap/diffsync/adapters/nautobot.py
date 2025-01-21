@@ -24,6 +24,7 @@ from nautobot.extras.models import (
     GitRepository,
     GraphQLQuery,
     Role,
+    ScheduledJob,
     Secret,
     SecretsGroup,
     Status,
@@ -59,6 +60,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import (
     NautobotProviderNetwork,
     NautobotRiR,
     NautobotRole,
+    NautobotScheduledJob,
     NautobotSecret,
     NautobotSecretsGroup,
     NautobotTag,
@@ -141,6 +143,7 @@ class NautobotAdapter(Adapter):
     vlan = NautobotVLAN
     vrf = NautobotVRF
     prefix = NautobotPrefix
+    scheduled_job = NautobotScheduledJob
     secret = NautobotSecret
     secrets_group = NautobotSecretsGroup
     git_repository = NautobotGitRepository
@@ -183,6 +186,7 @@ class NautobotAdapter(Adapter):
         "dynamic_group",
         "computed_field",
         "graph_ql_query",
+        "scheduled_job",
     ]
 
     if SOFTWARE_LIFECYCLE_MGMT:
@@ -1165,6 +1169,23 @@ class NautobotAdapter(Adapter):
             new_query.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
             self.add(new_query)
 
+    def load_scheduled_job(self):
+        """Method to load Scheduled Job objects from Nautobot into NautobotScheduledJob Models."""
+        for job in ScheduledJob.objects.all():
+            if self.job.debug:
+                self.job.logger.debug(f"Loading Nautobot Scheduled Job {job}")
+            try:
+                self.get(self.scheduled_job, job.name)
+            except ObjectNotFound:
+                self.add(
+                    self.scheduled_job(
+                        name=job.name,
+                        interval=job.interval,
+                        start_time=job.start_time.isoformat(),
+                        crontab=job.crontab,
+                    )
+                )
+
     def load_software(self):
         """Method to load Software objects from Nautobot into NautobotSoftware Models."""
         for nb_software in ORMSoftware.objects.all():
@@ -1356,6 +1377,8 @@ class NautobotAdapter(Adapter):
             self.load_tag()
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["graph_ql_query"]:
             self.load_graph_ql_query()
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["scheduled_job"]:
+            self.load_scheduled_job()
         if SOFTWARE_LIFECYCLE_MGMT:
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software"]:
                 self.load_software()

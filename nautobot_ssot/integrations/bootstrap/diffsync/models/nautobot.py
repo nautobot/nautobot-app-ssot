@@ -25,6 +25,7 @@ from nautobot.extras.models import DynamicGroup as ORMDynamicGroup
 from nautobot.extras.models import GitRepository as ORMGitRepository
 from nautobot.extras.models import GraphQLQuery as ORMGraphQLQuery
 from nautobot.extras.models import Role as ORMRole
+from nautobot.extras.models import ScheduledJob as ORMScheduledJob
 from nautobot.extras.models import Secret as ORMSecret
 from nautobot.extras.models import SecretsGroup as ORMSecretsGroup
 from nautobot.extras.models import SecretsGroupAssociation as ORMSecretsGroupAssociation
@@ -61,6 +62,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
     ProviderNetwork,
     RiR,
     Role,
+    ScheduledJob,
     Secret,
     SecretsGroup,
     Tag,
@@ -2216,6 +2218,44 @@ class NautobotGraphQLQuery(GraphQLQuery):
             return self
         except ORMGraphQLQuery.DoesNotExist as err:
             self.adapter.job.logger.warning(f"Unable to find GraphQLQuery {self.name} for deletion. {err}")
+
+
+class NautobotScheduledJob(ScheduledJob):
+    """Nautobot implementation of Bootstrap Scheduled model."""
+
+    @classmethod
+    def create(cls, adapter, ids, attrs):
+        """Create ScheduledJob in Nautobot from NautobotScheduledJob object."""
+        adapter.job.logger.error(
+            f"Creating scheduled jobs ({ids['name']}) is not supported. Please create manually and use Bootstrap to update times."
+        )
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update ScheduledJob in Nautobot from NautobotScheduledJob object."""
+        self.adapter.job.logger.warning(f"Updating Scheduled Job {self.name}")
+        job = ORMScheduledJob.objects.get(name=self.name)
+        if attrs.get("interval"):
+            job.interval = attrs["interval"]
+        if attrs.get("start_time"):
+            job.start_time = datetime.fromisoformat(attrs["start_time"])
+        if attrs.get("crontab"):
+            job.crontab = attrs["crontab"]
+        job.validated_save()
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete ScheduledJob in Nautobot from NautobotScheduledJob object."""
+        try:
+            scheduled_job = ORMScheduledJob.objects.get(name=self.name)
+            self.adapter.job.logger.warning(f"Deleting Scheduled Job {self.name}")
+            super().delete()
+            scheduled_job.delete()
+            return self
+        except ORMScheduledJob.DoesNotExist as err:
+            self.adapter.job.logger.warning(f"Unable to find Scheduled Job {self.name} for deletion. {err}")
+
+    from django.utils.dateparse import parse_datetime
 
 
 if SOFTWARE_LIFECYCLE_MGMT or SOFTWARE_VERSION_FOUND:
