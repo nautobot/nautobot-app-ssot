@@ -2,6 +2,7 @@
 
 import os
 
+from django.contrib.contenttypes.models import ContentType
 from django.templatetags.static import static
 from nautobot.apps.jobs import BooleanVar, ChoiceVar, ObjectVar
 from nautobot.core.celery import register_jobs
@@ -52,7 +53,7 @@ class LibrenmsDataSource(DataSource):
     sync_locations = BooleanVar(description="Whether to Sync Locations from LibreNMS to Nautobot.", default=False)
     location_type = ObjectVar(
         model=LocationType,
-        queryset=LocationType.objects.all(),
+        queryset=LocationType.objects.filter(content_types=ContentType.objects.get(app_label="dcim", model="device")),
         display_field="name",
         required=False,
         label="Location Type",
@@ -170,7 +171,7 @@ class LibrenmsDataTarget(DataTarget):
     sync_locations = BooleanVar(description="Whether to Sync Locations from Nautobot to LibreNMS.", default=False)
     location_type = ObjectVar(
         model=LocationType,
-        queryset=LocationType.objects.all(),
+        queryset=LocationType.objects.filter(content_types=ContentType.objects.get(app_label="dcim", model="device")),
         display_field="name",
         required=False,
         label="Location Type",
@@ -249,6 +250,7 @@ class LibrenmsDataTarget(DataTarget):
         ping_fallback,
         sync_locations,
         location_type,
+        tenant,
         *args,
         **kwargs,
     ):  # pylint: disable=arguments-differ
@@ -260,6 +262,7 @@ class LibrenmsDataTarget(DataTarget):
         self.location_type = location_type
         self.hostname_field == "env_var"
         self.load_type == "api"
+        self.tenant = tenant
         self.debug = debug
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
