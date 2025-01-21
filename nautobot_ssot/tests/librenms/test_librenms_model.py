@@ -146,7 +146,7 @@ class TestLibrenmsDevice(TestCase):
         return device_type
 
     @patch("nautobot.dcim.models.Device.objects.get")
-    def test_create_device_success(self):
+    def test_create_device_success(self, mock_device_get):  # pylint: disable=W0613
         """Test creating a device with valid data."""
         device_name = "test-device"
         ids = {"name": device_name}
