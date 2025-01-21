@@ -815,3 +815,7 @@ prefix:
     vlan: ""
     tenant: ""
     tags: []
+scheduled_job:
+  - name: "Daily Log Cleanup"
+    interval: "daily"
+    start_time: "2025-01-20 15:30:00"
