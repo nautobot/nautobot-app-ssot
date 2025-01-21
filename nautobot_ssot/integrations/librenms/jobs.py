@@ -2,7 +2,6 @@
 
 import os
 
-from django.contrib.contenttypes.models import ContentType
 from django.templatetags.static import static
 from nautobot.apps.jobs import BooleanVar, ChoiceVar, ObjectVar
 from nautobot.core.celery import register_jobs
@@ -53,7 +52,8 @@ class LibrenmsDataSource(DataSource):
     sync_locations = BooleanVar(description="Whether to Sync Locations from LibreNMS to Nautobot.", default=False)
     location_type = ObjectVar(
         model=LocationType,
-        queryset=LocationType.objects.filter(content_types=ContentType.objects.get(app_label="dcim", model="device")),
+        queryset=LocationType.objects.all(),
+        query_params={"content_types": "dcim.device"},
         display_field="name",
         required=False,
         label="Location Type",
@@ -171,7 +171,8 @@ class LibrenmsDataTarget(DataTarget):
     sync_locations = BooleanVar(description="Whether to Sync Locations from Nautobot to LibreNMS.", default=False)
     location_type = ObjectVar(
         model=LocationType,
-        queryset=LocationType.objects.filter(content_types=ContentType.objects.get(app_label="dcim", model="device")),
+        queryset=LocationType.objects.all(),
+        query_params={"content_types": "dcim.device"},
         display_field="name",
         required=False,
         label="Location Type",
