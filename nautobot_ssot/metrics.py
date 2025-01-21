@@ -138,8 +138,6 @@ def metric_memory_usage():
                     labels=[operation, ".".join(job.natural_key())],
                     value=value,
                 )
-        else:
-            memory_gauge.add_metric(labels=["", ""], value=0)
 
     yield memory_gauge
 
