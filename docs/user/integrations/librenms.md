@@ -39,7 +39,7 @@ This is a job that can be used to sync data from Nautobot to LibreNMS.
 
 - Debug: Additional Logging
 - LibreNMS Server: External integration object pointing to the required LibreNMS instance.
-- hostname_field: Which LibreNMS field to use as the hostname in Nautobot. sysName or hostanme.
+- hostname_field: Which LibreNMS field to use as the hostname in Nautobot, sysName or hostname.
 - sync_locations: Whether to sync locations from Nautobot to LibreNMS.
 - location_type: This is used to filter which locations are synced to LibreNMS. This should be the Location Type that actually has devices assigned. For example, Site. Since LibreNMS does not support nested locations.
 - tenant: This is used as a filter for objects synced with Nautobot and LibreNMS. This can be used to sync multiple LibreNMS instances into different tenants, like in an MSP environment. This affects which devices are loaded from Nautobot during the sync. It does not affect which devices are loaded from LibreNMS
