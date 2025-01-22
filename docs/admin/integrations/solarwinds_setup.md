@@ -4,10 +4,10 @@ This guide will walk you through steps to set up the SolarWinds integration with
 
 ## Prerequisites
 
-Before configuring the integration, please ensure, that `nautobot-ssot` app was [installed with the SolarWinds integration extra dependencies](../install.md#install-guide).
+Before configuring the integration, please ensure, that `nautobot-ssot` app was [installed](../install.md#install-guide).
 
 ```shell
-pip install nautobot-ssot[solarwinds]
+pip install nautobot-ssot
 ```
 
 ## Configuration
