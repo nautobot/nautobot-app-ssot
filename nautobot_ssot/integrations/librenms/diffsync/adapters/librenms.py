@@ -17,6 +17,7 @@ from nautobot_ssot.integrations.librenms.diffsync.models.librenms import (
     LibrenmsLocation,
 )
 from nautobot_ssot.integrations.librenms.utils import (
+    normalize_device_hostname,
     normalize_gps_coordinates,
 )
 from nautobot_ssot.integrations.librenms.utils.librenms import LibreNMSApi
@@ -81,7 +82,7 @@ class LibrenmsAdapter(DiffSync):
                 else:
                     _status = librenms_status_map[device["status"]]
                 new_device = self.device(
-                    name=device[self.hostname_field],
+                    name=normalize_device_hostname(device[self.hostname_field]),
                     device_id=device["device_id"],
                     location=(device["location"] if device["location"] is not None else "Unknown"),
                     role=device["type"] if device["type"] is not None else None,
@@ -95,6 +96,7 @@ class LibrenmsAdapter(DiffSync):
                     device_type=(device["hardware"] if device["hardware"] is not None else "Unknown"),
                     platform=device["os"] if device["os"] is not None else "Unknown",
                     os_version=(device["version"] if device["version"] is not None else "Unknown"),
+                    ip_address=device["ip"],
                     system_of_record=os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
                 )
                 self.add(new_device)
