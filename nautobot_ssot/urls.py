@@ -7,6 +7,7 @@ from django.views.generic import RedirectView
 from . import views
 from .integrations.utils import each_enabled_integration_module
 
+app_name = "nautobot_ssot"
 urlpatterns = [
     path("", views.DashboardView.as_view(), name="dashboard"),
     path("data-sources/<path:class_path>/", views.DataSourceTargetView.as_view(), name="data_source"),
