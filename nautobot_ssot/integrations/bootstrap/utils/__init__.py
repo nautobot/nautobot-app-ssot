@@ -2,12 +2,14 @@
 
 import inspect
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.db import models
+from django.utils import timezone
+from nautobot.extras.choices import JobExecutionType
 from nautobot.extras.datasources.registry import get_datasource_content_choices
 from nautobot.extras.models import Contact, Team
 from nautobot.extras.utils import FeatureQuery, RoleModelsQuery, TaggableClassesQuery
@@ -143,34 +145,27 @@ def lookup_contact_for_team(contact):
         return None
 
 
-def get_scheduled_start_time(scheduled_job):
+def get_scheduled_start_time(start_time, interval):
     """Validate and return start_time is ISO 8601 format."""
-    start_time = scheduled_job.get("start_time")
+    # start_time = scheduled_job.get("start_time")
     if not start_time:
-        if scheduled_job.get("interval") == "custom":
-            return ""
-        raise JobException(
-            f"Invalid start_time: {start_time}, unable to load scheduled job {scheduled_job.get('name')}."
-        )
+        return ""
     try:
-        start = datetime.fromisoformat(f"{start_time}+00:00").isoformat()  # UTC, the Job stores time_zone info
+        start_time = datetime.fromisoformat(f"{start_time}+00:00")  # UTC, the Job stores time_zone info
     except ValueError as err:
-        raise JobException(
-            f"Invalid start_time: {start_time}, unable to load scheduled job {scheduled_job.get('name')}."
-        ) from err
+        raise JobException(f"Invalid start_time: {start_time}") from err
+    if start_time < timezone.now():
+        if interval == JobExecutionType.TYPE_DAILY:
+            days_diff = (timezone.now().date() - start_time.date()).days
+            start_time += timedelta(days=days_diff + 1)
+        elif interval == JobExecutionType.TYPE_HOURLY:
+            hours_diff = int((timezone.now() - start_time).total_seconds() // 3600)
+            start_time += timedelta(hours=hours_diff + 1)
+        elif interval == JobExecutionType.TYPE_WEEKLY:
+            days_diff = (timezone.now().date() - start_time.date()).days
+            days_to_add = days_diff + (7 - timezone.now().date().weekday() + start_time.weekday()) % 7
+            start_time += timedelta(days=days_to_add)
+        elif interval == JobExecutionType.TYPE_FUTURE:
+            raise JobException(f"Start time ({start_time.isoformat()}) is in the past.")
 
-    return start
-
-
-def get_scheduled_interval(scheduled_job):
-    """Validate and return the scheduled interval."""
-    crontab = ""
-    interval = scheduled_job.get("interval")
-
-    if interval not in ("future", "hourly", "daily", "weekly", "custom"):
-        raise JobException(f"Invalid interval: {interval}, unable to load scheduled job.")
-
-    if interval == "custom":
-        crontab = scheduled_job.get("crontab")
-
-    return interval, crontab
+    return start_time.isoformat()

@@ -766,16 +766,28 @@ class ScheduledJob(DiffSyncModel):
     _modelname = "scheduled_job"
     _identifiers = ("name",)
     _attributes = (
+        "job_model",
+        "user",
         "interval",
         "start_time",
         "crontab",
+        "job_vars",
+        "profile",
+        "approval_required",
+        "task_queue",
     )
     _children = {}
 
     name: str
+    job_model: str
+    user: str
     interval: str
     start_time: str
     crontab: str
+    job_vars: dict
+    profile: bool = False
+    approval_required: bool = False
+    task_queue: Optional[str] = None
 
 
 Circuit.model_rebuild()

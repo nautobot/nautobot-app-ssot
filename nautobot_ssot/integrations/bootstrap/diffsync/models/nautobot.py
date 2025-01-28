@@ -24,6 +24,7 @@ from nautobot.extras.models import Contact as ORMContact
 from nautobot.extras.models import DynamicGroup as ORMDynamicGroup
 from nautobot.extras.models import GitRepository as ORMGitRepository
 from nautobot.extras.models import GraphQLQuery as ORMGraphQLQuery
+from nautobot.extras.models import Job as ORMJob
 from nautobot.extras.models import Role as ORMRole
 from nautobot.extras.models import ScheduledJob as ORMScheduledJob
 from nautobot.extras.models import Secret as ORMSecret
@@ -40,6 +41,7 @@ from nautobot.ipam.models import Prefix as ORMPrefix
 from nautobot.ipam.models import VLANGroup as ORMVLANGroup
 from nautobot.tenancy.models import Tenant as ORMTenant
 from nautobot.tenancy.models import TenantGroup as ORMTenantGroup
+from nautobot.users.models import User as ORMUser
 
 from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
     VLAN,
@@ -2226,21 +2228,62 @@ class NautobotScheduledJob(ScheduledJob):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create ScheduledJob in Nautobot from NautobotScheduledJob object."""
-        adapter.job.logger.error(
-            f"Creating scheduled job ({ids['name']}) is not supported. Please create the scheduled job first the the Nautobot UI, and use Bootstrap to set/update future changes."
+        adapter.job.logger.info(f"Creating Scheduled Job {ids['name']}")
+        job_kwargs = attrs["job_vars"] if attrs.get("job_vars") else {}
+        try:
+            job_model = ORMJob.objects.get(name=attrs.get("job_model"))
+            user = ORMUser.objects.get(username=attrs.get("user"))
+        except ORMJob.DoesNotExist:
+            adapter.job.logger.error(f"Job {attrs.get('job_model')} not found, unable to create Job, skipping.")
+            return
+        except ORMUser.DoesNotExist:
+            adapter.job.logger.error(f"User {attrs.get('user')} not found, unable to create Job, skipping.")
+            return
+
+        ORMScheduledJob.create_schedule(
+            name=ids["name"],
+            job_model=job_model,
+            user=user,
+            interval=attrs.get("interval"),
+            start_time=attrs.get("start_time"),
+            crontab=attrs.get("crontab"),
+            profile=attrs.get("profile"),
+            approval_required=attrs.get("approval_required"),
+            task_queue=attrs.get("task_queue"),
+            **job_kwargs,
         )
+
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update ScheduledJob in Nautobot from NautobotScheduledJob object."""
-        self.adapter.job.logger.warning(f"Updating Scheduled Job {self.name}")
+        self.adapter.job.logger.info(f"Updating Scheduled Job {self.name}")
         job = ORMScheduledJob.objects.get(name=self.name)
+        if attrs.get("job_model"):
+            try:
+                job.job_model = ORMJob.objects.get(name=attrs["job_model"])
+            except ORMJob.DoesNotExist:
+                self.adapter.job.logger.error(f"Job {attrs['job_model']} does not exist, unable to update {self.name}")
+        if attrs.get("user"):
+            try:
+                job.user = ORMUser.objects.get(name=attrs["user"])
+            except ORMUser.DoesNotExist:
+                self.adapter.job.logger.error(f"User {attrs['user']} does not exist, unable to update {self.name}")
         if attrs.get("interval"):
             job.interval = attrs["interval"]
         if attrs.get("start_time"):
             job.start_time = datetime.fromisoformat(attrs["start_time"])
         if attrs.get("crontab"):
             job.crontab = attrs["crontab"]
+        if attrs.get("job_vars"):
+            job.kwargs = attrs["job_vars"]
+        if "profile" in attrs:
+            job.celery_kwargs["nautobot_job_profile"] = attrs["profile"]
+        if "approval_required" in attrs:
+            job.approval_required = attrs["approval_required"]
+        if "task_queue" in attrs:
+            job.celery_kwargs["queue"] = attrs["task_queue"]
+
         job.validated_save()
         return super().update(attrs)
 

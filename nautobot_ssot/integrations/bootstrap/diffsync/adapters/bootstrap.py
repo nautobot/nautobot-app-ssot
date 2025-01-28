@@ -8,9 +8,11 @@ import yaml
 from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.conf import settings
+from nautobot.extras.choices import JobExecutionType
 from nautobot.extras.datasources.git import ensure_git_repository
 from nautobot.extras.models import GitRepository
 
+from nautobot_ssot.exceptions import JobException
 from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (
     BootstrapCircuit,
     BootstrapCircuitTermination,
@@ -42,7 +44,6 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (
     BootstrapVRF,
 )
 from nautobot_ssot.integrations.bootstrap.utils import (
-    get_scheduled_interval,
     get_scheduled_start_time,
     is_running_tests,
     lookup_content_type,
@@ -811,14 +812,42 @@ class BootstrapAdapter(Adapter, LabelMixin):
         try:
             self.get(self.scheduled_job, scheduled_job["name"])
         except ObjectNotFound:
-            start_time = get_scheduled_start_time(scheduled_job)
-            interval, crontab = get_scheduled_interval(scheduled_job)
+            job_vars = scheduled_job["job_vars"] if scheduled_job.get("job_vars") else {}
+            interval = scheduled_job.get("interval")
+
+            if interval not in JobExecutionType.SCHEDULE_CHOICES:
+                self.job.logger.error(
+                    f"Invalid interval: {interval}, unable to load scheduled job {scheduled_job.get('name')}"
+                )
+                return
+            try:
+                start_time = get_scheduled_start_time(
+                    start_time=scheduled_job.get("start_time"), interval=scheduled_job.get("interval")
+                )
+            except JobException as err:
+                self.job.logger.error(f"Unable to load scheduled job {scheduled_job.get('name')}: {err}")
+                return
+            crontab = ""
+            if interval == JobExecutionType.TYPE_CUSTOM:
+                crontab = scheduled_job.get("crontab")
+                start_time = ""
+            elif not start_time:
+                self.job.logger.error(
+                    f"Invalid start_time: {start_time}, unable to load scheduled job {scheduled_job.get('name')}."
+                )
+                return
 
             _scheduled_job = self.scheduled_job(
                 name=scheduled_job["name"],
+                job_model=scheduled_job.get("job_model"),
+                user=scheduled_job.get("user"),
                 interval=interval,
                 start_time=start_time,
                 crontab=crontab,
+                job_vars=job_vars,
+                profile=scheduled_job.get("profile", False),
+                approval_required=scheduled_job.get("approval_required", False),
+                task_queue=scheduled_job.get("task_queue"),
             )
             self.add(_scheduled_job)
 

@@ -73,6 +73,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import (
 )
 from nautobot_ssot.integrations.bootstrap.utils import (
     check_sor_field,
+    get_scheduled_start_time,
     get_sor_field_nautobot_object,
     lookup_content_type_model_path,
     lookup_model_for_role_id,
@@ -1177,11 +1178,20 @@ class NautobotAdapter(Adapter):
             try:
                 self.get(self.scheduled_job, job.name)
             except ObjectNotFound:
+                start_time = get_scheduled_start_time(
+                    start_time=job.start_time.replace(tzinfo=None).isoformat(), interval=job.interval
+                )
                 _scheduled_job = self.scheduled_job(
                     name=job.name,
+                    job_model=job.job_model.name,
+                    user=job.user.username,
                     interval=job.interval,
-                    start_time=job.start_time.isoformat(),
+                    start_time=start_time,
                     crontab=job.crontab,
+                    job_vars=job.kwargs,
+                    approval_required=job.approval_required,
+                    profile=job.celery_kwargs.get("nautobot_job_profile"),
+                    task_queue=job.celery_kwargs.get("queue"),
                 )
                 _scheduled_job.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
                 self.add(_scheduled_job)
