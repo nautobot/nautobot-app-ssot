@@ -55,6 +55,7 @@ PLUGINS_CONFIG = {
             "vlan": True,
             "vrf": True,
             "prefix": True,
+            "scheduled_job": True,
         },
   }
 }

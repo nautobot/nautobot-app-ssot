@@ -21,6 +21,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
     ProviderNetwork,
     RiR,
     Role,
+    ScheduledJob,
     Secret,
     SecretsGroup,
     Tag,
@@ -501,6 +502,23 @@ class BootstrapPrefix(Prefix):
 
     def delete(self):
         """Delete Prefix in Bootstrap from BootstrapPrefix object."""
+        return self
+
+
+class BootstrapScheduledJob(ScheduledJob):
+    """Bootstrap implementation of Bootstrap ScheduledJob model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create ScheduledJob in Bootstrap from BootstrapValidatedSoftware object."""
+        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update ScheduledJob in Bootstrap from BootstrapValidatedSoftware object."""
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete ScheduledJob in Bootstrap from BootstrapValidatedSoftware object."""
         return self
 
 

@@ -94,6 +94,13 @@ graph_ql_query:
           }
         }
       }
+scheduled_job:
+  - name: "Scheduled Job Daily"
+    start_time: "2025-01-20 15:30:00" 
+    interval: "daily"
+  - name: "Scheduled Job Custom"
+    interval: "custom"
+    crontab: "*/15 * * * *"
 software:
   - device_platform: "arista_eos"
     version: "4.25.10M"
@@ -673,6 +680,24 @@ graph_ql_query:
 ```
 
 The `query:` key takes a graphql formatted string to retrieve the information required.
+
+### ScheduledJob
+Create a ScheduledJob. The Job to be scheduled must already exist. As Job's vary greatly, any Job specific variables should be under the `job_vars` key. Check the Job specific documentation for details on what these values should be.
+
+```yaml
+scheduled_job:
+  - name: # str
+    interval: # str -- Options are: daily, weekly, hourly, future, custom
+    start_time: # str -- ISO 8601 format (YYYY-MM-DD HH:MM:SS) leave time_zone information out
+    crontab: # str -- Basic Crontab syntax. Use with interval 'custom'
+    job_model: # str -- The name of the Job you wish to schedule
+    user: # str -- Username to run this scheduled job as
+    profile: # bool -- Optional, defaults to False
+    task_queue: # str -- Optional, celery queue name, defaults to None (default queue)
+    job_vars: # dict -- Optional
+      job_var1: # specific to Job
+      job_var2: # ...etc
+```
 
 ### Software
 
