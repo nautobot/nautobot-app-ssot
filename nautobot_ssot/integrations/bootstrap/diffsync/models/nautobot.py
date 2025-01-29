@@ -7,6 +7,7 @@ import pytz
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db.models.deletion import ProtectedError
+from django.utils import timezone
 from nautobot.circuits.models import Circuit as ORMCircuit
 from nautobot.circuits.models import CircuitTermination as ORMCircuitTermination
 from nautobot.circuits.models import CircuitType as ORMCircuitType
@@ -2228,17 +2229,21 @@ class NautobotScheduledJob(ScheduledJob):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create ScheduledJob in Nautobot from NautobotScheduledJob object."""
-        adapter.job.logger.info(f"Creating Scheduled Job {ids['name']}")
+        adapter.job.logger.info(f"Creating Scheduled Job ({ids['name']})")
         job_kwargs = attrs["job_vars"] if attrs.get("job_vars") else {}
         try:
-            job_model = ORMJob.objects.get(name=attrs.get("job_model"))
-            user = ORMUser.objects.get(username=attrs.get("user"))
+            job_model = ORMJob.objects.get(name=attrs["job_model"])
+            user = ORMUser.objects.get(username=attrs["user"])
         except ORMJob.DoesNotExist:
-            adapter.job.logger.error(f"Job {attrs.get('job_model')} not found, unable to create Job, skipping.")
+            adapter.job.logger.error(f"Job ({attrs['job_model']}) not found, unable to create Job, skipping.")
             return
         except ORMUser.DoesNotExist:
-            adapter.job.logger.error(f"User {attrs.get('user')} not found, unable to create Job, skipping.")
+            adapter.job.logger.error(f"User ({attrs['user']}) not found, unable to create Job, skipping.")
             return
+        if attrs.get("start_time"):
+            if datetime.fromisoformat(attrs["start_time"]) < timezone.now():
+                adapter.job.logger.error(f"Cannot create Scheduled Job ({ids['name']}) with a start time in the past.")
+                return
 
         ORMScheduledJob.create_schedule(
             name=ids["name"],
@@ -2257,22 +2262,33 @@ class NautobotScheduledJob(ScheduledJob):
 
     def update(self, attrs):
         """Update ScheduledJob in Nautobot from NautobotScheduledJob object."""
-        self.adapter.job.logger.info(f"Updating Scheduled Job {self.name}")
+        self.adapter.job.logger.info(f"Updating Scheduled Job ({self.name})")
         job = ORMScheduledJob.objects.get(name=self.name)
+
         if attrs.get("job_model"):
             try:
                 job.job_model = ORMJob.objects.get(name=attrs["job_model"])
             except ORMJob.DoesNotExist:
-                self.adapter.job.logger.error(f"Job {attrs['job_model']} does not exist, unable to update {self.name}")
+                self.adapter.job.logger.error(
+                    f"Job ({attrs['job_model']}) does not exist, unable to update ({self.name})"
+                )
+
         if attrs.get("user"):
             try:
                 job.user = ORMUser.objects.get(name=attrs["user"])
             except ORMUser.DoesNotExist:
-                self.adapter.job.logger.error(f"User {attrs['user']} does not exist, unable to update {self.name}")
+                self.adapter.job.logger.error(f"User ({attrs['user']}) does not exist, unable to update ({self.name})")
+
+        if attrs.get("start_time"):
+            if datetime.fromisoformat(attrs["start_time"]) < timezone.now():
+                self.adapter.job.logger.error(
+                    f"Cannot update Scheduled Job ({self.name}) with a start time in the past."
+                )
+                return
+            job.start_time = datetime.fromisoformat(attrs["start_time"])
+
         if attrs.get("interval"):
             job.interval = attrs["interval"]
-        if attrs.get("start_time"):
-            job.start_time = datetime.fromisoformat(attrs["start_time"])
         if attrs.get("crontab"):
             job.crontab = attrs["crontab"]
         if attrs.get("job_vars"):
@@ -2291,12 +2307,12 @@ class NautobotScheduledJob(ScheduledJob):
         """Delete ScheduledJob in Nautobot from NautobotScheduledJob object."""
         try:
             scheduled_job = ORMScheduledJob.objects.get(name=self.name)
-            self.adapter.job.logger.warning(f"Deleting Scheduled Job {self.name}")
+            self.adapter.job.logger.warning(f"Deleting Scheduled Job ({self.name})")
             super().delete()
             scheduled_job.delete()
             return self
         except ORMScheduledJob.DoesNotExist as err:
-            self.adapter.job.logger.warning(f"Unable to find Scheduled Job {self.name} for deletion. {err}")
+            self.adapter.job.logger.warning(f"Unable to find Scheduled Job ({self.name}) for deletion. {err}")
 
     from django.utils.dateparse import parse_datetime
 

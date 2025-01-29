@@ -1174,13 +1174,11 @@ class NautobotAdapter(Adapter):
         """Method to load Scheduled Job objects from Nautobot into NautobotScheduledJob Models."""
         for job in ScheduledJob.objects.all():
             if self.job.debug:
-                self.job.logger.debug(f"Loading Nautobot Scheduled Job {job}")
+                self.job.logger.debug(f"Loading Nautobot Scheduled Job ({job})")
             try:
                 self.get(self.scheduled_job, job.name)
             except ObjectNotFound:
-                start_time = get_scheduled_start_time(
-                    start_time=job.start_time.replace(tzinfo=None).isoformat(), interval=job.interval
-                )
+                start_time = get_scheduled_start_time(start_time=job.start_time.replace(tzinfo=None).isoformat())
                 _scheduled_job = self.scheduled_job(
                     name=job.name,
                     job_model=job.job_model.name,

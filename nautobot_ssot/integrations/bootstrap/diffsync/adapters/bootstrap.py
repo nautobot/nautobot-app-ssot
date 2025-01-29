@@ -12,7 +12,6 @@ from nautobot.extras.choices import JobExecutionType
 from nautobot.extras.datasources.git import ensure_git_repository
 from nautobot.extras.models import GitRepository
 
-from nautobot_ssot.exceptions import JobException
 from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (
     BootstrapCircuit,
     BootstrapCircuitTermination,
@@ -817,30 +816,32 @@ class BootstrapAdapter(Adapter, LabelMixin):
 
             if interval not in JobExecutionType.SCHEDULE_CHOICES:
                 self.job.logger.error(
-                    f"Invalid interval: {interval}, unable to load scheduled job {scheduled_job.get('name')}"
-                )
-                return
-            try:
-                start_time = get_scheduled_start_time(
-                    start_time=scheduled_job.get("start_time"), interval=scheduled_job.get("interval")
-                )
-            except JobException as err:
-                self.job.logger.error(f"Unable to load scheduled job {scheduled_job.get('name')}: {err}")
-                return
-            crontab = ""
-            if interval == JobExecutionType.TYPE_CUSTOM:
-                crontab = scheduled_job.get("crontab")
-                start_time = ""
-            elif not start_time:
-                self.job.logger.error(
-                    f"Invalid start_time: {start_time}, unable to load scheduled job {scheduled_job.get('name')}."
+                    f"Invalid interval: ({interval}), unable to load scheduled job ({scheduled_job.get('name')})"
                 )
                 return
 
+            start_time = get_scheduled_start_time(start_time=scheduled_job.get("start_time"))
+
+            crontab = ""
+            if interval == JobExecutionType.TYPE_CUSTOM:
+                crontab = scheduled_job.get("crontab")
+            elif not start_time:
+                self.job.logger.error(
+                    f"Invalid start_time: ({start_time}), unable to load scheduled job ({scheduled_job.get('name')})."
+                )
+                return
+
+            for key in ["name", "job_model", "user"]:
+                if key not in scheduled_job:
+                    self.job.logger.error(
+                        f"Missing key ({key}) in scheduled job ({scheduled_job.get('name')}), unable to load."
+                    )
+                    return
+
             _scheduled_job = self.scheduled_job(
                 name=scheduled_job["name"],
-                job_model=scheduled_job.get("job_model"),
-                user=scheduled_job.get("user"),
+                job_model=scheduled_job["job_model"],
+                user=scheduled_job["user"],
                 interval=interval,
                 start_time=start_time,
                 crontab=crontab,

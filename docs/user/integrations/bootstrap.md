@@ -95,12 +95,14 @@ graph_ql_query:
         }
       }
 scheduled_job:
-  - name: "Scheduled Job Daily"
-    start_time: "2025-01-20 15:30:00" 
+  - name: "Daily Log Cleanup"
     interval: "daily"
-  - name: "Scheduled Job Custom"
-    interval: "custom"
-    crontab: "*/15 * * * *"
+    start_time: "2025-01-28 23:00:00"
+    job_model: "Logs Cleanup"
+    user: "admin"
+    job_vars:
+      cleanup_types: ["extras.ObjectChange"]
+      max_age: 90
 software:
   - device_platform: "arista_eos"
     version: "4.25.10M"
@@ -682,13 +684,13 @@ graph_ql_query:
 The `query:` key takes a graphql formatted string to retrieve the information required.
 
 ### ScheduledJob
-Create a ScheduledJob. The Job to be scheduled must already exist. As Job's vary greatly, any Job specific variables should be under the `job_vars` key. Check the Job specific documentation for details on what these values should be.
+Create a ScheduledJob. The Job to be scheduled must already exist. As Job's vary greatly, any Job specific variables should be under the `job_vars` key, and you should check the Job specific documentation for details on what these values should be.
 
 ```yaml
 scheduled_job:
   - name: # str
     interval: # str -- Options are: daily, weekly, hourly, future, custom
-    start_time: # str -- ISO 8601 format (YYYY-MM-DD HH:MM:SS) leave time_zone information out
+    start_time: # str -- ISO 8601 format (YYYY-MM-DD HH:MM:SS), UTC
     crontab: # str -- Basic Crontab syntax. Use with interval 'custom'
     job_model: # str -- The name of the Job you wish to schedule
     user: # str -- Username to run this scheduled job as
