@@ -280,6 +280,7 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
                 Location AS SNMPLocation,
                 o.Vendor,
                 MachineType AS DeviceType,
+                IOSImage,
                 h.Model,
                 h.ServiceTag,
                 o.NodeID
@@ -304,7 +305,10 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
                     node_details[node_id]["IPAddress"] = result["IPAddress"]
                     node_details[node_id]["SNMPLocation"] = result["SNMPLocation"]
                     node_details[node_id]["Vendor"] = result["Vendor"]
-                    node_details[node_id]["DeviceType"] = result["DeviceType"]
+                    if "aruba" in result["Vendor"].lower():
+                        node_details[node_id]["DeviceType"] = result["IOSImage"].strip("MODEL: ")
+                    else:
+                        node_details[node_id]["DeviceType"] = result["DeviceType"]
                     node_details[node_id]["Model"] = result["Model"]
                     node_details[node_id]["ServiceTag"] = result["ServiceTag"]
                     # making prefix length default of 32 and will updated to the correct value in subsequent query.
@@ -423,7 +427,7 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
                 return ""
 
             if "Aruba" in node["Vendor"]:
-                device_type = device_type.replace("Aruba ", "").strip()
+                device_type = device_type.replace("Aruba", "").strip()
             elif "Cisco" in node["Vendor"]:
                 device_type = device_type.replace("Cisco", "").strip()
                 device_type = device_type.replace("Catalyst ", "C").strip()
