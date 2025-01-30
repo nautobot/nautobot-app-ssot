@@ -2245,18 +2245,30 @@ class NautobotScheduledJob(ScheduledJob):
                 adapter.job.logger.error(f"Cannot create Scheduled Job ({ids['name']}) with a start time in the past.")
                 return
 
-        ORMScheduledJob.create_schedule(
+        profile = attrs.get("profile")
+        task_queue = attrs.get("task_queue")
+        celery_kwargs = {
+            "nautobot_job_profile": profile,
+            "queue": task_queue,
+        }
+        if job_model.soft_time_limit > 0:
+            celery_kwargs["soft_time_limit"] = job_model.soft_time_limit
+        if job_model.time_limit > 0:
+            celery_kwargs["time_limit"] = job_model.time_limit
+
+        scheduled_job = ORMScheduledJob(
             name=ids["name"],
+            task=job_model.class_path,
             job_model=job_model,
             user=user,
             interval=attrs.get("interval"),
             start_time=attrs.get("start_time"),
             crontab=attrs.get("crontab"),
-            profile=attrs.get("profile"),
             approval_required=attrs.get("approval_required"),
-            task_queue=attrs.get("task_queue"),
-            **job_kwargs,
+            kwargs=job_kwargs,
+            celery_kwargs=celery_kwargs,
         )
+        scheduled_job.validated_save()
 
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 

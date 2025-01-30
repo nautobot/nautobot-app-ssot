@@ -1188,7 +1188,7 @@ class NautobotAdapter(Adapter):
                     crontab=job.crontab,
                     job_vars=job.kwargs,
                     approval_required=job.approval_required,
-                    profile=job.celery_kwargs.get("nautobot_job_profile"),
+                    profile=job.celery_kwargs.get("nautobot_job_profile", False),
                     task_queue=job.celery_kwargs.get("queue"),
                 )
                 _scheduled_job.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST

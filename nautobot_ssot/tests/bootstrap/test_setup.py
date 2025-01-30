@@ -934,14 +934,17 @@ class NautobotTestSetup:
             is_staff=True,
         )
         for scheduled_job in GLOBAL_YAML_SETTINGS["scheduled_job"]:
-            ScheduledJob.create_schedule(
+            job_model = Job.objects.get(name=scheduled_job["job_model"])
+            scheduled_job = ScheduledJob(
                 name=scheduled_job["name"],
+                task=job_model.class_path,
                 interval=scheduled_job["interval"],
                 start_time=get_scheduled_start_time(scheduled_job["start_time"]),
-                job_model=Job.objects.get(name=scheduled_job["job_model"]),
+                job_model=job_model,
                 user=admin,
-                **scheduled_job["job_vars"],
+                kwargs=scheduled_job["job_vars"],
             )
+            scheduled_job.validated_save()
 
     def _get_validated_software_tags(self, tag_names):
         return [Tag.objects.get(name=tag_name) for tag_name in tag_names]
