@@ -1,0 +1,1 @@
+Changed SolarWinds integration to use IOSImage field to grab Aruba DeviceTypes.
