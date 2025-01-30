@@ -10,8 +10,8 @@ from nautobot.extras.models import JobResult
 from nautobot_ssot.integrations.solarwinds.jobs import JobConfigError, SolarwindsDataSource
 
 
-class SolarwindsDataSourceTestCase(TransactionTestCase):
-    """Test the SolarwindsDataSource class."""
+class SolarWindsDataSourceTestCase(TransactionTestCase):
+    """Test the SolarWindsDataSource class."""
 
     job_class = SolarwindsDataSource
     databases = ("default", "job_logs")

@@ -1,5 +1,5 @@
 # pylint: disable=R0801
-"""Test Solarwinds utility functions and client."""
+"""Test SolarWinds utility functions and client."""
 
 import uuid
 from datetime import datetime
@@ -18,8 +18,8 @@ from nautobot_ssot.integrations.solarwinds.utils.solarwinds import (
 from nautobot_ssot.tests.solarwinds.conftest import create_solarwinds_client
 
 
-class TestSolarwindsClientTestCase(TransactionTestCase):  # pylint: disable=too-many-public-methods
-    """Test the SolarwindsClient class."""
+class TestSolarWindsClientTestCase(TransactionTestCase):  # pylint: disable=too-many-public-methods
+    """Test the SolarWindsClient class."""
 
     databases = ("default", "job_logs")
 
@@ -41,7 +41,7 @@ class TestSolarwindsClientTestCase(TransactionTestCase):  # pylint: disable=too-
         self.node_details = {1: {"NodeHostname": "Router01", "NodeID": 1}, 2: {"NodeHostname": "Switch01", "NodeID": 2}}
 
     def test_solarwinds_client_initialization(self):
-        """Validate the SolarwindsClient functionality."""
+        """Validate the SolarWindsClient functionality."""
         self.assertEqual(self.test_client.url, "https://test.solarwinds.com:443/SolarWinds/InformationService/v3/Json/")
         self.assertEqual(self.test_client.job, self.job)
         self.assertEqual(self.test_client.batch_size, 10)

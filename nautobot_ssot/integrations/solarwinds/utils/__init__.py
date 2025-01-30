@@ -1,1 +1,1 @@
-"""Utility functions for working with Solarwinds and Nautobot."""
+"""Utility functions for working with SolarWinds and Nautobot."""

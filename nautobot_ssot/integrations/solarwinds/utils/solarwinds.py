@@ -1,4 +1,4 @@
-"""Utility functions for working with Solarwinds."""
+"""Utility functions for working with SolarWinds."""
 
 import json
 import re
@@ -17,8 +17,8 @@ from urllib3.util.retry import Retry
 from nautobot_ssot.integrations.solarwinds.constants import ETH_INTERFACE_NAME_MAP, ETH_INTERFACE_SPEED_MAP
 
 
-class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-instance-attributes
-    """Class for handling communication to Solarwinds."""
+class SolarWindsClient:  # pylint: disable=too-many-public-methods, too-many-instance-attributes
+    """Class for handling communication to SolarWinds."""
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
@@ -30,7 +30,7 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
         session: requests.Session = None,
         **kwargs,
     ):
-        """Initialize shared variables for Solarwinds client.
+        """Initialize shared variables for SolarWinds client.
 
         Args:
             hostname (str): Hostname of the SolarWinds server to connect to
@@ -128,7 +128,7 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
             return requests.Response()
 
     def get_filtered_container_ids(self, containers: str) -> Dict[str, int]:
-        """Get a list of container IDs from Solarwinds.
+        """Get a list of container IDs from SolarWinds.
 
         Args:
             containers (str): Comma-separated list of container names to get IDs for.
@@ -182,7 +182,7 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
         return container_nodes
 
     def get_top_level_containers(self, top_container: str) -> Dict[str, int]:
-        """Retrieve all containers from Solarwinds.
+        """Retrieve all containers from SolarWinds.
 
         Returns:
             Dict[str, int]: Dictionary of container names to IDs.
@@ -218,7 +218,7 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
         return nodes_list
 
     def find_container_id_by_name(self, container_name: str) -> int:
-        """Find container ID by name in Solarwinds.
+        """Find container ID by name in SolarWinds.
 
         Args:
             container_name (str): Name of container to be found.
@@ -253,7 +253,7 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
         return node_details
 
     def batch_fill_node_details(self, node_data: list, node_details: dict, nodes_per_batch: int):
-        """Retrieve details from Solarwinds about specified nodes.
+        """Retrieve details from SolarWinds about specified nodes.
 
         Args:
             node_data (list): List of nodes in containers.
@@ -356,7 +356,7 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
             current_batch += 1
 
     def gather_interface_data(self, node_data: list, node_details: dict, nodes_per_batch: int):
-        """Retrieve interface details from Solarwinds about specified nodes.
+        """Retrieve interface details from SolarWinds about specified nodes.
 
         Args:
             node_data (list): List of nodes in containers.
@@ -471,7 +471,7 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
         """Extract Device software version from string.
 
         Args:
-            version (str): Version string from Solarwinds.
+            version (str): Version string from SolarWinds.
 
         Returns:
             str: Extracted version string.
@@ -481,7 +481,7 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
         return sanitized_version
 
     def gather_ipaddress_data(self, node_data: list, node_details: dict, nodes_per_batch: int):
-        """Retrieve IPAddress details from Solarwinds about specified nodes.
+        """Retrieve IPAddress details from SolarWinds about specified nodes.
 
         Args:
             node_data (list): List of nodes in containers.
