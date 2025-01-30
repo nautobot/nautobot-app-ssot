@@ -819,7 +819,7 @@ scheduled_job:
   - name: "Daily Log Cleanup"
     interval: "daily"
     start_time: "2025-01-28 23:00:00"
-    job_model: "Logs Cleanup"
+    job_model: "Logs Cleanup_Test"
     user: "admin"
     job_vars:
       cleanup_types: ["extras.ObjectChange"]

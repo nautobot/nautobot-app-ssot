@@ -779,7 +779,7 @@
   "scheduled_job": [
     {
         "name": "Daily Log Cleanup",
-        "job_model": "Logs Cleanup",
+        "job_model": "Logs Cleanup_Test",
         "user": "admin",
         "interval": "daily",
         "crontab": "",

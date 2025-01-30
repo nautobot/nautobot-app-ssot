@@ -933,14 +933,19 @@ class NautobotTestSetup:
             is_superuser=True,
             is_staff=True,
         )
+        job = Job(
+            name="Logs Cleanup_Test",
+            grouping="Tests",
+        )
+        job.validated_save()
+
         for scheduled_job in GLOBAL_YAML_SETTINGS["scheduled_job"]:
-            job_model = Job.objects.get(name=scheduled_job["job_model"])
             scheduled_job = ScheduledJob(
                 name=scheduled_job["name"],
-                task=job_model.class_path,
+                task=job.class_path,
                 interval=scheduled_job["interval"],
                 start_time=get_scheduled_start_time(scheduled_job["start_time"]),
-                job_model=job_model,
+                job_model=job,
                 user=admin,
                 kwargs=scheduled_job["job_vars"],
             )
