@@ -778,16 +778,13 @@
   ],
   "scheduled_job": [
     {
-        "name": "Daily Log Cleanup",
-        "job_model": "Logs Cleanup_Test",
+        "name": "Test Scheduled Job",
+        "job_model": "Export Object List",
         "user": "admin",
         "interval": "daily",
         "crontab": "",
         "start_time": "2025-01-28T23:00:00+00:00",
-        "job_vars": {
-          "cleanup_types": ["extras.ObjectChange"],
-          "max_age": 90
-        }
+        "job_vars": {}
     }
   ]
 }

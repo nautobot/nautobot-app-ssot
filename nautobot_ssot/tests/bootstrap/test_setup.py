@@ -933,11 +933,7 @@ class NautobotTestSetup:
             is_superuser=True,
             is_staff=True,
         )
-        job = Job(
-            name="Logs Cleanup_Test",
-            grouping="Tests",
-        )
-        job.validated_save()
+        job = Job.objects.get(name="Export Object List")
 
         for scheduled_job in GLOBAL_YAML_SETTINGS["scheduled_job"]:
             scheduled_job = ScheduledJob(
@@ -947,7 +943,7 @@ class NautobotTestSetup:
                 start_time=get_scheduled_start_time(scheduled_job["start_time"]),
                 job_model=job,
                 user=admin,
-                kwargs=scheduled_job["job_vars"],
+                kwargs={},
             )
             scheduled_job.validated_save()
 
