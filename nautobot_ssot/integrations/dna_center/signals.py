@@ -50,11 +50,12 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         # create Metadata objects for DNA Center integration
         MetadataType = apps.get_model("extras", "MetadataType")
         last_sync_type = MetadataType.objects.get_or_create(
-            name="Last Sync from DNA Center", defaults={
-            "description": "Describes the last date that a object's field was updated from DNA Center.",
-            "data_type": MetadataTypeDataTypeChoices.TYPE_DATE
-        }
-        )
+            name="Last Sync from DNA Center",
+            defaults={
+                "description": "Describes the last date that a object's field was updated from DNA Center.",
+                "data_type": MetadataTypeDataTypeChoices.TYPE_DATE,
+            },
+        )[0]
         last_sync_type.save()
         for _model in [Location, Device, Interface, IPAddress, IPAddressToInterface, Prefix]:
             last_sync_type.content_types.add(ContentType.objects.get_for_model(_model))
