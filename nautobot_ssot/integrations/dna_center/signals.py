@@ -3,6 +3,12 @@
 from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices
 
+try:
+    from nautobot.extras.models.metadata import MetadataTypeDataTypeChoices
+
+except ImportError:
+    pass
+
 
 def register_signals(sender):
     """Register signals for DNA Center integration."""
@@ -17,11 +23,11 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     # pylint: disable=invalid-name
     ContentType = apps.get_model("contenttypes", "ContentType")
     CustomField = apps.get_model("extras", "CustomField")
+    Location = apps.get_model("dcim", "Location")
     Device = apps.get_model("dcim", "Device")
-    Rack = apps.get_model("dcim", "Rack")
-    RackGroup = apps.get_model("dcim", "RackGroup")
     Interface = apps.get_model("dcim", "Interface")
     IPAddress = apps.get_model("ipam", "IPAddress")
+    IPAddressToInterface = apps.get_model("ipam", "IPAddressToInterface")
     Prefix = apps.get_model("ipam", "Prefix")
 
     sor_cf_dict = {
@@ -36,6 +42,21 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         "label": "Last sync from System of Record",
     }
     sync_custom_field, _ = CustomField.objects.update_or_create(key=sync_cf_dict["key"], defaults=sync_cf_dict)
-    for model in [Device, Interface, IPAddress, Prefix, Rack, RackGroup]:
+    for model in [Device, Interface, IPAddress, Prefix]:
         sor_custom_field.content_types.add(ContentType.objects.get_for_model(model))
         sync_custom_field.content_types.add(ContentType.objects.get_for_model(model))
+
+    try:
+        # create Metadata objects for DNA Center integration
+        MetadataType = apps.get_model("extras", "MetadataType")
+        last_sync_type = MetadataType.objects.get_or_create(
+            name="Last Sync from DNA Center", defaults={
+            "description": "Describes the last date that a object's field was updated from DNA Center.",
+            "data_type": MetadataTypeDataTypeChoices.TYPE_DATE
+        }
+        )
+        last_sync_type.save()
+        for _model in [Location, Device, Interface, IPAddress, IPAddressToInterface, Prefix]:
+            last_sync_type.content_types.add(ContentType.objects.get_for_model(_model))
+    except LookupError:
+        print("Unable to find MetadataType model. Skipping MetadataType creation.")
