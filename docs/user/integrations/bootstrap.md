@@ -684,7 +684,7 @@ graph_ql_query:
 The `query:` key takes a graphql formatted string to retrieve the information required.
 
 ### ScheduledJob
-Create a ScheduledJob. The Job to be scheduled must already exist. As Job's vary greatly, any Job specific variables should be under the `job_vars` key, and you should check the Job specific documentation for details on what these values should be.
+Create a ScheduledJob. The Job to be scheduled must already exist. As Job's vary greatly, any Job specific variables should be under the `job_vars` key, and you should check the Job specific documentation for details on what these values should be. The `start_time` must be in the future if the ScheduledJob is being updated or created. Once created, it does not need to be updated unless you wish to modify the schedule. The Bootstrap `system_of_record` cannot be applied to ScheduledJobs, make sure all desired ScheduledJobs exist in your YAML definition.
 
 ```yaml
 scheduled_job:
