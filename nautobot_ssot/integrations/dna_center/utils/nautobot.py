@@ -10,7 +10,7 @@ from nautobot.dcim.models import Device, Platform
 from nautobot.extras.models import Relationship, RelationshipAssociation
 
 try:
-    from nautobot.extras.models.metadata import MetadataType, ObjectMetadata  # noqa: F401
+    from nautobot.extras.models.metadata import MetadataType, MetadataTypeDataTypeChoices, ObjectMetadata  # noqa: F401
 
     METADATA_FOUND = True
 except (ImportError, RuntimeError):
@@ -116,7 +116,7 @@ if METADATA_FOUND:
                 metadata_type=MetadataType.objects.get(name="Last Sync from DNA Center"),
             )
             return True
-        except ObjectMetadata.DoesNotExist:
+        except (MetadataType.DoesNotExist, ObjectMetadata.DoesNotExist):
             return False
 
     def add_or_update_metadata_on_object(adapter: Adapter, obj: object, scoped_fields: List[str]) -> ObjectMetadata:  # pylint: disable=inconsistent-return-statements
@@ -131,7 +131,14 @@ if METADATA_FOUND:
             ObjectMetadata: Metadata object that is created or updated.
         """
         if METADATA_FOUND:
-            last_sync_type = MetadataType.objects.get(name="Last Sync from DNA Center")
+            last_sync_type = MetadataType.objects.get_or_create(
+                name="Last Sync from DNA Center",
+                defaults={
+                    "description": "Describes the last date that a object's field was updated from DNA Center.",
+                    "data_type": MetadataTypeDataTypeChoices.TYPE_DATE,
+                },
+            )[0]
+            last_sync_type.content_types.add(ContentType.objects.get_for_model(type(obj)))
             try:
                 metadata = ObjectMetadata.objects.get(
                     assigned_object_id=obj.id,

@@ -3,12 +3,6 @@
 from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices
 
-try:
-    from nautobot.extras.models.metadata import MetadataTypeDataTypeChoices
-
-except ImportError:
-    pass
-
 
 def register_signals(sender):
     """Register signals for DNA Center integration."""
@@ -23,7 +17,6 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     # pylint: disable=invalid-name
     ContentType = apps.get_model("contenttypes", "ContentType")
     CustomField = apps.get_model("extras", "CustomField")
-    Location = apps.get_model("dcim", "Location")
     Device = apps.get_model("dcim", "Device")
     Interface = apps.get_model("dcim", "Interface")
     IPAddress = apps.get_model("ipam", "IPAddress")
@@ -44,19 +37,3 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     for model in [Device, Interface, IPAddress, Prefix]:
         sor_custom_field.content_types.add(ContentType.objects.get_for_model(model))
         sync_custom_field.content_types.add(ContentType.objects.get_for_model(model))
-
-    try:
-        # create Metadata objects for DNA Center integration
-        MetadataType = apps.get_model("extras", "MetadataType")
-        last_sync_type = MetadataType.objects.get_or_create(
-            name="Last Sync from DNA Center",
-            defaults={
-                "description": "Describes the last date that a object's field was updated from DNA Center.",
-                "data_type": MetadataTypeDataTypeChoices.TYPE_DATE,
-            },
-        )[0]
-        last_sync_type.save()
-        for _model in [Location, Device, Interface, IPAddress, Prefix]:
-            last_sync_type.content_types.add(ContentType.objects.get_for_model(_model))
-    except LookupError:
-        print("Unable to find MetadataType model. Skipping MetadataType creation.")
