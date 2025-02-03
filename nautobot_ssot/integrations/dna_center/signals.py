@@ -27,7 +27,6 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     Device = apps.get_model("dcim", "Device")
     Interface = apps.get_model("dcim", "Interface")
     IPAddress = apps.get_model("ipam", "IPAddress")
-    IPAddressToInterface = apps.get_model("ipam", "IPAddressToInterface")
     Prefix = apps.get_model("ipam", "Prefix")
 
     sor_cf_dict = {
@@ -57,7 +56,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
             },
         )[0]
         last_sync_type.save()
-        for _model in [Location, Device, Interface, IPAddress, IPAddressToInterface, Prefix]:
+        for _model in [Location, Device, Interface, IPAddress, Prefix]:
             last_sync_type.content_types.add(ContentType.objects.get_for_model(_model))
     except LookupError:
         print("Unable to find MetadataType model. Skipping MetadataType creation.")
