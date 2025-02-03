@@ -355,11 +355,7 @@ class NautobotAdapter(Adapter):
 
     def update_database(self):
         """Perform databse update using normal operations."""
-        for obj_type in [
-            "devices",
-            "interfaces",
-            "mappings",
-        ]:
+        for obj_type in ["devices", "interfaces", "mappings", "metadata"]:
             if len(self.objects_to_create[obj_type]) > 0:
                 self.job.logger.info(f"Importing {len(self.objects_to_create[obj_type])} {obj_type} into Nautobot.")
                 for nautobot_obj in self.objects_to_create[obj_type]:
@@ -405,6 +401,9 @@ class NautobotAdapter(Adapter):
         if len(self.objects_to_create["mappings"]) > 0:
             self.job.logger.info("Performing assignment of IPAddress to Interface.")
             OrmIPAddressToInterface.objects.bulk_create(self.objects_to_create["mappings"], batch_size=250)
+        if len(self.objects_to_create["metadata"]) > 0:
+            self.job.logger.info("Performing bulk create of ObjectMetadata in Nautobot.")
+            ObjectMetadata.objects.bulk_create(self.objects_to_create["metadata"], batch_size=250)
         if len(self.objects_to_create["primary_ip4"]) > 0:
             self.job.logger.info("Performing bulk update of device primary IPv4 addresses in Nautobot.")
             device_primary_ip_objs = []
