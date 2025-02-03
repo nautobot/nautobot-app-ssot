@@ -17,10 +17,10 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     # pylint: disable=invalid-name
     ContentType = apps.get_model("contenttypes", "ContentType")
     CustomField = apps.get_model("extras", "CustomField")
-    Device = apps.get_model("dcim", "Device")
-    Interface = apps.get_model("dcim", "Interface")
     IPAddress = apps.get_model("ipam", "IPAddress")
     Prefix = apps.get_model("ipam", "Prefix")
+    Device = apps.get_model("dcim", "Device")
+    Interface = apps.get_model("dcim", "Interface")
 
     sor_cf_dict = {
         "type": CustomFieldTypeChoices.TYPE_TEXT,
