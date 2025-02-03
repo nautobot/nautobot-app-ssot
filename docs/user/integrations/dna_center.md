@@ -18,6 +18,8 @@ From Cisco DNA Center into Nautobot, it synchronizes the following objects:
 
 `**` If the [Device Lifecycle Nautobot app](https://github.com/nautobot/nautobot-app-device-lifecycle-mgmt) is found to be installed, a matching Version will be created with a RelationshipAssociation connecting the Device and that Version.
 
+> Starting in SSoT 3.5.0, the imported Locations, Devices, Prefixes, and IPAddresses will have a [Metadata](https://docs.nautobot.com/projects/core/en/stable/user-guide/platform-functionality/objectmetadata/) created or updated to track the last update from DNA Center.
+
 ## Usage
 
 Once the app is installed and configured, you will be able to perform an inventory ingestion from DNA Center into Nautobot. From the Nautobot SSoT Dashboard view (`/plugins/ssot/`), DNA Center will show as a Data Source.
