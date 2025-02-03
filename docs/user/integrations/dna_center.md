@@ -18,7 +18,7 @@ From Cisco DNA Center into Nautobot, it synchronizes the following objects:
 
 `**` If the [Device Lifecycle Nautobot app](https://github.com/nautobot/nautobot-app-device-lifecycle-mgmt) is found to be installed, a matching Version will be created with a RelationshipAssociation connecting the Device and that Version.
 
-> Starting in SSoT 3.5.0, the imported Locations, Devices, Prefixes, and IPAddresses will have a [Metadata](https://docs.nautobot.com/projects/core/en/stable/user-guide/platform-functionality/objectmetadata/) created or updated to track the last update from DNA Center.
+> Starting in SSoT 3.5.0, the imported Locations, Devices, Prefixes, and IPAddresses will have a [Object Metadata](https://docs.nautobot.com/projects/core/en/stable/user-guide/platform-functionality/objectmetadata/) created or updated to track the last update from DNA Center.
 
 ## Usage
 
