@@ -2,7 +2,7 @@
 
 ## Description
 
-This App will sync data from YAML files into Nautobot to create baseline environments. Most items will receive a custom field associated with them called "System of Record", which will be set to "Bootstrap". These items are then the only ones managed by the Bootstrap SSoT App. Other items within the Nautobot instance will not be affected unless there's items with overlapping names. There is currently two exceptions to this and those are the ComputedField, and GraphQLQuery models since they can't have a custom field associated. If you choose to manage ComputedField or GraphQLQuery objects with the Bootstrap SSoT App, make sure to define them all within the YAML file, since any "locally defined" Computed Fields and GraphQL Queries within Nautobot will end up getting deleted when the job runs. If an item exists in Nautobot by it's identifiers but it does not have the "System of Record" custom field on it, the item will be updated with "Bootstrap" (or `SYSTEM_OF_RECORD` environment variable value) when the App runs. This way no duplicates are created, and the App will not delete any items that are not defined in the Bootstrap data but were manually created in Nautobot.
+This App will sync data from YAML files into Nautobot to create baseline environments. Most items will receive a custom field associated with them called "System of Record", which will be set to "Bootstrap". These items are then the only ones managed by the Bootstrap SSoT App. Other items within the Nautobot instance will not be affected unless there's items with overlapping names. There is currently three exceptions to this and those are the ComputedField, GraphQLQuery, and ScheduledJob models since they can't have a custom field associated. If you choose to manage ComputedField, GraphQLQuery, or ScheduledJob objects with the Bootstrap SSoT App, make sure to define them all within the YAML file, since any "locally defined" Computed Fields and GraphQL Queries within Nautobot will end up getting deleted when the job runs. If an item exists in Nautobot by it's identifiers but it does not have the "System of Record" custom field on it, the item will be updated with "Bootstrap" (or `SYSTEM_OF_RECORD` environment variable value) when the App runs. This way no duplicates are created, and the App will not delete any items that are not defined in the Bootstrap data but were manually created in Nautobot.
 
 ## Installation
 
@@ -55,6 +55,7 @@ PLUGINS_CONFIG = {
             "vlan": True,
             "vrf": True,
             "prefix": True,
+            "scheduled_job": True,
         },
   }
 }

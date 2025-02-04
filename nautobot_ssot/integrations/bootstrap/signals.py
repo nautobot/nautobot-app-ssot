@@ -43,6 +43,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     Circuit = apps.get_model("circuits", "Circuit")
     CircuitTermination = apps.get_model("circuits", "CircuitTermination")
     Tag = apps.get_model("extras", "Tag")
+    ScheduledJob = apps.get_model("extras", "ScheduledJob")
     Secret = apps.get_model("extras", "Secret")
     SecretsGroup = apps.get_model("extras", "SecretsGroup")
     DynamicGroup = apps.get_model("extras", "DynamicGroup")
@@ -71,6 +72,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         "circuit": Circuit,
         "circuit_termination": CircuitTermination,
         "tag": Tag,
+        "scheduled_job": ScheduledJob,
         "secret": Secret,
         "secrets_group": SecretsGroup,
         "dynamic_group": DynamicGroup,
