@@ -1,1 +1,0 @@
-Fix empty memory profiling metrics causing Prometheus error.
