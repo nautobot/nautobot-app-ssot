@@ -1,0 +1,721 @@
+[
+  {
+    "identification": {
+      "id": "c269bde7-39ed-4921-bfb1-9e18d38fb071",
+      "site": {
+        "id": "dc3fcd13-53dd-43f8-badc-be81948cec82",
+        "name": "Twin Pines Mall Tower (TWIN)",
+        "status": "unknown",
+        "type": "site",
+        "parent": {
+          "id": "64e64d1e-043e-4627-904e-ed9625b61be1",
+          "name": "Courthouse Square Tower (COURT)",
+          "status": "unknown",
+          "type": "site",
+          "parent": null
+        }
+      },
+      "mac": "78:45:58:aa:1c:df",
+      "name": "TWIN-AP-MP-RP5AC-HORN-180-5",
+      "hostname": "TWIN-AP-MP-RP5AC-HORN-180-5",
+      "serialNumber": null,
+      "firmwareVersion": "6.3.11",
+      "udapiVersion": null,
+      "bridgeVersion": null,
+      "subsystemId": null,
+      "model": "RP-5AC-Gen2",
+      "modelName": "RP-5AC-Gen2",
+      "systemName": null,
+      "vendor": "Ubiquiti",
+      "vendorName": null,
+      "platformId": "XW",
+      "platformName": "XW",
+      "type": "airMax",
+      "category": "wireless",
+      "authorized": true,
+      "updated": "2025-01-23T15:32:23.739Z",
+      "started": null,
+      "displayName": "TWIN-AP-MP-RP5AC-HORN-180-5",
+      "role": "ap",
+      "wanInterfaceId": null
+    },
+    "uplinkDevice": null,
+    "features": {
+      "has60GhzRadio": false,
+      "hasBackupAntenna": false,
+      "isUdapiSpeedTestSupported": false,
+      "isUsingUdapiUpdaters": false,
+      "isSupportRouter": false
+    },
+    "overview": {
+      "antenna": {
+        "builtIn": true,
+        "cableLoss": 0,
+        "gain": 13,
+        "id": "4",
+        "name": "Built in"
+      },
+      "downlinkCapacity": 258004286,
+      "totalCapacity": 397140686,
+      "downlinkUtilization": 0.00021952862,
+      "theoreticalTotalCapacity": 397140686,
+      "theoreticalDownlinkCapacity": 305422850,
+      "theoreticalUplinkCapacity": 305422850,
+      "uplinkCapacity": 139136400,
+      "uplinkUtilization": 0.00008439815,
+      "stationsCount": 1,
+      "linkStationsCount": null,
+      "linkActiveStationsCount": null,
+      "runningOnBattery": null,
+      "status": "disconnected",
+      "canUpgrade": false,
+      "isLocateRunning": null,
+      "cpu": null,
+      "ram": null,
+      "signal": null,
+      "signal2": null,
+      "signalMax": null,
+      "remoteSignalMax": null,
+      "uptime": null,
+      "serviceUptime": null,
+      "serviceTime": null,
+      "distance": 174,
+      "outageScore": 0.99868965,
+      "linkOutageScore": null,
+      "lastSeen": "2025-01-23T15:32:23.739Z",
+      "createdAt": "2021-08-16T02:20:33.294Z",
+      "voltage": null,
+      "consumption": null,
+      "biasCurrent": null,
+      "outputPower": null,
+      "outputPowers": null,
+      "maximalPower": null,
+      "frequency": 5635,
+      "dfsLockouts": null,
+      "temperature": null,
+      "powerStatus": null,
+      "batteryCapacity": null,
+      "batteryTime": null,
+      "psu": [
+        {
+          "psuType": null,
+          "connected": false,
+          "maxChargingPower": null,
+          "voltage": null,
+          "power": null,
+          "batteryCapacity": null,
+          "batteryTime": null,
+          "batteryType": null,
+          "batteryCapacityConfigured": null,
+          "batteryCapacityEstimated": null
+        }
+      ],
+      "linkScore": null,
+      "channelWidth": 40,
+      "transmitPower": 14,
+      "wirelessMode": "sta",
+      "wirelessActiveInterfaceIds": [
+        "wlan0"
+      ],
+      "mainInterfaceSpeed": {
+        "interfaceId": "eth0",
+        "availableSpeed": "100 Mbps - Full Duplex"
+      },
+      "capabilitiesEncoded": null
+    },
+    "discovery": null,
+    "mode": "router",
+    "firmware": {
+      "compatible": true,
+      "current": "6.3.11",
+      "latest": "6.3.16",
+      "latestOnCurrentMajorVersion": "6.3.16",
+      "latestOver": null,
+      "upgradeRecommendedToVersion": null,
+      "prospective": null,
+      "semver": {
+        "current": {
+          "major": 6,
+          "minor": 3,
+          "patch": 11,
+          "prerelease": [],
+          "order": "393219.11.0"
+        },
+        "latest": {
+          "major": 6,
+          "minor": 3,
+          "patch": 16,
+          "prerelease": [],
+          "order": "393219.16.0"
+        },
+        "latestOver": null,
+        "latestOnCurrentMajorVersion": {
+          "major": 6,
+          "minor": 3,
+          "patch": 16,
+          "prerelease": [],
+          "order": "393219.16.0"
+        }
+      }
+    },
+    "upgrade": {
+      "status": "success",
+      "progress": 1,
+      "firmwareVersion": "6.3.11",
+      "firmware": {
+        "major": 6,
+        "minor": 3,
+        "patch": 11,
+        "prerelease": [],
+        "order": "393219.11.0"
+      },
+      "upgradeInMaintenanceWindow": true
+    },
+    "meta": {
+      "firmwareCompatibility": "compatible",
+      "failedMessageDecryption": false,
+      "failedDecryptionAt": null,
+      "maintenance": false,
+      "maintenanceEnabledAt": null,
+      "restartTimestamp": null,
+      "alias": null,
+      "note": null,
+      "activeAction": null
+    },
+    "attributes": {
+      "series": "M",
+      "ssid": "TWIN-225-5",
+      "secondarySsid": null,
+      "apDevice": null,
+      "country": "United States",
+      "countryCode": 840
+    },
+    "ipAddress": "192.168.1.2/24",
+    "ipAddressList": [
+      "192.168.1.2",
+      "10.10.1.2"
+    ],
+    "enabled": true,
+    "latestBackup": {
+      "timestamp": "2024-07-30T18:53:55.069Z",
+      "id": "bf42cb9f-d949-41f0-9e17-59a84933d34d"
+    },
+    "configuration": null,
+    "location": {
+      "altitude": 35,
+      "elevation": 472,
+      "heading": null,
+      "latitude": 47.165715,
+      "longitude": -92.844385,
+      "magneticHeading": null,
+      "roll": null,
+      "tilt": null
+    }
+  },
+  {
+    "identification": {
+      "id": "2aa1d277-12f9-49bc-8b53-50cce36c1f4e",
+      "site": {
+        "id": "2aa1d277-12f9-49bc-8b53-50cce36c1f4e",
+        "name": "McFly, Marty",
+        "status": "active",
+        "type": "endpoint",
+        "parent": {
+          "id": "dc3fcd13-53dd-43f8-badc-be81948cec82",
+          "name": "Twin Pines Mall Tower (TWIN)",
+          "status": "unknown",
+          "type": "site",
+          "parent": null
+        }
+      },
+      "mac": "78:45:58:bb:1c:df",
+      "name": "MCFLY-LBE5AC-23",
+      "hostname": "MCFLY-LBE5AC-23",
+      "serialNumber": null,
+      "firmwareVersion": "6.3.11"
+    },
+    "location": {
+      "altitude": 10,
+      "elevation": null,
+      "heading": null,
+      "latitude": 47.165815,
+      "longitude": -92.844485,
+      "magneticHeading": null,
+      "roll": null,
+      "tilt": null
+    },
+    "ipAddress": "192.168.1.10/24",
+    "ipAddressList": [
+      "192.168.1.10",
+      "10.10.1.10"
+    ]
+  },
+  {
+    "identification": {
+      "id": "016d31f6-3a9f-4984-a01b-e23dc6fd29d1",
+      "site": {
+        "id": "64e64d1e-043e-4627-904e-ed9625b61be1",
+        "name": "Courthouse Square Tower (COURT)",
+        "status": "unknown",
+        "type": "site",
+        "parent": {
+          "id": "91c65210-d444-42b2-990e-7f29b7dd68ec",
+          "name": "Hill Valley Main Hub (HVMH)",
+          "status": "unknown",
+          "type": "site",
+          "parent": null
+        }
+      },
+      "mac": "78:45:58:bb:2c:df",
+      "name": "COURT-AP-MP-RP2AC-SCTR-0-2",
+      "hostname": "COURT-AP-MP-RP2AC-SCTR-0-2",
+      "serialNumber": null,
+      "firmwareVersion": "8.7.14",
+      "udapiVersion": "1.4.0-189-g98fb0cf",
+      "bridgeVersion": "0.31.0-no-git",
+      "subsystemId": "e2f3",
+      "model": "R2AC-Prism",
+      "modelName": "Rocket 2AC Prism",
+      "systemName": null,
+      "vendor": "Ubiquiti",
+      "vendorName": null,
+      "platformId": "2XC",
+      "platformName": "2XC",
+      "type": "airMax",
+      "category": "wireless",
+      "authorized": true,
+      "updated": "2025-01-23T10:00:37.278Z",
+      "started": null,
+      "displayName": "COURT-AP-MP-RP2AC-SCTR-0-2",
+      "role": "ap",
+      "wanInterfaceId": null
+    },
+    "uplinkDevice": null,
+    "features": {
+      "has60GhzRadio": false,
+      "hasBackupAntenna": false,
+      "isUdapiSpeedTestSupported": true,
+      "isUsingUdapiUpdaters": true,
+      "isSupportRouter": false
+    },
+    "overview": {
+      "antenna": {
+        "builtIn": false,
+        "cableLoss": 2,
+        "gain": 15,
+        "id": "3",
+        "name": "AM-2G15"
+      },
+      "downlinkCapacity": 1000000000,
+      "totalCapacity": null,
+      "downlinkUtilization": 8.16e-7,
+      "theoreticalTotalCapacity": null,
+      "theoreticalDownlinkCapacity": null,
+      "theoreticalUplinkCapacity": null,
+      "uplinkCapacity": 1000000000,
+      "uplinkUtilization": 0.000007128,
+      "stationsCount": 0,
+      "linkStationsCount": null,
+      "linkActiveStationsCount": null,
+      "runningOnBattery": null,
+      "status": "disconnected",
+      "canUpgrade": false,
+      "isLocateRunning": null,
+      "cpu": null,
+      "ram": null,
+      "signal": null,
+      "signal2": null,
+      "signalMax": null,
+      "remoteSignalMax": null,
+      "uptime": null,
+      "serviceUptime": null,
+      "serviceTime": null,
+      "distance": null,
+      "outageScore": 0.9992924,
+      "linkOutageScore": null,
+      "lastSeen": "2025-01-23T10:00:37.278Z",
+      "createdAt": "2023-12-19T17:55:48.310Z",
+      "voltage": null,
+      "consumption": null,
+      "biasCurrent": null,
+      "outputPower": null,
+      "outputPowers": null,
+      "maximalPower": null,
+      "frequency": 2437,
+      "dfsLockouts": [],
+      "temperature": null,
+      "powerStatus": null,
+      "batteryCapacity": null,
+      "batteryTime": null,
+      "psu": [
+        {
+          "psuType": null,
+          "connected": false,
+          "maxChargingPower": null,
+          "voltage": null,
+          "power": null,
+          "batteryCapacity": null,
+          "batteryTime": null,
+          "batteryType": null,
+          "batteryCapacityConfigured": null,
+          "batteryCapacityEstimated": null
+        }
+      ],
+      "linkScore": null,
+      "channelWidth": 20,
+      "transmitPower": 23,
+      "wirelessMode": "ap-ptmp",
+      "wirelessActiveInterfaceIds": [
+        "main"
+      ],
+      "mainInterfaceSpeed": {
+        "interfaceId": "eth0",
+        "availableSpeed": "1000 Mbps - Full Duplex"
+      },
+      "capabilitiesEncoded": 6
+    },
+    "discovery": null,
+    "mode": "bridge",
+    "firmware": {
+      "compatible": true,
+      "current": "8.7.14",
+      "latest": "8.7.15",
+      "latestOnCurrentMajorVersion": "8.7.15",
+      "latestOver": null,
+      "upgradeRecommendedToVersion": null,
+      "prospective": null,
+      "semver": {
+        "current": {
+          "major": 8,
+          "minor": 7,
+          "patch": 14,
+          "prerelease": [],
+          "order": "524295.14.0"
+        },
+        "latest": {
+          "major": 8,
+          "minor": 7,
+          "patch": 15,
+          "prerelease": [],
+          "order": "524295.15.0"
+        },
+        "latestOver": null,
+        "latestOnCurrentMajorVersion": {
+          "major": 8,
+          "minor": 7,
+          "patch": 15,
+          "prerelease": [],
+          "order": "524295.15.0"
+        }
+      }
+    },
+    "upgrade": {
+      "status": "success",
+      "progress": 1,
+      "firmwareVersion": "8.7.14",
+      "firmware": {
+        "major": 8,
+        "minor": 7,
+        "patch": 14,
+        "prerelease": [],
+        "order": "524295.14.0"
+      },
+      "upgradeInMaintenanceWindow": false
+    },
+    "meta": {
+      "firmwareCompatibility": "compatible",
+      "failedMessageDecryption": false,
+      "failedDecryptionAt": null,
+      "maintenance": false,
+      "maintenanceEnabledAt": null,
+      "restartTimestamp": null,
+      "alias": null,
+      "note": null,
+      "activeAction": null
+    },
+    "attributes": {
+      "series": "AC",
+      "ssid": "COURT-0-2",
+      "secondarySsid": null,
+      "apDevice": null,
+      "country": "United States",
+      "countryCode": 840
+    },
+    "ipAddress": "192.168.2.2/24",
+    "ipAddressList": [
+      "192.168.2.2",
+      "10.30.1.2"
+    ],
+    "enabled": true,
+    "latestBackup": {
+      "timestamp": "2025-01-08T15:46:46.438Z",
+      "id": "d526f2bb-8dba-4a27-883d-57064cbfbc53"
+    },
+    "configuration": {
+      "id": "9f5557f4-49dd-45b9-8d85-62d88ec4d3a3",
+      "status": "applied",
+      "hash": "7efe9aaa0f363847ebcc45bd03838506",
+      "createdAt": "2024-07-18T15:05:19.499Z"
+    },
+    "location": {
+      "altitude": 45,
+      "elevation": null,
+      "heading": null,
+      "latitude": 47.172593,
+      "longitude": -92.818367,
+      "magneticHeading": null,
+      "roll": null,
+      "tilt": null
+    }
+  },
+  {
+    "identification": {
+      "id": "f1e2d3c4-b5a6-7890-1234-567890abcdef",
+      "site": {
+        "id": "f1e2d3c4-b5a6-7890-1234-567890abcdef",
+        "name": "Strickland, Gerald",
+        "status": "active",
+        "type": "endpoint",
+        "parent": {
+          "id": "64e64d1e-043e-4627-904e-ed9625b61be1",
+          "name": "Courthouse Square Tower (COURT)",
+          "status": "unknown",
+          "type": "site",
+          "parent": null
+        }
+      },
+      "mac": "78:45:58:cc:2c:df",
+      "name": "STRICKLAND-LBE5AC-23",
+      "hostname": "STRICKLAND-LBE5AC-23",
+      "serialNumber": null,
+      "firmwareVersion": "8.7.14"
+    },
+    "location": {
+      "altitude": 15,
+      "elevation": null,
+      "heading": null,
+      "latitude": 47.172693,
+      "longitude": -92.818467,
+      "magneticHeading": null,
+      "roll": null,
+      "tilt": null
+    },
+    "ipAddress": "192.168.2.10/24",
+    "ipAddressList": [
+      "192.168.2.10",
+      "10.30.1.10"
+    ]
+  },
+  {
+    "identification": {
+      "id": "022e5557-ce22-41e2-9f82-8323f191690c",
+      "site": {
+        "id": "91c65210-d444-42b2-990e-7f29b7dd68ec",
+        "name": "Hill Valley Main Hub (HVMH)",
+        "status": "unknown",
+        "type": "site",
+        "parent": null
+      },
+      "mac": "60:22:32:cc:3c:5d",
+      "name": "HVMH-PB5AC-GEN2-225-5",
+      "hostname": "HVMH-PB5AC-GEN2-225-5",
+      "serialNumber": null,
+      "firmwareVersion": "8.7.13",
+      "udapiVersion": "1.4.0-189-g98fb0cf",
+      "bridgeVersion": "0.31.0-no-git",
+      "subsystemId": "e3d6",
+      "model": "PBE-5AC-Gen2",
+      "modelName": "PowerBeam 5AC",
+      "systemName": null,
+      "vendor": null,
+      "vendorName": null,
+      "platformId": "WA",
+      "platformName": "WA",
+      "type": "airMax",
+      "category": "wireless",
+      "authorized": true,
+      "updated": "2025-01-23T09:59:59.866Z",
+      "started": null,
+      "displayName": "HVMH-PB5AC-GEN2-225-5",
+      "role": "station",
+      "wanInterfaceId": null
+    },
+    "uplinkDevice": null,
+    "features": {
+      "has60GhzRadio": false,
+      "hasBackupAntenna": false,
+      "isUdapiSpeedTestSupported": true,
+      "isUsingUdapiUpdaters": true,
+      "isSupportRouter": false
+    },
+    "overview": {
+      "antenna": {
+        "builtIn": true,
+        "cableLoss": 0,
+        "gain": 3,
+        "id": "2",
+        "name": "Feed only"
+      },
+      "downlinkCapacity": 143520000,
+      "totalCapacity": 139620000,
+      "downlinkUtilization": 0.00015217392,
+      "theoreticalTotalCapacity": 139620000,
+      "theoreticalDownlinkCapacity": 143520000,
+      "theoreticalUplinkCapacity": 135720000,
+      "uplinkCapacity": 135720000,
+      "uplinkUtilization": 0.00033009137,
+      "stationsCount": 1,
+      "linkStationsCount": null,
+      "linkActiveStationsCount": null,
+      "runningOnBattery": null,
+      "status": "disconnected",
+      "canUpgrade": false,
+      "isLocateRunning": null,
+      "cpu": null,
+      "ram": null,
+      "signal": null,
+      "signal2": null,
+      "signalMax": null,
+      "remoteSignalMax": null,
+      "uptime": null,
+      "serviceUptime": 10257214,
+      "serviceTime": 10257222,
+      "distance": 2108,
+      "outageScore": 0.99931556,
+      "linkOutageScore": 1,
+      "lastSeen": "2025-01-23T09:59:59.866Z",
+      "createdAt": "2024-03-19T02:28:06.953Z",
+      "voltage": null,
+      "consumption": null,
+      "biasCurrent": null,
+      "outputPower": null,
+      "outputPowers": null,
+      "maximalPower": null,
+      "frequency": 5710,
+      "dfsLockouts": [],
+      "temperature": null,
+      "powerStatus": null,
+      "batteryCapacity": null,
+      "batteryTime": null,
+      "psu": [
+        {
+          "psuType": null,
+          "connected": false,
+          "maxChargingPower": null,
+          "voltage": null,
+          "power": null,
+          "batteryCapacity": null,
+          "batteryTime": null,
+          "batteryType": null,
+          "batteryCapacityConfigured": null,
+          "batteryCapacityEstimated": null
+        }
+      ],
+      "linkScore": null,
+      "channelWidth": 20,
+      "transmitPower": 24,
+      "wirelessMode": "sta-ptmp",
+      "wirelessActiveInterfaceIds": [
+        "main"
+      ],
+      "mainInterfaceSpeed": {
+        "interfaceId": "eth0",
+        "availableSpeed": "1000 Mbps - Full Duplex"
+      },
+      "capabilitiesEncoded": 4
+    },
+    "discovery": null,
+    "mode": "bridge",
+    "firmware": {
+      "compatible": true,
+      "current": "8.7.13",
+      "latest": "8.7.15",
+      "latestOnCurrentMajorVersion": "8.7.15",
+      "latestOver": null,
+      "upgradeRecommendedToVersion": null,
+      "prospective": null,
+      "semver": {
+        "current": {
+          "major": 8,
+          "minor": 7,
+          "patch": 13,
+          "prerelease": [],
+          "order": "524295.13.0"
+        },
+        "latest": {
+          "major": 8,
+          "minor": 7,
+          "patch": 15,
+          "prerelease": [],
+          "order": "524295.15.0"
+        },
+        "latestOver": null,
+        "latestOnCurrentMajorVersion": {
+          "major": 8,
+          "minor": 7,
+          "patch": 15,
+          "prerelease": [],
+          "order": "524295.15.0"
+        }
+      }
+    },
+    "upgrade": {
+      "status": "canceled",
+      "progress": 1,
+      "firmwareVersion": "8.7.13",
+      "firmware": {
+        "major": 8,
+        "minor": 7,
+        "patch": 13,
+        "prerelease": [],
+        "order": "524295.13.0"
+      },
+      "upgradeInMaintenanceWindow": true
+    },
+    "meta": {
+      "firmwareCompatibility": "compatible",
+      "failedMessageDecryption": false,
+      "failedDecryptionAt": null,
+      "maintenance": false,
+      "maintenanceEnabledAt": null,
+      "restartTimestamp": null,
+      "alias": null,
+      "note": null,
+      "activeAction": null
+    },
+    "attributes": {
+      "series": "AC",
+      "ssid": "HVMH-225-5",
+      "secondarySsid": null,
+      "apDevice": null,
+      "country": "United States",
+      "countryCode": 840
+    },
+    "ipAddress": "192.168.3.2/24",
+    "ipAddressList": [
+      "192.168.3.2",
+      "10.40.1.2"
+    ],
+    "enabled": true,
+    "latestBackup": {
+      "timestamp": "2024-07-28T19:49:34.931Z",
+      "id": "f048e1cf-53a6-4195-b81b-f100a0bbabf7"
+    },
+    "configuration": {
+      "id": "1c2357af-98d5-4376-9faa-598a10c7761b",
+      "status": "applied",
+      "hash": "d1c5f921a18d231bc9326c603d0dc3b2",
+      "createdAt": "2024-07-18T15:05:27.013Z"
+    },
+    "location": {
+      "altitude": 55,
+      "elevation": null,
+      "heading": null,
+      "latitude": 47.165715,
+      "longitude": -92.844385,
+      "magneticHeading": null,
+      "roll": null,
+      "tilt": null
+    }
+  }
+]

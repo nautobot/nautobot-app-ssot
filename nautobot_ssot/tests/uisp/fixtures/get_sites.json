@@ -1,0 +1,433 @@
+[
+{
+  "id": "2aa1d277-12f9-49bc-8b53-50cce36c1f4e",
+  "identification": {
+    "id": "2aa1d277-12f9-49bc-8b53-50cce36c1f4e",
+    "status": "active",
+    "name": "McFly, Marty",
+    "parent": {
+      "id": "dc3fcd13-53dd-43f8-badc-be81948cec82",
+      "name": "Twin Pines Mall Tower (TWIN)",
+      "status": "unknown",
+      "type": "site",
+      "parentId": "64e64d1e-043e-4627-904e-ed9625b61be1"
+    },
+    "type": "endpoint",
+    "suspended": false,
+    "updated": "2025-01-23T02:26:13.696Z"
+  },
+  "description": {
+    "address": "9303 Lyon Drive, Hill Valley, 95420, California, United States",
+    "note": null,
+    "contact": {
+      "name": "Marty McFly",
+      "phone": "555-4385",
+      "email": "marty.mcfly@hillvalley.edu"
+    },
+    "location": {
+      "longitude": -93.000000,
+      "latitude": 47.000000
+    },
+    "height": 5,
+    "elevation": null,
+    "endpoints": [],
+    "deviceCount": 2,
+    "deviceOutageCount": 0,
+    "deviceListStatus": "active",
+    "ucrmId": "485",
+    "regulatoryDomain": "US",
+    "ipAddresses": [
+      "192.168.1.10",
+      "10.10.1.10"
+    ],
+    "sla": 0.91
+  },
+  "lastSpeedReport": null,
+  "notifications": {
+    "type": "none",
+    "users": []
+  },
+  "qos": {
+    "aggregation": null,
+    "downloadBurstSize": null,
+    "downloadSpeed": 25000000,
+    "enabled": true,
+    "propagation": null,
+    "uploadBurstSize": null,
+    "uploadSpeed": 5000000
+  },
+  "ucrm": {
+    "client": {
+      "id": "10000001",
+      "name": "McFly, Marty",
+      "isLead": false
+    },
+    "service": {
+      "id": "485",
+      "name": "25Mbps Internet - Consumer Wireless",
+      "status": 1,
+      "activeFrom": "2024-11-18T00:00:00.000Z",
+      "tariffId": "7",
+      "trafficShapingOverrideEnabled": false
+    }
+  },
+  "isMisconfigured": false
+},
+{
+  "id": "dc3fcd13-53dd-43f8-badc-be81948cec82",
+  "identification": {
+    "id": "dc3fcd13-53dd-43f8-badc-be81948cec82",
+    "status": "unknown",
+    "name": "Twin Pines Mall Tower (TWIN)",
+    "parent": {
+      "id": "64e64d1e-043e-4627-904e-ed9625b61be1",
+      "name": "Courthouse Square Tower (COURT)",
+      "status": "unknown",
+      "type": "site",
+      "parentId": "91c65210-d444-42b2-990e-7f29b7dd68ec"
+    },
+    "type": "site",
+    "suspended": false,
+    "updated": "2025-01-23T15:22:25.534Z"
+  },
+  "description": {
+    "address": "1640 Riverside Drive, Hill Valley, CA",
+    "note": null,
+    "contact": {
+      "name": "Dr. Emmett Brown",
+      "phone": "555-4385",
+      "email": "doc.brown@hillvalley.edu"
+    },
+    "location": {
+      "longitude": -92.000000,
+      "latitude": 47.000000
+    },
+    "height": 4,
+    "elevation": null,
+    "endpoints": [
+      {
+        "id": "2aa1d277-12f9-49bc-8b53-50cce36c1f4e",
+        "name": "McFly, Marty",
+        "status": "active",
+        "type": "endpoint",
+        "parentId": "dc3fcd13-53dd-43f8-badc-be81948cec82",
+        "suspended": false,
+        "updated": "2025-01-23T02:26:13.696Z"
+      },
+      {
+        "id": "b7236779-e35b-4eaf-b51b-6831f776154b",
+        "name": "Biff Tannen",
+        "status": "active",
+        "type": "endpoint",
+        "parentId": "dc3fcd13-53dd-43f8-badc-be81948cec82",
+        "suspended": false,
+        "updated": "2025-01-16T11:30:48.375Z"
+      },
+      {
+        "id": "a9b8c7d6-e5f4-4321-8765-9876543210ab",
+        "name": "Clayton, Jennifer",
+        "status": "active",
+        "type": "endpoint",
+        "parentId": "dc3fcd13-53dd-43f8-badc-be81948cec82",
+        "suspended": false,
+        "updated": "2025-01-23T02:26:13.696Z"
+      }
+    ],
+    "deviceCount": 3,
+    "deviceOutageCount": 1,
+    "deviceListStatus": "unknown",
+    "ucrmId": null,
+    "regulatoryDomain": "US",
+    "ipAddresses": [
+      "172.16.1.10",
+      "10.20.1.10"
+    ],
+    "sla": 1
+  },
+  "lastSpeedReport": null,
+  "notifications": {
+    "type": "system",
+    "users": []
+  },
+  "qos": {
+    "aggregation": null,
+    "downloadBurstSize": null,
+    "downloadSpeed": null,
+    "enabled": false,
+    "propagation": null,
+    "uploadBurstSize": null,
+    "uploadSpeed": null
+  },
+  "isMisconfigured": false
+},
+{
+  "id": "64e64d1e-043e-4627-904e-ed9625b61be1",
+  "identification": {
+    "id": "64e64d1e-043e-4627-904e-ed9625b61be1",
+    "status": "unknown",
+    "name": "Courthouse Square Tower (COURT)",
+    "parent": {
+      "id": "91c65210-d444-42b2-990e-7f29b7dd68ec",
+      "name": "Hill Valley Main Hub (HVMH)",
+      "status": "unknown",
+      "type": "site",
+      "parentId": null
+    },
+    "type": "site",
+    "suspended": false,
+    "updated": "2025-01-23T15:22:25.534Z"
+  },
+  "description": {
+    "address": "100 Town Square, Hill Valley, CA",
+    "note": null,
+    "contact": {
+      "name": "Mayor Goldie Wilson",
+      "phone": "555-1955",
+      "email": "mayor.wilson@hillvalley.gov"
+    },
+    "location": {
+      "longitude": -91.000000,
+      "latitude": 46.000000
+    },
+    "height": 6,
+    "elevation": null,
+    "endpoints": [
+      {
+        "id": "f1e2d3c4-b5a6-7890-1234-567890abcdef",
+        "name": "Strickland, Gerald",
+        "status": "active",
+        "type": "endpoint",
+        "parentId": "64e64d1e-043e-4627-904e-ed9625b61be1",
+        "suspended": false,
+        "updated": "2025-01-23T02:26:13.696Z"
+      }
+    ],
+    "deviceCount": 5,
+    "deviceOutageCount": 0,
+    "deviceListStatus": "active",
+    "ucrmId": null,
+    "regulatoryDomain": "US",
+    "ipAddresses": [
+      "192.168.2.10",
+      "10.30.1.10"
+    ],
+    "sla": 0.99
+  },
+  "lastSpeedReport": null,
+  "notifications": {
+    "type": "system",
+    "users": []
+  },
+  "qos": {
+    "aggregation": null,
+    "downloadBurstSize": null,
+    "downloadSpeed": null,
+    "enabled": false,
+    "propagation": null,
+    "uploadBurstSize": null,
+    "uploadSpeed": null
+  },
+  "isMisconfigured": false
+},
+{
+  "id": "91c65210-d444-42b2-990e-7f29b7dd68ec",
+  "identification": {
+    "id": "91c65210-d444-42b2-990e-7f29b7dd68ec",
+    "status": "active",
+    "name": "Hill Valley Main Hub (HVMH)",
+    "parent": null,
+    "type": "site",
+    "suspended": false,
+    "updated": "2025-01-23T15:22:25.534Z"
+  },
+  "description": {
+    "address": "121 Clock Tower Square, Hill Valley, CA",
+    "note": "Main distribution hub for Hill Valley",
+    "contact": {
+      "name": "Lou Caruthers",
+      "phone": "555-1885",
+      "email": "lou@hillvalleycafe.com"
+    },
+    "location": {
+      "longitude": -90.000000,
+      "latitude": 45.000000
+    },
+    "height": 8,
+    "elevation": null,
+    "endpoints": [],
+    "deviceCount": 10,
+    "deviceOutageCount": 0,
+    "deviceListStatus": "active",
+    "ucrmId": null,
+    "regulatoryDomain": "US",
+    "ipAddresses": [
+      "172.16.2.10",
+      "10.40.1.10"
+    ],
+    "sla": 0.999
+  },
+  "lastSpeedReport": null,
+  "notifications": {
+    "type": "system",
+    "users": []
+  },
+  "qos": {
+    "aggregation": null,
+    "downloadBurstSize": null,
+    "downloadSpeed": null,
+    "enabled": false,
+    "propagation": null,
+    "uploadBurstSize": null,
+    "uploadSpeed": null
+  },
+  "isMisconfigured": false
+},
+{
+  "id": "a9b8c7d6-e5f4-4321-8765-9876543210ab",
+  "identification": {
+    "id": "a9b8c7d6-e5f4-4321-8765-9876543210ab",
+    "status": "active",
+    "name": "Clayton, Jennifer",
+    "parent": {
+      "id": "dc3fcd13-53dd-43f8-badc-be81948cec82",
+      "name": "Twin Pines Mall Tower (TWIN)",
+      "status": "unknown",
+      "type": "site",
+      "parentId": "64e64d1e-043e-4627-904e-ed9625b61be1"
+    },
+    "type": "endpoint",
+    "suspended": false,
+    "updated": "2025-01-23T02:26:13.696Z"
+  },
+  "description": {
+    "address": "3793 Oakhurst Street, Hill Valley, CA",
+    "note": "Residential Customer",
+    "contact": {
+      "name": "Jennifer Parker",
+      "phone": "555-1955",
+      "email": "jennifer.parker@hillvalley.edu"
+    },
+    "location": {
+      "longitude": -92.100000,
+      "latitude": 47.100000
+    },
+    "height": 2,
+    "elevation": null,
+    "endpoints": [],
+    "deviceCount": 1,
+    "deviceOutageCount": 0,
+    "deviceListStatus": "active",
+    "ucrmId": "488",
+    "regulatoryDomain": "US",
+    "ipAddresses": [
+      "192.168.3.10",
+      "10.50.1.10"
+    ],
+    "sla": 0.95
+  },
+  "lastSpeedReport": null,
+  "notifications": {
+    "type": "none",
+    "users": []
+  },
+  "qos": {
+    "aggregation": null,
+    "downloadBurstSize": null,
+    "downloadSpeed": 15000000,
+    "enabled": true,
+    "propagation": null,
+    "uploadBurstSize": null,
+    "uploadSpeed": 3000000
+  },
+  "ucrm": {
+    "client": {
+      "id": "10000002",
+      "name": "Clayton, Jennifer",
+      "isLead": false
+    },
+    "service": {
+      "id": "488",
+      "name": "15Mbps Internet - Residential Wireless",
+      "status": 1,
+      "activeFrom": "2024-12-01T00:00:00.000Z",
+      "tariffId": "5",
+      "trafficShapingOverrideEnabled": false
+    }
+  },
+  "isMisconfigured": false
+},
+{
+  "id": "f1e2d3c4-b5a6-7890-1234-567890abcdef",
+  "identification": {
+    "id": "f1e2d3c4-b5a6-7890-1234-567890abcdef",
+    "status": "active",
+    "name": "Strickland, Gerald",
+    "parent": {
+      "id": "64e64d1e-043e-4627-904e-ed9625b61be1",
+      "name": "Courthouse Square Tower (COURT)",
+      "status": "unknown",
+      "type": "site",
+      "parentId": "91c65210-d444-42b2-990e-7f29b7dd68ec"
+    },
+    "type": "endpoint",
+    "suspended": false,
+    "updated": "2025-01-23T02:26:13.696Z"
+  },
+  "description": {
+    "address": "1855 School Lane, Hill Valley, CA",
+    "note": "Hill Valley High School Principal",
+    "contact": {
+      "name": "Mr. Strickland",
+      "phone": "555-1985",
+      "email": "g.strickland@hillvalleyhigh.edu"
+    },
+    "location": {
+      "longitude": -91.200000,
+      "latitude": 46.200000
+    },
+    "height": 3,
+    "elevation": null,
+    "endpoints": [],
+    "deviceCount": 2,
+    "deviceOutageCount": 0,
+    "deviceListStatus": "active",
+    "ucrmId": "489",
+    "regulatoryDomain": "US",
+    "ipAddresses": [
+      "192.168.4.10",
+      "10.60.1.10"
+    ],
+    "sla": 0.98
+  },
+  "lastSpeedReport": null,
+  "notifications": {
+    "type": "none",
+    "users": []
+  },
+  "qos": {
+    "aggregation": null,
+    "downloadBurstSize": null,
+    "downloadSpeed": 50000000,
+    "enabled": true,
+    "propagation": null,
+    "uploadBurstSize": null,
+    "uploadSpeed": 10000000
+  },
+  "ucrm": {
+    "client": {
+      "id": "10000003",
+      "name": "Strickland, Gerald",
+      "isLead": false
+    },
+    "service": {
+      "id": "489",
+      "name": "50Mbps Internet - Business Wireless",
+      "status": 1,
+      "activeFrom": "2024-11-15T00:00:00.000Z",
+      "tariffId": "8",
+      "trafficShapingOverrideEnabled": false
+    }
+  },
+  "isMisconfigured": false
+}
+]
