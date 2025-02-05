@@ -8,6 +8,7 @@ import yaml
 from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.conf import settings
+from nautobot.extras.choices import JobExecutionType
 from nautobot.extras.datasources.git import ensure_git_repository
 from nautobot.extras.models import GitRepository
 
@@ -30,6 +31,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (
     BootstrapProviderNetwork,
     BootstrapRiR,
     BootstrapRole,
+    BootstrapScheduledJob,
     BootstrapSecret,
     BootstrapSecretsGroup,
     BootstrapTag,
@@ -41,6 +43,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (
     BootstrapVRF,
 )
 from nautobot_ssot.integrations.bootstrap.utils import (
+    get_scheduled_start_time,
     is_running_tests,
     lookup_content_type,
 )
@@ -147,6 +150,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
     vlan = BootstrapVLAN
     vrf = BootstrapVRF
     prefix = BootstrapPrefix
+    scheduled_job = BootstrapScheduledJob
     secret = BootstrapSecret
     secrets_group = BootstrapSecretsGroup
     git_repository = BootstrapGitRepository
@@ -180,6 +184,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         "vlan",
         "vrf",
         "prefix",
+        "scheduled_job",
         "secret",
         "secrets_group",
         "git_repository",
@@ -799,6 +804,54 @@ class BootstrapAdapter(Adapter, LabelMixin):
             _new_graphqlq = self.graph_ql_query(name=query["name"], query=query["query"])
             self.add(_new_graphqlq)
 
+    def load_scheduled_job(self, scheduled_job):
+        """Load ScheduledJob objects from Bootstrap into DiffSync Models."""
+        if self.job.debug:
+            self.job.logger.debug(f"Loading Bootstrap ScheduledJob {scheduled_job}")
+        try:
+            self.get(self.scheduled_job, scheduled_job["name"])
+        except ObjectNotFound:
+            job_vars = scheduled_job["job_vars"] if scheduled_job.get("job_vars") else {}
+            interval = scheduled_job.get("interval")
+
+            if interval not in JobExecutionType.SCHEDULE_CHOICES:
+                self.job.logger.error(
+                    f"Invalid interval: ({interval}), unable to load scheduled job ({scheduled_job.get('name')})"
+                )
+                return
+
+            start_time = get_scheduled_start_time(start_time=scheduled_job.get("start_time"))
+
+            crontab = ""
+            if interval == JobExecutionType.TYPE_CUSTOM:
+                crontab = scheduled_job.get("crontab")
+            elif not start_time:
+                self.job.logger.error(
+                    f"Invalid start_time: ({start_time}), unable to load scheduled job ({scheduled_job.get('name')})."
+                )
+                return
+
+            for key in ["name", "job_model", "user"]:
+                if key not in scheduled_job:
+                    self.job.logger.error(
+                        f"Missing key ({key}) in scheduled job ({scheduled_job.get('name')}), unable to load."
+                    )
+                    return
+
+            _scheduled_job = self.scheduled_job(
+                name=scheduled_job["name"],
+                job_model=scheduled_job["job_model"],
+                user=scheduled_job["user"],
+                interval=interval,
+                start_time=start_time,
+                crontab=crontab,
+                job_vars=job_vars,
+                profile=scheduled_job.get("profile", False),
+                approval_required=scheduled_job.get("approval_required", False),
+                task_queue=scheduled_job.get("task_queue"),
+            )
+            self.add(_scheduled_job)
+
     def load_software(self, software):
         """Load Software objects from Bootstrap into DiffSync Models."""
         if self.job.debug:
@@ -1061,6 +1114,11 @@ class BootstrapAdapter(Adapter, LabelMixin):
             if global_settings["graph_ql_query"] is not None:  # noqa F821
                 for graph_ql_query in global_settings["graph_ql_query"]:  # noqa F821
                     self.load_graph_ql_query(query=graph_ql_query)
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["scheduled_job"]:
+            if global_settings["scheduled_job"] is not None:  # noqa F821
+                for job in global_settings["scheduled_job"]:
+                    self.load_scheduled_job(scheduled_job=job)
+
         if LIFECYCLE_MGMT:
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software"]:
                 for software in global_settings["software"]:  # noqa: F821

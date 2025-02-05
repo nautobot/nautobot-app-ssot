@@ -1,0 +1,30 @@
+{
+  "status": "ok",
+  "devices": [
+    {
+      "hostname": "192.168.1.2",
+      "display": "LIBRENMSDEV",
+      "location_id": 2,
+      "port": 161,
+      "transport": "udp",
+      "poller_group": 0,
+      "os": "linux",
+      "status_reason": "",
+      "sysName": "LIBRENMSDEV",
+      "port_association_mode": 1,
+      "snmpver": "v3",
+      "community": null,
+      "authlevel": "authPriv",
+      "authname": "snmp_user",
+      "authpass": "authpass",
+      "authalgo": "SHA",
+      "cryptopass": "cryptopass",
+      "cryptoalgo": "AES",
+      "sysDescr": "Linux librenmsdev 5.15.0-130-generic #140-Ubuntu SMP Wed Dec 18 17:59:53 UTC 2024 x86_64",
+      "sysObjectID": ".1.3.6.1.4.1.8072.3.2.10",
+      "device_id": 5
+    }
+  ],
+  "message": "Device 192.168.1.2 (5) has been added successfully",
+  "count": 1
+}

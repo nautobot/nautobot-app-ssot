@@ -31,8 +31,10 @@ from nautobot.extras.models import (
     DynamicGroup,
     GitRepository,
     GraphQLQuery,
+    Job,
     JobResult,
     Role,
+    ScheduledJob,
     Secret,
     SecretsGroup,
     SecretsGroupAssociation,
@@ -42,6 +44,7 @@ from nautobot.extras.models import (
 )
 from nautobot.ipam.models import RIR, VLAN, VRF, Namespace, Prefix, VLANGroup
 from nautobot.tenancy.models import Tenant, TenantGroup
+from nautobot.users.models import User
 from nautobot_device_lifecycle_mgmt.models import (
     SoftwareImageLCM,
     SoftwareLCM,
@@ -55,6 +58,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.adapters.nautobot import (
     NautobotAdapter,
 )
 from nautobot_ssot.integrations.bootstrap.jobs import BootstrapDataSource
+from nautobot_ssot.integrations.bootstrap.utils import get_scheduled_start_time
 
 
 def load_yaml(path):
@@ -107,6 +111,7 @@ MODELS_TO_SYNC = [
     "vlan",
     "vrf",
     "prefix",
+    "scheduled_job",
 ]
 
 
@@ -179,6 +184,7 @@ class NautobotTestSetup:
         self._setup_prefixes()
         self._setup_software_and_images()
         self._setup_validated_software()
+        self._setup_scheduled_job()
 
     def _setup_tags(self):
         for _tag in GLOBAL_YAML_SETTINGS["tag"]:
@@ -919,6 +925,27 @@ class NautobotTestSetup:
                 inventory_items,
                 object_tags,
             )
+
+    def _setup_scheduled_job(self):
+        admin = User.objects.create(
+            username="admin",
+            password="admin",
+            is_superuser=True,
+            is_staff=True,
+        )
+        job = Job.objects.get(name="Export Object List")
+
+        for scheduled_job in GLOBAL_YAML_SETTINGS["scheduled_job"]:
+            scheduled_job = ScheduledJob(
+                name=scheduled_job["name"],
+                task=job.class_path,
+                interval=scheduled_job["interval"],
+                start_time=get_scheduled_start_time(scheduled_job["start_time"]),
+                job_model=job,
+                user=admin,
+                kwargs={},
+            )
+            scheduled_job.validated_save()
 
     def _get_validated_software_tags(self, tag_names):
         return [Tag.objects.get(name=tag_name) for tag_name in tag_names]

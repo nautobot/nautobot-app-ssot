@@ -1,6 +1,7 @@
 """Utility functions for working with LibreNMS and Nautobot."""
 
 import inspect
+import ipaddress
 import logging
 import os
 
@@ -21,6 +22,14 @@ def normalize_setting(variable_name):
     if variable_name.lower() in settings.PLUGINS_CONFIG["nautobot_ssot"]:
         return settings.PLUGINS_CONFIG["nautobot_ssot"][variable_name.lower()]
     return getattr(constance_name, f"{variable_name.upper()}")
+
+
+def normalize_device_hostname(hostname):
+    """Normalize device hostname to be a valid LibreNMS or Nautobot hostname. Remove domain suffixes and uppercase the names for comparison (if not an IP Address)."""
+    if isinstance(hostname, ipaddress.IPv4Address) or isinstance(hostname, ipaddress.IPv6Address):
+        return hostname
+    hostname = hostname.split(".")[0]
+    return hostname.upper()
 
 
 def check_sor_field(model):

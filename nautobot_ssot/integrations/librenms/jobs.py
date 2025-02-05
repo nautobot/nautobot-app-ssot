@@ -5,6 +5,7 @@ import os
 from django.templatetags.static import static
 from nautobot.apps.jobs import BooleanVar, ChoiceVar, ObjectVar
 from nautobot.core.celery import register_jobs
+from nautobot.dcim.models import LocationType
 from nautobot.extras.choices import (
     SecretsGroupAccessTypeChoices,
     SecretsGroupSecretTypeChoices,
@@ -49,10 +50,19 @@ class LibrenmsDataSource(DataSource):
         default="api",
     )
     sync_locations = BooleanVar(description="Whether to Sync Locations from LibreNMS to Nautobot.", default=False)
+    location_type = ObjectVar(
+        model=LocationType,
+        queryset=LocationType.objects.all(),
+        query_params={"content_types": "dcim.device"},
+        display_field="name",
+        required=False,
+        label="Location Type",
+        description="Location Type to use for syncing locations to LibreNMS. This should be the Location Type that actually has devices assigned. For example, Site.",
+    )
     tenant = ObjectVar(
         model=Tenant,
         queryset=Tenant.objects.all(),
-        description="Tenant to limit loading devices when syncing multiple LibreNMS Instances",
+        description="Tenant to filter loaded information from Nautobot when syncing multiple LibreNMS Instances",
         display_field="display",
         label="Tenant Filter",
         required=False,
@@ -81,8 +91,8 @@ class LibrenmsDataSource(DataSource):
     def data_mappings(cls):
         """List describing the data mappings involved in this DataSource."""
         return (
-            DataMapping("Location", "", "Location", "dcim.location"),
-            DataMapping("DeviceGroup", "", "Tag", "extras.tags"),
+            DataMapping("Geo Location", "", "Location", "dcim.location"),
+            DataMapping("Device Group", "", "Tag", "extras.tags"),
             DataMapping("Device", "", "Device", "dcim.device"),
             DataMapping("Port", "", "Interface", "dcim.interfaces"),
             DataMapping("IP", "", "IPAddress", "ipam.ip_address"),
@@ -127,6 +137,7 @@ class LibrenmsDataSource(DataSource):
         librenms_server,
         hostname_field,
         sync_locations,
+        location_type,
         tenant,
         load_type,
         *args,
@@ -137,6 +148,7 @@ class LibrenmsDataSource(DataSource):
         self.hostname_field = hostname_field
         self.load_type = load_type
         self.sync_locations = sync_locations
+        self.location_type = location_type
         self.tenant = tenant
         self.debug = debug
         self.dryrun = dryrun
@@ -154,6 +166,28 @@ class LibrenmsDataTarget(DataTarget):
         required=True,
         label="LibreNMS Instance",
     )
+    force_add = BooleanVar(description="Force add devices to LibreNMS (bypass ICMP check)", default=False)
+    ping_fallback = BooleanVar(description="Fallback to ICMP check if device is not reachable via SNMP", default=False)
+    sync_locations = BooleanVar(description="Whether to Sync Locations from Nautobot to LibreNMS.", default=False)
+    location_type = ObjectVar(
+        model=LocationType,
+        queryset=LocationType.objects.all(),
+        query_params={"content_types": "dcim.device"},
+        display_field="name",
+        required=False,
+        label="Location Type",
+        description="Location Type to use for syncing locations to LibreNMS. This should be the Location Type that actually has devices assigned. For example, Site.",
+    )
+    hostname_field = ""
+    load_type = ""
+    tenant = ObjectVar(
+        model=Tenant,
+        queryset=Tenant.objects.all(),
+        description="Tenant to filter loaded information from Nautobot when syncing multiple LibreNMS Instances",
+        display_field="display",
+        label="Tenant Filter",
+        required=False,
+    )
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
 
     class Meta:  # pylint: disable=too-few-public-methods
@@ -164,6 +198,7 @@ class LibrenmsDataTarget(DataTarget):
         data_target = "LibreNMS"
         description = "Sync information from Nautobot to LibreNMS"
         data_target_icon = static("nautobot_ssot_librenms/librenms.svg")
+        has_sensitive_variables = False
 
     @classmethod
     def config_information(cls):
@@ -173,7 +208,11 @@ class LibrenmsDataTarget(DataTarget):
     @classmethod
     def data_mappings(cls):
         """List describing the data mappings involved in this DataSource."""
-        return ()
+        return (
+            DataMapping("dcim.location", "", "Location", "Geo Location"),
+            DataMapping("extras.tags", "", "Tag", "Device Group"),
+            DataMapping("dcim.device", "", "Device", "Device"),
+        )
 
     def load_source_adapter(self):
         """Load data from Nautobot into DiffSync models."""
@@ -202,14 +241,34 @@ class LibrenmsDataTarget(DataTarget):
         self.target_adapter = librenms.LibrenmsAdapter(job=self, sync=self.sync, librenms_api=librenms_api)
         self.target_adapter.load()
 
-    def run(self, dryrun, memory_profiling, debug, librenms_server, *args, **kwargs):  # pylint: disable=arguments-differ
+    def run(
+        self,
+        dryrun,
+        memory_profiling,
+        debug,
+        librenms_server,
+        force_add,
+        ping_fallback,
+        sync_locations,
+        location_type,
+        tenant,
+        *args,
+        **kwargs,
+    ):  # pylint: disable=arguments-differ
         """Perform data synchronization."""
         self.librenms_server = librenms_server
+        self.force_add = force_add
+        self.ping_fallback = ping_fallback
+        self.sync_locations = sync_locations
+        self.location_type = location_type
+        self.hostname_field == "env_var"
+        self.load_type == "api"
+        self.tenant = tenant
         self.debug = debug
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 
-jobs = [LibrenmsDataSource]
+jobs = [LibrenmsDataSource, LibrenmsDataTarget]
 register_jobs(*jobs)

@@ -360,10 +360,12 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
         self.contenttype_map = {c.model: c.id for c in ContentType.objects.only("id", "model")}
 
         if self.job.parent_location:
-            self.region_map[self.job.parent_location.name] = Location.objects.get(name=self.job.parent_location).id
+            self.region_map[self.job.parent_location.name] = self.job.parent_location.id
         else:
             self.region_map = {
-                loc_data["parent"]: Location.objects.get(name=loc_data["parent"]).id
+                loc_data["parent"]: Location.objects.get(
+                    name=loc_data["parent"], location_type=self.job.network_loctype.parent.location_type
+                ).id
                 for _, loc_data in self.job.location_map.items()
             }
         self.tenant_map = {t.name: t.id for t in Tenant.objects.only("id", "name")}

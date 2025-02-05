@@ -2,6 +2,7 @@
 
 import inspect
 import os
+from datetime import datetime
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
@@ -138,3 +139,15 @@ def lookup_contact_for_team(contact):
         return _contact
     except Contact.DoesNotExist:
         return None
+
+
+def get_scheduled_start_time(start_time):
+    """Validate and return start_time is ISO 8601 format."""
+    if not start_time:
+        return ""
+    try:
+        start_time = datetime.fromisoformat(f"{start_time}+00:00")  # UTC, the Job stores time_zone info
+    except ValueError:
+        return None
+
+    return start_time.isoformat()

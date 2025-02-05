@@ -70,13 +70,17 @@ class ApiEndpoint:  # pylint: disable=too-few-public-methods
         else:
             params = {**self.params, **params}
 
+        LOGGER.debug(
+            f"LibreNMS API Call: Headers: {self.headers} Method: {method} URL: {url} Params: {params} Payload: {payload}"
+        )
+
         resp = requests.request(
             method=method,
             headers=self.headers,
             url=url,
             params=params,
             verify=self.verify,
-            data=payload,
+            json=payload,
             timeout=self.timeout,
         )
         try:
@@ -85,7 +89,7 @@ class ApiEndpoint:  # pylint: disable=too-few-public-methods
 
             return resp.json()
         except requests.exceptions.HTTPError as err:
-            LOGGER.log.error(f"Error in communicating to LibreNMS API: {err}")
+            LOGGER.error(f"Error in communicating to LibreNMS API: {err}")
             raise Exception(f"Error communicating to the LibreNMS API: {err}")
 
 
@@ -185,13 +189,43 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
         url = "/api/v0/locations"
         method = "POST"
         data = location
-        response = self.api_call(path=url, method=method, data=data)
+        response = self.api_call(path=url, method=method, payload=data)
         return response
 
     def update_librenms_location(self, location: dict):
         """Update Location details to LibreNMS API endpoint."""
-        url = "/api/v0/locations"
+        url = "/api/v0/locations{location}"
         method = "PATCH"
         data = location
-        response = self.api_call(path=url, method=method, data=data)
+        response = self.api_call(path=url, method=method, payload=data)
+        return response
+
+    def delete_librenms_location(self, location: str):
+        """Delete Location details from LibreNMS API endpoint."""
+        url = "/api/v0/locations/{location}"
+        method = "DELETE"
+        response = self.api_call(path=url, method=method)
+        return response
+
+    def create_librenms_device(self, device: dict):
+        """Add Device details to LibreNMS API endpoint."""
+        url = "/api/v0/devices"
+        method = "POST"
+        data = device
+        response = self.api_call(path=url, method=method, payload=data)
+        return response
+
+    def update_librenms_device(self, device: dict):
+        """Update Device details to LibreNMS API endpoint."""
+        url = "/api/v0/devices{device}"
+        method = "PATCH"
+        data = device
+        response = self.api_call(path=url, method=method, payload=data)
+        return response
+
+    def delete_librenms_device(self, device: str):
+        """Delete Device details from LibreNMS API endpoint. Either hostname or device_id is required."""
+        url = "/api/v0/devices/{device}"
+        method = "DELETE"
+        response = self.api_call(path=url, method=method)
         return response

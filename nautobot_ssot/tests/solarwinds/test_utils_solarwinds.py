@@ -267,7 +267,7 @@ class TestSolarwindsClientTestCase(TransactionTestCase):  # pylint: disable=too-
         )
         self.job.logger.debug.assert_called_once_with("Processing batch 1 of 1 - Orion.Nodes.")
         self.test_client.query.assert_called_once_with(
-            "\n                SELECT IOSVersion AS Version,\n                o.IPAddress,\n                Location AS SNMPLocation,\n                o.Vendor,\n                MachineType AS DeviceType,\n                h.Model,\n                h.ServiceTag,\n                o.NodeID\n                FROM Orion.Nodes o LEFT JOIN Orion.HardwareHealth.HardwareInfo h ON o.NodeID = h.NodeID\n                WHERE NodeID IN (\n            '1','2')"
+            "\n                SELECT IOSVersion AS Version,\n                o.IPAddress,\n                Location AS SNMPLocation,\n                o.Vendor,\n                MachineType AS DeviceType,\n                IOSImage,\n                h.Model,\n                h.ServiceTag,\n                o.NodeID\n                FROM Orion.Nodes o LEFT JOIN Orion.HardwareHealth.HardwareInfo h ON o.NodeID = h.NodeID\n                WHERE NodeID IN (\n            '1','2')"
         )
         self.assertEqual(
             self.node_details,
