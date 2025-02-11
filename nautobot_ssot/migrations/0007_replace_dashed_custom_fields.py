@@ -33,12 +33,12 @@ def replace_dashed_custom_fields(apps, schema_editor):
     ]:
         model = apps.get_model(app, model)
         cf_list = []
-        for instance in model.objects.all():
+        for instance in model.objects.iterator():
             for new_cf, old_cf in CF_KEY_CHANGE_MAP.items():
                 if old_cf in instance._custom_field_data and new_cf in instance._custom_field_data:
                     print(f"CustomField {new_cf} on {instance} is being set to {instance._custom_field_data[old_cf]}.")
                     instance._custom_field_data[new_cf] = instance._custom_field_data.pop(old_cf)
-            cf_list.append(instance)
+                    cf_list.append(instance)
         model.objects.bulk_update(cf_list, ["_custom_field_data"], 1000)
 
     for old_cf in CF_KEY_CHANGE_MAP.values():
