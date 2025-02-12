@@ -130,25 +130,25 @@ if METADATA_FOUND:
         Returns:
             ObjectMetadata: Metadata object that is created or updated.
         """
-        if METADATA_FOUND:
-            last_sync_type = MetadataType.objects.get_or_create(
-                name="Last Sync from DNA Center",
-                defaults={
-                    "description": "Describes the last date that a object's field was updated from DNA Center.",
-                    "data_type": MetadataTypeDataTypeChoices.TYPE_DATE,
-                },
-            )[0]
-            last_sync_type.content_types.add(ContentType.objects.get_for_model(type(obj)))
-            try:
-                metadata = ObjectMetadata.objects.get(
-                    assigned_object_id=obj.id,
-                    metadata_type=last_sync_type,
-                )
-            except ObjectMetadata.DoesNotExist:
-                metadata = ObjectMetadata(
-                    assigned_object=obj, metadata_type=last_sync_type, scoped_fields=scoped_fields
-                )
-            metadata.value = datetime.today().date().isoformat()
-            if adapter.job.debug:
-                adapter.job.logger.debug(f"Metadata {last_sync_type} added to {obj}.")
-            return metadata
+        if not METADATA_FOUND:
+            return None
+
+        last_sync_type = MetadataType.objects.get_or_create(
+            name="Last Sync from DNA Center",
+            defaults={
+                "description": "Describes the last date that a object's field was updated from DNA Center.",
+                "data_type": MetadataTypeDataTypeChoices.TYPE_DATE,
+            },
+        )[0]
+        last_sync_type.content_types.add(ContentType.objects.get_for_model(type(obj)))
+        try:
+            metadata = ObjectMetadata.objects.get(
+                assigned_object_id=obj.id,
+                metadata_type=last_sync_type,
+            )
+        except ObjectMetadata.DoesNotExist:
+            metadata = ObjectMetadata(assigned_object=obj, metadata_type=last_sync_type, scoped_fields=scoped_fields)
+        metadata.value = datetime.today().date().isoformat()
+        if adapter.job.debug:
+            adapter.job.logger.debug(f"Metadata {last_sync_type} added to {obj}.")
+        return metadata
