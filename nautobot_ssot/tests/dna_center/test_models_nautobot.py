@@ -324,7 +324,7 @@ class TestNautobotDevice(TransactionTestCase):
             "vendor": "Cisco",
             "version": "16.12.3",
         }
-        self.adapter.objects_to_create = {"devices": []}  # pylint: disable=no-member
+        self.adapter.objects_to_create = {"devices": [], "metadata": []}  # pylint: disable=no-member
 
     @patch("nautobot_ssot.integrations.dna_center.diffsync.models.nautobot.LIFECYCLE_MGMT", True)
     def test_create(self):
