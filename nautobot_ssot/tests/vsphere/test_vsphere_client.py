@@ -100,9 +100,7 @@ class TestVsphere(unittest.TestCase):
 
         with self.assertRaises(InvalidUrlScheme):
             localhost_client_vsphere("file://vcenter.txt")
-        self.assertLogs(
-            "Invalid URL scheme 'file' found for vSphere URL. Please correct to use HTTPS."
-        )
+        self.assertLogs("Invalid URL scheme 'file' found for vSphere URL. Please correct to use HTTPS.")
 
     @responses.activate
     def test_get_vms(self):
@@ -116,9 +114,7 @@ class TestVsphere(unittest.TestCase):
             json=json_response,
             status=200,
         )
-        self.assertEqual(
-            self.client.get_vms().json()["value"][0]["memory_size_MiB"], 32768
-        )
+        self.assertEqual(self.client.get_vms().json()["value"][0]["memory_size_MiB"], 32768)
 
     @responses.activate
     def test_get_vms_from_cluster(self):
@@ -185,9 +181,7 @@ class TestVsphere(unittest.TestCase):
             json=json_response,
             status=200,
         )
-        self.assertEqual(
-            self.client.get_clusters().json()["value"][0]["name"], "HeshLawCluster"
-        )
+        self.assertEqual(self.client.get_clusters().json()["value"][0]["name"], "HeshLawCluster")
 
     @responses.activate
     def test_get_cluster_details(self):
@@ -203,9 +197,7 @@ class TestVsphere(unittest.TestCase):
             status=200,
         )
         self.assertEqual(
-            self.client.get_cluster_details(cluster_name).json()["value"][
-                "resource_pool"
-            ],
+            self.client.get_cluster_details(cluster_name).json()["value"]["resource_pool"],
             "resgroup-1002",
         )
 
@@ -223,9 +215,7 @@ class TestVsphere(unittest.TestCase):
             status=200,
         )
         self.assertEqual(
-            self.client.get_datacenter_details(datacenter).json()["value"][
-                "datastore_folder"
-            ],
+            self.client.get_datacenter_details(datacenter).json()["value"]["datastore_folder"],
             "group-s65",
         )
 
@@ -260,9 +250,7 @@ class TestVsphere(unittest.TestCase):
             json=json_response,
             status=200,
         )
-        self.assertEqual(
-            self.client.get_vm_details(vm_id).json()["value"]["cpu"]["count"], 4
-        )
+        self.assertEqual(self.client.get_vm_details(vm_id).json()["value"]["cpu"]["count"], 4)
 
     @responses.activate
     def test_get_host_from_clusters(self):

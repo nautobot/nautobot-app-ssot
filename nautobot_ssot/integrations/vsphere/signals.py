@@ -2,60 +2,27 @@
 # pylint: disable=duplicate-code
 """Signal handlers for nautobot_ssot_vsphere."""
 
+from django.conf import settings
 from nautobot.core.signals import nautobot_database_ready
-from nautobot.extras.choices import CustomFieldTypeChoices
+from nautobot.extras.choices import (
+    CustomFieldTypeChoices,
+    SecretsGroupAccessTypeChoices,
+    SecretsGroupSecretTypeChoices,
+)
 
 from nautobot_ssot.integrations.vsphere.constant import TAG_COLOR
+
+config = settings.PLUGINS_CONFIG["nautobot_ssot"]
 
 
 def register_signals(sender):
     """Register signals for vSphere integration."""
     nautobot_database_ready.connect(nautobot_database_ready_callback, sender=sender)
-
-
-# def create_custom_field(field_name: str, label: str, models: List, apps, cf_type: Optional[str] = "type_date"):
-#     """Create custom field on a given model instance type.
-
-#     Args:
-#         field_name (str): Field Name
-#         label (str): Label description
-#         models (List): List of Django Models
-#         apps: Django Apps
-#         cf_type: (str, optional): Type of Field. Supports 'type_text' or 'type_date'. Defaults to 'type_date'.
-#     """
-#     ContentType = apps.get_model("contenttypes", "ContentType")  # pylint:disable=invalid-name
-#     CustomField = apps.get_model("extras", "CustomField")  # pylint:disable=invalid-name
-#     if cf_type == "type_date":
-#         custom_field, _ = CustomField.objects.get_or_create(
-#             type=CustomFieldTypeChoices.TYPE_DATE,
-#             name=field_name,
-#             defaults={
-#                 "label": label,
-#             },
-#         )
-#     else:
-#         custom_field, _ = CustomField.objects.get_or_create(
-#             type=CustomFieldTypeChoices.TYPE_TEXT,
-#             name=field_name,
-#             defaults={
-#                 "label": label,
-#             },
-#         )
-#     for model in models:
-#         custom_field.content_types.add(ContentType.objects.get_for_model(model))
-#     custom_field.save()
+    nautobot_database_ready.connect(create_default_vsphere_config, sender=sender)
 
 
 def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disable=unused-argument
     """Create Tag and CustomField to note System of Record for SSoT."""
-    # pylint: disable=invalid-name
-    # Device = apps.get_model("dcim", "Device")
-    # DeviceType = apps.get_model("dcim", "DeviceType")
-    # DeviceRole = apps.get_model("dcim", "DeviceRole")
-    # Interface = apps.get_model("dcim", "Interface")
-    # IPAddress = apps.get_model("ipam", "IPAddress")
-    # Site = apps.get_model("dcim", "Site")
-    # VLAN = apps.get_model("ipam", "VLAN")
     Tag = apps.get_model("extras", "Tag")
     Cluster = apps.get_model("virtualization", "Cluster")
     ClusterGroup = apps.get_model("virtualization", "ClusterGroup")
@@ -91,11 +58,6 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     )
 
     synced_from_models = [
-        # Device,
-        # Interface,
-        # Site,
-        # VLAN,
-        # DeviceRole,
         IPAddress,
         Cluster,
         ClusterGroup,
@@ -106,3 +68,69 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     for model in synced_from_models:
         custom_field.content_types.add(ContentType.objects.get_for_model(model))
     custom_field.save()
+
+
+def create_default_vsphere_config(sender, *, apps, **kwargs):
+    """Create default vSphere config."""
+    SSOTvSphereConfig = apps.get_model("nautobot_ssot", "SSOTvSphereConfig")
+    VirtualMachine = apps.get_model("virtualization", "VirtualMachine")
+    VMInterface = apps.get_model("virtualization", "VMInterface")
+    Status = apps.get_model("extras", "Status")
+    ExternalIntegration = apps.get_model("extras", "ExternalIntegration")
+    Secret = apps.get_model("extras", "Secret")
+    SecretsGroup = apps.get_model("extras", "SecretsGroup")
+    SecretsGroupAssociation = apps.get_model("extras", "SecretsGroupAssociation")
+    ContentType = apps.get_model("contenttypes", "ContentType")
+
+    default_status, _ = Status.objects.get_or_create(name="Active")
+    for model in [VirtualMachine, VMInterface]:
+        default_status.content_types.add(ContentType.objects.get_for_model(model))
+
+    secrets_group, _ = SecretsGroup.objects.get_or_create(name="vSphereSSOTDefaultSecretGroup")
+    vsphere_username, _ = Secret.objects.get_or_create(
+        name="vSphere Username - Default",
+        defaults={
+            "provider": "environment-variable",
+            "parameters": {"variable": "NAUTOBOT_SSOT_VSPHERE_USERNAME"},
+        },
+    )
+
+    vsphere_password, _ = Secret.objects.get_or_create(
+        name="vSphere Password - Default",
+        defaults={
+            "provider": "environment-variable",
+            "parameters": {"variable": "NAUTOBOT_SSOT_VSPHERE_PASSWORD"},
+        },
+    )
+    SecretsGroupAssociation.objects.get_or_create(
+        secrets_group=secrets_group,
+        access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
+        secret_type=SecretsGroupSecretTypeChoices.TYPE_USERNAME,
+        defaults={"secret": vsphere_username},
+    )
+
+    SecretsGroupAssociation.objects.get_or_create(
+        secrets_group=secrets_group,
+        access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
+        secret_type=SecretsGroupSecretTypeChoices.TYPE_PASSWORD,
+        defaults={"secret": vsphere_password},
+    )
+
+    external_integration, _ = ExternalIntegration.objects.get_or_create(
+        name="DefaultvSphereInstance",
+        defaults={
+            "remote_url": str(config.get("vcenter_url", "https://replace.me.local")),
+            "secrets_group": secrets_group,
+            "verify_ssl": bool(config.get("verify_ssl", False)),
+            "timeout": 10,
+        },
+    )
+
+    if not SSOTvSphereConfig.objects.exists():
+        SSOTvSphereConfig.objects.create(
+            name="vSphereConfigDefault",
+            description="Auto-generated default configuration.",
+            vsphere_instance=external_integration,
+            enable_sync_to_nautobot=True,
+            job_enabled=True,
+        )

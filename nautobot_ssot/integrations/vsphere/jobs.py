@@ -28,40 +28,6 @@ from nautobot_ssot.jobs.base import DataMapping, DataSource
 name = "SSoT - Virtualization"  # pylint: disable=invalid-name
 
 
-# class OptionalObjectVar(ScriptVariable):
-#     """Custom implementation of an Optional ObjectVar.
-
-#     An object primary key is returned and accessible in job kwargs.
-#     """
-
-#     form_field = DynamicModelChoiceField
-
-#     def __init__(
-#         self,
-#         model=None,
-#         display_field="display",
-#         query_params=None,
-#         null_option=None,
-#         *args,
-#         **kwargs,
-#     ):
-#         """Init."""
-#         super().__init__(*args, **kwargs)
-
-#         if model is not None:
-#             self.field_attrs["queryset"] = model.objects.all()
-#         else:
-#             raise TypeError("ObjectVar must specify a model")
-
-#         self.field_attrs.update(
-#             {
-#                 "display_field": display_field,
-#                 "query_params": query_params,
-#                 "null_option": null_option,
-#             }
-#         )
-
-
 def _get_vsphere_client_config(app_config, debug):
     """Get Infoblox client config from the Infoblox config instance."""
     username = app_config.vsphere_instance.secrets_group.get_secret_value(
@@ -122,6 +88,11 @@ class VsphereDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
         data_source = "VMWare vSphere"
         data_source_icon = static("nautobot_ssot_vsphere/vmware.png")
         description = "Sync data from VMWare vSphere into Nautobot."
+
+    @classmethod
+    def config_information(cls):
+        """Dictionary describing the configuration of this DataSource."""
+        return {"Instances": "Found in Extensibility -> External Integrations menu."}
 
     @classmethod
     def data_mappings(cls):

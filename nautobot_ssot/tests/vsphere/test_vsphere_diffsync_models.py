@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 from django.contrib.contenttypes.models import ContentType
 from nautobot.extras.models.statuses import Status
-from nautobot.ipam.models import IPAddress, Namespace, Prefix
+from nautobot.ipam.models import IPAddress, Prefix
 from nautobot.virtualization.models import (
     Cluster,
     ClusterGroup,
@@ -20,7 +20,6 @@ from nautobot_ssot.integrations.vsphere.diffsync.adapters.adapter_nautobot impor
 from nautobot_ssot.integrations.vsphere.diffsync.adapters.adapter_vsphere import (
     VsphereDiffSync,
 )
-from nautobot_ssot.integrations.vsphere.diffsync.models import ClusterGroupModel
 
 from .vsphere_fixtures import create_default_vsphere_config
 
@@ -75,16 +74,12 @@ class TestVSphereDiffSyncModelsCreate(unittest.TestCase):
             VMInterface,
             IPAddress,
         ]:
-            self.active_status.content_types.add(
-                ContentType.objects.get_for_model(model)
-            )
+            self.active_status.content_types.add(ContentType.objects.get_for_model(model))
             self.active_status.validated_save()
 
     def test_clustergroup_creation(self):
         config = create_default_vsphere_config()
-        vsphere_adapter = VsphereDiffSync(
-            client=MagicMock(), config=config, cluster_filter=None
-        )
+        vsphere_adapter = VsphereDiffSync(client=MagicMock(), config=config, cluster_filter=None)
         clustergroup_test = vsphere_adapter.clustergroup(name="TestClusterGroup")
 
         vsphere_adapter.add(clustergroup_test)

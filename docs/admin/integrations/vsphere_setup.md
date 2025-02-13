@@ -40,7 +40,7 @@ Configuration instances contain the below settings:
 | Virtual Machine IP Status Map | `{"PREFERRED": "Active", "UNKNOWN": "Reserved"}`                               | Maps vSPhere IP status to Nautobot status                                 |
 | Virtual Machine Interface Map | `{"CONNECTED": true, "NOT_CONNECTED": false}`                                  | Maps vSphere interface state to boolean values.                           |
 
-Each vShere configuration must be linked to an [External integrtion](https://docs.nautobot.com/projects/core/en/stable/user-guide/platform-functionality/externalintegration/?h=external+int) descrbing the vSphere instance. The following External Integration fields must be defined for integration to work correctly:
+Each vShere configuration must be linked to an [External integration](https://docs.nautobot.com/projects/core/en/stable/user-guide/platform-functionality/externalintegration/?h=external+int) describing the vSphere instance. The following External Integration fields must be defined for integration to work correctly:
 
 | Setting       | Description                                                                      |
 | :------------ | :------------------------------------------------------------------------------- |

@@ -18,16 +18,12 @@ class TestNautobotUtils(unittest.TestCase):
 
     def setUp(self):
         test_cluster_type, _ = ClusterType.objects.get_or_create(name="Test")
-        self.test_cluster, _ = Cluster.objects.get_or_create(
-            name="Test Cluster", cluster_type=test_cluster_type
-        )
+        self.test_cluster, _ = Cluster.objects.get_or_create(name="Test Cluster", cluster_type=test_cluster_type)
         self.active_status, _ = Status.objects.get_or_create(name="Active")
         for model in [
             VirtualMachine,
         ]:
-            self.active_status.content_types.add(
-                ContentType.objects.get_for_model(model)
-            )
+            self.active_status.content_types.add(ContentType.objects.get_for_model(model))
             self.active_status.validated_save()
 
     def test_create_ssot_tag(self):
