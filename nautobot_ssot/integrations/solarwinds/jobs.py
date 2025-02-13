@@ -1,5 +1,5 @@
 # pylint: disable=R0801
-"""Jobs for Solarwinds SSoT integration."""
+"""Jobs for SolarWinds SSoT integration."""
 
 from diffsync.enum import DiffSyncFlags
 from django.urls import reverse
@@ -10,10 +10,10 @@ from nautobot.extras.models import ExternalIntegration, Role
 from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.solarwinds.diffsync.adapters import nautobot, solarwinds
-from nautobot_ssot.integrations.solarwinds.utils.solarwinds import SolarwindsClient
+from nautobot_ssot.integrations.solarwinds.utils.solarwinds import SolarWindsClient
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 
-name = "Solarwinds SSoT"  # pylint: disable=invalid-name
+name = "SolarWinds SSoT"  # pylint: disable=invalid-name
 
 
 ROLE_CHOICES = (("DeviceType", "DeviceType"), ("Hostname", "Hostname"))
@@ -24,14 +24,14 @@ class JobConfigError(Exception):
     """Custom Exception for misconfigured Job form."""
 
 
-class SolarwindsDataSource(DataSource):  # pylint: disable=too-many-instance-attributes
-    """Solarwinds SSoT Data Source."""
+class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-attributes
+    """SolarWinds SSoT Data Source."""
 
     integration = ObjectVar(
         model=ExternalIntegration,
         queryset=ExternalIntegration.objects.all(),
         display_field="display",
-        label="Solarwinds Instance",
+        label="SolarWinds Instance",
         required=True,
     )
     pull_from = ChoiceVar(
@@ -54,7 +54,7 @@ class SolarwindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
     )
     containers = TextVar(
         default="ALL",
-        description="Comma separated list of Containers to be Imported. Use 'ALL' to import every container from Solarwinds. Must specify Top Container if `ALL` is specified, unless using CustomProperty.",
+        description="Comma separated list of Containers to be Imported. Use 'ALL' to import every container from SolarWinds. Must specify Top Container if `ALL` is specified, unless using CustomProperty.",
         label="Container(s)",
         required=True,
     )
@@ -110,12 +110,12 @@ class SolarwindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
         self.diffsync_flags = DiffSyncFlags.CONTINUE_ON_FAILURE
 
     class Meta:  # pylint: disable=too-few-public-methods
-        """Meta data for Solarwinds."""
+        """Meta data for SolarWinds."""
 
-        name = "Solarwinds to Nautobot"
-        data_source = "Solarwinds"
+        name = "SolarWinds to Nautobot"
+        data_source = "SolarWinds"
         data_target = "Nautobot"
-        description = "Sync information from Solarwinds to Nautobot"
+        description = "Sync information from SolarWinds to Nautobot"
         has_sensitive_variables = False
         field_order = [
             "dryrun",
@@ -205,7 +205,7 @@ class SolarwindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
             raise JobConfigError
 
     def load_source_adapter(self):
-        """Load data from Solarwinds into DiffSync models."""
+        """Load data from SolarWinds into DiffSync models."""
         self.validate_containers()
         self.validate_location_configuration()
         self.validate_custom_property()
@@ -220,7 +220,7 @@ class SolarwindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
         )
         port = self.integration.extra_config.get("port") if self.integration.extra_config else None
         retries = self.integration.extra_config.get("retries") if self.integration.extra_config else None
-        client = SolarwindsClient(
+        client = SolarWindsClient(
             hostname=self.integration.remote_url,
             username=username,
             password=password,
@@ -230,7 +230,7 @@ class SolarwindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
             verify=self.integration.verify_ssl,
             job=self,
         )
-        self.source_adapter = solarwinds.SolarwindsAdapter(
+        self.source_adapter = solarwinds.SolarWindsAdapter(
             job=self,
             sync=self.sync,
             client=client,
@@ -282,5 +282,5 @@ class SolarwindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 
-jobs = [SolarwindsDataSource]
+jobs = [SolarWindsDataSource]
 register_jobs(*jobs)

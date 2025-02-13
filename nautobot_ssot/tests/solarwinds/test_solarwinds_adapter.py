@@ -11,7 +11,7 @@ from nautobot.extras.models import JobResult, Role, Status
 
 import nautobot_ssot.tests.solarwinds.conftest as fix  # move to fixtures folder?
 from nautobot_ssot.integrations.solarwinds.diffsync.adapters.solarwinds import SolarWindsAdapter
-from nautobot_ssot.integrations.solarwinds.jobs import SolarwindsDataSource
+from nautobot_ssot.integrations.solarwinds.jobs import SolarWindsDataSource
 
 
 class TestSolarWindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-public-methods
@@ -39,7 +39,7 @@ class TestSolarWindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too
             name="USA", location_type=LocationType.objects.get_or_create(name="Region")[0], status=self.status_active
         )[0]
 
-        self.job = SolarwindsDataSource()
+        self.job = SolarWindsDataSource()
         self.job.debug = True
         self.job.job_result = JobResult.objects.create(
             name=self.job.class_path, task_name="Fake task", user=None, id=uuid.uuid4()

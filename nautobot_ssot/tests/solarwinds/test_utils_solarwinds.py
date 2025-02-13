@@ -10,7 +10,7 @@ from nautobot.core.testing import TransactionTestCase
 from nautobot.extras.models import JobResult
 from parameterized import parameterized
 
-from nautobot_ssot.integrations.solarwinds.jobs import SolarwindsDataSource
+from nautobot_ssot.integrations.solarwinds.jobs import SolarWindsDataSource
 from nautobot_ssot.integrations.solarwinds.utils.solarwinds import (
     determine_role_from_devicetype,
     determine_role_from_hostname,
@@ -25,7 +25,7 @@ class TestSolarWindsClientTestCase(TransactionTestCase):  # pylint: disable=too-
 
     def setUp(self):
         """Configure shared variables for tests."""
-        self.job = SolarwindsDataSource()
+        self.job = SolarWindsDataSource()
         self.job.job_result = JobResult.objects.create(
             name=self.job.class_path, task_name="Fake task", user=None, id=uuid.uuid4()
         )
