@@ -145,4 +145,4 @@ register_jobs(TutorialDataSource)
 
 At this point, the job will show up in the web GUI, and you can enable it and even run it! You should see the objects you specified in the remote adapter being synchronized into Nautobot now. Clicking on the "SSoT Sync Details" button in the top right of the job result page provides additional information on what is happening during the synchronization process.
 
-The above example shows the simplest field type (an attribute on the model), however, to build a production implementation you will need to understand how to identify different variants of fields by following the [modeling docs](../dev/modeling.md).
+The above example shows the simplest field type (an attribute on the model), however, to build a production implementation you will need to understand how to identify different variants of fields by following the [Modeling docs](../dev/modeling.md).
