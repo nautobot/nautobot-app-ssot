@@ -176,7 +176,8 @@ class DnaCenterAdapter(Adapter):
                 },
             )
         if (
-            self.job.dnac.location.parent.parent
+            self.job.dnac.location.parent
+            and self.job.dnac.location.parent.parent
             and self.job.dnac.location.parent.parent.location_type == self.job.building_loctype
         ):
             self.get_or_instantiate(
@@ -224,7 +225,8 @@ class DnaCenterAdapter(Adapter):
                 attrs={"uuid": None},
             )
         if (
-            self.job.dnac.location.parent.parent
+            self.job.dnac.location.parent
+            and self.job.dnac.location.parent.parent
             and self.job.dnac.location.parent.parent.location_type == self.job.area_loctype
         ):
             self.get_or_instantiate(
