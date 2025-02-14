@@ -31,8 +31,8 @@ class TestNautobotUtils(unittest.TestCase):
         self.assertEqual(ssot_tag, Tag.objects.get(name="SSoT Synced from vSphere"))
 
     def test_tag_object(self):
-        vm, _ = VirtualMachine.objects.get_or_create(
+        virtual_machine, _ = VirtualMachine.objects.get_or_create(
             name="Nautobot VM", cluster=self.test_cluster, status=self.active_status
         )
-        tag_object(vm)
-        self.assertIn("SSoT Synced from vSphere", [tag.name for tag in vm.tags.all()])
+        tag_object(virtual_machine)
+        self.assertIn("SSoT Synced from vSphere", [tag.name for tag in virtual_machine.tags.all()])

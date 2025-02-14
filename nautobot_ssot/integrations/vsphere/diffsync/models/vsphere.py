@@ -1,6 +1,7 @@
 """vSphere SSoT DiffSync models."""
 
 from typing import List, Optional
+
 from diffsync.enum import DiffSyncModelFlags
 from nautobot.ipam.models import IPAddress, Prefix
 from nautobot.virtualization.models import (

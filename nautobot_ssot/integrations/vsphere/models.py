@@ -39,7 +39,6 @@ class SSOTvSphereConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
     """SSOT vSphere Configuration model."""
 
     name = models.CharField(max_length=CHARFIELD_MAX_LENGTH, unique=True)
-    is_saved_view_model = False
     description = models.CharField(
         max_length=CHARFIELD_MAX_LENGTH,
         blank=True,
@@ -77,6 +76,7 @@ class SSOTvSphereConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         verbose_name="Enabled for Sync Job",
         help_text="Enable use of this configuration in the sync jobs.",
     )
+    is_saved_view_model = False
 
     class Meta:
         """Meta class for SSOTvSphereConfig."""

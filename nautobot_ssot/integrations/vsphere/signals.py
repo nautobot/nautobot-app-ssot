@@ -1,5 +1,7 @@
 # pylint: disable=too-many-locals
 # pylint: disable=duplicate-code
+# pylint: disable=invalid-name
+
 """Signal handlers for nautobot_ssot_vsphere."""
 
 from django.conf import settings
@@ -31,8 +33,8 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     VMInterface = apps.get_model("virtualization", "VMInterface")
     IPAddress = apps.get_model("ipam", "IPAddress")
     Status = apps.get_model("extras", "Status")
-    CustomField = apps.get_model("extras", "CustomField")  # pylint:disable=invalid-name
-    ContentType = apps.get_model("contenttypes", "ContentType")  # pylint:disable=invalid-name
+    CustomField = apps.get_model("extras", "CustomField")
+    ContentType = apps.get_model("contenttypes", "ContentType")
 
     status, _ = Status.objects.get_or_create(name="Suspended", description="Machine is in a suspended state")
     status.content_types.add(ContentType.objects.get_for_model(VirtualMachine))
@@ -70,7 +72,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     custom_field.save()
 
 
-def create_default_vsphere_config(sender, *, apps, **kwargs):
+def create_default_vsphere_config(sender, *, apps, **kwargs):  # pylint: disable=unused-argument
     """Create default vSphere config."""
     SSOTvSphereConfig = apps.get_model("nautobot_ssot", "SSOTvSphereConfig")
     VirtualMachine = apps.get_model("virtualization", "VirtualMachine")

@@ -32,7 +32,7 @@ From the vSphere sync detail page, you can click the `Sync Now` button which wil
 
 Running the job will redirect you to the `Nautobot Job Result` view where you'll get real time logs while the job runs.
 
-![Job Result](../../images/vsphere_job_result.png)
+
 
 Once the job has finished, you can click on the SSoT Sync Details button on the top right of the Job Result page to see detailed information about the data that was synced from vSphere and the outcome of the sync job.
 
