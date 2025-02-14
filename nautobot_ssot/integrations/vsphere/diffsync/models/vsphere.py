@@ -1,7 +1,7 @@
 """vSphere SSoT DiffSync models."""
 
 from typing import List, Optional
-
+from diffsync.enum import DiffSyncModelFlags
 from nautobot.ipam.models import IPAddress, Prefix
 from nautobot.virtualization.models import (
     Cluster,
@@ -52,6 +52,8 @@ class IPAddressModel(NautobotModel):
 class VMInterfaceModel(NautobotModel):
     """VMInterface Diffsync model."""
 
+    model_flags: DiffSyncModelFlags = DiffSyncModelFlags.NATURAL_DELETION_ORDER
+
     _model = VMInterface
     _modelname = "interface"
     _identifiers = ("name", "virtual_machine__name")
@@ -68,6 +70,8 @@ class VMInterfaceModel(NautobotModel):
 
 class VirtualMachineModel(NautobotModel):
     """Virtual Machine Diffsync model."""
+
+    model_flags: DiffSyncModelFlags = DiffSyncModelFlags.NATURAL_DELETION_ORDER
 
     _model = VirtualMachine
     _modelname = "virtual_machine"
@@ -125,6 +129,8 @@ class VirtualMachineModel(NautobotModel):
 class ClusterModel(NautobotModel):
     """Cluster Model Diffsync model."""
 
+    model_flags: DiffSyncModelFlags = DiffSyncModelFlags.NATURAL_DELETION_ORDER
+
     _model = Cluster
     _modelname = "cluster"
     _identifiers = ("name",)
@@ -143,6 +149,8 @@ class ClusterModel(NautobotModel):
 
 class ClusterGroupModel(NautobotModel):
     """ClusterGroup Diffsync model."""
+
+    model_flags: DiffSyncModelFlags = DiffSyncModelFlags.NATURAL_DELETION_ORDER
 
     _model = ClusterGroup
     _modelname = "clustergroup"
