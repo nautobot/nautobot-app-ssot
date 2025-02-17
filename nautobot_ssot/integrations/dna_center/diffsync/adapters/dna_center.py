@@ -163,6 +163,12 @@ class DnaCenterAdapter(Adapter):
 
     def load_controller_locations(self):
         """Load location data for Controller specified in Job form."""
+        if not self.job.dnac.location:
+            self.job.logger.error(
+                f"Unable to find Location assigned to {self.job.dnac.name} so skipping loading of Locations for Controller."
+            )
+            return
+
         if self.job.dnac.location.location_type == self.job.floor_loctype:
             self.get_or_instantiate(
                 self.floor,
