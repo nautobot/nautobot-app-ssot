@@ -6,7 +6,7 @@ from nautobot.extras.choices import CustomFieldTypeChoices
 
 
 def register_signals(sender):
-    """Register signals for Solarwinds integration."""
+    """Register signals for SolarWinds integration."""
     nautobot_database_ready.connect(nautobot_database_ready_callback, sender=sender)
 
 

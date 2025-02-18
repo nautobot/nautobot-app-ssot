@@ -1,4 +1,4 @@
-"""Nautobot SSoT Solarwinds Adapter for Solarwinds SSoT app."""
+"""Nautobot SSoT SolarWinds Adapter for SolarWinds SSoT app."""
 
 import json
 from datetime import datetime
@@ -10,39 +10,39 @@ from netutils.ip import ipaddress_interface, is_ip_within
 from netutils.mac import mac_to_format
 
 from nautobot_ssot.integrations.solarwinds.diffsync.models.solarwinds import (
-    SolarwindsDevice,
-    SolarwindsDeviceType,
-    SolarwindsInterface,
-    SolarwindsIPAddress,
-    SolarwindsIPAddressToInterface,
-    SolarwindsLocation,
-    SolarwindsManufacturer,
-    SolarwindsPlatform,
-    SolarwindsPrefix,
-    SolarwindsRole,
-    SolarwindsSoftwareVersion,
+    SolarWindsDevice,
+    SolarWindsDeviceType,
+    SolarWindsInterface,
+    SolarWindsIPAddress,
+    SolarWindsIPAddressToInterface,
+    SolarWindsLocation,
+    SolarWindsManufacturer,
+    SolarWindsPlatform,
+    SolarWindsPrefix,
+    SolarWindsRole,
+    SolarWindsSoftwareVersion,
 )
 from nautobot_ssot.integrations.solarwinds.utils.solarwinds import (
-    SolarwindsClient,
+    SolarWindsClient,
     determine_role_from_devicetype,
     determine_role_from_hostname,
 )
 
 
-class SolarwindsAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
-    """DiffSync adapter for Solarwinds."""
+class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
+    """DiffSync adapter for SolarWinds."""
 
-    location = SolarwindsLocation
-    platform = SolarwindsPlatform
-    role = SolarwindsRole
-    manufacturer = SolarwindsManufacturer
-    device_type = SolarwindsDeviceType
-    softwareversion = SolarwindsSoftwareVersion
-    device = SolarwindsDevice
-    interface = SolarwindsInterface
-    prefix = SolarwindsPrefix
-    ipaddress = SolarwindsIPAddress
-    ipassignment = SolarwindsIPAddressToInterface
+    location = SolarWindsLocation
+    platform = SolarWindsPlatform
+    role = SolarWindsRole
+    manufacturer = SolarWindsManufacturer
+    device_type = SolarWindsDeviceType
+    softwareversion = SolarWindsSoftwareVersion
+    device = SolarWindsDevice
+    interface = SolarWindsInterface
+    prefix = SolarWindsPrefix
+    ipaddress = SolarWindsIPAddress
+    ipassignment = SolarWindsIPAddressToInterface
 
     top_level = [
         "location",
@@ -58,7 +58,7 @@ class SolarwindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        client: SolarwindsClient,
+        client: SolarWindsClient,
         containers,
         location_type,
         job,
@@ -66,12 +66,12 @@ class SolarwindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
         parent=None,
         tenant=None,
     ):
-        """Initialize Solarwinds.
+        """Initialize SolarWinds.
 
         Args:
-            job (object, optional): Solarwinds job. Defaults to None.
-            sync (object, optional): SolarwindsDataSource Sync. Defaults to None.
-            client (SolarwindsClient): Solarwinds API client connection object.
+            job (object, optional): SolarWinds job. Defaults to None.
+            sync (object, optional): SolarWindsDataSource Sync. Defaults to None.
+            client (SolarWindsClient): SolarWinds API client connection object.
             containers (str): Concatenated string of Container names to be imported. Will be 'ALL' for all containers.
             location_type (LocationType): The LocationType to create containers as in Nautobot.
             parent (Location, optional): The parent Location to assign created containers to in Nautobot.
@@ -88,8 +88,8 @@ class SolarwindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
         self.failed_devices = []
 
     def load(self):  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
-        """Load data from Solarwinds into DiffSync models."""
-        self.job.logger.info("Loading data from Solarwinds.")
+        """Load data from SolarWinds into DiffSync models."""
+        self.job.logger.info("Loading data from SolarWinds.")
 
         if self.parent:
             self.load_parent()
@@ -105,7 +105,7 @@ class SolarwindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
 
         node_details = {}
         for container_name, nodes in container_nodes.items():  # pylint: disable=too-many-nested-blocks
-            self.job.logger.debug(f"Retrieving node details from Solarwinds for {container_name}.")
+            self.job.logger.debug(f"Retrieving node details from SolarWinds for {container_name}.")
             node_details = self.conn.build_node_details(nodes=nodes)
             for node in node_details.values():
                 device_type = self.conn.standardize_device_type(node=node)
@@ -145,7 +145,7 @@ class SolarwindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
                                 "status__name": "Active",
                                 "serial": node["ServiceTag"] if node.get("ServiceTag") else "",
                                 "tenant__name": self.tenant.name if self.tenant else None,
-                                "system_of_record": "Solarwinds",
+                                "system_of_record": "SolarWinds",
                             },
                         )
                         if loaded:
@@ -232,12 +232,12 @@ class SolarwindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
             manu.add_child(new_dt)
 
     def get_nodes_custom_property(self, custom_property, location):
-        """Gather nodes with customproperty from Solarwinds."""
+        """Gather nodes with customproperty from SolarWinds."""
         nodes = {location.name: self.conn.get_nodes_custom_property(custom_property)}
         return nodes
 
     def get_container_nodes(self, custom_property=None):
-        """Gather container nodes for all specified containers from Solarwinds."""
+        """Gather container nodes for all specified containers from SolarWinds."""
         container_ids, container_nodes = {}, {}
         if self.containers != "ALL":
             container_ids = self.conn.get_filtered_container_ids(containers=self.containers)
@@ -450,7 +450,7 @@ class SolarwindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
                 "status__name": "Active",
                 "tenant__name": self.tenant.name if self.tenant else None,
                 "last_synced_from_sor": datetime.today().date().isoformat(),
-                "system_of_record": "Solarwinds",
+                "system_of_record": "SolarWinds",
             },
         )
 
@@ -477,7 +477,7 @@ class SolarwindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
                 "ip_version": 4 if addr_type == "IPv4" else 6,
                 "tenant__name": self.tenant.name if self.tenant else None,
                 "last_synced_from_sor": datetime.today().date().isoformat(),
-                "system_of_record": "Solarwinds",
+                "system_of_record": "SolarWinds",
             },
         )
 

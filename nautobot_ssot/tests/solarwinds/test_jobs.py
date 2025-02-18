@@ -7,13 +7,13 @@ from nautobot.core.testing import TransactionTestCase
 from nautobot.dcim.models import LocationType
 from nautobot.extras.models import JobResult
 
-from nautobot_ssot.integrations.solarwinds.jobs import JobConfigError, SolarwindsDataSource
+from nautobot_ssot.integrations.solarwinds.jobs import JobConfigError, SolarWindsDataSource
 
 
-class SolarwindsDataSourceTestCase(TransactionTestCase):
-    """Test the SolarwindsDataSource class."""
+class SolarWindsDataSourceTestCase(TransactionTestCase):
+    """Test the SolarWindsDataSource class."""
 
-    job_class = SolarwindsDataSource
+    job_class = SolarWindsDataSource
     databases = ("default", "job_logs")
 
     def setUp(self):

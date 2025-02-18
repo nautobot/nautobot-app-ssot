@@ -100,8 +100,6 @@ The SSoT framework includes a number of integrations with external Systems of Re
 * Slurpit
 * SolarWinds
 
-> Note that the Arista CloudVision integration is currently incompatible with the [Arista Labs](https://labs.arista.com/) environment due to a TLS issue. It has been confirmed to work in on-prem environments previously.
-
 ### Contributing to the Documentation
 
 You can find all the Markdown source for the App documentation under the [`docs`](https://github.com/nautobot/nautobot-app-ssot/tree/develop/docs) folder in this repository. For simple edits, a Markdown capable editor is sufficient: clone the repository and edit away.
@@ -179,3 +177,7 @@ This project includes code originally written in separate Nautobot apps, which h
     [@glennmatthews](https://github.com/glennmatthews),
     [@qduk](https://github.com/qduk),
     [@ubajze](https://github.com/ubajze)
+- [nautobot-plugin-ssot-solarwinds](https://github.com/nautobot/nautobot-app-ssot-solarwinds):
+    Thanks
+    [@jdrew82](https://github.com/jdrew82),
+    [@nopg](https://github.com/nopg)

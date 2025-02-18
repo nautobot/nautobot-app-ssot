@@ -5,7 +5,7 @@ This document describes all new features and changes in the release. The format 
 
 ## Release Overview
 
-This release adds two new integrations to the project, one for Solarwinds Orion and one for LibreNMS! There are also a lot of bug fixes for various integrations.
+This release adds two new integrations to the project, one for SolarWinds Orion and one for LibreNMS! There are also a lot of bug fixes for various integrations.
 
 ## [v3.4.0 (2025-01-14)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.4.0)
 

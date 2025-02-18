@@ -60,7 +60,7 @@ Extra settings can be configured in the Extra Config section of your External In
 | Setting         | Default | Description                                                                       |
 | --------------- | ------- | --------------------------------------------------------------------------------- |
 | port            |   17774 | TCP port used for communication to the API                                        |
-| retries         |       5 | How many retries before considering the connection to Solarwinds failed           |
+| retries         |       5 | How many retries before considering the connection to SolarWinds failed           |
 | batch_size      |     100 | How many nodes to include in queries, this can be lowered to prevent API timeouts |
 
 ```json

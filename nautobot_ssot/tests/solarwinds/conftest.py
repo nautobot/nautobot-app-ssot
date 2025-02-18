@@ -2,7 +2,7 @@
 
 import json
 
-from nautobot_ssot.integrations.solarwinds.utils.solarwinds import SolarwindsClient
+from nautobot_ssot.integrations.solarwinds.utils.solarwinds import SolarWindsClient
 
 
 def load_json(path):
@@ -19,9 +19,9 @@ GET_NODES_CUSTOM_PROPERTY_FIXTURE = load_json(
 )
 
 
-def create_solarwinds_client(**kwargs) -> SolarwindsClient:
-    """Function to initialize a SolarwindsClient object."""
-    return SolarwindsClient(  # nosec: B106
+def create_solarwinds_client(**kwargs) -> SolarWindsClient:
+    """Function to initialize a SolarWindsClient object."""
+    return SolarWindsClient(  # nosec: B106
         hostname=kwargs.pop("hostname", "https://test.solarwinds.com"),
         username=kwargs.pop("username", "admin"),
         password=kwargs.pop("password", "admin"),

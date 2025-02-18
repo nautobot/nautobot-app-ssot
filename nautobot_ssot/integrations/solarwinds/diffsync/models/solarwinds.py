@@ -1,4 +1,4 @@
-"""Nautobot SSoT Solarwinds DiffSync models for Nautobot SSoT Solarwinds SSoT."""
+"""Nautobot SSoT SolarWinds DiffSync models for Nautobot SSoT SolarWinds SSoT."""
 
 from nautobot_ssot.integrations.solarwinds.diffsync.models.base import (
     DeviceModel,
@@ -15,188 +15,188 @@ from nautobot_ssot.integrations.solarwinds.diffsync.models.base import (
 )
 
 
-class SolarwindsLocation(LocationModel):
-    """Solarwinds implementation of Location DiffSync model."""
+class SolarWindsLocation(LocationModel):
+    """SolarWinds implementation of Location DiffSync model."""
 
     @classmethod
     def create(cls, adapter, ids, attrs):
-        """Create Location in Solarwinds from SolarwindsLocation object."""
+        """Create Location in SolarWinds from SolarWindsLocation object."""
         raise NotImplementedError
 
     def update(self, attrs):
-        """Update Location in Solarwinds from SolarwindsLocation object."""
+        """Update Location in SolarWinds from SolarWindsLocation object."""
         raise NotImplementedError
 
     def delete(self):
-        """Delete Location in Solarwinds from SolarwindsLocation object."""
+        """Delete Location in SolarWinds from SolarWindsLocation object."""
         raise NotImplementedError
 
 
-class SolarwindsDeviceType(DeviceTypeModel):
-    """Solarwinds implementation of DeviceType DiffSync model."""
+class SolarWindsDeviceType(DeviceTypeModel):
+    """SolarWinds implementation of DeviceType DiffSync model."""
 
     @classmethod
     def create(cls, adapter, ids, attrs):
-        """Create DeviceType in Solarwinds from SolarwindsDeviceType object."""
+        """Create DeviceType in SolarWinds from SolarWindsDeviceType object."""
         raise NotImplementedError
 
     def update(self, attrs):
-        """Update DeviceType in Solarwinds from SolarwindsDeviceType object."""
+        """Update DeviceType in SolarWinds from SolarWindsDeviceType object."""
         raise NotImplementedError
 
     def delete(self):
-        """Delete DeviceType in Solarwinds from SolarwindsDeviceType object."""
+        """Delete DeviceType in SolarWinds from SolarWindsDeviceType object."""
         raise NotImplementedError
 
 
-class SolarwindsManufacturer(ManufacturerModel):
-    """Solarwinds implementation of Manufacturer DiffSync model."""
+class SolarWindsManufacturer(ManufacturerModel):
+    """SolarWinds implementation of Manufacturer DiffSync model."""
 
     @classmethod
     def create(cls, adapter, ids, attrs):
-        """Create Manufacturer in Solarwinds from SolarwindsManufacturer object."""
+        """Create Manufacturer in SolarWinds from SolarWindsManufacturer object."""
         raise NotImplementedError
 
     def update(self, attrs):
-        """Update Manufacturer in Solarwinds from SolarwindsManufacturer object."""
+        """Update Manufacturer in SolarWinds from SolarWindsManufacturer object."""
         raise NotImplementedError
 
     def delete(self):
-        """Delete Manufacturer in Solarwinds from SolarwindsManufacturer object."""
+        """Delete Manufacturer in SolarWinds from SolarWindsManufacturer object."""
         raise NotImplementedError
 
 
-class SolarwindsPlatform(PlatformModel):
-    """Solarwinds implementation of Platform DiffSync model."""
+class SolarWindsPlatform(PlatformModel):
+    """SolarWinds implementation of Platform DiffSync model."""
 
     @classmethod
     def create(cls, adapter, ids, attrs):
-        """Create Platform in Solarwinds from SolarwindsPlatform object."""
+        """Create Platform in SolarWinds from SolarWindsPlatform object."""
         raise NotImplementedError
 
     def update(self, attrs):
-        """Update Platform in Solarwinds from SolarwindsPlatform object."""
+        """Update Platform in SolarWinds from SolarWindsPlatform object."""
         raise NotImplementedError
 
     def delete(self):
-        """Delete Platform in Solarwinds from SolarwindsPlatform object."""
+        """Delete Platform in SolarWinds from SolarWindsPlatform object."""
         raise NotImplementedError
 
 
-class SolarwindsSoftwareVersion(SoftwareVersionModel):
-    """Solarwinds implementation of SoftwareVersion DiffSync model."""
+class SolarWindsSoftwareVersion(SoftwareVersionModel):
+    """SolarWinds implementation of SoftwareVersion DiffSync model."""
 
     @classmethod
     def create(cls, adapter, ids, attrs):
-        """Create SoftwareVersion in Solarwinds from SolarwindsSoftwareVersion object."""
+        """Create SoftwareVersion in SolarWinds from SolarWindsSoftwareVersion object."""
         raise NotImplementedError
 
     def update(self, attrs):
-        """Update SoftwareVersion in Solarwinds from SolarwindsSoftwareVersion object."""
+        """Update SoftwareVersion in SolarWinds from SolarWindsSoftwareVersion object."""
         raise NotImplementedError
 
     def delete(self):
-        """Delete SoftwareVersion in Solarwinds from SolarwindsSoftwareVersion object."""
+        """Delete SoftwareVersion in SolarWinds from SolarWindsSoftwareVersion object."""
         raise NotImplementedError
 
 
-class SolarwindsRole(RoleModel):
-    """Solarwinds implementation of Role DiffSync model."""
+class SolarWindsRole(RoleModel):
+    """SolarWinds implementation of Role DiffSync model."""
 
     @classmethod
     def create(cls, adapter, ids, attrs):
-        """Create Role in Solarwinds from SolarwindsRole object."""
+        """Create Role in SolarWinds from SolarWindsRole object."""
         raise NotImplementedError
 
     def update(self, attrs):
-        """Update Role in Solarwinds from SolarwindsRole object."""
+        """Update Role in SolarWinds from SolarWindsRole object."""
         raise NotImplementedError
 
     def delete(self):
-        """Delete Role in Solarwinds from SolarwindsRole object."""
+        """Delete Role in SolarWinds from SolarWindsRole object."""
         raise NotImplementedError
 
 
-class SolarwindsDevice(DeviceModel):
-    """Solarwinds implementation of Device DiffSync model."""
+class SolarWindsDevice(DeviceModel):
+    """SolarWinds implementation of Device DiffSync model."""
 
     @classmethod
     def create(cls, adapter, ids, attrs):
-        """Create Device in Solarwinds from SolarwindsDevice object."""
+        """Create Device in SolarWinds from SolarWindsDevice object."""
         raise NotImplementedError
 
     def update(self, attrs):
-        """Update Device in Solarwinds from SolarwindsDevice object."""
+        """Update Device in SolarWinds from SolarWindsDevice object."""
         raise NotImplementedError
 
     def delete(self):
-        """Delete Device in Solarwinds from SolarwindsDevice object."""
+        """Delete Device in SolarWinds from SolarWindsDevice object."""
         raise NotImplementedError
 
 
-class SolarwindsInterface(InterfaceModel):
-    """Solarwinds implementation of Interface DiffSync model."""
+class SolarWindsInterface(InterfaceModel):
+    """SolarWinds implementation of Interface DiffSync model."""
 
     @classmethod
     def create(cls, adapter, ids, attrs):
-        """Create Interface in Solarwinds from SolarwindsInterface object."""
+        """Create Interface in SolarWinds from SolarWindsInterface object."""
         raise NotImplementedError
 
     def update(self, attrs):
-        """Update Interface in Solarwinds from SolarwindsInterface object."""
+        """Update Interface in SolarWinds from SolarWindsInterface object."""
         raise NotImplementedError
 
     def delete(self):
-        """Delete Interface in Solarwinds from SolarwindsInterface object."""
+        """Delete Interface in SolarWinds from SolarWindsInterface object."""
         raise NotImplementedError
 
 
-class SolarwindsPrefix(PrefixModel):
-    """Solarwinds implementation of Prefix DiffSync model."""
+class SolarWindsPrefix(PrefixModel):
+    """SolarWinds implementation of Prefix DiffSync model."""
 
     @classmethod
     def create(cls, adapter, ids, attrs):
-        """Create Prefix in Solarwinds from SolarwindsPrefix object."""
+        """Create Prefix in SolarWinds from SolarWindsPrefix object."""
         raise NotImplementedError
 
     def update(self, attrs):
-        """Update Prefix in Solarwinds from SolarwindsPrefix object."""
+        """Update Prefix in SolarWinds from SolarWindsPrefix object."""
         raise NotImplementedError
 
     def delete(self):
-        """Delete Prefix in Solarwinds from SolarwindsPrefix object."""
+        """Delete Prefix in SolarWinds from SolarWindsPrefix object."""
         raise NotImplementedError
 
 
-class SolarwindsIPAddress(IPAddressModel):
-    """Solarwinds implementation of IPAddress DiffSync model."""
+class SolarWindsIPAddress(IPAddressModel):
+    """SolarWinds implementation of IPAddress DiffSync model."""
 
     @classmethod
     def create(cls, adapter, ids, attrs):
-        """Create IPAddress in Solarwinds from SolarwindsIPAddress object."""
+        """Create IPAddress in SolarWinds from SolarWindsIPAddress object."""
         raise NotImplementedError
 
     def update(self, attrs):
-        """Update IPAddress in Solarwinds from SolarwindsIPAddress object."""
+        """Update IPAddress in SolarWinds from SolarWindsIPAddress object."""
         raise NotImplementedError
 
     def delete(self):
-        """Delete IPAddress in Solarwinds from SolarwindsIPAddress object."""
+        """Delete IPAddress in SolarWinds from SolarWindsIPAddress object."""
         raise NotImplementedError
 
 
-class SolarwindsIPAddressToInterface(IPAddressToInterfaceModel):
-    """Solarwinds implementation of IPAddressToInterface DiffSync model."""
+class SolarWindsIPAddressToInterface(IPAddressToInterfaceModel):
+    """SolarWinds implementation of IPAddressToInterface DiffSync model."""
 
     @classmethod
     def create(cls, adapter, ids, attrs):
-        """Create IPAddressToInterface in Solarwinds from SolarwindsIPAddressToInterface object."""
+        """Create IPAddressToInterface in SolarWinds from SolarWindsIPAddressToInterface object."""
         raise NotImplementedError
 
     def update(self, attrs):
-        """Update IPAddressToInterface in Solarwinds from SolarwindsIPAddressToInterface object."""
+        """Update IPAddressToInterface in SolarWinds from SolarWindsIPAddressToInterface object."""
         raise NotImplementedError
 
     def delete(self):
-        """Delete IPAddressToInterface in Solarwinds from SolarwindsIPAddressToInterface object."""
+        """Delete IPAddressToInterface in SolarWinds from SolarWindsIPAddressToInterface object."""
         raise NotImplementedError

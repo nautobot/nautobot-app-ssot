@@ -1,1 +1,1 @@
-"""DiffSync models and adapters for the Solarwinds SSoT app."""
+"""DiffSync models and adapters for the SolarWinds SSoT app."""

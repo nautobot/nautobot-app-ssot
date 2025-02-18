@@ -1,4 +1,4 @@
-"""Constants to be used with Solarwinds SSoT."""
+"""Constants to be used with SolarWinds SSoT."""
 
 ETH_INTERFACE_NAME_MAP = {
     "AppGigabitEthernet": "virtual",

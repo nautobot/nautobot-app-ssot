@@ -1,1 +1,1 @@
-"""Base module for Solarwinds integration."""
+"""Base module for SolarWinds integration."""

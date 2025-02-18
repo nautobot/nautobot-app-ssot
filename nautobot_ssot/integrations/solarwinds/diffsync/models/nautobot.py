@@ -1,5 +1,5 @@
 # pylint: disable=no-member
-"""Nautobot DiffSync models for Solarwinds SSoT."""
+"""Nautobot DiffSync models for SolarWinds SSoT."""
 
 from nautobot.dcim.models import Interface
 from nautobot.ipam.models import IPAddress, IPAddressToInterface
