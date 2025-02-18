@@ -39,15 +39,6 @@ class Adapter(NautobotAdapter):
         """Force mac address to string when loading it into the diffsync store."""
         return str(getattr(database_object, parameter_name))
 
-    # def load_param_primary_ip4__host(self, parameter_name, database_object):
-    #     """Load primary_ip4 host into Diffsync store."""
-    #     print("PRIMARY IP")
-    #     return str(getattr(database_object, parameter_name))
-
-    # def load_param_primary_ip6__host(self, parameter_name, database_object):
-    #     """Load primary_ip4 host into Diffsync store."""
-    #     return str(getattr(database_object, parameter_name))
-
     def sync_complete(self, source, diff, flags: DiffSyncFlags = DiffSyncFlags.NONE, logger=None):
         """Update devices with their primary IPs once the sync is complete."""
         for info in self._primary_ips:

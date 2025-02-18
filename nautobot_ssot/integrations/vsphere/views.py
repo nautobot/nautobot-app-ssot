@@ -2,10 +2,12 @@
 
 # pylint: disable=duplicate-code
 from nautobot.apps.views import (
+    ObjectChangeLogViewMixin,
     ObjectDestroyViewMixin,
     ObjectDetailViewMixin,
     ObjectEditViewMixin,
     ObjectListViewMixin,
+    ObjectNotesViewMixin,
 )
 from nautobot.extras.views import ObjectChangeLogView, ObjectNotesView
 
@@ -21,6 +23,8 @@ class SSOTvSphereConfigUIViewSet(
     ObjectDetailViewMixin,
     ObjectListViewMixin,
     ObjectEditViewMixin,
+    ObjectChangeLogViewMixin,
+    ObjectNotesViewMixin,
 ):  # pylint: disable=abstract-method
     """SSOTvSphereConfig UI ViewSet."""
 
