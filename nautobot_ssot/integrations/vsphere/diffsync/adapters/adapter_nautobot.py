@@ -30,16 +30,30 @@ class Adapter(NautobotAdapter):
     interface = VMInterfaceModel
     ip_address = IPAddressModel
 
-    def __init__(self, *args, job=None, sync=None, config, **kwargs):
+    def __init__(
+        self,
+        *args,
+        job=None,
+        sync=None,
+        config,
+        sync_vsphere_tagged_only,
+        cluster_filter,
+        **kwargs
+    ):
         """Initialize the adapter."""
         super().__init__(*args, job=job, sync=sync, **kwargs)
+        self.config = config
+        self.sync_vsphere_tagged_only = sync_vsphere_tagged_only
+        self.cluster_filter = cluster_filter
         self._primary_ips = []
 
     def load_param_mac_address(self, parameter_name, database_object):
         """Force mac address to string when loading it into the diffsync store."""
         return str(getattr(database_object, parameter_name))
 
-    def sync_complete(self, source, diff, flags: DiffSyncFlags = DiffSyncFlags.NONE, logger=None):
+    def sync_complete(
+        self, source, diff, flags: DiffSyncFlags = DiffSyncFlags.NONE, logger=None
+    ):
         """Update devices with their primary IPs once the sync is complete."""
         for info in self._primary_ips:
             vm = VirtualMachine.objects.get(**info["device"])
