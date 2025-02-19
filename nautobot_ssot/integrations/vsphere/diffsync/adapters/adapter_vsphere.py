@@ -58,7 +58,6 @@ class VsphereDiffSync(Adapter):
     virtual_machine = VirtualMachineModel
     interface = VMInterfaceModel
     ip_address = IPAddressModel
-    # ip_address_to_interface = IPAddressToInterfaceModel
     prefix = PrefixModel
 
     top_level = ["prefix", "clustergroup"]
@@ -287,6 +286,13 @@ class VsphereDiffSync(Adapter):
 
     def load_standalone_vms(self):
         """Load all VM's from vSphere."""
+        default_diffsync_cluster, _ = self.get_or_instantiate(
+            self.cluster,
+            {"name": defaults.DEFAULT_CLUSTER_NAME},
+            {
+                "cluster_type__name": defaults.DEFAULT_VSPHERE_TYPE,
+            },
+        )
         virtual_machines = self.client.get_vms().json()["value"]
         for virtual_machine in virtual_machines:
             virtual_machine_details = self.client.get_vm_details(
@@ -312,7 +318,7 @@ class VsphereDiffSync(Adapter):
                     "cluster__name": defaults.DEFAULT_CLUSTER_NAME,
                 },
             )
-            self.job.logger.info(diffsync_virtualmachine)
+            default_diffsync_cluster.add_child(diffsync_virtualmachine)
             self.load_vm_interfaces(
                 vsphere_virtual_machine=virtual_machine_details,
                 vm_id=virtual_machine["vm"],
@@ -325,7 +331,7 @@ class VsphereDiffSync(Adapter):
             self.load_data()
         else:
             self.job.logger.info(
-                "Not syncing Clusters or Cluster Groups per user settings"
+                "Not syncing Clusters or Cluster Groups per user settings. Using default  Cluster."
             )
             self.load_standalone_vms()
         self.job.logger.info("Finished loading data from vSphere.")
