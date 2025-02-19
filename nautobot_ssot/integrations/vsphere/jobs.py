@@ -48,6 +48,7 @@ def _get_vsphere_client_config(app_config, debug):
         "vm_interface_map": app_config.default_vm_interface_map,
         "primary_ip_sort_by": app_config.primary_ip_sort_by,
         "ignore_link_local": app_config.default_ignore_link_local,
+        "use_clusters": app_config.use_clusters,
         "debug": debug,
     }
 
