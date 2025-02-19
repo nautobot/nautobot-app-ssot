@@ -312,6 +312,7 @@ class VsphereDiffSync(Adapter):
                     "cluster__name": defaults.DEFAULT_CLUSTER_NAME,
                 },
             )
+            self.job.logger.info(diffsync_virtualmachine)
             self.load_vm_interfaces(
                 vsphere_virtual_machine=virtual_machine_details,
                 vm_id=virtual_machine["vm"],
