@@ -306,10 +306,10 @@ class VsphereDiffSync(Adapter):
                         if virtual_machine_details.get("disks")
                         else None
                     ),
-                    "status": self.config.default_vm_status_map[
+                    "status__name": self.config.default_vm_status_map[
                         virtual_machine_details["power_state"]
                     ],
-                    "cluster": defaults.DEFAULT_CLUSTER_NAME,
+                    "cluster__name": defaults.DEFAULT_CLUSTER_NAME,
                 },
             )
             self.load_vm_interfaces(
