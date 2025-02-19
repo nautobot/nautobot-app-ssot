@@ -324,7 +324,7 @@ class VsphereDiffSync(Adapter):
             self.load_data()
         else:
             self.job.logger.info(
-                message="Not syncing Clusters or Cluster Groups per user settings"
+                "Not syncing Clusters or Cluster Groups per user settings"
             )
             self.load_standalone_vms()
-        self.job.logger.info(message="Finished loading data from vSphere.")
+        self.job.logger.info("Finished loading data from vSphere.")
