@@ -52,6 +52,7 @@ class VsphereClient:  # pylint: disable=too-many-instance-attributes
         vm_interface_map,
         primary_ip_sort_by,
         ignore_link_local,
+        use_clusters,
         debug,
     ):  # pylint: disable=W0235, R0913
         """Initialize vSphere Client class."""
@@ -66,7 +67,9 @@ class VsphereClient:  # pylint: disable=too-many-instance-attributes
 
         self.auth = HTTPBasicAuth(username, password)
         self.session = self._init_session(verify_ssl=verify_ssl)
-        self.rest_client = self.session.post(f"{self.vsphere_uri}/rest/com/vmware/cis/session", auth=self.auth)
+        self.rest_client = self.session.post(
+            f"{self.vsphere_uri}/rest/com/vmware/cis/session", auth=self.auth
+        )
         LOGGER.debug("vSphere Client authenticated and session established.")
 
         self.vm_status_map = vm_status_map
@@ -74,6 +77,7 @@ class VsphereClient:  # pylint: disable=too-many-instance-attributes
         self.vm_interface_map = vm_interface_map
         self.primary_ip_sort_by = primary_ip_sort_by
         self.ignore_link_local = ignore_link_local
+        self.use_clusters = use_clusters
         self.debug = debug
 
     def _init_session(self, verify_ssl):
@@ -119,11 +123,15 @@ class VsphereClient:  # pylint: disable=too-many-instance-attributes
 
     def get_vms_from_cluster(self, cluster: str) -> Dict:
         """Get VMs."""
-        return self._request("GET", f"{self.vsphere_uri}/rest/vcenter/vm?filter.clusters={cluster}")
+        return self._request(
+            "GET", f"{self.vsphere_uri}/rest/vcenter/vm?filter.clusters={cluster}"
+        )
 
     def get_vms_from_dc(self, datacenter: str) -> Dict:
         """Get VMs."""
-        return self._request("GET", f"{self.vsphere_uri}/rest/vcenter/vm?filter.datacenters={datacenter}")
+        return self._request(
+            "GET", f"{self.vsphere_uri}/rest/vcenter/vm?filter.datacenters={datacenter}"
+        )
 
     def get_datacenters(self) -> Dict:
         """Get datacenters."""
@@ -131,7 +139,9 @@ class VsphereClient:  # pylint: disable=too-many-instance-attributes
 
     def get_datacenter_details(self, datacenter: str) -> Dict:
         """Get datacenters."""
-        return self._request("GET", f"{self.vsphere_uri}/rest/vcenter/datacenter/{datacenter}")
+        return self._request(
+            "GET", f"{self.vsphere_uri}/rest/vcenter/datacenter/{datacenter}"
+        )
 
     def get_clusters(self) -> Dict:
         """Get Clusters."""
@@ -146,7 +156,9 @@ class VsphereClient:  # pylint: disable=too-many-instance-attributes
 
     def get_cluster_details(self, cluster_name: str) -> Dict:
         """Get Clusters."""
-        return self._request("GET", f"{self.vsphere_uri}/rest/vcenter/cluster/{cluster_name}")
+        return self._request(
+            "GET", f"{self.vsphere_uri}/rest/vcenter/cluster/{cluster_name}"
+        )
 
     def get_vm_details(self, vm_id: str) -> Dict:
         """Get all VMs details."""
@@ -154,11 +166,15 @@ class VsphereClient:  # pylint: disable=too-many-instance-attributes
 
     def get_host_from_cluster(self, cluster: str) -> Dict:
         """Get hosts from cluster."""
-        return self._request("GET", f"{self.vsphere_uri}/rest/vcenter/host/?filter.clusters={cluster}")
+        return self._request(
+            "GET", f"{self.vsphere_uri}/rest/vcenter/host/?filter.clusters={cluster}"
+        )
 
     def get_host_details(self, host: str) -> Dict:
         """Get host details."""
-        return self._request("GET", f"{self.vsphere_uri}/rest/vcenter/host/?filter.hosts={host}")
+        return self._request(
+            "GET", f"{self.vsphere_uri}/rest/vcenter/host/?filter.hosts={host}"
+        )
 
     def get_vm_interfaces(self, vm_id: str) -> Dict:
         """Get all VM interfaces."""
