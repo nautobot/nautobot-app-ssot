@@ -191,7 +191,7 @@ class VsphereDiffSync(Adapter):
                         "vm_interfaces": [
                             {
                                 "name": diffsync_vminterface.name,
-                                "device_name": diffsync_virtualmachine.name,
+                                "virtual_machine__name": diffsync_virtualmachine.name,
                             }
                         ],
                     },
