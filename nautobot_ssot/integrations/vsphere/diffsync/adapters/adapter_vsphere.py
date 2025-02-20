@@ -184,7 +184,12 @@ class VsphereDiffSync(Adapter):
                         ],
                     },
                     {
-                        "vm_interfaces": [{"name": diffsync_vminterface.name}],
+                        "vm_interfaces": [
+                            {
+                                "name": diffsync_vminterface.name,
+                                "device_name": diffsync_vminterface,
+                            }
+                        ],
                     },
                 )
                 diffsync_vminterface.add_child(diffsync_ipaddress)

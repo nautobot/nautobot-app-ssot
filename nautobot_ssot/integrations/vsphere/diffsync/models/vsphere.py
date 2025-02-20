@@ -19,6 +19,7 @@ class InterfacesDict(TypedDict):
     """Typed dict to relate interface to IP."""
 
     name: str
+    device_name: str
 
 
 class PrefixModel(NautobotModel):
