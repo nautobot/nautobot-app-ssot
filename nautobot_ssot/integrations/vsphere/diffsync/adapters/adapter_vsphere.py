@@ -232,7 +232,7 @@ class VsphereDiffSync(Adapter):
                         nic["value"]["state"]
                     ],
                     "status__name": "Active",
-                    "mac_address": nic_mac,
+                    "mac_address": nic_mac.upper(),
                 },
             )
             diffsync_virtualmachine.add_child(diffsync_vminterface)
