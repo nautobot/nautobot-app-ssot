@@ -127,7 +127,6 @@ class VirtualMachineModel(NautobotModel):
             )
         return super().create(adapter, ids, attrs)
 
-    @classmethod
     def update(self, attrs):
         """Update the device.
 
