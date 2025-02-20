@@ -119,7 +119,11 @@ class VsphereDiffSync(Adapter):
             )
 
     def load_ip_addresses(
-        self, vsphere_vm_interfaces, mac_address, diffsync_vminterface
+        self,
+        vsphere_vm_interfaces,
+        mac_address,
+        diffsync_vminterface,
+        diffsync_virtualmachine,
     ):
         """Load VM IP Addresses into Interfaces.
 
@@ -187,7 +191,7 @@ class VsphereDiffSync(Adapter):
                         "vm_interfaces": [
                             {
                                 "name": diffsync_vminterface.name,
-                                "device_name": diffsync_vminterface,
+                                "device_name": diffsync_virtualmachine.name,
                             }
                         ],
                     },
@@ -252,6 +256,7 @@ class VsphereDiffSync(Adapter):
                     vm_interfaces,
                     nic_mac,
                     diffsync_vminterface,
+                    diffsync_virtualmachine,
                 )
 
                 _ = [addrs4.append(str(addr)) for addr in ipv4_addresses]
