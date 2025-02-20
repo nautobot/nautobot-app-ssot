@@ -19,7 +19,7 @@ class InterfacesDict(TypedDict):
     """Typed dict to relate interface to IP."""
 
     name: str
-    dvirtualmachine__name: str
+    virtualmachine__name: str
 
 
 class PrefixModel(NautobotModel):
