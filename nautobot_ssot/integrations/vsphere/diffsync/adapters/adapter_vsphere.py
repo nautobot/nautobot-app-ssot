@@ -214,7 +214,7 @@ class VsphereDiffSync(Adapter):
     ):
         """Load VM Interfaces."""
         nics = vsphere_virtual_machine["nics"]
-        self.job.log_debug(message=f"Loading NICs for VM-ID {vm_id}: {nics}")
+        self.job.log_debug(message=f"Loading NICs for {vm_id}: {nics}")
         # Get all IP Addresses from ALL NICs on Virtual Machine
         addrs4 = []
         addrs6 = []
@@ -286,6 +286,9 @@ class VsphereDiffSync(Adapter):
 
     def load_standalone_vms(self):
         """Load all VM's from vSphere."""
+        default_diffsync_clustergroup, _ = self.get_or_instantiate(
+            self.clustergroup, {"name": defaults.DEFAULT_CLUSTERGROUP_NAME}
+        )
         default_diffsync_cluster, _ = self.get_or_instantiate(
             self.cluster,
             {"name": defaults.DEFAULT_CLUSTER_NAME},
@@ -293,6 +296,7 @@ class VsphereDiffSync(Adapter):
                 "cluster_type__name": defaults.DEFAULT_VSPHERE_TYPE,
             },
         )
+        default_diffsync_clustergroup.add_child(default_diffsync_cluster)
         virtual_machines = self.client.get_vms().json()["value"]
         for virtual_machine in virtual_machines:
             virtual_machine_details = self.client.get_vm_details(
