@@ -227,7 +227,7 @@ class NautobotModel(DiffSyncModel):
         # Save the object to the database
         try:
             obj.validated_save()
-        except ValidationError as error:
+        except (ValidationError, ValueError) as error:
             raise ObjectCrudException(
                 f"Validated save failed for Django object:\n{error}\nParameters: {parameters}"
             ) from error
