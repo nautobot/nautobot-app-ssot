@@ -294,6 +294,7 @@ class VsphereDiffSync(Adapter):
             {"name": defaults.DEFAULT_CLUSTER_NAME},
             {
                 "cluster_type__name": defaults.DEFAULT_VSPHERE_TYPE,
+                "cluster_group__name": defaults.DEFAULT_CLUSTERGROUP_NAME,
             },
         )
         default_diffsync_clustergroup.add_child(default_diffsync_cluster)
