@@ -1,0 +1,1 @@
+Added catching of `ValueError` on `validated_save` in contrib models.
