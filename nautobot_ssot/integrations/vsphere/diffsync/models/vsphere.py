@@ -140,10 +140,11 @@ class VirtualMachineModel(NautobotModel):
         Returns:
             DeviceModel: The device model.
         """
+        print(dir(self))
         if attrs["primary_ip4__host"] or attrs["primary_ip6__host"]:
             self.adapter._primary_ips.append(
                 {
-                    "device": {**self._identifiers},
+                    "device": {**dict(self._identifiers)},
                     "primary_ip4": attrs.pop("primary_ip4__host", None),
                     "primary_ip6": attrs.pop("primary_ip4__host", None),
                 }
