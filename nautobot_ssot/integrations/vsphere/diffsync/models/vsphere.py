@@ -127,6 +127,30 @@ class VirtualMachineModel(NautobotModel):
             )
         return super().create(adapter, ids, attrs)
 
+    @classmethod
+    def update(self, attrs):
+        """Update the device.
+
+        This overridden method removes the primary IP addresses since those
+        cannot be set until after the interfaces and IPs are created. The primary IPs
+        are set in the `sync_complete` callback of the adapter.
+
+        Args:
+            attrs (dict[str, Any]): The attributes to update on the device.
+
+        Returns:
+            DeviceModel: The device model.
+        """
+        if attrs["primary_ip4__host"] or attrs["primary_ip6__host"]:
+            self.adapter._primary_ips.append(
+                {
+                    "device": {**self.identifiers},
+                    "primary_ip4": attrs.pop("primary_ip4__host", None),
+                    "primary_ip6": attrs.pop("primary_ip4__host", None),
+                }
+            )
+        return super().update(attrs)
+
 
 class ClusterModel(NautobotModel):
     """Cluster Model Diffsync model."""
