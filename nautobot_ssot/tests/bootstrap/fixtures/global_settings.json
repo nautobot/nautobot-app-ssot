@@ -534,6 +534,19 @@
         "template": "{{ obj | get_change_log }}"
     }
   ],
+  "custom_field": [
+    {
+        "label": "Internal Circuit ID",
+        "description": "Circuit ID for internal records",
+        "type": "text",
+        "content_types": ["circuits.circuit"],
+        "grouping": "",
+        "weight": 100,
+        "filter_logic": "loose",
+        "advanced_ui": false,
+        "validation_regex": ""
+    }
+  ],
   "tag": [
     {
         "name": "Backbone",

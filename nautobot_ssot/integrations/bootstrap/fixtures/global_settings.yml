@@ -821,3 +821,9 @@ scheduled_job:
     start_time: "2025-01-28 23:00:00"
     job_model: "Export Object List"
     user: "admin"
+custom_field:
+  - label: "Internal Circuit ID"
+    type: "text"
+    description: "Circuit ID for internal records"
+    content_types:
+      - "circuits.circuit"

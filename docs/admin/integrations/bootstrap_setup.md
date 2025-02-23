@@ -30,6 +30,7 @@ PLUGINS_CONFIG = {
             "git_repository": True,
             "dynamic_group": True,
             "computed_field": True,
+            "custom_field": True,
             "tag": True,
             "graph_ql_query": True,
             "software": False,

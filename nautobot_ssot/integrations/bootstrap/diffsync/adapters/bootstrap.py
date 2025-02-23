@@ -8,7 +8,7 @@ import yaml
 from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.conf import settings
-from nautobot.extras.choices import JobExecutionType
+from nautobot.extras.choices import CustomFieldFilterLogicChoices, JobExecutionType
 from nautobot.extras.datasources.git import ensure_git_repository
 from nautobot.extras.models import GitRepository
 
@@ -18,6 +18,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (
     BootstrapCircuitType,
     BootstrapComputedField,
     BootstrapContact,
+    BootstrapCustomField,
     BootstrapDynamicGroup,
     BootstrapGitRepository,
     BootstrapGraphQLQuery,
@@ -156,6 +157,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
     git_repository = BootstrapGitRepository
     dynamic_group = BootstrapDynamicGroup
     computed_field = BootstrapComputedField
+    custom_field = BootstrapCustomField
     tag = BootstrapTag
     graph_ql_query = BootstrapGraphQLQuery
 
@@ -190,6 +192,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         "git_repository",
         "dynamic_group",
         "computed_field",
+        "custom_field",
         "tag",
         "graph_ql_query",
     ]
@@ -773,6 +776,40 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(_new_comp_field)
 
+    def load_custom_field(self, custom_field):
+        """Load CustomField objects from Bootstrap into DiffSync Models."""
+        if self.job.debug:
+            self.job.logger.debug(f"Loading Bootstrap CustomField: {custom_field}")
+        for key in ["label", "type", "content_types"]:
+            if key not in custom_field:
+                self.job.logger.error(
+                    f"Missing required field: {key}, unable to import custom field {custom_field.get('label')}"
+                )
+                return
+        try:
+            self.get(self.custom_field, custom_field["label"])
+        except ObjectNotFound:
+            content_types = custom_field["content_types"]
+
+            _new_custom_field = self.custom_field(
+                label=custom_field["label"],
+                description=custom_field.get("description") or "",
+                required=custom_field.get("required") or False,
+                content_types=content_types,
+                type=custom_field["type"].lower(),
+                grouping=custom_field.get("grouping") or "",
+                weight=custom_field.get("weight") or 100,
+                default=custom_field.get("default"),
+                filter_logic=custom_field.get("filter_logic") or CustomFieldFilterLogicChoices.FILTER_LOOSE,
+                advanced_ui=custom_field.get("advanced_ui", False),
+                validation_minimum=custom_field.get("validation_minimum"),
+                validation_maximum=custom_field.get("validation_maximum"),
+                validation_regex=custom_field.get("validation_regex") or "",
+                custom_field_choices=custom_field.get("custom_field_choices") or [],
+            )
+
+            self.add(_new_custom_field)
+
     def load_tag(self, tag):
         """Load Tag objects from Bootstrap into DiffSync Models."""
         if self.job.debug:
@@ -1106,6 +1143,10 @@ class BootstrapAdapter(Adapter, LabelMixin):
             if global_settings["computed_field"] is not None:  # noqa: F821
                 for computed_field in global_settings["computed_field"]:  # noqa: F821
                     self.load_computed_field(comp_field=computed_field)
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["custom_field"]:
+            if global_settings["custom_field"] is not None:  # noqa: F821
+                for custom_field in global_settings["custom_field"]:  # noqa: F821
+                    self.load_custom_field(custom_field=custom_field)
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["tag"]:
             if global_settings["tag"] is not None:  # noqa: F821
                 for tag in global_settings["tag"]:  # noqa: F821

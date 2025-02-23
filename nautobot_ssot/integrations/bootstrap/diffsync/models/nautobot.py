@@ -22,6 +22,8 @@ from nautobot.dcim.models import Manufacturer as ORMManufacturer
 from nautobot.dcim.models import Platform as ORMPlatform
 from nautobot.extras.models import ComputedField as ORMComputedField
 from nautobot.extras.models import Contact as ORMContact
+from nautobot.extras.models import CustomField as ORMCustomField
+from nautobot.extras.models import CustomFieldChoice as ORMCustomFieldChoice
 from nautobot.extras.models import DynamicGroup as ORMDynamicGroup
 from nautobot.extras.models import GitRepository as ORMGitRepository
 from nautobot.extras.models import GraphQLQuery as ORMGraphQLQuery
@@ -52,6 +54,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
     CircuitType,
     ComputedField,
     Contact,
+    CustomField,
     DynamicGroup,
     GitRepository,
     GraphQLQuery,
@@ -2128,6 +2131,101 @@ class NautobotComputedField(ComputedField):
             return self
         except ORMComputedField.DoesNotExist as err:
             self.adapter.job.logger.warning(f"Unable to find ComputedField {self.label} for deletion. {err}")
+
+
+class NautobotCustomField(CustomField):
+    """Nautobot implementation of Bootstrap CustomField model."""
+
+    @classmethod
+    def create(cls, adapter, ids, attrs):
+        """Create CustomField in Nautobot from NautobotCustomField object."""
+        _content_types = []
+        adapter.job.logger.info(f'Creating Nautobot Custom Field: {ids["label"]}')
+
+        for _model in attrs["content_types"]:
+            try:
+                _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+            except ContentType.DoesNotExist:
+                adapter.job.logger.error(f"Unable to find ContentType for {_model}.")
+
+        _new_custom_field = ORMCustomField(
+            label=ids["label"],
+            description=attrs["description"],
+            required=attrs["required"],
+            type=attrs["type"],
+            grouping=attrs["grouping"],
+            weight=attrs["weight"],
+            default=attrs["default"],
+            filter_logic=attrs["filter_logic"],
+            advanced_ui=attrs["advanced_ui"],
+            validation_minimum=attrs["validation_minimum"],
+            validation_maximum=attrs["validation_maximum"],
+            validation_regex=attrs["validation_regex"],
+        )
+        _new_custom_field.validated_save()
+        _new_custom_field.content_types.set(_content_types)
+
+        for choice in attrs["custom_field_choices"]:
+            _new_cf = ORMCustomFieldChoice(
+                value=choice["value"], weight=choice["weight"], custom_field=_new_custom_field
+            )
+            _new_cf.validated_save()
+
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update CustomField in Nutobot from NautobotCustomField object."""
+        self.adapter.job.logger.info(f"Updating CustomField {self.label}")
+        cust_field = ORMCustomField.objects.get(label=self.label)
+        _content_types = []
+        if attrs.get("content_types"):
+            for _model in attrs["content_types"]:
+                try:
+                    _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+                except ContentType.DoesNotExist:
+                    self.adapter.job.logger.error(f"Unable to find ContentType for {_model}.")
+            cust_field.content_types.set(_content_types)
+        if "description" in attrs:
+            cust_field.description = attrs["description"]
+        if "required" in attrs:
+            cust_field.required = attrs["required"]
+        if "type" in attrs:
+            self.adapter.job.logger.error("Custom Field Type cannot be changed once created.")
+        if "grouping" in attrs:
+            cust_field.grouping = attrs["grouping"]
+        if "weight" in attrs:
+            cust_field.weight = attrs["weight"]
+        if "default" in attrs:
+            cust_field.default = attrs["default"]
+        if "filter_logic" in attrs:
+            cust_field.filter_logic = attrs["filter_logic"]
+        if "advanced_ui" in attrs:
+            cust_field.advanced_ui = attrs["advanced_ui"]
+        if "validation_minimum" in attrs:
+            cust_field.validation_minimum = attrs["validation_minimum"]
+        if "validation_maximum" in attrs:
+            cust_field.validation_maximum = attrs["validation_maximum"]
+        if "validation_regex" in attrs:
+            cust_field.validation_regex = attrs["validaton_regex"]
+        if "custom_field_choices" in attrs:
+            cust_field.custom_field_choices.all().delete()
+            for choice in attrs["custom_field_choices"]:
+                _new_cf = ORMCustomFieldChoice(value=choice["value"], weight=choice["weight"], custom_field=cust_field)
+                _new_cf.validated_save()
+
+        cust_field.validated_save()
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete CustomField in Nautobot from NautobotCustomField object."""
+        self.adapter.job.logger.debug(f"Delete CustomField: {self.label}")
+        try:
+            cust_field = ORMCustomField.objects.get(label=self.label)
+            super().delete()
+            cust_field.delete()
+            return self
+        except ORMCustomField.DoesNotExist as err:
+            self.adapter.job.logger.warning(f"Unable to find CustomField {self.label} for deletion. {err}")
 
 
 class NautobotTag(Tag):

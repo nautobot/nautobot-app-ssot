@@ -8,6 +8,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
     CircuitType,
     ComputedField,
     Contact,
+    CustomField,
     DynamicGroup,
     GitRepository,
     GraphQLQuery,
@@ -366,6 +367,23 @@ class BootstrapComputedField(ComputedField):
 
     def delete(self):
         """Delete ComputedField in Bootstrap from BootstrapComputedField object."""
+        return self
+
+
+class BootstrapCustomField(CustomField):
+    """Bootstrap implementation of CustomField DiffSync model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create CustomField in Bootstrap from BootstrapCustomField object."""
+        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update CustomField in Bootstrap from BootstrapCustomField object."""
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete CustomField in Bootstrap from BootstrapCustomField object."""
         return self
 
 
