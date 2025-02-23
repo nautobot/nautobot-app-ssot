@@ -20,6 +20,7 @@ from nautobot.dcim.models import (
 from nautobot.extras.models import (
     ComputedField,
     Contact,
+    CustomField,
     DynamicGroup,
     GitRepository,
     GraphQLQuery,
@@ -47,6 +48,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import (
     NautobotCircuitType,
     NautobotComputedField,
     NautobotContact,
+    NautobotCustomField,
     NautobotDynamicGroup,
     NautobotGitRepository,
     NautobotGraphQLQuery,
@@ -150,6 +152,7 @@ class NautobotAdapter(Adapter):
     git_repository = NautobotGitRepository
     dynamic_group = NautobotDynamicGroup
     computed_field = NautobotComputedField
+    custom_field = NautobotCustomField
     tag = NautobotTag
     graph_ql_query = NautobotGraphQLQuery
 
@@ -188,6 +191,7 @@ class NautobotAdapter(Adapter):
         "computed_field",
         "graph_ql_query",
         "scheduled_job",
+        "custom_field",
     ]
 
     if SOFTWARE_LIFECYCLE_MGMT:
@@ -1194,6 +1198,38 @@ class NautobotAdapter(Adapter):
                 _scheduled_job.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
                 self.add(_scheduled_job)
 
+    def load_custom_field(self):
+        """Method to load CustomField objects from Nautobot into NautobotCustomField DiffSync models."""
+        for nb_custom_field in CustomField.objects.all():
+            if self.job.debug:
+                self.job.logger.debug(f"Loading Nautobot CustomField {nb_custom_field}")
+            try:
+                self.get(self.custom_field, nb_custom_field.label)
+            except ObjectNotFound:
+                content_types = [f"{ct.app_label}.{ct.model}" for ct in nb_custom_field.content_types.all()]
+                custom_field_choices = []
+                for choice in nb_custom_field.custom_field_choices.all():
+                    custom_field_choices.append({"value": choice.value, "weight": choice.weight})
+
+                new_custom_field = self.custom_field(
+                    label=nb_custom_field.label,
+                    description=nb_custom_field.description,
+                    required=nb_custom_field.required,
+                    content_types=content_types,
+                    type=nb_custom_field.type.lower(),
+                    grouping=nb_custom_field.grouping,
+                    weight=nb_custom_field.weight,
+                    default=nb_custom_field.default,
+                    filter_logic=nb_custom_field.filter_logic,
+                    advanced_ui=nb_custom_field.advanced_ui,
+                    validation_minimum=nb_custom_field.validation_minimum,
+                    validation_maximum=nb_custom_field.validation_maximum,
+                    validation_regex=nb_custom_field.validation_regex,
+                    custom_field_choices=custom_field_choices,
+                )
+                new_custom_field.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+                self.add(new_custom_field)
+
     def load_software(self):
         """Method to load Software objects from Nautobot into NautobotSoftware Models."""
         for nb_software in ORMSoftware.objects.all():
@@ -1387,6 +1423,8 @@ class NautobotAdapter(Adapter):
             self.load_graph_ql_query()
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["scheduled_job"]:
             self.load_scheduled_job()
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["custom_field"]:
+            self.load_custom_field()
         if SOFTWARE_LIFECYCLE_MGMT:
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software"]:
                 self.load_software()

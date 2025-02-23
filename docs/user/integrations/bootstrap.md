@@ -71,6 +71,12 @@ computed_field:
   - label: Compliance Change
     content_type: nautobot_golden_config.configcompliance
     template: '{{ obj | get_change_log }}'
+custom_field:
+  - label: Internal Circuit ID
+    description: Circuit ID for internal records
+    type: text
+    content_types: 
+      - circuits.circuit
 tag:
   - name: Backbone
     color: '795548'
@@ -656,6 +662,34 @@ computed_field:
 ```
 
 The `template:` key for ComputedField objects takes a jinja variable format string which will display the calculated information.
+
+### Custom_Field
+
+Create CustomField objects. Uses the following data structure, only `label`, `type`, and `content_types` are required. Any custom_fields not included in the Bootstrap `global_settings.yaml` file may be deleted.
+
+```yaml
+custom_field:
+  - label: CustomField1 # str
+    type: text # str -- Options are: text, integer, boolean, date, url, select, multi-select, json, markdown
+    content_types: # list
+      - dcim.device
+      - circuits.circuit
+    # Optional Arguments
+    required: # bool, default: False
+    grouping: # str
+    weight: # int, default: 100
+    default: # default value, type depends on custom_field type
+    filter_logic: # str -- Options are loose, disabled, exact, default: loose
+    advanced_ui: # bool, move this field to the Advanced page. default: False
+    validation_minimum: # int
+    validation_maximum: # int
+    validation_regex: # str
+    custom_field_choices: # list, requires Type of 'select' or 'multi-select'
+      - value: Choice1-Value
+        weight: 100
+      - value: Choice2-Value
+        weight: 200
+```
 
 ### Tag
 

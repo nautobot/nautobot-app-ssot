@@ -28,6 +28,7 @@ from nautobot.dcim.models import (
 from nautobot.extras.models import (
     ComputedField,
     Contact,
+    CustomField,
     DynamicGroup,
     GitRepository,
     GraphQLQuery,
@@ -100,6 +101,7 @@ MODELS_TO_SYNC = [
     "git_repository",
     "dynamic_group",
     "computed_field",
+    "custom_field",
     "tag",
     "graph_ql_query",
     "software",
@@ -173,6 +175,7 @@ class NautobotTestSetup:
         self._setup_inventory_items()
         self._setup_secrets_and_groups()
         self._setup_computed_fields()
+        self._setup_custom_fields()
         self._setup_graphql_queries()
         self._setup_git_repositories()
         self._setup_dynamic_groups()
@@ -814,6 +817,26 @@ class NautobotTestSetup:
             )
             _computed_field.save()
             _computed_field.refresh_from_db()
+
+    def _setup_custom_fields(self):
+        for _cust_field in GLOBAL_YAML_SETTINGS["custom_field"]:
+            _content_types = []
+            for _content_type in _cust_field["content_types"]:
+                _content_types.append(
+                    ContentType.objects.get(
+                        app_label=_content_type.split(".")[0],
+                        model=_content_type.split(".")[1],
+                    )
+                )
+
+            _cust_field = CustomField.objects.create(
+                label=_cust_field["label"],
+                type=_cust_field["type"],
+                description=_cust_field["description"],
+            )
+            _cust_field.content_types.set(_content_types)
+            _cust_field.save()
+            _cust_field.refresh_from_db()
 
     def _setup_graphql_queries(self):
         for _gql_query in GLOBAL_YAML_SETTINGS["graph_ql_query"]:
