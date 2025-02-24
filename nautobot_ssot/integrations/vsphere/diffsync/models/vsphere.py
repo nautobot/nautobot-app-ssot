@@ -66,7 +66,7 @@ class IPAddressModel(NautobotModel):
             IPAddressModel: The IP address model.
         """
         try:
-            print(**ids)
+            print(ids)
             print(cls.attributes)
             ip_address = cls._model.objects.get(**ids)
         except cls._model.DoesNotExist:
