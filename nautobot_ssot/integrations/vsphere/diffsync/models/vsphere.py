@@ -3,9 +3,7 @@
 from typing import List, Optional
 
 from diffsync.enum import DiffSyncModelFlags
-from diffsync.exceptions import ObjectCrudException, ObjectNotCreated
 from nautobot.ipam.models import IPAddress, Prefix
-from nautobot.virtualization.models import VirtualMachine, VMInterface
 from nautobot.virtualization.models import (
     Cluster,
     ClusterGroup,
@@ -17,6 +15,21 @@ from typing_extensions import TypedDict
 from nautobot_ssot.contrib import NautobotModel
 
 
+class vSphereModelDiffSync(NautobotModel):
+    """vSphere Model DiffSync model."""
+
+    @classmethod
+    def _update_obj_with_parameters(cls, obj, parameters, adapter):
+        """Update the object with the parameters.
+
+        Args:
+            obj (Any): The object to update.
+            parameters (dict[str, Any]): The parameters to update the object with.
+            adapter (Adapter): The adapter to use to update the object.
+        """
+        super()._update_obj_with_parameters(obj, parameters, adapter)
+
+
 class InterfacesDict(TypedDict):
     """Typed dict to relate interface to IP."""
 
@@ -24,7 +37,7 @@ class InterfacesDict(TypedDict):
     virtual_machine__name: str
 
 
-class PrefixModel(NautobotModel):
+class PrefixModel(vSphereModelDiffSync):
     """Prefix model."""
 
     _model = Prefix
@@ -39,7 +52,7 @@ class PrefixModel(NautobotModel):
     type: str
 
 
-class IPAddressModel(NautobotModel):
+class IPAddressModel(vSphereModelDiffSync):
     """IPAddress Diffsync model."""
 
     _model = IPAddress
@@ -83,7 +96,7 @@ class IPAddressModel(NautobotModel):
             return super().create(adapter, ids, attrs)
 
 
-class VMInterfaceModel(NautobotModel):
+class VMInterfaceModel(vSphereModelDiffSync):
     """VMInterface Diffsync model."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.NATURAL_DELETION_ORDER
@@ -102,7 +115,7 @@ class VMInterfaceModel(NautobotModel):
     ip_addresses: List[IPAddress] = []
 
 
-class VirtualMachineModel(NautobotModel):
+class VirtualMachineModel(vSphereModelDiffSync):
     """Virtual Machine Diffsync model."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.NATURAL_DELETION_ORDER
@@ -183,7 +196,7 @@ class VirtualMachineModel(NautobotModel):
         return super().update(attrs)
 
 
-class ClusterModel(NautobotModel):
+class ClusterModel(vSphereModelDiffSync):
     """Cluster Model Diffsync model."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.NATURAL_DELETION_ORDER
@@ -204,7 +217,7 @@ class ClusterModel(NautobotModel):
     virtual_machines: List[VirtualMachineModel] = list()
 
 
-class ClusterGroupModel(NautobotModel):
+class ClusterGroupModel(vSphereModelDiffSync):
     """ClusterGroup Diffsync model."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.NATURAL_DELETION_ORDER
