@@ -219,94 +219,112 @@ class SlurpitAdapter(Adapter):
         _loc_type = LocationType.objects.get(name="Site")
         _status = Status.objects.get(name="Active")
         for site in self.run_async(self.client.site.get_sites()):
-            address = [site.number, site.street, site.city, site.state, site.country, site.county, site.zipcode]
-            data = {
-                "name": site.sitename,
-                "description": site.description,
-                "latitude": format_latitude(site.latitude),
-                "longitude": format_latitude(site.longitude),
-                "contact_phone": site.phonenumber,
-                "physical_address": "\n".join(address),
-                "location_type__name": self.job.site_loctype.name,
-                "status__name": "Active",
-                "tags": [{"name": "SSoT Synced from Slurpit"}],
-                "system_of_record": "Slurpit",
-                "last_synced_from_sor": datetime.today().date().isoformat(),
-            }
-            location = self.location(**data)
-            self.add(location)
+            try:
+                address = [site.number, site.street, site.city, site.state, site.country, site.county, site.zipcode]
+                data = {
+                    "name": site.sitename,
+                    "description": site.description,
+                    "latitude": format_latitude(site.latitude),
+                    "longitude": format_latitude(site.longitude),
+                    "contact_phone": site.phonenumber,
+                    "physical_address": "\n".join(address),
+                    "location_type__name": self.job.site_loctype.name,
+                    "status__name": "Active",
+                    "tags": [{"name": "SSoT Synced from Slurpit"}],
+                    "system_of_record": "Slurpit",
+                    "last_synced_from_sor": datetime.today().date().isoformat(),
+                }
+                location = self.location(**data)
+                self.add(location)
+            except ObjectAlreadyExists as err:
+                self.job.logger.warning(f"Duplicate location {location.name}. {err}")
 
     def load_vendors(self):
         """Load manufacturers from Slurpit."""
         vendors = self.unique_vendors()
         for vendor in vendors:
-            manufacturer = self.manufacturer(
-                name=vendor["brand"],
-                system_of_record="Slurpit",
-                last_synced_from_sor=datetime.today().date().isoformat(),
-            )
-            self.add(manufacturer)
+            try:
+                manufacturer = self.manufacturer(
+                    name=vendor["brand"],
+                    system_of_record="Slurpit",
+                    last_synced_from_sor=datetime.today().date().isoformat(),
+                )
+                self.add(manufacturer)
+            except ObjectAlreadyExists as err:
+                self.job.logger.warning(f"Duplicate manufacturer {manufacturer.name}. {err}")
 
     def load_device_types(self):
         """Load device types from Slurpit."""
         device_types = self.unique_device_type()
         for device_type in device_types:
-            data = {
-                "model": device_type["device_type"],
-                "manufacturer__name": device_type["brand"],
-                "tags": [{"name": "SSoT Synced from Slurpit"}],
-                "system_of_record": "Slurpit",
-                "last_synced_from_sor": datetime.today().date().isoformat(),
-            }
-            model = self.device_type(**data)
-            self.add(model)
+            try:
+                data = {
+                    "model": device_type["device_type"],
+                    "manufacturer__name": device_type["brand"],
+                    "tags": [{"name": "SSoT Synced from Slurpit"}],
+                    "system_of_record": "Slurpit",
+                    "last_synced_from_sor": datetime.today().date().isoformat(),
+                }
+                model = self.device_type(**data)
+                self.add(model)
+            except ObjectAlreadyExists as err:
+                self.job.logger.warning(f"Duplicate device type {model.model}. {err}")
 
     def load_platforms(self):
         """Load platforms from Slurpit."""
         platforms = self.unique_platforms()
         for platform in platforms:
-            platform_data = {
-                "name": platform,
-                "manufacturer__name": platforms[platform],
-                "network_driver": platform,
-                "napalm_driver": platform,
-                "system_of_record": "Slurpit",
-                "last_synced_from_sor": datetime.today().date().isoformat(),
-            }
-            model = self.platform(**platform_data)
-            self.add(model)
+            try:
+                platform_data = {
+                    "name": platform,
+                    "manufacturer__name": platforms[platform],
+                    "network_driver": platform,
+                    "napalm_driver": platform,
+                    "system_of_record": "Slurpit",
+                    "last_synced_from_sor": datetime.today().date().isoformat(),
+                }
+                model = self.platform(**platform_data)
+                self.add(model)
+            except ObjectAlreadyExists as err:
+                self.job.logger.warning(f"Duplicate platform {model.name}. {err}")
 
     def load_roles(self):
         """Load device roles."""
-        role = self.role(
-            name=constants.DEFAULT_DEVICE_ROLE,
-            color=constants.DEFAULT_DEVICE_ROLE_COLOR,
-            content_types=[{"app_label": "dcim", "model": "device"}],
-            system_of_record="Slurpit",
-            last_synced_from_sor=datetime.today().date().isoformat(),
-        )
-        self.add(role)
+        try:
+            role = self.role(
+                name=constants.DEFAULT_DEVICE_ROLE,
+                color=constants.DEFAULT_DEVICE_ROLE_COLOR,
+                content_types=[{"app_label": "dcim", "model": "device"}],
+                system_of_record="Slurpit",
+                last_synced_from_sor=datetime.today().date().isoformat(),
+            )
+            self.add(role)
+        except ObjectAlreadyExists as err:
+            self.job.logger.warning(f"Duplicate role {role.name}. {err}")
 
     def load_devices(self):
         """Load devices from Slurpit."""
         devices = self.run_async(self.client.device.get_devices())
         for device in devices:
-            data = {
-                "name": device.hostname,
-                "location__name": device.site,
-                "device_type__manufacturer__name": device.brand,
-                "device_type__model": device.device_type,
-                "platform__name": device.device_os,
-                "role__name": constants.DEFAULT_DEVICE_ROLE,
-                "status__name": "Active",
-                "location__location_type__name": self.job.site_loctype.name,
-                "tags": [{"name": "SSoT Synced from Slurpit"}],
-                "system_of_record": "Slurpit",
-                "last_synced_from_sor": datetime.today().date().isoformat(),
-            }
-            if device.ipv4:
-                self.hostname_to_primary_ip[device.hostname] = device.ipv4
-            self.add(self.device(**data))
+            try:
+                data = {
+                    "name": device.hostname,
+                    "location__name": device.site,
+                    "device_type__manufacturer__name": device.brand,
+                    "device_type__model": device.device_type,
+                    "platform__name": device.device_os,
+                    "role__name": constants.DEFAULT_DEVICE_ROLE,
+                    "status__name": "Active",
+                    "location__location_type__name": self.job.site_loctype.name,
+                    "tags": [{"name": "SSoT Synced from Slurpit"}],
+                    "system_of_record": "Slurpit",
+                    "last_synced_from_sor": datetime.today().date().isoformat(),
+                }
+                if device.ipv4:
+                    self.hostname_to_primary_ip[device.hostname] = device.ipv4
+                self.add(self.device(**data))
+            except ObjectAlreadyExists as err:
+                self.job.logger.warning(f"Duplicate device {device.name}. {err}")
 
     def load_interfaces(self):
         """Load interfaces from Slurpit."""
