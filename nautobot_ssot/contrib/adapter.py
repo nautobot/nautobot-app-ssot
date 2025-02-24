@@ -7,7 +7,7 @@ from collections import defaultdict
 from typing import DefaultDict, Dict, FrozenSet, Hashable, Tuple, Type, get_args
 
 import pydantic
-from diffsync import Adapter
+from diffsync import DiffSync
 from diffsync.exceptions import ObjectCrudException
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
@@ -34,7 +34,7 @@ from nautobot_ssot.contrib.types import (
 ParameterSet = FrozenSet[Tuple[str, Hashable]]
 
 
-class NautobotAdapter(Adapter):
+class NautobotAdapter(DiffSync):
     """
     Adapter for loading data from Nautobot through the ORM.
 
@@ -44,6 +44,7 @@ class NautobotAdapter(Adapter):
     # This dictionary acts as an ORM cache.
     _cache: DefaultDict[str, Dict[ParameterSet, Model]]
     _cache_hits: DefaultDict[str, int] = defaultdict(int)
+    sorted_relationships = ()
 
     def __init__(self, *args, job, sync=None, **kwargs):
         """Instantiate this class, but do not load data immediately from the local system."""
@@ -173,6 +174,8 @@ class NautobotAdapter(Adapter):
             # This function directly mutates the diffsync store, i.e. it will create and load the objects
             # for this specific model class as well as its children without returning anything.
             self._load_objects(diffsync_model)
+
+        # sort_relationships(self)
 
     def _get_diffsync_class(self, model_name):
         """Given a model name, return the diffsync class."""
