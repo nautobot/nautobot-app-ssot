@@ -1,6 +1,7 @@
 # pylint: disable=R0801
 """DiffSync adapter for Nautobot."""
 
+from diffsync.exceptions import ObjectAlreadyExists
 from nautobot_ssot.contrib import NautobotAdapter
 from nautobot_ssot.integrations.slurpit.diffsync.models import (
     DeviceModel,
@@ -26,7 +27,10 @@ class NautobotDiffSyncAdapter(NautobotAdapter):
         """Given a diffsync model class, load a list of models from the database and return them. Passing in job kwargs for model filtering."""
         parameter_names = self._get_parameter_names(diffsync_model)
         for database_object in diffsync_model._get_queryset(data=self.job.kwargs):  # pylint: disable=W0212
-            self._load_single_object(database_object, diffsync_model, parameter_names)
+            try:
+                self._load_single_object(database_object, diffsync_model, parameter_names)
+            except ObjectAlreadyExists:
+                continue
 
     location = LocationModel
     manufacturer = ManufacturerModel

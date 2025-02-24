@@ -76,8 +76,12 @@ class LocationModel(ModelQuerySetMixin, NautobotModel):
     latitude: Optional[float]
     longitude: Optional[float]
     tags: List[TagDict] = []
-    system_of_record: Annotated[str, CustomFieldAnnotation(name="system_of_record", key="system_of_record")]
-    last_synced_from_sor: Annotated[str, CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")]
+    system_of_record: Annotated[
+        Optional[str], CustomFieldAnnotation(name="system_of_record", key="system_of_record")
+    ] = None
+    last_synced_from_sor: Annotated[
+        Optional[str], CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")
+    ] = None
 
 
 class ManufacturerModel(ModelQuerySetMixin, NautobotModel):
@@ -89,8 +93,12 @@ class ManufacturerModel(ModelQuerySetMixin, NautobotModel):
     _attributes = ("system_of_record", "last_synced_from_sor")
 
     name: str
-    system_of_record: Annotated[str, CustomFieldAnnotation(name="system_of_record", key="system_of_record")]
-    last_synced_from_sor: Annotated[str, CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")]
+    system_of_record: Annotated[
+        Optional[str], CustomFieldAnnotation(name="system_of_record", key="system_of_record")
+    ] = None
+    last_synced_from_sor: Annotated[
+        Optional[str], CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")
+    ] = None
 
 
 class DeviceTypeModel(ModelQuerySetMixin, NautobotModel):
@@ -104,8 +112,12 @@ class DeviceTypeModel(ModelQuerySetMixin, NautobotModel):
     model: str
     manufacturer__name: str
     tags: List[TagDict] = []
-    system_of_record: Annotated[str, CustomFieldAnnotation(name="system_of_record", key="system_of_record")]
-    last_synced_from_sor: Annotated[str, CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")]
+    system_of_record: Annotated[
+        Optional[str], CustomFieldAnnotation(name="system_of_record", key="system_of_record")
+    ] = None
+    last_synced_from_sor: Annotated[
+        Optional[str], CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")
+    ] = None
 
 
 class PlatformModel(ModelQuerySetMixin, NautobotModel):
@@ -120,8 +132,12 @@ class PlatformModel(ModelQuerySetMixin, NautobotModel):
     manufacturer__name: str
     network_driver: str
     napalm_driver: str
-    system_of_record: Annotated[str, CustomFieldAnnotation(name="system_of_record", key="system_of_record")]
-    last_synced_from_sor: Annotated[str, CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")]
+    system_of_record: Annotated[
+        Optional[str], CustomFieldAnnotation(name="system_of_record", key="system_of_record")
+    ] = None
+    last_synced_from_sor: Annotated[
+        Optional[str], CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")
+    ] = None
 
 
 class RoleModel(ModelQuerySetMixin, NautobotModel):
@@ -140,8 +156,12 @@ class RoleModel(ModelQuerySetMixin, NautobotModel):
     name: str
     color: Optional[str]
     content_types: List[ContentTypeDict] = []
-    system_of_record: Annotated[str, CustomFieldAnnotation(name="system_of_record", key="system_of_record")]
-    last_synced_from_sor: Annotated[str, CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")]
+    system_of_record: Annotated[
+        Optional[str], CustomFieldAnnotation(name="system_of_record", key="system_of_record")
+    ] = None
+    last_synced_from_sor: Annotated[
+        Optional[str], CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")
+    ] = None
 
     @classmethod
     def get_queryset(cls, data=None):
@@ -185,8 +205,12 @@ class DeviceModel(ModelQuerySetMixin, NautobotModel):
     status__name: str
     inventory_items: List["InventoryItemModel"] = []
     tags: List[TagDict] = []
-    system_of_record: Annotated[str, CustomFieldAnnotation(name="system_of_record", key="system_of_record")]
-    last_synced_from_sor: Annotated[str, CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")]
+    system_of_record: Annotated[
+        Optional[str], CustomFieldAnnotation(name="system_of_record", key="system_of_record")
+    ] = None
+    last_synced_from_sor: Annotated[
+        Optional[str], CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")
+    ] = None
 
 
 class InventoryItemModel(ModelQuerySetMixin, NautobotModel):
@@ -210,8 +234,12 @@ class InventoryItemModel(ModelQuerySetMixin, NautobotModel):
     description: Optional[str]
     device__name: str
     tags: List[TagDict] = []
-    system_of_record: Annotated[str, CustomFieldAnnotation(name="system_of_record", key="system_of_record")]
-    last_synced_from_sor: Annotated[str, CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")]
+    system_of_record: Annotated[
+        Optional[str], CustomFieldAnnotation(name="system_of_record", key="system_of_record")
+    ] = None
+    last_synced_from_sor: Annotated[
+        Optional[str], CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")
+    ] = None
 
 
 class VLANModel(ModelQuerySetMixin, NautobotModel):
@@ -226,8 +254,12 @@ class VLANModel(ModelQuerySetMixin, NautobotModel):
     name: str
     status__name: str
     tags: List[TagDict] = []
-    system_of_record: Annotated[str, CustomFieldAnnotation(name="system_of_record", key="system_of_record")]
-    last_synced_from_sor: Annotated[str, CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")]
+    system_of_record: Annotated[
+        Optional[str], CustomFieldAnnotation(name="system_of_record", key="system_of_record")
+    ] = None
+    last_synced_from_sor: Annotated[
+        Optional[str], CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")
+    ] = None
 
 
 class VRFModel(ModelQuerySetMixin, NautobotModel):
@@ -241,8 +273,12 @@ class VRFModel(ModelQuerySetMixin, NautobotModel):
     name: str
     namespace__name: str
     tags: List[TagDict] = []
-    system_of_record: Annotated[str, CustomFieldAnnotation(name="system_of_record", key="system_of_record")]
-    last_synced_from_sor: Annotated[str, CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")]
+    system_of_record: Annotated[
+        Optional[str], CustomFieldAnnotation(name="system_of_record", key="system_of_record")
+    ] = None
+    last_synced_from_sor: Annotated[
+        Optional[str], CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")
+    ] = None
 
 
 class VRFDict(TypedDict):
@@ -273,8 +309,12 @@ class PrefixModel(ModelQuerySetMixin, NautobotModel):
     namespace__name: str
     vrfs: List[VRFDict] = []
     tags: List[TagDict] = []
-    system_of_record: Annotated[str, CustomFieldAnnotation(name="system_of_record", key="system_of_record")]
-    last_synced_from_sor: Annotated[str, CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")]
+    system_of_record: Annotated[
+        Optional[str], CustomFieldAnnotation(name="system_of_record", key="system_of_record")
+    ] = None
+    last_synced_from_sor: Annotated[
+        Optional[str], CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")
+    ] = None
 
 
 class IPAddressModel(ModelQuerySetMixin, NautobotModel):
@@ -289,8 +329,12 @@ class IPAddressModel(ModelQuerySetMixin, NautobotModel):
     mask_length: int
     status__name: str
     tags: List[TagDict] = []
-    system_of_record: Annotated[str, CustomFieldAnnotation(name="system_of_record", key="system_of_record")]
-    last_synced_from_sor: Annotated[str, CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")]
+    system_of_record: Annotated[
+        Optional[str], CustomFieldAnnotation(name="system_of_record", key="system_of_record")
+    ] = None
+    last_synced_from_sor: Annotated[
+        Optional[str], CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")
+    ] = None
 
 
 class InterfaceModel(ModelQuerySetMixin, NautobotModel):
@@ -322,8 +366,12 @@ class InterfaceModel(ModelQuerySetMixin, NautobotModel):
     type: str
     status__name: str
     tags: List[TagDict] = []
-    system_of_record: Annotated[str, CustomFieldAnnotation(name="system_of_record", key="system_of_record")]
-    last_synced_from_sor: Annotated[str, CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")]
+    system_of_record: Annotated[
+        Optional[str], CustomFieldAnnotation(name="system_of_record", key="system_of_record")
+    ] = None
+    last_synced_from_sor: Annotated[
+        Optional[str], CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")
+    ] = None
 
     @field_serializer("mac_address")
     def serialize_mac_address(self, value):
