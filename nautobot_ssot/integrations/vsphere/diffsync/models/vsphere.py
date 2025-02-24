@@ -76,7 +76,7 @@ class IPAddressModel(NautobotModel):
             )
             vm_interface.ip_addresses.set([ip_address])
             vm_interface.validated_save()
-            # Calling return base as I'm not calling super() here.
+            # Calling return base as super() isn't called here.
             return cls.create_base(adapter, ids, attrs)
         except cls._model.DoesNotExist:
             # If the IP address doesn't exist, normal diffsync process will create it and associate with the interface.
@@ -172,7 +172,7 @@ class VirtualMachineModel(NautobotModel):
         Returns:
             DeviceModel: The device model.
         """
-        if attrs["primary_ip4__host"] or attrs["primary_ip6__host"]:
+        if attrs.get("primary_ip4__host") or attrs.get("primary_ip6__host"):
             self.adapter._primary_ips.append(
                 {
                     "device": {"name": self.name},
