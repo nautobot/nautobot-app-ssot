@@ -2,6 +2,7 @@
 """DiffSync adapter for Nautobot."""
 
 from diffsync.exceptions import ObjectAlreadyExists
+
 from nautobot_ssot.contrib import NautobotAdapter
 from nautobot_ssot.integrations.slurpit.diffsync.models import (
     DeviceModel,
