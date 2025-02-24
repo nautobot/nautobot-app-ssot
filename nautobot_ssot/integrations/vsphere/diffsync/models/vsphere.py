@@ -80,8 +80,7 @@ class IPAddressModel(NautobotModel):
             ip_address.validated_save()
         except cls._model.DoesNotExist:
             # If the IP address doesn't exist, normal diffsync process will create it and associate with the interface.
-            pass
-        return super().create(adapter, ids, attrs)
+            return super().create(adapter, ids, attrs)
 
 
 class VMInterfaceModel(NautobotModel):
