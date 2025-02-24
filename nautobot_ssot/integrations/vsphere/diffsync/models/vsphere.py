@@ -65,19 +65,13 @@ class IPAddressModel(NautobotModel):
         Returns:
             IPAddressModel: The IP address model.
         """
-        # Only diffsync cares about the distinction between ids and attrs, we do not.
-        # Therefore, we merge the two into parameters.
-        parameters = ids.copy()
-        parameters.update(attrs)
-
-        # This is in fact callable, because it is a model
-        obj = cls._model()  # pylint: disable=not-callable
-        print(obj)
         try:
-            cls._update_obj_with_parameters(obj, parameters, adapter)
-        except ObjectCrudException as error:
-            raise ObjectNotCreated(error) from error
-
+            print(**ids)
+            print(cls.attributes)
+            ip_address = cls._model.objects.get(**ids)
+        except cls._model.DoesNotExist:
+            # If the IP address doesn't exist, normal diffsync process will create it and associate with the interface.
+            pass
         return super().create(adapter, ids, attrs)
 
 
