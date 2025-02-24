@@ -5,6 +5,7 @@ from typing import List, Optional
 from diffsync.enum import DiffSyncModelFlags
 from diffsync.exceptions import ObjectCrudException, ObjectNotCreated
 from nautobot.ipam.models import IPAddress, Prefix
+from nautobot.virtualization.models import VirtualMachine, VMInterface
 from nautobot.virtualization.models import (
     Cluster,
     ClusterGroup,
@@ -69,6 +70,14 @@ class IPAddressModel(NautobotModel):
             print(ids)
             print(attrs)
             ip_address = cls._model.objects.get(**ids)
+            vm_interface = VMInterface.objects.get(
+                name=attrs["vm_interfaces"][0]["name"],
+                virtual_machine__name=attrs["vm_interfaces"][0][
+                    "virtual_machine__name"
+                ],
+            )
+            ip_address.vminterface = vm_interface
+            ip_address.validated_save()
         except cls._model.DoesNotExist:
             # If the IP address doesn't exist, normal diffsync process will create it and associate with the interface.
             pass
