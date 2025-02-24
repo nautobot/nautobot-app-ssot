@@ -3,6 +3,7 @@
 from typing import List, Optional
 
 from diffsync.enum import DiffSyncModelFlags
+from diffsync.exceptions import ObjectCrudException, ObjectNotCreated
 from nautobot.ipam.models import IPAddress, Prefix
 from nautobot.virtualization.models import (
     Cluster,
@@ -49,6 +50,35 @@ class IPAddressModel(NautobotModel):
     mask_length: int
     status__name: str
     vm_interfaces: List[InterfacesDict] = []
+
+    @classmethod
+    def create(cls, adapter, ids, attrs):
+        """Create the IP address.
+
+        This is being overriden because the interface that the IP address is assigned to may already exist. Diffsync won't take that into account.
+
+        Args:
+            adapter (Adapter): The adapter.
+            ids (dict[str, Any]): The natural keys for the IP address.
+            attrs (dict[str, Any]): The attributes to assign to the IP address.
+
+        Returns:
+            IPAddressModel: The IP address model.
+        """
+        # Only diffsync cares about the distinction between ids and attrs, we do not.
+        # Therefore, we merge the two into parameters.
+        parameters = ids.copy()
+        parameters.update(attrs)
+
+        # This is in fact callable, because it is a model
+        obj = cls._model()  # pylint: disable=not-callable
+        print(obj)
+        try:
+            cls._update_obj_with_parameters(obj, parameters, adapter)
+        except ObjectCrudException as error:
+            raise ObjectNotCreated(error) from error
+
+        return super().create(adapter, ids, attrs)
 
 
 class VMInterfaceModel(NautobotModel):
@@ -140,8 +170,6 @@ class VirtualMachineModel(NautobotModel):
         Returns:
             DeviceModel: The device model.
         """
-        print(dir(self))
-        print(dir(self._identifiers))
         if attrs["primary_ip4__host"] or attrs["primary_ip6__host"]:
             self.adapter._primary_ips.append(
                 {
