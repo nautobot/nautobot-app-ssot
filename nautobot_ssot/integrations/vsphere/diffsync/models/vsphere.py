@@ -67,7 +67,6 @@ class IPAddressModel(NautobotModel):
             IPAddressModel: The IP address model.
         """
         try:
-            cls.create_base(adapter, ids, attrs)
             ip_address = cls._model.objects.get(**ids)
             vm_interface = VMInterface.objects.get(
                 name=attrs["vm_interfaces"][0]["name"],
@@ -77,7 +76,8 @@ class IPAddressModel(NautobotModel):
             )
             vm_interface.ip_addresses.set([ip_address])
             vm_interface.validated_save()
-            # This is technically an update.
+            # Calling return base as I'm not calling super() here.
+            return cls.create_base(adapter, ids, attrs)
         except cls._model.DoesNotExist:
             # If the IP address doesn't exist, normal diffsync process will create it and associate with the interface.
             return super().create(adapter, ids, attrs)
