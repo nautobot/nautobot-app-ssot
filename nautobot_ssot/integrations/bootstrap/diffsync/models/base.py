@@ -1,7 +1,7 @@
 """DiffSyncModel subclasses for Nautobot-to-bootstrap data sync."""
 
 import datetime
-from typing import List, Optional
+from typing import List, Optional, Union
 from uuid import UUID
 
 from diffsync import DiffSyncModel
@@ -788,6 +788,49 @@ class ScheduledJob(DiffSyncModel):
     profile: bool = False
     approval_required: bool = False
     task_queue: Optional[str] = None
+
+    uuid: Optional[UUID] = None
+
+
+class CustomField(DiffSyncModel):
+    """DiffSync model for Custom Fields."""
+
+    _modelname = "custom_field"
+    _identifiers = ("label",)
+    _attributes = (
+        "description",
+        "required",
+        "content_types",
+        "type",
+        "grouping",
+        "weight",
+        "default",
+        "filter_logic",
+        "advanced_ui",
+        "validation_minimum",
+        "validation_maximum",
+        "validation_regex",
+        "custom_field_choices",
+    )
+    _children = {}
+
+    label: str
+    description: str
+    type: str
+    grouping: str
+    weight: int
+    filter_logic: str
+    advanced_ui: bool
+    validation_regex: str
+    required: bool = False
+    content_types: List[str] = []
+    custom_field_choices: Optional[list] = []
+    validation_minimum: Optional[int] = None
+    validation_maximum: Optional[int] = None
+    validation_regex: Optional[str] = None
+    default: Optional[Union[str, bool, dict]] = None
+
+    uuid: Optional[UUID] = None
 
 
 Circuit.model_rebuild()

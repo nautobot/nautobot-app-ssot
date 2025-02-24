@@ -211,6 +211,7 @@ PLUGINS_CONFIG = {
             "vrf": True,
             "prefix": True,
             "scheduled_job": True,
+            "custom_field": True,
         },
         "citrix_adm_update_sites": is_truthy(os.getenv("NAUTOBOT_SSOT_CITRIX_ADM_UPDATE_SITES", "true")),
         "enable_aci": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ACI")),

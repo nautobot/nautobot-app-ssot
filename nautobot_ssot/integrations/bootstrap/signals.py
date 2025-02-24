@@ -110,7 +110,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     )
 
     models_to_sync = settings.PLUGINS_CONFIG.get("nautobot_ssot", {}).get("bootstrap_models_to_sync", {})
-    no_cf = ["computed_field", "graph_ql_query"]
+    no_cf = ["computed_field", "custom_field", "graph_ql_query"]
     try:
         for model in models_to_sync:
             if model not in no_cf and models_to_sync[model] is True:
