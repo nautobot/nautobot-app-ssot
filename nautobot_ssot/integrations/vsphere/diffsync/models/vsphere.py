@@ -67,7 +67,7 @@ class IPAddressModel(NautobotModel):
         """
         try:
             print(ids)
-            print(cls.attributes)
+            print(attrs)
             ip_address = cls._model.objects.get(**ids)
         except cls._model.DoesNotExist:
             # If the IP address doesn't exist, normal diffsync process will create it and associate with the interface.
