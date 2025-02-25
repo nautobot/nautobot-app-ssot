@@ -38,18 +38,6 @@ class vSphereModelDiffSync(NautobotModel):
         super()._update_obj_with_parameters(obj, parameters, adapter)
         cls.tag_object(cls, obj)
 
-    def create_ssot_tag(self):
-        """Create vSphere SSoT Tag."""
-        ssot_tag, _ = Tag.objects.get_or_create(
-            slug="ssot-synced-from-vsphere",
-            name="SSoT Synced from vSphere",
-            defaults={
-                "description": "Object synced at some point from VMWare vSphere to Nautobot",
-                "color": ColorChoices.COLOR_LIGHT_GREEN,
-            },
-        )
-        return ssot_tag
-
     def tag_object(
         self,
         nautobot_object,
