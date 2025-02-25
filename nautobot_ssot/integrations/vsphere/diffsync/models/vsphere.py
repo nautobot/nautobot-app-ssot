@@ -36,7 +36,7 @@ class vSphereModelDiffSync(NautobotModel):
             adapter (Adapter): The adapter to use to update the object.
         """
         super()._update_obj_with_parameters(obj, parameters, adapter)
-        cls.tag_object(obj)
+        cls.tag_object(cls, obj)
 
     def create_ssot_tag(self):
         """Create vSphere SSoT Tag."""
@@ -50,7 +50,12 @@ class vSphereModelDiffSync(NautobotModel):
         )
         return ssot_tag
 
-    def tag_object(self, nautobot_object, custom_field, tag_name):
+    def tag_object(
+        self,
+        nautobot_object,
+        custom_field_key="last_synced_from_vsphere_on",
+        tag_name="SSoT Synced from vSphere",
+    ):
         """Apply the given tag and custom field to the identified object.
 
         Args:
@@ -72,11 +77,11 @@ class vSphereModelDiffSync(NautobotModel):
                 if not any(
                     cfield
                     for cfield in CustomField.objects.all()
-                    if cfield.name == "ssot-synced-from-vsphere"
+                    if cfield.key == custom_field_key
                 ):
                     custom_field_obj, _ = CustomField.objects.get_or_create(
                         type=CustomFieldTypeChoices.TYPE_DATE,
-                        key="ssot-synced-from-vsphere",
+                        key=custom_field_key,
                         defaults={
                             "label": "Last synced from vSphere on",
                         },
@@ -95,7 +100,7 @@ class vSphereModelDiffSync(NautobotModel):
                     custom_field_obj.validated_save()
 
                 # Update custom field date stamp
-                nautobot_object.cf[custom_field] = TODAY
+                nautobot_object.cf[custom_field_key] = TODAY
             nautobot_object.validated_save()
 
         _tag_object(nautobot_object)
