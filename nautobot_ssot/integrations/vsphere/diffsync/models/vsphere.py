@@ -36,6 +36,7 @@ class vSphereModelDiffSync(NautobotModel):
             adapter (Adapter): The adapter to use to update the object.
         """
         super()._update_obj_with_parameters(obj, parameters, adapter)
+        cls.tag_object(obj)
 
     def create_ssot_tag(self):
         """Create vSphere SSoT Tag."""
