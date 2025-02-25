@@ -4,13 +4,11 @@ import datetime
 from typing import List, Optional
 
 from diffsync.enum import DiffSyncModelFlags
-
 from django.contrib.contenttypes.models import ContentType
+from nautobot.core.choices import ColorChoices
 from nautobot.extras.models.customfields import CustomField, CustomFieldTypeChoices
 from nautobot.extras.models.tags import Tag
 from nautobot.ipam.models import IPAddress, Prefix
-
-from nautobot.core.choices import ColorChoices
 from nautobot.virtualization.models import (
     Cluster,
     ClusterGroup,
@@ -109,7 +107,7 @@ class InterfacesDict(TypedDict):
     virtual_machine__name: str
 
 
-class PrefixModel(NautobotModel):
+class PrefixModel(vSphereModelDiffSync):
     """Prefix model."""
 
     _model = Prefix
@@ -124,7 +122,7 @@ class PrefixModel(NautobotModel):
     type: str
 
 
-class IPAddressModel(NautobotModel):
+class IPAddressModel(vSphereModelDiffSync):
     """IPAddress Diffsync model."""
 
     _model = IPAddress
@@ -168,7 +166,7 @@ class IPAddressModel(NautobotModel):
             return super().create(adapter, ids, attrs)
 
 
-class VMInterfaceModel(NautobotModel):
+class VMInterfaceModel(vSphereModelDiffSync):
     """VMInterface Diffsync model."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.NATURAL_DELETION_ORDER
@@ -187,7 +185,7 @@ class VMInterfaceModel(NautobotModel):
     ip_addresses: List[IPAddress] = []
 
 
-class VirtualMachineModel(NautobotModel):
+class VirtualMachineModel(vSphereModelDiffSync):
     """Virtual Machine Diffsync model."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.NATURAL_DELETION_ORDER
@@ -268,7 +266,7 @@ class VirtualMachineModel(NautobotModel):
         return super().update(attrs)
 
 
-class ClusterModel(NautobotModel):
+class ClusterModel(vSphereModelDiffSync):
     """Cluster Model Diffsync model."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.NATURAL_DELETION_ORDER
@@ -289,7 +287,7 @@ class ClusterModel(NautobotModel):
     virtual_machines: List[VirtualMachineModel] = list()
 
 
-class ClusterGroupModel(NautobotModel):
+class ClusterGroupModel(vSphereModelDiffSync):
     """ClusterGroup Diffsync model."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.NATURAL_DELETION_ORDER
