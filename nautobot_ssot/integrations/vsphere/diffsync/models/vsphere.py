@@ -1,18 +1,26 @@
 """vSphere SSoT DiffSync models."""
 
+import datetime
 from typing import List, Optional
 
 from diffsync.enum import DiffSyncModelFlags
+from django.contrib.contenttypes.models import ContentType
+from nautobot.extras.models.customfield import CustomField, CustomFieldTypeChoices
+from nautobot.extras.models.tag import Tag
 from nautobot.ipam.models import IPAddress, Prefix
+from nautobot.utilities.choices import ColorChoices
 from nautobot.virtualization.models import (
     Cluster,
     ClusterGroup,
+    ClusterType,
     VirtualMachine,
     VMInterface,
 )
 from typing_extensions import TypedDict
 
 from nautobot_ssot.contrib import NautobotModel
+
+TODAY = datetime.date.today().isoformat()
 
 
 class vSphereModelDiffSync(NautobotModel):
@@ -28,6 +36,68 @@ class vSphereModelDiffSync(NautobotModel):
             adapter (Adapter): The adapter to use to update the object.
         """
         super()._update_obj_with_parameters(obj, parameters, adapter)
+
+    def create_ssot_tag(self):
+        """Create vSphere SSoT Tag."""
+        ssot_tag, _ = Tag.objects.get_or_create(
+            slug="ssot-synced-from-vsphere",
+            name="SSoT Synced from vSphere",
+            defaults={
+                "description": "Object synced at some point from VMWare vSphere to Nautobot",
+                "color": ColorChoices.COLOR_LIGHT_GREEN,
+            },
+        )
+        return ssot_tag
+
+    def tag_object(self, nautobot_object, custom_field, tag_name):
+        """Apply the given tag and custom field to the identified object.
+
+        Args:
+            nautobot_object (Any): Nautobot ORM Object
+            custom_field (str): Name of custom field to update
+            tag_name (Optional[str], optional): Tag name. Defaults to "SSoT Synced From vsphere".
+        """
+        if tag_name == "SSoT Synced from vSphere":
+            tag = self.create_ssot_tag()
+        else:
+            tag, _ = Tag.objects.get_or_create(name=tag_name)
+
+        def _tag_object(nautobot_object):
+            """Apply custom field and tag to object, if applicable."""
+            if hasattr(nautobot_object, "tags"):
+                nautobot_object.tags.add(tag)
+            if hasattr(nautobot_object, "cf"):
+                # Ensure that the "ssot-synced-from-vsphere" custom field is present
+                if not any(
+                    cfield
+                    for cfield in CustomField.objects.all()
+                    if cfield.name == "ssot-synced-from-vsphere"
+                ):
+                    custom_field_obj, _ = CustomField.objects.get_or_create(
+                        type=CustomFieldTypeChoices.TYPE_DATE,
+                        key="ssot-synced-from-vsphere",
+                        defaults={
+                            "label": "Last synced from vSphere on",
+                        },
+                    )
+                    synced_from_models = [
+                        Cluster,
+                        ClusterType,
+                        ClusterGroup,
+                        VirtualMachine,
+                        VMInterface,
+                    ]
+                    for model in synced_from_models:
+                        custom_field_obj.content_types.add(
+                            ContentType.objects.get_for_model(model)
+                        )
+                    custom_field_obj.validated_save()
+
+                # Update custom field date stamp
+                nautobot_object.cf[custom_field] = TODAY
+            nautobot_object.validated_save()
+
+        _tag_object(nautobot_object)
 
 
 class InterfacesDict(TypedDict):
