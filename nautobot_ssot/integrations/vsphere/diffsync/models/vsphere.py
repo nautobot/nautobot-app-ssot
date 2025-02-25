@@ -51,13 +51,10 @@ class vSphereModelDiffSync(NautobotModel):
             custom_field (str): Name of custom field to update
             tag_name (Optional[str], optional): Tag name. Defaults to "SSoT Synced From vsphere".
         """
-        if tag_name == "SSoT Synced from vSphere":
-            tag = self.create_ssot_tag()
-        else:
-            tag, _ = Tag.objects.get_or_create(name=tag_name)
 
         def _tag_object(nautobot_object):
             """Apply custom field and tag to object, if applicable."""
+            tag, _ = Tag.objects.get_or_create(name=tag_name)
             if hasattr(nautobot_object, "tags"):
                 nautobot_object.tags.add(tag)
             if hasattr(nautobot_object, "cf"):
