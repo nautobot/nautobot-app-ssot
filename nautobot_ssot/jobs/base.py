@@ -12,11 +12,14 @@ import structlog
 from diffsync.enum import DiffSyncFlags
 from django.db.utils import OperationalError
 from django.templatetags.static import static
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import classproperty
+from nautobot.core.utils.lookup import get_route_for_model
 from nautobot.extras.jobs import BooleanVar, DryRunVar, Job
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices
+from nautobot_ssot.contrib import NautobotAdapter, NautobotModel
 from nautobot_ssot.models import BaseModel, Sync, SyncLogEntry
 
 DataMapping = namedtuple("DataMapping", ["source_name", "source_url", "target_name", "target_url"])
@@ -357,6 +360,32 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
 # pylint: disable=abstract-method
 class DataSource(DataSyncBaseJob):
     """Base class for Jobs that sync data **from** another data source **to** Nautobot."""
+
+    @classmethod
+    def data_mappings(cls) -> Iterable[DataMapping]:
+        """Provides a good enough default implementation for data mappings for data source jobs with NautobotAdapter."""
+        # The destination adapter may not be called that, we can't expect this as it's only a standard.
+        if not (destination_adapter := getattr(cls, "destination_adapter", None)):
+            return []
+        # The destination adapter might not be using `NautobotAdapter`.
+        if not isinstance(destination_adapter, NautobotAdapter):
+            return []
+        data_mappings = []
+        # Only using top level here means we don't get visibility into children. Since this is just a default
+        # I think it is better than not having anything
+        for model_name in destination_adapter.top_level:
+            model_class: NautobotModel = getattr(destination_adapter, model_name)
+            nautobot_model = model_class._model
+            model_name = nautobot_model._meta.verbose_name.title()
+            data_mappings.append(
+                DataMapping(
+                    model_class._remote_model_name,
+                    model_class._remote_model_url,
+                    model_name,
+                    reverse(get_route_for_model(nautobot_model, "list")),
+                )
+            )
+        return data_mappings
 
     @classproperty
     def data_target(cls):
