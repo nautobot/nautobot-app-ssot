@@ -67,6 +67,7 @@ class SlurpitDataSource(DataSource, Job):  # pylint: disable=too-many-instance-a
         description = "Sync information from Slurpit to Nautobot."
         data_source = "Slurpit"
         data_source_icon = static("nautobot_ssot_slurpit/slurpit.png")
+        has_sensitive_variables = False
 
     @classmethod
     def data_mappings(cls):
