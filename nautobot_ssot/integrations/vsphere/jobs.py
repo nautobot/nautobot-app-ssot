@@ -179,7 +179,7 @@ class VsphereDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
                 "Can't run sync to Nautobot, provided config does not have it enabled."
             )
             raise ValueError("Config not enabled for sync to Nautobot.")
-        options = f"`Debug`: {self.debug}, `Dry Run`: {self.dryrun}, `Sync Tagged Only`: {self.sync_vsphere_tagged_only}, `Cluster Filter`: {self.cluster_filter_object}"  # NOQA
+        options = f"`Debug`: {self.debug}, `Dry Run`: {self.dryrun}, `Sync Tagged Only`: {self.config.sync_tagged_only}, `Cluster Filter`: {self.cluster_filter_object}"  # NOQA
         self.logger.info(f"Starting job with the following options: {options}")
         return super().run(dryrun, memory_profiling, *args, **kwargs)
 
