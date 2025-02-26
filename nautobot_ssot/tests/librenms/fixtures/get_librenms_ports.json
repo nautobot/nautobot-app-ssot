@@ -1,0 +1,461 @@
+{
+  "status": "ok",
+  "ports": [
+    {
+      "port_id": 1,
+      "ifName": "lo"
+    },
+    {
+      "port_id": 2,
+      "ifName": "eth0"
+    },
+    {
+      "port_id": 3,
+      "ifName": "wlan0"
+    },
+    {
+      "port_id": 11,
+      "ifName": "ether1"
+    },
+    {
+      "port_id": 12,
+      "ifName": "ether2"
+    },
+    {
+      "port_id": 13,
+      "ifName": "ether3"
+    },
+    {
+      "port_id": 14,
+      "ifName": "ether4"
+    },
+    {
+      "port_id": 15,
+      "ifName": "ether5"
+    },
+    {
+      "port_id": 16,
+      "ifName": "ether6"
+    },
+    {
+      "port_id": 17,
+      "ifName": "ether7"
+    },
+    {
+      "port_id": 18,
+      "ifName": "ether8"
+    },
+    {
+      "port_id": 19,
+      "ifName": "lan_bridge"
+    },
+    {
+      "port_id": 20,
+      "ifName": "lo0"
+    },
+    {
+      "port_id": 21,
+      "ifName": "v2-OOBM"
+    },
+    {
+      "port_id": 22,
+      "ifName": "v10-MANAGEMENT"
+    },
+    {
+      "port_id": 23,
+      "ifName": "v20-CORP-WIRELESS"
+    },
+    {
+      "port_id": 24,
+      "ifName": "v30-CORP-WIRED"
+    },
+    {
+      "port_id": 25,
+      "ifName": "v40-SECURITY-DEVICES"
+    },
+    {
+      "port_id": 26,
+      "ifName": "v50-SERVERS"
+    },
+    {
+      "port_id": 27,
+      "ifName": "zerotier1"
+    },
+    {
+      "port_id": 28,
+      "ifName": "ether1"
+    },
+    {
+      "port_id": 29,
+      "ifName": "ether2"
+    },
+    {
+      "port_id": 30,
+      "ifName": "ether3"
+    },
+    {
+      "port_id": 31,
+      "ifName": "ether4"
+    },
+    {
+      "port_id": 32,
+      "ifName": "ether5"
+    },
+    {
+      "port_id": 33,
+      "ifName": "ether6"
+    },
+    {
+      "port_id": 34,
+      "ifName": "ether7"
+    },
+    {
+      "port_id": 35,
+      "ifName": "ether8"
+    },
+    {
+      "port_id": 36,
+      "ifName": "lan_bridge"
+    },
+    {
+      "port_id": 37,
+      "ifName": "lo0"
+    },
+    {
+      "port_id": 38,
+      "ifName": "v2-OOBM"
+    },
+    {
+      "port_id": 39,
+      "ifName": "v10-MANAGEMENT"
+    },
+    {
+      "port_id": 40,
+      "ifName": "v20-CORP-WIRELESS"
+    },
+    {
+      "port_id": 41,
+      "ifName": "v30-CORP-WIRED"
+    },
+    {
+      "port_id": 42,
+      "ifName": "v40-SECURITY-DEVICES"
+    },
+    {
+      "port_id": 43,
+      "ifName": "v50-SERVERS"
+    },
+    {
+      "port_id": 44,
+      "ifName": "zerotier1"
+    },
+    {
+      "port_id": 45,
+      "ifName": "lo"
+    },
+    {
+      "port_id": 46,
+      "ifName": "ens18"
+    },
+    {
+      "port_id": 49,
+      "ifName": "wg0"
+    },
+    {
+      "port_id": 51,
+      "ifName": "docker0"
+    },
+    {
+      "port_id": 62,
+      "ifName": "temp-vlan3-camera-setup"
+    },
+    {
+      "port_id": 63,
+      "ifName": "wg0"
+    },
+    {
+      "port_id": 64,
+      "ifName": "wlan60-1"
+    },
+    {
+      "port_id": 65,
+      "ifName": "ether1"
+    },
+    {
+      "port_id": 66,
+      "ifName": "wlan60-1"
+    },
+    {
+      "port_id": 67,
+      "ifName": "bridge"
+    },
+    {
+      "port_id": 68,
+      "ifName": "ether1"
+    },
+    {
+      "port_id": 69,
+      "ifName": "v10-MANAGEMENT"
+    },
+    {
+      "port_id": 70,
+      "ifName": "bridge"
+    },
+    {
+      "port_id": 71,
+      "ifName": "v10-MANAGEMENT"
+    },
+    {
+      "port_id": 72,
+      "ifName": "wlan60-1"
+    },
+    {
+      "port_id": 73,
+      "ifName": "ether1"
+    },
+    {
+      "port_id": 74,
+      "ifName": "bridge"
+    },
+    {
+      "port_id": 75,
+      "ifName": "wlan60-1"
+    },
+    {
+      "port_id": 76,
+      "ifName": "wlan60-station-1"
+    },
+    {
+      "port_id": 77,
+      "ifName": "wlan60-1"
+    },
+    {
+      "port_id": 78,
+      "ifName": "wlan60-1"
+    },
+    {
+      "port_id": 79,
+      "ifName": "ether1"
+    },
+    {
+      "port_id": 80,
+      "ifName": "v10-MANAGEMENT"
+    },
+    {
+      "port_id": 81,
+      "ifName": "ether1"
+    },
+    {
+      "port_id": 82,
+      "ifName": "bridge"
+    },
+    {
+      "port_id": 83,
+      "ifName": "ether1"
+    },
+    {
+      "port_id": 84,
+      "ifName": "bridge"
+    },
+    {
+      "port_id": 85,
+      "ifName": "v10-MANAGEMENT"
+    },
+    {
+      "port_id": 86,
+      "ifName": "bridge"
+    },
+    {
+      "port_id": 87,
+      "ifName": "wlan60-station-1"
+    },
+    {
+      "port_id": 88,
+      "ifName": "wlan60-station-1"
+    },
+    {
+      "port_id": 89,
+      "ifName": "v10-MANAGEMENT"
+    },
+    {
+      "port_id": 90,
+      "ifName": "v10-MANAGEMENT"
+    },
+    {
+      "port_id": 91,
+      "ifName": "ether1"
+    },
+    {
+      "port_id": 92,
+      "ifName": "ether2"
+    },
+    {
+      "port_id": 93,
+      "ifName": "ether3"
+    },
+    {
+      "port_id": 94,
+      "ifName": "ether4"
+    },
+    {
+      "port_id": 95,
+      "ifName": "ether5"
+    },
+    {
+      "port_id": 96,
+      "ifName": "lan_bridge"
+    },
+    {
+      "port_id": 97,
+      "ifName": "mgmt"
+    },
+    {
+      "port_id": 98,
+      "ifName": "ether1"
+    },
+    {
+      "port_id": 99,
+      "ifName": "wlan60-1"
+    },
+    {
+      "port_id": 100,
+      "ifName": "bridge"
+    },
+    {
+      "port_id": 101,
+      "ifName": "v10-MANAGEMENT"
+    },
+    {
+      "port_id": 102,
+      "ifName": "wlan60-station-1"
+    },
+    {
+      "port_id": 103,
+      "ifName": "ether1"
+    },
+    {
+      "port_id": 104,
+      "ifName": "ether2"
+    },
+    {
+      "port_id": 105,
+      "ifName": "ether3"
+    },
+    {
+      "port_id": 106,
+      "ifName": "ether4"
+    },
+    {
+      "port_id": 107,
+      "ifName": "ether5"
+    },
+    {
+      "port_id": 109,
+      "ifName": "lan_bridge"
+    },
+    {
+      "port_id": 111,
+      "ifName": "mgmt"
+    },
+    {
+      "port_id": 121,
+      "ifName": "remote_support"
+    },
+    {
+      "port_id": 122,
+      "ifName": "remote_support"
+    },
+    {
+      "port_id": 123,
+      "ifName": "v1000-GUEST-FRONTHALL"
+    },
+    {
+      "port_id": 124,
+      "ifName": "v1000-GUEST-FRONTHALL"
+    },
+    {
+      "port_id": 125,
+      "ifName": "lo"
+    },
+    {
+      "port_id": 126,
+      "ifName": "eth0"
+    },
+    {
+      "port_id": 127,
+      "ifName": "wlan0"
+    },
+    {
+      "port_id": 128,
+      "ifName": "wg0"
+    },
+    {
+      "port_id": 129,
+      "ifName": "v100-EXTRA-MGMT"
+    },
+    {
+      "port_id": 130,
+      "ifName": "v200-EXTRA-LANEXTENSION"
+    },
+    {
+      "port_id": 131,
+      "ifName": "v100-EXTRA-MGMT"
+    },
+    {
+      "port_id": 132,
+      "ifName": "v200-EXTRA-LANEXTENTION"
+    },
+    {
+      "port_id": 139,
+      "ifName": "ztbtoqmqf4"
+    },
+    {
+      "port_id": 140,
+      "ifName": "ztbtoqmqf4"
+    },
+    {
+      "port_id": 148,
+      "ifName": "ether1"
+    },
+    {
+      "port_id": 149,
+      "ifName": "wlan60-1"
+    },
+    {
+      "port_id": 150,
+      "ifName": "bridge"
+    },
+    {
+      "port_id": 151,
+      "ifName": "ether1"
+    },
+    {
+      "port_id": 152,
+      "ifName": "v10-MANAGEMENT"
+    },
+    {
+      "port_id": 153,
+      "ifName": "ether2"
+    },
+    {
+      "port_id": 154,
+      "ifName": "ether3"
+    },
+    {
+      "port_id": 155,
+      "ifName": "ether4"
+    },
+    {
+      "port_id": 156,
+      "ifName": "ether5"
+    },
+    {
+      "port_id": 157,
+      "ifName": "lan_bridge"
+    },
+    {
+      "port_id": 158,
+      "ifName": "mgmt"
+    }
+  ]
+}

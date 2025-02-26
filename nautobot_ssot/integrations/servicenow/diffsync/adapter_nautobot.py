@@ -59,7 +59,7 @@ class NautobotDiffSync(Adapter):
         """Load Nautobot Location objects as DiffSync Location models."""
         if self.site_filter is not None:
             # Load only direct ancestors of the given Site
-            locations = []
+            locations = [self.site_filter]
             ancestor = self.site_filter.parent
             while ancestor is not None:
                 locations.insert(0, ancestor)

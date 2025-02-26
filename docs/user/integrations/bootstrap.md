@@ -71,6 +71,12 @@ computed_field:
   - label: Compliance Change
     content_type: nautobot_golden_config.configcompliance
     template: '{{ obj | get_change_log }}'
+custom_field:
+  - label: Internal Circuit ID
+    description: Circuit ID for internal records
+    type: text
+    content_types: 
+      - circuits.circuit
 tag:
   - name: Backbone
     color: '795548'
@@ -94,6 +100,15 @@ graph_ql_query:
           }
         }
       }
+scheduled_job:
+  - name: "Daily Log Cleanup"
+    interval: "daily"
+    start_time: "2025-01-28 23:00:00"
+    job_model: "Logs Cleanup"
+    user: "admin"
+    job_vars:
+      cleanup_types: ["extras.ObjectChange"]
+      max_age: 90
 software:
   - device_platform: "arista_eos"
     version: "4.25.10M"
@@ -648,6 +663,34 @@ computed_field:
 
 The `template:` key for ComputedField objects takes a jinja variable format string which will display the calculated information.
 
+### Custom_Field
+
+Create CustomField objects. Uses the following data structure, only `label`, `type`, and `content_types` are required. Any custom_fields not included in the Bootstrap `global_settings.yaml` file may be deleted.
+
+```yaml
+custom_field:
+  - label: CustomField1 # str
+    type: text # str -- Options are: text, integer, boolean, date, url, select, multi-select, json, markdown
+    content_types: # list
+      - dcim.device
+      - circuits.circuit
+    # Optional Arguments
+    required: # bool, default: False
+    grouping: # str
+    weight: # int, default: 100
+    default: # default value, type depends on custom_field type
+    filter_logic: # str -- Options are loose, disabled, exact, default: loose
+    advanced_ui: # bool, move this field to the Advanced page. default: False
+    validation_minimum: # int
+    validation_maximum: # int
+    validation_regex: # str
+    custom_field_choices: # list, requires Type of 'select' or 'multi-select'
+      - value: Choice1-Value
+        weight: 100
+      - value: Choice2-Value
+        weight: 200
+```
+
 ### Tag
 
 Create Tag objects. Uses the following data structure:
@@ -673,6 +716,24 @@ graph_ql_query:
 ```
 
 The `query:` key takes a graphql formatted string to retrieve the information required.
+
+### ScheduledJob
+Create a ScheduledJob. The Job to be scheduled must already exist. As Job's vary greatly, any Job specific variables should be under the `job_vars` key, and you should check the Job specific documentation for details on what these values should be. The `start_time` must be in the future if the ScheduledJob is being updated or created. Once created, it does not need to be updated unless you wish to modify the schedule. The Bootstrap `system_of_record` cannot be applied to ScheduledJobs, make sure all desired ScheduledJobs exist in your YAML definition.
+
+```yaml
+scheduled_job:
+  - name: # str
+    interval: # str -- Options are: daily, weekly, hourly, future, custom
+    start_time: # str -- ISO 8601 format (YYYY-MM-DD HH:MM:SS), UTC
+    crontab: # str -- Basic Crontab syntax. Use with interval 'custom'
+    job_model: # str -- The name of the Job you wish to schedule
+    user: # str -- Username to run this scheduled job as
+    profile: # bool -- Optional, defaults to False
+    task_queue: # str -- Optional, celery queue name, defaults to None (default queue)
+    job_vars: # dict -- Optional
+      job_var1: # specific to Job
+      job_var2: # ...etc
+```
 
 ### Software
 

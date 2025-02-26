@@ -43,6 +43,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     Circuit = apps.get_model("circuits", "Circuit")
     CircuitTermination = apps.get_model("circuits", "CircuitTermination")
     Tag = apps.get_model("extras", "Tag")
+    ScheduledJob = apps.get_model("extras", "ScheduledJob")
     Secret = apps.get_model("extras", "Secret")
     SecretsGroup = apps.get_model("extras", "SecretsGroup")
     DynamicGroup = apps.get_model("extras", "DynamicGroup")
@@ -71,6 +72,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         "circuit": Circuit,
         "circuit_termination": CircuitTermination,
         "tag": Tag,
+        "scheduled_job": ScheduledJob,
         "secret": Secret,
         "secrets_group": SecretsGroup,
         "dynamic_group": DynamicGroup,
@@ -108,7 +110,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     )
 
     models_to_sync = settings.PLUGINS_CONFIG.get("nautobot_ssot", {}).get("bootstrap_models_to_sync", {})
-    no_cf = ["computed_field", "graph_ql_query"]
+    no_cf = ["computed_field", "custom_field", "graph_ql_query"]
     try:
         for model in models_to_sync:
             if model not in no_cf and models_to_sync[model] is True:

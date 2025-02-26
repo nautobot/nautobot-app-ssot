@@ -28,11 +28,14 @@ from nautobot.dcim.models import (
 from nautobot.extras.models import (
     ComputedField,
     Contact,
+    CustomField,
     DynamicGroup,
     GitRepository,
     GraphQLQuery,
+    Job,
     JobResult,
     Role,
+    ScheduledJob,
     Secret,
     SecretsGroup,
     SecretsGroupAssociation,
@@ -42,6 +45,7 @@ from nautobot.extras.models import (
 )
 from nautobot.ipam.models import RIR, VLAN, VRF, Namespace, Prefix, VLANGroup
 from nautobot.tenancy.models import Tenant, TenantGroup
+from nautobot.users.models import User
 from nautobot_device_lifecycle_mgmt.models import (
     SoftwareImageLCM,
     SoftwareLCM,
@@ -55,6 +59,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.adapters.nautobot import (
     NautobotAdapter,
 )
 from nautobot_ssot.integrations.bootstrap.jobs import BootstrapDataSource
+from nautobot_ssot.integrations.bootstrap.utils import get_scheduled_start_time
 
 
 def load_yaml(path):
@@ -96,6 +101,7 @@ MODELS_TO_SYNC = [
     "git_repository",
     "dynamic_group",
     "computed_field",
+    "custom_field",
     "tag",
     "graph_ql_query",
     "software",
@@ -107,6 +113,7 @@ MODELS_TO_SYNC = [
     "vlan",
     "vrf",
     "prefix",
+    "scheduled_job",
 ]
 
 
@@ -168,6 +175,7 @@ class NautobotTestSetup:
         self._setup_inventory_items()
         self._setup_secrets_and_groups()
         self._setup_computed_fields()
+        self._setup_custom_fields()
         self._setup_graphql_queries()
         self._setup_git_repositories()
         self._setup_dynamic_groups()
@@ -179,6 +187,7 @@ class NautobotTestSetup:
         self._setup_prefixes()
         self._setup_software_and_images()
         self._setup_validated_software()
+        self._setup_scheduled_job()
 
     def _setup_tags(self):
         for _tag in GLOBAL_YAML_SETTINGS["tag"]:
@@ -809,6 +818,26 @@ class NautobotTestSetup:
             _computed_field.save()
             _computed_field.refresh_from_db()
 
+    def _setup_custom_fields(self):
+        for _cust_field in GLOBAL_YAML_SETTINGS["custom_field"]:
+            _content_types = []
+            for _content_type in _cust_field["content_types"]:
+                _content_types.append(
+                    ContentType.objects.get(
+                        app_label=_content_type.split(".")[0],
+                        model=_content_type.split(".")[1],
+                    )
+                )
+
+            _cust_field = CustomField.objects.create(
+                label=_cust_field["label"],
+                type=_cust_field["type"],
+                description=_cust_field["description"],
+            )
+            _cust_field.content_types.set(_content_types)
+            _cust_field.save()
+            _cust_field.refresh_from_db()
+
     def _setup_graphql_queries(self):
         for _gql_query in GLOBAL_YAML_SETTINGS["graph_ql_query"]:
             _qglq = GraphQLQuery.objects.create(name=_gql_query["name"], query=_gql_query["query"])
@@ -919,6 +948,27 @@ class NautobotTestSetup:
                 inventory_items,
                 object_tags,
             )
+
+    def _setup_scheduled_job(self):
+        admin = User.objects.create(
+            username="admin",
+            password="admin",
+            is_superuser=True,
+            is_staff=True,
+        )
+        job = Job.objects.get(name="Export Object List")
+
+        for scheduled_job in GLOBAL_YAML_SETTINGS["scheduled_job"]:
+            scheduled_job = ScheduledJob(
+                name=scheduled_job["name"],
+                task=job.class_path,
+                interval=scheduled_job["interval"],
+                start_time=get_scheduled_start_time(scheduled_job["start_time"]),
+                job_model=job,
+                user=admin,
+                kwargs={},
+            )
+            scheduled_job.validated_save()
 
     def _get_validated_software_tags(self, tag_names):
         return [Tag.objects.get(name=tag_name) for tag_name in tag_names]

@@ -1,0 +1,50 @@
+{
+    "5c59e37a-f12d-4e84-a085-ac5c02f240d4": {
+        "name": "Building1",
+        "loc_type": "building",
+        "parent": "SanJose",
+        "parent_of_parent": null
+    },
+    "6e1ebb51-62cd-400f-b130-a6959d81e775": {
+        "name": "VN_1",
+        "loc_type": "building",
+        "parent": "Texas",
+        "parent_of_parent": null
+    },
+    "331f7e36-1a45-4c9f-bfa9-3425a053f81a": {
+        "name": "Deep Space",
+        "loc_type": "building",
+        "parent": "Area 51",
+        "parent_of_parent": null
+    },
+    "398de1d9-d595-429d-8239-64b51d24f230": {
+        "name": "Texas_building",
+        "loc_type": "building",
+        "parent": "Texas",
+        "parent_of_parent": null
+    },
+    "1c3bb089-2a74-4fdf-96e3-d1815ac67e38": {
+        "name": "Building 1",
+        "loc_type": "building",
+        "parent": "Forschungszentrum",
+        "parent_of_parent": null
+    },
+    "2d0d8545-b6de-4dda-a0f7-93bcd7d0e738": {
+        "name": "1",
+        "loc_type": "building",
+        "parent": "SanDiego",
+        "parent_of_parent": null
+    },
+    "755faf69-0d07-48f7-b130-4806c32eb13e": {
+        "name": "secretlab",
+        "loc_type": "building",
+        "parent": "Maryland",
+        "parent_of_parent": null
+    },
+    "fedd8d33-5334-413f-8a49-fb2459d7e337": {
+        "name": "Rome",
+        "loc_type": "building",
+        "parent": "Treton",
+        "parent_of_parent": null
+    }
+}

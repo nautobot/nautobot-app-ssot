@@ -7,6 +7,7 @@ import pytz
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db.models.deletion import ProtectedError
+from django.utils import timezone
 from nautobot.circuits.models import Circuit as ORMCircuit
 from nautobot.circuits.models import CircuitTermination as ORMCircuitTermination
 from nautobot.circuits.models import CircuitType as ORMCircuitType
@@ -21,10 +22,14 @@ from nautobot.dcim.models import Manufacturer as ORMManufacturer
 from nautobot.dcim.models import Platform as ORMPlatform
 from nautobot.extras.models import ComputedField as ORMComputedField
 from nautobot.extras.models import Contact as ORMContact
+from nautobot.extras.models import CustomField as ORMCustomField
+from nautobot.extras.models import CustomFieldChoice as ORMCustomFieldChoice
 from nautobot.extras.models import DynamicGroup as ORMDynamicGroup
 from nautobot.extras.models import GitRepository as ORMGitRepository
 from nautobot.extras.models import GraphQLQuery as ORMGraphQLQuery
+from nautobot.extras.models import Job as ORMJob
 from nautobot.extras.models import Role as ORMRole
+from nautobot.extras.models import ScheduledJob as ORMScheduledJob
 from nautobot.extras.models import Secret as ORMSecret
 from nautobot.extras.models import SecretsGroup as ORMSecretsGroup
 from nautobot.extras.models import SecretsGroupAssociation as ORMSecretsGroupAssociation
@@ -39,6 +44,7 @@ from nautobot.ipam.models import Prefix as ORMPrefix
 from nautobot.ipam.models import VLANGroup as ORMVLANGroup
 from nautobot.tenancy.models import Tenant as ORMTenant
 from nautobot.tenancy.models import TenantGroup as ORMTenantGroup
+from nautobot.users.models import User as ORMUser
 
 from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
     VLAN,
@@ -48,6 +54,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
     CircuitType,
     ComputedField,
     Contact,
+    CustomField,
     DynamicGroup,
     GitRepository,
     GraphQLQuery,
@@ -61,6 +68,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
     ProviderNetwork,
     RiR,
     Role,
+    ScheduledJob,
     Secret,
     SecretsGroup,
     Tag,
@@ -2125,6 +2133,101 @@ class NautobotComputedField(ComputedField):
             self.adapter.job.logger.warning(f"Unable to find ComputedField {self.label} for deletion. {err}")
 
 
+class NautobotCustomField(CustomField):
+    """Nautobot implementation of Bootstrap CustomField model."""
+
+    @classmethod
+    def create(cls, adapter, ids, attrs):
+        """Create CustomField in Nautobot from NautobotCustomField object."""
+        _content_types = []
+        adapter.job.logger.info(f'Creating Nautobot Custom Field: {ids["label"]}')
+
+        for _model in attrs["content_types"]:
+            try:
+                _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+            except ContentType.DoesNotExist:
+                adapter.job.logger.error(f"Unable to find ContentType for {_model}.")
+
+        _new_custom_field = ORMCustomField(
+            label=ids["label"],
+            description=attrs["description"],
+            required=attrs["required"],
+            type=attrs["type"],
+            grouping=attrs["grouping"],
+            weight=attrs["weight"],
+            default=attrs["default"],
+            filter_logic=attrs["filter_logic"],
+            advanced_ui=attrs["advanced_ui"],
+            validation_minimum=attrs["validation_minimum"],
+            validation_maximum=attrs["validation_maximum"],
+            validation_regex=attrs["validation_regex"],
+        )
+        _new_custom_field.validated_save()
+        _new_custom_field.content_types.set(_content_types)
+
+        for choice in attrs["custom_field_choices"]:
+            _new_cf = ORMCustomFieldChoice(
+                value=choice["value"], weight=choice["weight"], custom_field=_new_custom_field
+            )
+            _new_cf.validated_save()
+
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update CustomField in Nutobot from NautobotCustomField object."""
+        self.adapter.job.logger.info(f"Updating CustomField {self.label}")
+        cust_field = ORMCustomField.objects.get(label=self.label)
+        _content_types = []
+        if attrs.get("content_types"):
+            for _model in attrs["content_types"]:
+                try:
+                    _content_types.append(lookup_content_type_for_taggable_model_path(_model))
+                except ContentType.DoesNotExist:
+                    self.adapter.job.logger.error(f"Unable to find ContentType for {_model}.")
+            cust_field.content_types.set(_content_types)
+        if "description" in attrs:
+            cust_field.description = attrs["description"]
+        if "required" in attrs:
+            cust_field.required = attrs["required"]
+        if "type" in attrs:
+            self.adapter.job.logger.error("Custom Field Type cannot be changed once created.")
+        if "grouping" in attrs:
+            cust_field.grouping = attrs["grouping"]
+        if "weight" in attrs:
+            cust_field.weight = attrs["weight"]
+        if "default" in attrs:
+            cust_field.default = attrs["default"]
+        if "filter_logic" in attrs:
+            cust_field.filter_logic = attrs["filter_logic"]
+        if "advanced_ui" in attrs:
+            cust_field.advanced_ui = attrs["advanced_ui"]
+        if "validation_minimum" in attrs:
+            cust_field.validation_minimum = attrs["validation_minimum"]
+        if "validation_maximum" in attrs:
+            cust_field.validation_maximum = attrs["validation_maximum"]
+        if "validation_regex" in attrs:
+            cust_field.validation_regex = attrs["validaton_regex"]
+        if "custom_field_choices" in attrs:
+            cust_field.custom_field_choices.all().delete()
+            for choice in attrs["custom_field_choices"]:
+                _new_cf = ORMCustomFieldChoice(value=choice["value"], weight=choice["weight"], custom_field=cust_field)
+                _new_cf.validated_save()
+
+        cust_field.validated_save()
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete CustomField in Nautobot from NautobotCustomField object."""
+        self.adapter.job.logger.debug(f"Delete CustomField: {self.label}")
+        try:
+            cust_field = ORMCustomField.objects.get(label=self.label)
+            super().delete()
+            cust_field.delete()
+            return self
+        except ORMCustomField.DoesNotExist as err:
+            self.adapter.job.logger.warning(f"Unable to find CustomField {self.label} for deletion. {err}")
+
+
 class NautobotTag(Tag):
     """Nautobot implementation of Bootstrap Tag model."""
 
@@ -2216,6 +2319,112 @@ class NautobotGraphQLQuery(GraphQLQuery):
             return self
         except ORMGraphQLQuery.DoesNotExist as err:
             self.adapter.job.logger.warning(f"Unable to find GraphQLQuery {self.name} for deletion. {err}")
+
+
+class NautobotScheduledJob(ScheduledJob):
+    """Nautobot implementation of Bootstrap Scheduled model."""
+
+    @classmethod
+    def create(cls, adapter, ids, attrs):
+        """Create ScheduledJob in Nautobot from NautobotScheduledJob object."""
+        adapter.job.logger.info(f"Creating Scheduled Job ({ids['name']})")
+        job_kwargs = attrs["job_vars"] if attrs.get("job_vars") else {}
+        try:
+            job_model = ORMJob.objects.get(name=attrs["job_model"])
+            user = ORMUser.objects.get(username=attrs["user"])
+        except ORMJob.DoesNotExist:
+            adapter.job.logger.error(f"Job ({attrs['job_model']}) not found, unable to create Job, skipping.")
+            return
+        except ORMUser.DoesNotExist:
+            adapter.job.logger.error(f"User ({attrs['user']}) not found, unable to create Job, skipping.")
+            return
+        if attrs.get("start_time"):
+            if datetime.fromisoformat(attrs["start_time"]) < timezone.now():
+                adapter.job.logger.error(f"Cannot create Scheduled Job ({ids['name']}) with a start time in the past.")
+                return
+
+        profile = attrs.get("profile")
+        task_queue = attrs.get("task_queue")
+        celery_kwargs = {
+            "nautobot_job_profile": profile,
+            "queue": task_queue,
+        }
+        if job_model.soft_time_limit > 0:
+            celery_kwargs["soft_time_limit"] = job_model.soft_time_limit
+        if job_model.time_limit > 0:
+            celery_kwargs["time_limit"] = job_model.time_limit
+
+        scheduled_job = ORMScheduledJob(
+            name=ids["name"],
+            task=job_model.class_path,
+            job_model=job_model,
+            user=user,
+            interval=attrs.get("interval"),
+            start_time=attrs.get("start_time"),
+            crontab=attrs.get("crontab"),
+            approval_required=attrs.get("approval_required"),
+            kwargs=job_kwargs,
+            celery_kwargs=celery_kwargs,
+        )
+        scheduled_job.validated_save()
+
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update ScheduledJob in Nautobot from NautobotScheduledJob object."""
+        self.adapter.job.logger.info(f"Updating Scheduled Job ({self.name})")
+        job = ORMScheduledJob.objects.get(name=self.name)
+
+        if attrs.get("job_model"):
+            try:
+                job.job_model = ORMJob.objects.get(name=attrs["job_model"])
+            except ORMJob.DoesNotExist:
+                self.adapter.job.logger.error(
+                    f"Job ({attrs['job_model']}) does not exist, unable to update ({self.name})"
+                )
+
+        if attrs.get("user"):
+            try:
+                job.user = ORMUser.objects.get(name=attrs["user"])
+            except ORMUser.DoesNotExist:
+                self.adapter.job.logger.error(f"User ({attrs['user']}) does not exist, unable to update ({self.name})")
+
+        if attrs.get("start_time"):
+            if datetime.fromisoformat(attrs["start_time"]) < timezone.now():
+                self.adapter.job.logger.error(
+                    f"Cannot update Scheduled Job ({self.name}) with a start time in the past."
+                )
+                return
+            job.start_time = datetime.fromisoformat(attrs["start_time"])
+
+        if attrs.get("interval"):
+            job.interval = attrs["interval"]
+        if attrs.get("crontab"):
+            job.crontab = attrs["crontab"]
+        if attrs.get("job_vars"):
+            job.kwargs = attrs["job_vars"]
+        if "profile" in attrs:
+            job.celery_kwargs["nautobot_job_profile"] = attrs["profile"]
+        if "approval_required" in attrs:
+            job.approval_required = attrs["approval_required"]
+        if "task_queue" in attrs:
+            job.celery_kwargs["queue"] = attrs["task_queue"]
+
+        job.validated_save()
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete ScheduledJob in Nautobot from NautobotScheduledJob object."""
+        try:
+            scheduled_job = ORMScheduledJob.objects.get(name=self.name)
+            self.adapter.job.logger.warning(f"Deleting Scheduled Job ({self.name})")
+            super().delete()
+            scheduled_job.delete()
+            return self
+        except ORMScheduledJob.DoesNotExist as err:
+            self.adapter.job.logger.warning(f"Unable to find Scheduled Job ({self.name}) for deletion. {err}")
+
+    from django.utils.dateparse import parse_datetime
 
 
 if SOFTWARE_LIFECYCLE_MGMT or SOFTWARE_VERSION_FOUND:
