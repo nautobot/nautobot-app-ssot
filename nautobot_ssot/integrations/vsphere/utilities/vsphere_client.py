@@ -53,6 +53,7 @@ class VsphereClient:  # pylint: disable=too-many-instance-attributes
         primary_ip_sort_by,
         ignore_link_local,
         use_clusters,
+        sync_tagged_only,
         debug,
     ):  # pylint: disable=W0235, R0913
         """Initialize vSphere Client class."""
@@ -78,6 +79,7 @@ class VsphereClient:  # pylint: disable=too-many-instance-attributes
         self.primary_ip_sort_by = primary_ip_sort_by
         self.ignore_link_local = ignore_link_local
         self.use_clusters = use_clusters
+        self.sync_tagged_only = sync_tagged_only
         self.debug = debug
 
     def _init_session(self, verify_ssl):
