@@ -161,7 +161,6 @@ class VsphereDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
         dryrun,
         memory_profiling,
         debug,
-        sync_vsphere_tagged_only,
         cluster_filter=None,
         *args,
         **kwargs,
@@ -170,7 +169,6 @@ class VsphereDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
         self.dryrun = dryrun
         self.debug = debug
         self.memory_profiling = memory_profiling
-        self.sync_vsphere_tagged_only = sync_vsphere_tagged_only
         self.cluster_filter = cluster_filter
         self.cluster_filter_object = (  # pylint: disable=attribute-defined-outside-init
             Cluster.objects.get(pk=self.cluster_filter) if self.cluster_filter else None
@@ -183,9 +181,7 @@ class VsphereDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
             raise ValueError("Config not enabled for sync to Nautobot.")
         options = f"`Debug`: {self.debug}, `Dry Run`: {self.dryrun}, `Sync Tagged Only`: {self.sync_vsphere_tagged_only}, `Cluster Filter`: {self.cluster_filter_object}"  # NOQA
         self.logger.info(f"Starting job with the following options: {options}")
-        return super().run(
-            dryrun, memory_profiling, sync_vsphere_tagged_only, *args, **kwargs
-        )
+        return super().run(dryrun, memory_profiling, *args, **kwargs)
 
 
 jobs = [VsphereDataSource]
