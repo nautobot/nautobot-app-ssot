@@ -30,7 +30,7 @@ include = [
 [tool.poetry.dependencies]
 python = ">=3.8,<3.13"
 # Used for local development
-nautobot = "^2.1.0"
+nautobot = {version = "2.2.1", python = "3.11"}
 diffsync = "^2.0.0"
 Jinja2 = { version = ">=2.11.3", optional = true }
 Markdown = "!=3.3.5"
@@ -90,6 +90,7 @@ myst-parser = "^2.0.0"
 responses = "^0.14.0"
 to-json-schema = "*"
 jsonschema = "*"
+mkdocs-autorefs = "1.2.0"
 
 [tool.poetry.plugins."nautobot_ssot.data_sources"]
 "example" = "nautobot_ssot.sync.example:ExampleSyncWorker"
