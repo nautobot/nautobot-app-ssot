@@ -30,20 +30,10 @@ class Adapter(NautobotAdapter):
     interface = VMInterfaceModel
     ip_address = IPAddressModel
 
-    def __init__(
-        self,
-        *args,
-        job=None,
-        sync=None,
-        config,
-        sync_vsphere_tagged_only,
-        cluster_filter,
-        **kwargs
-    ):
+    def __init__(self, *args, job=None, sync=None, config, cluster_filter, **kwargs):
         """Initialize the adapter."""
         super().__init__(*args, job=job, sync=sync, **kwargs)
         self.config = config
-        self.sync_vsphere_tagged_only = sync_vsphere_tagged_only
         self.cluster_filter = cluster_filter
         self._primary_ips = []
 
@@ -61,3 +51,9 @@ class Adapter(NautobotAdapter):
                 if info[ip]:
                     setattr(vm, ip, IPAddress.objects.get(host=info[ip]))
             vm.validated_save()
+
+    def _load_objects(self, diffsync_model):
+        """Overriding _load_objects so we can pass in the config object to the models."""
+        parameter_names = self._get_parameter_names(diffsync_model)
+        for database_object in diffsync_model._get_queryset(self.config):
+            self._load_single_object(database_object, diffsync_model, parameter_names)

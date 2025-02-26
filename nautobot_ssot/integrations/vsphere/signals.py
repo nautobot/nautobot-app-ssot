@@ -23,20 +23,23 @@ def register_signals(sender):
     nautobot_database_ready.connect(create_default_vsphere_config, sender=sender)
 
 
-def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disable=unused-argument
+def nautobot_database_ready_callback(
+    sender, *, apps, **kwargs
+):  # pylint: disable=unused-argument
     """Create Tag and CustomField to note System of Record for SSoT."""
     Tag = apps.get_model("extras", "Tag")
     Cluster = apps.get_model("virtualization", "Cluster")
     ClusterGroup = apps.get_model("virtualization", "ClusterGroup")
     VirtualMachine = apps.get_model("virtualization", "VirtualMachine")
-    ClusterType = apps.get_model("virtualization", "ClusterType")
     VMInterface = apps.get_model("virtualization", "VMInterface")
     IPAddress = apps.get_model("ipam", "IPAddress")
     Status = apps.get_model("extras", "Status")
     CustomField = apps.get_model("extras", "CustomField")
     ContentType = apps.get_model("contenttypes", "ContentType")
 
-    status, _ = Status.objects.get_or_create(name="Suspended", description="Machine is in a suspended state")
+    status, _ = Status.objects.get_or_create(
+        name="Suspended", description="Machine is in a suspended state"
+    )
     status.content_types.add(ContentType.objects.get_for_model(VirtualMachine))
     status.save()
 
@@ -49,7 +52,9 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         },
     )
     for model in [VirtualMachine, IPAddress]:
-        tag_sync_from_vsphere.content_types.add(ContentType.objects.get_for_model(model))
+        tag_sync_from_vsphere.content_types.add(
+            ContentType.objects.get_for_model(model)
+        )
 
     custom_field, _ = CustomField.objects.get_or_create(
         type=CustomFieldTypeChoices.TYPE_DATE,
@@ -63,7 +68,6 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         IPAddress,
         Cluster,
         ClusterGroup,
-        ClusterType,
         VirtualMachine,
         VMInterface,
     ]
@@ -72,7 +76,9 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     custom_field.save()
 
 
-def create_default_vsphere_config(sender, *, apps, **kwargs):  # pylint: disable=unused-argument
+def create_default_vsphere_config(
+    sender, *, apps, **kwargs
+):  # pylint: disable=unused-argument
     """Create default vSphere config."""
     SSOTvSphereConfig = apps.get_model("nautobot_ssot", "SSOTvSphereConfig")
     VirtualMachine = apps.get_model("virtualization", "VirtualMachine")
@@ -88,7 +94,9 @@ def create_default_vsphere_config(sender, *, apps, **kwargs):  # pylint: disable
     for model in [VirtualMachine, VMInterface]:
         default_status.content_types.add(ContentType.objects.get_for_model(model))
 
-    secrets_group, _ = SecretsGroup.objects.get_or_create(name="vSphereSSOTDefaultSecretGroup")
+    secrets_group, _ = SecretsGroup.objects.get_or_create(
+        name="vSphereSSOTDefaultSecretGroup"
+    )
     vsphere_username, _ = Secret.objects.get_or_create(
         name="vSphere Username - Default",
         defaults={

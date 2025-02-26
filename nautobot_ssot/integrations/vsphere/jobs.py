@@ -49,6 +49,7 @@ def _get_vsphere_client_config(app_config, debug):
         "primary_ip_sort_by": app_config.primary_ip_sort_by,
         "ignore_link_local": app_config.default_ignore_link_local,
         "use_clusters": app_config.use_clusters,
+        "sync_tagged_only": app_config.sync_tagged_only,
         "debug": debug,
     }
 
@@ -65,11 +66,6 @@ class VsphereDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
         display_field="SSOT vSphere Config",
         required=True,
         query_params={"enable_sync_to_nautobot": True, "job_enabled": True},
-    )
-    sync_vsphere_tagged_only = BooleanVar(
-        default=False,
-        label="Sync Tagged Only",
-        description="Only sync objects that have the 'ssot-synced-from-vsphere' tag.",
     )
     cluster_filter = DynamicModelChoiceField(
         label="Only sync Nautobot records belonging to a single Cluster.",
@@ -154,7 +150,6 @@ class VsphereDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
             job=self,
             sync=self.sync,
             config=self.config,
-            sync_vsphere_tagged_only=self.sync_vsphere_tagged_only,
             cluster_filter=self.cluster_filter_object,
         )
 

@@ -98,7 +98,7 @@ class InterfacesDict(TypedDict):
     virtual_machine__name: str
 
 
-class PrefixModel(vSphereModelDiffSync):
+class PrefixModel(NautobotModel):
     """Prefix model."""
 
     _model = Prefix
@@ -291,3 +291,31 @@ class ClusterGroupModel(vSphereModelDiffSync):
 
     name: str
     clusters: Optional[List[ClusterModel]] = list()
+
+    @classmethod
+    def _get_queryset(cls, job):
+        """Get the queryset used to load the models data from Nautobot."""
+        available_fields = {field.name for field in cls._model._meta.get_fields()}
+        parameter_names = [
+            parameter
+            for parameter in list(cls._identifiers) + list(cls._attributes)
+            if parameter in available_fields
+        ]
+        # Here we identify any foreign keys (i.e. fields with '__' in them) so that we can load them directly in the
+        # first query if this function hasn't been overridden.
+        prefetch_related_parameters = [
+            parameter.split("__")[0]
+            for parameter in parameter_names
+            if "__" in parameter
+        ]
+        qs = cls.get_queryset(job)
+        return qs.prefetch_related(*prefetch_related_parameters)
+
+    @classmethod
+    def get_queryset(cls, config):
+        """Return the queryset for the model."""
+        if config.get("sync_tagged_only"):
+            return cls._model.objects.filter(
+                tags__name__in=["SSoT Synced from vSphere"]
+            )
+        return cls._model.objects.all()

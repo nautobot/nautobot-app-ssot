@@ -85,6 +85,9 @@ class SSOTvSphereConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         verbose_name="Enabled for Sync Job",
         help_text="Enable use of this configuration in the sync jobs.",
     )
+    sync_tagged_only = models.BooleanField(
+        default=True, verbose_name="Sync Tagged Only", help_text="Sync only tagged VMs."
+    )
     is_saved_view_model = False
 
     class Meta:
