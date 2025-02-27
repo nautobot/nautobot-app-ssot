@@ -90,28 +90,6 @@ class vSphereModelDiffSync(NautobotModel):
 
         _tag_object(nautobot_object)
 
-
-class InterfacesDict(TypedDict):
-    """Typed dict to relate interface to IP."""
-
-    name: str
-    virtual_machine__name: str
-
-
-class PrefixModel(NautobotModel):
-    """Prefix model."""
-
-    _model = Prefix
-    _modelname = "prefix"
-    _identifiers = ("network", "prefix_length", "namespace__name", "status__name")
-    _attributes = ("type",)
-
-    network: str
-    prefix_length: int
-    namespace__name: str
-    status__name: str
-    type: str
-
     @classmethod
     def _get_queryset(cls, config):
         """Get the queryset used to load the models data from Nautobot. This is overriden to pass in the config object."""
@@ -135,6 +113,28 @@ class PrefixModel(NautobotModel):
     def get_queryset(cls, config):
         """Return the queryset for the model. This is overriden to pass in the config object."""
         return cls._model.objects.all()
+
+
+class InterfacesDict(TypedDict):
+    """Typed dict to relate interface to IP."""
+
+    name: str
+    virtual_machine__name: str
+
+
+class PrefixModel(NautobotModel):
+    """Prefix model."""
+
+    _model = Prefix
+    _modelname = "prefix"
+    _identifiers = ("network", "prefix_length", "namespace__name", "status__name")
+    _attributes = ("type",)
+
+    network: str
+    prefix_length: int
+    namespace__name: str
+    status__name: str
+    type: str
 
 
 class IPAddressModel(vSphereModelDiffSync):
@@ -180,34 +180,6 @@ class IPAddressModel(vSphereModelDiffSync):
             # If the IP address doesn't exist, normal diffsync process will create it and associate with the interface.
             return super().create(adapter, ids, attrs)
 
-    @classmethod
-    def _get_queryset(cls, config):
-        """Get the queryset used to load the models data from Nautobot. This is overriden to pass in the config object."""
-        available_fields = {field.name for field in cls._model._meta.get_fields()}
-        parameter_names = [
-            parameter
-            for parameter in list(cls._identifiers) + list(cls._attributes)
-            if parameter in available_fields
-        ]
-        # Here we identify any foreign keys (i.e. fields with '__' in them) so that we can load them directly in the
-        # first query if this function hasn't been overridden.
-        prefetch_related_parameters = [
-            parameter.split("__")[0]
-            for parameter in parameter_names
-            if "__" in parameter
-        ]
-        qs = cls.get_queryset(config)
-        return qs.prefetch_related(*prefetch_related_parameters)
-
-    @classmethod
-    def get_queryset(cls, config):
-        """Return the queryset for the model. This is overriden to pass in the config object."""
-        if config.sync_tagged_only:
-            return cls._model.objects.filter(
-                tags__name__in=["SSoT Synced from vSphere"]
-            )
-        return cls._model.objects.all()
-
 
 class VMInterfaceModel(vSphereModelDiffSync):
     """VMInterface Diffsync model."""
@@ -226,34 +198,6 @@ class VMInterfaceModel(vSphereModelDiffSync):
     status__name: str
     mac_address: Optional[str] = None
     ip_addresses: List[IPAddress] = []
-
-    @classmethod
-    def _get_queryset(cls, config):
-        """Get the queryset used to load the models data from Nautobot. This is overriden to pass in the config object."""
-        available_fields = {field.name for field in cls._model._meta.get_fields()}
-        parameter_names = [
-            parameter
-            for parameter in list(cls._identifiers) + list(cls._attributes)
-            if parameter in available_fields
-        ]
-        # Here we identify any foreign keys (i.e. fields with '__' in them) so that we can load them directly in the
-        # first query if this function hasn't been overridden.
-        prefetch_related_parameters = [
-            parameter.split("__")[0]
-            for parameter in parameter_names
-            if "__" in parameter
-        ]
-        qs = cls.get_queryset(config)
-        return qs.prefetch_related(*prefetch_related_parameters)
-
-    @classmethod
-    def get_queryset(cls, config):
-        """Return the queryset for the model. This is overriden to pass in the config object."""
-        if config.sync_tagged_only:
-            return cls._model.objects.filter(
-                tags__name__in=["SSoT Synced from vSphere"]
-            )
-        return cls._model.objects.all()
 
 
 class VirtualMachineModel(vSphereModelDiffSync):
@@ -336,39 +280,8 @@ class VirtualMachineModel(vSphereModelDiffSync):
             )
         return super().update(attrs)
 
-    @classmethod
-    def _get_queryset(cls, config):
-        """Get the queryset used to load the models data from Nautobot. This is overriden to pass in the config object."""
-        available_fields = {field.name for field in cls._model._meta.get_fields()}
-        parameter_names = [
-            parameter
-            for parameter in list(cls._identifiers) + list(cls._attributes)
-            if parameter in available_fields
-        ]
-        # Here we identify any foreign keys (i.e. fields with '__' in them) so that we can load them directly in the
-        # first query if this function hasn't been overridden.
-        prefetch_related_parameters = [
-            parameter.split("__")[0]
-            for parameter in parameter_names
-            if "__" in parameter
-        ]
-        raise Exception("'m in underscore queryset")
-        qs = cls.get_queryset(config)
-        return qs.prefetch_related(*prefetch_related_parameters)
 
-    @classmethod
-    def get_queryset(cls, config):
-        """Return the queryset for the model. This is overriden to pass in the config object."""
-        if config.sync_tagged_only:
-            raise Exception("IM HERE")
-            return cls._model.objects.filter(
-                tags__name__in=["SSoT Synced from vSphere"]
-            )
-        raise Exception("IM NOT HERE")
-        return cls._model.objects.all()
-
-
-class ClusterModel(vSphereModelDiffSync):
+class ClusterModel(NautobotModel):
     """Cluster Model Diffsync model."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.NATURAL_DELETION_ORDER
@@ -388,37 +301,8 @@ class ClusterModel(vSphereModelDiffSync):
 
     virtual_machines: List[VirtualMachineModel] = list()
 
-    @classmethod
-    def _get_queryset(cls, config):
-        """Get the queryset used to load the models data from Nautobot. This is overriden to pass in the config object."""
-        available_fields = {field.name for field in cls._model._meta.get_fields()}
-        parameter_names = [
-            parameter
-            for parameter in list(cls._identifiers) + list(cls._attributes)
-            if parameter in available_fields
-        ]
-        # Here we identify any foreign keys (i.e. fields with '__' in them) so that we can load them directly in the
-        # first query if this function hasn't been overridden.
-        prefetch_related_parameters = [
-            parameter.split("__")[0]
-            for parameter in parameter_names
-            if "__" in parameter
-        ]
-        qs = cls.get_queryset(config)
-        return qs.prefetch_related(*prefetch_related_parameters)
 
-    @classmethod
-    def get_queryset(cls, config):
-        """Return the queryset for the model. This is overriden to pass in the config object."""
-        raise Exception()
-        if config.sync_tagged_only:
-            return cls._model.objects.filter(
-                tags__name__in=["SSoT Synced from vSphere"]
-            )
-        return cls._model.objects.all()
-
-
-class ClusterGroupModel(vSphereModelDiffSync):
+class ClusterGroupModel(NautobotModel):
     """ClusterGroup Diffsync model."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.NATURAL_DELETION_ORDER
@@ -431,27 +315,3 @@ class ClusterGroupModel(vSphereModelDiffSync):
 
     name: str
     clusters: Optional[List[ClusterModel]] = list()
-
-    @classmethod
-    def _get_queryset(cls, config):
-        """Get the queryset used to load the models data from Nautobot. This is overriden to pass in the config object."""
-        available_fields = {field.name for field in cls._model._meta.get_fields()}
-        parameter_names = [
-            parameter
-            for parameter in list(cls._identifiers) + list(cls._attributes)
-            if parameter in available_fields
-        ]
-        # Here we identify any foreign keys (i.e. fields with '__' in them) so that we can load them directly in the
-        # first query if this function hasn't been overridden.
-        prefetch_related_parameters = [
-            parameter.split("__")[0]
-            for parameter in parameter_names
-            if "__" in parameter
-        ]
-        qs = cls.get_queryset(config)
-        return qs.prefetch_related(*prefetch_related_parameters)
-
-    @classmethod
-    def get_queryset(cls, config):
-        """Return the queryset for the model. This is overriden to pass in the config object."""
-        return cls._model.objects.all()
