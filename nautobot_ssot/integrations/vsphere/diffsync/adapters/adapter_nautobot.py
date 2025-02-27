@@ -54,7 +54,6 @@ class Adapter(NautobotAdapter):
 
     def _load_objects(self, diffsync_model):
         """Overriding _load_objects so we can pass in the config object to the models."""
-        raise Exception("In load")
         parameter_names = self._get_parameter_names(diffsync_model)
         for database_object in diffsync_model._get_queryset(self.config):
             self._load_single_object(database_object, diffsync_model, parameter_names)
