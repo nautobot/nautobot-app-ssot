@@ -122,7 +122,7 @@ class InterfacesDict(TypedDict):
     virtual_machine__name: str
 
 
-class PrefixModel(NautobotModel):
+class PrefixModel(vSphereModelDiffSync):
     """Prefix model."""
 
     _model = Prefix
@@ -281,7 +281,7 @@ class VirtualMachineModel(vSphereModelDiffSync):
         return super().update(attrs)
 
 
-class ClusterModel(NautobotModel):
+class ClusterModel(vSphereModelDiffSync):
     """Cluster Model Diffsync model."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.NATURAL_DELETION_ORDER
