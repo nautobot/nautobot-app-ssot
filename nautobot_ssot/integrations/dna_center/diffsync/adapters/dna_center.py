@@ -301,7 +301,7 @@ class DnaCenterAdapter(Adapter):
             parent = self.get(self.building, {"name": bldg_name, "area": area_name})
             new_floor, loaded = self.get_or_instantiate(
                 self.floor,
-                ids={"name": floor_name, "building": bldg_name},
+                ids={"name": floor_name, "building": bldg_name, "area": area_name},
                 attrs={"tenant": self.tenant.name if self.tenant else None, "uuid": None},
             )
             if loaded:
@@ -409,6 +409,7 @@ class DnaCenterAdapter(Adapter):
                     role=dev_role,
                     vendor=vendor,
                     model=self.conn.get_model_name(models=dev["platformId"]) if dev.get("platformId") else "Unknown",
+                    area=loc_data["areas"][-1],
                     site=loc_data["building"],
                     floor=floor_name,
                     serial=dev["serialNumber"] if dev.get("serialNumber") else "",

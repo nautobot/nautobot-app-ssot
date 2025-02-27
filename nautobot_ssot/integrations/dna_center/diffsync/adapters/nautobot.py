@@ -125,7 +125,9 @@ class NautobotAdapter(Adapter):
         """Load Location data from Nautobot for specified Building LocationType into DiffSync models."""
         buildings = OrmLocation.objects.filter(location_type=self.job.building_loctype)
         for building in buildings:
-            self.site_map[building.name] = building.id
+            if building.parent.name not in self.site_map:
+                self.site_map[building.parent.name] = {}
+            self.site_map[building.parent.name][building.name] = building.id
             try:
                 self.get(
                     self.building,
@@ -158,6 +160,7 @@ class NautobotAdapter(Adapter):
             self.floor_map[floor.name] = floor.id
             new_floor = self.floor(
                 name=floor.name,
+                area=floor.parent.parent.name if floor.parent.parent else "",
                 building=floor.parent.name if floor.parent else "",
                 tenant=floor.tenant.name if floor.tenant else None,
                 uuid=floor.id,
@@ -206,14 +209,17 @@ class NautobotAdapter(Adapter):
             if dev.location.location_type == self.job.floor_loctype:
                 floor_name = dev.location.name
                 bldg_name = dev.location.parent.name
+                area_name = dev.location.parent.parent.name
             if dev.location.location_type == self.job.building_loctype:
                 bldg_name = dev.location.name
+                area_name = dev.location.parent.name
             new_dev = self.device(
                 name=dev.name,
                 status=dev.status.name,
                 role=dev.role.name,
                 vendor=dev.device_type.manufacturer.name,
                 model=dev.device_type.model,
+                area=area_name,
                 site=bldg_name,
                 floor=floor_name,
                 serial=dev.serial,
