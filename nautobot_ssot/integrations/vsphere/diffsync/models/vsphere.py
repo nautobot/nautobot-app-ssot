@@ -352,6 +352,7 @@ class VirtualMachineModel(vSphereModelDiffSync):
             for parameter in parameter_names
             if "__" in parameter
         ]
+        raise Exception("'m in underscore queryset")
         qs = cls.get_queryset(config)
         return qs.prefetch_related(*prefetch_related_parameters)
 
