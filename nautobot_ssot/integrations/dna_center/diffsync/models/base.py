@@ -46,12 +46,13 @@ class Floor(DiffSyncModel):
     """DiffSync model for DNA Center floors."""
 
     _modelname = "floor"
-    _identifiers = ("name", "building")
+    _identifiers = ("name", "building", "area")
     _attributes = ("tenant", "metadata")
     _children = {}
 
     name: str
     building: str
+    area: str
     tenant: Optional[str] = None
     metadata: Optional[bool] = True
 
@@ -64,6 +65,7 @@ class Device(DiffSyncModel):
     _modelname = "device"
     _identifiers = ("name",)
     _attributes = (
+        "area",
         "site",
         "serial",
         "status",
@@ -84,7 +86,8 @@ class Device(DiffSyncModel):
     role: Optional[str] = None
     vendor: str
     model: str
-    site: Optional[str] = None
+    area: str
+    site: str
     floor: Optional[str] = None
     serial: str = ""
     version: Optional[str] = None
