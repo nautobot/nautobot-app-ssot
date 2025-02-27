@@ -134,7 +134,7 @@ class PrefixModel(NautobotModel):
     @classmethod
     def get_queryset(cls, config):
         """Return the queryset for the model. This is overriden to pass in the config object."""
-        if config.get("sync_tagged_only"):
+        if config.sync_tagged_only:
             return cls._model.objects.filter(
                 tags__name__in=["SSoT Synced from vSphere"]
             )
@@ -206,7 +206,7 @@ class IPAddressModel(vSphereModelDiffSync):
     @classmethod
     def get_queryset(cls, config):
         """Return the queryset for the model. This is overriden to pass in the config object."""
-        if config.get("sync_tagged_only"):
+        if config.sync_tagged_only:
             return cls._model.objects.filter(
                 tags__name__in=["SSoT Synced from vSphere"]
             )
@@ -253,7 +253,7 @@ class VMInterfaceModel(vSphereModelDiffSync):
     @classmethod
     def get_queryset(cls, config):
         """Return the queryset for the model. This is overriden to pass in the config object."""
-        if config.get("sync_tagged_only"):
+        if config.sync_tagged_only:
             return cls._model.objects.filter(
                 tags__name__in=["SSoT Synced from vSphere"]
             )
@@ -362,7 +362,7 @@ class VirtualMachineModel(vSphereModelDiffSync):
     @classmethod
     def get_queryset(cls, config):
         """Return the queryset for the model. This is overriden to pass in the config object."""
-        if config.get("sync_tagged_only"):
+        if config.sync_tagged_only:
             return cls._model.objects.filter(
                 tags__name__in=["SSoT Synced from vSphere"]
             )
@@ -411,7 +411,7 @@ class ClusterModel(vSphereModelDiffSync):
     @classmethod
     def get_queryset(cls, config):
         """Return the queryset for the model. This is overriden to pass in the config object."""
-        if config.get("sync_tagged_only"):
+        if config.sync_tagged_only:
             return cls._model.objects.filter(
                 tags__name__in=["SSoT Synced from vSphere"]
             )
@@ -454,7 +454,7 @@ class ClusterGroupModel(vSphereModelDiffSync):
     @classmethod
     def get_queryset(cls, config):
         """Return the queryset for the model. This is overriden to pass in the config object."""
-        if config.get("sync_tagged_only"):
+        if config.sync_tagged_only:
             return cls._model.objects.filter(
                 tags__name__in=["SSoT Synced from vSphere"]
             )
