@@ -359,7 +359,7 @@ class VirtualMachineModel(vSphereModelDiffSync):
     def get_queryset(cls, config):
         """Return the queryset for the model. This is overriden to pass in the config object."""
         if config.sync_tagged_only:
-            print("IM HERE")
+            raise Exception("IM HERE")
             return cls._model.objects.filter(
                 tags__name__in=["SSoT Synced from vSphere"]
             )
