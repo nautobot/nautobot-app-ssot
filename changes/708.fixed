@@ -1,0 +1,1 @@
+Fixed bug that was causing all Devices to be assigned to same Building when Location structure included multiple Buildings of same name under differing Areas.
