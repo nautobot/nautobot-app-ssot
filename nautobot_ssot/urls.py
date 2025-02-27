@@ -9,6 +9,7 @@ from nautobot.apps.urls import NautobotUIViewSetRouter
 from nautobot_ssot import views
 
 
+app_name = "nautobot_ssot"
 router = NautobotUIViewSetRouter()
 
 router.register("sync", views.SyncUIViewSet)
