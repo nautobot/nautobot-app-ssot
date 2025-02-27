@@ -134,10 +134,6 @@ class PrefixModel(NautobotModel):
     @classmethod
     def get_queryset(cls, config):
         """Return the queryset for the model. This is overriden to pass in the config object."""
-        if config.sync_tagged_only:
-            return cls._model.objects.filter(
-                tags__name__in=["SSoT Synced from vSphere"]
-            )
         return cls._model.objects.all()
 
 
