@@ -3,6 +3,16 @@
 from django.templatetags.static import static
 from django.urls import path
 from django.views.generic import RedirectView
+from nautobot.apps.urls import NautobotUIViewSetRouter
+
+
+from nautobot_ssot import views
+
+
+app_name = "nautobot_ssot"
+router = NautobotUIViewSetRouter()
+
+router.register("sync", views.SyncUIViewSet)
 
 from . import views
 from .integrations.utils import each_enabled_integration_module
