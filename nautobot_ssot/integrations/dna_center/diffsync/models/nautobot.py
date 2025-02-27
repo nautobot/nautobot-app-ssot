@@ -145,7 +145,9 @@ class NautobotBuilding(base.Building):
                 ],
             )
             metadata.validated_save()
-        adapter.site_map[ids["name"]] = new_building.id
+        if ids["area"] not in adapter.site_map:
+            adapter.site_map[ids["area"]] = {}
+        adapter.site_map[ids["area"]][ids["name"]] = new_building.id
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -214,7 +216,7 @@ class NautobotFloor(base.Floor):
         new_floor = Location(
             name=ids["name"],
             status_id=adapter.status_map["Active"],
-            parent_id=adapter.site_map[ids["building"]],
+            parent_id=adapter.site_map[ids["area"]][ids["building"]],
             location_type=adapter.job.floor_loctype,
         )
         if attrs.get("tenant"):
@@ -296,7 +298,7 @@ class NautobotDevice(base.Device):
             name=ids["name"],
             status_id=adapter.status_map[attrs["status"]],
             role=device_role,
-            location_id=adapter.site_map[attrs["site"]],
+            location_id=adapter.site_map[attrs["area"]][attrs["site"]],
             device_type=device_type,
             serial=attrs["serial"],
             platform_id=platform.id,
@@ -356,8 +358,16 @@ class NautobotDevice(base.Device):
             device.role = dev_role
             if created:
                 dev_role.content_types.add(ContentType.objects.get_for_model(Device))
-        if attrs.get("site"):
-            device.location_id = self.adapter.site_map[attrs["site"]]
+        if attrs.get("site") or attrs.get("area"):
+            if attrs.get("site"):
+                site_name = attrs["site"]
+            else:
+                site_name = self.site
+            if attrs.get("area"):
+                area_name = attrs["area"]
+            else:
+                area_name = self.area
+            device.location_id = self.adapter.site_map[area_name][site_name]
         if attrs.get("floor"):
             device.location_id = self.adapter.floor_map[attrs["floor"]]
         if "model" in attrs:
