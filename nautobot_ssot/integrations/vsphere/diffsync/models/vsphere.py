@@ -363,6 +363,7 @@ class VirtualMachineModel(vSphereModelDiffSync):
             return cls._model.objects.filter(
                 tags__name__in=["SSoT Synced from vSphere"]
             )
+        raise Exception("IM NOT HERE")
         return cls._model.objects.all()
 
 
