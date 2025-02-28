@@ -302,7 +302,7 @@ class ClusterModel(vSphereModelDiffSync):
     virtual_machines: List[VirtualMachineModel] = list()
 
 
-class ClusterGroupModel(NautobotModel):
+class ClusterGroupModel(vSphereModelDiffSync):
     """ClusterGroup Diffsync model."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.NATURAL_DELETION_ORDER
