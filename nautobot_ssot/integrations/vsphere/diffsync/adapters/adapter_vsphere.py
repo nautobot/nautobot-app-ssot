@@ -317,7 +317,10 @@ class VsphereDiffSync(Adapter):
             )
             diffsync_virtualmachine, _ = self.get_or_instantiate(
                 self.virtual_machine,
-                {"name": virtual_machine["name"]},
+                {
+                    "name": virtual_machine["name"],
+                    "cluster__name": defaults.DEFAULT_CLUSTER_NAME,
+                },
                 {
                     "vcpus": virtual_machine["cpu_count"],
                     "memory": virtual_machine["memory_size_MiB"],
@@ -329,7 +332,6 @@ class VsphereDiffSync(Adapter):
                     "status__name": self.config.default_vm_status_map[
                         virtual_machine_details["power_state"]
                     ],
-                    "cluster__name": defaults.DEFAULT_CLUSTER_NAME,
                 },
             )
             default_diffsync_cluster.add_child(diffsync_virtualmachine)
