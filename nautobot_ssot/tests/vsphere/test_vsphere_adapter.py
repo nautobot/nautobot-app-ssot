@@ -137,6 +137,17 @@ class TestVsphereAdapter(unittest.TestCase):
     def test_load_ip_addresses(self):
         mock_interfaces = unittest.mock.MagicMock()
         mock_interfaces.json.return_value = json_fixture(f"{FIXTURES}/get_vm_interfaces.json")
+        diffsync_virtualmachine, _ = self.vsphere_adapter.get_or_instantiate(
+            self.vsphere_adapter.virtual_machine,
+            {"name": "Nautobot"},
+            {
+                "vcpus": 10,
+                "memory": 49152,
+                "disk": 64,
+                "status__name": "Active",
+                "cluster__name": "HeshLawCluster",
+            },
+        )
         diffsync_vminterface, _ = self.vsphere_adapter.get_or_instantiate(
             self.vsphere_adapter.interface,
             {"name": "Network adapter 1", "virtual_machine__name": "Nautobot"},
@@ -148,7 +159,10 @@ class TestVsphereAdapter(unittest.TestCase):
         )
 
         self.vsphere_adapter.load_ip_addresses(
-            mock_interfaces.json()["value"], "00:50:56:b5:e5:5f", diffsync_vminterface
+            mock_interfaces.json()["value"],
+            "00:50:56:b5:e5:5f",
+            diffsync_vminterface,
+            diffsync_virtualmachine,
         )
         vm_ip = self.vsphere_adapter.get("ip_address", "192.168.2.88__23__Active")
         self.assertEqual(vm_ip.host, "192.168.2.88")

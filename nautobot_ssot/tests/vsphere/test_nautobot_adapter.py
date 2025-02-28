@@ -70,7 +70,7 @@ class TestNautobotAdapter(TestCase):  # pylint: disable=too-many-instance-attrib
     def test_load(self):
         self.test_virtualmachine.primary_ip4 = self.vm_ip
         self.test_virtualmachine.validated_save()
-        adapter = Adapter(job=MagicMock(), config=create_default_vsphere_config())
+        adapter = Adapter(job=MagicMock(), config=create_default_vsphere_config(), cluster_filter=None)
         adapter.load()
         # ClusterGroup Asserts
         diffsync_clustergroup = adapter.get(ClusterGroupModel, {"name": "Test Group"})

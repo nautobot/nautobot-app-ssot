@@ -101,5 +101,7 @@ def localhost_client_vsphere(localhost_url):
         vm_interface_map=DEFAULT_VM_INTERFACE_MAP,
         primary_ip_sort_by=DEFAULT_PRIMARY_IP_SORT,
         ignore_link_local=DEFAULT_IGNORE_LINK_LOCAL,
+        use_clusters=True,
+        sync_tagged_only=True,
         debug=False,
     )
