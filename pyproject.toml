@@ -82,6 +82,7 @@ mkdocs-material = "9.5.32"
 # Automatic documentation from sources, for MkDocs
 mkdocstrings = "0.25.2"
 mkdocstrings-python = "1.10.8"
+mkdocs-autorefs = "1.2.0"
 griffe = "1.1.1"
 towncrier = "~23.6.0"
 requests-mock = "^1.10.0"
@@ -90,7 +91,6 @@ myst-parser = "^2.0.0"
 responses = "^0.14.0"
 to-json-schema = "*"
 jsonschema = "*"
-mkdocs-autorefs = "1.2.0"
 
 [tool.poetry.plugins."nautobot_ssot.data_sources"]
 "example" = "nautobot_ssot.sync.example:ExampleSyncWorker"
