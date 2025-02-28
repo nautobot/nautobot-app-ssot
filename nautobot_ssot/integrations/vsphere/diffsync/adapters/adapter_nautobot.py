@@ -22,7 +22,7 @@ class Adapter(NautobotAdapter):
 
     _primary_ips: List[Dict[str, Any]]
 
-    top_level = ("prefix", "clustergroup")
+    top_level = ("prefix", "clustergroup", "cluster")
     prefix = PrefixModel
     clustergroup = ClusterGroupModel
     cluster = ClusterModel

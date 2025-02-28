@@ -207,13 +207,12 @@ class VirtualMachineModel(vSphereModelDiffSync):
 
     _model = VirtualMachine
     _modelname = "virtual_machine"
-    _identifiers = ("name",)
+    _identifiers = ("name", "cluster__name")
     _attributes = (
         "status__name",
         "vcpus",
         "memory",
         "disk",
-        "cluster__name",
         "primary_ip4__host",
         "primary_ip6__host",
     )
@@ -293,13 +292,13 @@ class ClusterModel(vSphereModelDiffSync):
         "cluster_type__name",
         "cluster_group__name",
     )
-    _children = {"virtual_machine": "virtual_machines"}
+    # _children = {"virtual_machine": "virtual_machines"}
 
     name: str
     cluster_type__name: str
     cluster_group__name: Optional[str] = None
 
-    virtual_machines: List[VirtualMachineModel] = list()
+    # virtual_machines: List[VirtualMachineModel] = list()
 
 
 class ClusterGroupModel(vSphereModelDiffSync):
