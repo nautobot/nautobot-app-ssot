@@ -36,6 +36,7 @@ class vSphereModelDiffSync(NautobotModel):
             adapter (Adapter): The adapter to use to update the object.
         """
         super()._update_obj_with_parameters(obj, parameters, adapter)
+        raise Exception(dir(obj))
         if obj in [VirtualMachine, VMInterface, IPAddress]:
             cls.tag_object(cls, obj)
 
