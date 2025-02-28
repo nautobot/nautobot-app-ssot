@@ -60,7 +60,7 @@ class VsphereDiffSync(Adapter):
     ip_address = IPAddressModel
     prefix = PrefixModel
 
-    top_level = ["prefix", "clustergroup", "cluster"]
+    top_level = ["prefix", "clustergroup", "virtual_machine"]
 
     def __init__(
         self, *args, job=None, sync=None, client, config, cluster_filter, **kwargs
