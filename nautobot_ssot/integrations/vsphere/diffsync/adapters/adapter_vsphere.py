@@ -110,7 +110,7 @@ class VsphereDiffSync(Adapter):
                     ],
                 },
             )
-            diffsync_cluster.add_child(diffsync_virtualmachine)
+            # diffsync_cluster.add_child(diffsync_virtualmachine)
             self.load_vm_interfaces(
                 vsphere_virtual_machine=virtual_machine_details,
                 vm_id=virtual_machine["vm"],
@@ -334,7 +334,7 @@ class VsphereDiffSync(Adapter):
                     ],
                 },
             )
-            default_diffsync_cluster.add_child(diffsync_virtualmachine)
+            # default_diffsync_cluster.add_child(diffsync_virtualmachine)
             self.load_vm_interfaces(
                 vsphere_virtual_machine=virtual_machine_details,
                 vm_id=virtual_machine["vm"],
