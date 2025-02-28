@@ -288,7 +288,7 @@ class VirtualMachineModel(vSphereModelDiffSync):
             for parameter in parameter_names
             if "__" in parameter
         ]
-        qs = cls.get_queryset(config)
+        qs = cls.get_queryset(config, cluster_filters)
         return qs.prefetch_related(*prefetch_related_parameters)
 
     @classmethod
@@ -337,7 +337,7 @@ class ClusterModel(vSphereModelDiffSync):
             for parameter in parameter_names
             if "__" in parameter
         ]
-        qs = cls.get_queryset(config)
+        qs = cls.get_queryset(config, cluster_filters)
         return qs.prefetch_related(*prefetch_related_parameters)
 
     @classmethod
