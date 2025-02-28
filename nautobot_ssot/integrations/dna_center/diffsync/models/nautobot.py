@@ -234,7 +234,11 @@ class NautobotFloor(base.Floor):
                 ],
             )
             metadata.validated_save()
-        adapter.floor_map[ids["name"]] = new_floor.id
+        if ids["area"] not in adapter.floor_map:
+            adapter.floor_map[ids["area"]] = {}
+        if ids["building"] not in adapter.floor_map[ids["area"]]:
+            adapter.floor_map[ids["area"]][ids["building"]] = {}
+        adapter.floor_map[ids["area"]][ids["building"]][ids["name"]] = new_floor.id
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -305,7 +309,7 @@ class NautobotDevice(base.Device):
             controller_managed_device_group=adapter.job.controller_group,
         )
         if attrs.get("floor"):
-            new_device.location_id = adapter.floor_map[attrs["floor"]]
+            new_device.location_id = adapter.floor_map[attrs["area"]][attrs["site"]][attrs["floor"]]
         if attrs.get("tenant"):
             new_device.tenant_id = adapter.tenant_map[attrs["tenant"]]
         if attrs.get("version"):
@@ -358,7 +362,7 @@ class NautobotDevice(base.Device):
             device.role = dev_role
             if created:
                 dev_role.content_types.add(ContentType.objects.get_for_model(Device))
-        if attrs.get("site") or attrs.get("area"):
+        if attrs.get("site") or attrs.get("area") or attrs.get("floor"):
             if attrs.get("site"):
                 site_name = attrs["site"]
             else:
@@ -368,8 +372,8 @@ class NautobotDevice(base.Device):
             else:
                 area_name = self.area
             device.location_id = self.adapter.site_map[area_name][site_name]
-        if attrs.get("floor"):
-            device.location_id = self.adapter.floor_map[attrs["floor"]]
+            if attrs["floor"]:
+                device.location_id = self.adapter.floor_map[area_name][site_name][attrs["floor"]]
         if "model" in attrs:
             if attrs.get("vendor"):
                 vendor = Manufacturer.objects.get_or_create(name=attrs["vendor"])[0]

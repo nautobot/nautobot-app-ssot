@@ -333,7 +333,7 @@ class TestNautobotDevice(TransactionTestCase):
         floor_lt = LocationType.objects.get_or_create(name="Floor", parent=self.site_lt)[0]
         hq_floor = Location.objects.create(name="HQ - Floor 1", status=self.status_active, location_type=floor_lt)
         self.adapter.site_map = {"NY": {"HQ": self.hq_site.id}}
-        self.adapter.floor_map = {"HQ - Floor 1": hq_floor.id}
+        self.adapter.floor_map = {"NY": {"HQ": {"HQ - Floor 1": hq_floor.id}}}
 
         NautobotDevice.create(self.adapter, self.ids, self.attrs)
         self.adapter.job.logger.info.assert_called_with("Creating Version 16.12.3 for cisco_ios.")

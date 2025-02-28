@@ -157,7 +157,11 @@ class NautobotAdapter(Adapter):
         """Load LocationType floors from Nautobot into DiffSync models."""
         floors = OrmLocation.objects.filter(location_type=self.job.floor_loctype)
         for floor in floors:
-            self.floor_map[floor.name] = floor.id
+            if floor.parent.parent.name not in self.floor_map:
+                self.floor_map[floor.parent.parent.name] = {}
+            if floor.parent.name not in self.floor_map[floor.parent.parent.name]:
+                self.floor_map[floor.parent.parent.name][floor.parent.name] = {}
+            self.floor_map[floor.parent.parent.name][floor.parent.name][floor.name] = floor.id
             new_floor = self.floor(
                 name=floor.name,
                 area=floor.parent.parent.name if floor.parent.parent else "",
