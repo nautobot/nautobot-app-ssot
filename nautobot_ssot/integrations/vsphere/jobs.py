@@ -70,7 +70,7 @@ class VsphereDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
         label="Cluster Filters.",
         queryset=Cluster.objects.all(),
         required=False,
-        help_text="Only sync Virtual Machines from the selected Clusters.",
+        description="Only sync Virtual Machines from the selected Clusters.",
     )
 
     def __init__(self):
