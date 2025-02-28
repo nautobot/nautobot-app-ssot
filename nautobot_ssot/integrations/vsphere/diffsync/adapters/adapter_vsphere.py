@@ -60,7 +60,7 @@ class VsphereDiffSync(Adapter):
     ip_address = IPAddressModel
     prefix = PrefixModel
 
-    top_level = ["prefix", "clustergroup"]
+    top_level = ["prefix", "clustergroup", "cluster"]
 
     def __init__(
         self, *args, job=None, sync=None, client, config, cluster_filter, **kwargs
@@ -96,7 +96,7 @@ class VsphereDiffSync(Adapter):
             ).json()["value"]
             diffsync_virtualmachine, _ = self.get_or_instantiate(
                 self.virtual_machine,
-                {"name": virtual_machine["name"]},
+                {"name": virtual_machine["name"], "cluster__name": cluster["name"]},
                 {
                     "vcpus": virtual_machine["cpu_count"],
                     "memory": virtual_machine["memory_size_MiB"],
@@ -108,7 +108,6 @@ class VsphereDiffSync(Adapter):
                     "status__name": self.config.default_vm_status_map[
                         virtual_machine_details["power_state"]
                     ],
-                    "cluster__name": cluster["name"],
                 },
             )
             diffsync_cluster.add_child(diffsync_virtualmachine)
