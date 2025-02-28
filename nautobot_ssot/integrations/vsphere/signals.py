@@ -51,7 +51,7 @@ def nautobot_database_ready_callback(
             "color": TAG_COLOR,
         },
     )
-    for model in [VirtualMachine, IPAddress]:
+    for model in [VirtualMachine, VMInterface, IPAddress]:
         tag_sync_from_vsphere.content_types.add(
             ContentType.objects.get_for_model(model)
         )
@@ -66,8 +66,6 @@ def nautobot_database_ready_callback(
 
     synced_from_models = [
         IPAddress,
-        Cluster,
-        ClusterGroup,
         VirtualMachine,
         VMInterface,
     ]

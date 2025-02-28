@@ -36,7 +36,8 @@ class vSphereModelDiffSync(NautobotModel):
             adapter (Adapter): The adapter to use to update the object.
         """
         super()._update_obj_with_parameters(obj, parameters, adapter)
-        cls.tag_object(cls, obj)
+        if obj in [VirtualMachine, VMInterface, IPAddress]:
+            cls.tag_object(cls, obj)
 
     def tag_object(
         self,
@@ -71,13 +72,7 @@ class vSphereModelDiffSync(NautobotModel):
                             "label": "Last synced from vSphere on",
                         },
                     )
-                    synced_from_models = [
-                        Cluster,
-                        ClusterType,
-                        ClusterGroup,
-                        VirtualMachine,
-                        VMInterface,
-                    ]
+                    synced_from_models = [VirtualMachine, VMInterface, IPAddress]
                     for model in synced_from_models:
                         custom_field_obj.content_types.add(
                             ContentType.objects.get_for_model(model)
