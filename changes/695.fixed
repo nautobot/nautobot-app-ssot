@@ -1,0 +1,1 @@
+Add check for parent of Location before looking for parent of parent.
