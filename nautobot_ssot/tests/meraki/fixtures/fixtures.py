@@ -23,6 +23,9 @@ GET_MANAGEMENT_PORTS_SENT_FIXTURE = load_json("./nautobot_ssot/tests/meraki/fixt
 GET_MANAGEMENT_PORTS_RECV_FIXTURE = load_json("./nautobot_ssot/tests/meraki/fixtures/get_management_ports_recv.json")
 GET_ORG_SWITCHPORTS_SENT_FIXTURE = load_json("./nautobot_ssot/tests/meraki/fixtures/get_org_switchports_sent.json")
 GET_ORG_SWITCHPORTS_RECV_FIXTURE = load_json("./nautobot_ssot/tests/meraki/fixtures/get_org_switchports_recv.json")
+GET_ORG_UPLINK_ADDRESSES_BY_DEVICE_FIXTURE = load_json(
+    "./nautobot_ssot/tests/meraki/fixtures/get_org_uplink_addresses_by_device.json"
+)
 GET_ORG_UPLINK_STATUSES_SENT_FIXTURE = load_json(
     "./nautobot_ssot/tests/meraki/fixtures/get_org_uplink_statuses_sent.json"
 )

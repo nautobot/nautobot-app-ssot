@@ -24,6 +24,9 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         self.meraki_client.network_map = fix.NETWORK_MAP_FIXTURE
         self.meraki_client.get_org_devices.return_value = fix.GET_ORG_DEVICES_FIXTURE
         self.meraki_client.get_org_device_statuses.return_value = fix.GET_ORG_DEVICE_STATUSES_RECV_FIXTURE
+        self.meraki_client.get_org_uplink_addresses_by_device.return_value = (
+            fix.GET_ORG_UPLINK_ADDRESSES_BY_DEVICE_FIXTURE
+        )
         self.meraki_client.get_management_ports.return_value = fix.GET_MANAGEMENT_PORTS_RECV_FIXTURE
         self.meraki_client.get_uplink_settings.return_value = fix.GET_UPLINK_SETTINGS_RECV
         self.meraki_client.get_switchport_statuses.return_value = fix.GET_SWITCHPORT_STATUSES
@@ -69,6 +72,9 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
             for dev in fix.GET_ORG_DEVICES_FIXTURE
             if dev["model"].startswith(("MX", "MG", "MR", "MS", "Z"))
         ]
+        cellular_ports = [
+            f"cellular__{dev['name']}" for dev in fix.GET_ORG_DEVICES_FIXTURE if dev["model"].startswith(("MR", "CW"))
+        ]
         lan_ports = []
         for port in fix.GET_APPLIANCE_SWITCHPORTS_FIXTURE:
             for dev in fix.GET_ORG_DEVICES_FIXTURE:
@@ -77,13 +83,17 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         for switch in fix.GET_ORG_SWITCHPORTS_SENT_FIXTURE:
             for port in switch["ports"]:
                 lan_ports.append(f"{port['portId']}__Lab Switch")
-        expected_ports = set(wan1_ports + wan2_ports + lan_ports)
+        expected_ports = set(wan1_ports + wan2_ports + lan_ports + cellular_ports)
         self.assertEqual(expected_ports, {port.get_unique_id() for port in self.meraki.get_all("port")})
-        self.assertEqual({"10.1.15.0/24__Global"}, {pf.get_unique_id() for pf in self.meraki.get_all("prefix")})
+        self.assertEqual(
+            {"10.1.15.0/24__Global", "10.5.52.3/32__Global"},
+            {pf.get_unique_id() for pf in self.meraki.get_all("prefix")},
+        )
         self.assertEqual(
             {
                 "10.1.15.10/24__10.1.15.0/24",
                 "10.1.15.34/24__10.1.15.0/24",
+                "10.5.52.3/32__10.5.52.3/32",
             },
             {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")},
         )
