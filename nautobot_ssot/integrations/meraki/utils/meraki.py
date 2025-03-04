@@ -1,4 +1,5 @@
 """Utility functions for working with Meraki."""
+
 from typing import List
 
 import meraki
