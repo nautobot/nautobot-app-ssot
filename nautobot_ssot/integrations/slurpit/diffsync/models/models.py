@@ -126,12 +126,11 @@ class PlatformModel(ModelQuerySetMixin, NautobotModel):
     _model = Platform
     _modelname = "platform"
     _identifiers = ("name", "manufacturer__name")
-    _attributes = ("network_driver", "napalm_driver", "system_of_record", "last_synced_from_sor")
+    _attributes = ("network_driver", "system_of_record", "last_synced_from_sor")
 
     name: str
     manufacturer__name: str
     network_driver: str
-    napalm_driver: str
     system_of_record: Annotated[
         Optional[str], CustomFieldAnnotation(name="system_of_record", key="system_of_record")
     ] = None
@@ -407,8 +406,9 @@ class NautobotIPAddressToInterfaceModel(IPAddressToInterfaceModel):
         if adapter.job.logger.debug:
             adapter.job.logger.debug(f"Creating IPAddressToInterface {ids} {attrs}")
         intf = Interface.objects.get(name=ids["interface__name"], device__name=ids["interface__device__name"])
+        ip_address = IPAddress.objects.get(host=ids["ip_address__host"], tenant=intf.device.tenant)
         obj = IPAddressToInterface(
-            ip_address=IPAddress.objects.get(host=ids["ip_address__host"], tenant=intf.device.tenant),
+            ip_address=ip_address,
             interface=intf,
         )
         obj.validated_save()
