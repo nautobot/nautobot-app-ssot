@@ -135,9 +135,9 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         "key": "prefix_to_vlan",
         "type": RelationshipTypeChoices.TYPE_ONE_TO_MANY,
         "source_type": ContentType.objects.get_for_model(Prefix),
-        "source_label": "Prefix",
+        "source_label": "Linked VLANs",
         "destination_type": ContentType.objects.get_for_model(VLAN),
-        "destination_label": "VLAN",
+        "destination_label": "IPAM prefix",
     }
     Relationship.objects.get_or_create(label=relationship_dict["label"], defaults=relationship_dict)
 
