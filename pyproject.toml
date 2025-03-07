@@ -55,6 +55,7 @@ httpx = { version = ">=0.23.3", optional = true }
 dnacentersdk = { version = "^2.5.6", optional = true }
 meraki = { version = "^1.37.2,<1.46.0", optional = true }
 slurpit-sdk = { version = "^0.9.58", optional = true }
+ratelimit = "^2.2.1"
 
 [tool.poetry.group.dev.dependencies]
 coverage = "*"

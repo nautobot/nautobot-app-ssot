@@ -20,7 +20,9 @@ def each_enabled_integration() -> Generator[str, None, None]:
             yield path.name
 
 
-def each_enabled_integration_module(module_name: str) -> Generator[ModuleType, None, None]:
+def each_enabled_integration_module(
+    module_name: str,
+) -> Generator[ModuleType, None, None]:
     """For each enabled integration, import the module name."""
     for name in each_enabled_integration():
         try:

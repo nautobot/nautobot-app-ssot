@@ -216,10 +216,18 @@ PLUGINS_CONFIG = {
             "custom_field": True,
         },
         "citrix_adm_update_sites": is_truthy(os.getenv("NAUTOBOT_SSOT_CITRIX_ADM_UPDATE_SITES", "true")),
+        "cradlepoint_default_location_name": os.getenv("NAUTOBOT_SSOT_CRADLEPOINT_DEFAULT_LOCATION_NAME", "Default"),
+        "cradlepoint_default_location_type": os.getenv("NAUTOBOT_SSOT_CRADLEPOINT_DEFAULT_LOCATION_TYPE", "Site"),
+        "cradlepoint_default_location_parent": os.getenv("NAUTOBOT_SSOT_CRADLEPOINT_DEFAULT_LOCATION_PARENT", ""),
+        "cradlepoint_default_manufacturer_name": os.getenv(
+            "NAUTOBOT_SSOT_CRADLEPOINT_DEFAULT_MANUFACTURER", "Cradlepoint"
+        ),
+        "cradlepoint_default_api_device_limit": os.getenv("NAUTOBOT_SSOT_CRADLEPOINT_DEFAULT_API_RETRIEVAL_LIMIT", 500),
         "enable_aci": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ACI")),
         "enable_aristacv": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ARISTACV")),
         "enable_bootstrap": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_BOOTSTRAP", "false")),
         "enable_citrix_adm": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_CITRIX_ADM")),
+        "enable_cradlepoint": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_CRADLEPOINT")),
         "enable_device42": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_DEVICE42")),
         "enable_dna_center": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_DNA_CENTER")),
         "enable_infoblox": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_INFOBLOX")),

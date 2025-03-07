@@ -73,7 +73,7 @@ class NautobotAdapter(DiffSync):
         metadata_for_this_field = getattr(type_hints[parameter_name], "__metadata__", [])
         for metadata in metadata_for_this_field:
             if isinstance(metadata, CustomFieldAnnotation):
-                if metadata.name in database_object.cf:
+                if any(key in database_object.cf for key in (metadata.key, metadata.name)):
                     parameters[parameter_name] = database_object.cf[metadata.key]
                 is_custom_field = True
                 break
@@ -98,7 +98,10 @@ class NautobotAdapter(DiffSync):
         # Handling of one- and many-to custom relationship fields:
         if custom_relationship_annotation:
             parameters[parameter_name] = self._handle_custom_relationship_to_many_relationship(
-                database_object, diffsync_model, parameter_name, custom_relationship_annotation
+                database_object,
+                diffsync_model,
+                parameter_name,
+                custom_relationship_annotation,
             )
             return
 
@@ -198,8 +201,10 @@ class NautobotAdapter(DiffSync):
 
         for association in relationship_associations:
             related_object = getattr(
-                association, "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
+                association,
+                "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination",
             )
+            dictionary_representation = self._handle_typed_dict(inner_type, related_object)
             # dictionary_representation = self._handle_typed_dict(inner_type, related_object)
             dictionary_representation = load_typed_dict(inner_type, related_object)
             # Only use those where there is a single field defined, all 'None's will not help us.
@@ -313,7 +318,10 @@ class NautobotAdapter(DiffSync):
         return related_objects_list
 
     def _handle_custom_relationship_foreign_key(
-        self, database_object, parameter_name: str, annotation: CustomRelationshipAnnotation
+        self,
+        database_object,
+        parameter_name: str,
+        annotation: CustomRelationshipAnnotation,
     ):
         """Handle a single custom relationship foreign key field."""
         relationship_association_parameters = self._construct_relationship_association_parameters(
@@ -327,7 +335,8 @@ class NautobotAdapter(DiffSync):
         if amount_of_relationship_associations == 1:
             association = relationship_association.first()
             related_object = getattr(
-                association, "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
+                association,
+                "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination",
             )
             # Discard the first part as there is no actual field on the model corresponding to that part.
             _, *lookups = parameter_name.split("__")
