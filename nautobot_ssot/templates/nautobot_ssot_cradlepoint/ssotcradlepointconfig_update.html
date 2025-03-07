@@ -1,0 +1,14 @@
+{% extends 'generic/object_create.html' %}
+{% load form_helpers %}
+
+{% block form %}
+    <div class="panel panel-default">
+        <div class="panel-heading"><strong>Cradlepoint Config</strong></div>
+        <div class="panel-body">
+            {% render_field form.name %}
+            {% render_field form.description %}
+            {% render_field form.cradlepoint_instance %}
+            {% render_field form.job_enabled %}
+        </div>
+    </div>
+{% endblock %}
