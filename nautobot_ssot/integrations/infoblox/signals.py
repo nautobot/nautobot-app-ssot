@@ -135,7 +135,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         "key": "prefix_to_vlan",
         "type": RelationshipTypeChoices.TYPE_ONE_TO_MANY,
         "source_type": ContentType.objects.get_for_model(Prefix),
-        "source_label": "Linked VLANs",
+        "source_label": "Infoblox VLAN assignment",
         "destination_type": ContentType.objects.get_for_model(VLAN),
         "destination_label": "IPAM prefix",
     }
