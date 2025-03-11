@@ -21,6 +21,8 @@ def register_signals(sender):
     nautobot_database_ready.connect(
         create_default_cradlepoint_manufacturer, sender=sender
     )
+    nautobot_database_ready.connect(create_default_location, sender=sender)
+    nautobot_database_ready.connect(create_default_custom_fields, sender=sender)
 
 
 def create_default_cradlepoint_config(
@@ -32,7 +34,6 @@ def create_default_cradlepoint_config(
     Secret = apps.get_model("extras", "Secret")
     SecretsGroup = apps.get_model("extras", "SecretsGroup")
     SecretsGroupAssociation = apps.get_model("extras", "SecretsGroupAssociation")
-    ContentType = apps.get_model("contenttypes", "ContentType")
 
     secrets_group, _ = SecretsGroup.objects.get_or_create(
         name="CradlepointSSOTDefaultSecretGroup"
@@ -72,21 +73,21 @@ def create_default_cradlepoint_config(
     SecretsGroupAssociation.objects.get_or_create(
         secrets_group=secrets_group,
         access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
-        secret_type=SecretsGroupSecretTypeChoices.TYPE_TOKEN,
+        secret_type=SecretsGroupSecretTypeChoices.TYPE_USERNAME,
         defaults={"secret": cradlepoint_x_ecm_api_id},
     )
 
     SecretsGroupAssociation.objects.get_or_create(
         secrets_group=secrets_group,
         access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
-        secret_type=SecretsGroupSecretTypeChoices.TYPE_TOKEN,
+        secret_type=SecretsGroupSecretTypeChoices.TYPE_PASSWORD,
         defaults={"secret": cradlepoint_x_ecm_api_key},
     )
 
     SecretsGroupAssociation.objects.get_or_create(
         secrets_group=secrets_group,
         access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
-        secret_type=SecretsGroupSecretTypeChoices.TYPE_TOKEN,
+        secret_type=SecretsGroupSecretTypeChoices.TYPE_SECRET,
         defaults={"secret": cradlepoint_x_cp_api_id},
     )
 
@@ -124,3 +125,73 @@ def create_default_cradlepoint_manufacturer(sender, *, apps, **kwargs):
     Manufacturer.objects.get_or_create(
         name="Cradlepoint Inc.",
     )
+
+
+def create_default_location(sender, *, apps, **kwargs):
+    """Create default location."""
+    default_location_name = config.get("cradlepoint_default_location_name")
+    default_location_type = config.get("cradlepoint_default_location_type")
+    default_location_parent = config.get("cradlepoint_default_location_parent")
+
+    Location = apps.get_model("dcim", "Location")
+    LocationType = apps.get_model("dcim", "LocationType")
+    Device = apps.get_model("dcim", "Device")
+    Status = apps.get_model("extras", "Status")
+    ContentType = apps.get_model("contenttypes", "ContentType")
+    location_type, _ = LocationType.objects.get_or_create(name=default_location_type)
+    location_type.content_types.set([ContentType.objects.get_for_model(Device)])
+    location_info = {
+        "name": default_location_name,
+        "location_type": location_type,
+        "status": Status.objects.get(name="Active"),
+    }
+    if default_location_parent:
+        location_info["parent"] = Location.objects.get_or_create(
+            name=default_location_parent
+        )
+
+    Location.objects.get_or_create(
+        **location_info,
+    )
+
+
+def create_default_custom_fields(sender, *, apps, **kwargs):
+    """Create default Custom Fields."""
+    CustomField = apps.get_model("extras", "CustomField")
+    ContentType = apps.get_model("contenttypes", "ContentType")
+    Device = apps.get_model("dcim", "Device")
+
+    device_lat, _ = CustomField.objects.get_or_create(
+        type=CustomFieldTypeChoices.TYPE_TEXT,
+        key="device_latitude",
+        label="Device Latitude",
+    )
+    device_lat.content_types.add(ContentType.objects.get_for_model(Device))
+
+    device_lon, _ = CustomField.objects.get_or_create(
+        type=CustomFieldTypeChoices.TYPE_TEXT,
+        key="device_longitude",
+        label="Device Longitude",
+    )
+    device_lon.content_types.add(ContentType.objects.get_for_model(Device))
+
+    device_alt, _ = CustomField.objects.get_or_create(
+        type=CustomFieldTypeChoices.TYPE_TEXT,
+        key="device_altitude",
+        label="Device Altitude",
+    )
+    device_alt.content_types.add(ContentType.objects.get_for_model(Device))
+
+    device_accuracy, _ = CustomField.objects.get_or_create(
+        type=CustomFieldTypeChoices.TYPE_INTEGER,
+        key="device_accuracy",
+        label="Device Accuracy",
+    )
+    device_accuracy.content_types.add(ContentType.objects.get_for_model(Device))
+
+    device_gps_method, _ = CustomField.objects.get_or_create(
+        type=CustomFieldTypeChoices.TYPE_TEXT,
+        key="device_gps_method",
+        label="Device GPS Method",
+    )
+    device_gps_method.content_types.add(ContentType.objects.get_for_model(Device))

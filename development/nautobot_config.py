@@ -236,6 +236,18 @@ PLUGINS_CONFIG = {
         "citrix_adm_update_sites": is_truthy(
             os.getenv("NAUTOBOT_SSOT_CITRIX_ADM_UPDATE_SITES", "true")
         ),
+        "cradlepoint_default_location_name": os.getenv(
+            "NAUTOBOT_SSOT_CRADLEPOINT_DEFAULT_LOCATION_NAME", "Default"
+        ),
+        "cradlepoint_default_location_type": os.getenv(
+            "NAUTOBOT_SSOT_CRADLEPOINT_DEFAULT_LOCATION_TYPE", "Site"
+        ),
+        "cradlepoint_default_location_parent": os.getenv(
+            "NAUTOBOT_SSOT_CRADLEPOINT_DEFAULT_LOCATION_PARENT", ""
+        ),
+        "cradlepoint_default_manufacturer": os.getenv(
+            "NAUTOBOT_SSOT_CRADLEPOINT_DEFAULT_MANUFACTURER", "Cradlepoint Inc."
+        ),
         "enable_aci": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ACI")),
         "enable_aristacv": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ARISTACV")),
         "enable_bootstrap": is_truthy(

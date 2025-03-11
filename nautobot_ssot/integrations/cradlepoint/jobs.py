@@ -32,20 +32,28 @@ name = "SSoT - Cradlepoint"  # pylint: disable=invalid-name
 
 def _get_cradlepoint_client_config(app_config, debug):
     """Get Cradlepoint client config from the Cradlepoint config instance."""
-    x_ecm_api_id_token = app_config.cradlepoint_instance.secrets_group.get_secret_value(
+    x_ecm_api_id = app_config.cradlepoint_instance.secrets_group.get_secret_value(
+        access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
+        secret_type=SecretsGroupSecretTypeChoices.TYPE_USERNAME,
+    )
+    x_ecm_api_key = app_config.cradlepoint_instance.secrets_group.get_secret_value(
+        access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
+        secret_type=SecretsGroupSecretTypeChoices.TYPE_PASSWORD,
+    )
+    x_cp_api_id = app_config.cradlepoint_instance.secrets_group.get_secret_value(
+        access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
+        secret_type=SecretsGroupSecretTypeChoices.TYPE_SECRET,
+    )
+    x_cp_api_key = app_config.cradlepoint_instance.secrets_group.get_secret_value(
         access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
         secret_type=SecretsGroupSecretTypeChoices.TYPE_TOKEN,
     )
-    x_ecm_api_key_token = (
-        app_config.cradlepoint_instance.secrets_group.get_secret_value(
-            access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
-            secret_type=SecretsGroupSecretTypeChoices.TYPE_PASSWORD,
-        )
-    )
     cradlepoint_client_config = {
         "cradlepoint_uri": app_config.cradlepoint_instance.remote_url,
-        "x_ecm_api_id_token": x_ecm_api_id_token,
-        "x_ecm_api_key_token": x_ecm_api_key_token,
+        "x_ecm_api_id": x_ecm_api_id,
+        "x_ecm_api_key": x_ecm_api_key,
+        "x_cp_api_id": x_cp_api_id,
+        "x_cp_api_key": x_cp_api_key,
         "verify_ssl": app_config.cradlepoint_instance.verify_ssl,
         "debug": debug,
     }
@@ -136,13 +144,7 @@ class CradlepointDataSource(DataSource):  # pylint: disable=too-many-instance-at
         self.debug = debug
         self.memory_profiling = memory_profiling
         self.config = kwargs.get("config")
-        if not self.config.enable_sync_to_nautobot:
-            self.logger.error(
-                "Can't run sync to Nautobot, provided config does not have it enabled."
-            )
-            raise ValueError("Config not enabled for sync to Nautobot.")
-
-        return super().run(*args, **kwargs)
+        return super().run(dryrun, memory_profiling, *args, **kwargs)
 
 
 jobs = [CradlepointDataSource]

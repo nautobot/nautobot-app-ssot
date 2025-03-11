@@ -2,18 +2,37 @@ import requests
 
 
 class CradlepointClient:
-    def __init__(self, api_key, base_url="https://www.cradlepointecm.com/api/v2/"):
-        self.api_key = api_key
-        self.base_url = base_url
+    """initialize the CradlepointClient client."""
+
+    def __init__(
+        self,
+        cradlepoint_uri,
+        x_ecm_api_id,
+        x_ecm_api_key,
+        x_cp_api_id,
+        x_cp_api_key,
+        verify_ssl,
+        debug,
+    ):
+        self.base_url = f"{cradlepoint_uri}/api/v2/"
+        self.x_ecm_api_id_token = x_ecm_api_id
+        self.x_ecm_api_key_token = x_ecm_api_key
+        self.x_cp_api_id_token = x_cp_api_id
+        self.x_cp_api_key_token = x_cp_api_key
+        self.verify_ssl = verify_ssl
+        self.debug = debug
         self.headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "X-ECM-API-ID": self.x_ecm_api_id_token,
+            "X-ECM-API-KEY": self.x_ecm_api_key_token,
+            "X-CP-API-ID": self.x_cp_api_id_token,
+            "X-CP-API-KEY": self.x_cp_api_key_token,
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
 
     def _request(self, method, endpoint, params=None, data=None):
         url = f"{self.base_url}{endpoint}"
-        response = requests.request(
+        response = requests.request(  # noqa: S113
             method, url, headers=self.headers, params=params, json=data
         )
 
@@ -24,34 +43,10 @@ class CradlepointClient:
 
     def get_routers(self, params=None):
         """Fetch a list of routers."""
+        if "limit" not in params:
+            params["limit"] = 100
         return self._request("GET", "routers", params=params)
 
-    def get_router_by_id(self, router_id):
-        """Fetch details of a specific router by ID."""
-        return self._request("GET", f"routers/{router_id}")
-
-    def reboot_router(self, router_id):
-        """Reboot a router by ID."""
-        return self._request("POST", f"routers/{router_id}/reboot")
-
-    def get_alerts(self, params=None):
-        """Fetch a list of alerts."""
-        return self._request("GET", "alerts", params=params)
-
-    def create_alert(self, data):
-        """Create a new alert."""
-        return self._request("POST", "alerts", data=data)
-
-    def update_router(self, router_id, data):
-        """Update a router's information."""
-        return self._request("PATCH", f"routers/{router_id}", data=data)
-
-    def delete_alert(self, alert_id):
-        """Delete an alert by ID."""
-        return self._request("DELETE", f"alerts/{alert_id}")
-
-
-# Usage Example:
-# client = CradlepointECMClient(api_key="your_api_key")
-# routers = client.get_routers()
-# print(routers)
+    def get_locations(self, params=None):
+        """Fetch a list of locations."""
+        return self._request("GET", "locations", params=params)

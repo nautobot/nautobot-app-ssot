@@ -1,13 +1,20 @@
 import datetime
+
+try:
+    from typing import Annotated
+except ModuleNotFoundError:
+    from typing_extensions import Annotated
+
 from diffsync.enum import DiffSyncModelFlags
+from django.contrib.contenttypes.models import ContentType
 from nautobot.dcim.models import Device, DeviceType, Interface
+from nautobot.extras.models.customfields import CustomField, CustomFieldTypeChoices
 from nautobot.extras.models.roles import Role
 from nautobot.extras.models.statuses import Status
-from nautobot.extras.models.customfields import CustomField, CustomFieldTypeChoices
 from nautobot.extras.models.tags import Tag
-from django.contrib.contenttypes.models import ContentType
-from nautobot_ssot.contrib import NautobotModel
 from typing_extensions import List, Optional, TypedDict
+
+from nautobot_ssot.contrib import CustomFieldAnnotation, NautobotModel
 
 TODAY = datetime.date.today().isoformat()
 
@@ -106,7 +113,7 @@ class CradlepointRole(NautobotModel):
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
 
     _model = Role
-    _modelname = "role"
+    _modelname = "device_role"
     _identifiers = ("name",)
     _attributes = ("content_types",)
 
@@ -152,9 +159,13 @@ class CradlepointDevice(CradlepointDiffSync):
         "role__name",
         "status__name",
         "serial",
-        "primary_ip4__host",
+        "device_latitude",
+        "device_longitude",
+        "device_altitude",
+        "device_gps_method",
+        "device_accuracy",
     )
-    _children = {"interface": "interfaces"}
+    _children = {}
 
     name: str
     device_type__model: str
@@ -162,9 +173,16 @@ class CradlepointDevice(CradlepointDiffSync):
     role__name: str
     status__name: str
     serial: Optional[str] = None
-    primary_ip4__host: Optional[str] = None
     san: Optional[str] = None
-    interfaces: List[Interface] = []
+    device_latitude: Annotated[str, CustomFieldAnnotation(key="device_latitude")]
+
+    device_longitude: Annotated[str, CustomFieldAnnotation(key="device_longitude")]
+
+    device_altitude: Annotated[str, CustomFieldAnnotation(key="device_altitude")]
+
+    device_gps_method: Annotated[str, CustomFieldAnnotation(key="device_gps_method")]
+
+    device_accuracy: Annotated[int, CustomFieldAnnotation(key="deviceaccuracy")]
 
     class Config:
         """Pydantic configuration for the model."""
@@ -175,51 +193,3 @@ class CradlepointDevice(CradlepointDiffSync):
     def get_queryset(cls):
         """Get queryset for CradlePoint devices by filtering on Manufacturer."""
         return Device.objects.filter(device_type__manufacturer__name="CradlePoint Inc.")
-
-    # @classmethod
-    # def create(cls, adapter, ids, attrs):
-    #     """Create the device.
-
-    #     This overridden method removes the primary IP addresses since those
-    #     cannot be set until after the interfaces are created. The primary IPs
-    #     are set in the `sync_complete` callback of the adapter.
-
-    #     Args:
-    #         adapter (VsphereDiffSync): The nautobot sync adapter.
-    #         ids (dict[str, Any]): The natural keys for the device.
-    #         attrs (dict[str, Any]): The attributes to assign to the newly created
-    #             device.
-
-    #     Returns:
-    #         DeviceModel: The device model.
-    #     """
-    #     if attrs.get("primary_ip4__host"):
-    #         adapter._primary_ips.append(
-    #             {
-    #                 "device": {**ids},
-    #                 "primary_ip4": attrs.pop("primary_ip4__host", None),
-    #             }
-    #         )
-    #     return super().create(adapter, ids, attrs)
-
-    # def update(self, attrs):
-    #     """Update the device.
-
-    #     This overridden method removes the primary IP addresses since those
-    #     cannot be set until after the interfaces and IPs are created. The primary IPs
-    #     are set in the `sync_complete` callback of the adapter.
-
-    #     Args:
-    #         attrs (dict[str, Any]): The attributes to update on the device.
-
-    #     Returns:
-    #         DeviceModel: The device model.
-    #     """
-    #     if attrs.get("primary_ip4__host"):
-    #         self.adapter._primary_ips.append(
-    #             {
-    #                 "device": {"name": self.name},
-    #                 "primary_ip4": attrs.pop("primary_ip4__host", None),
-    #             }
-    #         )
-    #     return super().update(attrs)
