@@ -107,12 +107,12 @@ class CradlepointAdapter(Adapter):
             "role__name": record["device_type"].capitalize(),
             "status__name": record["state"].capitalize(),
             "serial": serial_number,
-            # Custom fields in Nautobot do not support floar values so we must use strings instead.
-            "device_latitude": str(record.get("latitude", "")),
-            "device_longitude": str(record.get("longitude", "")),
-            "device_altitude": str(record.get("altitude_meters", "")),
-            "device_gps_method": record.get("method", ""),
-            "device_accuracy": record.get("accuracy", 0),
+            # Custom fields in Nautobot do not support float values so we must use strings instead.
+            "device_latitude": str(record.get("latitude")),
+            "device_longitude": str(record.get("longitude")),
+            "device_altitude": str(record.get("altitude_meters")),
+            "device_gps_method": record.get("method"),
+            "device_accuracy": record.get("accuracy"),
         }
         # The name field is actually the associated SAN.
         router_information["location__name"] = self.find_location(
@@ -171,36 +171,45 @@ class CradlepointAdapter(Adapter):
 
     def load(self):
         """Entrypoint for loading data from Cradlepoint."""
-        routers = self.client.get_routers(
-            {
-                "limit": 20,
-                # "id": "2323284",
-                "fields": ",".join(
-                    [
-                        "full_product_name",
-                        "device_type",
-                        "state",
-                        "serial_number",
-                        "id",
-                        "name",
-                    ],
-                ),
-            }
-        ).get("data", [])
-
-        # Create router dictionary
-        for record in routers:
-            if record.get("serial_number") is None:
-                self.job.logger.info(
-                    f"Skipping record without serial number. Router id: {record['id']}"
-                )
-                continue
-            self.routers.setdefault(
-                record["id"],
-                record,
+        offset_number = 0
+        limit_number = 100
+        next = True
+        # This will change to a while loop wfor the actual implementation.
+        for number in range(0, 2):
+            routers_call = self.client.get_routers(
+                {
+                    "limit": limit_number,
+                    "offset": offset_number,
+                    "fields": ",".join(
+                        [
+                            "full_product_name",
+                            "device_type",
+                            "state",
+                            "serial_number",
+                            "id",
+                            "name",
+                        ],
+                    ),
+                }
             )
+            routers_from_call = routers_call.get("data", [])
+            if not routers_call.get("meta", {}).get("next"):
+                next = False
 
-        self.retrieve_router_location()
+            # Create router dictionary
+            for record in routers_from_call:
+                if record.get("serial_number") is None:
+                    self.job.logger.warning(
+                        f"Skipping record without serial number. Router id: {record['id']}"
+                    )
+                    continue
+                self.routers.setdefault(
+                    record["id"],
+                    record,
+                )
+
+            self.retrieve_router_location()
+            offset_number += limit_number
 
         # Populate diffsync store.
         for record in self.routers.values():

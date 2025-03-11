@@ -68,13 +68,17 @@ class NautobotAdapter(Adapter):
             return cached_object
         # As we are using `get` here, this will error if there is not exactly one object that corresponds to the
         # parameter set. We intentionally pass these errors through.
-        self._cache[model_cache_key][parameter_set] = model_class.objects.get(**dict(parameter_set))
+        self._cache[model_cache_key][parameter_set] = model_class.objects.get(
+            **dict(parameter_set)
+        )
         return self._cache[model_cache_key][parameter_set]
 
     @staticmethod
     def _get_parameter_names(diffsync_model):
         """Ignore the differences between identifiers and attributes, because at this point they don't matter to us."""
-        return list(diffsync_model._identifiers) + list(diffsync_model._attributes)  # pylint: disable=protected-access
+        return list(diffsync_model._identifiers) + list(
+            diffsync_model._attributes
+        )  # pylint: disable=protected-access
 
     def _load_objects(self, diffsync_model):
         """Given a diffsync model class, load a list of models from the database and return them."""
@@ -82,16 +86,22 @@ class NautobotAdapter(Adapter):
         for database_object in diffsync_model._get_queryset():
             self._load_single_object(database_object, diffsync_model, parameter_names)
 
-    def _handle_single_parameter(self, parameters, parameter_name, database_object, diffsync_model):
+    def _handle_single_parameter(
+        self, parameters, parameter_name, database_object, diffsync_model
+    ):
         type_hints = get_type_hints(diffsync_model, include_extras=True)
         # Handle custom fields and custom relationships. See CustomFieldAnnotation and CustomRelationshipAnnotation
         # docstrings for more details.
         is_custom_field = False
         custom_relationship_annotation = None
-        metadata_for_this_field = getattr(type_hints[parameter_name], "__metadata__", [])
+        metadata_for_this_field = getattr(
+            type_hints[parameter_name], "__metadata__", []
+        )
         for metadata in metadata_for_this_field:
             if isinstance(metadata, CustomFieldAnnotation):
-                if metadata.name in database_object.cf:
+                if any(
+                    key in database_object.cf for key in (metadata.key, metadata.name)
+                ):
                     parameters[parameter_name] = database_object.cf[metadata.key]
                 is_custom_field = True
                 break
@@ -106,17 +116,26 @@ class NautobotAdapter(Adapter):
         # the 'many' side.
         if "__" in parameter_name:
             if custom_relationship_annotation:
-                parameters[parameter_name] = self._handle_custom_relationship_foreign_key(
+                parameters[
+                    parameter_name
+                ] = self._handle_custom_relationship_foreign_key(
                     database_object, parameter_name, custom_relationship_annotation
                 )
             else:
-                parameters[parameter_name] = self._handle_foreign_key(database_object, parameter_name)
+                parameters[parameter_name] = self._handle_foreign_key(
+                    database_object, parameter_name
+                )
             return
 
         # Handling of one- and many-to custom relationship fields:
         if custom_relationship_annotation:
-            parameters[parameter_name] = self._handle_custom_relationship_to_many_relationship(
-                database_object, diffsync_model, parameter_name, custom_relationship_annotation
+            parameters[
+                parameter_name
+            ] = self._handle_custom_relationship_to_many_relationship(
+                database_object,
+                diffsync_model,
+                parameter_name,
+                custom_relationship_annotation,
             )
             return
 
@@ -133,7 +152,9 @@ class NautobotAdapter(Adapter):
 
         # Handling of normal fields - as this is the default case, set the attribute directly.
         if hasattr(self, f"load_param_{parameter_name}"):
-            parameters[parameter_name] = getattr(self, f"load_param_{parameter_name}")(parameter_name, database_object)
+            parameters[parameter_name] = getattr(self, f"load_param_{parameter_name}")(
+                parameter_name, database_object
+            )
         else:
             parameters[parameter_name] = getattr(database_object, parameter_name)
 
@@ -141,7 +162,9 @@ class NautobotAdapter(Adapter):
         """Load a single diffsync object from a single database object."""
         parameters = {}
         for parameter_name in parameter_names:
-            self._handle_single_parameter(parameters, parameter_name, database_object, diffsync_model)
+            self._handle_single_parameter(
+                parameters, parameter_name, database_object, diffsync_model
+            )
         parameters["pk"] = database_object.pk
         try:
             diffsync_model = diffsync_model(**parameters)
@@ -156,10 +179,14 @@ class NautobotAdapter(Adapter):
         """Recurse through all the children for this model."""
         for children_parameter, children_field in diffsync_model._children.items():
             children = getattr(database_object, children_field).all()
-            diffsync_model_child = self._get_diffsync_class(model_name=children_parameter)
+            diffsync_model_child = self._get_diffsync_class(
+                model_name=children_parameter
+            )
             for child in children:
                 parameter_names = self._get_parameter_names(diffsync_model_child)
-                child_diffsync_object = self._load_single_object(child, diffsync_model_child, parameter_names)
+                child_diffsync_object = self._load_single_object(
+                    child, diffsync_model_child, parameter_names
+                )
                 diffsync_model.add_child(child_diffsync_object)
 
     def load(self):
@@ -194,13 +221,21 @@ class NautobotAdapter(Adapter):
         related_objects_list = []
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
         relationship = self.get_from_orm_cache({"label": annotation.name}, Relationship)
-        relationship_association_parameters = self._construct_relationship_association_parameters(
-            annotation, database_object
+        relationship_association_parameters = (
+            self._construct_relationship_association_parameters(
+                annotation, database_object
+            )
         )
-        relationship_associations = RelationshipAssociation.objects.filter(**relationship_association_parameters)
+        relationship_associations = RelationshipAssociation.objects.filter(
+            **relationship_association_parameters
+        )
 
         field_name = ""
-        field_name += "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
+        field_name += (
+            "source"
+            if annotation.side == RelationshipSideEnum.DESTINATION
+            else "destination"
+        )
         field_name += "_"
         field_name += (
             relationship.source_type.app_label.lower()
@@ -216,9 +251,14 @@ class NautobotAdapter(Adapter):
 
         for association in relationship_associations:
             related_object = getattr(
-                association, "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
+                association,
+                "source"
+                if annotation.side == RelationshipSideEnum.DESTINATION
+                else "destination",
             )
-            dictionary_representation = self._handle_typed_dict(inner_type, related_object)
+            dictionary_representation = self._handle_typed_dict(
+                inner_type, related_object
+            )
             # Only use those where there is a single field defined, all 'None's will not help us.
             if any(dictionary_representation.values()):
                 related_objects_list.append(dictionary_representation)
@@ -252,12 +292,16 @@ class NautobotAdapter(Adapter):
         dictionary_representation = {}
         for field_name in get_type_hints(inner_type):
             if "__" in field_name:
-                dictionary_representation[field_name] = cls._handle_foreign_key(related_object, field_name)
+                dictionary_representation[field_name] = cls._handle_foreign_key(
+                    related_object, field_name
+                )
                 continue
             dictionary_representation[field_name] = getattr(related_object, field_name)
         return dictionary_representation
 
-    def _construct_relationship_association_parameters(self, annotation, database_object):
+    def _construct_relationship_association_parameters(
+        self, annotation, database_object
+    ):
         relationship = self.get_from_orm_cache({"label": annotation.name}, Relationship)
         relationship_association_parameters = {
             "relationship": relationship,
@@ -326,35 +370,49 @@ class NautobotAdapter(Adapter):
         related_objects_list = []
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
         for related_object in getattr(database_object, parameter_name).all():
-            dictionary_representation = NautobotAdapter._handle_typed_dict(inner_type, related_object)
+            dictionary_representation = NautobotAdapter._handle_typed_dict(
+                inner_type, related_object
+            )
             # Only use those where there is a single field defined, all 'None's will not help us.
             if any(dictionary_representation.values()):
                 related_objects_list.append(dictionary_representation)
         return related_objects_list
 
     def _handle_custom_relationship_foreign_key(
-        self, database_object, parameter_name: str, annotation: CustomRelationshipAnnotation
+        self,
+        database_object,
+        parameter_name: str,
+        annotation: CustomRelationshipAnnotation,
     ):
         """Handle a single custom relationship foreign key field."""
-        relationship_association_parameters = self._construct_relationship_association_parameters(
-            annotation, database_object
+        relationship_association_parameters = (
+            self._construct_relationship_association_parameters(
+                annotation, database_object
+            )
         )
 
-        relationship_association = RelationshipAssociation.objects.filter(**relationship_association_parameters)
+        relationship_association = RelationshipAssociation.objects.filter(
+            **relationship_association_parameters
+        )
         amount_of_relationship_associations = relationship_association.count()
         if amount_of_relationship_associations == 0:
             return None
         if amount_of_relationship_associations == 1:
             association = relationship_association.first()
             related_object = getattr(
-                association, "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
+                association,
+                "source"
+                if annotation.side == RelationshipSideEnum.DESTINATION
+                else "destination",
             )
             # Discard the first part as there is no actual field on the model corresponding to that part.
             _, *lookups = parameter_name.split("__")
             for lookup in lookups[:-1]:
                 related_object = getattr(related_object, lookup)
             return getattr(related_object, lookups[-1])
-        raise ValueError("Foreign key custom relationship matched two associations - this shouldn't happen.")
+        raise ValueError(
+            "Foreign key custom relationship matched two associations - this shouldn't happen."
+        )
 
     @staticmethod
     def _handle_foreign_key(database_object, parameter_name):
@@ -386,5 +444,7 @@ class NautobotAdapter(Adapter):
         # If the lookup doesn't point anywhere, check whether it is using the convention for generic foreign keys.
         except AttributeError:
             if lookups[-1] in ["app_label", "model"]:
-                return getattr(ContentType.objects.get_for_model(related_object), lookups[-1])
+                return getattr(
+                    ContentType.objects.get_for_model(related_object), lookups[-1]
+                )
         return None

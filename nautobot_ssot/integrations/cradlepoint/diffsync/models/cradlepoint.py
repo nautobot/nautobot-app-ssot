@@ -13,6 +13,7 @@ from nautobot.extras.models.roles import Role
 from nautobot.extras.models.statuses import Status
 from nautobot.extras.models.tags import Tag
 from typing_extensions import List, Optional, TypedDict
+from nautobot_ssot.integrations.cradlepoint.constants import DEFAULT_MANUFACTURER
 
 from nautobot_ssot.contrib import CustomFieldAnnotation, NautobotModel
 
@@ -148,8 +149,6 @@ class CradlepointDeviceType(NautobotModel):
 class CradlepointDevice(CradlepointDiffSync):
     """DiffSync model for CradlePoint device."""
 
-    model_flags: DiffSyncModelFlags = DiffSyncModelFlags.NATURAL_DELETION_ORDER
-
     _model = Device
     _modelname = "device"
     _identifiers = ("name",)
@@ -174,15 +173,25 @@ class CradlepointDevice(CradlepointDiffSync):
     status__name: str
     serial: Optional[str] = None
     san: Optional[str] = None
-    device_latitude: Annotated[str, CustomFieldAnnotation(key="device_latitude")]
+    device_latitude: Annotated[
+        Optional[str], CustomFieldAnnotation(key="device_latitude")
+    ]
 
-    device_longitude: Annotated[str, CustomFieldAnnotation(key="device_longitude")]
+    device_longitude: Annotated[
+        Optional[str], CustomFieldAnnotation(key="device_longitude")
+    ]
 
-    device_altitude: Annotated[str, CustomFieldAnnotation(key="device_altitude")]
+    device_altitude: Annotated[
+        Optional[str], CustomFieldAnnotation(key="device_altitude")
+    ]
 
-    device_gps_method: Annotated[str, CustomFieldAnnotation(key="device_gps_method")]
+    device_gps_method: Annotated[
+        Optional[str], CustomFieldAnnotation(key="device_gps_method")
+    ]
 
-    device_accuracy: Annotated[int, CustomFieldAnnotation(key="deviceaccuracy")]
+    device_accuracy: Annotated[
+        Optional[int], CustomFieldAnnotation(key="device_accuracy")
+    ]
 
     class Config:
         """Pydantic configuration for the model."""
@@ -192,4 +201,6 @@ class CradlepointDevice(CradlepointDiffSync):
     @classmethod
     def get_queryset(cls):
         """Get queryset for CradlePoint devices by filtering on Manufacturer."""
-        return Device.objects.filter(device_type__manufacturer__name="CradlePoint Inc.")
+        return Device.objects.filter(
+            device_type__manufacturer__name=DEFAULT_MANUFACTURER
+        )
