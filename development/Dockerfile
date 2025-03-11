@@ -15,6 +15,12 @@ ARG PYTHON_VER="3.11"
 # Retrieve published development image of Nautobot base which should include most CI dependencies
 FROM ghcr.io/nautobot/nautobot-dev:${NAUTOBOT_VER}-py${PYTHON_VER}
 
+# Enable bytecode compilation
+ENV UV_COMPILE_BYTECODE=1
+
+# Copy from the cache instead of linking since it's a mounted volume
+ENV UV_LINK_MODE=copy
+
 # Runtime argument and environment setup
 ARG NAUTOBOT_ROOT=/opt/nautobot
 
@@ -27,8 +33,12 @@ ENV INVOKE_NAUTOBOT_SSOT_LOCAL=true
 # and CI and local development may have a newer version of Poetry
 # Since this is only used for development and we don't ship this container, pinning Poetry back is not expressly necessary
 # We also don't need virtual environments in container
-RUN which poetry || curl -sSL https://install.python-poetry.org | python3 - && \
-    poetry config virtualenvs.create false
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Place executables in the environment at the front of the path
+ENV PATH="/source/.venv/bin:$PATH"
+
+RUN source $HOME/.local/bin/env
 
 # !!! USE CAUTION WHEN MODIFYING LINES ABOVE
 # -------------------------------------------------------------------------------------
@@ -51,7 +61,6 @@ RUN which poetry || curl -sSL https://install.python-poetry.org | python3 - && \
 
 # Copy in the source code
 WORKDIR /source
-COPY . /source
 
 # Build args must be declared in each stage
 ARG NAUTOBOT_VER
@@ -60,13 +69,16 @@ ARG PYTHON_VER
 # Constrain the Nautobot version to NAUTOBOT_VER, fall back to installing from git branch if not available on PyPi
 # In CI, this should be done outside of the Dockerfile to prevent cross-compile build failures
 ARG CI
-RUN if [ -z "${CI+x}" ]; then \
-    INSTALLED_NAUTOBOT_VER=$(pip show nautobot | grep "^Version" | sed "s/Version: //"); \
-    poetry add --lock nautobot@${INSTALLED_NAUTOBOT_VER} --python ${PYTHON_VER} || \
-    poetry add --lock git+https://github.com/nautobot/nautobot.git#${NAUTOBOT_VER} --python ${PYTHON_VER}; fi
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    /root/.local/bin/uv sync --frozen --no-install-project --no-dev
 
-# Install the app
-RUN poetry install --extras all --with dev
+# Then, add the rest of the project source code and install it
+# Installing separately from its dependencies allows optimal layer caching
+ADD . /source
+RUN --mount=type=cache,target=/root/.cache/uv \
+/root/.local/bin/uv sync --frozen --no-dev
 
 COPY development/nautobot_config.py ${NAUTOBOT_ROOT}/nautobot_config.py
 # !!! USE CAUTION WHEN MODIFYING LINES ABOVE

@@ -1,14 +1,26 @@
-[tool.poetry]
+[project]
+authors = [
+    {name = "Network to Code, LLC", email = "opensource@networktocode.com"},
+]
+license = {text = "Apache-2.0"}
+requires-python = "<3.13,>=3.8"
+dependencies = [
+    "nautobot==2.2.1; python_version == \"3.11\"",
+    "diffsync<3.0.0,>=2.0.0",
+    "Markdown!=3.3.5",
+    "packaging<24,>=21.3",
+    "prometheus-client>=0.17.1",
+    "retry<1.0.0,>=0.9.2",
+]
 name = "nautobot-ssot"
 version = "3.5.1a0"
 description = "Nautobot Single Source of Truth"
-authors = ["Network to Code, LLC <opensource@networktocode.com>"]
-license = "Apache-2.0"
 readme = "README.md"
-homepage = "https://github.com/nautobot/nautobot-app-ssot"
-repository = "https://github.com/nautobot/nautobot-app-ssot"
-documentation = "https://docs.nautobot.com/projects/ssot/en/latest/"
-keywords = ["nautobot", "nautobot-app", "nautobot-plugin"]
+keywords = [
+    "nautobot",
+    "nautobot-app",
+    "nautobot-plugin",
+]
 classifiers = [
     "Intended Audience :: Developers",
     "Development Status :: 5 - Production/Stable",
@@ -19,145 +31,78 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-packages = [
-    { include = "nautobot_ssot" },
-]
-include = [
-    # Poetry by default will exclude files that are in .gitignore
-    "nautobot_ssot/static/nautobot_ssot/docs/**/*",
-]
 
-[tool.poetry.dependencies]
-python = ">=3.8,<3.13"
-# Used for local development
-nautobot = {version = "2.2.1", python = "3.11"}
-diffsync = "^2.0.0"
-Jinja2 = { version = ">=2.11.3", optional = true }
-Markdown = "!=3.3.5"
-PyYAML = { version = ">=6", optional = true }
-cloudvision = { version = "^1.9.0", optional = true }
-cvprac = { version = "^1.2.2", optional = true }
-dnspython = { version = "^2.1.0", optional = true }
-nautobot-device-lifecycle-mgmt = { version = "^2.0.0", optional = true }
-packaging = ">=21.3, <24"
-prometheus-client = ">=0.17.1"
-ijson = { version = ">=2.5.1", optional = true }
-ipfabric = { version = "^6.0.0", optional = true }
-netutils = { version = "^1.9.0", optional = true }
-oauthlib = { version = ">=3.1.0", optional = true }
-python-magic = { version = ">=0.4.15", optional = true }
-pytz = { version = ">=2019.3", optional = true }
-requests = { version = ">=2.21.0", optional = true }
-requests-oauthlib = { version = ">=1.3.0", optional = true }
-urllib3 = { version = ">=2.2.3", optional = true }
-six = { version = ">=1.13.0", optional = true }
-httpx = { version = ">=0.23.3", optional = true }
-# Used by the Itential SSoT as a retry mechanism for HTTP failures in the AutomationGatewayClient.
-retry = "^0.9.2"
-# used for DNA Center integration
-dnacentersdk = { version = "^2.5.6", optional = true }
-meraki = { version = "^1.37.2,<1.46.0", optional = true }
-slurpit-sdk = { version = "^0.9.58", optional = true }
+[project.urls]
+homepage = "https://github.com/nautobot/nautobot-app-ssot"
+repository = "https://github.com/nautobot/nautobot-app-ssot"
+documentation = "https://docs.nautobot.com/projects/ssot/en/latest/"
 
-[tool.poetry.group.dev.dependencies]
-coverage = "*"
-django-debug-toolbar = "<4.4"
-invoke = "*"
-ipython = "*"
-jedi = "^0.17.2"
-pylint = "*"
-pylint-django = "*"
-pylint-nautobot = "*"
-ruff = "0.5.5"
-yamllint = "*"
-markdown-include = "*"
-toml = "*"
-Markdown = "*"
-# Render custom markdown for version added/changed/remove notes
-markdown-version-annotations = "1.0.1"
-# Rendering docs to HTML
-mkdocs = "1.6.0"
-# Material for MkDocs theme
-mkdocs-material = "9.5.32"
-# Automatic documentation from sources, for MkDocs
-mkdocstrings = "0.25.2"
-mkdocstrings-python = "1.10.8"
-griffe = "1.1.1"
-towncrier = "~23.6.0"
-requests-mock = "^1.10.0"
-parameterized = "^0.8.1"
-myst-parser = "^2.0.0"
-responses = "^0.14.0"
-to-json-schema = "*"
-jsonschema = "*"
-mkdocs-autorefs = "1.2.0"
+[project.entry-points."nautobot_ssot.data_sources"]
+example = "nautobot_ssot.sync.example:ExampleSyncWorker"
 
-[tool.poetry.plugins."nautobot_ssot.data_sources"]
-"example" = "nautobot_ssot.sync.example:ExampleSyncWorker"
+[project.entry-points."nautobot_ssot.data_targets"]
+example = "nautobot_ssot.sync.example:ExampleSyncWorker"
 
-[tool.poetry.plugins."nautobot_ssot.data_targets"]
-"example" = "nautobot_ssot.sync.example:ExampleSyncWorker"
+[project.entry-points."nautobot.workers"]
+ipfabric = "nautobot_ssot.integrations.ipfabric.workers:ipfabric"
 
-[tool.poetry.plugins."nautobot.workers"]
-"ipfabric" = "nautobot_ssot.integrations.ipfabric.workers:ipfabric"
-
-[tool.poetry.extras]
-aci = [
-    "PyYAML",
-]
+[project.optional-dependencies]
 all = [
-    "Jinja2",
-    "PyYAML",
-    "cloudvision",
-    "cvprac",
-    "dnspython",
-    "ijson",
-    "ipfabric",
-    "nautobot-device-lifecycle-mgmt",
-    "netutils",
-    "oauthlib",
-    "python-magic",
-    "pytz",
-    "requests",
-    "requests-oauthlib",
-    "six",
-    "urllib3",
-    "dnacentersdk",
-    "meraki",
-    "slurpit_sdk",
+    "Jinja2>=2.11.3",
+    "PyYAML>=6",
+    "cloudvision<2.0.0,>=1.9.0",
+    "cvprac<2.0.0,>=1.2.2",
+    "dnspython<3.0.0,>=2.1.0",
+    "ijson>=2.5.1",
+    "ipfabric<7.0.0,>=6.0.0",
+    "nautobot-device-lifecycle-mgmt<3.0.0,>=2.0.0",
+    "netutils<2.0.0,>=1.9.0",
+    "oauthlib>=3.1.0",
+    "python-magic>=0.4.15",
+    "pytz>=2019.3",
+    "requests>=2.21.0",
+    "requests-oauthlib>=1.3.0",
+    "six>=1.13.0",
+    "urllib3>=2.2.3",
+    "dnacentersdk<3.0.0,>=2.5.6",
+    "meraki<1.46.0,<2.0.0,>=1.37.2",
+    "slurpit_sdk<1.0.0,>=0.9.83",
+]
+aci = [
+    "PyYAML>=6",
 ]
 aristacv = [
-    "cloudvision",
-    "cvprac",
+    "cloudvision<2.0.0,>=1.9.0",
+    "cvprac<2.0.0,>=1.2.2",
 ]
 bootstrap = [
-    "pytz"
+    "pytz>=2019.3",
 ]
 citrix-adm = [
-    "requests",
-    "urllib3",
-    "netutils",
+    "requests>=2.21.0",
+    "urllib3>=2.2.3",
+    "netutils<2.0.0,>=1.9.0",
 ]
 device42 = [
-    "requests",
+    "requests>=2.21.0",
 ]
 dna_center = [
-    "dnacentersdk",
-    "netutils"
+    "dnacentersdk<3.0.0,>=2.5.6",
+    "netutils<2.0.0,>=1.9.0",
 ]
 infoblox = [
-    "dnspython",
+    "dnspython<3.0.0,>=2.1.0",
 ]
 ipfabric = [
-    "httpx",
-    "ipfabric",
-    "netutils",
+    "httpx>=0.23.3",
+    "ipfabric<7.0.0,>=6.0.0",
+    "netutils<2.0.0,>=1.9.0",
 ]
 meraki = [
-    "meraki",
+    "meraki<1.46.0,<2.0.0,>=1.37.2",
 ]
 slurpit = [
-    "slurpit_sdk",
+    "slurpit_sdk<1.0.0,>=0.9.83",
 ]
 # pysnow = "^0.7.17"
 # PySNow is currently pinned to an older version of pytz as a dependency, which blocks compatibility with newer
@@ -165,27 +110,58 @@ slurpit = [
 # For now, we have embedded a copy of PySNow under nautobot_ssot/integrations/servicenow/third_party/pysnow;
 # here are its direct packaging dependencies:
 pysnow = [
-    "requests",
-    "oauthlib",
-    "python-magic",
-    "requests-oauthlib",
-    "six",
-    "ijson",
-    "pytz",
+    "requests>=2.21.0",
+    "oauthlib>=3.1.0",
+    "python-magic>=0.4.15",
+    "requests-oauthlib>=1.3.0",
+    "six>=1.13.0",
+    "ijson>=2.5.1",
+    "pytz>=2019.3",
 ]
 servicenow = [
-    "Jinja2",
-    "PyYAML",
-    "ijson",
-    "oauthlib",
-    "python-magic",
-    "pytz",
-    "requests",
-    "requests-oauthlib",
-    "six",
+    "Jinja2>=2.11.3",
+    "PyYAML>=6",
+    "ijson>=2.5.1",
+    "oauthlib>=3.1.0",
+    "python-magic>=0.4.15",
+    "pytz>=2019.3",
+    "requests>=2.21.0",
+    "requests-oauthlib>=1.3.0",
+    "six>=1.13.0",
 ]
 nautobot-device-lifecycle-mgmt = [
-    "nautobot-device-lifecycle-mgmt",
+    "nautobot-device-lifecycle-mgmt<3.0.0,>=2.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "coverage",
+    "django-debug-toolbar<4.4",
+    "invoke",
+    "ipython",
+    "jedi<1.0.0,>=0.17.2",
+    "pylint",
+    "pylint-django",
+    "pylint-nautobot",
+    "ruff==0.5.5",
+    "yamllint",
+    "markdown-include",
+    "toml",
+    "Markdown",
+    "markdown-version-annotations==1.0.1",
+    "mkdocs==1.6.0",
+    "mkdocs-material==9.5.32",
+    "mkdocstrings==0.25.2",
+    "mkdocstrings-python==1.10.8",
+    "griffe==1.1.1",
+    "towncrier~=23.6.0",
+    "requests-mock<2.0.0,>=1.10.0",
+    "parameterized<1.0.0,>=0.8.1",
+    "myst-parser<3.0.0,>=2.0.0",
+    "responses<1.0.0,>=0.14.0",
+    "to-json-schema",
+    "jsonschema",
+    "mkdocs-autorefs==1.2.0",
 ]
 
 [tool.pylint.master]
@@ -264,9 +240,12 @@ convention = "google"
     "D", # pydocstyle
 ]
 
+[tool.pdm.build]
+includes = ["nautobot_ssot", "nautobot_ssot/static/nautobot_ssot/docs/**/*"]
+
 [build-system]
-requires = ["poetry_core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
 
 [tool.towncrier]
 package = "nautobot_ssot"
