@@ -172,7 +172,7 @@ class CradlepointAdapter(Adapter):
     def load(self):
         """Entrypoint for loading data from Cradlepoint."""
         offset_number = 0
-        limit_number = 100
+        limit_number = 10
         next = True
         # This will change to a while loop wfor the actual implementation.
         for number in range(0, 2):
