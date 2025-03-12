@@ -99,8 +99,9 @@ class NautobotAdapter(Adapter):
         )
         for metadata in metadata_for_this_field:
             if isinstance(metadata, CustomFieldAnnotation):
-                if any(
-                    key in database_object.cf for key in (metadata.key, metadata.name)
+                if (
+                    metadata.name in database_object.cf
+                    or metadata.key in database_object.cf
                 ):
                     parameters[parameter_name] = database_object.cf[metadata.key]
                 is_custom_field = True
