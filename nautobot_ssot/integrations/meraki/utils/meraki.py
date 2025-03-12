@@ -1,5 +1,7 @@
 """Utility functions for working with Meraki."""
 
+from typing import List
+
 import meraki
 
 
@@ -93,6 +95,26 @@ class DashboardClient:
                 f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
             )
         return settings_map
+
+    def get_org_uplink_addresses_by_device(self, serial: str) -> List[dict]:
+        """Retrieve uplink addresses for specified device serial.
+
+        Args:
+            serial (str): Serial of device to retrieve uplink addresses for.
+
+        Returns:
+            List[dict]: List of dictionaries of uplink addresses for device with specified serial.
+        """
+        addresses = []
+        try:
+            addresses = self.conn.organizations.getOrganizationDevicesUplinksAddressesByDevice(
+                organizationId=self.org_id, serial=serial
+            )
+        except meraki.APIError as err:
+            self.logger.logger.warning(
+                f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
+            )
+        return addresses
 
     def get_org_switchports(self) -> dict:
         """Retrieve all ports for switches in specified organization ID.
