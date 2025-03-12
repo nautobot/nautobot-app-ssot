@@ -8,6 +8,7 @@ from decimal import Decimal, InvalidOperation
 
 from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
+from django.core.exceptions import ObjectDoesNotExist
 from nautobot.dcim.models import LocationType
 from nautobot.extras.models import Status
 from netutils.mac import mac_to_format
@@ -279,7 +280,6 @@ class SlurpitAdapter(Adapter):
                     "name": platform,
                     "manufacturer__name": platforms[platform],
                     "network_driver": platform,
-                    "napalm_driver": platform,
                     "system_of_record": "Slurpit",
                     "last_synced_from_sor": datetime.today().date().isoformat(),
                 }
@@ -372,6 +372,8 @@ class SlurpitAdapter(Adapter):
                     self.job.logger.warning(f"Device {interface['hostname']} not found")
                 except ObjectAlreadyExists as err:
                     self.job.logger.warning(f"Duplicate interface {new_interface.name}. {err}")
+                except ObjectDoesNotExist as err:
+                    self.job.logger.warning(f"Unable to find IP for interface {ip_address.get('host')}. {err}")
 
     def load_inventory_items(self):
         """Load inventory items from Slurpit."""
@@ -477,14 +479,6 @@ class SlurpitAdapter(Adapter):
                     "last_synced_from_sor": datetime.today().date().isoformat(),
                 }
 
-                try:
-                    self.ipaddress_by_device[f"{ip_address.get('hostname', '')}__{ip_address.get('Interface')}"].append(
-                        data
-                    )
-                except KeyError:
-                    self.ipaddress_by_device[f"{ip_address.get('hostname', '')}__{ip_address.get('Interface')}"] = [
-                        data
-                    ]
                 if prefix := ip_address.get("prefix"):
                     network_data = prefix.split("/")[0]
                     mask_length_data = prefix.split("/")[1]
@@ -510,6 +504,15 @@ class SlurpitAdapter(Adapter):
                     self.add(self.prefix(**prefix_data))
                 new_ip = self.ipaddress(**data)
                 self.add(new_ip)
+
+                try:
+                    self.ipaddress_by_device[f"{ip_address.get('hostname', '')}__{ip_address.get('Interface')}"].append(
+                        data
+                    )
+                except KeyError:
+                    self.ipaddress_by_device[f"{ip_address.get('hostname', '')}__{ip_address.get('Interface')}"] = [
+                        data
+                    ]
             except ObjectNotFound:
                 self.job.logger.warning(f"Interface {ip_address.get('Interface')} not found")
             except ObjectAlreadyExists as err:
