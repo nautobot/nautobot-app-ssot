@@ -158,6 +158,7 @@ class CradlepointDevice(CradlepointDiffSync):
         "role__name",
         "status__name",
         "serial",
+        "cradlepoint_id_number",
         "device_latitude",
         "device_longitude",
         "device_altitude",
@@ -171,8 +172,10 @@ class CradlepointDevice(CradlepointDiffSync):
     location__name: str
     role__name: str
     status__name: str
-    serial: Optional[str] = None
-    san: Optional[str] = None
+    serial: str
+    cradlepoint_id_number: Annotated[
+        Optional[str], CustomFieldAnnotation(key="cradlepoint_id_number")
+    ]
     device_latitude: Annotated[
         Optional[str], CustomFieldAnnotation(key="device_latitude")
     ]

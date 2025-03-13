@@ -246,7 +246,7 @@ PLUGINS_CONFIG = {
             "NAUTOBOT_SSOT_CRADLEPOINT_DEFAULT_LOCATION_PARENT", ""
         ),
         "cradlepoint_default_manufacturer_name": os.getenv(
-            "NAUTOBOT_SSOT_CRADLEPOINT_DEFAULT_MANUFACTURER", "CradlePoint"
+            "NAUTOBOT_SSOT_CRADLEPOINT_DEFAULT_MANUFACTURER", "Cradlepoint"
         ),
         "enable_aci": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ACI")),
         "enable_aristacv": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ARISTACV")),

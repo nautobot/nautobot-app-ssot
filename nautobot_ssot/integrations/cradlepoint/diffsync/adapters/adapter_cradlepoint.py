@@ -107,6 +107,7 @@ class CradlepointAdapter(Adapter):
             "role__name": record["device_type"].capitalize(),
             "status__name": record["state"].capitalize(),
             "serial": serial_number,
+            "cradlepoint_id_number": record["id"],
             # Custom fields in Nautobot do not support float values so we must use strings instead.
             "device_latitude": str(record.get("latitude")),
             "device_longitude": str(record.get("longitude")),

@@ -195,3 +195,11 @@ def create_default_custom_fields(sender, *, apps, **kwargs):
         label="Device GPS Method",
     )
     device_gps_method.content_types.add(ContentType.objects.get_for_model(Device))
+
+    cradlepoint_id_number, _ = CustomField.objects.get_or_create(
+        type=CustomFieldTypeChoices.TYPE_TEXT,
+        key="cradlepoint_id_number",
+        label="Cradlepoint ID Number",
+        advanced_ui=True,
+    )
+    cradlepoint_id_number.content_types.add(ContentType.objects.get_for_model(Device))
