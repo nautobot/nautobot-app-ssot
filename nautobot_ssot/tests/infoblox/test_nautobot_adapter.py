@@ -177,7 +177,7 @@ class TestNautobotAdapter(TestCase):
             include_ipv4=True,
             include_ipv6=False,
             sync_filters=self.sync_filters,
-            network_view_to_namespace_map=self.network_view_to_namespace_map
+            network_view_to_namespace_map=self.network_view_to_namespace_map,
         )
         actual_prefixes = {(prefix.network, prefix.namespace) for prefix in self.nb_adapter.get_all("prefix")}
         self.assertEqual(actual_prefixes, {("10.0.0.0/24", "Global"), ("10.0.1.0/24", "Global")})
@@ -188,7 +188,7 @@ class TestNautobotAdapter(TestCase):
             include_ipv4=True,
             include_ipv6=False,
             sync_filters=sync_filters,
-            network_view_to_namespace_map=self.network_view_to_namespace_map
+            network_view_to_namespace_map=self.network_view_to_namespace_map,
         )
         actual_prefixes = {(prefix.network, prefix.namespace) for prefix in self.nb_adapter.get_all("prefix")}
         self.assertEqual(
@@ -202,7 +202,7 @@ class TestNautobotAdapter(TestCase):
             include_ipv4=True,
             include_ipv6=False,
             sync_filters=sync_filters,
-            network_view_to_namespace_map=self.network_view_to_namespace_map
+            network_view_to_namespace_map=self.network_view_to_namespace_map,
         )
         actual_prefixes = {(prefix.network, prefix.namespace) for prefix in self.nb_adapter.get_all("prefix")}
         self.assertEqual(
@@ -221,7 +221,7 @@ class TestNautobotAdapter(TestCase):
             include_ipv4=True,
             include_ipv6=False,
             sync_filters=sync_filters,
-            network_view_to_namespace_map=self.network_view_to_namespace_map
+            network_view_to_namespace_map=self.network_view_to_namespace_map,
         )
         actual_prefixes = {(prefix.network, prefix.namespace) for prefix in self.nb_adapter.get_all("prefix")}
         self.assertEqual(
@@ -240,7 +240,7 @@ class TestNautobotAdapter(TestCase):
             include_ipv4=False,
             include_ipv6=True,
             sync_filters=sync_filters,
-            network_view_to_namespace_map=network_view_to_namespace_map
+            network_view_to_namespace_map=network_view_to_namespace_map,
         )
         actual_prefixes = {(prefix.network, prefix.namespace) for prefix in self.nb_adapter.get_all("prefix")}
         self.assertEqual(
@@ -257,7 +257,7 @@ class TestNautobotAdapter(TestCase):
             include_ipv4=True,
             include_ipv6=True,
             sync_filters=sync_filters,
-            network_view_to_namespace_map=network_view_to_namespace_map
+            network_view_to_namespace_map=network_view_to_namespace_map,
         )
         actual_prefixes = {(prefix.network, prefix.namespace) for prefix in self.nb_adapter.get_all("prefix")}
         self.assertEqual(
@@ -274,7 +274,7 @@ class TestNautobotAdapter(TestCase):
             include_ipv4=True,
             include_ipv6=False,
             sync_filters=self.sync_filters,
-            network_view_to_namespace_map=self.network_view_to_namespace_map
+            network_view_to_namespace_map=self.network_view_to_namespace_map,
         )
         prefix_with_vlan = self.nb_adapter.get("prefix", {"network": "10.0.0.0/24", "namespace": "Global"})
         self.assertEqual({10: {"vid": 10, "name": "ten", "group": None}}, prefix_with_vlan.vlans)
@@ -284,7 +284,7 @@ class TestNautobotAdapter(TestCase):
             include_ipv4=True,
             include_ipv6=False,
             sync_filters=self.sync_filters,
-            network_view_to_namespace_map=self.network_view_to_namespace_map
+            network_view_to_namespace_map=self.network_view_to_namespace_map,
         )
         prefix_with_ranges = self.nb_adapter.get("prefix", {"network": "10.0.0.0/24", "namespace": "Global"})
         self.assertEqual(["10.0.0.50-10.0.0.254"], prefix_with_ranges.ranges)
@@ -296,7 +296,7 @@ class TestNautobotAdapter(TestCase):
             sync_filters=sync_filters,
             network_view_to_namespace_map=network_view_to_namespace_map,
             include_ipv4=True,
-            include_ipv6=False
+            include_ipv6=False,
         )
         actual_ipaddresses = {(ipaddr.address, ipaddr.namespace) for ipaddr in self.nb_adapter.get_all("ipaddress")}
         self.assertEqual(
@@ -310,7 +310,7 @@ class TestNautobotAdapter(TestCase):
             include_ipv4=True,
             include_ipv6=False,
             sync_filters=sync_filters,
-            network_view_to_namespace_map=self.network_view_to_namespace_map
+            network_view_to_namespace_map=self.network_view_to_namespace_map,
         )
         actual_ipaddresses = {(ipaddr.address, ipaddr.namespace) for ipaddr in self.nb_adapter.get_all("ipaddress")}
         self.assertEqual(
@@ -324,7 +324,7 @@ class TestNautobotAdapter(TestCase):
             include_ipv4=True,
             include_ipv6=False,
             sync_filters=sync_filters,
-            network_view_to_namespace_map=self.network_view_to_namespace_map
+            network_view_to_namespace_map=self.network_view_to_namespace_map,
         )
         actual_ipaddresses = {(ipaddr.address, ipaddr.namespace) for ipaddr in self.nb_adapter.get_all("ipaddress")}
         self.assertEqual(
@@ -343,7 +343,7 @@ class TestNautobotAdapter(TestCase):
             include_ipv4=True,
             include_ipv6=False,
             sync_filters=sync_filters,
-            network_view_to_namespace_map=self.network_view_to_namespace_map
+            network_view_to_namespace_map=self.network_view_to_namespace_map,
         )
         actual_ipaddresses = {(ipaddr.address, ipaddr.namespace) for ipaddr in self.nb_adapter.get_all("ipaddress")}
         self.assertEqual(
@@ -361,7 +361,7 @@ class TestNautobotAdapter(TestCase):
             include_ipv4=False,
             include_ipv6=True,
             sync_filters=sync_filters,
-            network_view_to_namespace_map=network_view_to_namespace_map
+            network_view_to_namespace_map=network_view_to_namespace_map,
         )
         actual_ipaddresses = {(ipaddr.address, ipaddr.namespace) for ipaddr in self.nb_adapter.get_all("ipaddress")}
         self.assertEqual(
@@ -378,7 +378,7 @@ class TestNautobotAdapter(TestCase):
             include_ipv4=True,
             include_ipv6=True,
             sync_filters=sync_filters,
-            network_view_to_namespace_map=network_view_to_namespace_map
+            network_view_to_namespace_map=network_view_to_namespace_map,
         )
         actual_ipaddresses = {(ipaddr.address, ipaddr.namespace) for ipaddr in self.nb_adapter.get_all("ipaddress")}
         self.assertEqual(
@@ -400,7 +400,7 @@ class TestNautobotAdapter(TestCase):
             include_ipv4=True,
             include_ipv6=False,
             sync_filters=sync_filters,
-            network_view_to_namespace_map=network_view_to_namespace_map
+            network_view_to_namespace_map=network_view_to_namespace_map,
         )
         actual_records = {
             (hostr.address, hostr.namespace, hostr.dns_name) for hostr in nb_adapter.get_all("dnshostrecord")
@@ -422,7 +422,7 @@ class TestNautobotAdapter(TestCase):
             include_ipv4=True,
             include_ipv6=False,
             sync_filters=sync_filters,
-            network_view_to_namespace_map=self.network_view_to_namespace_map
+            network_view_to_namespace_map=self.network_view_to_namespace_map,
         )
         actual_records = {
             (hostr.address, hostr.namespace, hostr.dns_name) for hostr in nb_adapter.get_all("dnsarecord")
@@ -444,7 +444,7 @@ class TestNautobotAdapter(TestCase):
             include_ipv4=True,
             include_ipv6=False,
             sync_filters=sync_filters,
-            network_view_to_namespace_map=self.network_view_to_namespace_map
+            network_view_to_namespace_map=self.network_view_to_namespace_map,
         )
         actual_records = {
             (hostr.address, hostr.namespace, hostr.dns_name) for hostr in nb_adapter.get_all("dnsptrrecord")

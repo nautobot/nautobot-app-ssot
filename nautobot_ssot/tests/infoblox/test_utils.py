@@ -85,31 +85,31 @@ class TestUtils(unittest.TestCase):
         namespace1 = "test"
         namespace2 = "Global"
 
-        network_view_to_namespace_map={"default": "Global"}
+        network_view_to_namespace_map = {"default": "Global"}
 
-        self.assertEqual("dev", map_network_view_to_namespace(
-                value=network_view1,
-                network_view_to_namespace_map=network_view_to_namespace_map,
-                direction="nv_to_ns"
-            )
+        self.assertEqual(
+            "dev",
+            map_network_view_to_namespace(
+                value=network_view1, network_view_to_namespace_map=network_view_to_namespace_map, direction="nv_to_ns"
+            ),
         )
-        self.assertEqual("Global", map_network_view_to_namespace(
-                value=network_view2,
-                network_view_to_namespace_map=network_view_to_namespace_map,
-                direction="nv_to_ns"
-            )
+        self.assertEqual(
+            "Global",
+            map_network_view_to_namespace(
+                value=network_view2, network_view_to_namespace_map=network_view_to_namespace_map, direction="nv_to_ns"
+            ),
         )
-        self.assertEqual("test", map_network_view_to_namespace(
-                value=namespace1,
-                network_view_to_namespace_map=network_view_to_namespace_map,
-                direction="ns_to_nv"
-            )
+        self.assertEqual(
+            "test",
+            map_network_view_to_namespace(
+                value=namespace1, network_view_to_namespace_map=network_view_to_namespace_map, direction="ns_to_nv"
+            ),
         )
-        self.assertEqual("default", map_network_view_to_namespace(
-                value=namespace2,
-                network_view_to_namespace_map=network_view_to_namespace_map,
-                direction="ns_to_nv"
-            )
+        self.assertEqual(
+            "default",
+            map_network_view_to_namespace(
+                value=namespace2, network_view_to_namespace_map=network_view_to_namespace_map, direction="ns_to_nv"
+            ),
         )
 
     def test_get_valid_custom_fields(self):

@@ -156,7 +156,7 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
             namespace_name = map_network_view_to_namespace(
                 value=sync_filter["network_view"],
                 network_view_to_namespace_map=network_view_to_namespace_map,
-                direction="nv_to_ns"
+                direction="nv_to_ns",
             )
             namespaces.add(namespace_name)
 
@@ -173,8 +173,7 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
         namespace_names = None
         if sync_filters:
             namespace_names = self._get_namespaces_from_sync_filters(
-                sync_filters=sync_filters,
-                network_view_to_namespace_map=network_view_to_namespace_map
+                sync_filters=sync_filters, network_view_to_namespace_map=network_view_to_namespace_map
             )
         if namespace_names:
             all_namespaces = Namespace.objects.filter(name__in=namespace_names)
@@ -197,7 +196,9 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
             except ObjectAlreadyExists:
                 self.job.logger.warning(f"Found duplicate namespace: {namespace.name}.")
 
-    def _load_all_prefixes_filtered(self, sync_filters: list, include_ipv4: bool, include_ipv6: bool, network_view_to_namespace_map: dict):
+    def _load_all_prefixes_filtered(
+        self, sync_filters: list, include_ipv4: bool, include_ipv6: bool, network_view_to_namespace_map: dict
+    ):
         """Loads prefixes from Nautobot based on the provided sync filter.
 
         Args:
@@ -215,7 +216,7 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
                 namespace = map_network_view_to_namespace(
                     sync_filter["network_view"],
                     network_view_to_namespace_map=network_view_to_namespace_map,
-                    direction="nv_to_ns"
+                    direction="nv_to_ns",
                 )
                 query_filters["namespace__name"] = namespace
             if "prefixes_ipv4" in sync_filter and include_ipv4:
@@ -236,7 +237,9 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
 
         return all_prefixes
 
-    def load_prefixes(self, include_ipv4: bool, include_ipv6: bool, sync_filters: list, network_view_to_namespace_map: dict):
+    def load_prefixes(
+        self, include_ipv4: bool, include_ipv6: bool, sync_filters: list, network_view_to_namespace_map: dict
+    ):
         """Load Prefixes from Nautobot.
 
         Args:
@@ -250,7 +253,7 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
             sync_filters=sync_filters,
             include_ipv4=include_ipv4,
             include_ipv6=include_ipv6,
-            network_view_to_namespace_map=network_view_to_namespace_map
+            network_view_to_namespace_map=network_view_to_namespace_map,
         )
 
         default_cfs = get_default_custom_fields(
@@ -277,7 +280,9 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
             except ObjectAlreadyExists:
                 self.job.logger.warning(f"Found duplicate prefix: {prefix.prefix}.")
 
-    def _load_all_ipaddresses_filtered(self, sync_filters: list, include_ipv4: bool, include_ipv6: bool, network_view_to_namespace_map: dict):
+    def _load_all_ipaddresses_filtered(
+        self, sync_filters: list, include_ipv4: bool, include_ipv6: bool, network_view_to_namespace_map: dict
+    ):
         """Loads ip addresses from Nautobot based on the provided sync filter.
 
         Args:
@@ -295,7 +300,7 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
                 namespace = map_network_view_to_namespace(
                     sync_filter["network_view"],
                     network_view_to_namespace_map=network_view_to_namespace_map,
-                    direction="nv_to_ns"
+                    direction="nv_to_ns",
                 )
                 query_filters["parent__namespace__name"] = namespace
             if "prefixes_ipv4" in sync_filter and include_ipv4:
@@ -314,7 +319,9 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
 
         return all_ipaddresses
 
-    def load_ipaddresses(self, include_ipv4: bool, include_ipv6: bool, sync_filters: list, network_view_to_namespace_map: dict):  # pylint: disable=too-many-branches
+    def load_ipaddresses(
+        self, include_ipv4: bool, include_ipv6: bool, sync_filters: list, network_view_to_namespace_map: dict
+    ):  # pylint: disable=too-many-branches
         """Load IP Addresses from Nautobot.
 
         Args:
@@ -331,7 +338,7 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
             sync_filters=sync_filters,
             include_ipv4=include_ipv4,
             include_ipv6=include_ipv6,
-            network_view_to_namespace_map=network_view_to_namespace_map
+            network_view_to_namespace_map=network_view_to_namespace_map,
         )
         for ipaddr in all_ipaddresses:
             addr = ipaddr.host
@@ -546,7 +553,7 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
                 sync_filters=sync_filters,
                 network_view_to_namespace_map=network_view_to_namespace_map,
                 include_ipv4=include_ipv4,
-                include_ipv6=include_ipv6
+                include_ipv6=include_ipv6,
             )
         if "prefix" in self.dict():
             self.job.logger.info(f"Loaded {len(self.dict()['prefix'])} prefixes from Nautobot.")
@@ -555,7 +562,7 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
                 sync_filters=sync_filters,
                 include_ipv4=include_ipv4,
                 include_ipv6=include_ipv6,
-                network_view_to_namespace_map=network_view_to_namespace_map
+                network_view_to_namespace_map=network_view_to_namespace_map,
             )
         if "ipaddress" in self.dict():
             self.job.logger.info(f"Loaded {len(self.dict()['ipaddress'])} IP addresses from Nautobot.")

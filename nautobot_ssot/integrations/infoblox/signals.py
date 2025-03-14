@@ -158,7 +158,6 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         infoblox_sync_filters = _get_sync_filters()
         infoblox_network_view_to_namespace_map = _get_default_network_view_to_namespace_map()
 
-
         secrets_group, _ = SecretsGroup.objects.get_or_create(name="InfobloxSSOTDefaultSecretGroup")
         infoblox_username, _ = Secret.objects.get_or_create(
             name="Infoblox Username - Default",
@@ -223,7 +222,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
             dns_record_type=DNSRecordTypeChoices.HOST_RECORD,
         )
     else:
-        infoblox_configs=SSOTInfobloxConfig.objects.all()
+        infoblox_configs = SSOTInfobloxConfig.objects.all()
         for infoblox_config in infoblox_configs:
             if not infoblox_config.infoblox_network_view_to_namespace_map:
                 infoblox_config.infoblox_network_view_to_namespace_map = _get_default_network_view_to_namespace_map()

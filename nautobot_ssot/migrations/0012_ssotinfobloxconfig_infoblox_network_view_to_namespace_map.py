@@ -5,15 +5,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('nautobot_ssot', '0011_alter_sync_job_result'),
+        ("nautobot_ssot", "0011_alter_sync_job_result"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='ssotinfobloxconfig',
-            name='infoblox_network_view_to_namespace_map',
+            model_name="ssotinfobloxconfig",
+            name="infoblox_network_view_to_namespace_map",
             field=models.JSONField(encoder=django.core.serializers.json.DjangoJSONEncoder, null=True),
         ),
     ]

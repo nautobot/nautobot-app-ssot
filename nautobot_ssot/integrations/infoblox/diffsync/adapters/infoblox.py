@@ -95,9 +95,7 @@ class InfobloxAdapter(Adapter):
             if _nv["name"] not in network_view_filters:
                 continue
             namespace_name = map_network_view_to_namespace(
-                value=_nv["name"],
-                network_view_to_namespace_map=network_view_to_namespace_map,
-                direction="nv_to_ns"
+                value=_nv["name"], network_view_to_namespace_map=network_view_to_namespace_map, direction="nv_to_ns"
             )
             networkview_ext_attrs = get_ext_attr_dict(
                 extattrs=_nv.get("extattrs", {}), excluded_attrs=self.excluded_attrs
@@ -174,7 +172,9 @@ class InfobloxAdapter(Adapter):
 
         return all_containers, all_subnets
 
-    def load_prefixes(self, include_ipv4: bool, include_ipv6: bool, sync_filters: list, network_view_to_namespace_map: dict):
+    def load_prefixes(
+        self, include_ipv4: bool, include_ipv6: bool, sync_filters: list, network_view_to_namespace_map: dict
+    ):
         """Load InfobloxNetwork DiffSync model.
 
         Args:
@@ -202,7 +202,7 @@ class InfobloxAdapter(Adapter):
                 namespace=map_network_view_to_namespace(
                     value=_pf["network_view"],
                     network_view_to_namespace_map=network_view_to_namespace_map,
-                    direction="nv_to_ns"
+                    direction="nv_to_ns",
                 ),
                 description=_pf.get("comment", ""),
                 network_type="network" if _pf in subnets else "container",
@@ -232,9 +232,7 @@ class InfobloxAdapter(Adapter):
             _, prefix_length = _ip["network"].split("/")
             network_view = _ip["network_view"]
             namespace = map_network_view_to_namespace(
-                value=network_view,
-                network_view_to_namespace_map=network_view_to_namespace_map,
-                direction="nv_to_ns"
+                value=network_view, network_view_to_namespace_map=network_view_to_namespace_map, direction="nv_to_ns"
             )
 
             ip_ext_attrs = get_ext_attr_dict(extattrs=_ip.get("extattrs", {}), excluded_attrs=self.excluded_attrs)
@@ -440,7 +438,7 @@ class InfobloxAdapter(Adapter):
                 include_ipv4=include_ipv4,
                 include_ipv6=include_ipv6,
                 sync_filters=sync_filters,
-                network_view_to_namespace_map=network_view_to_namespace_map
+                network_view_to_namespace_map=network_view_to_namespace_map,
             )
         if self.config.import_ip_addresses:
             self.load_ipaddresses(network_view_to_namespace_map=network_view_to_namespace_map)

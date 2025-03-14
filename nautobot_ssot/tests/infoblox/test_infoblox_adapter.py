@@ -88,7 +88,7 @@ class TestInfobloxAdapter(unittest.TestCase):
             include_ipv4=True,
             include_ipv6=False,
             sync_filters=sync_filters,
-            network_view_to_namespace_map=network_view_to_namespace_map
+            network_view_to_namespace_map=network_view_to_namespace_map,
         )
         self.infoblox_adapter.conn.get_tree_from_container.assert_not_called()
         mock_default_extra_attrs.assert_called_once()
@@ -176,7 +176,7 @@ class TestInfobloxAdapter(unittest.TestCase):
             include_ipv4=True,
             include_ipv6=False,
             sync_filters=sync_filters,
-            network_view_to_namespace_map=network_view_to_namespace_map
+            network_view_to_namespace_map=network_view_to_namespace_map,
         )
         self.infoblox_adapter.conn.get_tree_from_container.assert_has_calls(
             [
@@ -247,7 +247,7 @@ class TestInfobloxAdapter(unittest.TestCase):
             include_ipv4=True,
             include_ipv6=False,
             sync_filters=sync_filters,
-            network_view_to_namespace_map = network_view_to_namespace_map
+            network_view_to_namespace_map=network_view_to_namespace_map,
         )
         self.infoblox_adapter.job.logger.warning.assert_called_once()
         self.infoblox_adapter.job.logger.warning.assert_called_with(error_message)
@@ -345,7 +345,7 @@ class TestInfobloxAdapter(unittest.TestCase):
             include_ipv4=True,
             include_ipv6=True,
             sync_filters=sync_filters,
-            network_view_to_namespace_map=network_view_to_namespace_map
+            network_view_to_namespace_map=network_view_to_namespace_map,
         )
         self.infoblox_adapter.conn.get_tree_from_container.assert_not_called()
         mock_default_extra_attrs.assert_called_once()
@@ -653,7 +653,7 @@ class TestInfobloxAdapter(unittest.TestCase):
             "view": "default",
             "comment": "host record comment",
         }
-        network_view_to_namespace_map={"default": "Global"}
+        network_view_to_namespace_map = {"default": "Global"}
         infoblox_adapter.load_ipaddresses(network_view_to_namespace_map=network_view_to_namespace_map)
         ip_address = infoblox_adapter.get(
             "ipaddress",

@@ -96,7 +96,7 @@ def create_default_infoblox_config(infoblox_url="infoblox.example.com"):
             import_ipv6=True,
             job_enabled=True,
             infoblox_sync_filters=infoblox_sync_filters,
-            infoblox_network_view_to_namespace_map=infoblox_network_view_to_namespace_map
+            infoblox_network_view_to_namespace_map=infoblox_network_view_to_namespace_map,
         ),
     )
 
