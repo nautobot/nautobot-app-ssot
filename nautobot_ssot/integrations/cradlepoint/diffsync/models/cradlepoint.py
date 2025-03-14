@@ -175,26 +175,26 @@ class CradlepointDevice(CradlepointDiffSync):
     serial: str
     cradlepoint_id_number: Annotated[
         Optional[str], CustomFieldAnnotation(key="cradlepoint_id_number")
-    ]
+    ] = None
     device_latitude: Annotated[
         Optional[str], CustomFieldAnnotation(key="device_latitude")
-    ]
+    ] = None
 
     device_longitude: Annotated[
         Optional[str], CustomFieldAnnotation(key="device_longitude")
-    ]
+    ] = None
 
     device_altitude: Annotated[
         Optional[str], CustomFieldAnnotation(key="device_altitude")
-    ]
+    ] = None
 
     device_gps_method: Annotated[
         Optional[str], CustomFieldAnnotation(key="device_gps_method")
-    ]
+    ] = None
 
     device_accuracy: Annotated[
         Optional[int], CustomFieldAnnotation(key="device_accuracy")
-    ]
+    ] = None
 
     class Config:
         """Pydantic configuration for the model."""
