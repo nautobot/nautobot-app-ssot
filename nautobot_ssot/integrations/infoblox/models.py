@@ -83,6 +83,9 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         verbose_name="Import VLANs",
     )
     infoblox_sync_filters = models.JSONField(default=_get_default_sync_filters, encoder=DjangoJSONEncoder)
+    infoblox_network_view_to_namespace_map = models.JSONField(
+        null=True, encoder=DjangoJSONEncoder
+    )
     infoblox_dns_view_mapping = models.JSONField(default=dict, encoder=DjangoJSONEncoder, blank=True)
     cf_fields_ignore = models.JSONField(default=_get_default_cf_fields_ignore, encoder=DjangoJSONEncoder, blank=True)
     import_ipv4 = models.BooleanField(
@@ -211,6 +214,11 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
                             {"infoblox_sync_filters": f"IPv6 prefix parsing error: {str(error)}."}
                         )
 
+    def _clean_infoblox_network_view_to_namespace_map(self):  # pylint: disable=too-many-branches
+        """Performs validation of the infoblox_network_view_to_namespace_map field."""
+        if not isinstance(self.infoblox_network_view_to_namespace_map, dict):
+            raise ValidationError({"infoblox_sync_filters": "Namespace/View mappings must be a dictionary."})
+
     def _clean_infoblox_instance(self):
         """Performs validation of the infoblox_instance field."""
         if not self.infoblox_instance.secrets_group:
@@ -305,6 +313,7 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         super().clean()
 
         self._clean_infoblox_sync_filters()
+        self._clean_infoblox_network_view_to_namespace_map()
         self._clean_infoblox_instance()
         self._clean_import_ip()
         self._clean_infoblox_dns_view_mapping()

@@ -74,7 +74,7 @@ class InfobloxAdapter(Adapter):
             )
             raise PluginImproperlyConfigured
 
-    def load_network_views(self, sync_filters: list):
+    def load_network_views(self, sync_filters: list, network_view_to_namespace_map: dict):
         """Load Namespace DiffSync model.
 
         Args:
@@ -94,7 +94,11 @@ class InfobloxAdapter(Adapter):
             # Do not load Network Views not present in the sync filters
             if _nv["name"] not in network_view_filters:
                 continue
-            namespace_name = map_network_view_to_namespace(value=_nv["name"], direction="nv_to_ns")
+            namespace_name = map_network_view_to_namespace(
+                value=_nv["name"],
+                network_view_to_namespace_map=network_view_to_namespace_map,
+                direction="nv_to_ns"
+            )
             networkview_ext_attrs = get_ext_attr_dict(
                 extattrs=_nv.get("extattrs", {}), excluded_attrs=self.excluded_attrs
             )
@@ -170,7 +174,7 @@ class InfobloxAdapter(Adapter):
 
         return all_containers, all_subnets
 
-    def load_prefixes(self, include_ipv4: bool, include_ipv6: bool, sync_filters: list):
+    def load_prefixes(self, include_ipv4: bool, include_ipv6: bool, sync_filters: list, network_view_to_namespace_map: dict):
         """Load InfobloxNetwork DiffSync model.
 
         Args:
@@ -195,7 +199,11 @@ class InfobloxAdapter(Adapter):
             pf_ext_attrs = get_ext_attr_dict(extattrs=_pf.get("extattrs", {}), excluded_attrs=self.excluded_attrs)
             new_pf = self.prefix(
                 network=_pf["network"],
-                namespace=map_network_view_to_namespace(value=_pf["network_view"], direction="nv_to_ns"),
+                namespace=map_network_view_to_namespace(
+                    value=_pf["network_view"],
+                    network_view_to_namespace_map=network_view_to_namespace_map,
+                    direction="nv_to_ns"
+                ),
                 description=_pf.get("comment", ""),
                 network_type="network" if _pf in subnets else "container",
                 ext_attrs={**default_ext_attrs, **pf_ext_attrs},
@@ -209,7 +217,7 @@ class InfobloxAdapter(Adapter):
             except ObjectAlreadyExists:
                 self.job.logger.warning(f"Duplicate prefix found: {new_pf}.")
 
-    def load_ipaddresses(self):  # pylint: disable=too-many-branches,too-many-locals,too-many-statements
+    def load_ipaddresses(self, network_view_to_namespace_map: dict):  # pylint: disable=too-many-branches,too-many-locals,too-many-statements
         """Load InfobloxIPAddress DiffSync model."""
         if self.job.debug:
             self.job.logger.debug("Loading IP addresses from Infoblox.")
@@ -223,7 +231,11 @@ class InfobloxAdapter(Adapter):
         for _ip in ipaddrs:
             _, prefix_length = _ip["network"].split("/")
             network_view = _ip["network_view"]
-            namespace = map_network_view_to_namespace(value=network_view, direction="nv_to_ns")
+            namespace = map_network_view_to_namespace(
+                value=network_view,
+                network_view_to_namespace_map=network_view_to_namespace_map,
+                direction="nv_to_ns"
+            )
 
             ip_ext_attrs = get_ext_attr_dict(extattrs=_ip.get("extattrs", {}), excluded_attrs=self.excluded_attrs)
             new_ip = self.ipaddress(
@@ -420,12 +432,18 @@ class InfobloxAdapter(Adapter):
         include_ipv4 = self.config.import_ipv4
         include_ipv6 = self.config.import_ipv6
         sync_filters = self.config.infoblox_sync_filters
+        network_view_to_namespace_map = self.config.infoblox_network_view_to_namespace_map
 
-        self.load_network_views(sync_filters=sync_filters)
+        self.load_network_views(sync_filters=sync_filters, network_view_to_namespace_map=network_view_to_namespace_map)
         if self.config.import_subnets:
-            self.load_prefixes(include_ipv4=include_ipv4, include_ipv6=include_ipv6, sync_filters=sync_filters)
+            self.load_prefixes(
+                include_ipv4=include_ipv4,
+                include_ipv6=include_ipv6,
+                sync_filters=sync_filters,
+                network_view_to_namespace_map=network_view_to_namespace_map
+            )
         if self.config.import_ip_addresses:
-            self.load_ipaddresses()
+            self.load_ipaddresses(network_view_to_namespace_map=network_view_to_namespace_map)
         if self.config.import_vlan_views:
             self.load_vlanviews()
         if self.config.import_vlans:

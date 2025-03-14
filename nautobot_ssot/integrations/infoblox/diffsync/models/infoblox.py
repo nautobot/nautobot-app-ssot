@@ -28,7 +28,11 @@ class InfobloxNetwork(Network):
         """Create Network object in Infoblox."""
         network_type = attrs.get("network_type")
         network = ids["network"]
-        network_view = map_network_view_to_namespace(value=ids["namespace"], direction="ns_to_nv")
+        network_view = map_network_view_to_namespace(
+            value=ids["namespace"],
+            direction="ns_to_nv",
+            network_view_to_namespace_map=adapter.config.infoblox_network_view_to_namespace_map,
+        )
         try:
             if network_type != "container":
                 adapter.conn.create_network(
@@ -59,7 +63,11 @@ class InfobloxNetwork(Network):
 
     def update(self, attrs):
         """Update Network object in Infoblox."""
-        network_view = map_network_view_to_namespace(value=self.get_identifiers()["namespace"], direction="ns_to_nv")
+        network_view = map_network_view_to_namespace(
+            value=self.get_identifiers()["namespace"],
+            network_view_to_namespace_map=self.adapter.config.infoblox_network_view_to_namespace_map,
+            direction="ns_to_nv"
+        )
         self.adapter.conn.update_network(
             prefix=self.get_identifiers()["network"],
             network_view=network_view,
@@ -87,7 +95,11 @@ class InfobloxIPAddress(IPAddress):  # pylint: disable=too-many-instance-attribu
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Creates Fixed Address record."""
-        network_view = map_network_view_to_namespace(value=ids["namespace"], direction="ns_to_nv")
+        network_view = map_network_view_to_namespace(
+            value=ids["namespace"],
+            network_view_to_namespace_map=adapter.config.infoblox_network_view_to_namespace_map,
+            direction="ns_to_nv"
+        )
         ip_address = ids["address"]
         mac_address = attrs.get("mac_address")
         has_fixed_address = attrs.get("has_fixed_address", False)
@@ -140,7 +152,11 @@ class InfobloxIPAddress(IPAddress):  # pylint: disable=too-many-instance-attribu
         ids = self.get_identifiers()
         inf_attrs = self.get_attrs()
         ip_address = ids["address"]
-        network_view = map_network_view_to_namespace(value=ids["namespace"], direction="ns_to_nv")
+        network_view = map_network_view_to_namespace(
+            value=ids["namespace"],
+            network_view_to_namespace_map=self.adapter.config.infoblox_network_view_to_namespace_map,
+            direction="ns_to_nv"
+        )
 
         mac_address = attrs.get("mac_address")
         fixed_address_name = attrs.get("description") or ""
@@ -236,7 +252,11 @@ class InfobloxIPAddress(IPAddress):  # pylint: disable=too-many-instance-attribu
         if self.adapter.config.fixed_address_type == FixedAddressTypeChoices.DONT_CREATE_RECORD:
             return super().delete()
 
-        network_view = map_network_view_to_namespace(value=self.namespace, direction="ns_to_nv")
+        network_view = map_network_view_to_namespace(
+            value=self.namespace,
+            network_view_to_namespace_map=self.adapter.config.infoblox_network_view_to_namespace_map,
+            direction="ns_to_nv"
+        )
         self.adapter.conn.delete_fixed_address_record_by_ref(self.fixed_address_ref)
         self.adapter.job.logger.info(
             "Deleted Fixed Address record in Infoblox, address: %s, network_view: %s",
@@ -285,7 +305,11 @@ class InfobloxDnsARecord(DnsARecord):
         ):
             return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
-        network_view = map_network_view_to_namespace(value=ids["namespace"], direction="ns_to_nv")
+        network_view = map_network_view_to_namespace(
+            value=ids["namespace"],
+            network_view_to_namespace_map=adapter.config.infoblox_network_view_to_namespace_map,
+            direction="ns_to_nv"
+        )
         ip_address = ids["address"]
         dns_name = attrs.get("dns_name")
         dns_comment = attrs.get("description")
@@ -321,7 +345,11 @@ class InfobloxDnsARecord(DnsARecord):
         ):
             return super().update(attrs)
 
-        network_view = map_network_view_to_namespace(value=self.namespace, direction="ns_to_nv")
+        network_view = map_network_view_to_namespace(
+            value=self.namespace,
+            network_view_to_namespace_map=self.adapter.config.infoblox_network_view_to_namespace_map,
+            direction="ns_to_nv"
+        )
         dns_payload = {}
         dns_comment = attrs.get("description")
         if dns_comment:
@@ -359,7 +387,11 @@ class InfobloxDnsARecord(DnsARecord):
         ):
             return super().delete()
 
-        network_view = map_network_view_to_namespace(value=self.namespace, direction="ns_to_nv")
+        network_view = map_network_view_to_namespace(
+            value=self.namespace,
+            network_view_to_namespace_map=self.adapter.config.infoblox_network_view_to_namespace_map,
+            direction="ns_to_nv"
+        )
         self.adapter.conn.delete_a_record_by_ref(self.ref)
         self.adapter.job.logger.info(
             "Deleted A record in Infoblox, address: %s, network_view: %s",
@@ -379,7 +411,11 @@ class InfobloxDnsHostRecord(DnsHostRecord):
         if adapter.config.dns_record_type != DNSRecordTypeChoices.HOST_RECORD:
             return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
-        network_view = map_network_view_to_namespace(value=ids["namespace"], direction="ns_to_nv")
+        network_view = map_network_view_to_namespace(
+            value=ids["namespace"],
+            network_view_to_namespace_map=adapter.config.infoblox_network_view_to_namespace_map,
+            direction="ns_to_nv"
+        )
         ip_address = ids["address"]
         dns_name = attrs.get("dns_name")
         dns_comment = attrs.get("description")
@@ -412,7 +448,11 @@ class InfobloxDnsHostRecord(DnsHostRecord):
         if self.adapter.config.dns_record_type != DNSRecordTypeChoices.HOST_RECORD:
             return super().update(attrs)
 
-        network_view = map_network_view_to_namespace(value=self.namespace, direction="ns_to_nv")
+        network_view = map_network_view_to_namespace(
+            value=self.namespace,
+            network_view_to_namespace_map=self.adapter.config.infoblox_network_view_to_namespace_map,
+            direction="ns_to_nv"
+        )
         dns_payload = {}
         dns_comment = attrs.get("description")
         if dns_comment:
@@ -447,7 +487,11 @@ class InfobloxDnsHostRecord(DnsHostRecord):
         if self.adapter.config.dns_record_type != DNSRecordTypeChoices.HOST_RECORD:
             return super().delete()
 
-        network_view = map_network_view_to_namespace(value=self.namespace, direction="ns_to_nv")
+        network_view = map_network_view_to_namespace(
+            value=self.namespace,
+            network_view_to_namespace_map=self.adapter.config.infoblox_network_view_to_namespace_map,
+            direction="ns_to_nv"
+        )
         self.adapter.conn.delete_host_record_by_ref(self.ref)
         self.adapter.job.logger.info(
             "Deleted Host record in Infoblox, address: %s, network_view: %s",
@@ -467,7 +511,11 @@ class InfobloxDnsPTRRecord(DnsPTRRecord):
         if adapter.config.dns_record_type != DNSRecordTypeChoices.A_AND_PTR_RECORD:
             return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
-        network_view = map_network_view_to_namespace(value=ids["namespace"], direction="ns_to_nv")
+        network_view = map_network_view_to_namespace(
+            value=ids["namespace"],
+            network_view_to_namespace_map=adapter.config.infoblox_network_view_to_namespace_map,
+            direction="ns_to_nv"
+        )
         ip_address = ids["address"]
         dns_name = attrs.get("dns_name")
         dns_comment = attrs.get("description")
@@ -499,7 +547,11 @@ class InfobloxDnsPTRRecord(DnsPTRRecord):
         if not self.adapter.config.dns_record_type == DNSRecordTypeChoices.A_AND_PTR_RECORD:
             return super().update(attrs)
 
-        network_view = map_network_view_to_namespace(value=self.namespace, direction="ns_to_nv")
+        network_view = map_network_view_to_namespace(
+            value=self.namespace,
+            network_view_to_namespace_map=self.adapter.config.infoblox_network_view_to_namespace_map,
+            direction="ns_to_nv"
+        )
         dns_payload = {}
         dns_comment = attrs.get("description")
         if dns_comment:
@@ -534,7 +586,11 @@ class InfobloxDnsPTRRecord(DnsPTRRecord):
         if not self.adapter.config.dns_record_type == DNSRecordTypeChoices.A_AND_PTR_RECORD:
             return super().delete()
 
-        network_view = map_network_view_to_namespace(value=self.namespace, direction="ns_to_nv")
+        network_view = map_network_view_to_namespace(
+            value=self.namespace,
+            network_view_to_namespace_map=self.adapter.config.infoblox_network_view_to_namespace_map,
+            direction="ns_to_nv"
+        )
         self.adapter.conn.delete_ptr_record_by_ref(self.ref)
         self.adapter.job.logger.info(
             "Deleted PTR record in Infoblox, address: %s, network_view: %s",

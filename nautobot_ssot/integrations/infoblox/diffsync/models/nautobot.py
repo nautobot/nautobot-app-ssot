@@ -173,7 +173,11 @@ class NautobotNetwork(Network):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Prefix object in Nautobot."""
-        namespace_name = map_network_view_to_namespace(value=ids["namespace"], direction="nv_to_ns")
+        namespace_name = map_network_view_to_namespace(
+            value=ids["namespace"],
+            network_view_to_namespace_map=adapter.config.infoblox_network_view_to_namespace_map,
+            direction="nv_to_ns"
+        )
         _prefix = OrmPrefix(
             prefix=ids["network"],
             status_id=adapter.status_map["Active"],

@@ -83,7 +83,13 @@ class TestInfobloxAdapter(unittest.TestCase):
             },
         ]
         sync_filters = [{"network_view": "default"}]
-        self.infoblox_adapter.load_prefixes(include_ipv4=True, include_ipv6=False, sync_filters=sync_filters)
+        network_view_to_namespace_map = {"default": "Global"}
+        self.infoblox_adapter.load_prefixes(
+            include_ipv4=True,
+            include_ipv6=False,
+            sync_filters=sync_filters,
+            network_view_to_namespace_map=network_view_to_namespace_map
+        )
         self.infoblox_adapter.conn.get_tree_from_container.assert_not_called()
         mock_default_extra_attrs.assert_called_once()
         self.assertEqual(mock_extra_attr_dict.call_count, 4)
@@ -165,7 +171,13 @@ class TestInfobloxAdapter(unittest.TestCase):
         ]
         self.infoblox_adapter.conn.get_all_subnets.side_effect = [one_nine_two_network]
         sync_filters = [{"network_view": "default", "prefixes_ipv4": ["10.0.0.0/8", "192.168.0.0/16"]}]
-        self.infoblox_adapter.load_prefixes(include_ipv4=True, include_ipv6=False, sync_filters=sync_filters)
+        network_view_to_namespace_map = {"default": "Global"}
+        self.infoblox_adapter.load_prefixes(
+            include_ipv4=True,
+            include_ipv6=False,
+            sync_filters=sync_filters,
+            network_view_to_namespace_map=network_view_to_namespace_map
+        )
         self.infoblox_adapter.conn.get_tree_from_container.assert_has_calls(
             [
                 unittest.mock.call(root_container="10.0.0.0/8", network_view="default"),
@@ -230,7 +242,13 @@ class TestInfobloxAdapter(unittest.TestCase):
         ]
         error_message = "Duplicate prefix found: 10.0.0.0/23__Global."
         sync_filters = [{"network_view": "default"}]
-        self.infoblox_adapter.load_prefixes(include_ipv4=True, include_ipv6=False, sync_filters=sync_filters)
+        network_view_to_namespace_map = {"default": "Global"}
+        self.infoblox_adapter.load_prefixes(
+            include_ipv4=True,
+            include_ipv6=False,
+            sync_filters=sync_filters,
+            network_view_to_namespace_map = network_view_to_namespace_map
+        )
         self.infoblox_adapter.job.logger.warning.assert_called_once()
         self.infoblox_adapter.job.logger.warning.assert_called_with(error_message)
         mock_build_vlan_map.assert_not_called()
@@ -322,7 +340,13 @@ class TestInfobloxAdapter(unittest.TestCase):
             ],
         ]
         sync_filters = [{"network_view": "default"}]
-        self.infoblox_adapter.load_prefixes(include_ipv4=True, include_ipv6=True, sync_filters=sync_filters)
+        network_view_to_namespace_map = {"default": "Global"}
+        self.infoblox_adapter.load_prefixes(
+            include_ipv4=True,
+            include_ipv6=True,
+            sync_filters=sync_filters,
+            network_view_to_namespace_map=network_view_to_namespace_map
+        )
         self.infoblox_adapter.conn.get_tree_from_container.assert_not_called()
         mock_default_extra_attrs.assert_called_once()
         self.assertEqual(mock_extra_attr_dict.call_count, 6)
@@ -394,7 +418,8 @@ class TestInfobloxAdapter(unittest.TestCase):
             "network": "10.0.0.0/24",
             "network_view": "dev",
         }
-        infoblox_adapter.load_ipaddresses()
+        network_view_to_namespace_map = {"default": "Global"}
+        infoblox_adapter.load_ipaddresses(network_view_to_namespace_map=network_view_to_namespace_map)
         ip_address = infoblox_adapter.get(
             "ipaddress",
             {"address": "10.0.0.2", "prefix": "10.0.0.0/24", "prefix_length": 24, "namespace": "dev"},
@@ -489,7 +514,8 @@ class TestInfobloxAdapter(unittest.TestCase):
             "comment": "ptr record comment",
             "view": "default.dev",
         }
-        infoblox_adapter.load_ipaddresses()
+        network_view_to_namespace_map = {"default": "Global"}
+        infoblox_adapter.load_ipaddresses(network_view_to_namespace_map=network_view_to_namespace_map)
         ip_address = infoblox_adapter.get(
             "ipaddress",
             {"address": "10.0.0.4", "prefix": "10.0.0.0/24", "prefix_length": 24, "namespace": "dev"},
@@ -627,7 +653,8 @@ class TestInfobloxAdapter(unittest.TestCase):
             "view": "default",
             "comment": "host record comment",
         }
-        infoblox_adapter.load_ipaddresses()
+        network_view_to_namespace_map={"default": "Global"}
+        infoblox_adapter.load_ipaddresses(network_view_to_namespace_map=network_view_to_namespace_map)
         ip_address = infoblox_adapter.get(
             "ipaddress",
             {"address": "10.0.0.4", "prefix": "10.0.0.0/24", "prefix_length": 24, "namespace": "dev"},

@@ -157,6 +157,7 @@ class TestNautobotAdapter(TestCase):
         )
         self.config = create_default_infoblox_config()
         self.sync_filters = self.config.infoblox_sync_filters
+        self.network_view_to_namespace_map = self.config.infoblox_network_view_to_namespace_map
         self.nb_adapter = NautobotAdapter(config=self.config)
         self.nb_adapter.job = mock.Mock()
 
@@ -172,13 +173,23 @@ class TestNautobotAdapter(TestCase):
         self.assertFalse(10 in actual_vlan_ids)
 
     def test_load_prefixes_loads_prefixes(self):
-        self.nb_adapter.load_prefixes(include_ipv4=True, include_ipv6=False, sync_filters=self.sync_filters)
+        self.nb_adapter.load_prefixes(
+            include_ipv4=True,
+            include_ipv6=False,
+            sync_filters=self.sync_filters,
+            network_view_to_namespace_map=self.network_view_to_namespace_map
+        )
         actual_prefixes = {(prefix.network, prefix.namespace) for prefix in self.nb_adapter.get_all("prefix")}
         self.assertEqual(actual_prefixes, {("10.0.0.0/24", "Global"), ("10.0.1.0/24", "Global")})
 
     def test_load_prefixes_loads_prefixes_dev_namespace(self):
         sync_filters = [{"network_view": "dev"}]
-        self.nb_adapter.load_prefixes(include_ipv4=True, include_ipv6=False, sync_filters=sync_filters)
+        self.nb_adapter.load_prefixes(
+            include_ipv4=True,
+            include_ipv6=False,
+            sync_filters=sync_filters,
+            network_view_to_namespace_map=self.network_view_to_namespace_map
+        )
         actual_prefixes = {(prefix.network, prefix.namespace) for prefix in self.nb_adapter.get_all("prefix")}
         self.assertEqual(
             actual_prefixes,
@@ -187,7 +198,12 @@ class TestNautobotAdapter(TestCase):
 
     def test_load_prefixes_loads_prefixes_dev_namespace_ipv4_filter(self):
         sync_filters = [{"network_view": "dev", "prefixes_ipv4": ["10.0.0.0/16"]}]
-        self.nb_adapter.load_prefixes(include_ipv4=True, include_ipv6=False, sync_filters=sync_filters)
+        self.nb_adapter.load_prefixes(
+            include_ipv4=True,
+            include_ipv6=False,
+            sync_filters=sync_filters,
+            network_view_to_namespace_map=self.network_view_to_namespace_map
+        )
         actual_prefixes = {(prefix.network, prefix.namespace) for prefix in self.nb_adapter.get_all("prefix")}
         self.assertEqual(
             actual_prefixes,
@@ -201,7 +217,12 @@ class TestNautobotAdapter(TestCase):
             {"network_view": "dev", "prefixes_ipv4": ["10.0.0.0/16"]},
             {"network_view": "test", "prefixes_ipv4": ["10.0.0.0/8"]},
         ]
-        self.nb_adapter.load_prefixes(include_ipv4=True, include_ipv6=False, sync_filters=sync_filters)
+        self.nb_adapter.load_prefixes(
+            include_ipv4=True,
+            include_ipv6=False,
+            sync_filters=sync_filters,
+            network_view_to_namespace_map=self.network_view_to_namespace_map
+        )
         actual_prefixes = {(prefix.network, prefix.namespace) for prefix in self.nb_adapter.get_all("prefix")}
         self.assertEqual(
             actual_prefixes,
@@ -214,7 +235,13 @@ class TestNautobotAdapter(TestCase):
 
     def test_load_prefixes_loads_prefixes_ipv6(self):
         sync_filters = [{"network_view": "default"}]
-        self.nb_adapter.load_prefixes(include_ipv4=False, include_ipv6=True, sync_filters=sync_filters)
+        network_view_to_namespace_map = {"default": "Global"}
+        self.nb_adapter.load_prefixes(
+            include_ipv4=False,
+            include_ipv6=True,
+            sync_filters=sync_filters,
+            network_view_to_namespace_map=network_view_to_namespace_map
+        )
         actual_prefixes = {(prefix.network, prefix.namespace) for prefix in self.nb_adapter.get_all("prefix")}
         self.assertEqual(
             actual_prefixes,
@@ -225,7 +252,13 @@ class TestNautobotAdapter(TestCase):
 
     def test_load_prefixes_loads_prefixes_ipv4_and_ipv6(self):
         sync_filters = [{"network_view": "default"}]
-        self.nb_adapter.load_prefixes(include_ipv4=True, include_ipv6=True, sync_filters=sync_filters)
+        network_view_to_namespace_map = {"default": "Global"}
+        self.nb_adapter.load_prefixes(
+            include_ipv4=True,
+            include_ipv6=True,
+            sync_filters=sync_filters,
+            network_view_to_namespace_map=network_view_to_namespace_map
+        )
         actual_prefixes = {(prefix.network, prefix.namespace) for prefix in self.nb_adapter.get_all("prefix")}
         self.assertEqual(
             actual_prefixes,
@@ -237,18 +270,34 @@ class TestNautobotAdapter(TestCase):
         )
 
     def test_load_prefixes_loads_prefixes_and_vlan_relationship(self):
-        self.nb_adapter.load_prefixes(include_ipv4=True, include_ipv6=False, sync_filters=self.sync_filters)
+        self.nb_adapter.load_prefixes(
+            include_ipv4=True,
+            include_ipv6=False,
+            sync_filters=self.sync_filters,
+            network_view_to_namespace_map=self.network_view_to_namespace_map
+        )
         prefix_with_vlan = self.nb_adapter.get("prefix", {"network": "10.0.0.0/24", "namespace": "Global"})
         self.assertEqual({10: {"vid": 10, "name": "ten", "group": None}}, prefix_with_vlan.vlans)
 
     def test_load_prefixes_loads_ranges(self):
-        self.nb_adapter.load_prefixes(include_ipv4=True, include_ipv6=False, sync_filters=self.sync_filters)
+        self.nb_adapter.load_prefixes(
+            include_ipv4=True,
+            include_ipv6=False,
+            sync_filters=self.sync_filters,
+            network_view_to_namespace_map=self.network_view_to_namespace_map
+        )
         prefix_with_ranges = self.nb_adapter.get("prefix", {"network": "10.0.0.0/24", "namespace": "Global"})
         self.assertEqual(["10.0.0.50-10.0.0.254"], prefix_with_ranges.ranges)
 
     def test_load_ipaddresses_loads_ips_default_namespace(self):
         sync_filters = [{"network_view": "default"}]
-        self.nb_adapter.load_ipaddresses(sync_filters=sync_filters, include_ipv4=True, include_ipv6=False)
+        network_view_to_namespace_map = {"default": "Global"}
+        self.nb_adapter.load_ipaddresses(
+            sync_filters=sync_filters,
+            network_view_to_namespace_map=network_view_to_namespace_map,
+            include_ipv4=True,
+            include_ipv6=False
+        )
         actual_ipaddresses = {(ipaddr.address, ipaddr.namespace) for ipaddr in self.nb_adapter.get_all("ipaddress")}
         self.assertEqual(
             actual_ipaddresses,
@@ -257,7 +306,12 @@ class TestNautobotAdapter(TestCase):
 
     def test_load_ipaddresses_loads_ips_dev_namespace(self):
         sync_filters = [{"network_view": "dev"}]
-        self.nb_adapter.load_ipaddresses(include_ipv4=True, include_ipv6=False, sync_filters=sync_filters)
+        self.nb_adapter.load_ipaddresses(
+            include_ipv4=True,
+            include_ipv6=False,
+            sync_filters=sync_filters,
+            network_view_to_namespace_map=self.network_view_to_namespace_map
+        )
         actual_ipaddresses = {(ipaddr.address, ipaddr.namespace) for ipaddr in self.nb_adapter.get_all("ipaddress")}
         self.assertEqual(
             actual_ipaddresses,
@@ -266,7 +320,12 @@ class TestNautobotAdapter(TestCase):
 
     def test_load_ipaddresses_loads_ips_dev_namespace_filtered(self):
         sync_filters = [{"network_view": "dev", "prefixes_ipv4": ["10.0.1.0/24"]}]
-        self.nb_adapter.load_ipaddresses(include_ipv4=True, include_ipv6=False, sync_filters=sync_filters)
+        self.nb_adapter.load_ipaddresses(
+            include_ipv4=True,
+            include_ipv6=False,
+            sync_filters=sync_filters,
+            network_view_to_namespace_map=self.network_view_to_namespace_map
+        )
         actual_ipaddresses = {(ipaddr.address, ipaddr.namespace) for ipaddr in self.nb_adapter.get_all("ipaddress")}
         self.assertEqual(
             actual_ipaddresses,
@@ -280,7 +339,12 @@ class TestNautobotAdapter(TestCase):
             {"network_view": "dev", "prefixes_ipv4": ["10.0.0.0/16"]},
             {"network_view": "test", "prefixes_ipv4": ["10.5.0.0/16"]},
         ]
-        self.nb_adapter.load_ipaddresses(include_ipv4=True, include_ipv6=False, sync_filters=sync_filters)
+        self.nb_adapter.load_ipaddresses(
+            include_ipv4=True,
+            include_ipv6=False,
+            sync_filters=sync_filters,
+            network_view_to_namespace_map=self.network_view_to_namespace_map
+        )
         actual_ipaddresses = {(ipaddr.address, ipaddr.namespace) for ipaddr in self.nb_adapter.get_all("ipaddress")}
         self.assertEqual(
             actual_ipaddresses,
@@ -292,7 +356,13 @@ class TestNautobotAdapter(TestCase):
 
     def test_load_ipaddresses_loads_ips_ipv6(self):
         sync_filters = [{"network_view": "default"}]
-        self.nb_adapter.load_ipaddresses(include_ipv4=False, include_ipv6=True, sync_filters=sync_filters)
+        network_view_to_namespace_map = {"default": "Global"}
+        self.nb_adapter.load_ipaddresses(
+            include_ipv4=False,
+            include_ipv6=True,
+            sync_filters=sync_filters,
+            network_view_to_namespace_map=network_view_to_namespace_map
+        )
         actual_ipaddresses = {(ipaddr.address, ipaddr.namespace) for ipaddr in self.nb_adapter.get_all("ipaddress")}
         self.assertEqual(
             actual_ipaddresses,
@@ -303,7 +373,13 @@ class TestNautobotAdapter(TestCase):
 
     def test_load_ipaddresses_loads_ips_ipv4_and_ipv6(self):
         sync_filters = [{"network_view": "default"}]
-        self.nb_adapter.load_ipaddresses(include_ipv4=True, include_ipv6=True, sync_filters=sync_filters)
+        network_view_to_namespace_map = {"default": "Global"}
+        self.nb_adapter.load_ipaddresses(
+            include_ipv4=True,
+            include_ipv6=True,
+            sync_filters=sync_filters,
+            network_view_to_namespace_map=network_view_to_namespace_map
+        )
         actual_ipaddresses = {(ipaddr.address, ipaddr.namespace) for ipaddr in self.nb_adapter.get_all("ipaddress")}
         self.assertEqual(
             actual_ipaddresses,
@@ -319,7 +395,13 @@ class TestNautobotAdapter(TestCase):
         nb_adapter = NautobotAdapter(config=self.config)
         nb_adapter.job = mock.Mock()
         sync_filters = [{"network_view": "default"}]
-        nb_adapter.load_ipaddresses(include_ipv4=True, include_ipv6=False, sync_filters=sync_filters)
+        network_view_to_namespace_map = {"default": "Global"}
+        nb_adapter.load_ipaddresses(
+            include_ipv4=True,
+            include_ipv6=False,
+            sync_filters=sync_filters,
+            network_view_to_namespace_map=network_view_to_namespace_map
+        )
         actual_records = {
             (hostr.address, hostr.namespace, hostr.dns_name) for hostr in nb_adapter.get_all("dnshostrecord")
         }
@@ -336,7 +418,12 @@ class TestNautobotAdapter(TestCase):
         nb_adapter = NautobotAdapter(config=self.config)
         nb_adapter.job = mock.Mock()
         sync_filters = [{"network_view": "dev"}]
-        nb_adapter.load_ipaddresses(include_ipv4=True, include_ipv6=False, sync_filters=sync_filters)
+        nb_adapter.load_ipaddresses(
+            include_ipv4=True,
+            include_ipv6=False,
+            sync_filters=sync_filters,
+            network_view_to_namespace_map=self.network_view_to_namespace_map
+        )
         actual_records = {
             (hostr.address, hostr.namespace, hostr.dns_name) for hostr in nb_adapter.get_all("dnsarecord")
         }
@@ -353,7 +440,12 @@ class TestNautobotAdapter(TestCase):
         nb_adapter = NautobotAdapter(config=self.config)
         nb_adapter.job = mock.Mock()
         sync_filters = [{"network_view": "test"}]
-        nb_adapter.load_ipaddresses(include_ipv4=True, include_ipv6=False, sync_filters=sync_filters)
+        nb_adapter.load_ipaddresses(
+            include_ipv4=True,
+            include_ipv6=False,
+            sync_filters=sync_filters,
+            network_view_to_namespace_map=self.network_view_to_namespace_map
+        )
         actual_records = {
             (hostr.address, hostr.namespace, hostr.dns_name) for hostr in nb_adapter.get_all("dnsptrrecord")
         }

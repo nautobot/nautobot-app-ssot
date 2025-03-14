@@ -156,6 +156,8 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
             infoblox_request_timeout = 60
 
         infoblox_sync_filters = _get_sync_filters()
+        infoblox_network_view_to_namespace_map = _get_default_network_view_to_namespace_map()
+
 
         secrets_group, _ = SecretsGroup.objects.get_or_create(name="InfobloxSSOTDefaultSecretGroup")
         infoblox_username, _ = Secret.objects.get_or_create(
@@ -214,11 +216,18 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
             import_ipv6=bool(config.get("infoblox_import_objects_subnets_ipv6", False)),
             job_enabled=True,
             infoblox_sync_filters=infoblox_sync_filters,
+            infoblox_network_view_to_namespace_map=infoblox_network_view_to_namespace_map,
             infoblox_dns_view_mapping={},
             cf_fields_ignore={"extensible_attributes": [], "custom_fields": []},
             fixed_address_type=FixedAddressTypeChoices.DONT_CREATE_RECORD,
             dns_record_type=DNSRecordTypeChoices.HOST_RECORD,
         )
+    else:
+        infoblox_configs=SSOTInfobloxConfig.objects.all()
+        for infoblox_config in infoblox_configs:
+            if not infoblox_config.infoblox_network_view_to_namespace_map:
+                infoblox_config.infoblox_network_view_to_namespace_map = _get_default_network_view_to_namespace_map()
+                infoblox_config.save()
 
 
 def _get_sync_filters():
@@ -258,3 +267,8 @@ def _get_sync_filters():
     sync_filters = [sync_filter]
 
     return sync_filters
+
+
+def _get_default_network_view_to_namespace_map():
+    """Provides default value for SSOTInfobloxConfig network_view_to_namespace_map field."""
+    return {"default": "Global"}
