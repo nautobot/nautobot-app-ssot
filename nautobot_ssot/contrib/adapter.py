@@ -104,7 +104,6 @@ class NautobotAdapter(Adapter):
                     or metadata.key in database_object.cf
                 ):
                     parameters[parameter_name] = database_object.cf[metadata.key]
-                    print(parameters)
                 is_custom_field = True
                 break
             if isinstance(metadata, CustomRelationshipAnnotation):
