@@ -360,14 +360,38 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
             manufacturer (str): Manufacturer name for associated Platform.
         """
         if "Aruba" in manufacturer:
-            self.get_or_instantiate(
-                self.platform,
-                ids={"name": "arubanetworks.aoscx", "manufacturer__name": manufacturer},
-                attrs={"network_driver": "aruba_aoscx", "napalm_driver": ""},
-            )
-            return "arubanetworks.aoscx"
+            if device_type.startswith(("1", "60", "61", "62", "63", "64", "8", "93", "94")):
+                self.get_or_instantiate(
+                    self.platform,
+                    ids={"name": "arubanetworks.aos.aoscx", "manufacturer__name": manufacturer},
+                    attrs={"network_driver": "aruba_aoscx", "napalm_driver": ""},
+                )
+                return "arubanetworks.aos.aoscx"
+            elif device_type.startswith(("AP", "MC", "MM", "7", "90", "91", "92")):
+                self.get_or_instantiate(
+                    self.platform,
+                    ids={"name": "arubanetworks.aos.os", "manufacturer__name": manufacturer},
+                    attrs={"network_driver": "aruba_os", "napalm_driver": ""},
+                )
+                return "arubanetworks.aos.os"
+            elif device_type.startswith(("25", "29", "38", "54")):
+                self.get_or_instantiate(
+                    self.platform,
+                    ids={"name": "arubanetworks.aos.osswitch", "manufacturer__name": manufacturer},
+                    attrs={"network_driver": "aruba_osswitch", "napalm_driver": ""},
+                )
+                return "arubanetworks.aos.osswitch"
+
         if "Cisco" in manufacturer:
-            if not device_type.startswith("N"):
+            if device_type.startswith("85"):
+                if "wireless" in device_type.lower() or "wlc" in device_type.lower():
+                    self.get_or_instantiate(
+                        self.platform,
+                        ids={"name": "cisco.ios.aireos", "manufacturer__name": manufacturer},
+                        attrs={"network_driver": "cisco_aireos", "napalm_driver": ""},
+                    )
+                return "cisco.ios.aireos"
+            elif not device_type.startswith("N"):
                 self.get_or_instantiate(
                     self.platform,
                     ids={"name": "cisco.ios.ios", "manufacturer__name": manufacturer},
