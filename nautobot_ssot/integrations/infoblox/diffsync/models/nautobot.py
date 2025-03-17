@@ -13,6 +13,7 @@ from nautobot.ipam.models import IPAddress as OrmIPAddress
 from nautobot.ipam.models import Namespace as OrmNamespace
 from nautobot.ipam.models import Prefix as OrmPrefix
 from nautobot.ipam.models import VLANGroup as OrmVlanGroup
+from packaging import version
 
 from nautobot_ssot.integrations.infoblox.choices import (
     DNSRecordTypeChoices,
@@ -47,7 +48,7 @@ def process_ext_attrs(adapter, obj: object, extattrs: dict):  # pylint: disable=
     for attr, attr_value in extattrs.items():  # pylint: disable=too-many-nested-blocks
         if attr_value:
             if attr.lower() in ["site", "facility", "location"]:
-                if settings.VERSION_MAJOR==2 and settings.VERSION_MINOR<2:
+                if version.parse(settings.VERSION) < version.parse("2.2.0"):
                     try:
                         obj.location = adapter.location_map[attr_value]
                     except KeyError as err:
@@ -66,7 +67,7 @@ def process_ext_attrs(adapter, obj: object, extattrs: dict):  # pylint: disable=
                     except KeyError as err:
                         adapter.job.logger.warning(
                             f"Unable to find Location {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
-                        ) 
+                        )
             if attr.lower() == "vrf":
                 if isinstance(attr_value, list):
                     for vrf in attr_value:
