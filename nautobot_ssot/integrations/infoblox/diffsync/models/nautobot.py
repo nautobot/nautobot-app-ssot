@@ -47,7 +47,7 @@ def process_ext_attrs(adapter, obj: object, extattrs: dict):  # pylint: disable=
         if attr_value:
             if attr.lower() in ["site", "facility", "location"]:
                 try:
-                    obj.location_id = adapter.location_map[attr_value]
+                    obj.location = adapter.location_map[attr_value]
                 except KeyError as err:
                     adapter.job.logger.warning(
                         f"Unable to find Location {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
@@ -79,7 +79,7 @@ def process_ext_attrs(adapter, obj: object, extattrs: dict):  # pylint: disable=
                     obj.role = attr_value.lower()
                 else:
                     try:
-                        obj.role_id = adapter.role_map[attr_value]
+                        obj.role = adapter.role_map[attr_value]
                     except KeyError as err:
                         adapter.job.logger.warning(
                             f"Unable to find Role {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
@@ -92,7 +92,7 @@ def process_ext_attrs(adapter, obj: object, extattrs: dict):  # pylint: disable=
                         )
             if attr.lower() in ["tenant", "dept", "department"]:
                 try:
-                    obj.tenant_id = adapter.tenant_map[attr_value]
+                    obj.tenant = adapter.tenant_map[attr_value]
                 except KeyError as err:
                     adapter.job.logger.warning(
                         f"Unable to find Tenant {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
