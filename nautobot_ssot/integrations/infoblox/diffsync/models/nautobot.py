@@ -1,5 +1,6 @@
 """Nautobot Models for Infoblox integration with SSoT app."""
 
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.utils.text import slugify
@@ -46,18 +47,26 @@ def process_ext_attrs(adapter, obj: object, extattrs: dict):  # pylint: disable=
     for attr, attr_value in extattrs.items():  # pylint: disable=too-many-nested-blocks
         if attr_value:
             if attr.lower() in ["site", "facility", "location"]:
-                try:
-                    obj.location = adapter.location_map[attr_value]
-                except KeyError as err:
-                    adapter.job.logger.warning(
-                        f"Unable to find Location {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
-                    )
-                except TypeError as err:
-                    adapter.job.logger.warning(
-                        f"Cannot set location values {attr_value} for {obj}. Multiple locations are assigned "
-                        f"in Extensibility Attributes '{attr}', but multiple location assignments are not "
-                        f"supported by Nautobot. {err}"
-                    )
+                if settings.VERSION_MAJOR==2 and settings.VERSION_MINOR<2:
+                    try:
+                        obj.location = adapter.location_map[attr_value]
+                    except KeyError as err:
+                        adapter.job.logger.warning(
+                            f"Unable to find Location {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
+                        )
+                    except TypeError as err:
+                        adapter.job.logger.warning(
+                            f"Cannot set location values {attr_value} for {obj}. Multiple locations are assigned "
+                            f"in Extensibility Attributes '{attr}', but multiple location assignments are not "
+                            f"supported by Nautobot. {err}"
+                        )
+                else:
+                    try:
+                        obj.locations.add(adapter.location_map[attr_value])
+                    except KeyError as err:
+                        adapter.job.logger.warning(
+                            f"Unable to find Location {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
+                        ) 
             if attr.lower() == "vrf":
                 if isinstance(attr_value, list):
                     for vrf in attr_value:
