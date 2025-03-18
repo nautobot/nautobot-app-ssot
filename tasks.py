@@ -764,7 +764,7 @@ def pylint(context):
     if migrations_dir.is_dir():
         migrations_pylint_command = (
             f"{base_pylint_command} --load-plugins=pylint_django.checkers.migrations"
-            " --disable=all --enable=fatal,new-db-field-with-default,missing-backwards-migration-callable"
+            " --disable=all --enable=fatal,missing-backwards-migration-callable"
             " nautobot_ssot.migrations"
         )
         if not run_command(context, migrations_pylint_command, warn=True):

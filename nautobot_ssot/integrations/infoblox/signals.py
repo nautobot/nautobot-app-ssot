@@ -221,12 +221,6 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
             fixed_address_type=FixedAddressTypeChoices.DONT_CREATE_RECORD,
             dns_record_type=DNSRecordTypeChoices.HOST_RECORD,
         )
-    else:
-        infoblox_configs = SSOTInfobloxConfig.objects.all()
-        for infoblox_config in infoblox_configs:
-            if not infoblox_config.infoblox_network_view_to_namespace_map:
-                infoblox_config.infoblox_network_view_to_namespace_map = _get_default_network_view_to_namespace_map()
-                infoblox_config.save()
 
 
 def _get_sync_filters():

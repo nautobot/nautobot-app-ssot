@@ -33,6 +33,11 @@ def _get_default_cf_fields_ignore():
     return {"extensible_attributes": [], "custom_fields": []}
 
 
+def _get_network_view_to_namespace_map():
+    """Provides default value for network view to namespace map."""
+    return [{"default": "Global"}]
+
+
 class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
     """SSOT Infoblox Configuration model."""
 
@@ -83,7 +88,9 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         verbose_name="Import VLANs",
     )
     infoblox_sync_filters = models.JSONField(default=_get_default_sync_filters, encoder=DjangoJSONEncoder)
-    infoblox_network_view_to_namespace_map = models.JSONField(null=True, encoder=DjangoJSONEncoder)
+    infoblox_network_view_to_namespace_map = models.JSONField(
+        default=_get_network_view_to_namespace_map, encoder=DjangoJSONEncoder
+    )
     infoblox_dns_view_mapping = models.JSONField(default=dict, encoder=DjangoJSONEncoder, blank=True)
     cf_fields_ignore = models.JSONField(default=_get_default_cf_fields_ignore, encoder=DjangoJSONEncoder, blank=True)
     import_ipv4 = models.BooleanField(
