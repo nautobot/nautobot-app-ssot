@@ -306,6 +306,43 @@ class TestSolarWindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too
         self.solarwinds.load_role(role="Test")
         self.assertEqual({"Test"}, {role.get_unique_id() for role in self.solarwinds.get_all("role")})
 
+    def test_load_platform_aireos(self):
+        """Test the load_platform() function with AireOS device."""
+        result = self.solarwinds.load_platform(device_type="8540 Series Wireless Controllers", manufacturer="Cisco")
+        result2 = self.solarwinds.load_platform(device_type="8500WLC", manufacturer="Cisco")
+        self.assertEqual(result, "cisco.ios.aireos")
+        self.assertEqual(result2, "cisco.ios.aireos")
+        self.assertEqual(
+            {"cisco.ios.aireos__Cisco"}, {plat.get_unique_id() for plat in self.solarwinds.get_all("platform")}
+        )
+
+    def test_load_platform_aruba_aoscx(self):
+        """Test the load_platform() function with Aruba AOSCX device."""
+        result = self.solarwinds.load_platform(device_type="6100-US", manufacturer="Aruba")
+        self.assertEqual(result, "arubanetworks.aos.aoscx")
+        self.assertEqual(
+            {"arubanetworks.aos.aoscx__Aruba"}, {plat.get_unique_id() for plat in self.solarwinds.get_all("platform")}
+        )
+
+    def test_load_platform_aruba_os(self):
+        """Test the load_platform() function with Aruba OS device."""
+        result = self.solarwinds.load_platform(device_type="MM-HW-5K", manufacturer="Aruba")
+        result2 = self.solarwinds.load_platform(device_type="7240XM-US", manufacturer="Aruba")
+        self.assertEqual(result, "arubanetworks.aos.os")
+        self.assertEqual(result2, "arubanetworks.aos.os")
+        self.assertEqual(
+            {"arubanetworks.aos.os__Aruba"}, {plat.get_unique_id() for plat in self.solarwinds.get_all("platform")}
+        )
+
+    def test_load_platform_aruba_osswitch(self):
+        """Test the load_platform() function with Aruba OSSwitch device."""
+        result = self.solarwinds.load_platform(device_type="2530-US", manufacturer="Aruba")
+        self.assertEqual(result, "arubanetworks.aos.osswitch")
+        self.assertEqual(
+            {"arubanetworks.aos.osswitch__Aruba"},
+            {plat.get_unique_id() for plat in self.solarwinds.get_all("platform")},
+        )
+
     def test_load_platform_ios(self):
         """Test the load_platform() function with IOS device."""
         result = self.solarwinds.load_platform(device_type="ASR1001", manufacturer="Cisco")

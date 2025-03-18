@@ -352,43 +352,69 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
             self.role, ids={"name": role}, attrs={"content_types": [{"app_label": "dcim", "model": "device"}]}
         )
 
-    def load_platform(self, device_type: str, manufacturer: str):  # pylint: disable=inconsistent-return-statements
+    def load_platform(self, device_type: str, manufacturer: str):
         """Load Platform into DiffSync model based upon DeviceType.
 
         Args:
             device_type (str): DeviceType name for associated Platform.
             manufacturer (str): Manufacturer name for associated Platform.
         """
+        platform = "UNKNOWN"
         if "Aruba" in manufacturer:
-            self.get_or_instantiate(
-                self.platform,
-                ids={"name": "arubanetworks.aoscx", "manufacturer__name": manufacturer},
-                attrs={"network_driver": "aruba_aoscx", "napalm_driver": ""},
-            )
-            return "arubanetworks.aoscx"
+            if device_type.startswith(("1", "60", "61", "62", "63", "64", "8", "93", "94")):
+                self.get_or_instantiate(
+                    self.platform,
+                    ids={"name": "arubanetworks.aos.aoscx", "manufacturer__name": manufacturer},
+                    attrs={"network_driver": "aruba_aoscx", "napalm_driver": ""},
+                )
+                platform = "arubanetworks.aos.aoscx"
+            elif device_type.startswith(("AP", "MC", "MM", "7", "90", "91", "92")):
+                self.get_or_instantiate(
+                    self.platform,
+                    ids={"name": "arubanetworks.aos.os", "manufacturer__name": manufacturer},
+                    attrs={"network_driver": "aruba_os", "napalm_driver": ""},
+                )
+                platform = "arubanetworks.aos.os"
+            elif device_type.startswith(("25", "29", "38", "54")):
+                self.get_or_instantiate(
+                    self.platform,
+                    ids={"name": "arubanetworks.aos.osswitch", "manufacturer__name": manufacturer},
+                    attrs={"network_driver": "aruba_osswitch", "napalm_driver": ""},
+                )
+                platform = "arubanetworks.aos.osswitch"
+
         if "Cisco" in manufacturer:
-            if not device_type.startswith("N"):
+            if device_type.startswith("85"):
+                if "wireless" in device_type.lower() or "wlc" in device_type.lower():
+                    self.get_or_instantiate(
+                        self.platform,
+                        ids={"name": "cisco.ios.aireos", "manufacturer__name": manufacturer},
+                        attrs={"network_driver": "cisco_aireos", "napalm_driver": ""},
+                    )
+                platform = "cisco.ios.aireos"
+            elif not device_type.startswith("N"):
                 self.get_or_instantiate(
                     self.platform,
                     ids={"name": "cisco.ios.ios", "manufacturer__name": manufacturer},
                     attrs={"network_driver": "cisco_ios", "napalm_driver": "ios"},
                 )
-                return "cisco.ios.ios"
-            if device_type.startswith("N"):
+                platform = "cisco.ios.ios"
+            elif device_type.startswith("N"):
                 self.get_or_instantiate(
                     self.platform,
                     ids={"name": "cisco.nxos.nxos", "manufacturer__name": manufacturer},
                     attrs={"network_driver": "cisco_nxos", "napalm_driver": "nxos"},
                 )
-                return "cisco.nxos.nxos"
+                platform = "cisco.nxos.nxos"
         elif "Palo" in manufacturer:
             self.get_or_instantiate(
                 self.platform,
                 ids={"name": "paloaltonetworks.panos.panos", "manufacturer__name": manufacturer},
                 attrs={"network_driver": "paloalto_panos", "napalm_driver": ""},
             )
-            return "paloaltonetworks.panos.panos"
-        return "UNKNOWN"
+            platform = "paloaltonetworks.panos.panos"
+
+        return platform
 
     def load_interfaces(self, device: DiffSyncModel, intfs: dict) -> None:
         """Load interfaces for passed device.
