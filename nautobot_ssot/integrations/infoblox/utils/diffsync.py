@@ -150,7 +150,7 @@ def get_default_custom_fields(cf_contenttype: ContentType, excluded_cfs: Optiona
     return default_cfs
 
 
-def map_network_view_to_namespace(value: str, direction: str) -> str:
+def map_network_view_to_namespace(value: str, network_view_to_namespace_map: dict, direction: str) -> str:
     """Remaps Infoblox Network View name to Nautobot Namespace name.
 
     This matters most for mapping default "default" Network View to default Namespace "Global".
@@ -161,9 +161,8 @@ def map_network_view_to_namespace(value: str, direction: str) -> str:
     Returns:
         (str) corresponding Nautobot Namespace name
     """
-    network_view_to_namespace = {
-        "default": "Global",
-    }
+    network_view_to_namespace = network_view_to_namespace_map
+
     namespace_to_network_view = {ns: nv for nv, ns in network_view_to_namespace.items()}
 
     if direction == "nv_to_ns":

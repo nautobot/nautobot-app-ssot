@@ -22,6 +22,7 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
         """Setup testing."""
         self.default_status, _ = Status.objects.get_or_create(name="Active")
         sync_filters = [{"network_view": "default"}]
+        network_view_to_namespace_map = {"default": "Global"}
 
         infoblox_request_timeout = 60
         secrets_group, _ = SecretsGroup.objects.get_or_create(name="InfobloxSSOTUnitTest")
@@ -78,6 +79,7 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
             "import_ipv6": False,
             "job_enabled": True,
             "infoblox_sync_filters": sync_filters,
+            "infoblox_network_view_to_namespace_map": network_view_to_namespace_map,
             "infoblox_dns_view_mapping": {"default": "default.default"},
             "cf_fields_ignore": {"extensible_attributes": [], "custom_fields": []},
             "fixed_address_type": FixedAddressTypeChoices.DONT_CREATE_RECORD,
@@ -90,6 +92,7 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
             name="InfobloxModelUnitTestConfigReqOnly",
             default_status=self.default_status,
             infoblox_instance=self.external_integration,
+            infoblox_network_view_to_namespace_map={"default": "Global"},
         )
         inf_cfg.validated_save()
 
@@ -106,6 +109,7 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
         self.assertEqual(inf_cfg_db.import_vlan_views, False)
         self.assertEqual(inf_cfg_db.import_vlans, False)
         self.assertEqual(inf_cfg_db.infoblox_sync_filters, [{"network_view": "default"}])
+        self.assertEqual(inf_cfg_db.infoblox_network_view_to_namespace_map, {"default": "Global"})
         self.assertEqual(inf_cfg_db.infoblox_dns_view_mapping, {})
         self.assertEqual(inf_cfg_db.cf_fields_ignore, {"custom_fields": [], "extensible_attributes": []})
         self.assertEqual(inf_cfg_db.import_ipv4, True)
@@ -130,6 +134,7 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
             import_ipv6=True,
             job_enabled=True,
             infoblox_sync_filters=[{"network_view": "dev"}],
+            infoblox_network_view_to_namespace_map={"default": "Global"},
             infoblox_dns_view_mapping={"default": "default.default"},
             cf_fields_ignore={"extensible_attributes": ["aws_id"], "custom_fields": ["po_no"]},
             fixed_address_type=FixedAddressTypeChoices.MAC_ADDRESS,
@@ -150,6 +155,7 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
         self.assertEqual(inf_cfg_db.import_vlan_views, True)
         self.assertEqual(inf_cfg_db.import_vlans, True)
         self.assertEqual(inf_cfg_db.infoblox_sync_filters, [{"network_view": "dev"}])
+        self.assertEqual(inf_cfg_db.infoblox_network_view_to_namespace_map, {"default": "Global"})
         self.assertEqual(inf_cfg_db.infoblox_dns_view_mapping, {"default": "default.default"})
         self.assertEqual(inf_cfg_db.cf_fields_ignore, {"extensible_attributes": ["aws_id"], "custom_fields": ["po_no"]})
         self.assertEqual(inf_cfg_db.import_ipv4, False)

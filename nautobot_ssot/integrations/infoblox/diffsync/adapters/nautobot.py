@@ -145,7 +145,7 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
         """
         super().sync_complete(source, *args, **kwargs)
 
-    def _get_namespaces_from_sync_filters(self, sync_filters: list) -> set:
+    def _get_namespaces_from_sync_filters(self, sync_filters: list, network_view_to_namespace_map: dict) -> set:
         """Get namespaces defined in filters.
 
         Args:
@@ -153,12 +153,16 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
         """
         namespaces = set()
         for sync_filter in sync_filters:
-            namespace_name = map_network_view_to_namespace(value=sync_filter["network_view"], direction="nv_to_ns")
+            namespace_name = map_network_view_to_namespace(
+                value=sync_filter["network_view"],
+                network_view_to_namespace_map=network_view_to_namespace_map,
+                direction="nv_to_ns",
+            )
             namespaces.add(namespace_name)
 
         return namespaces
 
-    def load_namespaces(self, sync_filters: Optional[list] = None):
+    def load_namespaces(self, sync_filters: Optional[list] = None, network_view_to_namespace_map: dict = None):
         """Load Namespace DiffSync model.
 
         Args:
@@ -168,7 +172,9 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
             self.job.logger.debug("Loading Namespaces from Nautobot.")
         namespace_names = None
         if sync_filters:
-            namespace_names = self._get_namespaces_from_sync_filters(sync_filters)
+            namespace_names = self._get_namespaces_from_sync_filters(
+                sync_filters=sync_filters, network_view_to_namespace_map=network_view_to_namespace_map
+            )
         if namespace_names:
             all_namespaces = Namespace.objects.filter(name__in=namespace_names)
         else:
@@ -190,7 +196,9 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
             except ObjectAlreadyExists:
                 self.job.logger.warning(f"Found duplicate namespace: {namespace.name}.")
 
-    def _load_all_prefixes_filtered(self, sync_filters: list, include_ipv4: bool, include_ipv6: bool):
+    def _load_all_prefixes_filtered(
+        self, sync_filters: list, include_ipv4: bool, include_ipv6: bool, network_view_to_namespace_map: dict
+    ):
         """Loads prefixes from Nautobot based on the provided sync filter.
 
         Args:
@@ -205,7 +213,11 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
         for sync_filter in sync_filters:
             query_filters = {}
             if "network_view" in sync_filter:
-                namespace = map_network_view_to_namespace(sync_filter["network_view"], direction="nv_to_ns")
+                namespace = map_network_view_to_namespace(
+                    sync_filter["network_view"],
+                    network_view_to_namespace_map=network_view_to_namespace_map,
+                    direction="nv_to_ns",
+                )
                 query_filters["namespace__name"] = namespace
             if "prefixes_ipv4" in sync_filter and include_ipv4:
                 for pfx_ipv4 in sync_filter["prefixes_ipv4"]:
@@ -225,7 +237,9 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
 
         return all_prefixes
 
-    def load_prefixes(self, include_ipv4: bool, include_ipv6: bool, sync_filters: list):
+    def load_prefixes(
+        self, include_ipv4: bool, include_ipv6: bool, sync_filters: list, network_view_to_namespace_map: dict
+    ):
         """Load Prefixes from Nautobot.
 
         Args:
@@ -236,7 +250,10 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
         if self.job.debug:
             self.job.logger.debug("Loading Prefixes from Nautobot.")
         all_prefixes = self._load_all_prefixes_filtered(
-            sync_filters=sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6
+            sync_filters=sync_filters,
+            include_ipv4=include_ipv4,
+            include_ipv6=include_ipv6,
+            network_view_to_namespace_map=network_view_to_namespace_map,
         )
 
         default_cfs = get_default_custom_fields(
@@ -263,7 +280,9 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
             except ObjectAlreadyExists:
                 self.job.logger.warning(f"Found duplicate prefix: {prefix.prefix}.")
 
-    def _load_all_ipaddresses_filtered(self, sync_filters: list, include_ipv4: bool, include_ipv6: bool):
+    def _load_all_ipaddresses_filtered(
+        self, sync_filters: list, include_ipv4: bool, include_ipv6: bool, network_view_to_namespace_map: dict
+    ):
         """Loads ip addresses from Nautobot based on the provided sync filter.
 
         Args:
@@ -278,7 +297,11 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
         for sync_filter in sync_filters:
             query_filters = {}
             if "network_view" in sync_filter:
-                namespace = map_network_view_to_namespace(sync_filter["network_view"], direction="nv_to_ns")
+                namespace = map_network_view_to_namespace(
+                    sync_filter["network_view"],
+                    network_view_to_namespace_map=network_view_to_namespace_map,
+                    direction="nv_to_ns",
+                )
                 query_filters["parent__namespace__name"] = namespace
             if "prefixes_ipv4" in sync_filter and include_ipv4:
                 query_filters["host__net_in"] = sync_filter["prefixes_ipv4"]
@@ -296,7 +319,9 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
 
         return all_ipaddresses
 
-    def load_ipaddresses(self, include_ipv4: bool, include_ipv6: bool, sync_filters: list):  # pylint: disable=too-many-branches
+    def load_ipaddresses(
+        self, include_ipv4: bool, include_ipv6: bool, sync_filters: list, network_view_to_namespace_map: dict
+    ):  # pylint: disable=too-many-branches
         """Load IP Addresses from Nautobot.
 
         Args:
@@ -310,7 +335,10 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
             cf_contenttype=ContentType.objects.get_for_model(IPAddress), excluded_cfs=self.excluded_cfs
         )
         all_ipaddresses = self._load_all_ipaddresses_filtered(
-            sync_filters=sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6
+            sync_filters=sync_filters,
+            include_ipv4=include_ipv4,
+            include_ipv6=include_ipv6,
+            network_view_to_namespace_map=network_view_to_namespace_map,
         )
         for ipaddr in all_ipaddresses:
             addr = ipaddr.host
@@ -510,21 +538,32 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
         include_ipv4 = self.config.import_ipv4
         include_ipv6 = self.config.import_ipv6
         sync_filters = self.config.infoblox_sync_filters
+        network_view_to_namespace_map = self.config.infoblox_network_view_to_namespace_map
 
         self.relationship_map = {r.label: r.id for r in Relationship.objects.only("id", "label")}
         self.status_map = {s.name: s.id for s in Status.objects.only("id", "name")}
         self.location_map = {loc.name: loc.id for loc in Location.objects.only("id", "name")}
         self.tenant_map = {t.name: t.id for t in Tenant.objects.only("id", "name")}
         self.role_map = {r.name: r.id for r in Role.objects.only("id", "name")}
-        self.load_namespaces(sync_filters=sync_filters)
+        self.load_namespaces(sync_filters=sync_filters, network_view_to_namespace_map=network_view_to_namespace_map)
         if "namespace" in self.dict():
             self.job.logger.info(f"Loaded {len(self.dict()['namespace'])} Namespaces from Nautobot.")
         if self.config.import_subnets:
-            self.load_prefixes(sync_filters=sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6)
+            self.load_prefixes(
+                sync_filters=sync_filters,
+                network_view_to_namespace_map=network_view_to_namespace_map,
+                include_ipv4=include_ipv4,
+                include_ipv6=include_ipv6,
+            )
         if "prefix" in self.dict():
             self.job.logger.info(f"Loaded {len(self.dict()['prefix'])} prefixes from Nautobot.")
         if self.config.import_ip_addresses:
-            self.load_ipaddresses(sync_filters=sync_filters, include_ipv4=include_ipv4, include_ipv6=include_ipv6)
+            self.load_ipaddresses(
+                sync_filters=sync_filters,
+                include_ipv4=include_ipv4,
+                include_ipv6=include_ipv6,
+                network_view_to_namespace_map=network_view_to_namespace_map,
+            )
         if "ipaddress" in self.dict():
             self.job.logger.info(f"Loaded {len(self.dict()['ipaddress'])} IP addresses from Nautobot.")
         if self.config.import_vlan_views:
