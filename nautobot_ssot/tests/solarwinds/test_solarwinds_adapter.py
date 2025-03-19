@@ -27,8 +27,7 @@ class TestSolarWindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too
         self.solarwinds_client = MagicMock()
         self.solarwinds_client.get_top_level_containers.return_value = fix.GET_TOP_LEVEL_CONTAINERS_FIXTURE
         self.solarwinds_client.get_filtered_container_ids.return_value = {"HQ": 1}
-        self.solarwinds_client.get_nodes_custom_property.return_value = fix.GET_NODES_CUSTOM_PROPERTY_FIXTURE
-        self.solarwinds_client.get_container_nodes.return_value = fix.GET_CONTAINER_NODES_FIXTURE
+        self.solarwinds_client.get_container_nodes.side_effect = fix.get_container_nodes
 
         self.containers = "HQ"
 
@@ -50,6 +49,7 @@ class TestSolarWindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too
         self.job.logger.info = MagicMock()
         self.job.logger.warning = MagicMock()
         self.job.location_type = self.location_type
+        self.job.location_override = None
         self.job.parent = self.parent
         self.job.default_role = Role.objects.get_or_create(name="Router")[0]
         self.solarwinds = SolarWindsAdapter(
@@ -185,14 +185,6 @@ class TestSolarWindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too
         self.assertEqual({"Cisco"}, {manu.get_unique_id() for manu in self.solarwinds.get_all("manufacturer")})
         self.assertEqual({"ASR1001__Cisco"}, {manu.get_unique_id() for manu in self.solarwinds.get_all("device_type")})
 
-    def test_get_nodes_custom_property(self):
-        """Test the get_nodes_custom_property() function success."""
-        results = self.solarwinds_client.get_nodes_custom_property(custom_property="Nautobot_Monitoring")
-        self.solarwinds_client.get_nodes_custom_property.assert_called_once_with(custom_property="Nautobot_Monitoring")
-        self.solarwinds_client.get_nodes_custom_property.assert_called()
-
-        self.assertEqual(results, fix.GET_NODES_CUSTOM_PROPERTY_FIXTURE)
-
     def test_get_container_nodes_specific_container(self):
         """Test the get_container_nodes() function success with a specific container."""
         results = self.solarwinds.get_container_nodes()
@@ -209,6 +201,16 @@ class TestSolarWindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too
         self.solarwinds_client.get_top_level_containers.assert_called_once_with(top_container="USA")
         self.solarwinds_client.get_container_nodes.assert_called()
         self.assertEqual(results, fix.GET_CONTAINER_NODES_FIXTURE)
+
+    def test_get_container_nodes_all_containers_custom_property(self):
+        """Test the get_container_nodes() function success with all containers."""
+        self.solarwinds.containers = "ALL"
+        self.job.top_container = "USA"
+        self.job.custom_property = "Nautobot_Sync"
+        results = self.solarwinds.get_container_nodes(custom_property=self.job.custom_property)
+        self.solarwinds_client.get_top_level_containers.assert_called_once_with(top_container="USA")
+        self.solarwinds_client.get_container_nodes.assert_called()
+        self.assertEqual(results, fix.GET_CONTAINER_NODES_CUSTOM_PROPERTY_FIXTURE)
 
     def test_load_location(self):
         """Test the load_location() function."""
