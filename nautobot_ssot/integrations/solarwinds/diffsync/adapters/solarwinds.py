@@ -94,12 +94,7 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
         if self.parent:
             self.load_parent()
 
-        if self.job.pull_from == "CustomProperty" and self.job.location_override:
-            container_nodes = self.get_nodes_custom_property(
-                custom_property=self.job.custom_property, location=self.job.location_override
-            )
-        else:
-            container_nodes = self.get_container_nodes(custom_property=self.job.custom_property)
+        container_nodes = self.get_container_nodes(custom_property=self.job.custom_property)
 
         self.load_sites(container_nodes)
 
@@ -231,11 +226,6 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
         if loaded:
             manu.add_child(new_dt)
 
-    def get_nodes_custom_property(self, custom_property, location):
-        """Gather nodes with customproperty from SolarWinds."""
-        nodes = {location.name: self.conn.get_nodes_custom_property(custom_property)}
-        return nodes
-
     def get_container_nodes(self, custom_property=None):
         """Gather container nodes for all specified containers from SolarWinds."""
         container_ids, container_nodes = {}, {}
@@ -243,7 +233,11 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
             container_ids = self.conn.get_filtered_container_ids(containers=self.containers)
         else:
             container_ids = self.conn.get_top_level_containers(top_container=self.job.top_container)
-        container_nodes = self.conn.get_container_nodes(container_ids, custom_property)
+        container_nodes = self.conn.get_container_nodes(
+            container_ids=container_ids,
+            custom_property=custom_property,
+            location_name=self.job.location_override.name if self.job.location_override else None,
+        )
         return container_nodes
 
     def load_location(  # pylint: disable=too-many-arguments

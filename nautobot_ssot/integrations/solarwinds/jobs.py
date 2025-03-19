@@ -34,12 +34,6 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
         label="SolarWinds Instance",
         required=True,
     )
-    pull_from = ChoiceVar(
-        choices=PULL_FROM_CHOICES,
-        label="Pull Devices From:",
-        description="Specify whether to pull all devices from SolarWinds containers, or use a Custom Property",
-        required=True,
-    )
     custom_property = StringVar(
         description="Name of SolarWinds Custom Property existing (set to True) on Devices to be synced.",
         label="SolarWinds Custom Property",
@@ -122,7 +116,6 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
             "debug",
             "integration",
             "location_type",
-            "pull_from",
             "custom_property",
             "containers",
             "top_container",
@@ -159,7 +152,7 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
         if self.containers == "":
             self.logger.error("Containers variable must be defined with container name(s) or 'ALL'.")
             raise JobConfigError
-        if self.pull_from == "Containers" and self.containers == "ALL" and self.top_container == "":
+        if self.containers == "ALL" and self.top_container == "":
             self.logger.error("Top Container must be specified if `ALL` Containers are to be imported.")
             raise JobConfigError
 
@@ -195,20 +188,10 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
             self.logger.error("Role Map Matching Attribute must be defined if Role Map is specified.")
             raise JobConfigError
 
-    def validate_custom_property(self):
-        """Confirm configuration of Custom Property var."""
-        if self.pull_from == "CustomProperty" and not self.custom_property:
-            self.logger.error("Custom Property value must exist if pulling from Custom Property.")
-            raise JobConfigError
-        if self.pull_from == "CustomProperty" and not self.location_override:
-            self.logger.error("Location Override must be selected if pulling from CustomProperty.")
-            raise JobConfigError
-
     def load_source_adapter(self):
         """Load data from SolarWinds into DiffSync models."""
         self.validate_containers()
         self.validate_location_configuration()
-        self.validate_custom_property()
         _sg = self.integration.secrets_group
         username = _sg.get_secret_value(
             access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
@@ -265,12 +248,13 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
     ):
         """Perform data synchronization."""
         self.integration = integration
-        self.pull_from = kwargs["pull_from"]
         self.custom_property = kwargs["custom_property"]
         self.location_override = kwargs["location_override"]
         self.containers = containers
         self.top_container = top_container
-        self.location_type = location_type if location_type else self.location_override.location_type
+        self.location_type = (
+            location_type if location_type else self.location_override.location_type if self.location_override else None
+        )
         self.parent = parent
         self.tenant = tenant
         self.role_map = role_map

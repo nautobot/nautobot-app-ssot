@@ -11,11 +11,11 @@ def load_json(path):
         return json.loads(file.read())
 
 
-GET_CONTAINER_NODES_FIXTURE = load_json("./nautobot_ssot/tests/solarwinds/fixtures/get_container_nodes.json")
 GET_TOP_LEVEL_CONTAINERS_FIXTURE = load_json("./nautobot_ssot/tests/solarwinds/fixtures/get_top_level_containers.json")
 NODE_DETAILS_FIXTURE = load_json("./nautobot_ssot/tests/solarwinds/fixtures/node_details.json")
-GET_NODES_CUSTOM_PROPERTY_FIXTURE = load_json(
-    "./nautobot_ssot/tests/solarwinds/fixtures/get_nodes_custom_property.json"
+GET_CONTAINER_NODES_FIXTURE = load_json("./nautobot_ssot/tests/solarwinds/fixtures/get_container_nodes.json")
+GET_CONTAINER_NODES_CUSTOM_PROPERTY_FIXTURE = load_json(
+    "./nautobot_ssot/tests/solarwinds/fixtures/get_container_nodes_custom_property.json"
 )
 
 
@@ -31,3 +31,10 @@ def create_solarwinds_client(**kwargs) -> SolarWindsClient:
         verify=kwargs.pop("verify", True),
         job=kwargs.pop("job", None),
     )
+
+
+def get_container_nodes(container_ids=None, custom_property=None, location_name=None):  # pylint: disable=W0613
+    """Function to return nodes based on inputs."""
+    if custom_property:
+        return GET_CONTAINER_NODES_CUSTOM_PROPERTY_FIXTURE
+    return GET_CONTAINER_NODES_FIXTURE
