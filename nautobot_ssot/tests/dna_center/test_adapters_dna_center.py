@@ -313,6 +313,15 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         )
         self.dna_center.load_ports.assert_called()
 
+    def test_load_devices_missing_location(self):
+        """Validate handling of a Device when a Location is missing."""
+        self.dna_center.building_map = {}
+        self.dna_center.dnac_location_map = {}
+        self.dna_center.load_devices()
+        self.dna_center.job.logger.error.assert_called_with(
+            "Device spine1.abc.in has unknown location in hierarchy so will not be imported."
+        )
+
     def test_load_ports(self):
         """Test Nautobot SSoT for Cisco DNA Center load_ports() function."""
         self.dna_center.load_devices()
