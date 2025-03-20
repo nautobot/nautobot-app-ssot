@@ -344,7 +344,7 @@ class DnaCenterAdapter(Adapter):
             dev_details = self.conn.get_device_detail(dev_id=dev["id"])
             loc_data = {}
             if dev_details and dev_details.get("siteHierarchyGraphId"):
-                locations = dev_details["siteHierarchyGraphId"].split("/")
+                locations = dev_details["siteHierarchyGraphId"].lstrip("/").rstrip("/").split("/")
                 # remove Global if not importing Global
                 if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
                     locations.pop(0)
