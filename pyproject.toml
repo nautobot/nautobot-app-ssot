@@ -30,7 +30,7 @@ include = [
 [tool.poetry.dependencies]
 python = ">=3.8,<3.13"
 # Used for local development
-nautobot = {version = "2.2.1", python = "3.11"}
+nautobot = "^2.1.0"
 diffsync = "^2.0.0"
 Jinja2 = { version = ">=2.11.3", optional = true }
 Markdown = "!=3.3.5"
