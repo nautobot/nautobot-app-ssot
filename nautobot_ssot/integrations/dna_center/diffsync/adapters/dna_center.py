@@ -55,7 +55,6 @@ class DnaCenterAdapter(Adapter):
         self.conn = client
         self.failed_import_devices = []
         self.dnac_location_map = {}
-        self.building_map = {}
         self.floors = []
         self.tenant = tenant
 
@@ -130,7 +129,6 @@ class DnaCenterAdapter(Adapter):
                     self.dnac_location_map[loc_id]["loc_type"] = info["attributes"]["type"]
                     if info["attributes"]["type"] in ["area", "building"]:
                         if info["attributes"]["type"] == "building":
-                            self.building_map[loc_id] = location
                             if self.job.location_map.get(parent_name) and self.job.location_map[parent_name].get(
                                 "parent"
                             ):
@@ -344,6 +342,16 @@ class DnaCenterAdapter(Adapter):
             dev_details = self.conn.get_device_detail(dev_id=dev["id"])
             loc_data = {}
             if dev_details and dev_details.get("siteHierarchyGraphId"):
+                for loc in dev_details["siteHierarchyGraphId"].split("/"):
+                    if loc not in self.dnac_location_map:
+                        self.job.logger.error(f"Device {dev['hostname']} has unknown location {loc} so will not be imported.")
+                        dev["field_validation"] = {
+                            "reason": "Invalid location information found.",
+                            "device_details": dev_details,
+                            "location_data": loc_data,
+                        }
+                        self.failed_import_devices.append(dev)
+                        continue
                 loc_data = self.conn.parse_site_hierarchy(
                     location_map=self.dnac_location_map, site_hier=dev_details["siteHierarchyGraphId"]
                 )
@@ -441,7 +449,7 @@ class DnaCenterAdapter(Adapter):
                 f"Loading building {self.dnac_location_map[building_id]['name']} in {self.dnac_location_map[building_id]['parent']} which exists in {self.dnac_location_map[building_id]['parent_of_parent']} area parent."
             )
         self.load_building(
-            building=self.building_map[building_id],
+            building=self.dnac_location_map[building_id]["name"],
             area_name=self.dnac_location_map[building_id]["parent"],
             area_parent_name=self.dnac_location_map[building_id]["parent_of_parent"],
         )
