@@ -18,12 +18,16 @@ config = settings.PLUGINS_CONFIG["nautobot_ssot"]
 def register_signals(sender):
     """Register signals for Cradlepoint integration."""
     nautobot_database_ready.connect(create_default_cradlepoint_config, sender=sender)
-    nautobot_database_ready.connect(create_default_cradlepoint_manufacturer, sender=sender)
+    nautobot_database_ready.connect(
+        create_default_cradlepoint_manufacturer, sender=sender
+    )
     nautobot_database_ready.connect(create_default_location, sender=sender)
     nautobot_database_ready.connect(create_default_custom_fields, sender=sender)
 
 
-def create_default_cradlepoint_config(sender, *, apps, **kwargs):  # pylint: disable=unused-argument
+def create_default_cradlepoint_config(
+    sender, *, apps, **kwargs
+):  # pylint: disable=unused-argument
     """Create default Cradlepoint config."""
     SSOTCradlepointConfig = apps.get_model("nautobot_ssot", "SSOTCradlepointConfig")
     ExternalIntegration = apps.get_model("extras", "ExternalIntegration")
@@ -31,7 +35,9 @@ def create_default_cradlepoint_config(sender, *, apps, **kwargs):  # pylint: dis
     SecretsGroup = apps.get_model("extras", "SecretsGroup")
     SecretsGroupAssociation = apps.get_model("extras", "SecretsGroupAssociation")
 
-    secrets_group, _ = SecretsGroup.objects.get_or_create(name="CradlepointSSOTDefaultSecretGroup")
+    secrets_group, _ = SecretsGroup.objects.get_or_create(
+        name="CradlepointSSOTDefaultSecretGroup"
+    )
     cradlepoint_x_ecm_api_id, _ = Secret.objects.get_or_create(
         name="X-ECM-API-ID - Default",
         defaults={
@@ -95,7 +101,9 @@ def create_default_cradlepoint_config(sender, *, apps, **kwargs):  # pylint: dis
     external_integration, _ = ExternalIntegration.objects.get_or_create(
         name="DefaultCradlepointInstance",
         defaults={
-            "remote_url": str(config.get("cradlepoint_url", "https://www.cradlepointecm.com")),
+            "remote_url": str(
+                config.get("cradlepoint_url", "https://www.cradlepointecm.com")
+            ),
             "secrets_group": secrets_group,
             "verify_ssl": bool(config.get("verify_ssl", False)),
             "timeout": 10,
@@ -111,7 +119,9 @@ def create_default_cradlepoint_config(sender, *, apps, **kwargs):  # pylint: dis
         )
 
 
-def create_default_cradlepoint_manufacturer(sender, *, apps, **kwargs):  # pylint: disable=unused-argument
+def create_default_cradlepoint_manufacturer(
+    sender, *, apps, **kwargs
+):  # pylint: disable=unused-argument
     """Create default Cradlepoint manufacturer."""
     Manufacturer = apps.get_model("dcim", "Manufacturer")
     default_manufacturer = config.get("cradlepoint_default_manufacturer_name")
@@ -120,11 +130,18 @@ def create_default_cradlepoint_manufacturer(sender, *, apps, **kwargs):  # pylin
     )
 
 
-def create_default_location(sender, *, apps, **kwargs):  # pylint: disable=unused-argument
+def create_default_location(
+    sender, *, apps, **kwargs
+):  # pylint: disable=unused-argument
     """Create default location."""
     default_location_name = config.get("cradlepoint_default_location_name")
     default_location_type = config.get("cradlepoint_default_location_type")
-    default_location_parent = config.get("cradlepoint_default_location_parent")
+    default_parent_location_name = config.get(
+        "cradlepoint_default_parent_location_name"
+    )
+    default_parent_location_type = config.get(
+        "cradlepoint_default_parent_location_type"
+    )
 
     Location = apps.get_model("dcim", "Location")
     LocationType = apps.get_model("dcim", "LocationType")
@@ -138,15 +155,20 @@ def create_default_location(sender, *, apps, **kwargs):  # pylint: disable=unuse
         "location_type": location_type,
         "status": Status.objects.get(name="Active"),
     }
-    if default_location_parent:
-        location_info["parent"] = Location.objects.get_or_create(name=default_location_parent)
+    if default_parent_location_name:
+        location_info["parent"] = Location.objects.get_or_create(
+            name=default_parent_location_name,
+            location_type__name=default_parent_location_type,
+        )
 
     Location.objects.get_or_create(
         **location_info,
     )
 
 
-def create_default_custom_fields(sender, *, apps, **kwargs):  # pylint: disable=unused-argument
+def create_default_custom_fields(
+    sender, *, apps, **kwargs
+):  # pylint: disable=unused-argument
     """Create default Custom Fields."""
     CustomField = apps.get_model("extras", "CustomField")
     ContentType = apps.get_model("contenttypes", "ContentType")
