@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from itertools import islice
 
 from diffsync import Adapter
@@ -8,6 +9,7 @@ from nautobot.dcim.models import Location
 from nautobot_ssot.integrations.cradlepoint.constants import (
     DEFAULT_LOCATION,
     DEFAULT_MANUFACTURER,
+    DEFAULT_API_DEVICE_LIMIT,
 )
 from nautobot_ssot.integrations.cradlepoint.diffsync.models.cradlepoint import (
     CradlepointDevice,
@@ -173,13 +175,16 @@ class CradlepointAdapter(Adapter):
     def load(self):
         """Entrypoint for loading data from Cradlepoint."""
         offset_number = 0
-        limit_number = 10
         next = True
-        # This will change to a while loop wfor the actual implementation.
-        for number in range(0, 2):
+        call_counter = 0
+        # TODO:  This will change to a while loop for the actual implementation.
+        for number in range(0, 10):
+            self.job.logger.info(f"Call counter: {call_counter}")
+            call_counter += 1
+            time.sleep(15)
             routers_call = self.client.get_routers(
                 {
-                    "limit": limit_number,
+                    "limit": DEFAULT_API_DEVICE_LIMIT,
                     "offset": offset_number,
                     "fields": ",".join(
                         [
@@ -201,7 +206,14 @@ class CradlepointAdapter(Adapter):
             for record in routers_from_call:
                 if record.get("serial_number") is None:
                     self.job.logger.warning(
-                        f"Skipping record without serial number. Router id: {record['id']}"
+                        "Skipping record without serial number. Router id: %s",
+                        record.get("id", "unknown"),
+                    )
+                    continue
+                if record.get("state") == "initialized":
+                    self.job.logger.warning(
+                        "Skipping record with state 'initialized'. Router id: %s",
+                        record.get("id", "unknown"),
                     )
                     continue
                 self.routers.setdefault(
@@ -210,7 +222,7 @@ class CradlepointAdapter(Adapter):
                 )
 
             self.retrieve_router_location()
-            offset_number += limit_number
+            offset_number += DEFAULT_API_DEVICE_LIMIT
 
         # Populate diffsync store.
         for record in self.routers.values():

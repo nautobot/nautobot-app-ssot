@@ -122,8 +122,9 @@ def create_default_cradlepoint_config(
 def create_default_cradlepoint_manufacturer(sender, *, apps, **kwargs):
     """Create default Cradlepoint manufacturer."""
     Manufacturer = apps.get_model("dcim", "Manufacturer")
+    default_manufacturer = config.get("cradlepoint_default_manufacturer_name")
     Manufacturer.objects.get_or_create(
-        name="Cradlepoint Inc.",
+        name=default_manufacturer,
     )
 
 

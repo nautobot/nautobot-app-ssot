@@ -248,6 +248,9 @@ PLUGINS_CONFIG = {
         "cradlepoint_default_manufacturer_name": os.getenv(
             "NAUTOBOT_SSOT_CRADLEPOINT_DEFAULT_MANUFACTURER", "Cradlepoint"
         ),
+        "cradlepoint_default_api_device_limit": os.getenv(
+            "NAUTOBOT_SSOT_CRADLEPOINT_DEFAULT_API_RETRIEVAL_LIMIT", 500
+        ),
         "enable_aci": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ACI")),
         "enable_aristacv": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ARISTACV")),
         "enable_bootstrap": is_truthy(
