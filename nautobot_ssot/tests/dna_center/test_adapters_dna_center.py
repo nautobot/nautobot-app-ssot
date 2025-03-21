@@ -32,7 +32,6 @@ from nautobot_ssot.tests.dna_center.fixtures import (
     EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL,
     EXPECTED_FLOORS,
     LOCATION_FIXTURE,
-    LOCATION_WO_GLOBAL_FIXTURE,
     PORT_FIXTURE,
 )
 
