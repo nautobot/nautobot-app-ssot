@@ -1,15 +1,14 @@
-import json
-import os
+"""Cradlepoint Adapter for DiffSync."""
+
 import time
 from itertools import islice
 
 from diffsync import Adapter
-from nautobot.dcim.models import Location
 
 from nautobot_ssot.integrations.cradlepoint.constants import (
+    DEFAULT_API_DEVICE_LIMIT,
     DEFAULT_LOCATION,
     DEFAULT_MANUFACTURER,
-    DEFAULT_API_DEVICE_LIMIT,
 )
 from nautobot_ssot.integrations.cradlepoint.diffsync.models.cradlepoint import (
     CradlepointDevice,
@@ -118,9 +117,7 @@ class CradlepointAdapter(Adapter):
             "device_accuracy": record.get("accuracy"),
         }
         # The name field is actually the associated SAN.
-        router_information["location__name"] = self.find_location(
-            router_information["name"]
-        )
+        router_information["location__name"] = self.find_location(router_information["name"])
         self.load_status(router_information["status__name"])
         self.load_device_type(router_information["device_type__model"])
         self.load_device_role(router_information["role__name"])
@@ -165,9 +162,7 @@ class CradlepointAdapter(Adapter):
 
                 router = self.routers.get(router_id)
                 if not router:
-                    self.job.logger.info(
-                        msg=f"Router ID {router_id} not found in router dictionary."
-                    )
+                    self.job.logger.info(msg=f"Router ID {router_id} not found in router dictionary.")
                     continue
                 # Update the router's information
                 router.update(record)
@@ -200,7 +195,7 @@ class CradlepointAdapter(Adapter):
             )
             routers_from_call = routers_call.get("data", [])
             if not routers_call.get("meta", {}).get("next"):
-                next = False
+                next = False  # noqa: F841
 
             # Create router dictionary
             for record in routers_from_call:

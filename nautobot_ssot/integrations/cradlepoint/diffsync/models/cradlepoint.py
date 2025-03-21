@@ -1,3 +1,5 @@
+"""Diffsync models for Cradlepoint integration."""
+
 import datetime
 
 try:
@@ -7,15 +9,15 @@ except ModuleNotFoundError:
 
 from diffsync.enum import DiffSyncModelFlags
 from django.contrib.contenttypes.models import ContentType
-from nautobot.dcim.models import Device, DeviceType, Interface
+from nautobot.dcim.models import Device, DeviceType
 from nautobot.extras.models.customfields import CustomField, CustomFieldTypeChoices
 from nautobot.extras.models.roles import Role
 from nautobot.extras.models.statuses import Status
 from nautobot.extras.models.tags import Tag
 from typing_extensions import List, Optional, TypedDict
-from nautobot_ssot.integrations.cradlepoint.constants import DEFAULT_MANUFACTURER
 
 from nautobot_ssot.contrib import CustomFieldAnnotation, NautobotModel
+from nautobot_ssot.integrations.cradlepoint.constants import DEFAULT_MANUFACTURER
 
 TODAY = datetime.date.today().isoformat()
 
@@ -148,6 +150,9 @@ class CradlepointDeviceType(NautobotModel):
 
 class CradlepointDevice(CradlepointDiffSync):
     """DiffSync model for CradlePoint device."""
+
+    # TODO: Possibly make a flag in settings to determine if we want to skip unmatched devices
+    model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
 
     _model = Device
     _modelname = "device"

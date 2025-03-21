@@ -23,6 +23,4 @@ class SSOTCradlepointConfigFilterSet(NautobotFilterSet):
         """String search of SSOTCradlepointConfig records."""
         if not value.strip():
             return queryset
-        return queryset.filter(
-            Q(name__icontains=value)
-        )  # pylint: disable=unsupported-binary-operation
+        return queryset.filter(Q(name__icontains=value))  # pylint: disable=unsupported-binary-operation

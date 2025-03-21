@@ -1,6 +1,7 @@
 """Models implemntation for SSoT Cradlepoint Integration."""
-from nautobot.core.models.generics import PrimaryModel
+
 from django.db import models
+from nautobot.core.models.generics import PrimaryModel
 
 try:
     from nautobot.apps.constants import CHARFIELD_MAX_LENGTH
@@ -8,7 +9,7 @@ except ImportError:
     CHARFIELD_MAX_LENGTH = 255
 
 
-class SSOTCradlepointConfig(PrimaryModel):
+class SSOTCradlepointConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
     """SSOT Cradlepoint Config model."""
 
     name = models.CharField(max_length=255, unique=True)

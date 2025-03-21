@@ -4,12 +4,11 @@
 #  pylint: disable=abstract-method
 
 """Job for Cradlepoint integration with SSoT app."""
-import time
 
 from diffsync.enum import DiffSyncFlags
 from django.templatetags.static import static
 from django.urls import reverse
-from nautobot.apps.jobs import BooleanVar, Job, ObjectVar
+from nautobot.apps.jobs import BooleanVar, ObjectVar
 from nautobot.extras.choices import (
     SecretsGroupAccessTypeChoices,
     SecretsGroupSecretTypeChoices,

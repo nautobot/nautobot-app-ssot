@@ -1,17 +1,11 @@
 """Nautobot Adapter for Cradlepoint Integration."""
+
 from nautobot_ssot.contrib import NautobotAdapter
 from nautobot_ssot.integrations.cradlepoint.diffsync.models.cradlepoint import (
     CradlepointDevice,
     CradlepointDeviceType,
     CradlepointRole,
     CradlepointStatus,
-)
-import pydantic
-from typing_extensions import get_type_hints
-from nautobot_ssot.contrib.types import (
-    CustomFieldAnnotation,
-    CustomRelationshipAnnotation,
-    RelationshipSideEnum,
 )
 
 

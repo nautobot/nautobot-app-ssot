@@ -28,9 +28,7 @@ def each_enabled_integration_module(
         try:
             module = import_module(f"nautobot_ssot.integrations.{name}.{module_name}")
         except ModuleNotFoundError:
-            logger.debug(
-                "Integration %s does not have a %s module, skipping.", name, module_name
-            )
+            logger.debug("Integration %s does not have a %s module, skipping.", name, module_name)
             continue
 
         yield module

@@ -1,3 +1,5 @@
+"""SDK for Cradlepoint API."""
+
 import requests
 
 
@@ -14,6 +16,7 @@ class CradlepointClient:
         verify_ssl,
         debug,
     ):
+        """Initialize the CradlepointClient client."""
         self.base_url = f"{cradlepoint_uri}/api/v2/"
         self.x_ecm_api_id_token = x_ecm_api_id
         self.x_ecm_api_key_token = x_ecm_api_key

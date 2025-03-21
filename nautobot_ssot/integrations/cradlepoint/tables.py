@@ -13,9 +13,7 @@ class SSOTCradlepointConfigTable(BaseTable):
     cradlepoint_url = tables.Column(accessor="cradlepoint_instance__remote_url")
     enable_sync_to_nautobot = BooleanColumn(orderable=False)
     job_enabled = BooleanColumn(orderable=False)
-    actions = ButtonsColumn(
-        SSOTCradlepointConfig, buttons=("changelog", "edit", "delete")
-    )
+    actions = ButtonsColumn(SSOTCradlepointConfig, buttons=("changelog", "edit", "delete"))
 
     class Meta(BaseTable.Meta):
         """Meta attributes."""
