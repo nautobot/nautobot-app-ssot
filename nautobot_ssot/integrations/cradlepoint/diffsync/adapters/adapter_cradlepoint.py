@@ -117,7 +117,9 @@ class CradlepointAdapter(Adapter):
             "device_accuracy": record.get("accuracy"),
         }
         # The name field is actually the associated SAN.
-        router_information["location__name"] = self.find_location(router_information["name"])
+        router_information["location__name"] = self.find_location(
+            router_information["name"]
+        )
         self.load_status(router_information["status__name"])
         self.load_device_type(router_information["device_type__model"])
         self.load_device_role(router_information["role__name"])
@@ -162,7 +164,9 @@ class CradlepointAdapter(Adapter):
 
                 router = self.routers.get(router_id)
                 if not router:
-                    self.job.logger.info(msg=f"Router ID {router_id} not found in router dictionary.")
+                    self.job.logger.info(
+                        msg=f"Router ID {router_id} not found in router dictionary."
+                    )
                     continue
                 # Update the router's information
                 router.update(record)
@@ -173,7 +177,7 @@ class CradlepointAdapter(Adapter):
         next = True
         call_counter = 0
         # TODO:  This will change to a while loop for the actual implementation.
-        for number in range(0, 10):
+        for number in range(0, 20):
             self.job.logger.info(f"Call counter: {call_counter}")
             call_counter += 1
             time.sleep(15)
