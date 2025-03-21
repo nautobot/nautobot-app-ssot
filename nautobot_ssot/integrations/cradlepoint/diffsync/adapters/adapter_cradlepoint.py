@@ -19,7 +19,7 @@ from nautobot_ssot.integrations.cradlepoint.diffsync.models.cradlepoint import (
 
 
 class CradlepointAdapter(Adapter):
-    """CradlePoint Adapter."""
+    """Cradlepoint Adapter."""
 
     status = CradlepointStatus
     device_role = CradlepointRole
@@ -141,7 +141,8 @@ class CradlepointAdapter(Adapter):
             while chunk := list(islice(iterator, segment_size)):
                 yield chunk
 
-        for router_id_chunk in _segment_iterable(self.routers.keys(), 25):
+        for router_id_chunk in _segment_iterable(self.routers.keys(), 250):
+            time.sleep(15)
             router_locations = self.client.get_locations(
                 {
                     "router__in": ",".join(router_id_chunk),
@@ -180,7 +181,7 @@ class CradlepointAdapter(Adapter):
         for number in range(0, 20):
             self.job.logger.info(f"Call counter: {call_counter}")
             call_counter += 1
-            time.sleep(15)
+            time.sleep(30)
             routers_call = self.client.get_routers(
                 {
                     "limit": DEFAULT_API_DEVICE_LIMIT,

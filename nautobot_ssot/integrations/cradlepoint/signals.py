@@ -21,7 +21,7 @@ def register_signals(sender):
     nautobot_database_ready.connect(
         create_default_cradlepoint_manufacturer, sender=sender
     )
-    # nautobot_database_ready.connect(create_default_location, sender=sender)
+    nautobot_database_ready.connect(create_default_location, sender=sender)
     nautobot_database_ready.connect(create_default_custom_fields, sender=sender)
 
 
@@ -130,40 +130,45 @@ def create_default_cradlepoint_manufacturer(
     )
 
 
-# def create_default_location(
-#     sender, *, apps, **kwargs
-# ):  # pylint: disable=unused-argument
-#     """Create default location."""
-#     default_location_name = config.get("cradlepoint_default_location_name")
-#     default_location_type = config.get("cradlepoint_default_location_type")
-#     default_parent_location_name = config.get(
-#         "cradlepoint_default_parent_location_name"
-#     )
-#     default_parent_location_type = config.get(
-#         "cradlepoint_default_parent_location_type"
-#     )
+def create_default_location(
+    sender, *, apps, **kwargs
+):  # pylint: disable=unused-argument
+    """Create default location."""
+    default_location_name = config.get("cradlepoint_default_location_name")
+    default_location_type = config.get("cradlepoint_default_location_type")
+    default_parent_location_name = config.get(
+        "cradlepoint_default_parent_location_name"
+    )
+    default_parent_location_type = config.get(
+        "cradlepoint_default_parent_location_type"
+    )
 
-#     Location = apps.get_model("dcim", "Location")
-#     LocationType = apps.get_model("dcim", "LocationType")
-#     Device = apps.get_model("dcim", "Device")
-#     Status = apps.get_model("extras", "Status")
-#     ContentType = apps.get_model("contenttypes", "ContentType")
-#     location_type, _ = LocationType.objects.get_or_create(name=default_location_type)
-#     location_type.content_types.set([ContentType.objects.get_for_model(Device)])
-#     location_info = {
-#         "name": default_location_name,
-#         "location_type": location_type,
-#         "status": Status.objects.get(name="Active"),
-#     }
-#     if default_parent_location_name:
-#         location_info["parent"] = Location.objects.get_or_create(
-#             name=default_parent_location_name,
-#             location_type__name=default_parent_location_type,
-#         )
+    Location = apps.get_model("dcim", "Location")
+    LocationType = apps.get_model("dcim", "LocationType")
+    Device = apps.get_model("dcim", "Device")
+    Status = apps.get_model("extras", "Status")
+    ContentType = apps.get_model("contenttypes", "ContentType")
+    active_status, _ = Status.objects.get_or_create(name="Active")
+    location_type, _ = LocationType.objects.get_or_create(name=default_location_type)
+    location_type.content_types.set([ContentType.objects.get_for_model(Device)])
+    location_info = {
+        "name": default_location_name,
+        "location_type": location_type,
+        "status": active_status,
+    }
+    try:
+        if default_parent_location_name:
+            location_info["parent"] = Location.objects.get_or_create(
+                name=default_parent_location_name,
+                location_type__name=default_parent_location_type,
+            )
+    except Exception as err:  # pylint: disable=broad-except
+        print(f"Error creating parent location: {err}")
+        return
 
-#     Location.objects.get_or_create(
-#         **location_info,
-#     )
+    Location.objects.get_or_create(
+        **location_info,
+    )
 
 
 def create_default_custom_fields(

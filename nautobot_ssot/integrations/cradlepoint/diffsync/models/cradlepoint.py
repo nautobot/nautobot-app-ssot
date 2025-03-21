@@ -65,11 +65,7 @@ class CradlepointDiffSync(NautobotModel):
             if hasattr(nautobot_object, "tags"):
                 nautobot_object.tags.add(tag)
             if hasattr(nautobot_object, "cf"):
-                if not any(
-                    cfield
-                    for cfield in CustomField.objects.all()
-                    if cfield.key == custom_field_key
-                ):
+                if not any(cfield for cfield in CustomField.objects.all() if cfield.key == custom_field_key):
                     custom_field_obj, _ = CustomField.objects.get_or_create(
                         type=CustomFieldTypeChoices.TYPE_DATE,
                         key=custom_field_key,
@@ -79,9 +75,7 @@ class CradlepointDiffSync(NautobotModel):
                     )
                     synced_from_models = [Device]
                     for model in synced_from_models:
-                        custom_field_obj.content_types.add(
-                            ContentType.objects.get_for_model(model)
-                        )
+                        custom_field_obj.content_types.add(ContentType.objects.get_for_model(model))
                     custom_field_obj.validated_save()
 
                 # Update custom field date stamp
@@ -149,7 +143,7 @@ class CradlepointDeviceType(NautobotModel):
 
 
 class CradlepointDevice(CradlepointDiffSync):
-    """DiffSync model for CradlePoint device."""
+    """DiffSync model for Cradlepoint device."""
 
     # TODO: Possibly make a flag in settings to determine if we want to skip unmatched devices
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
@@ -178,28 +172,16 @@ class CradlepointDevice(CradlepointDiffSync):
     role__name: str
     status__name: str
     serial: str
-    cradlepoint_id_number: Annotated[
-        Optional[str], CustomFieldAnnotation(key="cradlepoint_id_number")
-    ] = None
-    device_latitude: Annotated[
-        Optional[str], CustomFieldAnnotation(key="device_latitude")
-    ] = None
+    cradlepoint_id_number: Annotated[Optional[str], CustomFieldAnnotation(key="cradlepoint_id_number")] = None
+    device_latitude: Annotated[Optional[str], CustomFieldAnnotation(key="device_latitude")] = None
 
-    device_longitude: Annotated[
-        Optional[str], CustomFieldAnnotation(key="device_longitude")
-    ] = None
+    device_longitude: Annotated[Optional[str], CustomFieldAnnotation(key="device_longitude")] = None
 
-    device_altitude: Annotated[
-        Optional[str], CustomFieldAnnotation(key="device_altitude")
-    ] = None
+    device_altitude: Annotated[Optional[str], CustomFieldAnnotation(key="device_altitude")] = None
 
-    device_gps_method: Annotated[
-        Optional[str], CustomFieldAnnotation(key="device_gps_method")
-    ] = None
+    device_gps_method: Annotated[Optional[str], CustomFieldAnnotation(key="device_gps_method")] = None
 
-    device_accuracy: Annotated[
-        Optional[int], CustomFieldAnnotation(key="device_accuracy")
-    ] = None
+    device_accuracy: Annotated[Optional[int], CustomFieldAnnotation(key="device_accuracy")] = None
 
     class Config:
         """Pydantic configuration for the model."""
@@ -208,7 +190,5 @@ class CradlepointDevice(CradlepointDiffSync):
 
     @classmethod
     def get_queryset(cls):
-        """Get queryset for CradlePoint devices by filtering on Manufacturer."""
-        return Device.objects.filter(
-            device_type__manufacturer__name=DEFAULT_MANUFACTURER
-        )
+        """Get queryset for Cradlepoint devices by filtering on Manufacturer."""
+        return Device.objects.filter(device_type__manufacturer__name=DEFAULT_MANUFACTURER)
