@@ -21,7 +21,7 @@ def register_signals(sender):
     nautobot_database_ready.connect(
         create_default_cradlepoint_manufacturer, sender=sender
     )
-    nautobot_database_ready.connect(create_default_location, sender=sender)
+    # nautobot_database_ready.connect(create_default_location, sender=sender)
     nautobot_database_ready.connect(create_default_custom_fields, sender=sender)
 
 
