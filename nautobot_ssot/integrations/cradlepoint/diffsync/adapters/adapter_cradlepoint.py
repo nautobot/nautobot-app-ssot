@@ -158,7 +158,7 @@ class CradlepointAdapter(Adapter):
                     ),
                 }
             ).get("data", [])
-
+            self.job.logger.info(router_locations)
             # Process the fetched locations
             for record in router_locations:
                 router_id = record.pop("router").rstrip("/").rsplit("/", 1)[-1]
@@ -178,7 +178,7 @@ class CradlepointAdapter(Adapter):
         next = True
         call_counter = 0
         # TODO:  This will change to a while loop for the actual implementation.
-        for number in range(0, 20):
+        for number in range(0, 1):
             self.job.logger.info(f"Call counter: {call_counter}")
             call_counter += 1
             time.sleep(30)
