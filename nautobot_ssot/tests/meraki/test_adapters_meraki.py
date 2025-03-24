@@ -72,8 +72,8 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
             for dev in fix.GET_ORG_DEVICES_FIXTURE
             if dev["model"].startswith(("MX", "MG", "MR", "MS", "Z"))
         ]
-        cellular_ports = [
-            f"cellular__{dev['name']}" for dev in fix.GET_ORG_DEVICES_FIXTURE if dev["model"].startswith(("MR", "CW"))
+        man1_ports = [
+            f"man1__{dev['name']}" for dev in fix.GET_ORG_DEVICES_FIXTURE if dev["model"].startswith(("MR", "CW"))
         ]
         lan_ports = []
         for port in fix.GET_APPLIANCE_SWITCHPORTS_FIXTURE:
@@ -83,7 +83,7 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         for switch in fix.GET_ORG_SWITCHPORTS_SENT_FIXTURE:
             for port in switch["ports"]:
                 lan_ports.append(f"{port['portId']}__Lab Switch")
-        expected_ports = set(wan1_ports + wan2_ports + lan_ports + cellular_ports)
+        expected_ports = set(wan1_ports + wan2_ports + lan_ports + man1_ports)
         self.assertEqual(expected_ports, {port.get_unique_id() for port in self.meraki.get_all("port")})
         self.assertEqual(
             {"10.1.15.0/24__Global", "10.5.52.3/32__Global"},
