@@ -331,9 +331,7 @@ class MerakiAdapter(Adapter):
         for port in uplink_ports[0]["uplinks"]:
             self.get_or_instantiate(
                 self.port,
-                ids={
-                    "name": port["interface"],
-                    "device": device.name},
+                ids={"name": port["interface"], "device": device.name},
                 attrs={
                     "management": True,
                     "enabled": True,
