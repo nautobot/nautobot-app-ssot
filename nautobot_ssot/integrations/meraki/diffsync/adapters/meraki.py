@@ -329,33 +329,8 @@ class MerakiAdapter(Adapter):
         uplink_ports = self.conn.get_org_uplink_addresses_by_device(serial=serial)
 
         for port in uplink_ports[0]["uplinks"]:
-            self.get_or_instantiate(
-                self.port,
-                ids={"name": port["interface"], "device": device.name},
-                attrs={
-                    "management": True,
-                    "enabled": True,
-                    "port_type": "1000base-t",
-                    "port_status": "Active",
-                    "tagging": False,
-                    "uuid": None,
-                },
-            )
-            if port.get("addresses"):
-                for addr in port["addresses"]:
-                    prefix = ipaddress_interface(ip=addr["address"], attr="network.with_prefixlen")
-                    self.load_prefix(prefix=prefix)
-                    self.load_prefix_location(
-                        prefix=prefix,
-                        location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
-                    )
-                    self.load_ipaddress(address=f"{addr['address']}/32", prefix=prefix)
-                    self.load_ipassignment(
-                        address=f"{addr['address']}/32",
-                        dev_name=device.name,
-                        port=port["interface"],
-                        primary=True,
-                    )
+        if loaded:
+            device.add_child(ap_port)
 
     def load_prefix(self, prefix: str):
         """Load Prefixes of devices into DiffSync models."""
