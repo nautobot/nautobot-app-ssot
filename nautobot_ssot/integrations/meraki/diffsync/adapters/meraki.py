@@ -2,7 +2,7 @@
 
 from diffsync import Adapter, DiffSyncModel
 from diffsync.exceptions import ObjectNotFound
-from netutils.ip import ipaddress_interface, netmask_to_cidr
+from netutils.ip import ipaddress_interface, ipaddress_network, is_ip_within, netmask_to_cidr
 
 from nautobot_ssot.exceptions import JobException
 from nautobot_ssot.integrations.meraki.diffsync.models.meraki import (
@@ -289,6 +289,7 @@ class MerakiAdapter(Adapter):
         """Load ports of a MR device from Meraki dashboard into DiffSync models."""
         mgmt_ports = self.conn.get_management_ports(serial=serial)
 
+        net_prefix = None
         for port in mgmt_ports.keys():
             try:
                 self.get(self.port, {"name": port, "device": device.name})
@@ -306,18 +307,18 @@ class MerakiAdapter(Adapter):
                 self.add(new_port)
                 device.add_child(new_port)
                 if mgmt_ports[port].get("usingStaticIp"):
-                    prefix = ipaddress_interface(
+                    net_prefix = ipaddress_interface(
                         ip=f"{mgmt_ports[port]['staticIp']}/{netmask_to_cidr(netmask=mgmt_ports[port]['staticSubnetMask'])}",
                         attr="network.with_prefixlen",
                     )
-                    self.load_prefix(prefix=prefix)
+                    self.load_prefix(prefix=net_prefix)
                     self.load_prefix_location(
-                        prefix=prefix,
+                        prefix=net_prefix,
                         location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
                     )
                     self.load_ipaddress(
                         address=f"{mgmt_ports[port]['staticIp']}/{netmask_to_cidr(mgmt_ports[port]['staticSubnetMask'])}",
-                        prefix=prefix,
+                        prefix=net_prefix,
                     )
                     self.load_ipassignment(
                         address=f"{mgmt_ports[port]['staticIp']}/{netmask_to_cidr(mgmt_ports[port]['staticSubnetMask'])}",
@@ -330,9 +331,9 @@ class MerakiAdapter(Adapter):
 
         if uplink_ports:
             for port in uplink_ports[0]["uplinks"]:
-                self.load_ap_uplink_ports(device=device, port=port)
+                self.load_ap_uplink_ports(device=device, port=port, prefix=net_prefix)
 
-    def load_ap_uplink_ports(self, device: MerakiDevice, port: dict):
+    def load_ap_uplink_ports(self, device: MerakiDevice, port: dict, prefix: str = ""):
         """Load uplink ports of an AP device.
 
         Args:
@@ -357,17 +358,20 @@ class MerakiAdapter(Adapter):
             device.add_child(ap_port)
         if port.get("addresses"):
             for addr in port["addresses"]:
+                prefix_length = 32
                 if self.job.debug:
                     self.job.logger.debug(f"Processing uplink address {addr['address']} for device {device.name}")
-                prefix = ipaddress_interface(ip=addr["address"], attr="network.with_prefixlen")
-                self.load_prefix(prefix=prefix)
-                self.load_prefix_location(
-                    prefix=prefix,
-                    location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
-                )
-                self.load_ipaddress(address=f"{addr['address']}/32", prefix=prefix)
+                if not prefix or (prefix and not is_ip_within(ip=addr["address"], ip_compare=prefix)):
+                    prefix = ipaddress_interface(ip=addr["address"], attr="network.with_prefixlen")
+                    self.load_prefix(prefix=prefix)
+                    self.load_prefix_location(
+                        prefix=prefix,
+                        location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
+                    )
+                    prefix_length = ipaddress_network(ip=prefix, attr="prefixlen")
+                self.load_ipaddress(address=f"{addr['address']}/{prefix_length}", prefix=prefix)
                 self.load_ipassignment(
-                    address=f"{addr['address']}/32",
+                    address=f"{addr['address']}/{prefix_length}",
                     dev_name=device.name,
                     port=port["interface"],
                     primary=True,
