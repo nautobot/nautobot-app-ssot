@@ -344,6 +344,22 @@ class DnaCenterAdapter(Adapter):
             dev_details = self.conn.get_device_detail(dev_id=dev["id"])
             loc_data = {}
             if dev_details and dev_details.get("siteHierarchyGraphId"):
+                locations = dev_details["siteHierarchyGraphId"].lstrip("/").rstrip("/").split("/")
+                # remove Global if not importing Global
+                if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
+                    locations.pop(0)
+                loc_found = [loc in self.dnac_location_map for loc in locations]
+                if not all(loc_found):
+                    self.job.logger.error(
+                        f"Device {dev['hostname']} has unknown location in hierarchy so will not be imported."
+                    )
+                    dev["field_validation"] = {
+                        "reason": "Invalid location information found.",
+                        "device_details": dev_details,
+                        "location_data": loc_data,
+                    }
+                    self.failed_import_devices.append(dev)
+                    continue
                 loc_data = self.conn.parse_site_hierarchy(
                     location_map=self.dnac_location_map, site_hier=dev_details["siteHierarchyGraphId"]
                 )
