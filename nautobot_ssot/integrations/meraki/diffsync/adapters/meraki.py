@@ -328,8 +328,9 @@ class MerakiAdapter(Adapter):
 
         uplink_ports = self.conn.get_org_uplink_addresses_by_device(serial=serial)
 
-        for port in uplink_ports[0]["uplinks"]:
-            self.load_ap_uplink_ports(device=device, port=port)
+        if uplink_ports:
+            for port in uplink_ports[0]["uplinks"]:
+                self.load_ap_uplink_ports(device=device, port=port)
 
     def load_ap_uplink_ports(self, device: MerakiDevice, port: dict):
         """Load uplink ports of an AP device.
