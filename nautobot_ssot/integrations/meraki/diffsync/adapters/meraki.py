@@ -331,9 +331,10 @@ class MerakiAdapter(Adapter):
         for port in uplink_ports[0]["uplinks"]:
             self.get_or_instantiate(
                 self.port,
-                {
+                ids={
                     "name": port["interface"],
-                    "device": device.name,
+                    "device": device.name},
+                attrs={
                     "management": True,
                     "enabled": True,
                     "port_type": "1000base-t",
@@ -342,7 +343,6 @@ class MerakiAdapter(Adapter):
                     "uuid": None,
                 },
             )
-            self.add(new_port)
             if port.get("addresses"):
                 for addr in port["addresses"]:
                     prefix = ipaddress_interface(ip=addr["address"], attr="network.with_prefixlen")
