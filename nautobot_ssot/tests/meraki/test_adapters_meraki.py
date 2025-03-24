@@ -55,10 +55,6 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         self.meraki_client.validate_organization_exists.return_value = True
         self.meraki.load()
         self.assertEqual(
-            {f"{net['name']}__None" for net in fix.GET_ORG_NETWORKS_SENT_FIXTURE},
-            {net.get_unique_id() for net in self.meraki.get_all("network")},
-        )
-        self.assertEqual(
             {dev["name"] for dev in fix.GET_ORG_DEVICES_FIXTURE},
             {dev.get_unique_id() for dev in self.meraki.get_all("device")},
         )
@@ -97,6 +93,21 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
             },
             {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")},
         )
+
+    def test_load_networks(self):
+        """Test loading of Meraki networks."""
+        self.meraki.load_networks()
+        self.assertEqual(
+            {f"{net['name']}__None" for net in fix.GET_ORG_NETWORKS_SENT_FIXTURE},
+            {net.get_unique_id() for net in self.meraki.get_all("network")},
+        )
+
+    def test_load_networks_empty(self):
+        """Test loading networks when API returns empty list."""
+        self.meraki_client.get_org_networks.return_value = []
+        self.meraki.load_networks()
+        networks = self.meraki.get_all("network")
+        self.assertEqual(len(networks), 0)
 
     def test_duplicate_device_loading_error(self):
         """Validate error thrown when duplicate device attempts to be loaded."""
