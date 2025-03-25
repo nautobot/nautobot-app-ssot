@@ -118,3 +118,55 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         self.job.logger.warning.calls[1].contains(message="Duplicate device HQ01 found and being skipped.")
         self.job.logger.warning.calls[2].contains(message="Duplicate device Lab Switch found and being skipped.")
         self.job.logger.warning.calls[3].contains(message="Duplicate device HQ AP found and being skipped.")
+
+    def test_load_ap_uplink_ports_success_without_prefix(self):
+        """Validate load_ap_uplink_ports() loads an AP uplink port as expected when a prefix isn't passed."""
+        mock_device = MagicMock()
+        mock_device.name = "HQ AP"
+
+        self.meraki.device_map = {"HQ AP": fix.GET_ORG_DEVICES_FIXTURE[3]}
+        self.meraki.conn.network_map = {"L_165471703274884707": {"name": "HQ"}}
+
+        ap_port = {
+            "interface": "man1",
+            "addresses": [
+                {
+                    "address": "10.5.52.3",
+                }
+            ],
+        }
+
+        self.meraki.load_ap_uplink_ports(device=mock_device, port=ap_port)
+        self.assertEqual(
+            {
+                "man1__HQ AP",
+            },
+            {uplink.get_unique_id() for uplink in self.meraki.get_all("port")},
+        )
+        self.assertEqual({"10.5.52.3/32__10.5.52.3/32"}, {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")})
+
+    def test_load_ap_uplink_ports_success_with_prefix(self):
+        """Validate load_ap_uplink_ports() loads an AP uplink port as expected when a prefix is passed."""
+        mock_device = MagicMock()
+        mock_device.name = "HQ AP"
+
+        self.meraki.device_map = {"HQ AP": fix.GET_ORG_DEVICES_FIXTURE[3]}
+        self.meraki.conn.network_map = {"L_165471703274884707": {"name": "HQ"}}
+
+        ap_port = {
+            "interface": "man1",
+            "addresses": [
+                {
+                    "address": "10.5.52.3",
+                }
+            ],
+        }
+
+        self.meraki.load_ap_uplink_ports(device=mock_device, port=ap_port, prefix="10.5.52.0/24")
+        self.assertEqual(
+            {
+                "man1__HQ AP",
+            },
+            {uplink.get_unique_id() for uplink in self.meraki.get_all("port")},
+        )
+        self.assertEqual({"10.5.52.3/24__10.5.52.0/24"}, {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")})
