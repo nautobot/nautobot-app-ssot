@@ -19,6 +19,9 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
 
     def setUp(self):
         """Initialize test case."""
+        super().setUp()
+
+        self.status_active = Status.objects.get(name="Active")
         self.meraki_client = MagicMock()
         self.meraki_client.get_org_networks.return_value = fix.GET_ORG_NETWORKS_SENT_FIXTURE
         self.meraki_client.network_map = fix.NETWORK_MAP_FIXTURE
@@ -45,6 +48,7 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         self.job.hostname_mapping = []
         self.job.devicetype_mapping = [("MS", "Switch"), ("MX", "Firewall")]
         self.job.network_loctype = site_loctype
+        self.job.location_map = {}
         self.job.job_result = JobResult.objects.create(
             name=self.job.class_path, task_name="fake task", worker="default"
         )
@@ -111,19 +115,37 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
 
     def test_load_networks_with_parent_loctype_and_location(self):
         """Test loading of Meraki networks when network_loctype has a parent."""
-        # Create parent location type
         region_loctype = LocationType.objects.get_or_create(name="Region")[0]
-        us_region = Location.objects.get_or_create(name="US", location_type=region_loctype, status=Status.objects.get(name="Active"))[0]
-        # Set parent on site location type
+        us_region = Location.objects.get_or_create(name="US", location_type=region_loctype, status=self.status_active)[
+            0
+        ]
+
         self.job.network_loctype.parent = region_loctype
         self.job.network_loctype.save()
         self.job.parent_location = us_region
 
         self.meraki.load_networks()
 
-        # Verify networks are loaded with parent location type
         self.assertEqual(
             {f"{net['name']}__US" for net in fix.GET_ORG_NETWORKS_SENT_FIXTURE},
+            {net.get_unique_id() for net in self.meraki.get_all("network")},
+        )
+
+    def test_load_networks_with_location_map(self):
+        """Test loading of Meraki networks when location_map is defined on the job."""
+        region_loctype = LocationType.objects.get_or_create(name="Region")[0]
+        self.job.network_loctype.parent = region_loctype
+        self.job.network_loctype.validated_save()
+        us_region = Location.objects.get_or_create(name="US", location_type=region_loctype, status=self.status_active)[
+            0
+        ]
+        self.job.parent_location = us_region
+        self.job.location_map = {"Lab": {"name": "Chicago", "parent": "US"}, "HQ": {"name": "New York", "parent": "US"}}
+
+        self.meraki.load_networks()
+
+        self.assertEqual(
+            {"Chicago__US", "New York__US"},
             {net.get_unique_id() for net in self.meraki.get_all("network")},
         )
 
