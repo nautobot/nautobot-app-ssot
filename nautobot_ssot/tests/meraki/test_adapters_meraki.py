@@ -204,6 +204,27 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
             device_hostname="test.switch.net", hostname_map=self.job.hostname_mapping, default_role="Unknown"
         )
 
+    @patch("nautobot_ssot.integrations.meraki.diffsync.adapters.meraki.get_role_from_devicetype")
+    def test_load_devices_with_devicetype_mapping(self, mock_get_role):
+        """Validate loading of devices with DeviceType mapping."""
+        self.job.debug = True
+        self.meraki_client.get_org_devices.return_value = [
+            {
+                "name": "HQ AP",
+                "serial": "L6XI-2BIN-EUTI",
+                "networkId": "L_165471703274884707",
+                "model": "MR42",
+                "notes": "",
+                "firmware": "wireless-29-5-1",
+            }
+        ]
+        self.job.devicetype_mapping = [("MR", "AP")]
+        mock_get_role.return_value = "AP"
+        self.meraki.load_devices()
+        self.job.logger.debug.assert_called()
+        self.job.logger.debug.calls[0].contains("Parsing device model for device HQ AP to determine role.")
+        mock_get_role.assert_called_with(dev_model="MR42", devicetype_map=self.job.devicetype_mapping)
+
     def test_load_ap_uplink_ports_success_without_prefix(self):
         """Validate load_ap_uplink_ports() loads an AP uplink port as expected when a prefix isn't passed."""
         mock_device = MagicMock()
