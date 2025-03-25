@@ -115,7 +115,7 @@ class CradlepointDataSource(DataSource):  # pylint: disable=too-many-instance-at
             client=client,
             config=self.config,
         )
-        self.logger.debug("Loading data from Cradlepoint...")
+        self.logger.info("Loading data from Cradlepoint...")
         self.source_adapter.load()
 
     def load_target_adapter(self):
