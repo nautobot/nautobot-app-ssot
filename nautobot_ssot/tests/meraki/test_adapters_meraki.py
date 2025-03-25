@@ -143,7 +143,9 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
             },
             {uplink.get_unique_id() for uplink in self.meraki.get_all("port")},
         )
-        self.assertEqual({"10.5.52.3/32__10.5.52.3/32"}, {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")})
+        self.assertEqual(
+            {"10.5.52.3/32__10.5.52.3/32"}, {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")}
+        )
 
     def test_load_ap_uplink_ports_success_with_prefix(self):
         """Validate load_ap_uplink_ports() loads an AP uplink port as expected when a prefix is passed."""
@@ -169,4 +171,6 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
             },
             {uplink.get_unique_id() for uplink in self.meraki.get_all("port")},
         )
-        self.assertEqual({"10.5.52.3/24__10.5.52.0/24"}, {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")})
+        self.assertEqual(
+            {"10.5.52.3/24__10.5.52.0/24"}, {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")}
+        )
