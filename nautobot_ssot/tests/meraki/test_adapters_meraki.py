@@ -58,10 +58,6 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         """Test Nautobot SSoT for Meraki load() function."""
         self.meraki_client.validate_organization_exists.return_value = True
         self.meraki.load()
-        self.assertEqual(
-            {dev["name"] for dev in fix.GET_ORG_DEVICES_FIXTURE},
-            {dev.get_unique_id() for dev in self.meraki.get_all("device")},
-        )
         wan1_ports = [
             f"wan1__{dev['name']}"
             for dev in fix.GET_ORG_DEVICES_FIXTURE
@@ -147,6 +143,14 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         self.assertEqual(
             {"Chicago__US", "New York__US"},
             {net.get_unique_id() for net in self.meraki.get_all("network")},
+        )
+
+    def test_load_devices(self):
+        """Test loading of Meraki devices."""
+        self.meraki.load_devices()
+        self.assertEqual(
+            {dev["name"] for dev in fix.GET_ORG_DEVICES_FIXTURE},
+            {dev.get_unique_id() for dev in self.meraki.get_all("device")},
         )
 
     def test_duplicate_device_loading_error(self):
