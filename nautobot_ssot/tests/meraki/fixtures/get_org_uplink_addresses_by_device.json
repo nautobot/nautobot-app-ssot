@@ -5,16 +5,12 @@
         "network": {
             "id": "L_165471703274884707"
         },
-        "productType": "appliance",
+        "productType": "wireless",
         "serial": "L6XI-2BIN-EUTI",
         "tags": [],
         "uplinks": [
             {
-                "interface": "cellular",
-                "addresses": []
-            },
-            {
-                "interface": "wan1",
+                "interface": "man1",
                 "addresses": [
                     {
                         "protocol": "ipv4",
@@ -34,10 +30,6 @@
                         }
                     }
                 ]
-            },
-            {
-                "interface": "wan2",
-                "addresses": []
             }
         ]
     }

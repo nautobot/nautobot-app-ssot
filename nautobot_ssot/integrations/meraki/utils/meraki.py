@@ -108,7 +108,7 @@ class DashboardClient:
         addresses = []
         try:
             addresses = self.conn.organizations.getOrganizationDevicesUplinksAddressesByDevice(
-                organizationId=self.org_id, serial=serial
+                organizationId=self.org_id, serials=[serial]
             )
         except meraki.APIError as err:
             self.logger.logger.warning(

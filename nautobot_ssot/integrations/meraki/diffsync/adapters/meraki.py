@@ -2,7 +2,7 @@
 
 from diffsync import Adapter, DiffSyncModel
 from diffsync.exceptions import ObjectNotFound
-from netutils.ip import ipaddress_interface, netmask_to_cidr
+from netutils.ip import ipaddress_interface, ipaddress_network, is_ip_within, netmask_to_cidr
 
 from nautobot_ssot.exceptions import JobException
 from nautobot_ssot.integrations.meraki.diffsync.models.meraki import (
@@ -20,7 +20,7 @@ from nautobot_ssot.integrations.meraki.utils.meraki import get_role_from_devicet
 from nautobot_ssot.utils import parse_hostname_for_role
 
 
-class MerakiAdapter(Adapter):
+class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
     """DiffSync adapter for Meraki."""
 
     network = MerakiNetwork
@@ -58,17 +58,12 @@ class MerakiAdapter(Adapter):
             network_name = net["name"]
             parent_name = None
             if self.job.network_loctype.parent:
-                if self.job.parent_location:
-                    parent_name = self.job.parent_location.name
-                elif self.job.location_map and network_name in self.job.location_map:
+                parent_name = self.job.parent_location.name
+            if self.job.location_map and network_name in self.job.location_map:
+                if "parent" in self.job.location_map[network_name]:
                     parent_name = self.job.location_map[network_name]["parent"]
-                    if "name" in self.job.location_map[network_name]:
-                        network_name = self.job.location_map[network_name]
-                else:
-                    self.job.logger.error(
-                        f"Parent Location is required for {self.job.network_loctype.name} but can't determine parent to be assigned to {net}."
-                    )
-                    continue
+                if "name" in self.job.location_map[network_name]:
+                    network_name = self.job.location_map[network_name]["name"]
             self.get_or_instantiate(
                 self.network,
                 ids={"name": network_name, "parent": parent_name},
@@ -289,6 +284,7 @@ class MerakiAdapter(Adapter):
         """Load ports of a MR device from Meraki dashboard into DiffSync models."""
         mgmt_ports = self.conn.get_management_ports(serial=serial)
 
+        net_prefix = None
         for port in mgmt_ports.keys():
             try:
                 self.get(self.port, {"name": port, "device": device.name})
@@ -306,18 +302,18 @@ class MerakiAdapter(Adapter):
                 self.add(new_port)
                 device.add_child(new_port)
                 if mgmt_ports[port].get("usingStaticIp"):
-                    prefix = ipaddress_interface(
+                    net_prefix = ipaddress_interface(
                         ip=f"{mgmt_ports[port]['staticIp']}/{netmask_to_cidr(netmask=mgmt_ports[port]['staticSubnetMask'])}",
                         attr="network.with_prefixlen",
                     )
-                    self.load_prefix(prefix=prefix)
+                    self.load_prefix(prefix=net_prefix)
                     self.load_prefix_location(
-                        prefix=prefix,
+                        prefix=net_prefix,
                         location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
                     )
                     self.load_ipaddress(
                         address=f"{mgmt_ports[port]['staticIp']}/{netmask_to_cidr(mgmt_ports[port]['staticSubnetMask'])}",
-                        prefix=prefix,
+                        prefix=net_prefix,
                     )
                     self.load_ipassignment(
                         address=f"{mgmt_ports[port]['staticIp']}/{netmask_to_cidr(mgmt_ports[port]['staticSubnetMask'])}",
@@ -328,36 +324,54 @@ class MerakiAdapter(Adapter):
 
         uplink_ports = self.conn.get_org_uplink_addresses_by_device(serial=serial)
 
-        for port in uplink_ports[0]["uplinks"]:
-            self.get_or_instantiate(
-                self.port,
-                {
-                    "name": port["interface"],
-                    "device": device.name,
-                    "management": True,
-                    "enabled": True,
-                    "port_type": "1000base-t",
-                    "port_status": "Active",
-                    "tagging": False,
-                    "uuid": None,
-                },
-            )
-            self.add(new_port)
-            if port.get("addresses"):
-                for addr in port["addresses"]:
+        if uplink_ports:
+            for port in uplink_ports[0]["uplinks"]:
+                self.load_ap_uplink_ports(device=device, port=port, prefix=net_prefix)
+
+    def load_ap_uplink_ports(self, device: MerakiDevice, port: dict, prefix: str = ""):
+        """Load uplink ports of an AP device.
+
+        Args:
+            device (MerakiDevice): The device DiffSync model
+            port (dict): Port dictionary containing interface and address information
+        """
+        if self.job.debug:
+            self.job.logger.debug(f"Processing uplink port {port['interface']} for device {device.name}")
+        ap_port, loaded = self.get_or_instantiate(
+            self.port,
+            ids={"name": port["interface"], "device": device.name},
+            attrs={
+                "management": True,
+                "enabled": True,
+                "port_type": "1000base-t",
+                "port_status": "Active",
+                "tagging": False,
+                "uuid": None,
+            },
+        )
+        if loaded:
+            device.add_child(ap_port)
+        if port.get("addresses"):
+            for addr in port["addresses"]:
+                prefix_length = 32
+                if self.job.debug:
+                    self.job.logger.debug(f"Processing uplink address {addr['address']} for device {device.name}")
+                if prefix and is_ip_within(ip=addr["address"], ip_compare=prefix):
+                    prefix_length = ipaddress_network(ip=prefix, attr="prefixlen")
+                else:
                     prefix = ipaddress_interface(ip=addr["address"], attr="network.with_prefixlen")
                     self.load_prefix(prefix=prefix)
                     self.load_prefix_location(
                         prefix=prefix,
                         location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
                     )
-                    self.load_ipaddress(address=f"{addr['address']}/32", prefix=prefix)
-                    self.load_ipassignment(
-                        address=f"{addr['address']}/32",
-                        dev_name=device.name,
-                        port=port["interface"],
-                        primary=True,
-                    )
+                self.load_ipaddress(address=f"{addr['address']}/{prefix_length}", prefix=prefix)
+                self.load_ipassignment(
+                    address=f"{addr['address']}/{prefix_length}",
+                    dev_name=device.name,
+                    port=port["interface"],
+                    primary=True,
+                )
 
     def load_prefix(self, prefix: str):
         """Load Prefixes of devices into DiffSync models."""
