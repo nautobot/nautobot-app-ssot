@@ -4,8 +4,8 @@ from unittest.mock import MagicMock
 
 from django.contrib.contenttypes.models import ContentType
 from nautobot.core.testing import TransactionTestCase
-from nautobot.dcim.models import Device, LocationType
-from nautobot.extras.models import JobResult
+from nautobot.dcim.models import Device, Location, LocationType
+from nautobot.extras.models import JobResult, Status
 
 from nautobot_ssot.integrations.meraki.diffsync.adapters.meraki import MerakiAdapter
 from nautobot_ssot.integrations.meraki.jobs import MerakiDataSource
@@ -108,6 +108,24 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         self.meraki.load_networks()
         networks = self.meraki.get_all("network")
         self.assertEqual(len(networks), 0)
+
+    def test_load_networks_with_parent_loctype_and_location(self):
+        """Test loading of Meraki networks when network_loctype has a parent."""
+        # Create parent location type
+        region_loctype = LocationType.objects.get_or_create(name="Region")[0]
+        us_region = Location.objects.get_or_create(name="US", location_type=region_loctype, status=Status.objects.get(name="Active"))[0]
+        # Set parent on site location type
+        self.job.network_loctype.parent = region_loctype
+        self.job.network_loctype.save()
+        self.job.parent_location = us_region
+
+        self.meraki.load_networks()
+
+        # Verify networks are loaded with parent location type
+        self.assertEqual(
+            {f"{net['name']}__US" for net in fix.GET_ORG_NETWORKS_SENT_FIXTURE},
+            {net.get_unique_id() for net in self.meraki.get_all("network")},
+        )
 
     def test_duplicate_device_loading_error(self):
         """Validate error thrown when duplicate device attempts to be loaded."""
