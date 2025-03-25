@@ -5,7 +5,9 @@ from nautobot.extras.forms import NautobotFilterForm, NautobotModelForm
 from .models import SSOTCradlepointConfig
 
 
-class SSOTCradlepointConfigForm(NautobotModelForm):  # pylint: disable=too-many-ancestors
+class SSOTCradlepointConfigForm(
+    NautobotModelForm
+):  # pylint: disable=too-many-ancestors
     """SSOTvSphereConfig creation/edit form."""
 
     class Meta:
@@ -15,7 +17,9 @@ class SSOTCradlepointConfigForm(NautobotModelForm):  # pylint: disable=too-many-
         fields = "__all__"
 
 
-class SSOTCradlepointConfigFilterForm(NautobotFilterForm):  # pylint: disable=too-many-ancestors
+class SSOTCradlepointConfigFilterForm(
+    NautobotFilterForm
+):  # pylint: disable=too-many-ancestors
     """Filter form for SSOTInfobloxConfig filter searches."""
 
     model = SSOTCradlepointConfig
