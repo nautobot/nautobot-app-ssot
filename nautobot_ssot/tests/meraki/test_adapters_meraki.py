@@ -145,12 +145,21 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
             {net.get_unique_id() for net in self.meraki.get_all("network")},
         )
 
-    def test_load_devices(self):
-        """Test loading of Meraki devices."""
+    def test_load_devices_success(self):
+        """Test successful loading of Meraki devices."""
         self.meraki.load_devices()
         self.assertEqual(
             {dev["name"] for dev in fix.GET_ORG_DEVICES_FIXTURE},
             {dev.get_unique_id() for dev in self.meraki.get_all("device")},
+        )
+
+    def test_load_devices_missing_hostname(self):
+        """Test loading of Meraki devices when hostname is missing."""
+        self.meraki_client.get_org_devices.return_value = [{"name": "", "serial": "ABCD-EF12-3456"}]
+        self.meraki.load_devices()
+        self.job.logger.warning.assert_called()
+        self.job.logger.warning.calls[0].contains(
+            message="Device serial ABCD-EF12-3456 is missing hostname so will be skipped."
         )
 
     def test_duplicate_device_loading_error(self):
