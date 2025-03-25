@@ -104,10 +104,8 @@ class CradlepointAdapter(Adapter):
         serial_number = str(record["serial_number"])
         # Load the identifier based on the configuration
         identifier = ""
-        print(self.config.unique_cradlepoint_field_order)
         for value in self.config.unique_cradlepoint_field_order:
             identifier = record.get(value, None)
-            print(record.get(value, None))
             if identifier:
                 break
         if not identifier:
@@ -118,7 +116,7 @@ class CradlepointAdapter(Adapter):
             return
         router_information = {
             "name": identifier,
-            "device_type__model": record["full_product_name"],
+            "device_type__model": record["full_product_name"].upper(),
             "role__name": record["device_type"].capitalize(),
             "status__name": record["state"].capitalize(),
             "serial": serial_number,
@@ -156,7 +154,7 @@ class CradlepointAdapter(Adapter):
                 yield chunk
 
         for router_id_chunk in _segment_iterable(
-            self.routers.keys(), int(DEFAULT_API_DEVICE_LIMIT)
+            self.routers.keys(), int(DEFAULT_API_DEVICE_LIMIT) // 4
         ):
             time.sleep(10)
             router_locations = self.client.get_locations(
@@ -174,7 +172,6 @@ class CradlepointAdapter(Adapter):
                     ),
                 }
             ).get("data", [])
-            self.job.logger.info(router_locations)
             # Process the fetched locations
             for record in router_locations:
                 router_id = record.pop("router").rstrip("/").rsplit("/", 1)[-1]
