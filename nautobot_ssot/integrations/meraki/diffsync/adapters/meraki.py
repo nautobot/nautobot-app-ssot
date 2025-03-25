@@ -20,7 +20,7 @@ from nautobot_ssot.integrations.meraki.utils.meraki import get_role_from_devicet
 from nautobot_ssot.utils import parse_hostname_for_role
 
 
-class MerakiAdapter(Adapter):
+class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
     """DiffSync adapter for Meraki."""
 
     network = MerakiNetwork
