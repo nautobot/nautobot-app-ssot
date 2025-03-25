@@ -361,14 +361,15 @@ class MerakiAdapter(Adapter):
                 prefix_length = 32
                 if self.job.debug:
                     self.job.logger.debug(f"Processing uplink address {addr['address']} for device {device.name}")
-                if not prefix or (prefix and not is_ip_within(ip=addr["address"], ip_compare=prefix)):
+                if prefix and is_ip_within(ip=addr["address"], ip_compare=prefix):
+                    prefix_length = ipaddress_network(ip=prefix, attr="prefixlen")
+                else:
                     prefix = ipaddress_interface(ip=addr["address"], attr="network.with_prefixlen")
                     self.load_prefix(prefix=prefix)
                     self.load_prefix_location(
                         prefix=prefix,
                         location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
                     )
-                    prefix_length = ipaddress_network(ip=prefix, attr="prefixlen")
                 self.load_ipaddress(address=f"{addr['address']}/{prefix_length}", prefix=prefix)
                 self.load_ipassignment(
                     address=f"{addr['address']}/{prefix_length}",
