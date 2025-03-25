@@ -148,11 +148,19 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
 
     def test_load_devices_success(self):
         """Test successful loading of Meraki devices."""
+        self.job.hostname_mapping = []
+        self.job.devicetype_mapping = []
+        self.meraki.load_firewall_ports = MagicMock()
+        self.meraki.load_switch_ports = MagicMock()
+        self.meraki.load_ap_ports = MagicMock()
         self.meraki.load_devices()
         self.assertEqual(
             {dev["name"] for dev in fix.GET_ORG_DEVICES_FIXTURE},
             {dev.get_unique_id() for dev in self.meraki.get_all("device")},
         )
+        self.meraki.load_firewall_ports.assert_called()
+        self.meraki.load_switch_ports.assert_called()
+        self.meraki.load_ap_ports.assert_called()
 
     def test_load_devices_missing_hostname(self):
         """Test loading of Meraki devices when hostname is missing."""
