@@ -116,6 +116,7 @@ def create_default_cradlepoint_config(
             description="Auto-generated default configuration.",
             cradlepoint_instance=external_integration,
             job_enabled=True,
+            unique_cradlepoint_field_order=["name", "serial_number", "mac", "id"],
         )
 
 

@@ -102,8 +102,22 @@ class CradlepointAdapter(Adapter):
             record (dict): Current record information from Cradlepoint.
         """
         serial_number = str(record["serial_number"])
+        # Load the identifier based on the configuration
+        identifier = ""
+        print(self.config.unique_cradlepoint_field_order)
+        for value in self.config.unique_cradlepoint_field_order:
+            identifier = record.get(value, None)
+            print(record.get(value, None))
+            if identifier:
+                break
+        if not identifier:
+            self.job.logger.error(
+                "Could not find a unique identifier for router with ID %s",
+                record.get("id", "unknown"),
+            )
+            return
         router_information = {
-            "name": serial_number,
+            "name": identifier,
             "device_type__model": record["full_product_name"],
             "role__name": record["device_type"].capitalize(),
             "status__name": record["state"].capitalize(),
@@ -141,8 +155,10 @@ class CradlepointAdapter(Adapter):
             while chunk := list(islice(iterator, segment_size)):
                 yield chunk
 
-        for router_id_chunk in _segment_iterable(self.routers.keys(), 250):
-            time.sleep(15)
+        for router_id_chunk in _segment_iterable(
+            self.routers.keys(), int(DEFAULT_API_DEVICE_LIMIT)
+        ):
+            time.sleep(10)
             router_locations = self.client.get_locations(
                 {
                     "router__in": ",".join(router_id_chunk),
@@ -181,10 +197,10 @@ class CradlepointAdapter(Adapter):
         for number in range(0, 1):
             self.job.logger.info(f"Call counter: {call_counter}")
             call_counter += 1
-            time.sleep(30)
+            time.sleep(10)
             routers_call = self.client.get_routers(
                 {
-                    "limit": DEFAULT_API_DEVICE_LIMIT,
+                    "limit": int(DEFAULT_API_DEVICE_LIMIT),
                     "offset": offset_number,
                     "fields": ",".join(
                         [
@@ -194,6 +210,7 @@ class CradlepointAdapter(Adapter):
                             "serial_number",
                             "id",
                             "name",
+                            "mac",
                         ],
                     ),
                 }
@@ -204,25 +221,13 @@ class CradlepointAdapter(Adapter):
 
             # Create router dictionary
             for record in routers_from_call:
-                if record.get("serial_number") is None:
-                    self.job.logger.warning(
-                        "Skipping record without serial number. Router id: %s",
-                        record.get("id", "unknown"),
-                    )
-                    continue
-                if record.get("state") == "initialized":
-                    self.job.logger.warning(
-                        "Skipping record with state 'initialized'. Router id: %s",
-                        record.get("id", "unknown"),
-                    )
-                    continue
                 self.routers.setdefault(
                     record["id"],
                     record,
                 )
 
             self.retrieve_router_location()
-            offset_number += DEFAULT_API_DEVICE_LIMIT
+            offset_number += int(DEFAULT_API_DEVICE_LIMIT)
 
         # Populate diffsync store.
         for record in self.routers.values():

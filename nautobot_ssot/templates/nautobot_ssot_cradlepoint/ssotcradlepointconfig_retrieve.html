@@ -36,6 +36,12 @@
                 <td>Cradlepoint Instance</td>
                 <td>{{ object.cradlepoint_instance|hyperlinked_object }}</td>
             </tr>
+            <tr>
+                <td>Unique Cradlepoint Field Order</td>
+                <td>
+                {% include 'extras/inc/json_data.html' with data=object.unique_cradlepoint_field_order format="json" %}
+                </td>
+            </tr>
         </table>
     </div>
 {% endblock %}

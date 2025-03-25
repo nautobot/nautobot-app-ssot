@@ -1,5 +1,5 @@
 """Forms implementation for SSOT Cradlepoint."""
-
+from nautobot.apps.forms import JSONField
 from nautobot.extras.forms import NautobotFilterForm, NautobotModelForm
 
 from .models import SSOTCradlepointConfig
@@ -9,6 +9,12 @@ class SSOTCradlepointConfigForm(
     NautobotModelForm
 ):  # pylint: disable=too-many-ancestors
     """SSOTvSphereConfig creation/edit form."""
+
+    unique_cradlepoint_field_order = JSONField(
+        required=True,
+        label="Unique Cradlepoint Field Order",
+        help_text="The order of fields to be used to uniquely identify a Cradlepoint device.",
+    )
 
     class Meta:
         """Meta attributes for the SSOTvSpereConfigForm class."""
