@@ -1,6 +1,6 @@
 """Test Meraki adapter."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from django.contrib.contenttypes.models import ContentType
 from nautobot.core.testing import TransactionTestCase
@@ -40,6 +40,7 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         site_loctype = LocationType.objects.get_or_create(name="Site")[0]
         site_loctype.content_types.add(ContentType.objects.get_for_model(Device))
         self.job = MerakiDataSource()
+        self.job.logger.debug = MagicMock()
         self.job.logger.warning = MagicMock()
         self.job.instance = MagicMock()
         self.job.instance.controller_managed_device_groups = MagicMock()
@@ -171,6 +172,29 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         self.job.logger.warning.calls[1].contains(message="Duplicate device HQ01 found and being skipped.")
         self.job.logger.warning.calls[2].contains(message="Duplicate device Lab Switch found and being skipped.")
         self.job.logger.warning.calls[3].contains(message="Duplicate device HQ AP found and being skipped.")
+
+    @patch("nautobot_ssot.integrations.meraki.diffsync.adapters.meraki.parse_hostname_for_role")
+    def test_load_devices_with_hostname_mapping(self, mock_parse):
+        """Validate loading of devices with hostname mapping."""
+        self.job.debug = True
+        self.meraki_client.get_org_devices.return_value = [
+            {
+                "name": "test.switch.net",
+                "serial": "ABCD-EF12-3456",
+                "networkId": "H_203630551508078460",
+                "model": "MS225-24",
+                "notes": "Lab switch",
+                "firmware": "switch-15-21-1",
+            }
+        ]
+        self.job.hostname_mapping = [(".*switch.*", "Switch")]
+        mock_parse.return_value = "Switch"
+        self.meraki.load_devices()
+        self.job.logger.debug.assert_called()
+        self.job.logger.debug.calls[0].contains("Parsing hostname for device test.switch.net to determine role.")
+        mock_parse.assert_called_with(
+            device_hostname="test.switch.net", hostname_map=self.job.hostname_mapping, default_role="Unknown"
+        )
 
     def test_load_ap_uplink_ports_success_without_prefix(self):
         """Validate load_ap_uplink_ports() loads an AP uplink port as expected when a prefix isn't passed."""
