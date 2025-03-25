@@ -69,7 +69,11 @@ class NautobotArea(base.Area):
                 adapter.job.logger.warning(
                     f"Unable to find {adapter.job.area_loctype.name} {ids['parent']} for {ids['name']}."
                 )
-        new_area.validated_save()
+        try:
+            new_area.validated_save()
+        except ValidationError as err:
+            adapter.job.logger.warning(f"Unable to create {adapter.job.area_loctype.name} {ids['name']}. {err}")
+            return None
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
                 adapter=adapter, obj=new_area, scoped_fields=["name", "location_type", "status"]
