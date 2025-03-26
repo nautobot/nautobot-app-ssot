@@ -5,20 +5,20 @@ To aide developers in understanding the various models and how they interoperate
 ```mermaid
 erDiagram
 DiffSyncModel{
-    ClassVar _modelname
-    ClassVar _identifiers
-    ClassVar _shortname
-    ClassVar _attributes
-    ClassVar _children
+    ClassVar[str] _modelname
+    ClassVar[Tuple[str, ...]] _identifiers
+    ClassVar[Tuple[str, ...]] _shortname
+    ClassVar[Tuple[str, ...]] _attributes
+    ClassVar[Dict[str, str]] _children
     DiffSyncModelFlags model_flags
-    Optional adapter
+    Optional["Adapter"] adapter
     DiffSyncStatus _status
     str _status_message
     ConfigDict model_config
 }
 Adapter{
-    Optional type
-    ClassVar top_level
+    Optional[str] type
+    ClassVar[List[str]] top_level
 }
 Sync{
     CharField source
@@ -48,7 +48,7 @@ SyncLogEntry{
     JSONField diff
     ForeignKey synced_object_type
     UUIDField synced_object_id
-    GenericForeignKey sycned_object
+    GenericForeignKey synced_object
     TextField object_repr
     TextField message
 }
