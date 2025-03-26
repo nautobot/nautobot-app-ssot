@@ -36,6 +36,7 @@ class CradlepointAdapter(Adapter):
         self.client = client
         self.config = config
         self.routers = {}
+        self.product_mappings = {}
 
     def find_location(self, san):
         """Find the location for the router by checking against existing SANs.
@@ -102,6 +103,7 @@ class CradlepointAdapter(Adapter):
             record (dict): Current record information from Cradlepoint.
         """
         serial_number = str(record["serial_number"])
+
         # Load the identifier based on the configuration
         identifier = ""
         for value in self.config.unique_cradlepoint_field_order:
@@ -114,9 +116,12 @@ class CradlepointAdapter(Adapter):
                 record.get("id", "unknown"),
             )
             return
+
+        device_type = self.product_mappings.get(record["product"], "unknown")
+
         router_information = {
             "name": identifier,
-            "device_type__model": record["full_product_name"].upper(),
+            "device_type__model": device_type.upper(),
             "role__name": record["device_type"].capitalize(),
             "status__name": record["state"].capitalize(),
             "serial": serial_number,
@@ -129,9 +134,7 @@ class CradlepointAdapter(Adapter):
             "device_accuracy": record.get("accuracy"),
         }
         # The name field is actually the associated SAN.
-        router_information["location__name"] = self.find_location(
-            router_information["name"]
-        )
+        router_information["location__name"] = self.find_location(router_information["name"])
         self.load_status(router_information["status__name"])
         self.load_device_type(router_information["device_type__model"])
         self.load_device_role(router_information["role__name"])
@@ -153,10 +156,8 @@ class CradlepointAdapter(Adapter):
             while chunk := list(islice(iterator, segment_size)):
                 yield chunk
 
-        for router_id_chunk in _segment_iterable(
-            self.routers.keys(), int(DEFAULT_API_DEVICE_LIMIT) // 4
-        ):
-            time.sleep(10)
+        for router_id_chunk in _segment_iterable(self.routers.keys(), int(DEFAULT_API_DEVICE_LIMIT) // 4):
+            time.sleep(2)
             router_locations = self.client.get_locations(
                 {
                     "router__in": ",".join(router_id_chunk),
@@ -178,15 +179,23 @@ class CradlepointAdapter(Adapter):
 
                 router = self.routers.get(router_id)
                 if not router:
-                    self.job.logger.info(
-                        msg=f"Router ID {router_id} not found in router dictionary."
-                    )
+                    self.job.logger.info(msg=f"Router ID {router_id} not found in router dictionary.")
                     continue
                 # Update the router's information
                 router.update(record)
 
+    def load_device_types(self):
+        """Populate device type dictionary mapping from Cradlepoint."""
+        # Load device types into mapping dictionary
+        product_call = self.client.get_products({"limit": 500})
+        products = product_call.get("data", [])
+        self.product_mappings = {item["resource_url"]: item["name"] for item in products}
+
     def load(self):
         """Entrypoint for loading data from Cradlepoint."""
+        # Load device types into mapping dictionary
+        self.load_device_types()
+
         offset_number = 0
         next = True
         call_counter = 0
@@ -194,14 +203,14 @@ class CradlepointAdapter(Adapter):
         for number in range(0, 1):
             self.job.logger.info(f"Call counter: {call_counter}")
             call_counter += 1
-            time.sleep(10)
+            time.sleep(5)
             routers_call = self.client.get_routers(
                 {
                     "limit": int(DEFAULT_API_DEVICE_LIMIT),
                     "offset": offset_number,
                     "fields": ",".join(
                         [
-                            "full_product_name",
+                            "product",
                             "device_type",
                             "state",
                             "serial_number",

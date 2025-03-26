@@ -53,3 +53,7 @@ class CradlepointClient:
     def get_locations(self, params=None):
         """Fetch a list of locations."""
         return self._request("GET", "locations", params=params)
+
+    def get_products(self, params=None):
+        """Fetch a list of products."""
+        return self._request("GET", "products", params=params)

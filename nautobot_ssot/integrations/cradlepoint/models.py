@@ -1,9 +1,9 @@
 """Models implemntation for SSoT Cradlepoint Integration."""
 
-from django.db import models
 from django.core.exceptions import ValidationError
-from nautobot.core.models.generics import PrimaryModel
 from django.core.serializers.json import DjangoJSONEncoder
+from django.db import models
+from nautobot.core.models.generics import PrimaryModel
 
 try:
     from nautobot.apps.constants import CHARFIELD_MAX_LENGTH
@@ -32,9 +32,7 @@ class SSOTCradlepointConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         verbose_name="Enabled for Sync Job",
         help_text="Enable use of this configuration in the sync jobs.",
     )
-    unique_cradlepoint_field_order = models.JSONField(
-        default=_default_unique_ordering, encoder=DjangoJSONEncoder
-    )
+    unique_cradlepoint_field_order = models.JSONField(default=_default_unique_ordering, encoder=DjangoJSONEncoder)
     is_saved_view_model = False
 
     class Meta:
@@ -52,9 +50,7 @@ class SSOTCradlepointConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         allowed_items = ["name", "serial_number", "mac", "id"]
 
         if not isinstance(self.unique_cradlepoint_field_order, list):
-            raise ValidationError(
-                f"Ensure you are providing a list: {self.unique_cradlepoint_field_order}"
-            )
+            raise ValidationError(f"Ensure you are providing a list: {self.unique_cradlepoint_field_order}")
 
         if set(self.unique_cradlepoint_field_order) != set(allowed_items):
             raise ValidationError(
