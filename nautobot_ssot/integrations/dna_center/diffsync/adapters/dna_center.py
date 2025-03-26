@@ -446,7 +446,7 @@ class DnaCenterAdapter(Adapter):
         building_id = location_ids.pop()
         areas = location_ids
 
-        for area_id in reversed(areas):
+        for area_id in areas:
             if self.dnac_location_map.get(area_id):
                 area_name = self.dnac_location_map[area_id]["name"]
                 area_parent = self.dnac_location_map[area_id]["parent"]
