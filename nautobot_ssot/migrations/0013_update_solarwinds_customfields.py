@@ -1,10 +1,9 @@
 # Migration to update CustomFields that are Solarwinds to SolarWinds.
 from django.db import migrations
 
+
 def update_solarwinds_customfields(apps, schema_editor):
     """Update CustomFields that are Solarwinds to SolarWinds."""
-    CustomField = apps.get_model("extras", "customfield")
-
     for app, model in [
         ("dcim", "Device"),
         ("dcim", "Interface"),
