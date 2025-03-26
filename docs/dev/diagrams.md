@@ -6,12 +6,12 @@ To aide developers in understanding the various models and how they interoperate
 erDiagram
 DiffSyncModel{
     ClassVar[str] _modelname
-    ClassVar[Tuple[str, ...]] _identifiers
-    ClassVar[Tuple[str, ...]] _shortname
-    ClassVar[Tuple[str, ...]] _attributes
-    ClassVar[Dict[str, str]] _children
+    ClassVar[Tuple[str]] _identifiers
+    ClassVar[Tuple[str]] _shortname
+    ClassVar[Tuple[str]] _attributes
+    ClassVar[Dict[str]] _children
     DiffSyncModelFlags model_flags
-    Optional["Adapter"] adapter
+    Optional[Adapter] adapter
     DiffSyncStatus _status
     str _status_message
     ConfigDict model_config
