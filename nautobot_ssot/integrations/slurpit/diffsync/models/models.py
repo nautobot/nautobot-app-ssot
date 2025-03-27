@@ -73,8 +73,8 @@ class LocationModel(ModelQuerySetMixin, NautobotModel):
     status__name: str
     contact_phone: Optional[str]
     physical_address: Optional[str]
-    latitude: Optional[float]
-    longitude: Optional[float]
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     tags: List[TagDict] = []
     system_of_record: Annotated[str, CustomFieldAnnotation(name="system_of_record", key="system_of_record")]
     last_synced_from_sor: Annotated[str, CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")]
