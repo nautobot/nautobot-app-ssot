@@ -8,14 +8,13 @@ from enum import Enum
 from typing import Optional
 
 
-class FieldType(Enum):
-    """Enum to specify field types for DiffSynModels and TypedDicts."""
+class SortType(Enum):
+    """Enum for identifying sortable field types when sorting SSoT fields.
 
-    # Indicates if a model field is to be sorted
-    SORTED_FIELD = 1
+    Enum used for future estension if required.
+    """
 
-    # Indicates what field to sort by for lists of dictionaries
-    SORT_BY = 2
+    DICT = 1
 
 
 class RelationshipSideEnum(Enum):

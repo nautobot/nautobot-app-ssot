@@ -3,69 +3,57 @@
 from diffsync import Adapter, DiffSyncModel
 from typing_extensions import get_type_hints
 
-from nautobot_ssot.contrib.types import FieldType
+from nautobot_ssot.contrib.typeddicts import SortKey
+from nautobot_ssot.contrib.types import SortType
 
 
-def is_sortable_field(attribute_type_hints):
-    """Checks type hints to verify if field labled as sortable or not."""
-    if attribute_type_hints.__name__ != "Annotated" or not hasattr(attribute_type_hints, "__metadata__"):
-        return False
-    for metadata in attribute_type_hints.__metadata__:
-        if metadata == FieldType.SORTED_FIELD:
-            return True
-    return False
+def _is_sortable_field(attribute_type_hints) -> bool:
+    """Check if a DiffSync attribute is a sortable field."""
+    return attribute_type_hints.__name__ in [
+        "list",
+        "List",
+    ]
 
 
-def get_sortable_obj_type(attribute_type_hints):
-    """Get the object type of a sortable list based on the type hints."""
-    if not hasattr(attribute_type_hints, "__args__"):
-        return None
-    if not attribute_type_hints.__args__:
-        return None
-    attr_type = attribute_type_hints.__args__[0]
-    if not hasattr(attr_type, "__args__"):
-        return None
-    attr_type_args = getattr(attr_type, "__args__")
-    if attr_type_args:
-        return attr_type_args[0]
-    return None
-
-
-def get_sortable_obj_sort_key(sortable_obj_type):
-    """Get the sort key from a TypedDict type if set in the metadata."""
-    content_obj_type_hints = get_type_hints(sortable_obj_type, include_extras=True)
-    for key, value in content_obj_type_hints.items():
-        if not value.__name__ == "Annotated":
+def _get_sort_key_from_typed_dict(sortable_content_type) -> str:
+    """Get the dictionary key from a TypedDict if found."""
+    for key_name, key_annotation in sortable_content_type.__annotations__.items():
+        if key_annotation.__name__ != "Annotated":
+            # Only check attributes with `Annotated` in their type hints
             continue
-        for metadata in getattr(value, "__metadata__", ()):
-            if metadata == FieldType.SORT_BY:
-                return key
+        for metadata in key_annotation.__metadata__:
+            # Get the sort key from the annotation
+            if metadata == SortKey:
+                return key_name
     return None
 
 
-def get_sortable_fields_from_model(model: DiffSyncModel):
+def get_sortable_fields_from_model(model: DiffSyncModel) -> dict:
     """Get a list of sortable fields and their sort key from a DiffSync model."""
-    sortable_fields = []
+    sortable_fields = {}
     model_type_hints = get_type_hints(model, include_extras=True)
 
-    for attribute_name in model._attributes:  # pylint: disable=protected-access
-        attribute_type_hints = model_type_hints.get(attribute_name)
-        if not is_sortable_field(attribute_type_hints):
+    for model_attribute_name in model._attributes:  # pylint: disable=protected-access
+        attribute_type_hints = model_type_hints.get(model_attribute_name)
+        if not _is_sortable_field(attribute_type_hints):
             continue
 
-        sortable_obj_type = get_sortable_obj_type(attribute_type_hints)
-        sort_key = get_sortable_obj_sort_key(sortable_obj_type)
+        sortable_content_type = attribute_type_hints.__args__[0]
 
-        sortable_fields.append(
-            {
-                "attribute": attribute_name,
+        if issubclass(sortable_content_type, dict):
+            sort_key = _get_sort_key_from_typed_dict(sortable_content_type)
+            if not sort_key:
+                continue
+            sortable_fields[model_attribute_name] = {
+                "sort_type": SortType.DICT,
                 "sort_key": sort_key,
             }
-        )
+        # Add additional items here
+
     return sortable_fields
 
 
-def sort_diffsync_object(obj, attribute, key):
+def _sort_dict_attr(obj, attribute, key):
     """Update the sortable attribute in a DiffSync object."""
     sorted_data = None
     if key:
@@ -84,22 +72,28 @@ def sort_relationships(source: Adapter, target: Adapter):
     """Sort relationships based on the metadata defined in the DiffSync model."""
     if not source or not target:
         return
-    # Loop through Top Level entries
-    for level in getattr(target, "top_level", []):
+
+    models_to_sort = {}
+    # Loop through target's top_level attribute to determine models with sortable attributes
+    for model_name in getattr(target, "top_level", []):
         # Get the DiffSync Model
-        model = getattr(target, level)
-        if not model:
+        diffsync_model = getattr(target, model_name)
+        if not diffsync_model:
             continue
 
-        # Get sortable fields from model
-        sortable_fields = get_sortable_fields_from_model(target)
-        if not sortable_fields:
+        # Get sortable fields current model
+        model_sortable_fields = get_sortable_fields_from_model(diffsync_model)
+        if not model_sortable_fields:
             continue
+        models_to_sort[model_name] = model_sortable_fields
 
-        for sortable in sortable_fields:
-            attribute = sortable["attribute"]
-            key = sortable["sort_key"]
-
-            for adapter in (source, target):
-                for obj in adapter.get_all(attribute):
-                    adapter.update(sort_diffsync_object(obj, attribute, key))
+    # Loop through adapaters to sort models
+    for adapter in (source, target):
+        for model_name, attrs_to_sort in models_to_sort.items():
+            for diffsync_obj in adapter.get_all(model_name):
+                for attr_name, sort_data in attrs_to_sort.items():
+                    sort_type = sort_data["sort_type"]
+                    # Sort the data ased on its sort type
+                    if sort_type == SortType.DICT:
+                        diffsync_obj = _sort_dict_attr(diffsync_obj, attr_name, sort_data["sort_key"])
+                adapter.update(diffsync_obj)

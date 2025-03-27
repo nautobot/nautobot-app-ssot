@@ -1,34 +1,52 @@
 """Unit tests for contrib sorting."""
 
 from typing import List, Optional
+from unittest.mock import MagicMock
 
 from django.test import TestCase
+from nautobot.extras.models import Tag
 from typing_extensions import Annotated, TypedDict, get_type_hints
 
+from nautobot_ssot.contrib import NautobotAdapter, NautobotModel
 from nautobot_ssot.contrib.sorting import (
+    _is_sortable_field,
     get_sortable_fields_from_model,
-    get_sortable_obj_sort_key,
-    get_sortable_obj_type,
-    is_sortable_field,
-    sort_diffsync_object,
+    sort_relationships,
 )
-from nautobot_ssot.contrib.types import FieldType
+from nautobot_ssot.contrib.typeddicts import SortKey
 from nautobot_ssot.tests.contrib_base_classes import NautobotTenant as BasicNautobotTenant
-from nautobot_ssot.tests.contrib_base_classes import TagDict as BasicTagDict
 
 
-class TagDict(BasicTagDict):
+class TagDict(TypedDict):
     """Many-to-many relationship typed dict explaining which fields are interesting."""
 
-    id: int
-    name: Annotated[str, FieldType.SORT_BY]
+    name: Annotated[str, SortKey]
     description: Optional[str] = ""
+
+
+class BasicNautobotTag(NautobotModel):
+    """A tag model for use in testing."""
+
+    _model = Tag
+    _modelname = "tag"
+    _identifiers = ("name",)
+    _attributes = ("description",)
+
+    name: str
+    description: Optional[str] = None
 
 
 class NautobotTenant(BasicNautobotTenant):
     """A updated tenant model for testing the `NautobotModel` base class."""
 
-    tags: Annotated[List[TagDict], FieldType.SORTED_FIELD] = []
+    tags: List[TagDict] = []
+
+
+class TestAdapter(NautobotAdapter):
+    """An adapter for testing the `BaseAdapter` base class."""
+
+    top_level = ("tenant",)
+    tenant = NautobotTenant
 
 
 class TestCaseIsSortableFieldFunction(TestCase):
@@ -36,97 +54,65 @@ class TestCaseIsSortableFieldFunction(TestCase):
 
     @classmethod
     def setUpTestData(cls):
+        cls.model = NautobotTenant
         cls.type_hints = get_type_hints(NautobotTenant, include_extras=True)
 
-    def test_non_sortable_field(self):
-        test = is_sortable_field(self.type_hints["name"])
-        self.assertFalse(test)
-
     def test_sortable_field(self):
-        test = is_sortable_field(self.type_hints["tags"])
+        test = _is_sortable_field(self.type_hints["tags"])
         self.assertTrue(test)
 
-
-class TestGetSortKeyFunction(TestCase):
-    """Tests for `_get_sortable_obj_key` function."""
-
-    def test_get_sort_key(self):
-        test = get_sortable_obj_sort_key(TagDict)
-        self.assertEqual(test, "name")
-
-    def test_no_sort_key(self):
-        """Test function with no wort key."""
-
-        class TestClass(TypedDict):  # pylint: disable=missing-class-docstring
-            id: str
-            name: str
-
-        test = get_sortable_obj_sort_key(TestClass)
-        self.assertIsNone(test)
+    def test_non_sortable_field(self):
+        test = _is_sortable_field(self.type_hints["name"])
+        self.assertFalse(test)
 
 
-class TestCaseGetSortableFieldsFromModelFunction(TestCase):
-    """Tests for `_get_sortable_fields_from_model` function."""
+class TestCaseGetSortedAttributesFromModel(TestCase):
+    """Tests for `get_sortable_fields_from_model` function."""
 
-    def test_with_sortable_fields(self):
-        """Test get sortable fields with one sortable field identified."""
-        test = get_sortable_fields_from_model(NautobotTenant)
-        self.assertEqual(len(test), 1)
+    def test_one_sortable_attribute(self):
+        result = get_sortable_fields_from_model(NautobotTenant)
+        self.assertTrue(len(result.keys()) == 1)
 
-    def test_without_sortable_fields(self):
-        """Test get sortable fields with no sortable fields identified."""
-        test = get_sortable_fields_from_model(BasicNautobotTenant)
-        self.assertEqual(len(test), 0)
+    def test_no_sortable_attributes(self):
+        result = get_sortable_fields_from_model(BasicNautobotTag)
+        self.assertTrue(len(result) == 0)
 
 
-class TestSortDiffSyncObjectFunction(TestCase):
-    """Tests for `_sort_diffsync_object` function."""
+class TestCaseSortRelationships(TestCase):
+    """Tests for `sort_relationships` function."""
 
     @classmethod
     def setUpTestData(cls):
-        cls.obj_1 = NautobotTenant(
-            name="",
-            description="DiffSync object with a sortable field.",
-            tags=[
-                TagDict(
-                    id=1,
-                    name="b",
-                    description="",
-                ),
-                TagDict(
-                    id=2,
-                    name="a",
-                    description="",
-                ),
-            ],
+        cls.source = TestAdapter(
+            job=MagicMock(),
+        )
+        cls.target = TestAdapter(
+            job=MagicMock(),
         )
 
-    def test_with_sortable_field(self):
-        """Test to make sure `_sort_diffsync_object` sorts attribute."""
-        self.assertEqual(
-            self.obj_1.tags[0]["name"],
-            "b",
-            msg="List of `TagDict` entries must start with `name='b'` to verify proper sorting.",
+        cls.source.add(
+            NautobotTenant(
+                name="tenant1",
+                tags=[
+                    TagDict(name="tag2", description="Test Tag"),
+                    TagDict(name="tag1", description="Test Tag"),
+                ],
+            )
         )
-        test = sort_diffsync_object(self.obj_1, "tags", "name")
-        self.assertEqual(test.tags[0]["name"], "a")
+        cls.target.add(
+            NautobotTenant(
+                name="tenant1",
+                tags=[
+                    TagDict(name="tag2", description="Test Tag"),
+                    TagDict(name="tag1", description="Test Tag"),
+                ],
+            )
+        )
 
-
-class TestGetSortableObjectTypeFunction(TestCase):
-    """Tests for `_get_sortable_object_type` function."""
-
-    def test_get_sortable_object_type(self):
-        """Test to validate `_get_sortable_obj_type` function returns correct object type."""
-        type_hints = get_type_hints(NautobotTenant, include_extras=True)
-        test = get_sortable_obj_type(type_hints.get("tags"))
-        self.assertTrue(test == TagDict)
-
-    def test_get_nonsortable_object_type(self):
-        """Test to validate `_get_sortable_obj_type` function returns None."""
-        type_hints = get_type_hints(BasicNautobotTenant, include_extras=True)
-        test = get_sortable_obj_type(type_hints["tags"])
-        self.assertIsNone(test)
-
-
-class TestSortRelationships(TestCase):
-    """Tests for `sort_relationships` function."""
+    def test_sort_relationships(self):
+        # Verify order of entries prior to sorting
+        self.assertTrue(self.source.get_all("tenant")[0].tags[0]["name"] == "tag2")
+        self.assertTrue(self.target.get_all("tenant")[0].tags[0]["name"] == "tag2")
+        sort_relationships(self.source, self.target)
+        self.assertTrue(self.source.get_all("tenant")[0].tags[0]["name"] == "tag1")
+        self.assertTrue(self.target.get_all("tenant")[0].tags[0]["name"] == "tag1")

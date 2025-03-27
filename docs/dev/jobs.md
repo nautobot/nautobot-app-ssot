@@ -182,48 +182,24 @@ If you need to perform the `create`, `update` and `delete` operations on the rem
 
 ### Extra Step 2: Sorting Many-to-Many and Many-to-One Relationships
 
-If you are not syncing any many-to-many relationships (M2M) or many-to-one (N:1) relationships from the many side, you can skip this step.
+Many-to-many (M2M) and many-to-one (N:1) relationships from the one side are stored in the diffsync models as a list of dictionaries. One common issue is when the order of the source list doesn't match the order of the destination list leading to a false update during synchronization. Since lists of dictionaries are often sorted by one of the available keys, we need a way to identify which key to sort by.
 
-Loading M2M and N:1 relationship data from source and target destinations are typically not in the same order as each other. For example, the order of a device's interfaces from the source data may differ compared to the order Nautobot loads the data.
+The `contrib` module offers a built solution to this issue and automatically sorts them before calculating the diff. Identifying the key to sort lists of dictionaries by is done by adding Python annotations in the `TypedDict` definitions used in relationships and adding some metadata. Example:
 
-To resolve this, each relationships must be properly sorted before the source and target are compared against eachater. An additional attribute called `sorted_relationships` must be defined in both the source and target adapters. This attribute must be identical between both adapters.
+```python
+from nautobot_ssot.contrib import NautobotModel
+from nautobot_ssot.contrib.typeddicts import SortKey
+from typing_extensions import Annotated, TypedDict
 
-M2M and N:1 relationships are stored in the DiffSync store as a list of dictionaries. To sort a list of dictionaries, we must specify a dictionary key to sort by and do so by using code similar to the following:
 
-```
-for obj in diffsync.get_all("model_name"):
-    sorted_data = sorted(
-        obj.attribute_name,
-        key=lamda x: x["sort_by_key_name"]
-    )
-    obj.attribute_name = sorted_data
-    diffsync.update(obj)
-```
+class LocationModel(NautobotModel):
 
-The `sorted_relationships` attribute was added is a tuple of tuples. Each entry must have three string values indicating:
 
-1. Name of the model with attribute to be sorted
-2. Attribute within the model to sort
-3. Dictionary key name to sort by
+class TagDict(TypedDict):
+    """Many-to-many relationship typed dict explaining which fields are interesting."""
 
-The helper function `sort_relationships` has been added to contrib to assist in sorting relationships. The `NautobotAdapter` will automatically call this function and process any entries added to `sorted_relationships`. 
-
-For integrations other than the `NautobotAdapter`, you must also import and add the `sort_relationships` into into the `load()` method and simply pass the DiffSync/Adapter object through using `self`. This must be done after all other loading logic is completed.
-
-Example:
-```
-from nautobot_ssot.contrib import sort_relationships
-
-class SourceAdapter(DiffSync):
-
-    sorted_relationships = (
-        ("tenant", "relationship", "name"),
-    )
-
-    def load(self):
-        ...
-        # Primary load logic
-        ...
-        sort_relationships(self)
+    name: Annotated[str, SortKey]
+    description: Optional[str] = ""
 ```
 
+The SSoT process will look through the `TypedDict`, find the metadata containing the `SortKey` class, and then sort by that key on both the source and target adapters. It currently only supports 
