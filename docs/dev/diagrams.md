@@ -53,7 +53,7 @@ Adapter{
     string message
 }
 "extras.JobResult"[JobResult]{}
-SyncLogEntry }o--|| Sync : "must have"
-Sync }o--o| JobResult : "may have"
+"nautobot_app_ssot.SyncLogEntry" }o--|| "nautobot_app_ssot.Sync" : "must have"
+"nautobot_app_ssot.Sync" }o--o| "extras.JobResult" : "may have"
 DiffSyncModel||--|{Adapter : adapter
 ```
