@@ -41,12 +41,12 @@ Adapter{
     JobResult job_result FK
 }
 "nautobot_app_ssot.SyncLogEntry"[SyncLogEntry]{
-    ForeignKey sync
+    Sync sync FK
     datetime timestamp
     string action
     string status
     json diff
-    ForeignKey synced_object_type
+    ContentType synced_object_type FK
     uuid synced_object_id
     GenericForeignKey synced_object
     string object_repr
