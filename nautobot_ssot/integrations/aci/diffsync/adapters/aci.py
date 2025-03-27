@@ -135,7 +135,7 @@ class AciAdapter(Adapter):
         # Leaf/Spine management IP addresses
         mgmt_tenant = f"{self.tenant_prefix}:mgmt"
         for node in node_dict.values():
-            if node.get("oob_ip"):
+            if node.get("oob_ip") and "mgmt" not in PLUGIN_CFG.get("ignore_tenants"):
                 if node.get("subnet"):
                     subnet = node["subnet"]
                 else:
@@ -174,7 +174,7 @@ class AciAdapter(Adapter):
         controller_dict = self.conn.get_controllers()
         # Controller IP addresses
         for controller in controller_dict.values():
-            if controller.get("oob_ip"):
+            if controller.get("oob_ip") and "mgmt" not in PLUGIN_CFG.get("ignore_tenants"):
                 if controller.get("subnet"):
                     subnet = controller["subnet"]
                 else:
@@ -215,38 +215,42 @@ class AciAdapter(Adapter):
                 else:
                     _namespace = vrf_tenant or tenant_name
                 for subnet in bd_value["subnets"]:
-                    prefix = ip_network(subnet[0], strict=False).with_prefixlen
-                    self.load_subnet_as_prefix(
-                        prefix=prefix,
-                        namespace=_namespace,
-                        site=self.site,
-                        vrf=bd_value["vrf"],
-                        vrf_tenant=vrf_tenant,
-                        tenant=vrf_tenant or tenant_name,
-                    )
-                    new_ipaddress = self.ip_address(
-                        address=subnet[0],
-                        prefix=prefix,
-                        status="Active",
-                        description=f"ACI Bridge Domain: {bd_key}",
-                        device=None,
-                        interface=None,
-                        tenant=vrf_tenant or tenant_name,
-                        namespace=_namespace,
-                        site=self.site,
-                        site_tag=self.site,
-                    )
-                    # Using Try/Except to check for an existing loaded object
-                    # If the object doesn't exist we can create it
-                    # Otherwise we log a message warning the user of the duplicate.
-                    try:
-                        self.get(obj=new_ipaddress, identifier=new_ipaddress.get_unique_id())
-                    except ObjectNotFound:
-                        self.add(new_ipaddress)
-                    else:
-                        self.job.logger.warning(
-                            f"Duplicate DiffSync IPAddress Object found: {new_ipaddress.address} in Tenant {new_ipaddress.tenant} and has not been loaded.",
+                    if all(
+                        tenant not in PLUGIN_CFG.get("ignore_tenants")
+                        for tenant in [bd_value.get("tenant"), bd_value.get("vrf_tenant")]
+                    ):
+                        prefix = ip_network(subnet[0], strict=False).with_prefixlen
+                        self.load_subnet_as_prefix(
+                            prefix=prefix,
+                            namespace=_namespace,
+                            site=self.site,
+                            vrf=bd_value["vrf"],
+                            vrf_tenant=vrf_tenant,
+                            tenant=vrf_tenant or tenant_name,
                         )
+                        new_ipaddress = self.ip_address(
+                            address=subnet[0],
+                            prefix=prefix,
+                            status="Active",
+                            description=f"ACI Bridge Domain: {bd_key}",
+                            device=None,
+                            interface=None,
+                            tenant=vrf_tenant or tenant_name,
+                            namespace=_namespace,
+                            site=self.site,
+                            site_tag=self.site,
+                        )
+                        # Using Try/Except to check for an existing loaded object
+                        # If the object doesn't exist we can create it
+                        # Otherwise we log a message warning the user of the duplicate.
+                        try:
+                            self.get(obj=new_ipaddress, identifier=new_ipaddress.get_unique_id())
+                        except ObjectNotFound:
+                            self.add(new_ipaddress)
+                        else:
+                            self.job.logger.warning(
+                                f"Duplicate DiffSync IPAddress Object found: {new_ipaddress.address} in Tenant {new_ipaddress.tenant} and has not been loaded.",
+                            )
 
     def load_prefixes(self):
         """Load Bridge domain subnets from ACI."""

@@ -111,9 +111,15 @@ class TestNautobotAdapterTestCase(TransactionTestCase):
         # pylint: disable=duplicate-code
         for key in MODELS_TO_SYNC:
             print(f"Checking: {key}")
+            models = list(self.nb_adapter.dict().get(key, {}).values())
+            if key == "custom_field":
+                for model in list(models):
+                    if model["label"] in ["System of Record", "Last sync from System of Record"]:
+                        models.remove(model)
+
             assert_nautobot_deep_diff(
                 self,
-                list(self.nb_adapter.dict().get(key, {}).values()),
+                models,
                 GLOBAL_JSON_SETTINGS.get(key, []),
                 keys_to_normalize={
                     "parent",

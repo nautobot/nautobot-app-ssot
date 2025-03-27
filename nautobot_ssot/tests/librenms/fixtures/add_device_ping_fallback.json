@@ -1,0 +1,29 @@
+{
+  "status": "ok",
+  "devices": [
+    {
+      "hostname": "192.168.1.4",
+      "display": "SERVER",
+      "location_id": 2,
+      "port": 161,
+      "transport": "udp",
+      "poller_group": 0,
+      "os": "ping",
+      "status_reason": "",
+      "sysName": "192.168.1.4",
+      "port_association_mode": 1,
+      "snmpver": "v1",
+      "community": "public",
+      "authlevel": null,
+      "authname": null,
+      "authpass": "authpass",
+      "authalgo": null,
+      "cryptopass": null,
+      "cryptoalgo": null,
+      "snmp_disable": true,
+      "device_id": 6
+    }
+  ],
+  "message": "Device 192.168.1.4 (6) has been added successfully",
+  "count": 1
+}

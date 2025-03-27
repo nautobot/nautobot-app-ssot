@@ -128,6 +128,23 @@ The above filters will allow the loading of the following data from Infoblox and
 - Only IPv4 prefixes and IP addresses, contained within the `192.168.0.0/16` container, located in Infoblox network view "dev" and Nautobot namespace "dev". All IPv6 prefixes and IP addresses in the Infoblox network view "dev" and Nautobot namespace "dev".
 - Only IPv4 prefixes and IP addresses, contained within the `10.0.0.0/8` container, located in Infoblox network view "test" and Nautobot namespace "test".  Only IPv6 prefixes and IP addresses contained withing the `2001:5b0:4100::/40` container that are located in the Infoblox network view "test" and Nautobot namespace "test".
 
+### Configuring Infoblox Network Views to Nautbot Namespace map
+
+This setting allows you to create mappings between Infoblox network views and Nautobot namespaces. By default, the **default** network view maps to the **Global** Nautobot namespace.
+
+The purpose of this setting is to provide flexibility, enabling you to:
+- Assign a different namespace instead of **Global** for the default Infoblox network view.
+- Define additional mappings based on your environment’s requirements.
+
+The setting is represented as a dictionary, where the keys are Infoblox network views, and the values are the corresponding Nautobot namespaces.
+
+```json
+[
+    {
+        "default": "Global"
+    }
+]
+```
 
 ### Configuring Infoblox DNS View Mapping
 

@@ -1,0 +1,2 @@
+Fixed failure scenario with a user-friendly error message, if neither a location_type or location_override was specified.
+Fixed missing container name error, if comma separated container names included a space before or after a comma.

@@ -40,6 +40,7 @@ def create_default_infoblox_config(infoblox_url="infoblox.example.com"):
     for model in [IPAddress, Prefix, VLAN, VLANGroup]:
         default_status.content_types.add(ContentType.objects.get_for_model(model))
     infoblox_sync_filters = [{"network_view": "default"}]
+    infoblox_network_view_to_namespace_map = {"default": "Global"}
     secrets_group, _ = SecretsGroup.objects.get_or_create(name="InfobloxSSOTUnitTesting")
     infoblox_username, _ = Secret.objects.get_or_create(
         name="Infoblox Username - Unit Testing",
@@ -95,6 +96,7 @@ def create_default_infoblox_config(infoblox_url="infoblox.example.com"):
             import_ipv6=True,
             job_enabled=True,
             infoblox_sync_filters=infoblox_sync_filters,
+            infoblox_network_view_to_namespace_map=infoblox_network_view_to_namespace_map,
         ),
     )
 

@@ -1,0 +1,1 @@
+Fixed missing import of Interfaces and IPAddresses for uplink Interfaces on small selection of APs in Meraki.

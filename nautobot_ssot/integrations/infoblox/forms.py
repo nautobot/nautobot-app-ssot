@@ -19,6 +19,9 @@ class SSOTInfobloxConfigForm(NautobotModelForm):  # pylint: disable=too-many-anc
     infoblox_sync_filters = JSONField(
         required=True, label="Infoblox Sync Filters", help_text="Filters controlling data loaded from both systems."
     )
+    infoblox_network_view_to_namespace_map = JSONField(
+        required=True, label="Infoblox View/Namespace mappings", help_text="Maps Infoblox views to Nautobot namespaces."
+    )
     infoblox_dns_view_mapping = JSONField(
         required=False,
         label="Infoblox Network View to DNS Mapping",

@@ -1,0 +1,1 @@
+Added migration for SolarWinds integration to update CustomFields from Solarwinds to SolarWinds to match update in #696.

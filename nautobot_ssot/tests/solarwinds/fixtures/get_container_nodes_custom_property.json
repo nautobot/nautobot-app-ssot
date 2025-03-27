@@ -1,0 +1,18 @@
+{
+    "HQ": [
+        {
+            "ContainerID": 1,
+            "Name": "UNKNOWN_DEVICE_TYPE1",
+            "MemberEntityType": "Orion.Nodes",
+            "MemberPrimaryID": 10,
+            "Nautobot_Sync": true
+        },
+        {
+            "ContainerID": 1,
+            "Name": "Router01",
+            "MemberEntityType": "Orion.Nodes",
+            "MemberPrimaryID": 11,
+            "Nautobot_Sync": true
+        }
+    ]
+}

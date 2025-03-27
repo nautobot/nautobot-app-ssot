@@ -8,6 +8,7 @@ import yaml
 from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.conf import settings
+from nautobot.extras.choices import CustomFieldFilterLogicChoices, JobExecutionType
 from nautobot.extras.datasources.git import ensure_git_repository
 from nautobot.extras.models import GitRepository
 
@@ -17,6 +18,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (
     BootstrapCircuitType,
     BootstrapComputedField,
     BootstrapContact,
+    BootstrapCustomField,
     BootstrapDynamicGroup,
     BootstrapGitRepository,
     BootstrapGraphQLQuery,
@@ -30,6 +32,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (
     BootstrapProviderNetwork,
     BootstrapRiR,
     BootstrapRole,
+    BootstrapScheduledJob,
     BootstrapSecret,
     BootstrapSecretsGroup,
     BootstrapTag,
@@ -41,6 +44,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (
     BootstrapVRF,
 )
 from nautobot_ssot.integrations.bootstrap.utils import (
+    get_scheduled_start_time,
     is_running_tests,
     lookup_content_type,
 )
@@ -147,11 +151,13 @@ class BootstrapAdapter(Adapter, LabelMixin):
     vlan = BootstrapVLAN
     vrf = BootstrapVRF
     prefix = BootstrapPrefix
+    scheduled_job = BootstrapScheduledJob
     secret = BootstrapSecret
     secrets_group = BootstrapSecretsGroup
     git_repository = BootstrapGitRepository
     dynamic_group = BootstrapDynamicGroup
     computed_field = BootstrapComputedField
+    custom_field = BootstrapCustomField
     tag = BootstrapTag
     graph_ql_query = BootstrapGraphQLQuery
 
@@ -180,11 +186,13 @@ class BootstrapAdapter(Adapter, LabelMixin):
         "vlan",
         "vrf",
         "prefix",
+        "scheduled_job",
         "secret",
         "secrets_group",
         "git_repository",
         "dynamic_group",
         "computed_field",
+        "custom_field",
         "tag",
         "graph_ql_query",
     ]
@@ -768,6 +776,40 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(_new_comp_field)
 
+    def load_custom_field(self, custom_field):
+        """Load CustomField objects from Bootstrap into DiffSync Models."""
+        if self.job.debug:
+            self.job.logger.debug(f"Loading Bootstrap CustomField: {custom_field}")
+        for key in ["label", "type", "content_types"]:
+            if key not in custom_field:
+                self.job.logger.error(
+                    f"Missing required field: {key}, unable to import custom field {custom_field.get('label')}"
+                )
+                return
+        try:
+            self.get(self.custom_field, custom_field["label"])
+        except ObjectNotFound:
+            content_types = custom_field["content_types"]
+
+            _new_custom_field = self.custom_field(
+                label=custom_field["label"],
+                description=custom_field.get("description") or "",
+                required=custom_field.get("required") or False,
+                content_types=content_types,
+                type=custom_field["type"].lower(),
+                grouping=custom_field.get("grouping") or "",
+                weight=custom_field.get("weight") or 100,
+                default=custom_field.get("default"),
+                filter_logic=custom_field.get("filter_logic") or CustomFieldFilterLogicChoices.FILTER_LOOSE,
+                advanced_ui=custom_field.get("advanced_ui", False),
+                validation_minimum=custom_field.get("validation_minimum"),
+                validation_maximum=custom_field.get("validation_maximum"),
+                validation_regex=custom_field.get("validation_regex") or "",
+                custom_field_choices=custom_field.get("custom_field_choices") or [],
+            )
+
+            self.add(_new_custom_field)
+
     def load_tag(self, tag):
         """Load Tag objects from Bootstrap into DiffSync Models."""
         if self.job.debug:
@@ -798,6 +840,54 @@ class BootstrapAdapter(Adapter, LabelMixin):
         except ObjectNotFound:
             _new_graphqlq = self.graph_ql_query(name=query["name"], query=query["query"])
             self.add(_new_graphqlq)
+
+    def load_scheduled_job(self, scheduled_job):
+        """Load ScheduledJob objects from Bootstrap into DiffSync Models."""
+        if self.job.debug:
+            self.job.logger.debug(f"Loading Bootstrap ScheduledJob {scheduled_job}")
+        try:
+            self.get(self.scheduled_job, scheduled_job["name"])
+        except ObjectNotFound:
+            job_vars = scheduled_job["job_vars"] if scheduled_job.get("job_vars") else {}
+            interval = scheduled_job.get("interval")
+
+            if interval not in JobExecutionType.SCHEDULE_CHOICES:
+                self.job.logger.error(
+                    f"Invalid interval: ({interval}), unable to load scheduled job ({scheduled_job.get('name')})"
+                )
+                return
+
+            start_time = get_scheduled_start_time(start_time=scheduled_job.get("start_time"))
+
+            crontab = ""
+            if interval == JobExecutionType.TYPE_CUSTOM:
+                crontab = scheduled_job.get("crontab")
+            elif not start_time:
+                self.job.logger.error(
+                    f"Invalid start_time: ({start_time}), unable to load scheduled job ({scheduled_job.get('name')})."
+                )
+                return
+
+            for key in ["name", "job_model", "user"]:
+                if key not in scheduled_job:
+                    self.job.logger.error(
+                        f"Missing key ({key}) in scheduled job ({scheduled_job.get('name')}), unable to load."
+                    )
+                    return
+
+            _scheduled_job = self.scheduled_job(
+                name=scheduled_job["name"],
+                job_model=scheduled_job["job_model"],
+                user=scheduled_job["user"],
+                interval=interval,
+                start_time=start_time,
+                crontab=crontab,
+                job_vars=job_vars,
+                profile=scheduled_job.get("profile", False),
+                approval_required=scheduled_job.get("approval_required", False),
+                task_queue=scheduled_job.get("task_queue"),
+            )
+            self.add(_scheduled_job)
 
     def load_software(self, software):
         """Load Software objects from Bootstrap into DiffSync Models."""
@@ -1053,6 +1143,10 @@ class BootstrapAdapter(Adapter, LabelMixin):
             if global_settings["computed_field"] is not None:  # noqa: F821
                 for computed_field in global_settings["computed_field"]:  # noqa: F821
                     self.load_computed_field(comp_field=computed_field)
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["custom_field"]:
+            if global_settings["custom_field"] is not None:  # noqa: F821
+                for custom_field in global_settings["custom_field"]:  # noqa: F821
+                    self.load_custom_field(custom_field=custom_field)
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["tag"]:
             if global_settings["tag"] is not None:  # noqa: F821
                 for tag in global_settings["tag"]:  # noqa: F821
@@ -1061,6 +1155,11 @@ class BootstrapAdapter(Adapter, LabelMixin):
             if global_settings["graph_ql_query"] is not None:  # noqa F821
                 for graph_ql_query in global_settings["graph_ql_query"]:  # noqa F821
                     self.load_graph_ql_query(query=graph_ql_query)
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["scheduled_job"]:
+            if global_settings["scheduled_job"] is not None:  # noqa F821
+                for job in global_settings["scheduled_job"]:
+                    self.load_scheduled_job(scheduled_job=job)
+
         if LIFECYCLE_MGMT:
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software"]:
                 for software in global_settings["software"]:  # noqa: F821

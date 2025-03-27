@@ -1,0 +1,10 @@
+{
+  "no_ping": {
+    "status": "error",
+    "message": "Could not ping 192.168.1.3 (192.168.1.3)"
+  },
+  "no_snmp": {
+    "status": "error",
+    "message": "Could not connect to 192.168.1.4, please check the snmp details and snmp reachability"
+  }
+}

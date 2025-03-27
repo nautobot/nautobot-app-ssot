@@ -135,9 +135,9 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         "key": "prefix_to_vlan",
         "type": RelationshipTypeChoices.TYPE_ONE_TO_MANY,
         "source_type": ContentType.objects.get_for_model(Prefix),
-        "source_label": "Prefix",
+        "source_label": "Infoblox VLAN assignments",
         "destination_type": ContentType.objects.get_for_model(VLAN),
-        "destination_label": "VLAN",
+        "destination_label": "Infoblox Network assignment",
     }
     Relationship.objects.get_or_create(label=relationship_dict["label"], defaults=relationship_dict)
 
@@ -156,6 +156,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
             infoblox_request_timeout = 60
 
         infoblox_sync_filters = _get_sync_filters()
+        infoblox_network_view_to_namespace_map = _get_default_network_view_to_namespace_map()
 
         secrets_group, _ = SecretsGroup.objects.get_or_create(name="InfobloxSSOTDefaultSecretGroup")
         infoblox_username, _ = Secret.objects.get_or_create(
@@ -214,6 +215,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
             import_ipv6=bool(config.get("infoblox_import_objects_subnets_ipv6", False)),
             job_enabled=True,
             infoblox_sync_filters=infoblox_sync_filters,
+            infoblox_network_view_to_namespace_map=infoblox_network_view_to_namespace_map,
             infoblox_dns_view_mapping={},
             cf_fields_ignore={"extensible_attributes": [], "custom_fields": []},
             fixed_address_type=FixedAddressTypeChoices.DONT_CREATE_RECORD,
@@ -258,3 +260,8 @@ def _get_sync_filters():
     sync_filters = [sync_filter]
 
     return sync_filters
+
+
+def _get_default_network_view_to_namespace_map():
+    """Provides default value for SSOTInfobloxConfig network_view_to_namespace_map field."""
+    return {"default": "Global"}
