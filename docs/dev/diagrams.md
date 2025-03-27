@@ -13,21 +13,21 @@ DiffSyncModel{
     DiffSyncModelFlags model_flags
     Optional[Adapter] adapter
     DiffSyncStatus _status
-    str _status_message
+    string _status_message
     ConfigDict model_config
 }
 Adapter{
     Optional[str] type
     ClassVar[List[str]] top_level
 }
-Sync{
-    CharField source
-    CharField target
-    DateTimeField start_time
-    DurationField source_load_time
-    DurationField target_load_time
-    DurationField diff_time
-    DurationFIeld sync_time
+"nautobot_app_ssot.Sync"[Sync]{
+    string source
+    string target
+    datetime start_time
+    duration source_load_time
+    duration target_load_time
+    duration diff_time
+    duration sync_time
     PositiveBigIntegerField source_load_memory_final
     PositiveBigIntegerField source_load_memory_peak
     PositiveBigIntegerField target_load_memory_final
@@ -36,24 +36,24 @@ Sync{
     PositiveBigIntegerField diff_memory_peak
     PositiveBigIntegerField sync_memory_final
     PositiveBigIntegerField sync_memory_peak
-    BooleanField dry_run
-    JSONField diff
-    ForeignKey job_result
+    boolean dry_run
+    json diff
+    JobResult job_result FK
 }
-SyncLogEntry{
+"nautobot_app_ssot.SyncLogEntry"[SyncLogEntry]{
     ForeignKey sync
-    DateTimeField timestamp
-    CharField action
-    CharField status
-    JSONField diff
+    datetime timestamp
+    string action
+    string status
+    json diff
     ForeignKey synced_object_type
-    UUIDField synced_object_id
+    uuid synced_object_id
     GenericForeignKey synced_object
-    TextField object_repr
-    TextField message
+    string object_repr
+    string message
 }
-DiffSyncModel||--|{Sync : diff
+"extras.JobResult"[JobResult]{}
+SyncLogEntry }o--|| Sync : "must have"
+Sync }o--o| JobResult : "may have"
 DiffSyncModel||--|{Adapter : adapter
-SyncLogEntry||--|{Sync : sync
-Sync||--|{JobResult : job_result
 ```
