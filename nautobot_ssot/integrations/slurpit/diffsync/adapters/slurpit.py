@@ -225,8 +225,8 @@ class SlurpitAdapter(Adapter):
                 data = {
                     "name": site.sitename,
                     "description": site.description,
-                    "latitude": format_latitude(site.latitude),
-                    "longitude": format_latitude(site.longitude),
+                    "latitude": format_latitude(site.latitude) if site.latitude else None,
+                    "longitude": format_latitude(site.longitude) if site.longitude else None,
                     "contact_phone": site.phonenumber,
                     "physical_address": "\n".join(address),
                     "location_type__name": self.job.site_loctype.name,
