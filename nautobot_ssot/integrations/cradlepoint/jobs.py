@@ -49,10 +49,10 @@ def _get_cradlepoint_client_config(app_config, debug):
     )
     cradlepoint_client_config = {
         "cradlepoint_uri": app_config.cradlepoint_instance.remote_url,
-        "x_ecm_api_id": x_ecm_api_id,
-        "x_ecm_api_key": x_ecm_api_key,
-        "x_cp_api_id": x_cp_api_id,
-        "x_cp_api_key": x_cp_api_key,
+        "x_ecm_api_id": x_ecm_api_id.strip(),
+        "x_ecm_api_key": x_ecm_api_key.strip(),
+        "x_cp_api_id": x_cp_api_id.strip(),
+        "x_cp_api_key": x_cp_api_key.strip(),
         "verify_ssl": app_config.cradlepoint_instance.verify_ssl,
         "debug": debug,
     }
