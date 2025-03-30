@@ -421,6 +421,11 @@ class TestSolarWindsClientTestCase(TransactionTestCase):  # pylint: disable=too-
             "WS-C4500X-32 SFP+ Switch",
         ),
         ("both_blank", {"Vendor": "Cisco", "DeviceType": "", "Model": ""}, ""),
+        (
+            "8540_wlc",
+            {"Vendor": "Cisco", "DeviceType": "Cisco 8540 Wireless Series Controllers", "Model": ""},
+            "8540 Wireless Series Controllers",
+        ),
     ]
 
     @parameterized.expand(node_types, skip_on_empty=True)

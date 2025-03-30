@@ -421,14 +421,11 @@ class SolarWindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
             elif "Cisco" in node["Vendor"]:
                 device_type = device_type.replace("Cisco", "").strip()
                 device_type = device_type.replace("Catalyst ", "C").strip()
-                if (
-                    device_type
-                    and "WS-" not in device_type
-                    and "WLC" not in device_type
-                    and "ASR" not in device_type
-                    and not device_type.startswith("N")
-                ):
-                    device_type = f"WS-{device_type}"
+                if device_type:
+                    if not any(
+                        s in device_type.upper() for s in ["WS-", "WLC", "ASR", "WIRELESS"]
+                    ) and not device_type.startswith("N"):
+                        device_type = f"WS-{device_type}"
             elif "Palo" in node["Vendor"]:
                 pass  # Nothing needed yet.
         return device_type
