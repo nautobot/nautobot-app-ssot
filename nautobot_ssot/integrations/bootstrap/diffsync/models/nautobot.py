@@ -2365,6 +2365,7 @@ class NautobotScheduledJob(ScheduledJob):
             approval_required=attrs.get("approval_required"),
             kwargs=job_kwargs,
             celery_kwargs=celery_kwargs,
+            enabled=attrs.get("enabled"),
         )
         scheduled_job.validated_save()
 
@@ -2409,6 +2410,8 @@ class NautobotScheduledJob(ScheduledJob):
             job.approval_required = attrs["approval_required"]
         if "task_queue" in attrs:
             job.celery_kwargs["queue"] = attrs["task_queue"]
+        if "enabled" in attrs:
+            job.enabled = attrs["enabled"]
 
         job.validated_save()
         return super().update(attrs)

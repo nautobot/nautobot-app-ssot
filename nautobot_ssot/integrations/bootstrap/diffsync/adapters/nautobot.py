@@ -1194,6 +1194,7 @@ class NautobotAdapter(Adapter):
                     approval_required=job.approval_required,
                     profile=job.celery_kwargs.get("nautobot_job_profile", False),
                     task_queue=job.celery_kwargs.get("queue"),
+                    enabled=job.enabled,
                 )
                 _scheduled_job.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
                 self.add(_scheduled_job)

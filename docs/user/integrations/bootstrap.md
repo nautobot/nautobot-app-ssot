@@ -720,6 +720,9 @@ The `query:` key takes a graphql formatted string to retrieve the information re
 ### ScheduledJob
 Create a ScheduledJob. The Job to be scheduled must already exist. As Job's vary greatly, any Job specific variables should be under the `job_vars` key, and you should check the Job specific documentation for details on what these values should be. The `start_time` must be in the future if the ScheduledJob is being updated or created. Once created, it does not need to be updated unless you wish to modify the schedule. The Bootstrap `system_of_record` cannot be applied to ScheduledJobs, make sure all desired ScheduledJobs exist in your YAML definition.
 
+!!! warning
+    Use of the `enabled` parameter to disable a ScheduledJob will cause it to no longer appear in the Scheduled Jobs list view in the UI. You will need to use Bootstrap again or the [nbshell](https://docs.nautobot.com/projects/core/en/stable/user-guide/administration/tools/nautobot-shell/) to re-enable it.
+
 ```yaml
 scheduled_job:
   - name: # str
@@ -728,6 +731,7 @@ scheduled_job:
     crontab: # str -- Basic Crontab syntax. Use with interval 'custom'
     job_model: # str -- The name of the Job you wish to schedule
     user: # str -- Username to run this scheduled job as
+    enabled: # bool -- Optional, defaults to True
     profile: # bool -- Optional, defaults to False
     task_queue: # str -- Optional, celery queue name, defaults to None (default queue)
     job_vars: # dict -- Optional
