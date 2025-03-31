@@ -422,9 +422,24 @@ class TestSolarWindsClientTestCase(TransactionTestCase):  # pylint: disable=too-
         ),
         ("both_blank", {"Vendor": "Cisco", "DeviceType": "", "Model": ""}, ""),
         (
-            "8540_wlc",
+            "ignore_wireless",
             {"Vendor": "Cisco", "DeviceType": "Cisco 8540 Wireless Series Controllers", "Model": ""},
             "8540 Wireless Series Controllers",
+        ),
+        (
+            "ignore_wlc",
+            {"Vendor": "Cisco", "DeviceType": "Cisco 8500 WLC", "Model": ""},
+            "8500 WLC",
+        ),
+        (
+            "ignore_asr",
+            {"Vendor": "Cisco", "DeviceType": "Cisco ASR 9901", "Model": ""},
+            "ASR 9901",
+        ),
+        (
+            "ignore_ws-",
+            {"Vendor": "Cisco", "DeviceType": "Cisco WS-C3850-48U-S", "Model": ""},
+            "WS-C3850-48U-S",
         ),
     ]
 
