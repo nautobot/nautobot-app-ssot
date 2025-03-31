@@ -204,7 +204,7 @@ class CradlepointAdapter(Adapter):
         # Load device types into mapping dictionary
         self.load_device_types()
 
-        offset_number = 10000
+        offset_number = 20000
         next = True
         call_counter = 1
         # TODO:  This will change to a while loop for the actual implementation.
