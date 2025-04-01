@@ -28,13 +28,16 @@ class CradlepointAdapter(Adapter):
 
     top_level = ("status", "device_role", "device_type", "device")
 
-    def __init__(self, *args, job=None, sync=None, client, config, **kwargs):
+    def __init__(
+        self, *args, job=None, sync=None, client, config, starting_offset, **kwargs
+    ):
         """Initialize Cradlepoint Adapter."""
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
         self.client = client
         self.config = config
+        self.starting_offset = starting_offset
         self.routers = {}
         self.product_mappings = {}
 
@@ -204,7 +207,7 @@ class CradlepointAdapter(Adapter):
         # Load device types into mapping dictionary
         self.load_device_types()
 
-        offset_number = 60000
+        offset_number = self.starting_offset
         next = True
         call_counter = 1
         # TODO:  This will change to a while loop for the actual implementation.

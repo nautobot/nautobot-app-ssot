@@ -8,12 +8,13 @@
 from diffsync.enum import DiffSyncFlags
 from django.templatetags.static import static
 from django.urls import reverse
-from nautobot.apps.jobs import BooleanVar, ObjectVar
+from nautobot.apps.jobs import BooleanVar, IntegerVar, ObjectVar
 from nautobot.extras.choices import (
     SecretsGroupAccessTypeChoices,
     SecretsGroupSecretTypeChoices,
 )
 
+from nautobot_ssot.integrations.cradlepoint.constants import DEFAULT_API_DEVICE_LIMIT
 from nautobot_ssot.integrations.cradlepoint.diffsync.adapters.adapter_cradlepoint import (
     CradlepointAdapter,
 )
@@ -71,6 +72,12 @@ class CradlepointDataSource(DataSource):  # pylint: disable=too-many-instance-at
         required=True,
         query_params={"job_enabled": True},
     )
+    starting_offset = IntegerVar(
+        default=0,
+        description=f"Starting offset for pagination in retrieval of devices. Current pagination is set at {DEFAULT_API_DEVICE_LIMIT}.",
+        label="Starting Offset",
+        required=True,
+    )
 
     def __init__(self):
         """Initialize CradlepointDataSource."""
@@ -114,6 +121,7 @@ class CradlepointDataSource(DataSource):  # pylint: disable=too-many-instance-at
             sync=self.sync,
             client=client,
             config=self.config,
+            starting_offset=self.starting_offset,
         )
         self.logger.info("Loading data from Cradlepoint...")
         self.source_adapter.load()
@@ -143,6 +151,7 @@ class CradlepointDataSource(DataSource):  # pylint: disable=too-many-instance-at
         self.debug = debug
         self.memory_profiling = memory_profiling
         self.config = kwargs.get("config")
+        self.starting_offset = kwargs.get("starting_offset")
         return super().run(dryrun, memory_profiling, *args, **kwargs)
 
 
