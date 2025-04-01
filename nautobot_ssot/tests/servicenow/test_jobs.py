@@ -74,7 +74,15 @@ class ServiceNowDataTargetJobTestCase(TestCase):
             },
         )
 
-    @override_settings(PLUGINS_CONFIG={})
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "servicenow_instance": "",
+                "servicenow_username": "",
+                "servicenow_password": "",
+            }
+        }
+    )
     @mock.patch.dict(os.environ, {"SNOW_USERNAME": "someuser", "SNOW_PASSWORD": "notsosecret"})
     def test_config_information_db(self):
         """Verify the config_information() API for configs provided in the database."""
