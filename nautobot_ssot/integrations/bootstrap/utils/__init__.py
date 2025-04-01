@@ -146,7 +146,12 @@ def get_scheduled_start_time(start_time):
     if not start_time:
         return ""
     try:
-        start_time = datetime.fromisoformat(f"{start_time}+00:00")  # UTC, the Job stores time_zone info
+        # If start_time already has timezone info, use it directly
+        if "+" in start_time or "-" in start_time:
+            start_time = datetime.fromisoformat(start_time)
+        else:
+            # If no timezone info, assume UTC
+            start_time = datetime.fromisoformat(f"{start_time}+00:00")
     except ValueError:
         return None
 
