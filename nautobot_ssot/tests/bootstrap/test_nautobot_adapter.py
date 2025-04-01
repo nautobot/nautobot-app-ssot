@@ -26,18 +26,20 @@ def assert_nautobot_deep_diff(test_case, actual, expected, keys_to_normalize=Non
                     [normalize(i, key) for i in item],
                     key=lambda x: (x.get("name", ""), x.get("namespace", "")),
                 )
-            return [normalize(i, key) for i in item]
+            # Sort all other lists by their string representation
+            return sorted([normalize(i, key) for i in item], key=str)
 
         if isinstance(item, dict):
-            for item_key in list(item.keys()):
+            # Create a new dict with sorted keys
+            normalized_dict = {}
+            for item_key in sorted(item.keys()):
                 if item_key in ["system_of_record", "model_flags", "uuid"]:
-                    item.pop(item_key, None)
+                    continue
                 elif item_key in ["secrets_group"] and "secrets_group" not in item:
-                    item[item_key] = None
+                    normalized_dict[item_key] = None
                 elif item_key in keys_to_normalize and (item.get(item_key) is None or item.get(item_key) == ""):
-                    item[item_key] = None
-
-                if (
+                    normalized_dict[item_key] = None
+                elif (
                     item_key
                     in [
                         "weight",
@@ -51,21 +53,21 @@ def assert_nautobot_deep_diff(test_case, actual, expected, keys_to_normalize=Non
                     ]
                     and item.get(item_key) is None
                 ):
-                    item.pop(item_key, None)
+                    continue
+                elif (
+                    item_key == "content_types" or item_key == "provided_contents" and isinstance(item[item_key], list)
+                ):
+                    normalized_dict[item_key] = sorted(item[item_key])
+                elif item_key == "date_allocated" and not item.get(item_key):
+                    continue
+                elif item_key == "parameters" and "path" not in item:
+                    normalized_dict[item_key] = {"path": None, **item[item_key]}
+                elif isinstance(item.get(item_key), datetime):
+                    normalized_dict[item_key] = item[item_key].isoformat(sep=" ")
+                else:
+                    normalized_dict[item_key] = normalize(item[item_key], item_key)
 
-                if item_key == "content_types" or item_key == "provided_contents" and isinstance(item[item_key], list):
-                    item[item_key] = sorted(item[item_key])
-
-                if item_key == "date_allocated" and not item.get(item_key):
-                    item.pop(item_key, None)
-
-                if item_key == "parameters" and "path" not in item:
-                    item["path"] = None
-
-                if isinstance(item.get(item_key), datetime):
-                    item[item_key] = item[item_key].isoformat(sep=" ")
-
-            return {k: normalize(v, k) for k, v in item.items()}
+            return normalized_dict
         return item
 
     actual_normalized = normalize(actual)
