@@ -78,7 +78,6 @@ from nautobot_ssot.integrations.bootstrap.utils import (
     get_scheduled_start_time,
     get_sor_field_nautobot_object,
     lookup_content_type_model_path,
-    lookup_model_for_role_id,
     lookup_model_for_taggable_class_id,
 )
 from nautobot_ssot.integrations.bootstrap.utils.nautobot import (
@@ -289,10 +288,10 @@ class NautobotAdapter(Adapter):
                 self.get(self.role, nb_role.name)
             except ObjectNotFound:
                 _content_types = []
-                _content_uuids = nb_role.content_types.values_list("model", "id")
-                for _uuid in _content_uuids:
-                    _content_types.append(lookup_model_for_role_id(_uuid[1]))
-                    _content_types.sort()
+                _content_types_info = nb_role.content_types.values_list("app_label", "model")
+                for app_label, model in _content_types_info:
+                    _content_types.append(f"{app_label}.{model}")
+                _content_types.sort()
                 _sor = ""
                 if "system_of_record" in nb_role.custom_field_data:
                     _sor = (
