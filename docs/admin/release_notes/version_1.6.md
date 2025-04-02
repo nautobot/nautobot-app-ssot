@@ -72,3 +72,10 @@
 - [361](https://github.com/nautobot/nautobot-app-ssot/pull/361) - Backport of #350 by @Kircheneer
 - [363](https://github.com/nautobot/nautobot-app-ssot/pull/363) - Backport #362 by @Kircheneer
 - [373](https://github.com/nautobot/nautobot-app-ssot/pull/373) - change contrib.NautobotModel.get_from_db to use a PK by @Kircheneer
+
+## v1.6.5 - 2025-04-02
+
+## Fixed
+
+- [704](https://github.com/nautobot/nautobot-app-ssot/pull/704) - Backport of #703 by @Kircheneer
+- [591](https://github.com/nautobot/nautobot-app-ssot/pull/591) - Backport of #591 by @Kircheneer

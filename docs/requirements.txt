@@ -1,6 +1,7 @@
-griffe==0.30.1
-mkdocs==1.4.2
-mkdocs-material==9.0.11
-mkdocstrings==0.22.0
-mkdocstrings-python==1.1.2
-mkdocs-version-annotations==1.0.0
+mkdocs==1.6.0
+mkdocs-material==9.5.32
+markdown-version-annotations==1.0.1
+griffe==1.1.1
+mkdocstrings-python==1.10.8
+mkdocstrings==0.25.2
+mkdocs-autorefs==1.2.0
