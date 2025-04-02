@@ -29,8 +29,7 @@ def assert_nautobot_deep_diff(test_case, actual, expected, keys_to_normalize=Non
         if item_key == "start_time":
             # For start_time, check if expected value has timezone
             expected_value = next(
-                (item.get(item_key) for item in expected if isinstance(item, dict) and item_key in item),
-                None
+                (item.get(item_key) for item in expected if isinstance(item, dict) and item_key in item), None
             )
             if expected_value and "+" in expected_value:
                 # If expected has timezone, include it
