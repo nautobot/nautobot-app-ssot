@@ -627,7 +627,7 @@ class NautobotIPAddress(base.IPAddress):
     def create(cls, adapter, ids, attrs):
         """Create IPAddress in Nautobot from IPAddress object."""
         new_ip = IPAddress(
-            address=f"{ids['host']}/{attrs['mask_length']}",
+            address=f"{ids['host']}/{ids['mask_length']}",
             namespace=adapter.namespace_map[ids["namespace"]],
             status_id=adapter.status_map["Active"],
         )
@@ -654,8 +654,6 @@ class NautobotIPAddress(base.IPAddress):
     def update(self, attrs):
         """Update IPAddress in Nautobot from IPAddress object."""
         ipaddr = IPAddress.objects.get(id=self.uuid)
-        if "mask_length" in attrs:
-            ipaddr.mask_length = attrs["mask_length"]
         if "tenant" in attrs:
             if attrs.get("tenant"):
                 ipaddr.tenant_id = self.adapter.tenant_map[attrs["tenant"]]

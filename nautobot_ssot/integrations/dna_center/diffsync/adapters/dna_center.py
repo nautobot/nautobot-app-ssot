@@ -601,7 +601,7 @@ class DnaCenterAdapter(Adapter):
             )
             self.add(new_prefix)
         try:
-            ip_found = self.get(self.ipaddress, {"host": host, "namespace": namespace})
+            ip_found = self.get(self.ipaddress, {"host": host, "mask_length": mask_length, "namespace": namespace})
             if ip_found and self.job.debug:
                 self.job.logger.warning(f"Duplicate IP Address attempting to be loaded: {host} in {prefix}")
         except ObjectNotFound:
