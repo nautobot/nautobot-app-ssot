@@ -85,7 +85,7 @@ def assert_nautobot_deep_diff(test_case, actual, expected, keys_to_normalize=Non
                 # Skip system fields
                 if item_key in ["system_of_record", "model_flags", "uuid"]:
                     continue
-                
+
                 # Handle special cases for None values
                 if item_key == "parent" and item.get(item_key) is None:
                     continue  # Skip parent field entirely when None
@@ -95,7 +95,8 @@ def assert_nautobot_deep_diff(test_case, actual, expected, keys_to_normalize=Non
                     normalized_dict[item_key] = None
                 # Handle other fields that should be skipped when None
                 elif (
-                    item_key in [
+                    item_key
+                    in [
                         "weight",
                         "date_installed",
                         "asn",

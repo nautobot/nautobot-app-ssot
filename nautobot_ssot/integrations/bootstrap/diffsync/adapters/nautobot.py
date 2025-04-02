@@ -75,7 +75,6 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import (
 )
 from nautobot_ssot.integrations.bootstrap.utils import (
     check_sor_field,
-    get_scheduled_start_time,
     get_sor_field_nautobot_object,
     lookup_content_type_model_path,
     lookup_model_for_taggable_class_id,
