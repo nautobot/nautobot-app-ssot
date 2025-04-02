@@ -29,46 +29,57 @@ def assert_nautobot_deep_diff(test_case, actual, expected, keys_to_normalize=Non
             # Sort all other lists by their string representation
             return sorted([normalize(i, key) for i in item], key=str)
 
-        if isinstance(item, dict):
-            # Create a new dict with sorted keys
-            normalized_dict = {}
-            for item_key in sorted(item.keys()):
-                if item_key in ["system_of_record", "model_flags", "uuid"]:
-                    continue
-                elif item_key in ["secrets_group"] and "secrets_group" not in item:
-                    normalized_dict[item_key] = None
-                elif item_key in keys_to_normalize and (item.get(item_key) is None or item.get(item_key) == ""):
-                    normalized_dict[item_key] = None
-                elif (
-                    item_key
-                    in [
-                        "weight",
-                        "parent",
-                        "date_installed",
-                        "asn",
-                        "latitude",
-                        "longitude",
-                        "tenant",
-                        "terminations",
-                    ]
-                    and item.get(item_key) is None
-                ):
-                    continue
-                elif (
-                    item_key == "content_types" or item_key == "provided_contents" and isinstance(item[item_key], list)
-                ):
-                    normalized_dict[item_key] = sorted(item[item_key])
-                elif item_key == "date_allocated" and not item.get(item_key):
-                    continue
-                elif item_key == "parameters" and "path" not in item:
-                    normalized_dict[item_key] = {"path": None, **item[item_key]}
-                elif isinstance(item.get(item_key), datetime):
-                    normalized_dict[item_key] = item[item_key].isoformat(sep=" ")
-                else:
-                    normalized_dict[item_key] = normalize(item[item_key], item_key)
+        if not isinstance(item, dict):
+            return item
 
-            return normalized_dict
-        return item
+        # Create a new dict with sorted keys
+        normalized_dict = {}
+        for item_key in sorted(item.keys()):
+            # Skip system fields
+            if item_key in ["system_of_record", "model_flags", "uuid"]:
+                continue
+
+            # Handle secrets group
+            if item_key == "secrets_group" and "secrets_group" not in item:
+                normalized_dict[item_key] = None
+                continue
+
+            # Handle normalized keys with empty values
+            if item_key in keys_to_normalize and (item.get(item_key) is None or item.get(item_key) == ""):
+                normalized_dict[item_key] = None
+                continue
+
+            # Skip None values for specific fields
+            if (
+                item_key
+                in ["weight", "parent", "date_installed", "asn", "latitude", "longitude", "tenant", "terminations"]
+                and item.get(item_key) is None
+            ):
+                continue
+
+            # Handle content types and provided contents
+            if item_key in ["content_types", "provided_contents"] and isinstance(item[item_key], list):
+                normalized_dict[item_key] = sorted(item[item_key])
+                continue
+
+            # Skip empty date_allocated
+            if item_key == "date_allocated" and not item.get(item_key):
+                continue
+
+            # Handle parameters without path
+            if item_key == "parameters" and "path" not in item:
+                normalized_dict[item_key] = {"path": None, **item[item_key]}
+                continue
+
+            # Handle datetime objects
+            if isinstance(item.get(item_key), datetime):
+                normalized_dict[item_key] = item[item_key].isoformat(sep=" ")
+                continue
+
+            # Handle all other cases
+            normalized_dict[item_key] = normalize(item[item_key], item_key)
+
+        return normalized_dict
 
     actual_normalized = normalize(actual)
     expected_normalized = normalize(expected)
