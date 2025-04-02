@@ -33,17 +33,21 @@ def assert_nautobot_deep_diff(test_case, actual, expected, keys_to_normalize=Non
             # Create a new dict with sorted keys
             normalized_dict = {}
             for item_key in sorted(item.keys()):
+                # Skip system fields
                 if item_key in ["system_of_record", "model_flags", "uuid"]:
                     continue
+                
+                # Handle special cases for None values
+                if item_key == "parent" and item.get(item_key) is None:
+                    continue  # Skip parent field entirely when None
                 elif item_key in ["secrets_group"] and "secrets_group" not in item:
                     normalized_dict[item_key] = None
                 elif item_key in keys_to_normalize and (item.get(item_key) is None or item.get(item_key) == ""):
                     normalized_dict[item_key] = None
+                # Handle other fields that should be skipped when None
                 elif (
-                    item_key
-                    in [
+                    item_key in [
                         "weight",
-                        "parent",
                         "date_installed",
                         "asn",
                         "latitude",
@@ -54,6 +58,7 @@ def assert_nautobot_deep_diff(test_case, actual, expected, keys_to_normalize=Non
                     and item.get(item_key) is None
                 ):
                     continue
+                # Handle content types
                 elif (
                     item_key == "content_types" or item_key == "provided_contents" and isinstance(item[item_key], list)
                 ):
