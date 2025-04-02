@@ -72,15 +72,16 @@ yamllint = "*"
 markdown-include = "*"
 toml = "*"
 # Rendering docs to HTML
-mkdocs = "1.4.2"
+mkdocs = "1.6.0"
 # Material for MkDocs theme
-mkdocs-material = "9.0.11"
+mkdocs-material = "9.5.32"
 # Render custom markdown for version added/changed/remove notes
-mkdocs-version-annotations = "1.0.0"
+markdown-version-annotations = "1.0.1"
 # Automatic documentation from sources, for MkDocs
-mkdocstrings = "0.22.0"         # Last version with python 3.7 support
-mkdocstrings-python = "1.1.2"   # Last version with python 3.7 support
-griffe = "0.30.1"               # Last version with python 3.7 support
+mkdocs-autorefs = "1.2.0"
+mkdocstrings = "0.25.2"
+mkdocstrings-python = "1.10.8"
+griffe = "1.1.1"
 requests-mock = "^1.10.0"
 parameterized = "^0.8.1"
 myst-parser = "^0.15.2"
