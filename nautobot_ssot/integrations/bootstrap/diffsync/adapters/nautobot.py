@@ -222,7 +222,7 @@ class NautobotAdapter(Adapter):
                 try:
                     _parent = nb_tenant_group.parent.name
                 except AttributeError:
-                    _parent = ""
+                    _parent = None
                 _sor = ""
                 if "system_of_record" in nb_tenant_group.custom_field_data:
                     _sor = (
@@ -1181,7 +1181,7 @@ class NautobotAdapter(Adapter):
             try:
                 self.get(self.scheduled_job, job.name)
             except ObjectNotFound:
-                start_time = get_scheduled_start_time(start_time=job.start_time.replace(tzinfo=None).isoformat())
+                start_time = job.start_time.isoformat()
                 _scheduled_job = self.scheduled_job(
                     name=job.name,
                     job_model=job.job_model.name,
