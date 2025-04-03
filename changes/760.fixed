@@ -1,0 +1,1 @@
+Fixed issue causing bootstrap scheduled_job to fail when updating the User field.
