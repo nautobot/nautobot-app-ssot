@@ -15,7 +15,6 @@ from nautobot.extras.choices import (
 from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.exceptions import ConfigurationError
-from nautobot_ssot.integrations.dna_center.diff import CustomOrderingDiff
 from nautobot_ssot.integrations.dna_center.diffsync.adapters import dna_center, nautobot
 from nautobot_ssot.integrations.dna_center.utils.dna_center import DnaCenterClient
 from nautobot_ssot.jobs.base import DataMapping, DataSource
@@ -179,20 +178,6 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
             raise ConfigurationError(
                 f"{self.building_loctype.name} is not parent to {self.floor_loctype.name}. Please correct.",
             )
-
-    def execute_sync(self):
-        """Method to synchronize the difference from `self.diff`, from SOURCE to TARGET adapter.
-
-        This is a generic implementation that you could overwrite completely in your custom logic.
-        """
-        if self.source_adapter is not None and self.target_adapter is not None:
-            self.source_adapter.sync_to(
-                self.target_adapter,
-                flags=self.diffsync_flags,
-                diff_class=CustomOrderingDiff,
-            )
-        else:
-            self.logger.warning("Not both adapters were properly initialized prior to synchronization.")
 
     def run(
         self,

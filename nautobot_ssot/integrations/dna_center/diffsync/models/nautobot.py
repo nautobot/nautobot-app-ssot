@@ -69,7 +69,11 @@ class NautobotArea(base.Area):
                 adapter.job.logger.warning(
                     f"Unable to find {adapter.job.area_loctype.name} {ids['parent']} for {ids['name']}."
                 )
-        new_area.validated_save()
+        try:
+            new_area.validated_save()
+        except ValidationError as err:
+            adapter.job.logger.warning(f"Unable to create {adapter.job.area_loctype.name} {ids['name']}. {err}")
+            return None
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
                 adapter=adapter, obj=new_area, scoped_fields=["name", "location_type", "status"]
@@ -145,7 +149,9 @@ class NautobotBuilding(base.Building):
                 ],
             )
             metadata.validated_save()
-        adapter.site_map[ids["name"]] = new_building.id
+        if ids["area"] not in adapter.site_map:
+            adapter.site_map[ids["area"]] = {}
+        adapter.site_map[ids["area"]][ids["name"]] = new_building.id
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -214,7 +220,7 @@ class NautobotFloor(base.Floor):
         new_floor = Location(
             name=ids["name"],
             status_id=adapter.status_map["Active"],
-            parent_id=adapter.site_map[ids["building"]],
+            parent_id=adapter.site_map[ids["area"]][ids["building"]],
             location_type=adapter.job.floor_loctype,
         )
         if attrs.get("tenant"):
@@ -232,7 +238,11 @@ class NautobotFloor(base.Floor):
                 ],
             )
             metadata.validated_save()
-        adapter.floor_map[ids["name"]] = new_floor.id
+        if ids["area"] not in adapter.floor_map:
+            adapter.floor_map[ids["area"]] = {}
+        if ids["building"] not in adapter.floor_map[ids["area"]]:
+            adapter.floor_map[ids["area"]][ids["building"]] = {}
+        adapter.floor_map[ids["area"]][ids["building"]][ids["name"]] = new_floor.id
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -296,14 +306,14 @@ class NautobotDevice(base.Device):
             name=ids["name"],
             status_id=adapter.status_map[attrs["status"]],
             role=device_role,
-            location_id=adapter.site_map[attrs["site"]],
+            location_id=adapter.site_map[attrs["area"]][attrs["site"]],
             device_type=device_type,
             serial=attrs["serial"],
             platform_id=platform.id,
             controller_managed_device_group=adapter.job.controller_group,
         )
         if attrs.get("floor"):
-            new_device.location_id = adapter.floor_map[attrs["floor"]]
+            new_device.location_id = adapter.floor_map[attrs["area"]][attrs["site"]][attrs["floor"]]
         if attrs.get("tenant"):
             new_device.tenant_id = adapter.tenant_map[attrs["tenant"]]
         if attrs.get("version"):
@@ -356,10 +366,18 @@ class NautobotDevice(base.Device):
             device.role = dev_role
             if created:
                 dev_role.content_types.add(ContentType.objects.get_for_model(Device))
-        if attrs.get("site"):
-            device.location_id = self.adapter.site_map[attrs["site"]]
-        if attrs.get("floor"):
-            device.location_id = self.adapter.floor_map[attrs["floor"]]
+        if attrs.get("site") or attrs.get("area") or attrs.get("floor"):
+            if attrs.get("site"):
+                site_name = attrs["site"]
+            else:
+                site_name = self.site
+            if attrs.get("area"):
+                area_name = attrs["area"]
+            else:
+                area_name = self.area
+            device.location_id = self.adapter.site_map[area_name][site_name]
+            if attrs["floor"]:
+                device.location_id = self.adapter.floor_map[area_name][site_name][attrs["floor"]]
         if "model" in attrs:
             if attrs.get("vendor"):
                 vendor = Manufacturer.objects.get_or_create(name=attrs["vendor"])[0]
@@ -609,7 +627,7 @@ class NautobotIPAddress(base.IPAddress):
     def create(cls, adapter, ids, attrs):
         """Create IPAddress in Nautobot from IPAddress object."""
         new_ip = IPAddress(
-            address=f"{ids['host']}/{attrs['mask_length']}",
+            address=f"{ids['host']}/{ids['mask_length']}",
             namespace=adapter.namespace_map[ids["namespace"]],
             status_id=adapter.status_map["Active"],
         )
@@ -636,8 +654,6 @@ class NautobotIPAddress(base.IPAddress):
     def update(self, attrs):
         """Update IPAddress in Nautobot from IPAddress object."""
         ipaddr = IPAddress.objects.get(id=self.uuid)
-        if "mask_length" in attrs:
-            ipaddr.mask_length = attrs["mask_length"]
         if "tenant" in attrs:
             if attrs.get("tenant"):
                 ipaddr.tenant_id = self.adapter.tenant_map[attrs["tenant"]]

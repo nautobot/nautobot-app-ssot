@@ -301,7 +301,7 @@ class DnaCenterAdapter(Adapter):
             parent = self.get(self.building, {"name": bldg_name, "area": area_name})
             new_floor, loaded = self.get_or_instantiate(
                 self.floor,
-                ids={"name": floor_name, "building": bldg_name},
+                ids={"name": floor_name, "building": bldg_name, "area": area_name},
                 attrs={"tenant": self.tenant.name if self.tenant else None, "uuid": None},
             )
             if loaded:
@@ -409,6 +409,7 @@ class DnaCenterAdapter(Adapter):
                     role=dev_role,
                     vendor=vendor,
                     model=self.conn.get_model_name(models=dev["platformId"]) if dev.get("platformId") else "Unknown",
+                    area=loc_data["areas"][-1],
                     site=loc_data["building"],
                     floor=floor_name,
                     serial=dev["serialNumber"] if dev.get("serialNumber") else "",
@@ -445,7 +446,7 @@ class DnaCenterAdapter(Adapter):
         building_id = location_ids.pop()
         areas = location_ids
 
-        for area_id in reversed(areas):
+        for area_id in areas:
             if self.dnac_location_map.get(area_id):
                 area_name = self.dnac_location_map[area_id]["name"]
                 area_parent = self.dnac_location_map[area_id]["parent"]
@@ -600,7 +601,7 @@ class DnaCenterAdapter(Adapter):
             )
             self.add(new_prefix)
         try:
-            ip_found = self.get(self.ipaddress, {"host": host, "namespace": namespace})
+            ip_found = self.get(self.ipaddress, {"host": host, "mask_length": mask_length, "namespace": namespace})
             if ip_found and self.job.debug:
                 self.job.logger.warning(f"Duplicate IP Address attempting to be loaded: {host} in {prefix}")
         except ObjectNotFound:

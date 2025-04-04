@@ -93,7 +93,7 @@ class TestNautobotBuilding(TransactionTestCase):
             name="Site 2", parent=ny_region, status=Status.objects.get(name="Active"), location_type=loc_type
         )
         self.sec_site.validated_save()
-        self.adapter.site_map = {"NY": ny_region.id, "Site 2": self.sec_site.id}
+        self.adapter.site_map = {None: {"NY": ny_region.id}, "NY": {"Site 2": self.sec_site.id}}
         self.test_bldg = NautobotBuilding(
             name="Site 2",
             address="",
@@ -200,14 +200,14 @@ class TestNautobotFloor(TransactionTestCase):
         self.hq_site, _ = Location.objects.get_or_create(
             name="HQ", location_type=site_loc_type, status=Status.objects.get(name="Active")
         )
-        self.adapter.site_map = {"HQ": self.hq_site.id}
+        self.adapter.site_map = {"NY": {"HQ": self.hq_site.id}}
         self.adapter.floor_map = {}
         self.adapter.status_map = {"Active": Status.objects.get(name="Active").id}
         self.adapter.objects_to_delete = {"floors": []}
 
     def test_create(self):
         """Test the NautobotFloor create() method creates a LocationType: Floor."""
-        ids = {"name": "HQ - Floor 1", "building": "HQ"}
+        ids = {"name": "HQ - Floor 1", "building": "HQ", "area": "NY"}
         attrs = {"tenant": "G&A"}
         result = NautobotFloor.create(self.adapter, ids, attrs)
         self.assertIsInstance(result, NautobotFloor)
@@ -226,7 +226,7 @@ class TestNautobotFloor(TransactionTestCase):
             status=Status.objects.get(name="Active"),
         )
         mock_floor.validated_save()
-        test_floor = NautobotFloor(name="HQ - Floor 2", building="HQ", tenant="", uuid=mock_floor.id)
+        test_floor = NautobotFloor(name="HQ - Floor 2", building="HQ", area="NY", tenant="", uuid=mock_floor.id)
         test_floor.adapter = self.adapter
         update_attrs = {
             "tenant": "G&A",
@@ -247,7 +247,7 @@ class TestNautobotFloor(TransactionTestCase):
             status=Status.objects.get(name="Active"),
         )
         mock_floor.validated_save()
-        test_floor = NautobotFloor(name="HQ - Floor 2", building="HQ", tenant="", uuid=mock_floor.id)
+        test_floor = NautobotFloor(name="HQ - Floor 2", building="HQ", area="NY", tenant="", uuid=mock_floor.id)
         test_floor.adapter = self.adapter
         update_attrs = {
             "tenant": None,
@@ -317,6 +317,7 @@ class TestNautobotDevice(TransactionTestCase):
             "model": "Nexus 9300",
             "platform": "cisco_ios",
             "role": "core",
+            "area": "NY",
             "site": "HQ",
             "serial": "1234567890",
             "status": "Active",
@@ -331,8 +332,8 @@ class TestNautobotDevice(TransactionTestCase):
         """Test the NautobotDevice create() method creates a Device."""
         floor_lt = LocationType.objects.get_or_create(name="Floor", parent=self.site_lt)[0]
         hq_floor = Location.objects.create(name="HQ - Floor 1", status=self.status_active, location_type=floor_lt)
-        self.adapter.site_map = {"HQ": self.hq_site.id}
-        self.adapter.floor_map = {"HQ - Floor 1": hq_floor.id}
+        self.adapter.site_map = {"NY": {"HQ": self.hq_site.id}}
+        self.adapter.floor_map = {"NY": {"HQ": {"HQ - Floor 1": hq_floor.id}}}
 
         NautobotDevice.create(self.adapter, self.ids, self.attrs)
         self.adapter.job.logger.info.assert_called_with("Creating Version 16.12.3 for cisco_ios.")
