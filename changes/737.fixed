@@ -1,2 +1,0 @@
-Fixed Meraki AP port not being loaded and created correctly.
-Fixed Meraki location_map feature not updating Locations parent and name as expected.

@@ -1,1 +1,0 @@
-Fixes key errors if keys don't exist in global_settings.yaml and are enabled in models_to_sync.

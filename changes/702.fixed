@@ -1,1 +1,0 @@
-Fixed handling of timezones in scheduled jobs when timezone is specified in the yaml.
