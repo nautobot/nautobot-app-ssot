@@ -959,11 +959,13 @@ class NautobotTestSetup:
         job = Job.objects.get(name="Export Object List")
 
         for scheduled_job in GLOBAL_YAML_SETTINGS["scheduled_job"]:
+            # Parse the start_time to preserve timezone info
+            start_time = get_scheduled_start_time(scheduled_job["start_time"])
             scheduled_job = ScheduledJob(
                 name=scheduled_job["name"],
                 task=job.class_path,
                 interval=scheduled_job["interval"],
-                start_time=get_scheduled_start_time(scheduled_job["start_time"]),
+                start_time=start_time,
                 job_model=job,
                 user=admin,
                 kwargs={},
