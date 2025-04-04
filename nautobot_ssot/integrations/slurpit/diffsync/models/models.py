@@ -9,6 +9,7 @@ except ImportError:
     from typing_extensions import Annotated
 
 
+from django.core.exceptions import ObjectDoesNotExist
 from nautobot.dcim.models import Device, DeviceType, Interface, InventoryItem, Location, Manufacturer, Platform
 from nautobot.extras.models import Role
 from nautobot.ipam.models import VLAN, VRF, IPAddress, IPAddressToInterface, Prefix
@@ -406,7 +407,13 @@ class NautobotIPAddressToInterfaceModel(IPAddressToInterfaceModel):
         if adapter.job.logger.debug:
             adapter.job.logger.debug(f"Creating IPAddressToInterface {ids} {attrs}")
         intf = Interface.objects.get(name=ids["interface__name"], device__name=ids["interface__device__name"])
-        ip_address = IPAddress.objects.get(host=ids["ip_address__host"], tenant=intf.device.tenant)
+
+        try:
+            ip_address = IPAddress.objects.get(host=ids["ip_address__host"], tenant=intf.device.tenant)
+        except ObjectDoesNotExist:
+            adapter.job.logger.info(f"Unable to find IP {ids["ip_address__host"]}")
+            return super().create_base(adapter=adapter, ids=ids, attrs=attrs)
+
         obj = IPAddressToInterface(
             ip_address=ip_address,
             interface=intf,
