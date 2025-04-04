@@ -32,3 +32,4 @@ While that last supported version will not be strictly enforced--via the max_ver
 | 3.3.0                          | 2.1.0                          | 2.99.99                       |
 | 3.4.0                          | 2.1.0                          | 2.99.99                       |
 | 3.5.0                          | 2.1.0                          | 2.99.99                       |
+| 3.6.0                          | 2.1.0                          | 2.99.99                       |
