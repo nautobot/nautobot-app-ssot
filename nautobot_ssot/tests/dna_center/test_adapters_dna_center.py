@@ -32,7 +32,6 @@ from nautobot_ssot.tests.dna_center.fixtures import (
     EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL,
     EXPECTED_FLOORS,
     LOCATION_FIXTURE,
-    LOCATION_WO_GLOBAL_FIXTURE,
     PORT_FIXTURE,
 )
 
@@ -155,7 +154,7 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
     def test_build_dnac_location_map_wo_global(self):
         """Test Nautobot adapter build_dnac_location_map method without global."""
         self.dna_center.dnac_location_map = {}
-        self.dna_center.build_dnac_location_map(locations=LOCATION_WO_GLOBAL_FIXTURE)
+        self.dna_center.build_dnac_location_map(locations=LOCATION_FIXTURE)
         expected = EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL
         self.assertEqual(self.dna_center.dnac_location_map, expected)
 
@@ -238,7 +237,7 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         mock_dev_details = {"siteHierarchyGraphId": "/1/2/3/4/5/6/"}
         self.dna_center.load_device_location_tree(dev_details=mock_dev_details, loc_data=mock_loc_data)
         self.assertEqual(
-            {"HQ - 1st Floor__HQ"},
+            {"HQ - 1st Floor__HQ__NYC"},
             {dev.get_unique_id() for dev in self.dna_center.get_all("floor")},
         )
         self.assertEqual(
@@ -312,6 +311,15 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
             {dev.get_unique_id() for dev in self.dna_center.get_all("device")},
         )
         self.dna_center.load_ports.assert_called()
+
+    def test_load_devices_missing_location(self):
+        """Validate handling of a Device when a Location is missing."""
+        self.dna_center.building_map = {}
+        self.dna_center.dnac_location_map = {}
+        self.dna_center.load_devices()
+        self.dna_center.job.logger.error.assert_called_with(
+            "Device spine1.abc.in has unknown location in hierarchy so will not be imported."
+        )
 
     def test_load_ports(self):
         """Test Nautobot SSoT for Cisco DNA Center load_ports() function."""

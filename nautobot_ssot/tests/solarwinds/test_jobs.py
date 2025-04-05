@@ -7,13 +7,13 @@ from nautobot.core.testing import TransactionTestCase
 from nautobot.dcim.models import LocationType
 from nautobot.extras.models import JobResult
 
-from nautobot_ssot.integrations.solarwinds.jobs import JobConfigError, SolarwindsDataSource
+from nautobot_ssot.integrations.solarwinds.jobs import JobConfigError, SolarWindsDataSource
 
 
-class SolarwindsDataSourceTestCase(TransactionTestCase):
-    """Test the SolarwindsDataSource class."""
+class SolarWindsDataSourceTestCase(TransactionTestCase):
+    """Test the SolarWindsDataSource class."""
 
-    job_class = SolarwindsDataSource
+    job_class = SolarWindsDataSource
     databases = ("default", "job_logs")
 
     def setUp(self):
@@ -99,25 +99,4 @@ class SolarwindsDataSourceTestCase(TransactionTestCase):
             self.job.validate_role_map()
         self.job.logger.error.assert_called_once_with(
             "Role Map Matching Attribute must be defined if Role Map is specified."
-        )
-
-    def test_validate_custom_property(self):
-        """Validate handling of validate_custom_property() if Custom Property is missing."""
-        self.job.pull_from = "CustomProperty"
-        self.job.custom_property = None
-        with self.assertRaises(JobConfigError):
-            self.job.validate_custom_property()
-        self.job.logger.error.assert_called_once_with(
-            "Custom Property value must exist if pulling from Custom Property."
-        )
-
-    def test_validate_custom_property_location(self):
-        """Validate handling of validate_custom_property() when Location Override isn't specified."""
-        self.job.pull_from = "CustomProperty"
-        self.job.custom_property = "Nautobot_Monitoring"
-        self.job.location_override = None
-        with self.assertRaises(JobConfigError):
-            self.job.validate_custom_property()
-        self.job.logger.error.assert_called_once_with(
-            "Location Override must be selected if pulling from CustomProperty."
         )

@@ -1,9 +1,11 @@
 """Testing that objects are properly loaded from Nautobot into Nautobot adapter."""
 
 # test_nautobot_adapter.py
+# pylint: disable=R0912
 
 from datetime import datetime
 
+import pytz
 from deepdiff import DeepDiff
 from django.test import TransactionTestCase
 
@@ -19,54 +21,100 @@ def assert_nautobot_deep_diff(test_case, actual, expected, keys_to_normalize=Non
     """Custom DeepDiff assertion handling."""
     keys_to_normalize = keys_to_normalize or {}
 
+    def handle_datetime(datetime_obj, item_key):
+        """Handle datetime object normalization based on field type."""
+        if item_key == "date_allocated":
+            # For date_allocated, use space separator without timezone
+            return datetime_obj.strftime("%Y-%m-%d %H:%M:%S")
+        if item_key == "start_time":
+            # For start_time, preserve existing timezone or add UTC if none
+            if datetime_obj.tzinfo is None:
+                datetime_obj = datetime_obj.replace(tzinfo=pytz.UTC)
+            # Use isoformat to preserve timezone info
+            return datetime_obj.isoformat()
+        # For all other datetime fields, ensure timezone and use T separator
+        if datetime_obj.tzinfo is None:
+            datetime_obj = datetime_obj.replace(tzinfo=pytz.UTC)
+        return datetime_obj.isoformat()
+
+    def handle_special_fields(item_key, item, normalized_dict, keys_to_normalize):
+        """Handle special field cases."""
+        # Skip system fields
+        if item_key in ["system_of_record", "model_flags", "uuid"]:
+            return True
+
+        # Handle special cases for None values
+        if item_key == "parent" and item.get(item_key) is None:
+            return True  # Skip parent field entirely when None
+        if item_key in ["secrets_group"] and "secrets_group" not in item:
+            normalized_dict[item_key] = None
+            return True
+        if item_key in keys_to_normalize and (item.get(item_key) is None or item.get(item_key) == ""):
+            normalized_dict[item_key] = None
+            return True
+        return False
+
+    def handle_none_fields(item_key, item):
+        """Handle fields that should be skipped when None."""
+        skip_if_none = ["weight", "date_installed", "asn", "latitude", "longitude", "tenant", "terminations"]
+        if item_key in skip_if_none and item.get(item_key) is None:
+            return True
+        return False
+
+    def handle_list_fields(item_key, item, normalized_dict):
+        """Handle list fields."""
+        if item_key in ["content_types", "provided_contents"] and isinstance(item[item_key], list):
+            normalized_dict[item_key] = sorted(item[item_key])
+            return True
+        return False
+
     def normalize(item, key=None):
+        """Normalize an item for comparison."""
         if isinstance(item, list):
             if key == "vrf":
                 return sorted(
                     [normalize(i, key) for i in item],
                     key=lambda x: (x.get("name", ""), x.get("namespace", "")),
                 )
-            return [normalize(i, key) for i in item]
+            # Sort all other lists by their string representation
+            return sorted([normalize(i, key) for i in item], key=str)
 
-        if isinstance(item, dict):
-            for item_key in list(item.keys()):
-                if item_key in ["system_of_record", "model_flags", "uuid"]:
-                    item.pop(item_key, None)
-                elif item_key in ["secrets_group"] and "secrets_group" not in item:
-                    item[item_key] = None
-                elif item_key in keys_to_normalize and (item.get(item_key) is None or item.get(item_key) == ""):
-                    item[item_key] = None
+        if not isinstance(item, dict):
+            return item
 
-                if (
-                    item_key
-                    in [
-                        "weight",
-                        "parent",
-                        "date_installed",
-                        "asn",
-                        "latitude",
-                        "longitude",
-                        "tenant",
-                        "terminations",
-                    ]
-                    and item.get(item_key) is None
-                ):
-                    item.pop(item_key, None)
+        # Create a new dict with sorted keys
+        normalized_dict = {}
+        for item_key in sorted(item.keys()):
+            # Handle special fields first
+            if handle_special_fields(item_key, item, normalized_dict, keys_to_normalize):
+                continue
 
-                if item_key == "content_types" or item_key == "provided_contents" and isinstance(item[item_key], list):
-                    item[item_key] = sorted(item[item_key])
+            # Handle fields that should be skipped when None
+            if handle_none_fields(item_key, item):
+                continue
 
-                if item_key == "date_allocated" and not item.get(item_key):
-                    item.pop(item_key, None)
+            # Handle list fields
+            if handle_list_fields(item_key, item, normalized_dict):
+                continue
 
-                if item_key == "parameters" and "path" not in item:
-                    item["path"] = None
+            # Handle date_allocated
+            if item_key == "date_allocated" and not item.get(item_key):
+                continue
 
-                if isinstance(item.get(item_key), datetime):
-                    item[item_key] = item[item_key].isoformat(sep=" ")
+            # Handle parameters
+            if item_key == "parameters" and "path" not in item:
+                normalized_dict[item_key] = {"path": None, **item[item_key]}
+                continue
 
-            return {k: normalize(v, k) for k, v in item.items()}
-        return item
+            # Handle datetime objects
+            if isinstance(item.get(item_key), datetime):
+                normalized_dict[item_key] = handle_datetime(item[item_key], item_key)
+                continue
+
+            # Handle all other cases
+            normalized_dict[item_key] = normalize(item[item_key], item_key)
+
+        return normalized_dict
 
     actual_normalized = normalize(actual)
     expected_normalized = normalize(expected)
@@ -111,9 +159,15 @@ class TestNautobotAdapterTestCase(TransactionTestCase):
         # pylint: disable=duplicate-code
         for key in MODELS_TO_SYNC:
             print(f"Checking: {key}")
+            models = list(self.nb_adapter.dict().get(key, {}).values())
+            if key == "custom_field":
+                for model in list(models):
+                    if model["label"] in ["System of Record", "Last sync from System of Record", "LibreNMS Device ID"]:
+                        models.remove(model)
+
             assert_nautobot_deep_diff(
                 self,
-                list(self.nb_adapter.dict().get(key, {}).values()),
+                models,
                 GLOBAL_JSON_SETTINGS.get(key, []),
                 keys_to_normalize={
                     "parent",

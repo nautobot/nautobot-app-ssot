@@ -1,5 +1,5 @@
 # pylint: disable=duplicate-code
-"""Nautobot Adapter for Solarwinds SSoT app."""
+"""Nautobot Adapter for SolarWinds SSoT app."""
 
 from nautobot_ssot.contrib.adapter import NautobotAdapter as BaseNautobotAdapter
 from nautobot_ssot.integrations.solarwinds.diffsync.models.base import (

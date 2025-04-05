@@ -28,7 +28,7 @@ def _ensure_tag(apps, name, color):
     _tag = tag.objects.get_or_create(name=name)[0]
     if _tag.color != color:
         _tag.color = color
-        _tag.validated_save()
+        _tag.save()
     for content_type in ContentType.objects.all():
         if content_type not in _tag.content_types.all():
             _tag.content_types.add(content_type)

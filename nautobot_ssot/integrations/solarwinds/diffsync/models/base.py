@@ -1,5 +1,5 @@
 # pylint: disable=R0801
-"""DiffSyncModel subclasses for Nautobot-to-Solarwinds data sync."""
+"""DiffSyncModel subclasses for Nautobot-to-SolarWinds data sync."""
 
 try:
     from typing import Annotated  # Python>=3.9
@@ -19,7 +19,7 @@ from nautobot_ssot.tests.contrib_base_classes import ContentTypeDict
 
 
 class LocationModel(NautobotModel):
-    """Diffsync model for Solarwinds containers."""
+    """Diffsync model for SolarWinds containers."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
 
@@ -46,7 +46,7 @@ class LocationModel(NautobotModel):
 
 
 class DeviceTypeModel(NautobotModel):
-    """DiffSync model for Solarwinds device types."""
+    """DiffSync model for SolarWinds device types."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
 
@@ -59,7 +59,7 @@ class DeviceTypeModel(NautobotModel):
 
 
 class ManufacturerModel(NautobotModel):
-    """DiffSync model for Solarwinds device manufacturers."""
+    """DiffSync model for SolarWinds device manufacturers."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
 
@@ -89,7 +89,7 @@ class PlatformModel(NautobotModel):
 
 
 class RoleModel(NautobotModel):
-    """DiffSync model for Solarwinds Device roles."""
+    """DiffSync model for SolarWinds Device roles."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
 
@@ -103,7 +103,7 @@ class RoleModel(NautobotModel):
 
 
 class SoftwareVersionModel(NautobotModel):
-    """DiffSync model for Solarwinds Device Software versions."""
+    """DiffSync model for SolarWinds Device Software versions."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
 
@@ -118,7 +118,7 @@ class SoftwareVersionModel(NautobotModel):
 
 
 class DeviceModel(NautobotModel):
-    """DiffSync model for Solarwinds devices."""
+    """DiffSync model for SolarWinds devices."""
 
     _model = Device
     _modelname = "device"
@@ -162,8 +162,8 @@ class DeviceModel(NautobotModel):
 
     @classmethod
     def get_queryset(cls):
-        """Return only Devices with system_of_record set to Solarwinds."""
-        return Device.objects.filter(_custom_field_data__system_of_record="Solarwinds")
+        """Return only Devices with system_of_record set to SolarWinds."""
+        return Device.objects.filter(_custom_field_data__system_of_record="SolarWinds")
 
 
 class InterfaceModel(NautobotModel):
@@ -192,8 +192,8 @@ class InterfaceModel(NautobotModel):
 
     @classmethod
     def get_queryset(cls):
-        """Return only Interfaces with system_of_record set to Solarwinds."""
-        return Interface.objects.filter(device___custom_field_data__system_of_record="Solarwinds")
+        """Return only Interfaces with system_of_record set to SolarWinds."""
+        return Interface.objects.filter(device___custom_field_data__system_of_record="SolarWinds")
 
 
 class PrefixModel(NautobotModel):
@@ -225,8 +225,8 @@ class PrefixModel(NautobotModel):
 
     @classmethod
     def get_queryset(cls):
-        """Return only Prefixes with system_of_record set to Solarwinds."""
-        return Prefix.objects.filter(_custom_field_data__system_of_record="Solarwinds")
+        """Return only Prefixes with system_of_record set to SolarWinds."""
+        return Prefix.objects.filter(_custom_field_data__system_of_record="SolarWinds")
 
 
 class IPAddressModel(NautobotModel):
@@ -262,8 +262,8 @@ class IPAddressModel(NautobotModel):
 
     @classmethod
     def get_queryset(cls):
-        """Return only IP Addresses with system_of_record set to Solarwinds."""
-        return IPAddress.objects.filter(_custom_field_data__system_of_record="Solarwinds")
+        """Return only IP Addresses with system_of_record set to SolarWinds."""
+        return IPAddress.objects.filter(_custom_field_data__system_of_record="SolarWinds")
 
 
 class IPAddressToInterfaceModel(NautobotModel):
@@ -286,5 +286,5 @@ class IPAddressToInterfaceModel(NautobotModel):
 
     @classmethod
     def get_queryset(cls):
-        """Return only IPAddressToInterface with system_of_record set to Solarwinds."""
-        return IPAddressToInterface.objects.filter(interface__device___custom_field_data__system_of_record="Solarwinds")
+        """Return only IPAddressToInterface with system_of_record set to SolarWinds."""
+        return IPAddressToInterface.objects.filter(interface__device___custom_field_data__system_of_record="SolarWinds")

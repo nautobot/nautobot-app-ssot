@@ -20,6 +20,7 @@ from nautobot.dcim.models import (
 from nautobot.extras.models import (
     ComputedField,
     Contact,
+    CustomField,
     DynamicGroup,
     GitRepository,
     GraphQLQuery,
@@ -47,6 +48,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import (
     NautobotCircuitType,
     NautobotComputedField,
     NautobotContact,
+    NautobotCustomField,
     NautobotDynamicGroup,
     NautobotGitRepository,
     NautobotGraphQLQuery,
@@ -73,10 +75,8 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import (
 )
 from nautobot_ssot.integrations.bootstrap.utils import (
     check_sor_field,
-    get_scheduled_start_time,
     get_sor_field_nautobot_object,
     lookup_content_type_model_path,
-    lookup_model_for_role_id,
     lookup_model_for_taggable_class_id,
 )
 from nautobot_ssot.integrations.bootstrap.utils.nautobot import (
@@ -150,6 +150,7 @@ class NautobotAdapter(Adapter):
     git_repository = NautobotGitRepository
     dynamic_group = NautobotDynamicGroup
     computed_field = NautobotComputedField
+    custom_field = NautobotCustomField
     tag = NautobotTag
     graph_ql_query = NautobotGraphQLQuery
 
@@ -188,6 +189,7 @@ class NautobotAdapter(Adapter):
         "computed_field",
         "graph_ql_query",
         "scheduled_job",
+        "custom_field",
     ]
 
     if SOFTWARE_LIFECYCLE_MGMT:
@@ -219,7 +221,7 @@ class NautobotAdapter(Adapter):
                 try:
                     _parent = nb_tenant_group.parent.name
                 except AttributeError:
-                    _parent = ""
+                    _parent = None
                 _sor = ""
                 if "system_of_record" in nb_tenant_group.custom_field_data:
                     _sor = (
@@ -285,10 +287,10 @@ class NautobotAdapter(Adapter):
                 self.get(self.role, nb_role.name)
             except ObjectNotFound:
                 _content_types = []
-                _content_uuids = nb_role.content_types.values_list("model", "id")
-                for _uuid in _content_uuids:
-                    _content_types.append(lookup_model_for_role_id(_uuid[1]))
-                    _content_types.sort()
+                _content_types_info = nb_role.content_types.values_list("app_label", "model")
+                for app_label, model in _content_types_info:
+                    _content_types.append(f"{app_label}.{model}")
+                _content_types.sort()
                 _sor = ""
                 if "system_of_record" in nb_role.custom_field_data:
                     _sor = (
@@ -1178,7 +1180,7 @@ class NautobotAdapter(Adapter):
             try:
                 self.get(self.scheduled_job, job.name)
             except ObjectNotFound:
-                start_time = get_scheduled_start_time(start_time=job.start_time.replace(tzinfo=None).isoformat())
+                start_time = job.start_time.isoformat()
                 _scheduled_job = self.scheduled_job(
                     name=job.name,
                     job_model=job.job_model.name,
@@ -1190,9 +1192,42 @@ class NautobotAdapter(Adapter):
                     approval_required=job.approval_required,
                     profile=job.celery_kwargs.get("nautobot_job_profile", False),
                     task_queue=job.celery_kwargs.get("queue"),
+                    enabled=job.enabled,
                 )
                 _scheduled_job.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
                 self.add(_scheduled_job)
+
+    def load_custom_field(self):
+        """Method to load CustomField objects from Nautobot into NautobotCustomField DiffSync models."""
+        for nb_custom_field in CustomField.objects.all():
+            if self.job.debug:
+                self.job.logger.debug(f"Loading Nautobot CustomField {nb_custom_field}")
+            try:
+                self.get(self.custom_field, nb_custom_field.label)
+            except ObjectNotFound:
+                content_types = [f"{ct.app_label}.{ct.model}" for ct in nb_custom_field.content_types.all()]
+                custom_field_choices = []
+                for choice in nb_custom_field.custom_field_choices.all():
+                    custom_field_choices.append({"value": choice.value, "weight": choice.weight})
+
+                new_custom_field = self.custom_field(
+                    label=nb_custom_field.label,
+                    description=nb_custom_field.description,
+                    required=nb_custom_field.required,
+                    content_types=content_types,
+                    type=nb_custom_field.type.lower(),
+                    grouping=nb_custom_field.grouping,
+                    weight=nb_custom_field.weight,
+                    default=nb_custom_field.default,
+                    filter_logic=nb_custom_field.filter_logic,
+                    advanced_ui=nb_custom_field.advanced_ui,
+                    validation_minimum=nb_custom_field.validation_minimum,
+                    validation_maximum=nb_custom_field.validation_maximum,
+                    validation_regex=nb_custom_field.validation_regex,
+                    custom_field_choices=custom_field_choices,
+                )
+                new_custom_field.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+                self.add(new_custom_field)
 
     def load_software(self):
         """Method to load Software objects from Nautobot into NautobotSoftware Models."""
@@ -1387,6 +1422,8 @@ class NautobotAdapter(Adapter):
             self.load_graph_ql_query()
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["scheduled_job"]:
             self.load_scheduled_job()
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["custom_field"]:
+            self.load_custom_field()
         if SOFTWARE_LIFECYCLE_MGMT:
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software"]:
                 self.load_software()

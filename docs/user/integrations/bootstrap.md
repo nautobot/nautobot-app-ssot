@@ -71,6 +71,12 @@ computed_field:
   - label: Compliance Change
     content_type: nautobot_golden_config.configcompliance
     template: '{{ obj | get_change_log }}'
+custom_field:
+  - label: Internal Circuit ID
+    description: Circuit ID for internal records
+    type: text
+    content_types: 
+      - circuits.circuit
 tag:
   - name: Backbone
     color: '795548'
@@ -138,62 +144,123 @@ git_branch: develop
 
 ## Content Types
 
-There are a couple models like Tags and Git Repositories that have associated content types. These require a specific format when listing them in the YAML file. The format of these is the `app_label`.`model`, though models can somewhat vary from App to App. Here is a list of some of the most common ones:
+There are a couple models like Tags and Git Repositories that have associated content types. These require a specific format when listing them in the YAML file. The format of these is the `app_label`.`model`, though other Apps and integrations for Nautobot can add additional types (for example Golden Config types for Git Repositories), here is a list of some of the most common ones:
+
+### Role Content Types:
+```yaml
+- dcim.controller
+- dcim.device
+- dcim.interface
+- dcim.module
+- dcim.rack
+- dcim.virtualdevicecontext
+- extras.contactassociation
+- ipam.ipaddress
+- ipam.prefix
+- ipam.vlan
+- virtualization.virtualmachine
+- virtualization.vminterface
+```
+
+## Git Repository Provided Content Types
 
 ```yaml
-- "circuits.circuit"
-- "circuits.circuittermination"
-- "circuits.provider"
-- "circuits.providernetwork"
-- "dcim.cable"
-- "dcim.consoleport"
-- "dcim.consoleserverport"
-- "dcim.device"
-- "dcim.devicebay"
-- "dcim.devicetype"
-- "dcim.frontport"
-- "dcim.interface"
-- "dcim.inventoryitem"
-- "dcim.powerfeed"
-- "dcim.poweroutlet"
-- "dcim.powerpanel"
-- "dcim.powerport"
-- "dcim.rack"
-- "dcim.rackreservation"
-- "dcim.rearport"
-- "dcim.site"
-- "dcim.virtualchassis"
-- "extras.gitrepository"
-- "extras.job"
-- "extras.secret"
-- "ipam.aggregate"
-- "ipam.ipaddress"
-- "ipam.prefix"
-- "ipam.routetarget"
-- "ipam.service"
-- "ipam.vlan"
-- "ipam.vrf"
-- "nautobot_device_lifecycle_mgmt.contactlcm"
-- "nautobot_device_lifecycle_mgmt.contractlcm"
-- "nautobot_device_lifecycle_mgmt.cvelcm"
-- "nautobot_device_lifecycle_mgmt.devicesoftwarevalidationresult"
-- "nautobot_device_lifecycle_mgmt.hardwarelcm"
-- "nautobot_device_lifecycle_mgmt.inventoryitemsoftwarevalidationresult"
-- "nautobot_device_lifecycle_mgmt.softwareimagelcm"
-- "nautobot_device_lifecycle_mgmt.softwarelcm"
-- "nautobot_device_lifecycle_mgmt.validatedsoftwarelcm"
-- "nautobot_device_lifecycle_mgmt.vulnerabilitylcm"
-- "nautobot_golden_config.compliancefeature"
-- "nautobot_golden_config.compliancerule"
-- "nautobot_golden_config.configcompliance"
-- "nautobot_golden_config.configremove"
-- "nautobot_golden_config.configreplace"
-- "nautobot_golden_config.goldenconfig"
-- "nautobot_golden_config.goldenconfigsetting"
-- "tenancy.tenant"
-- "virtualization.cluster"
-- "virtualization.virtualmachine"
-- "virtualization.vminterface"
+- extras.configcontext
+- extras.configcontextschema
+- extras.exporttemplate
+- extras.graphqlquery
+- extras.job
+- nautobot_device_onboarding.onboarding_command_mappers
+- backup configs
+- intended configs
+- jinja templates
+- Golden Config properties
+```
+
+### Tag Content Types
+```yaml
+- circuits.circuit
+- circuits.circuittermination
+- circuits.provider
+- circuits.providernetwork
+- cloud.cloudaccount
+- cloud.cloudnetwork
+- cloud.cloudresourcetype
+- cloud.cloudservice
+- dcim.cable
+- dcim.consoleport
+- dcim.consoleserverport
+- dcim.controller
+- dcim.controllermanageddevicegroup
+- dcim.device
+- dcim.devicebay
+- dcim.devicefamily
+- dcim.deviceredundancygroup
+- dcim.devicetype
+- dcim.frontport
+- dcim.interface
+- dcim.interfaceredundancygroup
+- dcim.inventoryitem
+- dcim.location
+- dcim.module
+- dcim.modulebay
+- dcim.moduletype
+- dcim.powerfeed
+- dcim.poweroutlet
+- dcim.powerpanel
+- dcim.powerport
+- dcim.rack
+- dcim.rackreservation
+- dcim.rearport
+- dcim.softwareimagefile
+- dcim.softwareversion
+- dcim.virtualchassis
+- dcim.virtualdevicecontext
+- extras.contact
+- extras.dynamicgroup
+- extras.externalintegration
+- extras.gitrepository
+- extras.job
+- extras.jobqueue
+- extras.metadatatype
+- extras.secret
+- extras.team
+- ipam.ipaddress
+- ipam.namespace
+- ipam.prefix
+- ipam.routetarget
+- ipam.service
+- ipam.vlan
+- ipam.vlangroup
+- ipam.vrf
+- nautobot_device_lifecycle_mgmt.contactlcm
+- nautobot_device_lifecycle_mgmt.contractlcm
+- nautobot_device_lifecycle_mgmt.cvelcm
+- nautobot_device_lifecycle_mgmt.devicesoftwarevalidationresult
+- nautobot_device_lifecycle_mgmt.hardwarelcm
+- nautobot_device_lifecycle_mgmt.inventoryitemsoftwarevalidationresult
+- nautobot_device_lifecycle_mgmt.softwareimagelcm
+- nautobot_device_lifecycle_mgmt.softwarelcm
+- nautobot_device_lifecycle_mgmt.validatedsoftwarelcm
+- nautobot_device_lifecycle_mgmt.vulnerabilitylcm
+- nautobot_golden_config.compliancefeature
+- nautobot_golden_config.compliancerule
+- nautobot_golden_config.configcompliance
+- nautobot_golden_config.configplan
+- nautobot_golden_config.configremove
+- nautobot_golden_config.configreplace
+- nautobot_golden_config.goldenconfig
+- nautobot_golden_config.goldenconfigsetting
+- nautobot_golden_config.remediationsetting
+- nautobot_ssot.automationgatewaymodel
+- nautobot_ssot.ssotinfobloxconfig
+- tenancy.tenant
+- virtualization.cluster
+- virtualization.virtualmachine
+- virtualization.vminterface
+- wireless.radioprofile
+- wireless.supporteddatarate
+- wireless.wirelessnetwork
 ```
 
 ## Object Model Notes
@@ -297,6 +364,11 @@ Create Role objects. Uses the following data structure:
 
 ```yaml
 role:
+  - name: # str
+    weight: # int
+    description: # str
+    color: # str
+    content_types: # List[str]
   - name: "Administrative"   # str
     weight: # int
     description: "Unit plays an administrative role"  # str
@@ -371,7 +443,7 @@ role:
       - "ipam.ipaddress"
 ```
 
-This also recreates the default Roles included in Nautobot core. This is because the Role model does not support custom fields, and therefore can not be selectively synced with the SSoT framework. Any roles not included in the Bootstrap `global_settings.yaml` file will be deleted. The list obove is the default list of roles included in Nautobot Core.
+This also recreates the default Roles included in Nautobot core. This is because the Role model does not support custom fields, and therefore can not be selectively synced with the SSoT framework. Any roles not included in the Bootstrap `global_settings.yaml` file will be deleted. The list obove is the default list of roles included in Nautobot Core. See section on Content Types for examples of what can be listed in `content_types`.
 
 ### Team
 
@@ -628,7 +700,7 @@ git_repository:
 git_branch: # str
 ```
 
-GitRepositories are a bit unique. If you specify they `branch:` key in the global_settings.yaml file, this will override the `git_branch:` key in the `<environment>.yaml` file. The `git_branch:` key in the environment specific yaml file is the default, so you don't have to specify branches for each git repository.
+GitRepositories are a bit unique. If you specify they `branch:` key in the global_settings.yaml file, this will override the `git_branch:` key in the `<environment>.yaml` file. The `git_branch:` key in the environment specific yaml file is the default, so you don't have to specify branches for each git repository. See section on Content Types for examples of what can be listed in `provided_data_type`.
 
 ### DynamicGroup
 
@@ -657,6 +729,34 @@ computed_field:
 
 The `template:` key for ComputedField objects takes a jinja variable format string which will display the calculated information.
 
+### Custom_Field
+
+Create CustomField objects. Uses the following data structure, only `label`, `type`, and `content_types` are required. Any custom_fields not included in the Bootstrap `global_settings.yaml` file may be deleted.
+
+```yaml
+custom_field:
+  - label: CustomField1 # str
+    type: text # str -- Options are: text, integer, boolean, date, url, select, multi-select, json, markdown
+    content_types: # list
+      - dcim.device
+      - circuits.circuit
+    # Optional Arguments
+    required: # bool, default: False
+    grouping: # str
+    weight: # int, default: 100
+    default: # default value, type depends on custom_field type
+    filter_logic: # str -- Options are loose, disabled, exact, default: loose
+    advanced_ui: # bool, move this field to the Advanced page. default: False
+    validation_minimum: # int
+    validation_maximum: # int
+    validation_regex: # str
+    custom_field_choices: # list, requires Type of 'select' or 'multi-select'
+      - value: Choice1-Value
+        weight: 100
+      - value: Choice2-Value
+        weight: 200
+```
+
 ### Tag
 
 Create Tag objects. Uses the following data structure:
@@ -669,7 +769,7 @@ tag:
     content_types: [] # List[str]
 ```
 
-The `color` tag is optional, but will default to grey if not specified. The `content_types` list is a list of `path.model` formatted strings for the types of objects that the tags should be able to apply to.
+The `color` tag is optional, but will default to grey if not specified. The `content_types` list is a list of `path.model` formatted strings for the types of objects that the tags should be able to apply to. See section on Content Types for examples of what can be listed in `content_types`.
 
 ### GraphQLQuery
 
@@ -686,6 +786,9 @@ The `query:` key takes a graphql formatted string to retrieve the information re
 ### ScheduledJob
 Create a ScheduledJob. The Job to be scheduled must already exist. As Job's vary greatly, any Job specific variables should be under the `job_vars` key, and you should check the Job specific documentation for details on what these values should be. The `start_time` must be in the future if the ScheduledJob is being updated or created. Once created, it does not need to be updated unless you wish to modify the schedule. The Bootstrap `system_of_record` cannot be applied to ScheduledJobs, make sure all desired ScheduledJobs exist in your YAML definition.
 
+!!! warning
+    Use of the `enabled` parameter to disable a ScheduledJob will cause it to no longer appear in the Scheduled Jobs list view in the UI. You will need to use Bootstrap again or the [nbshell](https://docs.nautobot.com/projects/core/en/stable/user-guide/administration/tools/nautobot-shell/) to re-enable it.
+
 ```yaml
 scheduled_job:
   - name: # str
@@ -694,6 +797,7 @@ scheduled_job:
     crontab: # str -- Basic Crontab syntax. Use with interval 'custom'
     job_model: # str -- The name of the Job you wish to schedule
     user: # str -- Username to run this scheduled job as
+    enabled: # bool -- Optional, defaults to True
     profile: # bool -- Optional, defaults to False
     task_queue: # str -- Optional, celery queue name, defaults to None (default queue)
     job_vars: # dict -- Optional

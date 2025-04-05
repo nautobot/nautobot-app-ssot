@@ -42,6 +42,15 @@ from nautobot_ssot.integrations.dna_center.diffsync.models.nautobot import (
     NautobotPrefix,
 )
 
+try:
+    from nautobot.extras.models.metadata import ObjectMetadata  # noqa: F401
+
+    from nautobot_ssot.integrations.dna_center.utils.nautobot import object_has_metadata
+
+    METADATA_FOUND = True
+except (ImportError, RuntimeError):
+    METADATA_FOUND = False
+
 
 class NautobotAdapter(Adapter):
     """DiffSync adapter for Nautobot."""
@@ -106,6 +115,8 @@ class NautobotAdapter(Adapter):
                     parent=parent,
                     uuid=area.id,
                 )
+                if METADATA_FOUND:
+                    new_region.metadata = object_has_metadata(obj=area)
                 if not PLUGIN_CFG.get("dna_center_delete_locations"):
                     new_region.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
                 self.add(new_region)
@@ -114,7 +125,9 @@ class NautobotAdapter(Adapter):
         """Load Location data from Nautobot for specified Building LocationType into DiffSync models."""
         buildings = OrmLocation.objects.filter(location_type=self.job.building_loctype)
         for building in buildings:
-            self.site_map[building.name] = building.id
+            if building.parent.name not in self.site_map:
+                self.site_map[building.parent.name] = {}
+            self.site_map[building.parent.name][building.name] = building.id
             try:
                 self.get(
                     self.building,
@@ -134,6 +147,8 @@ class NautobotAdapter(Adapter):
                     tenant=building.tenant.name if building.tenant else None,
                     uuid=building.id,
                 )
+                if METADATA_FOUND:
+                    new_building.metadata = object_has_metadata(obj=building)
                 if not PLUGIN_CFG.get("dna_center_delete_locations"):
                     new_building.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
                 self.add(new_building)
@@ -142,14 +157,22 @@ class NautobotAdapter(Adapter):
         """Load LocationType floors from Nautobot into DiffSync models."""
         floors = OrmLocation.objects.filter(location_type=self.job.floor_loctype)
         for floor in floors:
-            self.floor_map[floor.name] = floor.id
+            if floor.parent.parent.name not in self.floor_map:
+                self.floor_map[floor.parent.parent.name] = {}
+            if floor.parent.name not in self.floor_map[floor.parent.parent.name]:
+                self.floor_map[floor.parent.parent.name][floor.parent.name] = {}
+            self.floor_map[floor.parent.parent.name][floor.parent.name][floor.name] = floor.id
             new_floor = self.floor(
                 name=floor.name,
+                area=floor.parent.parent.name if floor.parent.parent else "",
                 building=floor.parent.name if floor.parent else "",
                 tenant=floor.tenant.name if floor.tenant else None,
                 uuid=floor.id,
             )
             self.add(new_floor)
+            if METADATA_FOUND:
+                if object_has_metadata(obj=floor):
+                    new_floor.metadata = True
             try:
                 if floor.parent:
                     building = self.get(
@@ -190,14 +213,17 @@ class NautobotAdapter(Adapter):
             if dev.location.location_type == self.job.floor_loctype:
                 floor_name = dev.location.name
                 bldg_name = dev.location.parent.name
+                area_name = dev.location.parent.parent.name
             if dev.location.location_type == self.job.building_loctype:
                 bldg_name = dev.location.name
+                area_name = dev.location.parent.name
             new_dev = self.device(
                 name=dev.name,
                 status=dev.status.name,
                 role=dev.role.name,
                 vendor=dev.device_type.manufacturer.name,
                 model=dev.device_type.model,
+                area=area_name,
                 site=bldg_name,
                 floor=floor_name,
                 serial=dev.serial,
@@ -209,6 +235,9 @@ class NautobotAdapter(Adapter):
                 ),
                 uuid=dev.id,
             )
+            if METADATA_FOUND:
+                if object_has_metadata(obj=dev):
+                    new_dev.metadata = True
             if self.tenant:
                 new_dev.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
             self.add(new_dev)
@@ -235,6 +264,9 @@ class NautobotAdapter(Adapter):
                 status=port.status.name,
                 uuid=port.id,
             )
+            if METADATA_FOUND:
+                if object_has_metadata(obj=port):
+                    new_port.metadata = True
             if self.tenant:
                 new_port.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
             self.add(new_port)
@@ -255,6 +287,9 @@ class NautobotAdapter(Adapter):
                 tenant=prefix.tenant.name if prefix.tenant else None,
                 uuid=prefix.id,
             )
+            if METADATA_FOUND:
+                if object_has_metadata(obj=prefix):
+                    new_prefix.metadata = True
             if self.tenant:
                 new_prefix.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
             self.add(new_prefix)
@@ -274,6 +309,9 @@ class NautobotAdapter(Adapter):
                 tenant=ipaddr.tenant.name if ipaddr.tenant else None,
                 uuid=ipaddr.id,
             )
+            if METADATA_FOUND:
+                if object_has_metadata(obj=ipaddr):
+                    new_ipaddr.metadata = True
             if self.tenant:
                 new_ipaddr.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
             self.add(new_ipaddr)
@@ -327,11 +365,7 @@ class NautobotAdapter(Adapter):
 
     def update_database(self):
         """Perform databse update using normal operations."""
-        for obj_type in [
-            "devices",
-            "interfaces",
-            "mappings",
-        ]:
+        for obj_type in ["devices", "interfaces", "mappings", "metadata"]:
             if len(self.objects_to_create[obj_type]) > 0:
                 self.job.logger.info(f"Importing {len(self.objects_to_create[obj_type])} {obj_type} into Nautobot.")
                 for nautobot_obj in self.objects_to_create[obj_type]:
@@ -377,6 +411,9 @@ class NautobotAdapter(Adapter):
         if len(self.objects_to_create["mappings"]) > 0:
             self.job.logger.info("Performing assignment of IPAddress to Interface.")
             OrmIPAddressToInterface.objects.bulk_create(self.objects_to_create["mappings"], batch_size=250)
+        if len(self.objects_to_create["metadata"]) > 0:
+            self.job.logger.info("Performing bulk create of ObjectMetadata in Nautobot.")
+            ObjectMetadata.objects.bulk_create(self.objects_to_create["metadata"], batch_size=250)
         if len(self.objects_to_create["primary_ip4"]) > 0:
             self.job.logger.info("Performing bulk update of device primary IPv4 addresses in Nautobot.")
             device_primary_ip_objs = []

@@ -1,1 +1,1 @@
-"""Unit tests for Solarwinds SSoT app."""
+"""Unit tests for SolarWinds SSoT app."""

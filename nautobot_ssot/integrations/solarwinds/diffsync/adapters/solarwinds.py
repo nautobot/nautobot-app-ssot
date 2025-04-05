@@ -1,4 +1,4 @@
-"""Nautobot SSoT Solarwinds Adapter for Solarwinds SSoT app."""
+"""Nautobot SSoT SolarWinds Adapter for SolarWinds SSoT app."""
 
 import json
 from datetime import datetime
@@ -10,39 +10,39 @@ from netutils.ip import ipaddress_interface, is_ip_within
 from netutils.mac import mac_to_format
 
 from nautobot_ssot.integrations.solarwinds.diffsync.models.solarwinds import (
-    SolarwindsDevice,
-    SolarwindsDeviceType,
-    SolarwindsInterface,
-    SolarwindsIPAddress,
-    SolarwindsIPAddressToInterface,
-    SolarwindsLocation,
-    SolarwindsManufacturer,
-    SolarwindsPlatform,
-    SolarwindsPrefix,
-    SolarwindsRole,
-    SolarwindsSoftwareVersion,
+    SolarWindsDevice,
+    SolarWindsDeviceType,
+    SolarWindsInterface,
+    SolarWindsIPAddress,
+    SolarWindsIPAddressToInterface,
+    SolarWindsLocation,
+    SolarWindsManufacturer,
+    SolarWindsPlatform,
+    SolarWindsPrefix,
+    SolarWindsRole,
+    SolarWindsSoftwareVersion,
 )
 from nautobot_ssot.integrations.solarwinds.utils.solarwinds import (
-    SolarwindsClient,
+    SolarWindsClient,
     determine_role_from_devicetype,
     determine_role_from_hostname,
 )
 
 
-class SolarwindsAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
-    """DiffSync adapter for Solarwinds."""
+class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
+    """DiffSync adapter for SolarWinds."""
 
-    location = SolarwindsLocation
-    platform = SolarwindsPlatform
-    role = SolarwindsRole
-    manufacturer = SolarwindsManufacturer
-    device_type = SolarwindsDeviceType
-    softwareversion = SolarwindsSoftwareVersion
-    device = SolarwindsDevice
-    interface = SolarwindsInterface
-    prefix = SolarwindsPrefix
-    ipaddress = SolarwindsIPAddress
-    ipassignment = SolarwindsIPAddressToInterface
+    location = SolarWindsLocation
+    platform = SolarWindsPlatform
+    role = SolarWindsRole
+    manufacturer = SolarWindsManufacturer
+    device_type = SolarWindsDeviceType
+    softwareversion = SolarWindsSoftwareVersion
+    device = SolarWindsDevice
+    interface = SolarWindsInterface
+    prefix = SolarWindsPrefix
+    ipaddress = SolarWindsIPAddress
+    ipassignment = SolarWindsIPAddressToInterface
 
     top_level = [
         "location",
@@ -58,7 +58,7 @@ class SolarwindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        client: SolarwindsClient,
+        client: SolarWindsClient,
         containers,
         location_type,
         job,
@@ -66,12 +66,12 @@ class SolarwindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
         parent=None,
         tenant=None,
     ):
-        """Initialize Solarwinds.
+        """Initialize SolarWinds.
 
         Args:
-            job (object, optional): Solarwinds job. Defaults to None.
-            sync (object, optional): SolarwindsDataSource Sync. Defaults to None.
-            client (SolarwindsClient): Solarwinds API client connection object.
+            job (object, optional): SolarWinds job. Defaults to None.
+            sync (object, optional): SolarWindsDataSource Sync. Defaults to None.
+            client (SolarWindsClient): SolarWinds API client connection object.
             containers (str): Concatenated string of Container names to be imported. Will be 'ALL' for all containers.
             location_type (LocationType): The LocationType to create containers as in Nautobot.
             parent (Location, optional): The parent Location to assign created containers to in Nautobot.
@@ -88,24 +88,19 @@ class SolarwindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
         self.failed_devices = []
 
     def load(self):  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
-        """Load data from Solarwinds into DiffSync models."""
-        self.job.logger.info("Loading data from Solarwinds.")
+        """Load data from SolarWinds into DiffSync models."""
+        self.job.logger.info("Loading data from SolarWinds.")
 
         if self.parent:
             self.load_parent()
 
-        if self.job.pull_from == "CustomProperty" and self.job.location_override:
-            container_nodes = self.get_nodes_custom_property(
-                custom_property=self.job.custom_property, location=self.job.location_override
-            )
-        else:
-            container_nodes = self.get_container_nodes(custom_property=self.job.custom_property)
+        container_nodes = self.get_container_nodes(custom_property=self.job.custom_property)
 
         self.load_sites(container_nodes)
 
         node_details = {}
         for container_name, nodes in container_nodes.items():  # pylint: disable=too-many-nested-blocks
-            self.job.logger.debug(f"Retrieving node details from Solarwinds for {container_name}.")
+            self.job.logger.debug(f"Retrieving node details from SolarWinds for {container_name}.")
             node_details = self.conn.build_node_details(nodes=nodes)
             for node in node_details.values():
                 device_type = self.conn.standardize_device_type(node=node)
@@ -145,7 +140,7 @@ class SolarwindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
                                 "status__name": "Active",
                                 "serial": node["ServiceTag"] if node.get("ServiceTag") else "",
                                 "tenant__name": self.tenant.name if self.tenant else None,
-                                "system_of_record": "Solarwinds",
+                                "system_of_record": "SolarWinds",
                             },
                         )
                         if loaded:
@@ -231,19 +226,18 @@ class SolarwindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
         if loaded:
             manu.add_child(new_dt)
 
-    def get_nodes_custom_property(self, custom_property, location):
-        """Gather nodes with customproperty from Solarwinds."""
-        nodes = {location.name: self.conn.get_nodes_custom_property(custom_property)}
-        return nodes
-
     def get_container_nodes(self, custom_property=None):
-        """Gather container nodes for all specified containers from Solarwinds."""
+        """Gather container nodes for all specified containers from SolarWinds."""
         container_ids, container_nodes = {}, {}
         if self.containers != "ALL":
             container_ids = self.conn.get_filtered_container_ids(containers=self.containers)
         else:
             container_ids = self.conn.get_top_level_containers(top_container=self.job.top_container)
-        container_nodes = self.conn.get_container_nodes(container_ids, custom_property)
+        container_nodes = self.conn.get_container_nodes(
+            container_ids=container_ids,
+            custom_property=custom_property,
+            location_name=self.job.location_override.name if self.job.location_override else None,
+        )
         return container_nodes
 
     def load_location(  # pylint: disable=too-many-arguments
@@ -352,43 +346,69 @@ class SolarwindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
             self.role, ids={"name": role}, attrs={"content_types": [{"app_label": "dcim", "model": "device"}]}
         )
 
-    def load_platform(self, device_type: str, manufacturer: str):  # pylint: disable=inconsistent-return-statements
+    def load_platform(self, device_type: str, manufacturer: str):
         """Load Platform into DiffSync model based upon DeviceType.
 
         Args:
             device_type (str): DeviceType name for associated Platform.
             manufacturer (str): Manufacturer name for associated Platform.
         """
+        platform = "UNKNOWN"
         if "Aruba" in manufacturer:
-            self.get_or_instantiate(
-                self.platform,
-                ids={"name": "arubanetworks.aoscx", "manufacturer__name": manufacturer},
-                attrs={"network_driver": "aruba_aoscx", "napalm_driver": ""},
-            )
-            return "arubanetworks.aoscx"
+            if device_type.startswith(("1", "60", "61", "62", "63", "64", "8", "93", "94")):
+                self.get_or_instantiate(
+                    self.platform,
+                    ids={"name": "arubanetworks.aos.aoscx", "manufacturer__name": manufacturer},
+                    attrs={"network_driver": "aruba_aoscx", "napalm_driver": ""},
+                )
+                platform = "arubanetworks.aos.aoscx"
+            elif device_type.startswith(("AP", "MC", "MM", "7", "90", "91", "92")):
+                self.get_or_instantiate(
+                    self.platform,
+                    ids={"name": "arubanetworks.aos.os", "manufacturer__name": manufacturer},
+                    attrs={"network_driver": "aruba_os", "napalm_driver": ""},
+                )
+                platform = "arubanetworks.aos.os"
+            elif device_type.startswith(("25", "29", "38", "54")):
+                self.get_or_instantiate(
+                    self.platform,
+                    ids={"name": "arubanetworks.aos.osswitch", "manufacturer__name": manufacturer},
+                    attrs={"network_driver": "aruba_osswitch", "napalm_driver": ""},
+                )
+                platform = "arubanetworks.aos.osswitch"
+
         if "Cisco" in manufacturer:
-            if not device_type.startswith("N"):
+            if device_type.startswith("85"):
+                if "wireless" in device_type.lower() or "wlc" in device_type.lower():
+                    self.get_or_instantiate(
+                        self.platform,
+                        ids={"name": "cisco.ios.aireos", "manufacturer__name": manufacturer},
+                        attrs={"network_driver": "cisco_aireos", "napalm_driver": ""},
+                    )
+                platform = "cisco.ios.aireos"
+            elif not device_type.startswith("N"):
                 self.get_or_instantiate(
                     self.platform,
                     ids={"name": "cisco.ios.ios", "manufacturer__name": manufacturer},
                     attrs={"network_driver": "cisco_ios", "napalm_driver": "ios"},
                 )
-                return "cisco.ios.ios"
-            if device_type.startswith("N"):
+                platform = "cisco.ios.ios"
+            elif device_type.startswith("N"):
                 self.get_or_instantiate(
                     self.platform,
                     ids={"name": "cisco.nxos.nxos", "manufacturer__name": manufacturer},
                     attrs={"network_driver": "cisco_nxos", "napalm_driver": "nxos"},
                 )
-                return "cisco.nxos.nxos"
+                platform = "cisco.nxos.nxos"
         elif "Palo" in manufacturer:
             self.get_or_instantiate(
                 self.platform,
                 ids={"name": "paloaltonetworks.panos.panos", "manufacturer__name": manufacturer},
                 attrs={"network_driver": "paloalto_panos", "napalm_driver": ""},
             )
-            return "paloaltonetworks.panos.panos"
-        return "UNKNOWN"
+            platform = "paloaltonetworks.panos.panos"
+
+        return platform
 
     def load_interfaces(self, device: DiffSyncModel, intfs: dict) -> None:
         """Load interfaces for passed device.
@@ -450,7 +470,7 @@ class SolarwindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
                 "status__name": "Active",
                 "tenant__name": self.tenant.name if self.tenant else None,
                 "last_synced_from_sor": datetime.today().date().isoformat(),
-                "system_of_record": "Solarwinds",
+                "system_of_record": "SolarWinds",
             },
         )
 
@@ -477,7 +497,7 @@ class SolarwindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
                 "ip_version": 4 if addr_type == "IPv4" else 6,
                 "tenant__name": self.tenant.name if self.tenant else None,
                 "last_synced_from_sor": datetime.today().date().isoformat(),
-                "system_of_record": "Solarwinds",
+                "system_of_record": "SolarWinds",
             },
         )
 

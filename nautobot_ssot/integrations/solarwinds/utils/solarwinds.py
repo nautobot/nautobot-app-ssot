@@ -1,4 +1,4 @@
-"""Utility functions for working with Solarwinds."""
+"""Utility functions for working with SolarWinds."""
 
 import json
 import re
@@ -17,8 +17,8 @@ from urllib3.util.retry import Retry
 from nautobot_ssot.integrations.solarwinds.constants import ETH_INTERFACE_NAME_MAP, ETH_INTERFACE_SPEED_MAP
 
 
-class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-instance-attributes
-    """Class for handling communication to Solarwinds."""
+class SolarWindsClient:  # pylint: disable=too-many-public-methods, too-many-instance-attributes
+    """Class for handling communication to SolarWinds."""
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
@@ -30,7 +30,7 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
         session: requests.Session = None,
         **kwargs,
     ):
-        """Initialize shared variables for Solarwinds client.
+        """Initialize shared variables for SolarWinds client.
 
         Args:
             hostname (str): Hostname of the SolarWinds server to connect to
@@ -128,7 +128,7 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
             return requests.Response()
 
     def get_filtered_container_ids(self, containers: str) -> Dict[str, int]:
-        """Get a list of container IDs from Solarwinds.
+        """Get a list of container IDs from SolarWinds.
 
         Args:
             containers (str): Comma-separated list of container names to get IDs for.
@@ -137,7 +137,7 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
             Dict[str, int]: Dictionary of container names to IDs.
         """
         container_ids = {}
-        for container in containers.split(","):
+        for container in [c.strip() for c in containers.split(",")]:
             container_id = self.find_container_id_by_name(container_name=container)
             if container_id != -1:
                 container_ids[container] = container_id
@@ -145,44 +145,33 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
                 self.job.logger.error(f"Unable to find container {container}.")
         return container_ids
 
-    def get_nodes_custom_property(self, custom_property: str) -> Dict[str, List[dict]]:
-        """Get all node IDs for all nodes based on SolarWinds CustomProperty.
-
-        Args:
-            container_ids (Dict[str, int]): Dictionary of container names to their ID.
-            custom_property (str): SolarWinds CustomProperty which must be True for Nautobot to pull in.
-
-        Returns:
-            Dict[str, List[dict]]: Dictionary of container names to list of node IDs in that container.
-        """
-        query = f"SELECT DISTINCT SysName AS Name, MemberPrimaryID FROM Orion.Nodes INNER JOIN Orion.ContainerMembers ON Nodes.NodeID = ContainerMembers.MemberPrimaryID WHERE Nodes.CustomProperties.{custom_property}='True'"  # noqa: S608
-        nodes = self.query(query)
-
-        container_nodes = nodes["results"]
-        return container_nodes
-
     def get_container_nodes(
-        self, container_ids: Dict[str, int], custom_property: Optional[str] = None
+        self,
+        container_ids: Dict[str, int],
+        custom_property: Optional[str] = None,
+        location_name: Optional[str] = None,
     ) -> Dict[str, List[dict]]:
         """Get node IDs for all nodes in specified container ID.
 
         Args:
             container_ids (Dict[str, int]): Dictionary of container names to their ID.
             custom_property (str): Optional SolarWinds CustomProperty which must be True for Nautobot to pull in.
+            location_name (str): Optional location name to override container name, and place ALL devices found here.
 
         Returns:
             Dict[str, List[dict]]: Dictionary of container names to list of node IDs in that container.
         """
         container_nodes = {}
         for container_name, container_id in container_ids.items():
+            location = location_name or container_name
             self.job.logger.debug(f"Gathering container nodes for {container_name} CID: {container_id}.")
-            container_nodes[container_name] = self.recurse_collect_container_nodes(
+            container_nodes[location] = self.recurse_collect_container_nodes(
                 current_container_id=container_id, custom_property=custom_property
             )
         return container_nodes
 
     def get_top_level_containers(self, top_container: str) -> Dict[str, int]:
-        """Retrieve all containers from Solarwinds.
+        """Retrieve all containers from SolarWinds.
 
         Returns:
             Dict[str, int]: Dictionary of container names to IDs.
@@ -204,7 +193,7 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
         """
         nodes_list = []
         if custom_property:
-            query = f"SELECT ContainerID, SysName AS Name, MemberEntityType, MemberPrimaryID FROM Orion.Nodes INNER JOIN Orion.ContainerMembers ON Nodes.NodeID = ContainerMembers.MemberPrimaryID WHERE Nodes.CustomProperties.{custom_property}='True' AND ContainerID = '{current_container_id}'"  # noqa: S608
+            query = f"SELECT ContainerID, Name, MemberEntityType, MemberPrimaryID, Nodes.CustomProperties.{custom_property} FROM Orion.ContainerMembers INNER JOIN Orion.Nodes ON Nodes.NodeID = ContainerMembers.MemberPrimaryID WHERE ContainerID = '{current_container_id}'"  # noqa: S608
         else:
             query = f"SELECT ContainerID, Name, MemberEntityType, MemberPrimaryID FROM Orion.ContainerMembers WHERE ContainerID = '{current_container_id}'"  # noqa: S608
         container_members = self.query(query)
@@ -212,13 +201,14 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
             for member in container_members["results"]:
                 if member["MemberEntityType"] == "Orion.Groups":
                     self.job.logger.debug(f"Exploring container: {member['Name']} CID: {member['MemberPrimaryID']}")
-                    nodes_list.extend(self.recurse_collect_container_nodes(member["MemberPrimaryID"]))
+                    nodes_list.extend(self.recurse_collect_container_nodes(member["MemberPrimaryID"], custom_property))
                 elif member["MemberEntityType"] == "Orion.Nodes":
-                    nodes_list.append(member)
+                    if not custom_property or member.get(custom_property):
+                        nodes_list.append(member)
         return nodes_list
 
     def find_container_id_by_name(self, container_name: str) -> int:
-        """Find container ID by name in Solarwinds.
+        """Find container ID by name in SolarWinds.
 
         Args:
             container_name (str): Name of container to be found.
@@ -253,7 +243,7 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
         return node_details
 
     def batch_fill_node_details(self, node_data: list, node_details: dict, nodes_per_batch: int):
-        """Retrieve details from Solarwinds about specified nodes.
+        """Retrieve details from SolarWinds about specified nodes.
 
         Args:
             node_data (list): List of nodes in containers.
@@ -356,7 +346,7 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
             current_batch += 1
 
     def gather_interface_data(self, node_data: list, node_details: dict, nodes_per_batch: int):
-        """Retrieve interface details from Solarwinds about specified nodes.
+        """Retrieve interface details from SolarWinds about specified nodes.
 
         Args:
             node_data (list): List of nodes in containers.
@@ -431,14 +421,11 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
             elif "Cisco" in node["Vendor"]:
                 device_type = device_type.replace("Cisco", "").strip()
                 device_type = device_type.replace("Catalyst ", "C").strip()
-                if (
-                    device_type
-                    and "WS-" not in device_type
-                    and "WLC" not in device_type
-                    and "ASR" not in device_type
-                    and not device_type.startswith("N")
-                ):
-                    device_type = f"WS-{device_type}"
+                if device_type:
+                    if not any(
+                        s in device_type.upper() for s in ["WS-", "WLC", "ASR", "WIRELESS"]
+                    ) and not device_type.startswith("N"):
+                        device_type = f"WS-{device_type}"
             elif "Palo" in node["Vendor"]:
                 pass  # Nothing needed yet.
         return device_type
@@ -471,7 +458,7 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
         """Extract Device software version from string.
 
         Args:
-            version (str): Version string from Solarwinds.
+            version (str): Version string from SolarWinds.
 
         Returns:
             str: Extracted version string.
@@ -481,7 +468,7 @@ class SolarwindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
         return sanitized_version
 
     def gather_ipaddress_data(self, node_data: list, node_details: dict, nodes_per_batch: int):
-        """Retrieve IPAddress details from Solarwinds about specified nodes.
+        """Retrieve IPAddress details from SolarWinds about specified nodes.
 
         Args:
             node_data (list): List of nodes in containers.

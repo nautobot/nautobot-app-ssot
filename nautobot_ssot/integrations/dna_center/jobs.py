@@ -8,7 +8,10 @@ from django.urls import reverse
 from nautobot.apps.jobs import BooleanVar, JSONVar, ObjectVar, StringVar
 from nautobot.core.celery import register_jobs
 from nautobot.dcim.models import Controller, LocationType
-from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
+from nautobot.extras.choices import (
+    SecretsGroupAccessTypeChoices,
+    SecretsGroupSecretTypeChoices,
+)
 from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.exceptions import ConfigurationError

@@ -265,7 +265,7 @@ class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many
             sorted(site.get_unique_id() for site in self.nb_adapter.get_all("building")),
         )
         self.assertEqual(
-            ["HQ Floor 1__HQ"],
+            ["HQ Floor 1__HQ__NY"],
             sorted(loc.get_unique_id() for loc in self.nb_adapter.get_all("floor")),
         )
         self.assertEqual(
@@ -283,10 +283,10 @@ class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many
         )
         self.assertEqual(
             [
-                "10.10.10.1__Global",
-                "10.10.11.1__Global",
-                "10.10.12.1__Global",
-                "10.10.13.1__Global",
+                "10.10.10.1__24__Global",
+                "10.10.11.1__24__Global",
+                "10.10.12.1__24__Global",
+                "10.10.13.1__24__Global",
             ],
             sorted(ipaddr.get_unique_id() for ipaddr in self.nb_adapter.get_all("ipaddress")),
         )
@@ -306,6 +306,8 @@ class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many
         mock_floor.name = "HQ - Floor 1"
         mock_floor.parent = MagicMock()
         mock_floor.parent.name = "Missing"
+        mock_floor.parent.parent = MagicMock()
+        mock_floor.parent.parent.name = ""
         mock_floor.tenant = None
         mock_floor.id = uuid.uuid4()
         mock_loc_type.objects.get.return_value = mock_loc_type

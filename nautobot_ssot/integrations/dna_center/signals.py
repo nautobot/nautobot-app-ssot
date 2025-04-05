@@ -17,12 +17,10 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     # pylint: disable=invalid-name
     ContentType = apps.get_model("contenttypes", "ContentType")
     CustomField = apps.get_model("extras", "CustomField")
-    Device = apps.get_model("dcim", "Device")
-    Rack = apps.get_model("dcim", "Rack")
-    RackGroup = apps.get_model("dcim", "RackGroup")
-    Interface = apps.get_model("dcim", "Interface")
     IPAddress = apps.get_model("ipam", "IPAddress")
     Prefix = apps.get_model("ipam", "Prefix")
+    Device = apps.get_model("dcim", "Device")
+    Interface = apps.get_model("dcim", "Interface")
 
     sor_cf_dict = {
         "type": CustomFieldTypeChoices.TYPE_TEXT,
@@ -36,6 +34,6 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         "label": "Last sync from System of Record",
     }
     sync_custom_field, _ = CustomField.objects.update_or_create(key=sync_cf_dict["key"], defaults=sync_cf_dict)
-    for model in [Device, Interface, IPAddress, Prefix, Rack, RackGroup]:
+    for model in [Device, Interface, IPAddress, Prefix]:
         sor_custom_field.content_types.add(ContentType.objects.get_for_model(model))
         sync_custom_field.content_types.add(ContentType.objects.get_for_model(model))

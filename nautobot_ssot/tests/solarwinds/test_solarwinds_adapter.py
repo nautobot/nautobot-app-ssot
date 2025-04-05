@@ -1,4 +1,4 @@
-"""Test Solarwinds adapter."""
+"""Test SolarWinds adapter."""
 
 import uuid
 from unittest.mock import MagicMock, call, patch
@@ -10,12 +10,12 @@ from nautobot.dcim.models import Device, Location, LocationType
 from nautobot.extras.models import JobResult, Role, Status
 
 import nautobot_ssot.tests.solarwinds.conftest as fix  # move to fixtures folder?
-from nautobot_ssot.integrations.solarwinds.diffsync.adapters.solarwinds import SolarwindsAdapter
-from nautobot_ssot.integrations.solarwinds.jobs import SolarwindsDataSource
+from nautobot_ssot.integrations.solarwinds.diffsync.adapters.solarwinds import SolarWindsAdapter
+from nautobot_ssot.integrations.solarwinds.jobs import SolarWindsDataSource
 
 
-class TestSolarwindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-public-methods
-    """Test NautobotSsotSolarwindsAdapter class."""
+class TestSolarWindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-public-methods
+    """Test NautobotSsotSolarWindsAdapter class."""
 
     databases = ("default", "job_logs")
 
@@ -27,8 +27,7 @@ class TestSolarwindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too
         self.solarwinds_client = MagicMock()
         self.solarwinds_client.get_top_level_containers.return_value = fix.GET_TOP_LEVEL_CONTAINERS_FIXTURE
         self.solarwinds_client.get_filtered_container_ids.return_value = {"HQ": 1}
-        self.solarwinds_client.get_nodes_custom_property.return_value = fix.GET_NODES_CUSTOM_PROPERTY_FIXTURE
-        self.solarwinds_client.get_container_nodes.return_value = fix.GET_CONTAINER_NODES_FIXTURE
+        self.solarwinds_client.get_container_nodes.side_effect = fix.get_container_nodes
 
         self.containers = "HQ"
 
@@ -39,7 +38,7 @@ class TestSolarwindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too
             name="USA", location_type=LocationType.objects.get_or_create(name="Region")[0], status=self.status_active
         )[0]
 
-        self.job = SolarwindsDataSource()
+        self.job = SolarWindsDataSource()
         self.job.debug = True
         self.job.job_result = JobResult.objects.create(
             name=self.job.class_path, task_name="Fake task", user=None, id=uuid.uuid4()
@@ -50,9 +49,10 @@ class TestSolarwindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too
         self.job.logger.info = MagicMock()
         self.job.logger.warning = MagicMock()
         self.job.location_type = self.location_type
+        self.job.location_override = None
         self.job.parent = self.parent
         self.job.default_role = Role.objects.get_or_create(name="Router")[0]
-        self.solarwinds = SolarwindsAdapter(
+        self.solarwinds = SolarWindsAdapter(
             job=self.job,
             sync=None,
             client=self.solarwinds_client,
@@ -61,7 +61,7 @@ class TestSolarwindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too
         )
 
     def test_data_loading_wo_parent(self):
-        """Test Nautobot SSoT Solarwinds load() function without parent specified."""
+        """Test Nautobot SSoT SolarWinds load() function without parent specified."""
         self.solarwinds_client.standardize_device_type.side_effect = ["", "WS-C4500 L3", ""]
         self.solarwinds_client.extract_version.return_value = "03.11.01.E"
         self.solarwinds_client.build_node_details.return_value = fix.NODE_DETAILS_FIXTURE
@@ -77,7 +77,7 @@ class TestSolarwindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too
         self.solarwinds.load_parent.assert_not_called()
         self.job.logger.debug.assert_has_calls(
             [
-                call("Retrieving node details from Solarwinds for HQ."),
+                call("Retrieving node details from SolarWinds for HQ."),
                 call(
                     'Node details: {\n  "10": {\n    "NodeHostname": "UNKNOWN_DEVICE_TYPE1",\n    "NodeID": 10,\n    "interfaces": {\n      "TenGigabitEthernet0/0/0": {\n        "Name": "TenGigabitEthernet0/0/0",\n        "Enabled": "Up",\n        "Status": "Up",\n        "TypeName": "ethernetCsmacd",\n        "Speed": 10000000000.0,\n        "MAC": "AA74D2BCD341",\n        "MTU": 9104\n      },\n      "TenGigabitEthernet0/1/0": {\n        "Name": "TenGigabitEthernet0/1/0",\n        "Enabled": "Unknown",\n        "Status": "Unknown",\n        "TypeName": "ethernetCsmacd",\n        "Speed": 10000000000.0,\n        "MAC": "B8D028D78C15",\n        "MTU": 9216\n      },\n      "TenGigabitEthernet0/1/0.75": {\n        "Name": "TenGigabitEthernet0/1/0.75",\n        "Enabled": "Unknown",\n        "Status": "Unknown",\n        "TypeName": "l2vlan",\n        "Speed": 10000000000.0,\n        "MAC": "G6F260AD2C18",\n        "MTU": 9216\n      }\n    },\n    "ipaddrs": {\n      "1.1.1.1": {\n        "IPAddress": "1.1.1.1",\n        "SubnetMask": 23,\n        "IPAddressType": "IPv4",\n        "IntfName": "TenGigabitEthernet0/0/0"\n      },\n      "10.10.1.2": {\n        "IPAddress": "10.10.1.2",\n        "SubnetMask": 23,\n        "IPAddressType": "IPv4",\n        "IntfName": "TenGigabitEthernet0/1/0.75"\n      }\n    }\n  },\n  "11": {\n    "NodeHostname": "Router01",\n    "NodeID": 11,\n    "Version": "03.11.01.E RELEASE SOFTWARE (fc4)",\n    "IPAddress": "172.16.5.2",\n    "PFLength": 24,\n    "SNMPLocation": "LOCATION STRING",\n    "Vendor": "Cisco",\n    "DeviceType": "Cisco Catalyst 4500 L3",\n    "Model": null,\n    "ServiceTag": null,\n    "interfaces": {\n      "TenGigabitEthernet1/1/1": {\n        "Name": "TenGigabitEthernet1/1/1",\n        "Enabled": "Unknown",\n        "Status": "Unknown",\n        "TypeName": "ethernetCsmacd",\n        "Speed": 1000000000.0,\n        "MAC": "F674BD01ADE4",\n        "MTU": 1500\n      },\n      "TenGigabitEthernet1/1/2": {\n        "Name": "TenGigabitEthernet1/1/2",\n        "Enabled": "Unknown",\n        "Status": "Unknown",\n        "TypeName": "ethernetCsmacd",\n        "Speed": 1000000000.0,\n        "MAC": "F674BD01ADE5",\n        "MTU": 1500\n      }\n    },\n    "ipaddrs": {\n      "10.11.1.1": {\n        "IPAddress": "10.11.1.1",\n        "SubnetMask": 23,\n        "IPAddressType": "IPv4",\n        "IntfName": "TenGigabitEthernet1/1/1"\n      },\n      "10.11.1.2": {\n        "IPAddress": "10.11.1.2",\n        "SubnetMask": 23,\n        "IPAddressType": "IPv4",\n        "IntfName": "TenGigabitEthernet1/1/2"\n      },\n      "172.16.1.1": {\n        "IPAddress": "172.16.1.1",\n        "SubnetMask": 24,\n        "IPAddressType": "IPv4",\n        "IntfName": "Ethernet0/1"\n      }\n    }\n  },\n  "12": {\n    "NodeHostname": "net-snmp Device",\n    "NodeID": 12,\n    "Vendor": "net-snmp"\n  }\n}'
                 ),
@@ -162,8 +162,8 @@ class TestSolarwindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too
         )
 
     def test_data_loading_w_parent(self):
-        """Test Nautobot SSoT Solarwinds load() function with parent specified."""
-        self.solarwinds = SolarwindsAdapter(
+        """Test Nautobot SSoT SolarWinds load() function with parent specified."""
+        self.solarwinds = SolarWindsAdapter(
             job=self.job,
             sync=None,
             client=self.solarwinds_client,
@@ -185,14 +185,6 @@ class TestSolarwindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too
         self.assertEqual({"Cisco"}, {manu.get_unique_id() for manu in self.solarwinds.get_all("manufacturer")})
         self.assertEqual({"ASR1001__Cisco"}, {manu.get_unique_id() for manu in self.solarwinds.get_all("device_type")})
 
-    def test_get_nodes_custom_property(self):
-        """Test the get_nodes_custom_property() function success."""
-        results = self.solarwinds_client.get_nodes_custom_property(custom_property="Nautobot_Monitoring")
-        self.solarwinds_client.get_nodes_custom_property.assert_called_once_with(custom_property="Nautobot_Monitoring")
-        self.solarwinds_client.get_nodes_custom_property.assert_called()
-
-        self.assertEqual(results, fix.GET_NODES_CUSTOM_PROPERTY_FIXTURE)
-
     def test_get_container_nodes_specific_container(self):
         """Test the get_container_nodes() function success with a specific container."""
         results = self.solarwinds.get_container_nodes()
@@ -210,6 +202,16 @@ class TestSolarwindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too
         self.solarwinds_client.get_container_nodes.assert_called()
         self.assertEqual(results, fix.GET_CONTAINER_NODES_FIXTURE)
 
+    def test_get_container_nodes_all_containers_custom_property(self):
+        """Test the get_container_nodes() function success with all containers."""
+        self.solarwinds.containers = "ALL"
+        self.job.top_container = "USA"
+        self.job.custom_property = "Nautobot_Sync"
+        results = self.solarwinds.get_container_nodes(custom_property=self.job.custom_property)
+        self.solarwinds_client.get_top_level_containers.assert_called_once_with(top_container="USA")
+        self.solarwinds_client.get_container_nodes.assert_called()
+        self.assertEqual(results, fix.GET_CONTAINER_NODES_CUSTOM_PROPERTY_FIXTURE)
+
     def test_load_location(self):
         """Test the load_location() function."""
         self.solarwinds.load_location(loc_name="HQ", location_type="Site", status="Active")
@@ -219,7 +221,7 @@ class TestSolarwindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too
 
     def test_load_parent(self):
         """Test the load_parent() function loads the Parent Location."""
-        self.solarwinds = SolarwindsAdapter(
+        self.solarwinds = SolarWindsAdapter(
             job=self.job,
             sync=None,
             client=self.solarwinds_client,
@@ -257,7 +259,7 @@ class TestSolarwindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too
 
     def load_sites_w_parent(self):
         """Test the load_sites() function when a parent isn't specified."""
-        self.solarwinds = SolarwindsAdapter(
+        self.solarwinds = SolarWindsAdapter(
             job=self.job,
             sync=None,
             client=self.solarwinds_client,
@@ -305,6 +307,43 @@ class TestSolarwindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too
         """Test the load_role() success."""
         self.solarwinds.load_role(role="Test")
         self.assertEqual({"Test"}, {role.get_unique_id() for role in self.solarwinds.get_all("role")})
+
+    def test_load_platform_aireos(self):
+        """Test the load_platform() function with AireOS device."""
+        result = self.solarwinds.load_platform(device_type="8540 Series Wireless Controllers", manufacturer="Cisco")
+        result2 = self.solarwinds.load_platform(device_type="8500WLC", manufacturer="Cisco")
+        self.assertEqual(result, "cisco.ios.aireos")
+        self.assertEqual(result2, "cisco.ios.aireos")
+        self.assertEqual(
+            {"cisco.ios.aireos__Cisco"}, {plat.get_unique_id() for plat in self.solarwinds.get_all("platform")}
+        )
+
+    def test_load_platform_aruba_aoscx(self):
+        """Test the load_platform() function with Aruba AOSCX device."""
+        result = self.solarwinds.load_platform(device_type="6100-US", manufacturer="Aruba")
+        self.assertEqual(result, "arubanetworks.aos.aoscx")
+        self.assertEqual(
+            {"arubanetworks.aos.aoscx__Aruba"}, {plat.get_unique_id() for plat in self.solarwinds.get_all("platform")}
+        )
+
+    def test_load_platform_aruba_os(self):
+        """Test the load_platform() function with Aruba OS device."""
+        result = self.solarwinds.load_platform(device_type="MM-HW-5K", manufacturer="Aruba")
+        result2 = self.solarwinds.load_platform(device_type="7240XM-US", manufacturer="Aruba")
+        self.assertEqual(result, "arubanetworks.aos.os")
+        self.assertEqual(result2, "arubanetworks.aos.os")
+        self.assertEqual(
+            {"arubanetworks.aos.os__Aruba"}, {plat.get_unique_id() for plat in self.solarwinds.get_all("platform")}
+        )
+
+    def test_load_platform_aruba_osswitch(self):
+        """Test the load_platform() function with Aruba OSSwitch device."""
+        result = self.solarwinds.load_platform(device_type="2530-US", manufacturer="Aruba")
+        self.assertEqual(result, "arubanetworks.aos.osswitch")
+        self.assertEqual(
+            {"arubanetworks.aos.osswitch__Aruba"},
+            {plat.get_unique_id() for plat in self.solarwinds.get_all("platform")},
+        )
 
     def test_load_platform_ios(self):
         """Test the load_platform() function with IOS device."""

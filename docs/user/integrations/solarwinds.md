@@ -60,7 +60,7 @@ Extra settings can be configured in the Extra Config section of your External In
 | Setting         | Default | Description                                                                       |
 | --------------- | ------- | --------------------------------------------------------------------------------- |
 | port            |   17774 | TCP port used for communication to the API                                        |
-| retries         |       5 | How many retries before considering the connection to Solarwinds failed           |
+| retries         |       5 | How many retries before considering the connection to SolarWinds failed           |
 | batch_size      |     100 | How many nodes to include in queries, this can be lowered to prevent API timeouts |
 
 ```json
@@ -77,8 +77,8 @@ With those configured, you will then need to ensure you have the Locations and L
 
 If you wish to just test the synchronization but not have any data created in Nautobot you'll want to select the `Dryrun` toggle. Clicking the `Debug` toggle will enable more verbose logging to inform you of what is occuring behind the scenes. After those toggles there are also dropdowns that allow you to specify the SolarWinds instance to synchronize with and to define the LocationType to use for the imported Devices from SolarWinds. In addition, there are also some optional settings on the Job form:
 
-- You can choose to pull all devices from a specific SolarWinds Container (and subcontainers), or you can use a SolarWinds CustomProperty. This CustomProperty should be a Boolean set to `True`, and assigned to all devices you wish to sync. Enter the name of this CustomProperty into the CustomProperty field.
-- If pulling from CustomProperty, you must choose the Location to place devices using the Location Override option, and should still choose the Container or ALL Containers.
+- You must add a specific SolarWinds Container or comma separated list of Containers, but you can also choose to filter these further via a SolarWinds CustomProperty. This CustomProperty should be a Boolean set to `True` within SolarWinds, and assigned to all devices you wish to sync into Nautobot. Enter the name of this CustomProperty into the CustomProperty field. All containers specified will be searched, but only those devices with the CustomProperty set to True will be synced over to Nautobot.
+- You can also use the Location Override option to choose a specific Location to place all found devices in, otherwise the SSOT will create Location's based on the Container Names given to search for.
 - If the LocationType that you specify for the imported Devices requires a parent LocationType to be assigned, you must also select the Parent LocationType.
 
 

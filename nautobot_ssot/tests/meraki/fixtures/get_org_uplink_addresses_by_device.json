@@ -1,0 +1,36 @@
+[
+    {
+        "mac": "3f:3a:e0:bc:75:d7",
+        "name": "HQ AP",
+        "network": {
+            "id": "L_165471703274884707"
+        },
+        "productType": "wireless",
+        "serial": "L6XI-2BIN-EUTI",
+        "tags": [],
+        "uplinks": [
+            {
+                "interface": "man1",
+                "addresses": [
+                    {
+                        "protocol": "ipv4",
+                        "address": "10.5.52.3",
+                        "gateway": "10.5.52.1",
+                        "assignmentMode": "static",
+                        "nameservers": {
+                            "addresses": [
+                                "8.8.8.8"
+                            ]
+                        },
+                        "public": {
+                            "address": "26.30.225.42"
+                        },
+                        "vlan": {
+                            "id": "0"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+]

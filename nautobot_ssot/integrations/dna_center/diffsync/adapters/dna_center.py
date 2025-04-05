@@ -163,6 +163,12 @@ class DnaCenterAdapter(Adapter):
 
     def load_controller_locations(self):
         """Load location data for Controller specified in Job form."""
+        if not self.job.dnac.location:
+            self.job.logger.error(
+                f"Unable to find Location assigned to {self.job.dnac.name} so skipping loading of Locations for Controller."
+            )
+            return
+
         if self.job.dnac.location.location_type == self.job.floor_loctype:
             self.get_or_instantiate(
                 self.floor,
@@ -176,7 +182,8 @@ class DnaCenterAdapter(Adapter):
                 },
             )
         if (
-            self.job.dnac.location.parent.parent
+            self.job.dnac.location.parent
+            and self.job.dnac.location.parent.parent
             and self.job.dnac.location.parent.parent.location_type == self.job.building_loctype
         ):
             self.get_or_instantiate(
@@ -224,7 +231,8 @@ class DnaCenterAdapter(Adapter):
                 attrs={"uuid": None},
             )
         if (
-            self.job.dnac.location.parent.parent
+            self.job.dnac.location.parent
+            and self.job.dnac.location.parent.parent
             and self.job.dnac.location.parent.parent.location_type == self.job.area_loctype
         ):
             self.get_or_instantiate(
@@ -293,7 +301,7 @@ class DnaCenterAdapter(Adapter):
             parent = self.get(self.building, {"name": bldg_name, "area": area_name})
             new_floor, loaded = self.get_or_instantiate(
                 self.floor,
-                ids={"name": floor_name, "building": bldg_name},
+                ids={"name": floor_name, "building": bldg_name, "area": area_name},
                 attrs={"tenant": self.tenant.name if self.tenant else None, "uuid": None},
             )
             if loaded:
@@ -336,6 +344,22 @@ class DnaCenterAdapter(Adapter):
             dev_details = self.conn.get_device_detail(dev_id=dev["id"])
             loc_data = {}
             if dev_details and dev_details.get("siteHierarchyGraphId"):
+                locations = dev_details["siteHierarchyGraphId"].lstrip("/").rstrip("/").split("/")
+                # remove Global if not importing Global
+                if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
+                    locations.pop(0)
+                loc_found = [loc in self.dnac_location_map for loc in locations]
+                if not all(loc_found):
+                    self.job.logger.error(
+                        f"Device {dev['hostname']} has unknown location in hierarchy so will not be imported."
+                    )
+                    dev["field_validation"] = {
+                        "reason": "Invalid location information found.",
+                        "device_details": dev_details,
+                        "location_data": loc_data,
+                    }
+                    self.failed_import_devices.append(dev)
+                    continue
                 loc_data = self.conn.parse_site_hierarchy(
                     location_map=self.dnac_location_map, site_hier=dev_details["siteHierarchyGraphId"]
                 )
@@ -385,6 +409,7 @@ class DnaCenterAdapter(Adapter):
                     role=dev_role,
                     vendor=vendor,
                     model=self.conn.get_model_name(models=dev["platformId"]) if dev.get("platformId") else "Unknown",
+                    area=loc_data["areas"][-1],
                     site=loc_data["building"],
                     floor=floor_name,
                     serial=dev["serialNumber"] if dev.get("serialNumber") else "",
@@ -421,7 +446,7 @@ class DnaCenterAdapter(Adapter):
         building_id = location_ids.pop()
         areas = location_ids
 
-        for area_id in reversed(areas):
+        for area_id in areas:
             if self.dnac_location_map.get(area_id):
                 area_name = self.dnac_location_map[area_id]["name"]
                 area_parent = self.dnac_location_map[area_id]["parent"]
@@ -576,7 +601,7 @@ class DnaCenterAdapter(Adapter):
             )
             self.add(new_prefix)
         try:
-            ip_found = self.get(self.ipaddress, {"host": host, "namespace": namespace})
+            ip_found = self.get(self.ipaddress, {"host": host, "mask_length": mask_length, "namespace": namespace})
             if ip_found and self.job.debug:
                 self.job.logger.warning(f"Duplicate IP Address attempting to be loaded: {host} in {prefix}")
         except ObjectNotFound:
