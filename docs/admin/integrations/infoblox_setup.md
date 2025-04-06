@@ -133,6 +133,7 @@ The above filters will allow the loading of the following data from Infoblox and
 This setting allows you to create mappings between Infoblox network views and Nautobot namespaces. By default, the **default** network view maps to the **Global** Nautobot namespace.
 
 The purpose of this setting is to provide flexibility, enabling you to:
+
 - Assign a different namespace instead of **Global** for the default Infoblox network view.
 - Define additional mappings based on your environment’s requirements.
 
