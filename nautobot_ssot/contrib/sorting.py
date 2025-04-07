@@ -9,10 +9,13 @@ from nautobot_ssot.contrib.types import SortType
 
 def _is_sortable_field(attribute_type_hints) -> bool:
     """Check if a DiffSync attribute is a sortable field."""
-    return attribute_type_hints.__name__ in [
-        "list",
-        "List",
-    ]
+    try:
+        return attribute_type_hints.__name__ in [
+            "list",
+            "List",
+        ]
+    except AttributeError:
+        return False
 
 
 def _get_sort_key_from_typed_dict(sortable_content_type) -> str:
