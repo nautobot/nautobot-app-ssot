@@ -1,1 +1,0 @@
-ACI integration: Change _tag.validated_save() to _tag.save()

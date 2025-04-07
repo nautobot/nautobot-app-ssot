@@ -15,7 +15,7 @@ def get_servicenow_parameters():
     db_config = SSOTServiceNowConfig.load()
     settings_config = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
     result = {
-        "instance": settings_config.get("servicenow_instance", db_config.servicenow_instance),
+        "instance": settings_config.get("servicenow_instance", "") or db_config.servicenow_instance,
         "username": settings_config.get("servicenow_username", ""),
         "password": settings_config.get("servicenow_password", ""),
     }

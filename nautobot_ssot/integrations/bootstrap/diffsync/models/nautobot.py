@@ -264,7 +264,7 @@ class NautobotRole(Role):
             name=ids["name"],
             weight=attrs["weight"],
             description=attrs["description"],
-            color=attrs["color"],
+            color=attrs.get("color", "#999999"),
         )
         _new_role.validated_save()
         _new_role.content_types.set(_content_types)
@@ -523,10 +523,11 @@ class NautobotLocation(Location):
                 if attrs["tenant"]:
                     _tenant = Tenant.objects.get(name=attrs["tenant"])
             if "time_zone" in attrs:
-                if attrs["time_zone"]:
+                _timezone = None
+                if attrs["time_zone"] and attrs["time_zone"] != "":
                     _timezone = pytz.timezone(attrs["time_zone"])
             for _tag in attrs["tags"]:
-                _tags.append(ORMTag.get(name=_tag))
+                _tags.append(ORMTag.objects.get(name=_tag))
             _new_location = ORMLocation(
                 name=ids["name"],
                 location_type=_location_type,
@@ -585,7 +586,8 @@ class NautobotLocation(Location):
         if "asn" in attrs:
             _update_location.asn = attrs["asn"]
         if "time_zone" in attrs:
-            if attrs["time_zone"]:
+            _timezone = None
+            if attrs["time_zone"] and attrs["time_zone"] != "":
                 _timezone = pytz.timezone(attrs["time_zone"])
                 _update_location.time_zone = _timezone
         if "description" in attrs:
@@ -2242,9 +2244,10 @@ class NautobotTag(Tag):
                 _content_types.append(lookup_content_type_for_taggable_model_path(_model))
             except ContentType.DoesNotExist:
                 adapter.job.logger.error(f"Unable to find ContentType for {_model}.")
+        _color = attrs.get("color", "#999999")
         _new_tag = ORMTag(
             name=ids["name"],
-            color=attrs["color"],
+            color=_color,
             description=attrs["description"],
         )
         _new_tag.validated_save()
@@ -2365,6 +2368,7 @@ class NautobotScheduledJob(ScheduledJob):
             approval_required=attrs.get("approval_required"),
             kwargs=job_kwargs,
             celery_kwargs=celery_kwargs,
+            enabled=attrs.get("enabled"),
         )
         scheduled_job.validated_save()
 
@@ -2409,6 +2413,8 @@ class NautobotScheduledJob(ScheduledJob):
             job.approval_required = attrs["approval_required"]
         if "task_queue" in attrs:
             job.celery_kwargs["queue"] = attrs["task_queue"]
+        if "enabled" in attrs:
+            job.enabled = attrs["enabled"]
 
         job.validated_save()
         return super().update(attrs)

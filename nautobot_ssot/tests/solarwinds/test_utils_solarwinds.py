@@ -421,6 +421,26 @@ class TestSolarWindsClientTestCase(TransactionTestCase):  # pylint: disable=too-
             "WS-C4500X-32 SFP+ Switch",
         ),
         ("both_blank", {"Vendor": "Cisco", "DeviceType": "", "Model": ""}, ""),
+        (
+            "ignore_wireless",
+            {"Vendor": "Cisco", "DeviceType": "Cisco 8540 Wireless Series Controllers", "Model": ""},
+            "8540 Wireless Series Controllers",
+        ),
+        (
+            "ignore_wlc",
+            {"Vendor": "Cisco", "DeviceType": "Cisco 8500 WLC", "Model": ""},
+            "8500 WLC",
+        ),
+        (
+            "ignore_asr",
+            {"Vendor": "Cisco", "DeviceType": "Cisco ASR 9901", "Model": ""},
+            "ASR 9901",
+        ),
+        (
+            "ignore_ws-",
+            {"Vendor": "Cisco", "DeviceType": "Cisco WS-C3850-48U-S", "Model": ""},
+            "WS-C3850-48U-S",
+        ),
     ]
 
     @parameterized.expand(node_types, skip_on_empty=True)

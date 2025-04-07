@@ -149,6 +149,7 @@ nav:
       - Compatibility Matrix: "admin/compatibility_matrix.md"
       - Release Notes:
           - "admin/release_notes/index.md"
+          - v3.6: "admin/release_notes/version_3.6.md"
           - v3.5: "admin/release_notes/version_3.5.md"
           - v3.4: "admin/release_notes/version_3.4.md"
           - v3.3: "admin/release_notes/version_3.3.md"
@@ -178,6 +179,7 @@ nav:
       - Contributing to the App: "dev/contributing.md"
       - Development Environment: "dev/dev_environment.md"
       - Release Checklist: "dev/release_checklist.md"
+      - Model Diagrams: "dev/diagrams.md"
       - Code Reference:
           - "dev/code_reference/index.md"
           - Package: "dev/code_reference/package.md"

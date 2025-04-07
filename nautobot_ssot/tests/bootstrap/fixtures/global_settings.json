@@ -2,12 +2,12 @@
   "tenant_group": [
     {
       "name": "Group1",
-      "parent": "",
+      "parent": null,
       "description": ""
     },
     {
       "name": "Group2",
-      "parent": "",
+      "parent": null,
       "description": ""
     },
     {

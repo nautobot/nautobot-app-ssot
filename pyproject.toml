@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nautobot-ssot"
-version = "3.5.1a0"
+version = "3.6.1a0"
 description = "Nautobot Single Source of Truth"
 authors = ["Network to Code, LLC <opensource@networktocode.com>"]
 license = "Apache-2.0"
@@ -13,7 +13,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Development Status :: 5 - Production/Stable",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -28,7 +27,7 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.13"
+python = ">=3.9.2,<3.13"
 # Used for local development
 nautobot = "^2.1.0"
 diffsync = "^2.0.0"

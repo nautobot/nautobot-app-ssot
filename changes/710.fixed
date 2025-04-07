@@ -1,5 +1,0 @@
-Allowed Slurpit sync to be scheduled.
-Fix issue with duplicate prefixes from Nautobot causing exception during sync with Slurpit.
-Enable custom fields to accept `None` in the Slurpit models.
-Remove Napalm driver sync
-Add exception catch ObjectDoesNotExist

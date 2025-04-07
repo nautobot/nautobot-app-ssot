@@ -237,7 +237,7 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         mock_dev_details = {"siteHierarchyGraphId": "/1/2/3/4/5/6/"}
         self.dna_center.load_device_location_tree(dev_details=mock_dev_details, loc_data=mock_loc_data)
         self.assertEqual(
-            {"HQ - 1st Floor__HQ"},
+            {"HQ - 1st Floor__HQ__NYC"},
             {dev.get_unique_id() for dev in self.dna_center.get_all("floor")},
         )
         self.assertEqual(

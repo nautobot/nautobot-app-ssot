@@ -1,1 +1,0 @@
-Improve the replace_dashed_custom_fields migration (0007_replace_dashed_custom_fields.py) by iterating over a generator instead of loading all objects into a list.

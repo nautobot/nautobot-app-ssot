@@ -886,6 +886,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 profile=scheduled_job.get("profile", False),
                 approval_required=scheduled_job.get("approval_required", False),
                 task_queue=scheduled_job.get("task_queue"),
+                enabled=scheduled_job.get("enabled", True),
             )
             self.add(_scheduled_job)
 
@@ -1041,132 +1042,229 @@ class BootstrapAdapter(Adapter, LabelMixin):
             return
 
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["tenant_group"]:
-            if global_settings["tenant_group"] is not None:  # noqa: F821
+            if not global_settings.get("tenant_group"):  # noqa: F821
+                self.job.logger.warning("tenant_group not found in global_settings. Check if the key exists.")
+            elif global_settings["tenant_group"] is not None:  # noqa: F821
                 for bs_tenant_group in global_settings["tenant_group"]:  # noqa: F821
                     self.load_tenant_group(bs_tenant_group=bs_tenant_group, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["tenant"]:
-            if global_settings["tenant"] is not None:  # noqa: F821
+            if not global_settings.get("tenant"):  # noqa: F821
+                self.job.logger.warning("tenant not found in global_settings. Check if the key exists.")
+            elif global_settings["tenant"] is not None:  # noqa: F821
                 for bs_tenant in global_settings["tenant"]:  # noqa: F821
                     self.load_tenant(bs_tenant=bs_tenant, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["role"]:
-            if global_settings["role"] is not None:  # noqa: F821
+            if not global_settings.get("role"):  # noqa: F821
+                self.job.logger.warning("role not found in global_settings. Check if the key exists.")
+            elif global_settings["role"] is not None:  # noqa: F821
                 for bs_role in global_settings["role"]:  # noqa: F821
                     self.load_role(bs_role=bs_role, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["manufacturer"]:
-            if global_settings["manufacturer"] is not None:  # noqa: F821
+            if not global_settings.get("manufacturer"):  # noqa: F821
+                self.job.logger.warning("manufacturer not found in global_settings. Check if the key exists.")
+            elif global_settings["manufacturer"] is not None:  # noqa: F821
                 for bs_manufacturer in global_settings["manufacturer"]:  # noqa: F821
                     self.load_manufacturer(bs_manufacturer=bs_manufacturer, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["platform"]:
-            if global_settings["platform"] is not None:  # noqa: F821
+            if not global_settings.get("platform"):  # noqa: F821
+                self.job.logger.warning("platform not found in global_settings. Check if the key exists.")
+            elif global_settings["platform"] is not None:  # noqa: F821
                 for bs_platform in global_settings["platform"]:  # noqa: F821
                     self.load_platform(bs_platform=bs_platform, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["location_type"]:
-            if global_settings["location_type"] is not None:  # noqa: F821
+            if not global_settings.get("location_type"):  # noqa: F821
+                self.job.logger.warning("location_type not found in global_settings. Check if the key exists.")
+            elif global_settings["location_type"] is not None:  # noqa: F821
                 for bs_location_type in global_settings["location_type"]:  # noqa: F821
                     self.load_location_type(bs_location_type=bs_location_type, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["location"]:
-            if global_settings["location"] is not None:  # noqa: F821
+            if not global_settings.get("location"):  # noqa: F821
+                self.job.logger.warning("location not found in global_settings. Check if the key exists.")
+            elif global_settings["location"] is not None:  # noqa: F821
                 for bs_location in global_settings["location"]:  # noqa: F821
                     self.load_location(bs_location=bs_location, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["team"]:
-            if global_settings["team"] is not None:  # noqa: F821
+            if not global_settings.get("team"):  # noqa: F821
+                self.job.logger.warning("team not found in global_settings. Check if the key exists.")
+            elif global_settings["team"] is not None:  # noqa: F821
                 for bs_team in global_settings["team"]:  # noqa: F821
                     self.load_team(bs_team=bs_team, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["contact"]:
-            if global_settings["contact"] is not None:  # noqa: F821
+            if not global_settings.get("contact"):  # noqa: F821
+                self.job.logger.warning("contact not found in global_settings. Check if the key exists.")
+            elif global_settings["contact"] is not None:  # noqa: F821
                 for bs_contact in global_settings["contact"]:  # noqa: F821
                     self.load_contact(bs_contact=bs_contact, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["provider"]:
-            if global_settings["provider"] is not None:  # noqa: F821
+            if not global_settings.get("provider"):  # noqa: F821
+                self.job.logger.warning("provider not found in global_settings. Check if the key exists.")
+            elif global_settings["provider"] is not None:  # noqa: F821
                 for bs_provider in global_settings["provider"]:  # noqa: F821
                     self.load_provider(bs_provider=bs_provider, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["provider_network"]:
-            if global_settings["provider_network"] is not None:  # noqa: F821
+            if not global_settings.get("provider_network"):  # noqa: F821
+                self.job.logger.warning("provider_network not found in global_settings. Check if the key exists.")
+            elif global_settings["provider_network"] is not None:  # noqa: F821
                 for bs_provider_network in global_settings["provider_network"]:  # noqa: F821
                     self.load_provider_network(bs_provider_network=bs_provider_network, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["circuit_type"]:
-            if global_settings["circuit_type"] is not None:  # noqa: F821
+            if not global_settings.get("circuit_type"):  # noqa: F821
+                self.job.logger.warning("circuit_type not found in global_settings. Check if the key exists.")
+            elif global_settings["circuit_type"] is not None:  # noqa: F821
                 for bs_circuit_type in global_settings["circuit_type"]:  # noqa: F821
                     self.load_circuit_type(bs_circuit_type=bs_circuit_type, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["circuit"]:
-            if global_settings["circuit"] is not None:  # noqa: F821
+            if not global_settings.get("circuit"):  # noqa: F821
+                self.job.logger.warning("circuit not found in global_settings. Check if the key exists.")
+            elif global_settings["circuit"] is not None:  # noqa: F821
                 for bs_circuit in global_settings["circuit"]:  # noqa: F821
                     self.load_circuit(bs_circuit=bs_circuit, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["circuit_termination"]:
-            if global_settings["circuit_termination"] is not None:  # noqa: F821
+            if not global_settings.get("circuit_termination"):  # noqa: F821
+                self.job.logger.warning("circuit_termination not found in global_settings. Check if the key exists.")
+            elif global_settings["circuit_termination"] is not None:  # noqa: F821
                 for bs_circuit_termination in global_settings["circuit_termination"]:  # noqa: F821
                     self.load_circuit_termination(
                         bs_circuit_termination=bs_circuit_termination,
                         branch_vars=branch_vars,
                     )
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["namespace"]:
-            if global_settings["namespace"] is not None:  # noqa: F821
+            if not global_settings.get("namespace"):  # noqa: F821
+                self.job.logger.warning("namespace not found in global_settings. Check if the key exists.")
+            elif global_settings["namespace"] is not None:  # noqa: F821
                 for bs_namespace in global_settings["namespace"]:  # noqa: F821
                     self.load_namespace(bs_namespace=bs_namespace, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["rir"]:
-            if global_settings["rir"] is not None:  # noqa: F821
+            if not global_settings.get("rir"):  # noqa: F821
+                self.job.logger.warning("rir not found in global_settings. Check if the key exists.")
+            elif global_settings["rir"] is not None:  # noqa: F821
                 for bs_rir in global_settings["rir"]:  # noqa: F821
                     self.load_rir(bs_rir=bs_rir, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["vlan_group"]:
-            if global_settings["vlan_group"] is not None:  # noqa: F821
+            if not global_settings.get("vlan_group"):  # noqa: F821
+                self.job.logger.warning("vlan_group not found in global_settings. Check if the key exists.")
+            elif global_settings["vlan_group"] is not None:  # noqa: F821
                 for bs_vlan_group in global_settings["vlan_group"]:  # noqa: F821
                     self.load_vlan_group(bs_vlan_group=bs_vlan_group, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["vlan"]:
-            if global_settings["vlan"] is not None:  # noqa: F821
+            if not global_settings.get("vlan"):  # noqa: F821
+                self.job.logger.warning("vlan not found in global_settings. Check if the key exists.")
+            elif global_settings["vlan"] is not None:  # noqa: F821
                 for bs_vlan in global_settings["vlan"]:  # noqa: F821
                     self.load_vlan(bs_vlan=bs_vlan, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["vrf"]:
-            if global_settings["vrf"] is not None:  # noqa: F821
+            if not global_settings.get("vrf"):  # noqa: F821
+                self.job.logger.warning("vrf not found in global_settings. Check if the key exists.")
+            elif global_settings["vrf"] is not None:  # noqa: F821
                 for bs_vrf in global_settings["vrf"]:  # noqa: F821
                     self.load_vrf(bs_vrf=bs_vrf, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["prefix"]:
-            if global_settings["prefix"] is not None:  # noqa: F821
+            if not global_settings.get("prefix"):  # noqa: F821
+                self.job.logger.warning("prefix not found in global_settings. Check if the key exists.")
+            elif global_settings["prefix"] is not None:  # noqa: F821
                 for bs_prefix in global_settings["prefix"]:  # noqa: F821
                     self.load_prefix(bs_prefix=bs_prefix, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["secret"]:
-            if global_settings["secret"] is not None:  # noqa: F821
+            if not global_settings.get("secret"):  # noqa: F821
+                self.job.logger.warning("secret not found in global_settings. Check if the key exists.")
+            elif global_settings["secret"] is not None:  # noqa: F821
                 for bs_secret in global_settings["secret"]:  # noqa: F821
                     self.load_secret(bs_secret=bs_secret, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["secrets_group"]:
-            if global_settings["secrets_group"] is not None:  # noqa: F821
+            if not global_settings.get("secrets_group"):  # noqa: F821
+                self.job.logger.warning("secrets_group not found in global_settings. Check if the key exists.")
+            elif global_settings["secrets_group"] is not None:  # noqa: F821
                 for bs_sg in global_settings["secrets_group"]:  # noqa: F821
                     self.load_secrets_group(bs_sg=bs_sg, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["git_repository"]:
-            if global_settings["git_repository"] is not None:  # noqa: F821
+            if not global_settings.get("git_repository"):  # noqa: F821
+                self.job.logger.warning("git_repository not found in global_settings. Check if the key exists.")
+            elif global_settings["git_repository"] is not None:  # noqa: F821
                 for git_repo in global_settings["git_repository"]:  # noqa: F821
                     self.load_git_repository(git_repo=git_repo, branch_vars=branch_vars)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["dynamic_group"]:
-            if global_settings["dynamic_group"] is not None:  # noqa: F821
+            if not global_settings.get("dynamic_group"):  # noqa: F821
+                self.job.logger.warning("dynamic_group not found in global_settings. Check if the key exists.")
+            elif global_settings["dynamic_group"] is not None:  # noqa: F821
                 for dyn_group in global_settings["dynamic_group"]:  # noqa: F821
                     self.load_dynamic_group(dyn_group=dyn_group)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["computed_field"]:
-            if global_settings["computed_field"] is not None:  # noqa: F821
+            if not global_settings.get("computed_field"):  # noqa: F821
+                self.job.logger.warning("computed_field not found in global_settings. Check if the key exists.")
+            elif global_settings["computed_field"] is not None:  # noqa: F821
                 for computed_field in global_settings["computed_field"]:  # noqa: F821
                     self.load_computed_field(comp_field=computed_field)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["custom_field"]:
-            if global_settings["custom_field"] is not None:  # noqa: F821
+            if not global_settings.get("custom_field"):  # noqa: F821
+                self.job.logger.warning("custom_field not found in global_settings. Check if the key exists.")
+            elif global_settings["custom_field"] is not None:  # noqa: F821
                 for custom_field in global_settings["custom_field"]:  # noqa: F821
                     self.load_custom_field(custom_field=custom_field)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["tag"]:
-            if global_settings["tag"] is not None:  # noqa: F821
+            if not global_settings.get("tag"):  # noqa: F821
+                self.job.logger.warning("tag not found in global_settings. Check if the key exists.")
+            elif global_settings["tag"] is not None:  # noqa: F821
                 for tag in global_settings["tag"]:  # noqa: F821
                     self.load_tag(tag=tag)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["graph_ql_query"]:
-            if global_settings["graph_ql_query"] is not None:  # noqa F821
-                for graph_ql_query in global_settings["graph_ql_query"]:  # noqa F821
+            if not global_settings.get("graph_ql_query"):  # noqa: F821
+                self.job.logger.warning("graph_ql_query not found in global_settings. Check if the key exists.")
+            elif global_settings["graph_ql_query"] is not None:  # noqa: F821
+                for graph_ql_query in global_settings["graph_ql_query"]:  # noqa: F821
                     self.load_graph_ql_query(query=graph_ql_query)
+
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["scheduled_job"]:
-            if global_settings["scheduled_job"] is not None:  # noqa F821
-                for job in global_settings["scheduled_job"]:
+            if not global_settings.get("scheduled_job"):  # noqa: F821
+                self.job.logger.warning("scheduled_job not found in global_settings. Check if the key exists.")
+            elif global_settings["scheduled_job"] is not None:  # noqa: F821
+                for job in global_settings["scheduled_job"]:  # noqa: F821
                     self.load_scheduled_job(scheduled_job=job)
 
         if LIFECYCLE_MGMT:
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software"]:
-                for software in global_settings["software"]:  # noqa: F821
-                    self.load_software(software=software)
+                if not global_settings.get("software"):  # noqa: F821
+                    self.job.logger.warning("software not found in global_settings. Check if the key exists.")
+                elif global_settings["software"] is not None:  # noqa: F821
+                    for software in global_settings["software"]:  # noqa: F821
+                        self.load_software(software=software)
+
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software_image"]:
-                for software_image in global_settings["software_image"]:  # noqa: F821
-                    self.load_software_image(software_image=software_image)
+                if not global_settings.get("software_image"):  # noqa: F821
+                    self.job.logger.warning("software_image not found in global_settings. Check if the key exists.")
+                elif global_settings["software_image"] is not None:  # noqa: F821
+                    for software_image in global_settings["software_image"]:  # noqa: F821
+                        self.load_software_image(software_image=software_image)
+
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["validated_software"]:
-                for validated_software in global_settings["validated_software"]:  # noqa: F821
-                    self.load_validated_software(validated_software=validated_software)
+                if not global_settings.get("validated_software"):  # noqa: F821
+                    self.job.logger.warning("validated_software not found in global_settings. Check if the key exists.")
+                elif global_settings["validated_software"] is not None:  # noqa: F821
+                    for validated_software in global_settings["validated_software"]:  # noqa: F821
+                        self.load_validated_software(validated_software=validated_software)

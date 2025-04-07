@@ -142,12 +142,24 @@ def lookup_contact_for_team(contact):
 
 
 def get_scheduled_start_time(start_time):
-    """Validate and return start_time is ISO 8601 format."""
+    """Validate and return start_time in ISO 8601 format.
+
+    Args:
+        start_time (str): ISO 8601 formatted datetime string.
+
+    Returns:
+        str: ISO 8601 formatted datetime string with timezone info.
+    """
     if not start_time:
         return ""
     try:
-        start_time = datetime.fromisoformat(f"{start_time}+00:00")  # UTC, the Job stores time_zone info
+        # Check if timezone info is already present
+        if "+" in start_time or "-" in start_time:
+            # Validate the datetime format with existing timezone
+            start_time = datetime.fromisoformat(start_time)
+        else:
+            # Validate the datetime format and convert to UTC
+            start_time = datetime.fromisoformat(f"{start_time}+00:00")  # UTC, the Job stores time_zone info
+        return start_time.isoformat()
     except ValueError:
         return None
-
-    return start_time.isoformat()

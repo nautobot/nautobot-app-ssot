@@ -775,6 +775,7 @@ class ScheduledJob(DiffSyncModel):
         "profile",
         "approval_required",
         "task_queue",
+        "enabled",
     )
     _children = {}
 
@@ -788,6 +789,7 @@ class ScheduledJob(DiffSyncModel):
     profile: bool = False
     approval_required: bool = False
     task_queue: Optional[str] = None
+    enabled: Optional[bool] = True
 
     uuid: Optional[UUID] = None
 
