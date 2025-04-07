@@ -28,21 +28,9 @@ from netutils.lib_mapper import ANSIBLE_LIB_MAPPER
 from nautobot_ssot.integrations.device42.constant import PLUGIN_CFG
 from nautobot_ssot.integrations.device42.diffsync.models.nautobot import assets, circuits, dcim, ipam
 from nautobot_ssot.integrations.device42.utils import nautobot
+from nautobot_ssot.utils import dlm_supports_softwarelcm
 
 logger = logging.getLogger(__name__)
-
-try:
-    from nautobot_device_lifecycle_mgmt.models import SoftwareLCM  # noqa: F401 # pylint: disable=unused-import
-
-    LIFECYCLE_MGMT = True
-except ImportError:
-    logger.info("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
-    LIFECYCLE_MGMT = False
-except RuntimeError:
-    logger.warning(
-        "nautobot-device-lifecycle-mgmt is installed but not enabled. Did you forget to add it to your settings.PLUGINS?"
-    )
-    LIFECYCLE_MGMT = False
 
 
 class NautobotAdapter(Adapter):
@@ -303,7 +291,7 @@ class NautobotAdapter(Adapter):
                 _platform = dev.platform.name
             else:
                 _platform = ""
-            if LIFECYCLE_MGMT:
+            if dlm_supports_softwarelcm:
                 _version = nautobot.get_software_version_from_lcm(relations=dev.get_relationships())
             else:
                 _version = nautobot.get_version_from_custom_field(fields=dev.get_custom_fields())
@@ -673,7 +661,7 @@ class NautobotAdapter(Adapter):
         self.role_map = {dr.name: dr.id for dr in Role.objects.only("id", "name")}
         self.namespace_map = {ns.name: ns.id for ns in Namespace.objects.only("id", "name")}
         self.relationship_map = {r.label: r.id for r in Relationship.objects.only("id", "label")}
-        if LIFECYCLE_MGMT:
+        if dlm_supports_softwarelcm:
             self.softwarelcm_map = nautobot.get_dlc_version_map()
         else:
             self.softwarelcm_map = nautobot.get_cf_version_map()

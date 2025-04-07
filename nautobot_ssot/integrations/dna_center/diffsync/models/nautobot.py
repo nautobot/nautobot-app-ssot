@@ -21,20 +21,10 @@ from nautobot_ssot.integrations.dna_center.utils.nautobot import (
     assign_version_to_device,
     verify_platform,
 )
+from nautobot_ssot.utils import core_supports_softwareversion, dlm_supports_softwarelcm
 
-try:
-    from nautobot_device_lifecycle_mgmt import SoftwareLCM  # noqa: F401
-
-    LIFECYCLE_MGMT = True
-except ImportError:
-    LIFECYCLE_MGMT = False
-
-try:
-    from nautobot.dcim.models import SoftwareImageFile, SoftwareVersion  # noqa: F401
-
-    SOFTWARE_VERSION_FOUND_IN_CORE = True
-except ImportError:
-    SOFTWARE_VERSION_FOUND_IN_CORE = False
+if core_supports_softwareversion:
+    from nautobot.dcim.models import SoftwareImageFile, SoftwareVersion
 
 try:
     from nautobot.extras.models.metadata import ObjectMetadata  # noqa: F401
@@ -317,10 +307,10 @@ class NautobotDevice(base.Device):
         if attrs.get("tenant"):
             new_device.tenant_id = adapter.tenant_map[attrs["tenant"]]
         if attrs.get("version"):
-            if LIFECYCLE_MGMT:
+            if dlm_supports_softwarelcm:
                 lcm_obj = add_software_lcm(adapter=adapter, platform=platform.network_driver, version=attrs["version"])
                 assign_version_to_device(adapter=adapter, device=new_device, software_lcm=lcm_obj)
-            if SOFTWARE_VERSION_FOUND_IN_CORE:
+            if core_supports_softwareversion:
                 soft_version = SoftwareVersion.objects.get_or_create(
                     version=attrs["version"], platform=platform, defaults={"status_id": adapter.status_map["Active"]}
                 )[0]
@@ -400,13 +390,13 @@ class NautobotDevice(base.Device):
         if "controller_group" in attrs:
             device.controller_managed_device_group = self.adapter.job.controller_group
         if "version" in attrs:
-            if LIFECYCLE_MGMT:
+            if dlm_supports_softwarelcm:
                 platform_network_driver = attrs["platform"] if attrs.get("platform") else self.platform
                 lcm_obj = add_software_lcm(
                     adapter=self.adapter, platform=platform_network_driver, version=attrs["version"]
                 )
                 assign_version_to_device(adapter=self.adapter, device=device, software_lcm=lcm_obj)
-            if SOFTWARE_VERSION_FOUND_IN_CORE:
+            if core_supports_softwareversion:
                 if attrs.get("platform"):
                     platform = attrs["platform"]
                 else:
