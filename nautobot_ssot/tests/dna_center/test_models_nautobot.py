@@ -327,7 +327,7 @@ class TestNautobotDevice(TransactionTestCase):
         }
         self.adapter.objects_to_create = {"devices": [], "metadata": []}  # pylint: disable=no-member
 
-    @patch("nautobot_ssot.integrations.dna_center.diffsync.models.nautobot.LIFECYCLE_MGMT", True)
+    @patch("nautobot_ssot.integrations.dna_center.diffsync.models.nautobot.dlm_supports_softwarelcm", True)
     def test_create(self):
         """Test the NautobotDevice create() method creates a Device."""
         floor_lt = LocationType.objects.get_or_create(name="Floor", parent=self.site_lt)[0]

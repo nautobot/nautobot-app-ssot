@@ -102,9 +102,12 @@ class TestNautobotUtils(TestCase):
         mock_device.custom_field_data = {"arista_eos": "1.0"}
 
         mock_import = MagicMock()
-        mock_import.LIFECYCLE_MGMT = False
+        mock_import.dlm_supports_softwarelcm = False
 
-        with patch("nautobot_ssot.integrations.aristacv.utils.nautobot.LIFECYCLE_MGMT", mock_import.LIFECYCLE_MGMT):
+        with patch(
+            "nautobot_ssot.integrations.aristacv.utils.nautobot.dlm_supports_softwarelcm",
+            mock_import.dlm_supports_softwarelcm,
+        ):
             result = nautobot.get_device_version(mock_device)
         self.assertEqual(result, "1.0")
 

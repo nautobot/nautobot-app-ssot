@@ -46,11 +46,6 @@ from nautobot.extras.models import (
 from nautobot.ipam.models import RIR, VLAN, VRF, Namespace, Prefix, VLANGroup
 from nautobot.tenancy.models import Tenant, TenantGroup
 from nautobot.users.models import User
-from nautobot_device_lifecycle_mgmt.models import (
-    SoftwareImageLCM,
-    SoftwareLCM,
-    ValidatedSoftwareLCM,
-)
 
 from nautobot_ssot.integrations.bootstrap.diffsync.adapters.bootstrap import (
     BootstrapAdapter,
@@ -60,6 +55,13 @@ from nautobot_ssot.integrations.bootstrap.diffsync.adapters.nautobot import (
 )
 from nautobot_ssot.integrations.bootstrap.jobs import BootstrapDataSource
 from nautobot_ssot.integrations.bootstrap.utils import get_scheduled_start_time
+from nautobot_ssot.utils import dlm_supports_softwarelcm, validate_dlm_installed
+
+if dlm_supports_softwarelcm:  # pylint: disable=missing-parentheses-for-call-in-test, using-constant-test
+    from nautobot_device_lifecycle_mgmt.models import SoftwareImageLCM, SoftwareLCM
+
+if validate_dlm_installed:  # pylint: disable=missing-parentheses-for-call-in-test, using-constant-test
+    from nautobot_device_lifecycle_mgmt.models import ValidatedSoftwareLCM
 
 
 def load_yaml(path):
