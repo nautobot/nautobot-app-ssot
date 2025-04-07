@@ -2,6 +2,7 @@
 
 import logging
 import re
+from importlib.metadata import PackageNotFoundError, version
 from typing import List, Tuple
 
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
@@ -80,3 +81,47 @@ def parse_hostname_for_role(hostname_map: List[Tuple[str, str]], device_hostname
             if match:
                 device_role = entry[1]
     return device_role
+
+
+def dlm_supports_softwarelcm() -> bool:
+    """Validate if the DLM version installed is 3.0.0 or higher.
+
+    Returns:
+        bool: True if DLM version is 3.0.0 or higher, False otherwise.
+    """
+    try:
+        dlm_version = version("nautobot_device_lifecycle_management")
+        if re.match("[012].+", dlm_version):
+            return True
+    except PackageNotFoundError:
+        pass
+    return False
+
+
+def core_supports_softwareversion() -> bool:
+    """Validate if the core Nautobot version installed is 2.2.0 or higher.
+
+    Returns:
+        bool: True if Nautobot version is 2.2.0 or higher, False otherwise.
+    """
+    try:
+        nb_version = version("nautobot")
+        if re.match("2.[23456789].+", nb_version):
+            return True
+    except PackageNotFoundError:
+        pass
+    return False
+
+
+def validate_dlm_installed() -> bool:
+    """Validate if the core Nautobot version installed is 2.2.0 or higher.
+
+    Returns:
+        bool: True if Nautobot version is 2.2.0 or higher, False otherwise.
+    """
+    try:
+        version("nautobot_device_lifecycle_management")
+        return True
+    except PackageNotFoundError:
+        pass
+    return False
