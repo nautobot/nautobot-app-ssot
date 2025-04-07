@@ -159,11 +159,12 @@ class IPAddressOnInterface(DiffSyncModel):
     """DiffSync model for DNA Center tracking IPAddress on particular Device interfaces."""
 
     _modelname = "ip_on_intf"
-    _identifiers = ("host", "device", "port")
+    _identifiers = ("host", "mask_length", "device", "port")
     _attributes = ("primary",)
     _children = {}
 
     host: str
+    mask_length: int
     device: str
     port: str
     primary: bool
