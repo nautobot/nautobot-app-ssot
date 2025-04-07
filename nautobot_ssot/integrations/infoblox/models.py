@@ -35,7 +35,7 @@ def _get_default_cf_fields_ignore():
 
 def _get_network_view_to_namespace_map():
     """Provides default value for network view to namespace map."""
-    return [{"default": "Global"}]
+    return {"default": "Global"}
 
 
 class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
