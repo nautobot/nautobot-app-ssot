@@ -114,10 +114,10 @@ def core_supports_softwareversion() -> bool:
 
 
 def validate_dlm_installed() -> bool:
-    """Validate if the core Nautobot version installed is 2.2.0 or higher.
+    """Validate if the DLM App is installed.
 
     Returns:
-        bool: True if Nautobot version is 2.2.0 or higher, False otherwise.
+        bool: True if DLM App is installed, False otherwise.
     """
     try:
         version("nautobot_device_lifecycle_management")
