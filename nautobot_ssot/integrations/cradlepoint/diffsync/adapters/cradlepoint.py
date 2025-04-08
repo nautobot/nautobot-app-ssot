@@ -18,7 +18,7 @@ from nautobot_ssot.integrations.cradlepoint.diffsync.models.nautobot import (
 )
 
 
-class CradlepointAdapter(Adapter):
+class CradlepointSourceAdapter(Adapter):
     """Cradlepoint Adapter."""
 
     status = NautobotStatus

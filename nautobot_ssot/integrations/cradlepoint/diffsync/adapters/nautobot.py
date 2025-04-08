@@ -9,7 +9,7 @@ from nautobot_ssot.integrations.cradlepoint.diffsync.models.nautobot import (
 )
 
 
-class Adapter(NautobotAdapter):
+class NautobotTargetAdapter(NautobotAdapter):
     """Nautobot Adapter for vSphere SSoT."""
 
     status = NautobotStatus

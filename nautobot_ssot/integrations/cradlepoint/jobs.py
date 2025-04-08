@@ -15,12 +15,8 @@ from nautobot.extras.choices import (
 )
 
 from nautobot_ssot.integrations.cradlepoint.constants import DEFAULT_API_DEVICE_LIMIT
-from nautobot_ssot.integrations.cradlepoint.diffsync.adapters.adapter_cradlepoint import (
-    CradlepointAdapter,
-)
-from nautobot_ssot.integrations.cradlepoint.diffsync.adapters.adapter_nautobot import (
-    Adapter,
-)
+from nautobot_ssot.integrations.cradlepoint.diffsync.adapters.cradlepoint import CradlepointSourceAdapter
+from nautobot_ssot.integrations.cradlepoint.diffsync.adapters.nautobot import NautobotTargetAdapter
 from nautobot_ssot.integrations.cradlepoint.models import SSOTCradlepointConfig
 from nautobot_ssot.integrations.cradlepoint.utilities.cradlepoint_client import (
     CradlepointClient,
@@ -116,7 +112,7 @@ class CradlepointDataSource(DataSource):  # pylint: disable=too-many-instance-at
         client = CradlepointClient(  # pylint: disable=unexpected-keyword-arg
             **client_config
         )
-        self.source_adapter = CradlepointAdapter(
+        self.source_adapter = CradlepointSourceAdapter(
             job=self,
             sync=self.sync,
             client=client,
@@ -129,7 +125,7 @@ class CradlepointDataSource(DataSource):  # pylint: disable=too-many-instance-at
     def load_target_adapter(self):
         """Load Nautobot Adapter."""
         self.logger.info("Connecting to Nautobot...")
-        self.target_adapter = Adapter(
+        self.target_adapter = NautobotTargetAdapter(
             job=self,
             sync=self.sync,
             config=self.config,
