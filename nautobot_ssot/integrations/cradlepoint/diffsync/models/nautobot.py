@@ -85,7 +85,7 @@ class CradlepointDiffSync(NautobotModel):
         _tag_object(nautobot_object)
 
 
-class CradlepointStatus(NautobotModel):
+class NautobotStatus(NautobotModel):
     """Diffsync model for Status."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
@@ -104,7 +104,7 @@ class CradlepointStatus(NautobotModel):
         protected_namespaces = ()
 
 
-class CradlepointRole(NautobotModel):
+class NautobotRole(NautobotModel):
     """Diffsync model for Role."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
@@ -123,7 +123,7 @@ class CradlepointRole(NautobotModel):
         protected_namespaces = ()
 
 
-class CradlepointDeviceType(NautobotModel):
+class NautobotDeviceType(NautobotModel):
     """Diffsync model for Device Type."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
@@ -142,7 +142,7 @@ class CradlepointDeviceType(NautobotModel):
         protected_namespaces = ()
 
 
-class CradlepointDevice(CradlepointDiffSync):
+class NautobotDevice(CradlepointDiffSync):
     """DiffSync model for Cradlepoint device."""
 
     # TODO: Possibly make a flag in settings to determine if we want to skip unmatched devices

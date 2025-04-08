@@ -10,21 +10,21 @@ from nautobot_ssot.integrations.cradlepoint.constants import (
     DEFAULT_LOCATION,
     DEFAULT_MANUFACTURER,
 )
-from nautobot_ssot.integrations.cradlepoint.diffsync.models.cradlepoint import (
-    CradlepointDevice,
-    CradlepointDeviceType,
-    CradlepointRole,
-    CradlepointStatus,
+from nautobot_ssot.integrations.cradlepoint.diffsync.models.nautobot import (
+    NautobotDevice,
+    NautobotDeviceType,
+    NautobotRole,
+    NautobotStatus,
 )
 
 
-class CradlepointAdapter(Adapter):
+class CradlepointSourceAdapter(Adapter):
     """Cradlepoint Adapter."""
 
-    status = CradlepointStatus
-    device_role = CradlepointRole
-    device_type = CradlepointDeviceType
-    device = CradlepointDevice
+    status = NautobotStatus
+    device_role = NautobotRole
+    device_type = NautobotDeviceType
+    device = NautobotDevice
 
     top_level = ("status", "device_role", "device_type", "device")
 

@@ -1,21 +1,21 @@
 """Nautobot Adapter for Cradlepoint Integration."""
 
 from nautobot_ssot.contrib import NautobotAdapter
-from nautobot_ssot.integrations.cradlepoint.diffsync.models.cradlepoint import (
-    CradlepointDevice,
-    CradlepointDeviceType,
-    CradlepointRole,
-    CradlepointStatus,
+from nautobot_ssot.integrations.cradlepoint.diffsync.models.nautobot import (
+    NautobotDevice,
+    NautobotDeviceType,
+    NautobotRole,
+    NautobotStatus,
 )
 
 
-class Adapter(NautobotAdapter):
+class NautobotTargetAdapter(NautobotAdapter):
     """Nautobot Adapter for vSphere SSoT."""
 
-    status = CradlepointStatus
-    device_role = CradlepointRole
-    device_type = CradlepointDeviceType
-    device = CradlepointDevice
+    status = NautobotStatus
+    device_role = NautobotRole
+    device_type = NautobotDeviceType
+    device = NautobotDevice
 
     top_level = ("status", "device_role", "device_type", "device")
 
