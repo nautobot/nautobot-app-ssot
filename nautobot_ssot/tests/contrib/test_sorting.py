@@ -77,7 +77,7 @@ class TestCaseGetSortedAttributesFromModel(TestCase):
 
     def test_one_sortable_attribute(self):
         result = get_sortable_fields_from_model(NautobotTenant)
-        self.assertTrue(True if result else False)
+        self.assertTrue(bool(result))
 
     def test_no_sortable_attributes(self):
         result = get_sortable_fields_from_model(BasicNautobotTag)
