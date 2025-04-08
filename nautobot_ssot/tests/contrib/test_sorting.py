@@ -5,8 +5,8 @@ from unittest.mock import MagicMock
 
 from django.test import TestCase
 from nautobot.extras.models import Tag
-from typing_extensions import Annotated, TypedDict, get_type_hints
 from nautobot.tenancy.models import Tenant
+from typing_extensions import Annotated, TypedDict, get_type_hints
 
 from nautobot_ssot.contrib import NautobotAdapter, NautobotModel
 from nautobot_ssot.contrib.sorting import (
@@ -15,7 +15,6 @@ from nautobot_ssot.contrib.sorting import (
     sort_relationships,
 )
 from nautobot_ssot.contrib.typeddicts import SortKey
-from nautobot_ssot.tests.contrib_base_classes import NautobotTenant as BasicNautobotTenant
 
 
 class TagDict(TypedDict):
