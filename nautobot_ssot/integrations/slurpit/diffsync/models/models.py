@@ -411,7 +411,7 @@ class NautobotIPAddressToInterfaceModel(IPAddressToInterfaceModel):
         try:
             ip_address = IPAddress.objects.get(host=ids["ip_address__host"], tenant=intf.device.tenant)
         except ObjectDoesNotExist:
-            adapter.job.logger.info(f"Unable to find IP {ids["ip_address__host"]}")
+            adapter.job.logger.info(f"Unable to find IP {ids['ip_address__host']}")
             return super().create_base(adapter=adapter, ids=ids, attrs=attrs)
 
         obj = IPAddressToInterface(
