@@ -1002,9 +1002,14 @@ class NautobotTestSetup:
         return [Tag.objects.get(name=object_tag_name) for object_tag_name in object_tag_names]
 
     def _get_software(self, software_name):
-        _, software_version = software_name.split(" - ")
-        platform = Platform.objects.get(name=_)
-        software = SoftwareLCM.objects.get(version=software_version, device_platform=platform)
+        platform_name, software_version = software_name.split(" - ")
+        platform = Platform.objects.get(name=platform_name)
+        if core_supports_softwareversion:
+            software = SoftwareVersion.objects.get_or_create(
+                version=software_version, platform=platform, status=self.status_active
+            )[0]
+        elif dlm_supports_softwarelcm:
+            software = SoftwareLCM.objects.get_or_create(version=software_version, device_platform=platform)[0]
         return software
 
     def _set_validated_software_relations(
