@@ -374,6 +374,13 @@ class NautobotTestSetup:
                 _r.custom_field_data["system_of_record"] = "Bootstrap"
                 _r.validated_save()
             _con_types.clear()
+        # if DLM 3.x is installed, remove the added roles
+        if not dlm_supports_softwarelcm():
+            for dlm_v3_role in ["DLM Primary", "DLM Tier 1", "DLM Tier 2", "DLM Tier 3", "DLM Owner", "DLM Unassigned"]:
+                try:
+                    Role.objects.get(name=dlm_v3_role).delete()
+                except Role.DoesNotExist:
+                    pass
 
     def _setup_teams(self):
         for _team in GLOBAL_YAML_SETTINGS["team"]:
