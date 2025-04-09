@@ -327,7 +327,7 @@ class TestNautobotDevice(TransactionTestCase):
         }
         self.adapter.objects_to_create = {"devices": [], "metadata": []}  # pylint: disable=no-member
 
-    @patch("nautobot_ssot.integrations.dna_center.diffsync.models.nautobot.dlm_supports_softwarelcm", True)
+    @patch("nautobot_ssot.integrations.dna_center.diffsync.models.nautobot.dlm_supports_softwarelcm", False)
     def test_create(self):
         """Test the NautobotDevice create() method creates a Device."""
         floor_lt = LocationType.objects.get_or_create(name="Floor", parent=self.site_lt)[0]
@@ -336,7 +336,7 @@ class TestNautobotDevice(TransactionTestCase):
         self.adapter.floor_map = {"NY": {"HQ": {"HQ - Floor 1": hq_floor.id}}}
 
         NautobotDevice.create(self.adapter, self.ids, self.attrs)
-        self.adapter.job.logger.info.assert_called_with("Creating Version 16.12.3 for cisco_ios.")
+        self.adapter.job.logger.info.assert_called_with("Creating Device core-router.testexample.com.")
         new_dev = self.adapter.objects_to_create["devices"][0]
         self.assertEqual(new_dev.role, Role.objects.get(name=self.attrs["role"]))
         self.assertEqual(
