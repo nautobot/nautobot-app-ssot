@@ -83,14 +83,8 @@ FIXTURES_DIR = os.path.join("./nautobot_ssot/integrations/bootstrap/fixtures")
 DEVELOP_YAML_SETTINGS = load_yaml(os.path.join(FIXTURES_DIR, "develop.yml"))
 
 TESTS_FIXTURES_DIR = os.path.join("./nautobot_ssot/tests/bootstrap/fixtures")
-if not dlm_supports_softwarelcm():
-    print("Choosing >=v3 settings for testing.")
-    GLOBAL_YAML_SETTINGS = load_yaml(os.path.join(FIXTURES_DIR, "global_settings_dlm_v3.yml"))
-    GLOBAL_JSON_SETTINGS = load_yaml(os.path.join(TESTS_FIXTURES_DIR, "global_settings_dlm_v3.json"))
-else:
-    print("Choosing <v3 settings for testing.")
-    GLOBAL_YAML_SETTINGS = load_yaml(os.path.join(FIXTURES_DIR, "global_settings.yml"))
-    GLOBAL_JSON_SETTINGS = load_json(os.path.join(TESTS_FIXTURES_DIR, "global_settings.json"))
+GLOBAL_YAML_SETTINGS = load_yaml(os.path.join(FIXTURES_DIR, "global_settings.yml"))
+GLOBAL_JSON_SETTINGS = load_json(os.path.join(TESTS_FIXTURES_DIR, "global_settings.json"))
 
 MODELS_TO_SYNC = [
     "tenant_group",
