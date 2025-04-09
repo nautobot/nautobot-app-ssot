@@ -174,8 +174,6 @@ class NautobotAdapter(DiffSync):
             # for this specific model class as well as its children without returning anything.
             self._load_objects(diffsync_model)
 
-        # sort_relationships(self)
-
     def _get_diffsync_class(self, model_name):
         """Given a model name, return the diffsync class."""
         try:

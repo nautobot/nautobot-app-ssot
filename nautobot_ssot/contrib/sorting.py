@@ -96,7 +96,7 @@ def sort_relationships(source: Adapter, target: Adapter):
             for diffsync_obj in adapter.get_all(model_name):
                 for attr_name, sort_data in attrs_to_sort.items():
                     sort_type = sort_data["sort_type"]
-                    # Sort the data ased on its sort type
+                    # Sort the data based on its sort type
                     if sort_type == SortType.DICT:
                         diffsync_obj = _sort_dict_attr(diffsync_obj, attr_name, sort_data["sort_key"])
                 adapter.update(diffsync_obj)
