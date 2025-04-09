@@ -55,13 +55,16 @@ from nautobot_ssot.integrations.bootstrap.diffsync.adapters.nautobot import (
 )
 from nautobot_ssot.integrations.bootstrap.jobs import BootstrapDataSource
 from nautobot_ssot.integrations.bootstrap.utils import get_scheduled_start_time
-from nautobot_ssot.utils import dlm_supports_softwarelcm, validate_dlm_installed
+from nautobot_ssot.utils import core_supports_softwareversion, dlm_supports_softwarelcm, validate_dlm_installed
 
 if dlm_supports_softwarelcm:  # pylint: disable=missing-parentheses-for-call-in-test, using-constant-test
     from nautobot_device_lifecycle_mgmt.models import SoftwareImageLCM, SoftwareLCM
 
 if validate_dlm_installed:  # pylint: disable=missing-parentheses-for-call-in-test, using-constant-test
     from nautobot_device_lifecycle_mgmt.models import ValidatedSoftwareLCM
+
+if core_supports_softwareversion:
+    from nautobot.dcim.models import SoftwareVersion
 
 
 def load_yaml(path):
@@ -77,11 +80,17 @@ def load_json(path):
 
 
 FIXTURES_DIR = os.path.join("./nautobot_ssot/integrations/bootstrap/fixtures")
-GLOBAL_YAML_SETTINGS = load_yaml(os.path.join(FIXTURES_DIR, "global_settings.yml"))
 DEVELOP_YAML_SETTINGS = load_yaml(os.path.join(FIXTURES_DIR, "develop.yml"))
 
 TESTS_FIXTURES_DIR = os.path.join("./nautobot_ssot/tests/bootstrap/fixtures")
-GLOBAL_JSON_SETTINGS = load_json(os.path.join(TESTS_FIXTURES_DIR, "global_settings.json"))
+if not dlm_supports_softwarelcm:
+    print("Choosing >=v3 settings for testing.")
+    GLOBAL_YAML_SETTINGS = load_yaml(os.path.join(FIXTURES_DIR, "global_settings_dlm_v3.yml"))
+    GLOBAL_JSON_SETTINGS = load_yaml(os.path.join(TESTS_FIXTURES_DIR, "global_settings_dlm_v3.json"))
+else:
+    print("Choosing <v3 settings for testing.")
+    GLOBAL_YAML_SETTINGS = load_yaml(os.path.join(FIXTURES_DIR, "global_settings.yml"))
+    GLOBAL_JSON_SETTINGS = load_json(os.path.join(TESTS_FIXTURES_DIR, "global_settings.json"))
 
 MODELS_TO_SYNC = [
     "tenant_group",
