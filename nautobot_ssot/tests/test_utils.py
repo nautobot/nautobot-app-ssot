@@ -6,7 +6,12 @@ from unittest.mock import patch
 
 from parameterized import parameterized
 
-from nautobot_ssot.utils import core_supports_softwareversion, dlm_supports_softwarelcm, parse_hostname_for_role
+from nautobot_ssot.utils import (
+    core_supports_softwareversion,
+    dlm_supports_softwarelcm,
+    parse_hostname_for_role,
+    validate_dlm_installed,
+)
 
 
 class TestSSoTUtils(unittest.TestCase):
@@ -45,7 +50,7 @@ class TestSSoTUtils(unittest.TestCase):
             self.assertEqual(result, received)
 
     def test_dlm_supports_softwarelcm_no_dlm(self):
-        """Validate the functionality of the dlm_supports_softwarelcm method when no DLM is installed."""
+        """Validate the functionality of the dlm_supports_softwarelcm method when DLM App isn't installed."""
         with patch("nautobot_ssot.utils.version") as mock_version:
             mock_version.side_effect = PackageNotFoundError
             result = dlm_supports_softwarelcm()
@@ -64,3 +69,17 @@ class TestSSoTUtils(unittest.TestCase):
             mock_version.return_value = sent
             result = core_supports_softwareversion()
             self.assertEqual(result, received)
+
+    def test_validate_dlm_installed_successfully(self):
+        """Validate the functionality of the validate_dlm_installed method works as expected."""
+        with patch("nautobot_ssot.utils.version") as mock_version:
+            mock_version.return_value = "2.0.0"
+            result = validate_dlm_installed()
+            self.assertTrue(result)
+
+    def test_validate_dlm_installed_no_dlm(self):
+        """Validate the functionality of the validate_dlm_installed method when DLM App isn't installed."""
+        with patch("nautobot_ssot.utils.version") as mock_version:
+            mock_version.side_effect = PackageNotFoundError
+            result = validate_dlm_installed()
+            self.assertFalse(result)
