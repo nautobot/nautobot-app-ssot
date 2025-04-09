@@ -64,7 +64,7 @@ if validate_dlm_installed():
     from nautobot_device_lifecycle_mgmt.models import ValidatedSoftwareLCM
 
 if core_supports_softwareversion():
-    from nautobot.dcim.models import SoftwareVersion
+    from nautobot.dcim.models import SoftwareVersion  # pylint: disable=ungrouped-imports
 
 
 def load_yaml(path):
