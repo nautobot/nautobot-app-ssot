@@ -84,10 +84,10 @@ def parse_hostname_for_role(hostname_map: List[Tuple[str, str]], device_hostname
 
 
 def dlm_supports_softwarelcm() -> bool:
-    """Validate if the DLM version installed is 3.0.0 or higher.
+    """Validate if the DLM version installed is 2.0.0 or lower.
 
     Returns:
-        bool: True if DLM version is 3.0.0 or higher, False otherwise.
+        bool: True if DLM version is 2.0.0 or lower, False otherwise.
     """
     try:
         dlm_version = version("nautobot_device_lifecycle_management")
