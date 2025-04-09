@@ -32,7 +32,145 @@
       ]
     }
   ],
-  "role": [],
+  "role": [
+    {
+      "name": "spine_switches",
+      "description": "",
+      "color": "795548",
+      "content_types": [
+        "dcim.device"
+      ]
+    },
+    {
+      "name": "leaf_switches",
+      "description": "",
+      "color": "785530",
+      "content_types": [
+        "dcim.device"
+      ]
+    },
+    {
+      "name": "Switch",
+      "description": "",
+      "color": "9e9e9e",
+      "content_types": [
+        "dcim.device"
+      ]
+    },
+    {
+      "name": "Firewall",
+      "description": "",
+      "color": "9e9e9e",
+      "content_types": [
+        "dcim.device"
+      ]
+    },
+    {
+      "name": "Data Network",
+      "description": "",
+      "color": "9e9e9e",
+      "content_types": [
+        "ipam.prefix",
+        "ipam.vlan"
+      ]
+    },
+    {
+      "name": "Administrative",
+      "description": "Unit plays an administrative role",
+      "color": "2196f3",
+      "content_types": [
+        "extras.contactassociation"
+      ]
+    },
+    {
+      "name": "Anycast",
+      "description": "",
+      "color": "ffc107",
+      "content_types": [
+        "ipam.ipaddress"
+      ]
+    },
+    {
+      "name": "Billing",
+      "description": "Unit plays a billing role",
+      "color": "4caf50",
+      "content_types": [
+        "extras.contactassociation"
+      ]
+    },
+    {
+      "name": "CARP",
+      "description": "",
+      "color": "4caf50",
+      "content_types": [
+        "ipam.ipaddress"
+      ]
+    },
+    {
+      "name": "GLBP",
+      "description": "",
+      "color": "4caf50",
+      "content_types": [
+        "ipam.ipaddress"
+      ]
+    },
+    {
+      "name": "HSRP",
+      "description": "",
+      "color": "4caf50",
+      "content_types": [
+        "ipam.ipaddress"
+      ]
+    },
+    {
+      "name": "Loopback",
+      "description": "",
+      "color": "9e9e9e",
+      "content_types": [
+        "ipam.ipaddress"
+      ]
+    },
+    {
+      "name": "On Site",
+      "description": "Unit plays an on site role",
+      "color": "111111",
+      "content_types": [
+        "extras.contactassociation"
+      ]
+    },
+    {
+      "name": "Secondary",
+      "description": "",
+      "color": "2196f3",
+      "content_types": [
+        "ipam.ipaddress"
+      ]
+    },
+    {
+      "name": "Support",
+      "description": "Unit plays a support role",
+      "color": "ffeb3b",
+      "content_types": [
+        "extras.contactassociation"
+      ]
+    },
+    {
+      "name": "VIP",
+      "description": "",
+      "color": "4caf50",
+      "content_types": [
+        "ipam.ipaddress"
+      ]
+    },
+    {
+      "name": "VRRP",
+      "description": "",
+      "color": "4caf50",
+      "content_types": [
+        "ipam.ipaddress"
+      ]
+    }
+  ],
   "manufacturer": [
     {
       "name": "Generic",
