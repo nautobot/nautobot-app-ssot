@@ -570,7 +570,7 @@ class DnaCenterAdapter(Adapter):
                             )
                             self.load_ipaddress_to_interface(
                                 host=host,
-                                prefix=prefix,
+                                mask_length=mask_length,
                                 device=dev.name if dev.name else "",
                                 port=port["portName"],
                                 primary=primary,
@@ -616,21 +616,21 @@ class DnaCenterAdapter(Adapter):
             )
             self.add(new_ip)
 
-    def load_ipaddress_to_interface(self, host: str, prefix: str, device: str, port: str, primary: bool):
+    def load_ipaddress_to_interface(self, host: str, mask_length: int, device: str, port: str, primary: bool):  # pylint: disable=too-many-arguments, too-many-positional-arguments
         """Load DNAC IPAddressOnInterface DiffSync model with specified data.
 
         Args:
             host (str): Host IP Address in mapping.
-            prefix (str): Parent prefix for host IP Address.
+            mask_length (int): Subnet mask length for host IP Address.
             device (str): Device that IP resides on.
             port (str): Interface that IP is configured on.
             primary (str): Whether the IP is primary IP for assigned device. Defaults to False.
         """
-        try:
-            self.get(self.ip_on_intf, {"host": host, "prefix": prefix, "device": device, "port": port})
-        except ObjectNotFound:
-            new_ipaddr_to_interface = self.ip_on_intf(host=host, device=device, port=port, primary=primary, uuid=None)
-            self.add(new_ipaddr_to_interface)
+        self.get_or_instantiate(
+            self.ip_on_intf,
+            ids={"host": host, "mask_length": mask_length, "device": device, "port": port},
+            attrs={"primary": primary},
+        )
 
     def load(self):
         """Load data from DNA Center into DiffSync models."""
