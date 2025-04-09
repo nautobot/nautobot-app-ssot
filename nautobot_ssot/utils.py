@@ -104,12 +104,9 @@ def core_supports_softwareversion() -> bool:
     Returns:
         bool: True if Nautobot version is 2.2.0 or higher, False otherwise.
     """
-    try:
-        nb_version = version("nautobot")
-        if re.match("2.[23456789].+", nb_version):
-            return True
-    except PackageNotFoundError:
-        pass
+    nb_version = version("nautobot")
+    if re.match("2.[23456789].+", nb_version):
+        return True
     return False
 
 
