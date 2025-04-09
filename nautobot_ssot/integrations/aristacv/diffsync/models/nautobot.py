@@ -33,21 +33,13 @@ from nautobot_ssot.integrations.aristacv.diffsync.models.base import (
 )
 from nautobot_ssot.integrations.aristacv.types import CloudVisionAppConfig
 from nautobot_ssot.integrations.aristacv.utils import nautobot
+from nautobot_ssot.utils import dlm_supports_softwarelcm
 
-logger = logging.getLogger(__name__)
-
-try:
+if dlm_supports_softwarelcm():
     from nautobot_device_lifecycle_mgmt.models import SoftwareLCM  # noqa: F401 # pylint: disable=unused-import
 
-    LIFECYCLE_MGMT = True
-except ImportError:
-    logger.info("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
-    LIFECYCLE_MGMT = False
-except RuntimeError:
-    logger.warning(
-        "nautobot-device-lifecycle-mgmt is installed but not enabled. Did you forget to add it to your settings.PLUGINS?"
-    )
-    LIFECYCLE_MGMT = False
+
+logger = logging.getLogger(__name__)
 
 MISSING_CUSTOM_FIELDS = []
 
@@ -108,7 +100,7 @@ class NautobotDevice(Device):
             new_device.tags.add(import_tag)
         try:
             new_device.validated_save()
-            if LIFECYCLE_MGMT and attrs.get("version"):
+            if dlm_supports_softwarelcm() and attrs.get("version"):
                 software_lcm = cls._add_software_lcm(platform=platform.name, version=attrs["version"])
                 cls._assign_version_to_device(adapter=adapter, device=new_device, software_lcm=software_lcm)
             return super().create(ids=ids, adapter=adapter, attrs=attrs)
@@ -128,7 +120,7 @@ class NautobotDevice(Device):
             dev.device_type = nautobot.verify_device_type_object(attrs["device_model"])
         if "serial" in attrs:
             dev.serial = attrs["serial"]
-        if "version" in attrs and LIFECYCLE_MGMT:
+        if "version" in attrs and dlm_supports_softwarelcm():
             software_lcm = self._add_software_lcm(platform=dev.platform.name, version=attrs["version"])
             self._assign_version_to_device(adapter=self.adapter, device=dev, software_lcm=software_lcm)
         try:

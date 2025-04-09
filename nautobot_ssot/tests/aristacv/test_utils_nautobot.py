@@ -96,16 +96,14 @@ class TestNautobotUtils(TestCase):
         result = nautobot.get_device_version(mock_device)
         self.assertEqual(result, "")
 
-    def test_get_device_version_dlc_exception(self):
+    @patch("nautobot_ssot.integrations.aristacv.utils.nautobot.dlm_supports_softwarelcm")
+    def test_get_device_version_dlc_exception(self, mock_dlm_supports_softwarelcm):
         """Test the get_device_version method pulling from the Device Custom Field."""
         mock_device = MagicMock()
         mock_device.custom_field_data = {"arista_eos": "1.0"}
+        mock_dlm_supports_softwarelcm.return_value = False
 
-        mock_import = MagicMock()
-        mock_import.LIFECYCLE_MGMT = False
-
-        with patch("nautobot_ssot.integrations.aristacv.utils.nautobot.LIFECYCLE_MGMT", mock_import.LIFECYCLE_MGMT):
-            result = nautobot.get_device_version(mock_device)
+        result = nautobot.get_device_version(mock_device)
         self.assertEqual(result, "1.0")
 
     @override_settings(

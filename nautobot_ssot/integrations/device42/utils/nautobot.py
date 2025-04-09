@@ -17,21 +17,12 @@ from netutils.lib_mapper import ANSIBLE_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER_RE
 from taggit.managers import TaggableManager
 
 from nautobot_ssot.integrations.device42.diffsync.models.base.dcim import Device as NautobotDevice
+from nautobot_ssot.utils import dlm_supports_softwarelcm
 
 logger = logging.getLogger(__name__)
 
-try:
+if dlm_supports_softwarelcm():
     from nautobot_device_lifecycle_mgmt.models import SoftwareLCM  # noqa: F401 # pylint: disable=unused-import
-
-    LIFECYCLE_MGMT = True
-except ImportError:
-    logger.info("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
-    LIFECYCLE_MGMT = False
-except RuntimeError:
-    logger.warning(
-        "nautobot-device-lifecycle-mgmt is installed but not enabled. Did you forget to add it to your settings.PLUGINS?"
-    )
-    LIFECYCLE_MGMT = False
 
 
 def get_random_color() -> str:
@@ -273,7 +264,7 @@ def get_software_version_from_lcm(relations: dict):
         str: String of SoftwareLCM version.
     """
     version = ""
-    if LIFECYCLE_MGMT:
+    if dlm_supports_softwarelcm():
         _softwarelcm = Relationship.objects.get(label="Software on Device")
         if _softwarelcm in relations["destination"]:
             if len(relations["destination"][_softwarelcm]) > 0:

@@ -1,12 +1,5 @@
 """Nautobot Adapter for DNA Center SSoT plugin."""
 
-try:
-    from nautobot_device_lifecycle_mgmt.models import SoftwareLCM  # noqa: F401
-
-    LIFECYCLE_MGMT = True
-except ImportError:
-    LIFECYCLE_MGMT = False
-
 from collections import defaultdict
 from typing import Optional
 
@@ -41,6 +34,7 @@ from nautobot_ssot.integrations.dna_center.diffsync.models.nautobot import (
     NautobotPort,
     NautobotPrefix,
 )
+from nautobot_ssot.utils import dlm_supports_softwarelcm
 
 try:
     from nautobot.extras.models.metadata import ObjectMetadata  # noqa: F401
@@ -196,7 +190,7 @@ class NautobotAdapter(Adapter):
             version = None
             if getattr(dev, "software_version"):
                 version = dev.software_version.version
-            if LIFECYCLE_MGMT:
+            if dlm_supports_softwarelcm():
                 dlm_version = None
                 try:
                     soft_lcm = OrmRelationship.objects.get(label="Software on Device")
