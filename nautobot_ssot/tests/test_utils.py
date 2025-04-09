@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from parameterized import parameterized
 
-from nautobot_ssot.utils import dlm_supports_softwarelcm, parse_hostname_for_role
+from nautobot_ssot.utils import core_supports_softwareversion, dlm_supports_softwarelcm, parse_hostname_for_role
 
 
 class TestSSoTUtils(unittest.TestCase):
@@ -50,3 +50,17 @@ class TestSSoTUtils(unittest.TestCase):
             mock_version.side_effect = PackageNotFoundError
             result = dlm_supports_softwarelcm()
             self.assertFalse(result)
+
+    core_nb_version = [
+        ("core_v1.6.0", "1.6.0", False),
+        ("core_v2.2.0", "2.2.0", True),
+        ("core_v2.4.6", "2.4.6", True),
+    ]
+
+    @parameterized.expand(core_nb_version, skip_on_empty=True)
+    def test_core_supports_softwareversion_successfully(self, name, sent, received):  # pylint: disable=unused-argument
+        """Validate the functionality of the core_supports_softwareversion method works as expected."""
+        with patch("nautobot_ssot.utils.version") as mock_version:
+            mock_version.return_value = sent
+            result = core_supports_softwareversion()
+            self.assertEqual(result, received)
