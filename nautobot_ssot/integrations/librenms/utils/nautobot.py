@@ -9,7 +9,7 @@ from netutils.lib_mapper import ANSIBLE_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER_RE
 
 from nautobot_ssot.utils import dlm_supports_softwarelcm
 
-if dlm_supports_softwarelcm:
+if dlm_supports_softwarelcm():
     from nautobot_device_lifecycle_mgmt.models import SoftwareLCM
 
 

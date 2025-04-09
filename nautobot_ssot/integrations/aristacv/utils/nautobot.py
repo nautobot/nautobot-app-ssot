@@ -258,7 +258,7 @@ def get_device_version(device):
         device (Device): The Device object to determine software version for.
     """
     version = ""
-    if dlm_supports_softwarelcm:  # pylint: disable=missing-parentheses-for-call-in-test, using-constant-test
+    if dlm_supports_softwarelcm():
         software_relation = Relationship.objects.get(label="Software on Device")
         relations = device.get_relationships()
         try:

@@ -35,7 +35,7 @@ from nautobot_ssot.integrations.aristacv.types import CloudVisionAppConfig
 from nautobot_ssot.integrations.aristacv.utils import nautobot
 from nautobot_ssot.utils import dlm_supports_softwarelcm
 
-if dlm_supports_softwarelcm:
+if dlm_supports_softwarelcm():
     from nautobot_device_lifecycle_mgmt.models import SoftwareLCM  # noqa: F401 # pylint: disable=unused-import
 
 
@@ -100,7 +100,7 @@ class NautobotDevice(Device):
             new_device.tags.add(import_tag)
         try:
             new_device.validated_save()
-            if dlm_supports_softwarelcm and attrs.get("version"):
+            if dlm_supports_softwarelcm() and attrs.get("version"):
                 software_lcm = cls._add_software_lcm(platform=platform.name, version=attrs["version"])
                 cls._assign_version_to_device(adapter=adapter, device=new_device, software_lcm=software_lcm)
             return super().create(ids=ids, adapter=adapter, attrs=attrs)
@@ -120,7 +120,7 @@ class NautobotDevice(Device):
             dev.device_type = nautobot.verify_device_type_object(attrs["device_model"])
         if "serial" in attrs:
             dev.serial = attrs["serial"]
-        if "version" in attrs and dlm_supports_softwarelcm:
+        if "version" in attrs and dlm_supports_softwarelcm():
             software_lcm = self._add_software_lcm(platform=dev.platform.name, version=attrs["version"])
             self._assign_version_to_device(adapter=self.adapter, device=dev, software_lcm=software_lcm)
         try:

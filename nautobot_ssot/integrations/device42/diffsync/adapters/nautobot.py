@@ -291,7 +291,7 @@ class NautobotAdapter(Adapter):
                 _platform = dev.platform.name
             else:
                 _platform = ""
-            if dlm_supports_softwarelcm:
+            if dlm_supports_softwarelcm():
                 _version = nautobot.get_software_version_from_lcm(relations=dev.get_relationships())
             else:
                 _version = nautobot.get_version_from_custom_field(fields=dev.get_custom_fields())
@@ -661,7 +661,7 @@ class NautobotAdapter(Adapter):
         self.role_map = {dr.name: dr.id for dr in Role.objects.only("id", "name")}
         self.namespace_map = {ns.name: ns.id for ns in Namespace.objects.only("id", "name")}
         self.relationship_map = {r.label: r.id for r in Relationship.objects.only("id", "label")}
-        if dlm_supports_softwarelcm:
+        if dlm_supports_softwarelcm():
             self.softwarelcm_map = nautobot.get_dlc_version_map()
         else:
             self.softwarelcm_map = nautobot.get_cf_version_map()

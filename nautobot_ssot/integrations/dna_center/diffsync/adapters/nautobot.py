@@ -190,7 +190,7 @@ class NautobotAdapter(Adapter):
             version = None
             if getattr(dev, "software_version"):
                 version = dev.software_version.version
-            if dlm_supports_softwarelcm:
+            if dlm_supports_softwarelcm():
                 dlm_version = None
                 try:
                     soft_lcm = OrmRelationship.objects.get(label="Software on Device")

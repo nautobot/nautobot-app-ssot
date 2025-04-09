@@ -85,7 +85,7 @@ from nautobot_ssot.integrations.bootstrap.utils.nautobot import (
 )
 from nautobot_ssot.utils import core_supports_softwareversion, dlm_supports_softwarelcm, validate_dlm_installed
 
-if dlm_supports_softwarelcm:
+if dlm_supports_softwarelcm():
     from nautobot_device_lifecycle_mgmt.models import (
         SoftwareImageLCM as ORMSoftwareImage,
     )
@@ -98,7 +98,7 @@ if dlm_supports_softwarelcm:
         NautobotSoftwareImage,
     )
 
-if validate_dlm_installed:
+if validate_dlm_installed():
     from nautobot_device_lifecycle_mgmt.models import (
         ValidatedSoftwareLCM as ORMValidatedSoftware,
     )
@@ -139,10 +139,10 @@ class NautobotAdapter(Adapter):
     tag = NautobotTag
     graph_ql_query = NautobotGraphQLQuery
 
-    if dlm_supports_softwarelcm:
+    if dlm_supports_softwarelcm():
         software = NautobotSoftware
         software_image = NautobotSoftwareImage
-    if core_supports_softwareversion:
+    if core_supports_softwareversion():
         validated_software = NautobotValidatedSoftware
 
     top_level = [
@@ -176,7 +176,7 @@ class NautobotAdapter(Adapter):
         "custom_field",
     ]
 
-    if dlm_supports_softwarelcm:
+    if dlm_supports_softwarelcm():
         top_level.append("software")
         top_level.append("software_image")
         top_level.append("validated_software")
@@ -1406,11 +1406,11 @@ class NautobotAdapter(Adapter):
             self.load_scheduled_job()
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["custom_field"]:
             self.load_custom_field()
-        if dlm_supports_softwarelcm:
+        if dlm_supports_softwarelcm():
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software"]:
                 self.load_software()
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software_image"]:
                 self.load_software_image()
-        if core_supports_softwareversion:
+        if core_supports_softwareversion():
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["validated_software"]:
                 self.load_validated_software()

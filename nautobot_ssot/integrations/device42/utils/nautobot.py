@@ -21,7 +21,7 @@ from nautobot_ssot.utils import dlm_supports_softwarelcm
 
 logger = logging.getLogger(__name__)
 
-if dlm_supports_softwarelcm:  # pylint: disable=missing-parentheses-for-call-in-test, using-constant-test
+if dlm_supports_softwarelcm():
     from nautobot_device_lifecycle_mgmt.models import SoftwareLCM  # noqa: F401 # pylint: disable=unused-import
 
 
@@ -264,7 +264,7 @@ def get_software_version_from_lcm(relations: dict):
         str: String of SoftwareLCM version.
     """
     version = ""
-    if dlm_supports_softwarelcm:  # pylint: disable=missing-parentheses-for-call-in-test, using-constant-test
+    if dlm_supports_softwarelcm():
         _softwarelcm = Relationship.objects.get(label="Software on Device")
         if _softwarelcm in relations["destination"]:
             if len(relations["destination"][_softwarelcm]) > 0:

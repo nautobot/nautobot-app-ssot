@@ -86,14 +86,14 @@ from nautobot_ssot.integrations.bootstrap.utils import (
 )
 from nautobot_ssot.utils import core_supports_softwareversion, dlm_supports_softwarelcm, validate_dlm_installed
 
-if core_supports_softwareversion:
+if core_supports_softwareversion():
     from nautobot.dcim.models import (
         SoftwareVersion as ORMSoftwareVersion,
     )
 
     from nautobot_ssot.integrations.bootstrap.diffsync.models.base import Software, SoftwareImage
 
-if dlm_supports_softwarelcm:
+if dlm_supports_softwarelcm():
     from nautobot_device_lifecycle_mgmt.models import (
         SoftwareImageLCM as ORMSoftwareImage,
     )
@@ -103,7 +103,7 @@ if dlm_supports_softwarelcm:
 
     from nautobot_ssot.integrations.bootstrap.diffsync.models.base import Software, SoftwareImage
 
-if validate_dlm_installed:
+if validate_dlm_installed():
     from nautobot_device_lifecycle_mgmt.models import (
         ValidatedSoftwareLCM as ORMValidatedSoftware,
     )
@@ -2410,7 +2410,7 @@ class NautobotScheduledJob(ScheduledJob):
     from django.utils.dateparse import parse_datetime
 
 
-if dlm_supports_softwarelcm:
+if dlm_supports_softwarelcm() or core_supports_softwareversion():
 
     class NautobotSoftware(Software):
         """Nautobot implementation of Bootstrap Software model."""
@@ -2422,7 +2422,7 @@ if dlm_supports_softwarelcm:
             for tag in attrs["tags"]:
                 _tags.append(ORMTag.objects.get(name=tag))
             _platform = ORMPlatform.objects.get(name=ids["platform"])
-            if dlm_supports_softwarelcm:
+            if dlm_supports_softwarelcm():
                 _new_software = ORMSoftware(
                     version=ids["version"],
                     alias=attrs["alias"],
@@ -2432,7 +2432,7 @@ if dlm_supports_softwarelcm:
                     pre_release=attrs["pre_release"],
                     documentation_url=attrs["documentation_url"],
                 )
-            elif core_supports_softwareversion:
+            elif core_supports_softwareversion():
                 _new_software = ORMSoftwareVersion(
                     version=ids["version"],
                     alias=attrs["alias"],
@@ -2461,9 +2461,9 @@ if dlm_supports_softwarelcm:
         def update(self, attrs):
             """Update Software in Nautobot from NautobotSoftware object."""
             _platform = ORMPlatform.objects.get(name=self.platform)
-            if dlm_supports_softwarelcm:
+            if dlm_supports_softwarelcm():
                 _update_software = ORMSoftware.objects.get(version=self.version, device_platform=_platform)
-            if core_supports_softwareversion:
+            if core_supports_softwareversion():
                 _update_software = ORMSoftwareVersion.objects.get(version=self.version, platform=_platform)
             self.adapter.job.logger.info(f"Updating Software: {self.platform} - {self.version}.")
             if "alias" in attrs:
@@ -2507,7 +2507,7 @@ if dlm_supports_softwarelcm:
                 )
 
 
-if dlm_supports_softwarelcm:
+if dlm_supports_softwarelcm():
 
     class NautobotSoftwareImage(SoftwareImage):
         """Nautobot implementation of Bootstrap SoftwareImage model."""
@@ -2515,7 +2515,7 @@ if dlm_supports_softwarelcm:
         @classmethod
         def create(cls, adapter, ids, attrs):
             """Create SoftwareImage in Nautobot from NautobotSoftwareImage object."""
-            if not dlm_supports_softwarelcm:
+            if not dlm_supports_softwarelcm():
                 adapter.job.logger.error(
                     f"SoftwareImageLCM model not found so skipping creation of {attrs['software_version']} for {attrs['platform']}."
                 )
@@ -2546,7 +2546,7 @@ if dlm_supports_softwarelcm:
 
         def update(self, attrs):
             """Update SoftwareImage in Nautobot from NautobotSoftwareImage object."""
-            if not dlm_supports_softwarelcm:
+            if not dlm_supports_softwarelcm():
                 self.adapter.job.logger.error(
                     f"SoftwareImageLCM model not found so skipping update of {self.software_version} for {self.platform}."
                 )
@@ -2595,7 +2595,7 @@ if dlm_supports_softwarelcm:
                 self.adapter.job.logger.warning(f"Unable to find SoftwareImage {self.software} for deletion. {err}")
 
 
-if validate_dlm_installed:
+if validate_dlm_installed():
 
     class NautobotValidatedSoftware(ValidatedSoftware):
         """Nautobot implementation of Bootstrap ValidatedSoftware model."""
@@ -2609,9 +2609,9 @@ if validate_dlm_installed:
             _inventory_items = []  # noqa: F841
             _object_tags = []  # noqa: F841
             _platform = ORMPlatform.objects.get(name=attrs["platform"])
-            if dlm_supports_softwarelcm:
+            if dlm_supports_softwarelcm():
                 _software = ORMSoftware.objects.get(version=attrs["software_version"], device_platform=_platform)
-            if core_supports_softwareversion:
+            if core_supports_softwareversion():
                 _software = ORMSoftwareVersion.objects.get(version=attrs["software_version"], platform=_platform)
             _new_validated_software = ORMValidatedSoftware(
                 software=_software,
@@ -2667,9 +2667,9 @@ if validate_dlm_installed:
             _inventory_items = []  # noqa: F841
             _object_tags = []  # noqa: F841
             _platform = ORMPlatform.objects.get(name=self.platform)
-            if dlm_supports_softwarelcm:
+            if dlm_supports_softwarelcm():
                 _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
-            if core_supports_softwareversion:
+            if core_supports_softwareversion():
                 _software = ORMSoftwareVersion.objects.get(version=self.software_version, platform=_platform)
             self.adapter.job.logger.info(f"Updating Validated Software - {self} with attrs {attrs}.")
             _update_validated_software = ORMValidatedSoftware.objects.get(
