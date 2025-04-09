@@ -307,7 +307,7 @@ class NautobotDevice(base.Device):
         if attrs.get("tenant"):
             new_device.tenant_id = adapter.tenant_map[attrs["tenant"]]
         if attrs.get("version"):
-            if dlm_supports_softwarelcm:
+            if dlm_supports_softwarelcm and not core_supports_softwareversion:
                 lcm_obj = add_software_lcm(adapter=adapter, platform=platform.network_driver, version=attrs["version"])
                 assign_version_to_device(adapter=adapter, device=new_device, software_lcm=lcm_obj)
             if core_supports_softwareversion:
