@@ -120,7 +120,7 @@ def validate_dlm_installed() -> bool:
         bool: True if DLM App is installed, False otherwise.
     """
     try:
-        version("nautobot_device_lifecycle_management")
+        version("nautobot_device_lifecycle_mgmt")
         return True
     except PackageNotFoundError:
         pass
