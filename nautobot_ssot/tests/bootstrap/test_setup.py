@@ -196,7 +196,8 @@ class NautobotTestSetup:
         self._setup_vlans()
         self._setup_vrfs()
         self._setup_prefixes()
-        self._setup_software_and_images()
+        if dlm_supports_softwarelcm():
+            self._setup_software_and_images()
         self._setup_validated_software()
         self._setup_scheduled_job()
 
