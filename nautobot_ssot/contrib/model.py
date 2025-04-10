@@ -411,7 +411,7 @@ class NautobotModel(DiffSyncModel):
             adapter.metadata_type.content_types.add(ContentType.objects.get_for_model(obj._meta.model))
 
         # Get the scope_fields from the DiffSync Model
-        obj_metadata_scope_fields = list({parameter.split("__", maxsplit=1)[0] for parameter in parameters.keys()})
+        obj_metadata_scope_fields = [parameter.split("__", maxsplit=1)[0] for parameter in parameters.keys()]
 
         # Create the Object Metadata for the obj
         obj_metadata = ObjectMetadata(
