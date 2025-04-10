@@ -13,6 +13,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
+from nautobot.extras.models.metadata import MetadataType
 from typing_extensions import get_type_hints
 
 from nautobot_ssot.contrib.types import (
@@ -50,6 +51,7 @@ class NautobotAdapter(Adapter):
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
+        self.metadata_type = None
         self.invalidate_cache()
 
     def invalidate_cache(self, zero_out_hits=True):
@@ -388,3 +390,25 @@ class NautobotAdapter(Adapter):
             if lookups[-1] in ["app_label", "model"]:
                 return getattr(ContentType.objects.get_for_model(related_object), lookups[-1])
         return None
+
+    def get_or_create_metadatatype(self):
+        """Retrieve or create a MetadataType object to track the last sync time of this SSoT job."""
+        # MetadataType name will be extracted from the Data Source name.
+        print(dir(self.job.__class__))
+        metadata_type__name = self.job.__class__.Meta.data_source
+
+        # Create a MetadataType of type datetime
+        metadata_type, created = MetadataType.objects.get_or_create(
+            name=f"Last sync from {metadata_type__name}",
+            defaults={
+                "data_type": "datetime",
+                "description": f"Timestamp of the last sync from the Data source {metadata_type__name}",
+            },
+        )
+
+        # Use prefetch_related for content_types since they'll be used during model CRUD operations.
+        if not created:
+            metadata_type = MetadataType.objects.prefetch_related("content_types").get(pk=metadata_type.pk)
+
+        # Define the metadata type on the adapter so that can be used on the models crud operations
+        self.metadata_type = metadata_type
