@@ -136,6 +136,8 @@ PLUGINS_CONFIG = {
     #     "session_cache_timeout": 3600,
     # },
     "nautobot_ssot": {
+        "enable_metadata_for": ['ExampleDataSource'],
+        "hide_example_jobs": False,
         # Tag which will be created and applied to all synchronized objects.
         "aci_tag": os.getenv("NAUTOBOT_SSOT_ACI_TAG"),
         "aci_tag_color": os.getenv("NAUTOBOT_SSOT_ACI_TAG_COLOR"),
