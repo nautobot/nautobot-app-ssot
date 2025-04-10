@@ -405,9 +405,8 @@ class NautobotAdapter(DiffSync):
             },
         )
 
-        # Use select_related for content_types since they'll be used during model CRUD operations.
+        # Use prefetch_related for content_types since they'll be used during model CRUD operations.
         if not created:
-            # Refetch with select_related if needed
             metadata_type = MetadataType.objects.prefetch_related("content_types").get(pk=metadata_type.pk)
 
         # Define the metadata type on the adapter so that can be used on the models crud operations
