@@ -140,11 +140,9 @@ The purpose of this setting is to provide flexibility, enabling you to:
 The setting is represented as a dictionary, where the keys are Infoblox network views, and the values are the corresponding Nautobot namespaces.
 
 ```json
-[
-    {
-        "default": "Global"
-    }
-]
+{
+    "default": "Global"
+}
 ```
 
 ### Configuring Infoblox DNS View Mapping
