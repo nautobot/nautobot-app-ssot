@@ -559,10 +559,7 @@ class DnaCenterAdapter(Adapter):
                             host = addr["address"]["ipAddress"]["address"]
                             mask_length = netmask_to_cidr(addr["address"]["ipMask"]["address"])
                             prefix = ipaddress_interface(f"{host}/{mask_length}", "network.with_prefixlen")
-                            if addr["address"]["ipAddress"]["address"] == mgmt_addr:
-                                primary = True
-                            else:
-                                primary = False
+                            primary = bool(addr["address"]["ipAddress"]["address"] == mgmt_addr)
                             self.load_ip_address(
                                 host=host,
                                 mask_length=mask_length,
