@@ -1,0 +1,91 @@
+{
+   "value": [
+      {
+         "mac_address": "00:50:56:b5:e5:55",
+         "ip": {
+            "ip_addresses": [
+               {
+                  "ip_address": "192.168.100.220",
+                  "prefix_length": 24,
+                  "state": "PREFERRED"
+               },
+               {
+                  "ip_address": "fe80::250:56ff:feb5:ff89",
+                  "prefix_length": 64,
+                  "state": "UNKNOWN"
+               }
+            ]
+         },
+         "nic": "4000"
+      },
+      {
+         "mac_address": "02:42:58:d1:4e:ae",
+         "ip": {
+            "ip_addresses": [
+               {
+                  "ip_address": "192.168.240.1",
+                  "prefix_length": 20,
+                  "state": "PREFERRED"
+               }
+            ]
+         }
+      },
+      {
+         "mac_address": "02:42:77:cc:32:35",
+         "ip": {
+            "ip_addresses": [
+               {
+                  "ip_address": "172.19.0.1",
+                  "prefix_length": 16,
+                  "state": "PREFERRED"
+               }
+            ]
+         }
+      },
+      {
+         "mac_address": "00:50:56:b5:e5:55",
+         "ip": {
+            "ip_addresses": [
+               {
+                  "ip_address": "172.18.0.1",
+                  "prefix_length": 16,
+                  "state": "PREFERRED"
+               },
+               {
+                  "ip_address": "fe80::42:c3ff:fe97:950b",
+                  "prefix_length": 64,
+                  "state": "UNKNOWN"
+               }
+            ]
+         }
+      },
+      {
+         "mac_address": "00:50:56:b5:10:ae",
+         "ip": {
+            "ip_addresses": [
+               {
+                  "ip_address": "192.168.2.172",
+                  "prefix_length": 23,
+                  "state": "PREFERRED"
+               },
+               {
+                  "ip_address": "fd83:7d62:762:b7b3:a423:7c4f:573f:8bee",
+                  "prefix_length": 64,
+                  "state": "UNKNOWN"
+               },
+               {
+                  "ip_address": "fd83:7d62:762:b7b3:cfbb:fb20:181e:36dd",
+                  "prefix_length": 64,
+                  "state": "UNKNOWN"
+               },
+               {
+                  "ip_address": "fe80::e281:26a9:a789:b5b3",
+                  "prefix_length": 64,
+                  "state": "UNKNOWN"
+               }
+            ]
+         },
+         "nic": "4001"
+      }
+   ]
+}
