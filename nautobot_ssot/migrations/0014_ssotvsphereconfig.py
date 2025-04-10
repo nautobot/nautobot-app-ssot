@@ -79,9 +79,7 @@ class Migration(migrations.Migration):
                 ("sync_tagged_only", models.BooleanField(default=True)),
                 (
                     "tags",
-                    nautobot.core.models.fields.TagsField(
-                        through="extras.TaggedItem", to="extras.Tag"
-                    ),
+                    nautobot.core.models.fields.TagsField(through="extras.TaggedItem", to="extras.Tag"),
                 ),
                 (
                     "vsphere_instance",
