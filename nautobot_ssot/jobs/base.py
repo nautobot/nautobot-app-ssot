@@ -10,6 +10,7 @@ import structlog
 # pylint-django doesn't understand classproperty, and complains unnecessarily. We disable this specific warning:
 # pylint: disable=no-self-argument
 from diffsync.enum import DiffSyncFlags
+from django.conf import settings
 from django.db.utils import OperationalError
 from django.templatetags.static import static
 from django.utils import timezone
@@ -17,6 +18,7 @@ from django.utils.functional import classproperty
 from nautobot.extras.jobs import BooleanVar, DryRunVar, Job
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices
+from nautobot_ssot.contrib.adapter import NautobotAdapter
 from nautobot_ssot.models import BaseModel, Sync, SyncLogEntry
 
 DataMapping = namedtuple("DataMapping", ["source_name", "source_url", "target_name", "target_url"])
@@ -179,6 +181,13 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         )
         if memory_profiling:
             record_memory_trace("target_load")
+
+        # Check if the adapter is an instance of NautobotAdapter to determine if it's a contrib implementation,
+        # in which case we should create the required MetadataType object.
+        if self.__class__.__name__ in settings.PLUGINS_CONFIG.get("nautobot_ssot", {}).get(
+            "enable_metadata_for", []
+        ) and isinstance(self.target_adapter, NautobotAdapter):
+            self.target_adapter.get_or_create_metadatatype()
 
         # Sorting relationships must be done before calculating diffs.
         # NOTE: Disabled for the time being due to ongoing issues.

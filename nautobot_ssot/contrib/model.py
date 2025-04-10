@@ -4,6 +4,7 @@
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
 from collections import defaultdict
+from datetime import datetime
 from typing import ClassVar, Optional
 from uuid import UUID
 
@@ -14,6 +15,7 @@ from django.core.exceptions import MultipleObjectsReturned, ValidationError
 from django.db.models import Model, ProtectedError
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
+from nautobot.extras.models.metadata import ObjectMetadata
 from typing_extensions import get_type_hints
 
 from nautobot_ssot.contrib.types import (
@@ -105,6 +107,12 @@ class NautobotModel(DiffSyncModel):
             cls._update_obj_with_parameters(obj, parameters, adapter)
         except ObjectCrudException as error:
             raise ObjectNotCreated(error) from error
+
+        if adapter.metadata_type:
+            try:
+                cls._update_obj_metadata(obj, parameters, adapter)
+            except ObjectCrudException as error:
+                raise ObjectNotCreated(error) from error
 
         return super().create(adapter, ids, attrs)
 
@@ -244,6 +252,10 @@ class NautobotModel(DiffSyncModel):
 
         # Set many-to-many fields after saving.
         cls._set_many_to_many_fields(relationship_fields["many_to_many_fields"], obj)
+
+    @classmethod
+    def _update_obj_with_metadata(cls, obj, parameters, adapter):
+        pass
 
     @classmethod
     def _set_custom_relationship_to_many_fields(cls, custom_relationship_many_to_many_fields, obj, adapter):
@@ -388,3 +400,22 @@ class NautobotModel(DiffSyncModel):
                     f"Found multiple instances for {field_name} wit: {related_model_dict}"
                 ) from error
             setattr(obj, field_name, related_object)
+
+    @classmethod
+    def _update_obj_metadata(cls, obj, parameters, adapter):
+        """Update a given Nautobot ORM object with the required object metadata."""
+        # Check if the objects Content Type is included in Metadata Type Content Types
+        obj_content_type = (obj._meta.app_label, obj._meta.model_name)
+        metadata_type_content_types = adapter.metadata_type.content_types.values_list("app_label", "model")
+        if obj_content_type not in metadata_type_content_types:
+            adapter.metadata_type.content_types.add(ContentType.objects.get_for_model(obj._meta.model))
+
+        # Get the scope_fields from the DiffSync Model
+        obj_metadata_scope_fields = [parameter.split("__", maxsplit=1)[0] for parameter in parameters.keys()]
+
+        # Create the Object Metadata for the obj
+        obj_metadata = ObjectMetadata(
+            metadata_type=adapter.metadata_type, assigned_object=obj, scoped_fields=obj_metadata_scope_fields
+        )
+        obj_metadata.value = datetime.now()
+        obj_metadata.validated_save()
