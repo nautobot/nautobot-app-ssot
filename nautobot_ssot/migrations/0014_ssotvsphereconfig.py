@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
     dependencies = [
         (
             "nautobot_ssot",
-            "0012_ssotinfobloxconfig_infoblox_network_view_to_namespace_map",
+            "0013_update_solarwinds_customfields",
         ),
     ]
 
@@ -79,7 +79,9 @@ class Migration(migrations.Migration):
                 ("sync_tagged_only", models.BooleanField(default=True)),
                 (
                     "tags",
-                    nautobot.core.models.fields.TagsField(through="extras.TaggedItem", to="extras.Tag"),
+                    nautobot.core.models.fields.TagsField(
+                        through="extras.TaggedItem", to="extras.Tag"
+                    ),
                 ),
                 (
                     "vsphere_instance",
