@@ -432,30 +432,30 @@ class NautobotRemote(Adapter):
     locationtype = LocationTypeModel
     location = LocationRemoteModel
     tenant = TenantRemoteModel
-    # namespace = NamespaceModel
-    # prefix = PrefixRemoteModel
-    # ipaddress = IPAddressModel
-    # manufacturer = ManufacturerModel
-    # device_type = DeviceTypeModel
-    # platform = PlatformModel
-    # role = RoleModel
-    # status = StatusModel
-    # device = DeviceModel
-    # interface = InterfaceModel
+    namespace = NamespaceModel
+    prefix = PrefixRemoteModel
+    ipaddress = IPAddressModel
+    manufacturer = ManufacturerModel
+    device_type = DeviceTypeModel
+    platform = PlatformModel
+    role = RoleModel
+    status = StatusModel
+    device = DeviceModel
+    interface = InterfaceModel
 
     # Top-level class labels, i.e. those classes that are handled directly rather than as children of other models
     top_level = [
         "tenant",
-        # "status",
+        "status",
         "locationtype",
         "location",
-        # "manufacturer",
-        # "platform",
-        # "role",
-        # "device",
-        # "namespace",
-        # "prefix",
-        # "ipaddress",
+        "manufacturer",
+        "platform",
+        "role",
+        "device",
+        "namespace",
+        "prefix",
+        "ipaddress",
     ]
 
     def __init__(self, *args, url=None, token=None, job=None, **kwargs):
@@ -489,19 +489,19 @@ class NautobotRemote(Adapter):
 
     def load(self):
         """Load data from the remote Nautobot instance."""
-        # self.load_statuses()
+        self.load_statuses()
         self.load_location_types()
         self.load_locations()
-        # self.load_roles()
+        self.load_roles()
         self.load_tenants()
-        # self.load_namespaces()
-        # self.load_prefixes()
-        # self.load_ipaddresses()
-        # self.load_manufacturers()
-        # self.load_device_types()
-        # self.load_platforms()
-        # self.load_devices()
-        # self.load_interfaces()
+        self.load_namespaces()
+        self.load_prefixes()
+        self.load_ipaddresses()
+        self.load_manufacturers()
+        self.load_device_types()
+        self.load_platforms()
+        self.load_devices()
+        self.load_interfaces()
 
     def load_location_types(self):
         """Load LocationType data from the remote Nautobot instance."""
@@ -764,30 +764,30 @@ class NautobotLocal(NautobotAdapter):
     locationtype = LocationTypeModel
     location = LocationModel
     tenant = TenantModel
-    # namespace = NamespaceModel
-    # prefix = PrefixModel
-    # ipaddress = IPAddressModel
-    # manufacturer = ManufacturerModel
-    # device_type = DeviceTypeModel
-    # platform = PlatformModel
-    # role = RoleModel
-    # status = StatusModel
-    # device = DeviceModel
-    # interface = InterfaceModel
+    namespace = NamespaceModel
+    prefix = PrefixModel
+    ipaddress = IPAddressModel
+    manufacturer = ManufacturerModel
+    device_type = DeviceTypeModel
+    platform = PlatformModel
+    role = RoleModel
+    status = StatusModel
+    device = DeviceModel
+    interface = InterfaceModel
 
     # Top-level class labels, i.e. those classes that are handled directly rather than as children of other models
     top_level = [
         "tenant",
-        # "status",
+        "status",
         "locationtype",
         "location",
-        # "manufacturer",
-        # "platform",
-        # "role",
-        # "device",
-        # "namespace",
-        # "prefix",
-        # "ipaddress",
+        "manufacturer",
+        "platform",
+        "role",
+        "device",
+        "namespace",
+        "prefix",
+        "ipaddress",
     ]
 
 
