@@ -12,7 +12,8 @@ from diffsync.exceptions import ObjectCrudException
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 from nautobot.extras.choices import RelationshipTypeChoices
-from nautobot.extras.models import MetadataType, Relationship, RelationshipAssociation
+from nautobot.extras.models import Relationship, RelationshipAssociation
+from nautobot.extras.models.metadata import MetadataType
 from typing_extensions import get_type_hints
 
 from nautobot_ssot.contrib.types import (
