@@ -8,6 +8,15 @@ from enum import Enum
 from typing import Optional
 
 
+class SortType(Enum):
+    """Enum for identifying sortable field types when sorting SSoT fields.
+
+    Enum used for future extension if required.
+    """
+
+    DICT = 1
+
+
 class RelationshipSideEnum(Enum):
     """This details which side of a custom relationship the model it's defined on is on."""
 

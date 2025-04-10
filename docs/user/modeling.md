@@ -167,6 +167,54 @@ Through us defining the model, Nautobot will now be able to dynamically load IP 
 !!! note
     Although `Interface.ip_addresses` is a generic relation, there is only one content type (i.e. `ipam.ipaddress`) that may be related through this relation, therefore we don't have to specific this in any way.
 
+## Sorting Relationships
+
+One-to-many (from the one side) and many-to-many relationships are typically stored as lists in the DiffSync object. A problem with false updates during the diff arises when the data source and target load these lists in a different order from each other. 
+
+### The DiffSync Model
+
+The first step is to add the appropriate metadata to the attributes in the DiffSync Model using annotations. The `FieldType` enum is used to identify what fields in the model are to be sorted.
+
+```python
+from typing import Annotated, List
+
+from nautobot.dcim.models import Location
+from nautobot_ssot.contrib import NautobotModel
+from nautobot_ssot.contrib.types import FieldType
+
+
+class TagDict(TypedDict):
+    name: str
+    color: str
+
+
+class LocationModel(NautobotModel):
+    _model = Location
+    _modelname = "location"
+    _identifiers = ("name",)
+    _attributes("tags",)
+
+    name: str
+    tags: Annotated[List[TagDict], FieldType.SORTED_FIELD]
+```
+
+A model attribute will not be sorted without the `FieldType.SORTED_FIELD` in the annotation. For lists of simple objects (such as strings, integers, etc.), no additional configuration is required. The sorting process is done automatically.
+
+### Sorting Dictionaries
+
+Sorting lists of more complex objects requires an additional configuration to properly sort. In the case of dictionaries, you must specify which key the list of dictionaries should be sorted by.
+
+The existing DiffSync process uses lists of `TypedDict` objects to represent some one-to-many and many-to-many relationships. Looking at the example from above, we can see that the `TagDict` class doesn't have any specification as to which key entry the list of `TagDict` objects should be sorted by. We'll update the class by adding the `FieldType.SORT_BY` marker as follows:
+
+```python
+...
+
+class TagDict(TypedDict):
+    name: Annotated[str, FieldType.SORT_BY]
+    color: str
+
+...
+```
 
 ## Filtering Objects Loaded From Nautobot
 
