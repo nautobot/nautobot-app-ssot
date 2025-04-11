@@ -2366,7 +2366,7 @@ class NautobotScheduledJob(ScheduledJob):
 
         if attrs.get("user"):
             try:
-                job.user = ORMUser.objects.get(name=attrs["user"])
+                job.user = ORMUser.objects.get(username=attrs["user"])
             except ORMUser.DoesNotExist:
                 self.adapter.job.logger.error(f"User ({attrs['user']}) does not exist, unable to update ({self.name})")
 
