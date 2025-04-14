@@ -528,3 +528,21 @@ class ProviderModelCustomRelationship(NautobotModel):
     tenants: Annotated[
         List[TenantDict], CustomRelationshipAnnotation(name="Test Relationship", side=RelationshipSideEnum.SOURCE)
     ] = []
+
+
+class CustomRelationshipTypedDict(TypedDict):
+    """Typed dictionary for testing custom many to many relationships."""
+
+    name: str
+
+
+class TenantModelCustomManyTomanyRelationship(NautobotModel):
+    """Model for testing sorting custom relationships."""
+
+    _model = tenancy_models.Tenant
+    _modelname = "tenant"
+    _identifiers = ("name",)
+    _attributes = ("tenants",)
+
+    name: str
+    tenants: List[TenantDict] = []
