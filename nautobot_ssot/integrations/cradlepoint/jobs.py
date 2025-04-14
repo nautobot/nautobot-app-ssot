@@ -8,13 +8,12 @@
 from diffsync.enum import DiffSyncFlags
 from django.templatetags.static import static
 from django.urls import reverse
-from nautobot.apps.jobs import BooleanVar, IntegerVar, ObjectVar
+from nautobot.apps.jobs import BooleanVar, ObjectVar
 from nautobot.extras.choices import (
     SecretsGroupAccessTypeChoices,
     SecretsGroupSecretTypeChoices,
 )
 
-from nautobot_ssot.integrations.cradlepoint.constants import DEFAULT_API_DEVICE_LIMIT
 from nautobot_ssot.integrations.cradlepoint.diffsync.adapters.adapter_cradlepoint import (
     CradlepointAdapter,
 )
@@ -72,12 +71,12 @@ class CradlepointDataSource(DataSource):  # pylint: disable=too-many-instance-at
         required=True,
         query_params={"job_enabled": True},
     )
-    starting_offset = IntegerVar(
-        default=0,
-        description=f"Starting offset for pagination in retrieval of devices. Current pagination is set at {DEFAULT_API_DEVICE_LIMIT}.",
-        label="Starting Offset",
-        required=True,
-    )
+    # starting_offset = IntegerVar(
+    #     default=0,
+    #     description=f"Starting offset for pagination in retrieval of devices. Current pagination is set at {DEFAULT_API_DEVICE_LIMIT}.",
+    #     label="Starting Offset",
+    #     required=True,
+    # )
 
     def __init__(self):
         """Initialize CradlepointDataSource."""

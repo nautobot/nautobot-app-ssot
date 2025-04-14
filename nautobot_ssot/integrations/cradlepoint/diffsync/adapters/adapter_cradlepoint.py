@@ -28,9 +28,7 @@ class CradlepointAdapter(Adapter):
 
     top_level = ("status", "device_role", "device_type", "device")
 
-    def __init__(
-        self, *args, job=None, sync=None, client, config, starting_offset, **kwargs
-    ):
+    def __init__(self, *args, job=None, sync=None, client, config, starting_offset, **kwargs):
         """Initialize Cradlepoint Adapter."""
         super().__init__(*args, **kwargs)
         self.job = job
@@ -137,9 +135,7 @@ class CradlepointAdapter(Adapter):
             "device_accuracy": record.get("accuracy"),
         }
         # The name field is actually the associated SAN.
-        router_information["location__name"] = self.find_location(
-            router_information["name"]
-        )
+        router_information["location__name"] = self.find_location(router_information["name"])
         self.load_status(router_information["status__name"])
         self.load_device_type(router_information["device_type__model"])
         self.load_device_role(router_information["role__name"])
@@ -161,9 +157,7 @@ class CradlepointAdapter(Adapter):
             while chunk := list(islice(iterator, segment_size)):
                 yield chunk
 
-        for router_id_chunk in _segment_iterable(
-            self.routers.keys(), int(DEFAULT_API_DEVICE_LIMIT) // 4
-        ):
+        for router_id_chunk in _segment_iterable(self.routers.keys(), int(DEFAULT_API_DEVICE_LIMIT) // 4):
             time.sleep(5)
             router_locations = self.client.get_locations(
                 {
@@ -186,9 +180,7 @@ class CradlepointAdapter(Adapter):
 
                 router = self.routers.get(router_id)
                 if not router:
-                    self.job.logger.info(
-                        msg=f"Router ID {router_id} not found in router dictionary."
-                    )
+                    self.job.logger.info(msg=f"Router ID {router_id} not found in router dictionary.")
                     continue
                 # Update the router's information
                 router.update(record)
@@ -198,9 +190,7 @@ class CradlepointAdapter(Adapter):
         # Load device types into mapping dictionary
         product_call = self.client.get_products({"limit": 500})
         products = product_call.get("data", [])
-        self.product_mappings = {
-            item["resource_url"]: item["name"] for item in products
-        }
+        self.product_mappings = {item["resource_url"]: item["name"] for item in products}
 
     def load(self):
         """Entrypoint for loading data from Cradlepoint."""
@@ -211,10 +201,9 @@ class CradlepointAdapter(Adapter):
         next = True
         call_counter = 1
         # TODO:  This will change to a while loop for the actual implementation.
-        for number in range(0, 20):
+        while next:
             self.job.logger.info(f"Call counter: {call_counter}")
             call_counter += 1
-            time.sleep(5)
             routers_call = self.client.get_routers(
                 {
                     "limit": int(DEFAULT_API_DEVICE_LIMIT),
@@ -233,8 +222,6 @@ class CradlepointAdapter(Adapter):
                 }
             )
             routers_from_call = routers_call.get("data", [])
-            if not routers_call.get("meta", {}).get("next"):
-                next = False  # noqa: F841
 
             # Create router dictionary
             for record in routers_from_call:
@@ -245,6 +232,9 @@ class CradlepointAdapter(Adapter):
 
             self.retrieve_router_location()
             offset_number += int(DEFAULT_API_DEVICE_LIMIT)
+
+            if not routers_call.get("meta", {}).get("next"):
+                next = False  # noqa: F841
 
         # Populate diffsync store.
         for record in self.routers.values():

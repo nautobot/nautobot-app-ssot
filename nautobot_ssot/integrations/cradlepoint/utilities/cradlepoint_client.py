@@ -1,6 +1,7 @@
 """SDK for Cradlepoint API."""
 
 import requests
+from ratelimit import limits, sleep_and_retry
 
 
 class CradlepointClient:
@@ -33,6 +34,8 @@ class CradlepointClient:
             "Accept": "application/json",
         }
 
+    @sleep_and_retry
+    @limits(calls=5, period=180)
     def _request(self, method, endpoint, params=None, data=None):
         url = f"{self.base_url}{endpoint}"
         response = requests.request(  # noqa: S113
