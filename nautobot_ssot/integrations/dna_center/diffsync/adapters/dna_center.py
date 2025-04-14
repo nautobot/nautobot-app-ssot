@@ -529,7 +529,6 @@ class DnaCenterAdapter(Adapter):
                     {
                         "name": port["portName"],
                         "device": dev.name,
-                        "mac_addr": port["macAddress"].upper() if port.get("macAddress") else None,
                     },
                 )
                 if found_port and self.job.debug:
