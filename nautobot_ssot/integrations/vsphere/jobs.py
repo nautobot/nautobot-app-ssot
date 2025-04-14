@@ -101,9 +101,7 @@ class VsphereDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
                 "ClusterGroup",
                 reverse("virtualization:clustergroup_list"),
             ),
-            DataMapping(
-                "Cluster", None, "Cluster", reverse("virtualization:cluster_list")
-            ),
+            DataMapping("Cluster", None, "Cluster", reverse("virtualization:cluster_list")),
             DataMapping(
                 "Virtual Machine",
                 None,
@@ -116,9 +114,7 @@ class VsphereDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
                 "VMInterface",
                 reverse("virtualization:vminterface_list"),
             ),
-            DataMapping(
-                "IP Addresses", None, "IP Addresses", reverse("ipam:ipaddress_list")
-            ),
+            DataMapping("IP Addresses", None, "IP Addresses", reverse("ipam:ipaddress_list")),
         )
 
     def log_debug(self, message):
@@ -170,9 +166,7 @@ class VsphereDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
         self.cluster_filters = cluster_filters
         self.config = kwargs.get("config")
         if not self.config.enable_sync_to_nautobot:
-            self.logger.error(
-                "Can't run sync to Nautobot, provided config does not have it enabled."
-            )
+            self.logger.error("Can't run sync to Nautobot, provided config does not have it enabled.")
             raise ValueError("Config not enabled for sync to Nautobot.")
         options = f"`Debug`: {self.debug}, `Dry Run`: {self.dryrun}, `Sync Tagged Only`: {self.config.sync_tagged_only}, `Cluster Filter`: {self.cluster_filters}"  # NOQA
         self.logger.info(f"Starting job with the following options: {options}")
