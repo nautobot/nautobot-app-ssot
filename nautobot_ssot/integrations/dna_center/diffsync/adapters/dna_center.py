@@ -397,20 +397,24 @@ class DnaCenterAdapter(Adapter):
                     self.failed_import_devices.append(dev)
                     continue
             except ObjectNotFound:
-                if loc_data.get("floor") and loc_data["building"] not in loc_data["floor"]:
-                    floor_name = f"{loc_data['building']} - {loc_data['floor']}"
-                elif loc_data.get("floor"):
-                    floor_name = loc_data["floor"]
-                else:
-                    floor_name = None
+                location_ids = dev_details["siteHierarchyGraphId"].lstrip("/").rstrip("/").split("/")
+                floor_name = None
+                if loc_data.get("floor"):
+                    floor_name = self.dnac_location_map[location_ids[-1]]["name"]
+                    if loc_data["building"] not in loc_data["floor"]:
+                        bldg_name = self.dnac_location_map[location_ids[-1]]["parent"]
+                        floor_name = f"{bldg_name} - {floor_name}"
+                    location_ids.pop(-1)
+                building_name = self.dnac_location_map[location_ids[-1]]["name"]
+                area_name = self.dnac_location_map[location_ids[-1]]["parent"]
                 new_dev = self.device(
                     name=dev["hostname"],
                     status="Active" if dev.get("reachabilityStatus") != "Unreachable" else "Offline",
                     role=dev_role,
                     vendor=vendor,
                     model=self.conn.get_model_name(models=dev["platformId"]) if dev.get("platformId") else "Unknown",
-                    area=loc_data["areas"][-1],
-                    site=loc_data["building"],
+                    area=area_name,
+                    site=building_name,
                     floor=floor_name,
                     serial=dev["serialNumber"] if dev.get("serialNumber") else "",
                     version=dev.get("softwareVersion"),
