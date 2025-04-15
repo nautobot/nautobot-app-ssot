@@ -302,7 +302,10 @@ class DnaCenterAdapter(Adapter):
             new_floor, loaded = self.get_or_instantiate(
                 self.floor,
                 ids={"name": floor_name, "building": bldg_name, "area": area_name},
-                attrs={"tenant": self.tenant.name if self.tenant else None, "uuid": None},
+                attrs={
+                    "tenant": self.tenant.name if self.tenant else None,
+                    "metadata": True,
+                },
             )
             if loaded:
                 parent.add_child(new_floor)
