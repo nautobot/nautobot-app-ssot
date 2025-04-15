@@ -118,8 +118,8 @@ class NautobotBuilding(base.Building):
             parent_id=adapter.region_map[attrs["area_parent"]][ids["area"]],
             physical_address=attrs["address"] if attrs.get("address") else "",
             status_id=adapter.status_map["Active"],
-            latitude=attrs["latitude"],
-            longitude=attrs["longitude"],
+            latitude=attrs["latitude"] if attrs.get("latitude") else None,
+            longitude=attrs["longitude"] if attrs.get("longitude") else None,
         )
         if attrs.get("tenant"):
             new_building.tenant_id = adapter.tenant_map[attrs["tenant"]]
