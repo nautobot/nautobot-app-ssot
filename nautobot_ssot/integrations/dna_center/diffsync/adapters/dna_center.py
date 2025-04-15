@@ -515,60 +515,49 @@ class DnaCenterAdapter(Adapter):
         """
         ports = self.conn.get_port_info(device_id=device_id)
         for port in ports:
-            try:
-                found_port = self.get(
-                    self.port,
-                    {
-                        "name": port["portName"],
-                        "device": dev.name,
-                    },
-                )
-                if found_port and self.job.debug:
-                    self.job.logger.warning(
-                        f"Duplicate port attempting to be loaded, {port['portName']} for {dev.name}"
-                    )
-                continue
-            except ObjectNotFound:
+            port_type = self.conn.get_port_type(port_info=port)
+            port_status = self.conn.get_port_status(port_info=port)
+            new_port, loaded = self.get_or_instantiate(
+                self.port,
+                ids={
+                    "name": port["portName"],
+                    "device": dev.name,
+                },
+                attrs={
+                    "description": port["description"],
+                    "enabled": True if port["adminStatus"] == "UP" else False,
+                    "port_type": port_type,
+                    "port_mode": "tagged" if port["portMode"] == "trunk" else "access",
+                    "mac_addr": port["macAddress"].upper() if port.get("macAddress") else None,
+                    "mtu": port["mtu"] if port.get("mtu") else 1500,
+                    "status": port_status,
+                    "uuid": None,
+                },
+            )
+            if loaded:
                 if self.job.debug:
                     self.job.logger.info(f"Loading port {port['portName']} for {dev.name}. {port}")
-                port_type = self.conn.get_port_type(port_info=port)
-                port_status = self.conn.get_port_status(port_info=port)
-                new_port = self.port(
-                    name=port["portName"],
-                    device=dev.name if dev.name else "",
-                    description=port["description"],
-                    enabled=True if port["adminStatus"] == "UP" else False,
-                    port_type=port_type,
-                    port_mode="tagged" if port["portMode"] == "trunk" else "access",
-                    mac_addr=port["macAddress"].upper() if port.get("macAddress") else None,
-                    mtu=port["mtu"] if port.get("mtu") else 1500,
-                    status=port_status,
-                    uuid=None,
-                )
-                try:
-                    self.add(new_port)
-                    dev.add_child(new_port)
-
-                    if port.get("addresses"):
-                        for addr in port["addresses"]:
-                            host = addr["address"]["ipAddress"]["address"]
-                            mask_length = netmask_to_cidr(addr["address"]["ipMask"]["address"])
-                            prefix = ipaddress_interface(f"{host}/{mask_length}", "network.with_prefixlen")
-                            primary = bool(addr["address"]["ipAddress"]["address"] == mgmt_addr)
-                            self.load_ip_address(
-                                host=host,
-                                mask_length=mask_length,
-                                prefix=prefix,
-                            )
-                            self.load_ipaddress_to_interface(
-                                host=host,
-                                mask_length=mask_length,
-                                device=dev.name if dev.name else "",
-                                port=port["portName"],
-                                primary=primary,
-                            )
-                except ValidationError as err:
-                    self.job.logger.warning(f"Unable to load port {port['portName']} for {dev.name}. {err}")
+                dev.add_child(new_port)
+                if port.get("addresses"):
+                    for addr in port["addresses"]:
+                        host = addr["address"]["ipAddress"]["address"]
+                        mask_length = netmask_to_cidr(addr["address"]["ipMask"]["address"])
+                        prefix = ipaddress_interface(f"{host}/{mask_length}", "network.with_prefixlen")
+                        primary = bool(addr["address"]["ipAddress"]["address"] == mgmt_addr)
+                        self.load_ip_address(
+                            host=host,
+                            mask_length=mask_length,
+                            prefix=prefix,
+                        )
+                        self.load_ipaddress_to_interface(
+                            host=host,
+                            mask_length=mask_length,
+                            device=dev.name if dev.name else "",
+                            port=port["portName"],
+                            primary=primary,
+                        )
+            else:
+                self.job.logger.warning(f"Duplicate port attempting to be loaded, {port['portName']} for {dev.name}")
 
     def load_ip_address(self, host: str, mask_length: int, prefix: str):
         """Load IP Address info from DNAC into IPAddress DiffSyncModel.
