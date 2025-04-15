@@ -1,0 +1,232 @@
+[
+    {
+        "additionalInfo": [],
+        "name": "Global",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "id": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+        "siteNameHierarchy": "Global"
+    },
+    {
+        "parentId": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+        "additionalInfo": [
+            {
+                "nameSpace": "Location",
+                "attributes": {
+                    "addressInheritedFrom": "262696b1-aa87-432b-8a21-db9a77c51f23",
+                    "type": "area"
+                }
+            }
+        ],
+        "name": "Americas",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "id": "262696b1-aa87-432b-8a21-db9a77c51f23",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/262696b1-aa87-432b-8a21-db9a77c51f23",
+        "siteNameHierarchy": "Global/Americas"
+    },
+    {
+        "parentId": "262696b1-aa87-432b-8a21-db9a77c51f23",
+        "additionalInfo": [
+            {
+                "nameSpace": "Location",
+                "attributes": {
+                    "addressInheritedFrom": "262696b1-aa87-432b-8a21-db9a77c51f23",
+                    "type": "area"
+                }
+            }
+        ],
+        "name": "US-AWS",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "id": "6e404051-4c06-4dab-adaa-72c5eeac577b",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/262696b1-aa87-432b-8a21-db9a77c51f23/6e404051-4c06-4dab-adaa-72c5eeac577b",
+        "siteNameHierarchy": "Global/Americas/US-AWS"
+    },
+    {
+        "parentId": "6e404051-4c06-4dab-adaa-72c5eeac577b",
+        "additionalInfo": [
+            {
+                "nameSpace": "Location",
+                "attributes": {
+                    "country": "United States",
+                    "address": "1000 I Street, Sacramento, California 95814, United States",
+                    "latitude": "38.581405819248886",
+                    "addressInheritedFrom": "6e404051-4c06-4dab-adaa-72c5eeac577b",
+                    "type": "building",
+                    "longitude": "-121.49309067224416"
+                }
+            }
+        ],
+        "name": "Plant",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "id": "6l77m06c-r48f-7c74-y141-nu0l05v447j3",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/262696b1-aa87-432b-8a21-db9a77c51f23/6e404051-4c06-4dab-adaa-72c5eeac577b/6l77m06c-r48f-7c74-y141-nu0l05v447j3",
+        "siteNameHierarchy": "Global/Americas/US-AWS/Plant"
+    },
+    {
+        "parentId": "6e404051-4c06-4dab-adaa-72c5eeac577b",
+        "additionalInfo": [
+            {
+                "nameSpace": "Location",
+                "attributes": {
+                    "country": "United States",
+                    "address": "1000 I Street, Sacramento, California 95814, United States",
+                    "latitude": "38.581405819248886",
+                    "addressInheritedFrom": "6e404051-4c06-4dab-adaa-72c5eeac577b",
+                    "type": "building",
+                    "longitude": "-121.49309067224416"
+                }
+            }
+        ],
+        "name": "Wireless Controller",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "id": "1r76v35t-c73w-2i74-h442-jt5l65p431q6",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/262696b1-aa87-432b-8a21-db9a77c51f23/6e404051-4c06-4dab-adaa-72c5eeac577b/1r76v35t-c73w-2i74-h442-jt5l65p431q6",
+        "siteNameHierarchy": "Global/Americas/US-AWS/Wireless Controller"
+    },
+    {
+        "parentId": "1r76v35t-c73w-2i74-h442-jt5l65p431q6",
+        "additionalInfo": [
+            {
+                "nameSpace": "Location",
+                "attributes": {
+                    "address": "1000 I Street, Sacramento, California 95814, United States",
+                    "addressInheritedFrom": "1r76v35t-c73w-2i74-h442-jt5l65p431q6",
+                    "type": "floor"
+                }
+            },
+            {
+                "nameSpace": "mapsSummary",
+                "attributes": {
+                    "rfModel": "95095",
+                    "floorIndex": "1"
+                }
+            },
+            {
+                "nameSpace": "mapGeometry",
+                "attributes": {
+                    "offsetX": "0.0",
+                    "offsetY": "0.0",
+                    "length": "100.0",
+                    "width": "100.0",
+                    "height": "10.0"
+                }
+            }
+        ],
+        "name": "Floor1",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "id": "21qp58y4-0a00-8138-76gl-r32xlchj640a",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/262696b1-aa87-432b-8a21-db9a77c51f23/6e404051-4c06-4dab-adaa-72c5eeac577b/1r76v35t-c73w-2i74-h442-jt5l65p431q6/21qp58y4-0a00-8138-76gl-r32xlchj640a",
+        "siteNameHierarchy": "Global/Americas/US-AWS/Wireless Controller/Floor1"
+    },
+    {
+        "parentId": "9e5f9fc2-032e-45e8-994c-4a00629648e8",
+        "additionalInfo": [
+            {
+                "nameSpace": "Location",
+                "attributes": {
+                    "addressInheritedFrom": "5c882916-4f65-45b5-a5cc-ca5fa927cba6",
+                    "type": "area"
+                }
+            }
+        ],
+        "name": "Europe",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "id": "5c882916-4f65-45b5-a5cc-ca5fa927cba6",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/5c882916-4f65-45b5-a5cc-ca5fa927cba6",
+        "siteNameHierarchy": "Global/Europe"
+    },
+    {
+        "parentId": "5c882916-4f65-45b5-a5cc-ca5fa927cba6",
+        "additionalInfo": [
+            {
+                "nameSpace": "Location",
+                "attributes": {
+                    "addressInheritedFrom": "3r273272-6j64-1xyl-fcdy-37i1kafr653m",
+                    "type": "area"
+                }
+            }
+        ],
+        "name": "UK-Google",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "id": "3r273272-6j64-1xyl-fcdy-37i1kafr653m",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/5c882916-4f65-45b5-a5cc-ca5fa927cba6/3r273272-6j64-1xyl-fcdy-37i1kafr653m",
+        "siteNameHierarchy": "Global/Europe/UK-Google"
+    },
+    {
+        "parentId": "3r273272-6j64-1xyl-fcdy-37i1kafr653m",
+        "additionalInfo": [
+            {
+                "nameSpace": "Location",
+                "attributes": {
+                    "country": "United Kingdom",
+                    "address": "3 Abbey Rd. London, United Kingdom",
+                    "latitude": "51.5322",
+                    "addressInheritedFrom": "3r273272-6j64-1xyl-fcdy-37i1kafr653m",
+                    "type": "building",
+                    "longitude": "0.1778"
+                }
+            }
+        ],
+        "name": "Plant",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "id": "6v46p06i-d83o-8v06-q651-uj0m12k618c6",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/5c882916-4f65-45b5-a5cc-ca5fa927cba6/3r273272-6j64-1xyl-fcdy-37i1kafr653m/6v46p06i-d83o-8v06-q651-uj0m12k618c6",
+        "siteNameHierarchy": "Global/Europe/UK-Google/Plant"
+    },
+    {
+        "parentId": "3r273272-6j64-1xyl-fcdy-37i1kafr653m",
+        "additionalInfo": [
+            {
+                "nameSpace": "Location",
+                "attributes": {
+                    "country": "United Kingdom",
+                    "address": "3 Abbey Rd. London, United Kingdom",
+                    "latitude": "51.5322",
+                    "addressInheritedFrom": "3r273272-6j64-1xyl-fcdy-37i1kafr653m",
+                    "type": "building",
+                    "longitude": "0.1778"
+                }
+            }
+        ],
+        "name": "Wireless Controller",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "id": "4o13g70g-y12j-6m77-f115-cn3q20q787f8",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/5c882916-4f65-45b5-a5cc-ca5fa927cba6/3r273272-6j64-1xyl-fcdy-37i1kafr653m/4o13g70g-y12j-6m77-f115-cn3q20q787f8",
+        "siteNameHierarchy": "Global/Europe/UK-Google/Wireless Controller"
+    },
+    {
+        "parentId": "4o13g70g-y12j-6m77-f115-cn3q20q787f8",
+        "additionalInfo": [
+            {
+                "nameSpace": "Location",
+                "attributes": {
+                    "address": "3 Abbey Rd. London, United Kingdom",
+                    "addressInheritedFrom": "4o13g70g-y12j-6m77-f115-cn3q20q787f8",
+                    "type": "floor"
+                }
+            },
+            {
+                "nameSpace": "mapsSummary",
+                "attributes": {
+                    "rfModel": "95095",
+                    "floorIndex": "1"
+                }
+            },
+            {
+                "nameSpace": "mapGeometry",
+                "attributes": {
+                    "offsetX": "0.0",
+                    "offsetY": "0.0",
+                    "length": "100.0",
+                    "width": "100.0",
+                    "height": "10.0"
+                }
+            }
+        ],
+        "name": "Floor1",
+        "instanceTenantId": "623f029857259506a56ad9bd",
+        "id": "13ey45g4-8m64-8188-26sg-y76qkwkx133n",
+        "siteHierarchy": "9e5f9fc2-032e-45e8-994c-4a00629648e8/5c882916-4f65-45b5-a5cc-ca5fa927cba6/3r273272-6j64-1xyl-fcdy-37i1kafr653m/4o13g70g-y12j-6m77-f115-cn3q20q787f8/13ey45g4-8m64-8188-26sg-y76qkwkx133n",
+        "siteNameHierarchy": "Global/Europe/UK-Google/Wireless Controller/Floor1"
+    }
+]

@@ -28,3 +28,13 @@ PORT_FIXTURE = load_json(path="./nautobot_ssot/tests/dna_center/fixtures/get_por
 RECV_PORT_FIXTURE = load_json(path="./nautobot_ssot/tests/dna_center/fixtures/get_port_info_recv.json")
 
 EXPECTED_FLOORS = load_json(path="./nautobot_ssot/tests/dna_center/fixtures/expected_floors.json")
+
+MULTI_LEVEL_LOCATION_FIXTURE = load_json(
+    path="./nautobot_ssot/tests/dna_center/fixtures/get_multi_level_locations.json"
+)
+EXPECTED_DNAC_LOCATION_MAP_W_MULTI_LEVEL_LOCATIONS = load_json(
+    path="./nautobot_ssot/tests/dna_center/fixtures/expected_dnac_location_map_multi_level_locations.json"
+)
+DEVICE_DETAIL_MULTI_LEVEL_FIXTURE = load_json(
+    path="./nautobot_ssot/tests/dna_center/fixtures/get_device_detail_multi_level.json"
+)
