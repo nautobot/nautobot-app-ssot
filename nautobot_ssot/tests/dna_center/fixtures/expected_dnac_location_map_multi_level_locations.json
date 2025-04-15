@@ -1,0 +1,68 @@
+{
+    "9e5f9fc2-032e-45e8-994c-4a00629648e8": {
+        "name": "Global",
+        "loc_type": "area",
+        "parent": null,
+        "parent_of_parent": null
+    },
+    "262696b1-aa87-432b-8a21-db9a77c51f23": {
+        "name": "Americas",
+        "loc_type": "area",
+        "parent": "Global",
+        "parent_of_parent": null
+    },
+    "6e404051-4c06-4dab-adaa-72c5eeac577b": {
+        "name": "US-AWS",
+        "loc_type": "area",
+        "parent": "Americas",
+        "parent_of_parent": "Global"
+    },
+    "6l77m06c-r48f-7c74-y141-nu0l05v447j3": {
+        "name": "Plant",
+        "loc_type": "building",
+        "parent": "US-AWS",
+        "parent_of_parent": "Americas"
+    },
+    "1r76v35t-c73w-2i74-h442-jt5l65p431q6": {
+        "name": "Wireless Controller",
+        "loc_type": "building",
+        "parent": "US-AWS",
+        "parent_of_parent": "Americas"
+    },
+    "21qp58y4-0a00-8138-76gl-r32xlchj640a": {
+        "name": "Floor1",
+        "loc_type": "floor",
+        "parent": "Wireless Controller",
+        "parent_of_parent": "US-AWS"
+    },
+    "5c882916-4f65-45b5-a5cc-ca5fa927cba6": {
+        "name": "Europe",
+        "loc_type": "area",
+        "parent": "Global",
+        "parent_of_parent": null
+    },
+    "3r273272-6j64-1xyl-fcdy-37i1kafr653m": {
+        "name": "UK-Google",
+        "loc_type": "area",
+        "parent": "Europe",
+        "parent_of_parent": "Global"
+    },
+    "6v46p06i-d83o-8v06-q651-uj0m12k618c6": {
+        "name": "Plant",
+        "loc_type": "building",
+        "parent": "UK-Google",
+        "parent_of_parent": "Europe"
+    },
+    "4o13g70g-y12j-6m77-f115-cn3q20q787f8": {
+        "name": "Wireless Controller",
+        "loc_type": "building",
+        "parent": "UK-Google",
+        "parent_of_parent": "Europe"
+    },
+    "13ey45g4-8m64-8188-26sg-y76qkwkx133n": {
+        "name": "Floor1",
+        "loc_type": "floor",
+        "parent": "Wireless Controller",
+        "parent_of_parent": "UK-Google"
+    }
+}

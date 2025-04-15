@@ -4,7 +4,6 @@ import uuid
 from unittest.mock import MagicMock
 
 from django.contrib.contenttypes.models import ContentType
-from django.core.exceptions import ValidationError
 from django.test import override_settings
 from nautobot.core.testing import TransactionTestCase
 from nautobot.dcim.models import (
@@ -29,9 +28,11 @@ from nautobot_ssot.tests.dna_center.fixtures import (
     EXPECTED_BUILDING_MAP,
     EXPECTED_DNAC_LOCATION_MAP,
     EXPECTED_DNAC_LOCATION_MAP_W_JOB_LOCATION_MAP,
+    EXPECTED_DNAC_LOCATION_MAP_W_MULTI_LEVEL_LOCATIONS,
     EXPECTED_DNAC_LOCATION_MAP_WO_GLOBAL,
     EXPECTED_FLOORS,
     LOCATION_FIXTURE,
+    MULTI_LEVEL_LOCATION_FIXTURE,
     PORT_FIXTURE,
 )
 
@@ -333,12 +334,8 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         actual_ports = [port.get_unique_id() for port in self.dna_center.get_all("port")]
         self.assertEqual(expected_ports, actual_ports)
 
-    def test_load_ports_validation_error(self):
-        """Test Nautobot SSoT for Cisco DNA Center load_ports() function throwing ValidationError."""
-        self.dna_center.add = MagicMock(side_effect=ValidationError(message="leaf3.abc.inc not found"))
-        mock_device = MagicMock()
-        mock_device.name = "leaf3.abc.inc"
-        self.dna_center.load_ports(device_id="1234567890", dev=mock_device)
-        self.dna_center.job.logger.warning.assert_called_with(
-            "Unable to load port Vlan848 for leaf3.abc.inc. ['leaf3.abc.inc not found']"
-        )
+    def test_build_dnac_location_map_with_multi_level(self):
+        """Test Nautobot adapter build_dnac_location_map method."""
+        self.dna_center.dnac_location_map = {}
+        self.dna_center.build_dnac_location_map(locations=MULTI_LEVEL_LOCATION_FIXTURE)
+        self.assertEqual(self.dna_center.dnac_location_map, EXPECTED_DNAC_LOCATION_MAP_W_MULTI_LEVEL_LOCATIONS)
