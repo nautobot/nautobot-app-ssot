@@ -123,7 +123,11 @@ class NautobotBuilding(base.Building):
         )
         if attrs.get("tenant"):
             new_building.tenant_id = adapter.tenant_map[attrs["tenant"]]
-        new_building.validated_save()
+        try:
+            new_building.validated_save()
+        except ValidationError as err:
+            adapter.job.logger.error(f"Unable to create {adapter.job.building_loctype.name} {ids['name']}. {err}")
+            return None
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
                 adapter=adapter,
