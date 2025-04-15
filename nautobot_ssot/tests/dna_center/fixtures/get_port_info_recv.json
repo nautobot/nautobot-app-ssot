@@ -568,7 +568,7 @@
             "ipv4Mask": null,
             "isisSupport": "false",
             "lastUpdated": null,
-            "macAddress": "70:01:b5: 5d: 1b: 0c",
+            "macAddress": "70:01:b5:5d:1b:0c",
             "managedComputeElement": null,
             "managedComputeElementUrl": null,
             "managedNetworkElement": {
