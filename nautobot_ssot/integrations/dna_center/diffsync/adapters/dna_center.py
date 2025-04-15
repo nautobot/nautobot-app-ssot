@@ -281,7 +281,7 @@ class DnaCenterAdapter(Adapter):
                 "latitude": latitude[:9].rstrip("0"),
                 "longitude": longitude[:7].rstrip("0"),
                 "tenant": self.tenant.name if self.tenant else None,
-                "uuid": None,
+                "metadata": True,
             },
         )
 
