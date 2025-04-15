@@ -5,7 +5,7 @@ from typing import Optional
 
 from diffsync import Adapter
 from diffsync.enum import DiffSyncModelFlags
-from diffsync.exceptions import ObjectNotFound
+from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.core.exceptions import ValidationError
 from django.db.models import ProtectedError
 from django.db.utils import IntegrityError
@@ -308,7 +308,10 @@ class NautobotAdapter(Adapter):
                     new_ipaddr.metadata = True
             if self.tenant:
                 new_ipaddr.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
-            self.add(new_ipaddr)
+            try:
+                self.add(new_ipaddr)
+            except ObjectAlreadyExists:
+                self.job.logger.warning(f"IPAddress {ipaddr.host} already loaded so skipping duplicate. {ipaddr.id}")
 
     def load_ipaddress_to_interface(self):
         """Load IPAddressonInterface data from Nautobot into DiffSync models."""
