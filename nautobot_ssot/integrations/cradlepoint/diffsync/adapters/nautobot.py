@@ -1,10 +1,10 @@
 """Nautobot Adapter for Cradlepoint Integration."""
 
 from nautobot_ssot.contrib import NautobotAdapter
-from nautobot_ssot.integrations.cradlepoint.diffsync.models.nautobot import BaseAdapter
+from nautobot_ssot.integrations.cradlepoint.diffsync.adapters.base import BaseNautobotAdapter
 
 
-class NautobotTargetAdapter(BaseAdapter, NautobotAdapter):
+class NautobotTargetAdapter(BaseNautobotAdapter, NautobotAdapter):
     """Nautobot Adapter for vSphere SSoT."""
 
     def __init__(self, *args, job=None, sync=None, config, **kwargs):

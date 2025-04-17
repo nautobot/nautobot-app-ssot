@@ -6,11 +6,11 @@ from nautobot_ssot.integrations.cradlepoint.constants import (
     DEFAULT_LOCATION,
     DEFAULT_MANUFACTURER,
 )
-from nautobot_ssot.integrations.cradlepoint.diffsync.models.nautobot import BaseAdapter
+from nautobot_ssot.integrations.cradlepoint.diffsync.adapters.base import BaseNautobotAdapter
 from nautobot_ssot.integrations.cradlepoint.utilities.clients import CradlepointClient
 
 
-class CradlepointSourceAdapter(BaseAdapter, Adapter):
+class CradlepointSourceAdapter(BaseNautobotAdapter, Adapter):
     """Cradlepoint Adapter."""
 
     def __init__(self, *args, job=None, sync=None, client, config, **kwargs):
@@ -37,7 +37,11 @@ class CradlepointSourceAdapter(BaseAdapter, Adapter):
                 self._load_product(product)
             products = self.client.load_from_paginated_list("products")
 
+    def load_manufacturer(self):
+        """Load manufacturer to diffsync store."""
+        self.add(self.manufacturer(name=DEFAULT_MANUFACTURER))
 
     def load(self):
         """Load diffsync objects from Cradlepoint API."""
+        self.load_manufacturer()
         self.load_products()

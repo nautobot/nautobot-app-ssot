@@ -9,7 +9,7 @@ except ModuleNotFoundError:
 
 from diffsync.enum import DiffSyncModelFlags
 from django.contrib.contenttypes.models import ContentType
-from nautobot.dcim.models import Device, DeviceType
+from nautobot.dcim.models import Device, DeviceType, Manufacturer
 from nautobot.extras.models.customfields import CustomField, CustomFieldTypeChoices
 from nautobot.extras.models.roles import Role
 from nautobot.extras.models.statuses import Status
@@ -19,8 +19,37 @@ from typing_extensions import List, Optional, TypedDict
 from nautobot_ssot.contrib import CustomFieldAnnotation, NautobotModel
 from nautobot_ssot.integrations.cradlepoint.constants import DEFAULT_MANUFACTURER
 
-TODAY = datetime.date.today().isoformat()
 
+class NautobotManufacturer(NautobotModel):
+    """Diffsync model for nautobot Manufacturers."""
+
+    model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+
+    _model = Manufacturer
+    _modelname = "manufacturer"
+    _identifiers = ("name",)
+
+    name: str
+
+
+class NautobotDeviceType(NautobotModel):
+    """Diffsync model for Device Type."""
+
+    _model = DeviceType
+    _modelname = "device_type"
+    _identifiers = ("model", "manufacturer__name")
+
+    model: str
+    manufacturer__name: str
+
+    # Value not synced, but used for matching router endpoints to device types.
+    # Only used in the Source Adapter.
+    cpid: Optional[int] = None
+
+
+'''
+
+TODAY = datetime.date.today().isoformat()
 
 class ContentTypeDict(TypedDict):
     """Many-to-many relationship typed dict explaining which fields are interesting."""
@@ -123,20 +152,6 @@ class NautobotRole(NautobotModel):
         protected_namespaces = ()
 
 
-class NautobotDeviceType(NautobotModel):
-    """Diffsync model for Device Type."""
-
-    _model = DeviceType
-    _modelname = "device_type"
-    _identifiers = ("model", "manufacturer__name")
-
-    model: str
-    manufacturer__name: str
-
-    # Value not synced, but used for matching router endpoints to device types.
-    # Only used in the Source Adapter.
-    cpid: Optional[int] = 0
-
 
 class NautobotDevice(CradlepointDiffSync):
     """DiffSync model for Cradlepoint device."""
@@ -193,19 +208,4 @@ class NautobotDevice(CradlepointDiffSync):
     def get_queryset(cls):
         """Get queryset for Cradlepoint devices by filtering on Manufacturer."""
         return Device.objects.filter(device_type__manufacturer__name=DEFAULT_MANUFACTURER).exclude(status__name="decommissioned")
-
-
-class BaseAdapter:
-    """Base DiffSync adapter for Cradlepoint to Nautobot syncs."""
-
-    status = NautobotStatus
-    device_role = NautobotRole
-    device_type = NautobotDeviceType
-    device = NautobotDevice
-
-    top_level = [
-        "status",
-        "device_role",
-        "device_type",
-        "device",
-    ]
+'''
