@@ -18,7 +18,7 @@ from nautobot_ssot.integrations.cradlepoint.constants import DEFAULT_API_DEVICE_
 from nautobot_ssot.integrations.cradlepoint.diffsync.adapters.cradlepoint import CradlepointSourceAdapter
 from nautobot_ssot.integrations.cradlepoint.diffsync.adapters.nautobot import NautobotTargetAdapter
 from nautobot_ssot.integrations.cradlepoint.models import SSOTCradlepointConfig
-from nautobot_ssot.integrations.cradlepoint.utilities.cradlepoint_client import (
+from nautobot_ssot.integrations.cradlepoint.utilities.clients import (
     CradlepointClient,
 )
 from nautobot_ssot.jobs.base import DataMapping, DataSource
@@ -26,7 +26,7 @@ from nautobot_ssot.jobs.base import DataMapping, DataSource
 name = "SSoT - Cradlepoint"  # pylint: disable=invalid-name
 
 
-def _get_cradlepoint_client_config(app_config, debug):
+def get_cradlepoint_client_config(app_config, debug):
     """Get Cradlepoint client config from the Cradlepoint config instance."""
     x_ecm_api_id = app_config.cradlepoint_instance.secrets_group.get_secret_value(
         access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
@@ -44,17 +44,16 @@ def _get_cradlepoint_client_config(app_config, debug):
         access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
         secret_type=SecretsGroupSecretTypeChoices.TYPE_TOKEN,
     )
-    cradlepoint_client_config = {
-        "cradlepoint_uri": app_config.cradlepoint_instance.remote_url,
+    return {
+        "base_url": app_config.cradlepoint_instance.remote_url,
         "x_ecm_api_id": x_ecm_api_id.strip(),
         "x_ecm_api_key": x_ecm_api_key.strip(),
         "x_cp_api_id": x_cp_api_id.strip(),
         "x_cp_api_key": x_cp_api_key.strip(),
         "verify_ssl": app_config.cradlepoint_instance.verify_ssl,
         "debug": debug,
+        "page_limit": 100,
     }
-
-    return cradlepoint_client_config
 
 
 # pylint:disable=too-few-public-methods
@@ -68,6 +67,8 @@ class CradlepointDataSource(DataSource):  # pylint: disable=too-many-instance-at
         required=True,
         query_params={"job_enabled": True},
     )
+
+    # NOTE: Probably not needed, offset to be determined by `page_limit * page`
     starting_offset = IntegerVar(
         default=0,
         description=f"Starting offset for pagination in retrieval of devices. Current pagination is set at {DEFAULT_API_DEVICE_LIMIT}.",
@@ -105,17 +106,33 @@ class CradlepointDataSource(DataSource):  # pylint: disable=too-many-instance-at
             ),
         )
 
+    def run(
+        self,
+        dryrun,
+        config,
+        starting_offset,
+        memory_profiling,
+        debug,
+        *args,
+        **kwargs,
+    ):  # pylint: disable=arguments-differ, too-many-arguments
+        """Run sync."""
+        self.dryrun = dryrun
+        self.debug = debug
+        self.memory_profiling = memory_profiling
+        self.config = config
+        self.starting_offset = starting_offset
+        super().run(dryrun, memory_profiling, *args, **kwargs)
+
     def load_source_adapter(self):
         """Load Cradlepoint adapter."""
         self.logger.info("Connecting to Cradlepoint.")
-        client_config = _get_cradlepoint_client_config(self.config, self.debug)
-        client = CradlepointClient(  # pylint: disable=unexpected-keyword-arg
-            **client_config
-        )
         self.source_adapter = CradlepointSourceAdapter(
             job=self,
             sync=self.sync,
-            client=client,
+            client=CradlepointClient(
+                **get_cradlepoint_client_config(self.config, self.debug)
+            ),
             config=self.config,
             starting_offset=self.starting_offset,
         )
@@ -133,22 +150,6 @@ class CradlepointDataSource(DataSource):  # pylint: disable=too-many-instance-at
 
         self.logger.info("Loading current data from Nautobot...")
         self.target_adapter.load()
-
-    def run(
-        self,
-        dryrun,
-        memory_profiling,
-        debug,
-        *args,
-        **kwargs,
-    ):  # pylint: disable=arguments-differ, too-many-arguments
-        """Run sync."""
-        self.dryrun = dryrun
-        self.debug = debug
-        self.memory_profiling = memory_profiling
-        self.config = kwargs.get("config")
-        self.starting_offset = kwargs.get("starting_offset")
-        return super().run(dryrun, memory_profiling, *args, **kwargs)
 
 
 jobs = [CradlepointDataSource]

@@ -126,62 +126,63 @@ class NautobotRole(NautobotModel):
 class NautobotDeviceType(NautobotModel):
     """Diffsync model for Device Type."""
 
-    model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
-
     _model = DeviceType
     _modelname = "device_type"
     _identifiers = ("model", "manufacturer__name")
-    _attributes = ()
 
     model: str
     manufacturer__name: str
 
-    class Config:
-        """Pydantic configuration for the model."""
-
-        protected_namespaces = ()
+    # Value not synced, but used for matching router endpoints to device types.
+    # Only used in the Source Adapter.
+    cpid: Optional[int] = 0
 
 
 class NautobotDevice(CradlepointDiffSync):
     """DiffSync model for Cradlepoint device."""
 
-    # TODO: Possibly make a flag in settings to determine if we want to skip unmatched devices
-    model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
-
     _model = Device
     _modelname = "device"
-    _identifiers = ("name",)
+    _identifiers = (
+        "name",
+        "location__name",
+        "location__parent__name",
+    )
     _attributes = (
         "device_type__model",
-        "location__name",
         "role__name",
         "status__name",
         "serial",
-        "cradlepoint_id_number",
-        "device_latitude",
-        "device_longitude",
-        "device_altitude",
-        "device_gps_method",
-        "device_accuracy",
-    )
-    _children = {}
 
+        # "cradlepoint_id_number",
+        # "device_latitude",
+        # "device_longitude",
+        # "device_altitude",
+        # "device_gps_method",
+        # "device_accuracy",
+    )
+
+    # Identifiers
     name: str
-    device_type__model: str
     location__name: str
+    location__parent__name: Optional[str] = None
+
+    # Required Attributes
+    device_type__model: str
     role__name: str
     status__name: str
     serial: str
-    cradlepoint_id_number: Annotated[Optional[str], CustomFieldAnnotation(key="cradlepoint_id_number")] = None
-    device_latitude: Annotated[Optional[str], CustomFieldAnnotation(key="device_latitude")] = None
 
-    device_longitude: Annotated[Optional[str], CustomFieldAnnotation(key="device_longitude")] = None
+    # Non Synced, but used for tracking
+    cradlepoint_id: int
 
-    device_altitude: Annotated[Optional[str], CustomFieldAnnotation(key="device_altitude")] = None
-
-    device_gps_method: Annotated[Optional[str], CustomFieldAnnotation(key="device_gps_method")] = None
-
-    device_accuracy: Annotated[Optional[int], CustomFieldAnnotation(key="device_accuracy")] = None
+    # Custom Field Attributes
+    # cradlepoint_id_number: Annotated[Optional[str], CustomFieldAnnotation(key="cradlepoint_id_number")] = None
+    # device_latitude: Annotated[Optional[str], CustomFieldAnnotation(key="device_latitude")] = None
+    # device_longitude: Annotated[Optional[str], CustomFieldAnnotation(key="device_longitude")] = None
+    # device_altitude: Annotated[Optional[str], CustomFieldAnnotation(key="device_altitude")] = None
+    # device_gps_method: Annotated[Optional[str], CustomFieldAnnotation(key="device_gps_method")] = None
+    # device_accuracy: Annotated[Optional[int], CustomFieldAnnotation(key="device_accuracy")] = None
 
     class Config:
         """Pydantic configuration for the model."""
@@ -191,4 +192,20 @@ class NautobotDevice(CradlepointDiffSync):
     @classmethod
     def get_queryset(cls):
         """Get queryset for Cradlepoint devices by filtering on Manufacturer."""
-        return Device.objects.filter(device_type__manufacturer__name=DEFAULT_MANUFACTURER)
+        return Device.objects.filter(device_type__manufacturer__name=DEFAULT_MANUFACTURER).exclude(status__name="decommissioned")
+
+
+class BaseAdapter:
+    """Base DiffSync adapter for Cradlepoint to Nautobot syncs."""
+
+    status = NautobotStatus
+    device_role = NautobotRole
+    device_type = NautobotDeviceType
+    device = NautobotDevice
+
+    top_level = [
+        "status",
+        "device_role",
+        "device_type",
+        "device",
+    ]
