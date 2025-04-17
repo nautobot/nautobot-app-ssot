@@ -96,6 +96,7 @@ class CradlepointSourceAdapter(BaseNautobotAdapter, Adapter):
             device_type__model=product.name,
             device_type__manufacturer__name=product.manufacturer__name,
             serial=str(data["serial_number"]),
+            cpid=data["id"]
         )
         return router
 
@@ -108,3 +109,4 @@ class CradlepointSourceAdapter(BaseNautobotAdapter, Adapter):
         """Load diffsync objects from Cradlepoint API."""
         self.load_manufacturer()
         self.load_products()
+        self.load_routers()
