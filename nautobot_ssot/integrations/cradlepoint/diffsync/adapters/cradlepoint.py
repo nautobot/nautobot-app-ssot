@@ -13,10 +13,6 @@ from nautobot_ssot.integrations.cradlepoint.utilities.helpers import get_id_from
 class CradlepointSourceAdapter(BaseNautobotAdapter, Adapter):
     """Cradlepoint Adapter."""
 
-    def load_manufacturer(self):
-        """Load manufacturer to diffsync store."""
-        self.add(self.manufacturer(name=DEFAULT_MANUFACTURER))
-
     def __init__(self, *args, job=None, sync=None, client, config, **kwargs):
         """Initialize Cradlepoint Adapter."""
         super().__init__(*args, **kwargs)
@@ -24,6 +20,10 @@ class CradlepointSourceAdapter(BaseNautobotAdapter, Adapter):
         self.sync = sync
         self.client: CradlepointClient = client
         self.config = config
+
+    def load_manufacturer(self):
+        """Load manufacturer to diffsync store."""
+        self.add(self.manufacturer(name=DEFAULT_MANUFACTURER))
 
     def load_product(self, data, **kwargs):
         """Load individual produt to diffsync store from API response."""
