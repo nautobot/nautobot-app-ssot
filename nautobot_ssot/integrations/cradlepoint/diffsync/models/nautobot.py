@@ -20,6 +20,13 @@ from nautobot_ssot.contrib import CustomFieldAnnotation, NautobotModel
 from nautobot_ssot.integrations.cradlepoint.constants import DEFAULT_MANUFACTURER
 
 
+class ContentTypeDict(TypedDict):
+    """Many-to-many relationship typed dict explaining which fields are interesting."""
+
+    app_label: str
+    model: str
+
+
 class NautobotManufacturer(NautobotModel):
     """Diffsync model for nautobot Manufacturers."""
 
@@ -47,15 +54,73 @@ class NautobotDeviceType(NautobotModel):
     cpid: Optional[int] = None
 
 
+class NautobotStatus(NautobotModel):
+    """Diffsync model for Status."""
+
+    model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+
+    _model = Status
+    _modelname = "status"
+    _identifiers = ("name",)
+    _attributes = ("content_types",)
+
+    name: str
+    content_types: List[ContentTypeDict] = []
+
+
+class NautobotRole(NautobotModel):
+    """Diffsync model for Role."""
+
+    model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+
+    _model = Role
+    _modelname = "role"
+    _identifiers = ("name",)
+    _attributes = ("content_types",)
+
+    name: str
+    content_types: List[ContentTypeDict] = []
+
+
+class NautobotDevice(NautobotModel):
+    """DiffSync model for Cradlepoint device."""
+
+    _model = Device
+    _modelname = "device"
+    _identifiers = (
+        "name",
+        "location__name",
+        "location__parent__name",
+    )
+    _attributes = (
+        "device_type__model",
+        "role__name",
+        "status__name",
+        "serial",
+    )
+
+    # Identifiers
+    name: str
+    location__name: str
+    location__parent__name: Optional[str] = None
+
+    # Required Attributes
+    device_type__model: str
+    role__name: str
+    status__name: str
+    serial: str
+
+    # Non Synced, but used for tracking
+    cpid: int
+
+    @classmethod
+    def get_queryset(cls):
+        """Get queryset for Cradlepoint devices by filtering on Manufacturer."""
+        return Device.objects.filter(device_type__manufacturer__name=DEFAULT_MANUFACTURER)
+
 '''
 
 TODAY = datetime.date.today().isoformat()
-
-class ContentTypeDict(TypedDict):
-    """Many-to-many relationship typed dict explaining which fields are interesting."""
-
-    app_label: str
-    model: str
 
 
 class CradlepointDiffSync(NautobotModel):
@@ -114,98 +179,5 @@ class CradlepointDiffSync(NautobotModel):
         _tag_object(nautobot_object)
 
 
-class NautobotStatus(NautobotModel):
-    """Diffsync model for Status."""
 
-    model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
-
-    _model = Status
-    _modelname = "status"
-    _identifiers = ("name",)
-    _attributes = ("content_types",)
-
-    name: str
-    content_types: List[ContentTypeDict] = []
-
-    class Config:
-        """Pydantic configuration for the model."""
-
-        protected_namespaces = ()
-
-
-class NautobotRole(NautobotModel):
-    """Diffsync model for Role."""
-
-    model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
-
-    _model = Role
-    _modelname = "device_role"
-    _identifiers = ("name",)
-    _attributes = ("content_types",)
-
-    name: str
-    content_types: List[ContentTypeDict] = []
-
-    class Config:
-        """Pydantic configuration for the model."""
-
-        protected_namespaces = ()
-
-
-
-class NautobotDevice(CradlepointDiffSync):
-    """DiffSync model for Cradlepoint device."""
-
-    _model = Device
-    _modelname = "device"
-    _identifiers = (
-        "name",
-        "location__name",
-        "location__parent__name",
-    )
-    _attributes = (
-        "device_type__model",
-        "role__name",
-        "status__name",
-        "serial",
-
-        # "cradlepoint_id_number",
-        # "device_latitude",
-        # "device_longitude",
-        # "device_altitude",
-        # "device_gps_method",
-        # "device_accuracy",
-    )
-
-    # Identifiers
-    name: str
-    location__name: str
-    location__parent__name: Optional[str] = None
-
-    # Required Attributes
-    device_type__model: str
-    role__name: str
-    status__name: str
-    serial: str
-
-    # Non Synced, but used for tracking
-    cradlepoint_id: int
-
-    # Custom Field Attributes
-    # cradlepoint_id_number: Annotated[Optional[str], CustomFieldAnnotation(key="cradlepoint_id_number")] = None
-    # device_latitude: Annotated[Optional[str], CustomFieldAnnotation(key="device_latitude")] = None
-    # device_longitude: Annotated[Optional[str], CustomFieldAnnotation(key="device_longitude")] = None
-    # device_altitude: Annotated[Optional[str], CustomFieldAnnotation(key="device_altitude")] = None
-    # device_gps_method: Annotated[Optional[str], CustomFieldAnnotation(key="device_gps_method")] = None
-    # device_accuracy: Annotated[Optional[int], CustomFieldAnnotation(key="device_accuracy")] = None
-
-    class Config:
-        """Pydantic configuration for the model."""
-
-        protected_namespaces = ()
-
-    @classmethod
-    def get_queryset(cls):
-        """Get queryset for Cradlepoint devices by filtering on Manufacturer."""
-        return Device.objects.filter(device_type__manufacturer__name=DEFAULT_MANUFACTURER).exclude(status__name="decommissioned")
 '''
