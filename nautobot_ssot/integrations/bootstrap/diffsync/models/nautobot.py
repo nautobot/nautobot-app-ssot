@@ -1695,10 +1695,12 @@ class NautobotPrefix(Prefix):
 
     def update(self, attrs):
         """Update Prefix in Nautobot from NautobotPrefix object."""
-        self.adapter.job.logger.info(f"Creating Nautobot Prefix: {self.network} in Namespace: {self.namespace}")
+        self.adapter.job.logger.info(f"Updating Nautobot Prefix: {self.network} in Namespace: {self.namespace}")
         _update_prefix = ORMPrefix.objects.get(id=self.uuid)
         if "prefix_type" in attrs:
             _update_prefix.prefix_type = attrs["prefix_type"]
+        if "description" in attrs:
+            _update_prefix.description = attrs["description"]
         if "vlan" in attrs:
             try:
                 if attrs["vlan"]:
@@ -1763,22 +1765,19 @@ class NautobotPrefix(Prefix):
                         f'Nautobot RiR {attrs["rir"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                     )
             _update_prefix.rir = _rir
+        if "date_allocated" in attrs:
+            _update_prefix.date_allocated = attrs["date_allocated"]
         if "tags" in attrs:
+            _update_prefix.validated_save()
+            _update_prefix.tags.clear()
             try:
-                _tags = []
                 for tag in attrs["tags"]:
-                    _tags.append(ORMTag.objects.get(name=tag))
+                    _tag = ORMTag.objects.get(name=tag)
+                    _update_prefix.tags.add(_tag)
             except ORMTag.DoesNotExist:
                 self.adapter.job.logger.warning(
                     f'Nautobot Tag {attrs["tags"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
                 )
-        if "date_allocated" in attrs:
-            _update_prefix.date_allocated = attrs["date_allocated"]
-        if attrs.get("tags"):
-            _update_prefix.validated_save()
-            _update_prefix.tags.clear()
-            for _tag in attrs["tags"]:
-                _update_prefix.tags.add(ORMTag.objects.get(name=_tag))
         if "locations" in attrs:
             try:
                 _locations = []
