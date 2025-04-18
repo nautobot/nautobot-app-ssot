@@ -161,7 +161,7 @@ jobs:
           #   nautobot-version: "3.0.0"  # TODO: Uncomment after v3.0.0 is released
           - python-version: "3.12"
             db-backend: "mysql"
-            nautobot-version: ["next"]  # TODO: Change to stable after v3.0.0 is released
+            nautobot-version: "next"  # TODO: Change to stable after v3.0.0 is released
     runs-on: "ubuntu-22.04"
     env:
       INVOKE_NAUTOBOT_SSOT_PYTHON_VER: "${{ matrix.python-version }}"
