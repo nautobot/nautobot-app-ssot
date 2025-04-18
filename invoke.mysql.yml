@@ -1,7 +1,7 @@
 ---
 nautobot_ssot:
   project_name: "nautobot-ssot"
-  nautobot_ver: "2.4.20"
+  nautobot_ver: "next"  # TODO: Change to 3.0.0 after v3.0.0 is released
   local: false
   python_ver: "3.12"
   compose_dir: "development"

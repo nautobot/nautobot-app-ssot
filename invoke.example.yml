@@ -1,10 +1,9 @@
 ---
 nautobot_ssot:
-  nautobot_ver: "2.4.20"
-  python_ver: "3.12"
+  nautobot_ver: "next" # TODO: Change to 3.0.0 after v3.0.0 is released
+  python_ver: "3.11"
   # local: false
   # compose_dir: "/full/path/to/nautobot-app-ssot/development"
-
 # The following is an example of using MySQL as the database backend
 # ---
 # nautobot_ssot:

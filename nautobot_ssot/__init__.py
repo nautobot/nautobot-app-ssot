@@ -53,6 +53,8 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
     description = "Nautobot app that enables Single Source of Truth.  Allows users to aggregate distributed data sources and/or distribute Nautobot data to other data sources such as databases and SDN controllers."
     base_url = "ssot"
     required_settings = []
+    min_version = "3.0.0a1"  # TODO: Update to 3.0.0 when Nautobot v3.0.0 is released
+    max_version = "3.9999"
     default_settings = {
         "aci_tag": "",
         "aci_tag_color": "",
