@@ -52,7 +52,7 @@ namespace = Collection("nautobot_ssot")
 namespace.configure(
     {
         "nautobot_ssot": {
-            "nautobot_ver": "2.3.1",
+            "nautobot_ver": "next",  # TODO: Change to 3.0.0 after v3.0.0 is released
             "project_name": "nautobot-ssot",
             "python_ver": "3.11",
             "local": False,
