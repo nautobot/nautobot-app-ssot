@@ -1,0 +1,16 @@
+{
+   "value":[
+      {
+         "host":"host-1007",
+         "name":"crunchy-esxi.heshlaw.local",
+         "connection_state":"CONNECTED",
+         "power_state":"POWERED_ON"
+      },
+      {
+         "host":"host-5177",
+         "name":"192.168.2.134",
+         "connection_state":"CONNECTED",
+         "power_state":"POWERED_ON"
+      }
+   ]
+}
