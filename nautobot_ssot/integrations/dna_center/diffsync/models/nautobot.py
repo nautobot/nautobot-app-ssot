@@ -118,12 +118,16 @@ class NautobotBuilding(base.Building):
             parent_id=adapter.region_map[attrs["area_parent"]][ids["area"]],
             physical_address=attrs["address"] if attrs.get("address") else "",
             status_id=adapter.status_map["Active"],
-            latitude=attrs["latitude"],
-            longitude=attrs["longitude"],
+            latitude=attrs["latitude"] if attrs.get("latitude") else None,
+            longitude=attrs["longitude"] if attrs.get("longitude") else None,
         )
         if attrs.get("tenant"):
             new_building.tenant_id = adapter.tenant_map[attrs["tenant"]]
-        new_building.validated_save()
+        try:
+            new_building.validated_save()
+        except ValidationError as err:
+            adapter.job.logger.error(f"Unable to create {adapter.job.building_loctype.name} {ids['name']}. {err}")
+            return None
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
                 adapter=adapter,
@@ -617,7 +621,7 @@ class NautobotIPAddress(base.IPAddress):
     def create(cls, adapter, ids, attrs):
         """Create IPAddress in Nautobot from IPAddress object."""
         new_ip = IPAddress(
-            address=f"{ids['host']}/{ids['mask_length']}",
+            address=f"{ids['host']}/{attrs['mask_length']}",
             namespace=adapter.namespace_map[ids["namespace"]],
             status_id=adapter.status_map["Active"],
         )

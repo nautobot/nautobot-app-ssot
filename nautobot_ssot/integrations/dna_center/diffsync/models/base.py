@@ -142,8 +142,8 @@ class IPAddress(DiffSyncModel):
     """DiffSync model for DNA Center IP addresses."""
 
     _modelname = "ipaddress"
-    _identifiers = ("host", "mask_length", "namespace")
-    _attributes = ("tenant", "metadata")
+    _identifiers = ("host", "namespace")
+    _attributes = ("mask_length", "tenant", "metadata")
     _children = {}
 
     host: str
