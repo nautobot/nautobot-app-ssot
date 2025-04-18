@@ -10,8 +10,8 @@
         "project_slug": "nautobot-app-ssot",
         "repo_url": "https://github.com/nautobot/nautobot-app-ssot",
         "base_url": "ssot",
-        "min_nautobot_version": "2.0.0",
-        "max_nautobot_version": "2.9999",
+        "min_nautobot_version": "3.0.0",
+        "max_nautobot_version": "3.9999",
         "camel_name": "NautobotSSOTApp",
         "project_short_description": "Nautobot Single Source of Truth",
         "model_class_name": "Sync",
@@ -34,4 +34,3 @@
         }
     }
 }
-
