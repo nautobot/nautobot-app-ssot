@@ -31,7 +31,22 @@ from nautobot_ssot.integrations.slurpit.diffsync.models import (
     VRFModel,
 )
 
-unknown_location = slurpit_site(id=100000, sitename="Unknown", description="Unknown", street="Unknown", county="Unknown", state="Unknown", number="000", zipcode="Unknown", city="Unknown", country="Unknown", phonenumber="Unknown", status=0, longitude="0", latitude="0")
+unknown_location = slurpit_site(
+    id=100000,
+    sitename="Unknown",
+    description="Unknown",
+    street="Unknown",
+    county="Unknown",
+    state="Unknown",
+    number="000",
+    zipcode="Unknown",
+    city="Unknown",
+    country="Unknown",
+    phonenumber="Unknown",
+    status=0,
+    longitude="0",
+    latitude="0",
+)
 
 
 # Helper function for latitude formatting
