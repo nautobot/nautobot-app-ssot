@@ -1,0 +1,1 @@
+Fixes syncing devices if they do not have a site defined in Slurpit by adding a default location.
