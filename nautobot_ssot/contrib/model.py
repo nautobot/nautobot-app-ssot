@@ -110,7 +110,7 @@ class NautobotModel(DiffSyncModel):
 
         if adapter.metadata_type:
             try:
-                cls._update_obj_metadata(obj, parameters, adapter)
+                cls._update_obj_metadata(obj, adapter)
             except ObjectCrudException as error:
                 raise ObjectNotCreated(error) from error
 
@@ -402,7 +402,7 @@ class NautobotModel(DiffSyncModel):
             setattr(obj, field_name, related_object)
 
     @classmethod
-    def _update_obj_metadata(cls, obj, parameters, adapter):
+    def _update_obj_metadata(cls, obj, adapter):
         """Update a given Nautobot ORM object with the required object metadata."""
         # Get the scope_fields from the DiffSync Model
         obj_metadata_scope_fields = adapter.metadata_scope_fields[cls]
