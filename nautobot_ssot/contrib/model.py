@@ -404,18 +404,14 @@ class NautobotModel(DiffSyncModel):
     @classmethod
     def _update_obj_metadata(cls, obj, parameters, adapter):
         """Update a given Nautobot ORM object with the required object metadata."""
-        # Check if the objects Content Type is included in Metadata Type Content Types
-        obj_content_type = (obj._meta.app_label, obj._meta.model_name)
-        metadata_type_content_types = adapter.metadata_type.content_types.values_list("app_label", "model")
-        if obj_content_type not in metadata_type_content_types:
-            adapter.metadata_type.content_types.add(ContentType.objects.get_for_model(obj._meta.model))
-
         # Get the scope_fields from the DiffSync Model
-        obj_metadata_scope_fields = list({parameter.split("__", maxsplit=1)[0] for parameter in parameters.keys()})
+        obj_metadata_scope_fields = adapter.metadata_scope_fields[cls]
+        obj_metadata = obj.associated_object_metadata.filter(
+            metadata_type=adapter.metadata_type
+        ).first() or ObjectMetadata(
+            metadata_type=adapter.metadata_type,
+            assigned_object=obj        )
 
-        # Create the Object Metadata for the obj
-        obj_metadata = ObjectMetadata(
-            metadata_type=adapter.metadata_type, assigned_object=obj, scoped_fields=obj_metadata_scope_fields
-        )
+        obj_metadata.scoped_fields = obj_metadata_scope_fields
         obj_metadata.value = datetime.now()
         obj_metadata.validated_save()

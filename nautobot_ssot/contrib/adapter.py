@@ -52,6 +52,7 @@ class NautobotAdapter(DiffSync):
         self.job = job
         self.sync = sync
         self.metadata_type = None
+        self.metadata_scope_fields = {}
         self.invalidate_cache()
 
     def invalidate_cache(self, zero_out_hits=True):
@@ -393,11 +394,10 @@ class NautobotAdapter(DiffSync):
     def get_or_create_metadatatype(self):
         """Retrieve or create a MetadataType object to track the last sync time of this SSoT job."""
         # MetadataType name will be extracted from the Data Source name.
-        print(dir(self.job.__class__))
         metadata_type__name = self.job.__class__.Meta.data_source
 
         # Create a MetadataType of type datetime
-        metadata_type, created = MetadataType.objects.get_or_create(
+        metadata_type, _ = MetadataType.objects.get_or_create(
             name=f"Last sync from {metadata_type__name}",
             defaults={
                 "data_type": "datetime",
@@ -405,9 +405,18 @@ class NautobotAdapter(DiffSync):
             },
         )
 
-        # Use prefetch_related for content_types since they'll be used during model CRUD operations.
-        if not created:
-            metadata_type = MetadataType.objects.prefetch_related("content_types").get(pk=metadata_type.pk)
+        for model_name in self.top_level:
+            diffsync_model = self._get_diffsync_class(model_name)
+            nautobot_model = diffsync_model._model
+            # Attach ContentTypes to MetadataType
+            content_type = ContentType.objects.get_for_model(nautobot_model)
+            if content_type not in metadata_type.content_types.all():
+                metadata_type.content_types.add(content_type)
+            # Define scope fields per model
+            obj_metadata_scope_fields = list(
+                {parameter.split("__", maxsplit=1)[0] for parameter in self._get_parameter_names(diffsync_model)}
+            )
+            self.metadata_scope_fields[diffsync_model] = obj_metadata_scope_fields
 
         # Define the metadata type on the adapter so that can be used on the models crud operations
         self.metadata_type = metadata_type
