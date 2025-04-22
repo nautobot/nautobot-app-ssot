@@ -408,9 +408,7 @@ class NautobotModel(DiffSyncModel):
         obj_metadata_scope_fields = adapter.metadata_scope_fields[cls]
         obj_metadata = obj.associated_object_metadata.filter(
             metadata_type=adapter.metadata_type
-        ).first() or ObjectMetadata(
-            metadata_type=adapter.metadata_type,
-            assigned_object=obj        )
+        ).first() or ObjectMetadata(metadata_type=adapter.metadata_type, assigned_object=obj)
 
         obj_metadata.scoped_fields = obj_metadata_scope_fields
         obj_metadata.value = datetime.now()
