@@ -5951,4 +5951,4 @@ slurpit = ["slurpit-sdk"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9.2,<3.13"
-content-hash = "3bb64bf61d3080038b9384cd1bda959a0a17cbf81c36f3281d0efc70be43e85d"
+content-hash = "389c6fe207ead2fa45c6a0bc0e00edf04cc3d865773ae6209b923ae73d1d3650"
