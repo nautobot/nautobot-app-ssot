@@ -270,7 +270,7 @@ class NautobotAdapter(Adapter):
             relationship_association_parameters["destination_id"] = database_object.id
         return relationship_association_parameters
 
-    def _handle_to_many_relationship(self,database_object, diffsync_model, parameter_name):
+    def _handle_to_many_relationship(self, database_object, diffsync_model, parameter_name):
         """Handle a single one- or many-to-many relationship field.
 
         one- or many-to-many relationships are type annotated as a list of typed dictionaries. The typed
