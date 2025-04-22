@@ -270,8 +270,7 @@ class NautobotAdapter(Adapter):
             relationship_association_parameters["destination_id"] = database_object.id
         return relationship_association_parameters
 
-    @staticmethod
-    def _handle_to_many_relationship(database_object, diffsync_model, parameter_name):
+    def _handle_to_many_relationship(self,database_object, diffsync_model, parameter_name):
         """Handle a single one- or many-to-many relationship field.
 
         one- or many-to-many relationships are type annotated as a list of typed dictionaries. The typed
@@ -326,7 +325,7 @@ class NautobotAdapter(Adapter):
         related_objects_list = []
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
         for related_object in getattr(database_object, parameter_name).all():
-            dictionary_representation = NautobotAdapter._handle_typed_dict(inner_type, related_object)
+            dictionary_representation = self._handle_typed_dict(inner_type, related_object)
             # Only use those where there is a single field defined, all 'None's will not help us.
             if any(dictionary_representation.values()):
                 related_objects_list.append(dictionary_representation)
