@@ -412,7 +412,6 @@ class NautobotDevice(base.Device):
                 )[0]
         device.cf["system_of_record"] = "DNA Center"
         device.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
-        try:
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
                 adapter=self.adapter,
