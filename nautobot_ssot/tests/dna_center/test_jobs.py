@@ -22,7 +22,7 @@ from nautobot.extras.models import (
     SecretsGroupAssociation,
     Status,
 )
-from nautobot.ipam.models import IPAddress, Prefix
+from nautobot.ipam.models import IPAddress, Namespace, Prefix
 
 from nautobot_ssot.integrations.dna_center import jobs
 from nautobot_ssot.tests.dna_center.fixtures import (
@@ -93,6 +93,7 @@ class DnaCenterMultiLevelLocationJobTest(TransactionTestCase):  # pylint: disabl
         super().setUp()
         self.status_active = Status.objects.get_or_create(name="Active")[0]
         self.offline_active = Status.objects.get_or_create(name="Offline")[0]
+        self.global_ns = Namespace.objects.get_or_create(name="Global")[0]
         sor_cf_dict = {
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "key": "system_of_record",
