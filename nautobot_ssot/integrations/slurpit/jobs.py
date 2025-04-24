@@ -2,6 +2,7 @@
 """Slurpit DataSource job class."""
 
 import slurpit
+from diffsync.enum import DiffSyncFlags
 from django.contrib.contenttypes.models import ContentType
 from django.templatetags.static import static
 from django.urls import reverse
@@ -136,6 +137,8 @@ class SlurpitDataSource(DataSource, Job):  # pylint: disable=too-many-instance-a
         if not self.namespace:
             self.namespace = Namespace.objects.get(name="Global")
         self.ignore_prefixes = ignore_prefixes
+
+        self.diffsync_flags |= DiffSyncFlags.SKIP_UNMATCHED_DST
 
         self.kwargs = {
             "sync_slurpit_tagged_only": sync_slurpit_tagged_only,
