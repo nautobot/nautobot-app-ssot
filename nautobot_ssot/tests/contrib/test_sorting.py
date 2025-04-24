@@ -100,8 +100,8 @@ class TestCaseSortRelationships(TestCase):
             NautobotTenant(
                 name="tenant1",
                 tags=[
-                    TagDict(name="tag2", description="Test Tag"),
-                    TagDict(name="tag1", description="Test Tag"),
+                    TagDict(name="B Tag", description="Test Tag"),
+                    TagDict(name="A Tag", description="Test Tag"),
                 ],
             )
         )
@@ -109,16 +109,16 @@ class TestCaseSortRelationships(TestCase):
             NautobotTenant(
                 name="tenant1",
                 tags=[
-                    TagDict(name="tag2", description="Test Tag"),
-                    TagDict(name="tag1", description="Test Tag"),
+                    TagDict(name="B Tag", description="Test Tag"),
+                    TagDict(name="A Tag", description="Test Tag"),
                 ],
             )
         )
 
     def test_sort_relationships(self):
         # Verify order of entries prior to sorting
-        self.assertTrue(self.source.get_all("tenant")[0].tags[0]["name"] == "tag2")
-        self.assertTrue(self.target.get_all("tenant")[0].tags[0]["name"] == "tag2")
+        self.assertTrue(self.source.get_all("tenant")[0].tags[0]["name"] == "B Tag")
+        self.assertTrue(self.target.get_all("tenant")[0].tags[0]["name"] == "B Tag")
         sort_relationships(self.source, self.target)
-        self.assertTrue(self.source.get_all("tenant")[0].tags[0]["name"] == "tag1")
-        self.assertTrue(self.target.get_all("tenant")[0].tags[0]["name"] == "tag1")
+        self.assertTrue(self.source.get_all("tenant")[0].tags[0]["name"] == "A Tag")
+        self.assertTrue(self.target.get_all("tenant")[0].tags[0]["name"] == "A Tag")
