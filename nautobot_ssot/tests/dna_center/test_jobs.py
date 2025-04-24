@@ -92,6 +92,7 @@ class DnaCenterMultiLevelLocationJobTest(TransactionTestCase):  # pylint: disabl
         """Initialize shared vars for tests."""
         super().setUp()
         self.status_active = Status.objects.get_or_create(name="Active")[0]
+        self.offline_active = Status.objects.get_or_create(name="Offline")[0]
         sor_cf_dict = {
             "type": CustomFieldTypeChoices.TYPE_TEXT,
             "key": "system_of_record",
@@ -109,6 +110,7 @@ class DnaCenterMultiLevelLocationJobTest(TransactionTestCase):  # pylint: disabl
             sync_custom_field.content_types.add(ContentType.objects.get_for_model(model))
         for obj in [Controller, Device, Interface, Location, IPAddress, Prefix]:
             self.status_active.content_types.add(ContentType.objects.get_for_model(obj))
+            self.offline_active.content_types.add(ContentType.objects.get_for_model(obj))
         self.area_loctype = LocationType.objects.get_or_create(name="Area", nestable=True)[0]
         self.building_loctype = LocationType.objects.get_or_create(name="Building", parent=self.area_loctype)[0]
         self.building_loctype.content_types.add(ContentType.objects.get_for_model(Device))
