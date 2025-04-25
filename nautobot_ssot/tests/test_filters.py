@@ -1,16 +1,22 @@
 """Test Sync Filter."""
 
-from django.test import TestCase
+from nautobot.apps.testing import FilterTestCases
 
 from nautobot_ssot import filters, models
 from nautobot_ssot.tests import fixtures
 
 
-class SyncFilterTestCase(TestCase):
+class SyncFilterTestCase(FilterTestCases.FilterTestCase):
     """Sync Filter Test Case."""
 
     queryset = models.Sync.objects.all()
     filterset = filters.SyncFilterSet
+    generic_filter_tests = (
+        ("id",),
+        ("created",),
+        ("last_updated",),
+        ("name",),
+    )
 
     @classmethod
     def setUpTestData(cls):

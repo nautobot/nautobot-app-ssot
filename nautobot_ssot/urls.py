@@ -12,7 +12,9 @@ from nautobot_ssot import views
 app_name = "nautobot_ssot"
 router = NautobotUIViewSetRouter()
 
-router.register("sync", views.SyncUIViewSet)
+# The standard is for the route to be the hyphenated version of the model class name plural.
+# for example, ExampleModel would be example-models.
+router.register("syncs", views.SyncUIViewSet)
 
 
 urlpatterns = [

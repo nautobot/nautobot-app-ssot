@@ -1,12 +1,22 @@
 """Test Sync."""
 
-from django.test import TestCase
+from nautobot.apps.testing import ModelTestCases
 
 from nautobot_ssot import models
+from nautobot_ssot.tests import fixtures
 
 
-class TestSync(TestCase):
+class TestSync(ModelTestCases.BaseModelTestCase):
     """Test Sync."""
+
+    model = models.Sync
+
+    @classmethod
+    def setUpTestData(cls):
+        """Create test data for Sync Model."""
+        super().setUpTestData()
+        # Create 3 objects for the model test cases.
+        fixtures.create_sync()
 
     def test_create_sync_only_required(self):
         """Create with only required fields, and validate null description and __str__."""

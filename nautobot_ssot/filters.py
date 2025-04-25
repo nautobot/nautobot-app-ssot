@@ -5,7 +5,7 @@ from nautobot.apps.filters import NameSearchFilterSet, NautobotFilterSet
 from nautobot_ssot import models
 
 
-class SyncFilterSet(NautobotFilterSet, NameSearchFilterSet):  # pylint: disable=too-many-ancestors
+class SyncFilterSet(NameSearchFilterSet, NautobotFilterSet):  # pylint: disable=too-many-ancestors
     """Filter for Sync."""
 
     class Meta:
@@ -14,4 +14,4 @@ class SyncFilterSet(NautobotFilterSet, NameSearchFilterSet):  # pylint: disable=
         model = models.Sync
 
         # add any fields from the model that you would like to filter your searches by using those
-        fields = ["id", "name", "description"]
+        fields = "__all__"
