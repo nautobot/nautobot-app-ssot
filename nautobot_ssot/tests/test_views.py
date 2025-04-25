@@ -22,7 +22,17 @@ class SyncViewsTestCase(  # pylint: disable=too-many-ancestors
 ):
     """Test various views associated with the Sync model."""
 
-    model = Sync
+    model = models.Sync
+    bulk_edit_data = {"description": "Bulk edit views"}
+    form_data = {
+        "name": "Test 1",
+        "description": "Initial model",
+    }
+
+    update_data = {
+        "name": "Test 2",
+        "description": "Updated model",
+    }
 
     @classmethod
     def setUpTestData(cls):

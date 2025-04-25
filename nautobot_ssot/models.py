@@ -32,15 +32,16 @@ from nautobot.extras.choices import JobResultStatusChoices
 from nautobot.extras.models import JobResult
 from nautobot.extras.utils import extras_features
 
-from nautobot_ssot.integrations.infoblox.models import SSOTInfobloxConfig
-from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
-from nautobot_ssot.integrations.servicenow.models import SSOTServiceNowConfig
+# Nautobot imports
+from nautobot.apps.models import PrimaryModel, extras_features
 
-from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
-
-
-class DiffJSONEncoder(DjangoJSONEncoder):
-    """Custom JSON encoder for the Sync.diff field."""
+# If you want to choose a specific model to overload in your class declaration, please reference the following documentation:
+# how to chose a database model: https://docs.nautobot.com/projects/core/en/stable/plugins/development/#database-models
+# If you want to use the extras_features decorator please reference the following documentation
+# https://docs.nautobot.com/projects/core/en/stable/development/core/model-checklist/#extras-features
+@extras_features("custom_links", "custom_validators", "export_templates", "graphql", "webhooks")
+class Sync(PrimaryModel):  # pylint: disable=too-many-ancestors
+    """Base model for Single Source of Truth app."""
 
     def default(self, o):
         """Custom JSON encoder for the Sync.diff field."""
