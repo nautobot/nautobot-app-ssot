@@ -1,34 +1,38 @@
 """Functions for sorting DiffSync model lists ensuring they are sorted to prevent false actions."""
 
+import sys
+
 from diffsync import Adapter, DiffSyncModel
-from typing_extensions import get_type_hints
+from typing_extensions import get_type_hints, TypedDict
 
 from nautobot_ssot.contrib.typeddicts import SortKey
 from nautobot_ssot.contrib.types import SortType
-
+    
 
 def _is_sortable_field(attribute_type_hints) -> bool:
     """Check if a DiffSync attribute is a sortable field."""
-    try:
-        return attribute_type_hints.__name__ in [
-            "list",
-            "List",
-        ]
-    except AttributeError:
-        return False
+    minor_ver = sys.version_info[1]
+    if minor_ver <= 9:
+        attr_name = attribute_type_hints._name
+    else:
+        attr_name = attribute_type_hints.__name__
+
+    return str(attr_name) in [
+        "list",
+        "List",
+    ]
 
 
 def _get_sort_key_from_typed_dict(sortable_content_type) -> str:
     """Get the dictionary key from a TypedDict if found."""
-    for key_name, key_annotation in sortable_content_type.__annotations__.items():
-        if key_annotation.__name__ != "Annotated":
-            # Only check attributes with `Annotated` in their type hints
+    for key, value in sortable_content_type.__annotations__.items():
+        try:
+            metadata = value.__metadata__
+        except AttributeError:
             continue
-        for metadata in key_annotation.__metadata__:
-            # Get the sort key from the annotation
-            if metadata == SortKey:
-                return key_name
-    return None
+        for entry in metadata:
+            if entry == SortKey:
+                return key
 
 
 def get_sortable_fields_from_model(model: DiffSyncModel) -> dict:
@@ -38,12 +42,13 @@ def get_sortable_fields_from_model(model: DiffSyncModel) -> dict:
 
     for model_attribute_name in model._attributes:  # pylint: disable=protected-access
         attribute_type_hints = model_type_hints.get(model_attribute_name)
+
         if not _is_sortable_field(attribute_type_hints):
             continue
 
         sortable_content_type = attribute_type_hints.__args__[0]
 
-        if issubclass(sortable_content_type, dict):
+        if issubclass(sortable_content_type, dict) or issubclass(sortable_content_type, TypedDict):
             sort_key = _get_sort_key_from_typed_dict(sortable_content_type)
             if not sort_key:
                 continue
@@ -66,6 +71,7 @@ def _sort_dict_attr(obj, attribute, key):
         )
     else:
         sorted_data = sorted(getattr(obj, attribute))
+    
     if sorted_data:
         setattr(obj, attribute, sorted_data)
     return obj
