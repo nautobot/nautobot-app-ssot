@@ -13,7 +13,7 @@ def _is_sortable_field(attribute_type_hints) -> bool:
     """Check if a DiffSync attribute is a sortable field."""
     minor_ver = sys.version_info[1]
     if minor_ver <= 9:
-        attr_name = attribute_type_hints._name
+        attr_name = attribute_type_hints._name  # pylint: disable=protected-access
     else:
         attr_name = attribute_type_hints.__name__
 
@@ -33,6 +33,7 @@ def _get_sort_key_from_typed_dict(sortable_content_type) -> str:
         for entry in metadata:
             if entry == SortKey:
                 return key
+    return None
 
 
 def get_sortable_fields_from_model(model: DiffSyncModel) -> dict:
