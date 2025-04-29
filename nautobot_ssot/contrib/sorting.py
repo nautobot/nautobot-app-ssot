@@ -3,11 +3,11 @@
 import sys
 
 from diffsync import Adapter, DiffSyncModel
-from typing_extensions import get_type_hints, TypedDict
+from typing_extensions import TypedDict, get_type_hints
 
 from nautobot_ssot.contrib.typeddicts import SortKey
 from nautobot_ssot.contrib.types import SortType
-    
+
 
 def _is_sortable_field(attribute_type_hints) -> bool:
     """Check if a DiffSync attribute is a sortable field."""
@@ -71,7 +71,7 @@ def _sort_dict_attr(obj, attribute, key):
         )
     else:
         sorted_data = sorted(getattr(obj, attribute))
-    
+
     if sorted_data:
         setattr(obj, attribute, sorted_data)
     return obj

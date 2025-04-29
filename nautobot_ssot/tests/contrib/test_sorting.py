@@ -77,7 +77,7 @@ class TestCaseGetSortedAttributesFromModel(TestCase):
 
     def test_one_sortable_attribute(self):
         result = get_sortable_fields_from_model(NautobotTenant)
-        self.assertTrue(bool(result))
+        self.assertTrue(len(result) == 1)
 
     def test_no_sortable_attributes(self):
         result = get_sortable_fields_from_model(BasicNautobotTag)
@@ -102,6 +102,9 @@ class TestCaseSortRelationships(TestCase):
                 tags=[
                     TagDict(name="B Tag", description="Test Tag"),
                     TagDict(name="A Tag", description="Test Tag"),
+                    TagDict(name="C Tag", description="Test Tag"),
+                    TagDict(name="E Tag", description="Test Tag"),
+                    TagDict(name="D Tag", description="Test Tag"),
                 ],
             )
         )
@@ -111,6 +114,9 @@ class TestCaseSortRelationships(TestCase):
                 tags=[
                     TagDict(name="B Tag", description="Test Tag"),
                     TagDict(name="A Tag", description="Test Tag"),
+                    TagDict(name="C Tag", description="Test Tag"),
+                    TagDict(name="E Tag", description="Test Tag"),
+                    TagDict(name="D Tag", description="Test Tag"),
                 ],
             )
         )
