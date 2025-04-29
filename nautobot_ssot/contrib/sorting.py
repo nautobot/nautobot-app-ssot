@@ -12,8 +12,8 @@ from nautobot_ssot.contrib.types import SortType
 def _is_sortable_field(attribute_type_hints) -> bool:
     """Check if a DiffSync attribute is a sortable field."""
     minor_ver = sys.version_info[1]
-
     try:
+        # For Python 3.9 and older
         if minor_ver <= 9:
             attr_name = attribute_type_hints._name  # pylint: disable=protected-access
         else:
