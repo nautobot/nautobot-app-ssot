@@ -818,7 +818,7 @@ prefix:
 scheduled_job:
   - name: "Test Scheduled Job"
     interval: "daily"
-    start_time: "2025-01-28 23:00:00"
+    start_time: "2025-01-28T23:00:00+00:00"
     job_model: "Export Object List"
     user: "admin"
 custom_field:

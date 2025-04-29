@@ -1,12 +1,5 @@
 """Nautobot Adapter for DNA Center SSoT plugin."""
 
-try:
-    from nautobot_device_lifecycle_mgmt.models import SoftwareLCM  # noqa: F401
-
-    LIFECYCLE_MGMT = True
-except ImportError:
-    LIFECYCLE_MGMT = False
-
 from collections import defaultdict
 from typing import Optional
 
@@ -41,6 +34,7 @@ from nautobot_ssot.integrations.dna_center.diffsync.models.nautobot import (
     NautobotPort,
     NautobotPrefix,
 )
+from nautobot_ssot.utils import dlm_supports_softwarelcm
 
 try:
     from nautobot.extras.models.metadata import ObjectMetadata  # noqa: F401
@@ -125,7 +119,9 @@ class NautobotAdapter(Adapter):
         """Load Location data from Nautobot for specified Building LocationType into DiffSync models."""
         buildings = OrmLocation.objects.filter(location_type=self.job.building_loctype)
         for building in buildings:
-            self.site_map[building.name] = building.id
+            if building.parent.name not in self.site_map:
+                self.site_map[building.parent.name] = {}
+            self.site_map[building.parent.name][building.name] = building.id
             try:
                 self.get(
                     self.building,
@@ -155,9 +151,14 @@ class NautobotAdapter(Adapter):
         """Load LocationType floors from Nautobot into DiffSync models."""
         floors = OrmLocation.objects.filter(location_type=self.job.floor_loctype)
         for floor in floors:
-            self.floor_map[floor.name] = floor.id
+            if floor.parent.parent.name not in self.floor_map:
+                self.floor_map[floor.parent.parent.name] = {}
+            if floor.parent.name not in self.floor_map[floor.parent.parent.name]:
+                self.floor_map[floor.parent.parent.name][floor.parent.name] = {}
+            self.floor_map[floor.parent.parent.name][floor.parent.name][floor.name] = floor.id
             new_floor = self.floor(
                 name=floor.name,
+                area=floor.parent.parent.name if floor.parent.parent else "",
                 building=floor.parent.name if floor.parent else "",
                 tenant=floor.tenant.name if floor.tenant else None,
                 uuid=floor.id,
@@ -189,7 +190,7 @@ class NautobotAdapter(Adapter):
             version = None
             if getattr(dev, "software_version"):
                 version = dev.software_version.version
-            if LIFECYCLE_MGMT:
+            if dlm_supports_softwarelcm():
                 dlm_version = None
                 try:
                     soft_lcm = OrmRelationship.objects.get(label="Software on Device")
@@ -206,14 +207,17 @@ class NautobotAdapter(Adapter):
             if dev.location.location_type == self.job.floor_loctype:
                 floor_name = dev.location.name
                 bldg_name = dev.location.parent.name
+                area_name = dev.location.parent.parent.name
             if dev.location.location_type == self.job.building_loctype:
                 bldg_name = dev.location.name
+                area_name = dev.location.parent.name
             new_dev = self.device(
                 name=dev.name,
                 status=dev.status.name,
                 role=dev.role.name,
                 vendor=dev.device_type.manufacturer.name,
                 model=dev.device_type.model,
+                area=area_name,
                 site=bldg_name,
                 floor=floor_name,
                 serial=dev.serial,
@@ -317,6 +321,7 @@ class NautobotAdapter(Adapter):
         for mapping in mappings:
             new_ipaddr_to_interface = self.ip_on_intf(
                 host=str(mapping.ip_address.host),
+                mask_length=mapping.ip_address.mask_length,
                 device=mapping.interface.device.name,
                 port=mapping.interface.name,
                 primary=bool(

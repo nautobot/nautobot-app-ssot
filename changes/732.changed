@@ -1,2 +1,0 @@
-Allowed custom_property to be used for filtering without requiring location_override.
-Added location_override ability to be used without requiring custom_property.

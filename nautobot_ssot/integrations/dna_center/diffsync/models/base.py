@@ -46,12 +46,13 @@ class Floor(DiffSyncModel):
     """DiffSync model for DNA Center floors."""
 
     _modelname = "floor"
-    _identifiers = ("name", "building")
+    _identifiers = ("name", "building", "area")
     _attributes = ("tenant", "metadata")
     _children = {}
 
     name: str
     building: str
+    area: str
     tenant: Optional[str] = None
     metadata: Optional[bool] = True
 
@@ -64,6 +65,7 @@ class Device(DiffSyncModel):
     _modelname = "device"
     _identifiers = ("name",)
     _attributes = (
+        "area",
         "site",
         "serial",
         "status",
@@ -84,7 +86,8 @@ class Device(DiffSyncModel):
     role: Optional[str] = None
     vendor: str
     model: str
-    site: Optional[str] = None
+    area: str
+    site: str
     floor: Optional[str] = None
     serial: str = ""
     version: Optional[str] = None
@@ -139,8 +142,8 @@ class IPAddress(DiffSyncModel):
     """DiffSync model for DNA Center IP addresses."""
 
     _modelname = "ipaddress"
-    _identifiers = ("host", "namespace")
-    _attributes = ("mask_length", "tenant", "metadata")
+    _identifiers = ("host", "mask_length", "namespace")
+    _attributes = ("tenant", "metadata")
     _children = {}
 
     host: str
@@ -156,11 +159,12 @@ class IPAddressOnInterface(DiffSyncModel):
     """DiffSync model for DNA Center tracking IPAddress on particular Device interfaces."""
 
     _modelname = "ip_on_intf"
-    _identifiers = ("host", "device", "port")
+    _identifiers = ("host", "mask_length", "device", "port")
     _attributes = ("primary",)
     _children = {}
 
     host: str
+    mask_length: int
     device: str
     port: str
     primary: bool

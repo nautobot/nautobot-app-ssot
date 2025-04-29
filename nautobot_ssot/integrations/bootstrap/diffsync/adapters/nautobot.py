@@ -75,52 +75,35 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import (
 )
 from nautobot_ssot.integrations.bootstrap.utils import (
     check_sor_field,
-    get_scheduled_start_time,
     get_sor_field_nautobot_object,
     lookup_content_type_model_path,
-    lookup_model_for_role_id,
     lookup_model_for_taggable_class_id,
 )
 from nautobot_ssot.integrations.bootstrap.utils.nautobot import (
     get_prefix_location_assignments,
     get_vrf_prefix_assignments,
 )
+from nautobot_ssot.utils import core_supports_softwareversion, dlm_supports_softwarelcm, validate_dlm_installed
 
-try:
-    # noqa: F401
+if dlm_supports_softwarelcm():
+    from nautobot_device_lifecycle_mgmt.models import (
+        SoftwareImageLCM as ORMSoftwareImage,
+    )
     from nautobot_device_lifecycle_mgmt.models import (
         SoftwareLCM as ORMSoftware,
     )
 
-    from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import NautobotSoftware
-
-    SOFTWARE_LIFECYCLE_MGMT = True
-except (ImportError, RuntimeError):
-    SOFTWARE_LIFECYCLE_MGMT = False
-
-try:
-    # noqa: F401
-    from nautobot_device_lifecycle_mgmt.models import (
-        SoftwareImageLCM as ORMSoftwareImage,
+    from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import (
+        NautobotSoftware,
+        NautobotSoftwareImage,
     )
 
-    from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import NautobotSoftwareImage
-
-    SOFTWARE_IMAGE_LIFECYCLE_MGMT = True
-except (ImportError, RuntimeError):
-    SOFTWARE_IMAGE_LIFECYCLE_MGMT = False
-
-try:
-    # noqa: F401
+if validate_dlm_installed():
     from nautobot_device_lifecycle_mgmt.models import (
         ValidatedSoftwareLCM as ORMValidatedSoftware,
     )
 
     from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import NautobotValidatedSoftware
-
-    VALID_SOFTWARE_LIFECYCLE_MGMT = True
-except (ImportError, RuntimeError):
-    VALID_SOFTWARE_LIFECYCLE_MGMT = False
 
 
 class NautobotAdapter(Adapter):
@@ -156,11 +139,10 @@ class NautobotAdapter(Adapter):
     tag = NautobotTag
     graph_ql_query = NautobotGraphQLQuery
 
-    if SOFTWARE_LIFECYCLE_MGMT:
+    if dlm_supports_softwarelcm():
         software = NautobotSoftware
-    if SOFTWARE_IMAGE_LIFECYCLE_MGMT:
         software_image = NautobotSoftwareImage
-    if VALID_SOFTWARE_LIFECYCLE_MGMT:
+    if core_supports_softwareversion():
         validated_software = NautobotValidatedSoftware
 
     top_level = [
@@ -194,11 +176,9 @@ class NautobotAdapter(Adapter):
         "custom_field",
     ]
 
-    if SOFTWARE_LIFECYCLE_MGMT:
+    if dlm_supports_softwarelcm():
         top_level.append("software")
-    if SOFTWARE_IMAGE_LIFECYCLE_MGMT:
         top_level.append("software_image")
-    if VALID_SOFTWARE_LIFECYCLE_MGMT:
         top_level.append("validated_software")
 
     def __init__(self, *args, job=None, sync=None, **kwargs):  # noqa: D417
@@ -223,7 +203,7 @@ class NautobotAdapter(Adapter):
                 try:
                     _parent = nb_tenant_group.parent.name
                 except AttributeError:
-                    _parent = ""
+                    _parent = None
                 _sor = ""
                 if "system_of_record" in nb_tenant_group.custom_field_data:
                     _sor = (
@@ -289,10 +269,10 @@ class NautobotAdapter(Adapter):
                 self.get(self.role, nb_role.name)
             except ObjectNotFound:
                 _content_types = []
-                _content_uuids = nb_role.content_types.values_list("model", "id")
-                for _uuid in _content_uuids:
-                    _content_types.append(lookup_model_for_role_id(_uuid[1]))
-                    _content_types.sort()
+                _content_types_info = nb_role.content_types.values_list("app_label", "model")
+                for app_label, model in _content_types_info:
+                    _content_types.append(f"{app_label}.{model}")
+                _content_types.sort()
                 _sor = ""
                 if "system_of_record" in nb_role.custom_field_data:
                     _sor = (
@@ -1182,7 +1162,7 @@ class NautobotAdapter(Adapter):
             try:
                 self.get(self.scheduled_job, job.name)
             except ObjectNotFound:
-                start_time = get_scheduled_start_time(start_time=job.start_time.replace(tzinfo=None).isoformat())
+                start_time = job.start_time.isoformat()
                 _scheduled_job = self.scheduled_job(
                     name=job.name,
                     job_model=job.job_model.name,
@@ -1426,12 +1406,11 @@ class NautobotAdapter(Adapter):
             self.load_scheduled_job()
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["custom_field"]:
             self.load_custom_field()
-        if SOFTWARE_LIFECYCLE_MGMT:
+        if dlm_supports_softwarelcm():
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software"]:
                 self.load_software()
-        if SOFTWARE_IMAGE_LIFECYCLE_MGMT:
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software_image"]:
                 self.load_software_image()
-        if VALID_SOFTWARE_LIFECYCLE_MGMT:
+        if core_supports_softwareversion():
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["validated_software"]:
                 self.load_validated_software()

@@ -1,1 +1,0 @@
-Added exception handling to Slurpit functions to catch if an object already exists.

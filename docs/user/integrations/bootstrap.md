@@ -144,62 +144,123 @@ git_branch: develop
 
 ## Content Types
 
-There are a couple models like Tags and Git Repositories that have associated content types. These require a specific format when listing them in the YAML file. The format of these is the `app_label`.`model`, though models can somewhat vary from App to App. Here is a list of some of the most common ones:
+There are a couple models like Tags and Git Repositories that have associated content types. These require a specific format when listing them in the YAML file. The format of these is the `app_label`.`model`, though other Apps and integrations for Nautobot can add additional types (for example Golden Config types for Git Repositories), here is a list of some of the most common ones:
+
+### Role Content Types:
+```yaml
+- dcim.controller
+- dcim.device
+- dcim.interface
+- dcim.module
+- dcim.rack
+- dcim.virtualdevicecontext
+- extras.contactassociation
+- ipam.ipaddress
+- ipam.prefix
+- ipam.vlan
+- virtualization.virtualmachine
+- virtualization.vminterface
+```
+
+## Git Repository Provided Content Types
 
 ```yaml
-- "circuits.circuit"
-- "circuits.circuittermination"
-- "circuits.provider"
-- "circuits.providernetwork"
-- "dcim.cable"
-- "dcim.consoleport"
-- "dcim.consoleserverport"
-- "dcim.device"
-- "dcim.devicebay"
-- "dcim.devicetype"
-- "dcim.frontport"
-- "dcim.interface"
-- "dcim.inventoryitem"
-- "dcim.powerfeed"
-- "dcim.poweroutlet"
-- "dcim.powerpanel"
-- "dcim.powerport"
-- "dcim.rack"
-- "dcim.rackreservation"
-- "dcim.rearport"
-- "dcim.site"
-- "dcim.virtualchassis"
-- "extras.gitrepository"
-- "extras.job"
-- "extras.secret"
-- "ipam.aggregate"
-- "ipam.ipaddress"
-- "ipam.prefix"
-- "ipam.routetarget"
-- "ipam.service"
-- "ipam.vlan"
-- "ipam.vrf"
-- "nautobot_device_lifecycle_mgmt.contactlcm"
-- "nautobot_device_lifecycle_mgmt.contractlcm"
-- "nautobot_device_lifecycle_mgmt.cvelcm"
-- "nautobot_device_lifecycle_mgmt.devicesoftwarevalidationresult"
-- "nautobot_device_lifecycle_mgmt.hardwarelcm"
-- "nautobot_device_lifecycle_mgmt.inventoryitemsoftwarevalidationresult"
-- "nautobot_device_lifecycle_mgmt.softwareimagelcm"
-- "nautobot_device_lifecycle_mgmt.softwarelcm"
-- "nautobot_device_lifecycle_mgmt.validatedsoftwarelcm"
-- "nautobot_device_lifecycle_mgmt.vulnerabilitylcm"
-- "nautobot_golden_config.compliancefeature"
-- "nautobot_golden_config.compliancerule"
-- "nautobot_golden_config.configcompliance"
-- "nautobot_golden_config.configremove"
-- "nautobot_golden_config.configreplace"
-- "nautobot_golden_config.goldenconfig"
-- "nautobot_golden_config.goldenconfigsetting"
-- "tenancy.tenant"
-- "virtualization.cluster"
-- "virtualization.virtualmachine"
-- "virtualization.vminterface"
+- extras.configcontext
+- extras.configcontextschema
+- extras.exporttemplate
+- extras.graphqlquery
+- extras.job
+- nautobot_device_onboarding.onboarding_command_mappers
+- backup configs
+- intended configs
+- jinja templates
+- Golden Config properties
+```
+
+### Tag Content Types
+```yaml
+- circuits.circuit
+- circuits.circuittermination
+- circuits.provider
+- circuits.providernetwork
+- cloud.cloudaccount
+- cloud.cloudnetwork
+- cloud.cloudresourcetype
+- cloud.cloudservice
+- dcim.cable
+- dcim.consoleport
+- dcim.consoleserverport
+- dcim.controller
+- dcim.controllermanageddevicegroup
+- dcim.device
+- dcim.devicebay
+- dcim.devicefamily
+- dcim.deviceredundancygroup
+- dcim.devicetype
+- dcim.frontport
+- dcim.interface
+- dcim.interfaceredundancygroup
+- dcim.inventoryitem
+- dcim.location
+- dcim.module
+- dcim.modulebay
+- dcim.moduletype
+- dcim.powerfeed
+- dcim.poweroutlet
+- dcim.powerpanel
+- dcim.powerport
+- dcim.rack
+- dcim.rackreservation
+- dcim.rearport
+- dcim.softwareimagefile
+- dcim.softwareversion
+- dcim.virtualchassis
+- dcim.virtualdevicecontext
+- extras.contact
+- extras.dynamicgroup
+- extras.externalintegration
+- extras.gitrepository
+- extras.job
+- extras.jobqueue
+- extras.metadatatype
+- extras.secret
+- extras.team
+- ipam.ipaddress
+- ipam.namespace
+- ipam.prefix
+- ipam.routetarget
+- ipam.service
+- ipam.vlan
+- ipam.vlangroup
+- ipam.vrf
+- nautobot_device_lifecycle_mgmt.contactlcm
+- nautobot_device_lifecycle_mgmt.contractlcm
+- nautobot_device_lifecycle_mgmt.cvelcm
+- nautobot_device_lifecycle_mgmt.devicesoftwarevalidationresult
+- nautobot_device_lifecycle_mgmt.hardwarelcm
+- nautobot_device_lifecycle_mgmt.inventoryitemsoftwarevalidationresult
+- nautobot_device_lifecycle_mgmt.softwareimagelcm
+- nautobot_device_lifecycle_mgmt.softwarelcm
+- nautobot_device_lifecycle_mgmt.validatedsoftwarelcm
+- nautobot_device_lifecycle_mgmt.vulnerabilitylcm
+- nautobot_golden_config.compliancefeature
+- nautobot_golden_config.compliancerule
+- nautobot_golden_config.configcompliance
+- nautobot_golden_config.configplan
+- nautobot_golden_config.configremove
+- nautobot_golden_config.configreplace
+- nautobot_golden_config.goldenconfig
+- nautobot_golden_config.goldenconfigsetting
+- nautobot_golden_config.remediationsetting
+- nautobot_ssot.automationgatewaymodel
+- nautobot_ssot.ssotinfobloxconfig
+- tenancy.tenant
+- virtualization.cluster
+- virtualization.virtualmachine
+- virtualization.vminterface
+- wireless.radioprofile
+- wireless.supporteddatarate
+- wireless.wirelessnetwork
 ```
 
 ## Object Model Notes
@@ -303,6 +364,11 @@ Create Role objects. Uses the following data structure:
 
 ```yaml
 role:
+  - name: # str
+    weight: # int
+    description: # str
+    color: # str
+    content_types: # List[str]
   - name: "Administrative"   # str
     weight: # int
     description: "Unit plays an administrative role"  # str
@@ -377,7 +443,7 @@ role:
       - "ipam.ipaddress"
 ```
 
-This also recreates the default Roles included in Nautobot core. This is because the Role model does not support custom fields, and therefore can not be selectively synced with the SSoT framework. Any roles not included in the Bootstrap `global_settings.yaml` file will be deleted. The list obove is the default list of roles included in Nautobot Core.
+This also recreates the default Roles included in Nautobot core. This is because the Role model does not support custom fields, and therefore can not be selectively synced with the SSoT framework. Any roles not included in the Bootstrap `global_settings.yaml` file will be deleted. The list obove is the default list of roles included in Nautobot Core. See section on Content Types for examples of what can be listed in `content_types`.
 
 ### Team
 
@@ -634,7 +700,7 @@ git_repository:
 git_branch: # str
 ```
 
-GitRepositories are a bit unique. If you specify they `branch:` key in the global_settings.yaml file, this will override the `git_branch:` key in the `<environment>.yaml` file. The `git_branch:` key in the environment specific yaml file is the default, so you don't have to specify branches for each git repository.
+GitRepositories are a bit unique. If you specify they `branch:` key in the global_settings.yaml file, this will override the `git_branch:` key in the `<environment>.yaml` file. The `git_branch:` key in the environment specific yaml file is the default, so you don't have to specify branches for each git repository. See section on Content Types for examples of what can be listed in `provided_data_type`.
 
 ### DynamicGroup
 
@@ -703,7 +769,7 @@ tag:
     content_types: [] # List[str]
 ```
 
-The `color` tag is optional, but will default to grey if not specified. The `content_types` list is a list of `path.model` formatted strings for the types of objects that the tags should be able to apply to.
+The `color` tag is optional, but will default to grey if not specified. The `content_types` list is a list of `path.model` formatted strings for the types of objects that the tags should be able to apply to. See section on Content Types for examples of what can be listed in `content_types`.
 
 ### GraphQLQuery
 

@@ -46,11 +46,6 @@ from nautobot.extras.models import (
 from nautobot.ipam.models import RIR, VLAN, VRF, Namespace, Prefix, VLANGroup
 from nautobot.tenancy.models import Tenant, TenantGroup
 from nautobot.users.models import User
-from nautobot_device_lifecycle_mgmt.models import (
-    SoftwareImageLCM,
-    SoftwareLCM,
-    ValidatedSoftwareLCM,
-)
 
 from nautobot_ssot.integrations.bootstrap.diffsync.adapters.bootstrap import (
     BootstrapAdapter,
@@ -60,6 +55,16 @@ from nautobot_ssot.integrations.bootstrap.diffsync.adapters.nautobot import (
 )
 from nautobot_ssot.integrations.bootstrap.jobs import BootstrapDataSource
 from nautobot_ssot.integrations.bootstrap.utils import get_scheduled_start_time
+from nautobot_ssot.utils import core_supports_softwareversion, dlm_supports_softwarelcm, validate_dlm_installed
+
+if dlm_supports_softwarelcm():
+    from nautobot_device_lifecycle_mgmt.models import SoftwareImageLCM, SoftwareLCM
+
+if validate_dlm_installed():
+    from nautobot_device_lifecycle_mgmt.models import ValidatedSoftwareLCM
+
+if core_supports_softwareversion():
+    from nautobot.dcim.models import SoftwareVersion  # pylint: disable=ungrouped-imports
 
 
 def load_yaml(path):
@@ -75,10 +80,10 @@ def load_json(path):
 
 
 FIXTURES_DIR = os.path.join("./nautobot_ssot/integrations/bootstrap/fixtures")
-GLOBAL_YAML_SETTINGS = load_yaml(os.path.join(FIXTURES_DIR, "global_settings.yml"))
 DEVELOP_YAML_SETTINGS = load_yaml(os.path.join(FIXTURES_DIR, "develop.yml"))
 
 TESTS_FIXTURES_DIR = os.path.join("./nautobot_ssot/tests/bootstrap/fixtures")
+GLOBAL_YAML_SETTINGS = load_yaml(os.path.join(FIXTURES_DIR, "global_settings.yml"))
 GLOBAL_JSON_SETTINGS = load_json(os.path.join(TESTS_FIXTURES_DIR, "global_settings.json"))
 
 MODELS_TO_SYNC = [
@@ -185,7 +190,8 @@ class NautobotTestSetup:
         self._setup_vlans()
         self._setup_vrfs()
         self._setup_prefixes()
-        self._setup_software_and_images()
+        if dlm_supports_softwarelcm():
+            self._setup_software_and_images()
         self._setup_validated_software()
         self._setup_scheduled_job()
 
@@ -368,6 +374,13 @@ class NautobotTestSetup:
                 _r.custom_field_data["system_of_record"] = "Bootstrap"
                 _r.validated_save()
             _con_types.clear()
+        # if DLM 3.x is installed, remove the added roles
+        if not dlm_supports_softwarelcm():
+            for dlm_v3_role in ["DLM Primary", "DLM Tier 1", "DLM Tier 2", "DLM Tier 3", "DLM Owner", "DLM Unassigned"]:
+                try:
+                    Role.objects.get(name=dlm_v3_role).delete()
+                except Role.DoesNotExist:
+                    pass
 
     def _setup_teams(self):
         for _team in GLOBAL_YAML_SETTINGS["team"]:
@@ -959,11 +972,13 @@ class NautobotTestSetup:
         job = Job.objects.get(name="Export Object List")
 
         for scheduled_job in GLOBAL_YAML_SETTINGS["scheduled_job"]:
+            # Parse the start_time to preserve timezone info
+            start_time = get_scheduled_start_time(scheduled_job["start_time"])
             scheduled_job = ScheduledJob(
                 name=scheduled_job["name"],
                 task=job.class_path,
                 interval=scheduled_job["interval"],
-                start_time=get_scheduled_start_time(scheduled_job["start_time"]),
+                start_time=start_time,
                 job_model=job,
                 user=admin,
                 kwargs={},
@@ -989,9 +1004,14 @@ class NautobotTestSetup:
         return [Tag.objects.get(name=object_tag_name) for object_tag_name in object_tag_names]
 
     def _get_software(self, software_name):
-        _, software_version = software_name.split(" - ")
-        platform = Platform.objects.get(name=_)
-        software = SoftwareLCM.objects.get(version=software_version, device_platform=platform)
+        platform_name, software_version = software_name.split(" - ")
+        platform = Platform.objects.get(name=platform_name)
+        if core_supports_softwareversion():
+            software = SoftwareVersion.objects.get_or_create(
+                version=software_version, platform=platform, status=self.status_active
+            )[0]
+        elif dlm_supports_softwarelcm():
+            software = SoftwareLCM.objects.get_or_create(version=software_version, device_platform=platform)[0]
         return software
 
     def _set_validated_software_relations(
