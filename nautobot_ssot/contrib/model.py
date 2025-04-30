@@ -76,7 +76,8 @@ class NautobotModel(DiffSyncModel):
         try:
             obj = self.get_from_db()
             self._update_obj_with_parameters(obj, attrs, self.adapter)
-            self._update_obj_metadata(obj, self.adapter)
+            if self.adapter.metadata_type:
+                self._update_obj_metadata(obj, self.adapter)
         except ObjectCrudException as error:
             raise ObjectNotUpdated(error) from error
         return super().update(attrs)
