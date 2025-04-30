@@ -17,6 +17,7 @@ from django.utils.functional import classproperty
 from nautobot.extras.jobs import BooleanVar, DryRunVar, Job
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices
+from nautobot_ssot.contrib.sorting import sort_relationships
 from nautobot_ssot.models import BaseModel, Sync, SyncLogEntry
 
 DataMapping = namedtuple("DataMapping", ["source_name", "source_url", "target_name", "target_url"])
@@ -179,6 +180,9 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         )
         if memory_profiling:
             record_memory_trace("target_load")
+
+        # Sorting relationships must be done before calculating diffs.
+        sort_relationships(self.source_adapter, self.target_adapter)
 
         self.logger.info("Calculating diffs...")
         self.calculate_diff()

@@ -168,7 +168,7 @@ The methods [`calculate_diff`][nautobot_ssot.jobs.base.DataSyncBaseJob.calculate
 Optionally, on your Job class, also implement the [`lookup_object`][nautobot_ssot.jobs.base.DataSyncBaseJob.lookup_object], [`data_mapping`][nautobot_ssot.jobs.base.DataSyncBaseJob.data_mappings], and/or [`config_information`][nautobot_ssot.jobs.base.DataSyncBaseJob.config_information] APIs (to provide more information to the end user about the details of this Job), as well as the various metadata properties on your Job's Meta inner class. Refer to the example Jobs provided in this Nautobot app for examples and further details.
 Install your Job via any of the supported Nautobot methods (installation into the `JOBS_ROOT` directory, inclusion in a Git repository, or packaging as part of an app) and it should automatically become available!
 
-### Extra Step: Implementing `create`, `update` and `delete`
+### Extra Step 1: Implementing `create`, `update` and `delete`
 
 If you are synchronizing data _to_ Nautobot and not _from_ Nautobot, you can entirely skip this step. The `nautobot_ssot.contrib.NautobotModel` class provides this functionality automatically.
 
@@ -179,3 +179,27 @@ If you need to perform the `create`, `update` and `delete` operations on the rem
 
 !!! warning
     Special care should be taken when synchronizing new Devices with children Interfaces into a Nautobot instance that also defines Device Types with Interface components of the same name. When the new Device is created in Nautobot, its Interfaces will also be created as defined in the respective Device Type. As a result, when SSoT will attempt to create the children Interfaces loaded by the remote adapter, these will already exist in the target Nautobot system. In this scenario, if not properly handled, the sync will fail! Possible remediation steps may vary depending on the specific use-case, therefore this is left as an exercise to the reader/developer to solve for their specific context.
+
+### Extra Step 2: Sorting Many-to-Many and Many-to-One Relationships
+
+Many-to-many (M2M) and many-to-one (N:1) relationships from the one side are stored in the diffsync models as a list of dictionaries. One common issue is when the order of the source list doesn't match the order of the destination list leading to a false update during synchronization. Since lists of dictionaries are often sorted by one of the available keys, we need a way to identify which key to sort by.
+
+The `contrib` module offers a built solution to this issue and automatically sorts them before calculating the diff. Identifying the key to sort lists of dictionaries by is done by adding Python annotations in the `TypedDict` definitions used in relationships and adding some metadata. Example:
+
+```python
+from nautobot_ssot.contrib import NautobotModel
+from nautobot_ssot.contrib.typeddicts import SortKey
+from typing_extensions import Annotated, TypedDict
+
+
+class LocationModel(NautobotModel):
+
+
+class TagDict(TypedDict):
+    """Many-to-many relationship typed dict explaining which fields are interesting."""
+
+    name: Annotated[str, SortKey]
+    description: Optional[str] = ""
+```
+
+The SSoT process will look through the `TypedDict`, find the metadata containing the `SortKey` class, and then sort by that key on both the source and target adapters. It currently only supports 
