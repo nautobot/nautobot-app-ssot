@@ -21,7 +21,7 @@ from nautobot_ssot.tests.contrib_base_classes import (
     TenantModelCustomRelationship,
     TestCaseWithDeviceData,
 )
-from nautobot_ssot.tests.test_contrib_adapter import (
+from nautobot_ssot.tests.contrib.test_adapter import (
     CustomRelationShipTestAdapterDestination,
     CustomRelationShipTestAdapterSource,
 )
