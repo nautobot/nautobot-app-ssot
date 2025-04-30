@@ -13,7 +13,7 @@ from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.tenancy import models as tenancy_models
 
 from nautobot_ssot.contrib import NautobotAdapter, NautobotModel
-from nautobot_ssot.tests.contrib_base_classes import (
+from nautobot_ssot.tests.contrib.base_classes import (
     NautobotTenant,
     ProviderModelCustomRelationship,
     TagDict,

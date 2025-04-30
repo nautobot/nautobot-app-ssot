@@ -19,7 +19,7 @@ from nautobot.tenancy import models as tenancy_models
 from typing_extensions import Annotated, TypedDict
 
 from nautobot_ssot.contrib import CustomFieldAnnotation, NautobotAdapter, NautobotModel
-from nautobot_ssot.tests.contrib_base_classes import (
+from nautobot_ssot.tests.contrib.base_classes import (
     NautobotCable,
     NautobotDevice,
     NautobotTenant,
