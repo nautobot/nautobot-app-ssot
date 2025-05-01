@@ -448,6 +448,8 @@ class DnaCenterAdapter(Adapter):
         """
         floor_id = ""
         location_ids = dev_details["siteHierarchyGraphId"].lstrip("/").rstrip("/").split("/")
+        if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
+            location_ids.pop(0)
         if loc_data.get("floor"):
             floor_id = location_ids.pop()
         building_id = location_ids.pop()
