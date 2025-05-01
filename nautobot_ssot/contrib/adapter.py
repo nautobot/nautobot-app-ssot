@@ -13,9 +13,9 @@ from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
-from nautobot_ssot.contrib.model import NautobotModel
 from typing_extensions import get_type_hints
 
+from nautobot_ssot.contrib.model import NautobotModel
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
@@ -52,7 +52,7 @@ class ParameterType:
 
 class BaseAdapter(Adapter):
     """Mixin for common functionality in Diffsync adapters."""
-    
+
     def __init__(self, *args, job, sync=None, **kwargs):
         """Initialize common features for Diffsync adapters."""
         super().__init__(*args, **kwargs)
@@ -68,7 +68,7 @@ class BaseAdapter(Adapter):
         if not issubclass(diffsync_class, NautobotModel):
             raise TypeError(f"Class `{diffsync_class.__class__}` is not a subclasses of `DiffsyncModel`.")
         return diffsync_class
-        
+
 
 class NautobotAdapter(BaseAdapter):
     """
@@ -167,7 +167,9 @@ class NautobotAdapter(BaseAdapter):
         dictionary_representation = {}
         for field_name in get_type_hints(inner_type):
             if "__" in field_name:
-                dictionary_representation[field_name] = self._param_foreign_key_value(name=field_name, db_obj=related_object)
+                dictionary_representation[field_name] = self._param_foreign_key_value(
+                    name=field_name, db_obj=related_object
+                )
                 continue
             dictionary_representation[field_name] = getattr(related_object, field_name)
         return dictionary_representation
@@ -175,7 +177,7 @@ class NautobotAdapter(BaseAdapter):
     ###########################
     # Parameter-Based Methods #
     ###########################
-    
+
     def get_parameter_value(self, parameter_name, database_object, diffsync_model):
         """Handle a single parameter for a model."""
         model_type_hints = get_type_hints(diffsync_model, include_extras=True)
@@ -187,7 +189,6 @@ class NautobotAdapter(BaseAdapter):
             return getattr(self, _custom_parameter_method)(
                 parameter_name,
                 database_object,
-                metadata=annotation,
                 diffsync_model=diffsync_model,
             )
 
@@ -275,12 +276,10 @@ class NautobotAdapter(BaseAdapter):
             if lookups[-1] in ["app_label", "model"]:
                 return getattr(ContentType.objects.get_for_model(related_object), lookups[-1])
         return None
-    
+
     def _param_custom_foreign_key_value(self, name, annotation, db_obj, *args, **kwargs):
         """Handle a single custom relationship foreign key field."""
-        relationship_association_parameters = self._construct_relationship_association_parameters(
-            annotation, db_obj
-        )
+        relationship_association_parameters = self._construct_relationship_association_parameters(annotation, db_obj)
 
         relationship_association = RelationshipAssociation.objects.filter(**relationship_association_parameters)
         amount_of_relationship_associations = relationship_association.count()
@@ -358,27 +357,27 @@ class NautobotAdapter(BaseAdapter):
             if any(dictionary_representation.values()):
                 related_objects_list.append(dictionary_representation)
         return related_objects_list
-        
+
+    def _get_relationship_associations(self, db_obj, annotation):
+        return RelationshipAssociation.objects.filter(
+            **self._construct_relationship_association_parameters(annotation, db_obj)
+        )
+
     def _param_custom_many_relationship_value(self, name, annotation, db_obj, diffsync_model, *args, **kwargs):
         # Introspect type annotations to deduce which fields are of interest
         # for this many-to-many relationship.
-        diffsync_field_type = get_type_hints(diffsync_model)[name]
-        inner_type = get_args(diffsync_field_type)[0]
 
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
         relationship = self.get_from_orm_cache({"label": annotation.name}, Relationship)
-        relationship_association_parameters = self._construct_relationship_association_parameters(
-            annotation, db_obj
-        )
-        relationship_associations = RelationshipAssociation.objects.filter(**relationship_association_parameters)
-        
+
         # Initialize Return Object: List of related objects
         related_objects_list = []
-        for association in relationship_associations:
-            related_object = getattr(
-                association, "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
+        inner_type = get_args(get_type_hints(diffsync_model)[name])[0]
+        for association in self._get_relationship_associations(db_obj, annotation):
+            dictionary_representation = self._handle_typed_dict(
+                inner_type,
+                getattr(association, "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination")
             )
-            dictionary_representation = self._handle_typed_dict(inner_type, related_object)
             # Only use those where there is a single field defined, all 'None's will not help us.
             if any(dictionary_representation.values()):
                 related_objects_list.append(dictionary_representation)
