@@ -462,6 +462,8 @@ class DnaCenterAdapter(Adapter):
                 if self.job.debug:
                     self.job.logger.debug(f"Loading area {area_name} in {area_parent}.")
                 self.load_area(area=area_name, area_parent=area_parent)
+            else:
+                self.job.logger.warning(f"Unable to find area {area_id} in DNAC location map.")
         self.load_building(
             building=self.building_map[building_id],
             area_name=self.dnac_location_map[building_id]["parent"],
