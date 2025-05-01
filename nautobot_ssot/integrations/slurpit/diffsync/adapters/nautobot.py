@@ -26,7 +26,7 @@ class NautobotDiffSyncAdapter(NautobotAdapter):
 
     def _load_objects(self, diffsync_model):
         """Given a diffsync model class, load a list of models from the database and return them. Passing in job kwargs for model filtering."""
-        parameter_names = self._get_parameter_names(diffsync_model)
+        parameter_names = diffsync_model.synced_parameters()
         for database_object in diffsync_model._get_queryset(data=self.job.kwargs):  # pylint: disable=W0212
             try:
                 self._load_single_object(database_object, diffsync_model, parameter_names)

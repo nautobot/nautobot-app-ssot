@@ -24,11 +24,15 @@ from nautobot_ssot.contrib.types import (
 
 
 class BaseModel(DiffSyncModel):
-    """"""
+    """Base model for SSoT integrations.
 
-    def synced_parameters(self):
+    Contains helpful methods that can be used by other custom models and integrations.
+    """
+
+    @classmethod
+    def synced_parameters(cls):
         """Get a combined list of `_identifiers` and `_attributes`."""
-        return list(self._identifiers) + list(self._attributes)
+        return list(cls._identifiers) + list(cls._attributes)
 
 
 class NautobotModel(BaseModel):

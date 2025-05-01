@@ -38,6 +38,7 @@ ParameterSet = FrozenSet[Tuple[str, Hashable]]
 class InvalidResponseWarning(BaseException):
     """Custom warning for use in `NautobotAdapter` class indicating an invalid response."""
 
+
 class ParameterType:
     """Parameter type values for use in `NautobotAdapter` class and dynamic method calling."""
 
@@ -106,7 +107,7 @@ class NautobotAdapter(BaseAdapter):
 
     def _load_objects(self, diffsync_model):
         """Given a diffsync model class, load a list of models from the database and return them."""
-        parameter_names = self._get_parameter_names(diffsync_model)
+        parameter_names = diffsync_model.synced_parameters()
         for database_object in diffsync_model._get_queryset():
             self._load_single_object(database_object, diffsync_model, parameter_names)
 
@@ -135,17 +136,9 @@ class NautobotAdapter(BaseAdapter):
             children = getattr(database_object, children_field).all()
             diffsync_model_child = self.get_diffsync_class(children_parameter)
             for child in children:
-                parameter_names = self._get_parameter_names(diffsync_model_child)
+                parameter_names = diffsync_model_child.synced_parameters()
                 child_diffsync_object = self._load_single_object(child, diffsync_model_child, parameter_names)
                 diffsync_model.add_child(child_diffsync_object)
-
-    @staticmethod
-    def _get_parameter_names(diffsync_model):
-        """Ignore the differences between identifiers and attributes, because at this point they don't matter to us.
-        
-        NOTE: Should move to method in BaseModel
-        """
-        return list(diffsync_model._identifiers) + list(diffsync_model._attributes)  # pylint: disable=protected-access
 
     def load(self):
         """Generic implementation of the load function."""
