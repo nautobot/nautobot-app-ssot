@@ -23,7 +23,15 @@ from nautobot_ssot.contrib.types import (
 )
 
 
-class NautobotModel(DiffSyncModel):
+class BaseModel(DiffSyncModel):
+    """"""
+
+    def synced_parameters(self):
+        """Get a combined list of `_identifiers` and `_attributes`."""
+        return list(self._identifiers) + list(self._attributes)
+
+
+class NautobotModel(BaseModel):
     """
     Base model for any diffsync models interfacing with Nautobot through the ORM.
 

@@ -19,7 +19,7 @@ from typing_extensions import TypedDict  # pylint: disable=C0412
 
 from nautobot_ssot.contrib import CustomFieldAnnotation, NautobotModel
 from nautobot_ssot.integrations.slurpit import constants
-from nautobot_ssot.tests.contrib_base_classes import ContentTypeDict, TagDict
+from nautobot_ssot.tests.contrib.base_classes import ContentTypeDict, TagDict
 
 
 class ModelQuerySetMixin:

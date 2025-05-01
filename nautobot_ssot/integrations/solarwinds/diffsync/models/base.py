@@ -15,7 +15,7 @@ from nautobot.ipam.models import IPAddress, IPAddressToInterface, Prefix
 
 from nautobot_ssot.contrib.model import NautobotModel
 from nautobot_ssot.contrib.types import CustomFieldAnnotation
-from nautobot_ssot.tests.contrib_base_classes import ContentTypeDict
+from nautobot_ssot.tests.contrib.base_classes import ContentTypeDict
 
 
 class LocationModel(NautobotModel):
