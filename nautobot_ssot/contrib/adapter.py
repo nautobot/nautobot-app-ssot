@@ -376,7 +376,9 @@ class NautobotAdapter(BaseAdapter):
         for association in self._get_relationship_associations(db_obj, annotation):
             dictionary_representation = self._handle_typed_dict(
                 inner_type,
-                getattr(association, "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination")
+                getattr(
+                    association, "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
+                ),
             )
             # Only use those where there is a single field defined, all 'None's will not help us.
             if any(dictionary_representation.values()):
