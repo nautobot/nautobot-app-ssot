@@ -10,12 +10,13 @@ class Area(DiffSyncModel):
     """DiffSync model for DNA Center areas."""
 
     _modelname = "area"
-    _identifiers = ("name", "parent")
+    _identifiers = ("name", "parent", "parent_of_parent")
     _attributes = ("metadata",)
     _children = {}
 
     name: str
     parent: Optional[str] = None
+    parent_of_parent: Optional[str] = None
     metadata: Optional[bool] = True
 
     uuid: Optional[UUID] = None

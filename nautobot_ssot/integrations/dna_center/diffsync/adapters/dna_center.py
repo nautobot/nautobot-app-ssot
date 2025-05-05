@@ -227,6 +227,11 @@ class DnaCenterAdapter(Adapter):
                     "parent": (
                         self.job.dnac.location.parent.parent.name if self.job.dnac.location.parent.parent else None
                     ),
+                    "parent_of_parent": (
+                        self.job.dnac.location.parent.parent.parent.name
+                        if self.job.dnac.location.parent.parent and self.job.dnac.location.parent.parent.parent
+                        else None
+                    ),
                 },
                 attrs={"uuid": None},
             )
@@ -244,18 +249,28 @@ class DnaCenterAdapter(Adapter):
                         if self.job.dnac.location.parent.parent.parent
                         else None
                     ),
+                    "parent_of_parent": (
+                        self.job.dnac.location.parent.parent.parent.parent.name
+                        if self.job.dnac.location.parent.parent.parent.parent
+                        else None
+                    ),
                 },
                 attrs={"uuid": None},
             )
 
-    def load_area(self, area: str, area_parent: Optional[str] = None):
+    def load_area(self, area: str, area_parent: Optional[str] = None, area_parent_of_parent: Optional[str] = None):
         """Load area from DNAC into DiffSync model.
 
         Args:
             area (str): Name of area to be loaded.
             area_parent (Optional[str], optional): Name of area's parent if defined. Defaults to None.
+            area_parent_of_parent (Optional[str], optional): Name of area's parent of parent if defined. Defaults to None.
         """
-        self.get_or_instantiate(self.area, ids={"name": area, "parent": area_parent}, attrs={"uuid": None})
+        self.get_or_instantiate(
+            self.area,
+            ids={"name": area, "parent": area_parent, "parent_of_parent": area_parent_of_parent},
+            attrs={"uuid": None},
+        )
 
     def load_building(self, building: dict, area_name: Optional[str] = None, area_parent_name: Optional[str] = None):
         """Load building data from DNAC into DiffSync model.
@@ -459,9 +474,11 @@ class DnaCenterAdapter(Adapter):
             if self.dnac_location_map.get(area_id):
                 area_name = self.dnac_location_map[area_id]["name"]
                 area_parent = self.dnac_location_map[area_id]["parent"]
+                area_parent_of_parent = self.dnac_location_map[area_id]["parent_of_parent"]
+
                 if self.job.debug:
                     self.job.logger.debug(f"Loading area {area_name} in {area_parent}.")
-                self.load_area(area=area_name, area_parent=area_parent)
+                self.load_area(area=area_name, area_parent=area_parent, area_parent_of_parent=area_parent_of_parent)
             else:
                 self.job.logger.warning(f"Unable to find area {area_id} in DNAC location map.")
         self.load_building(

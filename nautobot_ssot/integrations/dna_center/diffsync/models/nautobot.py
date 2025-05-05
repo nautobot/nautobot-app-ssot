@@ -51,13 +51,10 @@ class NautobotArea(base.Area):
         )
         if ids.get("parent"):
             try:
-                parents_parent = "Global"
-                if ids["parent"] == "Global":
-                    parents_parent = None
-                new_area.parent_id = adapter.region_map[parents_parent][ids["parent"]]
+                new_area.parent_id = adapter.region_map[ids["parent_of_parent"]][ids["parent"]]
             except KeyError:
                 adapter.job.logger.warning(
-                    f"Unable to find {adapter.job.area_loctype.name} {ids['parent']} for {ids['name']}."
+                    f"Unable to find {adapter.job.area_loctype.name} {ids['parent']} in {ids['parent_of_parent'] if ids.get('parent_of_parent') else 'None'} for {ids['name']}."
                 )
         try:
             new_area.validated_save()
