@@ -4,7 +4,7 @@
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
 from collections import defaultdict
-from typing import DefaultDict, Dict, FrozenSet, Hashable, Tuple, Type, get_args
+from typing import Any, DefaultDict, Dict, FrozenSet, Hashable, Tuple, Type, get_args
 
 import pydantic
 from diffsync import Adapter
@@ -22,6 +22,8 @@ from nautobot_ssot.contrib.types import (
     RelationshipSideEnum,
 )
 
+from nautobot_ssot.contrib.cache import BasicCache
+
 # This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
 # and therefore a frozenset rather than a normal set or a list.
 #
@@ -33,6 +35,8 @@ from nautobot_ssot.contrib.types import (
 #  ]
 # )
 ParameterSet = FrozenSet[Tuple[str, Hashable]]
+
+from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 
 
 class InvalidResponseWarning(BaseException):
@@ -70,6 +74,46 @@ class BaseAdapter(Adapter):
         return diffsync_class
 
 
+# class AdapterCache:
+#     """Provides framework for caching in adapter implementations.
+    
+    
+#     TODO: This should eventually move to an instantiated class via dependency injection vs inheritance.
+#     """
+
+#     # This dictionary acts as an ORM cache.
+#     _cache: DefaultDict[str, Dict[Hashable, Any]]
+#     _cache_hits: DefaultDict[str, int] = defaultdict(int)
+
+#     def __init__(self, *args, **kwargs):
+#         """Instantiate this class, but do not load data immediately from the local system."""
+#         super().__init__(*args, **kwargs)
+#         self.invalidate_cache()
+
+#     def invalidate_cache(self, zero_out_hits=True):
+#         """Invalidates all the objects in the ORM cache."""
+#         self._cache = defaultdict(dict)
+#         if zero_out_hits:
+#             self._cache_hits = defaultdict(int)
+
+#     def add_cached_object(self, object_type_key, object_key, obj_to_cache):
+#         """Add an object to the cache."""
+#         if self._cache[object_type_key].get(object_key):
+#             raise ObjectAlreadyExists
+
+#     def get_or_add_cached_object(self, object_type_key: str, object_key: Hashable, callback):
+#         """Basic implementation to get from objects from cache.
+        
+#         NOTE: Callbacks are used here instead of seeding a "default" value to ensure the code
+#             for getting the code is only ran if there is no existing object in the cache.
+#         """
+#         if cached_object := self._cache[object_type_key].get(object_key):
+#             self._cache_hits[object_type_key] += 1
+#             return cached_object
+#         self._cache[object_type_key][object_key] = callback()
+#         return self._cache[object_type_key][object_key]
+
+
 class NautobotAdapter(BaseAdapter):
     """
     Adapter for loading data from Nautobot through the ORM.
@@ -77,33 +121,26 @@ class NautobotAdapter(BaseAdapter):
     This adapter is able to infer how to load data from Nautobot based on how the models attached to it are defined.
     """
 
-    # This dictionary acts as an ORM cache.
-    _cache: DefaultDict[str, Dict[ParameterSet, Model]]
-    _cache_hits: DefaultDict[str, int] = defaultdict(int)
-
     def __init__(self, *args, **kwargs):
-        """Instantiate this class, but do not load data immediately from the local system."""
+        """Initialize Nautobot Adapter."""
         super().__init__(*args, **kwargs)
-        self.invalidate_cache()
-
-    def invalidate_cache(self, zero_out_hits=True):
-        """Invalidates all the objects in the ORM cache."""
-        self._cache = defaultdict(dict)
-        if zero_out_hits:
-            self._cache_hits = defaultdict(int)
+        self.cache: BasicCache = kwargs.pop("cache", BasicCache())
 
     def get_from_orm_cache(self, parameters: Dict, model_class: Type[Model]):
         """Retrieve an object from the ORM or the cache."""
         parameter_set = frozenset(parameters.items())
         content_type = ContentType.objects.get_for_model(model_class)
         model_cache_key = f"{content_type.app_label}.{content_type.model}"
-        if cached_object := self._cache[model_cache_key].get(parameter_set):
-            self._cache_hits[model_cache_key] += 1
-            return cached_object
-        # As we are using `get` here, this will error if there is not exactly one object that corresponds to the
-        # parameter set. We intentionally pass these errors through.
-        self._cache[model_cache_key][parameter_set] = model_class.objects.get(**dict(parameter_set))
-        return self._cache[model_cache_key][parameter_set]
+
+
+        #return self.get_or_add_cached_object(
+        return self.cache.get_or_add(
+            object_type_key=model_cache_key,
+            object_key=parameter_set,
+            # As we are using `get` here, this will error if there is not exactly one object that corresponds to the
+            # parameter set. We intentionally pass these errors through.
+            callback=lambda : model_class.objects.get(**dict(parameter_set)),
+        )
 
     def _load_objects(self, diffsync_model):
         """Given a diffsync model class, load a list of models from the database and return them."""
@@ -221,6 +258,11 @@ class NautobotAdapter(BaseAdapter):
         if database_field.many_to_many or database_field.one_to_many:
             return ParameterType.MANY_RELATIONSHIP, None
         return ParameterType.STANDARD, None
+
+    def _get_relationship_associations(self, db_obj, annotation):
+        return RelationshipAssociation.objects.filter(
+            **self._construct_relationship_association_parameters(annotation, db_obj)
+        )
 
     def _construct_relationship_association_parameters(self, annotation, database_object):
         relationship = self.get_from_orm_cache({"label": annotation.name}, Relationship)
@@ -357,11 +399,6 @@ class NautobotAdapter(BaseAdapter):
             if any(dictionary_representation.values()):
                 related_objects_list.append(dictionary_representation)
         return related_objects_list
-
-    def _get_relationship_associations(self, db_obj, annotation):
-        return RelationshipAssociation.objects.filter(
-            **self._construct_relationship_association_parameters(annotation, db_obj)
-        )
 
     def _param_custom_many_relationship_value(self, name, annotation, db_obj, diffsync_model, *args, **kwargs):
         # Introspect type annotations to deduce which fields are of interest
