@@ -60,7 +60,7 @@ class TestNautobotArea(TransactionTestCase):
         ids = {"name": "TX", "parent": "USA"}
         attrs = {}
         NautobotArea.create(self.adapter, ids, attrs)
-        self.adapter.job.logger.warning.assert_called_once_with("Unable to find Region USA for TX.")
+        self.adapter.job.logger.warning.assert_called_once_with("Unable to find Region USA in None for TX.")
 
 
 @override_settings(
