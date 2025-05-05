@@ -562,7 +562,7 @@ class DnaCenterAdapter(Adapter):
             )
             if loaded:
                 if self.job.debug:
-                    self.job.logger.info(f"Loading port {port['portName']} for {dev.name}. {port}")
+                    self.job.logger.info(f"Loaded port {port['portName']} for {dev.name}. {port}")
                 dev.add_child(new_port)
                 if port.get("addresses"):
                     for addr in port["addresses"]:
