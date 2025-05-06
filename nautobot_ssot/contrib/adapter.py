@@ -110,7 +110,7 @@ class NautobotAdapter(BaseAdapter):
         parameters = {}
         for parameter_name in parameter_names:
             try:
-                parameters[parameter_name] = self.get_parameter_value(
+                parameters[parameter_name] = self._get_parameter_value(
                     parameter_name,
                     database_object,
                     diffsync_model,
@@ -172,7 +172,7 @@ class NautobotAdapter(BaseAdapter):
     # Parameter-Based Methods #
     ###########################
 
-    def get_parameter_value(self, parameter_name, database_object, diffsync_model):
+    def _get_parameter_value(self, parameter_name, database_object, diffsync_model):
         """Handle a single parameter for a model."""
         model_type_hints = get_type_hints(diffsync_model, include_extras=True)
         metadata_for_this_field = getattr(model_type_hints[parameter_name], "__metadata__", [])
