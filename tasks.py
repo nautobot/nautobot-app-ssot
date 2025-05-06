@@ -283,7 +283,7 @@ def lock(context, check=False, constrain_nautobot_ver=False, constrain_python_ve
         except UnexpectedExit:
             print("Unable to add Nautobot dependency with version constraint, falling back to git branch.")
             command = (
-                f"poetry add --lock git+https://github.com/nautobot/nautobot.git#{context.nautobot_ssot.nautobot_ver}"
+                f"poetry add --lock git+https://github.com/nautobot/nautobot.git#v{context.nautobot_ssot.nautobot_ver}"
             )
             if constrain_python_ver:
                 command += f" --python {context.nautobot_ssot.python_ver}"
