@@ -163,7 +163,7 @@ jobs:
         with:
           poetry-version: "1.8.5"
       - name: "Pip install virtualenv to avoid issue with virtualenv --wheel"
-        run: "~/.local/share/pypoetry/venv/bin/pip install virtualenv==20.30.0"  
+        run: "~/.local/share/pypoetry/venv/bin/pip install virtualenv==20.30.0"
       - name: "Constrain Nautobot version and regenerate lock file"
         env:
           INVOKE_NAUTOBOT_SSOT_LOCAL: "true"
