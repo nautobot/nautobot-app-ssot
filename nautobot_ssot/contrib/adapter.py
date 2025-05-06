@@ -4,7 +4,9 @@
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
 from collections import defaultdict
-from typing import Any, DefaultDict, Dict, FrozenSet, Hashable, Tuple, Type, get_args
+from typing import Any, DefaultDict, TypedDict, Dict, FrozenSet, Hashable, Tuple, Type, get_args, Callable
+
+from dataclasses import dataclass
 
 import pydantic
 from diffsync import Adapter
@@ -15,14 +17,15 @@ from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
 from typing_extensions import get_type_hints
 
+from nautobot_ssot.contrib.cache import BasicCache
+from nautobot_ssot.contrib.exceptions import InvalidResponseWarning
 from nautobot_ssot.contrib.model import NautobotModel
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
-
-from nautobot_ssot.contrib.cache import BasicCache
+from nautobot_ssot.contrib.model import BaseModel
 
 # This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
 # and therefore a frozenset rather than a normal set or a list.
@@ -36,12 +39,11 @@ from nautobot_ssot.contrib.cache import BasicCache
 # )
 ParameterSet = FrozenSet[Tuple[str, Hashable]]
 
-from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
-
-
-class InvalidResponseWarning(BaseException):
-    """Custom warning for use in `NautobotAdapter` class indicating an invalid response."""
-
+__all__ = (
+    "ParameterType",
+    "BaseAdapter",
+    "NautobotAdapter",
+)
 
 class ParameterType:
     """Parameter type values for use in `NautobotAdapter` class and dynamic method calling."""
@@ -85,40 +87,27 @@ class NautobotAdapter(BaseAdapter):
         """Initialize Nautobot Adapter."""
         super().__init__(*args, **kwargs)
         self.cache: BasicCache = kwargs.pop("cache", BasicCache())
+    
+    def load(self):
+        """Generic implementation of the load function."""
+        if not hasattr(self, "top_level") or not self.top_level:
+            raise ValueError("'top_level' needs to be set on the class.")
 
-    def get_from_orm_cache(self, parameters: Dict, model_class: Type[Model]):
-        """Retrieve an object from the ORM or the cache."""
-        parameter_set = frozenset(parameters.items())
-        content_type = ContentType.objects.get_for_model(model_class)
+        for model_name in self.top_level:
+            diffsync_model = self.get_diffsync_class(model_name)
 
-        return self.cache.get_or_add(
-            object_type_key=f"{content_type.app_label}.{content_type.model}",
-            object_key=parameter_set,
-            # As we are using `get` here, this will error if there is not exactly one object that corresponds to the
-            # parameter set. We intentionally pass these errors through.
-            callback=lambda : model_class.objects.get(**dict(parameter_set)),
-        )
+            # This function directly mutates the diffsync store, i.e. it will create and load the objects
+            # for this specific model class as well as its children without returning anything.
+            self._load_objects(diffsync_model)
 
     def _load_objects(self, diffsync_model):
         """Given a diffsync model class, load a list of models from the database and return them."""
-        parameter_names = diffsync_model.synced_parameters()
         for database_object in diffsync_model._get_queryset():
-            self._load_single_object(database_object, diffsync_model, parameter_names)
+            self._load_single_object(database_object, diffsync_model)
 
-    def _load_single_object(self, database_object, diffsync_model, parameter_names):
+    def _load_single_object(self, database_object, diffsync_model):
         """Load a single object from the database into the Diffsync store."""
-        parameters = {}
-        for parameter_name in parameter_names:
-            try:
-                parameters[parameter_name] = self._get_parameter_value(
-                    parameter_name,
-                    database_object,
-                    diffsync_model,
-                )
-            except InvalidResponseWarning:
-                # These responsees are simply skipped and not added to the parameters var
-                pass
-        parameters["pk"] = database_object.pk
+        parameters = self._get_object_parameters(database_object, diffsync_model)
         try:
             diffsync_model = diffsync_model(**parameters)
         except pydantic.ValidationError as error:
@@ -134,21 +123,8 @@ class NautobotAdapter(BaseAdapter):
             children = getattr(database_object, children_field).all()
             diffsync_model_child = self.get_diffsync_class(children_parameter)
             for child in children:
-                parameter_names = diffsync_model_child.synced_parameters()
-                child_diffsync_object = self._load_single_object(child, diffsync_model_child, parameter_names)
+                child_diffsync_object = self._load_single_object(child, diffsync_model_child)
                 diffsync_model.add_child(child_diffsync_object)
-
-    def load(self):
-        """Generic implementation of the load function."""
-        if not hasattr(self, "top_level") or not self.top_level:
-            raise ValueError("'top_level' needs to be set on the class.")
-
-        for model_name in self.top_level:
-            diffsync_model = self.get_diffsync_class(model_name)
-
-            # This function directly mutates the diffsync store, i.e. it will create and load the objects
-            # for this specific model class as well as its children without returning anything.
-            self._load_objects(diffsync_model)
 
     def _handle_typed_dict(self, inner_type, related_object):
         """Handle a typed dict for many to many relationships.
@@ -168,12 +144,44 @@ class NautobotAdapter(BaseAdapter):
             dictionary_representation[field_name] = getattr(related_object, field_name)
         return dictionary_representation
 
+    def get_from_orm_cache(self, parameters: Dict, model_class: Type[Model]):
+        """Retrieve an object from the ORM or the cache."""
+        parameter_set = frozenset(parameters.items())
+        content_type = ContentType.objects.get_for_model(model_class)
+
+        return self.cache.get_or_add(
+            object_type_key=f"{content_type.app_label}.{content_type.model}",
+            object_key=parameter_set,
+            # As we are using `get` here, this will error if there is not exactly one object that corresponds to the
+            # parameter set. We intentionally pass these errors through.
+            callback=lambda : model_class.objects.get(**dict(parameter_set)),
+        )
+
     ###########################
     # Parameter-Based Methods #
     ###########################
 
-    def _get_parameter_value(self, parameter_name, database_object, diffsync_model):
-        """Handle a single parameter for a model."""
+    def _get_object_parameters(self, database_object, diffsync_model):
+        """Get parameters and values for database object.
+
+        NOTE: Entry point for parameter-based methods.
+        """
+        parameters = {}
+        for parameter_name in diffsync_model.synced_parameters():
+            try:
+                parameters[parameter_name] = self._handle_single_parameter(
+                    parameter_name,
+                    database_object,
+                    diffsync_model,
+                )
+            except InvalidResponseWarning:
+                # These responses are simply skipped and not added to the parameters var
+                pass
+        parameters["pk"] = database_object.pk
+        return parameters
+
+    def _handle_single_parameter(self, parameter_name, database_object, diffsync_model):
+        """Get the value for a single parameter of an object."""
         model_type_hints = get_type_hints(diffsync_model, include_extras=True)
         metadata_for_this_field = getattr(model_type_hints[parameter_name], "__metadata__", [])
 
