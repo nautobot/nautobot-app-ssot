@@ -74,46 +74,6 @@ class BaseAdapter(Adapter):
         return diffsync_class
 
 
-# class AdapterCache:
-#     """Provides framework for caching in adapter implementations.
-    
-    
-#     TODO: This should eventually move to an instantiated class via dependency injection vs inheritance.
-#     """
-
-#     # This dictionary acts as an ORM cache.
-#     _cache: DefaultDict[str, Dict[Hashable, Any]]
-#     _cache_hits: DefaultDict[str, int] = defaultdict(int)
-
-#     def __init__(self, *args, **kwargs):
-#         """Instantiate this class, but do not load data immediately from the local system."""
-#         super().__init__(*args, **kwargs)
-#         self.invalidate_cache()
-
-#     def invalidate_cache(self, zero_out_hits=True):
-#         """Invalidates all the objects in the ORM cache."""
-#         self._cache = defaultdict(dict)
-#         if zero_out_hits:
-#             self._cache_hits = defaultdict(int)
-
-#     def add_cached_object(self, object_type_key, object_key, obj_to_cache):
-#         """Add an object to the cache."""
-#         if self._cache[object_type_key].get(object_key):
-#             raise ObjectAlreadyExists
-
-#     def get_or_add_cached_object(self, object_type_key: str, object_key: Hashable, callback):
-#         """Basic implementation to get from objects from cache.
-        
-#         NOTE: Callbacks are used here instead of seeding a "default" value to ensure the code
-#             for getting the code is only ran if there is no existing object in the cache.
-#         """
-#         if cached_object := self._cache[object_type_key].get(object_key):
-#             self._cache_hits[object_type_key] += 1
-#             return cached_object
-#         self._cache[object_type_key][object_key] = callback()
-#         return self._cache[object_type_key][object_key]
-
-
 class NautobotAdapter(BaseAdapter):
     """
     Adapter for loading data from Nautobot through the ORM.
@@ -130,12 +90,9 @@ class NautobotAdapter(BaseAdapter):
         """Retrieve an object from the ORM or the cache."""
         parameter_set = frozenset(parameters.items())
         content_type = ContentType.objects.get_for_model(model_class)
-        model_cache_key = f"{content_type.app_label}.{content_type.model}"
 
-
-        #return self.get_or_add_cached_object(
         return self.cache.get_or_add(
-            object_type_key=model_cache_key,
+            object_type_key=f"{content_type.app_label}.{content_type.model}",
             object_key=parameter_set,
             # As we are using `get` here, this will error if there is not exactly one object that corresponds to the
             # parameter set. We intentionally pass these errors through.
