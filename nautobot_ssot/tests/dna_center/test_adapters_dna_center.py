@@ -248,7 +248,7 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         loaded_bldgs = self.dna_center.get_all("building")
         self.assertEqual(loaded_bldgs[0].area_parent, "New York")
         self.assertEqual(
-            {"Global__None", "USA__Global", "New York__USA", "NYC__New York"},
+            {"Global__None__None", "USA__Global__None", "New York__USA__Global", "NYC__New York__USA"},
             {dev.get_unique_id() for dev in self.dna_center.get_all("area")},
         )
 

@@ -46,7 +46,7 @@ class TestNautobotArea(TransactionTestCase):
         self.adapter.status_map = {"Active": status_active.id}
         global_region = Location.objects.create(name="Global", location_type=self.region_type, status=status_active)
         self.adapter.region_map = {None: {"Global": global_region.id}}
-        ids = {"name": "NY", "parent": "Global"}
+        ids = {"name": "NY", "parent": "Global", "parent_of_parent": None}
         attrs = {}
         result = NautobotArea.create(self.adapter, ids, attrs)
         self.assertIsInstance(result, NautobotArea)
