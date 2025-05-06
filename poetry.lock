@@ -1400,13 +1400,13 @@ django = ">=4.2"
 
 [[package]]
 name = "dnacentersdk"
-version = "2.8.13"
+version = "2.8.14"
 description = "Cisco DNA Center Platform SDK"
 optional = true
 python-versions = "<4.0,>=3.8"
 files = [
-    {file = "dnacentersdk-2.8.13-py3-none-any.whl", hash = "sha256:91d97c0872b95e1e936cb6b3d5beaec90a79cb96eb4f5d8d31b5ffec197bca41"},
-    {file = "dnacentersdk-2.8.13.tar.gz", hash = "sha256:2305f97f506fa723dab0f8a050225353add595774dd7a6f3cb359712e4f3c102"},
+    {file = "dnacentersdk-2.8.14-py3-none-any.whl", hash = "sha256:95e64a4e6ab0e5483e4046bce174a0a152202f04246cf787bfc41a2c2363179d"},
+    {file = "dnacentersdk-2.8.14.tar.gz", hash = "sha256:59e1ac2d71244222874d2ed55ae31a5699a7280a6e7d0ec8feb313d0faff16a2"},
 ]
 
 [package.dependencies]
