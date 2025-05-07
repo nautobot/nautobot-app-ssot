@@ -5,10 +5,25 @@
 
 from abc import abstractmethod, ABCMeta
 from collections import defaultdict
-from typing import Any, DefaultDict, Dict, Union, Hashable, Callable
+from typing import Any, DefaultDict, Dict, Union, Hashable, Callable, FrozenSet, Tuple, Type
+from django.db.models import Model
 
 from nautobot_ssot.contrib.exceptions import CachedObjectAlreadyExists, CachedObjectNotFound
 from dataclasses import dataclass, field
+from nautobot_ssot.contrib.model import NautobotModel
+from django.contrib.contenttypes.models import ContentType
+
+# This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
+# and therefore a frozenset rather than a normal set or a list.
+#
+# The following is an example of a parameter set that describes a tenant based on its name and group:
+# frozenset(
+#  [
+#   ("name", "ABC Inc."),
+#   ("group__name", "Customers"),
+#  ]
+# )
+ParameterSet = FrozenSet[Tuple[str, Hashable]]
 
 
 class CacheInterface(metaclass=ABCMeta):
@@ -91,3 +106,20 @@ class BasicCache(CacheInterface):
             return self.get(object_type_key, object_key)
         except CachedObjectNotFound:
             return self.add(object_type_key, object_key, callback())
+        
+
+class NautobotCache(BasicCache):
+    """Cache with additional functionaly for interacting with the Nautobot database."""
+
+    def get_or_add_orm_object(self, parameters: Dict, model_class: Type[Model]):
+        """Retrieve an object from the ORM or the cache."""
+        parameter_set = frozenset(parameters.items())
+        content_type = ContentType.objects.get_for_model(model_class)
+
+        return self.get_or_add(
+            object_type_key=f"{content_type.app_label}.{content_type.model}",
+            object_key=parameter_set,
+            # As we are using `get` here, this will error if there is not exactly one object that corresponds to the
+            # parameter set. We intentionally pass these errors through.
+            callback=lambda : model_class.objects.get(**dict(parameter_set)),
+        )

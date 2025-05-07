@@ -4,10 +4,11 @@
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
 from collections import defaultdict
-from typing import Any, DefaultDict, TypedDict, Dict, FrozenSet, Hashable, Tuple, Type, get_args, Callable
+from typing import Any, DefaultDict, TypedDict, Dict, FrozenSet, Hashable, Tuple, Type, get_args, Callable, Annotated, Union
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
+from django.db.models import Model
 import pydantic
 from diffsync import Adapter
 from diffsync.exceptions import ObjectCrudException
@@ -17,7 +18,7 @@ from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
 from typing_extensions import get_type_hints
 
-from nautobot_ssot.contrib.cache import BasicCache
+from nautobot_ssot.contrib.cache import NautobotCache
 from nautobot_ssot.contrib.exceptions import InvalidResponseWarning
 from nautobot_ssot.contrib.model import NautobotModel
 from nautobot_ssot.contrib.types import (
@@ -25,7 +26,12 @@ from nautobot_ssot.contrib.types import (
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
-from nautobot_ssot.contrib.model import BaseModel
+
+__all__ = (
+    "ParameterType",
+    "BaseAdapter",
+    "NautobotAdapter",
+)
 
 # This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
 # and therefore a frozenset rather than a normal set or a list.
@@ -38,12 +44,6 @@ from nautobot_ssot.contrib.model import BaseModel
 #  ]
 # )
 ParameterSet = FrozenSet[Tuple[str, Hashable]]
-
-__all__ = (
-    "ParameterType",
-    "BaseAdapter",
-    "NautobotAdapter",
-)
 
 class ParameterType:
     """Parameter type values for use in `NautobotAdapter` class and dynamic method calling."""
@@ -75,7 +75,6 @@ class BaseAdapter(Adapter):
             raise TypeError(f"Class `{diffsync_class.__class__}` is not a subclasses of `DiffsyncModel`.")
         return diffsync_class
 
-
 class NautobotAdapter(BaseAdapter):
     """
     Adapter for loading data from Nautobot through the ORM.
@@ -86,7 +85,7 @@ class NautobotAdapter(BaseAdapter):
     def __init__(self, *args, **kwargs):
         """Initialize Nautobot Adapter."""
         super().__init__(*args, **kwargs)
-        self.cache: BasicCache = kwargs.pop("cache", BasicCache())
+        self.cache: NautobotCache = kwargs.pop("cache", NautobotCache())
     
     def load(self):
         """Generic implementation of the load function."""
