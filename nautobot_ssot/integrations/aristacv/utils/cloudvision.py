@@ -675,9 +675,12 @@ def get_cvp_version(config: CloudVisionAppConfig):
     """
     client = CvpClient()
     try:
+        parsed_url = urlparse(config.url)
+        if not parsed_url.hostname:
+            raise ValueError(f"Invalid URL provided for CloudVision. {config.url}")
         if config.token and not config.is_on_premise:
             client.connect(
-                nodes=[config.url],
+                nodes=[parsed_url.hostname],
                 username="",
                 password="",
                 is_cvaas=True,
@@ -685,7 +688,7 @@ def get_cvp_version(config: CloudVisionAppConfig):
             )
         else:
             client.connect(
-                nodes=[config.url],
+                nodes=[parsed_url.hostname],
                 username=config.cvp_user,
                 password=config.cvp_password,
                 is_cvaas=False,
