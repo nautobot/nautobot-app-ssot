@@ -1,1 +1,0 @@
-The default value for the Network Views to Nautobot Namespace setting in the Infoblox integration should be a dictionary, not a list.

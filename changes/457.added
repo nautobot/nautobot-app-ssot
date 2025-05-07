@@ -1,3 +1,0 @@
-Added `sort_relationships()` helper function
-Added tests for `sort_relationships()` helper function
-Added call to `sort_relationships()` function in contrib `NautobotAdapter`
