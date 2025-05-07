@@ -8,7 +8,6 @@ from typing import List
 from diffsync import Adapter
 from netutils.ip import cidr_to_netmask
 
-from nautobot_ssot.integrations.vsphere import defaults
 from nautobot_ssot.integrations.vsphere.diffsync.models.vsphere import (
     ClusterGroupModel,
     ClusterModel,
@@ -246,7 +245,7 @@ class VsphereDiffSync(Adapter):
                     self.cluster,
                     {"name": cluster["name"]},
                     {
-                        "cluster_type__name": defaults.DEFAULT_VSPHERE_TYPE,
+                        "cluster_type__name": self.config.default_cluster_type,
                         "cluster_group__name": clustergroup["name"],
                     },
                 )
@@ -265,14 +264,14 @@ class VsphereDiffSync(Adapter):
     def load_standalone_vms(self):
         """Load all VM's from vSphere."""
         default_diffsync_clustergroup, _ = self.get_or_instantiate(
-            self.clustergroup, {"name": defaults.DEFAULT_CLUSTERGROUP_NAME}
+            self.clustergroup, {"name": self.config.default_clustergroup_name}
         )
         default_diffsync_cluster, _ = self.get_or_instantiate(
             self.cluster,
-            {"name": defaults.DEFAULT_CLUSTER_NAME},
+            {"name": self.config.default_cluster_name},
             {
-                "cluster_type__name": defaults.DEFAULT_VSPHERE_TYPE,
-                "cluster_group__name": defaults.DEFAULT_CLUSTERGROUP_NAME,
+                "cluster_type__name": self.config.default_cluster_type,
+                "cluster_group__name": self.config.default_clustergroup_name,
             },
         )
         default_diffsync_clustergroup.add_child(default_diffsync_cluster)
@@ -284,7 +283,7 @@ class VsphereDiffSync(Adapter):
                 self.virtual_machine,
                 {
                     "name": virtual_machine["name"],
-                    "cluster__name": defaults.DEFAULT_CLUSTER_NAME,
+                    "cluster__name": self.config.default_cluster_name,
                 },
                 {
                     "vcpus": virtual_machine["cpu_count"],
@@ -309,6 +308,6 @@ class VsphereDiffSync(Adapter):
         if self.config.use_clusters:
             self.load_data()
         else:
-            self.job.logger.info("Not syncing Clusters or Cluster Groups per user settings. Using default  Cluster.")
+            self.job.logger.info("Not syncing Clusters or Cluster Groups per user settings. Using default Cluster.")
             self.load_standalone_vms()
         self.job.logger.info("Finished loading data from vSphere.")

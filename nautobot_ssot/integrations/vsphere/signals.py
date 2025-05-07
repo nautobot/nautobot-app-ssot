@@ -5,14 +5,13 @@
 """Signal handlers for nautobot_ssot_vsphere."""
 
 from django.conf import settings
+from nautobot.core.choices import ColorChoices
 from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import (
     CustomFieldTypeChoices,
     SecretsGroupAccessTypeChoices,
     SecretsGroupSecretTypeChoices,
 )
-
-from nautobot_ssot.integrations.vsphere.defaults import DEFAULT_TAG_COLOR
 
 config = settings.PLUGINS_CONFIG["nautobot_ssot"]
 
@@ -43,7 +42,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         defaults={
             "name": "SSoT Synced from vSphere",
             "description": "Object synced at some point from VMWare vSphere to Nautobot",
-            "color": DEFAULT_TAG_COLOR,
+            "color": ColorChoices.COLOR_GREEN,
         },
     )
     for model in [VirtualMachine, VMInterface, IPAddress]:

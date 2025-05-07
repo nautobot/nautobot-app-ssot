@@ -84,6 +84,17 @@ class SSOTvSphereConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
     sync_tagged_only = models.BooleanField(
         default=True, verbose_name="Sync Tagged Only", help_text="Sync only tagged VMs."
     )
+    default_clustergroup_name = models.CharField(
+        max_length=CHARFIELD_MAX_LENGTH,
+        verbose_name="Default Cluster Group Name",
+        default="vSphere Default Cluster Group",
+    )
+    default_cluster_name = models.CharField(
+        max_length=CHARFIELD_MAX_LENGTH, verbose_name="Default Cluster Name", default="vSphere Default Cluster"
+    )
+    default_cluster_type = models.CharField(
+        max_length=CHARFIELD_MAX_LENGTH, verbose_name="Default Cluster Type", default="VMWare vSphere"
+    )
     is_saved_view_model = False
 
     class Meta:

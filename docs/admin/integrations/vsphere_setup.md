@@ -20,53 +20,31 @@ PLUGINS_CONFIG = {
 }
 ```
 
-## `nautobot_config` settings
-
-Within the `PLUGINS_CONFIG` block, there are a few settings that can be changed. 
-
-| Key               | Default value                 | Description                                                      |
-| ----------------- | ----------------------------- | ---------------------------------------------------------------- |
-| clustergroup_name | vSphere Default Cluster Group | Define the Clustergroup name when `Use Clusters` is set to False |
-| cluster_type_name | VMWare vSphere                | Define the Cluster Type name                                     |
-| cluster_name      | vSphere Default Cluster       | Define the Cluster name                                          |
-| tag_color         | 303dbf                        | Define the Tag Color                                             |
-
-An example configuration may look like the following:
-
-```python
-PLUGINS_CONFIG = {
-    "nautobot_ssot": {
-        "enable_vsphere": True,
-        "clustergroup_name": "Super Cluster Group",
-        "cluster_type_name": "Super Cluster Type",
-        "cluster_name": "My Awesome Cluster",
-        "tag_color": "ebb734"
-    }
-}
-```
-
 ## Configuration
 
-Other integration configuration is defined in the instance of the `SSOTvSphereConfig` model. Multiple configuration instances are supported. Synchronization jobs take the `Config` parameter which specifies the configuration instnace to use. 
+Configuration for the vSphere integration is defined in the instance of the `SSOTvSphereConfig` model. Multiple configuration instances are supported. Synchronization jobs take the `Config` parameter which specifies the configuration instance to use. 
 
 To access integration configuration navigate to `Apps -> Installed Apps` and click on the cog icon in the `Single Source of Truth` entry. Then, in the table `SSOT Integration Configs` click on the `vSphere Configuration Instance` link. This will take you to the view where youi can view/modify existing config insances or create new ones.
 
 Configuration instances contain the below settings:
 
-| Setting                       | Default                                                                        | Description                                                                                                  |
-| :---------------------------- | :----------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------- |
-| Name                          | N/A                                                                            | Unique name of the configuration instance.                                                                   |
-| Description                   | N/A                                                                            | Description of the configuration instance.                                                                   |
-| vSphere Instance Config       | N/A                                                                            | External Integration object describing remote vSphere instance.                                              |
-| Enable for Sync Job           | False                                                                          | Allows this config to be used in the sync jobs.                                                              |
-| Ignore Link Local             | True                                                                           | Ignore link local addresses when sycning from vSphere                                                        |
-| Primary IP Sort Logic         | Lowest                                                                         | The logic used to assign the Primary IP to a Virtual Machine                                                 |
-| Use Clusters                  | True                                                                           | Sync Cluster and ClusterGroups from vSphere. If set to False, a default Cluster and ClustGroup will be used. |
-| Sync to Nautobot              | True                                                                           | Allows this config to be used in the job syncing from vSphere to Nautobot                                    |
-| Sync Tagged Only              | True                                                                           | Only take into consideration tagged VMs (on the Nautobot side) when performing the sync.                     |
-| Virtual Machine Status Map    | `{"POWERED_OFF": "Offline", "POWERED_ON": "Active", "SUSPENDED": "Suspended"}` | Maps vSphere Virtual Machine status to Nautobot status.                                                      |
-| Virtual Machine IP Status Map | `{"PREFERRED": "Active", "UNKNOWN": "Reserved"}`                               | Maps vSPhere IP status to Nautobot status                                                                    |
-| Virtual Machine Interface Map | `{"CONNECTED": true, "NOT_CONNECTED": false}`                                  | Maps vSphere interface state to boolean values.                                                              |
+| Setting                       | Default                                                                        | Description                                                                                                   |
+| :---------------------------- | :----------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------ |
+| Name                          | N/A                                                                            | Unique name of the configuration instance.                                                                    |
+| Description                   | N/A                                                                            | Description of the configuration instance.                                                                    |
+| vSphere Instance Config       | N/A                                                                            | External Integration object describing remote vSphere instance.                                               |
+| Enable for Sync Job           | False                                                                          | Allows this config to be used in the sync jobs.                                                               |
+| Ignore Link Local             | True                                                                           | Ignore link local addresses when sycning from vSphere                                                         |
+| Primary IP Sort Logic         | Lowest                                                                         | The logic used to assign the Primary IP to a Virtual Machine                                                  |
+| Use Clusters                  | True                                                                           | Sync Cluster and ClusterGroups from vSphere. If set to False, a default Cluster and Clust Group will be used. |
+| Sync to Nautobot              | True                                                                           | Allows this config to be used in the job syncing from vSphere to Nautobot                                     |
+| Sync Tagged Only              | True                                                                           | Only take into consideration tagged VMs (on the Nautobot side) when performing the sync.                      |
+| Virtual Machine Status Map    | `{"POWERED_OFF": "Offline", "POWERED_ON": "Active", "SUSPENDED": "Suspended"}` | Maps vSphere Virtual Machine status to Nautobot status.                                                       |
+| Virtual Machine IP Status Map | `{"PREFERRED": "Active", "UNKNOWN": "Reserved"}`                               | Maps vSPhere IP status to Nautobot status                                                                     |
+| Virtual Machine Interface Map | `{"CONNECTED": true, "NOT_CONNECTED": false}`                                  | Maps vSphere interface state to boolean values.                                                               |
+| Default Cluster Group Name    | vSphere Default Cluster Group                                                  | Denotes the default Cluster Group name used in the sync if `Use Clusters` is set to False.                    |
+| Default Cluster Name          | vSphere Default Cluster                                                        | Denotes the default Cluster name used in the sync if `Use Clusters` is set to Fals.e.                         |
+| Default Cluster Type          | VMWare vSphere                                                                 | Denotes the default Cluster Type to set in the sync.                                                          |
 
 Each vShere configuration must be linked to an [External integration](https://docs.nautobot.com/projects/core/en/stable/user-guide/platform-functionality/externalintegration/?h=external+int) describing the vSphere instance. The following External Integration fields must be defined for integration to work correctly:
 

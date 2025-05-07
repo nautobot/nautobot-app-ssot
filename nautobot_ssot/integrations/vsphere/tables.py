@@ -23,5 +23,21 @@ class SSOTvSphereConfigTable(BaseTable):
         fields = (  # pylint: disable=nb-use-fields-all
             "name",
             "vsphere_url",
+            "enable_sync_to_nautobot",
+            "default_ignore_link_local",
             "job_enabled",
+            "default_clustergroup_name",
+            "default_cluster_name",
+            "default_cluster_type",
+            "default_vm_status_map",
+        )
+        default_columns = (
+            "name",
+            "vsphere_url",
+            "enable_sync_to_nautobot",
+            "default_ignore_link_local",
+            "job_enabled",
+            "default_clustergroup_name",
+            "default_cluster_name",
+            "default_cluster_type",
         )
