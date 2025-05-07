@@ -5,7 +5,7 @@ from typing import Optional
 
 from diffsync import Adapter
 from diffsync.enum import DiffSyncModelFlags
-from diffsync.exceptions import ObjectNotFound
+from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.core.exceptions import ValidationError
 from django.db.models import ProtectedError
 from django.db.utils import IntegrityError
@@ -92,14 +92,16 @@ class NautobotAdapter(Adapter):
         """Load Location data from Nautobot for specified Area LocationType into DiffSync models."""
         areas = OrmLocation.objects.filter(location_type=self.job.area_loctype).select_related("parent")
         for area in areas:
-            parent = None
+            parent, parent_of_parent = None, None
             if area.parent:
                 parent = area.parent.name
+                if area.parent.parent:
+                    parent_of_parent = area.parent.parent.name
             if parent not in self.region_map:
                 self.region_map[parent] = {}
             self.region_map[parent][area.name] = area.id
             try:
-                self.get(self.area, {"name": area.name, "parent": parent})
+                self.get(self.area, {"name": area.name, "parent": parent, "parent_of_parent": parent_of_parent})
                 self.job.logger.warning(
                     f"{self.job.area_loctype.name} {area.name} already loaded so skipping duplicate."
                 )
@@ -107,6 +109,7 @@ class NautobotAdapter(Adapter):
                 new_region = self.area(
                     name=area.name,
                     parent=parent,
+                    parent_of_parent=parent_of_parent,
                     uuid=area.id,
                 )
                 if METADATA_FOUND:
@@ -308,7 +311,10 @@ class NautobotAdapter(Adapter):
                     new_ipaddr.metadata = True
             if self.tenant:
                 new_ipaddr.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
-            self.add(new_ipaddr)
+            try:
+                self.add(new_ipaddr)
+            except ObjectAlreadyExists:
+                self.job.logger.warning(f"IPAddress {ipaddr.host} already loaded so skipping duplicate. {ipaddr.id}")
 
     def load_ipaddress_to_interface(self):
         """Load IPAddressonInterface data from Nautobot into DiffSync models."""

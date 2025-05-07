@@ -177,7 +177,7 @@ class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many
         ap_mgmt.custom_field_data["system_of_record"] = "DNA Center"
         ap_mgmt.validated_save()
 
-        test_ns = Namespace.objects.create(name="Global")
+        test_ns = Namespace.objects.get_or_create(name="Global")[0]
 
         leaf1_pf = Prefix.objects.create(
             prefix="10.10.10.0/24",
@@ -257,7 +257,7 @@ class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many
         self.build_nautobot_objects()
         self.nb_adapter.load()
         self.assertEqual(
-            ["Global__None", "NY__Global"],
+            ["Global__None__None", "NY__Global__None"],
             sorted(loc.get_unique_id() for loc in self.nb_adapter.get_all("area")),
         )
         self.assertEqual(
@@ -283,10 +283,10 @@ class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many
         )
         self.assertEqual(
             [
-                "10.10.10.1__24__Global",
-                "10.10.11.1__24__Global",
-                "10.10.12.1__24__Global",
-                "10.10.13.1__24__Global",
+                "10.10.10.1__Global",
+                "10.10.11.1__Global",
+                "10.10.12.1__Global",
+                "10.10.13.1__Global",
             ],
             sorted(ipaddr.get_unique_id() for ipaddr in self.nb_adapter.get_all("ipaddress")),
         )
