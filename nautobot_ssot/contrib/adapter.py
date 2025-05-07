@@ -20,6 +20,7 @@ from nautobot_ssot.contrib.types import (
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
+from nautobot_ssot.contrib.helpers.adapter import get_foreign_key_value
 
 # This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
 # and therefore a frozenset rather than a normal set or a list.
@@ -110,7 +111,7 @@ class NautobotAdapter(DiffSync):
                     database_object, parameter_name, custom_relationship_annotation
                 )
             else:
-                parameters[parameter_name] = self._handle_foreign_key(database_object, parameter_name)
+                parameters[parameter_name] = get_foreign_key_value(database_object, parameter_name)
             return
 
         # Handling of one- and many-to custom relationship fields:
@@ -252,7 +253,7 @@ class NautobotAdapter(DiffSync):
         dictionary_representation = {}
         for field_name in get_type_hints(inner_type):
             if "__" in field_name:
-                dictionary_representation[field_name] = cls._handle_foreign_key(related_object, field_name)
+                dictionary_representation[field_name] = get_foreign_key_value(related_object, field_name)
                 continue
             dictionary_representation[field_name] = getattr(related_object, field_name)
         return dictionary_representation
@@ -355,36 +356,3 @@ class NautobotAdapter(DiffSync):
                 related_object = getattr(related_object, lookup)
             return getattr(related_object, lookups[-1])
         raise ValueError("Foreign key custom relationship matched two associations - this shouldn't happen.")
-
-    @staticmethod
-    def _handle_foreign_key(database_object, parameter_name):
-        """Handle a single foreign key field.
-
-        Given the object from the database as well as the name of parameter in the form of
-        f'{foreign_key_field_name}__{remote_field_name}'
-        return the field at 'remote_field_name' on the object behind the foreign key at 'foreign_key_field_name'.
-
-        Furthermore, 'remote_field_name' may be a series of '__' delimited lookups.
-
-        :param database_object: The Django ORM database object
-        :param parameter_name: The field name of the specific relationship to handle
-        :return: If present, the object behind the (generic) foreign key, else None
-        """
-        related_model, *lookups = parameter_name.split("__")
-        related_object = getattr(database_object, related_model)
-        # If the foreign key does not point to anything, return None
-        if not related_object:
-            return None
-        for lookup in lookups[:-1]:
-            related_object = getattr(related_object, lookup)
-            # If the foreign key does not point to anything, return None
-            if not related_object:
-                return None
-        # Return the result of the last lookup directly.
-        try:
-            return getattr(related_object, lookups[-1])
-        # If the lookup doesn't point anywhere, check whether it is using the convention for generic foreign keys.
-        except AttributeError:
-            if lookups[-1] in ["app_label", "model"]:
-                return getattr(ContentType.objects.get_for_model(related_object), lookups[-1])
-        return None
