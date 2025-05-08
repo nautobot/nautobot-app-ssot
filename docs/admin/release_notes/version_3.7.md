@@ -6,7 +6,7 @@ This document describes all new features and changes in the release. The format 
 
 This release focuses on bugfixes for the DNA Center, Citrix ADM, Bootstrap and Slurpit integrations along with some dependency updates.
 
-## [v3.7.0 (2025-05-07)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.7.0)
+## [v3.7.0 (2025-05-08)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.7.0)
 
 ### Added
 
