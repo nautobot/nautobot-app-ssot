@@ -9,19 +9,18 @@ from typing import DefaultDict, Dict, FrozenSet, Hashable, Tuple, Type, get_args
 import pydantic
 from diffsync import DiffSyncModel
 from diffsync.exceptions import ObjectCrudException
-from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
-from nautobot_ssot.contrib.helpers.cache import NautobotCache
 from typing_extensions import get_type_hints
 
+from nautobot_ssot.contrib.helpers.adapter import get_foreign_key_value
+from nautobot_ssot.contrib.helpers.cache import NautobotCache
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
-from nautobot_ssot.contrib.helpers.adapter import get_foreign_key_value
 
 try:
     from diffsync import Adapter
@@ -172,7 +171,7 @@ class NautobotAdapter(BaseAdapter):
             diffsync_model_child = self._get_diffsync_class(model_name=children_parameter)
             for child in children:
                 parameter_names = diffsync_model_child.synced_parameters()
-                #self._get_parameter_names(diffsync_model_child)
+                # self._get_parameter_names(diffsync_model_child)
                 child_diffsync_object = self._load_single_object(child, diffsync_model_child, parameter_names)
                 diffsync_model.add_child(child_diffsync_object)
 

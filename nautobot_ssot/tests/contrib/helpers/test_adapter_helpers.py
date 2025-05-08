@@ -1,22 +1,19 @@
 """Tests for contrib.NautobotAdapter."""
 
-from typing import List
-from unittest import skip
-from unittest.mock import MagicMock
 
 from nautobot.core.testing import TestCase
-
 from nautobot.dcim.models import (
     Location,
     LocationType,
 )
 from nautobot.extras.models import Status
+
 from nautobot_ssot.contrib.helpers.adapter import (
     get_foreign_key_value,
 )
 
-class TestGetForeignKeyValue(TestCase):
 
+class TestGetForeignKeyValue(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.status = Status.objects.get(name="Active")
@@ -32,7 +29,6 @@ class TestGetForeignKeyValue(TestCase):
             parent=None,
             location_type=cls.location_type,
             status=cls.status,
-
         )
 
         cls.location_type_2 = LocationType.objects.create(
@@ -66,7 +62,4 @@ class TestGetForeignKeyValue(TestCase):
     def test_invalid_parameter_name(self):
         """Test attempt to use invalid parameter name."""
         with self.assertRaises(ValueError):
-            get_foreign_key_value(
-                self.location_1,
-                "invalid_name"
-            )
+            get_foreign_key_value(self.location_1, "invalid_name")

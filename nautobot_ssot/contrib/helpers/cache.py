@@ -4,12 +4,12 @@
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
 from collections import defaultdict
-from typing import Any, DefaultDict, Dict, Hashable, Callable, FrozenSet, Tuple, Type
+from typing import Any, Callable, DefaultDict, Dict, FrozenSet, Hashable, Tuple, Type
+
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 
 from nautobot_ssot.contrib.exceptions import CachedObjectAlreadyExists, CachedObjectNotFound
-from nautobot_ssot.contrib.model import NautobotModel
-from django.contrib.contenttypes.models import ContentType
 
 # This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
 # and therefore a frozenset rather than a normal set or a list.
@@ -23,7 +23,7 @@ from django.contrib.contenttypes.models import ContentType
 # )
 ParameterSet = FrozenSet[Tuple[str, Hashable]]
 
-    
+
 class BasicCache:
     """Basic, reusable caching class for adapters."""
 
@@ -64,7 +64,7 @@ class BasicCache:
 
     def get_or_add(self, object_type_key: str, object_key: Hashable, callback: Callable):
         """Basic implementation to get from objects from cache.
-        
+
         NOTE: Callbacks are used here instead of seeding a "default" value to ensure the code
             for getting the value to add is only ran if there is no existing object in the cache.
         """
@@ -72,11 +72,11 @@ class BasicCache:
             return self.get(object_type_key, object_key)
         except CachedObjectNotFound:
             return self.add(object_type_key, object_key, callback())
-        
+
 
 class NautobotCache(BasicCache):
     """Cache with additional functionaly for interacting with the Nautobot database."""
-    
+
     # This dictionary acts as an ORM cache.
     _cache: DefaultDict[str, Dict[ParameterSet, Model]]
 
@@ -90,5 +90,5 @@ class NautobotCache(BasicCache):
             object_key=parameter_set,
             # As we are using `get` here, this will error if there is not exactly one object that corresponds to the
             # parameter set. We intentionally pass these errors through.
-            callback=lambda : model_class.objects.get(**dict(parameter_set)),
+            callback=lambda: model_class.objects.get(**dict(parameter_set)),
         )

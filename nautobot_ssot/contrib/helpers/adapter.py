@@ -8,7 +8,7 @@ from django.db.models import Model
 
 def get_foreign_key_value(db_obj: Type[Model], parameter_name: str):
     """Get an object's foreign key value given a parameter name with double underscores.
-    
+
     Given the object from the database as well as the name of parameter in the form of
     f'{foreign_key_field_name}__{remote_field_name}'
     return the field at 'remote_field_name' on the object behind the foreign key at 'foreign_key_field_name'.
@@ -32,7 +32,7 @@ def get_foreign_key_value(db_obj: Type[Model], parameter_name: str):
     # If the foreign key does not point to anything, return None
     if not related_object:
         return None
-    
+
     # Separate lookups into their search parameters
     nested_lookups = lookups[:-1]
     final_lookup = lookups[-1]
@@ -44,7 +44,7 @@ def get_foreign_key_value(db_obj: Type[Model], parameter_name: str):
         # If the foreign key does not point to anything, return None
         if not related_object:
             return None
-    
+
     # Return the result of the last lookup directly.
     try:
         return getattr(related_object, final_lookup)
