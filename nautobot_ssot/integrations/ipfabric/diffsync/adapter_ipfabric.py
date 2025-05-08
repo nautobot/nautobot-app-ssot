@@ -112,16 +112,21 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
     def load(self):  # pylint: disable=too-many-locals,too-many-statements
         """Load data from IP Fabric."""
         self.load_sites()
-        devices = self.client.inventory.devices.all()
         interfaces = self.client.inventory.interfaces.all()
         vlans = self.client.fetch_all("tables/vlan/site-summary")
-        networks = defaultdict(list)
+
+        networks, stacks = defaultdict(list), defaultdict(list)
         for network in self.client.technology.managed_networks.networks.all(
             filters={"net": ["empty", False], "siteName": ["empty", False]},
             columns=["net", "siteName"],
         ):
             # IPF bug NIM-15635 Fix Version 7.0: 'net' column has host bits set.
             networks[network["siteName"]].append(ipaddress.ip_network(network["net"], strict=False))
+        for stack in self.client.technology.platforms.stacks_members.all(
+                columns=["master", "member", "memberSn", "pn", "sn"]
+        ):
+            stacks[stack["sn"]].append(stack)
+
         for location in self.get_all(self.location):
             if location.name is None:
                 continue
@@ -149,58 +154,50 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     location.add_child(vlan)
                 except ObjectAlreadyExists:
                     logger.warning(f"Duplicate VLAN discovered, {vlan}")
-            location_devices = [device for device in devices if device["siteName"] == location.name]
-            for device in location_devices:
-                device_name = device["hostname"]
-                stack_members = self.client.technology.platforms.stacks_members.all(
-                    filters={"master": ["eq", device_name], "siteName": ["eq", location.name]},
-                    columns=["master", "member", "memberSn", "pn"],
-                )
+            for device in self.client.devices.by_site.get(location.name, []):
                 base_args = {
                     "diffsync": self,
-                    "location_name": device["siteName"],
-                    "model": device.get("model") if device.get("model") else f"Default-{device.get('vendor')}",
-                    "vendor": device.get("vendor").capitalize(),
-                    "role": device.get("devType") if device.get("devType") else DEFAULT_DEVICE_ROLE,
+                    "location_name": device.site,
+                    "model": device.model or f"Default-{device.vendor}",
+                    "vendor": device.vendor.capitalize(),
+                    "role": device.dev_type or DEFAULT_DEVICE_ROLE,
                     "status": DEFAULT_DEVICE_STATUS,
-                    "platform": device.get("family"),
+                    "platform": device.family,
                 }
-                if not stack_members:
-                    serial_number = device["sn"]
-                    sn_length = len(serial_number)
+                if device.sn not in stacks:
+                    serial_number = device.sn
                     args = base_args.copy()
-                    args["name"] = device_name
-                    args["serial_number"] = serial_number if sn_length < device_serial_max_length else ""
+                    args["name"] = device.hostname
+                    args["serial_number"] = serial_number if len(serial_number) < device_serial_max_length else ""
                     member_devices = [args]
                 else:
                     # member with the lowest member number will be considered master,
                     # and vc_priority and vc_position will both be derived from the member field,
                     # as the role field will depend on operational state and not config,
                     # and this will cause uneccessary diffs.
+                    stack_members = stacks[device.sn]
                     stack_members.sort(key=lambda x: x["member"])
                     member_devices = []
                     for index, member in enumerate(stack_members):
                         # using `or` syntax in case memberSn is defined as None
-                        member_sn = member.get("memberSn") or ""
-                        member_sn_length = len(member_sn)
+                        member_sn = member.get("memberSn", "")
                         args = base_args.copy()
                         model = member.get("pn")
                         if model:
                             args["model"] = model
-                        args["serial_number"] = member_sn if member_sn_length < device_serial_max_length else ""
-                        args["vc_name"] = device_name
+                        args["serial_number"] = member_sn if len(member_sn) < device_serial_max_length else ""
+                        args["vc_name"] = device.hostname
                         member_field = member.get("member")
                         args["vc_priority"] = member_field
                         args["vc_position"] = member_field
                         if index == 0:
-                            args["name"] = device_name
+                            args["name"] = device.hostname
                             args["vc_master"] = True
                         else:
-                            args["name"] = f"{device_name}-member{member_field}"
+                            args["name"] = f"{device.hostname}-member{member_field}"
                             args["vc_master"] = False
                         member_devices.append(args)
 
-                device_primary_ip = device["loginIp"]
                 for index, dev in enumerate(member_devices):
                     if not dev["serial_number"]:
                         logger.warning(
@@ -211,9 +208,10 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                         self.add(device_model)
                         location.add_child(device_model)
                         if index == 0:
-                            self.load_device_interfaces(device_model, interfaces, device_primary_ip, networks)
+                            # TODO: New Login IP columns in 7.3
+                            self.load_device_interfaces(device_model, interfaces, device.login_ip, networks)
                     except ObjectAlreadyExists:
-                        logger.warning(f"Duplicate Device discovered, {device}")
+                        logger.warning(f"Duplicate Device discovered, {device.model_dump()}")
 
 
 def pseudo_management_interface(hostname, device_interfaces, device_primary_ip):
