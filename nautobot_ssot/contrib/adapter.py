@@ -3,8 +3,7 @@
 # pylint: disable=protected-access
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
-from collections import defaultdict
-from typing import DefaultDict, Dict, FrozenSet, Hashable, Tuple, Type, get_args
+from typing import Dict, Type, get_args
 
 import pydantic
 
@@ -26,18 +25,6 @@ from nautobot_ssot.contrib.types import (
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
-
-# This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
-# and therefore a frozenset rather than a normal set or a list.
-#
-# The following is an example of a parameter set that describes a tenant based on its name and group:
-# frozenset(
-#  [
-#   ("name", "ABC Inc."),
-#   ("group__name", "Customers"),
-#  ]
-# )
-ParameterSet = FrozenSet[Tuple[str, Hashable]]
 
 
 class BaseAdapter(Adapter):
@@ -66,10 +53,6 @@ class NautobotAdapter(BaseAdapter):
 
     This adapter is able to infer how to load data from Nautobot based on how the models attached to it are defined.
     """
-
-    # This dictionary acts as an ORM cache.
-    _cache: DefaultDict[str, Dict[ParameterSet, Model]]
-    _cache_hits: DefaultDict[str, int] = defaultdict(int)
 
     def __init__(self, *args, cache=NautobotCache(), **kwargs):
         """Instantiate this class, but do not load data immediately from the local system."""
