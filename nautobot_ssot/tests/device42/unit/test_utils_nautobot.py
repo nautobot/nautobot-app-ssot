@@ -1,6 +1,6 @@
 """Tests of Nautobot utility methods."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from uuid import UUID
 
 from diffsync.exceptions import ObjectNotFound
@@ -86,19 +86,6 @@ class TestNautobotUtils(TransactionTestCase):  # pylint: disable=too-many-instan
         self.adapter.objects_to_create = {"platforms": [], "vlans": [], "tagged_vlans": []}
         self.adapter.site_map["Test Site"] = self.site.id
         self.adapter.status_map["Active"] = self.status_active.id
-
-    def test_lifecycle_mgmt_available(self):
-        """Validate that the DLC App module is available."""
-        with patch("nautobot_device_lifecycle_mgmt.models.SoftwareLCM"):
-            from nautobot_device_lifecycle_mgmt.models import (  # noqa: F401 # pylint: disable=import-outside-toplevel, unused-import
-                SoftwareLCM,
-            )
-
-            from nautobot_ssot.integrations.device42.utils.nautobot import (  # noqa: F401 # pylint: disable=import-outside-toplevel, unused-import
-                LIFECYCLE_MGMT,
-            )
-
-            self.assertTrue(LIFECYCLE_MGMT)
 
     def test_verify_platform_ios(self):
         """Test the verify_platform method with IOS."""

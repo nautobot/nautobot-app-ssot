@@ -1,4 +1,3 @@
-
 # v3.6 Release Notes
 
 This document describes all new features and changes in the release. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -7,7 +6,7 @@ This document describes all new features and changes in the release. The format 
 
 The major thing to note about this release is that we've removed support for Python 3.8 from the project. There have been some additional features added to the Bootstrap and DNA Center integrations. In addition there have been a multitude of bugfixes and tweaks made to the project.
 
-## [v3.6.0 (2025-04-04)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.6.0)
+## [v3.6.0 (2025-04-05)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.6.0)
 
 ### Added
 
@@ -63,3 +62,9 @@ The major thing to note about this release is that we've removed support for Pyt
 ### Housekeeping
 
 - Rebaked from the cookie `nautobot-app-v2.4.2`.
+
+## New Contributors
+* @michalbil made their first contribution in https://github.com/nautobot/nautobot-app-ssot/pull/722
+* @justinbrink made their first contribution in https://github.com/nautobot/nautobot-app-ssot/pull/751
+
+**Full Changelog**: https://github.com/nautobot/nautobot-app-ssot/compare/v3.5.0...v3.6.0

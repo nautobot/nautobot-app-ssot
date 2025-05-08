@@ -10,12 +10,13 @@ class Area(DiffSyncModel):
     """DiffSync model for DNA Center areas."""
 
     _modelname = "area"
-    _identifiers = ("name", "parent")
+    _identifiers = ("name", "parent", "parent_of_parent")
     _attributes = ("metadata",)
     _children = {}
 
     name: str
     parent: Optional[str] = None
+    parent_of_parent: Optional[str] = None
     metadata: Optional[bool] = True
 
     uuid: Optional[UUID] = None
@@ -142,8 +143,8 @@ class IPAddress(DiffSyncModel):
     """DiffSync model for DNA Center IP addresses."""
 
     _modelname = "ipaddress"
-    _identifiers = ("host", "mask_length", "namespace")
-    _attributes = ("tenant", "metadata")
+    _identifiers = ("host", "namespace")
+    _attributes = ("mask_length", "tenant", "metadata")
     _children = {}
 
     host: str
@@ -159,11 +160,12 @@ class IPAddressOnInterface(DiffSyncModel):
     """DiffSync model for DNA Center tracking IPAddress on particular Device interfaces."""
 
     _modelname = "ip_on_intf"
-    _identifiers = ("host", "device", "port")
+    _identifiers = ("host", "mask_length", "device", "port")
     _attributes = ("primary",)
     _children = {}
 
     host: str
+    mask_length: int
     device: str
     port: str
     primary: bool

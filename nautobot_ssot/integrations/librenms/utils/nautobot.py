@@ -7,12 +7,10 @@ from nautobot.dcim.models import Device, Platform
 from nautobot.extras.models import Relationship, RelationshipAssociation
 from netutils.lib_mapper import ANSIBLE_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER_REVERSE
 
-try:
-    from nautobot_device_lifecycle_mgmt.models import SoftwareLCM
+from nautobot_ssot.utils import dlm_supports_softwarelcm
 
-    LIFECYCLE_MGMT = True
-except ImportError:
-    LIFECYCLE_MGMT = False
+if dlm_supports_softwarelcm():
+    from nautobot_device_lifecycle_mgmt.models import SoftwareLCM
 
 
 def verify_platform(platform_name: str, manu: UUID) -> Platform:

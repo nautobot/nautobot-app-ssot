@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nautobot-ssot"
-version = "3.6.0"
+version = "3.7.0"
 description = "Nautobot Single Source of Truth"
 authors = ["Network to Code, LLC <opensource@networktocode.com>"]
 license = "Apache-2.0"
@@ -37,11 +37,11 @@ PyYAML = { version = ">=6", optional = true }
 cloudvision = { version = "^1.9.0", optional = true }
 cvprac = { version = "^1.2.2", optional = true }
 dnspython = { version = "^2.1.0", optional = true }
-nautobot-device-lifecycle-mgmt = { version = "^2.0.0", optional = true }
-packaging = ">=21.3, <24"
+nautobot-device-lifecycle-mgmt = { version = ">=2.0.0", optional = true }
+packaging = ">=21.3"
 prometheus-client = ">=0.17.1"
 ijson = { version = ">=2.5.1", optional = true }
-ipfabric = { version = "^6.0.0", optional = true }
+ipfabric = { version = ">=6.0.0", optional = true }
 netutils = { version = "^1.9.0", optional = true }
 oauthlib = { version = ">=3.1.0", optional = true }
 python-magic = { version = ">=0.4.15", optional = true }
@@ -90,6 +90,7 @@ myst-parser = "^2.0.0"
 responses = "^0.14.0"
 to-json-schema = "*"
 jsonschema = "*"
+virtualenv = "20.13.0"
 
 [tool.poetry.plugins."nautobot_ssot.data_sources"]
 "example" = "nautobot_ssot.sync.example:ExampleSyncWorker"

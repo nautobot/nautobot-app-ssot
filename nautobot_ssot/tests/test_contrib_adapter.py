@@ -25,6 +25,7 @@ from nautobot_ssot.tests.contrib_base_classes import (
     NautobotTenant,
     NautobotTenantGroup,
     ProviderModelCustomRelationship,
+    TenantModelCustomManyTomanyRelationship,
     TenantModelCustomRelationship,
     TestAdapter,
     TestCaseWithDeviceData,
@@ -353,3 +354,17 @@ class TestNestedRelationships(TestCase):
         self.assertEqual(amount_of_vlans, len(diffsync_vlan_group.vlans))
         for vlan in diffsync_vlan_group.vlans:
             self.assertEqual(location.name, vlan["location__name"])
+
+
+class AdapterCustomRelationshipSortingTest(NautobotAdapter):
+    """Adapter for testing custom many-to-many relationship sorting."""
+
+    top_level = ["tenant"]
+    tenant = TenantModelCustomManyTomanyRelationship
+    sorted_relationships = (
+        (
+            "tenant",
+            "tenants",
+            "name",
+        ),
+    )

@@ -227,6 +227,11 @@ class DnaCenterAdapter(Adapter):
                     "parent": (
                         self.job.dnac.location.parent.parent.name if self.job.dnac.location.parent.parent else None
                     ),
+                    "parent_of_parent": (
+                        self.job.dnac.location.parent.parent.parent.name
+                        if self.job.dnac.location.parent.parent and self.job.dnac.location.parent.parent.parent
+                        else None
+                    ),
                 },
                 attrs={"uuid": None},
             )
@@ -244,18 +249,29 @@ class DnaCenterAdapter(Adapter):
                         if self.job.dnac.location.parent.parent.parent
                         else None
                     ),
+                    "parent_of_parent": (
+                        self.job.dnac.location.parent.parent.parent.parent.name
+                        if self.job.dnac.location.parent.parent.parent
+                        and self.job.dnac.location.parent.parent.parent.parent
+                        else None
+                    ),
                 },
                 attrs={"uuid": None},
             )
 
-    def load_area(self, area: str, area_parent: Optional[str] = None):
+    def load_area(self, area: str, area_parent: Optional[str] = None, area_parent_of_parent: Optional[str] = None):
         """Load area from DNAC into DiffSync model.
 
         Args:
             area (str): Name of area to be loaded.
             area_parent (Optional[str], optional): Name of area's parent if defined. Defaults to None.
+            area_parent_of_parent (Optional[str], optional): Name of area's parent of parent if defined. Defaults to None.
         """
-        self.get_or_instantiate(self.area, ids={"name": area, "parent": area_parent}, attrs={"uuid": None})
+        self.get_or_instantiate(
+            self.area,
+            ids={"name": area, "parent": area_parent, "parent_of_parent": area_parent_of_parent},
+            attrs={"uuid": None},
+        )
 
     def load_building(self, building: dict, area_name: Optional[str] = None, area_parent_name: Optional[str] = None):
         """Load building data from DNAC into DiffSync model.
@@ -281,7 +297,7 @@ class DnaCenterAdapter(Adapter):
                 "latitude": latitude[:9].rstrip("0"),
                 "longitude": longitude[:7].rstrip("0"),
                 "tenant": self.tenant.name if self.tenant else None,
-                "uuid": None,
+                "metadata": True,
             },
         )
 
@@ -302,7 +318,10 @@ class DnaCenterAdapter(Adapter):
             new_floor, loaded = self.get_or_instantiate(
                 self.floor,
                 ids={"name": floor_name, "building": bldg_name, "area": area_name},
-                attrs={"tenant": self.tenant.name if self.tenant else None, "uuid": None},
+                attrs={
+                    "tenant": self.tenant.name if self.tenant else None,
+                    "metadata": True,
+                },
             )
             if loaded:
                 parent.add_child(new_floor)
@@ -397,20 +416,24 @@ class DnaCenterAdapter(Adapter):
                     self.failed_import_devices.append(dev)
                     continue
             except ObjectNotFound:
-                if loc_data.get("floor") and loc_data["building"] not in loc_data["floor"]:
-                    floor_name = f"{loc_data['building']} - {loc_data['floor']}"
-                elif loc_data.get("floor"):
-                    floor_name = loc_data["floor"]
-                else:
-                    floor_name = None
+                location_ids = dev_details["siteHierarchyGraphId"].lstrip("/").rstrip("/").split("/")
+                floor_name = None
+                if loc_data.get("floor"):
+                    floor_name = self.dnac_location_map[location_ids[-1]]["name"]
+                    if loc_data["building"] not in loc_data["floor"]:
+                        bldg_name = self.dnac_location_map[location_ids[-1]]["parent"]
+                        floor_name = f"{bldg_name} - {floor_name}"
+                    location_ids.pop(-1)
+                building_name = self.dnac_location_map[location_ids[-1]]["name"]
+                area_name = self.dnac_location_map[location_ids[-1]]["parent"]
                 new_dev = self.device(
                     name=dev["hostname"],
                     status="Active" if dev.get("reachabilityStatus") != "Unreachable" else "Offline",
                     role=dev_role,
                     vendor=vendor,
                     model=self.conn.get_model_name(models=dev["platformId"]) if dev.get("platformId") else "Unknown",
-                    area=loc_data["areas"][-1],
-                    site=loc_data["building"],
+                    area=area_name,
+                    site=building_name,
                     floor=floor_name,
                     serial=dev["serialNumber"] if dev.get("serialNumber") else "",
                     version=dev.get("softwareVersion"),
@@ -441,6 +464,8 @@ class DnaCenterAdapter(Adapter):
         """
         floor_id = ""
         location_ids = dev_details["siteHierarchyGraphId"].lstrip("/").rstrip("/").split("/")
+        if not settings.PLUGINS_CONFIG["nautobot_ssot"].get("dna_center_import_global"):
+            location_ids.pop(0)
         if loc_data.get("floor"):
             floor_id = location_ids.pop()
         building_id = location_ids.pop()
@@ -450,23 +475,19 @@ class DnaCenterAdapter(Adapter):
             if self.dnac_location_map.get(area_id):
                 area_name = self.dnac_location_map[area_id]["name"]
                 area_parent = self.dnac_location_map[area_id]["parent"]
+                area_parent_of_parent = self.dnac_location_map[area_id]["parent_of_parent"]
+
                 if self.job.debug:
                     self.job.logger.debug(f"Loading area {area_name} in {area_parent}.")
-                self.load_area(area=area_name, area_parent=area_parent)
-        if self.job.debug:
-            self.job.logger.debug(
-                f"Loading building {self.dnac_location_map[building_id]['name']} in {self.dnac_location_map[building_id]['parent']} which exists in {self.dnac_location_map[building_id]['parent_of_parent']} area parent."
-            )
+                self.load_area(area=area_name, area_parent=area_parent, area_parent_of_parent=area_parent_of_parent)
+            else:
+                self.job.logger.warning(f"Unable to find area {area_id} in DNAC location map.")
         self.load_building(
             building=self.building_map[building_id],
             area_name=self.dnac_location_map[building_id]["parent"],
             area_parent_name=self.dnac_location_map[building_id]["parent_of_parent"],
         )
         if loc_data.get("floor"):
-            if self.job.debug:
-                self.job.logger.debug(
-                    f"Loading floor {self.dnac_location_map[floor_id]['name']} in {self.dnac_location_map[floor_id]['parent']} which exists in {self.dnac_location_map[building_id]['parent']} area."
-                )
             self.load_floor(
                 floor_name=self.dnac_location_map[floor_id]["name"],
                 bldg_name=self.dnac_location_map[floor_id]["parent"],
@@ -503,8 +524,10 @@ class DnaCenterAdapter(Adapter):
         if dev["softwareType"] in DNA_CENTER_LIB_MAPPER:
             platform = DNA_CENTER_LIB_MAPPER[dev["softwareType"]]
         else:
-            if not dev.get("softwareType") and dev.get("type") and ("3800" in dev["type"] or "9130" in dev["type"]):
-                platform = "cisco_ios"
+            if not dev.get("softwareType") and dev.get("type"):
+                for series in ["2700", "2800", "3800", "9120", "9124", "9130", "9136", "9166"]:
+                    if series in dev["type"]:
+                        platform = "cisco_ios"
             if not dev.get("softwareType") and dev.get("family") and "Meraki" in dev["family"]:
                 platform = "cisco_meraki"
         return platform
@@ -519,64 +542,49 @@ class DnaCenterAdapter(Adapter):
         """
         ports = self.conn.get_port_info(device_id=device_id)
         for port in ports:
-            try:
-                found_port = self.get(
-                    self.port,
-                    {
-                        "name": port["portName"],
-                        "device": dev.name,
-                        "mac_addr": port["macAddress"].upper() if port.get("macAddress") else None,
-                    },
-                )
-                if found_port and self.job.debug:
-                    self.job.logger.warning(
-                        f"Duplicate port attempting to be loaded, {port['portName']} for {dev.name}"
-                    )
-                continue
-            except ObjectNotFound:
+            port_type = self.conn.get_port_type(port_info=port)
+            port_status = self.conn.get_port_status(port_info=port)
+            new_port, loaded = self.get_or_instantiate(
+                self.port,
+                ids={
+                    "name": port["portName"],
+                    "device": dev.name,
+                },
+                attrs={
+                    "description": port["description"],
+                    "enabled": True if port["adminStatus"] == "UP" else False,
+                    "port_type": port_type,
+                    "port_mode": "tagged" if port["portMode"] == "trunk" else "access",
+                    "mac_addr": port["macAddress"].upper() if port.get("macAddress") else None,
+                    "mtu": port["mtu"] if port.get("mtu") else 1500,
+                    "status": port_status,
+                    "uuid": None,
+                },
+            )
+            if loaded:
                 if self.job.debug:
-                    self.job.logger.info(f"Loading port {port['portName']} for {dev.name}. {port}")
-                port_type = self.conn.get_port_type(port_info=port)
-                port_status = self.conn.get_port_status(port_info=port)
-                new_port = self.port(
-                    name=port["portName"],
-                    device=dev.name if dev.name else "",
-                    description=port["description"],
-                    enabled=True if port["adminStatus"] == "UP" else False,
-                    port_type=port_type,
-                    port_mode="tagged" if port["portMode"] == "trunk" else "access",
-                    mac_addr=port["macAddress"].upper() if port.get("macAddress") else None,
-                    mtu=port["mtu"] if port.get("mtu") else 1500,
-                    status=port_status,
-                    uuid=None,
-                )
-                try:
-                    self.add(new_port)
-                    dev.add_child(new_port)
-
-                    if port.get("addresses"):
-                        for addr in port["addresses"]:
-                            host = addr["address"]["ipAddress"]["address"]
-                            mask_length = netmask_to_cidr(addr["address"]["ipMask"]["address"])
-                            prefix = ipaddress_interface(f"{host}/{mask_length}", "network.with_prefixlen")
-                            if addr["address"]["ipAddress"]["address"] == mgmt_addr:
-                                primary = True
-                            else:
-                                primary = False
-                            self.load_ip_address(
-                                host=host,
-                                mask_length=mask_length,
-                                prefix=prefix,
-                            )
-                            self.load_ipaddress_to_interface(
-                                host=host,
-                                prefix=prefix,
-                                device=dev.name if dev.name else "",
-                                port=port["portName"],
-                                primary=primary,
-                            )
-                except ValidationError as err:
-                    self.job.logger.warning(f"Unable to load port {port['portName']} for {dev.name}. {err}")
+                    self.job.logger.info(f"Loaded port {port['portName']} for {dev.name}. {port}")
+                dev.add_child(new_port)
+                if port.get("addresses"):
+                    for addr in port["addresses"]:
+                        host = addr["address"]["ipAddress"]["address"]
+                        mask_length = netmask_to_cidr(addr["address"]["ipMask"]["address"])
+                        prefix = ipaddress_interface(f"{host}/{mask_length}", "network.with_prefixlen")
+                        primary = bool(addr["address"]["ipAddress"]["address"] == mgmt_addr)
+                        self.load_ip_address(
+                            host=host,
+                            mask_length=mask_length,
+                            prefix=prefix,
+                        )
+                        self.load_ipaddress_to_interface(
+                            host=host,
+                            mask_length=mask_length,
+                            device=dev.name if dev.name else "",
+                            port=port["portName"],
+                            primary=primary,
+                        )
+            else:
+                self.job.logger.warning(f"Duplicate port attempting to be loaded, {port['portName']} for {dev.name}")
 
     def load_ip_address(self, host: str, mask_length: int, prefix: str):
         """Load IP Address info from DNAC into IPAddress DiffSyncModel.
@@ -601,7 +609,7 @@ class DnaCenterAdapter(Adapter):
             )
             self.add(new_prefix)
         try:
-            ip_found = self.get(self.ipaddress, {"host": host, "mask_length": mask_length, "namespace": namespace})
+            ip_found = self.get(self.ipaddress, {"host": host, "namespace": namespace})
             if ip_found and self.job.debug:
                 self.job.logger.warning(f"Duplicate IP Address attempting to be loaded: {host} in {prefix}")
         except ObjectNotFound:
@@ -616,21 +624,21 @@ class DnaCenterAdapter(Adapter):
             )
             self.add(new_ip)
 
-    def load_ipaddress_to_interface(self, host: str, prefix: str, device: str, port: str, primary: bool):
+    def load_ipaddress_to_interface(self, host: str, mask_length: int, device: str, port: str, primary: bool):  # pylint: disable=too-many-arguments, too-many-positional-arguments
         """Load DNAC IPAddressOnInterface DiffSync model with specified data.
 
         Args:
             host (str): Host IP Address in mapping.
-            prefix (str): Parent prefix for host IP Address.
+            mask_length (int): Subnet mask length for host IP Address.
             device (str): Device that IP resides on.
             port (str): Interface that IP is configured on.
             primary (str): Whether the IP is primary IP for assigned device. Defaults to False.
         """
-        try:
-            self.get(self.ip_on_intf, {"host": host, "prefix": prefix, "device": device, "port": port})
-        except ObjectNotFound:
-            new_ipaddr_to_interface = self.ip_on_intf(host=host, device=device, port=port, primary=primary, uuid=None)
-            self.add(new_ipaddr_to_interface)
+        self.get_or_instantiate(
+            self.ip_on_intf,
+            ids={"host": host, "mask_length": mask_length, "device": device, "port": port},
+            attrs={"primary": primary},
+        )
 
     def load(self):
         """Load data from DNA Center into DiffSync models."""

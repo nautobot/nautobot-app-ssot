@@ -46,7 +46,7 @@ class TestNautobotArea(TransactionTestCase):
         self.adapter.status_map = {"Active": status_active.id}
         global_region = Location.objects.create(name="Global", location_type=self.region_type, status=status_active)
         self.adapter.region_map = {None: {"Global": global_region.id}}
-        ids = {"name": "NY", "parent": "Global"}
+        ids = {"name": "NY", "parent": "Global", "parent_of_parent": None}
         attrs = {}
         result = NautobotArea.create(self.adapter, ids, attrs)
         self.assertIsInstance(result, NautobotArea)
@@ -60,7 +60,7 @@ class TestNautobotArea(TransactionTestCase):
         ids = {"name": "TX", "parent": "USA"}
         attrs = {}
         NautobotArea.create(self.adapter, ids, attrs)
-        self.adapter.job.logger.warning.assert_called_once_with("Unable to find Region USA for TX.")
+        self.adapter.job.logger.warning.assert_called_once_with("Unable to find Region USA in None for TX.")
 
 
 @override_settings(
@@ -327,16 +327,19 @@ class TestNautobotDevice(TransactionTestCase):
         }
         self.adapter.objects_to_create = {"devices": [], "metadata": []}  # pylint: disable=no-member
 
-    @patch("nautobot_ssot.integrations.dna_center.diffsync.models.nautobot.LIFECYCLE_MGMT", True)
-    def test_create(self):
+    @patch("nautobot_ssot.integrations.dna_center.diffsync.models.nautobot.dlm_supports_softwarelcm")
+    @patch("nautobot_ssot.integrations.dna_center.diffsync.models.nautobot.core_supports_softwareversion")
+    def test_create(self, mock_core, mock_dlm):
         """Test the NautobotDevice create() method creates a Device."""
         floor_lt = LocationType.objects.get_or_create(name="Floor", parent=self.site_lt)[0]
         hq_floor = Location.objects.create(name="HQ - Floor 1", status=self.status_active, location_type=floor_lt)
         self.adapter.site_map = {"NY": {"HQ": self.hq_site.id}}
         self.adapter.floor_map = {"NY": {"HQ": {"HQ - Floor 1": hq_floor.id}}}
+        mock_dlm.return_value = False
+        mock_core.return_value = True
 
         NautobotDevice.create(self.adapter, self.ids, self.attrs)
-        self.adapter.job.logger.info.assert_called_with("Creating Version 16.12.3 for cisco_ios.")
+        self.adapter.job.logger.info.assert_called_with("Creating Device core-router.testexample.com.")
         new_dev = self.adapter.objects_to_create["devices"][0]
         self.assertEqual(new_dev.role, Role.objects.get(name=self.attrs["role"]))
         self.assertEqual(

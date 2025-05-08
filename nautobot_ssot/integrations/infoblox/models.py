@@ -35,7 +35,7 @@ def _get_default_cf_fields_ignore():
 
 def _get_network_view_to_namespace_map():
     """Provides default value for network view to namespace map."""
-    return [{"default": "Global"}]
+    return {"default": "Global"}
 
 
 class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
@@ -222,7 +222,9 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
     def _clean_infoblox_network_view_to_namespace_map(self):  # pylint: disable=too-many-branches
         """Performs validation of the infoblox_network_view_to_namespace_map field."""
         if not isinstance(self.infoblox_network_view_to_namespace_map, dict):
-            raise ValidationError({"infoblox_sync_filters": "Namespace/View mappings must be a dictionary."})
+            raise ValidationError(
+                {"infoblox_network_view_to_namespace_map": "Namespace/View mappings must be a dictionary."}
+            )
 
     def _clean_infoblox_instance(self):
         """Performs validation of the infoblox_instance field."""

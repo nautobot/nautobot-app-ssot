@@ -12,6 +12,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from nautobot.dcim.models import LocationType
 from nautobot.extras.models import Status
 from netutils.mac import mac_to_format
+from slurpit.models.site import Site as slurpit_site
 
 from nautobot_ssot.integrations.slurpit import constants
 from nautobot_ssot.integrations.slurpit.diffsync.models import (
@@ -28,6 +29,23 @@ from nautobot_ssot.integrations.slurpit.diffsync.models import (
     RoleModel,
     VLANModel,
     VRFModel,
+)
+
+unknown_location = slurpit_site(
+    id=100000,
+    sitename="Unknown",
+    description="Unknown",
+    street="Unknown",
+    county="Unknown",
+    state="Unknown",
+    number="000",
+    zipcode="Unknown",
+    city="Unknown",
+    country="Unknown",
+    phonenumber="Unknown",
+    status=0,
+    longitude="0",
+    latitude="0",
 )
 
 
@@ -219,14 +237,16 @@ class SlurpitAdapter(Adapter):
         """Load locations from Slurpit."""
         _loc_type = LocationType.objects.get(name="Site")
         _status = Status.objects.get(name="Active")
-        for site in self.run_async(self.client.site.get_sites()):
+        sites = self.run_async(self.client.site.get_sites())
+        sites.append(unknown_location)
+        for site in sites:
             try:
                 address = [site.number, site.street, site.city, site.state, site.country, site.county, site.zipcode]
                 data = {
                     "name": site.sitename,
                     "description": site.description,
-                    "latitude": format_latitude(site.latitude),
-                    "longitude": format_latitude(site.longitude),
+                    "latitude": format_latitude(site.latitude) if site.latitude else None,
+                    "longitude": format_latitude(site.longitude) if site.longitude else None,
                     "contact_phone": site.phonenumber,
                     "physical_address": "\n".join(address),
                     "location_type__name": self.job.site_loctype.name,
@@ -309,7 +329,7 @@ class SlurpitAdapter(Adapter):
             try:
                 data = {
                     "name": device.hostname,
-                    "location__name": device.site,
+                    "location__name": device.site or unknown_location.sitename,
                     "device_type__manufacturer__name": device.brand,
                     "device_type__model": device.device_type,
                     "platform__name": device.device_os,
