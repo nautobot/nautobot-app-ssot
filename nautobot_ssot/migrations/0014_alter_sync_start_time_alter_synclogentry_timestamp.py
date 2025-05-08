@@ -4,20 +4,19 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('nautobot_ssot', '0013_update_solarwinds_customfields'),
+        ("nautobot_ssot", "0013_update_solarwinds_customfields"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='sync',
-            name='start_time',
+            model_name="sync",
+            name="start_time",
             field=models.DateTimeField(blank=True, db_index=True, null=True),
         ),
         migrations.AlterField(
-            model_name='synclogentry',
-            name='timestamp',
+            model_name="synclogentry",
+            name="timestamp",
             field=models.DateTimeField(auto_now_add=True, db_index=True),
         ),
     ]
