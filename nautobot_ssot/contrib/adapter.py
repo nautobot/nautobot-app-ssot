@@ -7,10 +7,12 @@ from collections import defaultdict
 from typing import DefaultDict, Dict, FrozenSet, Hashable, Tuple, Type, get_args
 
 import pydantic
+
 try:
     from diffsync import Adapter, DiffSyncModel
 except ImportError:
-    from diffsync import DiffSync as Adapter, DiffSyncModel
+    from diffsync import DiffSync as Adapter
+    from diffsync import DiffSyncModel
 from diffsync.exceptions import ObjectCrudException
 from django.db.models import Model
 from nautobot.extras.choices import RelationshipTypeChoices
@@ -24,7 +26,6 @@ from nautobot_ssot.contrib.types import (
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
-
 
 # This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
 # and therefore a frozenset rather than a normal set or a list.

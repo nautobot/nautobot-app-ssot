@@ -14,7 +14,7 @@ from nautobot_ssot.contrib.helpers.adapter import (
 
 class TestGetForeignKeyValue(TestCase):
     """Unit tests for `get_foreign_key_value` function."""
-    
+
     @classmethod
     def setUpTestData(cls):
         """Set up test data."""
