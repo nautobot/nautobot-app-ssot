@@ -13,7 +13,6 @@ import nautobot_ssot.integrations.vsphere.models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("extras", "0114_computedfield_grouping"),
         ("nautobot_ssot", "0013_update_solarwinds_customfields"),
     ]
 

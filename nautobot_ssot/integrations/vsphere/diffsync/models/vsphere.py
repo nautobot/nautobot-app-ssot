@@ -320,11 +320,13 @@ class VirtualMachineModel(vSphereModelDiffSync):
     @classmethod
     def get_queryset(cls, config, cluster_filters):
         """Return the queryset for the model. This is overriden to pass in the config object."""
-        if config.sync_tagged_only:
+        if config.sync_tagged_only and cluster_filters:
+            return cls._model.objects.filter(tags__name__in=["SSoT Synced from vSphere"], cluster__in=cluster_filters)
+        elif config.sync_tagged_only:
             return cls._model.objects.filter(tags__name__in=["SSoT Synced from vSphere"])
+        elif cluster_filters:
+            return cls._model.objects.filter(cluster__in=cluster_filters)
 
-        if cluster_filters:
-            return VirtualMachine.objects.filter(cluster__in=cluster_filters)
         return cls._model.objects.all()
 
 
