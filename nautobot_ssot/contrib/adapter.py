@@ -72,29 +72,17 @@ class NautobotAdapter(BaseAdapter):
     _cache: DefaultDict[str, Dict[ParameterSet, Model]]
     _cache_hits: DefaultDict[str, int] = defaultdict(int)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, cache=NautobotCache(), *args, **kwargs):
         """Instantiate this class, but do not load data immediately from the local system."""
         super().__init__(*args, **kwargs)
-        self.invalidate_cache()
-
-    def invalidate_cache(self, zero_out_hits=True):
-        """Invalidates all the objects in the ORM cache."""
-        self._cache = defaultdict(dict)
-        if zero_out_hits:
-            self._cache_hits = defaultdict(int)
+        self.cache = cache
 
     def get_from_orm_cache(self, parameters: Dict, model_class: Type[Model]):
-        """Retrieve an object from the ORM or the cache."""
-        parameter_set = frozenset(parameters.items())
-        content_type = ContentType.objects.get_for_model(model_class)
-        model_cache_key = f"{content_type.app_label}.{content_type.model}"
-        if cached_object := self._cache[model_cache_key].get(parameter_set):
-            self._cache_hits[model_cache_key] += 1
-            return cached_object
-        # As we are using `get` here, this will error if there is not exactly one object that corresponds to the
-        # parameter set. We intentionally pass these errors through.
-        self._cache[model_cache_key][parameter_set] = model_class.objects.get(**dict(parameter_set))
-        return self._cache[model_cache_key][parameter_set]
+        """Retrieve an object from the ORM or the cache.
+
+        NOTE: Functionality moved to caching class. This method remains for legacy code.
+        """
+        return self.cache.get_or_add_orm_object(parameters, model_class)
 
     @staticmethod
     def _get_parameter_names(diffsync_model):
@@ -104,7 +92,6 @@ class NautobotAdapter(BaseAdapter):
     def _load_objects(self, diffsync_model):
         """Given a diffsync model class, load a list of models from the database and return them."""
         parameter_names = diffsync_model.synced_parameters()
-        #self._get_parameter_names(diffsync_model)
         for database_object in diffsync_model._get_queryset():
             self._load_single_object(database_object, diffsync_model, parameter_names)
 
@@ -220,7 +207,7 @@ class NautobotAdapter(BaseAdapter):
         inner_type = get_args(diffsync_field_type)[0]
         related_objects_list = []
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
-        relationship = self.get_from_orm_cache({"label": annotation.name}, Relationship)
+        relationship = self.cache.get_or_add_orm_object({"label": annotation.name}, Relationship)
         relationship_association_parameters = self._construct_relationship_association_parameters(
             annotation, database_object
         )
@@ -285,7 +272,7 @@ class NautobotAdapter(BaseAdapter):
         return dictionary_representation
 
     def _construct_relationship_association_parameters(self, annotation, database_object):
-        relationship = self.get_from_orm_cache({"label": annotation.name}, Relationship)
+        relationship = self.cache.get_or_add_orm_object({"label": annotation.name}, Relationship)
         relationship_association_parameters = {
             "relationship": relationship,
             "source_type": relationship.source_type,

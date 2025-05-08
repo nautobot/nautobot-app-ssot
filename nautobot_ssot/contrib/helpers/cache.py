@@ -4,11 +4,10 @@
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
 from collections import defaultdict
-from typing import Any, Dict, Hashable, Callable, FrozenSet, Tuple, Type
+from typing import Any, DefaultDict, Dict, Hashable, Callable, FrozenSet, Tuple, Type
 from django.db.models import Model
 
 from nautobot_ssot.contrib.exceptions import CachedObjectAlreadyExists, CachedObjectNotFound
-from dataclasses import dataclass, field
 from nautobot_ssot.contrib.model import NautobotModel
 from django.contrib.contenttypes.models import ContentType
 
@@ -27,6 +26,9 @@ ParameterSet = FrozenSet[Tuple[str, Hashable]]
     
 class BasicCache:
     """Basic, reusable caching class for adapters."""
+
+    _cache: DefaultDict[Hashable, Dict[Hashable, Any]]
+    _cache_hits: DefaultDict[str, int] = defaultdict(int)
 
     def __init__(self, invalidate_on_init: bool = True, *args, **kwargs):
         """Instantiate this class, but do not load data immediately from the local system."""
@@ -74,6 +76,9 @@ class BasicCache:
 
 class NautobotCache(BasicCache):
     """Cache with additional functionaly for interacting with the Nautobot database."""
+    
+    # This dictionary acts as an ORM cache.
+    _cache: DefaultDict[str, Dict[ParameterSet, Model]]
 
     def get_or_add_orm_object(self, parameters: Dict, model_class: Type[Model]):
         """Retrieve an object from the ORM or the cache."""
