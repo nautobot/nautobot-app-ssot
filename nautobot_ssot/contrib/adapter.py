@@ -195,21 +195,6 @@ class NautobotAdapter(BaseAdapter):
         )
         relationship_associations = RelationshipAssociation.objects.filter(**relationship_association_parameters)
 
-        field_name = ""
-        field_name += "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
-        field_name += "_"
-        field_name += (
-            relationship.source_type.app_label.lower()
-            if annotation.side == RelationshipSideEnum.DESTINATION
-            else relationship.destination_type.app_label.lower()
-        )
-        field_name += "_"
-        field_name += (
-            relationship.source_type.model.lower()
-            if annotation.side == RelationshipSideEnum.DESTINATION
-            else relationship.destination_type.model.lower()
-        )
-
         for association in relationship_associations:
             related_object = getattr(
                 association, "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
