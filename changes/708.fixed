@@ -1,2 +1,0 @@
-Fixes Device Building, parent Area if the location_map feature is used.
-Also reverted 724 as there should only be one host address ever found as I originally thought.
