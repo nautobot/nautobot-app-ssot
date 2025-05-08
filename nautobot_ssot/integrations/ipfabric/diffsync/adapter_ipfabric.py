@@ -180,7 +180,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     member_devices = []
                     for index, member in enumerate(stack_members):
                         # using `or` syntax in case memberSn is defined as None
-                        member_sn = member.get("memberSn", "")
+                        member_sn = member.get("memberSn") or ""
                         args = base_args.copy()
                         model = member.get("pn")
                         if model:
