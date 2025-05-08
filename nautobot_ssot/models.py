@@ -61,7 +61,7 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
     source = models.CharField(max_length=64, help_text="System data is read from")
     target = models.CharField(max_length=64, help_text="System data is written to")
 
-    start_time = models.DateTimeField(blank=True, null=True)
+    start_time = models.DateTimeField(blank=True, null=True, db_index=True)
     # end_time is represented by the job_result.date_done field
     source_load_time = models.DurationField(blank=True, null=True)
     target_load_time = models.DurationField(blank=True, null=True)
@@ -164,7 +164,7 @@ class SyncLogEntry(BaseModel):  # pylint: disable=nb-string-field-blank-null
     """
 
     sync = models.ForeignKey(to=Sync, on_delete=models.CASCADE, related_name="logs", related_query_name="log")
-    timestamp = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
     action = models.CharField(max_length=32, choices=SyncLogEntryActionChoices)
     status = models.CharField(max_length=32, choices=SyncLogEntryStatusChoices)

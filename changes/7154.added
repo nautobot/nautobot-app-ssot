@@ -1,0 +1,2 @@
+Added db_index to start_time in Sync
+Added db_index to timestamp in SyncLogEntry
