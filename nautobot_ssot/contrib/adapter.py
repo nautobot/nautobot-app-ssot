@@ -7,7 +7,10 @@ from collections import defaultdict
 from typing import DefaultDict, Dict, FrozenSet, Hashable, Tuple, Type, get_args
 
 import pydantic
-from diffsync import DiffSyncModel
+try:
+    from diffsync import Adapter, DiffSyncModel
+except ImportError:
+    from diffsync import DiffSync as Adapter, DiffSyncModel
 from diffsync.exceptions import ObjectCrudException
 from django.db.models import Model
 from nautobot.extras.choices import RelationshipTypeChoices
@@ -22,10 +25,6 @@ from nautobot_ssot.contrib.types import (
     RelationshipSideEnum,
 )
 
-try:
-    from diffsync import Adapter
-except ImportError:
-    from diffsync import DiffSync as Adapter
 
 # This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
 # and therefore a frozenset rather than a normal set or a list.
@@ -71,7 +70,7 @@ class NautobotAdapter(BaseAdapter):
     _cache: DefaultDict[str, Dict[ParameterSet, Model]]
     _cache_hits: DefaultDict[str, int] = defaultdict(int)
 
-    def __init__(self, cache=NautobotCache(), *args, **kwargs):
+    def __init__(self, *args, cache=NautobotCache(), **kwargs):
         """Instantiate this class, but do not load data immediately from the local system."""
         super().__init__(*args, **kwargs)
         self.cache = cache

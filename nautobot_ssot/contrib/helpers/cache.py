@@ -30,7 +30,7 @@ class BasicCache:
     _cache: DefaultDict[Hashable, Dict[Hashable, Any]]
     _cache_hits: DefaultDict[str, int] = defaultdict(int)
 
-    def __init__(self, invalidate_on_init: bool = True, *args, **kwargs):
+    def __init__(self, *args, invalidate_on_init: bool = True, **kwargs):
         """Instantiate this class, but do not load data immediately from the local system."""
         super().__init__(*args, **kwargs)
         if invalidate_on_init:
@@ -90,5 +90,5 @@ class NautobotCache(BasicCache):
             object_key=parameter_set,
             # As we are using `get` here, this will error if there is not exactly one object that corresponds to the
             # parameter set. We intentionally pass these errors through.
-            callback=lambda: model_class.objects.get(**dict(parameter_set)),
+            callback=lambda: model_class.objects.get(**dict(parameter_set)),  # pylint: disable=unnecessary-lambda
         )
