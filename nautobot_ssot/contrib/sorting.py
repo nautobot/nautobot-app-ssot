@@ -3,7 +3,7 @@
 import sys
 
 from diffsync import Adapter, DiffSyncModel
-from typing_extensions import TypedDict, get_type_hints
+from typing_extensions import get_type_hints
 
 from nautobot_ssot.contrib.typeddicts import SortKey
 from nautobot_ssot.contrib.types import SortType
@@ -53,7 +53,7 @@ def get_sortable_fields_from_model(model: DiffSyncModel) -> dict:
 
         sortable_content_type = attribute_type_hints.__args__[0]
 
-        if issubclass(sortable_content_type, dict) or issubclass(sortable_content_type, TypedDict):
+        if issubclass(sortable_content_type, dict):
             sort_key = _get_sort_key_from_typed_dict(sortable_content_type)
             if not sort_key:
                 continue

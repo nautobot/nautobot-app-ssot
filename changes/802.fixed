@@ -1,0 +1,1 @@
+Fix TypeError `contrib.sorting` for issue #802.
