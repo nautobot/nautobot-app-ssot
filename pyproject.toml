@@ -90,7 +90,7 @@ myst-parser = "^2.0.0"
 responses = "^0.14.0"
 to-json-schema = "*"
 jsonschema = "*"
-virtualenv = "20.13.0"
+virtualenv = "20.26.6"
 
 [tool.poetry.plugins."nautobot_ssot.data_sources"]
 "example" = "nautobot_ssot.sync.example:ExampleSyncWorker"
