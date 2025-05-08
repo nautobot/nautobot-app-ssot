@@ -7,12 +7,13 @@ from collections import defaultdict
 from typing import DefaultDict, Dict, FrozenSet, Hashable, Tuple, Type, get_args
 
 import pydantic
-from diffsync import DiffSync
+from diffsync import DiffSyncModel
 from diffsync.exceptions import ObjectCrudException
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
+from nautobot_ssot.contrib.helpers.cache import NautobotCache
 from typing_extensions import get_type_hints
 
 from nautobot_ssot.contrib.types import (
@@ -21,6 +22,11 @@ from nautobot_ssot.contrib.types import (
     RelationshipSideEnum,
 )
 from nautobot_ssot.contrib.helpers.adapter import get_foreign_key_value
+
+try:
+    from diffsync import Adapter
+except ImportError:
+    from diffsync import DiffSync as Adapter
 
 # This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
 # and therefore a frozenset rather than a normal set or a list.
@@ -35,7 +41,27 @@ from nautobot_ssot.contrib.helpers.adapter import get_foreign_key_value
 ParameterSet = FrozenSet[Tuple[str, Hashable]]
 
 
-class NautobotAdapter(DiffSync):
+class BaseAdapter(Adapter):
+    """Mixin for common functionality in Diffsync adapters."""
+
+    def __init__(self, *args, job, sync=None, **kwargs):
+        """Initialize common features for Diffsync adapters."""
+        super().__init__(*args, **kwargs)
+        self.job = job
+        self.sync = sync
+
+    def get_diffsync_class(self, model_name):
+        """Given a model name, return the diffsync class."""
+        try:
+            diffsync_class = getattr(self, model_name)
+        except AttributeError as error:
+            raise AttributeError(f"Adapter class `{self}` missing `{model_name}` attribute.") from error
+        if not issubclass(diffsync_class, DiffSyncModel):
+            raise TypeError(f"Class `{diffsync_class.__class__}` is not a subclasses of `DiffsyncModel`.")
+        return diffsync_class
+
+
+class NautobotAdapter(BaseAdapter):
     """
     Adapter for loading data from Nautobot through the ORM.
 
@@ -46,11 +72,9 @@ class NautobotAdapter(DiffSync):
     _cache: DefaultDict[str, Dict[ParameterSet, Model]]
     _cache_hits: DefaultDict[str, int] = defaultdict(int)
 
-    def __init__(self, *args, job, sync=None, **kwargs):
+    def __init__(self, *args, **kwargs):
         """Instantiate this class, but do not load data immediately from the local system."""
         super().__init__(*args, **kwargs)
-        self.job = job
-        self.sync = sync
         self.invalidate_cache()
 
     def invalidate_cache(self, zero_out_hits=True):
@@ -79,7 +103,8 @@ class NautobotAdapter(DiffSync):
 
     def _load_objects(self, diffsync_model):
         """Given a diffsync model class, load a list of models from the database and return them."""
-        parameter_names = self._get_parameter_names(diffsync_model)
+        parameter_names = diffsync_model.synced_parameters()
+        #self._get_parameter_names(diffsync_model)
         for database_object in diffsync_model._get_queryset():
             self._load_single_object(database_object, diffsync_model, parameter_names)
 
@@ -159,7 +184,8 @@ class NautobotAdapter(DiffSync):
             children = getattr(database_object, children_field).all()
             diffsync_model_child = self._get_diffsync_class(model_name=children_parameter)
             for child in children:
-                parameter_names = self._get_parameter_names(diffsync_model_child)
+                parameter_names = diffsync_model_child.synced_parameters()
+                #self._get_parameter_names(diffsync_model_child)
                 child_diffsync_object = self._load_single_object(child, diffsync_model_child, parameter_names)
                 diffsync_model.add_child(child_diffsync_object)
 
