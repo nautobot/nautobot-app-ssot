@@ -3,73 +3,68 @@
 # pylint: disable=protected-access
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
-from collections import defaultdict
-from typing import DefaultDict, Dict, FrozenSet, Hashable, Tuple, Type, get_args
+from typing import Dict, Type, get_args
 
 import pydantic
-from diffsync import DiffSync
+
+try:
+    from diffsync import Adapter, DiffSyncModel
+except ImportError:
+    from diffsync import DiffSync as Adapter
+    from diffsync import DiffSyncModel
 from diffsync.exceptions import ObjectCrudException
-from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
 from typing_extensions import get_type_hints
 
+from nautobot_ssot.contrib.helpers.adapter import get_foreign_key_value
+from nautobot_ssot.contrib.helpers.cache import NautobotCache
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
 
-# This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
-# and therefore a frozenset rather than a normal set or a list.
-#
-# The following is an example of a parameter set that describes a tenant based on its name and group:
-# frozenset(
-#  [
-#   ("name", "ABC Inc."),
-#   ("group__name", "Customers"),
-#  ]
-# )
-ParameterSet = FrozenSet[Tuple[str, Hashable]]
+
+class BaseAdapter(Adapter):
+    """Mixin for common functionality in Diffsync adapters."""
+
+    def __init__(self, *args, job, sync=None, **kwargs):
+        """Initialize common features for Diffsync adapters."""
+        super().__init__(*args, **kwargs)
+        self.job = job
+        self.sync = sync
+
+    def _get_diffsync_class(self, model_name):
+        """Given a model name, return the diffsync class."""
+        try:
+            diffsync_class = getattr(self, model_name)
+        except AttributeError as error:
+            raise AttributeError(f"Adapter class `{self}` missing `{model_name}` attribute.") from error
+        if not issubclass(diffsync_class, DiffSyncModel):
+            raise TypeError(f"Class `{diffsync_class.__class__}` is not a subclasses of `DiffsyncModel`.")
+        return diffsync_class
 
 
-class NautobotAdapter(DiffSync):
+class NautobotAdapter(BaseAdapter):
     """
     Adapter for loading data from Nautobot through the ORM.
 
     This adapter is able to infer how to load data from Nautobot based on how the models attached to it are defined.
     """
 
-    # This dictionary acts as an ORM cache.
-    _cache: DefaultDict[str, Dict[ParameterSet, Model]]
-    _cache_hits: DefaultDict[str, int] = defaultdict(int)
-
-    def __init__(self, *args, job, sync=None, **kwargs):
+    def __init__(self, *args, cache=NautobotCache(), **kwargs):
         """Instantiate this class, but do not load data immediately from the local system."""
         super().__init__(*args, **kwargs)
-        self.job = job
-        self.sync = sync
-        self.invalidate_cache()
-
-    def invalidate_cache(self, zero_out_hits=True):
-        """Invalidates all the objects in the ORM cache."""
-        self._cache = defaultdict(dict)
-        if zero_out_hits:
-            self._cache_hits = defaultdict(int)
+        self.cache = cache
 
     def get_from_orm_cache(self, parameters: Dict, model_class: Type[Model]):
-        """Retrieve an object from the ORM or the cache."""
-        parameter_set = frozenset(parameters.items())
-        content_type = ContentType.objects.get_for_model(model_class)
-        model_cache_key = f"{content_type.app_label}.{content_type.model}"
-        if cached_object := self._cache[model_cache_key].get(parameter_set):
-            self._cache_hits[model_cache_key] += 1
-            return cached_object
-        # As we are using `get` here, this will error if there is not exactly one object that corresponds to the
-        # parameter set. We intentionally pass these errors through.
-        self._cache[model_cache_key][parameter_set] = model_class.objects.get(**dict(parameter_set))
-        return self._cache[model_cache_key][parameter_set]
+        """Retrieve an object from the ORM or the cache.
+
+        NOTE: Functionality moved to caching class. This method remains for legacy code.
+        """
+        return self.cache.get_or_add_orm_object(parameters, model_class)
 
     @staticmethod
     def _get_parameter_names(diffsync_model):
@@ -78,7 +73,7 @@ class NautobotAdapter(DiffSync):
 
     def _load_objects(self, diffsync_model):
         """Given a diffsync model class, load a list of models from the database and return them."""
-        parameter_names = self._get_parameter_names(diffsync_model)
+        parameter_names = diffsync_model.synced_parameters()
         for database_object in diffsync_model._get_queryset():
             self._load_single_object(database_object, diffsync_model, parameter_names)
 
@@ -110,7 +105,7 @@ class NautobotAdapter(DiffSync):
                     database_object, parameter_name, custom_relationship_annotation
                 )
             else:
-                parameters[parameter_name] = self._handle_foreign_key(database_object, parameter_name)
+                parameters[parameter_name] = get_foreign_key_value(database_object, parameter_name)
             return
 
         # Handling of one- and many-to custom relationship fields:
@@ -158,7 +153,8 @@ class NautobotAdapter(DiffSync):
             children = getattr(database_object, children_field).all()
             diffsync_model_child = self._get_diffsync_class(model_name=children_parameter)
             for child in children:
-                parameter_names = self._get_parameter_names(diffsync_model_child)
+                parameter_names = diffsync_model_child.synced_parameters()
+                # self._get_parameter_names(diffsync_model_child)
                 child_diffsync_object = self._load_single_object(child, diffsync_model_child, parameter_names)
                 diffsync_model.add_child(child_diffsync_object)
 
@@ -174,44 +170,19 @@ class NautobotAdapter(DiffSync):
             # for this specific model class as well as its children without returning anything.
             self._load_objects(diffsync_model)
 
-    def _get_diffsync_class(self, model_name):
-        """Given a model name, return the diffsync class."""
-        try:
-            diffsync_model = getattr(self, model_name)
-        except AttributeError as error:
-            raise AttributeError(
-                f"Please define {model_name} to be the diffsync model on this adapter as a class level attribute."
-            ) from error
-        return diffsync_model
-
     def _handle_custom_relationship_to_many_relationship(
         self, database_object, diffsync_model, parameter_name, annotation
     ):
         # Introspect type annotations to deduce which fields are of interest
         # for this many-to-many relationship.
+        # TODO: Move section of code for getting relationship associations to helper function
         diffsync_field_type = get_type_hints(diffsync_model)[parameter_name]
         inner_type = get_args(diffsync_field_type)[0]
         related_objects_list = []
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
-        relationship = self.get_from_orm_cache({"label": annotation.name}, Relationship)
-        relationship_association_parameters = self._construct_relationship_association_parameters(
-            annotation, database_object
-        )
-        relationship_associations = RelationshipAssociation.objects.filter(**relationship_association_parameters)
-
-        field_name = ""
-        field_name += "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
-        field_name += "_"
-        field_name += (
-            relationship.source_type.app_label.lower()
-            if annotation.side == RelationshipSideEnum.DESTINATION
-            else relationship.destination_type.app_label.lower()
-        )
-        field_name += "_"
-        field_name += (
-            relationship.source_type.model.lower()
-            if annotation.side == RelationshipSideEnum.DESTINATION
-            else relationship.destination_type.model.lower()
+        relationship = self.cache.get_or_add_orm_object({"label": annotation.name}, Relationship)
+        relationship_associations = RelationshipAssociation.objects.filter(
+            **self._construct_relationship_association_parameters(annotation, database_object)
         )
 
         for association in relationship_associations:
@@ -252,13 +223,13 @@ class NautobotAdapter(DiffSync):
         dictionary_representation = {}
         for field_name in get_type_hints(inner_type):
             if "__" in field_name:
-                dictionary_representation[field_name] = cls._handle_foreign_key(related_object, field_name)
+                dictionary_representation[field_name] = get_foreign_key_value(related_object, field_name)
                 continue
             dictionary_representation[field_name] = getattr(related_object, field_name)
         return dictionary_representation
 
     def _construct_relationship_association_parameters(self, annotation, database_object):
-        relationship = self.get_from_orm_cache({"label": annotation.name}, Relationship)
+        relationship = self.cache.get_or_add_orm_object({"label": annotation.name}, Relationship)
         relationship_association_parameters = {
             "relationship": relationship,
             "source_type": relationship.source_type,
@@ -355,36 +326,3 @@ class NautobotAdapter(DiffSync):
                 related_object = getattr(related_object, lookup)
             return getattr(related_object, lookups[-1])
         raise ValueError("Foreign key custom relationship matched two associations - this shouldn't happen.")
-
-    @staticmethod
-    def _handle_foreign_key(database_object, parameter_name):
-        """Handle a single foreign key field.
-
-        Given the object from the database as well as the name of parameter in the form of
-        f'{foreign_key_field_name}__{remote_field_name}'
-        return the field at 'remote_field_name' on the object behind the foreign key at 'foreign_key_field_name'.
-
-        Furthermore, 'remote_field_name' may be a series of '__' delimited lookups.
-
-        :param database_object: The Django ORM database object
-        :param parameter_name: The field name of the specific relationship to handle
-        :return: If present, the object behind the (generic) foreign key, else None
-        """
-        related_model, *lookups = parameter_name.split("__")
-        related_object = getattr(database_object, related_model)
-        # If the foreign key does not point to anything, return None
-        if not related_object:
-            return None
-        for lookup in lookups[:-1]:
-            related_object = getattr(related_object, lookup)
-            # If the foreign key does not point to anything, return None
-            if not related_object:
-                return None
-        # Return the result of the last lookup directly.
-        try:
-            return getattr(related_object, lookups[-1])
-        # If the lookup doesn't point anywhere, check whether it is using the convention for generic foreign keys.
-        except AttributeError:
-            if lookups[-1] in ["app_label", "model"]:
-                return getattr(ContentType.objects.get_for_model(related_object), lookups[-1])
-        return None
