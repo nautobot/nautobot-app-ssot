@@ -36,7 +36,7 @@ class BaseAdapter(Adapter):
         self.job = job
         self.sync = sync
 
-    def get_diffsync_class(self, model_name):
+    def _get_diffsync_class(self, model_name):
         """Given a model name, return the diffsync class."""
         try:
             diffsync_class = getattr(self, model_name)
@@ -170,30 +170,20 @@ class NautobotAdapter(BaseAdapter):
             # for this specific model class as well as its children without returning anything.
             self._load_objects(diffsync_model)
 
-    def _get_diffsync_class(self, model_name):
-        """Given a model name, return the diffsync class."""
-        try:
-            diffsync_model = getattr(self, model_name)
-        except AttributeError as error:
-            raise AttributeError(
-                f"Please define {model_name} to be the diffsync model on this adapter as a class level attribute."
-            ) from error
-        return diffsync_model
-
     def _handle_custom_relationship_to_many_relationship(
         self, database_object, diffsync_model, parameter_name, annotation
     ):
         # Introspect type annotations to deduce which fields are of interest
         # for this many-to-many relationship.
+        # TODO: Move section of code for getting relationship associations to helper function
         diffsync_field_type = get_type_hints(diffsync_model)[parameter_name]
         inner_type = get_args(diffsync_field_type)[0]
         related_objects_list = []
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
         relationship = self.cache.get_or_add_orm_object({"label": annotation.name}, Relationship)
-        relationship_association_parameters = self._construct_relationship_association_parameters(
-            annotation, database_object
+        relationship_associations = RelationshipAssociation.objects.filter(
+            **self._construct_relationship_association_parameters(annotation, database_object)
         )
-        relationship_associations = RelationshipAssociation.objects.filter(**relationship_association_parameters)
 
         for association in relationship_associations:
             related_object = getattr(
