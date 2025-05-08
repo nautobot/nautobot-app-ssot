@@ -209,7 +209,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                         location.add_child(device_model)
                         if index == 0:
                             # TODO: New Login IP columns in 7.3
-                            self.load_device_interfaces(device_model, interfaces, device.login_ip, networks)
+                            self.load_device_interfaces(device_model, interfaces, str(device.login_ip), networks)
                     except ObjectAlreadyExists:
                         logger.warning(f"Duplicate Device discovered, {device.model_dump()}")
 
