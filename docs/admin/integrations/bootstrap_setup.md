@@ -81,6 +81,6 @@ staging.yml
 
 There are 2 environment variables that control how certain things are loaded in the app.
 
-  1. `NAUTOBOT_BOOTSTRAP_SSOT_LOAD_SOURCE` - defines whether to load from the local `fixtures` folder or a GitRepository already present in Nautobot. This setting will get overridden if the user selects something other than `env_var` in the job's GUI settings.
+1. `NAUTOBOT_BOOTSTRAP_SSOT_LOAD_SOURCE` - defines whether to load from the local `fixtures` folder or a GitRepository already present in Nautobot. This setting will get overridden if the user selects something other than `env_var` in the job's GUI settings.
     - Acceptable options are `file` or `git`.
-  2. `NAUTOBOT_BOOTSTRAP_SSOT_ENVIRONMENT_BRANCH` - Defines the environment and settings you want to import. I.e. production, develop, staging.
+2. `NAUTOBOT_BOOTSTRAP_SSOT_ENVIRONMENT_BRANCH` - Defines the environment and settings you want to import. I.e. production, develop, staging.
