@@ -5,6 +5,7 @@ import ipaddress
 import re
 
 import arista.tag.v2 as TAG
+from pydantic import ValidationError
 from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 
@@ -254,15 +255,17 @@ class CloudvisionAdapter(Adapter):
             if tag["value"] in ["true", "false"]:
                 tag["value"] = bool(distutils.util.strtobool(tag["value"]))
 
-            new_cf = self.cf(
-                name=f"arista_{tag['label']}",
-                value=tag["value"],
-                device_name=device.name,
-            )
             try:
+                new_cf = self.cf(
+                    name=f"arista_{tag['label']}",
+                    value=str(tag["value"]),
+                    device_name=str(device.name),
+                )
                 self.add(new_cf)
             except ObjectAlreadyExists:
                 self.job.logger.warning(f"Duplicate tag encountered for {tag['label']} on device {device.name}")
+            except ValidationError as ve:
+                self.job.logger.warning(f"Pydantic Validation Error for CustomField: {ve}")
 
     def load(self):
         """Load devices and associated data from CloudVision."""
