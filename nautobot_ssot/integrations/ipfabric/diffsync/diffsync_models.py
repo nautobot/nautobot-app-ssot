@@ -35,7 +35,6 @@ import nautobot_ssot.integrations.ipfabric.utilities.nbutils as tonb_nbutils
 from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_DEVICE_ROLE,
     DEFAULT_DEVICE_ROLE_COLOR,
-    SYNC_DEVICE_TYPE_TO_DEVICE_ROLE,
     DEFAULT_DEVICE_STATUS,
     DEFAULT_DEVICE_STATUS_COLOR,
     DEFAULT_INTERFACE_MAC,
@@ -44,6 +43,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     SAFE_DELETE_IPADDRESS_STATUS,
     SAFE_DELETE_LOCATION_STATUS,
     SAFE_DELETE_VLAN_STATUS,
+    SYNC_DEVICE_TYPE_TO_DEVICE_ROLE,
 )
 
 logger = logging.getLogger(__name__)

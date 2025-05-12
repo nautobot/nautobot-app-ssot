@@ -14,10 +14,10 @@ from netutils.mac import mac_to_format
 from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_DEVICE_ROLE,
     DEFAULT_DEVICE_STATUS,
-    SYNC_DEVICE_TYPE_TO_DEVICE_ROLE,
     DEFAULT_INTERFACE_MAC,
     DEFAULT_INTERFACE_MTU,
     IP_FABRIC_USE_CANONICAL_INTERFACE_NAME,
+    SYNC_DEVICE_TYPE_TO_DEVICE_ROLE,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.utilities import utils as ipfabric_utils
@@ -60,7 +60,6 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
 
     def load_device_interfaces(self, device_model, device_interfaces, device_primary_ip, managed_ipv4):
         """Create and load DiffSync Interface model objects for a specific device."""
-
         pseudo_interface = pseudo_management_interface(device_model.name, device_interfaces, device_primary_ip)
 
         if pseudo_interface:
@@ -106,6 +105,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 logger.warning(f"Duplicate Interface discovered, {iface}")
 
     def load_data(self):
+        """Load shared data from IP Fabric."""
         managed_ipv4 = defaultdict(dict)
         stacks, interfaces = defaultdict(list), defaultdict(list)
 

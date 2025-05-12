@@ -19,9 +19,9 @@ from netutils.ip import cidr_to_netmask
 from netutils.mac import mac_to_format
 
 from nautobot_ssot.integrations.ipfabric.constants import (
-    SYNC_DEVICE_TYPE_TO_DEVICE_ROLE,
     DEFAULT_INTERFACE_MAC,
     DEFAULT_INTERFACE_MTU,
+    SYNC_DEVICE_TYPE_TO_DEVICE_ROLE,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 
