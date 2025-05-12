@@ -259,18 +259,18 @@ class NautobotAddress(Address):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create IP Address in Nautobot from NautobotAddress object."""
+        if attrs.get("tenant"):
+            pf_namespace = Namespace.objects.get_or_create(name=attrs["tenant"])[0]
+        else:
+            pf_namespace = Namespace.objects.get(name="Global")
         new_ip = IPAddress(
             address=ids["address"],
-            parent=Prefix.objects.get(prefix=ids["prefix"]),
+            parent=Prefix.objects.get(prefix=ids["prefix"], namespace=pf_namespace),
             status=Status.objects.get(name="Active"),
-            namespace=(
-                Namespace.objects.get_or_create(name=attrs["tenant"])[0]
-                if attrs.get("tenant")
-                else Namespace.objects.get(name="Global")
-            ),
+            namespace=pf_namespace,
         )
         if attrs.get("tenant"):
-            new_ip.tenant = Tenant.objects.update_or_create(name=attrs["tenant"])[0]
+            new_ip.tenant = Tenant.objects.get_or_create(name=attrs["tenant"])[0]
         if attrs.get("tags"):
             new_ip.tags.set(attrs["tags"])
             for tag in attrs["tags"]:
