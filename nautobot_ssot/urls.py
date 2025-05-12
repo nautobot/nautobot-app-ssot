@@ -8,13 +8,6 @@ from . import views
 from .integrations.utils import each_enabled_integration_module
 
 app_name = "nautobot_ssot"
-router = NautobotUIViewSetRouter()
-
-# The standard is for the route to be the hyphenated version of the model class name plural.
-# for example, ExampleModel would be example-models.
-router.register("syncs", views.SyncUIViewSet)
-
-
 urlpatterns = [
     path("", views.DashboardView.as_view(), name="dashboard"),
     path("data-sources/<path:class_path>/", views.DataSourceTargetView.as_view(), name="data_source"),

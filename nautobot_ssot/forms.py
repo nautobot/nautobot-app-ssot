@@ -16,8 +16,8 @@ class SyncFilterForm(BootstrapMixin, forms.ModelForm):
     class Meta:
         """Metaclass attributes of SyncFilterForm."""
 
-        model = models.Sync
-        fields = "__all__"
+        model = Sync
+        fields = ["dry_run"]
 
 
 class SyncLogEntryFilterForm(BootstrapMixin, forms.ModelForm):
@@ -40,6 +40,7 @@ class SyncForm(BootstrapMixin, forms.Form):  # pylint: disable=nb-incorrect-base
 
     dry_run = forms.BooleanField(
         required=False,
-        label="Search",
-        help_text="Search within Name.",
+        initial=True,
+        label="Dry run",
+        help_text="Perform a dry run, making no actual changes to the database.",
     )
