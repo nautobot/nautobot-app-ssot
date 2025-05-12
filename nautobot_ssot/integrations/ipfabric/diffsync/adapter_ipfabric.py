@@ -14,12 +14,19 @@ from netutils.mac import mac_to_format
 from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_DEVICE_ROLE,
     DEFAULT_DEVICE_STATUS,
+    SYNC_DEVICE_TYPE_TO_DEVICE_ROLE,
     DEFAULT_INTERFACE_MAC,
     DEFAULT_INTERFACE_MTU,
     IP_FABRIC_USE_CANONICAL_INTERFACE_NAME,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.utilities import utils as ipfabric_utils
+
+try:
+    from ipfabric import IPFClient
+except ImportError:
+    IPFabric = None
+
 
 logger = logging.getLogger("nautobot.jobs")
 
@@ -31,12 +38,15 @@ name_max_length = VLAN._meta.get_field("name").max_length
 class IPFabricDiffSync(DiffSyncModelAdapters):
     """IPFabric adapter for DiffSync."""
 
-    def __init__(self, job, sync, client, *args, **kwargs):
+    def __init__(self, job, sync, client: IPFClient, location_filter=None, *args, **kwargs):
         """Initialize the NautobotDiffSync."""
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
         self.client = client
+        if location_filter:
+            self.client.attribute_filters = {"siteName": ["ieq", location_filter]}
+        logging.critical(location_filter)
 
     def load_sites(self):
         """Add IP Fabric Location objects as DiffSync Location models."""
@@ -48,9 +58,9 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             except ObjectAlreadyExists:
                 logger.warning(f"Duplicate Location discovered, {site}")
 
-    def load_device_interfaces(self, device_model, interfaces, device_primary_ip, networks):
+    def load_device_interfaces(self, device_model, device_interfaces, device_primary_ip, managed_ipv4):
         """Create and load DiffSync Interface model objects for a specific device."""
-        device_interfaces = [iface for iface in interfaces if iface.get("hostname") == device_model.name]
+
         pseudo_interface = pseudo_management_interface(device_model.name, device_interfaces, device_primary_ip)
 
         if pseudo_interface:
@@ -58,29 +68,15 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             logger.info("Pseudo MGMT Interface: %s", pseudo_interface)
 
         for iface in device_interfaces:
-            subnet_mask = None
-            ip_address = iface.get("primaryIp")
-            if ip_address:
-                ip_network = ipaddress.ip_network(ip_address)
-                for network in networks[device_model.location_name]:
-                    if network.supernet_of(ip_network):
-                        subnet_mask = str(network.netmask)
-                        break
-                else:
-                    subnet_mask = None
-                    for site_name, site_networks in networks.items():
-                        # Already checked networks for the site
-                        if site_name == device_model.location_name:
-                            continue
-                        for network in site_networks:
-                            if network.supernet_of(ip_network):
-                                subnet_mask = str(network.netmask)
-                                break
-                        if subnet_mask:
-                            break
-                    else:
-                        # TODO: why is only IPv4?
-                        subnet_mask = "255.255.255.255"
+            # TODO: New Login IP columns in 7.3
+            if ip_address := iface.get("primaryIp"):
+                subnet_mask = (
+                    str(ipaddress.ip_interface(managed_ipv4[ip_address]["net"]).netmask)
+                    if ip_address in managed_ipv4
+                    else "255.255.255.255"
+                )
+            else:
+                subnet_mask = None
 
             iface_name = iface["intName"]
             if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
@@ -109,23 +105,33 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             except ObjectAlreadyExists:
                 logger.warning(f"Duplicate Interface discovered, {iface}")
 
+    def load_data(self):
+        managed_ipv4 = defaultdict(dict)
+        stacks, interfaces = defaultdict(list), defaultdict(list)
+
+        vlans = self.client.fetch_all("tables/vlan/site-summary")
+
+        ip_columns = ["sn", "intName", "net", "ip", "type"]
+        ip_filter = {"type": ["eq", "primary"]}
+
+        for ip in self.client.technology.addressing.managed_ip_ipv4.all(columns=ip_columns, filters=ip_filter):
+            managed_ipv4[ip["sn"]].update({ip["ip"]: ip})
+
+        # Get all interfaces for devices
+        for interface in self.client.inventory.interfaces.all():
+            interfaces[interface["sn"]].append(interface)
+
+        # Get all stacks for devices
+        for stack in self.client.technology.platforms.stacks_members.all(
+            columns=["master", "member", "memberSn", "pn", "sn"]
+        ):
+            stacks[stack["sn"]].append(stack)
+        return managed_ipv4, vlans, stacks, interfaces
+
     def load(self):  # pylint: disable=too-many-locals,too-many-statements
         """Load data from IP Fabric."""
         self.load_sites()
-        interfaces = self.client.inventory.interfaces.all()
-        vlans = self.client.fetch_all("tables/vlan/site-summary")
-
-        networks, stacks = defaultdict(list), defaultdict(list)
-        for network in self.client.technology.managed_networks.networks.all(
-            filters={"net": ["empty", False], "siteName": ["empty", False]},
-            columns=["net", "siteName"],
-        ):
-            # IPF bug NIM-15635 Fix Version 7.0: 'net' column has host bits set.
-            networks[network["siteName"]].append(ipaddress.ip_network(network["net"], strict=False))
-        for stack in self.client.technology.platforms.stacks_members.all(
-                columns=["master", "member", "memberSn", "pn", "sn"]
-        ):
-            stacks[stack["sn"]].append(stack)
+        managed_ipv4, vlans, stacks, interfaces = self.load_data()
 
         for location in self.get_all(self.location):
             if location.name is None:
@@ -160,7 +166,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     "location_name": device.site,
                     "model": device.model or f"Default-{device.vendor}",
                     "vendor": device.vendor.capitalize(),
-                    "role": device.dev_type or DEFAULT_DEVICE_ROLE,
+                    "role": device.dev_type or DEFAULT_DEVICE_ROLE if SYNC_DEVICE_TYPE_TO_DEVICE_ROLE else None,
                     "status": DEFAULT_DEVICE_STATUS,
                     "platform": device.family,
                 }
@@ -182,20 +188,25 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                         # using `or` syntax in case memberSn is defined as None
                         member_sn = member.get("memberSn") or ""
                         args = base_args.copy()
-                        model = member.get("pn")
-                        if model:
-                            args["model"] = model
-                        args["serial_number"] = member_sn if len(member_sn) < device_serial_max_length else ""
-                        args["vc_name"] = device.hostname
-                        member_field = member.get("member")
-                        args["vc_priority"] = member_field
-                        args["vc_position"] = member_field
+                        if _ := member.get("pn"):
+                            args["model"] = _
+                        args.update(
+                            {
+                                "serial_number": member_sn if len(member_sn) < device_serial_max_length else "",
+                                "name": f"{device.hostname}-member{member.get('member')}",
+                                "vc_name": device.hostname,
+                                "vc_master": False,
+                                "vc_priority": member.get("member"),
+                                "vc_position": member.get("member"),
+                            }
+                        )
                         if index == 0:
-                            args["name"] = device.hostname
-                            args["vc_master"] = True
-                        else:
-                            args["name"] = f"{device.hostname}-member{member_field}"
-                            args["vc_master"] = False
+                            args.update(
+                                {
+                                    "name": device.hostname,
+                                    "vc_master": True,
+                                }
+                            )
                         member_devices.append(args)
 
                 for index, dev in enumerate(member_devices):
@@ -209,8 +220,13 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                         location.add_child(device_model)
                         if index == 0:
                             # TODO: New Login IP columns in 7.3
-                            device_primary_ip = str(device.login_ip) if device.login_ip else None
-                            self.load_device_interfaces(device_model, interfaces, device_primary_ip, networks)
+                            device_primary_ip = str(device.login_ip.ip) if device.login_ip else None
+                            self.load_device_interfaces(
+                                device_model,
+                                interfaces.get(device.sn, []),
+                                device_primary_ip,
+                                managed_ipv4.get(device.sn, {}),
+                            )
                     except ObjectAlreadyExists:
                         logger.warning(f"Duplicate Device discovered, {device.model_dump()}")
 

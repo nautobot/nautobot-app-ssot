@@ -35,6 +35,7 @@ import nautobot_ssot.integrations.ipfabric.utilities.nbutils as tonb_nbutils
 from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_DEVICE_ROLE,
     DEFAULT_DEVICE_ROLE_COLOR,
+    SYNC_DEVICE_TYPE_TO_DEVICE_ROLE,
     DEFAULT_DEVICE_STATUS,
     DEFAULT_DEVICE_STATUS_COLOR,
     DEFAULT_INTERFACE_MAC,
@@ -162,7 +163,7 @@ class Location(DiffSyncExtras):
             active_status = attrs.get("status")
             if active_status == "Active":
                 safe_delete_tag, _ = Tag.objects.get_or_create(name="SSoT Safe Delete")
-                if not location.status == active_status:
+                if location.status != active_status:
                     location.status = Status.objects.get(name=active_status)
                 device_tags = location.tags.filter(pk=safe_delete_tag.pk)
                 if device_tags.exists():
@@ -451,8 +452,7 @@ class Device(DiffSyncExtras):
                     return_super = False
             if attrs.get("serial_number"):
                 _device.serial = attrs.get("serial_number")
-            role_name = attrs.get("role")
-            if role_name:
+            if SYNC_DEVICE_TYPE_TO_DEVICE_ROLE and (role_name := attrs.get("role")):
                 device_role_object = tonb_nbutils.get_or_create_device_role_object(
                     role_name=role_name,
                     role_color=DEFAULT_DEVICE_ROLE_COLOR,
