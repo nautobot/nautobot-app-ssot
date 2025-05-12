@@ -258,7 +258,7 @@ class CloudvisionAdapter(Adapter):
             try:
                 new_cf = self.cf(
                     name=f"arista_{tag['label']}",
-                    value=str(tag["value"]),
+                    value=tag["value"],
                     device_name=str(device.name),
                 )
                 self.add(new_cf)
