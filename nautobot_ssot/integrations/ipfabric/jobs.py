@@ -201,6 +201,7 @@ class IpFabricDataSource(DataSource):
             "Nautobot Host URL": constants.NAUTOBOT_HOST,
             "Default Device Role": constants.DEFAULT_DEVICE_ROLE,
             "Default Device Role Color": constants.DEFAULT_DEVICE_ROLE_COLOR,
+            "Sync Device Type to Device Role": constants.SYNC_DEVICE_TYPE_TO_DEVICE_ROLE,
             "Default Device Status": constants.DEFAULT_DEVICE_STATUS,
             "Default Device Status Color": constants.DEFAULT_DEVICE_STATUS_COLOR,
             "Default Interface Type": constants.DEFAULT_INTERFACE_TYPE,

@@ -1,9 +1,11 @@
 """Unit tests for the IPFabric DiffSync adapter class."""
 
 import json
+from collections import defaultdict
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
+from ipfabric.models.device import Device
 from nautobot.extras.models import JobResult
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabricDiffSync
@@ -20,7 +22,7 @@ SITE_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_sites.json
 DEVICE_INVENTORY_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_device_inventory.json")
 VLAN_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_vlans.json")
 INTERFACE_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_interface_inventory.json")
-NETWORKS_FIXTURE = [{"net": "10.255.254.0/23", "siteName": "site1"}, {"net": "172.18.0.0/24", "siteName": "site2"}]
+NETWORKS_FIXTURE = [{"net": "10.10.0.0/24", "sn": "a000a02", "ip": "10.10.0.10"}]
 STACKS_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_stack_members.json")
 
 
@@ -32,15 +34,15 @@ class IPFabricDiffSyncTestCase(TestCase):
         # Create a mock client
         ipfabric_client = MagicMock()
         ipfabric_client.inventory.sites.all.return_value = SITE_FIXTURE
-        ipfabric_client.inventory.devices.all.return_value = DEVICE_INVENTORY_FIXTURE
+        ipfabric_client.devices.by_site = defaultdict(list)
+        for dev in DEVICE_INVENTORY_FIXTURE:
+            ipfabric_client.devices.by_site[dev["siteName"]].append(Device(**dev))
         ipfabric_client.fetch_all = MagicMock(
             side_effect=(lambda x: VLAN_FIXTURE if x == "tables/vlan/site-summary" else "")
         )
         ipfabric_client.inventory.interfaces.all.return_value = INTERFACE_FIXTURE
-        ipfabric_client.technology.managed_networks.networks.all.return_value = NETWORKS_FIXTURE
-        ipfabric_client.technology.platforms.stacks_members.all.side_effect = [[] for site in SITE_FIXTURE[:-1]] + [
-            STACKS_FIXTURE
-        ]
+        ipfabric_client.technology.addressing.managed_ip_ipv4.all.return_value = NETWORKS_FIXTURE
+        ipfabric_client.technology.platforms.stacks_members.all.return_value = STACKS_FIXTURE
 
         job = IpFabricDataSource()
         job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
@@ -96,12 +98,12 @@ class IPFabricDiffSyncTestCase(TestCase):
             self.assertTrue(hasattr(interface, "ip_address"))
             self.assertTrue(hasattr(interface, "subnet_mask"))
             self.assertTrue(hasattr(interface, "type"))
-            # Test mask from NETWORKS_FIXTURE is used
-            if interface.name == "pseudo_mgmt":
-                self.assertEqual(interface.subnet_mask, "255.255.255.0")
             # Test network not in NETWORKS_FIXTURE uses default of /32
-            elif interface.name == "GigabitEthernet4":
+            if interface.name in ["pseudo_mgmt", "Ethernet1"]:
                 self.assertEqual(interface.subnet_mask, "255.255.255.255")
+            # Test mask from NETWORKS_FIXTURE is used
+            elif interface.name == "GigabitEthernet4":
+                self.assertEqual(interface.subnet_mask, "255.255.255.0")
             interface_names.add(interface.name)
 
         # Test that subnet masks tests were ran

@@ -121,6 +121,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "ipfabric_ssl_verify": True,
         "ipfabric_timeout": 15,
         "ipfabric_nautobot_host": "",
+        "ipfabric_sync_device_type_to_device_role": True,
         "servicenow_instance": "",
         "servicenow_password": "",
         "servicenow_username": "",

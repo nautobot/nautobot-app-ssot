@@ -74,6 +74,7 @@ PLUGINS_CONFIG = {
         "ipfabric_timeout": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_TIMEOUT"),
         "ipfabric_allow_duplicate_addresses": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_DUPLICATE_ADDRESSES"),
         "ipfabric_default_device_role": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_DEVICE_ROLE"),
+        "ipfabric_sync_device_type_to_device_role": True,
         "ipfabric_default_device_status": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_DEVICE_STATUS"),
         "ipfabric_default_interface_mac": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_INTERFACE_MAC"),
         "ipfabric_default_interface_mtu": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_INTERFACE_MTU"),
