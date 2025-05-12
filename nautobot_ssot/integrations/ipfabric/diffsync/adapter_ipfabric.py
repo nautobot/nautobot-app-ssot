@@ -25,7 +25,7 @@ from nautobot_ssot.integrations.ipfabric.utilities import utils as ipfabric_util
 try:
     from ipfabric import IPFClient
 except ImportError:
-    IPFabric = None
+    IPFClient = None
 
 
 logger = logging.getLogger("nautobot.jobs")
@@ -38,7 +38,7 @@ name_max_length = VLAN._meta.get_field("name").max_length
 class IPFabricDiffSync(DiffSyncModelAdapters):
     """IPFabric adapter for DiffSync."""
 
-    def __init__(self, job, sync, client: IPFClient, location_filter=None, *args, **kwargs):
+    def __init__(self, job, sync, client: IPFClient, location_filter, *args, **kwargs):
         """Initialize the NautobotDiffSync."""
         super().__init__(*args, **kwargs)
         self.job = job
@@ -114,8 +114,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         ip_columns = ["sn", "intName", "net", "ip", "type"]
         ip_filter = {"type": ["eq", "primary"]}
 
-        for ip in self.client.technology.addressing.managed_ip_ipv4.all(columns=ip_columns, filters=ip_filter):
-            managed_ipv4[ip["sn"]].update({ip["ip"]: ip})
+        for ip_address in self.client.technology.addressing.managed_ip_ipv4.all(columns=ip_columns, filters=ip_filter):
+            managed_ipv4[ip_address["sn"]].update({ip_address["ip"]: ip_address})
 
         # Get all interfaces for devices
         for interface in self.client.inventory.interfaces.all():

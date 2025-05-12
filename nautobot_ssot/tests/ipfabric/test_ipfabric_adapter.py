@@ -46,7 +46,7 @@ class IPFabricDiffSyncTestCase(TestCase):
 
         job = IpFabricDataSource()
         job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
-        self.ipfabric = IPFabricDiffSync(job=job, sync=None, client=ipfabric_client)
+        self.ipfabric = IPFabricDiffSync(job=job, sync=None, client=ipfabric_client, location_filter=None)
         self.ipfabric.load()
 
     def test_data_loading(self):
