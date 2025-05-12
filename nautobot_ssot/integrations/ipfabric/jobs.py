@@ -267,7 +267,9 @@ class IpFabricDataSource(DataSource):
         options = f"`Snapshot_id`: {self.client.snapshot_id}.`Debug`: {debug_mode}, `Dry Run`: {dryrun}, `Safe Delete Mode`: {safe_mode}, `Sync Tagged Only`: {tagged_only}, `Location Filter`: {location_filter_object}"
         self.logger.info(f"Starting job with the following options: {options}")
 
-        ipfabric_source = IPFabricDiffSync(job=self, sync=self.sync, client=self.client, location_filter=location_filter)
+        ipfabric_source = IPFabricDiffSync(
+            job=self, sync=self.sync, client=self.client, location_filter=location_filter
+        )
         self.logger.info("Loading current data from IP Fabric...")
         ipfabric_source.load()
 
