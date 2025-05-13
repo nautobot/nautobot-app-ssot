@@ -399,7 +399,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
 
     def load_ipaddress(self, host_addr: str, mask_length: int, prefix: str):
         """Load IPAddresses of devices into DiffSync models."""
-        _, loaded = self.get_or_instantiate(
+        self.get_or_instantiate(
             self.ipaddress,
             ids={
                 "host": host_addr,
@@ -410,8 +410,6 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 "mask_length": mask_length,
             },
         )
-        if not loaded:
-            self.job.logger.warning(f"Duplicate IP address {host_addr}/{mask_length} found and being skipped.")
 
     def load_ipassignment(self, address: str, dev_name: str, port: str, primary: bool):
         """Load IPAddressesToInterface of devices into DiffSync models."""
