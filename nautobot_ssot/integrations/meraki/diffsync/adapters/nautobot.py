@@ -226,15 +226,23 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
             if str(ipaddr.parent.namespace) not in self.ipaddr_map:
                 self.ipaddr_map[str(ipaddr.parent.namespace)] = {}
             self.ipaddr_map[str(ipaddr.parent.namespace)][str(ipaddr.address)] = ipaddr.id
-            new_ip = self.ipaddress(
-                address=str(ipaddr.address),
-                prefix=str(ipaddr.parent.prefix) if ipaddr.parent else "",
-                tenant=ipaddr.tenant.name if ipaddr.tenant else None,
-                uuid=ipaddr.id,
+            new_ip, loaded = self.get_or_instantiate(
+                self.ipaddress,
+                ids={
+                    "host": ipaddr.host,
+                    "prefix": str(ipaddr.parent.prefix),
+                    "tenant": ipaddr.tenant.name if ipaddr.tenant else None,
+                },
+                attrs={
+                    "mask_length": ipaddr.mask_length,
+                },
             )
-            if self.tenant:
+            if loaded and self.tenant:
                 new_ip.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
-            self.add(new_ip)
+            if not loaded:
+                self.job.logger.warning(
+                    f"Duplicate IP address {ipaddr.host}/{ipaddr.mask_length} {ipaddr.id} found and being skipped."
+                )
 
     def load_ipassignments(self):
         """Load IPAddressToInterface from Nautobot into DiffSync models."""
