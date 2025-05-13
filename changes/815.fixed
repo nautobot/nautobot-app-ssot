@@ -1,0 +1,1 @@
+Fixed return of `nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models.Device.create` method to return the newly created device so child objects are also synchronized and job succeeds without failures.

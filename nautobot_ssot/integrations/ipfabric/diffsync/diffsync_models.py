@@ -353,8 +353,7 @@ class Device(DiffSyncExtras):
                         adapter.job.logger.error(
                             f"Unable to update Device {device_name} with an ID of {new_device.id} with VirtualChassis data"
                         )
-                    else:
-                        return super().create(ids=ids, adapter=adapter, attrs=attrs)
+                return super().create(ids=ids, adapter=adapter, attrs=attrs)
         return None
 
     def delete(self) -> Optional["DiffSyncModel"]:
