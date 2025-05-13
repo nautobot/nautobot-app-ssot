@@ -51,23 +51,6 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
 
     top_level = ["network", "hardware", "osversion", "device", "prefix", "prefixlocation", "ipaddress", "ipassignment"]
 
-    status_map = {}
-    tenant_map = {}
-    locationtype_map = {}
-    region_map = {}
-    site_map = {}
-    platform_map = {}
-    manufacturer_map = {}
-    devicerole_map = {}
-    devicetype_map = {}
-    device_map = {}
-    port_map = {}
-    namespace_map = {}
-    prefix_map = {}
-    ipaddr_map = {}
-    contenttype_map = {}
-    version_map = {}
-
     def __init__(self, job, sync=None, tenant: Optional[Tenant] = None):
         """Initialize Nautobot.
 
@@ -82,6 +65,22 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
         self.tenant = tenant
         self.objects_to_create = defaultdict(list)
         self.objects_to_delete = defaultdict(list)
+        self.status_map = {}
+        self.tenant_map = {}
+        self.locationtype_map = {}
+        self.region_map = {}
+        self.site_map = {}
+        self.platform_map = {}
+        self.manufacturer_map = {}
+        self.devicerole_map = {}
+        self.devicetype_map = {}
+        self.device_map = {}
+        self.port_map = {}
+        self.namespace_map = {}
+        self.prefix_map = {}
+        self.ipaddr_map = {}
+        self.contenttype_map = {}
+        self.version_map = {}
 
     def load_sites(self):
         """Load Site data from Nautobot into DiffSync model."""
