@@ -258,7 +258,7 @@ class Device(DiffSyncExtras):
             platform_object = None
 
         # Get Role, update if missing cf and create otherwise
-        role_name = attrs.get("role", DEFAULT_DEVICE_ROLE)
+        role_name = attrs.get("role") or DEFAULT_DEVICE_ROLE
         device_role_filter = Role.objects.filter(name=role_name)
         if device_role_filter.exists():
             device_role_object = device_role_filter.first()

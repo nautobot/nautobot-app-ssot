@@ -46,7 +46,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         self.client = client
         if location_filter:
             self.client.attribute_filters = {"siteName": ["ieq", location_filter]}
-        logging.critical(location_filter)
+            logging.info(f"Applied IP Fabric Attribute Filter: {str(location_filter)}")
 
     def load_sites(self):
         """Add IP Fabric Location objects as DiffSync Location models."""

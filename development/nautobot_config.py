@@ -269,7 +269,6 @@ PLUGINS_CONFIG = {
         "ipfabric_ssl_verify": is_truthy(os.getenv("NAUTOBOT_SSOT_IPFABRIC_SSL_VERIFY", "true")),
         "nautobot_host": os.getenv("NAUTOBOT_HOST"),
         "ipfabric_timeout": os.getenv("NAUTOBOT_SSOT_IPFABRIC_TIMEOUT", 15),
-        "ipfabric_allow_duplicate_addresses": os.getenv("NAUTOBOT_SSOT_IPFABRIC_DUPLICATE_ADDRESSES", "true"),
         "ipfabric_default_device_role": os.getenv("NAUTOBOT_SSOT_IPFABRIC_DEVICE_ROLE", "Network Device"),
         "ipfabric_default_device_status": os.getenv("NAUTOBOT_SSOT_IPFABRIC_DEVICE_STATUS", "Active"),
         "ipfabric_sync_ipf_dev_type_to_role": is_truthy(

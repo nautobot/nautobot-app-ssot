@@ -19,12 +19,12 @@ Integration behavior can be controlled with the following settings:
 
 ### Required Settings
 
-| `Setting` | `Description` |
-| --------- | ------------- |
-| `ipfabric_host` | Hostname/IP address of the IPFabric instance. |
-| `ipfabric_api_token` | API token for IPFabric authentication. |
-| `ipfabric_ssl_verify` | Verify the SSL certificate of the IPFabric instance. |
-| `nautobot_host` | FQDN of your Nautobot instance. This is used to provide a URL to the job results via ChatOps. |
+| `Setting`             | `Description`                                                                                 |
+|-----------------------|-----------------------------------------------------------------------------------------------|
+| `ipfabric_host`       | Hostname/IP address of the IPFabric instance.                                                 |
+| `ipfabric_api_token`  | API token for IPFabric authentication.                                                        |
+| `ipfabric_ssl_verify` | Verify the SSL certificate of the IPFabric instance.                                          |
+| `nautobot_host`       | FQDN of your Nautobot instance. This is used to provide a URL to the job results via ChatOps. |
 
 Below is an example snippet from `nautobot_config.py` that demonstrates how to enable and configure IPFabric integration:
 
@@ -48,7 +48,6 @@ PLUGINS_CONFIG = {
 | `Setting`                               | `Description`                                                                                                                                                                                 | `Default`           |
 |-----------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------|
 | `ipfabric_timeout`                      | Timeout (in seconds) for API requests to IPFabric.                                                                                                                                            | `15`                |
-| `ipfabric_allow_duplicate_addresses`    | If an IP Address already exists, setting this flag to `False` will prevent a duplicate IP Address from being created and will instead assign the existing IP to the synced Interface.         | `True`              |
 | `ipfabric_default_device_role`          | The device role used if a matching role is not found.                                                                                                                                         | `Network Device`    |
 | `ipfabric_default_device_role_color`    | The color used for the default device role.                                                                                                                                                   | `ff0000`            |
 | `ipfabric_sync_ipf_dev_type_to_role`    | Whether to use the IP Fabric Device Type to sync to the Nautobot Device Role field; if disabled new devices will use `ipfabric_default_device_role` and updates to the field will be skipped. | `True`              |
@@ -78,7 +77,6 @@ PLUGINS_CONFIG = {
         "ipfabric_ssl_verify": is_truthy(os.getenv("NAUTOBOT_SSOT_IPFABRIC_SSL_VERIFY", "true")),
         "nautobot_host": os.getenv("NAUTOBOT_HOST"),
         "ipfabric_timeout": os.getenv("NAUTOBOT_SSOT_IPFABRIC_TIMEOUT"),
-        "ipfabric_allow_duplicate_addresses": os.getenv("NAUTOBOT_SSOT_IPFABRIC_DUPLICATE_ADDRESSES"),
         "ipfabric_default_device_role": os.getenv("NAUTOBOT_SSOT_IPFABRIC_DEVICE_ROLE"),
         "ipfabric_sync_ipf_dev_type_to_role": is_truthy(
             os.getenv("NAUTOBOT_SSOT_IPFABRIC_SYNC_IPF_DEV_TYPE_TO_ROLE", "true")

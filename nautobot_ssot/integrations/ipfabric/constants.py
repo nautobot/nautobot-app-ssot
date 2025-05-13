@@ -11,7 +11,6 @@ IPFABRIC_SSL_VERIFY = CONFIG.get("ipfabric_ssl_verify")
 NAUTOBOT_HOST = CONFIG.get("nautobot_host")
 # Optional Settings
 IPFABRIC_TIMEOUT = int(CONFIG.get("ipfabric_timeout", 15))
-ALLOW_DUPLICATE_ADDRESSES = CONFIG.get("ipfabric_allow_duplicate_addresses", True)  # TODO: Is this implemented?
 DEFAULT_DEVICE_ROLE = CONFIG.get("ipfabric_default_device_role", "Network Device")
 DEFAULT_DEVICE_ROLE_COLOR = CONFIG.get("ipfabric_default_device_role_color", "ff0000")
 SYNC_IPF_DEV_TYPE_TO_ROLE = CONFIG.get("ipfabric_sync_ipf_dev_type_to_role", True)
