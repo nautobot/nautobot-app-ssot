@@ -42,23 +42,23 @@ PLUGINS_CONFIG = {
 
 ### Optional Settings
 
-| `Setting`                                  | `Description`                                                                                                                                                                                 | `Default`           |
-|--------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------|
-| `ipfabric_timeout`                         | Timeout (in seconds) for API requests to IPFabric.                                                                                                                                            | `15`                |
-| `ipfabric_allow_duplicate_addresses`       | If an IP Address already exists, setting this flag to `False` will prevent a duplicate IP Address from being created and will instead assign the existing IP to the synced Interface.         | `True`              |
-| `ipfabric_default_device_role`             | The device role used if a matching role is not found.                                                                                                                                         | `Network Device`    |
-| `ipfabric_default_device_role_color`       | The color used for the default device role.                                                                                                                                                   | `ff0000`            |
-| `ipfabric_sync_device_type_to_device_role` | Whether to use the IP Fabric Device Type to sync to the Nautobot Device Role field; if disabled new devices will use `ipfabric_default_device_role` and updates to the field will be skipped. | `True`              |
-| `ipfabric_default_device_status`           | The status of the synced device used if a matching status is not found.                                                                                                                       | `Active`            |
-| `ipfabric_default_device_status_color`     | The color used for the default status.                                                                                                                                                        | `ff0000`            |
-| `ipfabric_default_interface_mac`           | The MAC used for an interface when no MAC is found in IPFabric.                                                                                                                               | `00:00:00:00:00:01` |
-| `ipfabric_default_interface_mtu`           | The MTU used for an interface when no MTU is found in IPFabric.                                                                                                                               | `1500`              |
-| `ipfabric_default_interface_type`          | The Interface type used for interfaces synced.                                                                                                                                                | `1000base-t`        |
-| `ipfabric_safe_delete_device_status`       | The status that is set for a Device when the `Safe Delete Mode` flag is set in the Job.                                                                                                       | `Offline`           |
-| `ipfabric_safe_delete_location_status`     | The status that is set for a Location when the `Safe Delete Mode` flag is set in the Job.                                                                                                     | `Decommissioning`   |
-| `ipfabric_safe_delete_vlan_status`         | The status that is set for a VLAN when the `Safe Delete Mode` flag is set in the Job.                                                                                                         | `Deprecated`        |
-| `ipfabric_safe_delete_ipaddress_status`    | The status that is set for an IP Address when the `Safe Delete Mode` flag is set in the Job.                                                                                                  | `Deprecated`        |
-| `ipfabric_use_canonical_interface_name`    | Whether to attempt to elongate interface names as found in IP Fabric.                                                                                                                         | `False`             |
+| `Setting`                               | `Description`                                                                                                                                                                                 | `Default`           |
+|-----------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------|
+| `ipfabric_timeout`                      | Timeout (in seconds) for API requests to IPFabric.                                                                                                                                            | `15`                |
+| `ipfabric_allow_duplicate_addresses`    | If an IP Address already exists, setting this flag to `False` will prevent a duplicate IP Address from being created and will instead assign the existing IP to the synced Interface.         | `True`              |
+| `ipfabric_default_device_role`          | The device role used if a matching role is not found.                                                                                                                                         | `Network Device`    |
+| `ipfabric_default_device_role_color`    | The color used for the default device role.                                                                                                                                                   | `ff0000`            |
+| `ipfabric_sync_ipf_dev_type_to_role`    | Whether to use the IP Fabric Device Type to sync to the Nautobot Device Role field; if disabled new devices will use `ipfabric_default_device_role` and updates to the field will be skipped. | `True`              |
+| `ipfabric_default_device_status`        | The status of the synced device used if a matching status is not found.                                                                                                                       | `Active`            |
+| `ipfabric_default_device_status_color`  | The color used for the default status.                                                                                                                                                        | `ff0000`            |
+| `ipfabric_default_interface_mac`        | The MAC used for an interface when no MAC is found in IPFabric.                                                                                                                               | `00:00:00:00:00:01` |
+| `ipfabric_default_interface_mtu`        | The MTU used for an interface when no MTU is found in IPFabric.                                                                                                                               | `1500`              |
+| `ipfabric_default_interface_type`       | The Interface type used for interfaces synced.                                                                                                                                                | `1000base-t`        |
+| `ipfabric_safe_delete_device_status`    | The status that is set for a Device when the `Safe Delete Mode` flag is set in the Job.                                                                                                       | `Offline`           |
+| `ipfabric_safe_delete_location_status`  | The status that is set for a Location when the `Safe Delete Mode` flag is set in the Job.                                                                                                     | `Decommissioning`   |
+| `ipfabric_safe_delete_vlan_status`      | The status that is set for a VLAN when the `Safe Delete Mode` flag is set in the Job.                                                                                                         | `Deprecated`        |
+| `ipfabric_safe_delete_ipaddress_status` | The status that is set for an IP Address when the `Safe Delete Mode` flag is set in the Job.                                                                                                  | `Deprecated`        |
+| `ipfabric_use_canonical_interface_name` | Whether to attempt to elongate interface names as found in IP Fabric.                                                                                                                         | `False`             |
 
 
 Below is an example snippet from `nautobot_config.py` that demonstrates how to enable and configure the IPFabric SSoT integration along with the optional settings:
@@ -74,7 +74,7 @@ PLUGINS_CONFIG = {
         "ipfabric_timeout": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_TIMEOUT"),
         "ipfabric_allow_duplicate_addresses": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_DUPLICATE_ADDRESSES"),
         "ipfabric_default_device_role": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_DEVICE_ROLE"),
-        "ipfabric_sync_device_type_to_device_role": True,
+        "ipfabric_sync_ipf_dev_type_to_role": True,
         "ipfabric_default_device_status": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_DEVICE_STATUS"),
         "ipfabric_default_interface_mac": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_INTERFACE_MAC"),
         "ipfabric_default_interface_mtu": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_INTERFACE_MTU"),

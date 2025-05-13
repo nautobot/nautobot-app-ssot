@@ -21,7 +21,7 @@ from netutils.mac import mac_to_format
 from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_INTERFACE_MAC,
     DEFAULT_INTERFACE_MTU,
-    SYNC_DEVICE_TYPE_TO_DEVICE_ROLE,
+    SYNC_IPF_DEV_TYPE_TO_ROLE,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 
@@ -133,7 +133,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             device = self.device(
                 name=device_record.name,
                 model=str(device_record.device_type),
-                role=device_role if SYNC_DEVICE_TYPE_TO_DEVICE_ROLE else None,
+                role=device_role if SYNC_IPF_DEV_TYPE_TO_ROLE else None,
                 location_name=device_record.location.name,
                 vendor=str(device_record.device_type.manufacturer),
                 status=device_record.status.name,

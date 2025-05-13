@@ -272,8 +272,8 @@ PLUGINS_CONFIG = {
         "ipfabric_allow_duplicate_addresses": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_DUPLICATE_ADDRESSES", "true"),
         "ipfabric_default_device_role": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_DEVICE_ROLE", "Network Device"),
         "ipfabric_default_device_status": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_DEVICE_STATUS", "Active"),
-        "ipfabric_sync_device_type_to_device_role": is_truthy(
-            os.getenv("NAUTOBOT_SSOT_IPFABRIC_SYNC_DEVICE_TYPE_TO_DEVICE_ROLE", "true")
+        "ipfabric_sync_ipf_dev_type_to_role": is_truthy(
+            os.getenv("NAUTOBOT_SSOT_IPFABRIC_SYNC_IPF_DEV_TYPE_TO_ROLE", "true")
         ),
         "ipfabric_default_interface_mac": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_INTERFACE_MAC", "00:00:00:00:00:01"),
         "ipfabric_default_interface_mtu": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_INTERFACE_MTU", 1500),

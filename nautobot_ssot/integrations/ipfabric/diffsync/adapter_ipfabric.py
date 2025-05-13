@@ -17,7 +17,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_INTERFACE_MAC,
     DEFAULT_INTERFACE_MTU,
     IP_FABRIC_USE_CANONICAL_INTERFACE_NAME,
-    SYNC_DEVICE_TYPE_TO_DEVICE_ROLE,
+    SYNC_IPF_DEV_TYPE_TO_ROLE,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.utilities import utils as ipfabric_utils
@@ -166,7 +166,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     "location_name": device.site,
                     "model": device.model or f"Default-{device.vendor}",
                     "vendor": device.vendor.capitalize(),
-                    "role": device.dev_type or DEFAULT_DEVICE_ROLE if SYNC_DEVICE_TYPE_TO_DEVICE_ROLE else None,
+                    "role": device.dev_type or DEFAULT_DEVICE_ROLE if SYNC_IPF_DEV_TYPE_TO_ROLE else None,
                     "status": DEFAULT_DEVICE_STATUS,
                     "platform": device.family,
                 }

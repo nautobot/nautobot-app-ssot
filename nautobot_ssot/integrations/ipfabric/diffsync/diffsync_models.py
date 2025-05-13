@@ -43,7 +43,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     SAFE_DELETE_IPADDRESS_STATUS,
     SAFE_DELETE_LOCATION_STATUS,
     SAFE_DELETE_VLAN_STATUS,
-    SYNC_DEVICE_TYPE_TO_DEVICE_ROLE,
+    SYNC_IPF_DEV_TYPE_TO_ROLE,
 )
 
 logger = logging.getLogger(__name__)
@@ -452,7 +452,7 @@ class Device(DiffSyncExtras):
                     return_super = False
             if attrs.get("serial_number"):
                 _device.serial = attrs.get("serial_number")
-            if SYNC_DEVICE_TYPE_TO_DEVICE_ROLE and (role_name := attrs.get("role")):
+            if SYNC_IPF_DEV_TYPE_TO_ROLE and (role_name := attrs.get("role")):
                 device_role_object = tonb_nbutils.get_or_create_device_role_object(
                     role_name=role_name,
                     role_color=DEFAULT_DEVICE_ROLE_COLOR,

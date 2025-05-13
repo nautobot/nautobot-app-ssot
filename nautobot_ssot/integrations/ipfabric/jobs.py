@@ -116,7 +116,7 @@ class IpFabricDataSource(DataSource):
         description="Only sync objects that have the 'SSoT Synced from IPFabric' Tag.",
     )
     location_filter = OptionalObjectVar(
-        description="Only sync Nautobot records belonging to a single Location. This does not filter IPFabric data.",
+        description="Only sync Nautobot records belonging to a single Location.",
         model=Location,
         required=False,
     )
@@ -201,7 +201,7 @@ class IpFabricDataSource(DataSource):
             "Nautobot Host URL": constants.NAUTOBOT_HOST,
             "Default Device Role": constants.DEFAULT_DEVICE_ROLE,
             "Default Device Role Color": constants.DEFAULT_DEVICE_ROLE_COLOR,
-            "Sync Device Type to Device Role": constants.SYNC_DEVICE_TYPE_TO_DEVICE_ROLE,
+            "Sync Device Type to Device Role": constants.SYNC_IPF_DEV_TYPE_TO_ROLE,
             "Default Device Status": constants.DEFAULT_DEVICE_STATUS,
             "Default Device Status Color": constants.DEFAULT_DEVICE_STATUS_COLOR,
             "Default Interface Type": constants.DEFAULT_INTERFACE_TYPE,
@@ -268,7 +268,10 @@ class IpFabricDataSource(DataSource):
         self.logger.info(f"Starting job with the following options: {options}")
 
         ipfabric_source = IPFabricDiffSync(
-            job=self, sync=self.sync, client=self.client, location_filter=location_filter
+            job=self,
+            sync=self.sync,
+            client=self.client,
+            location_filter=location_filter_object.name if location_filter_object else None,
         )
         self.logger.info("Loading current data from IP Fabric...")
         ipfabric_source.load()
