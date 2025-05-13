@@ -345,7 +345,7 @@ class NautobotIPAddress(IPAddress):
         adapter.objects_to_create["ipaddrs"].append(new_ip)
         if namespace not in adapter.ipaddr_map:
             adapter.ipaddr_map[namespace] = {}
-        adapter.ipaddr_map[namespace][ids["address"]] = new_ip.id
+        adapter.ipaddr_map[namespace][f"{ids['host']}/{attrs['mask_length']}"] = new_ip.id
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
