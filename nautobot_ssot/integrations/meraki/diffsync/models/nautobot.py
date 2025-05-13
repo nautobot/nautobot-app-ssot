@@ -334,7 +334,7 @@ class NautobotIPAddress(IPAddress):
         """Create IPAddress in Nautobot from NautobotIPAddress object."""
         namespace = ids["tenant"] if ids.get("tenant") else "Global"
         new_ip = OrmIPAddress(
-            address=f"{ids['host']}/{ids['mask_length']}",
+            address=f"{ids['host']}/{attrs['mask_length']}",
             namespace=adapter.namespace_map[namespace],
             status_id=adapter.status_map["Active"],
             tenant_id=adapter.tenant_map[ids["tenant"]] if ids.get("tenant") else None,
