@@ -29,13 +29,16 @@ Integration behavior can be controlled with the following settings:
 Below is an example snippet from `nautobot_config.py` that demonstrates how to enable and configure IPFabric integration:
 
 ```python
+import os
+from nautobot.core.settings_funcs import is_truthy
+
 PLUGINS_CONFIG = {
     "nautobot_ssot": {
         "enable_ipfabric": True,
-        "ipfabric_api_token": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_API_TOKEN"),
-        "ipfabric_host": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_HOST"),
-        "ipfabric_ssl_verify": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_SSL_VERIFY"),
-        "nautobot_host": os.environ.get("NAUTOBOT_HOST"),
+        "ipfabric_api_token": os.getenv("NAUTOBOT_SSOT_IPFABRIC_API_TOKEN"),
+        "ipfabric_host": os.getenv("NAUTOBOT_SSOT_IPFABRIC_HOST"),
+        "ipfabric_ssl_verify": is_truthy(os.getenv("NAUTOBOT_SSOT_IPFABRIC_SSL_VERIFY", "true")),
+        "nautobot_host": os.getenv("NAUTOBOT_HOST"),
     }
 }
 ```
@@ -64,26 +67,33 @@ PLUGINS_CONFIG = {
 Below is an example snippet from `nautobot_config.py` that demonstrates how to enable and configure the IPFabric SSoT integration along with the optional settings:
 
 ```python
+import os
+from nautobot.core.settings_funcs import is_truthy
+
 PLUGINS_CONFIG = {
     "nautobot_ssot": {
-        "enable_ipfabric": True,
-        "ipfabric_api_token": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_API_TOKEN"),
-        "ipfabric_host": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_HOST"),
-        "ipfabric_ssl_verify": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_SSL_VERIFY"),
-        "nautobot_host": os.environ.get("NAUTOBOT_HOST"),
-        "ipfabric_timeout": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_TIMEOUT"),
-        "ipfabric_allow_duplicate_addresses": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_DUPLICATE_ADDRESSES"),
-        "ipfabric_default_device_role": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_DEVICE_ROLE"),
-        "ipfabric_sync_ipf_dev_type_to_role": True,
-        "ipfabric_default_device_status": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_DEVICE_STATUS"),
-        "ipfabric_default_interface_mac": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_INTERFACE_MAC"),
-        "ipfabric_default_interface_mtu": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_INTERFACE_MTU"),
-        "ipfabric_default_interface_type": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_INTERFACE_TYPE"),
-        "ipfabric_safe_delete_device_status": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_DEVICE_DELETE_STATUS"),
-        "ipfabric_safe_delete_location_status": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_LOCATION_DELETE_STATUS"),
-        "ipfabric_safe_delete_vlan_status": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_VLAN_DELETE_STATUS"),
-        "ipfabric_safe_delete_ipaddress_status": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_IPADDRESS_DELETE_STATUS"),
-        "ipfabric_use_canonical_interface_name": True,
+        "enable_ipfabric": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_IPFABRIC", "true")),
+        "ipfabric_api_token": os.getenv("NAUTOBOT_SSOT_IPFABRIC_API_TOKEN"),
+        "ipfabric_host": os.getenv("NAUTOBOT_SSOT_IPFABRIC_HOST"),
+        "ipfabric_ssl_verify": is_truthy(os.getenv("NAUTOBOT_SSOT_IPFABRIC_SSL_VERIFY", "true")),
+        "nautobot_host": os.getenv("NAUTOBOT_HOST"),
+        "ipfabric_timeout": os.getenv("NAUTOBOT_SSOT_IPFABRIC_TIMEOUT"),
+        "ipfabric_allow_duplicate_addresses": os.getenv("NAUTOBOT_SSOT_IPFABRIC_DUPLICATE_ADDRESSES"),
+        "ipfabric_default_device_role": os.getenv("NAUTOBOT_SSOT_IPFABRIC_DEVICE_ROLE"),
+        "ipfabric_sync_ipf_dev_type_to_role": is_truthy(
+            os.getenv("NAUTOBOT_SSOT_IPFABRIC_SYNC_IPF_DEV_TYPE_TO_ROLE", "true")
+        ),
+        "ipfabric_default_device_status": os.getenv("NAUTOBOT_SSOT_IPFABRIC_DEVICE_STATUS"),
+        "ipfabric_default_interface_mac": os.getenv("NAUTOBOT_SSOT_IPFABRIC_INTERFACE_MAC"),
+        "ipfabric_default_interface_mtu": os.getenv("NAUTOBOT_SSOT_IPFABRIC_INTERFACE_MTU"),
+        "ipfabric_default_interface_type": os.getenv("NAUTOBOT_SSOT_IPFABRIC_INTERFACE_TYPE"),
+        "ipfabric_safe_delete_device_status": os.getenv("NAUTOBOT_SSOT_IPFABRIC_DEVICE_DELETE_STATUS"),
+        "ipfabric_safe_delete_location_status": os.getenv("NAUTOBOT_SSOT_IPFABRIC_LOCATION_DELETE_STATUS"),
+        "ipfabric_safe_delete_vlan_status": os.getenv("NAUTOBOT_SSOT_IPFABRIC_VLAN_DELETE_STATUS"),
+        "ipfabric_safe_delete_ipaddress_status": os.getenv("NAUTOBOT_SSOT_IPFABRIC_IPADDRESS_DELETE_STATUS"),
+        "ipfabric_use_canonical_interface_name": is_truthy(
+            os.getenv("NAUTOBOT_SSOT_USE_CANONICAL_INTERFACE_NAME", "true")
+        ),
     }
 }
 ```
@@ -106,6 +116,9 @@ PLUGINS_CONFIG = {
     ```
 - Fix `nautobot_config.py` by removing `nautobot_ssot_ipfabric` from `PLUGINS` and merging app configuration into `nautobot_ssot`:
     ```python
+    import os
+    from nautobot.core.settings_funcs import is_truthy
+
     PLUGINS = [
         "nautobot_ssot",
         # "nautobot_ssot_ipfabric"  # REMOVE THIS LINE
@@ -124,10 +137,10 @@ PLUGINS_CONFIG = {
             # Enable IPFabric integration
             "enable_ipfabric": True,
             # Following lines are moved from `nautobot_ssot_ipfabric`
-            "ipfabric_api_token": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_API_TOKEN"),
-            "ipfabric_host": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_HOST"),
-            "ipfabric_ssl_verify": os.environ.get("NAUTOBOT_SSOT_IPFABRIC_SSL_VERIFY"),
-            "nautobot_host": os.environ.get("NAUTOBOT_HOST"),
+            "ipfabric_api_token": os.getenv("NAUTOBOT_SSOT_IPFABRIC_API_TOKEN"),
+            "ipfabric_host": os.getenv("NAUTOBOT_SSOT_IPFABRIC_HOST"),
+            "ipfabric_ssl_verify": is_truthy(os.getenv("NAUTOBOT_SSOT_IPFABRIC_SSL_VERIFY", "true")),
+            "nautobot_host": os.getenv("NAUTOBOT_HOST"),
         }
     }
     ```
