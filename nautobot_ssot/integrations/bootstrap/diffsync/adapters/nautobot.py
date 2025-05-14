@@ -142,7 +142,7 @@ class NautobotAdapter(Adapter):
     if dlm_supports_softwarelcm():
         software = NautobotSoftware
         software_image = NautobotSoftwareImage
-    if core_supports_softwareversion():
+    if validate_dlm_installed():
         validated_software = NautobotValidatedSoftware
 
     top_level = [
