@@ -2969,13 +2969,13 @@ files = [
 
 [[package]]
 name = "meraki"
-version = "1.45.0"
+version = "1.53.0"
 description = "Cisco Meraki Dashboard API library"
 optional = true
 python-versions = ">=3.8"
 files = [
-    {file = "meraki-1.45.0-py3-none-any.whl", hash = "sha256:8681d107fbd6b93a5fc1f98e0c3d5b611dd2df520a83de6293bd423851e89087"},
-    {file = "meraki-1.45.0.tar.gz", hash = "sha256:3c179ea2128dcc032511d023cc1f1fb153dcfa697e99c6961e85563de3fddc1a"},
+    {file = "meraki-1.53.0-py3-none-any.whl", hash = "sha256:63ea7a75c3b1daf45d57773d900d92dfb5cd077c14eddaa88c46f8be63ee15f8"},
+    {file = "meraki-1.53.0.tar.gz", hash = "sha256:182d3b829c7461e6a39bc2cf70716d933fd4b9ce243b8e93510b39f3f204cf28"},
 ]
 
 [package.dependencies]
@@ -6048,4 +6048,4 @@ slurpit = ["slurpit-sdk"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9.2,<3.13"
-content-hash = "1861fd8b6c818c095d55be0fdf9500011afd9521c4c00b4574da228078d6b52e"
+content-hash = "e35c7aa9646b4bdfb62d2e4fad132af2cbc3d59bd151163a82089f06d1b0aabc"
