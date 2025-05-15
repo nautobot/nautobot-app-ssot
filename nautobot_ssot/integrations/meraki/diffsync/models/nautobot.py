@@ -332,12 +332,12 @@ class NautobotIPAddress(IPAddress):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create IPAddress in Nautobot from NautobotIPAddress object."""
-        namespace = attrs["tenant"] if attrs.get("tenant") else "Global"
+        namespace = ids["tenant"] if ids.get("tenant") else "Global"
         new_ip = OrmIPAddress(
-            address=ids["address"],
+            address=f"{ids['host']}/{attrs['mask_length']}",
             namespace=adapter.namespace_map[namespace],
             status_id=adapter.status_map["Active"],
-            tenant_id=adapter.tenant_map[attrs["tenant"]] if attrs.get("tenant") else None,
+            tenant_id=adapter.tenant_map[ids["tenant"]] if ids.get("tenant") else None,
         )
         adapter.objects_to_create["ipaddrs-to-prefixes"].append((new_ip, adapter.prefix_map[ids["prefix"]]))
         new_ip.cf["system_of_record"] = "Meraki SSoT"
@@ -345,17 +345,14 @@ class NautobotIPAddress(IPAddress):
         adapter.objects_to_create["ipaddrs"].append(new_ip)
         if namespace not in adapter.ipaddr_map:
             adapter.ipaddr_map[namespace] = {}
-        adapter.ipaddr_map[namespace][ids["address"]] = new_ip.id
+        adapter.ipaddr_map[namespace][f"{ids['host']}/{attrs['mask_length']}"] = new_ip.id
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update IPAddress in Nautobot from NautobotIPAddress object."""
         ipaddr = OrmIPAddress.objects.get(id=self.uuid)
-        if "tenant" in attrs:
-            if attrs.get("tenant"):
-                ipaddr.tenant_id = self.adapter.tenant_map[attrs["tenant"]]
-            else:
-                ipaddr.tenant = None
+        if attrs.get("mask_length"):
+            ipaddr.mask_length = attrs["mask_length"]
         ipaddr.cf["system_of_record"] = "Meraki SSoT"
         ipaddr.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
         ipaddr.validated_save()
