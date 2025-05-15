@@ -16,3 +16,4 @@ This Nautobot app supports the following integrations:
 - [ServiceNow](./servicenow.md)
 - [Slurpit](./slurpit.md)
 - [SolarWinds](./solarwinds.md)
+- [vSphere](./vsphere.md)
