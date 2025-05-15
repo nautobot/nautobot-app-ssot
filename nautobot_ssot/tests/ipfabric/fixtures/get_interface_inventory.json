@@ -2,6 +2,7 @@
    {
       "id":"19941192",
       "hostname":"nyc-rtr-01",
+      "sn": "VM60D5EE2211",
       "intName":"ipip",
       "dscr":null,
       "mac":null,
@@ -14,6 +15,7 @@
    {
       "id":"19952051",
       "hostname":"nyc-leaf-01",
+      "sn": "5254.0029.fbf2",
       "intName":"Et15",
       "dscr":null,
       "mac":"5254.009d.f816",
@@ -26,6 +28,7 @@
    {
       "id":"19957897",
       "hostname":"jcy-rtr-02",
+      "sn": "a000a02",
       "intName":"Gi4",
       "dscr":null,
       "mac":"5254.0090.4b0a",
@@ -38,6 +41,7 @@
    {
       "id":"19941192",
       "hostname":"nyc-rtr-01",
+      "sn": "VM60D5EE2211",
       "intName":"eth1",
       "dscr":null,
       "mac":null,
@@ -45,6 +49,6 @@
       "speed":"unlimited",
       "media":null,
       "mtu":null,
-      "primaryIp":null
+      "primaryIp":"10.10.0.11"
    }
 ]

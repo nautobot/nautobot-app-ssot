@@ -1,0 +1,1 @@
+Added `ipfabric_sync_ipf_dev_type_to_role` flag to IP Fabric SSoT integration defaulting to True. Disabling this flag will prevent the sync of device types to device roles in IP Fabric and use the default device role mapping for new devices.
