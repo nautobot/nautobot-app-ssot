@@ -142,5 +142,6 @@ PLUGINS_CONFIG = {
         }
     }
     ```
+
 !!! warning
     The setting names have been updated to help avoid any potential conflicts, please update the settings in `PLUGINS_CONFIG` accordingly.

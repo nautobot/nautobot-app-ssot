@@ -52,6 +52,7 @@ With the SecretsGroup defined containing your instance credentials you'll then n
 ![SolarWinds ExternalIntegration](../../images/solarwinds_external_integration.png)
 
 > The only required portions are the Name, Remote URL, Verify SSL, HTTP Method (GET), and Secrets Group. 
+
 - The External Integration will need it's `http_method` set to `GET`. 
 - Keep the `verify_ssl` setting in mind, uncheck this if you are using untrusted certificates
 
