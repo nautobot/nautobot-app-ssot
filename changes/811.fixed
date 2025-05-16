@@ -1,1 +1,0 @@
-Fixed the number of API calls to IP Fabric resulting in non-optimal performance causing SSoT synchronization timeouts.
