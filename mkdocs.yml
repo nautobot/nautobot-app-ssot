@@ -45,12 +45,6 @@ theme:
 extra_css:
   - "assets/extra.css"
 
-# needed for RTD version flyout menu
-# jquery is not (yet) injected by RTD automatically and it might be dropped
-# as a dependency in the future
-extra_javascript:
-  - "https://code.jquery.com/jquery-3.6.0.min.js"
-
 extra:
   generator: false
   ntc_sponsor: true
@@ -99,6 +93,12 @@ plugins:
             show_root_heading: true
 watch:
   - "README.md"
+
+validation:
+  omitted_files: "warn"
+  absolute_links: "warn"
+  unrecognized_links: "warn"
+  anchors: "warn"
 
 nav:
   - Overview: "index.md"
@@ -149,6 +149,7 @@ nav:
       - Compatibility Matrix: "admin/compatibility_matrix.md"
       - Release Notes:
           - "admin/release_notes/index.md"
+          - v3.8: "admin/release_notes/version_3.8.md"
           - v3.7: "admin/release_notes/version_3.7.md"
           - v3.6: "admin/release_notes/version_3.6.md"
           - v3.5: "admin/release_notes/version_3.5.md"
@@ -174,6 +175,7 @@ nav:
           - v1.1: "admin/release_notes/version_1.1.md"
           - v1.0: "admin/release_notes/version_1.0.md"
   - Developer Guide:
+      - Upgrading from SSoT 2.x to 3.x: "dev/upgrade.md"
       - Extending the App: "dev/extending.md"
       - Developing Jobs: "dev/jobs.md"
       - Debugging Jobs: "dev/debugging.md"

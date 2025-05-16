@@ -71,12 +71,15 @@ Currently, this integration will provide the ability to sync the following IP Fa
 ### IPFabric Device
 
 | IP Fabric (Source) | DiffSync Model       | Nautobot (Destination) |
-| ------------------ | -------------------- | ---------------------- |
+|--------------------|----------------------|------------------------|
 | hostname           | Device.name          | Device.name            |
 | siteName           | Device.location_name | Device.site            |
 | vendor             | Device.vendor        | Device.manufacturer    |
 | model              | Device.model         | Device.device_type     |
 | sn                 | Device.serial_number | Device.serial          |
+| devType*           | Device.role          | Device.role            |
+
+> Note: `devType` is an IP Fabric field that can be used to set the Device role. This can be disabled by setting `ipfabric_sync_ipf_dev_type_to_role` to `False` in the configuration. If this is disabled, the default role will be used for adding new devices and roles will be ignored during diffsync update preventing a custom Nautobot role from being overridden.
 
 ### IPFabric Interface
 

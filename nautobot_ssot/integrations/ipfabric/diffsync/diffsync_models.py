@@ -43,6 +43,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     SAFE_DELETE_IPADDRESS_STATUS,
     SAFE_DELETE_LOCATION_STATUS,
     SAFE_DELETE_VLAN_STATUS,
+    SYNC_IPF_DEV_TYPE_TO_ROLE,
 )
 
 logger = logging.getLogger(__name__)
@@ -162,7 +163,7 @@ class Location(DiffSyncExtras):
             active_status = attrs.get("status")
             if active_status == "Active":
                 safe_delete_tag, _ = Tag.objects.get_or_create(name="SSoT Safe Delete")
-                if not location.status == active_status:
+                if location.status != active_status:
                     location.status = Status.objects.get(name=active_status)
                 device_tags = location.tags.filter(pk=safe_delete_tag.pk)
                 if device_tags.exists():
@@ -257,7 +258,7 @@ class Device(DiffSyncExtras):
             platform_object = None
 
         # Get Role, update if missing cf and create otherwise
-        role_name = attrs.get("role", DEFAULT_DEVICE_ROLE)
+        role_name = attrs.get("role") or DEFAULT_DEVICE_ROLE
         device_role_filter = Role.objects.filter(name=role_name)
         if device_role_filter.exists():
             device_role_object = device_role_filter.first()
@@ -352,8 +353,7 @@ class Device(DiffSyncExtras):
                         adapter.job.logger.error(
                             f"Unable to update Device {device_name} with an ID of {new_device.id} with VirtualChassis data"
                         )
-                    else:
-                        return super().create(ids=ids, adapter=adapter, attrs=attrs)
+                return super().create(ids=ids, adapter=adapter, attrs=attrs)
         return None
 
     def delete(self) -> Optional["DiffSyncModel"]:
@@ -451,8 +451,7 @@ class Device(DiffSyncExtras):
                     return_super = False
             if attrs.get("serial_number"):
                 _device.serial = attrs.get("serial_number")
-            role_name = attrs.get("role")
-            if role_name:
+            if SYNC_IPF_DEV_TYPE_TO_ROLE and (role_name := attrs.get("role")):
                 device_role_object = tonb_nbutils.get_or_create_device_role_object(
                     role_name=role_name,
                     role_color=DEFAULT_DEVICE_ROLE_COLOR,

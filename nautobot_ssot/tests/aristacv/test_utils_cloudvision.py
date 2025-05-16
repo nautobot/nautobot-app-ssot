@@ -82,7 +82,7 @@ class TestCloudvisionUtils(TestCase):
         device_svc_stub.DeviceServiceStub.return_value.GetAll.return_value = device_list
 
         with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.services", device_svc_stub):
-            results = cloudvision.get_devices(client=self.client, import_active=False)
+            results = cloudvision.get_devices(client=self.client, logger=MagicMock(), import_active=False)
         expected = fixtures.DEVICE_FIXTURE
         self.assertEqual(results, expected)
 
@@ -103,7 +103,7 @@ class TestCloudvisionUtils(TestCase):
         device_svc_stub.DeviceServiceStub.return_value.GetAll.return_value = device_list
 
         with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.services", device_svc_stub):
-            results = cloudvision.get_devices(client=self.client, import_active=True)
+            results = cloudvision.get_devices(client=self.client, logger=MagicMock(), import_active=True)
         expected = [
             {
                 "device_id": "JPE12345678",

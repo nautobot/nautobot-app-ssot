@@ -242,7 +242,7 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
         return (self.decode_batch(nb) for nb in res)
 
 
-def get_devices(client, import_active: bool):
+def get_devices(client, logger, import_active: bool):
     """Get devices from CloudVision inventory."""
     device_stub = services.DeviceServiceStub(client)
     if import_active:
@@ -253,17 +253,20 @@ def get_devices(client, import_active: bool):
         req = services.DeviceStreamRequest()
     responses = device_stub.GetAll(req)
     devices = []
-    for resp in responses:
-        device = {
-            "device_id": resp.value.key.device_id.value,
-            "hostname": resp.value.hostname.value,
-            "fqdn": resp.value.fqdn.value,
-            "sw_ver": resp.value.software_version.value,
-            "model": resp.value.model_name.value,
-            "status": "Active" if resp.value.streaming_status == 2 else "Offline",
-            "system_mac_address": resp.value.system_mac_address.value,
-        }
-        devices.append(device)
+    try:
+        for resp in responses:
+            device = {
+                "device_id": resp.value.key.device_id.value,
+                "hostname": resp.value.hostname.value,
+                "fqdn": resp.value.fqdn.value,
+                "sw_ver": resp.value.software_version.value,
+                "model": resp.value.model_name.value,
+                "status": "Active" if resp.value.streaming_status == 2 else "Offline",
+                "system_mac_address": resp.value.system_mac_address.value,
+            }
+            devices.append(device)
+    except grpc.RpcError as err:
+        logger.error(f"Error when pulling devices: {err}")
     return devices
 
 
@@ -675,9 +678,12 @@ def get_cvp_version(config: CloudVisionAppConfig):
     """
     client = CvpClient()
     try:
+        parsed_url = urlparse(config.url)
+        if not parsed_url.hostname:
+            raise ValueError(f"Invalid URL provided for CloudVision. {config.url}")
         if config.token and not config.is_on_premise:
             client.connect(
-                nodes=[config.url],
+                nodes=[parsed_url.hostname],
                 username="",
                 password="",
                 is_cvaas=True,
@@ -685,7 +691,7 @@ def get_cvp_version(config: CloudVisionAppConfig):
             )
         else:
             client.connect(
-                nodes=[config.url],
+                nodes=[parsed_url.hostname],
                 username=config.cvp_user,
                 password=config.cvp_password,
                 is_cvaas=False,

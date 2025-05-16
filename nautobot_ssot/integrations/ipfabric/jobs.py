@@ -116,7 +116,7 @@ class IpFabricDataSource(DataSource):
         description="Only sync objects that have the 'SSoT Synced from IPFabric' Tag.",
     )
     location_filter = OptionalObjectVar(
-        description="Only sync Nautobot records belonging to a single Location. This does not filter IPFabric data.",
+        description="Only sync Nautobot records belonging to a single Location.",
         model=Location,
         required=False,
     )
@@ -197,16 +197,18 @@ class IpFabricDataSource(DataSource):
     def config_information(cls):
         """Dictionary describing the configuration of this DataSource."""
         return {
-            "IP Fabric host": constants.IPFABRIC_HOST,
+            "IP Fabric Host": constants.IPFABRIC_HOST,
+            "IP Fabric Timeout": str(constants.IPFABRIC_TIMEOUT),
             "Nautobot Host URL": constants.NAUTOBOT_HOST,
             "Default Device Role": constants.DEFAULT_DEVICE_ROLE,
             "Default Device Role Color": constants.DEFAULT_DEVICE_ROLE_COLOR,
+            "Sync Device Type to Device Role": str(constants.SYNC_IPF_DEV_TYPE_TO_ROLE),
             "Default Device Status": constants.DEFAULT_DEVICE_STATUS,
             "Default Device Status Color": constants.DEFAULT_DEVICE_STATUS_COLOR,
             "Default Interface Type": constants.DEFAULT_INTERFACE_TYPE,
+            "Use Canonical Interface Names": str(constants.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME),
             "Default MAC Address": constants.DEFAULT_INTERFACE_MAC,
             "Default MTU": constants.DEFAULT_INTERFACE_MTU,
-            "Allow Duplicate Addresses": constants.ALLOW_DUPLICATE_ADDRESSES,
             "Safe Delete Device Status": constants.SAFE_DELETE_DEVICE_STATUS,
             "Safe Delete Location Status": constants.SAFE_DELETE_LOCATION_STATUS,
             "Safe Delete IPAddress Status": constants.SAFE_DELETE_IPADDRESS_STATUS,
@@ -266,7 +268,12 @@ class IpFabricDataSource(DataSource):
         options = f"`Snapshot_id`: {self.client.snapshot_id}.`Debug`: {debug_mode}, `Dry Run`: {dryrun}, `Safe Delete Mode`: {safe_mode}, `Sync Tagged Only`: {tagged_only}, `Location Filter`: {location_filter_object}"
         self.logger.info(f"Starting job with the following options: {options}")
 
-        ipfabric_source = IPFabricDiffSync(job=self, sync=self.sync, client=self.client)
+        ipfabric_source = IPFabricDiffSync(
+            job=self,
+            sync=self.sync,
+            client=self.client,
+            location_filter=location_filter_object.name if location_filter_object else None,
+        )
         self.logger.info("Loading current data from IP Fabric...")
         ipfabric_source.load()
 

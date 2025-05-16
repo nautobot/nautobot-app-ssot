@@ -11,10 +11,18 @@ from typing_extensions import Annotated, TypedDict, get_type_hints
 from nautobot_ssot.contrib import NautobotAdapter, NautobotModel
 from nautobot_ssot.contrib.sorting import (
     _is_sortable_field,
+    get_sort_key_from_typed_dict,
     get_sortable_fields_from_model,
     sort_relationships,
 )
 from nautobot_ssot.contrib.typeddicts import SortKey
+
+
+class BasicTagDict(TypedDict):
+    """Basic TypedDict without sort key."""
+
+    name: str
+    description: Optional[str]
 
 
 class TagDict(TypedDict):
@@ -53,6 +61,11 @@ class TestAdapter(NautobotAdapter):
 
     top_level = ("tenant",)
     tenant = NautobotTenant
+
+
+##############
+# UNIT TESTS #
+##############
 
 
 class TestCaseIsSortableFieldFunction(TestCase):
@@ -128,3 +141,23 @@ class TestCaseSortRelationships(TestCase):
         sort_relationships(self.source, self.target)
         self.assertTrue(self.source.get_all("tenant")[0].tags[0]["name"] == "A Tag")
         self.assertTrue(self.target.get_all("tenant")[0].tags[0]["name"] == "A Tag")
+
+
+class TestGetSortKeyFromTypedDict(TestCase):
+    """Unit tests for `get_sort_key_from_typed_dict` function."""
+
+    def test_valid_typed_dict(self):
+        """Test valid TypedDict returns correct sort key."""
+        self.assertEqual(get_sort_key_from_typed_dict(TagDict), "name")
+
+    def test_invalid_dict(self):
+        """Test an invalid dictionary returning None.
+
+        A standard Dictionary without annotations will raise an AttributeError when
+        getting `__annotations__`. This should return `None`.
+        """
+        self.assertIsNone(get_sort_key_from_typed_dict({"name": "TestName"}))
+
+    def test_typed_dict_without_sort_key(self):
+        """Test a typed dict without sort key specified."""
+        self.assertIsNone(get_sort_key_from_typed_dict(BasicTagDict))
