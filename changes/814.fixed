@@ -1,1 +1,0 @@
-Removed `ipfabric_allow_duplicate_addresses` flag as it is not implemented in the IP Fabric integration.
