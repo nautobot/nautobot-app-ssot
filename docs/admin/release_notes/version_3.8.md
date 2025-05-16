@@ -31,3 +31,9 @@ This release has a new IPFabric feature for syncing the Device Role using the De
 ### Housekeeping
 
 - Rebaked from the cookie `nautobot-app-v2.5.0`.
+
+## [v3.8.1 (2025-05-16)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.8.1)
+
+### Changed
+
+- [#822](https://github.com/nautobot/nautobot-app-ssot/issues/822) - Disabled auto sorting in SSoT.
