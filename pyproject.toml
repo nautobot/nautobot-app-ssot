@@ -72,10 +72,7 @@ yamllint = "*"
 markdown-include = "*"
 toml = "*"
 # Python implementation of markdownlint
-pymarkdownlnt = [
-    {version = "0.9.26", python = "~3.8.0"},
-    {version = "~0.9.29", python = ">=3.9,<3.13"},
-]
+pymarkdownlnt = "~0.9.29"
 Markdown = "*"
 # Render custom markdown for version added/changed/remove notes
 markdown-version-annotations = "1.0.1"
