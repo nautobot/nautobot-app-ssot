@@ -10,36 +10,36 @@ In brief, the following general steps can be followed:
 
 1. Define one or more `DiffSyncModel` data model class(es) representing the common data record(s) to be synchronized between the two systems.
 
-   - Define your models based on the data you want to sync. For example, if you are syncing specific attributes (e.g. tags) of a device, but not the devices themselves, your parent model
+    - Define your models based on the data you want to sync. For example, if you are syncing specific attributes (e.g. tags) of a device, but not the devices themselves, your parent model
      should be the tags. This approach prevents unnecessary `create`, `update`, and `delete` calls for models that are not sync'd.
-   - For each model class, implement the `create`, `update`, and `delete` DiffSyncModel APIs for writing data to the Data Target system.
+    - For each model class, implement the `create`, `update`, and `delete` DiffSyncModel APIs for writing data to the Data Target system.
 
 2. Define a `DiffSync` adapter class for loading initial data from Nautobot and constructing instances of each `DiffSyncModel` class to represent that data.
 3. Define a `DiffSync` adapter class for loading initial data from the Data Source or Data Target system and constructing instances of the `DiffSyncModel` classes to represent that data.
 
 4. Develop a Job class, derived from either the `DataSource` or `DataTarget` classes provided by this app, and implement the adapters to populate the `self.source_adapter` and `self.target_adapter` that are used by the built-in implementation of `sync_data`. This `sync_data` method is an opinionated way of running the process including some performance data, more in [next section](#optimizing-for-execution-time), but you could overwrite it completely or any of the key hooks that it calls:
 
-   - `self.load_source_adapter`: This is mandatory to be implemented. As an example:
+    - `self.load_source_adapter`: This is mandatory to be implemented. As an example:
 
-     ```python
-     def load_source_adapter(self):
-         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""
-         self.source_adapter = NautobotRemote(url=self.kwargs["source_url"], token=self.kwargs["source_token"], job=self)
-         self.source_adapter.load()
-     ```
+      ```python
+      def load_source_adapter(self):
+          """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""
+          self.source_adapter = NautobotRemote(url=self.kwargs["source_url"], token=self.kwargs["source_token"], job=self)
+          self.source_adapter.load()
+      ```
 
-   - `self.load_target_adapter`: This is mandatory to be implemented. As an example:
+    - `self.load_target_adapter`: This is mandatory to be implemented. As an example:
 
-     ```python
-     def load_target_adapter(self):
-        """Method to instantiate and load the TARGET adapter into `self.target_adapter`."""
-        self.target_adapter = NautobotLocal(job=self)
-        self.target_adapter.load()
-     ```
+      ```python
+      def load_target_adapter(self):
+         """Method to instantiate and load the TARGET adapter into `self.target_adapter`."""
+         self.target_adapter = NautobotLocal(job=self)
+         self.target_adapter.load()
+      ```
 
-   - `self.calculate_diff`: This method is implemented by default, using the output from load_adapter methods.
+    - `self.calculate_diff`: This method is implemented by default, using the output from load_adapter methods.
 
-   - `self.execute_sync`: This method is implemented by default, using the output from load_adapter methods. Only executed if it's not a `dry-run` execution.
+    - `self.execute_sync`: This method is implemented by default, using the output from load_adapter methods. Only executed if it's not a `dry-run` execution.
 
 5. Optionally, on your Job class, also implement the `lookup_object`, `data_mappings`, and/or `config_information` APIs (to provide more information to the end user about the details of this Job), as well as the various metadata properties on your Job's `Meta` inner class. Refer to the example Jobs provided in this app for examples and further details.
 6. Install your Job via any of the supported Nautobot methods (installation into the `JOBS_ROOT` directory, inclusion in a Git repository, or packaging as part of a app) and it should automatically become available!
@@ -140,9 +140,9 @@ In most if not all cases, the side of an SSoT job that interacts with the non-Na
 Here is an unoptimized high-level workflow:
 
 - Collect sites
-  - For each site, collect all devices
-    - For each device, collect the interface information
-    - For each device, collect the VLAN information
+    - For each site, collect all devices
+        - For each device, collect the interface information
+        - For each device, collect the VLAN information
 
 Similar to the database example further up, this suffers from having to perform a lookup (or in this case two) per instance of the lowest item in the hierarchy. It could be optimized (given the availability of bulk endpoints in the remote system) to look something like the following:
 
@@ -177,8 +177,8 @@ class DataSource(DataSource, Job):
 Using this example, the CRUD (create, update and delete) operations of your job will not happen as part of the atomic database transaction, because `post_run` is run outside of that. This brings with it the following caveats:
 
 - The job result page in Nautobot will show the status of "Completed" _before_ your actual sync runs
-  - You will need to manually update the page to get further job log results
-  - The job result might still go into an erroneous state, updating the job result status
+    - You will need to manually update the page to get further job log results
+    - The job result might still go into an erroneous state, updating the job result status
 - If you implement any further logic in `post_run` keep in mind that it doesn't bubble exceptions up to the job result page in Nautobot
 - If any exceptions are encountered during the CRUD operations (i.e. the diffsync models' `create`, `update` and `delete` methods) they will _not_ trigger a rollback of the objects created during this job
 

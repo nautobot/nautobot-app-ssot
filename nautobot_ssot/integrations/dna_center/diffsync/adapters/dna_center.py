@@ -251,7 +251,8 @@ class DnaCenterAdapter(Adapter):
                     ),
                     "parent_of_parent": (
                         self.job.dnac.location.parent.parent.parent.parent.name
-                        if self.job.dnac.location.parent.parent.parent.parent
+                        if self.job.dnac.location.parent.parent.parent
+                        and self.job.dnac.location.parent.parent.parent.parent
                         else None
                     ),
                 },

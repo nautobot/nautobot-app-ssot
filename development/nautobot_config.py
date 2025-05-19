@@ -265,6 +265,30 @@ PLUGINS_CONFIG = {
         "infoblox_verify_ssl": is_truthy(os.getenv("NAUTOBOT_SSOT_INFOBLOX_VERIFY_SSL", "true")),
         "infoblox_wapi_version": os.getenv("NAUTOBOT_SSOT_INFOBLOX_WAPI_VERSION", "v2.12"),
         "infoblox_network_view": os.getenv("NAUTOBOT_SSOT_INFOBLOX_NETWORK_VIEW", ""),
+        "ipfabric_api_token": os.getenv("NAUTOBOT_SSOT_IPFABRIC_API_TOKEN"),
+        "ipfabric_host": os.getenv("NAUTOBOT_SSOT_IPFABRIC_HOST"),
+        "ipfabric_ssl_verify": is_truthy(os.getenv("NAUTOBOT_SSOT_IPFABRIC_SSL_VERIFY", "true")),
+        "nautobot_host": os.getenv("NAUTOBOT_HOST"),
+        "ipfabric_timeout": os.getenv("NAUTOBOT_SSOT_IPFABRIC_TIMEOUT", 15),
+        "ipfabric_default_device_role": os.getenv("NAUTOBOT_SSOT_IPFABRIC_DEVICE_ROLE", "Network Device"),
+        "ipfabric_default_device_status": os.getenv("NAUTOBOT_SSOT_IPFABRIC_DEVICE_STATUS", "Active"),
+        "ipfabric_sync_ipf_dev_type_to_role": is_truthy(
+            os.getenv("NAUTOBOT_SSOT_IPFABRIC_SYNC_IPF_DEV_TYPE_TO_ROLE", "true")
+        ),
+        "ipfabric_default_interface_mac": os.getenv("NAUTOBOT_SSOT_IPFABRIC_INTERFACE_MAC", "00:00:00:00:00:01"),
+        "ipfabric_default_interface_mtu": os.getenv("NAUTOBOT_SSOT_IPFABRIC_INTERFACE_MTU", 1500),
+        "ipfabric_default_interface_type": os.getenv("NAUTOBOT_SSOT_IPFABRIC_INTERFACE_TYPE", "1000base-t"),
+        "ipfabric_safe_delete_device_status": os.getenv("NAUTOBOT_SSOT_IPFABRIC_DEVICE_DELETE_STATUS", "Offline"),
+        "ipfabric_safe_delete_location_status": os.getenv(
+            "NAUTOBOT_SSOT_IPFABRIC_LOCATION_DELETE_STATUS", "Decommissioning"
+        ),
+        "ipfabric_safe_delete_vlan_status": os.getenv("NAUTOBOT_SSOT_IPFABRIC_VLAN_DELETE_STATUS", "Deprecated"),
+        "ipfabric_safe_delete_ipaddress_status": os.getenv(
+            "NAUTOBOT_SSOT_IPFABRIC_IPADDRESS_DELETE_STATUS", "Deprecated"
+        ),
+        "ipfabric_use_canonical_interface_name": is_truthy(
+            os.getenv("NAUTOBOT_SSOT_USE_CANONICAL_INTERFACE_NAME", "true")
+        ),
         "servicenow_instance": os.getenv("SERVICENOW_INSTANCE", ""),
         "servicenow_password": os.getenv("SERVICENOW_PASSWORD", ""),
         "servicenow_username": os.getenv("SERVICENOW_USERNAME", ""),

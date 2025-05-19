@@ -31,6 +31,7 @@ class DashboardClient:
                 base_url="https://api.meraki.com/api/v1/",
                 output_log=False,
                 print_console=False,
+                wait_on_rate_limit=True,
             )
             return dashboard
         except meraki.APIError as err:

@@ -1,6 +1,6 @@
 """DiffSyncModel subclasses for Nautobot-to-AristaCV data sync."""
 
-from typing import List, Optional
+from typing import List, Optional, Union
 from uuid import UUID
 
 from diffsync import DiffSyncModel
@@ -132,5 +132,5 @@ class CustomField(DiffSyncModel):
     _children = {}
 
     name: str
-    value: str
+    value: Union[str, bool]
     device_name: str

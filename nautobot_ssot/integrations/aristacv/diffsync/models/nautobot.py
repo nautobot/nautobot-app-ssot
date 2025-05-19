@@ -1,6 +1,5 @@
 """Nautobot DiffSync models for AristaCV SSoT."""
 
-import distutils
 import logging
 
 from django.contrib.contenttypes.models import ContentType
@@ -363,11 +362,6 @@ class NautobotCustomField(CustomField):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Custom Field in Nautobot."""
-        try:
-            attrs["value"] = bool(distutils.util.strtobool(attrs["value"]))
-        except ValueError:
-            # value isn't convertable to bool so continue
-            pass
         device = OrmDevice.objects.get(name=ids["device_name"])
         try:
             device.custom_field_data.update({ids["name"]: attrs["value"]})
@@ -383,11 +377,6 @@ class NautobotCustomField(CustomField):
 
     def update(self, attrs):
         """Update Custom Field in Nautobot."""
-        try:
-            attrs["value"] = bool(distutils.util.strtobool(attrs["value"]))
-        except ValueError:
-            # value isn't convertable to bool so continue
-            pass
         device = OrmDevice.objects.get(name=self.device_name)
         device.custom_field_data.update({self.name: attrs["value"]})
         device.validated_save()
