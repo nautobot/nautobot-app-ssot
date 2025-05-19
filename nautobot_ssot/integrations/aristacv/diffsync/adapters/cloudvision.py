@@ -5,7 +5,6 @@ import ipaddress
 import re
 
 import arista.tag.v2 as TAG
-from pydantic import ValidationError
 from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from pydantic import ValidationError
