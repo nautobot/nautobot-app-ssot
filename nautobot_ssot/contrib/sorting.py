@@ -27,14 +27,18 @@ def _is_sortable_field(attribute_type_hints) -> bool:
     ]
 
 
-def _get_sort_key_from_typed_dict(sortable_content_type) -> str:
+def get_sort_key_from_typed_dict(sortable_content_type) -> str:
     """Get the dictionary key from a TypedDict if found."""
-    for key, value in sortable_content_type.__annotations__.items():
-        try:
-            metadata = value.__metadata__
-        except AttributeError:
+    try:
+        annotations: dict = sortable_content_type.__annotations__
+    except AttributeError:
+        # If no annotations, no sort key set
+        return None
+
+    for key, value in annotations.items():
+        if not hasattr(value, "__metadata__"):
             continue
-        for entry in metadata:
+        for entry in value.__metadata__:
             if entry == SortKey:
                 return key
     return None
@@ -54,7 +58,7 @@ def get_sortable_fields_from_model(model: DiffSyncModel) -> dict:
         sortable_content_type = attribute_type_hints.__args__[0]
 
         if issubclass(sortable_content_type, dict):
-            sort_key = _get_sort_key_from_typed_dict(sortable_content_type)
+            sort_key = get_sort_key_from_typed_dict(sortable_content_type)
             if not sort_key:
                 continue
             sortable_fields[model_attribute_name] = {

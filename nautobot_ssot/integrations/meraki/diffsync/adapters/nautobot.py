@@ -51,23 +51,6 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
 
     top_level = ["network", "hardware", "osversion", "device", "prefix", "prefixlocation", "ipaddress", "ipassignment"]
 
-    status_map = {}
-    tenant_map = {}
-    locationtype_map = {}
-    region_map = {}
-    site_map = {}
-    platform_map = {}
-    manufacturer_map = {}
-    devicerole_map = {}
-    devicetype_map = {}
-    device_map = {}
-    port_map = {}
-    namespace_map = {}
-    prefix_map = {}
-    ipaddr_map = {}
-    contenttype_map = {}
-    version_map = {}
-
     def __init__(self, job, sync=None, tenant: Optional[Tenant] = None):
         """Initialize Nautobot.
 
@@ -82,6 +65,22 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
         self.tenant = tenant
         self.objects_to_create = defaultdict(list)
         self.objects_to_delete = defaultdict(list)
+        self.status_map = {}
+        self.tenant_map = {}
+        self.locationtype_map = {}
+        self.region_map = {}
+        self.site_map = {}
+        self.platform_map = {}
+        self.manufacturer_map = {}
+        self.devicerole_map = {}
+        self.devicetype_map = {}
+        self.device_map = {}
+        self.port_map = {}
+        self.namespace_map = {}
+        self.prefix_map = {}
+        self.ipaddr_map = {}
+        self.contenttype_map = {}
+        self.version_map = {}
 
     def load_sites(self):
         """Load Site data from Nautobot into DiffSync model."""
@@ -226,15 +225,23 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
             if str(ipaddr.parent.namespace) not in self.ipaddr_map:
                 self.ipaddr_map[str(ipaddr.parent.namespace)] = {}
             self.ipaddr_map[str(ipaddr.parent.namespace)][str(ipaddr.address)] = ipaddr.id
-            new_ip = self.ipaddress(
-                address=str(ipaddr.address),
-                prefix=str(ipaddr.parent.prefix) if ipaddr.parent else "",
-                tenant=ipaddr.tenant.name if ipaddr.tenant else None,
-                uuid=ipaddr.id,
+            new_ip, loaded = self.get_or_instantiate(
+                self.ipaddress,
+                ids={
+                    "host": ipaddr.host,
+                    "prefix": str(ipaddr.parent.prefix),
+                    "tenant": ipaddr.tenant.name if ipaddr.tenant else None,
+                },
+                attrs={
+                    "mask_length": ipaddr.mask_length,
+                },
             )
-            if self.tenant:
+            if loaded and self.tenant:
                 new_ip.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
-            self.add(new_ip)
+            if not loaded:
+                self.job.logger.warning(
+                    f"Duplicate IP address {ipaddr.host}/{ipaddr.mask_length} {ipaddr.id} found and being skipped."
+                )
 
     def load_ipassignments(self):
         """Load IPAddressToInterface from Nautobot into DiffSync models."""

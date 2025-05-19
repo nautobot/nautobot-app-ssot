@@ -131,11 +131,12 @@ class IPAddress(DiffSyncModel):
     """DiffSync model for Meraki IP Addresses."""
 
     _modelname = "ipaddress"
-    _identifiers = ("address", "prefix")
-    _attributes = ("tenant",)
+    _identifiers = ("host", "prefix", "tenant")
+    _attributes = ("mask_length",)
     _children = {}
 
-    address: str
+    host: str
+    mask_length: int
     prefix: str
     tenant: Optional[str] = None
 

@@ -8,6 +8,7 @@ import arista.tag.v2 as TAG
 from pydantic import ValidationError
 from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
+from pydantic import ValidationError
 
 from nautobot_ssot.integrations.aristacv.diffsync.models.cloudvision import (
     CloudvisionCustomField,
@@ -71,7 +72,10 @@ class CloudvisionAdapter(Adapter):
                 self.job.logger.warning(f"Error attempting to add CloudVision device. {err}")
 
         for index, dev in enumerate(
-            cloudvision.get_devices(client=self.conn.comm_channel, import_active=config.import_active), start=1
+            cloudvision.get_devices(
+                client=self.conn.comm_channel, logger=self.job.logger, import_active=config.import_active
+            ),
+            start=1,
         ):
             if self.job.debug:
                 self.job.logger.info(f"Loading {index}° device")

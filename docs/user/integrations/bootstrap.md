@@ -5,6 +5,7 @@
 ### Bootstrap as DataSource
 
 Synchronization of data follows this workflow:
+
 1. Load data from Bootstrap YAML file (limited to `models_to_sync`)
 2. Load data from Nautobot (limited to `models_to_sync`, and objects that also have the `CustomField` `system_of_record` set to "Bootstrap".)
 3. DiffSync determines Creates, Updates, Deletes
@@ -807,7 +808,7 @@ scheduled_job:
 
 ### Software
 
- - Note: Requires Nautobot Device Lifecycle Plugin Installed
+- Note: Requires Nautobot Device Lifecycle Plugin Installed
 
 Create Software objects. Uses the following data structure:
 
@@ -828,7 +829,7 @@ The `device_platform` key must be a Platform that exists in Nautobot or is creat
 
 ### SoftwareImage
 
-  - Note: Requires Nautobot Device Lifecycle Plugin Installed
+- Note: Requires Nautobot Device Lifecycle Plugin Installed
 
 Create Software Image objects. Uses the following data structure:
 
@@ -849,7 +850,7 @@ The `software`, `platform`, and `software_version` keys are linked and should be
 
 ### ValidatedSoftware
 
-  - Note: Requires Nautobot Device Lifecycle Plugin Installed
+- Note: Requires Nautobot Device Lifecycle Plugin Installed
 
 Create ValidatedSoftware objects. Uses the following data structure:
 

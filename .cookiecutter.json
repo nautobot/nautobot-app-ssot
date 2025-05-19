@@ -21,7 +21,7 @@
         "_drift_manager": {
             "template": "https://github.com/nautobot/cookiecutter-nautobot-app.git",
             "template_dir": "nautobot-app",
-            "template_ref": "refs/tags/nautobot-app-v2.4.2",
+            "template_ref": "refs/tags/nautobot-app-v2.5.0",
             "cookie_dir": "",
             "branch_prefix": "drift-manager",
             "pull_request_strategy": "create",
@@ -30,7 +30,7 @@
                 "poetry"
             ],
             "draft": false,
-            "baked_commit_ref": "a9ba090fb8fb08d173c3c720a6dbe92a59f4c6f8"
+            "baked_commit_ref": "a93c33a2e5583173d90b69dbc7268ca90083a248"
         }
     }
 }

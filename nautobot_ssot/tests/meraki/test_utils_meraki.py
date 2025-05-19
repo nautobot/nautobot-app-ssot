@@ -21,7 +21,11 @@ class TestDashboardClient(TestCase):
         dashboard_client = DashboardClient(logger, org_id, token)
 
         mock_api.assert_called_once_with(
-            api_key=token, base_url="https://api.meraki.com/api/v1/", output_log=False, print_console=False
+            api_key=token,
+            base_url="https://api.meraki.com/api/v1/",
+            output_log=False,
+            print_console=False,
+            wait_on_rate_limit=True,
         )
 
         self.assertIsNotNone(dashboard_client.conn)

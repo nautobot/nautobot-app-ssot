@@ -1,6 +1,5 @@
 """Nautobot DiffSync models for AristaCV SSoT."""
 
-import distutils
 import logging
 
 from django.contrib.contenttypes.models import ContentType

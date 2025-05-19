@@ -177,16 +177,18 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 if loaded:
                     self.add(new_port)
                     device.add_child(new_port)
-                    if port_uplink_settings["svis"]["ipv4"]["assignmentMode"] == "static":
-                        port_svis = port_uplink_settings["svis"]["ipv4"]
+                    port_svis = port_uplink_settings["svis"]["ipv4"]
+                    if port_svis["assignmentMode"] == "static":
                         prefix = ipaddress_interface(ip=port_svis["address"], attr="network.with_prefixlen")
                         self.load_prefix(prefix=prefix)
                         self.load_prefix_location(
                             prefix=prefix,
                             location=self.conn.network_map[network_id]["name"],
                         )
+                        host_addr, mask_length = port_svis["address"].split("/")
                         self.load_ipaddress(
-                            address=port_svis["address"],
+                            host_addr=host_addr,
+                            mask_length=mask_length,
                             prefix=prefix,
                         )
                         self.load_ipassignment(
@@ -256,7 +258,8 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                         location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
                     )
                     self.load_ipaddress(
-                        address=f"{mgmt_ports[port]['staticIp']}/{netmask_to_cidr(mgmt_ports[port]['staticSubnetMask'])}",
+                        host_addr=mgmt_ports[port]["staticIp"],
+                        mask_length=netmask_to_cidr(mgmt_ports[port]["staticSubnetMask"]),
                         prefix=prefix,
                     )
                     self.load_ipassignment(
@@ -312,7 +315,8 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                         location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
                     )
                     self.load_ipaddress(
-                        address=f"{mgmt_ports[port]['staticIp']}/{netmask_to_cidr(mgmt_ports[port]['staticSubnetMask'])}",
+                        host_addr=mgmt_ports[port]["staticIp"],
+                        mask_length=netmask_to_cidr(mgmt_ports[port]["staticSubnetMask"]),
                         prefix=net_prefix,
                     )
                     self.load_ipassignment(
@@ -365,7 +369,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                         prefix=prefix,
                         location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
                     )
-                self.load_ipaddress(address=f"{addr['address']}/{prefix_length}", prefix=prefix)
+                self.load_ipaddress(host_addr=addr["address"], mask_length=prefix_length, prefix=prefix)
                 self.load_ipassignment(
                     address=f"{addr['address']}/{prefix_length}",
                     dev_name=device.name,
@@ -393,18 +397,19 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
             attrs={"uuid": None},
         )
 
-    def load_ipaddress(self, address: str, prefix: str):
+    def load_ipaddress(self, host_addr: str, mask_length: int, prefix: str):
         """Load IPAddresses of devices into DiffSync models."""
-        try:
-            self.get(self.ipaddress, {"address": address, "prefix": prefix})
-        except ObjectNotFound:
-            new_ip = self.ipaddress(
-                address=address,
-                prefix=prefix,
-                tenant=self.tenant.name if self.tenant else None,
-                uuid=None,
-            )
-            self.add(new_ip)
+        self.get_or_instantiate(
+            self.ipaddress,
+            ids={
+                "host": host_addr,
+                "prefix": prefix,
+                "tenant": self.tenant.name if self.tenant else None,
+            },
+            attrs={
+                "mask_length": mask_length,
+            },
+        )
 
     def load_ipassignment(self, address: str, dev_name: str, port: str, primary: bool):
         """Load IPAddressesToInterface of devices into DiffSync models."""
