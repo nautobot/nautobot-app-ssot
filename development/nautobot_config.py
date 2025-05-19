@@ -228,6 +228,7 @@ PLUGINS_CONFIG = {
         "enable_servicenow": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_SERVICENOW")),
         "enable_slurpit": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_SLURPIT")),
         "enable_solarwinds": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_SOLARWINDS")),
+        "enable_vsphere": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_VSPHERE")),
         "hide_example_jobs": is_truthy(os.getenv("NAUTOBOT_SSOT_HIDE_EXAMPLE_JOBS")),
         "device42_defaults": {
             "site_status": "Active",
