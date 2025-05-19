@@ -65,7 +65,7 @@ The Secrets Group linked to the vSphere External Integration must contain passwo
 
 ### Configuring Virtual Machine Status Map
 
-Virtual Machine Status Map is a mandatory setting used to map the status of a machine in vSphere to a status in Nautobot.
+Virtual Machine Status Map is a mandatory setting used to map the status of a machine in vSphere to a Status in Nautobot.
 
 ```json
 {
@@ -77,11 +77,11 @@ Virtual Machine Status Map is a mandatory setting used to map the status of a ma
 
 The default value says that the status of `POWERED_OFF` translates to the `Offline` status in Nautobot, `POWERED_ON` to the `Active` status in Nautobot and `SUSPENDED` to the `Suspended` status in Nautobot.
 
-> Note: Installation of the vSphere integration with ensure that the above 3 statuses exist. If you change this setting, you will have to ensure that the Nautobot status you are mapping to has already been created. It is highly recommended to leave the default settings here.
+> Note: Installation of the vSphere integration will ensure that the above 3 Statuses exist. If you change this setting, you will have to ensure that the Nautobot Status you are mapping to has already been created. It is highly recommended to leave the default settings here.
 
 ### Configuring Virtual Machine IP Status Map
 
-Virtual Machine IP Status Map is a mandatory setting used to map the status of and IP address in vSphere to a status in Nautobot.
+Virtual Machine IP Status Map is a mandatory setting used to map the status of and IP address in vSphere to a Status in Nautobot.
 
 ```json
 {
@@ -92,11 +92,11 @@ Virtual Machine IP Status Map is a mandatory setting used to map the status of a
 
 The default maps the `PREFERRED` and `UNKNOWN` states from vSphere to the `Active` and `Reserved`, respectively. 
 
-> Note: Installation of the vSphere integration with ensure that the above 2 statuses exist. If you change this setting, you will have to ensure that the Nautobot status you are mapping to has already been created. It is highly recommended to leave the default settings here.
+> Note: Installation of the vSphere integration will ensure that the above 2 Statuses exist. If you change this setting, you will have to ensure that the Nautobot Status you are mapping to has already been created. It is highly recommended to leave the default settings here.
 
 ### Configuring Virtual Machine Interface Status Map
 
-Virtual Machine Interface Status Map is a mandatory setting used to map the status of an Interface in vSphere to a status in Nautobot.
+Virtual Machine Interface Status Map is a mandatory setting used to map the status of an Interface in vSphere to a Status in Nautobot.
 
 ```json
 {
@@ -104,10 +104,10 @@ Virtual Machine Interface Status Map is a mandatory setting used to map the stat
     "NOT_CONNECTED": false
 }
 ```
-> Note: Installation of the vSphere integration with ensure that the above 2 statuses exist. If you change this setting, you will have to ensure that the Nautobot status you are mapping to has already been created. It is highly recommended to leave the default settings here.
+> Note: Installation of the vSphere integration will ensure that the above 2 Statuses exist. If you change this setting, you will have to ensure that the Nautobot Status you are mapping to has already been created. It is highly recommended to leave the default settings here.
 ## Custom Fields, Statuses and Tags
 
-The vSphere Integration requires the following Nautobot custom fields and tags to function correctly. These are created automatically when Nautobot is started and care should be taken to ensure these are not deleted. 
+The vSphere Integration requires the following Nautobot Custom Fields and Tags to function correctly. These are created automatically when Nautobot is started and care should be taken to ensure these are not deleted. 
 
 ### Custom Fields
 
