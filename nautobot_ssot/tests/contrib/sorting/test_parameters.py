@@ -9,34 +9,16 @@ from nautobot.tenancy.models import Tenant
 from typing_extensions import Annotated, TypedDict, get_type_hints
 
 from nautobot_ssot.contrib import NautobotAdapter, NautobotModel
-from nautobot_ssot.tests.contrib.sorting.objects import NautobotTenant
+from nautobot_ssot.tests.contrib.sorting.objects import (
+    NautobotTenant,
+    BasicNautobotTenant,
+    SimpleNautobotTenant,
+)
 
 from nautobot_ssot.contrib.sorting.parameters import (
-    SortListTypeStandard,
     SortListTypeWithDict,
     parameter_factory,
 )
-
-class TestSortListTypeStandard(TestCase):
-    """"""
-
-    def setUp(self):
-        """"""
-        self.sorter = SortListTypeStandard(name="Test Parameter")
-
-    def test_sort_strings(self):
-        """Test sorting Basic strings."""
-        sorted_list = self.sorter(["X", "C", "M"])
-        self.assertEqual(sorted_list[0], "C")
-        self.assertEqual(sorted_list[1], "M")
-        self.assertEqual(sorted_list[2], "X")
-
-    def test_sort_integers(self):
-        """Test sorting integers."""
-        sorted_list = self.sorter([100, 5, 60])
-        self.assertEqual(sorted_list[0], 5)
-        self.assertEqual(sorted_list[1], 60)
-        self.assertEqual(sorted_list[2], 100)
 
 
 class TestSortListTypeWithDict(TestCase):
@@ -57,18 +39,41 @@ class TestSortListTypeWithDict(TestCase):
 
 
 class TestParameterFactory(TestCase):
-    """"""
+    """Test cases for the parameter factory."""
 
     def setUp(self):
-        """"""
+        """Setup the test class."""
         self.model = NautobotTenant
         self.type_hints = get_type_hints(self.model, include_extras=True)
 
+        self.basic_model = BasicNautobotTenant
+        self.basic_type_hints = get_type_hints(self.basic_model, include_extras=True)
 
-    def test_valid_list_of_dictionaries(self):
-        """"""
+        self.simple_model = SimpleNautobotTenant
+        self.simple_type_hints = get_type_hints(self.simple_model, include_extras=True)
+
+
+    def test_model_with_typed_dict_and_sort_key(self):
+        """Test getting sorting class with model with TypedDict and sort key."""
         result = parameter_factory(
             "tags",
             self.type_hints["tags"],
         )
         self.assertTrue(isinstance(result, SortListTypeWithDict))
+
+
+    def test_model_with_typed_dict_no_sort_key(self):
+        """Test getting sorting class with model with TypedDict and sort key."""
+        result = parameter_factory(
+            "tags",
+            self.basic_type_hints["tags"],
+        )
+        self.assertIsNone(result)
+
+    def test_model_with_standard_dict(self):
+        """Test getting sorting class with model with TypedDict and sort key."""
+        result = parameter_factory(
+            "tags",
+            self.simple_type_hints["tags"],
+        )
+        self.assertIsNone(result)

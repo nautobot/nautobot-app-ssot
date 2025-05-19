@@ -1,4 +1,4 @@
-"""Unit tests for contrib sorting."""
+"""Unit tests objects for use contrib sorting unittests."""
 
 from typing import List, Optional
 from unittest.mock import MagicMock
@@ -39,6 +39,18 @@ class BasicNautobotTag(NautobotModel):
     description: Optional[str] = None
 
 
+class BasicNautobotTenant(NautobotModel):
+    """A basic tenant model for testing the `NautobotModel` base class."""
+
+    _model = Tenant
+    _modelname = "tenant"
+    _identifiers = ("name",)
+    _attributes = ("tags",)
+
+    name: str
+    tags: List[BasicNautobotTag] = []
+
+
 class NautobotTenant(NautobotModel):
     """A basic tenant model for testing the `NautobotModel` base class."""
 
@@ -50,7 +62,8 @@ class NautobotTenant(NautobotModel):
     name: str
     tags: List[TagDict] = []
 
-class NautobotTenant(NautobotModel):
+
+class SimpleNautobotTenant(NautobotModel):
     """A basic tenant model for testing the `NautobotModel` base class."""
 
     _model = Tenant
@@ -59,7 +72,8 @@ class NautobotTenant(NautobotModel):
     _attributes = ("tags",)
 
     name: str
-    tags: List[TagDict] = []
+    tags: List[dict] = []
+
 
 
 class TestAdapter(NautobotAdapter):
