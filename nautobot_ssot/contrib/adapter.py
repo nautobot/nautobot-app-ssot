@@ -405,8 +405,17 @@ class NautobotAdapter(DiffSync):
             },
         )
 
+        # Get All diffsync models from adapter's top_level attribute
+        diffsync_models = []
         for model_name in self.top_level:
             diffsync_model = self._get_diffsync_class(model_name)
+            diffsync_models.append(diffsync_model)
+            for children_parameter, _ in diffsync_model._children.items():
+                diffsync_model_child = self._get_diffsync_class(model_name=children_parameter)
+                diffsync_models.append(diffsync_model_child)
+
+        for diffsync_model in diffsync_models:
+            # Get nautobot model from diffsync model
             nautobot_model = diffsync_model._model
             # Attach ContentTypes to MetadataType
             content_type = ContentType.objects.get_for_model(nautobot_model)

@@ -256,10 +256,6 @@ class NautobotModel(DiffSyncModel):
         cls._set_many_to_many_fields(relationship_fields["many_to_many_fields"], obj)
 
     @classmethod
-    def _update_obj_with_metadata(cls, obj, parameters, adapter):
-        pass
-
-    @classmethod
     def _set_custom_relationship_to_many_fields(cls, custom_relationship_many_to_many_fields, obj, adapter):
         for _, dictionary in custom_relationship_many_to_many_fields.items():
             annotation = dictionary.pop("annotation")
