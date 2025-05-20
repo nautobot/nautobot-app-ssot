@@ -3,15 +3,14 @@
 from django.test import TestCase
 from typing_extensions import get_type_hints
 
+from nautobot_ssot.contrib.sorting.parameters import (
+    SortListTypeWithDict,
+    parameter_factory,
+)
 from nautobot_ssot.tests.contrib.sorting.objects import (
     BasicNautobotTenant,
     NautobotTenant,
     SimpleNautobotTenant,
-)
-
-from nautobot_ssot.contrib.sorting.parameters import (
-    parameter_factory,
-    SortListTypeWithDict,
 )
 
 
@@ -24,7 +23,7 @@ class TestSortListTypeWithDict(TestCase):
 
     def test_sorting_basic_dictionaries(self):
         """Test basic dictionary."""
-        list_1 = [{"name": "X"},{"name": "C"},{"name": "M"}]
+        list_1 = [{"name": "X"}, {"name": "C"}, {"name": "M"}]
         sorted_list = self.sorter(list_1)
         self.assertEqual(sorted_list[0]["name"], "C", sorted_list)
         self.assertEqual(sorted_list[1]["name"], "M", sorted_list)
@@ -45,7 +44,6 @@ class TestParameterFactory(TestCase):
         self.simple_model = SimpleNautobotTenant
         self.simple_type_hints = get_type_hints(self.simple_model, include_extras=True)
 
-
     def test_model_with_typed_dict_and_sort_key(self):
         """Test getting sorting class with model with TypedDict and sort key."""
         result = parameter_factory(
@@ -53,7 +51,6 @@ class TestParameterFactory(TestCase):
             self.type_hints["tags"],
         )
         self.assertTrue(isinstance(result, SortListTypeWithDict))
-
 
     def test_model_with_typed_dict_no_sort_key(self):
         """Test getting sorting class with model with TypedDict and sort key."""

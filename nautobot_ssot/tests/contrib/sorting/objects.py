@@ -1,15 +1,12 @@
 """Unit tests objects for use contrib sorting unittests."""
 
 from typing import List, Optional
-from unittest.mock import MagicMock
 
-from django.test import TestCase
 from nautobot.extras.models import Tag
 from nautobot.tenancy.models import Tenant
-from typing_extensions import Annotated, TypedDict, get_type_hints
+from typing_extensions import Annotated, TypedDict
 
 from nautobot_ssot.contrib import NautobotAdapter, NautobotModel
-
 from nautobot_ssot.contrib.typeddicts import SortKey
 
 
@@ -73,7 +70,6 @@ class SimpleNautobotTenant(NautobotModel):
 
     name: str
     tags: List[dict] = []
-
 
 
 class TestAdapter(NautobotAdapter):

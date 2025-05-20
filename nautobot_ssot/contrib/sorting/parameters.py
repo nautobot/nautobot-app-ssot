@@ -1,10 +1,9 @@
-from typing_extensions import TypedDict, get_type_hints, Annotated, Optional, Dict, List
-from typing_extensions import get_args
-from typing_extensions import get_origin
-from diffsync import DiffSyncModel
-from dataclasses import dataclass, field
-from inspect import get_annotations
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from inspect import get_annotations
+
+from typing_extensions import Annotated, List, get_args, get_origin
+
 from nautobot_ssot.contrib.typeddicts import SortKey
 
 
