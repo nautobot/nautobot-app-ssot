@@ -1,36 +1,29 @@
 """Unit tests for contrib sorting."""
 
-from typing_extensions import List, Optional
-from unittest.mock import MagicMock
-
 from django.test import TestCase
-from nautobot.extras.models import Tag
-from nautobot.tenancy.models import Tenant
-from typing_extensions import Annotated, TypedDict, get_type_hints
+from typing_extensions import get_type_hints
 
-from nautobot_ssot.contrib import NautobotAdapter, NautobotModel
 from nautobot_ssot.tests.contrib.sorting.objects import (
-    NautobotTenant,
     BasicNautobotTenant,
+    NautobotTenant,
     SimpleNautobotTenant,
 )
 
 from nautobot_ssot.contrib.sorting.parameters import (
-    SortListTypeWithDict,
     parameter_factory,
+    SortListTypeWithDict,
 )
 
 
 class TestSortListTypeWithDict(TestCase):
-    """"""
+    """Unittests for sorting lists of dictionaries."""
 
     def setUp(self):
-        """"""
+        """Set up the test class."""
         self.sorter = SortListTypeWithDict(name="tags", sort_key="name")
 
-
     def test_sorting_basic_dictionaries(self):
-        """"""
+        """Test basic dictionary."""
         list_1 = [{"name": "X"},{"name": "C"},{"name": "M"}]
         sorted_list = self.sorter(list_1)
         self.assertEqual(sorted_list[0]["name"], "C", sorted_list)
