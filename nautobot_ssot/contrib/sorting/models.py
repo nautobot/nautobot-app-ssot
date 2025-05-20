@@ -3,11 +3,9 @@
 from dataclasses import dataclass, field
 
 from diffsync import DiffSyncModel
-from temp import BaseParameter as ParameterInterface
-
-# from nautobot_ssot.contrib.sorting.parameters import parameter_factory, ParameterInterface
-from temp import parameter_factory
 from typing_extensions import get_type_hints
+
+from nautobot_ssot.contrib.sorting.parameters import ParameterInterface, parameter_factory
 
 
 @dataclass
@@ -29,8 +27,8 @@ class ModelSortingInterface:
         self.load_parameters()
 
     def load_parameters(self):
-        """Load"""
-        for attribute in self.model_class._attributes:
+        """Load sortable parameters to class."""
+        for attribute in self.model_class._attributes:  # pylint: disable=protected-access
             parameter_sorter = parameter_factory(attribute, self.type_hints[attribute])
             if not parameter_sorter:
                 continue

@@ -1,3 +1,5 @@
+"""Dataclasses for sorting parameters."""
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from inspect import get_annotations
@@ -14,7 +16,7 @@ class ParameterInterface(ABC):
     name: str
 
     @abstractmethod
-    def __call__(self, input):
+    def __call__(self, data):
         """Call method for class to sort associated type."""
 
 
@@ -24,10 +26,10 @@ class SortListTypeWithDict(ParameterInterface):
 
     sort_key: str
 
-    def __call__(self, input):
+    def __call__(self, data):
         """Sort a list of dictionaries using specified sort key."""
         return sorted(
-            input,
+            data,
             key=lambda x: x[self.sort_key],
         )
 
