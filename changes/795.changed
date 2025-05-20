@@ -1,0 +1,3 @@
+Moved `NautobotAdapter` caching to separate caching class.
+Moved some functionality of `NautobotAdapter` to separate helper functions.
+General code refactoring and cleanup.
