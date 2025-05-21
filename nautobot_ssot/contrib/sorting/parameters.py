@@ -1,4 +1,17 @@
-"""Dataclasses for sorting parameters."""
+"""Dataclasses for sorting parameters.
+
+Parameter classes here are focused on identifying different types of sortable attributes and
+contain the functionality and data to sort them when the class is called.
+
+
+Naming Convention: 
+    Each final class should be named "Sort" + data type that is being sorted. For example, 
+    a sorting class that sorts a list of dictionaries would be `SortListTypeWithDict` as
+    demonstrated in the class below.
+    - Starts with "Sort"
+    - Specifies primary data type with `ListType`
+    - Specifies contents of primary data type with `WithDict`
+"""
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
