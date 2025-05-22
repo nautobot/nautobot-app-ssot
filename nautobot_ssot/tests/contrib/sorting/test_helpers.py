@@ -5,7 +5,7 @@ from nautobot_ssot.contrib.typeddicts import SortKey
 from nautobot_ssot.contrib.types import CustomFieldAnnotation
 from unittest import TestCase
 from nautobot_ssot.contrib.sorting.helpers import get_attribute_origin_and_args, get_dict_sort_key
-
+from diffsync import DiffSyncModel
 
 class ValidTypedDictSortKey(TypedDict):
     """Valid Typed Dict for testing."""
@@ -144,7 +144,7 @@ class TestGetAttributeOriginAndArgs(TestCase):
         origin, args = get_attribute_origin_and_args("str1")
         self.assertIsNone(origin)
         self.assertEqual(args, [])
-    
+
     def test_integer_instance(self):
         origin, args = get_attribute_origin_and_args(42)
         self.assertIsNone(origin)

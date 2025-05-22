@@ -5,7 +5,7 @@ from typing_extensions import get_type_hints
 
 from nautobot_ssot.contrib.sorting.parameters import (
     SortListTypeWithDict,
-    parameter_factory,
+    sort_attribute_factory,
 )
 from nautobot_ssot.tests.contrib.sorting.objects import (
     BasicNautobotTenant,
@@ -46,7 +46,7 @@ class TestParameterFactory(TestCase):
 
     def test_model_with_typed_dict_and_sort_key(self):
         """Test getting sorting class with model with TypedDict and sort key."""
-        result = parameter_factory(
+        result = sort_attribute_factory(
             "tags",
             self.type_hints["tags"],
         )
@@ -54,7 +54,7 @@ class TestParameterFactory(TestCase):
 
     def test_model_with_typed_dict_no_sort_key(self):
         """Test getting sorting class with model with TypedDict and sort key."""
-        result = parameter_factory(
+        result = sort_attribute_factory(
             "tags",
             self.basic_type_hints["tags"],
         )
@@ -62,7 +62,7 @@ class TestParameterFactory(TestCase):
 
     def test_model_with_standard_dict(self):
         """Test getting sorting class with model with TypedDict and sort key."""
-        result = parameter_factory(
+        result = sort_attribute_factory(
             "tags",
             self.simple_type_hints["tags"],
         )

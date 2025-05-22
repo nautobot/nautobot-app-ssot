@@ -15,15 +15,13 @@ Naming Convention:
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from inspect import get_annotations
 
-from typing_extensions import Annotated, List, get_args, get_origin
+from typing_extensions import List
 
-from nautobot_ssot.contrib.typeddicts import SortKey
-
+from nautobot_ssot.contrib.sorting.helpers import get_dict_sort_key, get_attribute_origin_and_args
 
 @dataclass
-class ParameterInterface(ABC):
+class SortAttributeInterface(ABC):
     """Base class for sortable attribute types."""
 
     name: str
@@ -34,7 +32,7 @@ class ParameterInterface(ABC):
 
 
 @dataclass
-class SortListTypeWithDict(ParameterInterface):
+class SortListTypeWithDict(SortAttributeInterface):
     """Class for sorting lists of dictionaries."""
 
     sort_key: str
@@ -47,38 +45,35 @@ class SortListTypeWithDict(ParameterInterface):
         )
 
 
-def parameter_factory(name, type_hints):
+def _factory_list_types(name, args):
+    """Function for getting sorting class for list types.
+
+    Currently only returns a sorting class if:
+    - List content type is a subclass of a dictionary
+    - Dictionary is a `TypedDict` with `SortKey` specified in one of the keys
+    """
+    list_content_type = args.pop(0)
+
+    # List of dictionaries
+    if issubclass(list_content_type, dict):
+        # Return Dict Parameter type
+        # Content type should be first entry in args, pop it out
+        if sort_key := get_dict_sort_key(list_content_type):
+            return SortListTypeWithDict(
+                name=name, 
+                sort_key=sort_key,
+            )
+    # Standard lists not needed right now, only lists of dictionaries.
+    return None
+
+def sort_attribute_factory(name, type_hints):
     """Factory method for getting the correct sort class."""
     # Origin determines the first level of annotations.
     # If single type hint with no annotations or metadata (in square brackets), it returns None
-    origin = get_origin(type_hints)
-    args = list(get_args(type_hints))
-    if origin == Annotated:
-        # If annotated, get the origin of the first argument
-        origin = get_origin(args.pop(0))
+    origin, args = get_attribute_origin_and_args(type_hints)
 
-    if not origin:
-        return None
-
-    # Handle lists
     if origin in (list, List):
-        if issubclass(args[0], dict):
-            # Return Dict Parameter type
-            # Content type should be first entry in args, pop it out
-            content_type = args.pop(0)
-            # Check if dict class has sort key specified
-            for key_name, key_annotation in get_annotations(content_type).items():
-                if get_origin(key_annotation) != Annotated:
-                    continue
-                if SortKey in get_args(key_annotation):
-                    return SortListTypeWithDict(
-                        name=name,
-                        sort_key=key_name,
-                    )
-            # No sort key found for dictionary; nothing to sort
-            return None
-
-    # end if list type
+        return _factory_list_types(name, args)
     # Add other sort types here
 
     # If no sorting class found, return None

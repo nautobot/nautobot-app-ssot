@@ -1,7 +1,7 @@
 """Helper functions for SSoT sorting."""
 
-from nautobot_ssot.contrib.typeddicts import SortKey
 from inspect import get_annotations
+from nautobot_ssot.contrib.typeddicts import SortKey
 from typing_extensions import Annotated, get_origin, get_args
 
 def get_dict_sort_key(dict_type: type):
