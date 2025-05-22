@@ -6,7 +6,7 @@ from typing_extensions import Annotated, get_origin, get_args
 
 def get_dict_sort_key(dict_type: type):
     """Get sort key, if any, from specified dictionary type.
-    
+
     Sort keys are identified by annotating the field in TypedDict objects.
     """
     if not issubclass(dict_type, dict):
@@ -20,5 +20,14 @@ def get_dict_sort_key(dict_type: type):
     return None
 
 
+def get_attribute_origin_and_args(type_hints):
+    """Get the origin and arguments for a TypedDict attribute when passing pre-determined type hints.
 
-
+    If the initial `get_origin` is `Annoted`, it will return the `get_origin` of the first argument.
+    """
+    origin = get_origin(type_hints)
+    args = list(get_args(type_hints))
+    if origin == Annotated:
+        # If annotated, get the origin of the first argument
+        origin = get_origin(args.pop(0))
+    return origin, args
