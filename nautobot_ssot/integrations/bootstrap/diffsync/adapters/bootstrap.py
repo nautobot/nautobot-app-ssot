@@ -47,16 +47,27 @@ from nautobot_ssot.integrations.bootstrap.utils import (
     get_scheduled_start_time,
     is_running_tests,
     lookup_content_type,
+    validate_hashing_algorithm,
+    validate_software_image_status,
+    validate_software_version_status,
 )
+from nautobot_ssot.utils import core_supports_softwareversion, dlm_supports_softwarelcm, validate_dlm_installed
 
-try:
+if core_supports_softwareversion():
+    from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (  # noqa: F401
+        BootstrapSoftware,
+        BootstrapSoftwareImage,
+    )
+
+    if validate_dlm_installed():
+        import nautobot_device_lifecycle_mgmt  # noqa: F401
+
+        from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (  # noqa: F401
+            BootstrapValidatedSoftware,
+        )
+elif dlm_supports_softwarelcm():
     import nautobot_device_lifecycle_mgmt  # noqa: F401
 
-    LIFECYCLE_MGMT = True
-except ImportError:
-    LIFECYCLE_MGMT = False
-
-if LIFECYCLE_MGMT:
     from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (  # noqa: F401
         BootstrapSoftware,
         BootstrapSoftwareImage,
@@ -98,12 +109,15 @@ class LabelMixin:
             "graph_ql_query",
         ]
 
-        if LIFECYCLE_MGMT:
-            _model_list.append(
-                "software",
-                "software_image",
-                "validated_software",
-            )
+        if core_supports_softwareversion():
+            _model_list.append("software_version")
+            _model_list.append("software_image_file")
+            if validate_dlm_installed():
+                _model_list.append("validated_software")
+        elif dlm_supports_softwarelcm():
+            _model_list.append("software")
+            _model_list.append("software_image")
+            _model_list.append("validated_software")
 
         for modelname in _model_list:
             for local_instance in self.get_all(modelname):
@@ -161,7 +175,12 @@ class BootstrapAdapter(Adapter, LabelMixin):
     tag = BootstrapTag
     graph_ql_query = BootstrapGraphQLQuery
 
-    if LIFECYCLE_MGMT:
+    if core_supports_softwareversion():
+        software_version = BootstrapSoftware
+        software_image_file = BootstrapSoftwareImage
+        if validate_dlm_installed():
+            validated_software = BootstrapValidatedSoftware
+    elif dlm_supports_softwarelcm():
         software = BootstrapSoftware
         software_image = BootstrapSoftwareImage
         validated_software = BootstrapValidatedSoftware
@@ -197,7 +216,12 @@ class BootstrapAdapter(Adapter, LabelMixin):
         "graph_ql_query",
     ]
 
-    if LIFECYCLE_MGMT:
+    if core_supports_softwareversion():
+        top_level.append("software_version")
+        top_level.append("software_image_file")
+        if validate_dlm_installed():
+            top_level.append("validated_software")
+    elif dlm_supports_softwarelcm():
         top_level.append("software")
         top_level.append("software_image")
         top_level.append("validated_software")
@@ -895,13 +919,22 @@ class BootstrapAdapter(Adapter, LabelMixin):
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Software {software}")
         try:
-            self.get(
-                self.software,
-                {
-                    "version": software["version"],
-                    "platform": software["device_platform"],
-                },
-            )
+            if core_supports_softwareversion():
+                self.get(
+                    self.software_version,
+                    {
+                        "version": software["version"],
+                        "platform": software["device_platform"],
+                    },
+                )
+            else:
+                self.get(
+                    self.software,
+                    {
+                        "version": software["version"],
+                        "platform": software["device_platform"],
+                    },
+                )
         except ObjectNotFound:
             try:
                 _release_date = datetime.datetime.strptime(software["release_date"], "%Y-%m-%d")
@@ -915,40 +948,90 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 _documentation_url = ""
             else:
                 _documentation_url = software["documentation_url"]
-            _new_software = self.software(
-                version=software["version"],
-                platform=software["device_platform"],
-                alias=software["alias"] if not None else "",
-                release_date=_release_date,
-                eos_date=_eos_date,
-                documentation_url=_documentation_url,
-                long_term_support=software["lts"],
-                pre_release=software["pre_release"],
-                tags=software["tags"],
-                system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
-            )
+            if core_supports_softwareversion():
+                _status = validate_software_version_status(software["status"], software["version"], self.job.logger)
+
+                _new_software = self.software_version(
+                    version=software["version"],
+                    platform=software["device_platform"],
+                    status=_status,
+                    alias=software["alias"] if not None else "",
+                    release_date=_release_date,
+                    eos_date=_eos_date,
+                    documentation_url=_documentation_url,
+                    long_term_support=software["lts"],
+                    pre_release=software["pre_release"],
+                    tags=software["tags"],
+                    system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
+                )
+            else:
+                _new_software = self.software(
+                    version=software["version"],
+                    platform=software["device_platform"],
+                    alias=software["alias"] if not None else "",
+                    release_date=_release_date,
+                    eos_date=_eos_date,
+                    documentation_url=_documentation_url,
+                    long_term_support=software["lts"],
+                    pre_release=software["pre_release"],
+                    tags=software["tags"],
+                    system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
+                )
             self.add(_new_software)
+            if self.job.debug:
+                self.job.logger.debug(f"Loaded Bootstrap Software: {_new_software}")
 
     def load_software_image(self, software_image):
         """Load SoftwareImage objects from Bootstrap into DiffSync Models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap SoftwareImage {software_image}")
         try:
-            self.get(self.software_image, software_image["file_name"])
-        except ObjectNotFound:
-            _new_software_image = self.software_image(
-                software=f'{software_image["platform"]} - {software_image["software_version"]}',
-                platform=software_image["platform"],
-                software_version=software_image["software_version"],
-                file_name=software_image["file_name"],
-                download_url=software_image["download_url"],
-                image_file_checksum=software_image["image_file_checksum"],
-                hashing_algorithm=software_image["hashing_algorithm"],
-                default_image=software_image["default_image"] if not None else False,
-                tags=software_image["tags"],
-                system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
+            self.get(
+                self.software_image_file,
+                {
+                    "image_file_name": software_image["file_name"],
+                    "software_version": f"{software_image['platform']} - {software_image['software_version']}",
+                },
             )
+        except ObjectNotFound:
+            if core_supports_softwareversion():
+                _status = validate_software_image_status(
+                    software_image["status"], software_image["file_name"], self.job.logger
+                )
+                _hashing_algorithm = validate_hashing_algorithm(
+                    software_image.get("hashing_algorithm"), software_image["file_name"], self.job.logger
+                )
+
+                _new_software_image = self.software_image_file(
+                    platform=software_image["platform"],
+                    software_version=f"{software_image['platform']} - {software_image['software_version']}",
+                    image_file_name=software_image["file_name"],
+                    file_size=software_image["file_size"],
+                    status=_status,
+                    device_types=sorted(software_image["device_types"]),
+                    download_url=software_image["download_url"],
+                    image_file_checksum=software_image["image_file_checksum"],
+                    hashing_algorithm=_hashing_algorithm,
+                    default_image=software_image["default_image"] if not None else False,
+                    tags=software_image["tags"],
+                    system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
+                )
+            else:
+                _new_software_image = self.software_image(
+                    software=f'{software_image["platform"]} - {software_image["software_version"]}',
+                    platform=software_image["platform"],
+                    software_version=software_image["software_version"],
+                    file_name=software_image["file_name"],
+                    download_url=software_image["download_url"],
+                    image_file_checksum=software_image["image_file_checksum"],
+                    hashing_algorithm=software_image["hashing_algorithm"],
+                    default_image=software_image["default_image"] if not None else False,
+                    tags=software_image["tags"],
+                    system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
+                )
             self.add(_new_software_image)
+            if self.job.debug:
+                self.job.logger.debug(f"Loaded Bootstrap SoftwareImage: {_new_software_image}")
 
     def load_validated_software(self, validated_software):
         """Load ValidatedSoftware objects from Bootstrap into DiffSync Models."""
@@ -958,9 +1041,9 @@ class BootstrapAdapter(Adapter, LabelMixin):
             self.get(
                 self.validated_software,
                 {
-                    "software": {validated_software["software"]},
-                    "valid_since": {validated_software["valid_since"]},
-                    "valid_until": {validated_software["valid_until"]},
+                    "software": validated_software["software"],
+                    "valid_since": validated_software["valid_since"],
+                    "valid_until": validated_software["valid_until"],
                 },
             )
         except ObjectNotFound:
@@ -1247,7 +1330,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 for job in global_settings["scheduled_job"]:  # noqa: F821
                     self.load_scheduled_job(scheduled_job=job)
 
-        if LIFECYCLE_MGMT:
+        if core_supports_softwareversion():
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software"]:
                 if not global_settings.get("software"):  # noqa: F821
                     self.job.logger.warning("software not found in global_settings. Check if the key exists.")
@@ -1262,6 +1345,29 @@ class BootstrapAdapter(Adapter, LabelMixin):
                     for software_image in global_settings["software_image"]:  # noqa: F821
                         self.load_software_image(software_image=software_image)
 
+            if validate_dlm_installed():
+                if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["validated_software"]:
+                    if not global_settings.get("validated_software"):  # noqa: F821
+                        self.job.logger.warning(
+                            "validated_software not found in global_settings. Check if the key exists."
+                        )
+                    elif global_settings["validated_software"] is not None:  # noqa: F821
+                        for validated_software in global_settings["validated_software"]:  # noqa: F821
+                            self.load_validated_software(validated_software=validated_software)
+
+        elif dlm_supports_softwarelcm():
+            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software"]:
+                if not global_settings.get("software"):  # noqa: F821
+                    self.job.logger.warning("software not found in global_settings. Check if the key exists.")
+                elif global_settings["software"] is not None:  # noqa: F821
+                    for software in global_settings["software"]:  # noqa: F821
+                        self.load_software(software=software)
+            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software_image"]:
+                if not global_settings.get("software_image"):  # noqa: F821
+                    self.job.logger.warning("software_image not found in global_settings. Check if the key exists.")
+                elif global_settings["software_image"] is not None:  # noqa: F821
+                    for software_image in global_settings["software_image"]:  # noqa: F821
+                        self.load_software_image(software_image=software_image)
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["validated_software"]:
                 if not global_settings.get("validated_software"):  # noqa: F821
                     self.job.logger.warning("validated_software not found in global_settings. Check if the key exists.")
