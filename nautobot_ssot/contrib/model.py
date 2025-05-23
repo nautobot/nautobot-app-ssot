@@ -4,6 +4,7 @@
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
 from collections import defaultdict
+from datetime import datetime
 from typing import ClassVar, Optional
 from uuid import UUID
 
@@ -14,6 +15,7 @@ from django.core.exceptions import MultipleObjectsReturned, ValidationError
 from django.db.models import Model, ProtectedError
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
+from nautobot.extras.models.metadata import ObjectMetadata
 from typing_extensions import get_type_hints
 
 from nautobot_ssot.contrib.types import (
@@ -74,6 +76,8 @@ class NautobotModel(DiffSyncModel):
         try:
             obj = self.get_from_db()
             self._update_obj_with_parameters(obj, attrs, self.adapter)
+            if self.adapter.metadata_type:
+                self._update_obj_metadata(obj, self.adapter)
         except ObjectCrudException as error:
             raise ObjectNotUpdated(error) from error
         return super().update(attrs)
@@ -105,6 +109,12 @@ class NautobotModel(DiffSyncModel):
             cls._update_obj_with_parameters(obj, parameters, adapter)
         except ObjectCrudException as error:
             raise ObjectNotCreated(error) from error
+
+        if adapter.metadata_type:
+            try:
+                cls._update_obj_metadata(obj, adapter)
+            except ObjectCrudException as error:
+                raise ObjectNotCreated(error) from error
 
         return super().create(adapter, ids, attrs)
 
@@ -388,3 +398,16 @@ class NautobotModel(DiffSyncModel):
                     f"Found multiple instances for {field_name} wit: {related_model_dict}"
                 ) from error
             setattr(obj, field_name, related_object)
+
+    @classmethod
+    def _update_obj_metadata(cls, obj, adapter):
+        """Update a given Nautobot ORM object with the required object metadata."""
+        # Get the scope_fields from the DiffSync Model
+        obj_metadata_scope_fields = adapter.metadata_scope_fields[cls]
+        obj_metadata = obj.associated_object_metadata.filter(
+            metadata_type=adapter.metadata_type
+        ).first() or ObjectMetadata(metadata_type=adapter.metadata_type, assigned_object=obj)
+
+        obj_metadata.scoped_fields = obj_metadata_scope_fields
+        obj_metadata.value = datetime.now()
+        obj_metadata.validated_save()

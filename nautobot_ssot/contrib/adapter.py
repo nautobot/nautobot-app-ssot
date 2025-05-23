@@ -13,6 +13,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
+from nautobot.extras.models.metadata import MetadataType
 from typing_extensions import get_type_hints
 
 from nautobot_ssot.contrib.types import (
@@ -50,6 +51,8 @@ class NautobotAdapter(DiffSync):
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
+        self.metadata_type = None
+        self.metadata_scope_fields = {}
         self.invalidate_cache()
 
     def invalidate_cache(self, zero_out_hits=True):
@@ -387,3 +390,42 @@ class NautobotAdapter(DiffSync):
             if lookups[-1] in ["app_label", "model"]:
                 return getattr(ContentType.objects.get_for_model(related_object), lookups[-1])
         return None
+
+    def get_or_create_metadatatype(self):
+        """Retrieve or create a MetadataType object to track the last sync time of this SSoT job."""
+        # MetadataType name will be extracted from the Data Source name.
+        metadata_type__name = self.job.__class__.Meta.data_source
+
+        # Create a MetadataType of type datetime
+        metadata_type, _ = MetadataType.objects.get_or_create(
+            name=f"Last sync from {metadata_type__name}",
+            defaults={
+                "data_type": "datetime",
+                "description": f"Timestamp of the last sync from the Data source {metadata_type__name}",
+            },
+        )
+
+        # Get All diffsync models from adapter's top_level attribute
+        diffsync_models = []
+        for model_name in self.top_level:
+            diffsync_model = self._get_diffsync_class(model_name)
+            diffsync_models.append(diffsync_model)
+            for children_parameter, _ in diffsync_model._children.items():
+                diffsync_model_child = self._get_diffsync_class(model_name=children_parameter)
+                diffsync_models.append(diffsync_model_child)
+
+        for diffsync_model in diffsync_models:
+            # Get nautobot model from diffsync model
+            nautobot_model = diffsync_model._model
+            # Attach ContentTypes to MetadataType
+            content_type = ContentType.objects.get_for_model(nautobot_model)
+            if content_type not in metadata_type.content_types.all():
+                metadata_type.content_types.add(content_type)
+            # Define scope fields per model
+            obj_metadata_scope_fields = list(
+                {parameter.split("__", maxsplit=1)[0] for parameter in self._get_parameter_names(diffsync_model)}
+            )
+            self.metadata_scope_fields[diffsync_model] = obj_metadata_scope_fields
+
+        # Define the metadata type on the adapter so that can be used on the models crud operations
+        self.metadata_type = metadata_type
