@@ -4,8 +4,8 @@ Parameter classes here are focused on identifying different types of sortable at
 contain the functionality and data to sort them when the class is called.
 
 
-Naming Convention: 
-    Each final class should be named "Sort" + data type that is being sorted. For example, 
+Naming Convention:
+    Each final class should be named "Sort" + data type that is being sorted. For example,
     a sorting class that sorts a list of dictionaries would be `SortListTypeWithDict` as
     demonstrated in the class below.
     - Starts with "Sort"
@@ -16,9 +16,9 @@ Naming Convention:
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from typing_extensions import List
-
-from nautobot_ssot.contrib.sorting.helpers import get_dict_sort_key, get_attribute_origin_and_args
+from typing_extensions import List, is_typeddict, Any, get_type_hints
+from typing import _GenericAlias, TypeAlias
+from nautobot_ssot.contrib.sorting.helpers import get_attribute_origin_and_args, get_dict_sort_key
 
 @dataclass
 class SortAttributeInterface(ABC):
@@ -39,6 +39,8 @@ class SortListTypeWithDict(SortAttributeInterface):
 
     def __call__(self, data):
         """Sort a list of dictionaries using specified sort key."""
+        if not isinstance(data, list) or not isinstance(data[0], dict):
+            raise TypeError(f"Invalid input. List of dictionaries required, got `{data.__class__}`.")
         return sorted(
             data,
             key=lambda x: x[self.sort_key],
@@ -60,20 +62,28 @@ def _factory_list_types(name, args):
         # Content type should be first entry in args, pop it out
         if sort_key := get_dict_sort_key(list_content_type):
             return SortListTypeWithDict(
-                name=name, 
+                name=name,
                 sort_key=sort_key,
             )
     # Standard lists not needed right now, only lists of dictionaries.
     return None
 
-def sort_attribute_factory(name, type_hints):
-    """Factory method for getting the correct sort class."""
+
+def sorting_attribute_factory(attr_name: str, attr_type_hints: Any ):
+    """Factory method for getting the correct sort class.
+    
+    TODO: Verify variations in type_hints input and add check for it
+    """
+    if not isinstance(attr_name, str):
+        raise TypeError(f"Attribute name must be a string, got {attr_name.__class__}")
+    if " " in attr_name:
+        raise ValueError(f"Attribute names cannot have spaces, got `{attr_name}`.")
     # Origin determines the first level of annotations.
     # If single type hint with no annotations or metadata (in square brackets), it returns None
-    origin, args = get_attribute_origin_and_args(type_hints)
+    origin, args = get_attribute_origin_and_args(attr_type_hints)
 
     if origin in (list, List):
-        return _factory_list_types(name, args)
+        return _factory_list_types(attr_name, args)
     # Add other sort types here
 
     # If no sorting class found, return None

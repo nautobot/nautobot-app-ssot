@@ -1,11 +1,12 @@
 """Unit tests for contrib sorting."""
 
 from django.test import TestCase
+from unittest import skip
 from typing_extensions import get_type_hints
 
 from nautobot_ssot.contrib.sorting.parameters import (
     SortListTypeWithDict,
-    sort_attribute_factory,
+    sorting_attribute_factory,
 )
 from nautobot_ssot.tests.contrib.sorting.objects import (
     BasicNautobotTenant,
@@ -29,6 +30,56 @@ class TestSortListTypeWithDict(TestCase):
         self.assertEqual(sorted_list[1]["name"], "M", sorted_list)
         self.assertEqual(sorted_list[2]["name"], "X", sorted_list)
 
+    def test_sorting_list_of_strings(self):
+        """Test sorting when passing a list of strings."""
+        with self.assertRaises(TypeError):
+            self.sorter(["str1", "str2", "str3"])
+
+    def test_sorting_list_of_integers(self):
+        """Test sorting when passing a list of integers."""
+        with self.assertRaises(TypeError):
+            self.sorter([1, 2, 3, 4])
+
+    def test_sorting_string(self):
+        """Test sorting when passing a string."""
+        with self.assertRaises(TypeError):
+            self.sorter("Invalid String.")
+
+    def test_sorting_integer(self):
+        """Test sorting when passing an integer."""
+        with self.assertRaises(TypeError):
+            self.sorter(42)
+
+
+class TestParameterFactoryInvalidInputs(TestCase):
+    """"""
+
+    def setUp(self):
+        """Setup the test class."""
+        self.model = NautobotTenant
+        self.type_hints = get_type_hints(self.model, include_extras=True)
+
+    def test_invalid_string(self):
+        """Test to ensure"""
+        with self.assertRaises(ValueError):
+            sorting_attribute_factory("parameter name", {})
+
+    def test_integer_name(self):
+        """Test to ensure"""
+        with self.assertRaises(TypeError):
+            sorting_attribute_factory(54, {})
+
+    @skip("Validation not properly set yet.")
+    def test_string_type_hints(self):
+        """Test to ensure invalid type_hints are not accepted."""
+        with self.assertRaises(TypeError):
+            sorting_attribute_factory("name", "invalid type hint")
+
+    @skip("Validation not properly set yet.")
+    def test_mismatched_dict(self):
+        """Test for if """
+        result = sorting_attribute_factory("name", [])
+
 
 class TestParameterFactory(TestCase):
     """Test cases for the parameter factory."""
@@ -46,7 +97,7 @@ class TestParameterFactory(TestCase):
 
     def test_model_with_typed_dict_and_sort_key(self):
         """Test getting sorting class with model with TypedDict and sort key."""
-        result = sort_attribute_factory(
+        result = sorting_attribute_factory(
             "tags",
             self.type_hints["tags"],
         )
@@ -54,7 +105,7 @@ class TestParameterFactory(TestCase):
 
     def test_model_with_typed_dict_no_sort_key(self):
         """Test getting sorting class with model with TypedDict and sort key."""
-        result = sort_attribute_factory(
+        result = sorting_attribute_factory(
             "tags",
             self.basic_type_hints["tags"],
         )
@@ -62,8 +113,9 @@ class TestParameterFactory(TestCase):
 
     def test_model_with_standard_dict(self):
         """Test getting sorting class with model with TypedDict and sort key."""
-        result = sort_attribute_factory(
+        result = sorting_attribute_factory(
             "tags",
             self.simple_type_hints["tags"],
         )
         self.assertIsNone(result)
+#typing.List[nautobot_ssot.tests.contrib.sorting.objects.TagDict]
