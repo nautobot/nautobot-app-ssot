@@ -84,14 +84,20 @@ from nautobot_ssot.integrations.bootstrap.utils import (
     lookup_content_type_id,
     lookup_team_for_contact,
 )
-from nautobot_ssot.utils import core_supports_softwareversion, dlm_supports_softwarelcm, validate_dlm_installed
+from nautobot_ssot.utils import (
+    core_supports_softwareversion,
+    dlm_supports_softwarelcm,
+    validate_dlm_installed,
+)
 
 if core_supports_softwareversion():
-    from nautobot.dcim.models import (
-        SoftwareVersion as ORMSoftwareVersion,
-    )
+    from nautobot.dcim.models import SoftwareImageFile as ORMSoftwareImage
+    from nautobot.dcim.models import SoftwareVersion as ORMSoftware
 
-    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import Software, SoftwareImage
+    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import SoftwareImageFile, SoftwareVersion
+
+    _Software_Base_Class = SoftwareVersion
+    _SoftwareImage_Base_Class = SoftwareImageFile
 
 if dlm_supports_softwarelcm():
     from nautobot_device_lifecycle_mgmt.models import (
@@ -102,6 +108,9 @@ if dlm_supports_softwarelcm():
     )
 
     from nautobot_ssot.integrations.bootstrap.diffsync.models.base import Software, SoftwareImage
+
+    _Software_Base_Class = Software
+    _SoftwareImage_Base_Class = SoftwareImage
 
 if validate_dlm_installed():
     from nautobot_device_lifecycle_mgmt.models import (
@@ -1632,66 +1641,90 @@ class NautobotPrefix(Prefix):
             adapter.job.logger.warning(
                 f'Nautobot Tag {attrs["tags"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
             )
-        new_prefix = ORMPrefix(
-            network=ids["network"].split("/")[0],
-            prefix_length=ids["network"].split("/")[1],
-            namespace=_namespace,
-            type=attrs["prefix_type"] if attrs["prefix_type"] else "Network",
-            status=_status,
-            role=_role,
-            rir=_rir,
-            tenant=_tenant,
-            date_allocated=attrs["date_allocated"],
-            description=attrs["description"],
-            vlan=_vlan,
-        )
-        if attrs.get("tags"):
-            new_prefix.validated_save()
-            new_prefix.tags.clear()
-            for _tag in attrs["tags"]:
-                new_prefix.tags.add(ORMTag.objects.get(name=_tag))
-        new_prefix.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-        new_prefix.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
-        new_prefix.validated_save()
-        try:
-            if "locations" in attrs:
-                _locations = []
-                if attrs["locations"]:
-                    for _location in attrs["locations"]:
-                        _locations.append(ORMLocation.objects.get(name=_location))
-        except ORMLocation.DoesNotExist:
-            _location = None
-            adapter.job.logger.warning(
-                f'Nautobot Location {attrs["locations"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
-            )
-        if _locations:
-            for _location in _locations:
-                new_prefix.locations.add(_location)
-        try:
-            if "vrfs" in attrs:
-                _vrfs = []
-                if attrs["vrfs"]:
-                    for _vrf in attrs["vrfs"]:
-                        _vrf_name, _vrf_namespace = _vrf.split("__")
-                        _namespace = ORMNamespace.objects.get(name=_vrf_namespace)
-                        _vrfs.append(ORMVRF.objects.get(name=_vrf_name, namespace=_namespace))
-            if _vrfs:
-                for _vrf in _vrfs:
-                    adapter.job.logger.debug(f"Assigning VRF {_vrf} to Prefix {new_prefix}")
-                    new_prefix.vrfs.add(_vrf)
-        except ORMNamespace.DoesNotExist:
-            _vrf = None
-            if attrs["vrfs"]:
-                adapter.job.logger.warning(
-                    f'Nautobot Namespace {attrs["vrfs"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
-                )
-        except ORMVRF.DoesNotExist:
-            _vrf = None
-            adapter.job.logger.warning(
-                f'Nautobot VRF {attrs["vrfs"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
-            )
 
-        return super().create(adapter=adapter, ids=ids, attrs=attrs)
+        network_parts = ids["network"].strip().split("/")
+        if len(network_parts) != 2:
+            adapter.job.logger.error(
+                f'Invalid network format: {ids["network"]}. Expected format: network/prefix_length'
+            )
+            return None
+
+        try:
+            network_address = network_parts[0].strip()
+            prefix_length = int(network_parts[1].strip())
+
+            # Validate network address format
+            if not network_address or prefix_length < 0 or prefix_length > 128:
+                adapter.job.logger.Warning(
+                    f'Invalid network address or prefix length: {ids["network"]} skipping. Format should be network/prefix_length.'
+                )
+                return None
+
+            new_prefix = ORMPrefix(
+                network=network_address,
+                prefix_length=prefix_length,
+                namespace=_namespace,
+                type=attrs["prefix_type"] if attrs["prefix_type"] else "Network",
+                status=_status,
+                role=_role,
+                rir=_rir,
+                tenant=_tenant,
+                date_allocated=attrs["date_allocated"],
+                description=attrs["description"],
+                vlan=_vlan,
+            )
+            if attrs.get("tags"):
+                new_prefix.validated_save()
+                new_prefix.tags.clear()
+                for _tag in attrs["tags"]:
+                    new_prefix.tags.add(ORMTag.objects.get(name=_tag))
+            new_prefix.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
+            new_prefix.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
+            new_prefix.validated_save()
+            try:
+                if "locations" in attrs:
+                    _locations = []
+                    if attrs["locations"]:
+                        for _location in attrs["locations"]:
+                            _locations.append(ORMLocation.objects.get(name=_location))
+            except ORMLocation.DoesNotExist:
+                _location = None
+                adapter.job.logger.warning(
+                    f'Nautobot Location {attrs["locations"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                )
+            if _locations:
+                for _location in _locations:
+                    new_prefix.locations.add(_location)
+            try:
+                if "vrfs" in attrs:
+                    _vrfs = []
+                    if attrs["vrfs"]:
+                        for _vrf in attrs["vrfs"]:
+                            _vrf_name, _vrf_namespace = _vrf.split("__")
+                            _namespace = ORMNamespace.objects.get(name=_vrf_namespace)
+                            _vrfs.append(ORMVRF.objects.get(name=_vrf_name, namespace=_namespace))
+                if _vrfs:
+                    for _vrf in _vrfs:
+                        adapter.job.logger.debug(f"Assigning VRF {_vrf} to Prefix {new_prefix}")
+                        new_prefix.vrfs.add(_vrf)
+            except ORMNamespace.DoesNotExist:
+                _vrf = None
+                if attrs["vrfs"]:
+                    adapter.job.logger.warning(
+                        f'Nautobot Namespace {attrs["vrfs"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                    )
+            except ORMVRF.DoesNotExist:
+                _vrf = None
+                adapter.job.logger.warning(
+                    f'Nautobot VRF {attrs["vrfs"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                )
+
+            return super().create(adapter=adapter, ids=ids, attrs=attrs)
+        except ValueError:
+            adapter.job.logger.error(
+                f'Invalid network format: {ids["network"]}. Expected format: network/prefix_length'
+            )
+            return None
 
     def update(self, attrs):
         """Update Prefix in Nautobot from NautobotPrefix object."""
@@ -2409,122 +2442,146 @@ class NautobotScheduledJob(ScheduledJob):
     from django.utils.dateparse import parse_datetime
 
 
-if dlm_supports_softwarelcm() or core_supports_softwareversion():
+class NautobotSoftware(_Software_Base_Class):
+    """Nautobot implementation of Bootstrap Software model."""
 
-    class NautobotSoftware(Software):
-        """Nautobot implementation of Bootstrap Software model."""
+    @classmethod
+    def create(cls, adapter, ids, attrs):
+        """Create Software in Nautobot from NautobotSoftware object."""
+        _tags = []
+        for tag in attrs["tags"]:
+            _tags.append(ORMTag.objects.get(name=tag))
+        if core_supports_softwareversion():
+            _status = ORMStatus.objects.get(name=attrs["status"])
+        _platform = ORMPlatform.objects.get(name=ids["platform"])
+        if dlm_supports_softwarelcm():
+            _new_software = ORMSoftware(
+                version=ids["version"],
+                alias=attrs["alias"],
+                device_platform=_platform,
+                end_of_support_date=attrs["eos_date"],
+                long_term_support=attrs["long_term_support"],
+                pre_release=attrs["pre_release"],
+                documentation_url=attrs["documentation_url"],
+            )
+        elif core_supports_softwareversion():
+            _new_software = ORMSoftware(
+                version=ids["version"],
+                alias=attrs["alias"],
+                status=_status,
+                platform=_platform,
+                end_of_support_date=attrs["eos_date"],
+                long_term_support=attrs["long_term_support"],
+                pre_release=attrs["pre_release"],
+                documentation_url=attrs["documentation_url"],
+            )
+        else:
+            adapter.job.logger.error(
+                f"Software model not found so skipping creation of {ids['version']} for {ids['platform']}."
+            )
+            return None
+        adapter.job.logger.info(f'Creating Nautobot Software object {ids["platform"]} - {ids["version"]}.')
+        if attrs.get("tags"):
+            _new_software.validated_save()
+            _new_software.tags.clear()
+            for tag in attrs["tags"]:
+                _new_software.tags.add(ORMTag.objects.get(name=tag))
+        _new_software.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
+        _new_software.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
+        _new_software.validated_save()
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
-        @classmethod
-        def create(cls, adapter, ids, attrs):
-            """Create Software in Nautobot from NautobotSoftware object."""
-            _tags = []
+    def update(self, attrs):
+        """Update Software in Nautobot from NautobotSoftware object."""
+        _platform = ORMPlatform.objects.get(name=self.platform)
+        if dlm_supports_softwarelcm():
+            _update_software = ORMSoftware.objects.get(version=self.version, device_platform=_platform)
+        if core_supports_softwareversion():
+            _update_software = ORMSoftware.objects.get(version=self.version, platform=_platform)
+        self.adapter.job.logger.info(f"Updating Software: {self.platform} - {self.version}.")
+        if "alias" in attrs:
+            _update_software.alias = attrs["alias"]
+        if "status" in attrs:
+            _update_software.status = ORMStatus.objects.get(name=attrs["status"])
+        if attrs.get("release_date"):
+            _update_software.release_date = attrs["release_date"]
+        if attrs.get("eos_date"):
+            if core_supports_softwareversion():
+                _update_software.end_of_support_date = attrs["eos_date"]
+            else:
+                _update_software.end_of_support = attrs["eos_date"]
+        if attrs.get("long_term_support"):
+            _update_software.long_term_support = attrs["long_term_support"]
+        if attrs.get("pre_release"):
+            _update_software.pre_release = attrs["pre_release"]
+        if attrs.get("documentation_url"):
+            _update_software.documentation_url = attrs["documentation_url"]
+        if not attrs.get("documentation_url"):
+            if attrs.get("documentation_url") == "":
+                _update_software.documentation_url = ""
+        if attrs.get("tags"):
+            _update_software.tags.clear()
+            for tag in attrs["tags"]:
+                _update_software.tags.add(ORMTag.objects.get(name=tag))
+        if not check_sor_field(_update_software):
+            _update_software.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
+        _update_software.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
+        _update_software.validated_save()
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete Software in Nautobot from NautobotSoftware object."""
+        try:
+            _platform = ORMPlatform.objects.get(name=self.platform)
+            _software = ORMSoftware.objects.get(version=self.version, device_platform=_platform)
+            super().delete()
+            _software.delete()
+            return self
+        except ORMSoftware.DoesNotExist as err:
+            self.adapter.job.logger.warning(
+                f"Unable to find Software {self.platform} - {self.version} for deletion. {err}"
+            )
+
+
+class NautobotSoftwareImage(_SoftwareImage_Base_Class):
+    """Nautobot implementation of Bootstrap SoftwareImage model."""
+
+    @classmethod
+    def create(cls, adapter, ids, attrs):
+        """Create SoftwareImage in Nautobot from NautobotSoftwareImage object."""
+        if core_supports_softwareversion():
+            adapter.job.logger.info(f"Creating Software Image: {attrs['platform']} - {ids['software_version']}.")
+        else:
+            adapter.job.logger.info(f"Creating Software Image File: {attrs['platform']} - {ids['software']}.")
+        _tags = []
+        _device_types = []
+        if attrs["device_types"] is not None:
+            for dt in attrs["device_types"]:
+                _device_types.append(ORMDeviceType.objects.get(model=dt))
+        if core_supports_softwareversion():
+            _status = ORMStatus.objects.get(name=attrs.get(attrs["status"], "Active"))
+        else:
+            _status = ORMStatus.objects.get(name="Active")
+        if attrs["tags"] is not None:
             for tag in attrs["tags"]:
                 _tags.append(ORMTag.objects.get(name=tag))
-            _platform = ORMPlatform.objects.get(name=ids["platform"])
-            if dlm_supports_softwarelcm():
-                _new_software = ORMSoftware(
-                    version=ids["version"],
-                    alias=attrs["alias"],
-                    device_platform=_platform,
-                    end_of_support=attrs["eos_date"],
-                    long_term_support=attrs["long_term_support"],
-                    pre_release=attrs["pre_release"],
-                    documentation_url=attrs["documentation_url"],
-                )
-            elif core_supports_softwareversion():
-                _new_software = ORMSoftwareVersion(
-                    version=ids["version"],
-                    alias=attrs["alias"],
-                    platform=_platform,
-                    end_of_support_date=attrs["eos_date"],
-                    long_term_support=attrs["long_term_support"],
-                    pre_release=attrs["pre_release"],
-                    documentation_url=attrs["documentation_url"],
-                )
-            else:
-                adapter.job.logger.error(
-                    f"Software model not found so skipping creation of {ids['version']} for {ids['platform']}."
-                )
-                return None
-            adapter.job.logger.info(f'Creating Nautobot Software object {ids["platform"]} - {ids["version"]}.')
-            if attrs.get("tags"):
-                _new_software.validated_save()
-                _new_software.tags.clear()
-                for tag in attrs["tags"]:
-                    _new_software.tags.add(ORMTag.objects.get(name=tag))
-            _new_software.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-            _new_software.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
-            _new_software.validated_save()
-            return super().create(adapter=adapter, ids=ids, attrs=attrs)
-
-        def update(self, attrs):
-            """Update Software in Nautobot from NautobotSoftware object."""
-            _platform = ORMPlatform.objects.get(name=self.platform)
-            if dlm_supports_softwarelcm():
-                _update_software = ORMSoftware.objects.get(version=self.version, device_platform=_platform)
-            if core_supports_softwareversion():
-                _update_software = ORMSoftwareVersion.objects.get(version=self.version, platform=_platform)
-            self.adapter.job.logger.info(f"Updating Software: {self.platform} - {self.version}.")
-            if "alias" in attrs:
-                _update_software.alias = attrs["alias"]
-            if attrs.get("release_date"):
-                _update_software.release_date = attrs["release_date"]
-            if attrs.get("eos_date"):
-                _update_software.end_of_support = attrs["eos_date"]
-            if attrs.get("long_term_support"):
-                _update_software.long_term_support = attrs["long_term_support"]
-            if attrs.get("pre_release"):
-                _update_software.pre_release = attrs["pre_release"]
-            if attrs.get("documentation_url"):
-                _update_software.documentation_url = attrs["documentation_url"]
-            if not attrs.get("documentation_url"):
-                if attrs.get("documentation_url") == "":
-                    _update_software.documentation_url = ""
-            if attrs.get("tags"):
-                _update_software.tags.clear()
-                for tag in attrs["tags"]:
-                    _update_software.tags.add(ORMTag.objects.get(name=tag))
-            if not check_sor_field(_update_software):
-                _update_software.custom_field_data.update(
-                    {"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")}
-                )
-            _update_software.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
-            _update_software.validated_save()
-            return super().update(attrs)
-
-        def delete(self):
-            """Delete Software in Nautobot from NautobotSoftware object."""
-            try:
-                _platform = ORMPlatform.objects.get(name=self.platform)
-                _software = ORMSoftware.objects.get(version=self.version, device_platform=_platform)
-                super().delete()
-                _software.delete()
-                return self
-            except ORMSoftware.DoesNotExist as err:
-                self.adapter.job.logger.warning(
-                    f"Unable to find Software {self.platform} - {self.version} for deletion. {err}"
-                )
-
-
-if dlm_supports_softwarelcm():
-
-    class NautobotSoftwareImage(SoftwareImage):
-        """Nautobot implementation of Bootstrap SoftwareImage model."""
-
-        @classmethod
-        def create(cls, adapter, ids, attrs):
-            """Create SoftwareImage in Nautobot from NautobotSoftwareImage object."""
-            if not dlm_supports_softwarelcm():
-                adapter.job.logger.error(
-                    f"SoftwareImageLCM model not found so skipping creation of {attrs['software_version']} for {attrs['platform']}."
-                )
-                return None
-            _tags = []
-            if attrs["tags"] is not None:
-                for tag in attrs["tags"]:
-                    _tags.append(ORMTag.objects.get(name=tag))
-            _platform = ORMPlatform.objects.get(name=attrs["platform"])
+        _platform = ORMPlatform.objects.get(name=attrs["platform"])
+        if core_supports_softwareversion():
+            _software = ORMSoftware.objects.get(version=ids["software_version"], platform=_platform)
+        else:
             _software = ORMSoftware.objects.get(version=attrs["software_version"], device_platform=_platform)
+        if core_supports_softwareversion():
+            _new_soft_image = ORMSoftwareImage(
+                software_version=_software,
+                status=_status,
+                image_file_size=attrs["file_size"],
+                image_file_name=ids["image_file_name"],
+                image_file_checksum=attrs["image_file_checksum"],
+                hashing_algorithm=attrs["hashing_algorithm"],
+                download_url=attrs["download_url"],
+                default_image=attrs["default_image"],
+            )
+        else:
             _new_soft_image = ORMSoftwareImage(
                 software=_software,
                 image_file_name=attrs["file_name"],
@@ -2533,65 +2590,79 @@ if dlm_supports_softwarelcm():
                 download_url=attrs["download_url"],
                 default_image=attrs["default_image"],
             )
-            if attrs.get("tags"):
-                _new_soft_image.validated_save()
-                _new_soft_image.tags.clear()
-                for tag in attrs["tags"]:
-                    _new_soft_image.tags.add(ORMTag.objects.get(name=tag))
-            _new_soft_image.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
-            _new_soft_image.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
+        if attrs.get("tags"):
             _new_soft_image.validated_save()
-            return super().create(adapter=adapter, ids=ids, attrs=attrs)
+            _new_soft_image.tags.clear()
+            for tag in attrs["tags"]:
+                _new_soft_image.tags.add(ORMTag.objects.get(name=tag))
+        if attrs.get("device_types") and core_supports_softwareversion():
+            _new_soft_image.device_types.set(_device_types)
+        _new_soft_image.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
+        _new_soft_image.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
+        _new_soft_image.validated_save()
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
-        def update(self, attrs):
-            """Update SoftwareImage in Nautobot from NautobotSoftwareImage object."""
-            if not dlm_supports_softwarelcm():
-                self.adapter.job.logger.error(
-                    f"SoftwareImageLCM model not found so skipping update of {self.software_version} for {self.platform}."
-                )
-                return None
-            self.adapter.job.logger.info(f"Updating Software Image: {self.platform} - {self.software_version}.")
+    def update(self, attrs):
+        """Update SoftwareImage in Nautobot from NautobotSoftwareImage object."""
+        if core_supports_softwareversion():
+            self.adapter.job.logger.info(f"Updating Software Image: {self.software_version}.")
+        else:
+            self.adapter.job.logger.info(f"Updating Software Image File: {self.platform} - {self.software}.")
+        _platform = ORMPlatform.objects.get(name=self.platform)
+        if core_supports_softwareversion():
+            _software = ORMSoftware.objects.get(version=self.software_version.split(" - ")[1], platform=_platform)
+        else:
+            _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
+        if core_supports_softwareversion():
+            _update_soft_image = ORMSoftwareImage.objects.get(software_version=_software)
+        else:
+            _update_soft_image = ORMSoftwareImage.objects.get(software=_software)
+        if attrs.get("platform"):
+            _update_soft_image.platform = _platform
+        if "status" in attrs:
+            _update_soft_image.status = ORMStatus.objects.get(name=attrs["status"])
+        if attrs.get("file_size"):
+            _update_soft_image.image_file_size = attrs["file_size"]
+        if attrs.get("device_types"):
+            _update_soft_image.device_types.clear()
+            for dt in attrs["device_types"]:
+                _update_soft_image.device_types.add(ORMDeviceType.objects.get(model=dt))
+        if attrs.get("software_version"):
+            _update_soft_image.software_version = attrs["software_version"]
+        if attrs.get("file_name"):
+            _update_soft_image.image_file_name = attrs["file_name"]
+        if attrs.get("image_file_checksum"):
+            _update_soft_image.image_file_checksum = attrs["image_file_checksum"]
+        if attrs.get("hashing_algorithm"):
+            _update_soft_image.hashing_algorithm = attrs["hashing_algorithm"]
+        if attrs.get("download_url"):
+            _update_soft_image.download_url = attrs["download_url"]
+        if attrs.get("default_image"):
+            _update_soft_image.default_image = attrs["default_image"]
+        if attrs.get("tags"):
+            _update_soft_image.tags.clear()
+            if attrs["tags"] is not None:
+                for tag in attrs["tags"]:
+                    _update_soft_image.tags.add(ORMTag.objects.get(name=tag))
+        if not check_sor_field(_update_soft_image):
+            _update_soft_image.custom_field_data.update(
+                {"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")}
+            )
+        _update_soft_image.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
+        _update_soft_image.validated_save()
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete SoftwareImage in Nautobot from NautobotSoftwareImage object."""
+        try:
             _platform = ORMPlatform.objects.get(name=self.platform)
             _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
-            _update_soft_image = ORMSoftwareImage.objects.get(software=_software)
-            if attrs.get("platform"):
-                _update_soft_image.platform = _platform
-            if attrs.get("software_version"):
-                _update_soft_image.software_version = attrs["software_version"]
-            if attrs.get("file_name"):
-                _update_soft_image.image_file_name = attrs["file_name"]
-            if attrs.get("image_file_checksum"):
-                _update_soft_image.image_file_checksum = attrs["image_file_checksum"]
-            if attrs.get("hashing_algorithm"):
-                _update_soft_image.hashing_algorithm = attrs["hashing_algorithm"]
-            if attrs.get("download_url"):
-                _update_soft_image.download_url = attrs["download_url"]
-            if attrs.get("default_image"):
-                _update_soft_image.default_image = attrs["default_image"]
-            if attrs.get("tags"):
-                _update_soft_image.tags.clear()
-                if attrs["tags"] is not None:
-                    for tag in attrs["tags"]:
-                        _update_soft_image.tags.add(ORMTag.objects.get(name=tag))
-            if not check_sor_field(_update_soft_image):
-                _update_soft_image.custom_field_data.update(
-                    {"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")}
-                )
-            _update_soft_image.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
-            _update_soft_image.validated_save()
-            return super().update(attrs)
-
-        def delete(self):
-            """Delete SoftwareImage in Nautobot from NautobotSoftwareImage object."""
-            try:
-                _platform = ORMPlatform.objects.get(name=self.platform)
-                _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
-                _soft_image = ORMSoftwareImage.objects.get(software=_software)
-                super().delete()
-                _soft_image.delete()
-                return self
-            except ORMSoftwareImage.DoesNotExist as err:
-                self.adapter.job.logger.warning(f"Unable to find SoftwareImage {self.software} for deletion. {err}")
+            _soft_image = ORMSoftwareImage.objects.get(software=_software)
+            super().delete()
+            _soft_image.delete()
+            return self
+        except ORMSoftwareImage.DoesNotExist as err:
+            self.adapter.job.logger.warning(f"Unable to find SoftwareImage {self.software} for deletion. {err}")
 
 
 if validate_dlm_installed():
@@ -2602,6 +2673,8 @@ if validate_dlm_installed():
         @classmethod
         def create(cls, adapter, ids, attrs):
             """Create ValidatedSoftware in Nautobot from NautobotValidatedSoftware object."""
+            adapter.job.logger.info(f"Creating Validated Software: {attrs['software_version']}.")
+
             _devices = []  # noqa: F841
             _device_types = []  # noqa: F841
             _device_roles = []  # noqa: F841
@@ -2611,7 +2684,7 @@ if validate_dlm_installed():
             if dlm_supports_softwarelcm():
                 _software = ORMSoftware.objects.get(version=attrs["software_version"], device_platform=_platform)
             if core_supports_softwareversion():
-                _software = ORMSoftwareVersion.objects.get(version=attrs["software_version"], platform=_platform)
+                _software = ORMSoftware.objects.get(version=attrs["software_version"], platform=_platform)
             _new_validated_software = ORMValidatedSoftware(
                 software=_software,
                 start=ids["valid_since"] if not None else datetime.today().date(),
@@ -2659,6 +2732,8 @@ if validate_dlm_installed():
 
         def update(self, attrs):
             """Update ValidatedSoftware in Nautobot from NautobotValidatedSoftware object."""
+            self.adapter.job.logger.info(f"Updating Validated Software: {self.software_version}.")
+
             _tags = []  # noqa: F841
             _devices = []  # noqa: F841
             _device_types = []  # noqa: F841
@@ -2669,7 +2744,7 @@ if validate_dlm_installed():
             if dlm_supports_softwarelcm():
                 _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
             if core_supports_softwareversion():
-                _software = ORMSoftwareVersion.objects.get(version=self.software_version, platform=_platform)
+                _software = ORMSoftware.objects.get(version=self.software_version, platform=_platform)
             self.adapter.job.logger.info(f"Updating Validated Software - {self} with attrs {attrs}.")
             _update_validated_software = ORMValidatedSoftware.objects.get(
                 software=_software, start=self.valid_since, end=self.valid_until

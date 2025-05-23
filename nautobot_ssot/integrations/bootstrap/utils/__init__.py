@@ -163,3 +163,78 @@ def get_scheduled_start_time(start_time):
         return start_time.isoformat()
     except ValueError:
         return None
+
+
+def validate_software_version_status(status, version, logger):
+    """Validate software version status against valid choices.
+
+    Args:
+        status (str): Status to validate
+        version (str): Software version for logging
+        logger: Logger instance for warnings
+
+    Returns:
+        str: Validated status (lowercase) or 'active' if invalid
+    """
+    from nautobot.dcim.choices import SoftwareVersionStatusChoices
+
+    valid_statuses = [choice[0].lower() for choice in SoftwareVersionStatusChoices.CHOICES]
+    if status.lower() not in valid_statuses:
+        logger.warning(
+            f"Invalid status '{status}' for software version {version}. "
+            f"Valid choices are: {[choice[0] for choice in SoftwareVersionStatusChoices.CHOICES]}. "
+            f"Using default status 'active'."
+        )
+        return "active"
+    return status.lower()
+
+
+def validate_software_image_status(status, image_name, logger):
+    """Validate software image status against valid choices.
+
+    Args:
+        status (str): Status to validate
+        image_name (str): Image name for logging
+        logger: Logger instance for warnings
+
+    Returns:
+        str: Validated status (lowercase) or 'active' if invalid
+    """
+    from nautobot.dcim.choices import SoftwareImageFileStatusChoices
+
+    valid_statuses = [choice[0].lower() for choice in SoftwareImageFileStatusChoices.CHOICES]
+    if status.lower() not in valid_statuses:
+        logger.warning(
+            f"Invalid status '{status}' for software image {image_name}. "
+            f"Valid choices are: {[choice[0] for choice in SoftwareImageFileStatusChoices.CHOICES]}. "
+            f"Using default status 'active'."
+        )
+        return "active"
+    return status.lower()
+
+
+def validate_hashing_algorithm(algorithm, image_name, logger):
+    """Validate hashing algorithm against valid choices.
+
+    Args:
+        algorithm (str): Algorithm to validate
+        image_name (str): Image name for logging
+        logger: Logger instance for warnings
+
+    Returns:
+        str: Validated algorithm or None if invalid
+    """
+    from nautobot.dcim.choices import SoftwareImageFileHashingAlgorithmChoices
+
+    if not algorithm:
+        return None
+
+    valid_algorithms = [choice[0].lower() for choice in SoftwareImageFileHashingAlgorithmChoices.CHOICES]
+    if algorithm.lower() not in valid_algorithms:
+        logger.warning(
+            f"Invalid hashing algorithm '{algorithm}' for software image {image_name}. "
+            f"Valid choices are: {[choice[0] for choice in SoftwareImageFileHashingAlgorithmChoices.CHOICES]}. "
+            f"Setting to None."
+        )
+        return None
+    return algorithm.lower()
