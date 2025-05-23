@@ -51,8 +51,8 @@ class TestSortListTypeWithDict(TestCase):
             self.sorter(42)
 
 
-class TestParameterFactoryInvalidInputs(TestCase):
-    """"""
+class TestSortAttributeFactoryInvalidInputs(TestCase):
+    """Test the sorting attribute factory with invalid inputs."""
 
     def setUp(self):
         """Setup the test class."""
@@ -81,7 +81,7 @@ class TestParameterFactoryInvalidInputs(TestCase):
         result = sorting_attribute_factory("name", [])
 
 
-class TestParameterFactory(TestCase):
+class TestSortAttributeFactoryFactory(TestCase):
     """Test cases for the parameter factory."""
 
     def setUp(self):
@@ -118,4 +118,3 @@ class TestParameterFactory(TestCase):
             self.simple_type_hints["tags"],
         )
         self.assertIsNone(result)
-#typing.List[nautobot_ssot.tests.contrib.sorting.objects.TagDict]
