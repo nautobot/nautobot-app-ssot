@@ -90,7 +90,7 @@ def dlm_supports_softwarelcm() -> bool:
         bool: True if DLM version is 2.0.0 or lower, False otherwise.
     """
     try:
-        dlm_version = version("nautobot_device_lifecycle_management")
+        dlm_version = version("nautobot_device_lifecycle_mgmt")
         if re.match("[012].+", dlm_version):
             return True
     except PackageNotFoundError:

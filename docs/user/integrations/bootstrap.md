@@ -815,6 +815,7 @@ Create Software objects. Uses the following data structure:
 ```yaml
 software:
   - device_platform: # str
+    status: * # str
     version: # str
     alias: # str
     release_date: # date (YYYY-MM-DD)
@@ -825,7 +826,7 @@ software:
     tags: [] # List[str]
 ```
 
-The `device_platform` key must be a Platform that exists in Nautobot or is created by this plugin. The date fields `release_date` and `eos_date` need to be formatted YYYY-MM-DD in order to properly import.
+The `device_platform` key must be a Platform that exists in Nautobot or is created by this plugin. The date fields `release_date` and `eos_date` need to be formatted YYYY-MM-DD in order to properly import. Fields with a * are required if on Nautobot version 2.3.0 or later as the models moved to Core from the Device LifeCycle app and added additional required fields.
 
 ### SoftwareImage
 
@@ -837,16 +838,19 @@ Create Software Image objects. Uses the following data structure:
 software_image:
   - software: # str
     platform: # str
+    status: * # str
     software_version: # str
     file_name: # str
+    file_size: * # int
     download_url: # str
     image_file_checksum: # str
     hashing_algorithm: # str
     default_image: # bool
+    device_types: * [] # List[str]
     tags: [] # List[str]
 ```
 
-The `software`, `platform`, and `software_version` keys are linked and should be consistent. The Platform and Software must already be present in Nautobot for these models to be created. The format for the `software:` key is important and should be `<platform><space>-</space><software_version>`.
+The `software`, `platform`, and `software_version` keys are linked and should be consistent. The Platform and Software must already be present in Nautobot for these models to be created. The format for the `software:` key is important and should be `<platform><space>-</space><software_version>`. Fields with a * are required if on Nautobot version 2.3.0 or later as the models moved to Core from the Device LifeCycle app and added additional required fields.
 
 ### ValidatedSoftware
 

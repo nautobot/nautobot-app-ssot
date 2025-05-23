@@ -1,0 +1,1 @@
+Refactored handling of various Nautobot versions and Device Lifecycle Management app handling Software, SoftwareImage, and ValidatedSoftware models being synced.
