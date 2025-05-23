@@ -79,3 +79,9 @@
 
 - [704](https://github.com/nautobot/nautobot-app-ssot/pull/704) - Backport of #703 by @Kircheneer
 - [591](https://github.com/nautobot/nautobot-app-ssot/pull/591) - Backport of #591 by @Kircheneer
+
+## v1.6.6 - 2025-05-23
+
+## Changed
+
+- [829](https://github.com/nautobot/nautobot-app-ssot/pull/829) - Backport of #798 by @dsoftait
