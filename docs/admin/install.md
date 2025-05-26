@@ -79,9 +79,10 @@ sudo systemctl restart nautobot nautobot-worker nautobot-scheduler
 
 The app behavior can be controlled with the following list of settings:
 
-| Key                 | Example | Default | Description                                                       |
-| ------------------- | ------- | ------- | ----------------------------------------------------------------- |
-| `hide_example_jobs` | `True`  | `False` | A boolean to represent whether or not to display the example job. |
+| Key                  | Example        | Default   | Description                                                                 |
+|----------------------|----------------|-----------|-----------------------------------------------------------------------------|
+| `hide_example_jobs`  | `True`         | `False`   | A boolean to represent whether or not to display the example job.           |
+| `enable_metadata_for`| `DataSourceJob`| *(empty)* | List of job class names for which object metadata support should be enabled.|
 
 ## Integrations Configuration
 

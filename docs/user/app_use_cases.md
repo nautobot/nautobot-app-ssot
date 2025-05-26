@@ -48,6 +48,14 @@ The **Sync Logs** tab shows the logs captured from DiffSync regarding the indivi
 
 ![Sync logs view](../images/sync_logs.png)
 
+### Object Metadata Support
+
+Object Metadata Support enables SSoT jobs to associate [object metadata](https://docs.nautobot.com/projects/core/en/stable/user-guide/platform-functionality/objectmetadata/) with Nautobot objects. This metadata is not part of the object’s core data but provides additional context—such as sync status, sync source name, or last sync timestamp—without altering the object itself.
+
+Object Metadata can be enabled by setting the [enable_metadata_for](../admin/install.md/#app-configuration) option when using the `NautobotAdapter` class to synchronize objects, provided your Nautobot instance is the target of the synchronization. For example, if you're enabling object metadata for the `ExampleDataSource` job included in the example jobs of the nautobot-ssot app, you must include `ExampleDataSource` in the `enable_metadata_for` setting.
+
+When Object Metadata support is enabled, each object that is created or updated during the sync will be assigned metadata. The metadata type name is the `data_source` defined in the `Meta` class of your Nautobot SSoT job, and the value is a timestamp indicating the date and time of the last sync from that specific adapter. Continuing with the `ExampleDataSource` job example, since the `data_source` is defined as `Nautobot (remote)`, the metadata type name will also be `Nautobot (remote)`.
+
 ## Management Commands
 
 ### Elongate Interface Names
