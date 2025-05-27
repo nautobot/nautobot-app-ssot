@@ -224,8 +224,8 @@ def validate_hashing_algorithm(algorithm, image_name, logger):
     Returns:
         str: Validated algorithm or None if invalid
     """
-    from nautobot.dcim.choices import (
-        SoftwareImageFileHashingAlgorithmChoices,  # pylint: disable=import-outside-toplevel
+    from nautobot.dcim.choices import (  # pylint: disable=import-outside-toplevel
+        SoftwareImageFileHashingAlgorithmChoices,
     )
 
     if not algorithm:
