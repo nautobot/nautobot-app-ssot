@@ -176,7 +176,7 @@ def validate_software_version_status(status, version, logger):
     Returns:
         str: Validated status (lowercase) or 'active' if invalid
     """
-    from nautobot.dcim.choices import SoftwareVersionStatusChoices
+    from nautobot.dcim.choices import SoftwareVersionStatusChoices  # noqa: C0415
 
     valid_statuses = [choice[0].lower() for choice in SoftwareVersionStatusChoices.CHOICES]
     if status.lower() not in valid_statuses:
@@ -200,7 +200,7 @@ def validate_software_image_status(status, image_name, logger):
     Returns:
         str: Validated status (lowercase) or 'active' if invalid
     """
-    from nautobot.dcim.choices import SoftwareImageFileStatusChoices
+    from nautobot.dcim.choices import SoftwareImageFileStatusChoices  # noqa: C0415
 
     valid_statuses = [choice[0].lower() for choice in SoftwareImageFileStatusChoices.CHOICES]
     if status.lower() not in valid_statuses:
@@ -224,7 +224,7 @@ def validate_hashing_algorithm(algorithm, image_name, logger):
     Returns:
         str: Validated algorithm or None if invalid
     """
-    from nautobot.dcim.choices import SoftwareImageFileHashingAlgorithmChoices
+    from nautobot.dcim.choices import SoftwareImageFileHashingAlgorithmChoices  # noqa: C0415
 
     if not algorithm:
         return None
