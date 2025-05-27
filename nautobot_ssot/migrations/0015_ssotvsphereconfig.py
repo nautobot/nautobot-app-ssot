@@ -13,7 +13,7 @@ import nautobot_ssot.integrations.vsphere.models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("nautobot_ssot", "0013_update_solarwinds_customfields"),
+        ("nautobot_ssot", "0014_alter_sync_start_time_alter_synclogentry_timestamp"),
     ]
 
     operations = [
