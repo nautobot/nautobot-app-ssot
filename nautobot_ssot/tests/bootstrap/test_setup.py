@@ -1025,7 +1025,6 @@ class NautobotTestSetup:
     ):  # pylint: disable=too-many-arguments
         validated_software.devices.set(devices)
         validated_software.device_types.set(device_types)
-
-        _ = device_roles
-        _ = inventory_items
-        _ = object_tags
+        validated_software.device_roles.set(device_roles)
+        validated_software.inventory_items.set(inventory_items)
+        validated_software.object_tags.set(object_tags)

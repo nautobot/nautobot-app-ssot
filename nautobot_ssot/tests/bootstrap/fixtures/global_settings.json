@@ -860,5 +860,158 @@
       "start_time": "2025-01-28T23:00:00+00:00",
       "job_vars": {}
     }
+  ],
+  "software": [
+    {
+      "platform": "arista_eos",
+      "version": "4.25.10M",
+      "alias": "",
+      "release_date": "2023-12-04",
+      "eos_date": "2023-12-05",
+      "documentation_url": "https://arista.com",
+      "long_term_support": false,
+      "pre_release": false,
+      "tags": ["Backbone"],
+      "system_of_record": "Bootstrap"
+    },
+    {
+      "platform": "cisco_ios",
+      "version": "03.11.04.E",
+      "alias": "Cisco Validated",
+      "release_date": null,
+      "eos_date": "2023-12-04",
+      "documentation_url": "",
+      "long_term_support": false,
+      "pre_release": false,
+      "tags": ["Test"],
+      "system_of_record": "Bootstrap"
+    },
+    {
+      "platform": "paloalto_panos",
+      "version": "11.0.3",
+      "alias": "Panos Preferred",
+      "release_date": null,
+      "eos_date": "2024-12-04",
+      "documentation_url": "https://paloaltonetworks.com",
+      "long_term_support": false,
+      "pre_release": false,
+      "tags": ["Test"],
+      "system_of_record": "Bootstrap"
+    },
+    {
+      "platform": "arista_eos",
+      "version": "15.4.3",
+      "alias": "Arista Preferred",
+      "release_date": null,
+      "eos_date": "2024-12-04",
+      "documentation_url": "https://arista.com",
+      "long_term_support": false,
+      "pre_release": false,
+      "tags": ["Test"],
+      "system_of_record": "Bootstrap"
+    }
+  ],
+  "software_image": [
+    {
+      "software": "arista_eos - 15.4.3",
+      "platform": "arista_eos",
+      "software_version": "15.4.3",
+      "file_name": "arista15.4.3.bin",
+      "download_url": "https://arista-files.com",
+      "image_file_checksum": "",
+      "hashing_algorithm": "SHA256",
+      "default_image": false,
+      "tags": ["Test"],
+      "system_of_record": "Bootstrap"
+    },
+    {
+      "software": "paloalto_panos - 11.0.3",
+      "platform": "paloalto_panos",
+      "software_version": "11.0.3",
+      "file_name": "paloalto_11.0.3.bin",
+      "download_url": "https://paloaltonetworks.com",
+      "image_file_checksum": "o234i09usdfsflkj",
+      "hashing_algorithm": "SHA256",
+      "default_image": false,
+      "tags": [],
+      "system_of_record": "Bootstrap"
+    }
+  ],
+  "validated_software": [
+    {
+      "software": "arista_eos - 4.25.10M",
+      "platform": "arista_eos",
+      "software_version": "4.25.10M",
+      "valid_since": "2023-08-07",
+      "valid_until": "2025-01-01",
+      "preferred_version": false,
+      "devices": [],
+      "device_types": [],
+      "device_roles": [],
+      "inventory_items": [],
+      "object_tags": [],
+      "tags": ["Test"],
+      "system_of_record": "Bootstrap"
+    },
+    {
+      "software": "cisco_ios - 03.11.04.E",
+      "platform": "cisco_ios",
+      "software_version": "03.11.04.E",
+      "valid_since": "2023-08-07",
+      "valid_until": null,
+      "preferred_version": false,
+      "devices": [],
+      "device_types": [],
+      "device_roles": [],
+      "inventory_items": [],
+      "object_tags": [],
+      "tags": [],
+      "system_of_record": "Bootstrap"
+    },
+    {
+      "software": "paloalto_panos - 11.0.3",
+      "platform": "paloalto_panos",
+      "software_version": "11.0.3",
+      "valid_since": "2023-08-07",
+      "valid_until": null,
+      "preferred_version": false,
+      "devices": [],
+      "device_types": [],
+      "device_roles": ["Firewall"],
+      "inventory_items": [],
+      "object_tags": [],
+      "tags": [],
+      "system_of_record": "Bootstrap"
+    },
+    {
+      "software": "arista_eos - 15.4.3",
+      "platform": "arista_eos",
+      "software_version": "15.4.3",
+      "valid_since": "2023-08-07",
+      "valid_until": "2025-08-09",
+      "preferred_version": true,
+      "devices": [],
+      "device_types": [],
+      "device_roles": [],
+      "inventory_items": [],
+      "object_tags": ["Backbone"],
+      "tags": ["Test"],
+      "system_of_record": "Bootstrap"
+    },
+    {
+      "software": "arista_eos - 15.4.3",
+      "platform": "arista_eos",
+      "software_version": "15.4.3",
+      "valid_since": "2023-08-07",
+      "valid_until": null,
+      "preferred_version": true,
+      "devices": [],
+      "device_types": [],
+      "device_roles": [],
+      "inventory_items": [],
+      "object_tags": [],
+      "tags": [],
+      "system_of_record": "Bootstrap"
+    }
   ]
 }
