@@ -924,7 +924,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                     self.software_version,
                     {
                         "version": software["version"],
-                        "platform": software["device_platform"],
+                        "platform": software["platform"],
                     },
                 )
             else:
@@ -986,13 +986,21 @@ class BootstrapAdapter(Adapter, LabelMixin):
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap SoftwareImage {software_image}")
         try:
-            self.get(
-                self.software_image_file,
-                {
-                    "image_file_name": software_image["file_name"],
-                    "software_version": f"{software_image['platform']} - {software_image['software_version']}",
-                },
-            )
+            if core_supports_softwareversion():
+                self.get(
+                    self.software_image_file,
+                    {
+                        "image_file_name": software_image["file_name"],
+                        "software_version": f"{software_image['platform']} - {software_image['software_version']}",
+                    },
+                )
+            else:
+                self.get(
+                    self.software_image,
+                    {
+                        "software": f"{software_image['platform']} - {software_image['software_version']}",
+                    },
+                )
         except ObjectNotFound:
             if core_supports_softwareversion():
                 _status = validate_software_image_status(

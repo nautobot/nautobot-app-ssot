@@ -70,7 +70,7 @@ def assert_deep_diff(test_case, actual, expected, keys_to_normalize=None):
                     item[key] = None
                 if key == "content_types" or key == "provided_contents" and isinstance(item[key], list):
                     item[key] = sorted(["config contexts" if v == "extras.configcontext" else v for v in item[key]])
-                if key == "date_allocated":
+                if key in ["date_allocated", "valid_since", "valid_until"]:
                     if item.get(key) is not None:
                         # Normalize the format to 'YYYY-MM-DD HH:MM:SS' for consistency
                         if isinstance(item[key], datetime):
