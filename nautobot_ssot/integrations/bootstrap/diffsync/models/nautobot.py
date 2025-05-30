@@ -2610,7 +2610,7 @@ class NautobotSoftwareImage(_SoftwareImage_Base_Class):
             self.adapter.job.logger.info(f"Updating Software Image File: {self.platform} - {self.software}.")
         _platform = ORMPlatform.objects.get(name=self.platform)
         if core_supports_softwareversion():
-            _software = ORMSoftware.objects.get(version=self.software_version.split(" - ")[1], platform=_platform)
+            _software = ORMSoftware.objects.get(version=self.software_version, platform=_platform)
         else:
             _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
         if core_supports_softwareversion():

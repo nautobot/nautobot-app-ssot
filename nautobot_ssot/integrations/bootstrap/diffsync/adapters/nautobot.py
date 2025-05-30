@@ -1341,7 +1341,7 @@ class NautobotAdapter(Adapter):
                     self.get(
                         self.software_image_file,
                         {
-                            "software_version": f"{nb_software_image.software_version.platform.name} - {nb_software_image.software_version.version}",
+                            "software_version": nb_software_image.software_version.version,
                             "image_file_name": nb_software_image.image_file_name,
                         },
                     )
@@ -1357,7 +1357,8 @@ class NautobotAdapter(Adapter):
                 if core_supports_softwareversion():
                     _tags = list(
                         ORMSoftwareImage.objects.get(
-                            software_version=nb_software_image.software_version,
+                            software_version__version=nb_software_image.software_version.version,
+                            software_version__platform__name=nb_software_image.software_version.platform,
                             image_file_name=nb_software_image.image_file_name,
                         )
                         .tags.all()
@@ -1365,7 +1366,8 @@ class NautobotAdapter(Adapter):
                     )
                     _device_types = list(
                         ORMSoftwareImage.objects.get(
-                            software_version=nb_software_image.software_version,
+                            software_version__version=nb_software_image.software_version.version,
+                            software_version__platform__name=nb_software_image.software_version.platform,
                             image_file_name=nb_software_image.image_file_name,
                         )
                         .device_types.all()
@@ -1382,7 +1384,8 @@ class NautobotAdapter(Adapter):
                 if core_supports_softwareversion():
                     _device_types = list(
                         ORMSoftwareImage.objects.get(
-                            software_version=nb_software_image.software_version,
+                            software_version__version=nb_software_image.software_version.version,
+                            software_version__platform__name=nb_software_image.software_version.platform,
                             image_file_name=nb_software_image.image_file_name,
                         )
                         .device_types.all()
@@ -1406,7 +1409,7 @@ class NautobotAdapter(Adapter):
                     new_software_image = self.software_image_file(
                         status=_status,
                         platform=nb_software_image.software_version.platform.name,
-                        software_version=f"{nb_software_image.software_version.platform.name} - {nb_software_image.software_version.version}",
+                        software_version=nb_software_image.software_version.version,
                         download_url=nb_software_image.download_url,
                         image_file_name=nb_software_image.image_file_name,
                         file_size=nb_software_image.image_file_size,

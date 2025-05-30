@@ -9,6 +9,8 @@ import pytz
 from deepdiff import DeepDiff
 from django.test import TransactionTestCase
 
+from nautobot_ssot.utils import core_supports_softwareversion
+
 from .test_setup import (
     GLOBAL_JSON_SETTINGS,
     MODELS_TO_SYNC,
@@ -159,7 +161,14 @@ class TestNautobotAdapterTestCase(TransactionTestCase):
         # pylint: disable=duplicate-code
         for key in MODELS_TO_SYNC:
             print(f"Checking: {key}")
-            models = list(self.nb_adapter.dict().get(key, {}).values())
+            bs_model = key
+            if key == "software":
+                if core_supports_softwareversion():
+                    bs_model = "software_version"
+            elif key == "software_image":
+                if core_supports_softwareversion():
+                    bs_model = "software_image_file"
+            models = list(self.nb_adapter.dict().get(bs_model, {}).values())
             if key == "custom_field":
                 for model in list(models):
                     if model["label"] in ["System of Record", "Last sync from System of Record", "LibreNMS Device ID"]:

@@ -178,15 +178,15 @@ def validate_software_version_status(status, version, logger):
     """
     from nautobot.dcim.choices import SoftwareVersionStatusChoices  # pylint: disable=import-outside-toplevel
 
-    valid_statuses = [choice[0].lower() for choice in SoftwareVersionStatusChoices.CHOICES]
-    if status.lower() not in valid_statuses:
+    valid_statuses = [choice[1] for choice in SoftwareVersionStatusChoices.CHOICES]
+    if status not in valid_statuses:
         logger.warning(
             f"Invalid status '{status}' for software version {version}. "
-            f"Valid choices are: {[choice[0] for choice in SoftwareVersionStatusChoices.CHOICES]}. "
-            f"Using default status 'active'."
+            f"Valid choices are: {valid_statuses}. "
+            f"Using default status 'Active'."
         )
-        return "active"
-    return status.lower()
+        return "Active"
+    return status
 
 
 def validate_software_image_status(status, image_name, logger):
@@ -202,15 +202,15 @@ def validate_software_image_status(status, image_name, logger):
     """
     from nautobot.dcim.choices import SoftwareImageFileStatusChoices  # pylint: disable=import-outside-toplevel
 
-    valid_statuses = [choice[0].lower() for choice in SoftwareImageFileStatusChoices.CHOICES]
-    if status.lower() not in valid_statuses:
+    valid_statuses = [choice[1] for choice in SoftwareImageFileStatusChoices.CHOICES]
+    if status not in valid_statuses:
         logger.warning(
             f"Invalid status '{status}' for software image {image_name}. "
-            f"Valid choices are: {[choice[0] for choice in SoftwareImageFileStatusChoices.CHOICES]}. "
-            f"Using default status 'active'."
+            f"Valid choices are: {valid_statuses}. "
+            f"Using default status 'Active'."
         )
-        return "active"
-    return status.lower()
+        return "Active"
+    return status
 
 
 def validate_hashing_algorithm(algorithm, image_name, logger):
@@ -231,12 +231,12 @@ def validate_hashing_algorithm(algorithm, image_name, logger):
     if not algorithm:
         return None
 
-    valid_algorithms = [choice[0].lower() for choice in SoftwareImageFileHashingAlgorithmChoices.CHOICES]
-    if algorithm.lower() not in valid_algorithms:
+    valid_algorithms = [choice[1] for choice in SoftwareImageFileHashingAlgorithmChoices.CHOICES]
+    if algorithm not in valid_algorithms:
         logger.warning(
             f"Invalid hashing algorithm '{algorithm}' for software image {image_name}. "
-            f"Valid choices are: {[choice[0] for choice in SoftwareImageFileHashingAlgorithmChoices.CHOICES]}. "
+            f"Valid choices are: {valid_algorithms}. "
             f"Setting to None."
         )
         return None
-    return algorithm.lower()
+    return algorithm

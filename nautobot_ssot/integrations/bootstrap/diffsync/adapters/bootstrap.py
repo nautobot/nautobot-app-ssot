@@ -924,7 +924,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                     self.software_version,
                     {
                         "version": software["version"],
-                        "platform": software["platform"],
+                        "platform": software["device_platform"],
                     },
                 )
             else:
@@ -937,11 +937,11 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 )
         except ObjectNotFound:
             try:
-                _release_date = datetime.datetime.strptime(software["release_date"], "%Y-%m-%d")
+                _release_date = datetime.datetime.strptime(software["release_date"], "%Y-%m-%d").date()
             except TypeError:
                 _release_date = None
             try:
-                _eos_date = datetime.datetime.strptime(software["eos_date"], "%Y-%m-%d")
+                _eos_date = datetime.datetime.strptime(software["eos_date"], "%Y-%m-%d").date()
             except TypeError:
                 _eos_date = None
             if software["documentation_url"] is None:
@@ -991,7 +991,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                     self.software_image_file,
                     {
                         "image_file_name": software_image["file_name"],
-                        "software_version": f"{software_image['platform']} - {software_image['software_version']}",
+                        "software_version": software_image["software_version"],
                     },
                 )
             else:
@@ -1012,7 +1012,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
 
                 _new_software_image = self.software_image_file(
                     platform=software_image["platform"],
-                    software_version=f"{software_image['platform']} - {software_image['software_version']}",
+                    software_version=software_image["software_version"],
                     image_file_name=software_image["file_name"],
                     file_size=software_image["file_size"],
                     status=_status,

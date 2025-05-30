@@ -1,7 +1,7 @@
 """Tests for Bootstrap adapter."""
 
 import json
-from datetime import datetime
+from datetime import date, datetime
 from unittest.mock import MagicMock
 
 import yaml
@@ -13,6 +13,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.adapters.bootstrap import (
     BootstrapAdapter,
 )
 from nautobot_ssot.integrations.bootstrap.jobs import BootstrapDataSource
+from nautobot_ssot.utils import core_supports_softwareversion
 
 from .test_setup import (
     DEVELOP_YAML_SETTINGS,
@@ -70,7 +71,7 @@ def assert_deep_diff(test_case, actual, expected, keys_to_normalize=None):
                     item[key] = None
                 if key == "content_types" or key == "provided_contents" and isinstance(item[key], list):
                     item[key] = sorted(["config contexts" if v == "extras.configcontext" else v for v in item[key]])
-                if key in ["date_allocated", "valid_since", "valid_until"]:
+                if key in ["date_allocated"]:
                     if item.get(key) is not None:
                         # Normalize the format to 'YYYY-MM-DD HH:MM:SS' for consistency
                         if isinstance(item[key], datetime):
@@ -78,6 +79,9 @@ def assert_deep_diff(test_case, actual, expected, keys_to_normalize=None):
                         elif isinstance(item[key], str) and len(item[key]) == 10:
                             # Convert 'YYYY-MM-DD' format to 'YYYY-MM-DD 00:00:00'
                             item[key] += " 00:00:00"
+                if key in ["eos_date", "release_date", "valid_since", "valid_until"]:
+                    if isinstance(item[key], date):
+                        item[key] = item[key].isoformat()
                 if key == "prefix":
                     # Sort prefixes based on network and namespace as unique identifiers
                     item[key] = sorted(item[key], key=lambda x: (x["network"], x["namespace"]))
@@ -141,9 +145,17 @@ class TestBootstrapAdapterTestCase(TransactionTestCase):
         # pylint: disable=duplicate-code
         for key in MODELS_TO_SYNC:
             print(f"Checking: {key}")
+            bs_model = key
+            if key == "software":
+                if core_supports_softwareversion():
+                    bs_model = "software_version"
+            elif key == "software_image":
+                if core_supports_softwareversion():
+                    bs_model = "software_image_file"
+
             assert_deep_diff(
                 self,
-                list(self.bootstrap.dict().get(key, {}).values()),
+                list(self.bootstrap.dict().get(bs_model, {}).values()),
                 GLOBAL_JSON_SETTINGS.get(key, []),
                 keys_to_normalize={
                     "parent",
