@@ -90,8 +90,14 @@ class VsphereClient:  # pylint: disable=too-many-instance-attributes
         return session
 
     def _authenticate(self):
-        self.rest_client = self.session.post(f"{self.vsphere_uri}/rest/com/vmware/cis/session", auth=self.auth)
-        LOGGER.debug("vSphere Client authenticated and session established.")
+        response = self.session.post(f"{self.vsphere_uri}/rest/com/vmware/cis/session", auth=self.auth)
+        self.rest_client = response
+        if response.status_code == 200:
+            LOGGER.debug("vSphere Client authenticated and session established successfully.")
+            self.is_authenticated = True
+        else:
+            LOGGER.error("Failed to authenticate vSphere Client. Status code: %s", response.status_code)
+            self.is_authenticated = False
 
     def _request(self, method: str, path: str, **kwargs):
         """Return a response object after making a request to by other methods.

@@ -127,6 +127,9 @@ class VsphereDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
         self.logger.info("Connecting to vSphere.")
         client_config = _get_vsphere_client_config(self.config, self.debug)
         client = VsphereClient(client_config)  # pylint: disable=unexpected-keyword-arg
+        if not client.is_authenticated:
+            self.logger.debug("Failed to authenticate with vSphere. Check your credentials and configuration.")
+            raise ValueError("vSphere authentication failed.")
         self.source_adapter = VsphereDiffSync(
             job=self,
             sync=self.sync,

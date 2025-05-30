@@ -119,9 +119,9 @@ def create_default_vsphere_config(sender, *, apps, **kwargs):  # pylint: disable
     external_integration, _ = ExternalIntegration.objects.get_or_create(
         name="DefaultvSphereInstance",
         defaults={
-            "remote_url": str(config.get("vcenter_url", "https://replace.me.local")),
+            "remote_url": str(config.get("vsphere_url", "https://replace.me.local")),
             "secrets_group": secrets_group,
-            "verify_ssl": bool(config.get("verify_ssl", False)),
+            "verify_ssl": bool(config.get("vsphere_verify_ssl", False)),
             "timeout": 10,
         },
     )
