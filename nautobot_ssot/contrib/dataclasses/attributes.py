@@ -79,7 +79,7 @@ class ForeignKeyAttribute(AttributeInterface):
         # NOTE: Can't use .pop() because we need the list intact for multiple calls.
         if related_object := getattr(obj, self.lookups[0]):
             # Ignore first entry and last entry in loop
-            for lookup in self.lookups[1:-1]:
+            for lookup in self.lookups[1:]:
                 related_object = self.get_related_object(related_object, lookup)
                 if not related_object:
                     break
@@ -89,13 +89,12 @@ class ForeignKeyAttribute(AttributeInterface):
     
     def get_lookup_value(self, obj: Model):
         """Get the value for an attribute of a related object by its lookup."""
-        attr_name = self.lookups[-1]
         try:
-            return getattr(obj, attr_name)
+            return getattr(obj, self.related_attr_name)
         # If the lookup doesn't point anywhere, check whether it is using the convention for generic foreign keys.
         except AttributeError:
-            if attr_name in ["app_label", "model"]:
-                return getattr(ContentType.objects.get_for_model(obj), attr_name)
+            if self.related_attr_name in ["app_label", "model"]:
+                return getattr(ContentType.objects.get_for_model(obj), self.related_attr_name)
         return None
 
     def load(self, obj: Model):

@@ -109,7 +109,7 @@ class TestStandardAttribute(BaseTestCase):
 
 
 class TestForeignKeyAttribute(BaseTestCase):
-    """"""
+    """Test getting values for foreign key attributes."""
 
     def setUp(self):
         """"""
@@ -154,6 +154,6 @@ class TestForeignKeyAttribute(BaseTestCase):
         self.assertEqual(result, "Location 1")
 
     def test_nested_load_valid_foreign_key(self):
-        """"""
+        """Test getting value from nested relationship name."""
         result = self.parent_location_type_name.load(self.location_2)
         self.assertEqual(result, "Test Location Type")
