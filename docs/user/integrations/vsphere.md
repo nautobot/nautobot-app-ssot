@@ -16,7 +16,7 @@ Once the integration is installed and configured, the vSphere sync will show up 
 
 ![Dashboard View](../../images/vsphere_dashboard.png)
 
-From the dashboard, you can view more detail about the vSPhere sync by clicking the `VMWare vSphere -> Nautobot` link. This view shows the mapping of vSphere objects to Nautobot objects so you know exactly what will get created in Nautobot when this sync is ran. It will also show you a table view of all the times this sync has been ran.
+From the dashboard, you can view more detail about the vSphere sync by clicking the `VMWare vSphere -> Nautobot` link. This view shows the mapping of vSphere objects to Nautobot objects so you know exactly what will get created in Nautobot when this sync is ran. It will also show you a table view of all the times this sync has been ran.
 
 ![Detail View](../../images/vsphere_detail.png)
 

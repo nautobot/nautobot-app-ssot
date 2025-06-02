@@ -1,4 +1,4 @@
-"""Django urlpatterns declaration for nautobot_ssot vsphere API."""
+"""Django urlpatterns declaration for nautobot_ssot vSphere API."""
 
 from rest_framework import routers
 

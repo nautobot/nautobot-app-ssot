@@ -29,7 +29,7 @@ PLUGINS_CONFIG = {
 
 Configuration for the vSphere integration is defined in the instance of the `SSOTvSphereConfig` model. Multiple configuration instances are supported. Synchronization jobs take the `Config` parameter which specifies the configuration instance to use. 
 
-To access integration configuration navigate to `Apps -> Installed Apps` and click on the cog icon in the `Single Source of Truth` entry. Then, in the table `SSOT Integration Configs` click on the `vSphere Configuration Instance` link. This will take you to the view where youi can view/modify existing config insances or create new ones.
+To access integration configuration navigate to `Apps -> Installed Apps` and click on the cog icon in the `Single Source of Truth` entry. Then, in the table `SSOT Integration Configs` click on the `vSphere Configuration Instance` link. This will take you to the view where you can view/modify existing config insances or create new ones.
 
 Configuration instances contain the below settings:
 
@@ -45,13 +45,13 @@ Configuration instances contain the below settings:
 | Sync to Nautobot              | True                                                                           | Allows this config to be used in the job syncing from vSphere to Nautobot                                     |
 | Sync Tagged Only              | True                                                                           | Only take into consideration tagged VMs (on the Nautobot side) when performing the sync.                      |
 | Virtual Machine Status Map    | `{"POWERED_OFF": "Offline", "POWERED_ON": "Active", "SUSPENDED": "Suspended"}` | Maps vSphere Virtual Machine status to Nautobot status.                                                       |
-| Virtual Machine IP Status Map | `{"PREFERRED": "Active", "UNKNOWN": "Reserved"}`                               | Maps vSPhere IP status to Nautobot status                                                                     |
+| Virtual Machine IP Status Map | `{"PREFERRED": "Active", "UNKNOWN": "Reserved"}`                               | Maps vSphere IP status to Nautobot status                                                                     |
 | Virtual Machine Interface Map | `{"CONNECTED": true, "NOT_CONNECTED": false}`                                  | Maps vSphere interface state to boolean values.                                                               |
 | Default Cluster Group Name    | vSphere Default Cluster Group                                                  | Denotes the default Cluster Group name used in the sync if `Use Clusters` is set to False.                    |
 | Default Cluster Name          | vSphere Default Cluster                                                        | Denotes the default Cluster name used in the sync if `Use Clusters` is set to Fals.e.                         |
 | Default Cluster Type          | VMWare vSphere                                                                 | Denotes the default Cluster Type to set in the sync.                                                          |
 
-Each vShere configuration must be linked to an [External integration](https://docs.nautobot.com/projects/core/en/stable/user-guide/platform-functionality/externalintegration/?h=external+int) describing the vSphere instance. The following External Integration fields must be defined for integration to work correctly:
+Each vSphere configuration must be linked to an [External integration](https://docs.nautobot.com/projects/core/en/stable/user-guide/platform-functionality/externalintegration/?h=external+int) describing the vSphere instance. The following External Integration fields must be defined for integration to work correctly:
 
 | Setting       | Description                                                                      |
 | :------------ | :------------------------------------------------------------------------------- |

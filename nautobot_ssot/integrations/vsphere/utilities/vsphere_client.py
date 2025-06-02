@@ -92,6 +92,8 @@ class VsphereClient:  # pylint: disable=too-many-instance-attributes
     def _authenticate(self):
         response = self.session.post(f"{self.vsphere_uri}/rest/com/vmware/cis/session", auth=self.auth)
         self.rest_client = response
+        session_token = response.json().get("value")
+        self.session.headers.update({"vmware-api-session-id": session_token})
         if response.status_code == 200:
             LOGGER.debug("vSphere Client authenticated and session established successfully.")
             self.is_authenticated = True

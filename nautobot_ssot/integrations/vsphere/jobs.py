@@ -62,12 +62,11 @@ class VsphereDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
     debug = BooleanVar(description="Enable for more verbose debug logging")
     config = ObjectVar(
         model=SSOTvSphereConfig,
-        display_field="SSOT vSphere Config",
         required=True,
         query_params={"enable_sync_to_nautobot": True, "job_enabled": True},
     )
     cluster_filters = MultiObjectVar(
-        label="Cluster Filters.",
+        label="Cluster Filters",
         model=Cluster,
         required=False,
         description="Only sync Virtual Machines from the selected Clusters.",
