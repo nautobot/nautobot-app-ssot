@@ -1,14 +1,13 @@
-from django.test import TestCase, TransactionTestCase
-
-from nautobot.dcim.models import LocationType, Location
-from nautobot_ssot.contrib.dataclasses.attributes import (
-    StandardAttribute,
-    ForeignKeyAttribute,
-)
 from diffsync import DiffSyncModel
-from typing_extensions import Optional, get_type_hints
+from django.test import TestCase
+from nautobot.dcim.models import Location, LocationType
 from nautobot.extras.models import Status
+from typing_extensions import Optional, get_type_hints
 
+from nautobot_ssot.contrib.dataclasses.attributes import (
+    ForeignKeyAttribute,
+    StandardAttribute,
+)
 
 
 class LocationModel(DiffSyncModel):
@@ -21,7 +20,10 @@ class LocationModel(DiffSyncModel):
         "parent__name",
         "parent__location_type__name",
     )
-    _attributes = ("description", "latitude",)
+    _attributes = (
+        "description",
+        "latitude",
+    )
 
     name: str
     parent__name: str
@@ -93,7 +95,7 @@ class TestStandardAttribute(BaseTestCase):
 
     def test_optional_blank_not_none_attribute(self):
         """Test loading an optional string attribute without a value, but not None in database.
-        
+
         Django validated save for `blank=True` and `null=False` means a validated save will allow an
         empty string or None value, but the database will not except a null value.
         """
@@ -132,12 +134,8 @@ class TestForeignKeyAttribute(BaseTestCase):
     def test_invalid_attribute_name(self):
         """"""
         with self.assertRaises(ValueError):
-            ForeignKeyAttribute(
-                "parent",
-                model_class=Location,
-                type_hints=self.model_type_hints["parent__name"]
-            )
-    
+            ForeignKeyAttribute("parent", model_class=Location, type_hints=self.model_type_hints["parent__name"])
+
     def test_empty_foreign_key(self):
         """Test an unset foreign key."""
         self.assertIsNone(self.parent_name.load(self.location_1))

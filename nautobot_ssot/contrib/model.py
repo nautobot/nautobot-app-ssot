@@ -44,13 +44,13 @@ class NautobotModel(DiffSyncModel):
     def get_content_type(cls):
         """Get Django content type object for model."""
         return ContentType.objects.get_for_model(cls._model)
-    
+
     @classmethod
     def get_cache_key(cls):
         """Get the cache key for the model."""
         content_type = cls.get_content_type()
         return f"{content_type.app_label}.{content_type.model}"
-    
+
     @classmethod
     def get_parameter_names(cls):
         """Ignore the differences between identifiers and attributes, because at this point they don't matter to us."""

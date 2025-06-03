@@ -15,19 +15,17 @@ from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
 from nautobot.extras.models.metadata import MetadataType
 from typing_extensions import get_type_hints
+
 from nautobot_ssot.contrib.dataclasses.attributes import (
     AttributeInterface,
-    StandardAttribute,
-    ForeignKeyAttribute,
     attribute_interface_factory,
 )
+from nautobot_ssot.contrib.dataclasses.cache import ORMCache
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
-
-from nautobot_ssot.contrib.dataclasses.cache import ORMCache
 
 # This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
 # and therefore a frozenset rather than a normal set or a list.
@@ -65,7 +63,10 @@ class NautobotAdapter(DiffSync):
         self.cache = ORMCache()
 
     def get_attribute_interface(self, diffsync_model, attr_name: str, attr_type=False):
-        """"""
+        """Get attribute interface class.
+
+        Stores attribute interfaces into a dictionary so each model attribute is only retrieved once.
+        """
         model_name = diffsync_model._modelname
         try:
             return self._attribute_interfaces[model_name][attr_name]
@@ -75,12 +76,10 @@ class NautobotAdapter(DiffSync):
 
             self._attribute_interfaces.setdefault(model_name, {})
             self._attribute_interfaces[model_name][attr_name] = attribute_interface_factory(
-                name=attr_name,
-                model_class=diffsync_model,
-                type_hints=model_type_hints[attr_name]
+                name=attr_name, model_class=diffsync_model, type_hints=model_type_hints[attr_name]
             )
             return self._attribute_interfaces[model_name][attr_name]
-        
+
     def invalidate_cache(self, zero_out_hits=True):
         """DEPRECATED: Remains here for backwards compatibility.
 
@@ -115,8 +114,8 @@ class NautobotAdapter(DiffSync):
             diffsync_model=diffsync_model,
             attr_name=parameter_name,
         ):
-           parameters[parameter_name] = attribute_interface.load(database_object)
-           return
+            parameters[parameter_name] = attribute_interface.load(database_object)
+            return
 
         type_hints = get_type_hints(diffsync_model, include_extras=True)
         # Handle custom fields and custom relationships. See CustomFieldAnnotation and CustomRelationshipAnnotation
@@ -167,9 +166,8 @@ class NautobotAdapter(DiffSync):
             )
             return
 
-        
         # Handling of normal fields - as this is the default case, set the attribute directly.
-        
+
         # if hasattr(self, f"load_param_{parameter_name}"):
         #     parameters[parameter_name] = getattr(self, f"load_param_{parameter_name}")(parameter_name, database_object)
         # else:
@@ -304,7 +302,6 @@ class NautobotAdapter(DiffSync):
             "source_type": relationship.source_type,
             "destination_type": relationship.destination_type,
         }
-
 
         if annotation.side == RelationshipSideEnum.SOURCE:
             relationship_association_parameters["source_id"] = database_object.id
