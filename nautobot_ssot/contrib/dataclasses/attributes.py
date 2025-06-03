@@ -1,11 +1,16 @@
-"""Data classes for interacting with attributes in the Nautobot database."""
+"""Interfaces for interacting with the Nautobot ORM to retrieve data about model attributes.
+
+Each implementation must inherit from `AttributeInterface` to ensure it has the proper attributes
+and methods for external interaction.
+
+Data classes for interacting with attributes in the Nautobot database."""
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
-from nautobot.extras.models import Relationship
+from nautobot.extras.models import Relationship, RelationshipAssociation
 from typing_extensions import List, Type
 
 from nautobot_ssot.contrib.dataclasses.cache import ORMCache
@@ -14,6 +19,13 @@ from nautobot_ssot.contrib.types import (
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
+from diffsync import DiffSyncModel
+from nautobot_ssot.contrib.model import NautobotModel
+from typing_extensions import get_args, get_type_hints, Dict
+
+from django.core.exceptions import FieldDoesNotExist
+
+from nautobot_ssot.contrib.helpers import get_nested_related_attribute_value, load_typed_dict
 
 
 @dataclass
@@ -32,15 +44,6 @@ class AttributeInterface(ABC):
     name: str
     model_class: Type[Model]
     type_hints: dict = field(repr=False)
-    is_sortable: bool = field(default=False)
-    metadata: list = field(init=False, repr=False)
-
-    def __post_init__(self):
-        """Post initialization."""
-        self.__init_attr__()
-
-    def __init_attr__(self):
-        """Placeholder method called by `__post_init__` to avoid overloading it."""
 
     @abstractmethod
     def load(self, obj: Model):
@@ -51,7 +54,7 @@ class AttributeInterface(ABC):
         """
 
 
-@dataclass
+@dataclass(kw_only=True)
 class StandardAttribute(AttributeInterface):
     """Standard attribute interface.
 
@@ -63,13 +66,13 @@ class StandardAttribute(AttributeInterface):
         return getattr(obj, self.name)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class CustomFieldAttribute(AttributeInterface):
     """Attribute interface for custom fields."""
 
     annotation: CustomFieldAnnotation = field(default=None)
 
-    def __init_attr__(self):
+    def __post_init__(self):
         """Initialize the attribute."""
         if not self.annotation:
             raise ValueError("`annotation` parameter required for `CustomFieldAttribute` class.")
@@ -83,14 +86,63 @@ class CustomFieldAttribute(AttributeInterface):
         return None
 
 
-@dataclass
+@dataclass(kw_only=True)
+class CustomForeignKeyAttribute(AttributeInterface):
+    """Attribute interface for custom foreign keys."""
+
+    annotation: CustomRelationshipAnnotation = field(default=None)
+    cache: ORMCache = field(repr=False, default=None)
+
+    def __post_init__(self):
+        """Initialize the attribute."""
+        if not self.annotation:
+            raise ValueError("`annotation` parameter required for `CustomFieldAttribute` class.")
+        if not self.cache:
+            self.cache = ORMCache()
+
+    def get_relationship_parameters(self, obj: Model):
+        """Get relationship parameters."""
+        relationship = self.cache.get_from_orm_cache({"label": self.annotation.name}, Relationship)
+        relationship_association_parameters = {
+            "relationship": relationship,
+            "source_type": relationship.source_type,
+            "destination_type": relationship.destination_type,
+        }
+
+        if self.annotation.side == RelationshipSideEnum.SOURCE:
+            relationship_association_parameters["source_id"] = obj.id
+        else:
+            relationship_association_parameters["destination_id"] = obj.id
+        return relationship_association_parameters
+
+    def load(self, obj: Model):
+        """"""
+        relationship_association_parameters = self.get_relationship_parameters(obj)
+
+        # Raises error if more than one relationship associations returned
+        relationship_association = RelationshipAssociation.objects.get(**relationship_association_parameters)
+        if not relationship_association:
+            return None
+
+        related_object = getattr(
+            relationship_association,
+            "source" if self.annotation.side == RelationshipSideEnum.DESTINATION else "destination"
+        )
+        # Discard the first part as there is no actual field on the model corresponding to that part.
+        _, *lookups = self.name.split("__")
+        for lookup in lookups[:-1]:
+            related_object = getattr(related_object, lookup)
+        return getattr(related_object, lookups[-1])
+
+
+@dataclass(kw_only=True)
 class ForeignKeyAttribute(AttributeInterface):
     """Attribute interface for foreign keys."""
 
     lookups: List[str] = field(init=False, repr=False)
     related_attr_name: str = field(init=False, repr=False)
 
-    def __init_attr__(self):
+    def __post_init__(self):
         """Initialize the attribute."""
         if "__" not in self.name:
             raise ValueError(f"Foreign key values require double underscores in attribute name, got {self.name}")
@@ -137,91 +189,104 @@ class ForeignKeyAttribute(AttributeInterface):
         return None
 
 
-@dataclass
-class CustomForeignKeyAttribute(AttributeInterface):
-    """Attribute interface for custom foreign keys."""
-
-    annotation: CustomFieldAnnotation = field(default=None)
-    cache: ORMCache = field(repr=False, default_factory=lambda: ORMCache())
-
-    def __init_attr__(self):
-        """Initialize the attribute."""
-        if not self.annotation:
-            raise ValueError("`annotation` parameter required for `CustomFieldAttribute` class.")
-
-    def relationship_parameters(self, obj: Model):
-        """Get relationship parameters."""
-        relationship = self.cache.get_from_orm_cache({"label": self.annotation.name}, Relationship)
-        relationship_association_parameters = {
-            "relationship": relationship,
-            "source_type": relationship.source_type,
-            "destination_type": relationship.destination_type,
-        }
-
-        if self.annotation.side == RelationshipSideEnum.SOURCE:
-            relationship_association_parameters["source_id"] = obj.id
-        else:
-            relationship_association_parameters["destination_id"] = obj.id
-        return relationship_association_parameters
-
-    def load(self, obj: Model):
-        """"""
-
-
-@dataclass
+@dataclass(kw_only=True)
 class ManyRelationshipAttribute(AttributeInterface):
-    """"""
+    """Interface class for many-to-many and one-to-many relationship attributes."""
+
+    inner_type: type = field(init=False)
+
+    def __post_init__(self):
+        """Post initialization."""
+        self.inner_type = get_args(self.type_hints)[0]
+
+    def load(self, db_obj: Model):
+        """Load standard many-to-many or one-to-many relationship."""
+        related_objects = []
+        # Loop through all entries of the foreign key.
+        # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
+        for related_object in getattr(db_obj, self.name).all():
+            type_dict = load_typed_dict(self.inner_type, related_object)
+            # Only use those where there is a single field defined, all 'None's will not help us.
+            if any(type_dict.values()):
+                related_objects.append(type_dict)
+
+        return related_objects
 
 
-@dataclass
+@dataclass(kw_only=True)
 class CustomManyRelationshipAttribute(AttributeInterface):
     """"""
 
 
-def attribute_interface_factory(name, model_class, type_hints):
+def attribute_interface_factory(
+        name: str,
+        model_class: NautobotModel,
+        attr_type_hints: dict,
+        cache: ORMCache=None
+    ):
     """Factory function for building attribute interfaces.
 
     Attribute interfaces should only ever be created from within this function (except for
     testing modules).
     """
-    metadata = getattr(type_hints, "__metadata__", [])
+    db_model_class = model_class._model
+    metadata = getattr(attr_type_hints, "__metadata__", [])
 
     # Check for custom annotations
     for meta in metadata:
         if isinstance(meta, CustomFieldAnnotation):
-            is_custom = True
-            # return None
             return CustomFieldAttribute(
                 name=name,
                 model_class=model_class,
-                type_hints=type_hints,
+                type_hints=attr_type_hints,
                 annotation=meta,
             )
         if isinstance(meta, CustomRelationshipAnnotation):
-            is_custom = True
-            return None
+            annotation = meta
+            break
     else:
-        is_custom = False
+        annotation = None
 
     if "__" in name:
-        if is_custom:
-            # return CustomForeignKeyAttribute()
-            return None
+        if annotation:
+            return CustomForeignKeyAttribute(
+                name=name,
+                model_class=model_class,
+                type_hints=attr_type_hints,
+                annotation=annotation,
+                cache=cache,
+            )
         else:
             return ForeignKeyAttribute(
                 name=name,
                 model_class=model_class,
-                type_hints=type_hints,
+                type_hints=attr_type_hints,
             )
     # End if - Foreign Keys
 
-    database_field = model_class._model._meta.get_field(name)
-    if database_field.many_to_many or database_field.one_to_many:
+    if annotation:
+        # Handling of one- and many-to-many non-custom relationship fields.
+        #
+        # NOTES: 
+        # - This includes the side of a generic foreign key that constitutes the foreign key,
+        #   i.e. the 'one' side.
+        # - Must come after checking for `__`/dunder in name since `__` indicates it's a
+        #   custom, 1-to-1 foreign key relationship.
+        # - Must check for this before checking for database field as custom relationships
+        #   will not have a database field for that attribute.
         return None
+
+    database_field = db_model_class._meta.get_field(name)
+    if database_field.many_to_many or database_field.one_to_many:
+        return ManyRelationshipAttribute(
+            name=name,
+            model_class=model_class,
+            type_hints=attr_type_hints,
+        )
 
     # Default type
     return StandardAttribute(
         name=name,
         model_class=model_class,
-        type_hints=type_hints,
+        type_hints=attr_type_hints,
     )
