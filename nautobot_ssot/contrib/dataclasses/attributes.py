@@ -5,12 +5,22 @@ from dataclasses import dataclass, field
 from django.db.models import Model
 from typing_extensions import Type, List
 from django.contrib.contenttypes.models import ContentType
+from nautobot.extras.models import Relationship, RelationshipAssociation
+
+from nautobot_ssot.contrib.types import (
+    CustomFieldAnnotation,
+    CustomRelationshipAnnotation,
+    RelationshipSideEnum,
+)
+
+from nautobot_ssot.contrib.dataclasses.cache import ORMCache
+
 
 
 
 @dataclass
 class AttributeInterface(ABC):
-    """Interface class for getting attribute-specific data from Nautobot.
+    """Interface class for loading attribute-specific values from the database during SSoT sync.
     
     The contrib modules interact with Nautobot objects to get attribute information. The process
     of getting that data can vary between attribute types and each has their own set of requirements.
@@ -53,6 +63,26 @@ class StandardAttribute(AttributeInterface):
     def load(self, obj: Model):
         """Standard attributes return the value stored within the model, no additional processing required."""
         return getattr(obj, self.name)
+
+
+@dataclass
+class CustomFieldAttribute(AttributeInterface):
+    """"""
+
+    annotation: CustomFieldAnnotation = field(default=None)
+
+    def __init_attr__(self):
+        """"""
+        if not self.annotation:
+            raise ValueError("`annotation` parameter required for `CustomFieldAttribute` class.")
+
+    def load(self, obj: Model):
+        """standard return the value stored within the model, no additional processing required."""
+        if not hasattr(obj, "cf"):
+            return
+        if self.annotation.name in obj.cf:
+            return obj.cf[self.annotation.key]
+        return None
 
 
 @dataclass
@@ -109,9 +139,43 @@ class ForeignKeyAttribute(AttributeInterface):
         return None
 
 
+def orm_cache_factory():
+    """"""
+    return ORMCache()
+
 @dataclass
 class CustomForeignKeyAttribute(AttributeInterface):
     """"""
+
+    annotation: CustomFieldAnnotation = field(default=None)
+    cache: ORMCache = field(repr=False, default_factory=orm_cache_factory)
+
+    def __init_attr__(self):
+        """"""
+        if not self.annotation:
+            raise ValueError("`annotation` parameter required for `CustomFieldAttribute` class.")
+
+
+    def relationship_parameters(self, obj: Model):
+        """"""
+        relationship = self.cache.get_from_orm_cache({"label": self.annotation.name}, Relationship)
+        relationship_association_parameters = {
+            "relationship": relationship,
+            "source_type": relationship.source_type,
+            "destination_type": relationship.destination_type,
+        }
+
+
+        if self.annotation.side == RelationshipSideEnum.SOURCE:
+            relationship_association_parameters["source_id"] = obj.id
+        else:
+            relationship_association_parameters["destination_id"] = obj.id
+        return relationship_association_parameters
+
+
+    def load(self, obj: Model):
+        """"""
+
 
 
 
@@ -123,3 +187,51 @@ class ManyRelationshipAttribute(AttributeInterface):
 @dataclass
 class CustomManyRelationshipAttribute(AttributeInterface):
     """"""
+
+
+def attribute_interface_factory(name, model_class, type_hints):
+    """"""
+    metadata = getattr(type_hints, "__metadata__", [])
+
+    # Check for custom annotations
+    for meta in metadata:
+        if isinstance(meta, CustomFieldAnnotation):
+            is_custom = True
+            #return None
+            return CustomFieldAttribute(
+                name=name,
+                model_class=model_class,
+                type_hints=type_hints,
+                annotation=meta,
+            )
+        if isinstance(meta, CustomRelationshipAnnotation):
+            is_custom = True
+            return None
+    else:
+        is_custom = False
+
+    if "__" in name:
+        if is_custom:
+            #return CustomForeignKeyAttribute()
+            return None
+        else:
+            return ForeignKeyAttribute(
+                name=name,
+                model_class=model_class,
+                type_hints=type_hints,
+            )
+    # End if - Foreign Keys
+
+    database_field = model_class._model._meta.get_field(name)
+    if database_field.many_to_many or database_field.one_to_many:
+        return None
+    
+    # Default type
+    return StandardAttribute(
+        name=name,
+        model_class=model_class,
+        type_hints=type_hints,
+    )
+
+
+    

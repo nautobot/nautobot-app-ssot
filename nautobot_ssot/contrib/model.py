@@ -41,6 +41,22 @@ class NautobotModel(DiffSyncModel):
     pk: Optional[UUID] = None
 
     @classmethod
+    def get_content_type(cls):
+        """Get Django content type object for model."""
+        return ContentType.objects.get_for_model(cls._model)
+    
+    @classmethod
+    def get_cache_key(cls):
+        """Get the cache key for the model."""
+        content_type = cls.get_content_type()
+        return f"{content_type.app_label}.{content_type.model}"
+    
+    @classmethod
+    def get_parameter_names(cls):
+        """Ignore the differences between identifiers and attributes, because at this point they don't matter to us."""
+        return list(cls._identifiers) + list(cls._attributes)
+
+    @classmethod
     def _get_queryset(cls):
         """Get the queryset used to load the models data from Nautobot."""
         available_fields = {field.name for field in cls._model._meta.get_fields()}

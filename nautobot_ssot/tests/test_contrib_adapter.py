@@ -290,11 +290,11 @@ class CacheTests(TestCase):
             # One query to get the tenant group into the cache and another query per tenant during `clean`.
             self.assertEqual(4, len(tenant_group_queries))
         # As a consequence, there should be two cache hits for 'tenancy.tenantgroup'.
-        self.assertEqual(2, adapter._cache_hits["tenancy.tenantgroup"])  # pylint: disable=protected-access
+        self.assertEqual(2, adapter.cache.cache_hits["tenancy.tenantgroup"])  # pylint: disable=protected-access
 
         with CaptureQueriesContext(connection) as ctx:
             for i, tenant in enumerate(adapter.get_all("tenant")):
-                adapter.invalidate_cache()
+                adapter.cache.invalidate_cache()
                 tenant.update({"tenant_group__name": updated_tenant_group.name})
             tenant_group_queries = [query["sql"] for query in ctx.captured_queries if query_filter in query["sql"]]
             # One query per tenant to get the tenant group, one to pre-populate the cache, and another query per tenant during `clean`.

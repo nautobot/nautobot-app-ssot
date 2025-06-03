@@ -7,7 +7,6 @@ from nautobot_ssot.contrib.dataclasses.attributes import (
 )
 from diffsync import DiffSyncModel
 from typing_extensions import Optional, get_type_hints
-from unittest.mock import MagicMock
 from nautobot.extras.models import Status
 
 
