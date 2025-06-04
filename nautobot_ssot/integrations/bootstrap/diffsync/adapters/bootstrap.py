@@ -924,7 +924,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                     self.software_version,
                     {
                         "version": software["version"],
-                        "platform": software["platform"],
+                        "platform": software["device_platform"],
                     },
                 )
             else:
