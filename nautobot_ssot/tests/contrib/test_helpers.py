@@ -1,10 +1,10 @@
-from django.test.testcases import TestCase
 
-from nautobot.dcim.models import Location, LocationType
-from nautobot.extras.models import Status
 from typing_extensions import TypedDict
-from nautobot_ssot.contrib.helpers import load_typed_dict, get_nested_related_attribute_value
+
+from nautobot_ssot.contrib.helpers import get_nested_related_attribute_value, load_typed_dict
 from nautobot_ssot.tests.contrib.dataclasses.test_attributes import BaseTestCase
+
+
 class LocationDict(TypedDict):
     """Test location dict."""
 
@@ -13,6 +13,7 @@ class LocationDict(TypedDict):
     parent__name: str
     parent__location_type__name: str
     status__name: str
+
 
 class TestGetNestedRelatedAttributeValue(BaseTestCase):
     """"""
@@ -24,9 +25,7 @@ class TestGetNestedRelatedAttributeValue(BaseTestCase):
 
     def test_multi_lookup(self):
         """"""
-        result = get_nested_related_attribute_value(
-            "parent__location_type__name", self.location_2
-        )
+        result = get_nested_related_attribute_value("parent__location_type__name", self.location_2)
         self.assertEqual(result, "Test Location Type")
 
     def test_invalid_attr_name(self):
@@ -50,4 +49,3 @@ class TestLoadTypedDict(BaseTestCase):
         result = load_typed_dict(LocationDict, self.location_1)
         self.assertIsNone(result["parent__name"])
         self.assertIsNone(result["parent__location_type__name"])
-    
