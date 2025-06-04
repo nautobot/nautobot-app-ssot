@@ -1,0 +1,2 @@
+Moved caching in `NautobotAdapter` class to separate class.
+Moved attribute handling when loading attributes from Nautobot to separate interfaces.
