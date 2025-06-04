@@ -29,19 +29,24 @@ class TestGetNestedRelatedAttributeValue(BaseTestCase):
         )
         self.assertEqual(result, "Test Location Type")
 
+    def test_invalid_attr_name(self):
+        """Test for raised ValueError with invalid attribute name."""
+        with self.assertRaises(ValueError):
+            get_nested_related_attribute_value("invalid_name", self.location_2)
+
 
 class TestLoadTypedDict(BaseTestCase):
     """"""
 
     def test_load_full_dict(self):
-        """"""
+        """Test loading a TypedDict object with full foreign key values."""
         result = load_typed_dict(LocationDict, self.location_2)
         self.assertEqual(result["name"], "Location 2")
         self.assertEqual(result["parent__name"], "Location 1")
         self.assertEqual(result["parent__location_type__name"], "Test Location Type")
 
     def test_load_with_none(self):
-        """"""
+        """Test loading TypedDict object with foreign key as None."""
         result = load_typed_dict(LocationDict, self.location_1)
         self.assertIsNone(result["parent__name"])
         self.assertIsNone(result["parent__location_type__name"])
