@@ -9,7 +9,7 @@ import pytz
 from deepdiff import DeepDiff
 from django.test import TransactionTestCase
 
-from .test_setup import (
+from .test_bootstrap_setup import (
     GLOBAL_JSON_SETTINGS,
     MODELS_TO_SYNC,
     NautobotTestSetup,

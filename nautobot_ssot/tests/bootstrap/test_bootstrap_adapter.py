@@ -14,7 +14,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.adapters.bootstrap import (
 )
 from nautobot_ssot.integrations.bootstrap.jobs import BootstrapDataSource
 
-from .test_setup import (
+from .test_bootstrap_setup import (
     DEVELOP_YAML_SETTINGS,
     GLOBAL_JSON_SETTINGS,
     GLOBAL_YAML_SETTINGS,
