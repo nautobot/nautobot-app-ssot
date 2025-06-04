@@ -44,7 +44,7 @@ class AttributeInterface(ABC):
     type_hints: dict = field(repr=False)
 
     @abstractmethod
-    def load(self, obj: Model):
+    def load(self, db_obj: Model):
         """Abstract method for loading attribute value.
 
         This method is specific to each implementation as different implementations do not the same
@@ -59,9 +59,9 @@ class StandardAttribute(AttributeInterface):
     Standard attributes are native attributes for the specific model and represented as columns within the database.
     """
 
-    def load(self, obj: Model):
+    def load(self, db_obj: Model):
         """Standard attributes return the value stored within the model, no additional processing required."""
-        return getattr(obj, self.name)
+        return getattr(db_obj, self.name)
 
 
 @dataclass(kw_only=True)
@@ -75,12 +75,12 @@ class CustomFieldAttribute(AttributeInterface):
         if not self.annotation:
             raise ValueError("`annotation` parameter required for `CustomFieldAttribute` class.")
 
-    def load(self, obj: Model):
+    def load(self, db_obj: Model):
         """Standard return the value stored within the model, no additional processing required."""
-        if not hasattr(obj, "cf"):
-            return
-        if self.annotation.name in obj.cf:
-            return obj.cf[self.annotation.key]
+        if not hasattr(db_obj, "cf"):
+            return None
+        if self.annotation.name in db_obj.cf:
+            return db_obj.cf[self.annotation.key]
         return None
 
 
@@ -89,13 +89,13 @@ class CustomForeignKeyAttribute(AttributeInterface):
     """Attribute interface for custom foreign keys."""
 
     annotation: CustomRelationshipAnnotation
-    cache: ORMCache = field(repr=False, default_factory=lambda: ORMCache())
+    cache: ORMCache = field(repr=False, default_factory=lambda: ORMCache())  # pylint: disable=unnecessary-lambda
 
-    def load(self, obj: Model):
+    def load(self, db_obj: Model):
         """Load custom, one-to-one foreign key attribute."""
         # Raises error if more than one relationship associations returned
         relationship_association = RelationshipAssociation.objects.get(
-            **get_relationship_parameters(obj, self.annotation, self.cache)
+            **get_relationship_parameters(db_obj, self.annotation, self.cache)
         )
         if not relationship_association:
             return None
@@ -125,15 +125,15 @@ class ForeignKeyAttribute(AttributeInterface):
         self.lookups = self.name.split("__")
         self.related_attr_name = self.lookups.pop(-1)
 
-    def get_related_object(self, obj: Model, attribute: str):
+    def get_related_object(self, db_obj: Model, attribute: str):
         """Get related object from Django model instance."""
-        return getattr(obj, attribute)
+        return getattr(db_obj, attribute)
 
-    def get_nested_related_object(self, obj: Model):
+    def get_nested_related_object(self, db_obj: Model):
         """Get related objects from the database, multiple relations deep."""
         # Need to get initial related object before loop
         # NOTE: Can't use .pop() because we need the list intact for multiple calls.
-        if related_object := getattr(obj, self.lookups[0]):
+        if related_object := getattr(db_obj, self.lookups[0]):
             # Ignore first entry and last entry in loop
             for lookup in self.lookups[1:]:
                 related_object = self.get_related_object(related_object, lookup)
@@ -143,19 +143,19 @@ class ForeignKeyAttribute(AttributeInterface):
                 return related_object
         return None
 
-    def get_lookup_value(self, obj: Model):
+    def get_lookup_value(self, db_obj: Model):
         """Get the value for an attribute of a related object by its lookup."""
         try:
-            return getattr(obj, self.related_attr_name)
+            return getattr(db_obj, self.related_attr_name)
         # If the lookup doesn't point anywhere, check whether it is using the convention for generic foreign keys.
         except AttributeError:
             if self.related_attr_name in ["app_label", "model"]:
-                return getattr(ContentType.objects.get_for_model(obj), self.related_attr_name)
+                return getattr(ContentType.objects.get_for_model(db_obj), self.related_attr_name)
         return None
 
-    def load(self, obj: Model):
+    def load(self, db_obj: Model):
         """Load the foreign key value."""
-        related_object = self.get_nested_related_object(obj)
+        related_object = self.get_nested_related_object(db_obj)
         # If the foreign key does not point to anything, return None
         if not related_object:
             return None
@@ -258,7 +258,7 @@ def attribute_interface_factory(
     Attribute interfaces should only ever be created from within this function (except for
     testing modules).
     """
-    db_model_class = model_class._model
+    db_model_class = model_class._model  # pylint: disable=protected-access
     metadata = getattr(attr_type_hints, "__metadata__", [])
 
     # Check for custom annotations
@@ -285,12 +285,11 @@ def attribute_interface_factory(
                 annotation=annotation,
                 cache=cache,
             )
-        else:
-            return ForeignKeyAttribute(
-                name=name,
-                model_class=model_class,
-                type_hints=attr_type_hints,
-            )
+        return ForeignKeyAttribute(
+            name=name,
+            model_class=model_class,
+            type_hints=attr_type_hints,
+        )
     # End if - Foreign Keys
 
     if annotation:

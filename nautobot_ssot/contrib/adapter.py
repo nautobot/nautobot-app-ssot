@@ -93,11 +93,11 @@ class NautobotAdapter(Adapter):
     def _handle_single_parameter(self, parameters, parameter_name, database_object, diffsync_model):
         if hasattr(self, f"load_param_{parameter_name}"):
             parameters[parameter_name] = getattr(self, f"load_param_{parameter_name}")(parameter_name, database_object)
-            return
-        parameters[parameter_name] = self.get_attribute_interface(
-            diffsync_model=diffsync_model,
-            attr_name=parameter_name,
-        ).load(database_object)
+        else:
+            parameters[parameter_name] = self.get_attribute_interface(
+                diffsync_model=diffsync_model,
+                attr_name=parameter_name,
+            ).load(database_object)
         return parameters[parameter_name]
 
     def _load_single_object(self, database_object, diffsync_model, parameter_names):

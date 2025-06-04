@@ -17,7 +17,7 @@ class LocationDict(TypedDict):
 
 
 class TestGetNestedRelatedAttributeValue(BaseTestCase):
-    """"""
+    """Unit tests for `get_nested_related_attribute_value` function."""
 
     def test_single_lookup(self):
         """"""
@@ -36,7 +36,7 @@ class TestGetNestedRelatedAttributeValue(BaseTestCase):
 
 
 class TestLoadTypedDict(BaseTestCase):
-    """"""
+    """Unit tests for `load_typed_dict` function."""
 
     def test_load_full_dict(self):
         """Test loading a TypedDict object with full foreign key values."""
