@@ -57,14 +57,14 @@ from nautobot_ssot.integrations.bootstrap.jobs import BootstrapDataSource
 from nautobot_ssot.integrations.bootstrap.utils import get_scheduled_start_time
 from nautobot_ssot.utils import core_supports_softwareversion, dlm_supports_softwarelcm, validate_dlm_installed
 
-if dlm_supports_softwarelcm():
-    from nautobot_device_lifecycle_mgmt.models import SoftwareImageLCM, SoftwareLCM
-
-if validate_dlm_installed():
-    from nautobot_device_lifecycle_mgmt.models import ValidatedSoftwareLCM
-
 if core_supports_softwareversion():
-    from nautobot.dcim.models import SoftwareVersion  # pylint: disable=ungrouped-imports
+    from nautobot.dcim.models import SoftwareImageFile, SoftwareVersion  # pylint: disable=ungrouped-imports
+
+    if validate_dlm_installed():
+        from nautobot_device_lifecycle_mgmt.models import ValidatedSoftwareLCM
+
+if dlm_supports_softwarelcm():
+    from nautobot_device_lifecycle_mgmt.models import SoftwareImageLCM, SoftwareLCM, ValidatedSoftwareLCM
 
 
 def load_yaml(path):
@@ -899,16 +899,28 @@ class NautobotTestSetup:
             for _tag in _software["tags"]:
                 _tags.append(Tag.objects.get(name=_tag))
             _platform = Platform.objects.get(name=_software["device_platform"])
-            _soft = SoftwareLCM.objects.create(
-                version=_software["version"],
-                alias=_software["alias"],
-                device_platform=_platform,
-                end_of_support=_software["eos_date"],
-                long_term_support=_software["lts"],
-                pre_release=_software["pre_release"],
-                documentation_url=_software["documentation_url"],
-                tags=_tags,
-            )
+            if core_supports_softwareversion():
+                _soft = SoftwareVersion.objects.create(
+                    version=_software["version"],
+                    device_platform=_platform,
+                    status=self.status_active,
+                    alias=_software["alias"],
+                    end_of_support_date=_software["eos_date"],
+                    documentation_url=_software["documentation_url"],
+                    long_term_support=_software["lts"],
+                    pre_release=_software["pre_release"],
+                )
+            else:
+                _soft = SoftwareLCM.objects.create(
+                    version=_software["version"],
+                    alias=_software["alias"],
+                    device_platform=_platform,
+                    end_of_support=_software["eos_date"],
+                    long_term_support=_software["lts"],
+                    pre_release=_software["pre_release"],
+                    documentation_url=_software["documentation_url"],
+                    tags=_tags,
+                )
             _soft.custom_field_data["system_of_record"] = "Bootstrap"
             _soft.validated_save()
             _soft.refresh_from_db()
@@ -919,15 +931,26 @@ class NautobotTestSetup:
                 _tags.append(Tag.objects.get(name=_tag))
             _platform = Platform.objects.get(name=_software_image["platform"])
             _software = SoftwareLCM.objects.get(version=_software_image["software_version"], device_platform=_platform)
-            _soft_image = SoftwareImageLCM.objects.create(
-                software=_software,
-                image_file_name=_software_image["file_name"],
-                image_file_checksum=_software_image["image_file_checksum"],
-                hashing_algorithm=_software_image["hashing_algorithm"],
-                download_url=_software_image["download_url"],
-                default_image=_software_image["default_image"],
-                tags=_tags,
-            )
+            if core_supports_softwareversion():
+                _soft_image = SoftwareImageFile.objects.create(
+                    software_version=_software,
+                    image_file_name=_software_image["file_name"],
+                    image_file_checksum=_software_image["image_file_checksum"],
+                    image_file_size=_software_image["file_size"],
+                    hashing_algorithm=_software_image["hashing_algorithm"],
+                    download_url=_software_image["download_url"],
+                    default_image=_software_image["default_image"],
+                )
+            else:
+                _soft_image = SoftwareImageLCM.objects.create(
+                    software=_software,
+                    image_file_name=_software_image["file_name"],
+                    image_file_checksum=_software_image["image_file_checksum"],
+                    hashing_algorithm=_software_image["hashing_algorithm"],
+                    download_url=_software_image["download_url"],
+                    default_image=_software_image["default_image"],
+                    tags=_tags,
+                )
             _soft_image.custom_field_data["system_of_record"] = "Bootstrap"
             _soft_image.validated_save()
             _soft_image.refresh_from_db()

@@ -2574,7 +2574,7 @@ class NautobotSoftwareImage(_SoftwareImage_Base_Class):
         if core_supports_softwareversion():
             if adapter.job.debug:
                 adapter.job.logger.debug(f"Getting Software: {ids['software_version']}.")
-            _software = ORMSoftware.objects.get(version=ids["software_version"].split(' - ')[1], platform=_platform)
+            _software = ORMSoftware.objects.get(version=ids["software_version"].split(" - ")[1], platform=_platform)
         else:
             if adapter.job.debug:
                 adapter.job.logger.debug(f"Getting Software: {attrs['software_version']} - {attrs['platform']}.")
