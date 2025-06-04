@@ -17,7 +17,7 @@ from nautobot.extras.models import Relationship, RelationshipAssociation
 from typing_extensions import List, Type, get_args, get_type_hints
 
 from nautobot_ssot.contrib.dataclasses.cache import ORMCache
-from nautobot_ssot.contrib.helpers import load_typed_dict
+from nautobot_ssot.contrib.helpers import get_relationship_parameters, load_typed_dict
 from nautobot_ssot.contrib.model import NautobotModel
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
@@ -52,7 +52,6 @@ class AttributeInterface(ABC):
         """
 
 
-# Completed
 @dataclass(kw_only=True)
 class StandardAttribute(AttributeInterface):
     """Standard attribute interface.
@@ -65,7 +64,6 @@ class StandardAttribute(AttributeInterface):
         return getattr(obj, self.name)
 
 
-# Completed
 @dataclass(kw_only=True)
 class CustomFieldAttribute(AttributeInterface):
     """Attribute interface for custom fields."""
@@ -86,7 +84,6 @@ class CustomFieldAttribute(AttributeInterface):
         return None
 
 
-# Completed
 @dataclass(kw_only=True)
 class CustomForeignKeyAttribute(AttributeInterface):
     """Attribute interface for custom foreign keys."""
@@ -94,27 +91,10 @@ class CustomForeignKeyAttribute(AttributeInterface):
     annotation: CustomRelationshipAnnotation
     cache: ORMCache = field(repr=False, default_factory=lambda: ORMCache())
 
-    def get_relationship_parameters(self, obj: Model):
-        """Get relationship parameters."""
-        relationship = self.cache.get_from_orm_cache({"label": self.annotation.name}, Relationship)
-        relationship_association_parameters = {
-            "relationship": relationship,
-            "source_type": relationship.source_type,
-            "destination_type": relationship.destination_type,
-        }
-
-        if self.annotation.side == RelationshipSideEnum.SOURCE:
-            relationship_association_parameters["source_id"] = obj.id
-        else:
-            relationship_association_parameters["destination_id"] = obj.id
-        return relationship_association_parameters
-
     def load(self, obj: Model):
-        """"""
-        relationship_association_parameters = self.get_relationship_parameters(obj)
-
+        """Load custom, one-to-one foreign key attribute."""
         # Raises error if more than one relationship associations returned
-        relationship_association = RelationshipAssociation.objects.get(**relationship_association_parameters)
+        relationship_association = RelationshipAssociation.objects.get(**get_relationship_parameters(obj, self.annotation, self.cache))
         if not relationship_association:
             return None
 
@@ -129,7 +109,6 @@ class CustomForeignKeyAttribute(AttributeInterface):
         return getattr(related_object, lookups[-1])
 
 
-# Completed
 @dataclass(kw_only=True)
 class ForeignKeyAttribute(AttributeInterface):
     """Attribute interface for foreign keys."""
@@ -184,7 +163,6 @@ class ForeignKeyAttribute(AttributeInterface):
         return None
 
 
-# Completed
 @dataclass(kw_only=True)
 class ManyRelationshipAttribute(AttributeInterface):
     """Interface class for many-to-many and one-to-many relationship attributes."""
@@ -211,45 +189,34 @@ class ManyRelationshipAttribute(AttributeInterface):
 
 @dataclass(kw_only=True)
 class CustomManyRelationshipAttribute(AttributeInterface):
-    """"""
+    """Attribute interfaces for custom many-to-many and one-to-many attributes."""
 
     annotation: CustomRelationshipAnnotation
     inner_type: type = field(init=False)
+    relationship_type: RelationshipTypeChoices = field(init=False)
+    relationship_side: RelationshipSideEnum = field(init=False)
     cache: ORMCache = field(repr=False, default=None)
 
     def __post_init__(self):
         """Post initialization."""
         if not self.cache:
             self.cache = ORMCache()
-        # self.inner_type = get_args(self.type_hints)[0]
 
         # Introspect type annotations to deduce which fields are of interest
         # for this many-to-many relationship.
         diffsync_field_type = get_type_hints(self.model_class)[self.name]
         self.inner_type = get_args(diffsync_field_type)[0]
 
-    def get_relationship_parameters(self, obj: Model):
-        """Get relationship parameters."""
-        relationship = self.cache.get_from_orm_cache({"label": self.annotation.name}, Relationship)
-        relationship_association_parameters = {
-            "relationship": relationship,
-            "source_type": relationship.source_type,
-            "destination_type": relationship.destination_type,
-        }
-
-        if self.annotation.side == RelationshipSideEnum.SOURCE:
-            relationship_association_parameters["source_id"] = obj.id
-        else:
-            relationship_association_parameters["destination_id"] = obj.id
-        return relationship_association_parameters
+        relationship: Relationship = self.cache.get_from_orm_cache({"label": self.annotation.name}, Relationship)
+        self.relationship_type = relationship.type
+        self.relationship_side = self.annotation.side
 
     def get_relationship_associations(self, db_obj: Model):
         """Get a list of related objects from the database."""
-        relationship_association_parameters = self.get_relationship_parameters(db_obj)
-        return RelationshipAssociation.objects.filter(**relationship_association_parameters)
+        return RelationshipAssociation.objects.filter(**get_relationship_parameters(db_obj, self.annotation, self.cache))
 
     def load(self, db_obj: Model):
-        """"""
+        """Load custom many to many or one to many relationship attribute from the database."""
         # diffsync_field_type = get_type_hints(self.model_class)[self.name]
         # inner_type = get_args(diffsync_field_type)[0]
 
@@ -259,7 +226,7 @@ class CustomManyRelationshipAttribute(AttributeInterface):
 
         for association in self.get_relationship_associations(db_obj):
             related_object = getattr(
-                association, "source" if self.annotation.side == RelationshipSideEnum.DESTINATION else "destination"
+                association, "source" if self.relationship_side == RelationshipSideEnum.DESTINATION else "destination"
             )
             dictionary_representation = load_typed_dict(self.inner_type, related_object)
             # Only use those where there is a single field defined, all 'None's will not help us.
@@ -268,8 +235,8 @@ class CustomManyRelationshipAttribute(AttributeInterface):
 
         # For one-to-many, we need to return an object, not a list of objects
         if (
-            relationship.type == RelationshipTypeChoices.TYPE_ONE_TO_MANY
-            and self.annotation.side == RelationshipSideEnum.DESTINATION
+            self.relationship_type == RelationshipTypeChoices.TYPE_ONE_TO_MANY
+            and self.relationship_side == RelationshipSideEnum.DESTINATION
         ):
             if not related_objects_list:
                 return None
@@ -280,7 +247,6 @@ class CustomManyRelationshipAttribute(AttributeInterface):
             raise ObjectCrudException(
                 f"More than one related objects for a {RelationshipTypeChoices.TYPE_ONE_TO_MANY} relationship: {related_objects_list}"
             )
-
         return related_objects_list
 
 
