@@ -178,15 +178,15 @@ def validate_software_version_status(status, version, logger):
     """
     from nautobot.dcim.choices import SoftwareVersionStatusChoices  # pylint: disable=import-outside-toplevel
 
-    valid_statuses = [choice[0].lower() for choice in SoftwareVersionStatusChoices.CHOICES]
+    valid_statuses = [choice[1] for choice in SoftwareVersionStatusChoices.CHOICES]
     if status.lower() not in valid_statuses:
         logger.warning(
             f"Invalid status '{status}' for software version {version}. "
-            f"Valid choices are: {[choice[0] for choice in SoftwareVersionStatusChoices.CHOICES]}. "
+            f"Valid choices are: {[choice[1] for choice in SoftwareVersionStatusChoices.CHOICES]}. "
             f"Using default status 'active'."
         )
-        return "active"
-    return status.lower()
+        return "Active"
+    return status
 
 
 def validate_software_image_status(status, image_name, logger):

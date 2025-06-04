@@ -2448,6 +2448,9 @@ class NautobotSoftware(_Software_Base_Class):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Software in Nautobot from NautobotSoftware object."""
+        adapter.job.logger.info(f"Creating Software: {ids['platform']} - {ids['version']}.")
+        if adapter.job.debug:
+            adapter.job.logger.debug(f"Creating Software: {ids['platform']} - {ids['version']} with attrs: {attrs}.")
         _tags = []
         for tag in attrs["tags"]:
             _tags.append(ORMTag.objects.get(name=tag))
@@ -2493,6 +2496,8 @@ class NautobotSoftware(_Software_Base_Class):
 
     def update(self, attrs):
         """Update Software in Nautobot from NautobotSoftware object."""
+        if self.adapter.job.debug:
+            self.adapter.job.logger.debug(f"Updating Software: {self.platform} - {self.version}.")
         _platform = ORMPlatform.objects.get(name=self.platform)
         if dlm_supports_softwarelcm():
             _update_software = ORMSoftware.objects.get(version=self.version, device_platform=_platform)
@@ -2567,8 +2572,12 @@ class NautobotSoftwareImage(_SoftwareImage_Base_Class):
                 _tags.append(ORMTag.objects.get(name=tag))
         _platform = ORMPlatform.objects.get(name=attrs["platform"])
         if core_supports_softwareversion():
-            _software = ORMSoftware.objects.get(version=ids["software_version"], platform=_platform)
+            if adapter.job.debug:
+                adapter.job.logger.debug(f"Getting Software: {ids['software_version']}.")
+            _software = ORMSoftware.objects.get(version=ids["software_version"].split(' - ')[1], platform=_platform)
         else:
+            if adapter.job.debug:
+                adapter.job.logger.debug(f"Getting Software: {attrs['software_version']} - {attrs['platform']}.")
             _software = ORMSoftware.objects.get(version=attrs["software_version"], device_platform=_platform)
         if core_supports_softwareversion():
             _new_soft_image = ORMSoftwareImage(
