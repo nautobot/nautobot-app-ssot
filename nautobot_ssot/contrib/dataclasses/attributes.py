@@ -94,7 +94,9 @@ class CustomForeignKeyAttribute(AttributeInterface):
     def load(self, obj: Model):
         """Load custom, one-to-one foreign key attribute."""
         # Raises error if more than one relationship associations returned
-        relationship_association = RelationshipAssociation.objects.get(**get_relationship_parameters(obj, self.annotation, self.cache))
+        relationship_association = RelationshipAssociation.objects.get(
+            **get_relationship_parameters(obj, self.annotation, self.cache)
+        )
         if not relationship_association:
             return None
 
@@ -207,22 +209,20 @@ class CustomManyRelationshipAttribute(AttributeInterface):
         diffsync_field_type = get_type_hints(self.model_class)[self.name]
         self.inner_type = get_args(diffsync_field_type)[0]
 
+        # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
         relationship: Relationship = self.cache.get_from_orm_cache({"label": self.annotation.name}, Relationship)
         self.relationship_type = relationship.type
         self.relationship_side = self.annotation.side
 
     def get_relationship_associations(self, db_obj: Model):
         """Get a list of related objects from the database."""
-        return RelationshipAssociation.objects.filter(**get_relationship_parameters(db_obj, self.annotation, self.cache))
+        return RelationshipAssociation.objects.filter(
+            **get_relationship_parameters(db_obj, self.annotation, self.cache)
+        )
 
     def load(self, db_obj: Model):
         """Load custom many to many or one to many relationship attribute from the database."""
-        # diffsync_field_type = get_type_hints(self.model_class)[self.name]
-        # inner_type = get_args(diffsync_field_type)[0]
-
         related_objects_list = []
-        # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
-        relationship = self.cache.get_from_orm_cache({"label": self.annotation.name}, Relationship)
 
         for association in self.get_relationship_associations(db_obj):
             related_object = getattr(

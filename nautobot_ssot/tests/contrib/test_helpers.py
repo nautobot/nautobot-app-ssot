@@ -1,3 +1,4 @@
+"""Unittests for contrib helper functions."""
 
 from typing_extensions import TypedDict
 

@@ -1,16 +1,15 @@
 """Helper functions for SSoT."""
 
 from django.db.models import Model
+from nautobot.extras.models import Relationship
 from typing_extensions import get_type_hints
 
-from nautobot.extras.models import Relationship, RelationshipAssociation
+from nautobot_ssot.contrib.dataclasses.cache import ORMCache
 from nautobot_ssot.contrib.types import (
-    CustomFieldAnnotation,
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
 
-from nautobot_ssot.contrib.dataclasses.cache import ORMCache
 
 def get_nested_related_attribute_value(attr_name: str, obj: Model):
     """Get the value of an attribute for nested related objects."""
