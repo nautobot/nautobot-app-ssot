@@ -1,0 +1,1 @@
+Added `hide_in_diff_view` flag for `Sync` and `SyncLogEntry` to hide those models in version control diff view.
