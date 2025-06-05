@@ -83,6 +83,7 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
     summary = models.JSONField(blank=True, null=True)
 
     job_result = models.ForeignKey(to=JobResult, on_delete=models.CASCADE, blank=True, null=True)
+    hide_in_diff_view = True
 
     class Meta:
         """Metaclass attributes of Sync model."""
@@ -182,6 +183,8 @@ class SyncLogEntry(BaseModel):  # pylint: disable=nb-string-field-blank-null
     object_repr = models.TextField(blank=True, default="", editable=False)
 
     message = models.TextField(blank=True)
+
+    hide_in_diff_view = True
 
     class Meta:
         """Metaclass attributes of SyncLogEntry."""
