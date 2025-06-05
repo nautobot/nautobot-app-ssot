@@ -87,10 +87,11 @@ class VsphereDiffSync(Adapter):
             virtual_machine_details = self.client.get_vm_details(virtual_machine["vm"]).json()["value"]
             diffsync_virtualmachine, _ = self.get_or_instantiate(
                 self.virtual_machine,
-                {"name": virtual_machine["name"], "cluster__name": cluster["name"]},
+                {"name": virtual_machine.get("name"), "cluster__name": cluster["name"]},
                 {
-                    "vcpus": virtual_machine["cpu_count"],
-                    "memory": virtual_machine["memory_size_MiB"],
+                    "vcpus": virtual_machine.get("cpu_count") or virtual_machine_details.get("cpu", {}).get("count"),
+                    "memory": virtual_machine.get("memory_size_MiB")
+                    or virtual_machine_details.get("memory", {}).get("size_MiB"),
                     "disk": (
                         get_disk_total(virtual_machine_details["disks"])
                         if virtual_machine_details.get("disks")
@@ -282,12 +283,13 @@ class VsphereDiffSync(Adapter):
             diffsync_virtualmachine, _ = self.get_or_instantiate(
                 self.virtual_machine,
                 {
-                    "name": virtual_machine["name"],
+                    "name": virtual_machine.get("name"),
                     "cluster__name": self.config.default_cluster_name,
                 },
                 {
-                    "vcpus": virtual_machine["cpu_count"],
-                    "memory": virtual_machine["memory_size_MiB"],
+                    "vcpus": virtual_machine.get("cpu_count") or virtual_machine_details.get("cpu", {}).get("count"),
+                    "memory": virtual_machine.get("memory_size_MiB")
+                    or virtual_machine_details.get("memory", {}).get("size_MiB"),
                     "disk": (
                         get_disk_total(virtual_machine_details["disks"])
                         if virtual_machine_details.get("disks")
