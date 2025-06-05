@@ -918,13 +918,15 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load Software objects from Bootstrap into DiffSync Models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Software {software}")
+        # Always map device_platform to platform for consistency
+        platform = software.get("device_platform") or software.get("platform")
         try:
             if core_supports_softwareversion():
                 self.get(
                     self.software_version,
                     {
                         "version": software["version"],
-                        "platform": software["device_platform"],
+                        "platform": platform,
                     },
                 )
             else:
@@ -932,49 +934,52 @@ class BootstrapAdapter(Adapter, LabelMixin):
                     self.software,
                     {
                         "version": software["version"],
-                        "platform": software["device_platform"],
+                        "platform": platform,
                     },
                 )
         except ObjectNotFound:
             try:
                 _release_date = datetime.datetime.strptime(software["release_date"], "%Y-%m-%d")
-            except TypeError:
+            except (TypeError, KeyError):
                 _release_date = None
             try:
                 _eos_date = datetime.datetime.strptime(software["eos_date"], "%Y-%m-%d")
-            except TypeError:
+            except (TypeError, KeyError):
                 _eos_date = None
-            if software["documentation_url"] is None:
-                _documentation_url = ""
-            else:
-                _documentation_url = software["documentation_url"]
+
+            _documentation_url = software.get("documentation_url", "")
+            _alias = software.get("alias", "")
+            _lts = software.get("lts", False)
+            _pre_release = software.get("pre_release", False)
+            _tags = software.get("tags", [])
+
             if core_supports_softwareversion():
-                _status = validate_software_version_status(software["status"], software["version"], self.job.logger)
+                _status = validate_software_version_status(software.get("status", "Active"), software["version"], self.job.logger)
 
                 _new_software = self.software_version(
                     version=software["version"],
-                    platform=software["device_platform"],
+                    platform=platform,
                     status=_status,
-                    alias=software["alias"] if not None else "",
+                    alias=_alias,
                     release_date=_release_date,
                     eos_date=_eos_date,
                     documentation_url=_documentation_url,
-                    long_term_support=software["lts"],
-                    pre_release=software["pre_release"],
-                    tags=software["tags"],
+                    long_term_support=_lts,
+                    pre_release=_pre_release,
+                    tags=_tags,
                     system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
                 )
             else:
                 _new_software = self.software(
                     version=software["version"],
-                    platform=software["device_platform"],
-                    alias=software["alias"] if not None else "",
+                    platform=platform,
+                    alias=_alias,
                     release_date=_release_date,
                     eos_date=_eos_date,
                     documentation_url=_documentation_url,
-                    long_term_support=software["lts"],
-                    pre_release=software["pre_release"],
-                    tags=software["tags"],
+                    long_term_support=_lts,
+                    pre_release=_pre_release,
+                    tags=_tags,
                     system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
                 )
             self.add(_new_software)
