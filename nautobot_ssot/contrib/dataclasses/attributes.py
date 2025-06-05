@@ -52,7 +52,7 @@ class AttributeInterface(ABC):
         """
 
 
-@dataclass(kw_only=True)
+@dataclass
 class StandardAttribute(AttributeInterface):
     """Standard attribute interface.
 
@@ -64,7 +64,7 @@ class StandardAttribute(AttributeInterface):
         return getattr(db_obj, self.name)
 
 
-@dataclass(kw_only=True)
+@dataclass
 class CustomFieldAttribute(AttributeInterface):
     """Attribute interface for custom fields."""
 
@@ -84,12 +84,17 @@ class CustomFieldAttribute(AttributeInterface):
         return None
 
 
-@dataclass(kw_only=True)
+@dataclass
 class CustomForeignKeyAttribute(AttributeInterface):
     """Attribute interface for custom foreign keys."""
 
-    annotation: CustomRelationshipAnnotation
+    annotation: CustomRelationshipAnnotation = field(default=None)
     cache: ORMCache = field(repr=False, default_factory=lambda: ORMCache())  # pylint: disable=unnecessary-lambda
+
+    def __post_init__(self):
+        """Initialize the attribute."""
+        if not self.annotation:
+            raise ValueError(f"annotation field required for `CustomForeignKeyAttribute.")
 
     def load(self, db_obj: Model):
         """Load custom, one-to-one foreign key attribute."""
@@ -111,7 +116,7 @@ class CustomForeignKeyAttribute(AttributeInterface):
         return getattr(related_object, lookups[-1])
 
 
-@dataclass(kw_only=True)
+@dataclass
 class ForeignKeyAttribute(AttributeInterface):
     """Attribute interface for foreign keys."""
 
@@ -165,7 +170,7 @@ class ForeignKeyAttribute(AttributeInterface):
         return None
 
 
-@dataclass(kw_only=True)
+@dataclass
 class ManyRelationshipAttribute(AttributeInterface):
     """Interface class for many-to-many and one-to-many relationship attributes."""
 
@@ -189,7 +194,7 @@ class ManyRelationshipAttribute(AttributeInterface):
         return related_objects
 
 
-@dataclass(kw_only=True)
+@dataclass
 class CustomManyRelationshipAttribute(AttributeInterface):
     """Attribute interfaces for custom many-to-many and one-to-many attributes."""
 
@@ -197,12 +202,12 @@ class CustomManyRelationshipAttribute(AttributeInterface):
     inner_type: type = field(init=False)
     relationship_type: RelationshipTypeChoices = field(init=False)
     relationship_side: RelationshipSideEnum = field(init=False)
-    cache: ORMCache = field(repr=False, default=None)
+    cache: ORMCache = field(repr=False, default_factory=lambda : ORMCache())  # pylint: disable=unnecessary-lambda
 
     def __post_init__(self):
         """Post initialization."""
-        if not self.cache:
-            self.cache = ORMCache()
+        if not self.annotation:
+            raise ValueError(f"annotation field required for `CustomForeignKeyAttribute.")
 
         # Introspect type annotations to deduce which fields are of interest
         # for this many-to-many relationship.
