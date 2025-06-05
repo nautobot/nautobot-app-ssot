@@ -174,19 +174,26 @@ def validate_software_version_status(status, version, logger):
         logger: Logger instance for warnings
 
     Returns:
-        str: Validated status (lowercase) or 'active' if invalid
+        str: Validated status or 'Active' if invalid
     """
     from nautobot.dcim.choices import SoftwareVersionStatusChoices  # pylint: disable=import-outside-toplevel
 
+    # Get valid statuses preserving their original case
     valid_statuses = [choice[1] for choice in SoftwareVersionStatusChoices.CHOICES]
-    if status.lower() not in valid_statuses:
+
+    # Check if the status matches any valid status (case-insensitive)
+    matching_status = next((valid for valid in valid_statuses if valid.lower() == status.lower()), None)
+
+    if not matching_status:
         logger.warning(
             f"Invalid status '{status}' for software version {version}. "
-            f"Valid choices are: {[choice[1] for choice in SoftwareVersionStatusChoices.CHOICES]}. "
-            f"Using default status 'active'."
+            f"Valid choices are: {valid_statuses}. "
+            f"Using default status 'Active'."
         )
         return "Active"
-    return status
+
+    # Return the valid status with its original case
+    return matching_status
 
 
 def validate_software_image_status(status, image_name, logger):
