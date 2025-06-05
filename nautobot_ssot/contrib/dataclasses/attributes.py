@@ -94,7 +94,7 @@ class CustomForeignKeyAttribute(AttributeInterface):
     def __post_init__(self):
         """Initialize the attribute."""
         if not self.annotation:
-            raise ValueError(f"annotation field required for `CustomForeignKeyAttribute.")
+            raise ValueError("annotation field required for `CustomForeignKeyAttribute.")
 
     def load(self, db_obj: Model):
         """Load custom, one-to-one foreign key attribute."""
@@ -202,12 +202,12 @@ class CustomManyRelationshipAttribute(AttributeInterface):
     inner_type: type = field(init=False)
     relationship_type: RelationshipTypeChoices = field(init=False)
     relationship_side: RelationshipSideEnum = field(init=False)
-    cache: ORMCache = field(repr=False, default_factory=lambda : ORMCache())  # pylint: disable=unnecessary-lambda
+    cache: ORMCache = field(repr=False, default_factory=lambda: ORMCache())  # pylint: disable=unnecessary-lambda
 
     def __post_init__(self):
         """Post initialization."""
         if not self.annotation:
-            raise ValueError(f"annotation field required for `CustomForeignKeyAttribute.")
+            raise ValueError("annotation field required for `CustomForeignKeyAttribute.")
 
         # Introspect type annotations to deduce which fields are of interest
         # for this many-to-many relationship.
