@@ -1,12 +1,11 @@
 """Helper functions for SSoT."""
 
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 from nautobot.extras.models import Relationship
-from typing_extensions import get_type_hints
+from typing_extensions import TypedDict, get_type_hints
 
-from nautobot_ssot.contrib.dataclasses.cache import ORMCache
 from nautobot_ssot.contrib.types import (
-    CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
 
@@ -37,16 +36,31 @@ def load_typed_dict(inner_type: type, db_obj: Model):
     return typed_dict
 
 
-def get_relationship_parameters(obj: Model, annotation: CustomRelationshipAnnotation, cache: ORMCache):
-    """Get relationship parameters."""
-    relationship: Relationship = cache.get_from_orm_cache({"label": annotation.name}, Relationship)
+class CustomRelationshipParameters(TypedDict):
+    """Typed dict for custom relationship parameters."""
+
+    relationship: str
+    source_type: ContentType
+    destination_type: ContentType
+
+
+def get_relationship_parameters(obj: Model, relationship: Relationship, relationship_side: RelationshipSideEnum):
+    """Get custom relationship parameters as dictionary.
+
+    Parameters:
+        obj (Model): Django ORM model instance, must be an instance of the specified side of the relationship.
+        relationship (Relationship): Relationship instance from Nautobot ORM.
+        relationship_side (RelationshipSideEnum): Instance of the `RelationshipSideEnum` class indicating which side
+            ofthe relationship the passed object is.
+
+    """
     relationship_association_parameters = {
         "relationship": relationship,
         "source_type": relationship.source_type,
         "destination_type": relationship.destination_type,
     }
 
-    if annotation.side == RelationshipSideEnum.SOURCE:
+    if relationship_side == RelationshipSideEnum.SOURCE:
         relationship_association_parameters["source_id"] = obj.id
     else:
         relationship_association_parameters["destination_id"] = obj.id

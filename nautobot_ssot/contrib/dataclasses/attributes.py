@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 from diffsync.exceptions import ObjectCrudException
 from django.contrib.contenttypes.models import ContentType
-from django.db.models import Model
+from nautobot.core.models import BaseModel
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
 from typing_extensions import List, Type, get_args, get_type_hints
@@ -40,11 +40,11 @@ class AttributeInterface(ABC):
     """
 
     name: str
-    model_class: Type[Model]
+    model_class: Type[BaseModel]
     type_hints: dict = field(repr=False)
 
     @abstractmethod
-    def load(self, db_obj: Model):
+    def load(self, db_obj: BaseModel):
         """Abstract method for loading attribute value.
 
         This method is specific to each implementation as different implementations do not the same
@@ -59,7 +59,7 @@ class StandardAttribute(AttributeInterface):
     Standard attributes are native attributes for the specific model and represented as columns within the database.
     """
 
-    def load(self, db_obj: Model):
+    def load(self, db_obj: BaseModel):
         """Standard attributes return the value stored within the model, no additional processing required."""
         return getattr(db_obj, self.name)
 
@@ -75,7 +75,7 @@ class CustomFieldAttribute(AttributeInterface):
         if not self.annotation:
             raise ValueError("`annotation` parameter required for `CustomFieldAttribute` class.")
 
-    def load(self, db_obj: Model):
+    def load(self, db_obj: BaseModel):
         """Standard return the value stored within the model, no additional processing required."""
         if not hasattr(db_obj, "cf"):
             return None
@@ -90,17 +90,19 @@ class CustomForeignKeyAttribute(AttributeInterface):
 
     annotation: CustomRelationshipAnnotation = field(default=None)
     cache: ORMCache = field(repr=False, default_factory=lambda: ORMCache())  # pylint: disable=unnecessary-lambda
+    relationship: Relationship = field(init=False)
 
     def __post_init__(self):
         """Initialize the attribute."""
         if not self.annotation:
             raise ValueError("annotation field required for `CustomForeignKeyAttribute.")
+        self.relationship = self.cache.get_from_orm_cache({"label": self.annotation.name}, Relationship)
 
-    def load(self, db_obj: Model):
+    def load(self, db_obj: BaseModel):
         """Load custom, one-to-one foreign key attribute."""
         # Raises error if more than one relationship associations returned
         relationship_association = RelationshipAssociation.objects.get(
-            **get_relationship_parameters(db_obj, self.annotation, self.cache)
+            **get_relationship_parameters(db_obj, self.relationship, self.annotation.side)
         )
         if not relationship_association:
             return None
@@ -130,11 +132,11 @@ class ForeignKeyAttribute(AttributeInterface):
         self.lookups = self.name.split("__")
         self.related_attr_name = self.lookups.pop(-1)
 
-    def get_related_object(self, db_obj: Model, attribute: str):
+    def get_related_object(self, db_obj: BaseModel, attribute: str):
         """Get related object from Django model instance."""
         return getattr(db_obj, attribute)
 
-    def get_nested_related_object(self, db_obj: Model):
+    def get_nested_related_object(self, db_obj: BaseModel):
         """Get related objects from the database, multiple relations deep."""
         # Need to get initial related object before loop
         # NOTE: Can't use .pop() because we need the list intact for multiple calls.
@@ -148,7 +150,7 @@ class ForeignKeyAttribute(AttributeInterface):
                 return related_object
         return None
 
-    def get_lookup_value(self, db_obj: Model):
+    def get_lookup_value(self, db_obj: BaseModel):
         """Get the value for an attribute of a related object by its lookup."""
         try:
             return getattr(db_obj, self.related_attr_name)
@@ -158,7 +160,7 @@ class ForeignKeyAttribute(AttributeInterface):
                 return getattr(ContentType.objects.get_for_model(db_obj), self.related_attr_name)
         return None
 
-    def load(self, db_obj: Model):
+    def load(self, db_obj: BaseModel):
         """Load the foreign key value."""
         related_object = self.get_nested_related_object(db_obj)
         # If the foreign key does not point to anything, return None
@@ -180,7 +182,7 @@ class ManyRelationshipAttribute(AttributeInterface):
         """Post initialization."""
         self.inner_type = get_args(self.type_hints)[0]
 
-    def load(self, db_obj: Model):
+    def load(self, db_obj: BaseModel):
         """Load standard many-to-many or one-to-many relationship."""
         related_objects = []
         # Loop through all entries of the foreign key.
@@ -200,6 +202,7 @@ class CustomManyRelationshipAttribute(AttributeInterface):
 
     annotation: CustomRelationshipAnnotation
     inner_type: type = field(init=False)
+    relationship: Relationship = field(init=False)
     relationship_type: RelationshipTypeChoices = field(init=False)
     relationship_side: RelationshipSideEnum = field(init=False)
     cache: ORMCache = field(repr=False, default_factory=lambda: ORMCache())  # pylint: disable=unnecessary-lambda
@@ -208,6 +211,7 @@ class CustomManyRelationshipAttribute(AttributeInterface):
         """Post initialization."""
         if not self.annotation:
             raise ValueError("annotation field required for `CustomForeignKeyAttribute.")
+        self.relationship = self.cache.get_from_orm_cache({"label": self.annotation.name}, Relationship)
 
         # Introspect type annotations to deduce which fields are of interest
         # for this many-to-many relationship.
@@ -219,13 +223,13 @@ class CustomManyRelationshipAttribute(AttributeInterface):
         self.relationship_type = relationship.type
         self.relationship_side = self.annotation.side
 
-    def get_relationship_associations(self, db_obj: Model):
+    def get_relationship_associations(self, db_obj: BaseModel):
         """Get a list of related objects from the database."""
         return RelationshipAssociation.objects.filter(
-            **get_relationship_parameters(db_obj, self.annotation, self.cache)
+            **get_relationship_parameters(db_obj, self.relationship, self.annotation.side)
         )
 
-    def load(self, db_obj: Model):
+    def load(self, db_obj: BaseModel):
         """Load custom many to many or one to many relationship attribute from the database."""
         related_objects_list = []
 

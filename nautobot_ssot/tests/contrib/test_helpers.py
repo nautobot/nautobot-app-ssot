@@ -1,8 +1,18 @@
 """Unittests for contrib helper functions."""
 
+from django.contrib.contenttypes.models import ContentType
+from django.test import TestCase
+from nautobot.extras.choices import RelationshipTypeChoices
+from nautobot.extras.models import Relationship, Status
+from nautobot.ipam.models import VLAN, Prefix
 from typing_extensions import TypedDict
 
-from nautobot_ssot.contrib.helpers import get_nested_related_attribute_value, load_typed_dict
+from nautobot_ssot.contrib.helpers import (
+    get_nested_related_attribute_value,
+    get_relationship_parameters,
+    load_typed_dict,
+)
+from nautobot_ssot.contrib.types import RelationshipSideEnum
 from nautobot_ssot.tests.contrib.dataclasses.test_attributes import BaseTestCase
 
 
@@ -50,3 +60,41 @@ class TestLoadTypedDict(BaseTestCase):
         result = load_typed_dict(LocationDict, self.location_1)
         self.assertIsNone(result["parent__name"])
         self.assertIsNone(result["parent__location_type__name"])
+
+
+class TestGetRelationshipParameters(TestCase):
+    """Unittests for `get_relationship_parameters` function."""
+
+    def setUp(self):
+        """Set up the test cases."""
+        status = Status.objects.get(name="Active")
+
+        self.prefix_type = ContentType.objects.get_for_model(Prefix)
+        self.vlan_type = ContentType.objects.get_for_model(VLAN)
+
+        self.prefix1 = Prefix.objects.create(
+            prefix="10.0.0.0/24",
+            status=status,
+            type="Network",
+        )
+        self.vlan1 = VLAN.objects.create(
+            vid=101,
+            name="TEST_VLAN",
+            status=status,
+        )
+        self.relationship1 = Relationship.objects.create(
+            label="Test Relationship",
+            type=RelationshipTypeChoices.TYPE_ONE_TO_ONE,
+            source_type=self.prefix_type,
+            destination_type=self.vlan_type,
+        )
+
+    def test_get_standard_relationship(self):
+        """Test loading valid relationship."""
+        result = get_relationship_parameters(
+            obj=self.prefix1, relationship=self.relationship1, relationship_side=RelationshipSideEnum.SOURCE
+        )
+        self.assertEqual(result["relationship"], self.relationship1)
+        self.assertEqual(result["source_type"], self.prefix_type)
+        self.assertEqual(result["destination_type"], self.vlan_type)
+        self.assertEqual(result["source_id"], self.prefix1.id)

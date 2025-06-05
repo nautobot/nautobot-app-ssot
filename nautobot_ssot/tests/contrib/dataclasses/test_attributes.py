@@ -4,12 +4,19 @@ from diffsync import DiffSyncModel
 from django.test import TestCase
 from nautobot.dcim.models import Location, LocationType
 from nautobot.extras.models import Status
-from typing_extensions import Optional, get_type_hints
+from typing_extensions import List, Optional, TypedDict, get_type_hints
 
 from nautobot_ssot.contrib.dataclasses.attributes import (
     ForeignKeyAttribute,
     StandardAttribute,
 )
+
+
+class TagDict(TypedDict):
+    """Test Tag Dictionary."""
+
+    name: str
+    description: Optional[str] = ""
 
 
 class LocationModel(DiffSyncModel):
@@ -25,6 +32,7 @@ class LocationModel(DiffSyncModel):
     _attributes = (
         "description",
         "latitude",
+        "tags",
     )
 
     name: str
@@ -32,6 +40,7 @@ class LocationModel(DiffSyncModel):
     parent__location_type__name: str
     description: Optional[str] = ""
     latitude: Optional[int] = ""
+    tags: List[TagDict] = []
 
 
 class BaseTestCase(TestCase):
