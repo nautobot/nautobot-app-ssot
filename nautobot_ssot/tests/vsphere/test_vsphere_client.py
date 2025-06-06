@@ -27,8 +27,10 @@ class TestVsphere(unittest.TestCase):
     """Test Base vSphere Client and Calls."""
 
     @patch.object(Session, "post")
-    def setUp(self, mock):  # pylint:disable=arguments-differ, unused-argument
+    def setUp(self, mock_post):  # pylint:disable=arguments-differ, unused-argument
         """Setup."""
+        mock_post.return_value.status_code = 200
+        mock_post.return_value.json.return_value = {"value": "fake-session-id"}
         self.client = localhost_client_vsphere(LOCALHOST)
 
     def test_init_success(self):

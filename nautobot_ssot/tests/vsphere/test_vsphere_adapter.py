@@ -117,7 +117,7 @@ class TestVsphereAdapter(unittest.TestCase):
         )
 
         self.vsphere_adapter.load_vm_interfaces(
-            vsphere_virtual_machine=vm_detail_json,
+            vsphere_virtual_machine_details=vm_detail_json,
             vm_id="vm-1015",
             diffsync_virtualmachine=diffsync_vm,
         )

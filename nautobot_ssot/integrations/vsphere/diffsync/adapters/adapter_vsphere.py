@@ -92,7 +92,7 @@ class VsphereDiffSync(Adapter):
             },
         )
         self.load_vm_interfaces(
-            vsphere_virtual_machin_detailse=virtual_machine_details,
+            vsphere_virtual_machine_details=virtual_machine_details,
             vm_id=virtual_machine["vm"],
             diffsync_virtualmachine=diffsync_virtualmachine,
         )
@@ -206,9 +206,9 @@ class VsphereDiffSync(Adapter):
             if ipv6_addresses:
                 diffsync_virtualmachine.primary_ip6__host = str(ipv6_addresses[-1])
 
-    def load_vm_interfaces(self, vsphere_virtual_machine, vm_id, diffsync_virtualmachine):
+    def load_vm_interfaces(self, vsphere_virtual_machine_details, vm_id, diffsync_virtualmachine):
         """Load VM Interfaces."""
-        nics = vsphere_virtual_machine["nics"]
+        nics = vsphere_virtual_machine_details["nics"]
         self.job.log_debug(message=f"Loading NICs for {vm_id}: {nics}")
         # Get all IP Addresses from ALL NICs on Virtual Machine
         addrs4 = []
@@ -230,7 +230,7 @@ class VsphereDiffSync(Adapter):
             )
             diffsync_virtualmachine.add_child(diffsync_vminterface)
             # Get detail interfaces w/ ip's from VM - Only if VM is Enabled
-            if vsphere_virtual_machine["power_state"] == "POWERED_ON":
+            if vsphere_virtual_machine_details["power_state"] == "POWERED_ON":
                 vm_interfaces = self.client.get_vm_interfaces(vm_id=vm_id).json()["value"]
 
                 # Load any IP addresses associated to this NIC/MAC
