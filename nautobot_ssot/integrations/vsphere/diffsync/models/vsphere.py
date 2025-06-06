@@ -276,7 +276,7 @@ class VirtualMachineModel(vSphereModelDiffSync):
                 {
                     "device": {**ids},
                     "primary_ip4": attrs.pop("primary_ip4__host", None),
-                    "primary_ip6": attrs.pop("primary_ip4__host", None),
+                    "primary_ip6": attrs.pop("primary_ip6__host", None),
                 }
             )
         return super().create(adapter, ids, attrs)
@@ -299,7 +299,7 @@ class VirtualMachineModel(vSphereModelDiffSync):
                 {
                     "device": {"name": self.name},
                     "primary_ip4": attrs.pop("primary_ip4__host", None),
-                    "primary_ip6": attrs.pop("primary_ip4__host", None),
+                    "primary_ip6": attrs.pop("primary_ip6__host", None),
                 }
             )
         return super().update(attrs)

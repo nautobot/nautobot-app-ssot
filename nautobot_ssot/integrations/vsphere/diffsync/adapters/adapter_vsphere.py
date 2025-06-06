@@ -70,6 +70,34 @@ class VsphereDiffSync(Adapter):
         self.config = config
         self.cluster_filters = cluster_filters
 
+    def _add_diffsync_virtualmachine(self, virtual_machine, virtual_machine_details, diffsync_cluster, cluster_name):
+        """Add virtualmachine to DiffSync and call load_vm_interfaces().
+
+        Args:
+            virtual_machine (dict): Virtual Machine information from vSphere.
+            virtual_machine_details (dict): Virtual Machine detail information from vSphere.
+            diffsync_cluster (ClusterModel): Current DiffSync Cluster object.
+            cluster_name (str): Name of the cluster to which the VM belongs.
+        """
+        diffsync_virtualmachine, _ = self.get_or_instantiate(
+            self.virtual_machine,
+            {"name": virtual_machine.get("name"), "cluster__name": cluster_name},
+            {
+                "vcpus": virtual_machine.get("cpu_count", 0),
+                "memory": virtual_machine.get("memory_size_MiB", 0),
+                "disk": (
+                    get_disk_total(virtual_machine_details["disks"]) if virtual_machine_details.get("disks") else None
+                ),
+                "status__name": self.config.default_vm_status_map[virtual_machine["power_state"]],
+            },
+        )
+        diffsync_cluster.add_child(diffsync_virtualmachine)
+        self.load_vm_interfaces(
+            vsphere_virtual_machine=virtual_machine_details,
+            vm_id=virtual_machine["vm"],
+            diffsync_virtualmachine=diffsync_virtualmachine,
+        )
+
     def load_cluster_groups(self):
         """Load Cluster Groups (DataCenters)."""
         clustergroups = self.client.get_datacenters().json()["value"]
@@ -85,26 +113,9 @@ class VsphereDiffSync(Adapter):
 
         for virtual_machine in virtual_machines:
             virtual_machine_details = self.client.get_vm_details(virtual_machine["vm"]).json()["value"]
-            diffsync_virtualmachine, _ = self.get_or_instantiate(
-                self.virtual_machine,
-                {"name": virtual_machine.get("name"), "cluster__name": cluster["name"]},
-                {
-                    "vcpus": virtual_machine.get("cpu_count") or virtual_machine_details.get("cpu", {}).get("count"),
-                    "memory": virtual_machine.get("memory_size_MiB")
-                    or virtual_machine_details.get("memory", {}).get("size_MiB"),
-                    "disk": (
-                        get_disk_total(virtual_machine_details["disks"])
-                        if virtual_machine_details.get("disks")
-                        else None
-                    ),
-                    "status__name": self.config.default_vm_status_map[virtual_machine_details["power_state"]],
-                },
-            )
-            # diffsync_cluster.add_child(diffsync_virtualmachine)
-            self.load_vm_interfaces(
-                vsphere_virtual_machine=virtual_machine_details,
-                vm_id=virtual_machine["vm"],
-                diffsync_virtualmachine=diffsync_virtualmachine,
+            self.job.log_debug(message=f"Virtual Machine Details: {virtual_machine_details}")
+            self._add_diffsync_virtualmachine(
+                virtual_machine, virtual_machine_details, diffsync_cluster, cluster["name"]
             )
 
     def load_ip_addresses(
@@ -280,29 +291,8 @@ class VsphereDiffSync(Adapter):
         for virtual_machine in virtual_machines:
             virtual_machine_details = self.client.get_vm_details(virtual_machine["vm"]).json()["value"]
             self.job.log_debug(message=f"Virtual Machine Details: {virtual_machine_details}")
-            diffsync_virtualmachine, _ = self.get_or_instantiate(
-                self.virtual_machine,
-                {
-                    "name": virtual_machine.get("name"),
-                    "cluster__name": self.config.default_cluster_name,
-                },
-                {
-                    "vcpus": virtual_machine.get("cpu_count") or virtual_machine_details.get("cpu", {}).get("count"),
-                    "memory": virtual_machine.get("memory_size_MiB")
-                    or virtual_machine_details.get("memory", {}).get("size_MiB"),
-                    "disk": (
-                        get_disk_total(virtual_machine_details["disks"])
-                        if virtual_machine_details.get("disks")
-                        else None
-                    ),
-                    "status__name": self.config.default_vm_status_map[virtual_machine_details["power_state"]],
-                },
-            )
-            # default_diffsync_cluster.add_child(diffsync_virtualmachine)
-            self.load_vm_interfaces(
-                vsphere_virtual_machine=virtual_machine_details,
-                vm_id=virtual_machine["vm"],
-                diffsync_virtualmachine=diffsync_virtualmachine,
+            self._add_diffsync_virtualmachine(
+                virtual_machine, virtual_machine_details, default_diffsync_cluster, self.config.default_cluster_name
             )
 
     def load(self):
