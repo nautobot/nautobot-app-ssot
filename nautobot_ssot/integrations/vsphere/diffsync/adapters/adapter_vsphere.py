@@ -92,7 +92,7 @@ class VsphereDiffSync(Adapter):
             },
         )
         self.load_vm_interfaces(
-            vsphere_virtual_machine=virtual_machine_details,
+            vsphere_virtual_machin_detailse=virtual_machine_details,
             vm_id=virtual_machine["vm"],
             diffsync_virtualmachine=diffsync_virtualmachine,
         )
@@ -113,6 +113,11 @@ class VsphereDiffSync(Adapter):
         for virtual_machine in virtual_machines:
             virtual_machine_details = self.client.get_vm_details(virtual_machine["vm"]).json()["value"]
             self.job.log_debug(message=f"Virtual Machine Details: {virtual_machine_details}")
+            if virtual_machine.get("cpu_count") is None or virtual_machine.get("memory_size_MiB") is None:
+                self.job.log_warning(
+                    message=f"Skipping Virtual Machine {virtual_machine['name']} due to missing CPU or Memory details."
+                )
+                continue
             self._add_diffsync_virtualmachine(virtual_machine, virtual_machine_details, cluster["name"])
 
     def load_ip_addresses(
@@ -288,6 +293,11 @@ class VsphereDiffSync(Adapter):
         for virtual_machine in virtual_machines:
             virtual_machine_details = self.client.get_vm_details(virtual_machine["vm"]).json()["value"]
             self.job.log_debug(message=f"Virtual Machine Details: {virtual_machine_details}")
+            if virtual_machine.get("cpu_count") is None or virtual_machine.get("memory_size_MiB") is None:
+                self.job.log_warning(
+                    message=f"Skipping Virtual Machine {virtual_machine['name']} due to missing CPU or Memory details."
+                )
+                continue
             self._add_diffsync_virtualmachine(
                 virtual_machine, virtual_machine_details, self.config.default_cluster_name
             )
