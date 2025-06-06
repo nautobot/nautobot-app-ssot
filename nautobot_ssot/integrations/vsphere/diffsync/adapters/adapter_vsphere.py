@@ -114,8 +114,8 @@ class VsphereDiffSync(Adapter):
             virtual_machine_details = self.client.get_vm_details(virtual_machine["vm"]).json()["value"]
             self.job.log_debug(message=f"Virtual Machine Details: {virtual_machine_details}")
             if virtual_machine.get("cpu_count") is None or virtual_machine.get("memory_size_MiB") is None:
-                self.job.log_warning(
-                    message=f"Skipping Virtual Machine {virtual_machine['name']} due to missing CPU or Memory details."
+                self.job.logger.info(
+                    f"Skipping Virtual Machine {virtual_machine['name']} due to missing CPU or Memory details."
                 )
                 continue
             self._add_diffsync_virtualmachine(virtual_machine, virtual_machine_details, cluster["name"])
@@ -294,8 +294,8 @@ class VsphereDiffSync(Adapter):
             virtual_machine_details = self.client.get_vm_details(virtual_machine["vm"]).json()["value"]
             self.job.log_debug(message=f"Virtual Machine Details: {virtual_machine_details}")
             if virtual_machine.get("cpu_count") is None or virtual_machine.get("memory_size_MiB") is None:
-                self.job.log_warning(
-                    message=f"Skipping Virtual Machine {virtual_machine['name']} due to missing CPU or Memory details."
+                self.job.logger.info(
+                    f"Skipping Virtual Machine {virtual_machine['name']} due to missing CPU or Memory details."
                 )
                 continue
             self._add_diffsync_virtualmachine(
