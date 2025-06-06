@@ -70,7 +70,7 @@ class VsphereDiffSync(Adapter):
         self.config = config
         self.cluster_filters = cluster_filters
 
-    def _add_diffsync_virtualmachine(self, virtual_machine, virtual_machine_details, diffsync_cluster, cluster_name):
+    def _add_diffsync_virtualmachine(self, virtual_machine, virtual_machine_details, cluster_name):
         """Add virtualmachine to DiffSync and call load_vm_interfaces().
 
         Args:
@@ -91,7 +91,6 @@ class VsphereDiffSync(Adapter):
                 "status__name": self.config.default_vm_status_map[virtual_machine["power_state"]],
             },
         )
-        diffsync_cluster.add_child(diffsync_virtualmachine)
         self.load_vm_interfaces(
             vsphere_virtual_machine=virtual_machine_details,
             vm_id=virtual_machine["vm"],
@@ -114,9 +113,7 @@ class VsphereDiffSync(Adapter):
         for virtual_machine in virtual_machines:
             virtual_machine_details = self.client.get_vm_details(virtual_machine["vm"]).json()["value"]
             self.job.log_debug(message=f"Virtual Machine Details: {virtual_machine_details}")
-            self._add_diffsync_virtualmachine(
-                virtual_machine, virtual_machine_details, diffsync_cluster, cluster["name"]
-            )
+            self._add_diffsync_virtualmachine(virtual_machine, virtual_machine_details, cluster["name"])
 
     def load_ip_addresses(
         self,
@@ -292,7 +289,7 @@ class VsphereDiffSync(Adapter):
             virtual_machine_details = self.client.get_vm_details(virtual_machine["vm"]).json()["value"]
             self.job.log_debug(message=f"Virtual Machine Details: {virtual_machine_details}")
             self._add_diffsync_virtualmachine(
-                virtual_machine, virtual_machine_details, default_diffsync_cluster, self.config.default_cluster_name
+                virtual_machine, virtual_machine_details, self.config.default_cluster_name
             )
 
     def load(self):
