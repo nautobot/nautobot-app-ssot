@@ -28,6 +28,24 @@
                         "vlan": {
                             "id": "0"
                         }
+                    },
+                    {
+                        "protocol": "ipv6",
+                        "address": "2001:116:4811:7d51:b7e:a1fa:edbe:4f2c",
+                        "gateway": "fe80::",
+                        "assignmentMode": "dynamic",
+                        "nameservers": {
+                            "addresses": [
+                                "2001:507:1642:6a02:526d:70eb:dc18:4fc3",
+                                "::"
+                            ]
+                        },
+                        "public": {
+                            "address": null
+                        },
+                        "vlan": {
+                            "id": "0"
+                        }
                     }
                 ]
             }
