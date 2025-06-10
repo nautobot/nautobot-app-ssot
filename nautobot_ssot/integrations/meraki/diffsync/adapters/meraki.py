@@ -357,18 +357,22 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
             device.add_child(ap_port)
         if port.get("addresses"):
             for addr in port["addresses"]:
-                prefix_length = 32
                 if self.job.debug:
                     self.job.logger.debug(f"Processing uplink address {addr['address']} for device {device.name}")
-                if prefix and is_ip_within(ip=addr["address"], ip_compare=prefix):
-                    prefix_length = ipaddress_network(ip=prefix, attr="prefixlen")
+                if addr["protocol"] == "ipv4":
+                    prefix_length = 32
+                    if prefix and is_ip_within(ip=addr["address"], ip_compare=prefix):
+                        prefix_length = ipaddress_network(ip=prefix, attr="prefixlen")
+                    else:
+                        prefix = ipaddress_interface(ip=addr["address"], attr="network.with_prefixlen")
                 else:
+                    prefix_length = 128
                     prefix = ipaddress_interface(ip=addr["address"], attr="network.with_prefixlen")
-                    self.load_prefix(prefix=prefix)
-                    self.load_prefix_location(
-                        prefix=prefix,
-                        location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
-                    )
+                self.load_prefix(prefix=prefix)
+                self.load_prefix_location(
+                    prefix=prefix,
+                    location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
+                )
                 self.load_ipaddress(host_addr=addr["address"], mask_length=prefix_length, prefix=prefix)
                 self.load_ipassignment(
                     address=f"{addr['address']}/{prefix_length}",
