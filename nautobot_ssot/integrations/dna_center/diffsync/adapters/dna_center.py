@@ -334,11 +334,6 @@ class DnaCenterAdapter(Adapter):
         """Load Device data from DNA Center info DiffSync models."""
         devices = self.conn.get_devices()
         for dev in devices:
-            if not PLUGIN_CFG.get("dna_center_import_merakis") and (
-                (dev.get("family") and "Meraki" in dev["family"])
-                or (dev.get("errorDescription") and "Meraki" in dev["errorDescription"])
-            ):
-                continue
             dev_role = "Unknown"
             vendor = "Cisco"
             if not dev.get("hostname"):
@@ -351,6 +346,8 @@ class DnaCenterAdapter(Adapter):
                 continue
             dev_role = self.get_device_role(dev)
             platform = self.get_device_platform(dev)
+            if not PLUGIN_CFG.get("dna_center_import_merakis") and platform == "cisco_meraki":
+                continue
             if platform == "unknown":
                 self.job.logger.warning(f"Device {dev['hostname']} is missing Platform so will be skipped.")
                 dev["field_validation"] = {
@@ -531,6 +528,7 @@ class DnaCenterAdapter(Adapter):
             if not dev.get("softwareType") and (
                 (dev.get("family") and "Meraki" in dev["family"])
                 or (dev.get("platformId") and dev["platformId"].startswith(("MX", "MS", "MR", "MX", "Z")))
+                or (dev.get("errorDescription") and "Meraki" in dev["errorDescription"])
             ):
                 platform = "cisco_meraki"
         return platform
