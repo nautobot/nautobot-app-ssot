@@ -336,7 +336,6 @@ class DnaCenterAdapter(Adapter):
         for dev in devices:
             dev_role = "Unknown"
             vendor = "Cisco"
-            dev_role = self.get_device_role(dev)
             platform = self.get_device_platform(dev)
             if not PLUGIN_CFG.get("dna_center_import_merakis") and platform == "cisco_meraki":
                 continue
@@ -357,6 +356,7 @@ class DnaCenterAdapter(Adapter):
                 continue
             if dev.get("type") and "Juniper" in dev["type"]:
                 vendor = "Juniper"
+            dev_role = self.get_device_role(dev)
             dev_details = self.conn.get_device_detail(dev_id=dev["id"])
             loc_data = {}
             if dev_details and dev_details.get("siteHierarchyGraphId"):
