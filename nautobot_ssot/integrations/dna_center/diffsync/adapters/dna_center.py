@@ -530,7 +530,7 @@ class DnaCenterAdapter(Adapter):
                         platform = "cisco_ios"
             if not dev.get("softwareType") and (
                 (dev.get("family") and "Meraki" in dev["family"])
-                or (dev.get("platformId") and dev["platformId"].startswith(("MX", "MS", "MR", "Z")))
+                or (dev.get("platformId") and dev["platformId"].startswith(("MX", "MS", "MR", "MX", "Z")))
             ):
                 platform = "cisco_meraki"
         return platform
