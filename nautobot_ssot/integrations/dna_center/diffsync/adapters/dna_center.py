@@ -528,7 +528,10 @@ class DnaCenterAdapter(Adapter):
                 for series in ["2700", "2800", "3800", "9120", "9124", "9130", "9136", "9166"]:
                     if series in dev["type"]:
                         platform = "cisco_ios"
-            if not dev.get("softwareType") and dev.get("family") and "Meraki" in dev["family"]:
+            if not dev.get("softwareType") and (
+                (dev.get("family") and "Meraki" in dev["family"])
+                or (dev.get("platformId") and dev["platformId"].startswith(("MX", "MS", "MR", "Z")))
+            ):
                 platform = "cisco_meraki"
         return platform
 
