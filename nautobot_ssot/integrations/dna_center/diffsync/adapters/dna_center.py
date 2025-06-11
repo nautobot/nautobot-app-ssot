@@ -336,14 +336,6 @@ class DnaCenterAdapter(Adapter):
         for dev in devices:
             dev_role = "Unknown"
             vendor = "Cisco"
-            if not dev.get("hostname"):
-                if self.job.debug:
-                    self.job.logger.warning(f"Device {dev['id']} is missing hostname so will be skipped.")
-                dev["field_validation"] = {
-                    "reason": "Failed due to missing hostname.",
-                }
-                self.failed_import_devices.append(dev)
-                continue
             dev_role = self.get_device_role(dev)
             platform = self.get_device_platform(dev)
             if not PLUGIN_CFG.get("dna_center_import_merakis") and platform == "cisco_meraki":
@@ -352,6 +344,14 @@ class DnaCenterAdapter(Adapter):
                 self.job.logger.warning(f"Device {dev['hostname']} is missing Platform so will be skipped.")
                 dev["field_validation"] = {
                     "reason": "Failed due to missing platform.",
+                }
+                self.failed_import_devices.append(dev)
+                continue
+            if not dev.get("hostname"):
+                if self.job.debug:
+                    self.job.logger.warning(f"Device {dev['id']} is missing hostname so will be skipped.")
+                dev["field_validation"] = {
+                    "reason": "Failed due to missing hostname.",
                 }
                 self.failed_import_devices.append(dev)
                 continue
@@ -525,9 +525,9 @@ class DnaCenterAdapter(Adapter):
                 for series in ["2700", "2800", "3800", "9120", "9124", "9130", "9136", "9166"]:
                     if series in dev["type"]:
                         platform = "cisco_ios"
-            if not dev.get("softwareType") and (
+            if (
                 (dev.get("family") and "Meraki" in dev["family"])
-                or (dev.get("platformId") and dev["platformId"].startswith(("MX", "MS", "MR", "MX", "Z")))
+                or (dev.get("platformId") and dev["platformId"].startswith(("MX", "MS", "MR", "Z")))
                 or (dev.get("errorDescription") and "Meraki" in dev["errorDescription"])
             ):
                 platform = "cisco_meraki"
