@@ -926,8 +926,7 @@ class NautobotTestSetup:
                     _tags.append(Tag.objects.get(name=_tag))
                 _platform = Platform.objects.get(name=_software_image["platform"])
                 _software = SoftwareVersion.objects.get(
-                    version=_software_image["software_version"].split(" - ")[1],
-                    platform=_platform
+                    version=_software_image["software_version"].split(" - ")[1], platform=_platform
                 )
                 _soft_image = SoftwareImageFile.objects.create(
                     software_version=_software,
@@ -970,8 +969,7 @@ class NautobotTestSetup:
                     _tags.append(Tag.objects.get(name=_tag))
                 _platform = Platform.objects.get(name=_software_image["platform"])
                 _software = SoftwareLCM.objects.get(
-                    version=_software_image["software_version"],
-                    device_platform=_platform
+                    version=_software_image["software_version"], device_platform=_platform
                 )
                 _soft_image = SoftwareImageLCM.objects.create(
                     software=_software,
