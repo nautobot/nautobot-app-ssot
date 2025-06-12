@@ -187,8 +187,10 @@ PLUGINS_CONFIG = {
             "computed_field": True,
             "tag": True,
             "graph_ql_query": True,
-            "software": True,
-            "software_image": True,
+            "software": True, # for nautobot <2.3.0
+            "software_version": True, # for nautobot >2.3.0
+            "software_image": True, # for nautobot <2.3.0
+            "software_image_file": True, # for nautobot >2.3.0
             "validated_software": True,
             "tenant_group": True,
             "tenant": True,
