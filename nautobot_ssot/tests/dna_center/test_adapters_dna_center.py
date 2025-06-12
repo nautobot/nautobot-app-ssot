@@ -322,6 +322,22 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
             "Device spine1.abc.in has unknown location in hierarchy so will not be imported."
         )
 
+    def test_load_devices_missing_hostname(self):
+        """Validate handling of a Device when hostname is missing."""
+        device_fixture_no_hostname = [
+            {
+                "id": "12345",
+                "managementIpAddress": "10.0.0.1",
+                "serialNumber": "ABC123",
+                "softwareType": "IOS",
+                "hostname": None,
+            }
+        ]
+        self.dna_center_client.get_devices.return_value = device_fixture_no_hostname
+        self.dna_center.load_devices()
+        self.dna_center.job.logger.warning.assert_called_with("Device 12345 is missing hostname so will be skipped.")
+        self.assertEqual(len(self.dna_center.get_all("device")), 0)
+
     def test_load_ports(self):
         """Test Nautobot SSoT for Cisco DNA Center load_ports() function."""
         self.dna_center.load_devices()
