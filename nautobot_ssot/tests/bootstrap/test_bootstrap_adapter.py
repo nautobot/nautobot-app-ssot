@@ -43,7 +43,7 @@ def assert_deep_diff(test_case, actual, expected, keys_to_normalize=None):
     def normalize(item):  # pylint: disable=too-many-branches
         if isinstance(item, list):
             return [normalize(i) for i in item]
-        if isinstance(item, dict):
+        if isinstance(item, dict):  # pylint: disable=too-many-nested-blocks
             for key in list(item.keys()):
                 if key in ["system_of_record", "model_flags", "uuid"]:
                     item.pop(key, None)
