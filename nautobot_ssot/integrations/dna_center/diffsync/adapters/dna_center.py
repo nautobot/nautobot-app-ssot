@@ -334,13 +334,18 @@ class DnaCenterAdapter(Adapter):
         """Load Device data from DNA Center info DiffSync models."""
         devices = self.conn.get_devices()
         for dev in devices:
-            if not PLUGIN_CFG.get("dna_center_import_merakis") and (
-                (dev.get("family") and "Meraki" in dev["family"])
-                or (dev.get("errorDescription") and "Meraki" in dev["errorDescription"])
-            ):
-                continue
             dev_role = "Unknown"
             vendor = "Cisco"
+            platform = self.get_device_platform(dev)
+            if not PLUGIN_CFG.get("dna_center_import_merakis") and platform == "cisco_meraki":
+                continue
+            if platform == "unknown":
+                self.job.logger.warning(f"Device {dev['hostname']} is missing Platform so will be skipped.")
+                dev["field_validation"] = {
+                    "reason": "Failed due to missing platform.",
+                }
+                self.failed_import_devices.append(dev)
+                continue
             if not dev.get("hostname"):
                 if self.job.debug:
                     self.job.logger.warning(f"Device {dev['id']} is missing hostname so will be skipped.")
@@ -349,17 +354,9 @@ class DnaCenterAdapter(Adapter):
                 }
                 self.failed_import_devices.append(dev)
                 continue
-            dev_role = self.get_device_role(dev)
-            platform = self.get_device_platform(dev)
-            if platform == "unknown":
-                self.job.logger.warning(f"Device {dev['hostname']} is missing Platform so will be skipped.")
-                dev["field_validation"] = {
-                    "reason": "Failed due to missing platform.",
-                }
-                self.failed_import_devices.append(dev)
-                continue
             if dev.get("type") and "Juniper" in dev["type"]:
                 vendor = "Juniper"
+            dev_role = self.get_device_role(dev)
             dev_details = self.conn.get_device_detail(dev_id=dev["id"])
             loc_data = {}
             if dev_details and dev_details.get("siteHierarchyGraphId"):
@@ -528,7 +525,11 @@ class DnaCenterAdapter(Adapter):
                 for series in ["2700", "2800", "3800", "9120", "9124", "9130", "9136", "9166"]:
                     if series in dev["type"]:
                         platform = "cisco_ios"
-            if not dev.get("softwareType") and dev.get("family") and "Meraki" in dev["family"]:
+            if (
+                (dev.get("family") and "Meraki" in dev["family"])
+                or (dev.get("platformId") and dev["platformId"].startswith(("MX", "MS", "MR", "Z")))
+                or (dev.get("errorDescription") and "Meraki" in dev["errorDescription"])
+            ):
                 platform = "cisco_meraki"
         return platform
 
@@ -578,7 +579,6 @@ class DnaCenterAdapter(Adapter):
                         )
                         self.load_ipaddress_to_interface(
                             host=host,
-                            mask_length=mask_length,
                             device=dev.name if dev.name else "",
                             port=port["portName"],
                             primary=primary,
@@ -624,19 +624,18 @@ class DnaCenterAdapter(Adapter):
             )
             self.add(new_ip)
 
-    def load_ipaddress_to_interface(self, host: str, mask_length: int, device: str, port: str, primary: bool):  # pylint: disable=too-many-arguments, too-many-positional-arguments
+    def load_ipaddress_to_interface(self, host: str, device: str, port: str, primary: bool):
         """Load DNAC IPAddressOnInterface DiffSync model with specified data.
 
         Args:
             host (str): Host IP Address in mapping.
-            mask_length (int): Subnet mask length for host IP Address.
             device (str): Device that IP resides on.
             port (str): Interface that IP is configured on.
             primary (str): Whether the IP is primary IP for assigned device. Defaults to False.
         """
         self.get_or_instantiate(
             self.ip_on_intf,
-            ids={"host": host, "mask_length": mask_length, "device": device, "port": port},
+            ids={"host": host, "device": device, "port": port},
             attrs={"primary": primary},
         )
 

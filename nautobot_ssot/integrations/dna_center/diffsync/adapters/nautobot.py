@@ -327,7 +327,6 @@ class NautobotAdapter(Adapter):
         for mapping in mappings:
             new_ipaddr_to_interface = self.ip_on_intf(
                 host=str(mapping.ip_address.host),
-                mask_length=mapping.ip_address.mask_length,
                 device=mapping.interface.device.name,
                 port=mapping.interface.name,
                 primary=bool(
