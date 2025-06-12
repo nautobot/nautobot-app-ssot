@@ -72,7 +72,7 @@ def assert_deep_diff(test_case, actual, expected, keys_to_normalize=None):
                     item[key] = None
                 if key == "content_types" or key == "provided_contents" and isinstance(item[key], list):
                     item[key] = sorted(["config contexts" if v == "extras.configcontext" else v for v in item[key]])
-                if key in ["date_allocated", "valid_since", "valid_until"]:
+                if key in ["date_allocated", "valid_since", "valid_until", "release_date", "eos_date"]:
                     if item.get(key) is not None:
                         # Convert all dates to YYYY-MM-DD format
                         if isinstance(item[key], (datetime, date)):
@@ -81,6 +81,9 @@ def assert_deep_diff(test_case, actual, expected, keys_to_normalize=None):
                             # If it's already a string, ensure it's in YYYY-MM-DD format
                             if len(item[key]) > 10:  # Has time component
                                 item[key] = item[key].split("T")[0].split(" ")[0]
+                        # Don't remove None dates for release_date and eos_date
+                        elif key not in ["release_date", "eos_date"]:
+                            item.pop(key, None)
                 if key == "prefix":
                     # Sort prefixes based on network and namespace as unique identifiers
                     item[key] = sorted(item[key], key=lambda x: (x["network"], x["namespace"]))
@@ -143,17 +146,19 @@ class TestBootstrapAdapterTestCase(TransactionTestCase):
 
         # Verify the data was loaded into the adapter
         adapter_data = self.bootstrap.dict()
-        # print("Adapter data:", adapter_data)
-        # print("Adapter data keys:", adapter_data.keys())
 
         for key in MODELS_TO_SYNC:
-            if core_supports_softwareversion() and key in [
-                "software",
-                "software_version",
-                "software_image",
-                "software_image_file",
-            ]:
-                continue
+            # Skip software-related models based on Nautobot version
+            if core_supports_softwareversion():
+                if key in ["software", "software_image"]:
+                    # These models are only for Nautobot <2.3.0
+                    print(f"Nautobot version supports softwareversion: {key}")
+                    continue
+            else:
+                if key in ["software_version", "software_image_file"]:
+                    # These models are only for Nautobot >=2.3.0
+                    print(f"Nautobot version does not support softwareversion: {key}")
+                    continue
 
             print(f"Checking: {key}")
             actual_data = list(adapter_data.get(key, {}).values())
