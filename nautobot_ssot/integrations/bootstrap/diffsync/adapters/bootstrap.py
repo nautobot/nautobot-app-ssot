@@ -983,6 +983,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                     system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
                 )
             self.add(_new_software)
+            print(f"Added software: {_new_software}")
             if self.job.debug:
                 self.job.logger.debug(f"Loaded Bootstrap Software: {_new_software}")
 

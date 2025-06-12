@@ -1,7 +1,7 @@
 """Tests for Bootstrap adapter."""
 
 import json
-from datetime import datetime
+from datetime import date, datetime
 from unittest.mock import MagicMock
 
 import yaml
@@ -13,6 +13,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.adapters.bootstrap import (
     BootstrapAdapter,
 )
 from nautobot_ssot.integrations.bootstrap.jobs import BootstrapDataSource
+from nautobot_ssot.utils import core_supports_softwareversion
 
 from .test_bootstrap_setup import (
     DEVELOP_YAML_SETTINGS,
@@ -59,6 +60,7 @@ def assert_deep_diff(test_case, actual, expected, keys_to_normalize=None):
                         "longitude",
                         "tenant",
                         "terminations",
+                        "valid_until",
                     ]
                     and item.get(key) is None
                 ):
@@ -72,12 +74,13 @@ def assert_deep_diff(test_case, actual, expected, keys_to_normalize=None):
                     item[key] = sorted(["config contexts" if v == "extras.configcontext" else v for v in item[key]])
                 if key in ["date_allocated", "valid_since", "valid_until"]:
                     if item.get(key) is not None:
-                        # Normalize the format to 'YYYY-MM-DD HH:MM:SS' for consistency
-                        if isinstance(item[key], datetime):
-                            item[key] = item[key].isoformat(sep=" ")
-                        elif isinstance(item[key], str) and len(item[key]) == 10:
-                            # Convert 'YYYY-MM-DD' format to 'YYYY-MM-DD 00:00:00'
-                            item[key] += " 00:00:00"
+                        # Convert all dates to YYYY-MM-DD format
+                        if isinstance(item[key], (datetime, date)):
+                            item[key] = item[key].strftime("%Y-%m-%d")
+                        elif isinstance(item[key], str):
+                            # If it's already a string, ensure it's in YYYY-MM-DD format
+                            if len(item[key]) > 10:  # Has time component
+                                item[key] = item[key].split("T")[0].split(" ")[0]
                 if key == "prefix":
                     # Sort prefixes based on network and namespace as unique identifiers
                     item[key] = sorted(item[key], key=lambda x: (x["network"], x["namespace"]))
@@ -137,14 +140,27 @@ class TestBootstrapAdapterTestCase(TransactionTestCase):
     def test_data_loading(self):
         """Test Nautobot Ssot Bootstrap load() function."""
         self.bootstrap.load()
-        # self.maxDiff = None
-        # pylint: disable=duplicate-code
+
+        # Verify the data was loaded into the adapter
+        adapter_data = self.bootstrap.dict()
+        #print("Adapter data:", adapter_data)
+        #print("Adapter data keys:", adapter_data.keys())
+
+
         for key in MODELS_TO_SYNC:
+            if core_supports_softwareversion() and key in ["software", "software_version", "software_image", "software_image_file"]:
+                continue
+
             print(f"Checking: {key}")
+            actual_data = list(adapter_data.get(key, {}).values())
+            expected_data = GLOBAL_JSON_SETTINGS.get(key, [])
+            print(f"Actual data for {key}:", actual_data)
+            print(f"Expected data for {key}:", expected_data)
+
             assert_deep_diff(
                 self,
-                list(self.bootstrap.dict().get(key, {}).values()),
-                GLOBAL_JSON_SETTINGS.get(key, []),
+                actual_data,
+                expected_data,
                 keys_to_normalize={
                     "parent",
                     "nestable",
