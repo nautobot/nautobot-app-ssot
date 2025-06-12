@@ -579,7 +579,6 @@ class DnaCenterAdapter(Adapter):
                         )
                         self.load_ipaddress_to_interface(
                             host=host,
-                            mask_length=mask_length,
                             device=dev.name if dev.name else "",
                             port=port["portName"],
                             primary=primary,
@@ -625,19 +624,18 @@ class DnaCenterAdapter(Adapter):
             )
             self.add(new_ip)
 
-    def load_ipaddress_to_interface(self, host: str, mask_length: int, device: str, port: str, primary: bool):  # pylint: disable=too-many-arguments, too-many-positional-arguments
+    def load_ipaddress_to_interface(self, host: str, device: str, port: str, primary: bool):
         """Load DNAC IPAddressOnInterface DiffSync model with specified data.
 
         Args:
             host (str): Host IP Address in mapping.
-            mask_length (int): Subnet mask length for host IP Address.
             device (str): Device that IP resides on.
             port (str): Interface that IP is configured on.
             primary (str): Whether the IP is primary IP for assigned device. Defaults to False.
         """
         self.get_or_instantiate(
             self.ip_on_intf,
-            ids={"host": host, "mask_length": mask_length, "device": device, "port": port},
+            ids={"host": host, "device": device, "port": port},
             attrs={"primary": primary},
         )
 
