@@ -954,7 +954,9 @@ class BootstrapAdapter(Adapter, LabelMixin):
             _tags = software.get("tags", [])
 
             if core_supports_softwareversion():
-                _status = validate_software_version_status(software.get("status", "Active"), software["version"], self.job.logger)
+                _status = validate_software_version_status(
+                    software.get("status", "Active"), software["version"], self.job.logger
+                )
 
                 _new_software = self.software_version(
                     version=software["version"],

@@ -143,12 +143,16 @@ class TestBootstrapAdapterTestCase(TransactionTestCase):
 
         # Verify the data was loaded into the adapter
         adapter_data = self.bootstrap.dict()
-        #print("Adapter data:", adapter_data)
-        #print("Adapter data keys:", adapter_data.keys())
-
+        # print("Adapter data:", adapter_data)
+        # print("Adapter data keys:", adapter_data.keys())
 
         for key in MODELS_TO_SYNC:
-            if core_supports_softwareversion() and key in ["software", "software_version", "software_image", "software_image_file"]:
+            if core_supports_softwareversion() and key in [
+                "software",
+                "software_version",
+                "software_image",
+                "software_image_file",
+            ]:
                 continue
 
             print(f"Checking: {key}")
