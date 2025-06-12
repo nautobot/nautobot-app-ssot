@@ -863,8 +863,59 @@
   ],
   "software": [
     {
+      "device_platform": "arista_eos",
+      "version": "4.25.10M",
+      "alias": "",
+      "release_date": "2023-12-04",
+      "eos_date": "2023-12-05",
+      "documentation_url": "https://arista.com",
+      "lts": false,
+      "pre_release": false,
+      "tags": ["Backbone"],
+      "system_of_record": "Bootstrap"
+    },
+    {
+      "device_platform": "cisco_ios",
+      "version": "03.11.04.E",
+      "alias": "Cisco Validated",
+      "release_date": null,
+      "eos_date": "2023-12-04",
+      "documentation_url": "",
+      "lts": false,
+      "pre_release": false,
+      "tags": ["Test"],
+      "system_of_record": "Bootstrap"
+    },
+    {
+      "device_platform": "paloalto_panos",
+      "version": "11.0.3",
+      "alias": "Panos Preferred",
+      "release_date": null,
+      "eos_date": "2024-12-04",
+      "documentation_url": "https://paloaltonetworks.com",
+      "lts": false,
+      "pre_release": false,
+      "tags": ["Test"],
+      "system_of_record": "Bootstrap"
+    },
+    {
+      "device_platform": "arista_eos",
+      "version": "15.4.3",
+      "alias": "Arista Preferred",
+      "release_date": null,
+      "eos_date": "2024-12-04",
+      "documentation_url": "https://arista.com",
+      "lts": false,
+      "pre_release": false,
+      "tags": ["Test"],
+      "system_of_record": "Bootstrap"
+    }
+  ],
+  "software_version": [
+    {
       "platform": "arista_eos",
       "version": "4.25.10M",
+      "status": "Active",
       "alias": "",
       "release_date": "2023-12-04",
       "eos_date": "2023-12-05",
@@ -877,8 +928,8 @@
     {
       "platform": "cisco_ios",
       "version": "03.11.04.E",
+      "status": "Active",
       "alias": "Cisco Validated",
-      "release_date": null,
       "eos_date": "2023-12-04",
       "documentation_url": "",
       "long_term_support": false,
@@ -889,8 +940,8 @@
     {
       "platform": "paloalto_panos",
       "version": "11.0.3",
+      "status": "Active",
       "alias": "Panos Preferred",
-      "release_date": null,
       "eos_date": "2024-12-04",
       "documentation_url": "https://paloaltonetworks.com",
       "long_term_support": false,
@@ -901,8 +952,8 @@
     {
       "platform": "arista_eos",
       "version": "15.4.3",
+      "status": "Active",
       "alias": "Arista Preferred",
-      "release_date": null,
       "eos_date": "2024-12-04",
       "documentation_url": "https://arista.com",
       "long_term_support": false,
@@ -914,7 +965,7 @@
   "software_image": [
     {
       "software": "arista_eos - 15.4.3",
-      "platform": "arista_eos",
+      "device_platform": "arista_eos",
       "software_version": "15.4.3",
       "file_name": "arista15.4.3.bin",
       "download_url": "https://arista-files.com",
@@ -926,12 +977,41 @@
     },
     {
       "software": "paloalto_panos - 11.0.3",
-      "platform": "paloalto_panos",
+      "device_platform": "paloalto_panos",
       "software_version": "11.0.3",
       "file_name": "paloalto_11.0.3.bin",
       "download_url": "https://paloaltonetworks.com",
       "image_file_checksum": "o234i09usdfsflkj",
       "hashing_algorithm": "SHA256",
+      "default_image": false,
+      "tags": [],
+      "system_of_record": "Bootstrap"
+    }
+  ],
+  "software_image_file": [
+    {
+      "platform": "arista_eos",
+      "status": "active",
+      "file_size": 1234,
+      "device_types": ["arista-switch"],
+      "software_version": "arista_eos - 15.4.3",
+      "image_file_name": "arista15.4.3.bin",
+      "download_url": "https://arista-files.com",
+      "image_file_checksum": "",
+      "hashing_algorithm": "sha256",
+      "default_image": false,
+      "tags": ["Test"],
+      "system_of_record": "Bootstrap"
+    },
+    {
+      "platform": "paloalto_panos",
+      "status": "active",
+      "device_types": [],
+      "software_version": "paloalto_panos - 11.0.3",
+      "image_file_name": "paloalto_11.0.3.bin",
+      "download_url": "https://paloaltonetworks.com",
+      "image_file_checksum": "o234i09usdfsflkj",
+      "hashing_algorithm": "sha256",
       "default_image": false,
       "tags": [],
       "system_of_record": "Bootstrap"
