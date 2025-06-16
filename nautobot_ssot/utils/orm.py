@@ -1,6 +1,5 @@
 """Collection of untility functions for interacting with Django ORM."""
 
-
 from django.db.models import Model
 from typing_extensions import Any, Type, get_type_hints, is_typeddict
 
