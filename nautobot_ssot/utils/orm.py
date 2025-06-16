@@ -5,7 +5,7 @@ from typing_extensions import Any, Type, get_type_hints, is_typeddict
 
 
 def get_orm_attribute(attr_name: str, db_obj: Model) -> Any:
-    """Get the value of a Django ORM foreign key attribute using the Django queryset format.
+    """Get the value of a Django ORM attribute, including foreign key lookups if applicable.
 
     Args:
         attr_name (str): Name of the foreign key attribute to retrieve using Django queryset format
@@ -34,7 +34,7 @@ def get_orm_attribute(attr_name: str, db_obj: Model) -> Any:
 
 
 def load_typed_dict(typed_dict_class: Type, db_obj: Model) -> dict:
-    """Convert a Django ORM object into an associated TypedDict.
+    """Convert a Django ORM object into an associated TypedDict instance.
 
     Args:
         typed_dict_class (Type): A class type inheriting from TypedDict.
