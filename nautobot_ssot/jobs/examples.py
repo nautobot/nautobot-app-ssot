@@ -26,6 +26,7 @@ from nautobot.ipam.models import IPAddress, Namespace, Prefix
 from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.contrib import NautobotAdapter, NautobotModel
+from nautobot_ssot.contrib.typeddicts import TagDict
 from nautobot_ssot.exceptions import MissingSecretsGroupException
 from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
 from nautobot_ssot.tests.contrib_base_classes import ContentTypeDict
@@ -75,6 +76,7 @@ class LocationModel(NautobotModel):
         "parent__location_type__name",
         "tenant__name",
         "description",
+        "tags",
     )
 
     # Data type declarations for all identifiers and attributes
@@ -85,6 +87,7 @@ class LocationModel(NautobotModel):
     parent__location_type__name: Optional[str] = None
     tenant__name: Optional[str] = None
     description: str
+    tags: List[TagDict] = []
 
 
 class RoleModel(NautobotModel):
@@ -121,10 +124,11 @@ class NamespaceModel(NautobotModel):
     _model = Namespace
     _modelname = "namespace"
     _identifiers = ("name",)
-    _attributes = ("description",)
+    _attributes = ("description", "tags")
 
     name: str
     description: Optional[str] = ""
+    tags: List[TagDict] = []
 
 
 class PrefixModel(NautobotModel):
@@ -133,9 +137,9 @@ class PrefixModel(NautobotModel):
     # Metadata about this model
     _model = Prefix
     _modelname = "prefix"
-    _identifiers = ("network", "prefix_length", "tenant__name")
+    _identifiers = ("network", "prefix_length", "namespace__name")
     # To keep this example simple, we don't include **all** attributes of a Prefix here. But you could!
-    _attributes = ("description", "namespace__name", "status__name", "locations")
+    _attributes = ("description", "tenant__name", "status__name", "locations", "tags")
 
     # Data type declarations for all identifiers and attributes
     network: str
@@ -144,6 +148,7 @@ class PrefixModel(NautobotModel):
     tenant__name: Optional[str] = None
     status__name: str
     description: str
+    tags: List[TagDict] = []
 
     locations: List[LocationDict] = []
 
@@ -155,11 +160,7 @@ class IPAddressModel(NautobotModel):
     _model = IPAddress
     _modelname = "ipaddress"
     _identifiers = ("host", "mask_length", "parent__network", "parent__prefix_length", "parent__namespace__name")
-    _attributes = (
-        "status__name",
-        "ip_version",
-        "tenant__name",
-    )
+    _attributes = ("status__name", "ip_version", "tenant__name", "tags")
 
     # Data type declarations for all identifiers and attributes
     host: str
@@ -170,6 +171,7 @@ class IPAddressModel(NautobotModel):
     status__name: str
     ip_version: int
     tenant__name: Optional[str]
+    tags: List[TagDict] = []
 
 
 class TenantModel(NautobotModel):
@@ -179,10 +181,12 @@ class TenantModel(NautobotModel):
     _model = Tenant
     _modelname = "tenant"
     _identifiers = ("name",)
+    _attributes = ("tags",)
     _children = {}
 
     name: str
     prefixes: List[PrefixModel] = []
+    tags: List[TagDict] = []
 
 
 class DeviceTypeModel(NautobotModel):
@@ -191,13 +195,14 @@ class DeviceTypeModel(NautobotModel):
     _model = DeviceType
     _modelname = "device_type"
     _identifiers = ("model", "manufacturer__name")
-    _attributes = ("part_number", "u_height", "is_full_depth")
+    _attributes = ("part_number", "u_height", "is_full_depth", "tags")
 
     model: str
     manufacturer__name: str
     part_number: str
     u_height: int
     is_full_depth: bool
+    tags: List[TagDict] = []
 
 
 class ManufacturerModel(NautobotModel):
@@ -223,7 +228,7 @@ class PlatformModel(NautobotModel):
     _attributes = ("description", "network_driver", "napalm_driver")
 
     name: str
-    manufacturer__name: str
+    manufacturer__name: Optional[str] = None
     description: str
     network_driver: str
     napalm_driver: str
@@ -247,6 +252,7 @@ class DeviceModel(NautobotModel):
         "status__name",
         "tenant__name",
         "asset_tag",
+        "tags",
     )
     _children = {"interface": "interfaces"}
 
@@ -264,6 +270,7 @@ class DeviceModel(NautobotModel):
     tenant__name: Optional[str]
     asset_tag: Optional[str]
     interfaces: List["InterfaceModel"] = []
+    tags: List[TagDict] = []
 
 
 class InterfaceModel(NautobotModel):
@@ -283,6 +290,7 @@ class InterfaceModel(NautobotModel):
         "mtu",
         "type",
         "status__name",
+        "tags",
     )
     _children = {}
 
@@ -298,6 +306,7 @@ class InterfaceModel(NautobotModel):
     name: str
     type: str
     status__name: str
+    tags: List[TagDict] = []
 
 
 class LocationRemoteModel(LocationModel):
@@ -319,7 +328,8 @@ class LocationRemoteModel(LocationModel):
                 "description": attrs["description"],
                 "status": attrs["status__name"],
                 "location_type": attrs["location_type__name"],
-                "parent": {"name": attrs["parent__name"]} if attrs["parent__name"] else None,
+                "parent": {"name": attrs["parent__name"]} if attrs.get("parent__name") else None,
+                "tags": attrs["tags"] if attrs.get("tags") else [],
             },
         )
         return super().create(adapter, ids=ids, attrs=attrs)
@@ -340,6 +350,8 @@ class LocationRemoteModel(LocationModel):
                 data["parent"] = {"name": attrs["parent__name"]}
             else:
                 data["parent"] = None
+        if "tags" in attrs:
+            data["tags"] = attrs["tags"] if attrs.get("tags") else []
         self.adapter.patch(f"/api/dcim/locations/{self.pk}/", data)
         return super().update(attrs)
 
@@ -359,13 +371,18 @@ class TenantRemoteModel(TenantModel):
             "/api/tenancy/tenants/",
             {
                 "name": ids["name"],
+                "tags": attrs["tags"] if attrs.get("tags") else [],
             },
         )
         return super().create(adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Updating tenants is not supported because we don't have any attributes."""
-        raise NotImplementedError("Can't update tenants - they only have a name.")
+        data = {}
+        if "tags" in attrs:
+            data["tags"] = attrs["tags"] if attrs.get("tags") else []
+        self.adapter.patch(f"/api/tenancy/tenants/{self.pk}/", data)
+        return super().update(attrs)
 
     def delete(self):
         """Delete a Tenant in remote Nautobot."""
@@ -390,10 +407,11 @@ class PrefixRemoteModel(PrefixModel):
             {
                 "network": ids["network"],
                 "prefix_length": ids["prefix_length"],
-                "tenant": {"name": ids["tenant__name"]} if ids["tenant__name"] else None,
-                "namespace": {"name": attrs["namespace__name"]} if attrs["namespace__name"] else None,
+                "tenant": {"name": attrs["tenant__name"]} if attrs.get("tenant__name") else None,
+                "namespace": {"name": ids["namespace__name"]} if ids.get("namespace__name") else None,
                 "description": attrs["description"],
                 "status": attrs["status__name"],
+                "tags": attrs["tags"] if attrs.get("tags") else [],
             },
         )
         return super().create(adapter, ids=ids, attrs=attrs)
@@ -409,6 +427,8 @@ class PrefixRemoteModel(PrefixModel):
             data["description"] = attrs["description"]
         if "status__name" in attrs:
             data["status"] = attrs["status__name"]
+        if "tags" in attrs:
+            data["tags"] = attrs["tags"] if attrs.get("tags") else []
         self.adapter.patch(f"/api/dcim/locations/{self.pk}/", data)
         return super().update(attrs)
 
@@ -481,10 +501,10 @@ class NautobotRemote(Adapter):
 
     def _get_api_data(self, url_path: str) -> Generator:
         """Returns data from a url_path using pagination."""
-        data = requests.get(f"{self.url}/{url_path}", headers=self.headers, params={"limit": 200}, timeout=60).json()
+        data = requests.get(f"{self.url}/{url_path}", headers=self.headers, params={"limit": 200}, timeout=600).json()
         yield from data["results"]
         while data["next"]:
-            data = requests.get(data["next"], headers=self.headers, params={"limit": 200}, timeout=60).json()
+            data = requests.get(data["next"], headers=self.headers, params={"limit": 200}, timeout=600).json()
             yield from data["results"]
 
     def load(self):
@@ -527,6 +547,7 @@ class NautobotRemote(Adapter):
                 "location_type__name": loc_entry["location_type"]["name"],
                 "tenant__name": loc_entry["tenant"]["name"] if loc_entry.get("tenant") else None,
                 "description": loc_entry["description"],
+                "tags": loc_entry["tags"] if loc_entry.get("tags") else [],
                 "pk": loc_entry["id"],
             }
             if loc_entry["parent"]:
@@ -564,6 +585,7 @@ class NautobotRemote(Adapter):
         for tenant_entry in self._get_api_data("api/tenancy/tenants/?depth=1"):
             tenant = self.tenant(
                 name=tenant_entry["name"],
+                tags=tenant_entry["tags"] if tenant_entry.get("tags") else [],
                 pk=tenant_entry["id"],
             )
             self.add(tenant)
@@ -574,6 +596,7 @@ class NautobotRemote(Adapter):
             namespace = self.namespace(
                 name=namespace_entry["name"],
                 description=namespace_entry["description"],
+                tags=namespace_entry["tags"] if namespace_entry.get("tags") else [],
                 pk=namespace_entry["id"],
             )
             self.add(namespace)
@@ -591,7 +614,8 @@ class NautobotRemote(Adapter):
                     for x in prefix_entry["locations"]
                 ],
                 status__name=prefix_entry["status"]["name"] if prefix_entry["status"].get("name") else "Active",
-                tenant__name=prefix_entry["tenant"]["name"] if prefix_entry["tenant"] else "",
+                tenant__name=prefix_entry["tenant"]["name"] if prefix_entry["tenant"] else None,
+                tags=prefix_entry["tags"] if prefix_entry.get("tags") else [],
                 pk=prefix_entry["id"],
             )
             self.add(prefix)
@@ -608,7 +632,8 @@ class NautobotRemote(Adapter):
                 parent__namespace__name=ipaddr_entry["parent"]["namespace"]["name"],
                 status__name=ipaddr_entry["status"]["name"],
                 ip_version=ipaddr_entry["ip_version"],
-                tenant__name=ipaddr_entry["tenant"]["name"] if ipaddr_entry.get("tenant") else "",
+                tenant__name=ipaddr_entry["tenant"]["name"] if ipaddr_entry.get("tenant") else None,
+                tags=ipaddr_entry["tags"] if ipaddr_entry.get("tags") else [],
                 pk=ipaddr_entry["id"],
             )
             self.add(ipaddr)
@@ -632,10 +657,11 @@ class NautobotRemote(Adapter):
                 manufacturer = self.get(self.manufacturer, device_type["manufacturer"]["name"])
                 devicetype = self.device_type(
                     model=device_type["model"],
-                    manufacturer__name=device_type["manufacturer"]["name"],
+                    manufacturer__name=device_type["manufacturer"]["name"] if device_type.get("manufacturer") else "",
                     part_number=device_type["part_number"],
                     u_height=device_type["u_height"],
                     is_full_depth=device_type["is_full_depth"],
+                    tags=device_type["tags"] if device_type.get("tags") else [],
                     pk=device_type["id"],
                 )
                 self.add(devicetype)
@@ -649,7 +675,7 @@ class NautobotRemote(Adapter):
         for platform in self._get_api_data("api/dcim/platforms/?depth=1"):
             platform = self.platform(
                 name=platform["name"],
-                manufacturer__name=platform["manufacturer"]["name"],
+                manufacturer__name=platform["manufacturer"]["name"] if platform.get("manufacturer") else "",
                 description=platform["description"],
                 network_driver=platform["network_driver"],
                 napalm_driver=platform["napalm_driver"],
@@ -679,6 +705,7 @@ class NautobotRemote(Adapter):
                 serial=device["serial"] if device.get("serial") else "",
                 status__name=device["status"]["name"],
                 tenant__name=device["tenant"]["name"] if device.get("tenant") else None,
+                tags=device["tags"] if device.get("tags") else [],
                 pk=device["id"],
             )
             self.add(device)
@@ -688,13 +715,22 @@ class NautobotRemote(Adapter):
         """Load Interfaces data from the remote Nautobot instance."""
         self.job.logger.info("Pulling data from remote Nautobot instance for Interfaces.")
         for interface in self._get_api_data("api/dcim/interfaces/?depth=3"):
+            if not interface.get("device"):
+                self.job.logger.warning(
+                    f"Skipping Interface {interface['name']} because it has no Device associated with it."
+                )
+                continue
             try:
                 dev = self.get(
                     self.device,
                     {
                         "name": interface["device"]["name"],
-                        "location__name": interface["device"]["location"]["name"],
-                        "location__parent__name": interface["device"]["location"]["parent"]["name"],
+                        "location__name": interface["device"]["location"]["name"]
+                        if interface["device"].get("location")
+                        else "",
+                        "location__parent__name": interface["device"]["location"]["parent"]["name"]
+                        if interface["device"].get("location") and interface["device"]["location"].get("parent")
+                        else None,
                     },
                 )
                 new_interface = self.interface(
@@ -709,6 +745,7 @@ class NautobotRemote(Adapter):
                     mtu=interface["mtu"],
                     type=interface["type"]["value"],
                     status__name=interface["status"]["name"],
+                    tags=interface["tags"] if interface.get("tags") else [],
                     pk=interface["id"],
                 )
                 self.add(new_interface)
@@ -740,19 +777,19 @@ class NautobotRemote(Adapter):
 
     def post(self, path, data):
         """Send an appropriately constructed HTTP POST request."""
-        response = requests.post(f"{self.url}{path}", headers=self.headers, json=data, timeout=60)
+        response = requests.post(f"{self.url}{path}", headers=self.headers, json=data, timeout=600)
         response.raise_for_status()
         return response
 
     def patch(self, path, data):
         """Send an appropriately constructed HTTP PATCH request."""
-        response = requests.patch(f"{self.url}{path}", headers=self.headers, json=data, timeout=60)
+        response = requests.patch(f"{self.url}{path}", headers=self.headers, json=data, timeout=600)
         response.raise_for_status()
         return response
 
     def delete(self, path):
         """Send an appropriately constructed HTTP DELETE request."""
-        response = requests.delete(f"{self.url}{path}", headers=self.headers, timeout=60)
+        response = requests.delete(f"{self.url}{path}", headers=self.headers, timeout=600)
         response.raise_for_status()
         return response
 

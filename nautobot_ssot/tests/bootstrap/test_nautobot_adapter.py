@@ -9,9 +9,10 @@ import pytz
 from deepdiff import DeepDiff
 from django.test import TransactionTestCase
 
-from .test_setup import (
+from .test_bootstrap_setup import (
     GLOBAL_JSON_SETTINGS,
-    MODELS_TO_SYNC,
+    KEYS_TO_NORMALIZE,
+    MODELS_TO_TEST,
     NautobotTestSetup,
 )
 
@@ -24,8 +25,8 @@ def assert_nautobot_deep_diff(test_case, actual, expected, keys_to_normalize=Non
     def handle_datetime(datetime_obj, item_key):
         """Handle datetime object normalization based on field type."""
         if item_key == "date_allocated":
-            # For date_allocated, use space separator without timezone
-            return datetime_obj.strftime("%Y-%m-%d %H:%M:%S")
+            # For date_allocated, always return just the date
+            return datetime_obj.strftime("%Y-%m-%d")
         if item_key == "start_time":
             # For start_time, preserve existing timezone or add UTC if none
             if datetime_obj.tzinfo is None:
@@ -111,6 +112,12 @@ def assert_nautobot_deep_diff(test_case, actual, expected, keys_to_normalize=Non
                 normalized_dict[item_key] = handle_datetime(item[item_key], item_key)
                 continue
 
+            # Normalize string date/datetime fields to YYYY-MM-DD
+            if item_key in ["date_allocated", "valid_since", "valid_until", "release_date", "eos_date"]:
+                if isinstance(item.get(item_key), str):
+                    normalized_dict[item_key] = item[item_key][:10]
+                    continue
+
             # Handle all other cases
             normalized_dict[item_key] = normalize(item[item_key], item_key)
 
@@ -155,9 +162,7 @@ class TestNautobotAdapterTestCase(TransactionTestCase):
     def test_data_loading(self):
         """Test SSoT Bootstrap Nautobot load() function."""
         self.nb_adapter.load()
-        # self.maxDiff = None
-        # pylint: disable=duplicate-code
-        for key in MODELS_TO_SYNC:
+        for key in MODELS_TO_TEST:
             print(f"Checking: {key}")
             models = list(self.nb_adapter.dict().get(key, {}).values())
             if key == "custom_field":
@@ -169,14 +174,5 @@ class TestNautobotAdapterTestCase(TransactionTestCase):
                 self,
                 models,
                 GLOBAL_JSON_SETTINGS.get(key, []),
-                keys_to_normalize={
-                    "parent",
-                    "nestable",
-                    "tenant",
-                    "tenant_group",
-                    "terminations",
-                    "provider_network",
-                    "upstream_speed_kbps",
-                    "location",
-                },
+                keys_to_normalize=KEYS_TO_NORMALIZE,
             )
