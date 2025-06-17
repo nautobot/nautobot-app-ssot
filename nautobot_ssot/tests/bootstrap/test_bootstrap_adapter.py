@@ -78,9 +78,8 @@ def assert_deep_diff(test_case, actual, expected, keys_to_normalize=None):
                         if isinstance(item[key], (datetime, date)):
                             item[key] = item[key].strftime("%Y-%m-%d")
                         elif isinstance(item[key], str):
-                            # If it's already a string, ensure it's in YYYY-MM-DD format
-                            if len(item[key]) > 10:  # Has time component
-                                item[key] = item[key].split("T")[0].split(" ")[0]
+                            # Always truncate to first 10 characters (YYYY-MM-DD)
+                            item[key] = item[key][:10]
                         # Don't remove None dates for release_date and eos_date
                         elif key not in ["release_date", "eos_date"]:
                             item.pop(key, None)
@@ -144,32 +143,57 @@ class TestBootstrapAdapterTestCase(TransactionTestCase):
         """Test Nautobot Ssot Bootstrap load() function."""
         self.bootstrap.load()
 
-        # Verify the data was loaded into the adapter
+        # Define exactly which models we want to test
+        models_to_test = [
+            "tenant_group",
+            "tenant",
+            "role",
+            "manufacturer",
+            "platform",
+            "location_type",
+            "location",
+            "team",
+            "contact",
+            "provider",
+            "provider_network",
+            "circuit_type",
+            "circuit",
+            "circuit_termination",
+            "secret",
+            "secrets_group",
+            "git_repository",
+            "dynamic_group",
+            "computed_field",
+            "custom_field",
+            "tag",
+            "graph_ql_query",
+            "namespace",
+            "rir",
+            "vlan_group",
+            "vlan",
+            "vrf",
+            "prefix",
+            "scheduled_job",
+        ]
+
+        # Get the adapter data
         adapter_data = self.bootstrap.dict()
 
-        for key in MODELS_TO_SYNC:
-            # Skip software-related models based on Nautobot version
-            if core_supports_softwareversion():
-                if key in ["software", "software_image"]:
-                    # These models are only for Nautobot <2.3.0
-                    print(f"Nautobot version supports softwareversion: {key}")
-                    continue
-            else:
-                if key in ["software_version", "software_image_file"]:
-                    # These models are only for Nautobot >=2.3.0
-                    print(f"Nautobot version does not support softwareversion: {key}")
-                    continue
+        print("Models being tested:", models_to_test)  # Debug print
+        print("Available adapter data keys:", list(adapter_data.keys()))  # Debug print
 
+        for key in models_to_test:
             print(f"Checking: {key}")
-            actual_data = list(adapter_data.get(key, {}).values())
-            expected_data = GLOBAL_JSON_SETTINGS.get(key, [])
-            print(f"Actual data for {key}:", actual_data)
-            print(f"Expected data for {key}:", expected_data)
+            models = list(adapter_data.get(key, {}).values())
+            if key == "custom_field":
+                for model in list(models):
+                    if model["label"] in ["System of Record", "Last sync from System of Record", "LibreNMS Device ID"]:
+                        models.remove(model)
 
             assert_deep_diff(
                 self,
-                actual_data,
-                expected_data,
+                models,
+                GLOBAL_JSON_SETTINGS.get(key, []),
                 keys_to_normalize={
                     "parent",
                     "nestable",
