@@ -123,6 +123,38 @@ MODELS_TO_SYNC = [
     "scheduled_job",
 ]
 
+MODELS_TO_TEST = [
+    "tenant_group",
+    "tenant",
+    "role",
+    "manufacturer",
+    "platform",
+    "location_type",
+    "location",
+    "team",
+    "contact",
+    "provider",
+    "provider_network",
+    "circuit_type",
+    "circuit",
+    "circuit_termination",
+    "secret",
+    "secrets_group",
+    "git_repository",
+    "dynamic_group",
+    "computed_field",
+    "custom_field",
+    "tag",
+    "graph_ql_query",
+    "namespace",
+    "rir",
+    "vlan_group",
+    "vlan",
+    "vrf",
+    "prefix",
+    "scheduled_job",
+]
+
 
 def is_valid_timezone(timezone):
     """Return whether timezone passed is a valid timezone in pytz."""
@@ -1080,3 +1112,15 @@ class NautobotTestSetup:
         validated_software.device_roles.set(device_roles)
         validated_software.inventory_items.set(inventory_items)
         validated_software.object_tags.set(object_tags)
+
+
+KEYS_TO_NORMALIZE = {
+    "parent",
+    "nestable",
+    "tenant",
+    "tenant_group",
+    "terminations",
+    "provider_network",
+    "upstream_speed_kbps",
+    "location",
+}

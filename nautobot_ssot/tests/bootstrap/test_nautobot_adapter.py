@@ -11,6 +11,8 @@ from django.test import TransactionTestCase
 
 from .test_bootstrap_setup import (
     GLOBAL_JSON_SETTINGS,
+    KEYS_TO_NORMALIZE,
+    MODELS_TO_TEST,
     NautobotTestSetup,
 )
 
@@ -160,39 +162,7 @@ class TestNautobotAdapterTestCase(TransactionTestCase):
     def test_data_loading(self):
         """Test SSoT Bootstrap Nautobot load() function."""
         self.nb_adapter.load()
-        # Explicitly define which models to test (excluding software-related models)
-        models_to_test = [
-            "tenant_group",
-            "tenant",
-            "role",
-            "manufacturer",
-            "platform",
-            "location_type",
-            "location",
-            "team",
-            "contact",
-            "provider",
-            "provider_network",
-            "circuit_type",
-            "circuit",
-            "circuit_termination",
-            "secret",
-            "secrets_group",
-            "git_repository",
-            "dynamic_group",
-            "computed_field",
-            "custom_field",
-            "tag",
-            "graph_ql_query",
-            "namespace",
-            "rir",
-            "vlan_group",
-            "vlan",
-            "vrf",
-            "prefix",
-            "scheduled_job",
-        ]
-        for key in models_to_test:
+        for key in MODELS_TO_TEST:
             print(f"Checking: {key}")
             models = list(self.nb_adapter.dict().get(key, {}).values())
             if key == "custom_field":
@@ -204,14 +174,5 @@ class TestNautobotAdapterTestCase(TransactionTestCase):
                 self,
                 models,
                 GLOBAL_JSON_SETTINGS.get(key, []),
-                keys_to_normalize={
-                    "parent",
-                    "nestable",
-                    "tenant",
-                    "tenant_group",
-                    "terminations",
-                    "provider_network",
-                    "upstream_speed_kbps",
-                    "location",
-                },
+                keys_to_normalize=KEYS_TO_NORMALIZE,
             )
