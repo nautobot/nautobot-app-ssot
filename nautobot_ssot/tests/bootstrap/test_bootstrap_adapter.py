@@ -13,13 +13,11 @@ from nautobot_ssot.integrations.bootstrap.diffsync.adapters.bootstrap import (
     BootstrapAdapter,
 )
 from nautobot_ssot.integrations.bootstrap.jobs import BootstrapDataSource
-from nautobot_ssot.utils import core_supports_softwareversion
 
 from .test_bootstrap_setup import (
     DEVELOP_YAML_SETTINGS,
     GLOBAL_JSON_SETTINGS,
     GLOBAL_YAML_SETTINGS,
-    MODELS_TO_SYNC,
 )
 
 
