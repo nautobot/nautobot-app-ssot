@@ -57,14 +57,14 @@ from nautobot_ssot.integrations.bootstrap.jobs import BootstrapDataSource
 from nautobot_ssot.integrations.bootstrap.utils import get_scheduled_start_time
 from nautobot_ssot.utils import core_supports_softwareversion, dlm_supports_softwarelcm, validate_dlm_installed
 
-if dlm_supports_softwarelcm():
-    from nautobot_device_lifecycle_mgmt.models import SoftwareImageLCM, SoftwareLCM
-
-if validate_dlm_installed():
-    from nautobot_device_lifecycle_mgmt.models import ValidatedSoftwareLCM
-
 if core_supports_softwareversion():
-    from nautobot.dcim.models import SoftwareVersion  # pylint: disable=ungrouped-imports
+    from nautobot.dcim.models import SoftwareImageFile, SoftwareVersion  # pylint: disable=ungrouped-imports
+
+    if validate_dlm_installed():
+        from nautobot_device_lifecycle_mgmt.models import ValidatedSoftwareLCM
+
+if dlm_supports_softwarelcm():
+    from nautobot_device_lifecycle_mgmt.models import SoftwareImageLCM, SoftwareLCM, ValidatedSoftwareLCM
 
 
 def load_yaml(path):
@@ -109,9 +109,43 @@ MODELS_TO_SYNC = [
     "custom_field",
     "tag",
     "graph_ql_query",
-    "software",
-    "software_image",
+    "software",  # For Nautobot <2.3.0
+    "software_version",  # For Nautobot >=2.3.0
+    "software_image",  # For Nautobot <2.3.0
+    "software_image_file",  # For Nautobot >=2.3.0
     "validated_software",
+    "namespace",
+    "rir",
+    "vlan_group",
+    "vlan",
+    "vrf",
+    "prefix",
+    "scheduled_job",
+]
+
+MODELS_TO_TEST = [
+    "tenant_group",
+    "tenant",
+    "role",
+    "manufacturer",
+    "platform",
+    "location_type",
+    "location",
+    "team",
+    "contact",
+    "provider",
+    "provider_network",
+    "circuit_type",
+    "circuit",
+    "circuit_termination",
+    "secret",
+    "secrets_group",
+    "git_repository",
+    "dynamic_group",
+    "computed_field",
+    "custom_field",
+    "tag",
+    "graph_ql_query",
     "namespace",
     "rir",
     "vlan_group",
@@ -894,43 +928,93 @@ class NautobotTestSetup:
             _dynamic_group.refresh_from_db()
 
     def _setup_software_and_images(self):
-        for _software in GLOBAL_YAML_SETTINGS["software"]:
-            _tags = []
-            for _tag in _software["tags"]:
-                _tags.append(Tag.objects.get(name=_tag))
-            _platform = Platform.objects.get(name=_software["device_platform"])
-            _soft = SoftwareLCM.objects.create(
-                version=_software["version"],
-                alias=_software["alias"],
-                device_platform=_platform,
-                end_of_support=_software["eos_date"],
-                long_term_support=_software["lts"],
-                pre_release=_software["pre_release"],
-                documentation_url=_software["documentation_url"],
-                tags=_tags,
-            )
-            _soft.custom_field_data["system_of_record"] = "Bootstrap"
-            _soft.validated_save()
-            _soft.refresh_from_db()
+        """Set up software and software images for testing."""
+        # Handle software versions for both old and new Nautobot versions
+        if core_supports_softwareversion():
+            # For Nautobot >=2.3.0
+            for _software in GLOBAL_YAML_SETTINGS["software_version"]:
+                _tags = []
+                for _tag in _software["tags"]:
+                    _tags.append(Tag.objects.get(name=_tag))
+                _platform = Platform.objects.get(name=_software["platform"])
+                _soft = SoftwareVersion.objects.create(
+                    version=_software["version"],
+                    platform=_platform,
+                    status=self.status_active,
+                    alias=_software["alias"],
+                    end_of_support_date=_software["eos_date"],
+                    documentation_url=_software["documentation_url"],
+                    long_term_support=_software["long_term_support"],
+                    pre_release=_software["pre_release"],
+                )
+                _soft.custom_field_data["system_of_record"] = "Bootstrap"
+                _soft.validated_save()
+                _soft.refresh_from_db()
 
-        for _software_image in GLOBAL_YAML_SETTINGS["software_image"]:
-            _tags = []
-            for _tag in _software_image["tags"]:
-                _tags.append(Tag.objects.get(name=_tag))
-            _platform = Platform.objects.get(name=_software_image["platform"])
-            _software = SoftwareLCM.objects.get(version=_software_image["software_version"], device_platform=_platform)
-            _soft_image = SoftwareImageLCM.objects.create(
-                software=_software,
-                image_file_name=_software_image["file_name"],
-                image_file_checksum=_software_image["image_file_checksum"],
-                hashing_algorithm=_software_image["hashing_algorithm"],
-                download_url=_software_image["download_url"],
-                default_image=_software_image["default_image"],
-                tags=_tags,
-            )
-            _soft_image.custom_field_data["system_of_record"] = "Bootstrap"
-            _soft_image.validated_save()
-            _soft_image.refresh_from_db()
+            # For Nautobot >=2.3.0
+            for _software_image in GLOBAL_YAML_SETTINGS["software_image_file"]:
+                _tags = []
+                for _tag in _software_image["tags"]:
+                    _tags.append(Tag.objects.get(name=_tag))
+                _platform = Platform.objects.get(name=_software_image["platform"])
+                _software = SoftwareVersion.objects.get(
+                    version=_software_image["software_version"].split(" - ")[1], platform=_platform
+                )
+                _soft_image = SoftwareImageFile.objects.create(
+                    software_version=_software,
+                    image_file_name=_software_image["image_file_name"],
+                    image_file_checksum=_software_image["image_file_checksum"],
+                    image_file_size=_software_image["file_size"],
+                    hashing_algorithm=_software_image["hashing_algorithm"],
+                    download_url=_software_image["download_url"],
+                    default_image=_software_image["default_image"],
+                    status=self.status_active,
+                )
+                _soft_image.custom_field_data["system_of_record"] = "Bootstrap"
+                _soft_image.validated_save()
+                _soft_image.refresh_from_db()
+        else:
+            # For Nautobot <2.3.0
+            for _software in GLOBAL_YAML_SETTINGS["software"]:
+                _tags = []
+                for _tag in _software["tags"]:
+                    _tags.append(Tag.objects.get(name=_tag))
+                _platform = Platform.objects.get(name=_software["platform"])
+                _soft = SoftwareLCM.objects.create(
+                    version=_software["version"],
+                    alias=_software["alias"],
+                    device_platform=_platform,
+                    end_of_support=_software["eos_date"],
+                    long_term_support=_software["long_term_support"],
+                    pre_release=_software["pre_release"],
+                    documentation_url=_software["documentation_url"],
+                    tags=_tags,
+                )
+                _soft.custom_field_data["system_of_record"] = "Bootstrap"
+                _soft.validated_save()
+                _soft.refresh_from_db()
+
+            # For Nautobot <2.3.0
+            for _software_image in GLOBAL_YAML_SETTINGS["software_image"]:
+                _tags = []
+                for _tag in _software_image["tags"]:
+                    _tags.append(Tag.objects.get(name=_tag))
+                _platform = Platform.objects.get(name=_software_image["platform"])
+                _software = SoftwareLCM.objects.get(
+                    version=_software_image["software_version"], device_platform=_platform
+                )
+                _soft_image = SoftwareImageLCM.objects.create(
+                    software=_software,
+                    image_file_name=_software_image["file_name"],
+                    image_file_checksum=_software_image["image_file_checksum"],
+                    hashing_algorithm=_software_image["hashing_algorithm"],
+                    download_url=_software_image["download_url"],
+                    default_image=_software_image["default_image"],
+                    tags=_tags,
+                )
+                _soft_image.custom_field_data["system_of_record"] = "Bootstrap"
+                _soft_image.validated_save()
+                _soft_image.refresh_from_db()
 
     def _setup_validated_software(self):
         for validated_software_data in GLOBAL_YAML_SETTINGS["validated_software"]:
@@ -1025,7 +1109,18 @@ class NautobotTestSetup:
     ):  # pylint: disable=too-many-arguments
         validated_software.devices.set(devices)
         validated_software.device_types.set(device_types)
+        validated_software.device_roles.set(device_roles)
+        validated_software.inventory_items.set(inventory_items)
+        validated_software.object_tags.set(object_tags)
 
-        _ = device_roles
-        _ = inventory_items
-        _ = object_tags
+
+KEYS_TO_NORMALIZE = {
+    "parent",
+    "nestable",
+    "tenant",
+    "tenant_group",
+    "terminations",
+    "provider_network",
+    "upstream_speed_kbps",
+    "location",
+}
