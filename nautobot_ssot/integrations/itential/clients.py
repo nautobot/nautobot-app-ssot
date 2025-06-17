@@ -1,14 +1,17 @@
 """Itential SSoT API Clients."""
 
+import functools
+import time
 from typing import List, Optional, Union
 
-import functools
 import requests
-import time
 
 from nautobot_ssot.integrations.itential.constants import BACKOFF, DELAY, RETRIES
 
-def retry(exceptions, delay:int=0, tries:int=1, backoff:int=1):
+
+def retry(exceptions, delay: int = 0, tries: int = 1, backoff: int = 1):
+    """Retry decorator for HTTP client requests."""
+
     def decorator(fn):
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
@@ -16,12 +19,14 @@ def retry(exceptions, delay:int=0, tries:int=1, backoff:int=1):
             for attempt in range(tries):
                 try:
                     return fn(*args, **kwargs)
-                except exceptions as e:
+                except exceptions:
                     if attempt == tries - 1:
                         raise
                     time.sleep(current_delay)
                     current_delay *= backoff
+
         return wrapper
+
     return decorator
 
 
