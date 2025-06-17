@@ -3,8 +3,7 @@
 # pylint: disable=protected-access
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
-from collections import defaultdict
-from typing import DefaultDict, Dict, FrozenSet, Hashable, Tuple, Type, get_args
+from typing import Dict, Type, get_args
 
 import pydantic
 from diffsync import DiffSync
@@ -21,18 +20,7 @@ from nautobot_ssot.contrib.types import (
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
-
-# This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
-# and therefore a frozenset rather than a normal set or a list.
-#
-# The following is an example of a parameter set that describes a tenant based on its name and group:
-# frozenset(
-#  [
-#   ("name", "ABC Inc."),
-#   ("group__name", "Customers"),
-#  ]
-# )
-ParameterSet = FrozenSet[Tuple[str, Hashable]]
+from nautobot_ssot.utils.cache import ORMCache
 
 
 class NautobotAdapter(DiffSync):
@@ -42,37 +30,18 @@ class NautobotAdapter(DiffSync):
     This adapter is able to infer how to load data from Nautobot based on how the models attached to it are defined.
     """
 
-    # This dictionary acts as an ORM cache.
-    _cache: DefaultDict[str, Dict[ParameterSet, Model]]
-    _cache_hits: DefaultDict[str, int] = defaultdict(int)
-
     def __init__(self, *args, job, sync=None, **kwargs):
         """Instantiate this class, but do not load data immediately from the local system."""
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
+        self.cache: ORMCache = kwargs.pop("cache", ORMCache())
         self.metadata_type = None
         self.metadata_scope_fields = {}
-        self.invalidate_cache()
-
-    def invalidate_cache(self, zero_out_hits=True):
-        """Invalidates all the objects in the ORM cache."""
-        self._cache = defaultdict(dict)
-        if zero_out_hits:
-            self._cache_hits = defaultdict(int)
 
     def get_from_orm_cache(self, parameters: Dict, model_class: Type[Model]):
         """Retrieve an object from the ORM or the cache."""
-        parameter_set = frozenset(parameters.items())
-        content_type = ContentType.objects.get_for_model(model_class)
-        model_cache_key = f"{content_type.app_label}.{content_type.model}"
-        if cached_object := self._cache[model_cache_key].get(parameter_set):
-            self._cache_hits[model_cache_key] += 1
-            return cached_object
-        # As we are using `get` here, this will error if there is not exactly one object that corresponds to the
-        # parameter set. We intentionally pass these errors through.
-        self._cache[model_cache_key][parameter_set] = model_class.objects.get(**dict(parameter_set))
-        return self._cache[model_cache_key][parameter_set]
+        return self.cache.get_from_orm(model_class, parameters)
 
     @staticmethod
     def _get_parameter_names(diffsync_model):
