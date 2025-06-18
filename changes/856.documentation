@@ -1,0 +1,1 @@
+Added a note to the developer upgrade documentation to explain the default value for text fields declared with `blank=True, null=False`.
