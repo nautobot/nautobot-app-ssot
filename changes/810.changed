@@ -1,0 +1,1 @@
+Moved caching in `NautobotAdapter` to dedicated class.
