@@ -353,6 +353,8 @@ class NautobotAdapter(DiffSync):
                 return None
         # Return the result of the last lookup directly.
         try:
+            if isinstance(related_object, dict):
+                return related_object.get(lookups[-1])
             return getattr(related_object, lookups[-1])
         # If the lookup doesn't point anywhere, check whether it is using the convention for generic foreign keys.
         except AttributeError:
