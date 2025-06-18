@@ -24,8 +24,8 @@ class NautobotAdapter(Adapter)
 
 ## Set defaults for Optional
 
-!!! info inline end
-    The `Optional` annotation in Pydantic means that a field can be marked as `None` which may not be correct for text fields where a default value of `""` should be used instead. See the [Pydantic documentation](https://docs.pydantic.dev/latest/migration/#required-optional-and-nullable-fields) for more information.
+!!! info
+    The `Optional` annotation in Pydantic means that a field can be marked as `None` which may not be correct for text fields declared as `blank=True, null=False`. Those fields should use a default value of `""` should be used instead. See the [Pydantic documentation](https://docs.pydantic.dev/latest/migration/#required-optional-and-nullable-fields) for more information.
 
 One of the changes with Pydantic v2 is that any variables that are Optional must have a default value defined. This needs to be done on your class attributes like below:
 
