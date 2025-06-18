@@ -3,7 +3,7 @@
 As part of the changes required for utilizing DiffSync 2.0 and pydantic v2 any SSoT Apps that were written prior to SSoT 3.x will need to be updated. The following pieces will need to be changed:
 
 - Replace instances of `DiffSync` class with `Adapter` class.
-- Set default value of `None` for any `Optional` class attributes on `DiffSyncModel` or `NautobotModel` objects.
+- Set a default value for any `Optional` class attributes on `DiffSyncModel` or `NautobotModel` objects.
 - Replace any kwargs using `diffsync` to be `adapter`.
 
 ## Replace DiffSync class with Adapter class
@@ -24,7 +24,10 @@ class NautobotAdapter(Adapter)
 
 ## Set defaults for Optional
 
-One of the changes with Pydantic v2 is that any variables that are Optional must have a default of None defined. This needs to be done on your class attributes like below:
+!!! info inline end
+    The `Optional` annotation in Pydantic means that a field can be marked as `None` which may not be correct for text fields where a default value of `""` should be used instead. See the [Pydantic documentation](https://docs.pydantic.dev/latest/migration/#required-optional-and-nullable-fields) for more information.
+
+One of the changes with Pydantic v2 is that any variables that are Optional must have a default value defined. This needs to be done on your class attributes like below:
 
 ```python
 class DeviceModel(NautobotModel):
