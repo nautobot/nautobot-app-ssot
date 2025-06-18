@@ -84,7 +84,7 @@ class NautobotAdapter(DiffSync):
                     database_object, parameter_name, custom_relationship_annotation
                 )
             else:
-                parameters[parameter_name] = self._handle_foreign_key(database_object, parameter_name)
+                parameters[parameter_name] = orm_attribute_lookup(database_object, parameter_name)
             return
 
         # Handling of one- and many-to custom relationship fields:

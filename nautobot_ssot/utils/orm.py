@@ -22,6 +22,8 @@ def get_orm_attribute(db_obj: Model, attr_name: str) -> Any:
 def orm_attribute_lookup(db_obj: Model, attr_name: str) -> Any:
     """Get the value of a Django ORM attribute, including foreign key lookups if applicable.
 
+    NOTE: Not compatible with custom relationships or attributes.
+
     Args:
         attr_name (str): Name of the foreign key attribute to retrieve using Django queryset format
           for foreign keys (`__`).
