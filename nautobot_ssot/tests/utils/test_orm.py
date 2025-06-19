@@ -8,6 +8,7 @@ from typing_extensions import Optional, TypedDict
 from nautobot_ssot.utils.orm import (
     get_orm_attribute,
     load_typed_dict,
+    orm_attribute_lookup,
 )
 
 
@@ -36,8 +37,47 @@ class BaseTestCase(TestCase):
         )
 
 
-class TestGetRelatedAttributeValue(BaseTestCase):
+class TestGetORMAttribute(BaseTestCase):
     """Unit tests for `get_orm_attribute` function."""
+
+    #################################################
+    # ERROR RAISING
+    #################################################
+
+    def test_invalid_attribute(self):
+        """Test with attribute name that doesn't exist in the ORM object."""
+        with self.assertRaises(AttributeError):
+            get_orm_attribute(self.location_2, "invalid_attribute")
+
+    def test_invalid_db_obj_type(self):
+        """Test function with `db_obj` input type other than ORM object."""
+        with self.assertRaises(AttributeError):
+            get_orm_attribute("string", "name")
+            get_orm_attribute({"mydict": "value"}, "name")
+            get_orm_attribute(42, "name")
+
+    def test_foreign_key_lookup(self):
+        """Test with foreign key lookup."""
+        with self.assertRaises(AttributeError):
+            get_orm_attribute(self.location_1, "parent__name")
+
+    #################################################
+    # ORM Attributes
+    #################################################
+
+    def test_get_basic_attribute(self):
+        """Test getting a basic attribute."""
+        result = get_orm_attribute(self.location_1, "name")
+        self.assertEqual(result, "Location 1")
+
+    def test_get_null_attribute(self):
+        """Test getting a null attribute."""
+        result = get_orm_attribute(self.location_1, "latitude")
+        self.assertIsNone(result)
+
+
+class TestORMAttributeLookup(BaseTestCase):
+    """Unit tests for `orm_attribute_lookup` function."""
 
     #################################################
     # ERROR RAISING
@@ -48,44 +88,44 @@ class TestGetRelatedAttributeValue(BaseTestCase):
     def test_invalid_foreign_key(self):
         """Test with attribute name that doesn't exist in the ORM object."""
         with self.assertRaises(AttributeError):
-            get_orm_attribute("parent__invalid_attribute", self.location_2)
+            orm_attribute_lookup(self.location_2, "parent__invalid_attribute")
 
     def test_db_obj_input_type_str(self):
         """Test function with `db_obj` input type `str`."""
         with self.assertRaises(TypeError):
-            get_orm_attribute("parent__name", "string")
+            orm_attribute_lookup("string", "parent__name")
 
     def test_db_obj_input_type_int(self):
         """Test function with `db_obj` input type `int`."""
         with self.assertRaises(TypeError):
-            get_orm_attribute("parent__name", 42)
+            orm_attribute_lookup(42, "parent__name")
 
     def test_db_obj_input_type_dict(self):
         """Test function with `db_obj` input type `dict`."""
         with self.assertRaises(TypeError):
-            get_orm_attribute("parent__name", {"name": "Invalid", "parent__name": "Invalid Parent Name"})
+            orm_attribute_lookup({"name": "Invalid", "parent__name": "Invalid Parent Name"}, "parent__name")
 
     # `attr_name` input variations
 
     def test_attr_name_input_type_int(self):
         """Test function with `attr_name` input type `int`."""
         with self.assertRaises(TypeError):
-            get_orm_attribute(42, self.location_1)
+            orm_attribute_lookup(self.location_1, 42)
 
     def test_attr_name_input_type_orm_obj(self):
         """Test function with `attr_name` input type `Model`."""
         with self.assertRaises(TypeError):
-            get_orm_attribute(self.location_1, self.location_1)
+            orm_attribute_lookup(self.location_1, self.location_1)
 
     def test_attr_name_input_type_bool(self):
         """Test function with `attr_name` input type `bool`."""
         with self.assertRaises(TypeError):
-            get_orm_attribute(True, self.location_1)
+            orm_attribute_lookup(self.location_1, True)
 
     def test_attr_name_input_type_none(self):
         """Test function with `attr_name` input type `None`."""
         with self.assertRaises(TypeError):
-            get_orm_attribute(None, self.location_1)
+            orm_attribute_lookup(self.location_1, None)
 
     #################################################
     # ORM Attributes
@@ -93,12 +133,12 @@ class TestGetRelatedAttributeValue(BaseTestCase):
 
     def test_get_basic_attribute(self):
         """"""
-        result = get_orm_attribute("name", self.location_1)
+        result = orm_attribute_lookup(self.location_1, "name")
         self.assertTrue(result, "Location 1")
 
     def test_get_null_attribute(self):
         """"""
-        result = get_orm_attribute("latitude", self.location_1)
+        result = orm_attribute_lookup(self.location_1, "latitude")
         self.assertIsNone(result)
 
     #################################################
@@ -107,22 +147,22 @@ class TestGetRelatedAttributeValue(BaseTestCase):
 
     def test_single_level_lookup(self):
         """Test a single-level string lookup."""
-        result = get_orm_attribute("location_type__name", self.location_1)
+        result = orm_attribute_lookup(self.location_1, "location_type__name")
         self.assertEqual(result, "Location Type 1")
 
     def test_single_level_none_result(self):
         """Test single level lookup with None result."""
-        result = get_orm_attribute("parent__name", self.location_1)
+        result = orm_attribute_lookup(self.location_1, "parent__name")
         self.assertIsNone(result)
 
     def test_single_level_blank_str_result(self):
         """Test single level lookup with blank string result."""
-        result = get_orm_attribute("location_type__description", self.location_1)
+        result = orm_attribute_lookup(self.location_1, "location_type__description")
         self.assertEqual(result, "")
 
     def test_single_level_orm_object_return(self):
         """Test looking up single attribute when return type is ORM object."""
-        result = get_orm_attribute("parent__location_type", self.location_2)
+        result = orm_attribute_lookup(self.location_2, "parent__location_type")
         self.assertIsInstance(result, LocationType)
 
     #################################################
@@ -131,27 +171,27 @@ class TestGetRelatedAttributeValue(BaseTestCase):
 
     def test_multi_level_lookup(self):
         """Test a multi-level lookup."""
-        result = get_orm_attribute("parent__location_type__name", self.location_2)
+        result = orm_attribute_lookup(self.location_2, "parent__location_type__name")
         self.assertEqual(result, "Location Type 1")
 
     def test_multi_level_intermediate_none_result(self):
         """Test multi level lookup with None result."""
-        result = get_orm_attribute("parent__parent__location_type__name", self.location_2)
+        result = orm_attribute_lookup(self.location_2, "parent__parent__location_type__name")
         self.assertIsNone(result)
 
     def test_multi_level_blank_str_result(self):
         """Test multi level lookup with blank string result."""
-        result = get_orm_attribute("parent__location_type__description", self.location_2)
+        result = orm_attribute_lookup(self.location_2, "parent__location_type__description")
         self.assertEqual(result, "")
 
     def test_multi_level_with_none_object(self):
         """Test multi level lookup with first related object as None."""
-        result = get_orm_attribute("parent__location_type__description", self.location_1)
+        result = orm_attribute_lookup(self.location_1, "parent__location_type__description")
         self.assertIsNone(result)
 
     def test_multi_level_with_empty_string_final_result(self):
         """Test multi level lookup where final attribute is None."""
-        result = get_orm_attribute("parent__location_type__description", self.location_2)
+        result = orm_attribute_lookup(self.location_2, "parent__location_type__description")
         self.assertEqual(result, "")
 
 

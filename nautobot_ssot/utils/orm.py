@@ -1,11 +1,28 @@
 """Collection of utility functions for interacting with Django ORM."""
 
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 from typing_extensions import Any, Type, get_type_hints, is_typeddict
 
 
-def get_orm_attribute(attr_name: str, db_obj: Model) -> Any:
+def get_orm_attribute(db_obj: Model, attr_name: str) -> Any:
+    """Lookup the value of a single ORM attribute.
+
+    NOTE: Not compatible with foreign key lookups, use `orm_attribute_lookup` instead.
+    """
+    try:
+        return getattr(db_obj, attr_name)
+    except AttributeError as err:
+        # If the lookup doesn't point anywhere, check whether it is using the convention for generic foreign keys.
+        if attr_name in ["app_label", "model"]:
+            return getattr(ContentType.objects.get_for_model(db_obj), attr_name)
+        raise AttributeError(err)  # pylint: disable=raise-missing-from
+
+
+def orm_attribute_lookup(db_obj: Model, attr_name: str) -> Any:
     """Get the value of a Django ORM attribute, including foreign key lookups if applicable.
+
+    NOTE: Not compatible with custom relationships or attributes.
 
     Args:
         attr_name (str): Name of the foreign key attribute to retrieve using Django queryset format
@@ -23,11 +40,11 @@ def get_orm_attribute(attr_name: str, db_obj: Model) -> Any:
         raise TypeError(f"{db_obj} is not an instance of `django.db.models.Model`.")
 
     if "__" not in attr_name:
-        return getattr(db_obj, attr_name)
+        return get_orm_attribute(db_obj, attr_name)
     lookups = attr_name.split("__")
     if related_object := getattr(db_obj, lookups.pop(0)):
         for lookup in lookups:
-            related_object = getattr(related_object, lookup)
+            related_object = get_orm_attribute(related_object, lookup)
             if not related_object:
                 break
     return related_object
@@ -54,5 +71,5 @@ def load_typed_dict(typed_dict_class: Type, db_obj: Model) -> dict:
 
     typed_dict = {}
     for field_name in get_type_hints(typed_dict_class):
-        typed_dict[field_name] = get_orm_attribute(field_name, db_obj)
+        typed_dict[field_name] = orm_attribute_lookup(db_obj, field_name)
     return typed_dict

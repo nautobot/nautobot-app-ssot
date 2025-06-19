@@ -3,6 +3,7 @@
 # pylint: disable=protected-access
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
+import warnings
 from typing import Dict, Type, get_args
 
 import pydantic
@@ -21,6 +22,7 @@ from nautobot_ssot.contrib.types import (
     RelationshipSideEnum,
 )
 from nautobot_ssot.utils.cache import ORMCache
+from nautobot_ssot.utils.orm import load_typed_dict, orm_attribute_lookup
 
 
 class NautobotAdapter(DiffSync):
@@ -82,7 +84,7 @@ class NautobotAdapter(DiffSync):
                     database_object, parameter_name, custom_relationship_annotation
                 )
             else:
-                parameters[parameter_name] = self._handle_foreign_key(database_object, parameter_name)
+                parameters[parameter_name] = orm_attribute_lookup(database_object, parameter_name)
             return
 
         # Handling of one- and many-to custom relationship fields:
@@ -190,7 +192,8 @@ class NautobotAdapter(DiffSync):
             related_object = getattr(
                 association, "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
             )
-            dictionary_representation = self._handle_typed_dict(inner_type, related_object)
+            # dictionary_representation = self._handle_typed_dict(inner_type, related_object)
+            dictionary_representation = load_typed_dict(inner_type, related_object)
             # Only use those where there is a single field defined, all 'None's will not help us.
             if any(dictionary_representation.values()):
                 related_objects_list.append(dictionary_representation)
@@ -216,18 +219,15 @@ class NautobotAdapter(DiffSync):
     def _handle_typed_dict(cls, inner_type, related_object):
         """Handle a typed dict for many to many relationships.
 
-        Args:
-            inner_type: The typed dict.
-            related_object: The related object
-        Returns: The dictionary representation of `related_object` as described by `inner_type`.
+        TODO: Deprecated and to be removed in future version. Use `nautobot_ssot.utils.orm.load_typed_dict` instead.
         """
-        dictionary_representation = {}
-        for field_name in get_type_hints(inner_type):
-            if "__" in field_name:
-                dictionary_representation[field_name] = cls._handle_foreign_key(related_object, field_name)
-                continue
-            dictionary_representation[field_name] = getattr(related_object, field_name)
-        return dictionary_representation
+        warnings.warn(
+            "`_handle_typed_dict` is deprecated and will be removed in a future version. "
+            "Use `nautobot_ssot.utils.orm.load_typed_dict` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return load_typed_dict(inner_type, related_object)
 
     def _construct_relationship_association_parameters(self, annotation, database_object):
         relationship = self.get_from_orm_cache({"label": annotation.name}, Relationship)
@@ -297,7 +297,8 @@ class NautobotAdapter(DiffSync):
         related_objects_list = []
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
         for related_object in getattr(database_object, parameter_name).all():
-            dictionary_representation = self._handle_typed_dict(inner_type, related_object)
+            # dictionary_representation = self._handle_typed_dict(inner_type, related_object)
+            dictionary_representation = load_typed_dict(inner_type, related_object)
             # Only use those where there is a single field defined, all 'None's will not help us.
             if any(dictionary_representation.values()):
                 related_objects_list.append(dictionary_representation)
@@ -329,36 +330,14 @@ class NautobotAdapter(DiffSync):
 
     @staticmethod
     def _handle_foreign_key(database_object, parameter_name):
-        """Handle a single foreign key field.
-
-        Given the object from the database as well as the name of parameter in the form of
-        f'{foreign_key_field_name}__{remote_field_name}'
-        return the field at 'remote_field_name' on the object behind the foreign key at 'foreign_key_field_name'.
-
-        Furthermore, 'remote_field_name' may be a series of '__' delimited lookups.
-
-        :param database_object: The Django ORM database object
-        :param parameter_name: The field name of the specific relationship to handle
-        :return: If present, the object behind the (generic) foreign key, else None
-        """
-        related_model, *lookups = parameter_name.split("__")
-        related_object = getattr(database_object, related_model)
-        # If the foreign key does not point to anything, return None
-        if not related_object:
-            return None
-        for lookup in lookups[:-1]:
-            related_object = getattr(related_object, lookup)
-            # If the foreign key does not point to anything, return None
-            if not related_object:
-                return None
-        # Return the result of the last lookup directly.
-        try:
-            return getattr(related_object, lookups[-1])
-        # If the lookup doesn't point anywhere, check whether it is using the convention for generic foreign keys.
-        except AttributeError:
-            if lookups[-1] in ["app_label", "model"]:
-                return getattr(ContentType.objects.get_for_model(related_object), lookups[-1])
-        return None
+        """Handle a single foreign key field."""
+        warnings.warn(
+            "`_handle_foreign_key` is deprecated and will be removed in a future version. "
+            "Use `nautobot_ssot.utils.orm.orm_attribute_lookup` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return orm_attribute_lookup(database_object, parameter_name)
 
     def get_or_create_metadatatype(self):
         """Retrieve or create a MetadataType object to track the last sync time of this SSoT job."""
