@@ -23,7 +23,7 @@ PLUGINS_CONFIG = {
 }
 ```
 
-> Note: The URL and verify ssl parameters can be changed post initialization via the GUI.
+> Note: The URL and verify SSL parameters can be changed post initialization via the GUI.
 
 ## Configuration
 
