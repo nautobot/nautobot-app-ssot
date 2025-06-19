@@ -10,6 +10,8 @@ import requests
 import urllib3
 from requests.auth import HTTPBasicAuth
 
+from nautobot_ssot.exceptions import InvalidUrlScheme
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -25,19 +27,6 @@ def parse_url(address):
     if not re.search(r"^[A-Za-z0-9+.\-]+://", address):
         address = f"https://{address}"
     return urllib.parse.urlparse(address)
-
-
-class InvalidUrlScheme(Exception):
-    """Exception raised for wrong scheme being passed for URL.
-
-    Attributes:
-        message (str): Returned explanation of Error.
-    """
-
-    def __init__(self, scheme):
-        """Initialize Exception with wrong scheme in message."""
-        self.message = f"Invalid URL scheme '{scheme}' found for vSphere URL. Please correct to use HTTPS."
-        super().__init__(self.message)
 
 
 @dataclass

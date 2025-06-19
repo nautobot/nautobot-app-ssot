@@ -9,21 +9,17 @@ Before configuring the integration, please ensure that the `nautobot-ssot` app w
 ```shell
 pip install nautobot-ssot[vsphere]
 ```
+The integration with vSphere utilizes [External Integrations](https://docs.nautobot.com/projects/core/en/stable/user-guide/platform-functionality/externalintegration/?h=external) to specify your vSphere host information. To enable this integration, the only modification needed is to activate it in the nautobot_config.py file.
 
-Below is an example snippet from `nautobot_config.py` that demonstrates how to enable the vSphere integration. You can also set the `vsphere_url` and `vsphere_verify_ssl` values in `nautobot_config.py`; these are used when the integration is first installed to override the default fields in the vSphere External Integration.
+Below is an example snippet from `nautobot_config.py` that demonstrates how to enable the vSphere integration. 
 
 ```python
 PLUGINS_CONFIG = {
     "nautobot_ssot": {
         "enable_vsphere": True,
-        "vsphere_url": "https://myvcenter.local",
-        "vsphere_verify_ssl": True
-        
     }
 }
 ```
-
-> Note: The URL and verify SSL parameters can be changed post initialization via the GUI.
 
 ## Configuration
 
