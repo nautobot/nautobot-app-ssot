@@ -4,7 +4,7 @@ This guide will walk you through the steps to set up vSphere integration with th
 
 ## Prerequisites
 
-Before configuring the integration, please ensure, that `nautobot-ssot` app was [installed with the vSphere integration extra dependencies](../install.md#install-guide).
+Before configuring the integration, please ensure that the `nautobot-ssot` app was [installed with the vSphere integration extra dependencies](../install.md#install-guide).
 
 ```shell
 pip install nautobot-ssot[vsphere]
