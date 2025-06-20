@@ -1,1 +1,1 @@
-Added Sync, SyncLogEntry, AutomationGateway, and SSoTConfig related classes to the searchable_models definition.
+Added Sync and SyncLogEntry to the searchable_models definition.
