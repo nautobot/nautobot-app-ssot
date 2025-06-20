@@ -1,0 +1,1 @@
+Fixed a bug where the cache persisted between sync executions in the Infoblox integration.
