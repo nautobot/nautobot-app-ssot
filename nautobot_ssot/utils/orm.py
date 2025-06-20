@@ -2,8 +2,13 @@
 
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
-from typing_extensions import Any, Type, get_type_hints, is_typeddict
-
+from typing_extensions import Any, Type, get_type_hints, is_typeddict, Dict
+from nautobot_ssot.contrib.types import RelationshipSideEnum, CustomRelationshipAnnotation
+from nautobot_ssot.utils.cache import ORMCache
+from nautobot.extras.models import Relationship, RelationshipAssociation
+from nautobot.core.models import BaseModel
+from nautobot_ssot.utils.types import RelationshipAssociationParameters
+from uuid import UUID
 
 def get_orm_attribute(db_obj: Model, attr_name: str) -> Any:
     """Lookup the value of a single ORM attribute.
@@ -73,3 +78,31 @@ def load_typed_dict(typed_dict_class: Type, db_obj: Model) -> dict:
     for field_name in get_type_hints(typed_dict_class):
         typed_dict[field_name] = orm_attribute_lookup(db_obj, field_name)
     return typed_dict
+
+
+def get_custom_relationship_association_parameters(
+        relationship: Relationship,
+        db_obj_id: UUID,
+        relationship_side: RelationshipSideEnum,
+    ) -> Dict:
+    """Build relationship parameters for retreiving associations of a specified database object."""
+    if not isinstance(relationship, Relationship):
+        raise TypeError("`relationship` parameter must be type `nautobot.extras.models.relationships.Relationship`")
+    if not isinstance(db_obj_id, UUID):
+        raise TypeError("`db_obj_id` must be type UUID.")
+
+    parameters = RelationshipAssociationParameters(
+        relationship=relationship,
+        source_type=relationship.source_type,
+        destination_type=relationship.destination_type,
+    )
+
+    # Add `source_id` or `destintaion_id` based on identified relationship side.
+    # Only the id of the labeled side should be included to get associations for that DB object.
+    if relationship_side == RelationshipSideEnum.SOURCE:
+        parameters["source_id"] = db_obj_id
+    elif relationship_side == RelationshipSideEnum.DESTINATION:
+        parameters["destination_id"] = db_obj_id
+    else:
+        raise ValueError(f"Invalid value for `CustomRelationshipAnnotation.side`: {relationship_side}")
+    return parameters

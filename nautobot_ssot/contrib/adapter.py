@@ -22,7 +22,11 @@ from nautobot_ssot.contrib.types import (
     RelationshipSideEnum,
 )
 from nautobot_ssot.utils.cache import ORMCache
-from nautobot_ssot.utils.orm import load_typed_dict, orm_attribute_lookup
+from nautobot_ssot.utils.orm import (
+    load_typed_dict,
+    orm_attribute_lookup,
+    get_custom_relationship_association_parameters,
+)
 
 
 class NautobotAdapter(DiffSync):
@@ -158,6 +162,8 @@ class NautobotAdapter(DiffSync):
             ) from error
         return diffsync_model
 
+   
+
     def _handle_custom_relationship_to_many_relationship(
         self, database_object, diffsync_model, parameter_name, annotation
     ):
@@ -168,24 +174,13 @@ class NautobotAdapter(DiffSync):
         related_objects_list = []
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
         relationship = self.get_from_orm_cache({"label": annotation.name}, Relationship)
-        relationship_association_parameters = self._construct_relationship_association_parameters(
-            annotation, database_object
-        )
-        relationship_associations = RelationshipAssociation.objects.filter(**relationship_association_parameters)
-
-        field_name = ""
-        field_name += "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
-        field_name += "_"
-        field_name += (
-            relationship.source_type.app_label.lower()
-            if annotation.side == RelationshipSideEnum.DESTINATION
-            else relationship.destination_type.app_label.lower()
-        )
-        field_name += "_"
-        field_name += (
-            relationship.source_type.model.lower()
-            if annotation.side == RelationshipSideEnum.DESTINATION
-            else relationship.destination_type.model.lower()
+        
+        relationship_associations = RelationshipAssociation.objects.filter(
+            **get_custom_relationship_association_parameters(
+                relationship=relationship,
+                db_obj_id=database_object.id,
+                relationship_side=annotation.side,
+            )
         )
 
         for association in relationship_associations:
@@ -308,11 +303,14 @@ class NautobotAdapter(DiffSync):
         self, database_object, parameter_name: str, annotation: CustomRelationshipAnnotation
     ):
         """Handle a single custom relationship foreign key field."""
-        relationship_association_parameters = self._construct_relationship_association_parameters(
-            annotation, database_object
+        relationship_association = RelationshipAssociation.objects.filter(
+            **get_custom_relationship_association_parameters(
+                relationship=self.cache.get_from_orm(Relationship, {"label": annotation.name}),
+                db_obj_id=database_object.id,
+                relationship_side=annotation.side,
+            )
         )
-
-        relationship_association = RelationshipAssociation.objects.filter(**relationship_association_parameters)
+        
         amount_of_relationship_associations = relationship_association.count()
         if amount_of_relationship_associations == 0:
             return None

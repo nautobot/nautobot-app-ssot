@@ -4,11 +4,17 @@ from django.test import TestCase
 from nautobot.dcim.models import Location, LocationType
 from nautobot.extras.models import Status
 from typing_extensions import Optional, TypedDict
+from nautobot.extras.models import Relationship, RelationshipAssociation
+from nautobot.circuits.models import Provider
+from django.contrib.contenttypes.models import ContentType
+from nautobot.extras.choices import RelationshipRequiredSideChoices, RelationshipSideChoices, RelationshipTypeChoices
+from nautobot_ssot.contrib.types import CustomRelationshipAnnotation, RelationshipSideEnum
 
 from nautobot_ssot.utils.orm import (
     get_orm_attribute,
     load_typed_dict,
     orm_attribute_lookup,
+    get_custom_relationship_association_parameters,
 )
 
 
@@ -269,3 +275,90 @@ class TestLoadTypedDict(BaseTestCase):
         self.assertEqual(result["name"], "Location Type 2")
         self.assertEqual(result["description"], "Test Location")
         self.assertEqual(result["parent__name"], "Location Type 1")
+
+
+class TestGetCustomRelationshipAssociationParameters(BaseTestCase):
+    """"""
+
+    def setUp(self):
+        super().setUp()
+
+        self.location_type = ContentType.objects.get_for_model(Location)
+        self.provider_type = ContentType.objects.get_for_model(Provider)
+        self.relationship_1 = Relationship.objects.create(
+            label="Test Relationship 1",
+            type=RelationshipTypeChoices.TYPE_ONE_TO_ONE,
+            source_type=self.provider_type,
+            destination_type=self.location_type,
+        )
+
+        self.provider_1 = Provider.objects.create(
+            name="Provider 1",
+        )
+
+        RelationshipAssociation.objects.create(
+            relationship=self.relationship_1,
+            source=self.provider_1,
+            destination=self.location_1,
+        )
+
+    #################################################
+    # ERROR RAISING
+    #################################################
+
+    def test_invalid_relationship_type_string(self):
+        """Test with relationship type as a string."""
+        with self.assertRaises(TypeError):
+            get_custom_relationship_association_parameters(
+                "Invalid String",
+                self.provider_1.id,
+                RelationshipSideEnum.SOURCE,
+            )
+
+    def test_invalid_relationship_type_integer(self):
+        """Test with relationship type as an integer."""
+        with self.assertRaises(TypeError):
+            get_custom_relationship_association_parameters(
+                42,
+                self.provider_1.id,
+                RelationshipSideEnum.SOURCE,
+            )
+
+    def test_invalid_relationship_type_dict(self):
+        """Test with relationship type as a dict."""
+        with self.assertRaises(TypeError):
+            get_custom_relationship_association_parameters(
+                self.relationship_1.__dict__,
+                self.provider_1.id,
+                RelationshipSideEnum.SOURCE,
+            )
+
+    #################################################
+    # BASIC TESTS
+    #################################################
+
+    def test_get_one_to_one_from_source(self):
+        """Test getting one to one parameters from source."""
+        result = get_custom_relationship_association_parameters(
+            self.relationship_1,
+            self.provider_1.id,
+            RelationshipSideEnum.SOURCE,
+        )
+        self.assertEqual(result["relationship"], self.relationship_1)
+        self.assertEqual(result["source_type"], self.provider_type)
+        self.assertEqual(result["destination_type"], self.location_type)
+        self.assertEqual(result["source_id"], self.provider_1.id)
+        self.assertTrue("destination_id" not in result.keys())
+
+    def test_get_one_to_one_from_destination(self):
+        """Test getting one to one parameters from source."""
+        result = get_custom_relationship_association_parameters(
+            self.relationship_1,
+            self.location_1.id,
+            RelationshipSideEnum.DESTINATION,
+        )
+        self.assertEqual(result["relationship"], self.relationship_1)
+        self.assertEqual(result["source_type"], self.provider_type)
+        self.assertEqual(result["destination_type"], self.location_type)
+        self.assertEqual(result["destination_id"], self.location_1.id)
+        self.assertTrue("source_id" not in result.keys())
