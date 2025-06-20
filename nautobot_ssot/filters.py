@@ -8,6 +8,14 @@ from nautobot_ssot import models
 class SyncFilterSet(BaseFilterSet):  # pylint: disable=too-many-ancestors
     """Filter for Sync."""
 
+    q = SearchFilter(
+        filter_predicates={
+            "source": "icontains",
+            "target": "icontains",
+            "diff": "icontains",
+        }
+    )
+
     class Meta:
         """Meta attributes for filter."""
 
