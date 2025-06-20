@@ -1,11 +1,34 @@
 """Itential SSoT API Clients."""
 
+import functools
+import time
 from typing import List, Optional, Union
 
 import requests
-from retry import retry
 
 from nautobot_ssot.integrations.itential.constants import BACKOFF, DELAY, RETRIES
+
+
+def retry(exceptions, delay: int = 0, tries: int = 1, backoff: int = 1):
+    """Retry decorator for HTTP client requests."""
+
+    def decorator(function_to_retry):
+        @functools.wraps(function_to_retry)
+        def wrapper(*args, **kwargs):
+            current_delay = delay
+            for attempt in range(tries):
+                try:
+                    return function_to_retry(*args, **kwargs)
+                except exceptions:
+                    if attempt == tries - 1:
+                        raise
+                    time.sleep(current_delay)
+                    current_delay *= backoff
+            return None
+
+        return wrapper
+
+    return decorator
 
 
 class AutomationGatewayClient:  # pylint: disable=too-many-instance-attributes
