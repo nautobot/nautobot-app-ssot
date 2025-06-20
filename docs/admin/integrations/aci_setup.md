@@ -50,6 +50,7 @@ PLUGINS_CONFIG = {
         # The below value will appear in the Comments field on objects created in Nautobot
         "aci_comments": "Created by ACI SSoT Integration",
     }
+}
 ```
 
 ### Per-APIC settings
