@@ -151,6 +151,7 @@ nav:
       - Compatibility Matrix: "admin/compatibility_matrix.md"
       - Release Notes:
           - "admin/release_notes/index.md"
+          - v3.9: "admin/release_notes/version_3.9.md"
           - v3.8: "admin/release_notes/version_3.8.md"
           - v3.7: "admin/release_notes/version_3.7.md"
           - v3.6: "admin/release_notes/version_3.6.md"
