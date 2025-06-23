@@ -403,17 +403,26 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
 
     def load_ipaddress(self, host_addr: str, mask_length: int, prefix: str):
         """Load IPAddresses of devices into DiffSync models."""
-        self.get_or_instantiate(
-            self.ipaddress,
-            ids={
-                "host": host_addr,
-                "prefix": prefix,
-                "tenant": self.tenant.name if self.tenant else None,
-            },
-            attrs={
-                "mask_length": mask_length,
-            },
-        )
+        try:
+            found_ip = self.get(
+                self.ipaddress, {"host": host_addr, "tenant": self.tenant.name if self.tenant else None}
+            )
+            self.job.logger.error(
+                f"IPAddress {host_addr} with mask length {mask_length} and prefix {prefix} already loaded. {found_ip}"
+            )
+        except ObjectNotFound:
+            # If the IPAddress does not exist, load it
+            if self.job.debug:
+                self.job.logger.debug(
+                    f"Loading IPAddress {host_addr} with mask length {mask_length} and prefix {prefix}."
+                )
+            new_ip = self.ipaddress(
+                host=host_addr,
+                mask_length=mask_length,
+                prefix=prefix,
+                tenant=self.tenant.name if self.tenant else None,
+            )
+            self.add(new_ip)
 
     def load_ipassignment(self, address: str, dev_name: str, port: str, primary: bool):
         """Load IPAddressesToInterface of devices into DiffSync models."""

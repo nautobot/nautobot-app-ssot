@@ -339,7 +339,7 @@ class NautobotIPAddress(IPAddress):
             status_id=adapter.status_map["Active"],
             tenant_id=adapter.tenant_map[ids["tenant"]] if ids.get("tenant") else None,
         )
-        adapter.objects_to_create["ipaddrs-to-prefixes"].append((new_ip, adapter.prefix_map[ids["prefix"]]))
+        adapter.objects_to_create["ipaddrs-to-prefixes"].append((new_ip, adapter.prefix_map[attrs["prefix"]]))
         new_ip.cf["system_of_record"] = "Meraki SSoT"
         new_ip.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
         adapter.objects_to_create["ipaddrs"].append(new_ip)
@@ -353,6 +353,10 @@ class NautobotIPAddress(IPAddress):
         ipaddr = OrmIPAddress.objects.get(id=self.uuid)
         if attrs.get("mask_length"):
             ipaddr.mask_length = attrs["mask_length"]
+        if attrs.get("prefix"):
+            if attrs["prefix"] not in self.adapter.prefix_map:
+                raise ValueError(f"Prefix {attrs['prefix']} not found in Nautobot.")
+            ipaddr.parent_id = self.adapter.prefix_map[attrs["prefix"]]
         ipaddr.cf["system_of_record"] = "Meraki SSoT"
         ipaddr.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
         ipaddr.validated_save()
