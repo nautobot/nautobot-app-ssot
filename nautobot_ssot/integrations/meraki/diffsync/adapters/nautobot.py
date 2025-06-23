@@ -234,6 +234,7 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 },
                 attrs={
                     "mask_length": ipaddr.mask_length,
+                    "uuid": ipaddr.id,
                 },
             )
             if loaded and self.tenant:
