@@ -356,7 +356,15 @@ class NautobotIPAddress(IPAddress):
         if attrs.get("prefix"):
             if attrs["prefix"] not in self.adapter.prefix_map:
                 raise ValueError(f"Prefix {attrs['prefix']} not found in Nautobot.")
-            ipaddr.parent_id = self.adapter.prefix_map[attrs["prefix"]]
+            if self.mask_length == 32 and ":" not in attrs["prefix"]:
+                old_pf = ipaddr.parent
+            new_parent = Prefix.objects.get(id=self.adapter.prefix_map[attrs["prefix"]])
+            if new_parent.type != "pool":
+                new_parent.type = "pool"
+                new_parent.validated_save()
+            ipaddr.parent = new_parent
+            if old_pf:
+                old_pf.delete()
         ipaddr.cf["system_of_record"] = "Meraki SSoT"
         ipaddr.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
         ipaddr.validated_save()
