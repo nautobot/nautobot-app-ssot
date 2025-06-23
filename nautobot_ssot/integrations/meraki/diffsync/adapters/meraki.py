@@ -408,14 +408,12 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 self.ipaddress, {"host": host_addr, "tenant": self.tenant.name if self.tenant else None}
             )
             self.job.logger.error(
-                f"IPAddress {host_addr} with mask length {mask_length} and prefix {prefix} already loaded. {found_ip}"
+                f"IPAddress {host_addr} already loaded. Loaded object using {found_ip.mask_length} mask in {found_ip.prefix}."
             )
         except ObjectNotFound:
             # If the IPAddress does not exist, load it
             if self.job.debug:
-                self.job.logger.debug(
-                    f"Loading IPAddress {host_addr} with mask length {mask_length} and prefix {prefix}."
-                )
+                self.job.logger.debug(f"Loading IPAddress {host_addr}/{mask_length} in {prefix}.")
             new_ip = self.ipaddress(
                 host=host_addr,
                 mask_length=mask_length,
