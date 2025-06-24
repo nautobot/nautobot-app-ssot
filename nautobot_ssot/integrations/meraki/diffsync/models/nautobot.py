@@ -357,7 +357,7 @@ class NautobotIPAddress(IPAddress):
             old_pf = None
             if attrs["prefix"] not in self.adapter.prefix_map:
                 raise ValueError(f"Prefix {attrs['prefix']} not found in Nautobot.")
-            if self.mask_length == 32 and ":" not in attrs["prefix"]:
+            if ipaddr.parent.prefix_length == 32 and ipaddr.ip_version == 4:
                 old_pf = ipaddr.parent
             new_parent = OrmPrefix.objects.get(id=self.adapter.prefix_map[attrs["prefix"]])
             if new_parent.type != "pool":
