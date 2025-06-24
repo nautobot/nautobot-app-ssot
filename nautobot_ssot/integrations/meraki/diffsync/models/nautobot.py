@@ -354,6 +354,7 @@ class NautobotIPAddress(IPAddress):
         if attrs.get("mask_length"):
             ipaddr.mask_length = attrs["mask_length"]
         if attrs.get("prefix"):
+            old_pf = None
             if attrs["prefix"] not in self.adapter.prefix_map:
                 raise ValueError(f"Prefix {attrs['prefix']} not found in Nautobot.")
             if self.mask_length == 32 and ":" not in attrs["prefix"]:
