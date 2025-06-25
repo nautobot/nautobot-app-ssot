@@ -351,6 +351,8 @@ class NautobotIPAddress(IPAddress):
     def update(self, attrs):
         """Update IPAddress in Nautobot from NautobotIPAddress object."""
         ipaddr = OrmIPAddress.objects.get(id=self.uuid)
+        if self.adapter.job.debug:
+            self.adapter.job.logger.debug(f"Updating IPAddress {ipaddr.address} in Nautobot with {attrs}.")
         if attrs.get("mask_length"):
             ipaddr.mask_length = attrs["mask_length"]
         if attrs.get("prefix"):
