@@ -140,17 +140,19 @@ class ServiceNowDiffSync(Adapter):
         """
         model_cls = getattr(self, modelname)
         self.job.logger.info(f"Loading ServiceNow table `{table}` into {modelname} instances...")
+        table_query_filter = kwargs.get("table_query", {})
 
         if "parent" not in kwargs:
             # Load the entire table
-            for record in self.client.all_table_entries(table):
+            for record in self.client.all_table_entries(table, table_query_filter):
                 self.load_record(table, record, model_cls, mappings, **kwargs)
         else:
             # Load items per parent object that we know/care about
             # This is necessary because, for example, the cmdb_ci_network_adapter table contains network interfaces
             # for ALL types of devices (servers, switches, firewalls, etc.) but we only have switches as parent objects
             for parent in self.get_all(kwargs["parent"]["modelname"]):
-                for record in self.client.all_table_entries(table, {kwargs["parent"]["column"]: parent.sys_id}):
+                table_query_filter[kwargs["parent"]["column"]] = parent.sys_id
+                for record in self.client.all_table_entries(table, table_query_filter):
                     self.load_record(table, record, model_cls, mappings, **kwargs)
         if self.duplicate_records.get(modelname, False):
             self.job.logger.warning(f"Found {len(self.duplicate_records[modelname])} duplicate {modelname} record(s).")
@@ -192,7 +194,7 @@ class ServiceNowDiffSync(Adapter):
             else:
                 parent_model = self.get(kwargs["parent"]["modelname"], parent_uid)
                 try:
-                parent_model.add_child(model)
+                    parent_model.add_child(model)
                 except ObjectAlreadyExists:
                     pass
 
