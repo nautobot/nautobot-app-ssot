@@ -253,6 +253,11 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 ip_address___custom_field_data__system_of_record="Meraki SSoT"
             )
         for ipassignment in mappings:
+            if self.job.debug:
+                self.job.logger.debug(
+                    f"Loading IPAssignment {ipassignment.ip_address.host} on {ipassignment.interface.device.name} "
+                    f"port {ipassignment.interface.name} in Namespace {ipassignment.ip_address.parent.namespace.name}"
+                )
             new_map = self.ipassignment(
                 address=str(ipassignment.ip_address.address),
                 namespace=ipassignment.ip_address.parent.namespace.name,
