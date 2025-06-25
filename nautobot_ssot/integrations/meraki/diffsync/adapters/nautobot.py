@@ -224,7 +224,7 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
         for ipaddr in addresses:
             if str(ipaddr.parent.namespace) not in self.ipaddr_map:
                 self.ipaddr_map[str(ipaddr.parent.namespace)] = {}
-            self.ipaddr_map[str(ipaddr.parent.namespace)][str(ipaddr.address)] = ipaddr.id
+            self.ipaddr_map[str(ipaddr.parent.namespace)][str(ipaddr.host)] = ipaddr.id
             new_ip, loaded = self.get_or_instantiate(
                 self.ipaddress,
                 ids={
