@@ -166,8 +166,8 @@ class NautobotDevice(Device):
                 new_device.tenant = None
         if attrs.get("version"):
             new_device.software_version_id = adapter.version_map[attrs["version"]]
-        new_device.cf["system_of_record"] = "Meraki SSoT"
-        new_device.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
+        new_device.custom_field_data["system_of_record"] = "Meraki SSoT"
+        new_device.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         adapter.objects_to_create["devices"].append(new_device)
         adapter.device_map[new_device.name] = new_device.id
         adapter.port_map[new_device.name] = {}
@@ -207,8 +207,8 @@ class NautobotDevice(Device):
                 device.tenant = None
         if "version" in attrs:
             device.software_version_id = self.adapter.version_map[attrs["version"]]
-        device.cf["system_of_record"] = "Meraki SSoT"
-        device.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
+        device.custom_field_data["system_of_record"] = "Meraki SSoT"
+        device.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         device.validated_save()
         return super().update(attrs)
 
@@ -340,8 +340,8 @@ class NautobotIPAddress(IPAddress):
             tenant_id=adapter.tenant_map[ids["tenant"]] if ids.get("tenant") else None,
         )
         adapter.objects_to_create["ipaddrs-to-prefixes"].append((new_ip, adapter.prefix_map[attrs["prefix"]]))
-        new_ip.cf["system_of_record"] = "Meraki SSoT"
-        new_ip.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
+        new_ip.custom_field_data["system_of_record"] = "Meraki SSoT"
+        new_ip.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         adapter.objects_to_create["ipaddrs"].append(new_ip)
         if namespace not in adapter.ipaddr_map:
             adapter.ipaddr_map[namespace] = {}
@@ -368,8 +368,8 @@ class NautobotIPAddress(IPAddress):
             ipaddr.parent = new_parent
             if old_pf:
                 old_pf.delete()
-        ipaddr.cf["system_of_record"] = "Meraki SSoT"
-        ipaddr.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
+        ipaddr.custom_field_data["system_of_record"] = "Meraki SSoT"
+        ipaddr.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         ipaddr.validated_save()
         return super().update(attrs)
 
