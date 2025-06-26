@@ -8,13 +8,16 @@ from nautobot.core.testing import TransactionTestCase
 from nautobot.dcim.models import (
     Controller,
     ControllerManagedDeviceGroup,
+    Device,
     DeviceType,
+    Interface,
     Location,
     LocationType,
     Manufacturer,
     Platform,
 )
 from nautobot.extras.models import Role, Status
+from nautobot.ipam.models import IPAddress, Prefix
 from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.dna_center.diffsync.models.nautobot import (
@@ -22,6 +25,7 @@ from nautobot_ssot.integrations.dna_center.diffsync.models.nautobot import (
     NautobotBuilding,
     NautobotDevice,
     NautobotFloor,
+    NautobotIPAddressOnInterface,
 )
 
 
@@ -354,3 +358,83 @@ class TestNautobotDevice(TransactionTestCase):
         self.assertEqual(new_dev.location_id, hq_floor.id)
         self.assertEqual(new_dev.tenant_id, self.ga_tenant.id)
         self.assertTrue(new_dev.software_version.version, self.attrs["version"])
+
+
+class TestNautobotIPAddressOnInterface(TransactionTestCase):
+    """Test NautobotIPAddressOnInterface class."""
+
+    def setUp(self):
+        super().setUp()
+
+        self.status_active = Status.objects.get(name="Active")
+        self.site_lt = LocationType.objects.get_or_create(name="Site")[0]
+
+        self.adapter = Adapter()
+        self.adapter.job = MagicMock()
+        self.adapter.objects_to_create = {"mappings": [], "primary_ip4": []}  # pylint: disable=no-member
+        self.ga_tenant = Tenant.objects.create(name="G&A")
+        ios_platform = Platform.objects.get_or_create(name="IOS", network_driver="cisco_ios")[0]
+
+        self.hq_site = Location.objects.create(name="HQ", status=self.status_active, location_type=self.site_lt)
+
+        dnac_controller = Controller.objects.get_or_create(
+            name="DNA Center", status=self.status_active, location=self.hq_site
+        )[0]
+        dnac_group = ControllerManagedDeviceGroup.objects.create(
+            name="DNA Center Managed Devices", controller=dnac_controller
+        )
+        self.adapter.job.controller_group = dnac_group
+        self.adapter.job.dnac = dnac_controller
+
+        test_device = Device.objects.create(
+            name="core-router.testexample.com",
+            status=self.status_active,
+            location=self.hq_site,
+            device_type=DeviceType.objects.get_or_create(
+                model="Nexus 9300", manufacturer=Manufacturer.objects.get_or_create(name="Cisco")[0]
+            )[0],
+            platform=ios_platform,
+            role=Role.objects.get_or_create(name="core")[0],
+            serial="1234567890",
+            tenant=self.ga_tenant,
+            controller_managed_device_group=dnac_group,
+        )
+        self.adapter.device_map = {"core-router.testexample.com": test_device.id}
+        mgmt_intf = Interface.objects.create(
+            name="mgmt0",
+            device=test_device,
+            status=self.status_active,
+            type="virtual",
+            enabled=True,
+            mac_address="00:11:22:33:44:55",
+        )
+        self.adapter.port_map = {"core-router.testexample.com": {"mgmt0": mgmt_intf.id}}
+        parent_pf = Prefix.objects.create(
+            prefix="10.1.1.0/24",
+            status=self.status_active,
+        )
+        mgmt_ip = IPAddress.objects.create(
+            host="10.1.1.1",
+            mask_length=24,
+            parent=parent_pf,
+            status=self.status_active,
+            tenant=self.ga_tenant,
+        )
+        self.adapter.ipaddr_map = {"10.1.1.1": mgmt_ip.id}
+
+    def test_create(self):
+        """Test the NautobotIPAddressOnInterface create() method creates an IPAddress on an Interface."""
+        ids = {
+            "host": "10.1.1.1",
+            "device": "core-router.testexample.com",
+            "port": "mgmt0",
+        }
+        attrs = {
+            "primary": True,
+        }
+        results = NautobotIPAddressOnInterface.create(self.adapter, ids, attrs)
+        self.assertIsInstance(results, NautobotIPAddressOnInterface)
+        self.assertEqual(len(self.adapter.objects_to_create["mappings"]), 1)
+        new_map = self.adapter.objects_to_create["mappings"][0]
+        self.assertEqual(new_map.ip_address.host, ids["host"])
+        self.assertEqual(new_map.interface.name, ids["port"])

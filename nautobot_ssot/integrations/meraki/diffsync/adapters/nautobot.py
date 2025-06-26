@@ -224,7 +224,7 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
         for ipaddr in addresses:
             if str(ipaddr.parent.namespace) not in self.ipaddr_map:
                 self.ipaddr_map[str(ipaddr.parent.namespace)] = {}
-            self.ipaddr_map[str(ipaddr.parent.namespace)][str(ipaddr.address)] = ipaddr.id
+            self.ipaddr_map[str(ipaddr.parent.namespace)][str(ipaddr.host)] = ipaddr.id
             new_ip, loaded = self.get_or_instantiate(
                 self.ipaddress,
                 ids={
@@ -234,6 +234,7 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 },
                 attrs={
                     "mask_length": ipaddr.mask_length,
+                    "uuid": ipaddr.id,
                 },
             )
             if loaded and self.tenant:
@@ -252,8 +253,13 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 ip_address___custom_field_data__system_of_record="Meraki SSoT"
             )
         for ipassignment in mappings:
+            if self.job.debug:
+                self.job.logger.debug(
+                    f"Loading IPAssignment {ipassignment.ip_address.host} on {ipassignment.interface.device.name} "
+                    f"port {ipassignment.interface.name} in Namespace {ipassignment.ip_address.parent.namespace.name}"
+                )
             new_map = self.ipassignment(
-                address=str(ipassignment.ip_address.address),
+                address=str(ipassignment.ip_address.host),
                 namespace=ipassignment.ip_address.parent.namespace.name,
                 device=ipassignment.interface.device.name,
                 port=ipassignment.interface.name,

@@ -1,0 +1,39 @@
+{
+   "value":[
+      {
+         "memory_size_MiB":32768,
+         "vm":"vm-1012",
+         "name":"VMware vCenter Server",
+         "power_state":"POWERED_ON",
+         "cpu_count":6
+      },
+      {
+         "memory_size_MiB":49152,
+         "vm":"vm-1015",
+         "name":"Nautobot",
+         "power_state":"POWERED_ON",
+         "cpu_count":10
+      },
+      {
+         "memory_size_MiB":4096,
+         "vm":"vm-1017",
+         "name":"uisp",
+         "power_state":"POWERED_ON",
+         "cpu_count":2
+      },
+      {
+         "memory_size_MiB":16384,
+         "vm":"vm-1018",
+         "name":"Zabbix",
+         "power_state":"POWERED_OFF",
+         "cpu_count":4
+      },
+      {
+         "memory_size_MiB":16384,
+         "vm":"vm-1019",
+         "name":"nautobot-dev",
+         "power_state":"POWERED_OFF",
+         "cpu_count":6
+      }
+   ]
+}

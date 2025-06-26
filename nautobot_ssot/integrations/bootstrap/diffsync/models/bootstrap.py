@@ -31,20 +31,24 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
     TenantGroup,
     VLANGroup,
 )
+from nautobot_ssot.utils import core_supports_softwareversion, dlm_supports_softwarelcm, validate_dlm_installed
 
-try:
-    import nautobot_device_lifecycle_mgmt  # noqa: F401
+if core_supports_softwareversion():
+    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import SoftwareImageFile, SoftwareVersion
 
-    LIFECYCLE_MGMT = True
-except ImportError:
-    LIFECYCLE_MGMT = False
+    _Software_Base_Class = SoftwareVersion
+    _SoftwareImage_Base_Class = SoftwareImageFile
 
-if LIFECYCLE_MGMT:
-    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
-        Software,
-        SoftwareImage,
-        ValidatedSoftware,
-    )
+    if validate_dlm_installed():
+        import nautobot_device_lifecycle_mgmt  # noqa: F401
+
+        from nautobot_ssot.integrations.bootstrap.diffsync.models.base import ValidatedSoftware
+
+elif dlm_supports_softwarelcm():
+    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import Software, SoftwareImage, ValidatedSoftware
+
+    _Software_Base_Class = Software
+    _SoftwareImage_Base_Class = SoftwareImage
 
 
 class BootstrapTenantGroup(TenantGroup):
@@ -540,9 +544,9 @@ class BootstrapScheduledJob(ScheduledJob):
         return self
 
 
-if LIFECYCLE_MGMT:
+if core_supports_softwareversion() and not validate_dlm_installed():
 
-    class BootstrapSoftware(Software):
+    class BootstrapSoftwareVersion(SoftwareVersion):
         """Bootstrap implementation of Bootstrap Software model."""
 
         @classmethod
@@ -558,7 +562,7 @@ if LIFECYCLE_MGMT:
             """Delete Software in Bootstrap from BootstrapSoftware object."""
             return self
 
-    class BootstrapSoftwareImage(SoftwareImage):
+    class BootstrapSoftwareImageFile(SoftwareImageFile):
         """Bootstrap implementation of Bootstrap SoftwareImage model."""
 
         @classmethod
@@ -573,6 +577,43 @@ if LIFECYCLE_MGMT:
         def delete(self):
             """Delete SoftwareImage in Bootstrap from BootstrapSoftwareImage object."""
             return self
+
+
+class BootstrapSoftware(_Software_Base_Class):
+    """Bootstrap implementation of Bootstrap Software model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create Software in Bootstrap from BootstrapSoftware object."""
+        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update Software in Bootstrap from BootstrapSoftware object."""
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete Software in Bootstrap from BootstrapSoftware object."""
+        return self
+
+
+class BootstrapSoftwareImage(_SoftwareImage_Base_Class):
+    """Bootstrap implementation of Bootstrap SoftwareImage model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create SoftwareImage in Bootstrap from BootstrapSoftwareImage object."""
+        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update SoftwareImage in Bootstrap from BootstrapSoftwareImage object."""
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete SoftwareImage in Bootstrap from BootstrapSoftwareImage object."""
+        return self
+
+
+if validate_dlm_installed:
 
     class BootstrapValidatedSoftware(ValidatedSoftware):
         """Bootstrap implementation of Bootstrap ValidatedSoftware model."""

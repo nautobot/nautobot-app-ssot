@@ -83,14 +83,15 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         expected_ports = set(wan1_ports + wan2_ports + lan_ports + man1_ports)
         self.assertEqual(expected_ports, {port.get_unique_id() for port in self.meraki.get_all("port")})
         self.assertEqual(
-            {"10.1.15.0/24__Global", "10.5.52.3/32__Global"},
+            {"10.1.15.0/24__Global", "10.5.52.3/32__Global", "2001:116:4811:7d51:b7e:a1fa:edbe:4f2c/128__Global"},
             {pf.get_unique_id() for pf in self.meraki.get_all("prefix")},
         )
         self.assertEqual(
             {
-                "10.1.15.10__10.1.15.0/24__None",
-                "10.1.15.34__10.1.15.0/24__None",
-                "10.5.52.3__10.5.52.3/32__None",
+                "10.1.15.10__None",
+                "10.1.15.34__None",
+                "10.5.52.3__None",
+                "2001:116:4811:7d51:b7e:a1fa:edbe:4f2c__None",
             },
             {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")},
         )
@@ -237,6 +238,7 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
             "interface": "man1",
             "addresses": [
                 {
+                    "protocol": "ipv4",
                     "address": "10.5.52.3",
                 }
             ],
@@ -249,9 +251,7 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
             },
             {uplink.get_unique_id() for uplink in self.meraki.get_all("port")},
         )
-        self.assertEqual(
-            {"10.5.52.3__10.5.52.3/32__None"}, {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")}
-        )
+        self.assertEqual({"10.5.52.3__None"}, {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")})
 
     def test_load_ap_uplink_ports_success_with_prefix(self):
         """Validate load_ap_uplink_ports() loads an AP uplink port as expected when a prefix is passed."""
@@ -261,16 +261,11 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         self.meraki.device_map = {"HQ AP": fix.GET_ORG_DEVICES_FIXTURE[3]}
         self.meraki.conn.network_map = {"L_165471703274884707": {"name": "HQ"}}
 
-        ap_port = {
-            "interface": "man1",
-            "addresses": [
-                {
-                    "address": "10.5.52.3",
-                }
-            ],
-        }
-
-        self.meraki.load_ap_uplink_ports(device=mock_device, port=ap_port, prefix="10.5.52.0/24")
+        self.meraki.load_ap_uplink_ports(
+            device=mock_device,
+            port=fix.GET_ORG_UPLINK_ADDRESSES_BY_DEVICE_FIXTURE[0]["uplinks"][0],
+            prefix="10.5.52.0/24",
+        )
         self.assertEqual(
             {
                 "man1__HQ AP",
@@ -278,5 +273,9 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
             {uplink.get_unique_id() for uplink in self.meraki.get_all("port")},
         )
         self.assertEqual(
-            {"10.5.52.3__10.5.52.0/24__None"}, {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")}
+            {
+                "10.5.52.3__None",
+                "2001:116:4811:7d51:b7e:a1fa:edbe:4f2c__None",
+            },
+            {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")},
         )

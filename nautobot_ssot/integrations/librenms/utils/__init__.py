@@ -13,7 +13,7 @@ LOGGER = logging.getLogger(__name__)
 
 def normalize_gps_coordinates(gps_coord):
     """Normalize GPS Coordinates to 6 decimal places which is all that is stored in Nautobot."""
-    return round(gps_coord, 6)
+    return round(float(gps_coord), 6)
 
 
 def normalize_setting(variable_name):

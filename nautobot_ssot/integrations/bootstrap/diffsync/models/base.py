@@ -128,6 +128,7 @@ class GraphQLQuery(DiffSyncModel):
     uuid: Optional[UUID] = None
 
 
+# TODO Merge SoftwareVersion and Software once no longer need to support DLM < 2.0.0 and Nautobot < 2.3.0
 class Software(DiffSyncModel):
     """DiffSync Model for Bootstrap Software."""
 
@@ -162,10 +163,48 @@ class Software(DiffSyncModel):
     uuid: Optional[UUID] = None
 
 
+# TODO Merge SoftwareVersion and Software once no longer need to support DLM < 2.0.0 and Nautobot < 2.3.0
+class SoftwareVersion(DiffSyncModel):
+    """DiffSync Model for Bootstrap SoftwareVersion."""
+
+    _modelname = "software_version"
+    _identifiers = (
+        "version",
+        "platform",
+    )
+    _attributes = (
+        "alias",
+        "release_date",
+        "eos_date",
+        "status",
+        "long_term_support",
+        "pre_release",
+        "documentation_url",
+        "tags",
+        "system_of_record",
+    )
+    _children = {}
+
+    version: str
+    platform: str
+    status: str
+    alias: Optional[str] = None
+    release_date: Optional[datetime.date] = None
+    eos_date: Optional[datetime.date] = None
+    documentation_url: Optional[str] = None
+    long_term_support: bool
+    pre_release: bool
+    tags: Optional[List[str]] = None
+    system_of_record: str
+
+    uuid: Optional[UUID] = None
+
+
+# TODO Merge SoftwareImage and SoftwareImageFile once no longer need to support DLM < 2.0.0 and Nautobot < 2.3.0
 class SoftwareImage(DiffSyncModel):
     """DiffSync Model for Bootstrap SoftwareImage."""
 
-    _modelname = "software_image"
+    _modelname = "software_version"
     _identifiers = ("software",)
     _attributes = (
         "platform",
@@ -187,6 +226,42 @@ class SoftwareImage(DiffSyncModel):
     download_url: Optional[str] = None
     image_file_checksum: Optional[str] = None
     hashing_algorithm: str
+    default_image: bool
+    tags: Optional[List[str]] = None
+    system_of_record: str
+
+    uuid: Optional[UUID] = None
+
+
+# TODO Merge SoftwareImage and SoftwareImageFile once no longer need to support DLM < 2.0.0 and Nautobot < 2.3.0
+class SoftwareImageFile(DiffSyncModel):
+    """DiffSync Model for Bootstrap SoftwareImageFile."""
+
+    _modelname = "software_image_file"
+    _identifiers = ("software_version", "image_file_name")
+    _attributes = (
+        "platform",
+        "status",
+        "file_size",
+        "device_types",
+        "download_url",
+        "image_file_checksum",
+        "hashing_algorithm",
+        "default_image",
+        "tags",
+        "system_of_record",
+    )
+    _children = {}
+
+    platform: str
+    status: str
+    file_size: Optional[int] = None
+    device_types: Optional[List[str]] = None
+    software_version: str
+    image_file_name: str
+    download_url: Optional[str] = None
+    image_file_checksum: Optional[str] = None
+    hashing_algorithm: Optional[str] = None
     default_image: bool
     tags: Optional[List[str]] = None
     system_of_record: str

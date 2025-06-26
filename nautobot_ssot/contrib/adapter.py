@@ -3,8 +3,8 @@
 # pylint: disable=protected-access
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
-from collections import defaultdict
-from typing import DefaultDict, Dict, FrozenSet, Hashable, Tuple, Type, get_args
+import warnings
+from typing import Dict, Type, get_args
 
 import pydantic
 from diffsync import DiffSync
@@ -13,6 +13,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
+from nautobot.extras.models.metadata import MetadataType
 from typing_extensions import get_type_hints
 
 from nautobot_ssot.contrib.types import (
@@ -20,18 +21,8 @@ from nautobot_ssot.contrib.types import (
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
-
-# This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
-# and therefore a frozenset rather than a normal set or a list.
-#
-# The following is an example of a parameter set that describes a tenant based on its name and group:
-# frozenset(
-#  [
-#   ("name", "ABC Inc."),
-#   ("group__name", "Customers"),
-#  ]
-# )
-ParameterSet = FrozenSet[Tuple[str, Hashable]]
+from nautobot_ssot.utils.cache import ORMCache
+from nautobot_ssot.utils.orm import load_typed_dict, orm_attribute_lookup
 
 
 class NautobotAdapter(DiffSync):
@@ -41,35 +32,18 @@ class NautobotAdapter(DiffSync):
     This adapter is able to infer how to load data from Nautobot based on how the models attached to it are defined.
     """
 
-    # This dictionary acts as an ORM cache.
-    _cache: DefaultDict[str, Dict[ParameterSet, Model]]
-    _cache_hits: DefaultDict[str, int] = defaultdict(int)
-
     def __init__(self, *args, job, sync=None, **kwargs):
         """Instantiate this class, but do not load data immediately from the local system."""
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
-        self.invalidate_cache()
-
-    def invalidate_cache(self, zero_out_hits=True):
-        """Invalidates all the objects in the ORM cache."""
-        self._cache = defaultdict(dict)
-        if zero_out_hits:
-            self._cache_hits = defaultdict(int)
+        self.cache: ORMCache = kwargs.pop("cache", ORMCache())
+        self.metadata_type = None
+        self.metadata_scope_fields = {}
 
     def get_from_orm_cache(self, parameters: Dict, model_class: Type[Model]):
         """Retrieve an object from the ORM or the cache."""
-        parameter_set = frozenset(parameters.items())
-        content_type = ContentType.objects.get_for_model(model_class)
-        model_cache_key = f"{content_type.app_label}.{content_type.model}"
-        if cached_object := self._cache[model_cache_key].get(parameter_set):
-            self._cache_hits[model_cache_key] += 1
-            return cached_object
-        # As we are using `get` here, this will error if there is not exactly one object that corresponds to the
-        # parameter set. We intentionally pass these errors through.
-        self._cache[model_cache_key][parameter_set] = model_class.objects.get(**dict(parameter_set))
-        return self._cache[model_cache_key][parameter_set]
+        return self.cache.get_from_orm(model_class, parameters)
 
     @staticmethod
     def _get_parameter_names(diffsync_model):
@@ -110,7 +84,7 @@ class NautobotAdapter(DiffSync):
                     database_object, parameter_name, custom_relationship_annotation
                 )
             else:
-                parameters[parameter_name] = self._handle_foreign_key(database_object, parameter_name)
+                parameters[parameter_name] = orm_attribute_lookup(database_object, parameter_name)
             return
 
         # Handling of one- and many-to custom relationship fields:
@@ -218,7 +192,8 @@ class NautobotAdapter(DiffSync):
             related_object = getattr(
                 association, "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
             )
-            dictionary_representation = self._handle_typed_dict(inner_type, related_object)
+            # dictionary_representation = self._handle_typed_dict(inner_type, related_object)
+            dictionary_representation = load_typed_dict(inner_type, related_object)
             # Only use those where there is a single field defined, all 'None's will not help us.
             if any(dictionary_representation.values()):
                 related_objects_list.append(dictionary_representation)
@@ -244,18 +219,15 @@ class NautobotAdapter(DiffSync):
     def _handle_typed_dict(cls, inner_type, related_object):
         """Handle a typed dict for many to many relationships.
 
-        Args:
-            inner_type: The typed dict.
-            related_object: The related object
-        Returns: The dictionary representation of `related_object` as described by `inner_type`.
+        TODO: Deprecated and to be removed in future version. Use `nautobot_ssot.utils.orm.load_typed_dict` instead.
         """
-        dictionary_representation = {}
-        for field_name in get_type_hints(inner_type):
-            if "__" in field_name:
-                dictionary_representation[field_name] = cls._handle_foreign_key(related_object, field_name)
-                continue
-            dictionary_representation[field_name] = getattr(related_object, field_name)
-        return dictionary_representation
+        warnings.warn(
+            "`_handle_typed_dict` is deprecated and will be removed in a future version. "
+            "Use `nautobot_ssot.utils.orm.load_typed_dict` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return load_typed_dict(inner_type, related_object)
 
     def _construct_relationship_association_parameters(self, annotation, database_object):
         relationship = self.get_from_orm_cache({"label": annotation.name}, Relationship)
@@ -270,8 +242,7 @@ class NautobotAdapter(DiffSync):
             relationship_association_parameters["destination_id"] = database_object.id
         return relationship_association_parameters
 
-    @staticmethod
-    def _handle_to_many_relationship(database_object, diffsync_model, parameter_name):
+    def _handle_to_many_relationship(self, database_object, diffsync_model, parameter_name):
         """Handle a single one- or many-to-many relationship field.
 
         one- or many-to-many relationships are type annotated as a list of typed dictionaries. The typed
@@ -326,7 +297,8 @@ class NautobotAdapter(DiffSync):
         related_objects_list = []
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
         for related_object in getattr(database_object, parameter_name).all():
-            dictionary_representation = NautobotAdapter._handle_typed_dict(inner_type, related_object)
+            # dictionary_representation = self._handle_typed_dict(inner_type, related_object)
+            dictionary_representation = load_typed_dict(inner_type, related_object)
             # Only use those where there is a single field defined, all 'None's will not help us.
             if any(dictionary_representation.values()):
                 related_objects_list.append(dictionary_representation)
@@ -358,33 +330,50 @@ class NautobotAdapter(DiffSync):
 
     @staticmethod
     def _handle_foreign_key(database_object, parameter_name):
-        """Handle a single foreign key field.
+        """Handle a single foreign key field."""
+        warnings.warn(
+            "`_handle_foreign_key` is deprecated and will be removed in a future version. "
+            "Use `nautobot_ssot.utils.orm.orm_attribute_lookup` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return orm_attribute_lookup(database_object, parameter_name)
 
-        Given the object from the database as well as the name of parameter in the form of
-        f'{foreign_key_field_name}__{remote_field_name}'
-        return the field at 'remote_field_name' on the object behind the foreign key at 'foreign_key_field_name'.
+    def get_or_create_metadatatype(self):
+        """Retrieve or create a MetadataType object to track the last sync time of this SSoT job."""
+        # MetadataType name will be extracted from the Data Source name.
+        metadata_type__name = self.job.__class__.Meta.data_source
 
-        Furthermore, 'remote_field_name' may be a series of '__' delimited lookups.
+        # Create a MetadataType of type datetime
+        metadata_type, _ = MetadataType.objects.get_or_create(
+            name=f"Last sync from {metadata_type__name}",
+            defaults={
+                "data_type": "datetime",
+                "description": f"Timestamp of the last sync from the Data source {metadata_type__name}",
+            },
+        )
 
-        :param database_object: The Django ORM database object
-        :param parameter_name: The field name of the specific relationship to handle
-        :return: If present, the object behind the (generic) foreign key, else None
-        """
-        related_model, *lookups = parameter_name.split("__")
-        related_object = getattr(database_object, related_model)
-        # If the foreign key does not point to anything, return None
-        if not related_object:
-            return None
-        for lookup in lookups[:-1]:
-            related_object = getattr(related_object, lookup)
-            # If the foreign key does not point to anything, return None
-            if not related_object:
-                return None
-        # Return the result of the last lookup directly.
-        try:
-            return getattr(related_object, lookups[-1])
-        # If the lookup doesn't point anywhere, check whether it is using the convention for generic foreign keys.
-        except AttributeError:
-            if lookups[-1] in ["app_label", "model"]:
-                return getattr(ContentType.objects.get_for_model(related_object), lookups[-1])
-        return None
+        # Get All diffsync models from adapter's top_level attribute
+        diffsync_models = []
+        for model_name in self.top_level:
+            diffsync_model = self._get_diffsync_class(model_name)
+            diffsync_models.append(diffsync_model)
+            for children_parameter, _ in diffsync_model._children.items():
+                diffsync_model_child = self._get_diffsync_class(model_name=children_parameter)
+                diffsync_models.append(diffsync_model_child)
+
+        for diffsync_model in diffsync_models:
+            # Get nautobot model from diffsync model
+            nautobot_model = diffsync_model._model
+            # Attach ContentTypes to MetadataType
+            content_type = ContentType.objects.get_for_model(nautobot_model)
+            if content_type not in metadata_type.content_types.all():
+                metadata_type.content_types.add(content_type)
+            # Define scope fields per model
+            obj_metadata_scope_fields = list(
+                {parameter.split("__", maxsplit=1)[0] for parameter in self._get_parameter_names(diffsync_model)}
+            )
+            self.metadata_scope_fields[diffsync_model] = obj_metadata_scope_fields
+
+        # Define the metadata type on the adapter so that can be used on the models crud operations
+        self.metadata_type = metadata_type

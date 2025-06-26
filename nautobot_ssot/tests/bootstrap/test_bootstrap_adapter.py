@@ -1,7 +1,7 @@
 """Tests for Bootstrap adapter."""
 
 import json
-from datetime import datetime
+from datetime import date, datetime
 from unittest.mock import MagicMock
 
 import yaml
@@ -14,11 +14,12 @@ from nautobot_ssot.integrations.bootstrap.diffsync.adapters.bootstrap import (
 )
 from nautobot_ssot.integrations.bootstrap.jobs import BootstrapDataSource
 
-from .test_setup import (
+from .test_bootstrap_setup import (
     DEVELOP_YAML_SETTINGS,
     GLOBAL_JSON_SETTINGS,
     GLOBAL_YAML_SETTINGS,
-    MODELS_TO_SYNC,
+    KEYS_TO_NORMALIZE,
+    MODELS_TO_TEST,
 )
 
 
@@ -42,7 +43,7 @@ def assert_deep_diff(test_case, actual, expected, keys_to_normalize=None):
     def normalize(item):  # pylint: disable=too-many-branches
         if isinstance(item, list):
             return [normalize(i) for i in item]
-        if isinstance(item, dict):
+        if isinstance(item, dict):  # pylint: disable=too-many-nested-blocks
             for key in list(item.keys()):
                 if key in ["system_of_record", "model_flags", "uuid"]:
                     item.pop(key, None)
@@ -59,6 +60,7 @@ def assert_deep_diff(test_case, actual, expected, keys_to_normalize=None):
                         "longitude",
                         "tenant",
                         "terminations",
+                        "valid_until",
                     ]
                     and item.get(key) is None
                 ):
@@ -70,14 +72,17 @@ def assert_deep_diff(test_case, actual, expected, keys_to_normalize=None):
                     item[key] = None
                 if key == "content_types" or key == "provided_contents" and isinstance(item[key], list):
                     item[key] = sorted(["config contexts" if v == "extras.configcontext" else v for v in item[key]])
-                if key == "date_allocated":
+                if key in ["date_allocated", "valid_since", "valid_until", "release_date", "eos_date"]:
                     if item.get(key) is not None:
-                        # Normalize the format to 'YYYY-MM-DD HH:MM:SS' for consistency
-                        if isinstance(item[key], datetime):
-                            item[key] = item[key].isoformat(sep=" ")
-                        elif isinstance(item[key], str) and len(item[key]) == 10:
-                            # Convert 'YYYY-MM-DD' format to 'YYYY-MM-DD 00:00:00'
-                            item[key] += " 00:00:00"
+                        # Convert all dates to YYYY-MM-DD format
+                        if isinstance(item[key], (datetime, date)):
+                            item[key] = item[key].strftime("%Y-%m-%d")
+                        elif isinstance(item[key], str):
+                            # Always truncate to first 10 characters (YYYY-MM-DD)
+                            item[key] = item[key][:10]
+                        # Don't remove None dates for release_date and eos_date
+                        elif key not in ["release_date", "eos_date"]:
+                            item.pop(key, None)
                 if key == "prefix":
                     # Sort prefixes based on network and namespace as unique identifiers
                     item[key] = sorted(item[key], key=lambda x: (x["network"], x["namespace"]))
@@ -137,22 +142,19 @@ class TestBootstrapAdapterTestCase(TransactionTestCase):
     def test_data_loading(self):
         """Test Nautobot Ssot Bootstrap load() function."""
         self.bootstrap.load()
-        # self.maxDiff = None
-        # pylint: disable=duplicate-code
-        for key in MODELS_TO_SYNC:
+
+        # Use shared models_to_test
+        for key in MODELS_TO_TEST:
             print(f"Checking: {key}")
+            models = list(self.bootstrap.dict().get(key, {}).values())
+            if key == "custom_field":
+                for model in list(models):
+                    if model["label"] in ["System of Record", "Last sync from System of Record", "LibreNMS Device ID"]:
+                        models.remove(model)
+
             assert_deep_diff(
                 self,
-                list(self.bootstrap.dict().get(key, {}).values()),
+                models,
                 GLOBAL_JSON_SETTINGS.get(key, []),
-                keys_to_normalize={
-                    "parent",
-                    "nestable",
-                    "tenant",
-                    "tenant_group",
-                    "terminations",
-                    "provider_network",
-                    "upstream_speed_kbps",
-                    "location",
-                },
+                keys_to_normalize=KEYS_TO_NORMALIZE,
             )

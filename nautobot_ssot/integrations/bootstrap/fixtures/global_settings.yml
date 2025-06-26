@@ -1,10 +1,10 @@
 ---
 tenant_group:
   - name: "Group1"
-    parent: ""
+    parent:
     description: ""
   - name: "Group2"
-    parent: ""
+    parent:
     description: ""
   - name: "Group3"
     parent: "Group1"
@@ -539,6 +539,7 @@ graph_ql_query:
       }
 software:
   - device_platform: "arista_eos"
+    status: "Active"
     version: "4.25.10M"
     alias: ""
     release_date: "2023-12-04"
@@ -548,6 +549,7 @@ software:
     pre_release: false
     tags: ["Backbone"]
   - device_platform: "cisco_ios"
+    status: "Active"
     version: "03.11.04.E"
     alias: "Cisco Validated"
     release_date:
@@ -557,6 +559,7 @@ software:
     pre_release: false
     tags: ["Test"]
   - device_platform: "paloalto_panos"
+    status: "Active"
     version: "11.0.3"
     alias: "Panos Preferred"
     release_date:
@@ -566,6 +569,7 @@ software:
     pre_release: false
     tags: ["Test"]
   - device_platform: "arista_eos"
+    status: "Active"
     version: "15.4.3"
     alias: "Arista Preferred"
     release_date:
@@ -576,22 +580,28 @@ software:
     tags: ["Test"]
 software_image:
   - software: "arista_eos - 15.4.3"
+    status: "Active"
     platform: "arista_eos"
     software_version: "15.4.3"
     file_name: "arista15.4.3.bin"
+    file_size: 1234
     download_url: "https://arista-files.com"
     image_file_checksum: ""
-    hashing_algorithm: ""
+    hashing_algorithm: "SHA256"
     default_image: false
+    device_types: ["arista-switch"]
     tags: ["Test"]
   - software: "paloalto_panos - 11.0.3"
+    status: "Active"
     platform: "paloalto_panos"
     software_version: "11.0.3"
     file_name: "paloalto_11.0.3.bin"
+    file_size:
     download_url: "https://paloaltonetworks.com"
     image_file_checksum: "o234i09usdfsflkj"
     hashing_algorithm: "SHA256"
     default_image: false
+    device_types: []
     tags: []
 validated_software:
   - software: "arista_eos - 4.25.10M"

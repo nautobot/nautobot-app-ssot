@@ -135,7 +135,29 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
         self.job = job
         self.sync = sync
         self.config = config
+        self._clear_cache()
         self.excluded_cfs = config.cf_fields_ignore.get("custom_fields", [])
+
+    def _clear_cache(self):
+        """Ensure cache stores are empty during each sync run.
+
+        Since the cache is implemented using class attributes, cached values may persist between sync runs.
+        This can lead to subtle bugs caused by cache misses.
+        """
+        for obj_type in [
+            "ipaddr",
+            "location",
+            "namespace",
+            "prefix",
+            "relationship",
+            "role",
+            "status",
+            "tenant",
+            "vlan",
+            "vlangroup",
+            "vrf",
+        ]:
+            getattr(self, f"{obj_type}_map").clear()
 
     def sync_complete(self, source: Adapter, *args, **kwargs):
         """Process object creations/updates using bulk operations.

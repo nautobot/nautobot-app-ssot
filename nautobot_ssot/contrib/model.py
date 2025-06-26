@@ -4,6 +4,7 @@
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
 from collections import defaultdict
+from datetime import datetime
 from typing import ClassVar, Optional
 from uuid import UUID
 
@@ -14,6 +15,7 @@ from django.core.exceptions import MultipleObjectsReturned, ValidationError
 from django.db.models import Model, ProtectedError
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
+from nautobot.extras.models.metadata import ObjectMetadata
 from typing_extensions import get_type_hints
 
 from nautobot_ssot.contrib.types import (
@@ -65,7 +67,7 @@ class NautobotModel(DiffSyncModel):
     def get_from_db(self):
         """Get the ORM object for this diffsync object from the database using the primary key."""
         try:
-            return self.adapter.get_from_orm_cache({"pk": self.pk}, self._model)
+            return self.adapter.cache.get_from_orm(self._model, {"pk": self.pk})
         except self._model.DoesNotExist as error:
             raise ObjectCrudException(f"No such {self._model._meta.verbose_name} instance with PK {self.pk}") from error
 
@@ -74,6 +76,8 @@ class NautobotModel(DiffSyncModel):
         try:
             obj = self.get_from_db()
             self._update_obj_with_parameters(obj, attrs, self.adapter)
+            if self.adapter.metadata_type:
+                self._update_obj_metadata(obj, self.adapter)
         except ObjectCrudException as error:
             raise ObjectNotUpdated(error) from error
         return super().update(attrs)
@@ -105,6 +109,12 @@ class NautobotModel(DiffSyncModel):
             cls._update_obj_with_parameters(obj, parameters, adapter)
         except ObjectCrudException as error:
             raise ObjectNotCreated(error) from error
+
+        if adapter.metadata_type:
+            try:
+                cls._update_obj_metadata(obj, adapter)
+            except ObjectCrudException as error:
+                raise ObjectNotCreated(error) from error
 
         return super().create(adapter, ids, attrs)
 
@@ -162,7 +172,7 @@ class NautobotModel(DiffSyncModel):
 
         # Prepare handling of custom relationship many-to-many fields.
         if custom_relationship_annotation:
-            relationship = adapter.get_from_orm_cache({"label": custom_relationship_annotation.name}, Relationship)
+            relationship = adapter.cache.get_from_orm(Relationship, {"label": custom_relationship_annotation.name})
             if custom_relationship_annotation.side == RelationshipSideEnum.DESTINATION:
                 related_object_content_type = relationship.source_type
             else:
@@ -178,7 +188,7 @@ class NautobotModel(DiffSyncModel):
                 }
             else:
                 relationship_fields["custom_relationship_many_to_many_fields"][field] = {
-                    "objects": [adapter.get_from_orm_cache(parameters, related_model_class) for parameters in value],
+                    "objects": [adapter.cache.get_from_orm(related_model_class, parameters) for parameters in value],
                     "annotation": custom_relationship_annotation,
                 }
 
@@ -191,7 +201,7 @@ class NautobotModel(DiffSyncModel):
         if django_field.many_to_many or django_field.one_to_many:
             try:
                 relationship_fields["many_to_many_fields"][field] = [
-                    adapter.get_from_orm_cache(parameters, django_field.related_model) for parameters in value
+                    adapter.cache.get_from_orm(django_field.related_model, parameters) for parameters in value
                 ]
             except django_field.related_model.DoesNotExist as error:
                 raise ObjectCrudException(
@@ -251,7 +261,7 @@ class NautobotModel(DiffSyncModel):
             annotation = dictionary.pop("annotation")
             objects = dictionary.pop("objects")
             # TODO: Deduplicate this code
-            relationship = adapter.get_from_orm_cache({"label": annotation.name}, Relationship)
+            relationship = adapter.cache.get_from_orm(Relationship, {"label": annotation.name})
             parameters = {
                 "relationship": relationship,
                 "source_type": relationship.source_type,
@@ -264,7 +274,7 @@ class NautobotModel(DiffSyncModel):
                     association_parameters = parameters.copy()
                     association_parameters["destination_id"] = object_to_relate.id
                     try:
-                        association = adapter.get_from_orm_cache(association_parameters, RelationshipAssociation)
+                        association = adapter.cache.get_from_orm(RelationshipAssociation, association_parameters)
                     except RelationshipAssociation.DoesNotExist:
                         association = RelationshipAssociation(**parameters, destination_id=object_to_relate.id)
                         association.validated_save()
@@ -275,7 +285,7 @@ class NautobotModel(DiffSyncModel):
                     association_parameters = parameters.copy()
                     association_parameters["source_id"] = object_to_relate.id
                     try:
-                        association = adapter.get_from_orm_cache(association_parameters, RelationshipAssociation)
+                        association = adapter.cache.get_from_orm(RelationshipAssociation, association_parameters)
                     except RelationshipAssociation.DoesNotExist:
                         association = RelationshipAssociation(**parameters, source_id=object_to_relate.id)
                         association.validated_save()
@@ -311,7 +321,7 @@ class NautobotModel(DiffSyncModel):
             annotation = related_model_dict.pop("_annotation")
             # TODO: Deduplicate this code
             try:
-                relationship = adapter.get_from_orm_cache({"label": annotation.name}, Relationship)
+                relationship = adapter.cache.get_from_orm(Relationship, {"label": annotation.name})
             except Relationship.DoesNotExist as error:
                 raise ObjectCrudException(f"No such relationship with label '{annotation.name}'") from error
             parameters = {
@@ -323,7 +333,7 @@ class NautobotModel(DiffSyncModel):
                 parameters["source_id"] = obj.id
                 related_model_class = relationship.destination_type.model_class()
                 try:
-                    destination_object = adapter.get_from_orm_cache(related_model_dict, related_model_class)
+                    destination_object = adapter.cache.get_from_orm(related_model_class, related_model_dict)
                 except related_model_class.DoesNotExist as error:
                     raise ObjectCrudException(
                         f"Couldn't resolve custom relationship {relationship.name}, no such {related_model_class._meta.verbose_name} object with parameters {related_model_dict}."
@@ -338,7 +348,7 @@ class NautobotModel(DiffSyncModel):
                 )
             else:
                 parameters["destination_id"] = obj.id
-                source_object = adapter.get_from_orm_cache(related_model_dict, relationship.source_type.model_class())
+                source_object = adapter.cache.get_from_orm(relationship.source_type.model_class(), related_model_dict)
                 RelationshipAssociation.objects.update_or_create(**parameters, defaults={"source_id": source_object.id})
 
     @classmethod
@@ -367,8 +377,8 @@ class NautobotModel(DiffSyncModel):
                         f"for generic foreign keys."
                     ) from error
                 try:
-                    related_model_content_type = adapter.get_from_orm_cache(
-                        {"app_label": app_label, "model": model}, ContentType
+                    related_model_content_type = adapter.cache.get_from_orm(
+                        ContentType, {"app_label": app_label, "model": model}
                     )
                     related_model = related_model_content_type.model_class()
                 except ContentType.DoesNotExist as error:
@@ -378,7 +388,7 @@ class NautobotModel(DiffSyncModel):
                 setattr(obj, field_name, None)
                 continue
             try:
-                related_object = adapter.get_from_orm_cache(related_model_dict, related_model)
+                related_object = adapter.cache.get_from_orm(related_model, related_model_dict)
             except related_model.DoesNotExist as error:
                 raise ObjectCrudException(
                     f"Couldn't find '{related_model._meta.verbose_name}' instance behind '{field_name}' with: {related_model_dict}."
@@ -388,3 +398,16 @@ class NautobotModel(DiffSyncModel):
                     f"Found multiple instances for {field_name} wit: {related_model_dict}"
                 ) from error
             setattr(obj, field_name, related_object)
+
+    @classmethod
+    def _update_obj_metadata(cls, obj, adapter):
+        """Update a given Nautobot ORM object with the required object metadata."""
+        # Get the scope_fields from the DiffSync Model
+        obj_metadata_scope_fields = adapter.metadata_scope_fields[cls]
+        obj_metadata = obj.associated_object_metadata.filter(
+            metadata_type=adapter.metadata_type
+        ).first() or ObjectMetadata(metadata_type=adapter.metadata_type, assigned_object=obj)
+
+        obj_metadata.scoped_fields = obj_metadata_scope_fields
+        obj_metadata.value = datetime.now()
+        obj_metadata.validated_save()

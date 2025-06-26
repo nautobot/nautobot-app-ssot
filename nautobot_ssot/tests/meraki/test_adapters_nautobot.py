@@ -135,10 +135,10 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
             {pf.get_unique_id() for pf in self.nb_adapter.get_all("prefix")},
         )
         self.assertEqual(
-            {f"{ipaddr.host}__{ipaddr.parent.prefix}__None" for ipaddr in IPAddress.objects.all()},
+            {f"{ipaddr.host}__None" for ipaddr in IPAddress.objects.all()},
             {ipaddr.get_unique_id() for ipaddr in self.nb_adapter.get_all("ipaddress")},
         )
         self.assertEqual(
-            {"10.0.0.1/24__Lab01__Test__wan1"},
+            {"10.0.0.1__Lab01__Test__wan1"},
             {map.get_unique_id() for map in self.nb_adapter.get_all("ipassignment")},
         )
