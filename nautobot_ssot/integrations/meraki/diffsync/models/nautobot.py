@@ -166,8 +166,8 @@ class NautobotDevice(Device):
                 new_device.tenant = None
         if attrs.get("version"):
             new_device.software_version_id = adapter.version_map[attrs["version"]]
-        new_device.cf["system_of_record"] = "Meraki SSoT"
-        new_device.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
+        new_device.custom_field_data["system_of_record"] = "Meraki SSoT"
+        new_device.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         adapter.objects_to_create["devices"].append(new_device)
         adapter.device_map[new_device.name] = new_device.id
         adapter.port_map[new_device.name] = {}
@@ -207,8 +207,8 @@ class NautobotDevice(Device):
                 device.tenant = None
         if "version" in attrs:
             device.software_version_id = self.adapter.version_map[attrs["version"]]
-        device.cf["system_of_record"] = "Meraki SSoT"
-        device.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
+        device.custom_field_data["system_of_record"] = "Meraki SSoT"
+        device.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         device.validated_save()
         return super().update(attrs)
 
@@ -339,22 +339,37 @@ class NautobotIPAddress(IPAddress):
             status_id=adapter.status_map["Active"],
             tenant_id=adapter.tenant_map[ids["tenant"]] if ids.get("tenant") else None,
         )
-        adapter.objects_to_create["ipaddrs-to-prefixes"].append((new_ip, adapter.prefix_map[ids["prefix"]]))
-        new_ip.cf["system_of_record"] = "Meraki SSoT"
-        new_ip.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
+        adapter.objects_to_create["ipaddrs-to-prefixes"].append((new_ip, adapter.prefix_map[attrs["prefix"]]))
+        new_ip.custom_field_data["system_of_record"] = "Meraki SSoT"
+        new_ip.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         adapter.objects_to_create["ipaddrs"].append(new_ip)
         if namespace not in adapter.ipaddr_map:
             adapter.ipaddr_map[namespace] = {}
-        adapter.ipaddr_map[namespace][f"{ids['host']}/{attrs['mask_length']}"] = new_ip.id
+        adapter.ipaddr_map[namespace][ids["host"]] = new_ip.id
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update IPAddress in Nautobot from NautobotIPAddress object."""
         ipaddr = OrmIPAddress.objects.get(id=self.uuid)
+        if self.adapter.job.debug:
+            self.adapter.job.logger.debug(f"Updating IPAddress {ipaddr.address} in Nautobot with {attrs}.")
         if attrs.get("mask_length"):
             ipaddr.mask_length = attrs["mask_length"]
-        ipaddr.cf["system_of_record"] = "Meraki SSoT"
-        ipaddr.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
+        if attrs.get("prefix"):
+            old_pf = None
+            if attrs["prefix"] not in self.adapter.prefix_map:
+                raise ValueError(f"Prefix {attrs['prefix']} not found in Nautobot.")
+            if ipaddr.parent.prefix_length == 32 and ipaddr.ip_version == 4:
+                old_pf = ipaddr.parent
+            new_parent = OrmPrefix.objects.get(id=self.adapter.prefix_map[attrs["prefix"]])
+            if new_parent.type != "pool":
+                new_parent.type = "pool"
+                new_parent.validated_save()
+            ipaddr.parent = new_parent
+            if old_pf:
+                old_pf.delete()
+        ipaddr.custom_field_data["system_of_record"] = "Meraki SSoT"
+        ipaddr.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         ipaddr.validated_save()
         return super().update(attrs)
 
