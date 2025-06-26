@@ -3,10 +3,8 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 from typing_extensions import Any, Type, get_type_hints, is_typeddict, Dict
-from nautobot_ssot.contrib.types import RelationshipSideEnum, CustomRelationshipAnnotation
-from nautobot_ssot.utils.cache import ORMCache
-from nautobot.extras.models import Relationship, RelationshipAssociation
-from nautobot.core.models import BaseModel
+from nautobot_ssot.contrib.types import RelationshipSideEnum
+from nautobot.extras.models import Relationship
 from nautobot_ssot.utils.types import RelationshipAssociationParameters
 from uuid import UUID
 
@@ -84,13 +82,32 @@ def get_custom_relationship_association_parameters(
         relationship: Relationship,
         db_obj_id: UUID,
         relationship_side: RelationshipSideEnum,
-    ) -> Dict:
-    """Build relationship parameters for retreiving associations of a specified database object."""
+    ) -> Dict[str, Any]:
+    """Build relationship parameters for retreiving associations of a specified database object.
+
+    Relationship parameters are the fields required to connect one relationship association(s) for a single Nautobot
+    object with a custom relationship defined within Nautobot. 
+    
+    Args:
+        relationship (Relationship): Relationship instance from the ORM defining the relationships betweeen two objects.
+        db_obj_id (UUID): UUID of database object to build relationship parameters in context to.
+        relationship_side (RelationshipSideEnum): Instance of enum defining which side of relationship `db_obj_id` is on.
+
+    Returns:
+        Dict[str, Any]: Dictionary of values representing ORM parameters to filter by.
+
+    Raises:
+        TypeError: When parameters passed to the function are not of the corret/specified type.
+
+    Returns:
+        dict: Dictionary of parameters relative to Nautobot object.
+    """
     if not isinstance(relationship, Relationship):
         raise TypeError("`relationship` parameter must be type `nautobot.extras.models.relationships.Relationship`")
     if not isinstance(db_obj_id, UUID):
         raise TypeError("`db_obj_id` must be type UUID.")
 
+    # Base Parameters, required for all instances
     parameters = RelationshipAssociationParameters(
         relationship=relationship,
         source_type=relationship.source_type,
