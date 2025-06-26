@@ -13,7 +13,7 @@ This release brings several significant additions and changes:
 - The example Jobs now support synchronizing Tags on appropriate objects between Nautobot instances.
 - All integrations that utilize the contrib pattern will automatically support [Object Metadata](https://docs.nautobot.com/projects/core/en/stable/user-guide/platform-functionality/objectmetadata/) being added to their models.
 
-## [v3.9.0 (2025-06-20)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.9.0)
+## [v3.9.0 (2025-06-25)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.9.0)
 
 ### Added
 
