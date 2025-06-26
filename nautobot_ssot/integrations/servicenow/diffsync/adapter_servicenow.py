@@ -17,7 +17,7 @@ from nautobot_ssot.contrib.model import DiffSyncModel
 from . import models
 
 
-class ServiceNowDiffSync(Adapter):
+class ServiceNowDiffSync(Adapter):  # pylint: disable=too-many-instance-attributes
     """DiffSync adapter using pysnow to communicate with a ServiceNow server."""
 
     # create defaultdict object to store objects that should be deleted from ServiceNow if they do not
@@ -162,12 +162,12 @@ class ServiceNowDiffSync(Adapter):
         )
 
     def log_duplicate_records(self, model_cls: DiffSyncModel) -> None:
-        """Log any duplicate records that were found during the load process."""
-        if not self.duplicate_records.get(model_cls._modelname, False):
-            self.duplicate_records[model_cls._modelname] = [",".join(model_cls._identifiers)]
-        self.duplicate_records[model_cls._modelname].append(
-            ",".join([getattr(model_cls, attr) for attr in model_cls._identifiers])
-        )
+        """Capture duplicate records in CSV format that were found during the ServiceNow record load."""
+        model_name = model_cls._modelname  # pylint: disable=protected-access
+        model_identifiers = model_cls._identifiers  # pylint: disable=protected-access
+        if not self.duplicate_records.get(model_name, False):
+            self.duplicate_records[model_name] = [",".join(model_identifiers)]
+        self.duplicate_records[model_name].append(",".join([getattr(model_cls, attr) for attr in model_identifiers]))
 
     def load_record(self, table, record, model_cls, mappings, **kwargs):
         """Helper method to load_table()."""
