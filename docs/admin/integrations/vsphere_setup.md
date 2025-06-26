@@ -4,14 +4,13 @@ This guide will walk you through the steps to set up vSphere integration with th
 
 ## Prerequisites
 
-Before configuring the integration, please ensure that the `nautobot-ssot` app was [installed with the vSphere integration extra dependencies](../install.md#install-guide).
+The vSphere integration requires no additional dependencies. To get started, simply install `nautobot-ssot` as usual:
 
 ```shell
-pip install nautobot-ssot[vsphere]
+pip install nautobot-ssot
 ```
-The integration with vSphere utilizes [External Integrations](https://docs.nautobot.com/projects/core/en/stable/user-guide/platform-functionality/externalintegration/?h=external) to specify your vSphere host information. To enable this integration, the only modification needed is to activate it in the nautobot_config.py file.
 
-Below is an example snippet from `nautobot_config.py` that demonstrates how to enable the vSphere integration. 
+Next, enable the integration by adding the key `enable_vsphere` with the value `True` to the `nautobot_ssot` section of your `nautobot_config.py`:
 
 ```python
 PLUGINS_CONFIG = {
