@@ -162,16 +162,16 @@ class NautobotAdapter(DiffSync):
             ) from error
         return diffsync_model
 
-   
-
     def _handle_custom_relationship_to_many_relationship(
         self, database_object, diffsync_model, parameter_name, annotation
     ):
         # Introspect type annotations to deduce which fields are of interest
         # for this many-to-many relationship.
-        diffsync_field_type = get_type_hints(diffsync_model)[parameter_name]
-        inner_type = get_args(diffsync_field_type)[0]
+        inner_type = get_args(
+            get_type_hints(diffsync_model)[parameter_name]
+        )[0]
         related_objects_list = []
+
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
         relationship = self.get_from_orm_cache({"label": annotation.name}, Relationship)
         
@@ -224,18 +224,14 @@ class NautobotAdapter(DiffSync):
         )
         return load_typed_dict(inner_type, related_object)
 
-    def _construct_relationship_association_parameters(self, annotation, database_object):
-        relationship = self.get_from_orm_cache({"label": annotation.name}, Relationship)
-        relationship_association_parameters = {
-            "relationship": relationship,
-            "source_type": relationship.source_type,
-            "destination_type": relationship.destination_type,
-        }
-        if annotation.side == RelationshipSideEnum.SOURCE:
-            relationship_association_parameters["source_id"] = database_object.id
-        else:
-            relationship_association_parameters["destination_id"] = database_object.id
-        return relationship_association_parameters
+    def _construct_relationship_association_parameters(self, annotation: RelationshipSideEnum, database_object: Model):
+        # NOTE: Deprecated: use `nautobot_ssot.utils.orm.get_custom_relationship_association_parameters`
+        #       Kept for backwards compatibility
+        return get_custom_relationship_association_parameters(
+            relationship=self.cache.get_from_orm(Relationship, {"label": annotation.name}),
+            db_obj=database_object,
+            relationship_side=annotation.side
+        )
 
     def _handle_to_many_relationship(self, database_object, diffsync_model, parameter_name):
         """Handle a single one- or many-to-many relationship field.
