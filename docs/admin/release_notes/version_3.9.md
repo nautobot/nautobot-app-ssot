@@ -38,6 +38,7 @@ This release brings several significant additions and changes:
 - [#678](https://github.com/nautobot/nautobot-app-ssot/issues/678) - - Removes Retry dependency, which in turn removes py depencency, thereby fixing CVE https://nvd.nist.gov/vuln/detail/CVE-2022-42969
 - [#678](https://github.com/nautobot/nautobot-app-ssot/issues/678) - - Re-implements retry decorator
 - [#784](https://github.com/nautobot/nautobot-app-ssot/issues/784) - Change _handle_to_many_relationship from static method to instance method
+- [#807](https://github.com/nautobot/nautobot-app-ssot/issues/807) - Redo of fix for Meraki IP duplication bug.
 - [#830](https://github.com/nautobot/nautobot-app-ssot/issues/830) - Fixed top_level list not being properly generated for software models.
 - [#831](https://github.com/nautobot/nautobot-app-ssot/issues/831) - Refactored handling of various Nautobot versions and Device Lifecycle Management app handling Software, SoftwareImage, and ValidatedSoftware models being synced.
 - [#842](https://github.com/nautobot/nautobot-app-ssot/issues/842) - Fixed IP version bug in Meraki integration on AP uplink ports.
