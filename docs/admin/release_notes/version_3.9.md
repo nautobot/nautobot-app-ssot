@@ -49,3 +49,4 @@ This release brings several significant additions and changes:
 ### Documentation
 
 - [#856](https://github.com/nautobot/nautobot-app-ssot/issues/856) - Added a note to the developer upgrade documentation to explain the default value for text fields declared with `blank=True, null=False`.
+- [#870](https://github.com/nautobot/nautobot-app-ssot/issues/870) - Updated installation steps for vSphere integration.
