@@ -3,18 +3,21 @@
 # pylint: disable=protected-access
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
+import re
 import warnings
 from typing import Dict, Type, get_args
 
 import pydantic
-from diffsync import DiffSync
+from diffsync import DiffSync, DiffSyncModel
 from diffsync.exceptions import ObjectCrudException
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
+from inspect import get_annotations
 from nautobot.extras.choices import RelationshipTypeChoices
-from nautobot.extras.models import Relationship, RelationshipAssociation
+from nautobot.extras.models import Relationship
 from nautobot.extras.models.metadata import MetadataType
-from typing_extensions import get_type_hints
+from typing_extensions import get_args, get_type_hints
+from nautobot_ssot.utils.typing import get_inner_type
 
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
@@ -26,6 +29,7 @@ from nautobot_ssot.utils.orm import (
     load_typed_dict,
     orm_attribute_lookup,
     get_custom_relationship_association_parameters,
+    get_custom_relationship_associations,
 )
 
 
@@ -163,31 +167,29 @@ class NautobotAdapter(DiffSync):
         return diffsync_model
 
     def _handle_custom_relationship_to_many_relationship(
-        self, database_object, diffsync_model, parameter_name, annotation
+        self,
+        database_object: Model,
+        diffsync_model: DiffSyncModel,
+        parameter_name: str,
+        annotation: CustomRelationshipAnnotation,
     ):
         # Introspect type annotations to deduce which fields are of interest
         # for this many-to-many relationship.
-        inner_type = get_args(
-            get_type_hints(diffsync_model)[parameter_name]
-        )[0]
-        related_objects_list = []
-
+        inner_type = get_inner_type(diffsync_model, parameter_name)
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
-        relationship = self.get_from_orm_cache({"label": annotation.name}, Relationship)
-        
-        relationship_associations = RelationshipAssociation.objects.filter(
-            **get_custom_relationship_association_parameters(
-                relationship=relationship,
-                db_obj_id=database_object.id,
-                relationship_side=annotation.side,
-            )
+        relationship: Relationship = self.get_from_orm_cache({"label": annotation.name}, Relationship)
+        relationship_associations, _ = get_custom_relationship_associations(
+            relationship=relationship,
+            db_obj=database_object,
+            relationship_side=annotation.side,
         )
 
+        related_objects_list = []
         for association in relationship_associations:
             related_object = getattr(
-                association, "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
+                association,
+                "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
             )
-            # dictionary_representation = self._handle_typed_dict(inner_type, related_object)
             dictionary_representation = load_typed_dict(inner_type, related_object)
             # Only use those where there is a single field defined, all 'None's will not help us.
             if any(dictionary_representation.values()):
@@ -226,7 +228,8 @@ class NautobotAdapter(DiffSync):
 
     def _construct_relationship_association_parameters(self, annotation: RelationshipSideEnum, database_object: Model):
         # NOTE: Deprecated: use `nautobot_ssot.utils.orm.get_custom_relationship_association_parameters`
-        #       Kept for backwards compatibility
+        #       Kept for backwards compatibility.
+        #       To be removed in a future version.
         return get_custom_relationship_association_parameters(
             relationship=self.cache.get_from_orm(Relationship, {"label": annotation.name}),
             db_obj=database_object,
@@ -284,11 +287,10 @@ class NautobotAdapter(DiffSync):
         """
         # Introspect type annotations to deduce which fields are of interest
         # for this many-to-many relationship.
-        inner_type = get_args(get_type_hints(diffsync_model)[parameter_name])[0]
+        inner_type = get_inner_type(diffsync_model, parameter_name)
         related_objects_list = []
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
         for related_object in getattr(database_object, parameter_name).all():
-            # dictionary_representation = self._handle_typed_dict(inner_type, related_object)
             dictionary_representation = load_typed_dict(inner_type, related_object)
             # Only use those where there is a single field defined, all 'None's will not help us.
             if any(dictionary_representation.values()):
@@ -299,28 +301,25 @@ class NautobotAdapter(DiffSync):
         self, database_object, parameter_name: str, annotation: CustomRelationshipAnnotation
     ):
         """Handle a single custom relationship foreign key field."""
-        relationship_association = RelationshipAssociation.objects.filter(
-            **get_custom_relationship_association_parameters(
-                relationship=self.cache.get_from_orm(Relationship, {"label": annotation.name}),
-                db_obj_id=database_object.id,
-                relationship_side=annotation.side,
-            )
+        relationship_associations, association_count = get_custom_relationship_associations(
+            relationship=self.cache.get_from_orm(Relationship, {"label": annotation.name}),
+            db_obj=database_object,
+            relationship_side=annotation.side,
         )
-        
-        amount_of_relationship_associations = relationship_association.count()
-        if amount_of_relationship_associations == 0:
+
+        if association_count == 0:
             return None
-        if amount_of_relationship_associations == 1:
-            association = relationship_association.first()
-            related_object = getattr(
-                association, "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
-            )
-            # Discard the first part as there is no actual field on the model corresponding to that part.
-            _, *lookups = parameter_name.split("__")
-            for lookup in lookups[:-1]:
-                related_object = getattr(related_object, lookup)
-            return getattr(related_object, lookups[-1])
-        raise ValueError("Foreign key custom relationship matched two associations - this shouldn't happen.")
+        if association_count > 1:
+            raise ValueError("Foreign key custom relationship matched two associations - this shouldn't happen.")
+
+        return orm_attribute_lookup(
+            getattr(
+                relationship_associations.first(),
+                "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination",
+            ),
+            # Discard the first part of the paramater name as it references the initial related object
+            re.sub("^(.*?)__", "", parameter_name),
+        )
 
     @staticmethod
     def _handle_foreign_key(database_object, parameter_name):
