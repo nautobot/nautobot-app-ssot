@@ -5,19 +5,17 @@
 
 import re
 import warnings
-from typing import Dict, Type, get_args
+from typing import Dict, Type
 
 import pydantic
 from diffsync import DiffSync, DiffSyncModel
 from diffsync.exceptions import ObjectCrudException
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
-from inspect import get_annotations
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship
 from nautobot.extras.models.metadata import MetadataType
-from typing_extensions import get_args, get_type_hints
-from nautobot_ssot.utils.typing import get_inner_type
+from typing_extensions import get_type_hints
 
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
@@ -26,11 +24,12 @@ from nautobot_ssot.contrib.types import (
 )
 from nautobot_ssot.utils.cache import ORMCache
 from nautobot_ssot.utils.orm import (
-    load_typed_dict,
-    orm_attribute_lookup,
     get_custom_relationship_association_parameters,
     get_custom_relationship_associations,
+    load_typed_dict,
+    orm_attribute_lookup,
 )
+from nautobot_ssot.utils.typing import get_inner_type
 
 
 class NautobotAdapter(DiffSync):
@@ -187,8 +186,7 @@ class NautobotAdapter(DiffSync):
         related_objects_list = []
         for association in relationship_associations:
             related_object = getattr(
-                association,
-                "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
+                association, "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination"
             )
             dictionary_representation = load_typed_dict(inner_type, related_object)
             # Only use those where there is a single field defined, all 'None's will not help us.
@@ -232,8 +230,8 @@ class NautobotAdapter(DiffSync):
         #       To be removed in a future version.
         return get_custom_relationship_association_parameters(
             relationship=self.cache.get_from_orm(Relationship, {"label": annotation.name}),
-            db_obj=database_object,
-            relationship_side=annotation.side
+            db_obj_id=database_object.id,
+            relationship_side=annotation.side,
         )
 
     def _handle_to_many_relationship(self, database_object, diffsync_model, parameter_name):

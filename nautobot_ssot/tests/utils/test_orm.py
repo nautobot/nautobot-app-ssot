@@ -1,20 +1,19 @@
 """Unittests for ORM utility functions."""
 
-from django.test import TestCase
-from nautobot.dcim.models import Location, LocationType
-from nautobot.extras.models import Status
-from typing_extensions import Optional, TypedDict
-from nautobot.extras.models import Relationship, RelationshipAssociation
-from nautobot.circuits.models import Provider
 from django.contrib.contenttypes.models import ContentType
-from nautobot.extras.choices import RelationshipRequiredSideChoices, RelationshipSideChoices, RelationshipTypeChoices
-from nautobot_ssot.contrib.types import CustomRelationshipAnnotation, RelationshipSideEnum
+from django.test import TestCase
+from nautobot.circuits.models import Provider
+from nautobot.dcim.models import Location, LocationType
+from nautobot.extras.choices import RelationshipTypeChoices
+from nautobot.extras.models import Relationship, RelationshipAssociation, Status
+from typing_extensions import Optional, TypedDict
 
+from nautobot_ssot.contrib.types import RelationshipSideEnum
 from nautobot_ssot.utils.orm import (
+    get_custom_relationship_association_parameters,
     get_orm_attribute,
     load_typed_dict,
     orm_attribute_lookup,
-    get_custom_relationship_association_parameters,
 )
 
 
@@ -278,7 +277,7 @@ class TestLoadTypedDict(BaseTestCase):
 
 
 class TestGetCustomRelationshipAssociationParameters(BaseTestCase):
-    """"""
+    """Tests for `get_custom_relationship_assocation_parameters` function."""
 
     def setUp(self):
         super().setUp()

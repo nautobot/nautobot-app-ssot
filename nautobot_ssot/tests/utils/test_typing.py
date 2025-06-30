@@ -1,8 +1,9 @@
 """Unittests for typing utility functions."""
 
-from typing_extensions import List
-from nautobot_ssot.utils.typing import get_inner_type
 from nautobot.core.testing import TestCase
+from typing_extensions import List
+
+from nautobot_ssot.utils.typing import get_inner_type
 
 
 class TestGetInnerType(TestCase):
@@ -26,5 +27,5 @@ class TestGetInnerType(TestCase):
 
     def test_get_invalid_attribute(self):
         """Attempt to get inner type for non-existant attribute."""
-        with self.asserRaises(AttributeError):
+        with self.assertRaises(AttributeError):
             get_inner_type(self.ExampleClass, "non_existant_attribute")
