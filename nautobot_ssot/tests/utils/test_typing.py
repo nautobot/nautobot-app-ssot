@@ -23,3 +23,8 @@ class TestGetInnerType(TestCase):
         """Attempt to get inner type from attribute without inner type defined."""
         with self.assertRaises(TypeError):
             get_inner_type(self.ExampleClass, "a")
+
+    def test_get_invalid_attribute(self):
+        """Attempt to get inner type for non-existant attribute."""
+        with self.asserRaises(AttributeError):
+            get_inner_type(self.ExampleClass, "non_existant_attribute")
