@@ -50,6 +50,14 @@ class NautobotAdapter(DiffSync):
         """Ignore the differences between identifiers and attributes, because at this point they don't matter to us."""
         return list(diffsync_model._identifiers) + list(diffsync_model._attributes)  # pylint: disable=protected-access
 
+    def invalidate_cache(self, zero_out_hits=True):
+        """Deprecated, kept for backwards compatibility."""
+        self.job.logger.warning(
+            "Adapter class method `self.invalidate_cache()` is deprecated and will be removed in a future version. "
+            "Use `self.cache.invalidate_cache()` instead."
+        )
+        self.cache.invalidate_cache()
+
     def _load_objects(self, diffsync_model):
         """Given a diffsync model class, load a list of models from the database and return them."""
         parameter_names = self._get_parameter_names(diffsync_model)
