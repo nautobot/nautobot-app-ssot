@@ -56,7 +56,7 @@ class NautobotAdapter(DiffSync):
             "Adapter class method `self.invalidate_cache()` is deprecated and will be removed in a future version. "
             "Use `self.cache.invalidate_cache()` instead."
         )
-        self.cache.invalidate_cache()
+        self.cache.invalidate_cache(zero_out_hits=zero_out_hits)
 
     def _load_objects(self, diffsync_model):
         """Given a diffsync model class, load a list of models from the database and return them."""
