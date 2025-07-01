@@ -40,6 +40,23 @@ PLUGINS_CONFIG = {
 !!! note
     All integration settings are defined in the block above as an example. Only some will be needed as described below.
 
+## Duplicates
+
+When duplicates records are encountered in ServiceNow this is problematic for Nautobot to identify the correct record to update. The ServiceNow SSOT sync logic will warn you about these duplicate instances but it is up to the end-user to reconcile them for accurate data syncronization.
+
+At the end of an SSOT run, for every ServiceNow table where duplicates were found - a corresponding `duplicate_${table}.txt` file will be present in the results. This is in the format of a CSV file with the top row containing the attribute name and each subsequent row being the element that was found in duplicate.
+
+For example, if multiple product models were discovered you'll see a log warning and a file called `duplicate_product_model.txt` in the SSOT run output with contents such as:
+
+```
+manufacturer_name,model_name,model_number
+Cisco,Catalyst 9300,C9300-48P
+Dell,PowerEdge R740,R740-8SFF
+HP,ProLiant DL360,DL360-G10
+Juniper,EX4300,EX4300-48P
+Arista,7050X3,DCS-7050X3-32S
+```
+
 ## Upgrading from `nautobot-plugin-ssot-servicenow` App
 
 !!! warning

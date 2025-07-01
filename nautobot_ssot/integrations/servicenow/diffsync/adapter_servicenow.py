@@ -12,10 +12,12 @@ from diffsync.enum import DiffSyncFlags
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from jinja2 import Environment, FileSystemLoader
 
+from nautobot_ssot.contrib.model import DiffSyncModel
+
 from . import models
 
 
-class ServiceNowDiffSync(Adapter):
+class ServiceNowDiffSync(Adapter):  # pylint: disable=too-many-instance-attributes
     """DiffSync adapter using pysnow to communicate with a ServiceNow server."""
 
     # create defaultdict object to store objects that should be deleted from ServiceNow if they do not
@@ -49,6 +51,8 @@ class ServiceNowDiffSync(Adapter):
         # to improve performance when a device is created, we use ServiceNow's bulk/batch API to
         # create all of these interfaces in a single API call.
         self.interfaces_to_create_per_device = {}
+
+        self.duplicate_records = defaultdict(list)  # Store duplicate records for user notification
 
     def load(self):
         """Load data via pysnow."""
@@ -102,6 +106,9 @@ class ServiceNowDiffSync(Adapter):
             else:
                 self.load_table(modelname, **entry)
 
+        for modelname, duplicate_uids in self.duplicate_records.items():
+            self.job.create_file(f"duplicate_{modelname}.txt", "\n".join(duplicate_uids))
+
     @classmethod
     def load_yaml_datafile(cls, filename, config=None):
         """Get the contents of the given YAML data file.
@@ -133,22 +140,34 @@ class ServiceNowDiffSync(Adapter):
         """
         model_cls = getattr(self, modelname)
         self.job.logger.info(f"Loading ServiceNow table `{table}` into {modelname} instances...")
+        table_query_filter = kwargs.get("table_query", {})
 
         if "parent" not in kwargs:
             # Load the entire table
-            for record in self.client.all_table_entries(table):
+            for record in self.client.all_table_entries(table, table_query_filter):
                 self.load_record(table, record, model_cls, mappings, **kwargs)
         else:
             # Load items per parent object that we know/care about
             # This is necessary because, for example, the cmdb_ci_network_adapter table contains network interfaces
             # for ALL types of devices (servers, switches, firewalls, etc.) but we only have switches as parent objects
             for parent in self.get_all(kwargs["parent"]["modelname"]):
-                for record in self.client.all_table_entries(table, {kwargs["parent"]["column"]: parent.sys_id}):
+                table_query_filter[kwargs["parent"]["column"]] = parent.sys_id
+                for record in self.client.all_table_entries(table, table_query_filter):
                     self.load_record(table, record, model_cls, mappings, **kwargs)
+        if self.duplicate_records.get(modelname, False):
+            self.job.logger.warning(f"Found {len(self.duplicate_records[modelname])} duplicate {modelname} record(s).")
 
         self.job.logger.info(
             f"Loaded {len(self.get_all(modelname))} {modelname} records from ServiceNow table `{table}`."
         )
+
+    def log_duplicate_records(self, model_cls: DiffSyncModel) -> None:
+        """Capture duplicate records in CSV format that were found during the ServiceNow record load."""
+        model_name = model_cls._modelname  # pylint: disable=protected-access
+        model_identifiers = model_cls._identifiers  # pylint: disable=protected-access
+        if not self.duplicate_records.get(model_name, False):
+            self.duplicate_records[model_name] = [",".join(model_identifiers)]
+        self.duplicate_records[model_name].append(",".join([getattr(model_cls, attr) for attr in model_identifiers]))
 
     def load_record(self, table, record, model_cls, mappings, **kwargs):
         """Helper method to load_table()."""
@@ -163,7 +182,7 @@ class ServiceNowDiffSync(Adapter):
         except ObjectAlreadyExists:
             # The baseline data in a standard ServiceNow developer instance has a number of duplicate Location entries.
             # For now, ignore the duplicate entry and continue
-            self.job.logger.warning(f'Ignoring apparent duplicate record for {modelname} "{model.get_unique_id()}".')
+            self.log_duplicate_records(model)
 
         if "parent" in kwargs:
             parent_uid = getattr(model, kwargs["parent"]["field"])
@@ -174,7 +193,10 @@ class ServiceNowDiffSync(Adapter):
                 )
             else:
                 parent_model = self.get(kwargs["parent"]["modelname"], parent_uid)
-                parent_model.add_child(model)
+                try:
+                    parent_model.add_child(model)
+                except ObjectAlreadyExists:
+                    pass
 
         return model
 
