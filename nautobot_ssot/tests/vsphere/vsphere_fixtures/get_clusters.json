@@ -1,0 +1,10 @@
+{
+   "value":[
+      {
+         "drs_enabled":false,
+         "cluster":"domain-c1001",
+         "name":"HeshLawCluster",
+         "ha_enabled":false
+      }
+   ]
+}

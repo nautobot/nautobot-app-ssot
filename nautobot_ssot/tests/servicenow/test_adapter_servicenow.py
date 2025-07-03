@@ -1,5 +1,7 @@
 """Unit tests for the ServiceNowDiffSync adapter class."""
 
+from collections import defaultdict
+
 from nautobot.core.testing import TransactionTestCase
 from nautobot.extras.models import JobResult
 
@@ -10,12 +12,17 @@ from nautobot_ssot.integrations.servicenow.jobs import ServiceNowDataTarget
 class MockServiceNowClient:
     """Mock version of the ServiceNowClient class using canned data."""
 
+    def __init__(self):
+        self.query_params = defaultdict(list)
+
     def get_by_sys_id(self, table, sys_id):  # pylint: disable=unused-argument
         """Get a record with a given sys_id from a given table."""
         return None
 
-    def all_table_entries(self, table, query=None):
+    def all_table_entries(self, table, query={}):  # pylint: disable=dangerous-default-value
         """Iterator over all records in a given table."""
+
+        self.query_params[table].append(query)
 
         if table == "cmn_location":
             yield from [
@@ -611,3 +618,16 @@ class ServiceNowDiffSyncTestCase(TransactionTestCase):
             ["hkg-leaf-01__Ethernet1", "hkg-leaf-01__Ethernet2"],
             sorted(intf.get_unique_id() for intf in snds.get_all("interface")),
         )
+
+    def test_filtering(self):
+        """Want to ensure our table query filtering is passed through correctly.
+
+        In the mappings yaml, we have a table filter for company to only grab records with manufacturer=True.
+        """
+        job = self.job_class()
+        job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
+        mock_snow_client = MockServiceNowClient()
+        snds = ServiceNowDiffSync(job=job, sync=None, client=mock_snow_client)
+
+        snds.load()
+        self.assertEqual(mock_snow_client.query_params["core_company"], [{"manufacturer": True}])

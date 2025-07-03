@@ -77,7 +77,8 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
     sync_memory_peak = models.PositiveBigIntegerField(blank=True, null=True)
 
     dry_run = models.BooleanField(
-        default=False, help_text="Report what data would be synced but do not make any changes"
+        default=False,
+        help_text="Report what data would be synced but do not make any changes",
     )
     diff = models.JSONField(blank=True, encoder=DiffJSONEncoder)
     summary = models.JSONField(blank=True, null=True)
@@ -107,16 +108,33 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
             .prefetch_related("logs")
             .annotate(
                 num_unchanged=models.Count(
-                    "log", filter=models.Q(log__action=SyncLogEntryActionChoices.ACTION_NO_CHANGE)
+                    "log",
+                    filter=models.Q(log__action=SyncLogEntryActionChoices.ACTION_NO_CHANGE),
                 ),
-                num_created=models.Count("log", filter=models.Q(log__action=SyncLogEntryActionChoices.ACTION_CREATE)),
-                num_updated=models.Count("log", filter=models.Q(log__action=SyncLogEntryActionChoices.ACTION_UPDATE)),
-                num_deleted=models.Count("log", filter=models.Q(log__action=SyncLogEntryActionChoices.ACTION_DELETE)),
+                num_created=models.Count(
+                    "log",
+                    filter=models.Q(log__action=SyncLogEntryActionChoices.ACTION_CREATE),
+                ),
+                num_updated=models.Count(
+                    "log",
+                    filter=models.Q(log__action=SyncLogEntryActionChoices.ACTION_UPDATE),
+                ),
+                num_deleted=models.Count(
+                    "log",
+                    filter=models.Q(log__action=SyncLogEntryActionChoices.ACTION_DELETE),
+                ),
                 num_succeeded=models.Count(
-                    "log", filter=models.Q(log__status=SyncLogEntryStatusChoices.STATUS_SUCCESS)
+                    "log",
+                    filter=models.Q(log__status=SyncLogEntryStatusChoices.STATUS_SUCCESS),
                 ),
-                num_failed=models.Count("log", filter=models.Q(log__status=SyncLogEntryStatusChoices.STATUS_FAILURE)),
-                num_errored=models.Count("log", filter=models.Q(log__status=SyncLogEntryStatusChoices.STATUS_ERROR)),
+                num_failed=models.Count(
+                    "log",
+                    filter=models.Q(log__status=SyncLogEntryStatusChoices.STATUS_FAILURE),
+                ),
+                num_errored=models.Count(
+                    "log",
+                    filter=models.Q(log__status=SyncLogEntryStatusChoices.STATUS_ERROR),
+                ),
             )
         )
 

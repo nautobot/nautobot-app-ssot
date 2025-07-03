@@ -129,6 +129,10 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
     caching_config = {}
     config_view_name = "plugins:nautobot_ssot:config"
     docs_view_name = "plugins:nautobot_ssot:docs"
+    searchable_models = [
+        "Sync",
+        "SyncLogEntry",
+    ]
 
     def ready(self):
         """Trigger callback when database is ready."""
