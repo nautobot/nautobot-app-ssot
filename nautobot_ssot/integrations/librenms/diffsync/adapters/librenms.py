@@ -3,7 +3,7 @@
 import os
 
 from diffsync import DiffSync
-from diffsync.exceptions import ObjectNotFound
+from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
 from nautobot.dcim.models import Location, LocationType
 from nautobot.extras.models import Status
@@ -99,7 +99,10 @@ class LibrenmsAdapter(DiffSync):
                     ip_address=device["ip"],
                     system_of_record=os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
                 )
-                self.add(new_device)
+                try:
+                    self.add(new_device)
+                except ObjectAlreadyExists:
+                    self.job.logger.warning(f"Device {device[self.hostname_field]} already exists. Skipping.")
         else:
             self.job.logger.info(f'Device {device[self.hostname_field]} is "ping-only". Skipping.')
 
