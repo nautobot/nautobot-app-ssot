@@ -13,7 +13,7 @@ This release brings several significant additions and changes:
 - The example Jobs now support synchronizing Tags on appropriate objects between Nautobot instances.
 - All integrations that utilize the contrib pattern will automatically support [Object Metadata](https://docs.nautobot.com/projects/core/en/stable/user-guide/platform-functionality/objectmetadata/) being added to their models.
 
-## [v3.9.0 (2025-06-20)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.9.0)
+## [v3.9.0 (2025-06-25)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.9.0)
 
 ### Added
 
@@ -50,3 +50,21 @@ This release brings several significant additions and changes:
 
 - [#856](https://github.com/nautobot/nautobot-app-ssot/issues/856) - Added a note to the developer upgrade documentation to explain the default value for text fields declared with `blank=True, null=False`.
 - [#870](https://github.com/nautobot/nautobot-app-ssot/issues/870) - Updated installation steps for vSphere integration.
+
+## [v3.9.1 (2025-07-09)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.9.1)
+
+### Release Overview
+
+Please note that the behavior in the SNOW integration now is to swallow and log an overview of how many duplicates encountered, and provide file output outlining what duplicates were encountered.
+
+### Changed
+
+- [#874](https://github.com/nautobot/nautobot-app-ssot/issues/874) - Reverted changes in `NautobotModel` to be backwards compatible with other integrations.
+- [#874](https://github.com/nautobot/nautobot-app-ssot/issues/874) - Reverted removal of `invalidate_cache` method in `NautobotAdapter`.
+
+### Fixed
+
+- [#844](https://github.com/nautobot/nautobot-app-ssot/issues/844) - Fixed job failure if there are duplicate devices in LibreNMS. Will skip device instead.
+- [#867](https://github.com/nautobot/nautobot-app-ssot/issues/867) - Gracefully swallow ServiceNow exceptions
+- [#867](https://github.com/nautobot/nautobot-app-ssot/issues/867) - Adds ServiceNow duplicate file reports
+- [#867](https://github.com/nautobot/nautobot-app-ssot/issues/867) - Fixes ServiceNow comparison filters to only compare against company names with Manufacturer set to True
