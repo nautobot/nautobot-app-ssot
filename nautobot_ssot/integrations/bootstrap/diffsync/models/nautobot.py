@@ -2691,19 +2691,9 @@ if validate_dlm_installed():
             _object_tags = []  # noqa: F841
             _platform = ORMPlatform.objects.get(name=attrs["platform"])
             if dlm_supports_softwarelcm():
-                _software, created = ORMSoftware.objects.get_or_create(
-                    version=attrs["software_version"], device_platform=_platform
-                )
+                _software = ORMSoftware.objects.get(version=attrs["software_version"], device_platform=_platform)
             if core_supports_softwareversion():
-                defaults = {"status": ORMStatus.objects.get(name="Active")}
-                _software, created = ORMSoftware.objects.get_or_create(
-                    version=attrs["software_version"], platform=_platform, defaults=defaults
-                )
-            if created:
-                adapter.job.logger.warning(
-                    f"Software Version ({_software}) did not exist, so was automatically created."
-                )
-
+                _software = ORMSoftware.objects.get(version=attrs["software_version"], platform=_platform)
             _new_validated_software = ORMValidatedSoftware(
                 software=_software,
                 start=ids["valid_since"] if not None else datetime.today().date(),
@@ -2761,19 +2751,9 @@ if validate_dlm_installed():
             _object_tags = []  # noqa: F841
             _platform = ORMPlatform.objects.get(name=self.platform)
             if dlm_supports_softwarelcm():
-                _software, created = ORMSoftware.objects.get_or_create(
-                    version=self.software_version, device_platform=_platform
-                )
+                _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
             if core_supports_softwareversion():
-                defaults = {"status": ORMStatus.objects.get(name="Active")}
-                _software, created = ORMSoftware.objects.get_or_create(
-                    version=self.software_version, platform=_platform, defaults=defaults
-                )
-            if created:
-                self.adapter.job.logger.warning(
-                    f"Software Version ({_software}) did not exist, so was automatically created."
-                )
-
+                _software = ORMSoftware.objects.get(version=self.software_version, platform=_platform)
             self.adapter.job.logger.info(f"Updating Validated Software - {self} with attrs {attrs}.")
             _update_validated_software = ORMValidatedSoftware.objects.get(
                 software=_software, start=self.valid_since, end=self.valid_until
