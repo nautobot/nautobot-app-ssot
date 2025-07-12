@@ -1,0 +1,1 @@
+Fixed exception caused by missing software version when creating ValidatedSoftware with Bootstrap.

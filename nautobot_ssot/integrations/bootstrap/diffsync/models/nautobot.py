@@ -2689,11 +2689,23 @@ if validate_dlm_installed():
             _device_roles = []  # noqa: F841
             _inventory_items = []  # noqa: F841
             _object_tags = []  # noqa: F841
-            _platform = ORMPlatform.objects.get(name=attrs["platform"])
-            if dlm_supports_softwarelcm():
-                _software = ORMSoftware.objects.get(version=attrs["software_version"], device_platform=_platform)
-            if core_supports_softwareversion():
-                _software = ORMSoftware.objects.get(version=attrs["software_version"], platform=_platform)
+            try:
+                _platform = ORMPlatform.objects.get(name=attrs["platform"])
+                if dlm_supports_softwarelcm():
+                    _software = ORMSoftware.objects.get(version=attrs["software_version"], device_platform=_platform)
+                if core_supports_softwareversion():
+                    _software = ORMSoftware.objects.get(version=attrs["software_version"], platform=_platform)
+            except ORMPlatform.DoesNotExist:
+                adapter.job.logger.warning(
+                    f"Platform ({attrs['platform']}) not found, unable to create Validated Software."
+                )
+                return None
+            except ORMSoftware.DoesNotExist:
+                adapter.job.logger.warning(
+                    f"Software ({attrs['software_version']}) not found, unable to create Validated Software."
+                )
+                return None
+
             _new_validated_software = ORMValidatedSoftware(
                 software=_software,
                 start=ids["valid_since"] if not None else datetime.today().date(),
@@ -2749,11 +2761,22 @@ if validate_dlm_installed():
             _device_roles = []  # noqa: F841
             _inventory_items = []  # noqa: F841
             _object_tags = []  # noqa: F841
-            _platform = ORMPlatform.objects.get(name=self.platform)
-            if dlm_supports_softwarelcm():
-                _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
-            if core_supports_softwareversion():
-                _software = ORMSoftware.objects.get(version=self.software_version, platform=_platform)
+            try:
+                _platform = ORMPlatform.objects.get(name=self.platform)
+                if dlm_supports_softwarelcm():
+                    _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
+                if core_supports_softwareversion():
+                    _software = ORMSoftware.objects.get(version=self.software_version, platform=_platform)
+            except ORMPlatform.DoesNotExist:
+                self.adapter.job.logger.warning(
+                    f"Platform ({attrs['platform']}) not found, unable to create Validated Software."
+                )
+                return None
+            except ORMSoftware.DoesNotExist:
+                self.adapter.job.logger.warning(
+                    f"Software ({attrs['software_version']}) not found, unable to create Validated Software."
+                )
+                return None
             self.adapter.job.logger.info(f"Updating Validated Software - {self} with attrs {attrs}.")
             _update_validated_software = ORMValidatedSoftware.objects.get(
                 software=_software, start=self.valid_since, end=self.valid_until
