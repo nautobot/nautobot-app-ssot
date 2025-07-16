@@ -8,7 +8,7 @@ Todo:
   - Update references in adapter and model
 """
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from uuid import UUID
 
 from diffsync import Adapter, DiffSyncModel
@@ -41,3 +41,7 @@ class BaseNautobotModel(DiffSyncModel, ABC):
 
     # For storing and tracking ORM object primary keys. Not synced.
     pk: Optional[UUID] = None
+
+    @abstractmethod
+    def synced_attributes(self) -> List[str]:
+        """Return a list of attribute names the model compares against in the DiffSync process."""
