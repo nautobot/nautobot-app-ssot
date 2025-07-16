@@ -18,6 +18,8 @@ from nautobot.extras.models import Relationship, RelationshipAssociation
 from nautobot.extras.models.metadata import ObjectMetadata
 from typing_extensions import get_type_hints
 
+from nautobot_ssot.utils.orm import set_custom_relationship_association
+
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
@@ -268,28 +270,25 @@ class NautobotModel(DiffSyncModel):
                 "destination_type": relationship.destination_type,
             }
             associations = []
+
             if annotation.side == RelationshipSideEnum.SOURCE:
                 parameters["source_id"] = obj.id
-                for object_to_relate in objects:
-                    association_parameters = parameters.copy()
-                    association_parameters["destination_id"] = object_to_relate.id
-                    try:
-                        association = adapter.get_from_orm_cache(association_parameters, RelationshipAssociation)
-                    except RelationshipAssociation.DoesNotExist:
-                        association = RelationshipAssociation(**parameters, destination_id=object_to_relate.id)
-                        association.validated_save()
-                    associations.append(association)
+                related_id_key = "destination_id"
             else:
                 parameters["destination_id"] = obj.id
-                for object_to_relate in objects:
-                    association_parameters = parameters.copy()
-                    association_parameters["source_id"] = object_to_relate.id
-                    try:
-                        association = adapter.get_from_orm_cache(association_parameters, RelationshipAssociation)
-                    except RelationshipAssociation.DoesNotExist:
-                        association = RelationshipAssociation(**parameters, source_id=object_to_relate.id)
-                        association.validated_save()
-                    associations.append(association)
+                related_id_key = "source_id"
+
+            # Loop through related objects and associate them with the object passed to method.
+            for related_obj in objects:
+                association_parameters = parameters.copy()
+                association_parameters[related_id_key] = related_obj.id
+                try:
+                    association = adapter.get_from_orm_cache(association_parameters, RelationshipAssociation)
+                except RelationshipAssociation.DoesNotExist:
+                    association = RelationshipAssociation(**association_parameters)
+                    association.validated_save()
+                associations.append(association)
+
             # Now we need to clean up any associations that we're not `get_or_create`'d in order to achieve
             # declarativeness.
             # TODO: This may benefit from an ORM cache with `filter` capabilities, but I guess the gain in most cases
@@ -324,32 +323,26 @@ class NautobotModel(DiffSyncModel):
                 relationship = adapter.get_from_orm_cache({"label": annotation.name}, Relationship)
             except Relationship.DoesNotExist as error:
                 raise ObjectCrudException(f"No such relationship with label '{annotation.name}'") from error
-            parameters = {
-                "relationship": relationship,
-                "source_type": relationship.source_type,
-                "destination_type": relationship.destination_type,
-            }
+            
+            # Lookup and set source and destination objects.
             if annotation.side == RelationshipSideEnum.SOURCE:
-                parameters["source_id"] = obj.id
-                related_model_class = relationship.destination_type.model_class()
-                try:
-                    destination_object = adapter.get_from_orm_cache(related_model_dict, related_model_class)
-                except related_model_class.DoesNotExist as error:
-                    raise ObjectCrudException(
-                        f"Couldn't resolve custom relationship {relationship.name}, no such {related_model_class._meta.verbose_name} object with parameters {related_model_dict}."
-                    ) from error
-                except related_model_class.MultipleObjectsReturned as error:
-                    raise ObjectCrudException(
-                        f"Couldn't resolve custom relationship {relationship.name}, multiple {related_model_class._meta.verbose_name} objects with parameters {related_model_dict}."
-                    ) from error
-                RelationshipAssociation.objects.update_or_create(
-                    **parameters,
-                    defaults={"destination_id": destination_object.id},
+                source_obj = obj
+                destination_obj = adapter.get_from_orm_cache(
+                    related_model_dict,
+                    relationship.destination_type.model_class(),
                 )
             else:
-                parameters["destination_id"] = obj.id
-                source_object = adapter.get_from_orm_cache(related_model_dict, relationship.source_type.model_class())
-                RelationshipAssociation.objects.update_or_create(**parameters, defaults={"source_id": source_object.id})
+                source_obj = adapter.get_from_orm_cache(
+                    related_model_dict,
+                    relationship.source_type.model_class(),
+                )
+                destination_obj = obj
+            set_custom_relationship_association(
+                relationship,
+                annotation.side,
+                source_obj,
+                destination_obj,
+            )
 
     @classmethod
     def _lookup_and_set_foreign_keys(cls, foreign_keys, obj, adapter):
