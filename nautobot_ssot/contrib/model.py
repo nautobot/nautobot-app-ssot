@@ -18,13 +18,12 @@ from nautobot.extras.models import Relationship, RelationshipAssociation
 from nautobot.extras.models.metadata import ObjectMetadata
 from typing_extensions import get_type_hints
 
-from nautobot_ssot.utils.orm import set_custom_relationship_association
-
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
+from nautobot_ssot.utils.orm import set_custom_relationship_association
 
 
 class NautobotModel(DiffSyncModel):
@@ -323,7 +322,7 @@ class NautobotModel(DiffSyncModel):
                 relationship = adapter.get_from_orm_cache({"label": annotation.name}, Relationship)
             except Relationship.DoesNotExist as error:
                 raise ObjectCrudException(f"No such relationship with label '{annotation.name}'") from error
-            
+
             # Lookup and set source and destination objects.
             if annotation.side == RelationshipSideEnum.SOURCE:
                 source_obj = obj
