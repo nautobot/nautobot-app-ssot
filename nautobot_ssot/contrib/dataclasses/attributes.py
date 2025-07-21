@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 from django.db.models import Model
 from typing_extensions import Any, Dict
-
+from nautobot_ssot.contrib.types import CustomRelationshipAnnotation
 from nautobot_ssot.utils.orm import orm_attribute_lookup
 
 '''
@@ -102,6 +102,7 @@ from nautobot_ssot.contrib.types import (
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
+from netaddr import EUI
 
 from diffsync import DiffSyncModel
 
@@ -158,7 +159,12 @@ class StandardAttribute(AttributeInterface):
 
     def load(self, db_obj: BaseModel):
         """Standard attributes return the value stored within the model, no additional processing required."""
-        return getattr(db_obj, self.name)
+        value = getattr(db_obj, self.name)
+
+        if isinstance(value, EUI):
+            # Some standard values, such as mac addresses, return as an EUI object. These need need to be converted to strings.
+            return value.__str__()
+        return value
 
 
 @dataclass
@@ -272,33 +278,48 @@ class CustomManyRelationshipAttribute(AttributeInterface):
     #annotation: CustomRelationshipAnnotation
     relationship_label: str = field()
     relationship_side: RelationshipSideEnum = field()
+    relationship_annotation: CustomRelationshipAnnotation = field()
 
+    _relationship: Relationship = field(default=None)
     inner_type: type = field(init=False)
     
     # relationship: Relationship = field(init=False)
     # relationship_type: RelationshipTypeChoices = field(init=False)
     # relationship_side: RelationshipSideEnum = field(init=False)
 
+    @property
+    def relationship(self) -> Relationship:
+        """"""
+        if not self._relationship:
+            self._relationship = Relationship.objects.get(
+                label=self.relationship_annotation.name,
+            )
+        return self._relationship
+
     def __post_init__(self):
         """Post initialization."""
-        # if not self.annotation:
-        #     raise ValueError("annotation field required for `CustomForeignKeyAttribute.")
-        # self.relationship = _cache.get_from_orm_cache({"label": self.annotation.name}, Relationship)
-
-        # # Introspect type annotations to deduce which fields are of interest
-        # # for this many-to-many relationship.
-        # diffsync_field_type = get_type_hints(self.model_class)[self.name]
-        # self.inner_type = get_args(diffsync_field_type)[0]
-
-        # # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
-        # relationship: Relationship = _cache.get_from_orm_cache({"label": self.annotation.name}, Relationship)
-        # self.relationship_type = relationship.type
-        # self.relationship_side = self.annotation.side
+        # Custom Many Relationships are annotated with `Annotated[List[TypedDict], CustomRelationshipAnnotation()]`,
+        # We must get the value fro multiple layers to get the correct inner type.
+        self.inner_type = self.annotation.__args__[0].__args__[0]
 
     def get_relationship_associations(self, db_obj: BaseModel):
         """Get a list of related objects from the database."""
+        # return RelationshipAssociation.objects.filter(
+        #     **get_relationship_parameters(
+        #     _cache, self.relationship_annotation, db_obj)
+        # )
+        parameters = {
+            "relationship": self.relationship,
+            "source_type": self.relationship.source_type,
+            "destination_type": self.relationship.destination_type,
+        }
+        if self.relationship_annotation.side == RelationshipSideEnum.SOURCE:
+            parameters["source_id"] = db_obj.id
+        else:
+            parameters["destination_id"] = db_obj.id
+
         return RelationshipAssociation.objects.filter(
-            **get_relationship_parameters(_cache, self.annotation, db_obj)
+            **parameters
         )
 
     def load(self, db_obj: BaseModel):
@@ -316,8 +337,8 @@ class CustomManyRelationshipAttribute(AttributeInterface):
 
         # For one-to-many, we need to return an object, not a list of objects
         if (
-            self.relationship_type == RelationshipTypeChoices.TYPE_ONE_TO_MANY
-            and self.relationship_side == RelationshipSideEnum.DESTINATION
+            self.relationship.type == RelationshipTypeChoices.TYPE_ONE_TO_MANY
+            and self.relationship_annotation.side == RelationshipSideEnum.DESTINATION
         ):
             if not related_objects_list:
                 return None

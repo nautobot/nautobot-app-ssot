@@ -69,7 +69,7 @@ def load_typed_dict(typed_dict_class: Type, db_obj: Model) -> dict:
         TypeError: Raised if the `typed_dict_class` is not a child class of TypedDict.
     """
     if not is_typeddict(typed_dict_class):
-        raise TypeError("`typed_dict_class` must be a subclass of `TypedDict`.")
+        raise TypeError(f"`typed_dict_class` must be a subclass of `TypedDict`. Got `{typed_dict_class}`")
     if not isinstance(db_obj, Model):
         raise TypeError(f"{db_obj} is not an instance of `django.db.models.Model`.")
 

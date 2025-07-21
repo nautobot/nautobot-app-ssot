@@ -102,6 +102,7 @@ class NautobotModel(DiffSyncModel):
                         annotation=annotation,
                         relationship_label=custom_annotation.name,
                         relationship_side=custom_annotation.side,
+                        relationship_annotation=custom_annotation,
                     )
             else:
                 if annotation.__name__.lower() == "list":
