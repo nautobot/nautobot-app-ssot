@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import ClassVar, Optional
 from uuid import UUID
 
+from typing_extensions import Annotated
 from diffsync import DiffSyncModel
 from diffsync.exceptions import ObjectCrudException, ObjectNotCreated, ObjectNotDeleted, ObjectNotUpdated
 from django.contrib.contenttypes.models import ContentType
@@ -16,16 +17,25 @@ from django.db.models import Model, ProtectedError
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
 from nautobot.extras.models.metadata import ObjectMetadata
-from typing_extensions import get_type_hints
+from typing_extensions import get_type_hints, List
 
+#from nautobot_ssot.contrib.dataclasses.attributes import AttributeInterface, StandardAttribute
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
 from nautobot_ssot.utils.orm import set_custom_relationship_association
-
-
+from nautobot_ssot.contrib.dataclasses.attributes import (
+    AttributeInterface,
+    StandardAttribute,
+    CustomFieldAttribute,
+    ForeignKeyAttribute,
+    ManyRelationshipAttribute,
+    CustomForeignKeyAttribute,
+    CustomManyRelationshipAttribute
+)
+from django.db.models.options import Options
 class NautobotModel(DiffSyncModel):
     """
     Base model for any diffsync models interfacing with Nautobot through the ORM.
@@ -38,8 +48,78 @@ class NautobotModel(DiffSyncModel):
     """
 
     _model: ClassVar[Model]
+    _interfaces: ClassVar[dict[str, AttributeInterface]]
+    _count: int = 0
 
     pk: Optional[UUID] = None
+
+    def __init_subclass__(cls):
+        """"""
+        if hasattr(cls, "_interfaces"):
+            if cls._interfaces:
+                return super().__init_subclass__()
+        cls._interfaces = {}
+        annotations = cls.__annotations__
+
+        # Type hinting not inherit with these variables.
+        if hasattr(cls, "_model"):
+            # NOTE: Need to use the if hasattr to make it compatible with existing integrations as some don't have `_model` defined.
+            # TODO: Update integrations to be better compatible and remove if statement.
+            model_meta: Options = getattr(cls._model, "_meta", None)
+        else:
+            model_meta = None
+
+        for attr_name, annotation in annotations.items():
+            is_relationship = "__" in attr_name
+
+            # Get Annotation data from metadata
+            for metadata in getattr(annotation, "__metadata__", []):
+                # if isinstance(metadata, CustomFieldAnnotation) or isinstance(metadata, CustomRelationshipAnnotation):
+                if isinstance(metadata, (CustomFieldAnnotation, CustomRelationshipAnnotation)):
+                    custom_annotation = metadata
+                    break
+            else:
+                custom_annotation = None
+            
+            # TODO: Have items instantiate
+            if custom_annotation:
+                if isinstance(custom_annotation, CustomFieldAnnotation):
+                    cls._interfaces[attr_name] = CustomFieldAttribute(
+                        name=attr_name,
+                        annotation=annotation,
+                        custom_annotation=custom_annotation,
+                    )
+                elif "__" in attr_name:
+                    cls._interfaces[attr_name] = CustomForeignKeyAttribute(
+                        name=attr_name,
+                        annotation=annotation,
+                        relationship_label=custom_annotation.name,
+                        relationship_side=custom_annotation.side,
+                    )
+                else:
+                    cls._interfaces[attr_name] = CustomManyRelationshipAttribute(
+                        name=attr_name,
+                        annotation=annotation,
+                        relationship_label=custom_annotation.name,
+                        relationship_side=custom_annotation.side,
+                    )
+            else:
+                if annotation.__name__.lower() == "list":
+                    cls._interfaces[attr_name] = ManyRelationshipAttribute(
+                        name=attr_name,
+                        annotation=annotation,
+                    )
+                elif is_relationship:
+                    cls._interfaces[attr_name] = ForeignKeyAttribute(
+                        name=attr_name,
+                        annotation=annotation,
+                    )
+                else:
+                    cls._interfaces[attr_name] = StandardAttribute(
+                        name=attr_name,
+                        annotation=annotation
+                    )
+        return super().__init_subclass__()
 
     @classmethod
     def _get_queryset(cls):
@@ -375,6 +455,7 @@ class NautobotModel(DiffSyncModel):
                     related_model = related_model_content_type.model_class()
                 except ContentType.DoesNotExist as error:
                     raise ObjectCrudException(f"Unknown content type '{app_label}.{model}'.") from error
+
             # Set the foreign key to 'None' when none of the fields are set to anything
             if not any(related_model_dict.values()):
                 setattr(obj, field_name, None)
