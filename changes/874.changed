@@ -1,2 +1,0 @@
-Reverted changes in `NautobotModel` to be backwards compatible with other integrations.
-Reverted removal of `invalidate_cache` method in `NautobotAdapter`.
