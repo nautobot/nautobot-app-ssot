@@ -899,6 +899,7 @@ def unittest(  # noqa: PLR0913
     verbose=False,
     coverage=False,
     skip_docs_build=False,
+    pdb=False,
 ):
     """Run Nautobot unit tests."""
     if not skip_docs_build:
@@ -918,6 +919,8 @@ def unittest(  # noqa: PLR0913
         command += f" -k='{pattern}'"
     if verbose:
         command += " --verbosity 2"
+    if pdb:
+        command += " --pdb"
 
     run_command(context, command)
 
