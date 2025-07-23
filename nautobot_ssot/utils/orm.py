@@ -2,7 +2,11 @@
 
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
+from nautobot.core.models import BaseModel
+from nautobot.extras.models import Relationship, RelationshipAssociation
 from typing_extensions import Any, Type, get_type_hints, is_typeddict
+
+from nautobot_ssot.contrib.types import RelationshipSideEnum
 
 
 def get_orm_attribute(db_obj: Model, attr_name: str) -> Any:
@@ -65,7 +69,7 @@ def load_typed_dict(typed_dict_class: Type, db_obj: Model) -> dict:
         TypeError: Raised if the `typed_dict_class` is not a child class of TypedDict.
     """
     if not is_typeddict(typed_dict_class):
-        raise TypeError("`typed_dict_class` must be a subclass of `TypedDict`.")
+        raise TypeError(f"`typed_dict_class` must be a subclass of `TypedDict`. Got `{typed_dict_class}`")
     if not isinstance(db_obj, Model):
         raise TypeError(f"{db_obj} is not an instance of `django.db.models.Model`.")
 
@@ -73,3 +77,29 @@ def load_typed_dict(typed_dict_class: Type, db_obj: Model) -> dict:
     for field_name in get_type_hints(typed_dict_class):
         typed_dict[field_name] = orm_attribute_lookup(db_obj, field_name)
     return typed_dict
+
+
+def set_custom_relationship_association(
+    relationship: Relationship,
+    relationship_side: RelationshipSideEnum,
+    source_object: BaseModel,
+    destination_object: BaseModel,
+):
+    """Create or update a custom relationship association between two Nautobot objects."""
+    parameters = {
+        "relationship": relationship,
+        "source_type": relationship.source_type,
+        "destination_type": relationship.destination_type,
+    }
+    if relationship_side == RelationshipSideEnum.SOURCE:
+        parameters["source_id"] = source_object.id
+        defaults = {"destination_id": destination_object.id}
+    else:
+        parameters["destination_id"] = destination_object.id
+        defaults = {"source_id": source_object.id}
+
+    obj, _ = RelationshipAssociation.objects.update_or_create(
+        **parameters,
+        defaults=defaults,
+    )
+    return obj

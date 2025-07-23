@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import ClassVar, Optional
 from uuid import UUID
 
+from typing_extensions import Annotated
 from diffsync import DiffSyncModel
 from diffsync.exceptions import ObjectCrudException, ObjectNotCreated, ObjectNotDeleted, ObjectNotUpdated
 from django.contrib.contenttypes.models import ContentType
@@ -16,15 +17,25 @@ from django.db.models import Model, ProtectedError
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
 from nautobot.extras.models.metadata import ObjectMetadata
-from typing_extensions import get_type_hints
+from typing_extensions import get_type_hints, List
 
+#from nautobot_ssot.contrib.dataclasses.attributes import AttributeInterface, StandardAttribute
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
-
-
+from nautobot_ssot.utils.orm import set_custom_relationship_association
+from nautobot_ssot.contrib.dataclasses.attributes import (
+    AttributeInterface,
+    StandardAttribute,
+    CustomFieldAttribute,
+    ForeignKeyAttribute,
+    ManyRelationshipAttribute,
+    CustomForeignKeyAttribute,
+    CustomManyRelationshipAttribute
+)
+from django.db.models.options import Options
 class NautobotModel(DiffSyncModel):
     """
     Base model for any diffsync models interfacing with Nautobot through the ORM.
@@ -37,8 +48,79 @@ class NautobotModel(DiffSyncModel):
     """
 
     _model: ClassVar[Model]
+    _interfaces: ClassVar[dict[str, AttributeInterface]]
+    _count: int = 0
 
     pk: Optional[UUID] = None
+
+    def __init_subclass__(cls):
+        """"""
+        if hasattr(cls, "_interfaces"):
+            if cls._interfaces:
+                return super().__init_subclass__()
+        cls._interfaces = {}
+        annotations = cls.__annotations__
+
+        # Type hinting not inherit with these variables.
+        if hasattr(cls, "_model"):
+            # NOTE: Need to use the if hasattr to make it compatible with existing integrations as some don't have `_model` defined.
+            # TODO: Update integrations to be better compatible and remove if statement.
+            model_meta: Options = getattr(cls._model, "_meta", None)
+        else:
+            model_meta = None
+
+        for attr_name, annotation in annotations.items():
+            is_relationship = "__" in attr_name
+
+            # Get Annotation data from metadata
+            for metadata in getattr(annotation, "__metadata__", []):
+                # if isinstance(metadata, CustomFieldAnnotation) or isinstance(metadata, CustomRelationshipAnnotation):
+                if isinstance(metadata, (CustomFieldAnnotation, CustomRelationshipAnnotation)):
+                    custom_annotation = metadata
+                    break
+            else:
+                custom_annotation = None
+            
+            # TODO: Have items instantiate
+            if custom_annotation:
+                if isinstance(custom_annotation, CustomFieldAnnotation):
+                    cls._interfaces[attr_name] = CustomFieldAttribute(
+                        name=attr_name,
+                        annotation=annotation,
+                        custom_annotation=custom_annotation,
+                    )
+                elif "__" in attr_name:
+                    cls._interfaces[attr_name] = CustomForeignKeyAttribute(
+                        name=attr_name,
+                        annotation=annotation,
+                        relationship_label=custom_annotation.name,
+                        relationship_side=custom_annotation.side,
+                    )
+                else:
+                    cls._interfaces[attr_name] = CustomManyRelationshipAttribute(
+                        name=attr_name,
+                        annotation=annotation,
+                        relationship_label=custom_annotation.name,
+                        relationship_side=custom_annotation.side,
+                        relationship_annotation=custom_annotation,
+                    )
+            else:
+                if annotation.__name__.lower() == "list":
+                    cls._interfaces[attr_name] = ManyRelationshipAttribute(
+                        name=attr_name,
+                        annotation=annotation,
+                    )
+                elif is_relationship:
+                    cls._interfaces[attr_name] = ForeignKeyAttribute(
+                        name=attr_name,
+                        annotation=annotation,
+                    )
+                else:
+                    cls._interfaces[attr_name] = StandardAttribute(
+                        name=attr_name,
+                        annotation=annotation
+                    )
+        return super().__init_subclass__()
 
     @classmethod
     def _get_queryset(cls):
@@ -268,28 +350,25 @@ class NautobotModel(DiffSyncModel):
                 "destination_type": relationship.destination_type,
             }
             associations = []
+
             if annotation.side == RelationshipSideEnum.SOURCE:
                 parameters["source_id"] = obj.id
-                for object_to_relate in objects:
-                    association_parameters = parameters.copy()
-                    association_parameters["destination_id"] = object_to_relate.id
-                    try:
-                        association = adapter.get_from_orm_cache(association_parameters, RelationshipAssociation)
-                    except RelationshipAssociation.DoesNotExist:
-                        association = RelationshipAssociation(**parameters, destination_id=object_to_relate.id)
-                        association.validated_save()
-                    associations.append(association)
+                related_id_key = "destination_id"
             else:
                 parameters["destination_id"] = obj.id
-                for object_to_relate in objects:
-                    association_parameters = parameters.copy()
-                    association_parameters["source_id"] = object_to_relate.id
-                    try:
-                        association = adapter.get_from_orm_cache(association_parameters, RelationshipAssociation)
-                    except RelationshipAssociation.DoesNotExist:
-                        association = RelationshipAssociation(**parameters, source_id=object_to_relate.id)
-                        association.validated_save()
-                    associations.append(association)
+                related_id_key = "source_id"
+
+            # Loop through related objects and associate them with the object passed to method.
+            for related_obj in objects:
+                association_parameters = parameters.copy()
+                association_parameters[related_id_key] = related_obj.id
+                try:
+                    association = adapter.get_from_orm_cache(association_parameters, RelationshipAssociation)
+                except RelationshipAssociation.DoesNotExist:
+                    association = RelationshipAssociation(**association_parameters)
+                    association.validated_save()
+                associations.append(association)
+
             # Now we need to clean up any associations that we're not `get_or_create`'d in order to achieve
             # declarativeness.
             # TODO: This may benefit from an ORM cache with `filter` capabilities, but I guess the gain in most cases
@@ -324,32 +403,26 @@ class NautobotModel(DiffSyncModel):
                 relationship = adapter.get_from_orm_cache({"label": annotation.name}, Relationship)
             except Relationship.DoesNotExist as error:
                 raise ObjectCrudException(f"No such relationship with label '{annotation.name}'") from error
-            parameters = {
-                "relationship": relationship,
-                "source_type": relationship.source_type,
-                "destination_type": relationship.destination_type,
-            }
+
+            # Lookup and set source and destination objects.
             if annotation.side == RelationshipSideEnum.SOURCE:
-                parameters["source_id"] = obj.id
-                related_model_class = relationship.destination_type.model_class()
-                try:
-                    destination_object = adapter.get_from_orm_cache(related_model_dict, related_model_class)
-                except related_model_class.DoesNotExist as error:
-                    raise ObjectCrudException(
-                        f"Couldn't resolve custom relationship {relationship.name}, no such {related_model_class._meta.verbose_name} object with parameters {related_model_dict}."
-                    ) from error
-                except related_model_class.MultipleObjectsReturned as error:
-                    raise ObjectCrudException(
-                        f"Couldn't resolve custom relationship {relationship.name}, multiple {related_model_class._meta.verbose_name} objects with parameters {related_model_dict}."
-                    ) from error
-                RelationshipAssociation.objects.update_or_create(
-                    **parameters,
-                    defaults={"destination_id": destination_object.id},
+                source_obj = obj
+                destination_obj = adapter.get_from_orm_cache(
+                    related_model_dict,
+                    relationship.destination_type.model_class(),
                 )
             else:
-                parameters["destination_id"] = obj.id
-                source_object = adapter.get_from_orm_cache(related_model_dict, relationship.source_type.model_class())
-                RelationshipAssociation.objects.update_or_create(**parameters, defaults={"source_id": source_object.id})
+                source_obj = adapter.get_from_orm_cache(
+                    related_model_dict,
+                    relationship.source_type.model_class(),
+                )
+                destination_obj = obj
+            set_custom_relationship_association(
+                relationship,
+                annotation.side,
+                source_obj,
+                destination_obj,
+            )
 
     @classmethod
     def _lookup_and_set_foreign_keys(cls, foreign_keys, obj, adapter):
@@ -383,6 +456,7 @@ class NautobotModel(DiffSyncModel):
                     related_model = related_model_content_type.model_class()
                 except ContentType.DoesNotExist as error:
                     raise ObjectCrudException(f"Unknown content type '{app_label}.{model}'.") from error
+
             # Set the foreign key to 'None' when none of the fields are set to anything
             if not any(related_model_dict.values()):
                 setattr(obj, field_name, None)
