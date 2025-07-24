@@ -13,8 +13,7 @@ import nautobot_ssot.integrations.cradlepoint.models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("extras", "0122_add_graphqlquery_owner_content_type"),
-        ("nautobot_ssot", "0011_alter_sync_job_result"),
+        ("nautobot_ssot", "0015_ssotvsphereconfig"),
     ]
 
     operations = [
