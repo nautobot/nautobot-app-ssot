@@ -13,5 +13,5 @@ class RelationshipAssociationParameters(TypedDict):
     relationship: Relationship
     source_type: ContentType
     destination_type: ContentType
-    source_id = Optional[UUID]
-    destination_id = Optional[UUID]
+    source_id: Optional[UUID]
+    destination_id: Optional[UUID]
