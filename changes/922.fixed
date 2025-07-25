@@ -1,0 +1,1 @@
+Remove stale A and PTR records when HTTP 404 is seen.
