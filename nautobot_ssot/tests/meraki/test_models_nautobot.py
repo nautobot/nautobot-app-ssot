@@ -1,6 +1,6 @@
 """Unit tests for Nautobot IPAM model CRUD functions."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from diffsync import Adapter
 from django.contrib.contenttypes.models import ContentType
@@ -8,7 +8,7 @@ from django.test import override_settings
 from nautobot.core.testing import TransactionTestCase
 from nautobot.dcim.models import Location, LocationType
 from nautobot.extras.models import Status
-from nautobot.ipam.models import Namespace, Prefix
+from nautobot.ipam.models import IPAddress, Namespace, Prefix
 from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.meraki.diffsync.models.nautobot import NautobotIPAddress, NautobotPrefix
@@ -116,6 +116,11 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
             prefix="10.0.0.0/24", namespace=self.test_ns, status=self.status_active, tenant=self.test_tenant
         )
         self.adapter = Adapter()
+        self.adapter.job = MagicMock()
+        self.adapter.job.debug = True
+        self.adapter.job.logger = MagicMock()
+        self.adapter.job.logger.debug = MagicMock()
+        self.adapter.job.logger.error = MagicMock()
         self.adapter.namespace_map = {"Test": self.test_ns.id, "Update": self.update_site.id}
         self.adapter.site_map = {"Test": self.test_site, "Update": self.update_site}
         self.adapter.tenant_map = {"Test": self.test_tenant.id, "Update": self.update_tenant.id}
@@ -137,3 +142,25 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         self.assertEqual(ipaddr.mask_length, attrs["mask_length"])
         self.assertEqual(self.adapter.objects_to_create["ipaddrs-to-prefixes"][0], (ipaddr, self.prefix.id))
         self.assertEqual(self.adapter.ipaddr_map["Test"][ids["host"]], ipaddr.id)
+
+    def test_update_mask_length(self):
+        """Validate the NautobotAddress update() method updates an IPAddress mask length."""
+        ipaddr = IPAddress.objects.create(
+            address="10.0.0.1/24", parent=self.prefix, status=self.status_active, tenant=self.test_tenant
+        )
+        test_ip = NautobotIPAddress(
+            host="10.0.0.1",
+            mask_length=24,
+            prefix="10.0.0.0/24",
+            tenant="Test",
+            uuid=ipaddr.id,
+        )
+        test_ip.adapter = self.adapter
+        update_attrs = {"mask_length": 32}
+        actual = NautobotIPAddress.update(self=test_ip, attrs=update_attrs)
+        self.adapter.job.logger.debug.assert_called_once_with(
+            ("Updating IPAddress 10.0.0.1/24 in Nautobot with {'mask_length': 32}.")
+        )
+        ipaddr.refresh_from_db()
+        self.assertEqual(ipaddr.mask_length, 32)
+        self.assertIsInstance(actual, NautobotIPAddress)
