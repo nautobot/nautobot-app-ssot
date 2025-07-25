@@ -358,10 +358,21 @@ class NautobotIPAddress(IPAddress):
         if attrs.get("prefix"):
             old_pf = None
             if attrs["prefix"] not in self.adapter.prefix_map:
-                raise ValueError(f"Prefix {attrs['prefix']} not found in Nautobot.")
+                self.adapter.job.logger.error(f"Prefix {attrs['prefix']} not found in Nautobot.")
+                return None
             if ipaddr.parent.prefix_length == 32 and ipaddr.ip_version == 4:
                 old_pf = ipaddr.parent
-            new_parent = OrmPrefix.objects.get(id=self.adapter.prefix_map[attrs["prefix"]])
+            try:
+                new_parent = OrmPrefix.objects.get(id=self.adapter.prefix_map[attrs["prefix"]])
+            except OrmPrefix.DoesNotExist:
+                for pfx in self.adapter.objects_to_create["prefixes"]:
+                    if pfx.prefix == attrs["prefix"]:
+                        new_parent = self.adapter.objects_to_create["prefixes"][pfx]
+                        self.adapter.objects_to_create["prefixes"].remove(pfx)
+                        break
+                else:
+                    self.adapter.job.logger.error(f"New parent Prefix {attrs['prefix']} not found.")
+                    return None
             if new_parent.type != "pool":
                 new_parent.type = "pool"
                 new_parent.validated_save()
