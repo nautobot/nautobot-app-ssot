@@ -11,7 +11,7 @@ from nautobot.extras.models import Status
 from nautobot.ipam.models import Namespace, Prefix
 from nautobot.tenancy.models import Tenant
 
-from nautobot_ssot.integrations.meraki.diffsync.models.nautobot import NautobotPrefix
+from nautobot_ssot.integrations.meraki.diffsync.models.nautobot import NautobotIPAddress, NautobotPrefix
 
 
 @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"enable_meraki": True}})
@@ -89,3 +89,51 @@ class TestNautobotPrefix(TransactionTestCase):  # pylint: disable=too-many-insta
         test_pf.delete()
         self.assertEqual(len(self.adapter.objects_to_delete["prefixes"]), 1)
         self.assertEqual(self.adapter.objects_to_delete["prefixes"][0].id, self.prefix.id)
+
+
+@override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"enable_meraki": True}})
+class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-instance-attributes
+    """Test the NautobotIPAddress class."""
+
+    databases = ("default", "job_logs")
+
+    def setUp(self):
+        """Configure common variables and objects for tests."""
+        super().setUp()
+        self.status_active = Status.objects.get(name="Active")
+        site_lt = LocationType.objects.get_or_create(name="Site")[0]
+        site_lt.content_types.add(ContentType.objects.get_for_model(Prefix))
+        self.test_site = Location.objects.get_or_create(name="Test", location_type=site_lt, status=self.status_active)[
+            0
+        ]
+        self.update_site = Location.objects.get_or_create(
+            name="Update", location_type=site_lt, status=self.status_active
+        )[0]
+        self.test_tenant = Tenant.objects.get_or_create(name="Test")[0]
+        self.update_tenant = Tenant.objects.get_or_create(name="Update")[0]
+        self.test_ns = Namespace.objects.get_or_create(name="Test")[0]
+        self.prefix = Prefix.objects.create(
+            prefix="10.0.0.0/24", namespace=self.test_ns, status=self.status_active, tenant=self.test_tenant
+        )
+        self.adapter = Adapter()
+        self.adapter.namespace_map = {"Test": self.test_ns.id, "Update": self.update_site.id}
+        self.adapter.site_map = {"Test": self.test_site, "Update": self.update_site}
+        self.adapter.tenant_map = {"Test": self.test_tenant.id, "Update": self.update_tenant.id}
+        self.adapter.status_map = {"Active": self.status_active.id}
+        self.adapter.ipaddr_map = {}
+        self.adapter.prefix_map = {"10.0.0.0/24": self.prefix.id}
+        self.adapter.objects_to_create = {"ipaddrs": [], "ipaddrs-to-prefixes": []}
+        self.adapter.objects_to_delete = {"ipaddrs": []}
+
+    def test_create(self):
+        """Validate the NautobotAddress create() method creates an IPAddress."""
+        ids = {"host": "10.0.0.1", "tenant": "Test"}
+        attrs = {"mask_length": 24, "prefix": "10.0.0.0/24"}
+        result = NautobotIPAddress.create(self.adapter, ids, attrs)
+        self.assertIsInstance(result, NautobotIPAddress)
+        self.assertEqual(len(self.adapter.objects_to_create["ipaddrs"]), 1)
+        ipaddr = self.adapter.objects_to_create["ipaddrs"][0]
+        self.assertEqual(str(ipaddr.host), ids["host"])
+        self.assertEqual(ipaddr.mask_length, attrs["mask_length"])
+        self.assertEqual(self.adapter.objects_to_create["ipaddrs-to-prefixes"][0], (ipaddr, self.prefix.id))
+        self.assertEqual(self.adapter.ipaddr_map["Test"][ids["host"]], ipaddr.id)
