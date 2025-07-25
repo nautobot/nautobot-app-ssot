@@ -352,7 +352,7 @@ class InfobloxAdapter(Adapter):
                         description="",
                         status=ip_record.status,
                         ext_attrs={},
-                        ref=ref
+                        ref=ref,
                     )
                     self.remove(stale)
                 except Exception:  # noqa: S110
@@ -371,7 +371,7 @@ class InfobloxAdapter(Adapter):
             description=a_record.get("comment") or "",
             status=ip_record.status,
             ext_attrs=record_ext_attrs,
-            ref=ref
+            ref=ref,
         )
 
         self.add(new_a_record)
