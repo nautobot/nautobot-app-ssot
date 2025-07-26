@@ -1,0 +1,80 @@
+# Example OpenShift SSoT Configuration
+# This file demonstrates how to configure the OpenShift integration
+# for different use cases
+
+# Basic configuration for syncing containers only
+basic_container_sync:
+  name: "Production OpenShift - Containers"
+  description: "Sync container workloads from production cluster"
+  url: "https://api.openshift.example.com:6443"
+  api_token: "sha256~YOUR_SERVICE_ACCOUNT_TOKEN_HERE"
+  verify_ssl: true
+  sync_namespaces: true
+  sync_nodes: true
+  sync_containers: true
+  sync_deployments: true
+  sync_services: true
+  sync_kubevirt_vms: false
+  namespace_filter: "^(production|staging)-.*"
+  workload_types: "containers"
+
+# Configuration for syncing KubeVirt VMs only
+kubevirt_only_sync:
+  name: "OpenShift Virtualization Platform"
+  description: "Sync only KubeVirt virtual machines"
+  url: "https://api.ocp-virt.example.com:6443"
+  api_token: "sha256~YOUR_SERVICE_ACCOUNT_TOKEN_HERE"
+  verify_ssl: true
+  sync_namespaces: true
+  sync_nodes: false
+  sync_containers: false
+  sync_deployments: false
+  sync_services: false
+  sync_kubevirt_vms: true
+  namespace_filter: "^virtual-machines-.*"
+  workload_types: "vms"
+
+# Full sync configuration
+full_sync:
+  name: "OpenShift Complete Infrastructure"
+  description: "Sync all workload types from OpenShift"
+  url: "https://api.openshift-full.example.com:6443"
+  api_token: "sha256~YOUR_SERVICE_ACCOUNT_TOKEN_HERE"
+  verify_ssl: true
+  sync_namespaces: true
+  sync_nodes: true
+  sync_containers: true
+  sync_deployments: true
+  sync_services: true
+  sync_kubevirt_vms: true
+  namespace_filter: ""  # Empty means sync all namespaces
+  workload_types: "all"
+
+# Development environment with self-signed certificates
+dev_environment:
+  name: "Development OpenShift"
+  description: "Dev cluster with self-signed certificates"
+  url: "https://api.dev-openshift.local:6443"
+  api_token: "sha256~YOUR_DEV_TOKEN_HERE"
+  verify_ssl: false  # Disable SSL verification for dev
+  sync_namespaces: true
+  sync_nodes: true
+  sync_containers: true
+  sync_deployments: true
+  sync_services: true
+  sync_kubevirt_vms: true
+  namespace_filter: "^dev-.*"
+  workload_types: "all"
+
+# Notes:
+# 1. Service Account Token can be obtained by:
+#    - Creating a service account: oc create serviceaccount nautobot-ssot -n default
+#    - Getting the token: oc sa get-token nautobot-ssot -n default
+#
+# 2. Required permissions for the service account:
+#    - Cluster-wide read access to nodes
+#    - Namespace read access for projects/namespaces
+#    - Read access to pods, deployments, services
+#    - Read access to virtualmachines.kubevirt.io (if using KubeVirt)
+#
+# 3. Example RBAC configuration is provided in the admin documentation 
