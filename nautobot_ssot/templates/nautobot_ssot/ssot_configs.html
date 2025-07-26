@@ -46,6 +46,14 @@
             </a></td>
         </tr>
         {% endif %}
+        {% if perms.nautobot_ssot.view_ssotopenshiftconfig and "openshift" in enabled_integrations %}
+        <tr>
+            <td>OpenShift</td>
+            <td><a href="{% url 'plugins:nautobot_ssot:openshift:config_list' %}">
+                OpenShift Configuration List
+            </a></td>
+        </tr>
+        {% endif %}
     </table>
 </div>
 </div>

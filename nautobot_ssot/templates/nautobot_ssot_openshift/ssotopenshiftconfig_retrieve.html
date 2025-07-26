@@ -4,7 +4,7 @@
 
 {% block breadcrumbs %}
     <li><a href="{% url 'plugins:nautobot_ssot:config' %}">SSOT Configs</a></li>
-    <li><a href="{% url 'plugins:nautobot_ssot:ssotopenshiftconfig_list' %}">SSOT OpenShift Configs</a></li>
+    <li><a href="{% url 'plugins:nautobot_ssot:openshift:config_list' %}">SSOT OpenShift Configs</a></li>
     <li>{{ object|hyperlinked_object }}</li>
 {% endblock breadcrumbs %}
 
@@ -26,7 +26,7 @@
         <table class="table table-hover panel-body attr-table">
             <tr>
                 <td>Name</td>
-                <td>{{ object.name }}</td>
+                <td>{{ object.name|placeholder }}</td>
             </tr>
             <tr>
                 <td>Description</td>
@@ -34,19 +34,15 @@
             </tr>
             <tr>
                 <td>OpenShift API URL</td>
-                <td>{{ object.url }}</td>
+                <td>{{ object.url|placeholder }}</td>
+            </tr>
+            <tr>
+                <td>API Token</td>
+                <td><code>••••••••</code> (hidden)</td>
             </tr>
             <tr>
                 <td>Verify SSL</td>
                 <td>{{ object.verify_ssl|render_boolean }}</td>
-            </tr>
-            <tr>
-                <td>Namespace Filter</td>
-                <td>{{ object.namespace_filter|placeholder }}</td>
-            </tr>
-            <tr>
-                <td>Workload Types</td>
-                <td>{{ object.get_workload_types_display }}</td>
             </tr>
         </table>
     </div>
@@ -82,22 +78,38 @@
             </tr>
         </table>
     </div>
+    
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <strong>Filtering Options</strong>
+        </div>
+        <table class="table table-hover panel-body attr-table">
+            <tr>
+                <td>Namespace Filter</td>
+                <td>{{ object.namespace_filter|placeholder }}</td>
+            </tr>
+            <tr>
+                <td>Workload Types</td>
+                <td>{{ object.get_workload_types_display }}</td>
+            </tr>
+        </table>
+    </div>
 {% endblock content_left_page %}
 
 {% block content_right_page %}
     <div class="panel panel-default">
         <div class="panel-heading">
-            <strong>Authentication</strong>
+            <strong>Metadata</strong>
         </div>
         <table class="table table-hover panel-body attr-table">
             <tr>
-                <td>API Token</td>
-                <td><code>••••••••</code> (hidden)</td>
+                <td>Created</td>
+                <td>{{ object.created }}</td>
+            </tr>
+            <tr>
+                <td>Last Updated</td>
+                <td>{{ object.last_updated }}</td>
             </tr>
         </table>
     </div>
-    
-    {% include 'inc/custom_fields_panel.html' %}
-    {% include 'inc/relationships_panel.html' %}
-    {% include 'inc/tags_panel.html' %}
 {% endblock content_right_page %} 

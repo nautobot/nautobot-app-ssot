@@ -3,7 +3,7 @@
 
 {% block form %}
     <div class="panel panel-default">
-        <div class="panel-heading"><strong>OpenShift Config</strong></div>
+        <div class="panel-heading"><strong>OpenShift Connection</strong></div>
         <div class="panel-body">
             {% render_field form.name %}
             {% render_field form.description %}
@@ -12,7 +12,6 @@
             {% render_field form.verify_ssl %}
         </div>
     </div>
-    
     <div class="panel panel-default">
         <div class="panel-heading"><strong>Sync Options</strong></div>
         <div class="panel-body">
@@ -24,19 +23,11 @@
             {% render_field form.sync_kubevirt_vms %}
         </div>
     </div>
-    
     <div class="panel panel-default">
-        <div class="panel-heading"><strong>Filtering</strong></div>
+        <div class="panel-heading"><strong>Filtering Options</strong></div>
         <div class="panel-body">
             {% render_field form.namespace_filter %}
             {% render_field form.workload_types %}
-        </div>
-    </div>
-    
-    <div class="panel panel-default">
-        <div class="panel-heading"><strong>Notes</strong></div>
-        <div class="panel-body">
-            {% render_field form.object_note %}
         </div>
     </div>
 {% endblock %} 

@@ -111,6 +111,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "enable_ipfabric": False,
         "enable_librenms": False,
         "enable_meraki": False,
+        "enable_openshift": is_truthy(os.environ.get("NAUTOBOT_SSOT_ENABLE_OPENSHIFT", "false")),
         "enable_servicenow": False,
         "enable_slurpit": False,
         "enable_solarwinds": False,

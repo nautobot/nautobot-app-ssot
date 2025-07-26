@@ -37,6 +37,7 @@ PyYAML = { version = ">=6", optional = true }
 cloudvision = { version = "^1.9.0", optional = true }
 cvprac = { version = "^1.2.2", optional = true }
 dnspython = { version = "^2.1.0", optional = true }
+kubernetes = { version = "^28.1.0", optional = true }
 nautobot-device-lifecycle-mgmt = { version = ">=2.0.0", optional = true }
 packaging = ">=21.3"
 prometheus-client = ">=0.17.1"
@@ -55,6 +56,8 @@ httpx = { version = ">=0.23.3", optional = true }
 dnacentersdk = { version = "^2.5.6", optional = true }
 meraki = { version = "^1.37.2,<1.46.0", optional = true }
 slurpit-sdk = { version = "^0.9.58", optional = true }
+# used for OpenShift integration
+kubernetes = { version = "^28.1.0", optional = true }
 
 [tool.poetry.group.dev.dependencies]
 coverage = "*"
@@ -113,6 +116,7 @@ all = [
     "dnspython",
     "ijson",
     "ipfabric",
+    "kubernetes",
     "nautobot-device-lifecycle-mgmt",
     "netutils",
     "oauthlib",
@@ -155,6 +159,9 @@ ipfabric = [
 ]
 meraki = [
     "meraki",
+]
+openshift = [
+    "kubernetes",
 ]
 slurpit = [
     "slurpit_sdk",
