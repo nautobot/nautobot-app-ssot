@@ -1,0 +1,53 @@
+{
+  "items": [
+    {
+      "metadata": {
+        "name": "default",
+        "uid": "7e8c3f5e-1234-4567-8901-234567890123",
+        "annotations": {
+          "openshift.io/display-name": "Default",
+          "openshift.io/description": "Default namespace"
+        },
+        "labels": {
+          "kubernetes.io/metadata.name": "default"
+        }
+      },
+      "status": {
+        "phase": "Active"
+      }
+    },
+    {
+      "metadata": {
+        "name": "kube-system",
+        "uid": "8f9d4e6f-2345-5678-9012-345678901234",
+        "annotations": {
+          "openshift.io/display-name": "Kubernetes System",
+          "openshift.io/description": "System namespace for Kubernetes components"
+        },
+        "labels": {
+          "kubernetes.io/metadata.name": "kube-system"
+        }
+      },
+      "status": {
+        "phase": "Active"
+      }
+    },
+    {
+      "metadata": {
+        "name": "production",
+        "uid": "9fae5f7e-3456-6789-0123-456789012345",
+        "annotations": {
+          "openshift.io/display-name": "Production Apps",
+          "openshift.io/description": "Production application namespace"
+        },
+        "labels": {
+          "environment": "production",
+          "kubernetes.io/metadata.name": "production"
+        }
+      },
+      "status": {
+        "phase": "Active"
+      }
+    }
+  ]
+} 
