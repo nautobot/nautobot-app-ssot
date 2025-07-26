@@ -100,6 +100,8 @@ Set up each integration using the specific guides:
 - [Itential](./integrations/itential_setup.md)
 - [LibreNMS](./integrations/librenms_setup.md)
 - [Cisco Meraki](./integrations/meraki_setup.md)
+- [Red Hat OpenShift](./integrations/openshift_setup.md)
 - [ServiceNow](./integrations/servicenow_setup.md)
 - [Slurpit](./integrations/slurpit_setup.md)
 - [SolarWinds](./integrations/solarwinds_setup.md)
+- [vSphere](./integrations/vsphere_setup.md)
