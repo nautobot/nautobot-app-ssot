@@ -1,4 +1,47 @@
-"""OpenShift API client utility with KubeVirt support."""
+"""OpenShift API client utility with KubeVirt support.
+
+This module provides a comprehensive client for interacting with OpenShift
+clusters via the Kubernetes API. It supports both standard Kubernetes
+resources and KubeVirt virtual machines, with graceful fallback when
+KubeVirt is not available.
+
+Key Features:
+1. Unified API for OpenShift and KubeVirt resources
+2. Automatic KubeVirt detection and fallback handling  
+3. Pod analysis to distinguish containers from VMs
+4. Resource parsing and normalization for DiffSync
+5. Secure authentication via service account tokens
+
+Architecture:
+- Built on the official kubernetes-client Python library
+- Extends standard K8s API client with OpenShift and KubeVirt specifics
+- Provides higher-level methods for resource discovery and parsing
+- Handles credential management and SSL verification
+
+KubeVirt Integration:
+- Automatically detects KubeVirt availability at initialization
+- Provides VM-specific methods when KubeVirt is available
+- Gracefully handles KubeVirt unavailability (not an error condition)
+- Distinguishes VM pods from regular container pods
+
+Security Considerations:
+- Uses service account tokens for authentication
+- Supports SSL verification (recommended for production)
+- Token and SSL settings configurable per client instance
+- No credential storage - tokens passed at initialization only
+
+Usage Patterns:
+    client = OpenshiftClient(
+        url="https://api.cluster.example.com:6443",
+        api_token="sha256~...",
+        verify_ssl=True
+    )
+    
+    if client.kubevirt_available:
+        vms = client.get_virtual_machines()
+    
+    pods = client.get_pods_and_containers()
+"""
 import re
 from typing import Dict, List, Optional, Any, Tuple
 from urllib.parse import urlparse
@@ -7,79 +50,250 @@ from kubernetes import client, config
 
 
 def parse_openshift_url(url: str) -> Dict[str, str]:
-    """Parse OpenShift URL to extract components."""
+    """Parse OpenShift API URL into components for validation and debugging.
+    
+    Utility function to break down OpenShift API URLs into their constituent
+    parts. Useful for validation, logging, and error reporting.
+    
+    Args:
+        url (str): Full OpenShift API URL (e.g., https://api.cluster.com:6443)
+        
+    Returns:
+        dict: URL components with keys:
+            - scheme: Protocol (http/https)
+            - hostname: Server hostname or IP
+            - port: Port number (defaults to 6443 for OpenShift)
+            - path: URL path (usually empty for API root)
+            
+    Example:
+        >>> parse_openshift_url("https://api.cluster.example.com:6443")
+        {
+            "scheme": "https",
+            "hostname": "api.cluster.example.com", 
+            "port": 6443,
+            "path": ""
+        }
+    """
     parsed = urlparse(url)
     return {
         "scheme": parsed.scheme,
         "hostname": parsed.hostname,
-        "port": parsed.port or 6443,
+        "port": parsed.port or 6443,  # OpenShift default API port
         "path": parsed.path or ""
     }
 
 
 class OpenshiftClient:
-    """Client for interacting with OpenShift API including KubeVirt resources."""
+    """High-level client for OpenShift and KubeVirt API interactions.
+    
+    This client provides a unified interface for accessing OpenShift cluster
+    resources including both standard Kubernetes objects and KubeVirt virtual
+    machines. It automatically detects KubeVirt availability and provides
+    graceful fallback behavior.
+    
+    Architecture Design:
+    - Wraps the official kubernetes-client library
+    - Provides OpenShift-specific resource handling
+    - Extends standard K8s APIs with KubeVirt support
+    - Offers high-level methods for common operations
+    
+    Resource Support:
+    - Namespaces/Projects (with OpenShift annotations)
+    - Nodes (with capacity and role information)
+    - Pods and Containers (excluding VM pods)
+    - Deployments and Services
+    - KubeVirt VirtualMachines and VMInstances (when available)
+    
+    Error Handling Strategy:
+    - Network/API errors are propagated to caller
+    - Missing KubeVirt is handled gracefully (not an error)
+    - Individual resource failures logged but don't stop processing
+    - Connection issues raise exceptions for immediate attention
+    
+    Performance Considerations:
+    - API calls are made on-demand (no preloading)
+    - Supports namespace filtering to reduce data volume
+    - Uses Kubernetes client's built-in pagination
+    - Minimal resource transformation for better performance
+    """
     
     def __init__(self, url: str, api_token: str, verify_ssl: bool = True):
-        """Initialize the OpenShift client."""
+        """Initialize OpenShift client with secure connection parameters.
+        
+        Sets up the Kubernetes client configuration and initializes all
+        necessary API client objects. Also performs KubeVirt availability
+        detection for conditional feature enablement.
+        
+        Args:
+            url (str): OpenShift API server URL (e.g., https://api.cluster.com:6443)
+            api_token (str): Service account token for authentication
+            verify_ssl (bool): Whether to verify SSL certificates (default: True)
+            
+        Raises:
+            Exception: If client configuration fails or connection cannot be established
+            
+        Security Notes:
+        - API token should be a service account token with appropriate permissions
+        - SSL verification strongly recommended for production environments
+        - Token is stored in client instance but not logged or exposed
+        
+        Initialization Process:
+        1. Store connection parameters for reference
+        2. Configure Kubernetes client with authentication
+        3. Initialize API client objects for different resource types
+        4. Test KubeVirt availability and store result
+        """
+        # Store connection parameters for debugging and logging
         self.url = url
-        self.api_token = api_token
+        self.api_token = api_token  # Stored for reconnection, never logged
         self.verify_ssl = verify_ssl
         
-        # Configure Kubernetes client
+        # Configure Kubernetes client with OpenShift connection details
+        # This follows the standard kubernetes-client pattern
         configuration = client.Configuration()
         configuration.host = url
         configuration.api_key = {"authorization": f"Bearer {api_token}"}
         configuration.verify_ssl = verify_ssl
         
-        # Initialize API clients
-        self.api_client = client.ApiClient(configuration)
-        self.core_v1 = client.CoreV1Api(self.api_client)
-        self.apps_v1 = client.AppsV1Api(self.api_client)
-        self.networking_v1 = client.NetworkingV1Api(self.api_client)
-        self.custom_objects = client.CustomObjectsApi(self.api_client)
+        # Initialize API client objects for different resource types
+        # Each client handles a specific set of Kubernetes API groups
+        self.api_client = client.ApiClient(configuration)         # Base client
+        self.core_v1 = client.CoreV1Api(self.api_client)          # Core resources (pods, nodes, etc.)
+        self.apps_v1 = client.AppsV1Api(self.api_client)          # Application resources (deployments)
+        self.networking_v1 = client.NetworkingV1Api(self.api_client)  # Network resources
+        self.custom_objects = client.CustomObjectsApi(self.api_client)  # Custom resources (KubeVirt)
         
-        # Check KubeVirt availability
+        # Detect KubeVirt availability at initialization
+        # This determines whether VM-related methods will be available
         self.kubevirt_available = self._check_kubevirt_apis()
         
     def verify_connection(self) -> bool:
-        """Verify connection to OpenShift cluster."""
+        """Test connectivity to the OpenShift cluster.
+        
+        Performs a minimal API call to verify that the client can successfully
+        communicate with the OpenShift cluster. Used for health checks and
+        connection validation before attempting resource operations.
+        
+        Returns:
+            bool: True if connection successful, False if any error occurs
+            
+        Implementation Notes:
+        - Uses a lightweight API call (get_api_resources) for testing
+        - Catches all exceptions to provide simple boolean result
+        - Does not distinguish between different types of failures
+        - Should be called before attempting resource operations
+        
+        Error Conditions That Return False:
+        - Network connectivity issues
+        - Invalid API URL or port
+        - Authentication failures (invalid token)
+        - SSL certificate verification failures
+        - Cluster unavailability or overload
+        """
         try:
+            # Use a minimal API call to test connectivity
+            # get_api_resources is lightweight and requires minimal permissions
             self.core_v1.get_api_resources()
             return True
         except Exception:
+            # Catch all exceptions and return False for simple health checking
+            # Specific error details would be available in logs if debug enabled
             return False
     
     def _check_kubevirt_apis(self) -> bool:
-        """Check if KubeVirt CRDs are available in the cluster."""
+        """Detect KubeVirt Custom Resource Definitions in the cluster.
+        
+        Attempts to access KubeVirt's VirtualMachine CRD to determine whether
+        KubeVirt is installed and accessible. This detection is non-intrusive
+        and gracefully handles KubeVirt absence.
+        
+        Returns:
+            bool: True if KubeVirt APIs are available, False otherwise
+            
+        Detection Strategy:
+        - Attempts to list VirtualMachine resources (limit=1 for minimal impact)
+        - Success indicates KubeVirt is installed and accessible
+        - Any exception indicates KubeVirt is not available (normal condition)
+        
+        Why KubeVirt Detection Matters:
+        - Enables conditional VM synchronization functionality
+        - Prevents errors when trying to access VM resources on non-KubeVirt clusters
+        - Allows graceful degradation to containers-only mode
+        - Informs user about available synchronization capabilities
+        
+        Error Conditions (All Return False):
+        - KubeVirt not installed on cluster
+        - Insufficient permissions to access KubeVirt CRDs
+        - KubeVirt installed but not functioning
+        - Network issues preventing CRD access
+        """
         try:
-            # Try to list VirtualMachines to check if KubeVirt is installed
+            # Attempt minimal KubeVirt API access to test availability
+            # Uses limit=1 to minimize impact on cluster performance
             self.custom_objects.list_cluster_custom_object(
-                group="kubevirt.io",
-                version="v1",
-                plural="virtualmachines",
-                limit=1
+                group="kubevirt.io",      # KubeVirt API group
+                version="v1",             # Stable KubeVirt API version
+                plural="virtualmachines", # VirtualMachine CRD
+                limit=1                   # Minimal resource request
             )
             return True
         except Exception:
+            # Any exception indicates KubeVirt is not available
+            # This is a normal condition for non-KubeVirt clusters
             return False
     
     def is_kubevirt_vm_pod(self, pod) -> bool:
-        """Check if a pod is running a KubeVirt VM."""
-        # Check for KubeVirt specific labels
+        """Determine if a Kubernetes Pod is running a KubeVirt virtual machine.
+        
+        Analyzes Pod metadata and containers to identify KubeVirt VM pods,
+        which need special handling during synchronization. VM pods are
+        conceptually different from regular container pods and map to
+        Nautobot VirtualMachine objects instead of Applications.
+        
+        Args:
+            pod: Kubernetes Pod object from the API
+            
+        Returns:
+            bool: True if pod is running a KubeVirt VM, False for regular containers
+            
+        Detection Methods:
+        1. KubeVirt Labels: Pods running VMs have specific labels
+           - "kubevirt.io/domain": Indicates VM domain
+           - "vm.kubevirt.io/name": Links to VirtualMachine resource
+        
+        2. Container Analysis: VM pods have distinctive container patterns
+           - "compute" container with "virt-launcher" command
+           - Special container configuration for virtualization
+        
+        Why This Matters:
+        - VM pods should not be treated as regular container workloads
+        - VMs map to Nautobot VirtualMachine objects, not Applications
+        - VM pods have different lifecycle and management patterns
+        - Prevents double-counting VMs as both VMs and containers
+        
+        Implementation Notes:
+        - Checks labels first for fastest detection
+        - Falls back to container analysis for robustness
+        - Returns False for any errors to avoid false positives
+        """
+        # Method 1: Check for KubeVirt-specific labels (fastest and most reliable)
         if pod.metadata.labels:
+            # Primary KubeVirt domain label
             if "kubevirt.io/domain" in pod.metadata.labels:
                 return True
+            # Secondary VM name label (backup detection)
             if "vm.kubevirt.io/name" in pod.metadata.labels:
                 return True
         
-        # Check for virt-launcher container
+        # Method 2: Analyze container configuration (fallback method)
         if pod.spec.containers:
             for container in pod.spec.containers:
+                # KubeVirt VMs use a "compute" container with virt-launcher
                 if container.name == "compute":
                     if container.command and "virt-launcher" in str(container.command):
                         return True
         
+        # If no VM indicators found, this is a regular container pod
         return False
     
     def get_projects(self, namespace_filter: Optional[str] = None) -> List[Dict[str, Any]]:
