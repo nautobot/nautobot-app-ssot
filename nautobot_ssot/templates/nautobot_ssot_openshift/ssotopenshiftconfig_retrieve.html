@@ -1,0 +1,103 @@
+{% extends 'generic/object_retrieve.html' %}
+{% load helpers %}
+{% load buttons %}
+
+{% block breadcrumbs %}
+    <li><a href="{% url 'plugins:nautobot_ssot:config' %}">SSOT Configs</a></li>
+    <li><a href="{% url 'plugins:nautobot_ssot:ssotopenshiftconfig_list' %}">SSOT OpenShift Configs</a></li>
+    <li>{{ object|hyperlinked_object }}</li>
+{% endblock breadcrumbs %}
+
+{% block extra_buttons %}
+<a href="{% url 'plugins:nautobot_ssot:config' %}"><button type="button" class="btn btn-primary">SSOT Configs</button></a>
+{% endblock extra_buttons %}
+
+{% block masthead %}
+    <h1>
+        {% block title %}{{ object }}{% endblock title %}
+    </h1>
+{% endblock masthead %}
+
+{% block content_left_page %}
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <strong>OpenShift Config</strong>
+        </div>
+        <table class="table table-hover panel-body attr-table">
+            <tr>
+                <td>Name</td>
+                <td>{{ object.name }}</td>
+            </tr>
+            <tr>
+                <td>Description</td>
+                <td>{{ object.description|placeholder }}</td>
+            </tr>
+            <tr>
+                <td>OpenShift API URL</td>
+                <td>{{ object.url }}</td>
+            </tr>
+            <tr>
+                <td>Verify SSL</td>
+                <td>{{ object.verify_ssl|render_boolean }}</td>
+            </tr>
+            <tr>
+                <td>Namespace Filter</td>
+                <td>{{ object.namespace_filter|placeholder }}</td>
+            </tr>
+            <tr>
+                <td>Workload Types</td>
+                <td>{{ object.get_workload_types_display }}</td>
+            </tr>
+        </table>
+    </div>
+    
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <strong>Sync Options</strong>
+        </div>
+        <table class="table table-hover panel-body attr-table">
+            <tr>
+                <td>Sync Namespaces/Projects</td>
+                <td>{{ object.sync_namespaces|render_boolean }}</td>
+            </tr>
+            <tr>
+                <td>Sync Nodes</td>
+                <td>{{ object.sync_nodes|render_boolean }}</td>
+            </tr>
+            <tr>
+                <td>Sync Containers</td>
+                <td>{{ object.sync_containers|render_boolean }}</td>
+            </tr>
+            <tr>
+                <td>Sync Deployments</td>
+                <td>{{ object.sync_deployments|render_boolean }}</td>
+            </tr>
+            <tr>
+                <td>Sync Services</td>
+                <td>{{ object.sync_services|render_boolean }}</td>
+            </tr>
+            <tr>
+                <td>Sync KubeVirt VMs</td>
+                <td>{{ object.sync_kubevirt_vms|render_boolean }}</td>
+            </tr>
+        </table>
+    </div>
+{% endblock content_left_page %}
+
+{% block content_right_page %}
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <strong>Authentication</strong>
+        </div>
+        <table class="table table-hover panel-body attr-table">
+            <tr>
+                <td>API Token</td>
+                <td><code>••••••••</code> (hidden)</td>
+            </tr>
+        </table>
+    </div>
+    
+    {% include 'inc/custom_fields_panel.html' %}
+    {% include 'inc/relationships_panel.html' %}
+    {% include 'inc/tags_panel.html' %}
+{% endblock content_right_page %} 
