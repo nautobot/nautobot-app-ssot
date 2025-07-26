@@ -234,3 +234,45 @@ For performance issues:
 2. Use namespace filtering to reduce scope
 3. Consider splitting large syncs across multiple config instances
 4. Monitor OpenShift API rate limits 
+
+## Development and Testing
+
+### Running Tests
+
+The OpenShift integration includes a comprehensive test suite:
+
+```bash
+# Run all OpenShift integration tests
+invoke unittest nautobot_ssot.tests.openshift
+
+# Run specific test modules
+invoke unittest nautobot_ssot.tests.openshift.test_openshift_client
+invoke unittest nautobot_ssot.tests.openshift.test_models
+invoke unittest nautobot_ssot.tests.openshift.test_kubevirt_utils
+```
+
+### Test Coverage
+
+The test suite includes:
+- **Client Tests**: API connection, KubeVirt detection, resource parsing
+- **Model Tests**: Django model validation, field constraints
+- **DiffSync Tests**: All DiffSync models (14 total) and adapters
+- **Job Tests**: Sync job execution and data mappings
+- **Mock Fixtures**: Sample API responses for projects, nodes, and VMs
+
+### Development Environment
+
+For development and testing:
+
+1. Use mock fixtures to avoid requiring a real OpenShift cluster
+2. Test KubeVirt detection logic with both VM and container workloads
+3. Validate workload type filtering (all, containers only, VMs only)
+4. Test namespace filtering with regex patterns
+
+### Contributing
+
+When contributing to the OpenShift integration:
+- Add tests for any new functionality
+- Update mock fixtures if adding new resource types
+- Follow the existing patterns from other integrations (e.g., vSphere)
+- Update documentation for any new features or configuration options 

@@ -119,6 +119,7 @@ nav:
           - Itential: "user/integrations/itential.md"
           - LibreNMS: "user/integrations/librenms.md"
           - Cisco Meraki: "user/integrations/meraki.md"
+          - Red Hat OpenShift: "user/integrations/openshift.md"
           - ServiceNow: "user/integrations/servicenow.md"
           - Slurpit: "user/integrations/slurpit.md"
           - SolarWinds: "user/integrations/solarwinds.md"

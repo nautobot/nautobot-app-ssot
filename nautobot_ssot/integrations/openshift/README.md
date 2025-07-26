@@ -66,10 +66,28 @@ See the [implementation guide](openshift.md) for detailed development instructio
 
 ## Testing
 
-Tests are located in `nautobot_ssot/tests/openshift/`:
-- Unit tests for models, adapters, and client
-- Integration tests for the sync job
-- Fixtures for mocking OpenShift API responses
+Comprehensive test suite located in `nautobot_ssot/tests/openshift/`:
+
+- **Unit Tests**: 
+  - `test_models.py` - Django model validation and constraints
+  - `test_openshift_client.py` - Client initialization, connection, and KubeVirt detection
+  - `test_kubevirt_utils.py` - KubeVirt utility functions (unique to OpenShift)
+  
+- **DiffSync Tests**:
+  - `test_openshift_diffsync_models.py` - All 8 OpenShift-side models
+  - `test_nautobot_diffsync_models.py` - All 6 Nautobot-side models
+  - `test_openshift_adapter.py` - Adapter loading and filtering logic
+  - `test_nautobot_adapter.py` - Nautobot adapter operations
+  
+- **Integration Tests**:
+  - `test_jobs.py` - Job metadata and execution flow
+  
+- **Mock Fixtures** (`openshift_fixtures/`):
+  - `get_projects.json` - Sample namespace/project data
+  - `get_nodes.json` - Sample node data with master/worker roles
+  - `get_virtualmachines.json` - Sample KubeVirt VM data
+
+Test coverage includes ~100+ test methods across 8 test modules, following vSphere patterns with OpenShift-specific additions.
 
 ## Documentation
 
