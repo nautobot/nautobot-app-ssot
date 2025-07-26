@@ -24,56 +24,41 @@ class SSOTOpenshiftConfigUIViewSet(
     ObjectChangeLogViewMixin,
     ObjectNotesViewMixin,
 ):
-    """ViewSet for SSOTOpenshiftConfig model."""
+    """SSOTOpenshiftConfig UI ViewSet."""
     
-    model = SSOTOpenshiftConfig
+    queryset = SSOTOpenshiftConfig.objects.all()
+    table_class = SSOTOpenshiftConfigTable
     filterset_class = SSOTOpenshiftConfigFilterSet
     filterset_form_class = SSOTOpenshiftConfigFilterForm
     form_class = SSOTOpenshiftConfigForm
     serializer_class = SSOTOpenshiftConfigSerializer
-    table_class = SSOTOpenshiftConfigTable
-    
     lookup_field = "pk"
+    action_buttons = ("add",)
     
-    def get_extra_context(self, request, instance=None):
-        """Add extra context."""
-        context = super().get_extra_context(request, instance)
-        if instance:
-            context["sync_jobs_url"] = "/plugins/nautobot-ssot/jobs/"
-        return context
+    def get_template_name(self):
+        """Override inherited method to allow custom location for templates."""
+        action = self.action
+        app_label = "nautobot_ssot_openshift"
+        model_opts = self.queryset.model._meta
+        if action in ["create", "update"]:
+            template_name = f"{app_label}/{model_opts.model_name}_update.html"
+        elif action == "retrieve":
+            template_name = f"{app_label}/{model_opts.model_name}_retrieve.html"
+        elif action == "list":
+            template_name = f"{app_label}/{model_opts.model_name}_list.html"
+        else:
+            template_name = super().get_template_name()
 
-
-# For explicit URL registration
-class SSOTOpenshiftConfigListView(SSOTOpenshiftConfigUIViewSet):
-    """List view."""
-    pass
-
-
-class SSOTOpenshiftConfigView(SSOTOpenshiftConfigUIViewSet):
-    """Detail view."""
-    pass
-
-
-class SSOTOpenshiftConfigEditView(SSOTOpenshiftConfigUIViewSet):
-    """Edit view."""
-    pass
-
-
-class SSOTOpenshiftConfigDeleteView(SSOTOpenshiftConfigUIViewSet):
-    """Delete view."""
-    pass
-
-
-class SSOTOpenshiftConfigBulkDeleteView(SSOTOpenshiftConfigUIViewSet):
-    """Bulk delete view."""
-    pass
+        return template_name
 
 
 class SSOTOpenshiftConfigChangeLogView(ObjectChangeLogView):
-    """Change log view."""
-    base_template = "nautobot_ssot/openshift/config.html"
+    """SSOTOpenshiftConfig ChangeLog View."""
+    
+    base_template = "nautobot_ssot_openshift/ssotopenshiftconfig_retrieve.html"
 
 
 class SSOTOpenshiftConfigNotesView(ObjectNotesView):
-    """Notes view."""
-    base_template = "nautobot_ssot/openshift/config.html"
+    """SSOTOpenshiftConfig Notes View."""
+    
+    base_template = "nautobot_ssot_openshift/ssotopenshiftconfig_retrieve.html"

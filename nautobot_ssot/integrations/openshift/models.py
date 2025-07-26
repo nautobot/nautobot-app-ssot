@@ -1,32 +1,31 @@
 """Models for Red Hat OpenShift integration."""
 from django.core.exceptions import ValidationError
 from django.db import models
-from nautobot.core.models.generics import PrimaryModel
 
-from nautobot_ssot.integrations.utils import get_json_type_choices
+try:
+    from nautobot.apps.constants import CHARFIELD_MAX_LENGTH
+except ImportError:
+    CHARFIELD_MAX_LENGTH = 255
+
+from nautobot.core.models.generics import PrimaryModel
+from nautobot.extras.choices import (
+    SecretsGroupAccessTypeChoices,
+    SecretsGroupSecretTypeChoices,
+)
+from nautobot.extras.models import SecretsGroupAssociation
 
 
 class SSOTOpenshiftConfig(PrimaryModel):
     """Model for storing OpenShift integration configuration."""
     
-    is_saved_view_model = False
+    name = models.CharField(max_length=CHARFIELD_MAX_LENGTH, unique=True)
+    description = models.CharField(max_length=CHARFIELD_MAX_LENGTH, blank=True)
     
-    name = models.CharField(max_length=200, unique=True)
-    description = models.CharField(max_length=200, blank=True)
-    url = models.URLField(
-        max_length=200,
-        verbose_name="OpenShift API URL",
-        help_text="The URL of the OpenShift API server (e.g., https://api.cluster.example.com:6443)"
-    )
-    api_token = models.CharField(
-        max_length=500,
-        verbose_name="API Token",
-        help_text="Service account token for authentication"
-    )
-    verify_ssl = models.BooleanField(
-        default=True,
-        verbose_name="Verify SSL",
-        help_text="Verify SSL certificates when connecting to OpenShift"
+    openshift_instance = models.ForeignKey(
+        to="extras.ExternalIntegration",
+        on_delete=models.PROTECT,
+        verbose_name="OpenShift Instance Config",
+        help_text="OpenShift Instance configuration including URL and credentials",
     )
     
     # Sync options
@@ -63,7 +62,7 @@ class SSOTOpenshiftConfig(PrimaryModel):
     
     # Filtering options
     namespace_filter = models.CharField(
-        max_length=200,
+        max_length=CHARFIELD_MAX_LENGTH,
         blank=True,
         verbose_name="Namespace Filter",
         help_text="Regex pattern to filter namespaces (leave empty to sync all)"
@@ -82,6 +81,18 @@ class SSOTOpenshiftConfig(PrimaryModel):
         help_text="Types of workloads to synchronize"
     )
     
+    # Job control flags
+    job_enabled = models.BooleanField(
+        default=False,
+        verbose_name="Job Enabled",
+        help_text="Enable this configuration for sync jobs",
+    )
+    enable_sync_to_nautobot = models.BooleanField(
+        default=True,
+        verbose_name="Enable Sync to Nautobot",
+        help_text="Enable synchronization from OpenShift to Nautobot",
+    )
+    
     class Meta:
         """Metaclass for SSOTOpenshiftConfig."""
         ordering = ["name"]
@@ -95,12 +106,6 @@ class SSOTOpenshiftConfig(PrimaryModel):
     def clean(self):
         """Validate the configuration."""
         super().clean()
-        
-        if not self.url.startswith(("https://", "http://")):
-            raise ValidationError({"url": "URL must start with http:// or https://"})
-        
-        if not self.api_token:
-            raise ValidationError({"api_token": "API token is required"})
         
         # At least one sync option must be enabled
         sync_options = [

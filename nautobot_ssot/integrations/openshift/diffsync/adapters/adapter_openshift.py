@@ -30,16 +30,19 @@ class OpenshiftAdapter(Adapter):
     # Define top-level models
     top_level = ["project", "node", "deployment", "service", "virtualmachine"]
     
-    def __init__(self, *args, job=None, sync=None, config=None, **kwargs):
+    def __init__(self, *args, job=None, sync=None, config=None, client_config=None, **kwargs):
         """Initialize the OpenShift adapter."""
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
         self.config = config
+        self.client_config = client_config or {}
+        
+        # Initialize OpenShift client with extracted configuration
         self.client = OpenshiftClient(
-            url=config.url,
-            api_token=config.api_token,
-            verify_ssl=config.verify_ssl
+            url=self.client_config.get("url", config.openshift_instance.remote_url),
+            api_token=self.client_config.get("api_token", ""),
+            verify_ssl=self.client_config.get("verify_ssl", config.openshift_instance.verify_ssl)
         )
     
     def load(self):
@@ -50,31 +53,34 @@ class OpenshiftAdapter(Adapter):
             raise Exception("Failed to connect to OpenShift API")
         
         # Load projects/namespaces
-        if self.config.sync_namespaces:
+        if self.client_config.get("sync_namespaces", self.config.sync_namespaces):
             self._load_projects()
         
         # Load nodes
-        if self.config.sync_nodes:
+        if self.client_config.get("sync_nodes", self.config.sync_nodes):
             self._load_nodes()
         
         # Load workloads based on configuration
-        if self.config.workload_types in ["all", "containers"]:
-            if self.config.sync_containers:
+        workload_types = self.client_config.get("workload_types", self.config.workload_types)
+        if workload_types in ["all", "containers"]:
+            if self.client_config.get("sync_containers", self.config.sync_containers):
                 self._load_containers()
-            if self.config.sync_deployments:
+            if self.client_config.get("sync_deployments", self.config.sync_deployments):
                 self._load_deployments()
         
-        if self.config.workload_types in ["all", "vms"]:
-            if self.config.sync_kubevirt_vms and self.client.kubevirt_available:
+        if workload_types in ["all", "vms"]:
+            if (self.client_config.get("sync_kubevirt_vms", self.config.sync_kubevirt_vms) 
+                and self.client.kubevirt_available):
                 self._load_virtual_machines()
         
         # Load services
-        if self.config.sync_services:
+        if self.client_config.get("sync_services", self.config.sync_services):
             self._load_services()
     
     def _load_projects(self):
         """Load OpenShift projects/namespaces."""
-        projects = self.client.get_projects(self.config.namespace_filter)
+        namespace_filter = self.client_config.get("namespace_filter", self.config.namespace_filter)
+        projects = self.client.get_projects(namespace_filter)
         
         for project_data in projects:
             project = self.project(**project_data)

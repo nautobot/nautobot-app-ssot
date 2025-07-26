@@ -1,13 +1,15 @@
 """API views for OpenShift integration."""
 from nautobot.apps.api import NautobotModelViewSet
-from nautobot_ssot.integrations.openshift.api.serializers import SSOTOpenshiftConfigSerializer
+
 from nautobot_ssot.integrations.openshift.filters import SSOTOpenshiftConfigFilterSet
 from nautobot_ssot.integrations.openshift.models import SSOTOpenshiftConfig
 
+from .serializers import SSOTOpenshiftConfigSerializer
+
 
 class SSOTOpenshiftConfigViewSet(NautobotModelViewSet):
-    """ViewSet for SSOTOpenshiftConfig model."""
+    """API CRUD operations set for the SSOTOpenshiftConfig view."""
     
     queryset = SSOTOpenshiftConfig.objects.all()
-    serializer_class = SSOTOpenshiftConfigSerializer
     filterset_class = SSOTOpenshiftConfigFilterSet
+    serializer_class = SSOTOpenshiftConfigSerializer
