@@ -321,12 +321,12 @@ graph TD
     ON -->|Maps to| ND
     OVM -->|Maps to| NVM
     OVMI -.->|Updates| NVM
-    OPD -->|Maps to| NA
+    ODP -->|Maps to| NA
     OC -->|Part of| NA
     OS -->|Maps to| NS
     OR -->|Creates| NIP
     
-    OPD -.->|Manages| OPD
+    ODP -.->|Manages| OPD
     OPD -.->|Contains| OC
     OVM -.->|Creates| OVMI
     OVMI -.->|Runs on| ON
@@ -604,6 +604,408 @@ flowchart LR
         X --> Y
     end
 ```
+
+## Documentation and User Experience
+
+### Documentation Structure
+
+Based on the actual documentation created, the following structure has proven effective:
+
+```
+docs/
+├── admin/
+│   └── integrations/
+│       └── openshift_setup.md      # Admin setup guide
+└── user/
+    └── integrations/
+        └── openshift.md            # User guide
+
+nautobot_ssot/
+├── integrations/
+│   └── openshift/
+│       ├── openshift.md            # Implementation guide
+│       └── README.md               # Integration overview
+├── static/
+│   └── nautobot_ssot_openshift/
+│       └── README.md               # Static assets guide
+└── templates/
+    └── nautobot_ssot_openshift/
+        ├── nautobot_ssot_openshift_config.html
+        ├── ssotopenshiftconfig_list.html
+        ├── ssotopenshiftconfig_retrieve.html
+        └── ssotopenshiftconfig_update.html
+```
+
+### Key Documentation Insights
+
+1. **Visual Documentation**: Mermaid diagrams significantly improve understanding:
+   - Architecture overviews help visualize system components
+   - Flow diagrams clarify decision logic
+   - Sequence diagrams show interaction patterns
+
+2. **User vs Admin Documentation**: Clear separation is essential:
+   - Admin docs focus on setup, configuration, and troubleshooting
+   - User docs focus on features, usage, and best practices
+
+3. **Template Patterns**: Following existing patterns (like vSphere) ensures consistency:
+   - Configuration views show grouped settings
+   - Forms use panel organization for clarity
+   - Hidden sensitive data (API tokens) in display views
+
+### UI/UX Considerations
+
+From creating the templates, several UI patterns emerged:
+
+1. **Configuration Organization**:
+   - Group related settings in panels
+   - Separate authentication from functional settings
+   - Use descriptive help text for complex options
+
+2. **Field Display**:
+   ```django
+   <!-- Boolean fields -->
+   {{ object.verify_ssl|render_boolean }}
+   
+   <!-- Optional fields -->
+   {{ object.namespace_filter|placeholder }}
+   
+   <!-- Choice fields -->
+   {{ object.get_workload_types_display }}
+   
+   <!-- Sensitive data -->
+   <code>••••••••</code> (hidden)
+   ```
+
+3. **Navigation Consistency**:
+   - Breadcrumbs maintain navigation context
+   - "SSOT Configs" button provides quick return path
+   - Standard CRUD operations follow Nautobot patterns
+
+### Implementation Checklist
+
+Based on the documentation and template creation process:
+
+- [ ] **Core Python Implementation**
+  - [ ] models.py - Django models for configuration
+  - [ ] forms.py - Django forms with validation
+  - [ ] views.py - Django views for CRUD operations
+  - [ ] tables.py - Django tables for list views
+  - [ ] filters.py - Filtering for configuration instances
+  - [ ] urls.py - URL routing
+  - [ ] signals.py - Django signals for initialization
+  - [ ] jobs.py - SSoT job implementation
+  - [ ] choices.py - Choice definitions
+  - [ ] constants.py - Integration constants
+
+- [ ] **DiffSync Implementation**
+  - [ ] Base models and mixins
+  - [ ] Container-specific models
+  - [ ] KubeVirt VM models
+  - [ ] OpenShift adapter
+  - [ ] Nautobot adapter
+
+- [ ] **Utilities**
+  - [ ] OpenShift client with KubeVirt support
+  - [ ] KubeVirt detection utilities
+  - [ ] Resource transformation helpers
+
+- [ ] **API Implementation**
+  - [ ] Serializers for REST API
+  - [ ] ViewSets for API endpoints
+  - [ ] URL configuration
+
+- [ ] **Testing**
+  - [ ] Unit tests for models
+  - [ ] Integration tests for sync job
+  - [ ] Mock fixtures for API responses
+  - [ ] VM detection test cases
+
+- [ ] **Static Assets**
+  - [ ] OpenShift logo (48x48 PNG)
+  - [ ] Any additional icons or images
+
+- [ ] **Integration Points**
+  - [ ] Update nautobot_ssot/__init__.py for enable flag
+  - [ ] Add to pyproject.toml dependencies
+  - [ ] Update migration files if needed
+
+### Lessons Learned
+
+1. **Start with Documentation**: Creating docs first clarifies requirements
+2. **Visual Aids Matter**: Diagrams make complex concepts accessible
+3. **Follow Patterns**: Consistency with existing integrations reduces learning curve
+4. **Think About UX Early**: Template design influences model field choices
+5. **Plan for Extensibility**: KubeVirt support shows importance of flexible design
+
+## Testing Strategy
+
+### Test Coverage Overview
+
+```mermaid
+graph TD
+    subgraph "Unit Tests"
+        UT1[Model Tests<br/>- Configuration validation<br/>- Field constraints<br/>- String representations]
+        UT2[Client Tests<br/>- API connection<br/>- KubeVirt detection<br/>- Resource parsing]
+        UT3[Utility Tests<br/>- Memory parsing<br/>- CPU parsing<br/>- VM detection logic]
+    end
+    
+    subgraph "Integration Tests"
+        IT1[Adapter Tests<br/>- Data loading<br/>- Model creation<br/>- Error handling]
+        IT2[Job Tests<br/>- Full sync flow<br/>- Partial sync<br/>- Failure recovery]
+        IT3[API Tests<br/>- Serialization<br/>- Endpoints<br/>- Permissions]
+    end
+    
+    subgraph "Mock Tests"
+        MT1[OpenShift Mocks<br/>- API responses<br/>- Resource fixtures<br/>- Error conditions]
+        MT2[KubeVirt Mocks<br/>- VM resources<br/>- VMI resources<br/>- Mixed workloads]
+    end
+    
+    UT1 --> Coverage[Test Coverage Report]
+    UT2 --> Coverage
+    UT3 --> Coverage
+    IT1 --> Coverage
+    IT2 --> Coverage
+    IT3 --> Coverage
+    MT1 --> Coverage
+    MT2 --> Coverage
+```
+
+### Testing Workflow
+
+```mermaid
+sequenceDiagram
+    participant D as Developer
+    participant T as Test Suite
+    participant M as Mock Server
+    participant V as Validator
+    
+    D->>T: Run Tests
+    T->>M: Request Mock Data
+    M-->>T: Return Fixtures
+    
+    par Unit Tests
+        T->>T: Test Models
+        T->>T: Test Utilities
+        T->>T: Test Client
+    and Integration Tests
+        T->>M: Mock API Calls
+        M-->>T: Mock Responses
+        T->>T: Test Sync Flow
+    and VM Detection Tests
+        T->>T: Test Pod Analysis
+        T->>T: Test Label Detection
+        T->>T: Test Container Detection
+    end
+    
+    T->>V: Validate Results
+    V-->>T: Validation Status
+    T-->>D: Test Results
+```
+
+### Test Implementation Examples
+
+#### tests/openshift/test_vm_detection.py
+```python
+"""Tests for KubeVirt VM detection logic."""
+import pytest
+from unittest.mock import Mock, MagicMock
+from kubernetes.client.models import V1Pod, V1PodSpec, V1Container, V1ObjectMeta
+
+from nautobot_ssot.integrations.openshift.utilities.openshift_client import OpenshiftClient
+
+
+class TestVMDetection:
+    """Test cases for VM detection logic."""
+    
+    def test_detect_vm_by_label(self):
+        """Test VM detection via KubeVirt labels."""
+        client = OpenshiftClient("https://test", "token", False)
+        
+        # Create mock pod with KubeVirt label
+        pod = Mock(spec=V1Pod)
+        pod.metadata = Mock(spec=V1ObjectMeta)
+        pod.metadata.labels = {"kubevirt.io/domain": "test-vm"}
+        pod.spec = Mock(spec=V1PodSpec)
+        pod.spec.containers = []
+        
+        assert client.is_kubevirt_vm_pod(pod) is True
+    
+    def test_detect_vm_by_virt_launcher(self):
+        """Test VM detection via virt-launcher container."""
+        client = OpenshiftClient("https://test", "token", False)
+        
+        # Create mock pod with virt-launcher container
+        pod = Mock(spec=V1Pod)
+        pod.metadata = Mock(spec=V1ObjectMeta)
+        pod.metadata.labels = {}
+        
+        container = Mock(spec=V1Container)
+        container.name = "compute"
+        container.command = ["/usr/bin/virt-launcher"]
+        
+        pod.spec = Mock(spec=V1PodSpec)
+        pod.spec.containers = [container]
+        
+        assert client.is_kubevirt_vm_pod(pod) is True
+    
+    def test_regular_pod_not_vm(self):
+        """Test that regular pods are not detected as VMs."""
+        client = OpenshiftClient("https://test", "token", False)
+        
+        # Create mock regular pod
+        pod = Mock(spec=V1Pod)
+        pod.metadata = Mock(spec=V1ObjectMeta)
+        pod.metadata.labels = {"app": "nginx"}
+        
+        container = Mock(spec=V1Container)
+        container.name = "nginx"
+        container.command = ["nginx"]
+        
+        pod.spec = Mock(spec=V1PodSpec)
+        pod.spec.containers = [container]
+        
+        assert client.is_kubevirt_vm_pod(pod) is False
+```
+
+#### tests/openshift/fixtures/
+Directory structure for test fixtures:
+```
+fixtures/
+├── __init__.py
+├── openshift_responses.py      # Mock API responses
+├── kubevirt_resources.json     # KubeVirt resource fixtures
+├── mixed_workloads.json        # Mixed container and VM fixtures
+└── error_responses.py          # Error condition fixtures
+```
+
+### Development Workflow Integration
+
+```mermaid
+flowchart LR
+    subgraph "Development Cycle"
+        A[Write Code] --> B[Write Tests]
+        B --> C[Run Tests]
+        C --> D{Tests Pass?}
+        D -->|No| E[Fix Code]
+        E --> C
+        D -->|Yes| F[Commit]
+    end
+    
+    subgraph "CI/CD Pipeline"
+        F --> G[GitHub Actions]
+        G --> H[Run Full Test Suite]
+        H --> I{All Pass?}
+        I -->|No| J[Block Merge]
+        I -->|Yes| K[Allow Merge]
+    end
+    
+    subgraph "Test Types Run"
+        H --> L[Linting]
+        H --> M[Unit Tests]
+        H --> N[Integration Tests]
+        H --> O[Coverage Check]
+    end
+```
+
+## Implementation Best Practices
+
+Based on creating the documentation and understanding the integration requirements:
+
+### 1. **Configuration Management**
+- Use Django model validation for configuration constraints
+- Provide sensible defaults where possible
+- Hide sensitive data (API tokens) in UI displays
+- Group related configuration options logically
+
+### 2. **Error Handling**
+- Gracefully handle KubeVirt unavailability
+- Provide clear error messages for common issues
+- Log detailed information for debugging
+- Don't fail entire sync for partial errors
+
+### 3. **Performance Optimization**
+- Use batch operations where possible
+- Implement pagination for large resource lists
+- Cache KubeVirt availability check
+- Consider rate limiting for API calls
+
+### 4. **User Experience**
+- Provide progress updates during long syncs
+- Show meaningful status messages
+- Use consistent terminology with OpenShift
+- Include helpful documentation links
+
+### 5. **Extensibility**
+- Design for future resource types
+- Make workload detection pluggable
+- Allow custom field mappings
+- Support webhook notifications
+
+## Deployment Considerations
+
+### Environment Setup
+
+```mermaid
+graph TD
+    subgraph "Development Environment"
+        D1[Local OpenShift<br/>- CodeReady Containers<br/>- MiniShift]
+        D2[Mock KubeVirt<br/>- Test VMs<br/>- Mixed workloads]
+        D3[Development Nautobot<br/>- Debug enabled<br/>- Test database]
+    end
+    
+    subgraph "Testing Environment"
+        T1[Test OpenShift Cluster<br/>- Real API<br/>- Limited resources]
+        T2[KubeVirt Enabled<br/>- Sample VMs<br/>- Various states]
+        T3[Staging Nautobot<br/>- Production-like<br/>- Full dataset]
+    end
+    
+    subgraph "Production Environment"
+        P1[Production OpenShift<br/>- Full cluster<br/>- Live workloads]
+        P2[KubeVirt Production<br/>- Critical VMs<br/>- HA enabled]
+        P3[Production Nautobot<br/>- High availability<br/>- Monitoring enabled]
+    end
+    
+    D1 --> T1 --> P1
+    D2 --> T2 --> P2
+    D3 --> T3 --> P3
+```
+
+### Security Considerations
+
+1. **API Token Management**
+   - Use service accounts with minimal required permissions
+   - Rotate tokens regularly
+   - Store tokens securely (encrypted in database)
+   - Audit token usage
+
+2. **Network Security**
+   - Use TLS for all API communications
+   - Implement network policies if needed
+   - Consider using a proxy for API access
+   - Monitor for suspicious activity
+
+3. **RBAC Requirements**
+   ```yaml
+   # Minimal ClusterRole for OpenShift SSoT
+   apiVersion: rbac.authorization.k8s.io/v1
+   kind: ClusterRole
+   metadata:
+     name: nautobot-ssot-reader
+   rules:
+   - apiGroups: [""]
+     resources: ["namespaces", "nodes", "pods", "services"]
+     verbs: ["get", "list", "watch"]
+   - apiGroups: ["apps"]
+     resources: ["deployments"]
+     verbs: ["get", "list", "watch"]
+   - apiGroups: ["kubevirt.io"]
+     resources: ["virtualmachines", "virtualmachineinstances"]
+     verbs: ["get", "list", "watch"]
+   ```
+
+## Conclusion
+
+This implementation guide provides a comprehensive blueprint for creating the Red Hat OpenShift integration for Nautobot SSoT. The addition of KubeVirt support demonstrates the flexibility of the design and the importance of planning for extensibility. The visual documentation through Mermaid diagrams has proven invaluable for understanding complex workflows and will serve as excellent reference material for both implementers and users of the integration.
 
 ## Key Components to Implement
 
@@ -920,6 +1322,25 @@ class OpenshiftDeployment(OpenshiftBaseMixin, DiffSyncModel):
     replicas: int = 1
     available_replicas: int = 0
     strategy: str = "RollingUpdate"
+    selector: Dict[str, str] = {}
+
+
+class OpenshiftService(OpenshiftBaseMixin, DiffSyncModel):
+    """DiffSync model for OpenShift services."""
+    
+    _modelname = "openshift_service"
+    _identifiers = ("namespace", "name")
+    _attributes = (
+        "type", "cluster_ip", "external_ips", "ports",
+        "selector", "labels", "annotations"
+    )
+    
+    # Service specific fields
+    namespace: str
+    type: str = "ClusterIP"  # ClusterIP, NodePort, LoadBalancer
+    cluster_ip: Optional[str] = ""
+    external_ips: List[str] = []
+    ports: List[Dict[str, Any]] = []
     selector: Dict[str, str] = {}
 ```
 
