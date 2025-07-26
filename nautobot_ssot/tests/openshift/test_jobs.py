@@ -1,5 +1,6 @@
 """Test OpenShift Jobs."""
 
+import os
 from copy import deepcopy
 from unittest.mock import Mock, patch
 
@@ -14,6 +15,13 @@ CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
 BACKUP_CONFIG = deepcopy(CONFIG)
 
 
+@patch.dict(
+    os.environ,
+    {
+        "TEST_OPENSHIFT_USERNAME": "openshift",
+        "TEST_OPENSHIFT_TOKEN": "sha256~test-token-12345",
+    },
+)
 class OpenshiftJobTest(TestCase):
     """Test the OpenShift job."""
 

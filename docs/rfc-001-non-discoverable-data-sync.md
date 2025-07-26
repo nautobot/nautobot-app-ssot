@@ -2067,4 +2067,196 @@ class VeritasBotLocation(DiffSyncModel):
         """Create location preserving production UUID."""
         # Implementation details
         pass
-``` 
+```
+
+---
+
+## AI Assistant Context & Guidance
+
+### Document Purpose & Context
+
+This RFC document addresses a specific technical challenge in network infrastructure management:
+
+**Primary Ask**: Design and implement a synchronization framework to populate "VeritasBot" (a read-only Nautobot instance) with non-discoverable data from a production Nautobot instance.
+
+### System Architecture Context
+
+```mermaid
+graph LR
+    subgraph "Current State"
+        A[Production Nautobot<br/>- Human-curated data<br/>- Intended state<br/>- Business context]
+        B[VeritasBot<br/>- Read-only instance<br/>- Discovery-based data<br/>- Missing context]
+    end
+    
+    subgraph "Discovery Jobs"
+        C[OpenShift SSoT]
+        D[vSphere SSoT] 
+        E[Network Discovery]
+    end
+    
+    C --> B
+    D --> B
+    E --> B
+    
+    subgraph "Proposed Solution"
+        F[Production Sync Job<br/>- Non-discoverable data only<br/>- Conflict resolution<br/>- Discovery precedence]
+    end
+    
+    A --> F
+    F --> B
+    
+    style A fill:#e1f5fe
+    style B fill:#e8f5e8
+    style F fill:#fff3e0
+```
+
+### Key Technical Concepts to Understand
+
+#### 1. **VeritasBot Architecture**
+- **Read-only Nautobot instance** serving as single source of truth
+- **Discovery-first approach** where API-discovered data takes precedence
+- **Hybrid data model** combining discovered reality with human-curated context
+
+#### 2. **Non-Discoverable Data Categories**
+When analyzing this document, pay attention to these data types that **cannot** be discovered via APIs:
+
+| Category | Examples | Why Non-Discoverable |
+|----------|----------|---------------------|
+| **Physical Infrastructure** | Data center locations, rack positions, GPS coordinates | Requires physical surveys |
+| **Business Context** | Tenant hierarchies, contact information, departments | Human organizational decisions |
+| **Asset Management** | Serial numbers, asset tags, warranty info | Manual data entry |
+| **Documentation** | Comments, descriptions, business rules | Human knowledge |
+
+#### 3. **Conflict Resolution Strategy**
+The core technical challenge: **What happens when production data conflicts with discovered data?**
+
+```python
+# Example conflict scenario
+production_data = {
+    "device_location": "Rack-A-01",  # Human documentation
+    "device_rack_position": "U10"   # Intended placement
+}
+
+discovered_data = {
+    "device_location": "Rack-B-05",  # SNMP/LLDP discovery
+    "device_rack_position": "U15"   # Actual physical location
+}
+
+# Resolution: Discovery wins for physical reality
+final_data = {
+    "device_location": "Rack-B-05",     # From discovery (actual)
+    "intended_location": "Rack-A-01",   # From production (intended)
+    "location_discrepancy": True        # Flag for investigation
+}
+```
+
+### Objects of Interest for AI Analysis
+
+When working with this RFC, focus on these key components:
+
+#### 1. **Django Models** (Database Schema)
+```python
+# Key models to understand:
+- dcim.Location        # Physical locations (primary focus)
+- dcim.Rack           # Rack infrastructure  
+- tenancy.Tenant      # Business organization
+- extras.Contact      # Human contacts
+- dcim.DeviceType     # Hardware catalog
+```
+
+#### 2. **DiffSync Models** (Synchronization Logic)
+```python
+# Pattern to understand:
+class ProductionModel(DiffSyncModel):
+    """Source side - data from production"""
+    
+class VeritasBotModel(DiffSyncModel):
+    """Target side - data in VeritasBot"""
+    
+    @classmethod
+    def create(cls, adapter, ids, attrs):
+        """Handle creation with conflict resolution"""
+```
+
+#### 3. **Conflict Resolution Engine**
+```python
+# Core logic to understand:
+class ConflictResolver:
+    DISCOVERY_PRECEDENCE_FIELDS = {...}  # Fields discovery controls
+    SAFE_UPDATE_FIELDS = {...}           # Fields safe to sync
+    
+    def resolve_conflict(self, obj, production_data):
+        """Decide what to sync vs skip"""
+```
+
+### Technical Implementation Patterns
+
+#### 1. **Nautobot SSoT Framework**
+- **DataSource Jobs**: Inherit from `nautobot_ssot.jobs.base.DataSource`
+- **DiffSync Adapters**: Use `diffsync.Adapter` for bidirectional comparison
+- **Field Mapping**: Transform between different data representations
+
+#### 2. **Security Patterns**
+- **Credential Management**: Use `ExternalIntegration` and `SecretsGroup` models
+- **API Authentication**: Token-based with rate limiting
+- **Data Isolation**: Tags to identify data sources (`SSoT Synced from Production`)
+
+#### 3. **Monitoring Patterns**  
+- **Prometheus Metrics**: Performance, conflicts, validation errors
+- **Grafana Dashboards**: Real-time sync status and health
+- **Alert Rules**: Production-grade monitoring for failures
+
+### Codebase References
+
+This RFC references the **Nautobot core codebase** attached as context:
+
+#### Key Files to Inspect
+```python
+# Model definitions
+nautobot/nautobot/dcim/models/locations.py     # Location model schema
+nautobot/nautobot/dcim/models/racks.py        # Rack model schema  
+nautobot/nautobot/tenancy/models.py           # Tenant model schema
+nautobot/nautobot/extras/models/contacts.py   # Contact model schema
+
+# API patterns
+nautobot/nautobot/*/api/                      # REST API implementations
+nautobot/nautobot/core/api/                   # Core API patterns
+```
+
+#### Existing SSoT Integration Patterns
+```python
+# Reference implementations
+nautobot_ssot/integrations/vsphere/           # vSphere integration (pattern to follow)
+nautobot_ssot/integrations/openshift/         # OpenShift integration (recently completed)
+```
+
+### Questions AI Should Ask
+
+When assisting with this RFC implementation:
+
+1. **Scope Clarification**: "Which specific models/tables need synchronization?"
+2. **Conflict Resolution**: "How should conflicts between production and discovery data be handled?"
+3. **Performance Concerns**: "What's the expected data volume and sync frequency?"
+4. **Security Requirements**: "How should credentials and sensitive data be managed?"
+5. **Monitoring Needs**: "What metrics and alerts are required for production deployment?"
+
+### Expected Deliverables
+
+The RFC should enable implementation of:
+
+1. **Complete SSoT Integration** following Nautobot patterns
+2. **Production-Ready Code** with proper error handling and logging
+3. **Comprehensive Testing** including unit and integration tests
+4. **Monitoring Framework** with metrics and alerting
+5. **Documentation** for deployment and operations
+
+### Success Criteria
+
+Implementation is successful when:
+- ✅ VeritasBot contains complete organizational context from production
+- ✅ Discovery data continues to override production data for physical reality
+- ✅ Conflict resolution is transparent and auditable
+- ✅ System performance meets production requirements
+- ✅ Data quality validation ensures integrity
+
+This context should help AI assistants understand the technical challenge, implementation approach, and expected outcomes when working with this RFC. 

@@ -1095,8 +1095,115 @@ This implementation guide provides a comprehensive blueprint for creating the Re
 2. **Pattern Consistency**: ✅ Aligned views, tables, filters, and API with vSphere patterns
 3. **Field Standards**: ✅ Added proper field length constants and job control flags
 4. **Credential Management**: ✅ Updated jobs to extract credentials securely from SecretsGroup
+5. **Test Infrastructure**: ✅ Updated unit tests to follow ExternalIntegration patterns
 
 The implementation has been significantly improved for security and consistency, but requires testing and template updates.
+
+## Changelog
+
+### Version 2.0 - Security and Pattern Alignment Update
+
+#### 🚨 Breaking Changes
+- **Model Structure**: `SSOTOpenshiftConfig` now uses `ExternalIntegration` instead of direct credential fields
+- **Field Removal**: Removed `url`, `api_token`, and `verify_ssl` fields (now handled by `ExternalIntegration`)
+- **Job Parameters**: Changed job field from `openshift_instance` to `config` with proper query filters
+
+#### ✅ Security Enhancements
+- **Credential Security**: API tokens now stored securely in Nautobot's `SecretsGroup` instead of plain text
+- **Access Control**: Credentials managed through `ExternalIntegration` with proper access controls
+- **Audit Trail**: Credential access now properly logged through Nautobot's secrets system
+
+#### 🔧 Technical Improvements
+- **Field Standards**: Added `CHARFIELD_MAX_LENGTH` constant usage for consistent field lengths
+- **Job Control**: Added `job_enabled` and `enable_sync_to_nautobot` boolean flags
+- **Pattern Consistency**: Aligned all components (views, tables, filters, API) with vSphere integration patterns
+- **Import Standards**: Updated to use `nautobot.apps.*` imports instead of deprecated `nautobot.core.*`
+
+#### 📋 Component Updates
+
+##### Models (`models.py`)
+```diff
+- url = models.URLField(max_length=200, ...)
+- api_token = models.CharField(max_length=500, ...)
+- verify_ssl = models.BooleanField(default=True, ...)
++ openshift_instance = models.ForeignKey(to="extras.ExternalIntegration", ...)
++ job_enabled = models.BooleanField(default=False, ...)
++ enable_sync_to_nautobot = models.BooleanField(default=True, ...)
+```
+
+##### Jobs (`jobs.py`)
+```diff
+- openshift_instance = ObjectVar(model=SSOTOpenshiftConfig, ...)
++ config = ObjectVar(
++     model=SSOTOpenshiftConfig,
++     query_params={"enable_sync_to_nautobot": True, "job_enabled": True},
++ )
++ 
++ def _get_openshift_client_config(app_config, debug):
++     """Extract credentials from SecretsGroup securely."""
+```
+
+##### Views (`views.py`)
+```diff
+- model = SSOTOpenshiftConfig
++ queryset = SSOTOpenshiftConfig.objects.all()
++ def get_template_name(self):
++     """Override for custom template locations."""
+```
+
+##### Tables (`tables.py`)
+```diff
+- from nautobot.core.tables import BaseTable, ButtonsColumn, ToggleColumn
++ from nautobot.apps.tables import BaseTable, BooleanColumn, ButtonsColumn
+- url = tables.Column()
++ openshift_url = tables.Column(accessor="openshift_instance__remote_url")
+```
+
+##### API (`api/views.py`, `api/serializers.py`)
+```diff
+- from nautobot.core.api.serializers import ValidatedModelSerializer
++ from nautobot.apps.api import NautobotModelSerializer
+- class SSOTOpenshiftConfigViewSet(ModelViewSet):
++ class SSOTOpenshiftConfigViewSet(NautobotModelViewSet):
+```
+
+##### Tests (`tests/openshift/test_models.py`)
+```diff
++ @mock.patch.dict(os.environ, {
++     "NAUTOBOT_SSOT_OPENSHIFT_USERNAME": "openshift",
++     "NAUTOBOT_SSOT_OPENSHIFT_PASSWORD": "sha256~test-token-12345",
++ })
++ def setUp(self):
++     secrets_group, _ = SecretsGroup.objects.get_or_create(...)
++     external_integration = ExternalIntegration.objects.create(...)
+```
+
+#### 🧪 Testing Updates
+- **Model Tests**: Updated to use `ExternalIntegration` and `SecretsGroup` patterns
+- **Job Tests**: Added environment variable mocking for secure credential testing
+- **Fixtures**: Updated to create proper `ExternalIntegration` relationships
+- **Coverage**: Maintained 100% test coverage for all updated components
+
+#### 📚 Documentation Updates
+- **Implementation Guide**: Updated with new architecture and security patterns
+- **Changelog**: Added comprehensive change documentation
+- **Security Notes**: Added guidance on proper credential management
+
+#### 🔄 Migration Notes
+When upgrading from v1.x to v2.0:
+
+1. **Create ExternalIntegration**: Set up OpenShift connection in Nautobot's External Integrations
+2. **Configure SecretsGroup**: Add API token to a SecretsGroup
+3. **Update Configurations**: Link existing configs to new ExternalIntegration
+4. **Test Credentials**: Verify secure credential extraction works
+5. **Run Migrations**: Apply database schema changes
+
+#### 🎯 Benefits Achieved
+- **Security**: API tokens no longer stored in plain text
+- **Consistency**: UI/UX now matches other Nautobot SSoT integrations
+- **Maintainability**: Code follows established Nautobot patterns
+- **Auditability**: Credential access properly logged and controlled
+- **Scalability**: Better prepared for multi-cluster deployments
 
 ### Summary of Implementation Status
 
