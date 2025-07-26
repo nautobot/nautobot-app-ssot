@@ -720,6 +720,12 @@ Based on the documentation and template creation process:
   - [ ] Mock fixtures for API responses
   - [ ] VM detection test cases
 
+- [x] **Templates**
+  - [x] List view template (ssotopenshiftconfig_list.html)
+  - [x] Detail view template (ssotopenshiftconfig_retrieve.html)  
+  - [x] Create/Edit template (ssotopenshiftconfig_update.html)
+  - [x] Added to main SSOT configs page
+
 - [ ] **Static Assets**
   - [ ] OpenShift logo (48x48 PNG)
   - [ ] Any additional icons or images

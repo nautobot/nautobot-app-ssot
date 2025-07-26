@@ -1,8 +1,9 @@
 """API URLs for OpenShift integration."""
-from nautobot.core.api.routers import OrderedDefaultRouter
+from rest_framework import routers
 from nautobot_ssot.integrations.openshift.api.views import SSOTOpenshiftConfigViewSet
 
-router = OrderedDefaultRouter()
-router.register("config", SSOTOpenshiftConfigViewSet)
+router = routers.DefaultRouter()
+router.register("config/openshift", SSOTOpenshiftConfigViewSet)
+app_name = "ssot"
 
 urlpatterns = router.urls

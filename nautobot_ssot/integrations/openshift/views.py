@@ -1,45 +1,79 @@
 """Views for OpenShift integration."""
-from django.urls import reverse
-from nautobot.core.views import generic
-from nautobot_ssot.integrations.openshift import filters, forms, models, tables
+from nautobot.apps.views import (
+    ObjectChangeLogViewMixin,
+    ObjectDestroyViewMixin,
+    ObjectDetailViewMixin,
+    ObjectEditViewMixin,
+    ObjectListViewMixin,
+    ObjectNotesViewMixin,
+)
+from nautobot.extras.views import ObjectChangeLogView, ObjectNotesView
+
+from .api.serializers import SSOTOpenshiftConfigSerializer
+from .filters import SSOTOpenshiftConfigFilterSet
+from .forms import SSOTOpenshiftConfigFilterForm, SSOTOpenshiftConfigForm
+from .models import SSOTOpenshiftConfig
+from .tables import SSOTOpenshiftConfigTable
 
 
-class SSOTOpenshiftConfigListView(generic.ObjectListView):
-    """List view for SSOTOpenshiftConfig."""
+class SSOTOpenshiftConfigUIViewSet(
+    ObjectDestroyViewMixin,
+    ObjectDetailViewMixin,
+    ObjectListViewMixin,
+    ObjectEditViewMixin,
+    ObjectChangeLogViewMixin,
+    ObjectNotesViewMixin,
+):
+    """ViewSet for SSOTOpenshiftConfig model."""
     
-    queryset = models.SSOTOpenshiftConfig.objects.all()
-    table = tables.SSOTOpenshiftConfigTable
-    filterset = filters.SSOTOpenshiftConfigFilterSet
-    filterset_form = forms.SSOTOpenshiftConfigFilterForm
-
-
-class SSOTOpenshiftConfigView(generic.ObjectView):
-    """Detail view for SSOTOpenshiftConfig."""
+    model = SSOTOpenshiftConfig
+    filterset_class = SSOTOpenshiftConfigFilterSet
+    filterset_form_class = SSOTOpenshiftConfigFilterForm
+    form_class = SSOTOpenshiftConfigForm
+    serializer_class = SSOTOpenshiftConfigSerializer
+    table_class = SSOTOpenshiftConfigTable
     
-    queryset = models.SSOTOpenshiftConfig.objects.all()
+    lookup_field = "pk"
     
-    def get_extra_context(self, request, instance):
+    def get_extra_context(self, request, instance=None):
         """Add extra context."""
-        return {
-            "sync_jobs_url": reverse("plugins:nautobot_ssot:job_list"),
-        }
+        context = super().get_extra_context(request, instance)
+        if instance:
+            context["sync_jobs_url"] = "/plugins/nautobot-ssot/jobs/"
+        return context
 
 
-class SSOTOpenshiftConfigEditView(generic.ObjectEditView):
-    """Edit view for SSOTOpenshiftConfig."""
-    
-    queryset = models.SSOTOpenshiftConfig.objects.all()
-    model_form = forms.SSOTOpenshiftConfigForm
+# For explicit URL registration
+class SSOTOpenshiftConfigListView(SSOTOpenshiftConfigUIViewSet):
+    """List view."""
+    pass
 
 
-class SSOTOpenshiftConfigDeleteView(generic.ObjectDeleteView):
-    """Delete view for SSOTOpenshiftConfig."""
-    
-    queryset = models.SSOTOpenshiftConfig.objects.all()
+class SSOTOpenshiftConfigView(SSOTOpenshiftConfigUIViewSet):
+    """Detail view."""
+    pass
 
 
-class SSOTOpenshiftConfigBulkDeleteView(generic.BulkDeleteView):
-    """Bulk delete view for SSOTOpenshiftConfig."""
-    
-    queryset = models.SSOTOpenshiftConfig.objects.all()
-    table = tables.SSOTOpenshiftConfigTable
+class SSOTOpenshiftConfigEditView(SSOTOpenshiftConfigUIViewSet):
+    """Edit view."""
+    pass
+
+
+class SSOTOpenshiftConfigDeleteView(SSOTOpenshiftConfigUIViewSet):
+    """Delete view."""
+    pass
+
+
+class SSOTOpenshiftConfigBulkDeleteView(SSOTOpenshiftConfigUIViewSet):
+    """Bulk delete view."""
+    pass
+
+
+class SSOTOpenshiftConfigChangeLogView(ObjectChangeLogView):
+    """Change log view."""
+    base_template = "nautobot_ssot/openshift/config.html"
+
+
+class SSOTOpenshiftConfigNotesView(ObjectNotesView):
+    """Notes view."""
+    base_template = "nautobot_ssot/openshift/config.html"
