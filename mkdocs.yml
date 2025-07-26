@@ -143,6 +143,7 @@ nav:
           - Itential: "admin/integrations/itential_setup.md"
           - LibreNMS: "admin/integrations/librenms_setup.md"
           - Cisco Meraki: "admin/integrations/meraki_setup.md"
+          - Red Hat OpenShift: "admin/integrations/openshift_setup.md"
           - ServiceNow: "admin/integrations/servicenow_setup.md"
           - SolarWinds: "admin/integrations/solarwinds_setup.md"
           - Slurpit: "admin/integrations/slurpit_setup.md"
