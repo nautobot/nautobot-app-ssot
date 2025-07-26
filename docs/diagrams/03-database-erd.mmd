@@ -1,0 +1,85 @@
+erDiagram
+    dcim_locationtype {
+        uuid id PK
+        varchar name "Unique name"
+        text description
+        boolean nestable
+        many_to_many content_types "Allowed objects"
+    }
+    
+    dcim_location {
+        uuid id PK
+        varchar name "Name within parent"
+        uuid location_type_id FK
+        uuid parent_id FK "Self-reference"
+        uuid status_id FK
+        uuid tenant_id FK
+        text description
+        varchar facility "Local facility ID"
+        bigint asn "Autonomous System Number"
+        varchar time_zone
+        text physical_address
+        text shipping_address
+        decimal latitude "GPS coordinate"
+        decimal longitude "GPS coordinate"
+        varchar contact_name
+        varchar contact_phone
+        varchar contact_email
+        text comments
+    }
+    
+    dcim_rack {
+        uuid id PK
+        varchar name
+        uuid location_id FK
+        uuid rack_group_id FK
+        uuid tenant_id FK
+        uuid status_id FK
+        uuid role_id FK
+        varchar facility_id "Local identifier"
+        varchar serial
+        varchar asset_tag "Unique asset tag"
+        varchar type "Rack type choice"
+        smallint width "Rail width"
+        smallint u_height "Height in rack units"
+        boolean desc_units "Top-to-bottom numbering"
+        smallint outer_width
+        smallint outer_depth
+        varchar outer_unit
+        text comments
+    }
+    
+    tenancy_tenant {
+        uuid id PK
+        varchar name "Unique name"
+        uuid tenant_group_id FK
+        text description
+        text comments
+    }
+    
+    extras_contact {
+        uuid id PK
+        varchar name
+        varchar phone
+        varchar email
+        text address
+        text comments
+    }
+    
+    dcim_devicetype {
+        uuid id PK
+        uuid manufacturer_id FK
+        uuid device_family_id FK
+        varchar model "Device model"
+        varchar part_number
+        smallint u_height "Rack units"
+        boolean is_full_depth
+        varchar subdevice_role
+        text comments
+    }
+    
+    dcim_locationtype ||--o{ dcim_location : "defines type"
+    dcim_location ||--o{ dcim_location : "parent-child"
+    dcim_location ||--o{ dcim_rack : "contains"
+    tenancy_tenant ||--o{ dcim_location : "owns"
+    tenancy_tenant ||--o{ dcim_rack : "owns"
