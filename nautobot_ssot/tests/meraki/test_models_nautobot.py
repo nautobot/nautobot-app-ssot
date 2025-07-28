@@ -112,7 +112,7 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         self.test_tenant = Tenant.objects.get_or_create(name="Test")[0]
         self.update_tenant = Tenant.objects.get_or_create(name="Update")[0]
         self.test_ns = Namespace.objects.get_or_create(name="Test")[0]
-        self.prefix = Prefix.objects.create(
+        self.prefix = Prefix(
             prefix="10.0.0.0/24", namespace=self.test_ns, status=self.status_active, tenant=self.test_tenant
         )
         self.adapter = Adapter()
@@ -127,11 +127,23 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         self.adapter.status_map = {"Active": self.status_active.id}
         self.adapter.ipaddr_map = {}
         self.adapter.prefix_map = {"10.0.0.0/24": self.prefix.id}
-        self.adapter.objects_to_create = {"ipaddrs": [], "ipaddrs-to-prefixes": []}
+        self.adapter.objects_to_create = {"ipaddrs": [], "ipaddrs-to-prefixes": [], "prefixes": []}
         self.adapter.objects_to_delete = {"ipaddrs": []}
+        self.test_ipaddr = IPAddress(
+            address="10.0.0.1/24", parent=self.prefix, status=self.status_active, tenant=self.test_tenant
+        )
+        self.test_ip = NautobotIPAddress(
+            host="10.0.0.1",
+            mask_length=24,
+            prefix="10.0.0.0/24",
+            tenant="Test",
+            uuid=self.test_ipaddr.id,
+        )
+        self.test_ip.adapter = self.adapter
 
     def test_create(self):
         """Validate the NautobotAddress create() method creates an IPAddress."""
+        self.test_ipaddr.delete()
         ids = {"host": "10.0.0.1", "tenant": "Test"}
         attrs = {"mask_length": 24, "prefix": "10.0.0.0/24"}
         result = NautobotIPAddress.create(self.adapter, ids, attrs)
@@ -145,22 +157,70 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
 
     def test_update_mask_length(self):
         """Validate the NautobotAddress update() method updates an IPAddress mask length."""
-        ipaddr = IPAddress.objects.create(
-            address="10.0.0.1/24", parent=self.prefix, status=self.status_active, tenant=self.test_tenant
-        )
-        test_ip = NautobotIPAddress(
-            host="10.0.0.1",
-            mask_length=24,
-            prefix="10.0.0.0/24",
-            tenant="Test",
-            uuid=ipaddr.id,
-        )
-        test_ip.adapter = self.adapter
+        self.prefix.validated_save()
+        self.test_ipaddr.validated_save()
         update_attrs = {"mask_length": 32}
-        actual = NautobotIPAddress.update(self=test_ip, attrs=update_attrs)
+        actual = NautobotIPAddress.update(self=self.test_ip, attrs=update_attrs)
         self.adapter.job.logger.debug.assert_called_once_with(
             ("Updating IPAddress 10.0.0.1/24 in Nautobot with {'mask_length': 32}.")
         )
-        ipaddr.refresh_from_db()
-        self.assertEqual(ipaddr.mask_length, 32)
+        self.test_ipaddr.refresh_from_db()
+        self.assertEqual(self.test_ipaddr.mask_length, 32)
         self.assertIsInstance(actual, NautobotIPAddress)
+
+    def test_update_to_existing_prefix(self):
+        """Validate the NautobotAddress update() method updates an IPAddress to an existing prefix."""
+        host_prefix = Prefix.objects.create(
+            prefix="10.0.0.1/32", namespace=self.test_ns, status=self.status_active, tenant=self.test_tenant
+        )
+        self.test_ipaddr.address = "10.0.0.1/32"
+        self.test_ipaddr.parent = host_prefix
+        self.test_ipaddr.validated_save()
+        self.prefix.validated_save()
+        update_attrs = {"mask_length": 24, "prefix": "10.0.0.0/24"}
+        actual = NautobotIPAddress.update(self=self.test_ip, attrs=update_attrs)
+        self.adapter.job.logger.debug.assert_called_once_with(
+            "Updating IPAddress 10.0.0.1/32 in Nautobot with {'mask_length': 24, 'prefix': '10.0.0.0/24'}."
+        )
+        self.test_ipaddr.refresh_from_db()
+        self.assertEqual(self.test_ipaddr.parent.prefix, self.prefix.prefix)
+        self.assertEqual(self.test_ipaddr.parent.type, "pool")
+        self.assertIsInstance(actual, NautobotIPAddress)
+
+    def test_update_to_new_prefix(self):
+        """Validate the NautobotAddress update() method updates an IPAddress to a new prefix."""
+        host_prefix = Prefix.objects.create(
+            prefix="10.0.0.1/32", namespace=self.test_ns, status=self.status_active, tenant=self.test_tenant
+        )
+        self.test_ipaddr.address = "10.0.0.1/32"
+        self.test_ipaddr.mask_length = 32
+        self.test_ipaddr.parent = host_prefix
+        self.test_ipaddr.validated_save()
+        self.prefix.delete()
+        Prefix.objects.create(
+            prefix="0.0.0.0/0", namespace=self.test_ns, status=self.status_active, tenant=self.test_tenant
+        )
+        net_pf = Prefix(
+            prefix="10.0.0.0/24", namespace=self.test_ns, status=self.status_active, tenant=self.test_tenant
+        )
+        self.adapter.prefix_map = {"10.0.0.0/24": net_pf.id}
+        self.adapter.objects_to_create["prefixes"] = [net_pf]
+        update_attrs = {"mask_length": 24, "prefix": "10.0.0.0/24"}
+        actual = NautobotIPAddress.update(self=self.test_ip, attrs=update_attrs)
+        self.assertIsInstance(actual, NautobotIPAddress)
+        self.test_ipaddr.refresh_from_db()
+        self.assertEqual(self.test_ipaddr.parent.type, "pool")
+        self.assertEqual(self.test_ipaddr.parent.prefix, net_pf.prefix)
+
+    def test_update_to_missing_prefix(self):
+        """Validate the NautobotAddress update() method handles a missing prefix."""
+        self.prefix.delete()
+        global_pf = Prefix.objects.create(
+            prefix="0.0.0.0/0", namespace=self.test_ns, status=self.status_active, tenant=self.test_tenant
+        )
+        self.test_ipaddr.parent = global_pf
+        self.test_ipaddr.validated_save()
+        update_attrs = {"mask_length": 24, "prefix": "10.0.0.0/24"}
+        actual = NautobotIPAddress.update(self=self.test_ip, attrs=update_attrs)
+        self.assertIsNone(actual)
+        self.adapter.job.logger.error.assert_called_once_with("New parent Prefix 10.0.0.0/24 not found.")
