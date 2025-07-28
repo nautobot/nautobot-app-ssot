@@ -366,8 +366,8 @@ class NautobotIPAddress(IPAddress):
                 new_parent = OrmPrefix.objects.get(id=self.adapter.prefix_map[attrs["prefix"]])
             except OrmPrefix.DoesNotExist:
                 for pfx in self.adapter.objects_to_create["prefixes"]:
-                    if pfx.prefix == attrs["prefix"]:
-                        new_parent = self.adapter.objects_to_create["prefixes"][pfx]
+                    if str(pfx.prefix) == attrs["prefix"]:
+                        new_parent = pfx
                         self.adapter.objects_to_create["prefixes"].remove(pfx)
                         break
                 else:
