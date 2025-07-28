@@ -1,0 +1,1 @@
+Fix issue with metadata_type when contrib models are used without the contrib adapter.
