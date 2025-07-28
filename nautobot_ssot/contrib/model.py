@@ -76,7 +76,7 @@ class NautobotModel(DiffSyncModel):
         try:
             obj = self.get_from_db()
             self._update_obj_with_parameters(obj, attrs, self.adapter)
-            if self.adapter.metadata_type:
+            if hasattr(self.adapter, "metadata_type") and self.adapter.metadata_type:
                 self._update_obj_metadata(obj, self.adapter)
         except ObjectCrudException as error:
             raise ObjectNotUpdated(error) from error
@@ -110,7 +110,7 @@ class NautobotModel(DiffSyncModel):
         except ObjectCrudException as error:
             raise ObjectNotCreated(error) from error
 
-        if adapter.metadata_type:
+        if hasattr(adapter, "metadata_type") and adapter.metadata_type:
             try:
                 cls._update_obj_metadata(obj, adapter)
             except ObjectCrudException as error:
