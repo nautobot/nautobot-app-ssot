@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025 Network to Code, LLC
+# Copyright (c) 2025 NVIDIA Corporation
+
 """DiffSync models for OpenShift integration."""
 from .base import OpenshiftProject, OpenshiftNode
 from .containers import OpenshiftPod, OpenshiftContainer, OpenshiftDeployment, OpenshiftService

@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025 Network to Code, LLC
+# Copyright (c) 2025 NVIDIA Corporation
+
 """OpenShift adapter for DiffSync synchronization.
 
 This module implements the OpenShift-side adapter for DiffSync, responsible for loading

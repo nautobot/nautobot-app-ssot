@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025 Network to Code, LLC
+# Copyright (c) 2025 NVIDIA Corporation
+
 """Models for Red Hat OpenShift integration.
 
 This module defines the Django models used to store configuration for the OpenShift

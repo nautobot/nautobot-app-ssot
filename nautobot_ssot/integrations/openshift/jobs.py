@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025 Network to Code, LLC
+# Copyright (c) 2025 NVIDIA Corporation
+
 """Jobs for OpenShift SSoT integration.
 
 This module defines the Nautobot SSoT job for synchronizing data from OpenShift

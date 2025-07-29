@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025 Network to Code, LLC
+# Copyright (c) 2025 NVIDIA Corporation
+
 """Nautobot DiffSync models for OpenShift integration.
 
 This module defines DiffSync models representing Nautobot objects that correspond to

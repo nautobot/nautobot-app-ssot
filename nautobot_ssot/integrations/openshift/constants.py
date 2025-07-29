@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025 Network to Code, LLC
+# Copyright (c) 2025 NVIDIA Corporation
+
 """Constants for OpenShift integration.
 
 This module defines all constants used throughout the OpenShift Single Source of Truth

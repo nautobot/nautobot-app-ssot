@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025 Network to Code, LLC
+# Copyright (c) 2025 NVIDIA Corporation
+
 """OpenShift SSoT Navigation.
 
 This module defines the navigation menu items for the OpenShift Single Source of Truth

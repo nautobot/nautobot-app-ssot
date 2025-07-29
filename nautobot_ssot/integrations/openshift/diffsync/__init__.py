@@ -1,1 +1,5 @@
-"""DiffSync adapters and models for OpenShift integration."""
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025 Network to Code, LLC
+# Copyright (c) 2025 NVIDIA Corporation
+
+"""DiffSync module for OpenShift integration."""

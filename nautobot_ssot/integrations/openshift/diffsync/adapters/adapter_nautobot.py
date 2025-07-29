@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025 Network to Code, LLC
+# Copyright (c) 2025 NVIDIA Corporation
+
 """Nautobot adapter for OpenShift integration synchronization.
 
 This module implements the Nautobot-side adapter for DiffSync, responsible for loading
