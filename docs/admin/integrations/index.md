@@ -13,6 +13,7 @@ This Nautobot app supports the following integrations:
 - [Itential](./itential_setup.md)
 - [LibreNMS](./librenms_setup.md)
 - [Cisco Meraki](./meraki_setup.md)
+- [Red Hat OpenShift](./openshift_setup.md)
 - [ServiceNow](./servicenow_setup.md)
 - [Slurpit](./slurpit_setup.md)
 - [SolarWinds](./solarwinds_setup.md)

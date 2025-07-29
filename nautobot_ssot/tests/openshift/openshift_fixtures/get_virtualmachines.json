@@ -1,0 +1,116 @@
+{
+  "items": [
+    {
+      "apiVersion": "kubevirt.io/v1",
+      "kind": "VirtualMachine",
+      "metadata": {
+        "name": "testvm",
+        "namespace": "default",
+        "uid": "a1b2c3d4-aaaa-bbbb-cccc-dddddddddddd",
+        "labels": {
+          "kubevirt.io/domain": "testvm",
+          "app": "myapp"
+        },
+        "annotations": {}
+      },
+      "spec": {
+        "running": true,
+        "template": {
+          "spec": {
+            "domain": {
+              "cpu": {
+                "cores": 2
+              },
+              "resources": {
+                "requests": {
+                  "memory": "4Gi"
+                }
+              },
+              "devices": {
+                "disks": [
+                  {
+                    "name": "rootdisk",
+                    "disk": {
+                      "bus": "virtio"
+                    }
+                  }
+                ],
+                "interfaces": [
+                  {
+                    "name": "default",
+                    "bridge": {}
+                  }
+                ]
+              },
+              "machine": {
+                "type": "q35"
+              },
+              "firmware": {}
+            }
+          }
+        }
+      },
+      "status": {
+        "printableStatus": "Running"
+      }
+    },
+    {
+      "apiVersion": "kubevirt.io/v1",
+      "kind": "VirtualMachine",
+      "metadata": {
+        "name": "winvm",
+        "namespace": "production",
+        "uid": "b2c3d4e5-bbbb-cccc-dddd-eeeeeeeeeeee",
+        "labels": {
+          "kubevirt.io/domain": "winvm",
+          "os": "windows"
+        },
+        "annotations": {}
+      },
+      "spec": {
+        "running": false,
+        "template": {
+          "spec": {
+            "domain": {
+              "cpu": {
+                "cores": 4
+              },
+              "resources": {
+                "requests": {
+                  "memory": "8Gi"
+                }
+              },
+              "devices": {
+                "disks": [
+                  {
+                    "name": "rootdisk",
+                    "disk": {
+                      "bus": "virtio"
+                    }
+                  }
+                ],
+                "interfaces": [
+                  {
+                    "name": "default",
+                    "masquerade": {}
+                  }
+                ]
+              },
+              "machine": {
+                "type": "pc-q35-rhel8.6.0"
+              },
+              "firmware": {
+                "bootloader": {
+                  "efi": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "status": {
+        "printableStatus": "Stopped"
+      }
+    }
+  ]
+} 
