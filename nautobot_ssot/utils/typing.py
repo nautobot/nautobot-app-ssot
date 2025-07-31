@@ -21,13 +21,13 @@ def get_inner_type(class_type: Type, attribute_name: str):
         Given `TypedDict` class `DeviceDict`.
 
         ```python
-        
+
         class LocationModel(NautobotModel):
             devices: List[DeviceDict] = []
-        
+
         print(get_inner_type(LocationModel, "devices"))
 
-        > DeviceDict        
+        > DeviceDict
         ```
     """
     try:

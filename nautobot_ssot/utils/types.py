@@ -1,10 +1,10 @@
 """Utility type definitions."""
 
+from typing import Optional, TypedDict
 from uuid import UUID
 
 from django.contrib.contenttypes.models import ContentType
 from nautobot.extras.models import Relationship
-from typing import Optional, TypedDict
 
 
 class RelationshipAssociationParameters(TypedDict):

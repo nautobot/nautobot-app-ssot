@@ -4,7 +4,6 @@
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
 import re
-import warnings
 from typing import Dict, Type
 
 import pydantic
@@ -24,7 +23,6 @@ from nautobot_ssot.contrib.types import (
 )
 from nautobot_ssot.utils.cache import ORMCache
 from nautobot_ssot.utils.orm import (
-    get_custom_relationship_association_parameters,
     get_custom_relationship_associations,
     load_typed_dict,
     orm_attribute_lookup,
