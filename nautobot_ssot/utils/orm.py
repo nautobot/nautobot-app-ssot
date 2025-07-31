@@ -106,11 +106,6 @@ def get_custom_relationship_association_parameters(
     Returns:
         dict: Dictionary of parameters relative to Nautobot object.
     """
-    if not isinstance(relationship, Relationship):
-        raise TypeError("`relationship` parameter must be type `nautobot.extras.models.relationships.Relationship`")
-    if not isinstance(db_obj_id, UUID):
-        raise TypeError("`db_obj_id` must be a valid UUID.")
-
     # Base Parameters, required for all instances
     parameters = RelationshipAssociationParameters(
         relationship=relationship,
