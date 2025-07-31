@@ -15,6 +15,7 @@ def get_inner_type(class_type: Type, attribute_name: str):
 
     Raises:
         TypeError: Raised when type hints for attribute do not contain defined inner type.
+        AttributeError: Raised when class type does not have specified attribute.
 
     Example:
         Given `TypedDict` class `DeviceDict`.
