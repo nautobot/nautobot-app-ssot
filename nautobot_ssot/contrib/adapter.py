@@ -316,7 +316,10 @@ class NautobotAdapter(DiffSync):
         if association_count == 0:
             return None
         if association_count > 1:
-            raise ValueError("Foreign key custom relationship matched two associations - this shouldn't happen.")
+            self.job.logger.warning(
+                f"Foreign key ({database_object.__name__}.{parameter_name}) "
+                "custom relationship matched two associations - this shouldn't happen."
+            )
 
         return orm_attribute_lookup(
             getattr(
