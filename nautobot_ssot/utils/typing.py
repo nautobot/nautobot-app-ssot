@@ -15,6 +15,19 @@ def get_inner_type(class_type: Type, attribute_name: str):
 
     Raises:
         TypeError: Raised when type hints for attribute do not contain defined inner type.
+
+    Example:
+        Given `TypedDict` class `DeviceDict`.
+
+        ```python
+        
+        class LocationModel(NautobotModel):
+            devices: List[DeviceDict] = []
+        
+        print(get_inner_type(LocationModel, "devices"))
+
+        > DeviceDict        
+        ```
     """
     try:
         return get_args(get_type_hints(class_type)[attribute_name])[0]
