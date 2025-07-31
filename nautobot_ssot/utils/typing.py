@@ -1,6 +1,6 @@
 """Utility functions related to `typing` and `typing_extensions` libraries."""
 
-from typing_extensions import Type, get_args, get_type_hints
+from typing import Type, get_args, get_type_hints
 
 
 def get_inner_type(class_type: Type, attribute_name: str):
