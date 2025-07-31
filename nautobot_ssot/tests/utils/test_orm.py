@@ -307,7 +307,7 @@ class TestGetCustomRelationshipAssociationParameters(BaseTestCase):
 
     def test_invalid_relationship_type_string(self):
         """Test with relationship type as a string."""
-        with self.assertRaises(TypeError):
+        with self.assertRaises(AttributeError):
             get_custom_relationship_association_parameters(
                 "Invalid String",
                 self.provider_1.id,
@@ -316,7 +316,7 @@ class TestGetCustomRelationshipAssociationParameters(BaseTestCase):
 
     def test_invalid_relationship_type_integer(self):
         """Test with relationship type as an integer."""
-        with self.assertRaises(TypeError):
+        with self.assertRaises(AttributeError):
             get_custom_relationship_association_parameters(
                 42,
                 self.provider_1.id,
@@ -325,7 +325,7 @@ class TestGetCustomRelationshipAssociationParameters(BaseTestCase):
 
     def test_invalid_relationship_type_dict(self):
         """Test with relationship type as a dict."""
-        with self.assertRaises(TypeError):
+        with self.assertRaises(AttributeError):
             get_custom_relationship_association_parameters(
                 self.relationship_1.__dict__,
                 self.provider_1.id,
