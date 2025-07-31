@@ -218,30 +218,6 @@ class NautobotAdapter(DiffSync):
 
         return related_objects_list
 
-    @classmethod
-    def _handle_typed_dict(cls, inner_type, related_object):
-        """Handle a typed dict for many to many relationships.
-
-        TODO: Deprecated and to be removed in future version. Use `nautobot_ssot.utils.orm.load_typed_dict` instead.
-        """
-        warnings.warn(
-            "`_handle_typed_dict` is deprecated and will be removed in a future version. "
-            "Use `nautobot_ssot.utils.orm.load_typed_dict` instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return load_typed_dict(inner_type, related_object)
-
-    def _construct_relationship_association_parameters(self, annotation: RelationshipSideEnum, database_object: Model):
-        # NOTE: Deprecated: use `nautobot_ssot.utils.orm.get_custom_relationship_association_parameters`
-        #       Kept for backwards compatibility.
-        #       To be removed in a future version.
-        return get_custom_relationship_association_parameters(
-            relationship=self.cache.get_from_orm(Relationship, {"label": annotation.name}),
-            db_obj_id=database_object.id,
-            relationship_side=annotation.side,
-        )
-
     def _handle_to_many_relationship(self, database_object, diffsync_model, parameter_name):
         """Handle a single one- or many-to-many relationship field.
 
@@ -329,17 +305,6 @@ class NautobotAdapter(DiffSync):
             # Discard the first part of the paramater name as it references the initial related object
             re.sub("^(.*?)__", "", parameter_name),
         )
-
-    @staticmethod
-    def _handle_foreign_key(database_object, parameter_name):
-        """Handle a single foreign key field."""
-        warnings.warn(
-            "`_handle_foreign_key` is deprecated and will be removed in a future version. "
-            "Use `nautobot_ssot.utils.orm.orm_attribute_lookup` instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return orm_attribute_lookup(database_object, parameter_name)
 
     def get_or_create_metadatatype(self):
         """Retrieve or create a MetadataType object to track the last sync time of this SSoT job."""
