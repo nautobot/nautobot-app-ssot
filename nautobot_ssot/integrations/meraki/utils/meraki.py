@@ -32,6 +32,7 @@ class DashboardClient:
                 output_log=False,
                 print_console=False,
                 wait_on_rate_limit=True,
+                maximum_retries=100,
             )
             return dashboard
         except meraki.APIError as err:
