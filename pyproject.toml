@@ -27,7 +27,7 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.9.2,<3.13"
+python = ">=3.10,<3.13"
 # Used for local development
 nautobot = {git = "https://github.com/nautobot/nautobot.git", rev = "next"}
 # nautobot = "^3.0.0"  # TODO: Uncomment after v3.0.0 is released
