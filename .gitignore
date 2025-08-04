@@ -308,3 +308,5 @@ public
 /compose.yaml
 /dump.sql
 /nautobot_ssot/static/nautobot_ssot/docs
+# Avoid accidental commit of analytics template override generated via ./docs/insert-analytics.sh
+docs/assets/overrides/main.html

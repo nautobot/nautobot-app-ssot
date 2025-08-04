@@ -335,7 +335,13 @@ class InfobloxAdapter(Adapter):
             ip_record (object): Parent IP Address record
             namespace (str): Namespace of this record
         """
-        a_record = self.conn.get_a_record_by_ref(ref)
+        try:
+            a_record = self.conn.get_a_record_by_ref(ref)
+        except requests.exceptions.HTTPError as exc:
+            if exc.response.status_code == 404:
+                self.job.logger.warning(message=f"A record {ref} not found, likely dynamic and expired.")
+                return
+            raise
         record_ext_attrs = get_ext_attr_dict(extattrs=a_record.get("extattrs", {}), excluded_attrs=self.excluded_attrs)
 
         new_a_record = self.dnsarecord(
@@ -361,7 +367,13 @@ class InfobloxAdapter(Adapter):
             ip_record (object): Parent IP Address record
             namespace (str): Namespace of this record
         """
-        ptr_record = self.conn.get_ptr_record_by_ref(ref)
+        try:
+            ptr_record = self.conn.get_ptr_record_by_ref(ref)
+        except requests.exceptions.HTTPError as exc:
+            if exc.response.status_code == 404:
+                self.job.logger.warning(message=f"PTR record {ref} not found, likely dynamic and expired.")
+                return
+            raise
         record_ext_attrs = get_ext_attr_dict(
             extattrs=ptr_record.get("extattrs", {}), excluded_attrs=self.excluded_attrs
         )
