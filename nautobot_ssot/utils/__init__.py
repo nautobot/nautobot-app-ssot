@@ -134,6 +134,35 @@ def parse_hostname_for_role(hostname_map: List[Tuple[str, str]], device_hostname
     return device_role
 
 
+def dlm_supports_softwarelcm() -> bool:
+    """Validate if the DLM version installed is 2.0.0 or lower.
+
+    Returns:
+        bool: True if DLM version is 2.0.0 or lower, False otherwise.
+    """
+    try:
+        dlm_version = version("nautobot_device_lifecycle_mgmt")
+        if re.match("[012].+", dlm_version):
+            return True
+    except PackageNotFoundError:
+        pass
+    return False
+
+
+def core_supports_softwareversion() -> bool:
+    """Validate if the core Nautobot version installed is 2.2.0 or higher.
+
+    Returns:
+        bool: True if Nautobot version is 2.2.0 or higher, False otherwise.
+    """
+    nb_version = version("nautobot")
+    if re.match("2.[23456789].+", nb_version):
+        return True
+    if re.match("3.[0-9].+", nb_version):
+        return True
+    return False
+
+
 def validate_dlm_installed() -> bool:
     """Validate if the DLM App is installed.
 
