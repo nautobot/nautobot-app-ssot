@@ -98,18 +98,18 @@ from nautobot_ssot.utils import (
 
 _SoftwareImage_Base_Class = SoftwareImageFile
 
-# if dlm_supports_softwarelcm():
-#     from nautobot_device_lifecycle_mgmt.models import (
-#         SoftwareImageLCM as ORMSoftwareImage,
-#     )
-#     from nautobot_device_lifecycle_mgmt.models import (
-#         SoftwareLCM as ORMSoftware,
-#     )
+if dlm_supports_softwarelcm():
+    from nautobot_device_lifecycle_mgmt.models import (
+        SoftwareImageLCM as ORMSoftwareImage,
+    )
+    from nautobot_device_lifecycle_mgmt.models import (
+        SoftwareLCM as ORMSoftware,
+    )
 
-#     from nautobot_ssot.integrations.bootstrap.diffsync.models.base import Software, SoftwareImage
+    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import Software, SoftwareImage
 
-#     _Software_Base_Class = Software
-#     _SoftwareImage_Base_Class = SoftwareImage
+    _Software_Base_Class = Software
+    _SoftwareImage_Base_Class = SoftwareImage
 
 if validate_dlm_installed():
     from nautobot_device_lifecycle_mgmt.models import (
