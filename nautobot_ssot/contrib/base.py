@@ -73,12 +73,6 @@ class BaseNautobotModel(DiffSyncModel, ABC):
     def get_model(cls):
         """Return ORM model class attribute."""
         return cls._model
-
-    @classmethod
-    def get_type_hints(cls, include_extras=True):
-        if not hasattr(cls, "_type_hints"):
-            cls._type_hints = get_type_hints(cls, include_extras=include_extras)
-        return cls._type_hints
     
     @classmethod
     def get_model_meta_field(cls, attr_name: str):
