@@ -2,7 +2,7 @@
 
 import json
 from datetime import date, datetime
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import yaml
 from deepdiff import DeepDiff
@@ -110,6 +110,9 @@ def assert_deep_diff(test_case, actual, expected, keys_to_normalize=None):
     test_case.assertEqual(diff, {})
 
 
+@patch(
+    "nautobot_ssot.integrations.bootstrap.diffsync.adapters.bootstrap.core_supports_softwareversion", return_value=True
+)
 class TestBootstrapAdapterTestCase(TransactionTestCase):
     """Test NautobotSsotBootstrapAdapter class."""
 
