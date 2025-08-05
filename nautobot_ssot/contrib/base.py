@@ -26,19 +26,6 @@ from typing_extensions import ClassVar, Dict, List, Optional
 from nautobot_ssot.utils.cache import ORMCache
 
 
-class TypeHintsMixin:
-    """"""
-
-    _type_hints: Dict[str, Any]
-
-    @classmethod
-    def get_type_hints(cls, include_extras=True):
-        if not hasattr(cls, "_type_hints"):
-            cls._type_hints = get_type_hints(cls, include_extras=include_extras)
-        return cls._type_hints
-
-
-
 class BaseNautobotAdapter(Adapter, ABC):
     """Abstract Base Class for `NautobotAdapter`."""
 
@@ -69,8 +56,8 @@ class BaseNautobotModel(DiffSyncModel, ABC):
     # Abstract Methods
     # ==============================================
 
-    @abstractmethod
     @classmethod
+    @abstractmethod
     def get_queryset(cls):
         """Return queryset for model."""
 
@@ -78,7 +65,7 @@ class BaseNautobotModel(DiffSyncModel, ABC):
     # ==============================================
 
     @classmethod
-    def synced_attributes(cls) -> List[str]:
+    def get_synced_attributes(cls) -> List[str]:
         """Return a list of attribute names the model compares against in the DiffSync process."""
         return list(cls._identifiers) + list(cls._attributes)
 
