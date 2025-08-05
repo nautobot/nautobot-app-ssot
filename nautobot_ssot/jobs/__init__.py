@@ -14,6 +14,15 @@ from nautobot_ssot.jobs.examples import ExampleDataSource, ExampleDataTarget
 
 logger = logging.getLogger("nautobot.ssot")
 
+_MIN_NAUTOBOT_VERSION = {
+    "nautobot_ssot_aci": "2.2",
+    "nautobot_ssot_bootstrap": "2.2",
+    "nautobot_ssot_dna_center": "2.2",
+    "nautobot_ssot_meraki": "2.2",
+    "nautobot_ssot_solarwinds": "2.2",
+}
+
+
 hide_jobs_setting = settings.PLUGINS_CONFIG["nautobot_ssot"].get("hide_example_jobs", False)
 if is_truthy(hide_jobs_setting):
     jobs = []
