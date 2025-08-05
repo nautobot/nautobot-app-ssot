@@ -16,7 +16,7 @@ from nautobot.extras import models as extras_models
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.ipam import models as ipam_models
 from nautobot.tenancy import models as tenancy_models
-from typing_extensions import Annotated, TypedDict
+from typing_extensions import Annotated, Optional, TypedDict
 
 from nautobot_ssot.contrib import CustomFieldAnnotation, NautobotAdapter, NautobotModel
 from nautobot_ssot.tests.contrib_base_classes import (
@@ -207,6 +207,43 @@ class NautobotAdapterTests(TestCase):
         diffsync_tenant = adapter.get(TenantModel, new_tenant_name)
 
         self.assertEqual(new_tenant_name, diffsync_tenant.name)
+
+    def test_custom_field_annotation_fallback_via_load(self):
+        """
+        Test that the adapter correctly loads a custom field value using the 'name' fallback
+        when the CustomFieldAnnotation 'key' is None by calling the public load() method.
+        """
+
+        custom_field, _ = extras_models.CustomField.objects.update_or_create(
+            key="fallback_test", 
+            defaults={"label": "Custom Field for fallback test"},
+        )
+        custom_field.content_types.set([ContentType.objects.get_for_model(tenancy_models.Tenant)])
+
+        tenant_obj, _ = tenancy_models.Tenant.objects.update_or_create(name="Tenant for fallback test")
+        tenant_obj._custom_field_data["fallback_test"] = "Expected value for fallback test"  # pylint: disable=protected-access
+        tenant_obj.save()
+
+        class TestModel(NautobotModel):
+            """Test model"""
+            _model = tenancy_models.Tenant
+            _modelname = "tenant"
+            _identifiers = ("name",)
+            _attributes = ("custom_field",)
+
+            name: str
+            custom_field: Annotated[Optional[str], CustomFieldAnnotation(name="fallback_test", key=None)] = None
+
+        class Adapter(NautobotAdapter):
+            """Test adapter"""
+            top_level = ["tenant"]
+            tenant = TestModel
+
+        adapter = Adapter(job=MagicMock())
+        adapter.load()
+
+        loaded_model = adapter.get(TestModel, "Tenant for fallback test")
+        self.assertEqual(loaded_model.custom_field, "Expected value for fallback test")
 
 
 class CustomRelationShipTestAdapterSource(NautobotAdapter):
