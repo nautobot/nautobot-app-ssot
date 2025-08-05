@@ -107,6 +107,8 @@ def core_supports_softwareversion() -> bool:
     nb_version = version("nautobot")
     if re.match("2.[23456789].+", nb_version):
         return True
+    if re.match("3.[0-9].+", nb_version):
+        return True
     return False
 
 
