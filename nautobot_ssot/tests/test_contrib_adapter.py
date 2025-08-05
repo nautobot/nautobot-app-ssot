@@ -215,7 +215,7 @@ class NautobotAdapterTests(TestCase):
         """
 
         custom_field, _ = extras_models.CustomField.objects.update_or_create(
-            key="fallback_test", 
+            key="fallback_test",
             defaults={"label": "Custom Field for fallback test"},
         )
         custom_field.content_types.set([ContentType.objects.get_for_model(tenancy_models.Tenant)])
@@ -226,6 +226,7 @@ class NautobotAdapterTests(TestCase):
 
         class TestModel(NautobotModel):
             """Test model"""
+
             _model = tenancy_models.Tenant
             _modelname = "tenant"
             _identifiers = ("name",)
@@ -236,6 +237,7 @@ class NautobotAdapterTests(TestCase):
 
         class Adapter(NautobotAdapter):
             """Test adapter"""
+
             top_level = ["tenant"]
             tenant = TestModel
 
