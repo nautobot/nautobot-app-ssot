@@ -25,6 +25,7 @@ class TestDashboardClient(TestCase):
             base_url="https://api.meraki.com/api/v1/",
             output_log=False,
             print_console=False,
+            maximum_retries=100,
             wait_on_rate_limit=True,
         )
 
