@@ -224,3 +224,13 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         actual = NautobotIPAddress.update(self=self.test_ip, attrs=update_attrs)
         self.assertIsNone(actual)
         self.adapter.job.logger.error.assert_called_once_with("New parent Prefix 10.0.0.0/24 not found.")
+
+    def test_update_to_prefix_missing_from_map(self):
+        """Validate the NautobotAddress update() method handles a prefix missing from the prefix_map."""
+        self.prefix.validated_save()
+        self.test_ipaddr.validated_save()
+        update_attrs = {"prefix": "10.100.0.0/8", "mask_length": 24}
+        self.adapter.prefix_map = {}
+        actual = NautobotIPAddress.update(self=self.test_ip, attrs=update_attrs)
+        self.assertIsNone(actual)
+        self.adapter.job.logger.error.assert_called_once_with("Prefix 10.100.0.0/8 not found in Nautobot.")
