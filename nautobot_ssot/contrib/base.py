@@ -22,6 +22,7 @@ from diffsync import Adapter, DiffSyncModel
 from django.db.models import Model
 from nautobot.extras.models.metadata import MetadataType
 from typing_extensions import ClassVar, Dict, List, Optional
+from nautobot.extras.jobs import BaseJob
 
 from nautobot_ssot.utils.cache import ORMCache
 
@@ -30,14 +31,20 @@ class BaseNautobotAdapter(Adapter, ABC):
     """Abstract Base Class for `NautobotAdapter`."""
 
     cache: ORMCache
+    job: BaseJob
     metadata_type: MetadataType
     metadata_scope_fields: Dict[DiffSyncModel, List]
 
     def __init__(self, *args, **kwargs):
         """Initialize the class."""
+        # Required Attributes to be passed to adapter.
+        self.job = kwargs["job"]
+
+        # Attributes with defaults or set if included in kwargs
         self.cache = kwargs.pop("cache", ORMCache())
         self.metadata_type = kwargs.pop("metadata_type", None)
         self.metadata_scope_fields = kwargs.pop("metadata_scope_fields", {})
+
         return super().__init__(*args, **kwargs)
 
 
