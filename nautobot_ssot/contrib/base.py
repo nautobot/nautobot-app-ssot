@@ -20,9 +20,9 @@ from uuid import UUID
 
 from diffsync import Adapter, DiffSyncModel
 from django.db.models import Model
+from nautobot.extras.jobs import BaseJob
 from nautobot.extras.models.metadata import MetadataType
 from typing_extensions import ClassVar, Dict, List, Optional
-from nautobot.extras.jobs import BaseJob
 
 from nautobot_ssot.utils.cache import ORMCache
 
