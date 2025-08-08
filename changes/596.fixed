@@ -1,1 +1,0 @@
-+ Handles HTTP 404 exception case for expired A record and PTR reference, and logs as a warning instead of failing the job run.

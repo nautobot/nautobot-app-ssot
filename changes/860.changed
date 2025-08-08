@@ -1,1 +1,0 @@
-Changed `nautobot_ssot.contrib.adapter.NautobotAdapter` to use new `orm` and `typing` utility functions.
