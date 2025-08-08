@@ -1,1 +1,0 @@
-Fixed exception caused by missing secret value when creating a SecretsGroup with Bootstrap.
