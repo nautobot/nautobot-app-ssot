@@ -1921,28 +1921,26 @@ class NautobotSecretsGroup(SecretsGroup):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create SecretsGroup in Nautobot from NautobotSecretsGroup object."""
-        adapter.job.logger.info(f'Creating Nautobot Secrets Group: {ids["name"]}')
+        adapter.job.logger.info(f'Creating Nautobot SecretsGroup: {ids["name"]}')
         _new_secrets_group = ORMSecretsGroup(name=ids["name"])
         _new_secrets_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_secrets_group.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_secrets_group.validated_save()
-        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
-        _group = ORMSecretsGroup.objects.get(name=ids["name"])
         for _secret in attrs["secrets"]:
             try:
                 _orm_secret = ORMSecret.objects.get(name=_secret["name"])
-            except ORMSecret.DoesNotExist:
-                adapter.job.logger.info(f'Secret {_secret["name"]} does not exist in Nautobot, ensure it is created.')
-            try:
-                _group.secrets.get(name=_secret["name"])
-            except ORMSecret.DoesNotExist:
-                _group.secrets.add(_orm_secret)
-                _group.validated_save()
-                _sga = _group.secretsgroupassociation_set.get(secret_id=_orm_secret.id)
+                _new_secrets_group.secrets.add(_orm_secret)
+                _new_secrets_group.validated_save()
+                _sga = _new_secrets_group.secrets_group_associations.get(secret__id=_orm_secret.id)
                 _sga.access_type = _secret["access_type"]
                 _sga.secret_type = _secret["secret_type"]
                 _sga.validated_save()
+                return super().create(adapter=adapter, ids=ids, attrs=attrs)
+            except ORMSecret.DoesNotExist:
+                adapter.job.logger.warning(
+                    f'Secret - {_secret["name"]} does not exist in Nautobot, ensure it is created.'
+                )
 
     def update(self, attrs):
         """Update SecretsGroup in Nautobot from NautobotSecretsGroup object."""
@@ -1952,20 +1950,22 @@ class NautobotSecretsGroup(SecretsGroup):
             for _secret in attrs["secrets"]:
                 try:
                     _orm_secret = ORMSecret.objects.get(name=_secret["name"])
-                except ORMSecret.DoesNotExist:
-                    self.adapter.job.logger.info(
-                        f'Secret {_secret["name"]} does not exist in Nautobot, ensure it is created.'
-                    )
-                try:
-                    _update_group.secrets.get(name=_secret["name"])
-                except ORMSecret.DoesNotExist:
-                    _sga = ORMSecretsGroupAssociation(
-                        secrets_group=_update_group,
-                        secret=_orm_secret,
-                        access_type=_secret["access_type"],
-                        secret_type=_secret["secret_type"],
-                    )
+                    try:
+                        _sga = _update_group.secrets_group_association.get(secret__id=_orm_secret.id)
+                    except ORMSecretsGroupAssociation.DoesNotExist:
+                        _sga = ORMSecretsGroupAssociation(
+                            secrets_group=_update_group,
+                            secret=_orm_secret,
+                        )
+                    _sga.access_type = _secret["access_type"]
+                    _sga.secret_type = _secret["secret_type"]
                     _sga.validated_save()
+                except ORMSecret.DoesNotExist:
+                    self.adapter.job.logger.warning(
+                        f'Secret - {_secret["name"]} does not exist in Nautobot, ensure it is created.'
+                    )
+                    return None
+
         if not check_sor_field(_update_group):
             _update_group.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
@@ -2689,11 +2689,23 @@ if validate_dlm_installed():
             _device_roles = []  # noqa: F841
             _inventory_items = []  # noqa: F841
             _object_tags = []  # noqa: F841
-            _platform = ORMPlatform.objects.get(name=attrs["platform"])
-            if dlm_supports_softwarelcm():
-                _software = ORMSoftware.objects.get(version=attrs["software_version"], device_platform=_platform)
-            if core_supports_softwareversion():
-                _software = ORMSoftware.objects.get(version=attrs["software_version"], platform=_platform)
+            try:
+                _platform = ORMPlatform.objects.get(name=attrs["platform"])
+                if dlm_supports_softwarelcm():
+                    _software = ORMSoftware.objects.get(version=attrs["software_version"], device_platform=_platform)
+                if core_supports_softwareversion():
+                    _software = ORMSoftware.objects.get(version=attrs["software_version"], platform=_platform)
+            except ORMPlatform.DoesNotExist:
+                adapter.job.logger.warning(
+                    f"Platform ({attrs['platform']}) not found, unable to create Validated Software."
+                )
+                return None
+            except ORMSoftware.DoesNotExist:
+                adapter.job.logger.warning(
+                    f"Software ({attrs['software_version']}) not found, unable to create Validated Software."
+                )
+                return None
+
             _new_validated_software = ORMValidatedSoftware(
                 software=_software,
                 start=ids["valid_since"] if not None else datetime.today().date(),
@@ -2749,11 +2761,22 @@ if validate_dlm_installed():
             _device_roles = []  # noqa: F841
             _inventory_items = []  # noqa: F841
             _object_tags = []  # noqa: F841
-            _platform = ORMPlatform.objects.get(name=self.platform)
-            if dlm_supports_softwarelcm():
-                _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
-            if core_supports_softwareversion():
-                _software = ORMSoftware.objects.get(version=self.software_version, platform=_platform)
+            try:
+                _platform = ORMPlatform.objects.get(name=self.platform)
+                if dlm_supports_softwarelcm():
+                    _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
+                if core_supports_softwareversion():
+                    _software = ORMSoftware.objects.get(version=self.software_version, platform=_platform)
+            except ORMPlatform.DoesNotExist:
+                self.adapter.job.logger.warning(
+                    f"Platform ({attrs['platform']}) not found, unable to create Validated Software."
+                )
+                return None
+            except ORMSoftware.DoesNotExist:
+                self.adapter.job.logger.warning(
+                    f"Software ({attrs['software_version']}) not found, unable to create Validated Software."
+                )
+                return None
             self.adapter.job.logger.info(f"Updating Validated Software - {self} with attrs {attrs}.")
             _update_validated_software = ORMValidatedSoftware.objects.get(
                 software=_software, start=self.valid_since, end=self.valid_until
