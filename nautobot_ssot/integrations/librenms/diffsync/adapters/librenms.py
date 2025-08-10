@@ -4,9 +4,6 @@ import os
 
 from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
-from django.contrib.contenttypes.models import ContentType
-from nautobot.dcim.models import Location, LocationType
-from nautobot.extras.models import Status
 
 from nautobot_ssot.integrations.librenms.constants import (
     librenms_status_map,
@@ -127,16 +124,6 @@ class LibrenmsAdapter(Adapter):
             self.load_device(device=_device)
 
         if self.job.sync_locations:
-            _site, _created = LocationType.objects.get_or_create(name="Site")
-            if _created:
-                _site.content_types.add(ContentType.objects.get(app_label="dcim", model="device"))
-            _status = Status.objects.get(name="Active")
-            Location.objects.get_or_create(
-                name="Unknown",
-                location_type=_site,
-                status=_status,
-            )
-
             if load_source != "file":
                 all_locations = self.lnms_api.get_librenms_locations()
             else:
