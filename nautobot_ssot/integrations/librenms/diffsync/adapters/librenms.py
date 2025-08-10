@@ -2,7 +2,7 @@
 
 import os
 
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
 from nautobot.dcim.models import Location, LocationType
@@ -23,7 +23,7 @@ from nautobot_ssot.integrations.librenms.utils import (
 from nautobot_ssot.integrations.librenms.utils.librenms import LibreNMSApi
 
 
-class LibrenmsAdapter(DiffSync):
+class LibrenmsAdapter(Adapter):
     """DiffSync adapter for LibreNMS."""
 
     location = LibrenmsLocation
