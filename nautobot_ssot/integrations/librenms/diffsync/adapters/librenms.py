@@ -58,7 +58,7 @@ class LibrenmsAdapter(Adapter):
             new_location = self.location(
                 name=location["location"],
                 status="Active",
-                location_type="Site",
+                location_type=self.job.location_type.name,
                 latitude=_latitude,
                 longitude=_longitude,
                 system_of_record=os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
