@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 from django.contrib.contenttypes.models import ContentType
 from nautobot.core.testing import TransactionTestCase
-from nautobot.dcim.models import Device, Location
+from nautobot.dcim.models import Device, Location, LocationType
 from nautobot.extras.models import JobResult, Status
 
 from nautobot_ssot.integrations.librenms.diffsync.adapters.librenms import LibrenmsAdapter
@@ -52,6 +52,7 @@ class TestLibreNMSAdapterTestCase(TransactionTestCase):
         self.job.load_type = "file"
         self.job.hostname_field = "sysName"
         self.job.sync_locations = True
+        self.job.location_type = LocationType.objects.get_or_create(name="Site")[0]
         self.job.logger.warning = MagicMock()
         self.job.sync_locations = True
         self.job.job_result = JobResult.objects.create(
