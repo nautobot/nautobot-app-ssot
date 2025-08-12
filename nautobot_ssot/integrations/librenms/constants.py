@@ -5,7 +5,7 @@ from django.conf import settings
 # Import config vars from nautobot_config.py
 PLUGIN_CFG = settings.PLUGINS_CONFIG["nautobot_ssot"]
 
-librenms_status_map = {
+librenms_status_map = {  # pylint: disable=W0109
     0: "Offline",
     1: "Active",
     True: "Active",
@@ -30,6 +30,7 @@ os_manufacturer_map = {
     "alfo80hd": "Siae Microelettronica",
     "allied": "Allied Telesis",
     "allworxvoip": "Allworx",
+    "anue": "IXIA",
     "aos": "Alcatel-Lucent",
     "apc": "APC",
     "apexlynx": "Apex",
@@ -38,6 +39,7 @@ os_manufacturer_map = {
     "apsoluteos": "Radware",
     "arbos": "Aruba Networks",
     "areca": "Areca",
+    "arista_eos": "Arista",
     "arrisc4": "Arris",
     "arriscm": "Arris",
     "arrisdsr4410md": "Arris",
@@ -143,6 +145,7 @@ os_manufacturer_map = {
     "nios": "Infoblox",
     "nitro": "Citrix",
     "nsbsd": "BSD",
+    "nxos": "Cisco",
     "ocnos": "OcNOS",
     "okilan": "Oki",
     "openbsd": "BSD",
@@ -157,6 +160,7 @@ os_manufacturer_map = {
     "poweralert": "APC",
     "powerconnect": "Dell EMC",
     "procurve": "HPE",
+    "procera": "AppLogic",
     "protelevisiont1": "ProTelevision",
     "ptp250": "Cambium Networks",
     "ptp500": "Cambium Networks",
@@ -246,6 +250,7 @@ manufacturer_os_map = {
     "Allworx": ["allworxvoip"],
     "APC": ["apc", "poweralert"],
     "Apple": ["airport"],
+    "AppLogic": ["procera"],
     "Aruba Networks": ["arbos", "arubainstant", "arubaos", "arubaoscx"],
     "Areca": ["areca"],
     "Arris": ["arrisc4", "arriscm", "arrisdsr4410md"],
@@ -378,4 +383,24 @@ manufacturer_os_map = {
     "Zebra": ["zebra"],
     "ZTE": ["zxdsl"],
     "Zyxel": ["zynos", "zywall", "zyxelnwa", "zyxelwlc"],
+}
+
+# LibreNMS | Normalized
+LIBRENMS_LIB_MAPPER = {
+    "arista_eos": "arista_eos",
+    "iosxe": "cisco_xe",
+    "iosxr": "cisco_xr",
+    "nxos": "cisco_nxos",
+    "junos": "juniper_junos",
+    "procera": "applogic_procera",
+}
+
+# Normalized | LibreNMS
+LIBRENMS_LIB_MAPPER_REVERSE = {
+    "arista_eos": "arista_eos",
+    "cisco_xe": "iosxe",
+    "cisco_nxos": "nxos",
+    "cisco_xr": "iosxr",
+    "juniper_junos": "junos",
+    "applogic_procera": "procera",
 }
