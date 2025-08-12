@@ -7,8 +7,10 @@ from nautobot.core.testing import TransactionTestCase
 from nautobot.dcim.models import Device, Location, LocationType
 from nautobot.extras.models import JobResult, Status
 
+from nautobot_ssot.integrations.librenms.constants import PLUGIN_CFG
 from nautobot_ssot.integrations.librenms.diffsync.adapters.librenms import LibrenmsAdapter
 from nautobot_ssot.integrations.librenms.jobs import LibrenmsDataSource
+from nautobot_ssot.integrations.librenms.utils import normalize_device_hostname
 from nautobot_ssot.tests.librenms.fixtures import DEVICE_FIXTURE_RECV, LOCATION_FIXURE_RECV
 
 
@@ -46,9 +48,6 @@ class TestLibreNMSAdapterTestCase(TransactionTestCase):
         self.job.hostname_field = "sysName"
         self.job.sync_locations = True
         self.job.location_type = LocationType.objects.get_or_create(name="Site")[0]
-        self.job.default_role = MagicMock()
-        self.job.default_role.name = "network"
-        self.job.tenant = None  # No tenant for test
         self.job.default_role = MagicMock()
         self.job.default_role.name = "network"
         self.job.tenant = None  # No tenant for test

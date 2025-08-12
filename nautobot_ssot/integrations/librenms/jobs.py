@@ -163,6 +163,8 @@ class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         unpermitted_values,
         tenant,
         *args,
+        devices_load_file,
+        locations_load_file,
         **kwargs,
     ):  # pylint: disable=arguments-differ
         """Perform data synchronization."""
