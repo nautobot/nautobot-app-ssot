@@ -27,7 +27,9 @@ def normalize_setting(variable_name):
 def normalize_device_hostname(hostname):
     """Normalize device hostname to be a valid LibreNMS or Nautobot hostname. Remove domain suffixes and uppercase the names for comparison (if not an IP Address)."""
     if isinstance(hostname, ipaddress.IPv4Address) or isinstance(hostname, ipaddress.IPv6Address):
-        return hostname
+        if PLUGIN_CFG["librenms_allow_ip_addresses"]:
+            return hostname
+        raise ValueError("The hostname cannot be an IP Address.")
     hostname = hostname.split(".")[0]
     return hostname.upper()
 
