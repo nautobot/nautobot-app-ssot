@@ -45,7 +45,7 @@ class BaseNautobotAdapter(Adapter, ABC):
         self.metadata_type = kwargs.pop("metadata_type", None)
         self.metadata_scope_fields = kwargs.pop("metadata_scope_fields", {})
 
-        return super().__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
 class BaseNautobotModel(DiffSyncModel, ABC):
