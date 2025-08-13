@@ -68,3 +68,28 @@ Please note that the behavior in the SNOW integration now is to swallow and log 
 - [#867](https://github.com/nautobot/nautobot-app-ssot/issues/867) - Gracefully swallow ServiceNow exceptions
 - [#867](https://github.com/nautobot/nautobot-app-ssot/issues/867) - Adds ServiceNow duplicate file reports
 - [#867](https://github.com/nautobot/nautobot-app-ssot/issues/867) - Fixes ServiceNow comparison filters to only compare against company names with Manufacturer set to True
+
+## [v3.9.2 (2025-08-08)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.9.2)
+
+### Added
+
+- [#860](https://github.com/nautobot/nautobot-app-ssot/issues/860) - Added `nautobot_ssot.utils.orm.get_custom_relationship_association_parameters` utility function.
+- [#860](https://github.com/nautobot/nautobot-app-ssot/issues/860) - Added `nautobot_ssot.utils.orm.get_custom_relationship_associations` utility function.
+- [#860](https://github.com/nautobot/nautobot-app-ssot/issues/860) - Added `nautobot_ssot.utils.typing.get_inner_type` utility function.
+
+### Changed
+
+- [#860](https://github.com/nautobot/nautobot-app-ssot/issues/860) - Changed `nautobot_ssot.contrib.adapter.NautobotAdapter` to use new `orm` and `typing` utility functions.
+
+### Fixed
+
+- [#596](https://github.com/nautobot/nautobot-app-ssot/issues/596) - Handles HTTP 404 exception case for expired A record and PTR reference, and logs as a warning instead of failing the job run.
+- [#881](https://github.com/nautobot/nautobot-app-ssot/issues/881) - Fixed exception caused by missing secret value when creating a SecretsGroup with Bootstrap.
+- [#904](https://github.com/nautobot/nautobot-app-ssot/issues/904) - Fixed exception caused by missing software version when creating ValidatedSoftware with Bootstrap.
+- [#916](https://github.com/nautobot/nautobot-app-ssot/issues/916) - Fixed bootstrap signal DLM checks.
+- [#921](https://github.com/nautobot/nautobot-app-ssot/issues/921) - Fixed missing Prefix bug in Meraki integration.
+- [#926](https://github.com/nautobot/nautobot-app-ssot/issues/926) - Fixed issue with metadata_type when contrib models are used without the contrib adapter.
+
+### Documentation
+
+- [#925](https://github.com/nautobot/nautobot-app-ssot/issues/925) - Added Analytics GTM template override only to the public ReadTheDocs build.
