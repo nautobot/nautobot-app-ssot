@@ -132,6 +132,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
     docs_view_name = "plugins:nautobot_ssot:docs"
 
     def __init__(self, *args, **kwargs):
+        """Initialize a NautobotSSOTAppConfig instance and set default attributes."""
         super().__init__(*args, **kwargs)
         # Only set searchable_models if enabled in config
         if settings.PLUGINS_CONFIG["nautobot_ssot"].get("enable_global_search", True):
