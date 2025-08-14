@@ -13,6 +13,7 @@ Synchronization of data follows this workflow:
 5. If an object needs to be updated it will be updated with the values provided by Bootstrap data.
 6. If an object needs to be deleted it will be deleted.
 
+> Starting in SSoT 3.9.3, the Objects imported and updated by Bootstrap will have a [Object Metadata](https://docs.nautobot.com/projects/core/en/stable/user-guide/platform-functionality/objectmetadata/) created or updated to track the last update from Bootstrap.
 
 ### Bootstrap as DataTarget
 
