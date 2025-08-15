@@ -125,19 +125,25 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "servicenow_instance": "",
         "servicenow_password": "",
         "servicenow_username": "",
+        "enable_global_search": True,
     }
     caching_config = {}
     config_view_name = "plugins:nautobot_ssot:config"
     docs_view_name = "plugins:nautobot_ssot:docs"
-    searchable_models = [
-        "Sync",
-        "SyncLogEntry",
-    ]
+
+    def __init__(self, *args, **kwargs):
+        """Initialize a NautobotSSOTAppConfig instance and set default attributes."""
+        super().__init__(*args, **kwargs)
+        # Only set searchable_models if enabled in config
+        if settings.PLUGINS_CONFIG["nautobot_ssot"].get("enable_global_search", True):
+            self.searchable_models = [
+                "Sync",
+                "SyncLogEntry",
+            ]
 
     def ready(self):
         """Trigger callback when database is ready."""
         super().ready()
-
         for module in each_enabled_integration_module("signals"):
             logger.debug("Registering signals for %s", module.__file__)
             module.register_signals(self)
