@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from diffsync import DiffSync
+from diffsync import Adapter
 from diffsync.enum import DiffSyncModelFlags
 from diffsync.exceptions import ObjectNotFound
 from nautobot.dcim.models import Device as OrmDevice
@@ -20,7 +20,7 @@ from nautobot_ssot.integrations.librenms.utils import (
 )
 
 
-class NautobotAdapter(DiffSync):
+class NautobotAdapter(Adapter):
     """DiffSync adapter for Nautobot."""
 
     location = NautobotLocation
