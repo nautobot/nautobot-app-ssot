@@ -39,7 +39,8 @@ from nautobot_ssot.utils import dlm_supports_softwarelcm
 try:
     from nautobot.extras.models.metadata import ObjectMetadata  # noqa: F401
 
-    from nautobot_ssot.integrations.dna_center.utils.nautobot import object_has_metadata
+    from nautobot_ssot.integrations.dna_center.constants import INTEGRATION
+    from nautobot_ssot.integrations.metadata_utils import object_has_metadata
 
     METADATA_FOUND = True
 except (ImportError, RuntimeError):
@@ -113,7 +114,7 @@ class NautobotAdapter(Adapter):
                     uuid=area.id,
                 )
                 if METADATA_FOUND:
-                    new_region.metadata = object_has_metadata(obj=area)
+                    new_region.metadata = object_has_metadata(obj=area, integration=INTEGRATION)
                 if not PLUGIN_CFG.get("dna_center_delete_locations"):
                     new_region.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
                 self.add(new_region)
@@ -145,7 +146,7 @@ class NautobotAdapter(Adapter):
                     uuid=building.id,
                 )
                 if METADATA_FOUND:
-                    new_building.metadata = object_has_metadata(obj=building)
+                    new_building.metadata = object_has_metadata(obj=building, integration=INTEGRATION)
                 if not PLUGIN_CFG.get("dna_center_delete_locations"):
                     new_building.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
                 self.add(new_building)
@@ -168,7 +169,7 @@ class NautobotAdapter(Adapter):
             )
             self.add(new_floor)
             if METADATA_FOUND:
-                if object_has_metadata(obj=floor):
+                if object_has_metadata(obj=floor, integration=INTEGRATION):
                     new_floor.metadata = True
             try:
                 if floor.parent:
@@ -233,7 +234,7 @@ class NautobotAdapter(Adapter):
                 uuid=dev.id,
             )
             if METADATA_FOUND:
-                if object_has_metadata(obj=dev):
+                if object_has_metadata(obj=dev, integration=INTEGRATION):
                     new_dev.metadata = True
             if self.tenant:
                 new_dev.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
@@ -262,7 +263,7 @@ class NautobotAdapter(Adapter):
                 uuid=port.id,
             )
             if METADATA_FOUND:
-                if object_has_metadata(obj=port):
+                if object_has_metadata(obj=port, integration=INTEGRATION):
                     new_port.metadata = True
             if self.tenant:
                 new_port.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
@@ -285,7 +286,7 @@ class NautobotAdapter(Adapter):
                 uuid=prefix.id,
             )
             if METADATA_FOUND:
-                if object_has_metadata(obj=prefix):
+                if object_has_metadata(obj=prefix, integration=INTEGRATION):
                     new_prefix.metadata = True
             if self.tenant:
                 new_prefix.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
@@ -307,7 +308,7 @@ class NautobotAdapter(Adapter):
                 uuid=ipaddr.id,
             )
             if METADATA_FOUND:
-                if object_has_metadata(obj=ipaddr):
+                if object_has_metadata(obj=ipaddr, integration=INTEGRATION):
                     new_ipaddr.metadata = True
             if self.tenant:
                 new_ipaddr.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST

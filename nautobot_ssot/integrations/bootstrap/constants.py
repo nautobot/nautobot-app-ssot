@@ -1,31 +1,13 @@
 """Constants for use within Nautobot SSoT for Bootstrap."""
 
-from nautobot.circuits.models import Circuit, CircuitTermination, CircuitType, Provider, ProviderNetwork
-from nautobot.dcim.models import Location, LocationType, Manufacturer, Platform
-from nautobot.extras.models import (
-    ComputedField,
-    Contact,
-    CustomField,
-    DynamicGroup,
-    GitRepository,
-    GraphQLQuery,
-    Role,
-    ScheduledJob,
-    Secret,
-    SecretsGroup,
-    Tag,
-    Team,
-)
-from nautobot.ipam.models import RIR, VLAN, VRF, Namespace, Prefix, VLANGroup
-from nautobot.tenancy.models import Tenant, TenantGroup
-
 from nautobot_ssot.utils import (
     core_supports_softwareversion,
     validate_dlm_installed,
 )
 
+INTEGRATION = "Bootstrap"
 SCOPED_FIELDS_MAPPING = {
-    Circuit: [
+    "circuits.circuit": [
         "cid",
         "provider",
         "circuit_type",
@@ -36,7 +18,7 @@ SCOPED_FIELDS_MAPPING = {
         "tenant",
         "tags",
     ],
-    CircuitTermination: [
+    "circuits.circuittermination": [
         "name",
         "term_side",
         "circuit",
@@ -49,10 +31,10 @@ SCOPED_FIELDS_MAPPING = {
         "description",
         "tags",
     ],
-    CircuitType: ["name", "description"],
-    ComputedField: ["label", "content_type", "template"],
-    Contact: ["name", "phone", "email", "address", "teams"],
-    CustomField: [
+    "circuits.circuittype": ["name", "description"],
+    "extras.computedfield": ["label", "content_type", "template"],
+    "extras.contact": ["name", "phone", "email", "address", "teams"],
+    "extras.customfield": [
         "label",
         "description",
         "type",
@@ -69,10 +51,10 @@ SCOPED_FIELDS_MAPPING = {
         "validation_regex",
         "default",
     ],
-    DynamicGroup: ["name", "content_type", "filter", "description"],
-    GitRepository: ["name", "remote_url", "branch", "secrets_group", "provided_contents"],
-    GraphQLQuery: ["name", "query"],
-    Location: [
+    "extras.dynamicgroup": ["name", "content_type", "filter", "description"],
+    "extras.gitrepository": ["name", "remote_url", "branch", "secrets_group", "provided_contents"],
+    "extras.graphqlquery": ["name", "query"],
+    "dcim.location": [
         "name",
         "location_type",
         "parent",
@@ -91,11 +73,11 @@ SCOPED_FIELDS_MAPPING = {
         "contact_email",
         "tags",
     ],
-    LocationType: ["name", "parent", "nestable", "description", "content_types"],
-    Manufacturer: ["name", "description"],
-    Namespace: ["name", "description", "location"],
-    Platform: ["name", "manufacturer", "network_driver", "napalm_driver", "napalm_arguments", "description"],
-    Prefix: [
+    "dcim.locationtype": ["name", "parent", "nestable", "description", "content_types"],
+    "dcim.manufacturer": ["name", "description"],
+    "ipam.namespace": ["name", "description", "location"],
+    "dcim.platform": ["name", "manufacturer", "network_driver", "napalm_driver", "napalm_arguments", "description"],
+    "ipam.prefix": [
         "network",
         "namespace",
         "type",
@@ -110,11 +92,11 @@ SCOPED_FIELDS_MAPPING = {
         "tenant",
         "tags",
     ],
-    Provider: ["name", "asn", "account", "portal_url", "noc_contact", "admin_contact", "tags"],
-    ProviderNetwork: ["name", "provider", "description", "comments", "tags"],
-    RIR: ["name", "is_private", "description"],
-    Role: ["name", "weight", "description", "color", "content_types"],
-    ScheduledJob: [
+    "circuits.provider": ["name", "asn", "account", "portal_url", "noc_contact", "admin_contact", "tags"],
+    "circuits.providernetwork": ["name", "provider", "description", "comments", "tags"],
+    "ipam.rir": ["name", "is_private", "description"],
+    "extras.role": ["name", "weight", "description", "color", "content_types"],
+    "extras.scheduledjob": [
         "name",
         "job_model",
         "user",
@@ -128,21 +110,19 @@ SCOPED_FIELDS_MAPPING = {
         "kwargs",
         "celery_kwargs",
     ],
-    Secret: ["name", "provider", "parameters"],
-    SecretsGroup: ["name", "secrets"],
-    Tag: ["name", "color", "content_types", "description"],
-    Team: ["name", "phone", "email", "address", "contacts"],
-    Tenant: ["name", "description", "tenant_group", "tags"],
-    TenantGroup: ["name", "parent", "description"],
-    VLAN: ["name", "vid", "vlan_group", "description", "status", "role", "locations", "tenant", "tags"],
-    VLANGroup: ["name", "location", "description"],
-    VRF: ["name", "namespace", "rd", "description", "tenant", "tags"],
+    "extras.secret": ["name", "provider", "parameters"],
+    "extras.secretsgroup": ["name", "secrets"],
+    "extras.tag": ["name", "color", "content_types", "description"],
+    "extras.team": ["name", "phone", "email", "address", "contacts"],
+    "tenancy.tenant": ["name", "description", "tenant_group", "tags"],
+    "tenancy.tenantgroup": ["name", "parent", "description"],
+    "ipam.vlan": ["name", "vid", "vlan_group", "description", "status", "role", "locations", "tenant", "tags"],
+    "ipam.vlangroup": ["name", "location", "description"],
+    "ipam.vrf": ["name", "namespace", "rd", "description", "tenant", "tags"],
 }
 
 if core_supports_softwareversion():
-    from nautobot.dcim.models import SoftwareImageFile, SoftwareVersion  # pylint: disable=ungrouped-imports
-
-    SCOPED_FIELDS_MAPPING[SoftwareImageFile] = [
+    SCOPED_FIELDS_MAPPING["dcim.softwareimagefile"] = [
         "software_version",
         "image_file_name",
         "platform",
@@ -155,7 +135,7 @@ if core_supports_softwareversion():
         "default_image",
         "tags",
     ]
-    SCOPED_FIELDS_MAPPING[SoftwareVersion] = (
+    SCOPED_FIELDS_MAPPING["dcim.softwareversion"] = (
         [
             "version",
             "device_platform",
@@ -170,9 +150,7 @@ if core_supports_softwareversion():
         ],
     )
 if validate_dlm_installed():
-    from nautobot_device_lifecycle_mgmt.models import ValidatedSoftwareLCM  # pylint: disable=ungrouped-imports
-
-    SCOPED_FIELDS_MAPPING[ValidatedSoftwareLCM] = [
+    SCOPED_FIELDS_MAPPING["nautobot_device_lifecycle_mgmt.validatedsoftwarelcm"] = [
         "software",
         "start",
         "end",
