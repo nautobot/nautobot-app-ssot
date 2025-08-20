@@ -299,11 +299,10 @@ class CitrixAdmAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 ):
                     continue
                 if not is_ip_within(ipaddr.prefix, prefix.prefix):
-                    host_addr = ipaddr.address.split("/")[0]
-                    if is_ip_within(host_addr, prefix.prefix):
+                    if is_ip_within(ipaddr.host_address, prefix.prefix):
                         if self.job.debug:
                             self.job.logger.debug(
-                                "More specific Prefix %s found for IPAddress %s", prefix.prefix, ipaddr.address
+                                "More specific Prefix %s found for IPAddress %s", prefix.prefix, ipaddr.host_address
                             )
                         ipaddr.prefix = prefix.prefix
                         self.update(ipaddr)
