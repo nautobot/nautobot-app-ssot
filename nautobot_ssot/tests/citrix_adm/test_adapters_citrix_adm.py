@@ -129,7 +129,8 @@ class TestCitrixAdmAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         self.citrix_adm.load_addresses()
         self.citrix_adm.load_prefix.assert_called_with(prefix="192.168.1.0/24")
         self.citrix_adm.load_address.assert_called_with(
-            address="192.168.1.5/24",
+            host_addr="192.168.1.5",
+            mask_length=24,
             prefix="192.168.1.0/24",
             tags=["MGMT"],
         )
@@ -144,9 +145,9 @@ class TestCitrixAdmAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
 
     def test_load_address(self):
         """Test the Nautobot SSoT Citrix ADM load_address() function."""
-        self.citrix_adm.load_address(address="10.0.0.1/24", prefix="10.0.0.0/24", tags=["TEST"])
+        self.citrix_adm.load_address(host_addr="10.0.0.1", mask_length=24, prefix="10.0.0.0/24", tags=["TEST"])
         self.assertEqual(
-            {"10.0.0.1/24__10.0.0.0/24"},
+            {"10.0.0.1__None"},
             {addr.get_unique_id() for addr in self.citrix_adm.get_all("address")},
         )
 
