@@ -156,7 +156,8 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
             addresses = IPAddress.objects.filter(_custom_field_data__system_of_record="Citrix ADM")
         for addr in addresses:
             new_ip = self.address(
-                address=str(addr.address),
+                host_address=str(addr.host),
+                mask_length=addr.mask_length,
                 prefix=str(addr.parent.prefix),
                 tenant=addr.tenant.name if addr.tenant else None,
                 uuid=addr.id,

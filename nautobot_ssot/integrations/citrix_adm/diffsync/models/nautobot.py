@@ -260,17 +260,18 @@ class NautobotAddress(Address):
     def create(cls, adapter, ids, attrs):
         """Create IP Address in Nautobot from NautobotAddress object."""
         if attrs.get("tenant"):
-            pf_namespace = Namespace.objects.get_or_create(name=attrs["tenant"])[0]
+            pf_namespace = Namespace.objects.get_or_create(name=ids["tenant"])[0]
         else:
             pf_namespace = Namespace.objects.get(name="Global")
         new_ip = IPAddress(
-            address=ids["address"],
+            host=ids["host_address"],
+            mask_length=attrs["mask_length"],
             parent=Prefix.objects.get(prefix=ids["prefix"], namespace=pf_namespace),
             status=Status.objects.get(name="Active"),
             namespace=pf_namespace,
         )
-        if attrs.get("tenant"):
-            new_ip.tenant = Tenant.objects.get_or_create(name=attrs["tenant"])[0]
+        if ids.get("tenant"):
+            new_ip.tenant = adapter.job.tenant
         if attrs.get("tags"):
             new_ip.tags.set(attrs["tags"])
             for tag in attrs["tags"]:
@@ -284,16 +285,15 @@ class NautobotAddress(Address):
     def update(self, attrs):
         """Update IP Address in Nautobot from NautobotAddress object."""
         addr = IPAddress.objects.get(id=self.uuid)
-        if "tenant" in attrs:
-            if attrs.get("tenant"):
-                addr.tenant = Tenant.objects.update_or_create(name=attrs["tenant"])[0]
-            else:
-                addr.tenant = None
+        if attrs.get("mask_length"):
+            addr.mask_length = attrs["mask_length"]
+        if attrs.get("prefix"):
+            addr.parent = Prefix.objects.get(prefix=attrs["prefix"], namespace=addr.parent.namespace)
         if "tags" in attrs:
-            addr.tags.set(attrs["tags"])
             for tag in attrs["tags"]:
                 new_tag = Tag.objects.get(name=tag)
                 new_tag.content_types.add(ContentType.objects.get_for_model(NewDevice))
+            addr.tags.set(attrs["tags"])
         else:
             addr.tags.clear()
         addr.custom_field_data["system_of_record"] = "Citrix ADM"
