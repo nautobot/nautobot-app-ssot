@@ -46,6 +46,8 @@ class ServiceNowDiffSync(Adapter):  # pylint: disable=too-many-instance-attribut
         self.site_filter = site_filter
         self.sys_ids = {}
         self.mapping_data = []
+        # Dict of table -> column_name -> value -> sys_id.
+        self.sys_ids_cache = defaultdict(dict)  # Cache for sys_ids to avoid redundant queries
 
         # Since a device may contain dozens or hundreds of interfaces,
         # to improve performance when a device is created, we use ServiceNow's bulk/batch API to
