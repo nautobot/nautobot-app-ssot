@@ -135,7 +135,7 @@ class TestCitrixAdmAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
             tags=["MGMT"],
         )
         self.citrix_adm.load_address_to_interface.assert_called_with(
-            address="192.168.1.5/24", device="TEST", port="0/1", primary=True
+            host_addr="192.168.1.5", device="TEST", port="0/1", primary=True
         )
 
     def test_load_prefix(self):
@@ -153,7 +153,7 @@ class TestCitrixAdmAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
 
     def test_load_address_to_interface(self):
         """Test the Nautobot SSoT Citrix ADM load_address_to_interface() function."""
-        self.citrix_adm.load_address_to_interface(address="10.0.0.1/24", device="TEST", port="mgmt", primary=True)
+        self.citrix_adm.load_address_to_interface(host_addr="10.0.0.1", device="TEST", port="mgmt", primary=True)
         self.assertEqual(
-            {"10.0.0.1/24__TEST__mgmt"}, {map.get_unique_id() for map in self.citrix_adm.get_all("ip_on_intf")}
+            {"10.0.0.1__TEST__mgmt"}, {map.get_unique_id() for map in self.citrix_adm.get_all("ip_on_intf")}
         )
