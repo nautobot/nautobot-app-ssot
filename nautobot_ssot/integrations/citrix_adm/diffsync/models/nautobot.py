@@ -316,8 +316,9 @@ class NautobotIPAddressOnInterface(IPAddressOnInterface):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create IPAddressToInterface in Nautobot from IPAddressOnInterface object."""
+        tenant_name = adapter.job.tenant.name if adapter.job.tenant else "Global"
         new_map = IPAddressToInterface(
-            ip_address=IPAddress.objects.get(address=ids["address"]),
+            ip_address=IPAddress.objects.get(host=ids["host_address"], parent__namespace__name=tenant_name),
             interface=Interface.objects.get(name=ids["port"], device__name=ids["device"]),
         )
         new_map.validated_save()
