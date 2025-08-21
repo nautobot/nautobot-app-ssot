@@ -204,7 +204,7 @@ class CitrixAdmAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                         tags=_tags,
                     )
                     self.load_address_to_interface(
-                        address=addr,
+                        host_addr=port["ipaddress"],
                         device=adc["hostname"],
                         port=port["port"],
                         primary=_primary,
@@ -274,20 +274,18 @@ class CitrixAdmAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
             },
         )
 
-    def load_address_to_interface(self, address: str, device: str, port: str, primary: bool = False):
+    def load_address_to_interface(self, host_addr: str, device: str, port: str, primary: bool = False):
         """Load CitrixAdmIPAddressOnInterface DiffSync model with specified data.
 
         Args:
-            address (str): IP Address in mapping. Expected in CIDR notation (e.g. "10.0.0.1/24").
+            host_addr (str): IP Address in mapping, e.g. "10.0.0.1".
             device (str): Device that IP resides on.
             port (str): Interface that IP is configured on.
             primary (str): Whether the IP is primary IP for assigned device. Defaults to False.
         """
-        try:
-            self.get(self.ip_on_intf, {"address": address, "device": device, "port": port})
-        except ObjectNotFound:
-            new_map = self.ip_on_intf(address=address, device=device, port=port, primary=primary, uuid=None)
-            self.add(new_map)
+        self.get_or_instantiate(
+            self.ip_on_intf, ids={"host_address": host_addr, "device": device, "port": port}, attrs={"primary": primary}
+        )
 
     def find_closer_parent_prefix(self) -> None:
         """Find more accurate parent Prefix for loaded IPAddresses."""

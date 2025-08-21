@@ -122,11 +122,11 @@ class IPAddressOnInterface(DiffSyncModel):
     """DiffSync model for Citrix ADM tracking IPAddress on particular Device interfaces."""
 
     _modelname = "ip_on_intf"
-    _identifiers = ("address", "device", "port")
+    _identifiers = ("host_address", "device", "port")
     _attributes = ("primary",)
     _children = {}
 
-    address: str
+    host_address: str
     device: str
     port: str
     primary: bool

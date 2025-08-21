@@ -168,7 +168,7 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
             self.add(new_ip)
             for mapping in IPAddressToInterface.objects.filter(ip_address=addr):
                 new_mapping = self.ip_on_intf(
-                    address=str(addr.address),
+                    host_address=str(addr.host),
                     device=mapping.interface.device.name,
                     port=mapping.interface.name,
                     primary=len(addr.primary_ip4_for.all()) > 0 or len(addr.primary_ip6_for.all()) > 0,
