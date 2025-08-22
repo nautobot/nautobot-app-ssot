@@ -68,6 +68,7 @@ class NautobotLocation(Location):
             adapter.job.logger.debug(f'Creating Nautobot Location {ids["name"]}')
 
         try:
+            adapter.job.logger.debug(f"Location Type {adapter.job.location_type}")
             _location_type = LocationType.objects.get(id=adapter.job.location_type.id)
         except LocationType.DoesNotExist:
             adapter.job.logger.warning(
@@ -133,23 +134,27 @@ class NautobotDevice(Device):
         _device_type = DeviceType.objects.get_or_create(model=attrs["device_type"], manufacturer=_manufacturer)[0]
         if adapter.job.debug:
             adapter.job.logger.debug(f'Device Location {attrs["location"]}')
-        new_device = ORMDevice(
-            name=ids["name"],
-            device_type=_device_type,
-            status=Status.objects.get_or_create(name=attrs["status"])[0],
-            role=ensure_role(role_name=attrs["role"], content_type=ORMDevice),
-            location=ORMLocation.objects.get(
-                name=attrs["location"], location_type=LocationType.objects.get(name="Site")
-            ),
-            platform=_platform,
-            serial=attrs["serial_no"],
-            software_version=ensure_software_version(
-                platform=_platform,
-                manufacturer=_manufacturer.name,
-                version=attrs["os_version"],
+        try:
+            new_device = ORMDevice(
+                name=ids["name"],
                 device_type=_device_type,
-            ),
-        )
+                status=Status.objects.get_or_create(name=attrs["status"])[0],
+                role=ensure_role(role_name=attrs["role"], content_type=ORMDevice),
+                location=ORMLocation.objects.get(
+                    name=attrs["location"], location_type=adapter.job.location_type
+                ),
+                platform=_platform,
+                serial=attrs["serial_no"],
+                software_version=ensure_software_version(
+                    platform=_platform,
+                    manufacturer=_manufacturer.name,
+                    version=attrs["os_version"],
+                    device_type=_device_type,
+                ),
+            )
+        except ORMLocation.DoesNotExist:
+            adapter.job.logger.error(f"Location {attrs['location']} does not exist. Skipping device {ids['name']}.")
+            return None
         if adapter.tenant:
             new_device.tenant = adapter.tenant
         new_device.custom_field_data.update({"librenms_device_id": attrs["device_id"]})
