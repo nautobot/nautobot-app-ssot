@@ -1,13 +1,16 @@
 """Nautobot Ssot Librenms Adapter for LibreNMS SSoT app."""
 
+import json
 import os
 
 from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
+from django.core.exceptions import ValidationError
 
 from nautobot_ssot.integrations.librenms.constants import (
     librenms_status_map,
     os_manufacturer_map,
+    PLUGIN_CFG,
 )
 from nautobot_ssot.integrations.librenms.diffsync.models.librenms import (
     LibrenmsDevice,
@@ -16,6 +19,7 @@ from nautobot_ssot.integrations.librenms.diffsync.models.librenms import (
 from nautobot_ssot.integrations.librenms.utils import (
     normalize_device_hostname,
     normalize_gps_coordinates,
+    validate_device_data,
 )
 from nautobot_ssot.integrations.librenms.utils.librenms import LibreNMSApi
 
@@ -40,6 +44,7 @@ class LibrenmsAdapter(Adapter):
         self.job = job
         self.sync = sync
         self.lnms_api = librenms_api
+        self.failed_import_devices = []
 
     def load_location(self, location: dict):
         """Load Location objects from LibreNMS into DiffSync models."""
@@ -68,38 +73,48 @@ class LibrenmsAdapter(Adapter):
     def load_device(self, device: dict):
         """Load Device objects from LibreNMS into DiffSync models."""
         if self.job.debug:
-            self.job.logger.debug(f'Loading LibreNMS Device {device["sysName"]}')
+            self.job.logger.debug(f'Loading LibreNMS Device {device[self.job.hostname_field]}')
 
         if device["os"] != "ping":
-            try:
-                self.get(self.device, device["sysName"])
-            except ObjectNotFound:
-                if device["disabled"] == 1:
-                    _status = "Offline"
-                else:
-                    _status = librenms_status_map[device["status"]]
-                new_device = self.device(
-                    name=normalize_device_hostname(device[self.hostname_field]),
-                    device_id=device["device_id"],
-                    location=(device["location"] if device["location"] is not None else "Unknown"),
-                    role=device["type"] if device["type"] is not None else None,
-                    serial_no=device["serial"] if device["serial"] is not None else "",
-                    status=_status,
-                    manufacturer=(
-                        os_manufacturer_map.get(device["os"])
-                        if os_manufacturer_map.get(device["os"]) is not None
-                        else "Unknown"
-                    ),
-                    device_type=(device["hardware"] if device["hardware"] is not None else "Unknown"),
-                    platform=device["os"] if device["os"] is not None else "Unknown",
-                    os_version=(device["version"] if device["version"] is not None else "Unknown"),
-                    ip_address=device["ip"],
-                    system_of_record=os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
-                )
+            if device["type"] in PLUGIN_CFG.get("librenms_permitted_values").get("role"):
+                validated_device = validate_device_data(device, self.job)
+                if validated_device["load_errors"]:
+                    self.job.logger.error(f"Unable to load device {device[self.job.hostname_field]}: {validated_device['load_errors']}.")
+                    self.failed_import_devices.append(device)
+                    return
                 try:
-                    self.add(new_device)
-                except ObjectAlreadyExists:
-                    self.job.logger.warning(f"Device {device[self.hostname_field]} already exists. Skipping.")
+                    self.get(self.device, device[self.job.hostname_field])
+                except ObjectNotFound:
+                    if device["disabled"] == 1:
+                        _status = "Offline"
+                    else:
+                        _status = librenms_status_map[device["status"]]
+                    try:
+                        new_device = self.device(
+                            name=normalize_device_hostname(device, self.job),
+                            device_id=device["device_id"],
+                            location=device["location"],
+                            role=device["type"],
+                            serial_no=device["serial"] if device["serial"] is not None else "",
+                            status=_status,
+                            manufacturer=os_manufacturer_map.get(device["os"]),
+                            device_type=device["hardware"],
+                            platform=device["os"],
+                            os_version=device["version"] if device["version"] is not None else "Unknown",
+                            ip_address=device["ip"],
+                            system_of_record=os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
+                        )
+                    except ValidationError as err:
+                        self.job.logger.error(f"Unable to load device {device[self.hostname_field]}: {err}.  Skipping.")
+                        device["load_error"] = err
+                        self.failed_import_devices.append(device)
+                        return
+                    try:
+                        self.add(new_device)
+                    except ObjectAlreadyExists:
+                        self.job.logger.warning(f"Device {device[self.hostname_field]} already exists. Skipping.")
+            else:
+                self.job.logger.warning(f'Device {device[self.hostname_field]} does not have a permitted role ({device["type"]}). Skipping.')
         else:
             self.job.logger.info(f'Device {device[self.hostname_field]} is "ping-only". Skipping.')
 
@@ -122,6 +137,14 @@ class LibrenmsAdapter(Adapter):
 
         for _device in all_devices["devices"]:
             self.load_device(device=_device)
+
+        if PLUGIN_CFG.get("librenms_show_failures"):
+            if self.failed_import_devices:
+                self.job.logger.warning(
+                    f"List of {len(self.failed_import_devices)} devices that were unable to be loaded. {json.dumps(self.failed_import_devices, indent=2)}"
+                )
+            else:
+                self.job.logger.info("There weren't any failed device loads. Congratulations!")
 
         if self.job.sync_locations:
             if load_source != "file":

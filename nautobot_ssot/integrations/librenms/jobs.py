@@ -3,7 +3,7 @@
 import os
 
 from django.templatetags.static import static
-from nautobot.apps.jobs import BooleanVar, ChoiceVar, ObjectVar
+from nautobot.apps.jobs import BooleanVar, ChoiceVar, FileVar, ObjectVar
 from nautobot.core.celery import register_jobs
 from nautobot.dcim.models import LocationType
 from nautobot.extras.choices import (
@@ -23,13 +23,6 @@ name = "LibreNMS SSoT"  # pylint: disable=invalid-name
 class LibrenmsDataSource(DataSource):
     """LibreNMS SSoT Data Source."""
 
-    librenms_server = ObjectVar(
-        model=ExternalIntegration,
-        queryset=ExternalIntegration.objects.all(),
-        display_field="display",
-        required=True,
-        label="LibreNMS Instance",
-    )
     hostname_field = ChoiceVar(
         choices=(
             ("sysName", "sysName"),
@@ -48,6 +41,23 @@ class LibrenmsDataSource(DataSource):
         description="Load LibreNMS from local fixutres or External Integration API.",
         label="Data Load Source",
         default="api",
+    )
+    devices_load_file = FileVar(
+        description="Load LibreNMS Devices from uploaded JSON file. Must be a JSON file.",
+        label="Devices Data Load File",
+        required=False,
+    )
+    locations_load_file = FileVar(
+        description="Load LibreNMS Locations from uploaded JSON file. Must be a JSON file.",
+        label="Locations Data Load File",
+        required=False,
+    )
+    librenms_server = ObjectVar(
+        model=ExternalIntegration,
+        queryset=ExternalIntegration.objects.all(),
+        display_field="display",
+        required=False,  # We'll handle validation in the method
+        label="LibreNMS Instance",
     )
     sync_locations = BooleanVar(description="Whether to Sync Locations from LibreNMS to Nautobot.", default=False)
     location_type = ObjectVar(
@@ -103,23 +113,34 @@ class LibrenmsDataSource(DataSource):
 
     def load_source_adapter(self):
         """Load data from LibreNMS into DiffSync models."""
-        self.logger.info(f"Loading data from {self.librenms_server.name}")
-        if self.librenms_server.extra_config is None or "port" not in self.librenms_server.extra_config:
-            port = 443
+        if self.load_type == "api":
+            if not self.librenms_server:
+                raise ValueError("LibreNMS Instance is required when load_type is 'api'")
+            self.logger.info(f"Loading data from {self.librenms_server.name}")
+            if self.librenms_server.extra_config is None or "port" not in self.librenms_server.extra_config:
+                port = 443
+            else:
+                port = self.librenms_server.extra_config["port"]
+            _sg = self.librenms_server.secrets_group
+            token = _sg.get_secret_value(
+                access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
+                secret_type=SecretsGroupSecretTypeChoices.TYPE_TOKEN,
+            )
+            librenms_api = LibreNMSApi(
+                url=self.librenms_server.remote_url,
+                port=port,
+                token=token,
+                verify=self.librenms_server.verify_ssl,
+            )
         else:
-            port = self.librenms_server.extra_config["port"]
-
-        _sg = self.librenms_server.secrets_group
-        token = _sg.get_secret_value(
-            access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
-            secret_type=SecretsGroupSecretTypeChoices.TYPE_TOKEN,
-        )
-        librenms_api = LibreNMSApi(
-            url=self.librenms_server.remote_url,
-            port=port,
-            token=token,
-            verify=self.librenms_server.verify_ssl,
-        )
+            self.logger.info("Loading data from uploaded files. No API credentials are needed.")
+            librenms_api = LibreNMSApi(
+                url="no.url.needed.com",
+                token="no_token_needed",
+                verify=False,
+                devices_load_file=self.devices_load_file,
+                locations_load_file=self.locations_load_file,
+            )
 
         self.source_adapter = librenms.LibrenmsAdapter(job=self, sync=self.sync, librenms_api=librenms_api)
         self.source_adapter.load()
@@ -140,6 +161,8 @@ class LibrenmsDataSource(DataSource):
         location_type,
         tenant,
         load_type,
+        devices_load_file=None,
+        locations_load_file=None,
         *args,
         **kwargs,
     ):  # pylint: disable=arguments-differ
@@ -153,6 +176,8 @@ class LibrenmsDataSource(DataSource):
         self.debug = debug
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
+        self.devices_load_file = devices_load_file
+        self.locations_load_file = locations_load_file
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 
