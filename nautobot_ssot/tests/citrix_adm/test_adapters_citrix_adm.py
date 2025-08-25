@@ -52,6 +52,7 @@ class TestCitrixAdmAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         self.job.hostname_mapping = {}
         self.job.logger.warning = MagicMock()
         self.job.logger.info = MagicMock()
+        self.job.logger.debug = MagicMock()
         self.job.job_result = JobResult.objects.create(
             name=self.job.class_path, task_name="fake task", worker="default"
         )
@@ -157,3 +158,27 @@ class TestCitrixAdmAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         self.assertEqual(
             {"10.0.0.1__TEST__mgmt"}, {map.get_unique_id() for map in self.citrix_adm.get_all("ip_on_intf")}
         )
+
+    def test_find_closer_parent_prefix_with_update(self):
+        """Test the Nautobot SSoT Citrix ADM find_closer_parent_prefix() function where the prefix is updated."""
+        self.citrix_adm.load_prefix(prefix="192.168.1.0/24")
+        self.citrix_adm.load_address(host_addr="192.168.1.1", mask_length=32, prefix="192.168.1.0/24")
+        self.citrix_adm.load_prefix(prefix="192.168.1.0/29")
+        self.job.debug = True
+        self.citrix_adm.find_closer_parent_prefix()
+        self.job.logger.debug.assert_called_with(
+            "More specific Prefix %s found for IPAddress %s", "192.168.1.0/29", "192.168.1.1"
+        )
+        loaded_addr = self.citrix_adm.get("address", "192.168.1.1__None")
+        self.assertEqual(loaded_addr.prefix, "192.168.1.0/29")
+
+    def test_find_closer_parent_prefix_with_mismatched_address_and_prefix(self):
+        """Test the Nautobot SSoT Citrix ADM find_closer_parent_prefix() function where the prefix IPv6 and address is IPv4."""
+        self.citrix_adm.load_prefix(prefix="2001:db8::/64")
+        self.citrix_adm.load_prefix(prefix="192.168.2.0/24")
+        self.citrix_adm.load_address(host_addr="192.168.1.1", mask_length=32, prefix="2001:db8::/64")
+        self.citrix_adm.load_prefix(prefix="2001:db8::/48")
+        self.citrix_adm.find_closer_parent_prefix()
+        loaded_addr = self.citrix_adm.get("address", "192.168.1.1__None")
+        self.assertEqual(loaded_addr.prefix, "2001:db8::/64")
+        self.job.logger.debug.assert_not_called()
