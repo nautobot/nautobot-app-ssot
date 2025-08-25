@@ -96,7 +96,15 @@ class ApiEndpoint:  # pylint: disable=too-few-public-methods
 class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
     """Representation of interactions with LibreNMS API."""
 
-    def __init__(self, url: str, token: str, port: int = 443, verify: bool = True, devices_load_file=None, locations_load_file=None):
+    def __init__(
+        self,
+        url: str,
+        token: str,
+        port: int = 443,
+        verify: bool = True,
+        devices_load_file=None,
+        locations_load_file=None,
+    ):
         """Create LibreNMS API connection."""
         super().__init__(url=url)
         self.url = url
