@@ -1,0 +1,1 @@
+Use required default arg ("msg") instead of kwarg ("message") when using self.job.logger.
