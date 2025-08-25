@@ -140,9 +140,7 @@ class NautobotDevice(Device):
                 device_type=_device_type,
                 status=Status.objects.get_or_create(name=attrs["status"])[0],
                 role=ensure_role(role_name=attrs["role"], content_type=ORMDevice),
-                location=ORMLocation.objects.get(
-                    name=attrs["location"], location_type=adapter.job.location_type
-                ),
+                location=ORMLocation.objects.get(name=attrs["location"], location_type=adapter.job.location_type),
                 platform=_platform,
                 serial=attrs["serial_no"],
                 software_version=ensure_software_version(

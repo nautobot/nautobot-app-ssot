@@ -8,9 +8,9 @@ from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.core.exceptions import ValidationError
 
 from nautobot_ssot.integrations.librenms.constants import (
+    PLUGIN_CFG,
     librenms_status_map,
     os_manufacturer_map,
-    PLUGIN_CFG,
 )
 from nautobot_ssot.integrations.librenms.diffsync.models.librenms import (
     LibrenmsDevice,
@@ -73,13 +73,15 @@ class LibrenmsAdapter(Adapter):
     def load_device(self, device: dict):
         """Load Device objects from LibreNMS into DiffSync models."""
         if self.job.debug:
-            self.job.logger.debug(f'Loading LibreNMS Device {device[self.job.hostname_field]}')
+            self.job.logger.debug(f"Loading LibreNMS Device {device[self.job.hostname_field]}")
 
         if device["os"] != "ping":
             if device["type"] in PLUGIN_CFG.get("librenms_permitted_values").get("role"):
                 validated_device = validate_device_data(device, self.job)
                 if validated_device["load_errors"]:
-                    self.job.logger.error(f"Unable to load device {device[self.job.hostname_field]}: {validated_device['load_errors']}.")
+                    self.job.logger.error(
+                        f"Unable to load device {device[self.job.hostname_field]}: {validated_device['load_errors']}."
+                    )
                     self.failed_import_devices.append(device)
                     return
                 try:
@@ -114,7 +116,9 @@ class LibrenmsAdapter(Adapter):
                     except ObjectAlreadyExists:
                         self.job.logger.warning(f"Device {device[self.hostname_field]} already exists. Skipping.")
             else:
-                self.job.logger.warning(f'Device {device[self.hostname_field]} does not have a permitted role ({device["type"]}). Skipping.')
+                self.job.logger.warning(
+                    f'Device {device[self.hostname_field]} does not have a permitted role ({device["type"]}). Skipping.'
+                )
         else:
             self.job.logger.info(f'Device {device[self.hostname_field]} is "ping-only". Skipping.')
 

@@ -136,7 +136,7 @@ class LibrenmsDataSource(DataSource):
             self.logger.info("Loading data from uploaded files. No API credentials are needed.")
             librenms_api = LibreNMSApi(
                 url="no.url.needed.com",
-                token="no_token_needed",
+                token="no_token_needed",  # noqa: S106
                 verify=False,
                 devices_load_file=self.devices_load_file,
                 locations_load_file=self.locations_load_file,
