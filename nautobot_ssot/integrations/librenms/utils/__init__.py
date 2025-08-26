@@ -61,7 +61,7 @@ def has_valid_location_data(device, location_type):
 
 def has_valid_role(device, job):
     """Check if the device has a device type for the role field."""
-    if isinstance(device["type"], str):
+    if isinstance(device["type"], str) and device["type"] != "":
         try:
             Role.objects.get(name=device["type"])
             return True
@@ -85,7 +85,7 @@ def has_valid_role(device, job):
 
 def has_valid_manufacturer_data(device, job):
     """Check if the device has a valid manufacturer."""
-    if isinstance(device["os"], str):
+    if isinstance(device["os"], str) and device["os"] != "":
         if os_manufacturer_map.get(device["os"]):
             try:
                 Manufacturer.objects.get(name=os_manufacturer_map.get(device["os"]))
@@ -112,7 +112,7 @@ def has_valid_manufacturer_data(device, job):
 
 def has_valid_device_type(device, job):
     """Check if the device has a valid device type for the hardware field."""
-    if isinstance(device["hardware"], str):
+    if isinstance(device["hardware"], str) and device["hardware"] != "":
         try:
             DeviceType.objects.get(model=device["hardware"])
             return True
@@ -139,7 +139,7 @@ def has_valid_device_type(device, job):
 
 def has_valid_platform(device, job):
     """Check if the device has a valid platform."""
-    if isinstance(device["os"], str):
+    if isinstance(device["os"], str) and device["os"] != "":
         try:
             Platform.objects.get(name=device["os"])
             return True
