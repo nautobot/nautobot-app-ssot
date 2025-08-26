@@ -259,14 +259,15 @@ class NautobotAddress(Address):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create IP Address in Nautobot from NautobotAddress object."""
-        if attrs.get("tenant"):
+        if ids.get("tenant"):
             pf_namespace = Namespace.objects.get_or_create(name=ids["tenant"])[0]
         else:
             pf_namespace = Namespace.objects.get(name="Global")
+        print(f"Using namespace {pf_namespace} for {ids['host_address']}")
         new_ip = IPAddress(
             host=ids["host_address"],
             mask_length=attrs["mask_length"],
-            parent=Prefix.objects.get(prefix=ids["prefix"], namespace=pf_namespace),
+            parent=Prefix.objects.get(prefix=attrs["prefix"], namespace=pf_namespace),
             status=Status.objects.get(name="Active"),
             namespace=pf_namespace,
         )
@@ -275,8 +276,8 @@ class NautobotAddress(Address):
         if attrs.get("tags"):
             new_ip.tags.set(attrs["tags"])
             for tag in attrs["tags"]:
-                new_tag = Tag.objects.get(name=tag)
-                new_tag.content_types.add(ContentType.objects.get_for_model(NewDevice))
+                new_tag = Tag.objects.get_or_create(name=tag)[0]
+                new_tag.content_types.add(ContentType.objects.get_for_model(IPAddress))
         new_ip.custom_field_data["system_of_record"] = "Citrix ADM"
         new_ip.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         new_ip.validated_save()
@@ -290,10 +291,10 @@ class NautobotAddress(Address):
         if attrs.get("prefix"):
             addr.parent = Prefix.objects.get(prefix=attrs["prefix"], namespace=addr.parent.namespace)
         if "tags" in attrs:
-            for tag in attrs["tags"]:
-                new_tag = Tag.objects.get(name=tag)
-                new_tag.content_types.add(ContentType.objects.get_for_model(NewDevice))
             addr.tags.set(attrs["tags"])
+            for tag in attrs["tags"]:
+                new_tag = Tag.objects.get_or_create(name=tag)[0]
+                new_tag.content_types.add(ContentType.objects.get_for_model(IPAddress))
         else:
             addr.tags.clear()
         addr.custom_field_data["system_of_record"] = "Citrix ADM"
