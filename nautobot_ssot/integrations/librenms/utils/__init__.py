@@ -59,6 +59,7 @@ def has_valid_location_data(device, location_type):
         device["load_errors"].append(reason)
         return False
 
+
 def has_valid_role(device, job):
     """Check if the device has a device type for the role field."""
     if isinstance(device["type"], str) and device["type"] != "":
