@@ -10,6 +10,33 @@ import urllib3
 LOGGER = logging.getLogger(__name__)
 
 
+class LibreNMSApiError(Exception):
+    """Exception raised for errors in the LibreNMS API."""
+
+    def __init__(self, message: str):
+        """Initialize LibreNMSApiError."""
+        self.message = message
+        super().__init__(self.message)
+
+
+class LibreNMSApiConnectionError(LibreNMSApiError):
+    """Exception raised for errors in the LibreNMS API connection."""
+
+    def __init__(self, message: str):
+        """Initialize LibreNMSApiConnectionError."""
+        self.message = message
+        super().__init__(self.message)
+
+
+class LibreNMSApiRequestError(LibreNMSApiError):
+    """Exception raised for errors in the LibreNMS API request."""
+
+    def __init__(self, message: str):
+        """Initialize LibreNMSApiRequestError."""
+        self.message = message
+        super().__init__(self.message)
+
+
 class ApiEndpoint:  # pylint: disable=too-few-public-methods
     """Base class to represent interactions with an API endpoint."""
 
@@ -58,7 +85,7 @@ class ApiEndpoint:  # pylint: disable=too-few-public-methods
             payload (dict, optional): Message payload to be sent as part of API call.
 
         Raises:
-            Exception: Error thrown if request errors.
+            LibreNMSApiConnectionError: Error thrown if request errors.
 
         Returns:
             dict: JSON payload of API response.
@@ -90,7 +117,7 @@ class ApiEndpoint:  # pylint: disable=too-few-public-methods
             return resp.json()
         except requests.exceptions.HTTPError as err:
             LOGGER.error(f"Error in communicating to LibreNMS API: {err}")
-            raise Exception(f"Error communicating to the LibreNMS API: {err}")
+            raise LibreNMSApiConnectionError(f"Error communicating to the LibreNMS API: {err}") from err
 
 
 class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
@@ -127,9 +154,9 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
                 devices = json.loads(content)
                 LOGGER.info("Loaded devices from uploaded JSON file")
                 return devices
-            except (json.JSONDecodeError, UnicodeDecodeError) as e:
-                LOGGER.error(f"Error parsing uploaded devices file: {e}")
-                raise Exception(f"Invalid JSON in uploaded devices file: {e}")
+            except (json.JSONDecodeError, UnicodeDecodeError) as err:
+                LOGGER.error(f"Error parsing uploaded devices file: {err}")
+                raise LibreNMSApiRequestError(f"Invalid JSON in uploaded devices file: {err}") from err
         else:
             with open(
                 file=f"{os.getcwd()}/nautobot_ssot/tests/librenms/fixtures/get_librenms_devices.json",
@@ -149,9 +176,9 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
                 locations = json.loads(content)
                 LOGGER.info("Loaded locations from uploaded JSON file")
                 return locations
-            except (json.JSONDecodeError, UnicodeDecodeError) as e:
-                LOGGER.error(f"Error parsing uploaded locations file: {e}")
-                raise Exception(f"Invalid JSON in uploaded locations file: {e}")
+            except (json.JSONDecodeError, UnicodeDecodeError) as err:
+                LOGGER.error(f"Error parsing uploaded locations file: {err}")
+                raise LibreNMSApiRequestError(f"Invalid JSON in uploaded locations file: {err}") from err
         else:
             with open(
                 file=f"{os.getcwd()}/nautobot_ssot/tests/librenms/fixtures/get_librenms_locations.json",
@@ -174,7 +201,7 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
 
     def get_librenms_port_detail(self, port_id: int):
         """Get Port details from LibreNMS API endpoint."""
-        url = "/api/v0/port/{port_id}"
+        url = f"/api/v0/port/{port_id}"
         port_details = self.api_call(path=url)
         return port_details
 
@@ -192,19 +219,19 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
 
     def get_librenms_devices_by_device_group(self, group: str):
         """Get Devices by DeviceGroup details from LibreNMS API endpoint."""
-        url = "/api/v0/devicegroups/{group}"
+        url = f"/api/v0/devicegroups/{group}"
         devices = self.api_call(path=url)
         return devices
 
     def get_librenms_device_groups_by_device(self, hostname: str):
         """Get DeviceGroup by Device details from LibreNMS API endpoint."""
-        url = "/api/v0/devices/{hostname}/groups"
+        url = f"/api/v0/devices/{hostname}/groups"
         device_groups = self.api_call(path=url)
         return device_groups
 
     def get_librenms_ip_for_device(self, hostname: str):
         """Get IP by Device details from LibreNMS API endpoint."""
-        url = "/api/v0/devices/{hostname}/ip"
+        url = f"/api/v0/devices/{hostname}/ip"
         ips = self.api_call(path=url)
         return ips
 
@@ -230,7 +257,7 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
 
     def update_librenms_location(self, location: dict):
         """Update Location details to LibreNMS API endpoint."""
-        url = "/api/v0/locations{location}"
+        url = f"/api/v0/locations/{location}"
         method = "PATCH"
         data = location
         response = self.api_call(path=url, method=method, payload=data)
@@ -238,7 +265,7 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
 
     def delete_librenms_location(self, location: str):
         """Delete Location details from LibreNMS API endpoint."""
-        url = "/api/v0/locations/{location}"
+        url = f"/api/v0/locations/{location}"
         method = "DELETE"
         response = self.api_call(path=url, method=method)
         return response
@@ -253,7 +280,7 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
 
     def update_librenms_device(self, device: dict):
         """Update Device details to LibreNMS API endpoint."""
-        url = "/api/v0/devices{device}"
+        url = f"/api/v0/devices/{device}"
         method = "PATCH"
         data = device
         response = self.api_call(path=url, method=method, payload=data)
@@ -261,7 +288,7 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
 
     def delete_librenms_device(self, device: str):
         """Delete Device details from LibreNMS API endpoint. Either hostname or device_id is required."""
-        url = "/api/v0/devices/{device}"
+        url = f"/api/v0/devices/{device}"
         method = "DELETE"
         response = self.api_call(path=url, method=method)
         return response
