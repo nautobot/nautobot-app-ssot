@@ -1,5 +1,7 @@
 """Utility functions for working with LibreNMS."""
 
+# pylint: disable=duplicate-code
+
 import json
 import logging
 import os

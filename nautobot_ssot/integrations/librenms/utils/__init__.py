@@ -1,5 +1,7 @@
 """Utility functions for working with LibreNMS and Nautobot."""
 
+# pylint: disable=duplicate-code
+
 import inspect
 import ipaddress
 import logging

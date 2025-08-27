@@ -1,5 +1,7 @@
 """Signals for LibreNMS SSoT."""
 
+# pylint: disable=duplicate-code
+
 import importlib.util
 
 from nautobot.core.signals import nautobot_database_ready

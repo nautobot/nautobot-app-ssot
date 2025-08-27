@@ -1,5 +1,7 @@
 """Utility functions for working with Nautobot."""
 
+# pylint: disable=duplicate-code
+
 from uuid import UUID
 
 from django.contrib.contenttypes.models import ContentType
