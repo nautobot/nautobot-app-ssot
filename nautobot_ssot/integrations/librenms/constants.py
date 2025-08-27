@@ -5,7 +5,7 @@ from django.conf import settings
 # Import config vars from nautobot_config.py
 PLUGIN_CFG = settings.PLUGINS_CONFIG["nautobot_ssot"]
 
-librenms_status_map = {
+librenms_status_map = {  # pylint: disable=W0109
     0: "Offline",
     1: "Active",
     True: "Active",

@@ -79,7 +79,7 @@ class LibrenmsAdapter(Adapter):
             if device["type"] in PLUGIN_CFG.get("librenms_permitted_values").get("role"):
                 validated_device = validate_device_data(device, self.job)
                 if validated_device["load_errors"]:
-                    self.job.logger.error(
+                    self.job.logger.warning(
                         f"Unable to load device {device[self.job.hostname_field]}: {validated_device['load_errors']}."
                     )
                     self.failed_import_devices.append(device)
