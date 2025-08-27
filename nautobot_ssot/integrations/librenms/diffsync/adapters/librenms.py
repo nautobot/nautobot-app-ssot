@@ -117,7 +117,7 @@ class LibrenmsAdapter(Adapter):
                         self.job.logger.warning(f"Device {device[self.hostname_field]} already exists. Skipping.")
             else:
                 self.job.logger.warning(
-                    f'Device {device[self.hostname_field]} does not have a permitted role ({device["type"]}). Skipping.'
+                    f'Device {device[self.hostname_field]} role "{device["type"]}" is not permitted by the configuration. Skipping.'
                 )
         else:
             self.job.logger.info(f'Device {device[self.hostname_field]} is "ping-only". Skipping.')

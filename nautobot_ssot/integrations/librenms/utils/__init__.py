@@ -47,7 +47,7 @@ def has_required_values(device, job):
     """Check if the device has required values."""
     required_values = [job.hostname_field, "location", "type", "os", "hardware"]
     for value in required_values:
-        if not isinstance(device[value], str) or device[value] is None or device[value] == "":
+        if not isinstance(device[value], str) or device[value] == "":
             device["load_errors"].append(f"{value} string is required")
             continue
     if len(device["load_errors"]) > 0:
@@ -121,7 +121,7 @@ def has_valid_device_type(device, job):
     try:
         DeviceType.objects.get(model=device["hardware"])
         return True
-    except DeviceType.DoesNotExist as err:
+    except DeviceType.DoesNotExist as does_not_exist_error:
         if has_valid_manufacturer_data(device, job):
             job.logger.info(f"Creating device type {device['hardware']}")
             _manufacturer = Manufacturer.objects.get(name=os_manufacturer_map.get(device["os"]))
@@ -129,13 +129,13 @@ def has_valid_device_type(device, job):
                 _device_type = DeviceType.objects.create(model=device["hardware"], manufacturer=_manufacturer)
                 _device_type.validated_save()
                 return True
-            except ValidationError as err:
-                reason = err.args[0]
+            except ValidationError as validation_error:
+                reason = validation_error.args[0]
                 device["load_errors"].append(reason)
                 return False
-        reason = err.args[0]
-    except DeviceType.MultipleObjectsReturned as err:
-        reason = err.args[0]
+        reason = does_not_exist_error.args[0]
+    except DeviceType.MultipleObjectsReturned as multiple_objects_error:
+        reason = multiple_objects_error.args[0]
     device["load_errors"].append(reason)
     return False
 

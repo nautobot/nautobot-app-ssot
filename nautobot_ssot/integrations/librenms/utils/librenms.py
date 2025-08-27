@@ -143,7 +143,7 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
 
         LOGGER.info(f"Headers {self.headers}")
 
-    def get_librenms_devices_from_file(self):  # pylint: disable=no-self-use
+    def get_librenms_devices_from_file(self):
         """Get Devices from LibreNMS example file."""
         if self.devices_load_file:
             try:
@@ -165,7 +165,7 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
                 devices = json.load(API_CALL_FIXTURE)
             return devices
 
-    def get_librenms_locations_from_file(self):  # pylint: disable=no-self-use
+    def get_librenms_locations_from_file(self):
         """Get Locations from LibreNMS example file."""
         if self.locations_load_file:
             try:
