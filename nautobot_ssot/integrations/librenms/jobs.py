@@ -161,9 +161,9 @@ class LibrenmsDataSource(DataSource):
         location_type,
         tenant,
         load_type,
+        *args,
         devices_load_file=None,
         locations_load_file=None,
-        *args,
         **kwargs,
     ):  # pylint: disable=arguments-differ
         """Perform data synchronization."""
