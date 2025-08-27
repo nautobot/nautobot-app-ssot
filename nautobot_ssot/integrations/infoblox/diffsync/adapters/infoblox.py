@@ -340,6 +340,23 @@ class InfobloxAdapter(Adapter):
         except requests.exceptions.HTTPError as exc:
             if exc.response.status_code == 404:
                 self.job.logger.warning(message=f"A record {ref} not found, likely dynamic and expired.")
+                # remove any existing stale A record from Nautobot
+                try:
+                    stale = self.dnsarecord(
+                        address=ip_record.address,
+                        prefix=ip_record.prefix,
+                        prefix_length=ip_record.prefix_length,
+                        namespace=namespace,
+                        dns_name="",
+                        ip_addr_type=ip_record.ip_addr_type,
+                        description="",
+                        status=ip_record.status,
+                        ext_attrs={},
+                        ref=ref,
+                    )
+                    self.remove(stale)
+                except Exception:  # noqa: S110
+                    pass
                 return
             raise
         record_ext_attrs = get_ext_attr_dict(extattrs=a_record.get("extattrs", {}), excluded_attrs=self.excluded_attrs)
@@ -372,6 +389,23 @@ class InfobloxAdapter(Adapter):
         except requests.exceptions.HTTPError as exc:
             if exc.response.status_code == 404:
                 self.job.logger.warning(message=f"PTR record {ref} not found, likely dynamic and expired.")
+                # remove any existing stale PTR record from Nautobot
+                try:
+                    stale = self.dnsptrrecord(
+                        address=ip_record.address,
+                        prefix=ip_record.prefix,
+                        prefix_length=ip_record.prefix_length,
+                        namespace=namespace,
+                        dns_name="",
+                        ip_addr_type=ip_record.ip_addr_type,
+                        description="",
+                        status=ip_record.status,
+                        ext_attrs={},
+                        ref=ref
+                    )
+                    self.remove(stale)
+                except Exception:  # noqa: S110
+                    pass
                 return
             raise
         record_ext_attrs = get_ext_attr_dict(
