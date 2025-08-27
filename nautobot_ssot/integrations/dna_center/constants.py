@@ -25,7 +25,6 @@ BASE_INTERFACE_MAP = {
     "Virtual-Template": "virtual",
 }
 
-INTEGRATION = "DNA Center"
 SCOPED_FIELDS_MAPPING = {
     "area": {"dcim.location": ["name", "location_type", "status"]},
     "building": {

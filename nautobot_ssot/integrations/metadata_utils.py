@@ -39,14 +39,13 @@ if METADATA_FOUND:
             return False
 
     def add_or_update_metadata_on_object(
-        adapter: Adapter, obj: object, integration: str, scoped_fields: dict[str, list[str]]
+        adapter: Adapter, obj: object, scoped_fields: dict[str, list[str]]
     ) -> ObjectMetadata:  # pylint: disable=inconsistent-return-statements
         """Add or Update Metadata on passed object and assign scoped fields.
 
         Args:
             adapter (Adapter): Adapter that has logging facility.
             obj (object): Object to assign Metadata to.
-            integration: Name of SSOT integration in use for this Metadata.
             scoped_fields (dict[str, list[str]]): Dictionary mapping objects to a list of scoped fields for object.
 
         Returns:
@@ -56,9 +55,9 @@ if METADATA_FOUND:
             return None
 
         last_sync_type = MetadataType.objects.get_or_create(
-            name=f"Last Sync from {integration}",
+            name=f"Last Sync from {adapter.job.data_source}",
             defaults={
-                "description": f"Describes the last date that a object's field was updated from {integration}.",
+                "description": f"Describes the last date that a object's field was updated from {adapter.job.data_source}.",
                 "data_type": MetadataTypeDataTypeChoices.TYPE_DATETIME,
             },
         )[0]

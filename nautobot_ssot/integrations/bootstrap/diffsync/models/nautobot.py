@@ -49,7 +49,7 @@ from nautobot.users.models import User as ORMUser
 try:
     from nautobot.extras.models.metadata import ObjectMetadata  # noqa: F401
 
-    from nautobot_ssot.integrations.bootstrap.constants import INTEGRATION, SCOPED_FIELDS_MAPPING
+    from nautobot_ssot.integrations.bootstrap.constants import SCOPED_FIELDS_MAPPING
     from nautobot_ssot.integrations.metadata_utils import add_or_update_metadata_on_object
 
     METADATA_FOUND = True
@@ -149,7 +149,7 @@ class NautobotTenantGroup(TenantGroup):
         new_tenant_group.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_tenant_group, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=new_tenant_group, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -170,7 +170,6 @@ class NautobotTenantGroup(TenantGroup):
             metadata = add_or_update_metadata_on_object(
                 adapter=self.adapter,
                 obj=_update_tenant_group,
-                integration=INTEGRATION,
                 scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             metadata.validated_save()
@@ -221,7 +220,7 @@ class NautobotTenant(Tenant):
         new_tenant.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_tenant, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=new_tenant, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -249,7 +248,7 @@ class NautobotTenant(Tenant):
         _update_tenant.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_tenant, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=self.adapter, obj=_update_tenant, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -292,7 +291,7 @@ class NautobotRole(Role):
         _new_role.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_role, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=_new_role, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -322,7 +321,7 @@ class NautobotRole(Role):
         _update_role.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_role, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=self.adapter, obj=_update_role, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -352,7 +351,7 @@ class NautobotManufacturer(Manufacturer):
         _new_manufacturer.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_manufacturer, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=_new_manufacturer, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -371,7 +370,6 @@ class NautobotManufacturer(Manufacturer):
             metadata = add_or_update_metadata_on_object(
                 adapter=self.adapter,
                 obj=_update_manufacturer,
-                integration=INTEGRATION,
                 scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             metadata.validated_save()
@@ -417,7 +415,7 @@ class NautobotPlatform(Platform):
             _new_platform.validated_save()
             if METADATA_FOUND:
                 metadata = add_or_update_metadata_on_object(
-                    adapter=adapter, obj=_new_platform, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                    adapter=adapter, obj=_new_platform, scoped_fields=SCOPED_FIELDS_MAPPING
                 )
                 metadata.validated_save()
         except ORMManufacturer.DoesNotExist:
@@ -443,7 +441,7 @@ class NautobotPlatform(Platform):
         _update_platform.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_platform, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=self.adapter, obj=_update_platform, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -504,7 +502,7 @@ class NautobotLocationType(LocationType):
         _new_location_type.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_location_type, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=_new_location_type, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -544,7 +542,6 @@ class NautobotLocationType(LocationType):
             metadata = add_or_update_metadata_on_object(
                 adapter=self.adapter,
                 obj=_update_location_type,
-                integration=INTEGRATION,
                 scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             metadata.validated_save()
@@ -617,7 +614,7 @@ class NautobotLocation(Location):
             _new_location.validated_save()
             if METADATA_FOUND:
                 metadata = add_or_update_metadata_on_object(
-                    adapter=adapter, obj=_new_location, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                    adapter=adapter, obj=_new_location, scoped_fields=SCOPED_FIELDS_MAPPING
                 )
                 metadata.validated_save()
         except ORMStatus.DoesNotExist:
@@ -692,7 +689,7 @@ class NautobotLocation(Location):
         _update_location.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_location, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=self.adapter, obj=_update_location, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -731,7 +728,7 @@ class NautobotTeam(Team):
         _new_team.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_team, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=_new_team, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         # TODO: Need to consider how to allow loading from teams or contacts models.
@@ -767,7 +764,7 @@ class NautobotTeam(Team):
         _update_team.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_team, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=self.adapter, obj=_update_team, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -807,7 +804,7 @@ class NautobotContact(Contact):
             _new_contact.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_contact, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=_new_contact, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -834,7 +831,7 @@ class NautobotContact(Contact):
         _update_contact.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_contact, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=self.adapter, obj=_update_contact, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -880,7 +877,7 @@ class NautobotProvider(Provider):
         _new_provider.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_provider, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=_new_provider, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -913,7 +910,7 @@ class NautobotProvider(Provider):
         _update_provider.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_provider, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=self.adapter, obj=_update_provider, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -957,7 +954,7 @@ class NautobotProviderNetwork(ProviderNetwork):
         _new_provider_network.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_provider_network, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=_new_provider_network, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -988,7 +985,6 @@ class NautobotProviderNetwork(ProviderNetwork):
             metadata = add_or_update_metadata_on_object(
                 adapter=self.adapter,
                 obj=_update_provider_network,
-                integration=INTEGRATION,
                 scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             metadata.validated_save()
@@ -1022,7 +1018,7 @@ class NautobotCircuitType(CircuitType):
         _new_circuit_type.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_circuit_type, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=_new_circuit_type, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -1043,7 +1039,6 @@ class NautobotCircuitType(CircuitType):
             metadata = add_or_update_metadata_on_object(
                 adapter=self.adapter,
                 obj=_update_circuit_type,
-                integration=INTEGRATION,
                 scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             metadata.validated_save()
@@ -1099,7 +1094,7 @@ class NautobotCircuit(Circuit):
         _new_circuit.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_circuit, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=_new_circuit, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -1140,7 +1135,7 @@ class NautobotCircuit(Circuit):
         _update_circuit.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_circuit, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=self.adapter, obj=_update_circuit, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -1228,7 +1223,6 @@ class NautobotCircuitTermination(CircuitTermination):
             metadata = add_or_update_metadata_on_object(
                 adapter=adapter,
                 obj=_new_circuit_termination,
-                integration=INTEGRATION,
                 scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             metadata.validated_save()
@@ -1288,7 +1282,6 @@ class NautobotCircuitTermination(CircuitTermination):
             metadata = add_or_update_metadata_on_object(
                 adapter=self.adapter,
                 obj=_update_circuit_termination,
-                integration=INTEGRATION,
                 scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             metadata.validated_save()
@@ -1331,7 +1324,7 @@ class NautobotNamespace(Namespace):
                 )
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_namespace, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=new_namespace, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -1358,7 +1351,6 @@ class NautobotNamespace(Namespace):
             metadata = add_or_update_metadata_on_object(
                 adapter=self.adapter,
                 obj=_update_namespace,
-                integration=INTEGRATION,
                 scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             metadata.validated_save()
@@ -1397,7 +1389,7 @@ class NautobotRiR(RiR):
         new_rir.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_rir, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=new_rir, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -1416,7 +1408,7 @@ class NautobotRiR(RiR):
         _update_rir.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_rir, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=self.adapter, obj=_update_rir, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -1461,7 +1453,7 @@ class NautobotVLANGroup(VLANGroup):
         new_vlan_group.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_vlan_group, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=new_vlan_group, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -1491,7 +1483,6 @@ class NautobotVLANGroup(VLANGroup):
             metadata = add_or_update_metadata_on_object(
                 adapter=self.adapter,
                 obj=_update_vlan_group,
-                integration=INTEGRATION,
                 scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             metadata.validated_save()
@@ -1593,7 +1584,7 @@ class NautobotVLAN(VLAN):
                 new_vlan.locations.add(_location)
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_vlan, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=new_vlan, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
 
@@ -1671,7 +1662,7 @@ class NautobotVLAN(VLAN):
         _update_vlan.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_vlan, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=self.adapter, obj=_update_vlan, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
 
@@ -1732,7 +1723,7 @@ class NautobotVRF(VRF):
         new_vrf.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_vrf, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=new_vrf, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -1765,7 +1756,7 @@ class NautobotVRF(VRF):
         _update_vrf.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_vrf, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=self.adapter, obj=_update_vrf, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -1942,7 +1933,7 @@ class NautobotPrefix(Prefix):
                 )
             if METADATA_FOUND:
                 metadata = add_or_update_metadata_on_object(
-                    adapter=adapter, obj=new_prefix, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                    adapter=adapter, obj=new_prefix, scoped_fields=SCOPED_FIELDS_MAPPING
                 )
                 metadata.validated_save()
             return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -2086,7 +2077,7 @@ class NautobotPrefix(Prefix):
         _update_prefix.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_prefix, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=self.adapter, obj=_update_prefix, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
 
@@ -2121,7 +2112,7 @@ class NautobotSecret(Secret):
         new_secret.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_secret, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=new_secret, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -2139,7 +2130,7 @@ class NautobotSecret(Secret):
         _update_secret.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_secret, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=self.adapter, obj=_update_secret, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -2181,7 +2172,6 @@ class NautobotSecretsGroup(SecretsGroup):
                     metadata = add_or_update_metadata_on_object(
                         adapter=adapter,
                         obj=_new_secrets_group,
-                        integration=INTEGRATION,
                         scoped_fields=SCOPED_FIELDS_MAPPING,
                     )
                     metadata.validated_save()
@@ -2221,7 +2211,7 @@ class NautobotSecretsGroup(SecretsGroup):
         _update_group.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_group, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=self.adapter, obj=_update_group, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -2260,7 +2250,7 @@ class NautobotGitRepository(GitRepository):
         new_gitrepository.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_gitrepository, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=new_gitrepository, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -2284,7 +2274,7 @@ class NautobotGitRepository(GitRepository):
         _update_git_repo.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_git_repo, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=self.adapter, obj=_update_git_repo, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -2334,7 +2324,7 @@ class NautobotDynamicGroup(DynamicGroup):
             _new_nb_dg.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_nb_dg, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=_new_nb_dg, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -2355,7 +2345,6 @@ class NautobotDynamicGroup(DynamicGroup):
             metadata = add_or_update_metadata_on_object(
                 adapter=self.adapter,
                 obj=_update_dyn_group,
-                integration=INTEGRATION,
                 scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             metadata.validated_save()
@@ -2392,7 +2381,7 @@ class NautobotComputedField(ComputedField):
         _new_computed_field.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_computed_field, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=_new_computed_field, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -2414,7 +2403,7 @@ class NautobotComputedField(ComputedField):
         comp_field.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=comp_field, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=self.adapter, obj=comp_field, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -2470,7 +2459,7 @@ class NautobotCustomField(CustomField):
             _new_cf.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_custom_field, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=_new_custom_field, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
 
@@ -2519,7 +2508,7 @@ class NautobotCustomField(CustomField):
         cust_field.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=cust_field, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=self.adapter, obj=cust_field, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -2563,7 +2552,7 @@ class NautobotTag(Tag):
         _new_tag.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_tag, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=_new_tag, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -2591,7 +2580,7 @@ class NautobotTag(Tag):
         _update_tag.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_tag, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=self.adapter, obj=_update_tag, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -2619,7 +2608,7 @@ class NautobotGraphQLQuery(GraphQLQuery):
         _new_query.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_query, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=_new_query, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -2633,7 +2622,7 @@ class NautobotGraphQLQuery(GraphQLQuery):
         _query.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_query, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=self.adapter, obj=_query, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -2699,7 +2688,7 @@ class NautobotScheduledJob(ScheduledJob):
         scheduled_job.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=scheduled_job, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=scheduled_job, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
 
@@ -2750,7 +2739,7 @@ class NautobotScheduledJob(ScheduledJob):
         job.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=job, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=self.adapter, obj=job, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
 
@@ -2822,7 +2811,7 @@ class NautobotSoftware(_Software_Base_Class):
         _new_software.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_software, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=_new_software, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -2867,7 +2856,7 @@ class NautobotSoftware(_Software_Base_Class):
         _update_software.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_software, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=self.adapter, obj=_update_software, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -2949,7 +2938,7 @@ class NautobotSoftwareImage(_SoftwareImage_Base_Class):
         _new_soft_image.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_soft_image, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=_new_soft_image, scoped_fields=SCOPED_FIELDS_MAPPING
             )
             metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -3006,7 +2995,6 @@ class NautobotSoftwareImage(_SoftwareImage_Base_Class):
             metadata = add_or_update_metadata_on_object(
                 adapter=self.adapter,
                 obj=_update_soft_image,
-                integration=INTEGRATION,
                 scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             metadata.validated_save()
@@ -3104,7 +3092,6 @@ if validate_dlm_installed():
                 metadata = add_or_update_metadata_on_object(
                     adapter=adapter,
                     obj=_new_validated_software,
-                    integration=INTEGRATION,
                     scoped_fields=SCOPED_FIELDS_MAPPING,
                 )
                 metadata.validated_save()
@@ -3194,7 +3181,6 @@ if validate_dlm_installed():
                 metadata = add_or_update_metadata_on_object(
                     adapter=self.adapter,
                     obj=_update_validated_software,
-                    integration=INTEGRATION,
                     scoped_fields=SCOPED_FIELDS_MAPPING,
                 )
                 metadata.validated_save()

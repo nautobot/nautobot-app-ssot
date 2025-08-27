@@ -5,7 +5,6 @@ from nautobot_ssot.utils import (
     validate_dlm_installed,
 )
 
-INTEGRATION = "Bootstrap"
 SCOPED_FIELDS_MAPPING = {
     "circuits.circuit": [
         "cid",

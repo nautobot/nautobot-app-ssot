@@ -29,7 +29,7 @@ if core_supports_softwareversion():
 try:
     from nautobot.extras.models.metadata import ObjectMetadata  # noqa: F401
 
-    from nautobot_ssot.integrations.dna_center.constants import INTEGRATION, SCOPED_FIELDS_MAPPING
+    from nautobot_ssot.integrations.dna_center.constants import SCOPED_FIELDS_MAPPING
     from nautobot_ssot.integrations.metadata_utils import add_or_update_metadata_on_object
 
     METADATA_FOUND = True
@@ -64,7 +64,7 @@ class NautobotArea(base.Area):
             return None
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_area, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING["area"]
+                adapter=adapter, obj=new_area, scoped_fields=SCOPED_FIELDS_MAPPING["area"]
             )
             metadata.validated_save()
         if ids["parent"] not in adapter.region_map:
@@ -79,7 +79,6 @@ class NautobotArea(base.Area):
             metadata = add_or_update_metadata_on_object(
                 adapter=self.adapter,
                 obj=region,
-                integration=INTEGRATION,
                 scoped_fields=SCOPED_FIELDS_MAPPING["area"],
             )
             metadata.validated_save()
@@ -127,7 +126,6 @@ class NautobotBuilding(base.Building):
             metadata = add_or_update_metadata_on_object(
                 adapter=adapter,
                 obj=new_building,
-                integration=INTEGRATION,
                 scoped_fields=SCOPED_FIELDS_MAPPING["building"],
             )
             metadata.validated_save()
@@ -162,7 +160,7 @@ class NautobotBuilding(base.Building):
         site.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=site, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING["building"]
+                adapter=self.adapter, obj=site, scoped_fields=SCOPED_FIELDS_MAPPING["building"]
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -200,7 +198,7 @@ class NautobotFloor(base.Floor):
         new_floor.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_floor, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING["floor"]
+                adapter=adapter, obj=new_floor, scoped_fields=SCOPED_FIELDS_MAPPING["floor"]
             )
             metadata.validated_save()
         if ids["area"] not in adapter.floor_map:
@@ -223,7 +221,7 @@ class NautobotFloor(base.Floor):
         floor.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=floor, integration=INTEGRATION, scoped_fields=SCOPED_FIELDS_MAPPING["floor"]
+                adapter=self.adapter, obj=floor, scoped_fields=SCOPED_FIELDS_MAPPING["floor"]
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -293,7 +291,6 @@ class NautobotDevice(base.Device):
             metadata = add_or_update_metadata_on_object(
                 adapter=adapter,
                 obj=new_device,
-                integration=INTEGRATION,
                 scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             adapter.objects_to_create["metadata"].append(metadata)
@@ -371,7 +368,6 @@ class NautobotDevice(base.Device):
             metadata = add_or_update_metadata_on_object(
                 adapter=self.adapter,
                 obj=device,
-                integration=INTEGRATION,
                 scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             metadata.validated_save()
@@ -411,7 +407,6 @@ class NautobotPort(base.Port):
             metadata = add_or_update_metadata_on_object(
                 adapter=adapter,
                 obj=new_port,
-                integration=INTEGRATION,
                 scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             adapter.objects_to_create["metadata"].append(metadata)
@@ -449,7 +444,6 @@ class NautobotPort(base.Port):
             metadata = add_or_update_metadata_on_object(
                 adapter=self.adapter,
                 obj=port,
-                integration=INTEGRATION,
                 scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             metadata.validated_save()
@@ -491,7 +485,6 @@ class NautobotPrefix(base.Prefix):
             metadata = add_or_update_metadata_on_object(
                 adapter=adapter,
                 obj=new_prefix,
-                integration=INTEGRATION,
                 scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             adapter.objects_to_create["metadata"].append(metadata)
@@ -514,7 +507,6 @@ class NautobotPrefix(base.Prefix):
             metadata = add_or_update_metadata_on_object(
                 adapter=self.adapter,
                 obj=prefix,
-                integration=INTEGRATION,
                 scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             metadata.validated_save()
@@ -553,7 +545,6 @@ class NautobotIPAddress(base.IPAddress):
             metadata = add_or_update_metadata_on_object(
                 adapter=adapter,
                 obj=new_ip,
-                integration=INTEGRATION,
                 scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             adapter.objects_to_create["metadata"].append(metadata)
@@ -576,7 +567,6 @@ class NautobotIPAddress(base.IPAddress):
                 metadata = add_or_update_metadata_on_object(
                     adapter=self.adapter,
                     obj=ipaddr,
-                    integration=INTEGRATION,
                     scoped_fields=SCOPED_FIELDS_MAPPING,
                 )
                 metadata.validated_save()
