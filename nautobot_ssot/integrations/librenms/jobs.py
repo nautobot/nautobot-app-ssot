@@ -1,5 +1,6 @@
 """Jobs for LibreNMS SSoT integration."""
 
+# pylint: disable=duplicate-code
 import os
 
 from django.templatetags.static import static
