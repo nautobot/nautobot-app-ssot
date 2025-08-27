@@ -20,7 +20,7 @@ from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
 name = "LibreNMS SSoT"  # pylint: disable=invalid-name
 
 
-class LibrenmsDataSource(DataSource):
+class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attributes
     """LibreNMS SSoT Data Source."""
 
     hostname_field = ChoiceVar(
@@ -150,7 +150,7 @@ class LibrenmsDataSource(DataSource):
         self.target_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync, tenant=self.tenant)
         self.target_adapter.load()
 
-    def run(
+    def run(  # pylint: disable=too-many-arguments
         self,
         dryrun,
         memory_profiling,
@@ -181,7 +181,7 @@ class LibrenmsDataSource(DataSource):
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 
-class LibrenmsDataTarget(DataTarget):
+class LibrenmsDataTarget(DataTarget):  # pylint: disable=too-many-instance-attributes
     """LibreNMS SSoT Data Target."""
 
     librenms_server = ObjectVar(
@@ -266,7 +266,7 @@ class LibrenmsDataTarget(DataTarget):
         self.target_adapter = librenms.LibrenmsAdapter(job=self, sync=self.sync, librenms_api=librenms_api)
         self.target_adapter.load()
 
-    def run(
+    def run(  # pylint: disable=too-many-arguments
         self,
         dryrun,
         memory_profiling,

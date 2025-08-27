@@ -123,7 +123,7 @@ class ApiEndpoint:  # pylint: disable=too-few-public-methods
 class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
     """Representation of interactions with LibreNMS API."""
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         url: str,
         token: str,
