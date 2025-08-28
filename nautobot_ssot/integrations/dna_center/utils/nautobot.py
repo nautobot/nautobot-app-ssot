@@ -1,21 +1,10 @@
 """Utility functions for working with Nautobot."""
 
-from datetime import datetime
-from typing import List, Optional
 from uuid import UUID
 
-from diffsync import Adapter
 from django.contrib.contenttypes.models import ContentType
 from nautobot.dcim.models import Device, Platform
 from nautobot.extras.models import Relationship, RelationshipAssociation
-
-try:
-    from nautobot.extras.models.metadata import MetadataType, MetadataTypeDataTypeChoices, ObjectMetadata  # noqa: F401
-
-    METADATA_FOUND = True
-except (ImportError, RuntimeError):
-    METADATA_FOUND = False
-
 from netutils.lib_mapper import ANSIBLE_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER_REVERSE
 
 try:
@@ -97,58 +86,3 @@ def assign_version_to_device(adapter, device: Device, software_lcm: UUID):
         destination_id=device.id,
     )
     new_assoc.validated_save()
-
-
-if METADATA_FOUND:
-
-    def object_has_metadata(obj: object) -> Optional[bool]:
-        """Check if object has MetadataType assigned to it.
-
-        Args:
-            obj (object): Object to check for MetadataType.
-
-        Returns:
-            bool: True if MetadataType is found, False otherwise.
-        """
-        try:
-            ObjectMetadata.objects.get(
-                assigned_object_id=obj.id,
-                metadata_type=MetadataType.objects.get(name="Last Sync from DNA Center"),
-            )
-            return True
-        except (MetadataType.DoesNotExist, ObjectMetadata.DoesNotExist):
-            return False
-
-    def add_or_update_metadata_on_object(adapter: Adapter, obj: object, scoped_fields: List[str]) -> ObjectMetadata:  # pylint: disable=inconsistent-return-statements
-        """Add or Update Metadata on passed object and assign scoped fields.
-
-        Args:
-            adapter (Adapter): Adapter that has logging facility.
-            obj (object): Object to assign Metadata to.
-            scoped_fields (List[str]): List of strings that are scoped fields for object.
-
-        Returns:
-            ObjectMetadata: Metadata object that is created or updated.
-        """
-        if not METADATA_FOUND:
-            return None
-
-        last_sync_type = MetadataType.objects.get_or_create(
-            name="Last Sync from DNA Center",
-            defaults={
-                "description": "Describes the last date that a object's field was updated from DNA Center.",
-                "data_type": MetadataTypeDataTypeChoices.TYPE_DATE,
-            },
-        )[0]
-        last_sync_type.content_types.add(ContentType.objects.get_for_model(type(obj)))
-        try:
-            metadata = ObjectMetadata.objects.get(
-                assigned_object_id=obj.id,
-                metadata_type=last_sync_type,
-            )
-        except ObjectMetadata.DoesNotExist:
-            metadata = ObjectMetadata(assigned_object=obj, metadata_type=last_sync_type, scoped_fields=scoped_fields)
-        metadata.value = datetime.today().date().isoformat()
-        if adapter.job.debug:
-            adapter.job.logger.debug(f"Metadata {last_sync_type} added to {obj}.")
-        return metadata

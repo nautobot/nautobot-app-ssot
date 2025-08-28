@@ -24,3 +24,36 @@ BASE_INTERFACE_MAP = {
     "Virtual-Access": "virtual",
     "Virtual-Template": "virtual",
 }
+
+SCOPED_FIELDS_MAPPING = {
+    "area": {"dcim.location": ["name", "location_type", "status"]},
+    "building": {
+        "dcim.location": ["name", "location_type", "parent", "physical_address", "status", "latitude", "longitude"]
+    },
+    "floor": {"dcim.location": ["name", "location_type", "parent", "status"]},
+    "dcim.device": [
+        "name",
+        "status",
+        "role",
+        "location",
+        "device_type",
+        "serial",
+        "platform",
+        "controller_managed_device_group",
+        "tenant",
+    ],
+    "dcim.interface": [
+        "name",
+        "device",
+        "description",
+        "enabled",
+        "type",
+        "mode",
+        "mac_address",
+        "mtu",
+        "status",
+        "mgmt_only",
+    ],
+    "ipam.ipaddress": ["address", "namespace", "status", "tenant"],
+    "ipam.prefix": ["prefix", "namespace", "status", "tenant"],
+}
