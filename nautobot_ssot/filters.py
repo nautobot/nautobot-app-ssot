@@ -46,8 +46,8 @@ class SyncLogEntryFilterSet(BaseFilterSet):  # pylint: disable=too-many-ancestor
 
 
 __all__ = (
-    AutomationGatewayModelFilterSet,
-    SSOTInfobloxConfigFilterSet,
-    SyncFilterSet,
-    SyncLogEntryFilterSet,
+    "AutomationGatewayModelFilterSet",
+    "SSOTInfobloxConfigFilterSet",
+    "SyncFilterSet",
+    "SyncLogEntryFilterSet",
 )
