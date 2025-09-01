@@ -487,6 +487,22 @@
         "variable": "GITHUB_SERVICE_TOKEN",
         "path": null
       }
+    },
+      {
+      "name": "Ext_Int_User",
+      "provider": "environment-variable",
+      "parameters": {
+        "variable": "EXT_INT_USER",
+        "path": null
+      }
+    },
+    {
+      "name": "Ext_Int_Password",
+      "provider": "environment-variable",
+      "parameters": {
+        "variable": "EXT_INT_PASSWORD",
+        "path": null
+      }
     }
   ],
   "secrets_group": [
@@ -501,6 +517,21 @@
         {
           "name": "Github_Service_Token",
           "secret_type": "token",
+          "access_type": "HTTP(S)"
+        }
+      ]
+    },
+    {
+      "name": "Ext_Int_API_Credentials",
+      "secrets": [
+        {
+          "name": "Ext_Int_User",
+          "secret_type": "username",
+          "access_type": "HTTP(S)"
+        },
+        {
+          "name": "Ext_Int_Password",
+          "secret_type": "password",
           "access_type": "HTTP(S)"
         }
       ]
@@ -1092,6 +1123,27 @@
       "object_tags": [],
       "tags": [],
       "system_of_record": "Bootstrap"
+    }
+  ],
+  "external_integration": [
+    {
+      "name": "Test Integration",
+      "remote_url": "https://my.integration.instance:45321",
+      "verify_ssl": false,
+      "secrets_group": "Ext_Int_API_Credentials",
+      "http_method": "GET",
+      "ca_file_path": "/tmp/test",
+      "timeout": 30,
+      "headers": {
+        "Accept": "application/yang-data+json",
+        "Content-Type": "application/yang-data+json"
+      },
+      "extra_config": {
+        "test_extra_config": [
+          "extra_value"
+        ]
+      },
+      "tags": []
     }
   ]
 }

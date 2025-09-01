@@ -136,6 +136,26 @@ validated_software:
     valid_until:
     preferred_version: false
     tags: []
+external_integration:
+  - name: "Altiplano"
+    remote_url: "https://my.altiplano.instance:45321"
+    verify_ssl: false
+    secrets_group_name: "Altiplano API Credentials"
+    timeout: 30
+    headers: |
+      {
+        "Accept": "application/yang-data+json",
+        "Content-Type": "application/yang-data+json"
+      }
+    extra_config: |
+      {
+        "device_types": [
+          "LS-SF-SFMB-A"
+        ],
+        "duid_prefixes_to_ignore": [
+          "9876"
+        ]
+      }
 ```
 
 #### develop.yml
@@ -874,3 +894,22 @@ validated_software:
 ```
 
 The `software:` key is a reference to the platform and software version of a Software object that already exists in Nautobot (or is created by this plugin). The `valid_since` and `valid_until` fields must dates in YYYY-MM-DD format. The `devices`, `device_types`, `device_roles`, `inventory_items`, and `object_tags` are all lists of objects to apply the validated software to for validation against what is currently running on the device.
+
+### ExternalIntegration
+
+Create ExternalIntegration objects. Uses the following data structure, only `name`, `remote_url`, and `timeout` are required. Any external_integrations not included in the Bootstrap `global_settings.yaml` file may be deleted.
+
+```yaml
+external_integration:
+  - name: # str
+    remote_url: # str
+    timeout: # int
+    # Optional Arguments
+    verify_ssl: # bool, default: True
+    secrets_group_name: # str
+    headers: {} # dict
+    http_method: # str -- Options are: get, post, put, patch, delete
+    ca_file_path: # str
+    extra_config: {} # dict
+    tags: [] # List[str]
+```
