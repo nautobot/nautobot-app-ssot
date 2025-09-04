@@ -34,14 +34,21 @@ def normalize_setting(variable_name):
 
 def normalize_device_hostname(device, job):
     """Normalize device hostname to be a valid LibreNMS or Nautobot hostname. Remove domain suffixes and uppercase the names for comparison (if not an IP Address)."""
+    # Handle case where device is a string (from Nautobot) vs dictionary (from LibreNMS)
+    if isinstance(device, str):
+        hostname_str = device
+    else:
+        hostname_str = device[job.hostname_field]
+    
     try:
-        hostname = ipaddress.ip_address(device[job.hostname_field])
+        hostname = ipaddress.ip_address(hostname_str)
         if not settings.PLUGINS_CONFIG["nautobot_ssot"]["librenms_allow_ip_hostnames"]:
             job.logger.warning("The hostname cannot be an IP Address")
-            device["load_errors"].append("The hostname cannot be an IP Address")
+            if isinstance(device, dict) and "load_errors" in device:
+                device["load_errors"].append("The hostname cannot be an IP Address")
             return None
     except ValueError:
-        hostname = device[job.hostname_field].split(".")[0].upper()
+        hostname = hostname_str.split(".")[0].upper()
     return str(hostname)
 
 
@@ -49,7 +56,7 @@ def has_required_values(device, job):
     """Check if the device has required values."""
     required_values = [job.hostname_field, "location", "type", "os", "hardware"]
     for value in required_values:
-        if not isinstance(device[value], str) or device[value] == "":
+        if value not in device or not isinstance(device[value], str) or device[value] == "":
             device["load_errors"].append(f"{value} string is required")
             continue
     if len(device["load_errors"]) > 0:
