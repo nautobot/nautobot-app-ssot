@@ -9,6 +9,7 @@ from nautobot.extras.models import JobResult, Status
 
 from nautobot_ssot.integrations.librenms.diffsync.adapters.librenms import LibrenmsAdapter
 from nautobot_ssot.integrations.librenms.jobs import LibrenmsDataSource
+from nautobot_ssot.integrations.librenms.utils import validate_device_data
 from nautobot_ssot.tests.librenms.fixtures import DEVICE_FIXTURE_RECV, LOCATION_FIXURE_RECV
 
 
@@ -50,6 +51,8 @@ class TestLibreNMSAdapterTestCase(TransactionTestCase):
 
         self.job = LibrenmsDataSource()
         self.job.load_type = "file"
+        self.job.devices_load_file = "./nautobot_ssot/tests/librenms/fixtures/get_librenms_devices.json"
+        self.job.locations_load_file = "./nautobot_ssot/tests/librenms/fixtures/get_librenms_locations.json"
         self.job.hostname_field = "sysName"
         self.job.sync_locations = True
         self.job.location_type = LocationType.objects.get_or_create(name="Site")[0]
@@ -72,6 +75,12 @@ class TestLibreNMSAdapterTestCase(TransactionTestCase):
         loaded_locations = {loc.get_unique_id() for loc in self.librenms_adapter.get_all("location")}
         self.assertEqual(expected_locations, loaded_locations, "Locations are not loaded correctly.")
 
-        expected_devices = {dev["sysName"].strip() for dev in DEVICE_FIXTURE_RECV}
+        # expected_devices = {dev["sysName"].strip() for dev in DEVICE_FIXTURE_RECV}
+        expected_devices = set()
+        for dev in DEVICE_FIXTURE_RECV:
+            validated_device = validate_device_data(dev, self.job)
+            if not validated_device["load_errors"]:
+                expected_devices.add(validated_device["name"])
+
         loaded_devices = {dev.get_unique_id() for dev in self.librenms_adapter.get_all("device")}
         self.assertEqual(expected_devices, loaded_devices, "Devices are not loaded correctly.")

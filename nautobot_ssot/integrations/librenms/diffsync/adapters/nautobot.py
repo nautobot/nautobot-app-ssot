@@ -16,7 +16,6 @@ from nautobot_ssot.integrations.librenms.diffsync.models.nautobot import (
 from nautobot_ssot.integrations.librenms.utils import (
     check_sor_field,
     get_sor_field_nautobot_object,
-    normalize_device_hostname,
 )
 
 
@@ -92,7 +91,7 @@ class NautobotAdapter(Adapter):
                 if nb_device.custom_field_data.get("librenms_device_id"):
                     _device_id = nb_device.custom_field_data.get("librenms_device_id")
                 new_device = NautobotDevice(
-                    name=normalize_device_hostname(nb_device.name),
+                    name=nb_device.name,
                     device_id=_device_id,
                     location=nb_device.location.name,
                     status=nb_device.status.name,
