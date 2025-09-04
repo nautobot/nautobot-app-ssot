@@ -293,7 +293,7 @@ PLUGINS_CONFIG = {
         "ipfabric_use_canonical_interface_name": is_truthy(
             os.getenv("NAUTOBOT_SSOT_USE_CANONICAL_INTERFACE_NAME", "true")
         ),
-        "librenms_allow_ip_hostnames": is_truthy(os.getenv("NAUTOBOT_SSOT_LIBRENMS_ALLOW_IP_ADDRESSES", "false")),
+        "librenms_allow_ip_hostnames": is_truthy(os.getenv("NAUTOBOT_SSOT_LIBRENMS_ALLOW_IP_HOSTNAMES", "false")),
         "librenms_show_failures": is_truthy(os.getenv("NAUTOBOT_SSOT_LIBRENMS_SHOW_FAILURES", "true")),
         "librenms_permitted_values": {
             "role": ["network"],
