@@ -76,7 +76,7 @@ class LibrenmsAdapter(Adapter):
             self.job.logger.debug(f"Loading LibreNMS Device {device[self.job.hostname_field]}")
 
         if device["os"] != "ping":
-            if device["type"] in PLUGIN_CFG.get("librenms_permitted_values", {}).get("role", []):
+            if device["type"] in PLUGIN_CFG.get("librenms_permitted_values", {}).get("role", [device["type"]]):
                 validated_device = validate_device_data(device, self.job)
                 if validated_device["load_errors"]:
                     self.job.logger.warning(
