@@ -131,6 +131,10 @@ class SyncViewsTestCase(  # pylint: disable=too-many-ancestors
         response = self.client.get(url)
         self.assertHttpStatus(response, 200)
 
+    @skip("Not implemented")
+    def test_has_timestamps_and_buttons(self):
+        pass
+
 
 class SyncLogEntryViewsTestCase(ViewTestCases.ListObjectsViewTestCase):  # pylint: disable=too-many-ancestors
     """Test views related to the SyncLogEntry model."""
