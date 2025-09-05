@@ -113,6 +113,10 @@ class SyncViewsTestCase(  # pylint: disable=too-many-ancestors
     def test_list_objects_with_permission(self):
         pass
 
+    @skip("Not implemented")
+    def test_has_timestamps_and_buttons(self):
+        pass
+
 
 class SyncLogEntryViewsTestCase(ViewTestCases.ListObjectsViewTestCase):  # pylint: disable=too-many-ancestors
     """Test views related to the SyncLogEntry model."""
