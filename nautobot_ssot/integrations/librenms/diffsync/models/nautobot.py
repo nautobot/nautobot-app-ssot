@@ -86,9 +86,11 @@ class NautobotLocation(Location):
         if adapter.tenant:
             new_location.tenant = adapter.tenant
         new_location.custom_field_data.update(
-            {"system_of_record": os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS")}
+            {
+                "system_of_record": os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
+                "last_synced_from_sor": datetime.today().date().isoformat(),
+            }
         )
-        new_location.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_location.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
@@ -104,11 +106,10 @@ class NautobotLocation(Location):
             location.longitude = attrs["longitude"]
         if "status" in attrs:
             location.status = Status.objects.get(name=attrs["status"])
+        custom_fields = {"last_synced_from_sor": datetime.today().date().isoformat()}
         if not check_sor_field(location):
-            location.custom_field_data.update(
-                {"system_of_record": os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS")}
-            )
-        location.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
+            custom_fields["system_of_record"] = os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS")
+        location.custom_field_data.update(custom_fields)
         location.validated_save()
         return super().update(attrs)
 
@@ -129,7 +130,10 @@ class NautobotDevice(Device):
         """Create Device in Nautobot from NautobotDevice object."""
         if adapter.job.debug:
             adapter.job.logger.debug(f'Creating Nautobot Device {ids["name"]}')
-        _manufacturer = ORMManufacturer.objects.get_or_create(name=os_manufacturer_map[attrs["platform"]])[0]
+        manufacturer_name = os_manufacturer_map.get(attrs["platform"])
+        if manufacturer_name is None:
+            raise ValueError(f"Manufacturer mapping not found for platform: {attrs['platform']}")
+        _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
         _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=_manufacturer.name)
         _device_type = DeviceType.objects.get_or_create(model=attrs["device_type"], manufacturer=_manufacturer)[0]
         if adapter.job.debug:
@@ -155,11 +159,13 @@ class NautobotDevice(Device):
             return None
         if adapter.tenant:
             new_device.tenant = adapter.tenant
-        new_device.custom_field_data.update({"librenms_device_id": attrs["device_id"]})
         new_device.custom_field_data.update(
-            {"system_of_record": os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS")}
+            {
+                "librenms_device_id": attrs["device_id"],
+                "system_of_record": os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
+                "last_synced_from_sor": datetime.today().date().isoformat(),
+            }
         )
-        new_device.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_device.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
@@ -178,7 +184,10 @@ class NautobotDevice(Device):
         if "serial_no" in attrs:
             device.serial = attrs["serial_no"]
         if "platform" in attrs:
-            _manufacturer = ORMManufacturer.objects.get_or_create(name=os_manufacturer_map[attrs["os"]])[0]
+            manufacturer_name = os_manufacturer_map.get(attrs["os"])
+            if manufacturer_name is None:
+                raise ValueError(f"Manufacturer mapping not found for OS: {attrs['os']}")
+            _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
             device.platform = (ensure_platform(platform_name=attrs["os"], manufacturer=_manufacturer.name),)
         if "os_version" in attrs:
             _software_version = ensure_software_version(
@@ -188,11 +197,10 @@ class NautobotDevice(Device):
                 device_type=device.device_type,
             )
             _software_version.devices.add(device)
+        custom_fields = {"last_synced_from_sor": datetime.today().date().isoformat()}
         if not check_sor_field(device):
-            device.custom_field_data.update(
-                {"system_of_record": os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS")}
-            )
-        device.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
+            custom_fields["system_of_record"] = os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS")
+        device.custom_field_data.update(custom_fields)
         device.validated_save()
         return super().update(attrs)
 
