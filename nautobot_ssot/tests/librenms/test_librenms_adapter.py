@@ -64,8 +64,11 @@ class TestLibreNMSAdapterTestCase(TransactionTestCase):
         )
         self.librenms_adapter = LibrenmsAdapter(job=self.job, sync=None, librenms_api=self.librenms_client)
 
-    def test_data_loading(self):
+    @patch("nautobot_ssot.integrations.librenms.diffsync.adapters.librenms.has_required_values")
+    def test_data_loading(self, mock_has_required_values):
         """Test that devices and locations are loaded correctly."""
+        mock_has_required_values.return_value = True
+
         self.librenms_adapter.load()
 
         # Debugging outputs
@@ -75,7 +78,7 @@ class TestLibreNMSAdapterTestCase(TransactionTestCase):
         expected_devices = set()
         for dev in DEVICE_FIXTURE_RECV:
             if dev["type"] in PLUGIN_CFG.get("librenms_permitted_values", {}).get("role", [dev["type"]]):
-                if has_required_values(dev, self.job):
+                if mock_has_required_values(dev, self.job):
                     _hostname = normalize_device_hostname(dev, self.job)
                     expected_devices.add(_hostname)
 
