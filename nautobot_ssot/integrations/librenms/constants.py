@@ -143,6 +143,7 @@ os_manufacturer_map = {
     "nios": "Infoblox",
     "nitro": "Citrix",
     "nsbsd": "BSD",
+    "nxos": "Cisco",
     "ocnos": "OcNOS",
     "okilan": "Oki",
     "openbsd": "BSD",
