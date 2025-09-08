@@ -142,20 +142,14 @@ external_integration:
     verify_ssl: false
     secrets_group_name: "Altiplano API Credentials"
     timeout: 30
-    headers: |
-      {
-        "Accept": "application/yang-data+json",
-        "Content-Type": "application/yang-data+json"
-      }
-    extra_config: |
-      {
-        "device_types": [
-          "LS-SF-SFMB-A"
-        ],
-        "duid_prefixes_to_ignore": [
-          "9876"
-        ]
-      }
+    headers:
+      Accept: "application/yang-data+json"
+      Content-Type: "application/yang-data+json"
+    extra_config:
+      device_types:
+        - "LS-SF-SFMB-A"
+      duid_prefixes_to_ignore:
+        - "9876"
 ```
 
 #### develop.yml
