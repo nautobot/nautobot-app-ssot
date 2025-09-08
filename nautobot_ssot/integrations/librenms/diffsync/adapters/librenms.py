@@ -17,9 +17,9 @@ from nautobot_ssot.integrations.librenms.diffsync.models.librenms import (
     LibrenmsLocation,
 )
 from nautobot_ssot.integrations.librenms.utils import (
+    has_required_values,
     normalize_device_hostname,
     normalize_gps_coordinates,
-    validate_device_data,
 )
 from nautobot_ssot.integrations.librenms.utils.librenms import LibreNMSApi
 
@@ -77,29 +77,49 @@ class LibrenmsAdapter(Adapter):
 
         if device["os"] != "ping":
             if device["type"] in PLUGIN_CFG.get("librenms_permitted_values", {}).get("role", [device["type"]]):
-                validated_device = validate_device_data(device, self.job)
-                if validated_device["load_errors"]:
+                if not has_required_values(device, self.job):
                     self.job.logger.warning(
-                        f"Unable to load device {device[self.job.hostname_field]}: {validated_device['load_errors']}."
+                        f"Device {device[self.hostname_field]} failed to load: {device['load_errors']}"
                     )
                     self.failed_import_devices.append(device)
                     return
                 try:
                     self.get(self.device, device[self.job.hostname_field])
                 except ObjectNotFound:
+                    # Normalize the device hostname and check if it's valid
+                    normalized_name = normalize_device_hostname(device, self.job)
+                    if normalized_name is None:
+                        self.job.logger.warning(
+                            f"Device {device[self.job.hostname_field]} has invalid hostname. Skipping."
+                        )
+                        self.failed_import_devices.append(device)
+                        return
+
                     if device["disabled"] == 1:
                         _status = "Offline"
                     else:
                         _status = librenms_status_map[device["status"]]
                     try:
+                        # Check if manufacturer mapping exists
+                        manufacturer = os_manufacturer_map.get(device["os"])
+                        if manufacturer is None:
+                            if "load_errors" not in device:
+                                device["load_errors"] = []
+                            device["load_errors"].append(f"Manufacturer mapping not found for OS: {device['os']}")
+                            self.job.logger.warning(
+                                f"Device {device[self.job.hostname_field]} failed to load: {device['load_errors']}"
+                            )
+                            self.failed_import_devices.append(device)
+                            return
+
                         new_device = self.device(
-                            name=normalize_device_hostname(device, self.job),
+                            name=normalized_name,
                             device_id=device["device_id"],
                             location=device["location"],
                             role=device["type"],
                             serial_no=device["serial"] if device["serial"] is not None else "",
                             status=_status,
-                            manufacturer=os_manufacturer_map.get(device["os"]),
+                            manufacturer=manufacturer,
                             device_type=device["hardware"],
                             platform=device["os"],
                             os_version=device["version"] if device["version"] is not None else "Unknown",
@@ -107,9 +127,9 @@ class LibrenmsAdapter(Adapter):
                             system_of_record=os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
                         )
                     except ValidationError as err:
-                        self.job.logger.error(f"Unable to load device {device[self.hostname_field]}: {err}.  Skipping.")
-                        device["load_error"] = err
+                        device.get("load_errors", []).append(err)
                         self.failed_import_devices.append(device)
+                        self.job.logger.warning(f"Device {device[self.hostname_field]} failed to load: {err}")
                         return
                     try:
                         self.add(new_device)

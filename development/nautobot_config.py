@@ -295,6 +295,9 @@ PLUGINS_CONFIG = {
         ),
         "librenms_allow_ip_hostnames": is_truthy(os.getenv("NAUTOBOT_SSOT_LIBRENMS_ALLOW_IP_HOSTNAMES", "false")),
         "librenms_show_failures": is_truthy(os.getenv("NAUTOBOT_SSOT_LIBRENMS_SHOW_FAILURES", "true")),
+        "librenms_permitted_values": {
+            "role": ["network"],
+        },
         "servicenow_instance": os.getenv("SERVICENOW_INSTANCE", ""),
         "servicenow_password": os.getenv("SERVICENOW_PASSWORD", ""),
         "servicenow_username": os.getenv("SERVICENOW_USERNAME", ""),
