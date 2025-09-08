@@ -1,0 +1,1 @@
+Fixed an issue in the Cisco DNA Center integration where devices with unmapped platforms were silently skipped during synchronization, resulting in an incomplete inventory
