@@ -51,6 +51,18 @@ SCOPED_FIELDS_MAPPING = {
         "default",
     ],
     "extras.dynamicgroup": ["name", "content_type", "filter", "description"],
+    "extras.externalintegration": [
+        "name",
+        "remote_url",
+        "timeout",
+        "verify_ssl",
+        "secrets_group",
+        "headers",
+        "http_method",
+        "ca_file_path",
+        "extra_config",
+        "tags",
+    ],
     "extras.gitrepository": ["name", "remote_url", "branch", "secrets_group", "provided_contents"],
     "extras.graphqlquery": ["name", "query"],
     "dcim.location": [

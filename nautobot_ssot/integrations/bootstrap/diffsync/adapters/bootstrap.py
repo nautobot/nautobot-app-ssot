@@ -20,6 +20,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (
     BootstrapContact,
     BootstrapCustomField,
     BootstrapDynamicGroup,
+    BootstrapExternalIntegration,
     BootstrapGitRepository,
     BootstrapGraphQLQuery,
     BootstrapLocation,
@@ -174,6 +175,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
     custom_field = BootstrapCustomField
     tag = BootstrapTag
     graph_ql_query = BootstrapGraphQLQuery
+    external_integration = BootstrapExternalIntegration
 
     if core_supports_softwareversion():
         software_version = BootstrapSoftware
@@ -214,6 +216,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         "custom_field",
         "tag",
         "graph_ql_query",
+        "external_integration",
     ]
 
     if core_supports_softwareversion():
@@ -1079,6 +1082,28 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(_new_validated_software)
 
+    def load_external_integration(self, ext_int):
+        """Load ExternalIntegration objects from Bootstrap into DiffSync models."""
+        if self.job.debug:
+            self.job.logger.debug(f"Loading Bootstrap ExternalIntegration: {ext_int}")
+        try:
+            self.get(self.external_integration, ext_int["name"])
+        except ObjectNotFound:
+            new_external_integration = self.external_integration(
+                name=ext_int["name"],
+                remote_url=ext_int["remote_url"],
+                timeout=ext_int["timeout"],
+                verify_ssl=ext_int.get("verify_ssl", True),
+                secrets_group=ext_int.get("secrets_group", None),
+                headers=ext_int.get("headers", {}),
+                http_method=ext_int.get("http_method", ""),
+                ca_file_path=ext_int.get("ca_file_path", ""),
+                extra_config=ext_int.get("extra_config", {}),
+                tags=ext_int.get("tags", []),
+                system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
+            )
+            self.add(new_external_integration)
+
     def load(self):
         """Load data from Bootstrap into DiffSync models."""
         environment_label = settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_nautobot_environment_branch"]
@@ -1359,6 +1384,13 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 elif global_settings["software_image"] is not None:  # noqa: F821
                     for software_image in global_settings["software_image"]:  # noqa: F821
                         self.load_software_image(software_image=software_image)
+
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["external_integration"]:
+            if not global_settings.get("external_integration"):  # noqa: F821
+                self.job.logger.warning("external_integration not found in global_settings. Check if the key exists.")
+            elif global_settings["external_integration"] is not None:  # noqa: F821
+                for external_integration in global_settings["external_integration"]:  # noqa: F821
+                    self.load_external_integration(ext_int=external_integration)
 
             if validate_dlm_installed():
                 if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["validated_software"]:

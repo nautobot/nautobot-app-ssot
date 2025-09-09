@@ -25,6 +25,7 @@ from nautobot.extras.models import Contact as ORMContact
 from nautobot.extras.models import CustomField as ORMCustomField
 from nautobot.extras.models import CustomFieldChoice as ORMCustomFieldChoice
 from nautobot.extras.models import DynamicGroup as ORMDynamicGroup
+from nautobot.extras.models import ExternalIntegration as ORMExternalIntegration
 from nautobot.extras.models import GitRepository as ORMGitRepository
 from nautobot.extras.models import GraphQLQuery as ORMGraphQLQuery
 from nautobot.extras.models import Job as ORMJob
@@ -66,6 +67,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
     Contact,
     CustomField,
     DynamicGroup,
+    ExternalIntegration,
     GitRepository,
     GraphQLQuery,
     Location,
@@ -139,7 +141,7 @@ class NautobotTenantGroup(TenantGroup):
         _parent = None
         if ids["parent"]:
             _parent = ORMTenantGroup.objects.get(name=ids["parent"])
-        adapter.job.logger.info(f'Creating Nautobot TenantGroup: {ids["name"]}')
+        adapter.job.logger.info(f"Creating Nautobot TenantGroup: {ids['name']}")
         if _parent is not None:
             new_tenant_group = ORMTenantGroup(name=ids["name"], parent=_parent, description=attrs["description"])
         else:
@@ -204,11 +206,11 @@ class NautobotTenant(Tenant):
                 _tenant_group = ORMTenantGroup.objects.get(name=attrs["tenant_group"])
             except ORMTenantGroup.DoesNotExist:
                 adapter.job.logger.warning(
-                    f'Could not find TenantGroup {attrs["tenant_group"]} to assign to {ids["name"]}'
+                    f"Could not find TenantGroup {attrs['tenant_group']} to assign to {ids['name']}"
                 )
         if "description" in attrs:
             _description = attrs["description"]
-        adapter.job.logger.info(f'Creating Nautobot Tenant: {ids["name"]}')
+        adapter.job.logger.info(f"Creating Nautobot Tenant: {ids['name']}")
         new_tenant = ORMTenant(
             name=ids["name"],
             tenant_group=_tenant_group,
@@ -235,7 +237,7 @@ class NautobotTenant(Tenant):
                 _update_tenant.tenant_group = ORMTenantGroup.objects.get(name=attrs["tenant_group"])
             except ORMTenantGroup.DoesNotExist:
                 self.adapter.job.logger.warning(
-                    f'Could not find TenantGroup {attrs["tenant_group"]} to assign to {self.name}'
+                    f"Could not find TenantGroup {attrs['tenant_group']} to assign to {self.name}"
                 )
         if "tags" in attrs:
             # FIXME: There might be a better way to handle this that's easier on the database.
@@ -272,7 +274,7 @@ class NautobotRole(Role):
     def create(cls, adapter, ids, attrs):
         """Create Role in Nautobot from NautobotRole object."""
         _content_types = []
-        adapter.job.logger.info(f'Creating Nautobot Role: {ids["name"]}')
+        adapter.job.logger.info(f"Creating Nautobot Role: {ids['name']}")
         for _model in attrs["content_types"]:
             try:
                 _content_types.append(lookup_content_type_for_taggable_model_path(_model))
@@ -344,7 +346,7 @@ class NautobotManufacturer(Manufacturer):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Manufacturer in Nautobot from NautobotManufacturer object."""
-        adapter.job.logger.debug(f'Creating Nautobot Manufacturer {ids["name"]}')
+        adapter.job.logger.debug(f"Creating Nautobot Manufacturer {ids['name']}")
         _new_manufacturer = ORMManufacturer(name=ids["name"], description=attrs["description"])
         _new_manufacturer.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_manufacturer.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
@@ -397,7 +399,7 @@ class NautobotPlatform(Platform):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Platform in Nautobot from NautobotPlatform object."""
-        adapter.job.logger.info(f'Creating Nautobot Platform {ids["name"]}')
+        adapter.job.logger.info(f"Creating Nautobot Platform {ids['name']}")
         try:
             _manufacturer = None
             if ids["manufacturer"]:
@@ -420,7 +422,7 @@ class NautobotPlatform(Platform):
                 metadata.validated_save()
         except ORMManufacturer.DoesNotExist:
             adapter.job.logger.warning(
-                f'Manufacturer {ids["manufacturer"]} does not exist in Nautobot, be sure to create it.'
+                f"Manufacturer {ids['manufacturer']} does not exist in Nautobot, be sure to create it."
             )
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
@@ -469,7 +471,7 @@ class NautobotLocationType(LocationType):
     def create(cls, adapter, ids, attrs):
         """Create LocationType in Nautobot from NautobotLocationType object."""
         _content_types = []
-        adapter.job.logger.info(f'Creating Nautobot LocationType: {ids["name"]}')
+        adapter.job.logger.info(f"Creating Nautobot LocationType: {ids['name']}")
         _parent = None
         for _model in attrs["content_types"]:
             try:
@@ -481,7 +483,7 @@ class NautobotLocationType(LocationType):
                 _parent = ORMLocationType.objects.get(name=attrs["parent"])
             except ORMLocationType.DoesNotExist:
                 adapter.job.logger.warning(
-                    f'Could not find LocationType {attrs["parent"]} in Nautobot, ensure it exists.'
+                    f"Could not find LocationType {attrs['parent']} in Nautobot, ensure it exists."
                 )
         _new_location_type = ORMLocationType(
             name=ids["name"],
@@ -518,7 +520,7 @@ class NautobotLocationType(LocationType):
                 _update_location_type.parent = _parent
             except ORMLocationType.DoesNotExist:
                 self.adapter.job.logger.warning(
-                    f'Parent LocationType {attrs["parent"]} does not exist, ensure it exists first.'
+                    f"Parent LocationType {attrs['parent']} does not exist, ensure it exists first."
                 )
         if "nestable" in attrs:
             _update_location_type.nestable = attrs["nestable"]
@@ -569,7 +571,7 @@ class NautobotLocation(Location):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Location in Nautobot from NautobotLocation object."""
-        adapter.job.logger.info(f'Creating Nautobot Location {ids["name"]}')
+        adapter.job.logger.info(f"Creating Nautobot Location {ids['name']}")
 
         try:
             _parent = None
@@ -618,19 +620,19 @@ class NautobotLocation(Location):
                 )
                 metadata.validated_save()
         except ORMStatus.DoesNotExist:
-            adapter.job.logger.warning(f'Status {attrs["status"]} could not be found. Make sure it exists.')
+            adapter.job.logger.warning(f"Status {attrs['status']} could not be found. Make sure it exists.")
         except ORMLocationType.DoesNotExist:
             adapter.job.logger.warning(
-                f'LocationType {attrs["location_type"]} could not be found. Make sure it exists.'
+                f"LocationType {attrs['location_type']} could not be found. Make sure it exists."
             )
         except ORMTenant.DoesNotExist:
-            adapter.job.logger.warning(f'Tenant {attrs["tenant"]} does not exist, verify it is created.')
+            adapter.job.logger.warning(f"Tenant {attrs['tenant']} does not exist, verify it is created.")
         except pytz.UnknownTimeZoneError:
             adapter.job.logger.warning(
-                f'Timezone {attrs["time_zone"]} could not be found. Verify the timezone is a valid timezone.'
+                f"Timezone {attrs['time_zone']} could not be found. Verify the timezone is a valid timezone."
             )
         except ORMLocation.DoesNotExist:
-            adapter.job.logger.warning(f'Parent Location {attrs["parent"]} does not exist, ensure it exists first.')
+            adapter.job.logger.warning(f"Parent Location {attrs['parent']} does not exist, ensure it exists first.")
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -716,7 +718,7 @@ class NautobotTeam(Team):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Team in Nautobot from NautobotTeam object."""
-        adapter.job.logger.debug(f'Creating Nautobot Team {ids["name"]}')
+        adapter.job.logger.debug(f"Creating Nautobot Team {ids['name']}")
         _new_team = ORMTeam(
             name=ids["name"],
             phone=attrs["phone"],
@@ -787,7 +789,7 @@ class NautobotContact(Contact):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Contact in Nautobot from NautobotContact object."""
-        adapter.job.logger.debug(f'Creating Nautobot Contact {ids["name"]}')
+        adapter.job.logger.debug(f"Creating Nautobot Contact {ids['name']}")
         _new_contact = ORMContact(
             name=ids["name"],
             phone=attrs["phone"],
@@ -799,7 +801,7 @@ class NautobotContact(Contact):
         _new_contact.validated_save()
         if "teams" in attrs:
             for _team in attrs["teams"]:
-                adapter.job.logger.debug(f'Looking up Team: {_team} for Contact: {ids["name"]}.')
+                adapter.job.logger.debug(f"Looking up Team: {_team} for Contact: {ids['name']}.")
                 _new_contact.teams.add(lookup_team_for_contact(team=_team))
             _new_contact.validated_save()
         if METADATA_FOUND:
@@ -854,7 +856,7 @@ class NautobotProvider(Provider):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Provider in Nautobot from NautobotProvider object."""
-        adapter.job.logger.info(f'Creating Nautobot Provider: {ids["name"]}')
+        adapter.job.logger.info(f"Creating Nautobot Provider: {ids['name']}")
         if "tags" in attrs:
             _tags = []
             for _tag in attrs["tags"]:
@@ -933,7 +935,7 @@ class NautobotProviderNetwork(ProviderNetwork):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create ProviderNetwork in Nautobot from NautobotProviderNetwork object."""
-        adapter.job.logger.info(f'Creating Nautobot ProviderNetwork: {ids["name"]}')
+        adapter.job.logger.info(f"Creating Nautobot ProviderNetwork: {ids['name']}")
         if "tags" in attrs:
             _tags = []
             for _tag in attrs["tags"]:
@@ -1008,7 +1010,7 @@ class NautobotCircuitType(CircuitType):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create CircuitType in Nautobot from NautobotCircuitType object."""
-        adapter.job.logger.info(f'Creating Nautobot CircuitType: {ids["name"]}')
+        adapter.job.logger.info(f"Creating Nautobot CircuitType: {ids['name']}")
         _new_circuit_type = ORMCircuitType(
             name=ids["name"],
             description=attrs["description"],
@@ -1062,7 +1064,7 @@ class NautobotCircuit(Circuit):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Circuit in Nautobot from NautobotCircuit object."""
-        adapter.job.logger.info(f'Creating Nautobot Circuit: {ids["circuit_id"]}')
+        adapter.job.logger.info(f"Creating Nautobot Circuit: {ids['circuit_id']}")
         if "tags" in attrs:
             _tags = []
             for _tag in attrs["tags"]:
@@ -1158,7 +1160,7 @@ class NautobotCircuitTermination(CircuitTermination):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create CircuitTermination in Nautobot from NautobotCircuitTermination object."""
-        adapter.job.logger.info(f'Creating Nautobot CircuitTermination {ids["name"]}')
+        adapter.job.logger.info(f"Creating Nautobot CircuitTermination {ids['name']}")
         _name_parts = ids["name"].split("__", 2)
         _circuit_id = _name_parts[0]
         _provider_name = _name_parts[1]
@@ -1180,7 +1182,7 @@ class NautobotCircuitTermination(CircuitTermination):
                 _provider_network = ORMProviderNetwork.objects.get(name=attrs["provider_network"])
             except ORMProviderNetwork.DoesNotExist:
                 adapter.job.logger.warning(
-                    f'ProviderNetwork {attrs["provider_network"]} does not exist in Nautobot. Please create it.'
+                    f"ProviderNetwork {attrs['provider_network']} does not exist in Nautobot. Please create it."
                 )
             _new_circuit_termination = ORMCircuitTermination(
                 provider_network=_provider_network,
@@ -1197,7 +1199,7 @@ class NautobotCircuitTermination(CircuitTermination):
                 _location = ORMLocation.objects.get(name=attrs["location"])
             except ORMLocation.DoesNotExist:
                 adapter.job.logger.warning(
-                    f'Location {attrs["location"]} does not exist in Nautobot. Please create it.'
+                    f"Location {attrs['location']} does not exist in Nautobot. Please create it."
                 )
             _new_circuit_termination = ORMCircuitTermination(
                 location=_location,
@@ -1240,7 +1242,7 @@ class NautobotCircuitTermination(CircuitTermination):
                 _update_circuit_termination.location = _location
             except ORMLocation.DoesNotExist:
                 self.adapter.job.logger.warning(
-                    f'Location {attrs["location"]} does not exist in Nautobot. Please create it.'
+                    f"Location {attrs['location']} does not exist in Nautobot. Please create it."
                 )
         if "provider_network" in attrs:
             try:
@@ -1250,7 +1252,7 @@ class NautobotCircuitTermination(CircuitTermination):
                 _update_circuit_termination.provider_network = _provider_network
             except ORMProviderNetwork.DoesNotExist:
                 self.adapter.job.logger.warning(
-                    f'ProviderNetwork {attrs["provider_network"]} does not exist in Nautobot. Please create it.'
+                    f"ProviderNetwork {attrs['provider_network']} does not exist in Nautobot. Please create it."
                 )
         if "port_speed_kbps" in attrs:
             _update_circuit_termination.port_speed = attrs["port_speed_kbps"]
@@ -1305,7 +1307,7 @@ class NautobotNamespace(Namespace):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Namespace in Nautobot from NautobotNamespace object."""
-        adapter.job.logger.info(f'Creating Nautobot Namespace {ids["name"]}')
+        adapter.job.logger.info(f"Creating Nautobot Namespace {ids['name']}")
         new_namespace = ORMNamespace(
             name=ids["name"],
             description=attrs["description"],
@@ -1320,7 +1322,7 @@ class NautobotNamespace(Namespace):
                 new_namespace.validated_save()
             except ORMLocation.DoesNotExist:
                 adapter.job.logger.warning(
-                    f'Nautobot Location {attrs["location"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                    f"Nautobot Location {attrs['location']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
@@ -1341,7 +1343,7 @@ class NautobotNamespace(Namespace):
                 _update_namespace.location = _location
             except ORMLocation.DoesNotExist:
                 self.adapter.job.logger.warning(
-                    f'Nautobot Location {attrs["location"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                    f"Nautobot Location {attrs['location']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
         if not check_sor_field(_update_namespace):
             _update_namespace.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
@@ -1378,7 +1380,7 @@ class NautobotRiR(RiR):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create RiR in Nautobot from NautobotRiR object."""
-        adapter.job.logger.info(f'Creating Nautobot RiR: {ids["name"]}')
+        adapter.job.logger.info(f"Creating Nautobot RiR: {ids['name']}")
         new_rir = ORMRiR(
             name=ids["name"],
             is_private=attrs["private"],
@@ -1435,13 +1437,13 @@ class NautobotVLANGroup(VLANGroup):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create VLANGroup in Nautobot from NautobotVLANGroup object."""
-        adapter.job.logger.info(f'Creating Nautobot VLANGroup: {ids["name"]}')
+        adapter.job.logger.info(f"Creating Nautobot VLANGroup: {ids['name']}")
         try:
             _location = ORMLocation.objects.get(name=attrs["location"])
         except ORMLocation.DoesNotExist:
             _location = None
             adapter.job.logger.warning(
-                f'Nautobot Location {attrs["location"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                f"Nautobot Location {attrs['location']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
             )
         new_vlan_group = ORMVLANGroup(
             name=ids["name"],
@@ -1468,7 +1470,7 @@ class NautobotVLANGroup(VLANGroup):
             except ORMLocation.DoesNotExist:
                 _location = None
                 self.adapter.job.logger.warning(
-                    f'Nautobot Location {attrs["location"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                    f"Nautobot Location {attrs['location']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
             _update_vlan_group.location = _location
         if "description" in attrs:
@@ -1511,21 +1513,21 @@ class NautobotVLAN(VLAN):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create VLAN in Nautobot from NautobotVLAN object."""
-        adapter.job.logger.info(f'Creating Nautobot VLAN: {ids["name"]}')
+        adapter.job.logger.info(f"Creating Nautobot VLAN: {ids['name']}")
         try:
             _vlan_group = ORMVLANGroup.objects.get(name=ids["vlan_group"])
         except ORMVLANGroup.DoesNotExist:
             _vlan_group = None
             if ids["vlan_group"]:
                 adapter.job.logger.warning(
-                    f'Nautobot VLANGroup {ids["vlan_group"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                    f"Nautobot VLANGroup {ids['vlan_group']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
         try:
             _status = ORMStatus.objects.get(name=attrs["status"])
         except ORMStatus.DoesNotExist:
             _status = ORMStatus.objects.get(name="Active")
             adapter.job.logger.warning(
-                f'Nautobot Status {attrs["status"]} does not exist. Make sure it is created manually or defined in global_settings.yaml. Defaulting to Status Active.'
+                f"Nautobot Status {attrs['status']} does not exist. Make sure it is created manually or defined in global_settings.yaml. Defaulting to Status Active."
             )
         try:
             _role = ORMRole.objects.get(name=attrs["role"])
@@ -1533,7 +1535,7 @@ class NautobotVLAN(VLAN):
             _role = None
             if attrs["role"]:
                 adapter.job.logger.warning(
-                    f'Nautobot Role {attrs["role"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                    f"Nautobot Role {attrs['role']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
         try:
             _tenant = ORMTenant.objects.get(name=attrs["tenant"])
@@ -1541,7 +1543,7 @@ class NautobotVLAN(VLAN):
             _tenant = None
             if attrs["tenant"]:
                 adapter.job.logger.warning(
-                    f'Nautobot Tenant {attrs["tenant"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                    f"Nautobot Tenant {attrs['tenant']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
         try:
             if "tags" in attrs:
@@ -1550,7 +1552,7 @@ class NautobotVLAN(VLAN):
                     _tags.append(ORMTag.objects.get(name=tag))
         except ORMTag.DoesNotExist:
             adapter.job.logger.warning(
-                f'Nautobot Tag {attrs["tags"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                f"Nautobot Tag {attrs['tags']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
             )
         new_vlan = ORMVLAN(
             name=ids["name"],
@@ -1577,7 +1579,7 @@ class NautobotVLAN(VLAN):
         except ORMLocation.DoesNotExist:
             _location = None
             adapter.job.logger.warning(
-                f'Nautobot Location {attrs["location"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                f"Nautobot Location {attrs['location']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
             )
         if _locations:
             for _location in _locations:
@@ -1602,7 +1604,7 @@ class NautobotVLAN(VLAN):
             except ORMStatus.DoesNotExist:
                 _status = ORMStatus.objects.get(name="Active")
                 self.adapter.job.logger.warning(
-                    f'Nautobot Status {attrs["status"]} does not exist. Make sure it is created manually or defined in global_settings.yaml. Defaulting to Status Active.'
+                    f"Nautobot Status {attrs['status']} does not exist. Make sure it is created manually or defined in global_settings.yaml. Defaulting to Status Active."
                 )
             _update_vlan.status = _status
         if "role" in attrs:
@@ -1612,7 +1614,7 @@ class NautobotVLAN(VLAN):
                 _role = None
                 if attrs["role"]:
                     self.adapter.job.logger.warning(
-                        f'Nautobot Role {attrs["role"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                        f"Nautobot Role {attrs['role']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                     )
             _update_vlan.role = _role
         if "tenant" in attrs:
@@ -1622,7 +1624,7 @@ class NautobotVLAN(VLAN):
                 _tenant = None
                 if attrs["tenant"]:
                     self.adapter.job.logger.warning(
-                        f'Nautobot Tenant {attrs["tenant"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                        f"Nautobot Tenant {attrs['tenant']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                     )
             _update_vlan.tenant = _tenant
         if "tags" in attrs:
@@ -1633,7 +1635,7 @@ class NautobotVLAN(VLAN):
                         _tags.append(ORMTag.objects.get(name=tag))
             except ORMTag.DoesNotExist:
                 self.adapter.job.logger.warning(
-                    f'Nautobot Tag {attrs["tags"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                    f"Nautobot Tag {attrs['tags']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
         if attrs.get("tags"):
             _update_vlan.validated_save()
@@ -1651,7 +1653,7 @@ class NautobotVLAN(VLAN):
             except ORMLocation.DoesNotExist:
                 _location = None
                 self.adapter.job.logger.warning(
-                    f'Nautobot Location {attrs["location"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                    f"Nautobot Location {attrs['location']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
             if _locations:
                 for _location in _locations:
@@ -1690,21 +1692,21 @@ class NautobotVRF(VRF):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create VRF in Nautobot from NautobotVRF object."""
-        adapter.job.logger.info(f'Creating Nautobot VRF: {ids["name"]}')
+        adapter.job.logger.info(f"Creating Nautobot VRF: {ids['name']}")
         try:
             _tenant = ORMTenant.objects.get(name=attrs["tenant"])
         except ORMTenant.DoesNotExist:
             _tenant = None
             if attrs["tenant"]:
                 adapter.job.logger.warning(
-                    f'Nautobot Tenant {attrs["tenant"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                    f"Nautobot Tenant {attrs['tenant']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
         try:
             _namespace = ORMNamespace.objects.get(name=ids["namespace"])
         except ORMNamespace.DoesNotExist:
             _namespace = ORMNamespace.objects.get(name="Global")
             adapter.job.logger.warning(
-                f'Nautobot Namespace {ids["namespace"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                f"Nautobot Namespace {ids['namespace']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
             )
         new_vrf = ORMVRF(
             name=ids["name"],
@@ -1739,7 +1741,7 @@ class NautobotVRF(VRF):
                 _tenant = None
                 if attrs["tenant"]:
                     self.adapter.job.logger.warning(
-                        f'Nautobot Tenant {attrs["tenant"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                        f"Nautobot Tenant {attrs['tenant']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                     )
             _update_vrf.tenant = _tenant
         if "description" in attrs:
@@ -1783,13 +1785,13 @@ class NautobotPrefix(Prefix):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Prefix in Nautobot from NautobotPrefix object."""
-        adapter.job.logger.info(f'Creating Nautobot Prefix: {ids["network"]} in Namespace: {ids["namespace"]}')
+        adapter.job.logger.info(f"Creating Nautobot Prefix: {ids['network']} in Namespace: {ids['namespace']}")
         try:
             _namespace = ORMNamespace.objects.get(name=ids["namespace"])
         except ORMNamespace.DoesNotExist:
             _namespace = ORMNamespace.objects.get(name="Global")
             adapter.job.logger.warning(
-                f'Nautobot Namespace {ids["namespace"]} does not exist. Defaulting to Global Namespace.'
+                f"Nautobot Namespace {ids['namespace']} does not exist. Defaulting to Global Namespace."
             )
         try:
             if attrs["vlan"]:
@@ -1806,20 +1808,20 @@ class NautobotPrefix(Prefix):
             _vlan = None
             if attrs["vlan"]:
                 adapter.job.logger.warning(
-                    f'Nautobot VLANGroup {attrs["vlan"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                    f"Nautobot VLANGroup {attrs['vlan']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
         except ORMVLAN.DoesNotExist:
             _vlan = None
             if attrs["vlan"]:
                 adapter.job.logger.warning(
-                    f'Nautobot VLAN {attrs["vlan"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                    f"Nautobot VLAN {attrs['vlan']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
         try:
             _status = ORMStatus.objects.get(name=attrs["status"])
         except ORMStatus.DoesNotExist:
             _status = ORMStatus.objects.get(name="Active")
             adapter.job.logger.warning(
-                f'Nautobot Status {attrs["status"]} does not exist. Make sure it is created manually or defined in global_settings.yaml. Defaulting to Status Active.'
+                f"Nautobot Status {attrs['status']} does not exist. Make sure it is created manually or defined in global_settings.yaml. Defaulting to Status Active."
             )
         try:
             _role = ORMRole.objects.get(name=attrs["role"])
@@ -1827,7 +1829,7 @@ class NautobotPrefix(Prefix):
             _role = None
             if attrs["role"]:
                 adapter.job.logger.warning(
-                    f'Nautobot Role {attrs["role"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                    f"Nautobot Role {attrs['role']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
         try:
             _tenant = ORMTenant.objects.get(name=attrs["tenant"])
@@ -1835,7 +1837,7 @@ class NautobotPrefix(Prefix):
             _tenant = None
             if attrs["tenant"]:
                 adapter.job.logger.warning(
-                    f'Nautobot Tenant {attrs["tenant"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                    f"Nautobot Tenant {attrs['tenant']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
         try:
             _rir = ORMRiR.objects.get(name=attrs["rir"])
@@ -1843,7 +1845,7 @@ class NautobotPrefix(Prefix):
             _rir = None
             if attrs["rir"]:
                 adapter.job.logger.warning(
-                    f'Nautobot RiR {attrs["rir"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                    f"Nautobot RiR {attrs['rir']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
         try:
             if "tags" in attrs:
@@ -1852,13 +1854,13 @@ class NautobotPrefix(Prefix):
                     _tags.append(ORMTag.objects.get(name=tag))
         except ORMTag.DoesNotExist:
             adapter.job.logger.warning(
-                f'Nautobot Tag {attrs["tags"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                f"Nautobot Tag {attrs['tags']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
             )
 
         network_parts = ids["network"].strip().split("/")
         if len(network_parts) != 2:
             adapter.job.logger.error(
-                f'Invalid network format: {ids["network"]}. Expected format: network/prefix_length'
+                f"Invalid network format: {ids['network']}. Expected format: network/prefix_length"
             )
             return None
 
@@ -1869,7 +1871,7 @@ class NautobotPrefix(Prefix):
             # Validate network address format
             if not network_address or prefix_length < 0 or prefix_length > 128:
                 adapter.job.logger.Warning(
-                    f'Invalid network address or prefix length: {ids["network"]} skipping. Format should be network/prefix_length.'
+                    f"Invalid network address or prefix length: {ids['network']} skipping. Format should be network/prefix_length."
                 )
                 return None
 
@@ -1903,7 +1905,7 @@ class NautobotPrefix(Prefix):
             except ORMLocation.DoesNotExist:
                 _location = None
                 adapter.job.logger.warning(
-                    f'Nautobot Location {attrs["locations"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                    f"Nautobot Location {attrs['locations']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
             if _locations:
                 for _location in _locations:
@@ -1924,12 +1926,12 @@ class NautobotPrefix(Prefix):
                 _vrf = None
                 if attrs["vrfs"]:
                     adapter.job.logger.warning(
-                        f'Nautobot Namespace {attrs["vrfs"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                        f"Nautobot Namespace {attrs['vrfs']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                     )
             except ORMVRF.DoesNotExist:
                 _vrf = None
                 adapter.job.logger.warning(
-                    f'Nautobot VRF {attrs["vrfs"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                    f"Nautobot VRF {attrs['vrfs']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
             if METADATA_FOUND:
                 metadata = add_or_update_metadata_on_object(
@@ -1939,7 +1941,7 @@ class NautobotPrefix(Prefix):
             return super().create(adapter=adapter, ids=ids, attrs=attrs)
         except ValueError:
             adapter.job.logger.error(
-                f'Invalid network format: {ids["network"]}. Expected format: network/prefix_length'
+                f"Invalid network format: {ids['network']}. Expected format: network/prefix_length"
             )
             return None
 
@@ -1967,13 +1969,13 @@ class NautobotPrefix(Prefix):
                 _vlan = None
                 if attrs["vlan"]:
                     self.adapter.job.logger.warning(
-                        f'Nautobot VLANGroup {attrs["vlan"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                        f"Nautobot VLANGroup {attrs['vlan']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                     )
             except ORMVLAN.DoesNotExist:
                 _vlan = None
                 if attrs["vlan"]:
                     self.adapter.job.logger.warning(
-                        f'Nautobot VLAN {attrs["vlan"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                        f"Nautobot VLAN {attrs['vlan']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                     )
             _update_prefix.vlan = _vlan
         if "status" in attrs:
@@ -1982,7 +1984,7 @@ class NautobotPrefix(Prefix):
             except ORMStatus.DoesNotExist:
                 _status = ORMStatus.objects.get(name="Active")
                 self.adapter.job.logger.warning(
-                    f'Nautobot Status {attrs["status"]} does not exist. Make sure it is created manually or defined in global_settings.yaml. Defaulting to Status Active.'
+                    f"Nautobot Status {attrs['status']} does not exist. Make sure it is created manually or defined in global_settings.yaml. Defaulting to Status Active."
                 )
             _update_prefix.status = _status
         if "role" in attrs:
@@ -1992,7 +1994,7 @@ class NautobotPrefix(Prefix):
                 _role = None
                 if attrs["role"]:
                     self.adapter.job.logger.warning(
-                        f'Nautobot Role {attrs["role"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                        f"Nautobot Role {attrs['role']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                     )
             _update_prefix.role = _role
         if "tenant" in attrs:
@@ -2002,7 +2004,7 @@ class NautobotPrefix(Prefix):
                 _tenant = None
                 if attrs["tenant"]:
                     self.adapter.job.logger.warning(
-                        f'Nautobot Tenant {attrs["tenant"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                        f"Nautobot Tenant {attrs['tenant']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                     )
             _update_prefix.tenant = _tenant
         if "rir" in attrs:
@@ -2012,7 +2014,7 @@ class NautobotPrefix(Prefix):
                 _rir = None
                 if attrs["rir"]:
                     self.adapter.job.logger.warning(
-                        f'Nautobot RiR {attrs["rir"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                        f"Nautobot RiR {attrs['rir']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                     )
             _update_prefix.rir = _rir
         if "date_allocated" in attrs:
@@ -2026,7 +2028,7 @@ class NautobotPrefix(Prefix):
                     _update_prefix.tags.add(_tag)
             except ORMTag.DoesNotExist:
                 self.adapter.job.logger.warning(
-                    f'Nautobot Tag {attrs["tags"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                    f"Nautobot Tag {attrs['tags']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
         if "locations" in attrs:
             try:
@@ -2039,7 +2041,7 @@ class NautobotPrefix(Prefix):
             except ORMLocation.DoesNotExist:
                 _location = None
                 self.adapter.job.logger.warning(
-                    f'Nautobot Location {attrs["locations"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                    f"Nautobot Location {attrs['locations']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
             if _locations:
                 _update_prefix.locations.clear()
@@ -2064,12 +2066,12 @@ class NautobotPrefix(Prefix):
                 _vrf = None
                 if attrs["vrfs"]:
                     self.adapter.job.logger.warning(
-                        f'Nautobot Namespace {attrs["vrfs"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                        f"Nautobot Namespace {attrs['vrfs']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                     )
             except ORMVRF.DoesNotExist:
                 _vrf = None
                 self.adapter.job.logger.warning(
-                    f'Nautobot VRF {attrs["vrfs"]} does not exist. Make sure it is created manually or defined in global_settings.yaml'
+                    f"Nautobot VRF {attrs['vrfs']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
         if not check_sor_field(_update_prefix):
             _update_prefix.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
@@ -2105,7 +2107,7 @@ class NautobotSecret(Secret):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Secret in Nautobot from NautobotSecret object."""
-        adapter.job.logger.info(f'Creating Nautobot Secret: {ids["name"]}')
+        adapter.job.logger.info(f"Creating Nautobot Secret: {ids['name']}")
         new_secret = ORMSecret(name=ids["name"], provider=attrs["provider"], parameters=attrs["parameters"])
         new_secret.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_secret.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
@@ -2153,7 +2155,7 @@ class NautobotSecretsGroup(SecretsGroup):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create SecretsGroup in Nautobot from NautobotSecretsGroup object."""
-        adapter.job.logger.info(f'Creating Nautobot SecretsGroup: {ids["name"]}')
+        adapter.job.logger.info(f"Creating Nautobot SecretsGroup: {ids['name']}")
         _new_secrets_group = ORMSecretsGroup(name=ids["name"])
         _new_secrets_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_secrets_group.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
@@ -2178,7 +2180,7 @@ class NautobotSecretsGroup(SecretsGroup):
                 return super().create(adapter=adapter, ids=ids, attrs=attrs)
             except ORMSecret.DoesNotExist:
                 adapter.job.logger.warning(
-                    f'Secret - {_secret["name"]} does not exist in Nautobot, ensure it is created.'
+                    f"Secret - {_secret['name']} does not exist in Nautobot, ensure it is created."
                 )
 
     def update(self, attrs):
@@ -2201,7 +2203,7 @@ class NautobotSecretsGroup(SecretsGroup):
                     _sga.validated_save()
                 except ORMSecret.DoesNotExist:
                     self.adapter.job.logger.warning(
-                        f'Secret - {_secret["name"]} does not exist in Nautobot, ensure it is created.'
+                        f"Secret - {_secret['name']} does not exist in Nautobot, ensure it is created."
                     )
                     return None
 
@@ -2234,7 +2236,7 @@ class NautobotGitRepository(GitRepository):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create GitRepository in Nautobot from NautobotGitRepository object."""
-        adapter.job.logger.info(f'Creating Nautobot Git Repository: {ids["name"]}')
+        adapter.job.logger.info(f"Creating Nautobot Git Repository: {ids['name']}")
         _secrets_group = None
         if attrs.get("secrets_group"):
             _secrets_group = ORMSecretsGroup.objects.get(name=attrs["secrets_group"])
@@ -2297,11 +2299,11 @@ class NautobotDynamicGroup(DynamicGroup):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create DynamicGroup in Nautobot from NautobotDynamicGroup object."""
-        adapter.job.logger.info(f'Creating Nautobot Dynamic Group: {ids["name"]}')
+        adapter.job.logger.info(f"Creating Nautobot Dynamic Group: {ids['name']}")
         _content_type_id = lookup_content_type_id(nb_model="dynamic_groups", model_path=ids["content_type"])
         if _content_type_id is None:
             adapter.job.logger.warning(
-                f'Could not find ContentType for {ids["label"]} with ContentType {ids["content_type"]}'
+                f"Could not find ContentType for {ids['label']} with ContentType {ids['content_type']}"
             )
         _content_type = ContentType.objects.get_for_id(id=_content_type_id)
         _new_nb_dg = ORMDynamicGroup(
@@ -2368,11 +2370,11 @@ class NautobotComputedField(ComputedField):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create ComputedField in Nautobot from NautobotComputedField object."""
-        adapter.job.logger.info(f'Creating Nautobot Computed Field: {ids["label"]}')
+        adapter.job.logger.info(f"Creating Nautobot Computed Field: {ids['label']}")
         _content_type_id = lookup_content_type_id(nb_model="custom_fields", model_path=attrs["content_type"])
         if _content_type_id is None:
             adapter.job.logger.warning(
-                f'Could not find ContentType for {ids["label"]} with ContentType {attrs["content_type"]}'
+                f"Could not find ContentType for {ids['label']} with ContentType {attrs['content_type']}"
             )
         _content_type = ContentType.objects.get_for_id(id=_content_type_id)
         _new_computed_field = ORMComputedField(
@@ -2394,7 +2396,7 @@ class NautobotComputedField(ComputedField):
             _content_type_id = lookup_content_type_id(nb_model="custom_fields", model_path=attrs["content_type"])
             if _content_type_id is None:
                 self.adapter.job.logger.warning(
-                    f'Could not find ContentType for {self["label"]} with ContentType {attrs["content_type"]}'
+                    f"Could not find ContentType for {self['label']} with ContentType {attrs['content_type']}"
                 )
             _content_type = ContentType.objects.get_for_id(id=_content_type_id)
             comp_field.content_type = _content_type
@@ -2427,7 +2429,7 @@ class NautobotCustomField(CustomField):
     def create(cls, adapter, ids, attrs):
         """Create CustomField in Nautobot from NautobotCustomField object."""
         _content_types = []
-        adapter.job.logger.info(f'Creating Nautobot Custom Field: {ids["label"]}')
+        adapter.job.logger.info(f"Creating Nautobot Custom Field: {ids['label']}")
 
         for _model in attrs["content_types"]:
             try:
@@ -2532,7 +2534,7 @@ class NautobotTag(Tag):
     def create(cls, adapter, ids, attrs):
         """Create Tag in Nautobot from NautobotTag object."""
         _content_types = []
-        adapter.job.logger.info(f'Creating Nautobot Tag: {ids["name"]}')
+        adapter.job.logger.info(f"Creating Nautobot Tag: {ids['name']}")
         for _model in attrs["content_types"]:
             adapter.job.logger.debug(f"Looking up {_model} in content types.")
             try:
@@ -2603,7 +2605,7 @@ class NautobotGraphQLQuery(GraphQLQuery):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create GraphQLQuery in Nautobot from NautobotGraphQLQuery object."""
-        adapter.job.logger.info(f'Creating Nautobot GraphQLQuery: {ids["name"]}')
+        adapter.job.logger.info(f"Creating Nautobot GraphQLQuery: {ids['name']}")
         _new_query = ORMGraphQLQuery(name=ids["name"], query=attrs["query"])
         _new_query.validated_save()
         if METADATA_FOUND:
@@ -2800,7 +2802,7 @@ class NautobotSoftware(_Software_Base_Class):
                 f"Software model not found so skipping creation of {ids['version']} for {ids['platform']}."
             )
             return None
-        adapter.job.logger.info(f'Creating Nautobot Software object {ids["platform"]} - {ids["version"]}.')
+        adapter.job.logger.info(f"Creating Nautobot Software object {ids['platform']} - {ids['version']}.")
         if attrs.get("tags"):
             _new_software.validated_save()
             _new_software.tags.clear()
@@ -3195,3 +3197,103 @@ if validate_dlm_installed():
                 return self
             except ORMValidatedSoftware.DoesNotExist as err:
                 self.adapter.job.logger.warning(f"Unable to find ValidatedSoftware {self} for deletion. {err}")
+
+
+class NautobotExternalIntegration(ExternalIntegration):
+    """Nautobot implementation of Bootstrap ExternalIntegration model."""
+
+    @classmethod
+    def create(cls, adapter, ids, attrs):
+        """Create ExternalIntegration in Nautobot from NautobotExternalIntegration object."""
+        adapter.job.logger.info(f"Creating Nautobot External Integration: {ids['name']}")
+        _secrets_group = None
+        if attrs.get("secrets_group"):
+            _secrets_group = ORMSecretsGroup.objects.get(name=attrs["secrets_group"])
+        _tags = []
+        for tag in attrs["tags"]:
+            _tags.append(ORMTag.objects.get(name=tag))
+        new_externalintegration = ORMExternalIntegration(
+            name=ids["name"],
+            remote_url=attrs["remote_url"],
+            timeout=attrs["timeout"],
+            verify_ssl=attrs["verify_ssl"],
+            secrets_group=_secrets_group,
+            headers=attrs["headers"],
+            http_method=attrs["http_method"],
+            ca_file_path=attrs["ca_file_path"],
+            extra_config=attrs["extra_config"],
+            tags=_tags,
+        )
+        new_externalintegration.custom_field_data.update(
+            {"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")}
+        )
+        new_externalintegration.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
+        new_externalintegration.validated_save()
+        if METADATA_FOUND:
+            metadata = add_or_update_metadata_on_object(
+                adapter=adapter, obj=new_externalintegration, scoped_fields=SCOPED_FIELDS_MAPPING
+            )
+            metadata.validated_save()
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update ExternalIntegration in Nautobot from NautobotExternalIntegration object."""
+        self.adapter.job.logger.info(f"Updating ExternalIntegration {self.name}")
+        _update_externalintegration = ORMExternalIntegration.objects.get(id=self.uuid)
+        if attrs.get("remote_url"):
+            _update_externalintegration.remote_url = attrs["remote_url"]
+        if attrs.get("timeout"):
+            _update_externalintegration.timeout = attrs["timeout"]
+        if attrs.get("verify_ssl"):
+            _update_externalintegration.verify_ssl = attrs["verify_ssl"]
+        if attrs.get("secrets_group"):
+            _secrets_group = ORMSecretsGroup.objects.get(name=attrs["secrets_group"])
+            _update_externalintegration.secrets_group = _secrets_group
+        if attrs.get("headers"):
+            _update_externalintegration.headers = attrs["headers"]
+        if attrs.get("http_method"):
+            _update_externalintegration.http_method = attrs["http_method"]
+        if attrs.get("ca_file_path"):
+            _update_externalintegration.ca_file_path = attrs["ca_file_path"]
+        if attrs.get("extra_config"):
+            _update_externalintegration.extra_config = attrs["extra_config"]
+        if "tags" in attrs:
+            try:
+                _tags = []
+                for tag in attrs["tags"]:
+                    _tags.append(ORMTag.objects.get(name=tag))
+            except ORMTag.DoesNotExist:
+                self.adapter.job.logger.warning(
+                    f"Nautobot Tag {attrs['tags']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
+                )
+        if attrs.get("tags"):
+            _update_externalintegration.validated_save()
+            # TODO: Probably a better way to handle this that's easier on the database.
+            _update_externalintegration.tags.clear()
+            for _tag in attrs["tags"]:
+                _update_externalintegration.tags.add(ORMTag.objects.get(name=_tag))
+        if not check_sor_field(_update_externalintegration):
+            _update_externalintegration.custom_field_data.update(
+                {"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")}
+            )
+        _update_externalintegration.custom_field_data.update(
+            {"last_synced_from_sor": datetime.today().date().isoformat()}
+        )
+        _update_externalintegration.validated_save()
+        if METADATA_FOUND:
+            metadata = add_or_update_metadata_on_object(
+                adapter=self.adapter, obj=_update_externalintegration, scoped_fields=SCOPED_FIELDS_MAPPING
+            )
+            metadata.validated_save()
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete ExternalIntegration in Nautobot from NautobotExternalIntegration object."""
+        self.adapter.job.logger.debug(f"Delete ExternalIntegration uuid: {self.uuid}")
+        try:
+            git_repo = ORMExternalIntegration.objects.get(id=self.uuid)
+            super().delete()
+            git_repo.delete()
+            return self
+        except ORMExternalIntegration.DoesNotExist as err:
+            self.adapter.job.logger.warning(f"Unable to find ExternalIntegration {self.uuid} for deletion. {err}")
