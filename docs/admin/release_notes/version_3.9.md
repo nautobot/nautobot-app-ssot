@@ -117,3 +117,11 @@ Please note that the behavior in the SNOW integration now is to swallow and log 
 
 - [#954](https://github.com/nautobot/nautobot-app-ssot/issues/954) - Update ruff to target Python 3.9
 - Rebaked from the cookie `nautobot-app-v2.5.1`.
+
+## New Contributors
+
+* @cdtomkins made their first contribution in https://github.com/nautobot/nautobot-app-ssot/pull/929
+* @kacem-expereo made their first contribution in https://github.com/nautobot/nautobot-app-ssot/pull/933
+* @fpocai made their first contribution in https://github.com/nautobot/nautobot-app-ssot/pull/944
+* @rodrigogbranco made their first contribution in https://github.com/nautobot/nautobot-app-ssot/pull/953
+* @robertoduarte-codilime made their first contribution in https://github.com/nautobot/nautobot-app-ssot/pull/952
