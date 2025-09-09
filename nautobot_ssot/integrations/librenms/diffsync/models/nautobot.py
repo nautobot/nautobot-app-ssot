@@ -116,7 +116,7 @@ class NautobotLocation(Location):
     def delete(self):
         """Delete Location in Nautobot from NautobotLocation object."""
         self.adapter.job.logger.debug(f"Deleting Nautobot Location {self.name}")
-        location = ORMLocation.objects.get(id=self.id)
+        location = ORMLocation.objects.get(id=self.uuid)
         super().delete()
         location.delete()
         return self
