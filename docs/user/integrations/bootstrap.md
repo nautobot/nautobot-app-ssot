@@ -29,35 +29,43 @@ Data values are generally normalized in the app code. If a value is supposed to 
 
 ```yaml
 secret:
-  - name: Github_Service_Acct
+  - name: Service_Acct_User
     provider: environment-variable # or text-file
     parameters:
-      variable: GITHUB_SERVICE_ACCT
+      variable: SERVICE_ACCT_USER
       path:
-  - name: Github_Service_Token
+  - name: Service_Acct_Token
     provider: environment-variable # or text-file
     parameters:
-      variable: GITHUB_SERVICE_TOKEN
+      variable: SERVICE_ACCT_TOKEN
+      path:
+  - name: Service_Acct_Password
+    provider: environment-variable # or text-file
+    parameters:
+      variable: SERVICE_ACCT_PASSWORD
       path:
 secrets_group:
-  - name: Github_Service_Account
+  - name: Service_Account
     secrets:
-      - name: Github_Service_Acct
+      - name: Service_Acct_User
         secret_type: username
         access_type: HTTP(S)
-      - name: Github_Service_Token
+      - name: Service_Acct_Token
         secret_type: token
+        access_type: HTTP(S)
+      - name: Service_Acct_Password
+        secret_type: password
         access_type: HTTP(S)
 git_repository:
   - name: "Backbone Config Contexts"
     url: "https://github.com/nautobot/backbone-config-contexts.git"
     branch: "main" #  if branch is defined it will be used instead of the "git_branch" in the "branch" variable file.
-    secrets_group_name: "Github_Service_Account"
+    secrets_group_name: "Service_Account"
     provided_data_type:
       - "config contexts"
   - name: "Datacenter Config Contexts"
     url: "https://github.com/nautobot/datacenter-config-contexts.git"
-    secrets_group_name: "Github_Service_Account"
+    secrets_group_name: "Service_Account"
     provided_data_type:
       - "config contexts"
 dynamic_group:
@@ -140,7 +148,7 @@ external_integration:
   - name: "Altiplano"
     remote_url: "https://my.altiplano.instance:45321"
     verify_ssl: false
-    secrets_group_name: "Altiplano API Credentials"
+    secrets_group: "Service_Account"
     timeout: 30
     headers:
       Accept: "application/yang-data+json"
@@ -900,7 +908,7 @@ external_integration:
     timeout: # int
     # Optional Arguments
     verify_ssl: # bool, default: True
-    secrets_group_name: # str
+    secrets_group: # str
     headers: {} # dict
     http_method: # str -- Options are: get, post, put, patch, delete
     ca_file_path: # str

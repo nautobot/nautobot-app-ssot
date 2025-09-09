@@ -163,7 +163,7 @@ class TestNautobotAdapterTestCase(TransactionTestCase):
         """Test SSoT Bootstrap Nautobot load() function."""
         self.nb_adapter.load()
         for key in MODELS_TO_TEST:
-            print(f"Checking (NautobotAdapter): {key}")
+            print(f"Checking: {key}")
             models = list(self.nb_adapter.dict().get(key, {}).values())
             if key == "custom_field":
                 for model in list(models):

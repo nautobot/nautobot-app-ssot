@@ -145,7 +145,7 @@ class TestBootstrapAdapterTestCase(TransactionTestCase):
 
         # Use shared models_to_test
         for key in MODELS_TO_TEST:
-            print(f"Checking (BootstrapAdapter): {key}")
+            print(f"Checking: {key}")
             models = list(self.bootstrap.dict().get(key, {}).values())
             if key == "custom_field":
                 for model in list(models):

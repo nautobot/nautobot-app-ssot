@@ -382,53 +382,43 @@ circuit_termination:
     description: ""
     tags: []
 secret:
-  - name: "Github_Service_Acct"
+  - name: "Service_Acct_User"
     provider: "environment-variable"  # or text-file
     parameters:
-      variable: "GITHUB_SERVICE_ACCT"
+      variable: "SERVICE_ACCT_USER"
       path:
-  - name: "Github_Service_Token"
+  - name: "Service_Acct_Token"
     provider: "environment-variable"  # or text-file
     parameters:
-      variable: "GITHUB_SERVICE_TOKEN"
+      variable: "SERVICE_ACCT_TOKEN"
       path:
-  - name: "Ext_Int_User"
-    provider: "environment-variable"
+  - name: "Service_Acct_Password"
+    provider: "environment-variable"  # or text-file
     parameters:
-      variable: "EXT_INT_USER"
-      path:
-  - name: "Ext_Int_Password"
-    provider: "environment-variable"
-    parameters:
-      variable: "EXT_INT_PASSWORD"
+      variable: "SERVICE_ACCT_PASSWORD"
       path:
 secrets_group:
-  - name: "Github_Service_Account"
+  - name: "Service_Account"
     secrets:
-      - name: "Github_Service_Acct"
+      - name: "Service_Acct_User"
         secret_type: "username"
         access_type: "HTTP(S)"
-      - name: "Github_Service_Token"
+      - name: "Service_Acct_Token"
         secret_type: "token"
         access_type: "HTTP(S)"
-  - name: "Ext_Int_API_Credentials"
-    secrets:
-      - name: "Ext_Int_User"
-        secret_type: "username"
-        access_type: "HTTP(S)"
-      - name: "Ext_Int_Password"
+      - name: "Service_Acct_Password"
         secret_type: "password"
         access_type: "HTTP(S)"
 git_repository:
   - name: "Backbone Config Contexts"
     url: "https://github.com/nautobot/backbone-config-contexts.git"
     branch: "main"
-    secrets_group_name: "Github_Service_Account"
+    secrets_group_name: "Service_Account"
     provided_data_type:
       - "config contexts"
   - name: "Datacenter Config Contexts"
     url: "https://github.com/nautobot/datacenter-config-contexts.git"
-    secrets_group_name: "Github_Service_Account"
+    secrets_group_name: "Service_Account"
     provided_data_type:
       - "config contexts"
   - name: "Metro Config Contexts"
@@ -859,7 +849,7 @@ external_integration:
   - name: "Test Integration"
     remote_url: "https://my.integration.instance:45321"
     verify_ssl: false
-    secrets_group: "Ext_Int_API_Credentials"
+    secrets_group: "Service_Account"
     http_method: "GET"
     ca_file_path: "/tmp/test"
     timeout: 30
