@@ -78,9 +78,6 @@ class LibrenmsAdapter(Adapter):
         if device["os"] != "ping":
             if device["type"] in PLUGIN_CFG.get("librenms_permitted_values", {}).get("role", [device["type"]]):
                 if not has_required_values(device, self.job):
-                    self.job.logger.warning(
-                        f"Device {device[self.hostname_field]} failed to load: {device['load_errors']}"
-                    )
                     self.failed_import_devices.append(device)
                     return
                 try:
