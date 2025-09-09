@@ -137,7 +137,7 @@ class LibrenmsAdapter(Adapter):
                     f'Device {device[self.hostname_field]} role "{device["type"]}" is not permitted by the configuration. Skipping.'
                 )
         else:
-            self.job.logger.info(f'Device {device[self.hostname_field]} is "ping-only". Skipping.')
+            self.job.logger.warning(f'Device {device[self.hostname_field]} is "ping-only". Skipping.')
 
     def load(self):
         """Load data from LibreNMS into DiffSync models."""
