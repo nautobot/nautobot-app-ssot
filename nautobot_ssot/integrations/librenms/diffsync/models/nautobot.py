@@ -67,6 +67,19 @@ class NautobotLocation(Location):
         if adapter.job.debug:
             adapter.job.logger.debug(f'Creating Nautobot Location {ids["name"]}')
 
+        # Check if location already exists to avoid ValidationError
+        try:
+            existing_location = ORMLocation.objects.get(name=ids["name"], parent__isnull=True)
+            if adapter.job.debug:
+                adapter.job.logger.debug(f'Location {ids["name"]} already exists, skipping creation')
+            return super().create(adapter=adapter, ids=ids, attrs=attrs)
+        except ORMLocation.DoesNotExist:
+            pass  # Location doesn't exist, proceed with creation
+        except ORMLocation.MultipleObjectsReturned:
+            adapter.job.logger.warning(f'Multiple locations found with name {ids["name"]}, using first one')
+            existing_location = ORMLocation.objects.filter(name=ids["name"], parent__isnull=True).first()
+            return super().create(adapter=adapter, ids=ids, attrs=attrs)
+
         try:
             adapter.job.logger.debug(f"Location Type {adapter.job.location_type}")
             _location_type = LocationType.objects.get(id=adapter.job.location_type.id)
