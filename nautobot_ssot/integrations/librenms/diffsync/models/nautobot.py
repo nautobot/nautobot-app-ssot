@@ -34,11 +34,11 @@ def ensure_platform(platform_name: str, manufacturer: str):
     """Safely returns a Platform that support Devices."""
     try:
         _manufacturer, _ = ORMManufacturer.objects.get_or_create(name=manufacturer)
-        _platform = ORMPlatform.objects.get(name=platform_name, manufacturer=_manufacturer)
+        _platform = ORMPlatform.objects.get_or_create(name=platform_name, manufacturer=_manufacturer)[0]
         return _platform
     except ORMPlatform.DoesNotExist:
         try:
-            _platform = ORMPlatform.objects.get(name=platform_name)
+            _platform = ORMPlatform.objects.get_or_create(name=platform_name, manufacturer=_manufacturer)[0]
             return _platform
         except ORMPlatform.DoesNotExist:
             _platform = verify_platform(platform_name=platform_name, manu=_manufacturer.id)
