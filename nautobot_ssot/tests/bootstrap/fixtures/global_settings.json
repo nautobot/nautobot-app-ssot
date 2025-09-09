@@ -517,21 +517,6 @@
           "access_type": "HTTP(S)"
         }
       ]
-    },
-    {
-      "name": "Ext_Int_API_Credentials",
-      "secrets": [
-        {
-          "name": "Ext_Int_User",
-          "secret_type": "username",
-          "access_type": "HTTP(S)"
-        },
-        {
-          "name": "Ext_Int_Password",
-          "secret_type": "password",
-          "access_type": "HTTP(S)"
-        }
-      ]
     }
   ],
   "git_repository": [
@@ -539,7 +524,7 @@
       "name": "Backbone Config Contexts",
       "url": "https://github.com/nautobot/backbone-config-contexts.git",
       "branch": "main",
-      "secrets_group": "Github_Service_Account",
+      "secrets_group": "Service_Account",
       "provided_contents": [
         "config contexts"
       ]
@@ -548,7 +533,7 @@
       "name": "Datacenter Config Contexts",
       "url": "https://github.com/nautobot/datacenter-config-contexts.git",
       "branch": "develop",
-      "secrets_group": "Github_Service_Account",
+      "secrets_group": "Service_Account",
       "provided_contents": [
         "config contexts"
       ]
@@ -1127,7 +1112,7 @@
       "name": "Test Integration",
       "remote_url": "https://my.integration.instance:45321",
       "verify_ssl": false,
-      "secrets_group": "Ext_Int_API_Credentials",
+      "secrets_group": "Service_Account",
       "http_method": "GET",
       "ca_file_path": "/tmp/test",
       "timeout": 30,
