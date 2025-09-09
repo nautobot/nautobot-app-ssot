@@ -1,1 +1,0 @@
-Improved performance of the SSoT Sync history page by removing an unnecessary log prefetch and deferring large JSON fields.
