@@ -22,6 +22,7 @@ from nautobot.extras.models import (
     Contact,
     CustomField,
     DynamicGroup,
+    ExternalIntegration,
     GitRepository,
     GraphQLQuery,
     Role,
@@ -50,6 +51,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import (
     NautobotContact,
     NautobotCustomField,
     NautobotDynamicGroup,
+    NautobotExternalIntegration,
     NautobotGitRepository,
     NautobotGraphQLQuery,
     NautobotLocation,
@@ -150,6 +152,7 @@ class NautobotAdapter(Adapter):
     custom_field = NautobotCustomField
     tag = NautobotTag
     graph_ql_query = NautobotGraphQLQuery
+    external_integration = NautobotExternalIntegration
 
     if core_supports_softwareversion():
         software_version = NautobotSoftware
@@ -190,6 +193,7 @@ class NautobotAdapter(Adapter):
         "graph_ql_query",
         "scheduled_job",
         "custom_field",
+        "external_integration",
     ]
 
     if core_supports_softwareversion():
@@ -1496,6 +1500,46 @@ class NautobotAdapter(Adapter):
             if not check_sor_field(nb_validated_software):
                 new_validated_software.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
 
+    def load_external_integration(self):
+        """Method to load ExternalIntegration objects from Nautobot into NautobotExternalIntegration DiffSync models."""
+        for nb_ei in ExternalIntegration.objects.all():
+            if self.job.debug:
+                self.job.logger.debug(f"Loading Nautobot ExternalIntegration: {nb_ei}")
+            _tags = sorted(list(nb_ei.tags.all().values_list("name", flat=True)))
+            try:
+                self.get(self.external_integration, nb_ei.name)
+            except ObjectNotFound:
+                try:
+                    _secrets_group = nb_ei.secrets_group.name
+                except AttributeError:
+                    _secrets_group = None
+                _sor = ""
+                if "system_of_record" in nb_ei.custom_field_data:
+                    _sor = (
+                        nb_ei.custom_field_data["system_of_record"]
+                        if nb_ei.custom_field_data["system_of_record"] is not None
+                        else ""
+                    )
+                new_ei = self.external_integration(
+                    name=nb_ei.name,
+                    remote_url=nb_ei.remote_url,
+                    timeout=nb_ei.timeout,
+                    verify_ssl=nb_ei.verify_ssl,
+                    secrets_group=_secrets_group,
+                    headers=nb_ei.headers,
+                    http_method=nb_ei.http_method,
+                    ca_file_path=nb_ei.ca_file_path,
+                    extra_config=nb_ei.extra_config,
+                    tags=_tags,
+                    system_of_record=_sor,
+                    uuid=nb_ei.id,
+                )
+
+                if not check_sor_field(nb_ei):
+                    new_ei.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+
+                self.add(new_ei)
+
     def load(self):
         """Load data from Nautobot into DiffSync models."""
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["tenant_group"]:
@@ -1556,6 +1600,8 @@ class NautobotAdapter(Adapter):
             self.load_scheduled_job()
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["custom_field"]:
             self.load_custom_field()
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["external_integration"]:
+            self.load_external_integration()
         if core_supports_softwareversion():
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software"]:
                 self.load_software()

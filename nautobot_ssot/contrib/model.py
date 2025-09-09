@@ -395,7 +395,7 @@ class NautobotModel(DiffSyncModel):
                 ) from error
             except MultipleObjectsReturned as error:
                 raise ObjectCrudException(
-                    f"Found multiple instances for {field_name} wit: {related_model_dict}"
+                    f"Found multiple instances for {field_name} with: {related_model_dict}"
                 ) from error
             setattr(obj, field_name, related_object)
 

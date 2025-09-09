@@ -30,6 +30,7 @@ from nautobot.extras.models import (
     Contact,
     CustomField,
     DynamicGroup,
+    ExternalIntegration,
     GitRepository,
     GraphQLQuery,
     Job,
@@ -121,6 +122,7 @@ MODELS_TO_SYNC = [
     "vrf",
     "prefix",
     "scheduled_job",
+    "external_integration",
 ]
 
 MODELS_TO_TEST = [
@@ -153,6 +155,7 @@ MODELS_TO_TEST = [
     "vrf",
     "prefix",
     "scheduled_job",
+    "external_integration",
 ]
 
 
@@ -224,6 +227,7 @@ class NautobotTestSetup:
         self._setup_vlans()
         self._setup_vrfs()
         self._setup_prefixes()
+        self._setup_external_integrations()
         if dlm_supports_softwarelcm():
             self._setup_software_and_images()
         self._setup_validated_software()
@@ -1068,6 +1072,29 @@ class NautobotTestSetup:
                 kwargs={},
             )
             scheduled_job.validated_save()
+
+    def _setup_external_integrations(self):
+        """Set up external integrations for testing."""
+        for _ext_int in GLOBAL_YAML_SETTINGS["external_integration"]:
+            if _ext_int.get("secrets_group"):
+                _secrets_group = SecretsGroup.objects.get(name=_ext_int["secrets_group"])
+            _nb_ext_int = ExternalIntegration.objects.create(
+                name=_ext_int["name"],
+                remote_url=_ext_int["remote_url"],
+                verify_ssl=_ext_int["verify_ssl"],
+                secrets_group=_secrets_group,
+                http_method=_ext_int["http_method"],
+                ca_file_path=_ext_int["ca_file_path"],
+                timeout=_ext_int["timeout"],
+                headers=_ext_int["headers"],
+                extra_config=_ext_int["extra_config"],
+            )
+            _nb_ext_int.custom_field_data["system_of_record"] = "Bootstrap"
+            if _ext_int["tags"]:
+                for _tag in _ext_int["tags"]:
+                    _nb_ext_int.tags.add(Tag.objects.get(name=_tag))
+            _nb_ext_int.save()
+            _nb_ext_int.refresh_from_db()
 
     def _get_validated_software_tags(self, tag_names):
         return [Tag.objects.get(name=tag_name) for tag_name in tag_names]

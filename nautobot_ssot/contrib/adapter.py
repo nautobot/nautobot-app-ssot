@@ -78,8 +78,9 @@ class NautobotAdapter(DiffSync):
         metadata_for_this_field = getattr(type_hints[parameter_name], "__metadata__", [])
         for metadata in metadata_for_this_field:
             if isinstance(metadata, CustomFieldAnnotation):
-                if metadata.name in database_object.cf:
-                    parameters[parameter_name] = database_object.cf[metadata.key]
+                field_key = metadata.key or metadata.name
+                if field_key in database_object.cf:
+                    parameters[parameter_name] = database_object.cf[field_key]
                 is_custom_field = True
                 break
             if isinstance(metadata, CustomRelationshipAnnotation):
