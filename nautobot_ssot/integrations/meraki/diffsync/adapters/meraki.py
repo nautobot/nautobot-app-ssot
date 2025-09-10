@@ -113,7 +113,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                             "controller_group": self.job.instance.controller_managed_device_groups.first().name
                             if self.job.instance.controller_managed_device_groups.count() != 0
                             else "",
-                            "notes": dev["notes"].rstrip(),
+                            "notes": dev.get("notes", "").rstrip(),
                             "serial": dev["serial"],
                             "status": status,
                             "role": role,
