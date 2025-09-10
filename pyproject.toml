@@ -1,10 +1,14 @@
 [tool.poetry]
 name = "nautobot-ssot"
 <<<<<<< HEAD
+<<<<<<< HEAD
 version = "3.10.0a0"
 =======
 version = "3.9.3"
 >>>>>>> a19c778 (Bump version)
+=======
+version = "3.9.4a0"
+>>>>>>> 650d672 (Bump prepatch)
 description = "Nautobot Single Source of Truth"
 authors = ["Network to Code, LLC <opensource@networktocode.com>"]
 license = "Apache-2.0"
