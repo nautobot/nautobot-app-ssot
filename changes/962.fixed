@@ -1,0 +1,1 @@
+Meraki get-organization-devices API may omit notes key in response, changed slice to get() on the dictionary payload.
