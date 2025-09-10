@@ -93,3 +93,27 @@ Please note that the behavior in the SNOW integration now is to swallow and log 
 ### Documentation
 
 - [#925](https://github.com/nautobot/nautobot-app-ssot/issues/925) - Added Analytics GTM template override only to the public ReadTheDocs build.
+
+## [v3.9.3 (2025-09-09)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.9.3)
+
+### Added
+
+- [#913](https://github.com/nautobot/nautobot-app-ssot/issues/913) - Added the enable_global_search configuration option to control whether the Nautobot global search includes synclogs.
+- [#938](https://github.com/nautobot/nautobot-app-ssot/issues/938) - Added support for Object Metadata in the Bootstrap integration.
+- [#948](https://github.com/nautobot/nautobot-app-ssot/issues/948) - Added ExternalIntegration creation to Bootstrap integration.
+
+### Fixed
+
+- [#548](https://github.com/nautobot/nautobot-app-ssot/issues/548) - Improved performance of the SSoT Sync history page by removing an unnecessary log prefetch and deferring large JSON fields.
+- [#596](https://github.com/nautobot/nautobot-app-ssot/issues/596) - Use required default arg ("msg") instead of kwarg ("message") when using self.job.logger.
+- [#723](https://github.com/nautobot/nautobot-app-ssot/issues/723) - Fixed `_handle_single_parameter` metadata key vs name inconsistency.
+- [#910](https://github.com/nautobot/nautobot-app-ssot/issues/910) - Fixed Service Now caching sys_ids causing objects to not be created.
+- [#936](https://github.com/nautobot/nautobot-app-ssot/issues/936) - Fixed creation of "Unknown" location when running LibreNMS integration in dry run mode.
+- [#940](https://github.com/nautobot/nautobot-app-ssot/issues/940) - Fixed error in Citrix ADM integration when attempting to assign an IP Address to an Interface.
+- [#947](https://github.com/nautobot/nautobot-app-ssot/issues/947) - Fixed Advanced Filters for Infoblox Config and Automation Gateway Management.
+- [#953](https://github.com/nautobot/nautobot-app-ssot/issues/953) - Fixed an issue in the Cisco DNA Center integration where devices with unmapped platforms were silently skipped during synchronization, resulting in an incomplete inventory
+
+### Housekeeping
+
+- [#954](https://github.com/nautobot/nautobot-app-ssot/issues/954) - Update ruff to target Python 3.9
+- Rebaked from the cookie `nautobot-app-v2.5.1`.

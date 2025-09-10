@@ -1,1 +1,0 @@
-Added the enable_global_search configuration option to control whether the Nautobot global search includes synclogs.
