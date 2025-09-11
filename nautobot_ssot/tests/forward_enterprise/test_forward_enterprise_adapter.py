@@ -513,7 +513,3 @@ class TestForwardEnterpriseAdapter(unittest.TestCase):
             # Should not create new VRF when one already exists
             mock_vrf.assert_not_called()
             mock_add.assert_not_called()
-
-
-if __name__ == "__main__":
-    unittest.main()

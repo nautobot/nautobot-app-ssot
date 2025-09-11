@@ -23,28 +23,19 @@ class MockNQEAPI:
             return self.query_mappings["device_query"]
         if "ipam" in query or "ip" in query:
             return self.query_mappings["ipam_query"]
-        else:
-            # Default empty response for unknown queries
-            return {"snapshotId": data.get("snapshotId", "393879"), "items": []}
+        # Default empty response for unknown queries
+        return {"snapshotId": data.get("snapshotId", "393879"), "items": []}
 
 
 class MockForwardEnterpriseClient:
     """Mock Forward Enterprise client focused on NQE functionality."""
 
-    def __init__(
-        self,
-        base_url: Optional[str] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-        verify_ssl: bool = True,
-        job=None,
-        **kwargs,
-    ):  # pylint disable=too-many-arguments, too-many-positional-arguments
+    def __init__(self, job=None, **kwargs):
         """Initialize mock client."""
-        self.base_url = base_url or "https://test.example.com"
-        self.username = username or "test_user"
-        self.password = password or "test_token"
-        self.verify_ssl = verify_ssl
+        self.base_url = kwargs.get("base_url", "https://test.example.com")
+        self.username = kwargs.get("username", "test_user")
+        self.password = kwargs.get("password", "test_token")
+        self.verify_ssl = kwargs.get("verify_ssl", True)
         self.job = job
         self.nqe = MockNQEAPI()
 

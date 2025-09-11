@@ -96,7 +96,3 @@ class TestForwardEnterpriseQueryConfig(unittest.TestCase):
         # Pass None as job to trigger the validation error
         with self.assertRaises(Exception):
             ForwardEnterpriseClient(job=None)
-
-
-if __name__ == "__main__":
-    unittest.main()
