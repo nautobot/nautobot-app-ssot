@@ -848,7 +848,6 @@ class ScheduledJob(DiffSyncModel):
         "crontab",
         "job_vars",
         "profile",
-        "approval_required",
         "task_queue",
         "enabled",
     )
@@ -862,7 +861,6 @@ class ScheduledJob(DiffSyncModel):
     crontab: str
     job_vars: dict
     profile: bool = False
-    approval_required: bool = False
     task_queue: Optional[str] = None
     enabled: Optional[bool] = True
 

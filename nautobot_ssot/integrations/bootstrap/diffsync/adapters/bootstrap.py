@@ -911,7 +911,6 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 crontab=crontab,
                 job_vars=job_vars,
                 profile=scheduled_job.get("profile", False),
-                approval_required=scheduled_job.get("approval_required", False),
                 task_queue=scheduled_job.get("task_queue"),
                 enabled=scheduled_job.get("enabled", True),
             )
