@@ -2374,7 +2374,6 @@ class NautobotScheduledJob(ScheduledJob):
             interval=attrs.get("interval"),
             start_time=attrs.get("start_time"),
             crontab=attrs.get("crontab"),
-            approval_required=attrs.get("approval_required"),
             kwargs=job_kwargs,
             celery_kwargs=celery_kwargs,
             enabled=attrs.get("enabled"),
@@ -2418,8 +2417,6 @@ class NautobotScheduledJob(ScheduledJob):
             job.kwargs = attrs["job_vars"]
         if "profile" in attrs:
             job.celery_kwargs["nautobot_job_profile"] = attrs["profile"]
-        if "approval_required" in attrs:
-            job.approval_required = attrs["approval_required"]
         if "task_queue" in attrs:
             job.celery_kwargs["queue"] = attrs["task_queue"]
         if "enabled" in attrs:
