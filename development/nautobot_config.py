@@ -222,6 +222,7 @@ PLUGINS_CONFIG = {
         "enable_citrix_adm": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_CITRIX_ADM")),
         "enable_device42": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_DEVICE42")),
         "enable_dna_center": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_DNA_CENTER")),
+        "enable_forward_enterprise": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_FORWARD_ENTERPRISE", "false")),
         "enable_infoblox": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_INFOBLOX")),
         "enable_ipfabric": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_IPFABRIC")),
         "enable_itential": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ITENTIAL")),
@@ -290,6 +291,12 @@ PLUGINS_CONFIG = {
         ),
         "ipfabric_use_canonical_interface_name": is_truthy(
             os.getenv("NAUTOBOT_SSOT_USE_CANONICAL_INTERFACE_NAME", "true")
+        ),
+        "forward_enterprise_default_device_role": os.getenv("NAUTOBOT_SSOT_IPFABRIC_DEVICE_ROLE", "Network Device"),
+        "forward_enterprise_default_device_status": os.getenv("NAUTOBOT_SSOT_IPFABRIC_DEVICE_STATUS", "Active"),
+        "forward_enterprise_default_device_role_color": os.getenv("NAUTOBOT_SSOT_IPFABRIC_DEVICE_ROLE_COLOR", "ff0000"),
+        "forward_enterprise_default_device_status_color": os.getenv(
+            "NAUTOBOT_SSOT_IPFABRIC_DEVICE_STATUS_COLOR", "ff0000"
         ),
         "servicenow_instance": os.getenv("SERVICENOW_INSTANCE", ""),
         "servicenow_password": os.getenv("SERVICENOW_PASSWORD", ""),
