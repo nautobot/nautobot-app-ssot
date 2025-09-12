@@ -58,7 +58,7 @@ def ensure_software_version(platform: ORMPlatform, manufacturer: str, version: s
     return _software_version
 
 
-def ensure_location(location_data: dict, location_type: LocationType):
+def ensure_location(location_data: dict, location_type: LocationType, parent_location_name: str):
     """Safely returns a Location."""
     # Get or create an Active status for locations
     status, _ = Status.objects.get_or_create(name="Active")
@@ -94,7 +94,8 @@ def ensure_location(location_data: dict, location_type: LocationType):
             }
             _parent_location = ensure_location(
                 location_data=parent_location_data,
-                location_type=parent_location_type
+                location_type=parent_location_type,
+                parent_location_name=None
             )
         
         _location = ORMLocation.objects.create(
@@ -218,7 +219,7 @@ class NautobotDevice(Device):
             "name": location_name,
             "parent": parent_location_name
         }
-        _location = ensure_location(location_data=location_data, location_type=adapter.job.location_type, pare)
+        _location = ensure_location(location_data=location_data, location_type=adapter.job.location_type, parent_location_name=parent_location_name)
         if adapter.job.debug:
             adapter.job.logger.debug(f'Device Location {attrs["location"]}')
         try:
@@ -280,7 +281,7 @@ class NautobotDevice(Device):
                 "name": location_name,
                 "parent": parent_location_name
             }
-            _location = ensure_location(location_data=location_data, location_type=self.adapter.job.location_type)
+            _location = ensure_location(location_data=location_data, location_type=self.adapter.job.location_type, parent_location_name=parent_location_name)
             device.location = _location
         if "serial_no" in attrs:
             device.serial = attrs["serial_no"]
