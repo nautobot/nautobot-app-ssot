@@ -58,6 +58,63 @@ def ensure_software_version(platform: ORMPlatform, manufacturer: str, version: s
     return _software_version
 
 
+def ensure_location(location_data: dict, location_type: LocationType):
+    """Safely returns a Location."""
+    # Get or create an Active status for locations
+    status, _ = Status.objects.get_or_create(name="Active")
+    
+    # Extract location name and parent from location_data
+    location_name = location_data.get("name")
+    parent_location_name = location_data.get("parent")
+    
+    
+    # First, try to find existing location by name and location type
+    try:
+        existing_location = ORMLocation.objects.get(name__iexact=location_name, location_type=location_type)
+        return existing_location
+    except ORMLocation.DoesNotExist:
+        pass
+    except ORMLocation.MultipleObjectsReturned:
+        # If multiple locations with same name and type, use the first one
+        existing_location = ORMLocation.objects.filter(name__iexact=location_name, location_type=location_type).first()
+        return existing_location
+    
+    # If no existing location found, create a new one
+    if parent_location_name:
+        # Try to find existing parent location with correct location type
+        parent_location_type = location_type.parent if location_type.parent else location_type
+        
+        try:
+            _parent_location = ORMLocation.objects.get(name__iexact=parent_location_name, location_type=parent_location_type)
+        except ORMLocation.DoesNotExist:
+            # Recursively ensure the parent location exists
+            parent_location_data = {
+                "name": parent_location_name,
+                "parent": None  # Parent locations don't have parents in this context
+            }
+            _parent_location = ensure_location(
+                location_data=parent_location_data,
+                location_type=parent_location_type
+            )
+        
+        _location = ORMLocation.objects.create(
+            name=location_name, 
+            parent=_parent_location, 
+            location_type=location_type,
+            status=status
+        )
+        print(f"DEBUG: Created child location: {_location}")
+    else:
+        print(f"DEBUG: Creating location without parent")
+        _location = ORMLocation.objects.create(
+            name=location_name, 
+            location_type=location_type,
+            status=status
+        )
+        print(f"DEBUG: Created location: {_location}")
+    return _location
+
+
 class NautobotLocation(Location):
     """Nautobot implementation of LibreNMS Location model."""
 
@@ -149,6 +206,15 @@ class NautobotDevice(Device):
         _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
         _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=_manufacturer.name)
         _device_type = DeviceType.objects.get_or_create(model=attrs["device_type"], manufacturer=_manufacturer)[0]
+        # Get location data from the device attributes
+        location_name = attrs["location"]
+        parent_location_name = attrs.get("parent_location")
+        
+        location_data = {
+            "name": location_name,
+            "parent": parent_location_name
+        }
+        _location = ensure_location(location_data=location_data, location_type=adapter.job.location_type)
         if adapter.job.debug:
             adapter.job.logger.debug(f'Device Location {attrs["location"]}')
         try:
@@ -157,7 +223,7 @@ class NautobotDevice(Device):
                 device_type=_device_type,
                 status=Status.objects.get_or_create(name=attrs["status"])[0],
                 role=ensure_role(role_name=attrs["role"], content_type=ORMDevice),
-                location=ORMLocation.objects.get(name=attrs["location"], location_type=adapter.job.location_type),
+                location=_location,
                 platform=_platform,
                 serial=attrs["serial_no"],
                 software_version=ensure_software_version(
@@ -185,6 +251,9 @@ class NautobotDevice(Device):
     def update(self, attrs):
         """Update Device in Nautobot from NautobotDevice object."""
         self.adapter.job.logger.debug(f"Updating Nautobot Device {self.name} with {attrs}")
+        print(f"DEBUG: NautobotDevice update called for {self.name}")
+        print(f"DEBUG: attrs keys: {list(attrs.keys()) if isinstance(attrs, dict) else 'Not a dict'}")
+        print(f"DEBUG: attrs: {attrs}")
         device = ORMDevice.objects.get(id=self.uuid)
         if "device_id" in attrs:
             device.custom_field_data["librenms_device_id"] = attrs["device_id"]
@@ -193,7 +262,17 @@ class NautobotDevice(Device):
         if "role" in attrs:
             device.role = ensure_role(role_name=attrs["role"], content_type=ORMDevice)
         if "location" in attrs:
-            device.location = ORMLocation.objects.get(name=attrs["location"])
+            # Get location data from the device attributes
+            location_name = attrs["location"]
+            parent_location_name = attrs.get("parent_location")
+            
+            # Ensure the location exists with proper parent
+            location_data = {
+                "name": location_name,
+                "parent": parent_location_name
+            }
+            _location = ensure_location(location_data=location_data, location_type=self.adapter.job.location_type)
+            device.location = _location
         if "serial_no" in attrs:
             device.serial = attrs["serial_no"]
         if "platform" in attrs:
