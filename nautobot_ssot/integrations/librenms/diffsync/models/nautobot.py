@@ -70,13 +70,13 @@ def ensure_location(location_data: dict, location_type: LocationType):
     
     # First, try to find existing location by name and location type
     try:
-        existing_location = ORMLocation.objects.get(name__iexact=location_name, location_type=location_type)
+        existing_location = ORMLocation.objects.get(name__iexact=location_name, location_type=location_type, parent__name=parent_location_name)
         return existing_location
     except ORMLocation.DoesNotExist:
         pass
     except ORMLocation.MultipleObjectsReturned:
         # If multiple locations with same name and type, use the first one
-        existing_location = ORMLocation.objects.filter(name__iexact=location_name, location_type=location_type).first()
+        existing_location = ORMLocation.objects.filter(name__iexact=location_name, location_type=location_type, parent__name=parent_location_name).first()
         return existing_location
     
     # If no existing location found, create a new one
@@ -218,7 +218,7 @@ class NautobotDevice(Device):
             "name": location_name,
             "parent": parent_location_name
         }
-        _location = ensure_location(location_data=location_data, location_type=adapter.job.location_type)
+        _location = ensure_location(location_data=location_data, location_type=adapter.job.location_type, pare)
         if adapter.job.debug:
             adapter.job.logger.debug(f'Device Location {attrs["location"]}')
         try:
