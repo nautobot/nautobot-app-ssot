@@ -169,7 +169,7 @@ class NautobotLocation(Location):
         if self.adapter.job.debug:
             self.adapter.job.logger.debug(f"Updating Nautobot Location {self.name}")
 
-        location = ORMLocation.objects.get(name=self.name)
+        location = ORMLocation.objects.get(name=self.name, location_type=self.adapter.job.location_type)
         if "latitude" in attrs:
             location.latitude = attrs["latitude"]
         if "longitude" in attrs:
@@ -186,7 +186,11 @@ class NautobotLocation(Location):
     def delete(self):
         """Delete Location in Nautobot from NautobotLocation object."""
         self.adapter.job.logger.debug(f"Deleting Nautobot Location {self.name}")
-        location = ORMLocation.objects.get(id=self.uuid)
+        try:
+            location = ORMLocation.objects.get(id=self.uuid)
+        except ORMLocation.DoesNotExist:
+            self.adapter.job.logger.error(f"Location with UUID {self.uuid} not found for deletion")
+            return self
         super().delete()
         location.delete()
         return self
