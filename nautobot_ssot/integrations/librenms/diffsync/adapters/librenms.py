@@ -141,6 +141,7 @@ class LibrenmsAdapter(Adapter):
                             platform=device["os"],
                             os_version=device["version"] if device["version"] is not None else "Unknown",
                             ip_address=device["ip"],
+                            tenant=self.job.tenant.name if self.job.tenant else None,
                             system_of_record=os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
                         )
                     except ValidationError as err:

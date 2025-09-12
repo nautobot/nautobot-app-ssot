@@ -223,6 +223,7 @@ class NautobotDevice(Device):
                 device_type=_device_type,
                 status=Status.objects.get_or_create(name=attrs["status"])[0],
                 role=ensure_role(role_name=attrs["role"], content_type=ORMDevice),
+                tenant=adapter.tenant,
                 location=_location,
                 platform=_platform,
                 serial=attrs["serial_no"],
