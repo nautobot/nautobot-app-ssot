@@ -238,13 +238,17 @@ class NautobotDevice(Device):
             return None
         if adapter.tenant:
             new_device.tenant = adapter.tenant
-        new_device.custom_field_data.update(
-            {
-                "librenms_device_id": attrs["device_id"],
-                "system_of_record": os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
-                "last_synced_from_sor": datetime.today().date().isoformat(),
-            }
-        )
+        custom_fields = {
+            "librenms_device_id": attrs["device_id"],
+            "system_of_record": os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
+            "last_synced_from_sor": datetime.today().date().isoformat(),
+        }
+        
+        # Add SNMP location as custom field if available
+        if attrs.get("snmp_location"):
+            custom_fields["snmp_location"] = attrs["snmp_location"]
+        
+        new_device.custom_field_data.update(custom_fields)
         new_device.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
@@ -292,6 +296,11 @@ class NautobotDevice(Device):
         custom_fields = {"last_synced_from_sor": datetime.today().date().isoformat()}
         if not check_sor_field(device):
             custom_fields["system_of_record"] = os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS")
+        
+        # Add SNMP location as custom field if available
+        if attrs.get("snmp_location"):
+            custom_fields["snmp_location"] = attrs["snmp_location"]
+        
         device.custom_field_data.update(custom_fields)
         device.validated_save()
         return super().update(attrs)

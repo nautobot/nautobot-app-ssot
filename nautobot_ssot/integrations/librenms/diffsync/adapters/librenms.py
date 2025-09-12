@@ -132,6 +132,7 @@ class LibrenmsAdapter(Adapter):
                             device_id=device["device_id"],
                             location=location_data["name"],
                             parent_location=location_data["parent"],
+                            snmp_location=device["location"],
                             role=device["type"],
                             serial_no=device["serial"] if device["serial"] is not None else "",
                             status=_status,
