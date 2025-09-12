@@ -20,6 +20,7 @@ from nautobot_ssot.integrations.librenms.utils import (
     has_required_values,
     normalize_device_hostname,
     normalize_gps_coordinates,
+    parse_hostname_for_location,
 )
 from nautobot_ssot.integrations.librenms.utils.librenms import LibreNMSApi
 
@@ -72,8 +73,21 @@ class LibrenmsAdapter(Adapter):
 
     def load_device(self, device: dict):
         """Load Device objects from LibreNMS into DiffSync models."""
+        # Ensure device is a dictionary
+        if not isinstance(device, dict):
+            self.job.logger.warning(f"Device data is not a dictionary: {type(device)} - {device}")
+            self.failed_import_devices.append(device)
+            return
+            
+        # Get the hostname field to use
+        hostname_field = (
+            os.getenv("NAUTOBOT_SSOT_LIBRENMS_HOSTNAME_FIELD", "sysName")
+            if self.job.hostname_field == "env_var"
+            else self.job.hostname_field or "sysName"
+        )
+        
         if self.job.debug:
-            self.job.logger.debug(f"Loading LibreNMS Device {device[self.job.hostname_field]}")
+            self.job.logger.debug(f"Loading LibreNMS Device {device[hostname_field]}")
 
         if device["os"] != "ping":
             if device["type"] in PLUGIN_CFG.get("librenms_permitted_values", {}).get("role", [device["type"]]):
@@ -81,13 +95,13 @@ class LibrenmsAdapter(Adapter):
                     self.failed_import_devices.append(device)
                     return
                 try:
-                    self.get(self.device, device[self.job.hostname_field])
+                    self.get(self.device, device[hostname_field])
                 except ObjectNotFound:
                     # Normalize the device hostname and check if it's valid
                     normalized_name = normalize_device_hostname(device, self.job)
                     if normalized_name is None:
                         self.job.logger.warning(
-                            f"Device {device[self.job.hostname_field]} has invalid hostname. Skipping."
+                            f"Device {device[hostname_field]} has invalid hostname. Skipping."
                         )
                         self.failed_import_devices.append(device)
                         return
@@ -104,15 +118,20 @@ class LibrenmsAdapter(Adapter):
                                 device["load_errors"] = []
                             device["load_errors"].append(f"Manufacturer mapping not found for OS: {device['os']}")
                             self.job.logger.warning(
-                                f"Device {device[self.job.hostname_field]} failed to load: {device['load_errors']}"
+                                f"Device {device[hostname_field]} failed to load: {device['load_errors']}"
                             )
                             self.failed_import_devices.append(device)
                             return
 
+                        # Use location mapping if available, otherwise use device location
+                        location_data = parse_hostname_for_location(self.job.location_map, device[hostname_field], device["location"])
+                        # Store the full location data in the device for the NautobotDevice to use
+                        device["_location_data"] = location_data
                         new_device = self.device(
                             name=normalized_name,
                             device_id=device["device_id"],
-                            location=device["location"],
+                            location=location_data["name"],
+                            parent_location=location_data["parent"],
                             role=device["type"],
                             serial_no=device["serial"] if device["serial"] is not None else "",
                             status=_status,
@@ -126,18 +145,18 @@ class LibrenmsAdapter(Adapter):
                     except ValidationError as err:
                         device.get("load_errors", []).append(err)
                         self.failed_import_devices.append(device)
-                        self.job.logger.warning(f"Device {device[self.hostname_field]} failed to load: {err}")
+                        self.job.logger.warning(f"Device {device[hostname_field]} failed to load: {err}")
                         return
                     try:
                         self.add(new_device)
                     except ObjectAlreadyExists:
-                        self.job.logger.warning(f"Device {device[self.hostname_field]} already exists. Skipping.")
+                        self.job.logger.warning(f"Device {device[hostname_field]} already exists. Skipping.")
             else:
                 self.job.logger.warning(
-                    f'Device {device[self.hostname_field]} role "{device["type"]}" is not permitted by the configuration. Skipping.'
+                    f'Device {device[hostname_field]} role "{device["type"]}" is not permitted by the configuration. Skipping.'
                 )
         else:
-            self.job.logger.warning(f'Device {device[self.hostname_field]} is "ping-only". Skipping.')
+            self.job.logger.warning(f'Device {device[hostname_field]} is "ping-only". Skipping.')
 
     def load(self):
         """Load data from LibreNMS into DiffSync models."""
@@ -155,6 +174,13 @@ class LibrenmsAdapter(Adapter):
             all_devices = self.lnms_api.get_librenms_devices_from_file()
 
         self.job.logger.info(f'Loading {all_devices["count"]} Devices from LibreNMS.')
+
+        # Debug: Check the structure of the devices array
+        if self.job.debug:
+            self.job.logger.debug(f"Devices array type: {type(all_devices['devices'])}")
+            if all_devices["devices"]:
+                self.job.logger.debug(f"First device type: {type(all_devices['devices'][0])}")
+                self.job.logger.debug(f"First device content: {all_devices['devices'][0]}")
 
         for _device in all_devices["devices"]:
             self.load_device(device=_device)

@@ -4,7 +4,7 @@
 import os
 
 from django.templatetags.static import static
-from nautobot.apps.jobs import BooleanVar, ChoiceVar, FileVar, ObjectVar
+from nautobot.apps.jobs import BooleanVar, ChoiceVar, FileVar, JSONVar, ObjectVar
 from nautobot.core.celery import register_jobs
 from nautobot.dcim.models import LocationType
 from nautobot.extras.choices import (
@@ -52,6 +52,11 @@ class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         description="Load LibreNMS Locations from uploaded JSON file. Must be a JSON file.",
         label="Locations Data Load File",
         required=False,
+    )
+    location_map = JSONVar(
+        label="Location Mapping.  JSON Format",
+        required=False,
+        description="Map of information regarding LibreNMS Locations and their parent Location(s).",
     )
     librenms_server = ObjectVar(
         model=ExternalIntegration,
@@ -114,6 +119,8 @@ class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attri
 
     def load_source_adapter(self):
         """Load data from LibreNMS into DiffSync models."""
+        if self.location_map:
+            self.location_mappings = self.location_map
         if self.load_type == "api":
             if not self.librenms_server:
                 raise ValueError("LibreNMS Instance is required when load_type is 'api'")
@@ -160,6 +167,7 @@ class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         hostname_field,
         sync_locations,
         location_type,
+        location_map,
         tenant,
         load_type,
         *args,
@@ -179,6 +187,7 @@ class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         self.memory_profiling = memory_profiling
         self.devices_load_file = devices_load_file
         self.locations_load_file = locations_load_file
+        self.location_map = location_map
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 

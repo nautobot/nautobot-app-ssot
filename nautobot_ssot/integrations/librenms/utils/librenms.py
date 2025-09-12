@@ -155,6 +155,11 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
                 content = self.devices_load_file.read().decode("utf-8")
                 devices = json.loads(content)
                 LOGGER.info("Loaded devices from uploaded JSON file")
+                LOGGER.debug(f"File returned devices type: {type(devices)}")
+                if devices and "devices" in devices:
+                    LOGGER.debug(f"Devices array type: {type(devices['devices'])}")
+                    if devices["devices"]:
+                        LOGGER.debug(f"First device type: {type(devices['devices'][0])}")
                 return devices
             except (json.JSONDecodeError, UnicodeDecodeError) as err:
                 LOGGER.error(f"Error parsing uploaded devices file: {err}")
@@ -193,6 +198,11 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
         """Get Devices from LibreNMS API endpoint."""
         url = "/api/v0/devices"
         devices = self.api_call(path=url)
+        LOGGER.debug(f"API returned devices type: {type(devices)}")
+        if devices and "devices" in devices:
+            LOGGER.debug(f"Devices array type: {type(devices['devices'])}")
+            if devices["devices"]:
+                LOGGER.debug(f"First device type: {type(devices['devices'][0])}")
         return devices
 
     def get_librenms_ports(self):
