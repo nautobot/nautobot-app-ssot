@@ -7,6 +7,7 @@ from nautobot.extras.jobs import BooleanVar, Job, ObjectVar
 from nautobot.extras.models import ExternalIntegration
 from nautobot.ipam.models import Namespace
 
+from nautobot_ssot.contrib.sorting import sort_relationships
 from nautobot_ssot.integrations.forward_enterprise import constants
 from nautobot_ssot.integrations.forward_enterprise.diffsync.adapters.forward_enterprise import ForwardEnterpriseAdapter
 from nautobot_ssot.integrations.forward_enterprise.diffsync.adapters.nautobot import NautobotDiffSyncAdapter
@@ -164,6 +165,11 @@ class ForwardEnterpriseDataSource(DataSource, Job):
         self.logger.info("Loading target adapter: Nautobot")
         self.target_adapter = NautobotDiffSyncAdapter(job=self)
         self.target_adapter.load()
+
+        # Sort relationships after both adapters are loaded (source is loaded before target)
+        if hasattr(self, "source_adapter") and self.source_adapter:
+            self.logger.info("Sorting relationships for consistent ordering...")
+            sort_relationships(self.source_adapter, self.target_adapter)
 
     # pylint: disable=too-many-arguments, arguments-differ, too-many-positional-arguments
     def run(

@@ -1,7 +1,7 @@
 # pylint: disable=W0212,R0904
 """Test Forward Enterprise API client functionality."""
 
-import unittest
+from unittest import TestCase
 from unittest.mock import Mock, patch
 
 import requests
@@ -19,7 +19,7 @@ from .fixtures import MOCK_NQE_DEVICE_QUERY_RESULT, DummyJob
 from .mocks import MockForwardEnterpriseClient
 
 
-class TestForwardEnterpriseClient(unittest.TestCase):
+class TestForwardEnterpriseClient(TestCase):
     """Test Forward Enterprise API client."""
 
     def setUp(self):

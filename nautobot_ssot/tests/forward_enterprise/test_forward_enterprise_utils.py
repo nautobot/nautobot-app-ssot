@@ -1,6 +1,6 @@
 """Test Forward Enterprise utility functions."""
 
-import unittest
+from unittest import TestCase
 from unittest.mock import Mock, patch
 
 from nautobot_ssot.integrations.forward_enterprise.utils.diffsync import (
@@ -16,7 +16,7 @@ from nautobot_ssot.integrations.forward_enterprise.utils.vlan_extraction import 
 )
 
 
-class TestDiffSyncUtils(unittest.TestCase):
+class TestDiffSyncUtils(TestCase):
     """Test DiffSync utility functions."""
 
     def test_create_placeholder_device(self):
@@ -78,7 +78,7 @@ class TestDiffSyncUtils(unittest.TestCase):
         self.assertEqual(call_args[4], "")  # No context provided
 
 
-class TestVLANExtraction(unittest.TestCase):
+class TestVLANExtraction(TestCase):
     """Test VLAN extraction utilities."""
 
     def test_extract_vlan_id_from_interface_vlan_prefix(self):

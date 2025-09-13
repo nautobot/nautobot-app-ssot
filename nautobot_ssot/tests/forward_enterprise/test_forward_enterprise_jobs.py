@@ -1,6 +1,6 @@
 """Test Forward Enterprise job functionality."""
 
-import unittest
+from unittest import TestCase
 
 from nautobot.extras.jobs import Job
 
@@ -8,7 +8,7 @@ from nautobot_ssot.integrations.forward_enterprise.jobs import ForwardEnterprise
 from nautobot_ssot.jobs.base import DataSource
 
 
-class TestForwardEnterpriseJob(unittest.TestCase):
+class TestForwardEnterpriseJob(TestCase):
     """Test Forward Enterprise job functionality."""
 
     def test_job_init(self):

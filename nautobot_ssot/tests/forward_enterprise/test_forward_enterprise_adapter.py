@@ -1,6 +1,6 @@
 """Comprehensive test suite for Forward Enterprise adapter functionality."""
 
-import unittest
+from unittest import TestCase
 from unittest.mock import Mock, patch
 
 from diffsync import DiffSync
@@ -20,7 +20,7 @@ from .mocks import MockForwardEnterpriseClient
 # pylint: disable=W0212,R0904
 
 
-class TestForwardEnterpriseAdapter(unittest.TestCase):
+class TestForwardEnterpriseAdapter(TestCase):
     """Comprehensive test suite for Forward Enterprise adapter functionality."""
 
     def setUp(self):

@@ -1,6 +1,6 @@
 """Test Forward Enterprise DiffSync models functionality."""
 
-import unittest
+from unittest import TestCase
 from unittest.mock import Mock, patch
 
 try:
@@ -23,7 +23,7 @@ from nautobot_ssot.integrations.forward_enterprise.diffsync.models.models import
 )
 
 
-class TestForwardEnterpriseModels(unittest.TestCase):
+class TestForwardEnterpriseModels(TestCase):
     """Test Forward Enterprise DiffSync models."""
 
     def test_device_model_uid(self):

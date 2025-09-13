@@ -1,12 +1,12 @@
 """Test Forward Enterprise query configuration functionality."""
 
-import unittest
+from unittest import TestCase
 from unittest.mock import Mock
 
 from nautobot_ssot.integrations.forward_enterprise.utils.forward_enterprise_client import ForwardEnterpriseClient
 
 
-class TestForwardEnterpriseQueryConfig(unittest.TestCase):
+class TestForwardEnterpriseQueryConfig(TestCase):
     """Test Forward Enterprise query configuration patterns."""
 
     def setUp(self):
