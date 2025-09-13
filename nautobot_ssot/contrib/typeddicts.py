@@ -76,3 +76,10 @@ class VirtualMachineDict(TypedDict):
     name: Annotated[str, SortKey]
     cluster__name: str
     tenant__name: str
+
+
+class VRFDict(TypedDict):
+    """TypedDict for IPAM VRFs."""
+
+    name: Annotated[str, SortKey]
+    namespace__name: str
