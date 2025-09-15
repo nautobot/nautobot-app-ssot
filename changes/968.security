@@ -1,0 +1,2 @@
+https://github.com/advisories/GHSA-mw26-5g2v-hqw3
+- Deepdiff needs to be pinned to >8.6.0, requiring ipfabric to be bumped
