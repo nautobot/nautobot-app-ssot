@@ -11,7 +11,7 @@ from nautobot.extras.choices import (
     SecretsGroupAccessTypeChoices,
     SecretsGroupSecretTypeChoices,
 )
-from nautobot.extras.models import ExternalIntegration
+from nautobot.extras.models import ExternalIntegration, Role
 from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.librenms.diffsync.adapters import librenms, nautobot
@@ -57,6 +57,24 @@ class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         label="Location Mapping.  JSON Format",
         required=False,
         description="Map of information regarding LibreNMS Locations and their parent Location(s).",
+    )
+    hostname_map = JSONVar(
+        label="Hostname Mapping.  JSON Format",
+        required=False,
+        description="Map of information regarding LibreNMS Hostnames to Roles.",
+    )
+    default_role = ObjectVar(
+        model=Role,
+        queryset=Role.objects.all(),
+        display_field="name",
+        required=False,
+        label="Default Role",
+        description="Default Role to use for devices that do not have a role in the hostname map.",
+    )
+    unpermitted_values = JSONVar(
+        label="Unpermitted Values",
+        description="List of values that are not permitted to be imported into Hardware, Hostname, Location, OS, or Type fields.",
+        required=False,
     )
     librenms_server = ObjectVar(
         model=ExternalIntegration,
@@ -168,6 +186,9 @@ class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         sync_locations,
         location_type,
         location_map,
+        hostname_map,
+        default_role,
+        unpermitted_values,
         tenant,
         load_type,
         *args,
@@ -188,6 +209,9 @@ class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         self.devices_load_file = devices_load_file
         self.locations_load_file = locations_load_file
         self.location_map = location_map
+        self.hostname_map = hostname_map
+        self.default_role = default_role
+        self.unpermitted_values = unpermitted_values
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 

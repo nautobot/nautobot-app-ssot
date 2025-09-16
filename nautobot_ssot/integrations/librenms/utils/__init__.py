@@ -50,89 +50,43 @@ def normalize_device_hostname(device, job):
     return str(hostname)
 
 
-def parse_hostname_for_location(location_map: dict[str, dict[str, str]], device_hostname: str, device_location: str) -> dict:
-    """Parse device hostname from location_map to get Device Location.
-
-    Args:
-        location_map (dict[str, dict[str, str]]): Dictionary of locations.
-        device_hostname (str): Hostname of Device to determine location of.
-
-    Returns:
-        dict: Dictionary of DeviceLocation data. Includes location name and parent location name.
-    """
-    if location_map:  # pylint: disable=duplicate-code
-        # Handle case where location_map might be a JSON string
-        if isinstance(location_map, str):
-            try:
-                import json
-                location_map = json.loads(location_map)
-            except (json.JSONDecodeError, TypeError):
-                # If it's not valid JSON, treat as empty
-                location_map = None
-        
-        if location_map:
-            # Handle dictionary format where key is pattern and value contains Name/Parent
-            if isinstance(location_map, dict):
-                for pattern, mapping in location_map.items():
-                    # Make pattern matching case-insensitive
-                    match = re.match(pattern=pattern, string=device_hostname, flags=re.IGNORECASE)
-                    if match:
-                        device_location_data = {
-                            "name": mapping.get("Name"),
-                            "parent": mapping.get("Parent"),
-                        }
-                        return device_location_data
-            # Handle list of mappings format (legacy format)
-            elif isinstance(location_map, list):
-                for entry in location_map:
-                    if isinstance(entry, dict) and "prefix" in entry:
-                        # Use the prefix as the regex pattern
-                        pattern = entry["prefix"]
-                        match = re.match(pattern=pattern, string=device_hostname, flags=re.IGNORECASE)
-                        if match:
-                            device_location_data = {
-                                "name": entry["location"],
-                                "parent": entry.get("parent", None),
-                            }
-                            return device_location_data
-        
-        # If no match found in location_map, fall back to device_location
-        device_location_data = {
-            "name": device_location,
-            "parent": None,
-        }
-    else:
-        device_location_data = {
-            "name": device_location,
-            "parent": None,
-        }
-
-    return device_location_data
-
-
 def has_required_values(device, job):
     """Check if the device has required values."""
     # Ensure device is a dictionary
     if not isinstance(device, dict):
         return False
-        
-    required_values = [job.hostname_field, "location", "type", "os", "hardware"]
-    for value in required_values:
-        if value not in device or not isinstance(device[value], str) or device[value] == "":
+
+    required_values_dict = {
+        job.hostname_field: True,
+        "location_valid": True,
+        "role_valid": True,
+        "platform_valid": True,
+        "device_type_valid": True,
+    }
+
+    unpermitted_values = job.unpermitted_values
+
+    for key in required_values_dict:
+        if key not in device or not isinstance(device[key], str) or device[key] in [None, ""]:
             if "load_errors" not in device:
                 device["load_errors"] = []
-            device["load_errors"].append(f"{value} string is required")
+            device["load_errors"].append(f"{key} string is required")
+            required_values_dict[key] = False
+        if device.get(key, None) in unpermitted_values:
+            if "load_errors" not in device:
+                device["load_errors"] = []
+            device["load_errors"].append(f"{device[key]} cannot be '{key}'")
+            required_values_dict[key] = False
 
     # Check if manufacturer mapping exists for the OS
-    if "os" in device and device["os"]:
-        if os_manufacturer_map.get(device["os"]) is None:
+    if "platform" in device and device["platform"]:
+        if os_manufacturer_map.get(device["platform"]) is None:
             if "load_errors" not in device:
                 device["load_errors"] = []
-            device["load_errors"].append(f"Manufacturer mapping not found for OS: {device['os']}")
+            device["load_errors"].append(f"Manufacturer mapping not found for OS: {device['platform']}")
+            required_values_dict["platform_valid"] = False
 
-    if len(device.get("load_errors", [])) > 0:
-        return False
-    return True
+    return required_values_dict
 
 
 def check_sor_field(model):

@@ -47,6 +47,7 @@ class Device(DiffSyncModel):
         "tenant",
         "status",
         "device_type",
+        "ip_address",
         "role",
         "manufacturer",
         "platform",

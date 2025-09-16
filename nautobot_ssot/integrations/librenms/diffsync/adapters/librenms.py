@@ -20,9 +20,9 @@ from nautobot_ssot.integrations.librenms.utils import (
     has_required_values,
     normalize_device_hostname,
     normalize_gps_coordinates,
-    parse_hostname_for_location,
 )
 from nautobot_ssot.integrations.librenms.utils.librenms import LibreNMSApi
+from nautobot_ssot.utils import parse_hostname_for_role, parse_hostname_for_location
 
 
 class LibrenmsAdapter(Adapter):
@@ -90,15 +90,34 @@ class LibrenmsAdapter(Adapter):
             self.job.logger.debug(f"Loading LibreNMS Device {device[hostname_field]}")
 
         if device["os"] != "ping":
-            if device["type"] in PLUGIN_CFG.get("librenms_permitted_values", {}).get("role", [device["type"]]):
-                if not has_required_values(device, self.job):
-                    self.failed_import_devices.append(device)
+            if device["type"] in PLUGIN_CFG.get("librenms_permitted_values", {}).get("role"):
+                normalized_name = normalize_device_hostname(device[hostname_field], self.job)
+                location_data = parse_hostname_for_location(self.job.location_map, normalized_name, device["location"])
+                role = parse_hostname_for_role(self.job.hostname_map, normalized_name, self.job.default_role.name if self.job.default_role else "Unknown")
+                self.job.logger.debug(f"Role for {normalized_name}: {role}")
+                platform = device["os"]
+                device_type = device["hardware"]
+
+                device_validation_dict = {
+                    self.job.hostname_field: normalized_name,
+                    "location": location_data["name"],
+                    "role": role,
+                    "os": platform,
+                    "device_type": device_type,
+                }
+                self.job.logger.debug(f"Device validation dictionary for {device[hostname_field]}: {device_validation_dict}")
+                validation_result = has_required_values(device_validation_dict, self.job)
+
+                self.job.logger.debug(f"Validation result for {device[hostname_field]}: {validation_result}")
+                
+                if any(value is False for value in validation_result.values()):
+                    self.failed_import_devices.append(device[hostname_field])
                     return
+
                 try:
-                    self.get(self.device, device[hostname_field])
+                    self.get(self.device, normalized_name)
                 except ObjectNotFound:
                     # Normalize the device hostname and check if it's valid
-                    normalized_name = normalize_device_hostname(device, self.job)
                     if normalized_name is None:
                         self.job.logger.warning(
                             f"Device {device[hostname_field]} has invalid hostname. Skipping."
@@ -123,24 +142,22 @@ class LibrenmsAdapter(Adapter):
                             self.failed_import_devices.append(device)
                             return
 
-                        # Use location mapping if available, otherwise use device location
-                        location_data = parse_hostname_for_location(self.job.location_map, device[hostname_field], device["location"])
                         # Store the full location data in the device for the NautobotDevice to use
                         device["_location_data"] = location_data
+                        
                         new_device = self.device(
                             name=normalized_name,
                             device_id=device["device_id"],
                             location=location_data["name"],
                             parent_location=location_data["parent"],
                             snmp_location=device["location"],
-                            role=device["type"],
+                            role=role,
                             serial_no=device["serial"] if device["serial"] is not None else "",
                             status=_status,
                             manufacturer=manufacturer,
                             device_type=device["hardware"],
                             platform=device["os"],
                             os_version=device["version"] if device["version"] is not None else "Unknown",
-                            ip_address=device["ip"],
                             tenant=self.job.tenant.name if self.job.tenant else None,
                             system_of_record=os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
                         )
