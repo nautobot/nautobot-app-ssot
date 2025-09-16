@@ -37,6 +37,7 @@ This Nautobot application framework includes the following integrations:
 - Itential
 - LibreNMS
 - Cisco Meraki
+- Red Hat OpenShift
 - ServiceNow
 - Slurpit
 - SolarWinds
@@ -97,6 +98,7 @@ The SSoT framework includes a number of integrations with external Systems of Re
 * Itential
 * LibreNMS
 * Cisco Meraki
+* Red Hat OpenShift (with KubeVirt support)
 * ServiceNow
 * Slurpit
 * SolarWinds

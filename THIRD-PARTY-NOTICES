@@ -1,0 +1,135 @@
+# Third Party Notices
+
+This file contains licensing information for the third-party dependencies used in the Nautobot SSOT application.
+
+## Direct Dependencies
+
+### Core Dependencies
+
+#### diffsync
+- **License**: Apache License 2.0
+- **Repository**: https://github.com/networktocode/diffsync
+
+#### packaging
+- **License**: Apache License 2.0 OR BSD License
+- **Repository**: https://github.com/pypa/packaging
+
+#### prometheus-client
+- **License**: Apache License 2.0
+- **Repository**: https://github.com/prometheus/client_python
+
+### Optional Integration Dependencies
+
+#### ACI Integration
+- **PyYAML**: MIT License
+  - Repository: https://github.com/yaml/pyyaml
+
+#### Arista CloudVision Integration
+- **cloudvision**: Apache License 2.0
+  - Repository: https://github.com/aristanetworks/cloudvision-python
+- **cvprac**: BSD-3-Clause
+  - Repository: https://github.com/aristanetworks/cvprac
+
+#### Bootstrap Integration
+- **pytz**: MIT License
+  - Repository: https://github.com/stub42/pytz
+
+#### Citrix ADM Integration
+- **requests**: Apache License 2.0
+  - Repository: https://github.com/psf/requests
+- **urllib3**: MIT License
+  - Repository: https://github.com/urllib3/urllib3
+- **netutils**: Apache License 2.0
+  - Repository: https://github.com/networktocode/netutils
+
+#### Device42 Integration
+- **requests**: Apache License 2.0
+  - Repository: https://github.com/psf/requests
+
+#### DNA Center Integration
+- **dnacentersdk**: MIT License
+  - Repository: https://github.com/cisco-en-programmability/dnacentersdk
+- **netutils**: Apache License 2.0
+  - Repository: https://github.com/networktocode/netutils
+
+#### Infoblox Integration
+- **dnspython**: ISC License
+  - Repository: https://github.com/rthalley/dnspython
+
+#### IP Fabric Integration
+- **httpx**: BSD License
+  - Repository: https://github.com/encode/httpx
+- **ipfabric**: MIT License
+  - Repository: https://github.com/community-fabric/python-ipfabric
+- **netutils**: Apache License 2.0
+  - Repository: https://github.com/networktocode/netutils
+
+#### Kubernetes/OpenShift Integration
+- **kubernetes**: Apache License 2.0
+  - Repository: https://github.com/kubernetes-client/python
+
+#### Meraki Integration
+- **meraki**: MIT License
+  - Repository: https://github.com/meraki/dashboard-api-python
+
+#### ServiceNow Integration
+- **Jinja2**: BSD-3-Clause
+  - Repository: https://github.com/pallets/jinja
+- **PyYAML**: MIT License
+  - Repository: https://github.com/yaml/pyyaml
+- **ijson**: BSD License
+  - Repository: https://github.com/ICRAR/ijson
+- **oauthlib**: BSD License
+  - Repository: https://github.com/oauthlib/oauthlib
+- **python-magic**: MIT License
+  - Repository: https://github.com/ahupp/python-magic
+- **pytz**: MIT License
+  - Repository: https://github.com/stub42/pytz
+- **requests**: Apache License 2.0
+  - Repository: https://github.com/psf/requests
+- **requests-oauthlib**: ISC License
+  - Repository: https://github.com/requests/requests-oauthlib
+- **six**: MIT License
+  - Repository: https://github.com/benjaminp/six
+
+#### Slurpit Integration
+- **slurpit-sdk**: Proprietary
+  - Repository: https://github.com/slurpit-io/slurpit-sdk-python
+
+#### Device Lifecycle Management Integration
+- **nautobot-device-lifecycle-mgmt**: Apache License 2.0
+  - Repository: https://github.com/nautobot/nautobot-plugin-device-lifecycle-mgmt
+
+### Development Dependencies
+
+Please refer to the pyproject.toml file for a complete list of development dependencies
+and their version constraints.
+
+## Licenses Summary
+
+The majority of dependencies use permissive licenses:
+- Apache License 2.0
+- MIT License
+- BSD License (2-clause and 3-clause)
+- ISC License
+
+## Embedded Third-Party Code
+
+### PySnow
+The ServiceNow integration includes an embedded copy of PySnow under
+`nautobot_ssot/integrations/servicenow/third_party/pysnow/` due to compatibility
+issues with the upstream version. PySnow is licensed under the MIT License.
+
+## Compliance Notes
+
+1. All direct dependencies are compatible with the Apache 2.0 license of this project.
+2. Optional dependencies are only installed when specific integrations are enabled.
+3. No GPL or other copyleft licenses are used in the dependency chain.
+4. Users should review the licenses of optional dependencies before enabling specific integrations.
+
+## Updating This File
+
+This file should be updated whenever:
+- New dependencies are added to pyproject.toml
+- Dependencies are upgraded to versions with different licenses
+- Embedded third-party code is added or removed 
