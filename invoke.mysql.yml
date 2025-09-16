@@ -1,7 +1,7 @@
 ---
 nautobot_ssot:
   project_name: "nautobot-ssot"
-  nautobot_ver: "2.0.0"
+  nautobot_ver: "2.4.2"
   local: false
   python_ver: "3.11"
   compose_dir: "development"
