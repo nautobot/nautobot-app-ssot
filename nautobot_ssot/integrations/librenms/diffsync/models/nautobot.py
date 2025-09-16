@@ -13,7 +13,7 @@ from nautobot.dcim.models import Platform as ORMPlatform
 from nautobot.dcim.models import SoftwareImageFile as ORMSoftwareImageFile
 from nautobot.dcim.models import SoftwareVersion as ORMSoftwareVersion
 from nautobot.extras.models import Role, Status
-
+from nautobot.tenancy.models import Tenant as ORMTenant
 from nautobot_ssot.integrations.librenms.constants import os_manufacturer_map
 from nautobot_ssot.integrations.librenms.diffsync.models.base import Device, Location, Port
 from nautobot_ssot.integrations.librenms.utils import check_sor_field
@@ -277,13 +277,25 @@ class NautobotDevice(Device):
         _location = ensure_location(location_data=location_data, location_type=adapter.job.location_type)
         if adapter.job.debug:
             adapter.job.logger.debug(f'Device Location {attrs["location"]}')
+        
+        # Handle tenant - convert string to Tenant object if needed
+        _tenant = None
+        if attrs.get("tenant"):
+            try:
+                _tenant = ORMTenant.objects.get(name=attrs["tenant"])
+            except ORMTenant.DoesNotExist:
+                if adapter.job.debug:
+                    adapter.job.logger.warning(f"Tenant {attrs['tenant']} not found, skipping tenant assignment")
+        elif adapter.tenant:
+            _tenant = adapter.tenant
+            
         try:
             new_device = ORMDevice(
                 name=ids["name"],
                 device_type=_device_type,
                 status=Status.objects.get_or_create(name=attrs["status"])[0],
                 role=ensure_role(role_name=attrs["role"], content_type=ORMDevice),
-                tenant=adapter.tenant,
+                tenant=_tenant,
                 location=_location,
                 platform=_platform,
                 serial=attrs["serial_no"],
@@ -297,8 +309,6 @@ class NautobotDevice(Device):
         except ORMLocation.DoesNotExist:
             adapter.job.logger.error(f"Location {attrs['location']} does not exist. Skipping device {ids['name']}.")
             return None
-        if adapter.tenant:
-            new_device.tenant = adapter.tenant
         custom_fields = {
             "librenms_device_id": attrs["device_id"],
             "system_of_record": os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
