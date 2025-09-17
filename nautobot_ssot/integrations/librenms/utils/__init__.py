@@ -58,10 +58,10 @@ def has_required_values(device, job):
 
     required_values_dict = {
         job.hostname_field: True,
-        "location_valid": True,
-        "role_valid": True,
-        "platform_valid": True,
-        "device_type_valid": True,
+        "location": True,
+        "role": True,
+        "platform": True,
+        "device_type": True,
     }
 
     unpermitted_values = job.unpermitted_values
@@ -72,10 +72,10 @@ def has_required_values(device, job):
                 device["load_errors"] = []
             device["load_errors"].append(f"{key} string is required")
             required_values_dict[key] = False
-        if device.get(key, None) in unpermitted_values:
+        if unpermitted_values is not None and device.get(key) in unpermitted_values:
             if "load_errors" not in device:
                 device["load_errors"] = []
-            device["load_errors"].append(f"{device[key]} cannot be '{key}'")
+            device["load_errors"].append(f"{key} cannot be '{device[key]}'")
             required_values_dict[key] = False
 
     # Check if manufacturer mapping exists for the OS
@@ -84,7 +84,7 @@ def has_required_values(device, job):
             if "load_errors" not in device:
                 device["load_errors"] = []
             device["load_errors"].append(f"Manufacturer mapping not found for OS: {device['platform']}")
-            required_values_dict["platform_valid"] = False
+            required_values_dict["platform"] = False
 
     return required_values_dict
 
