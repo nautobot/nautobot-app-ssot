@@ -46,7 +46,8 @@ class NautobotAdapter(Adapter):
         else:
             locations = OrmLocation.objects.all()
         for nb_location in locations:
-            self.job.logger.debug(f"Loading Nautobot Location {nb_location}")
+            if self.job.debug:
+                self.job.logger.debug(f"Loading Nautobot Location {nb_location}")
             try:
                 self.get(self.location, nb_location.name)
             except ObjectNotFound:
@@ -75,7 +76,8 @@ class NautobotAdapter(Adapter):
         else:
             devices = OrmDevice.objects.all()
         for nb_device in devices:
-            self.job.logger.debug(f"Loading Nautobot Device {nb_device}")
+            if self.job.debug:
+                self.job.logger.debug(f"Loading Nautobot Device {nb_device}")
             try:
                 self.get(self.device, nb_device.name)
             except ObjectNotFound:

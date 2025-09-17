@@ -127,15 +127,12 @@ def ensure_location(location_data: dict, location_type: LocationType, parent_loc
             location_type=location_type,
             status=status
         )
-        print(f"DEBUG: Created child location: {_location}")
     else:
-        print(f"DEBUG: Creating location without parent")
         _location = ORMLocation.objects.create(
             name=location_name, 
             location_type=location_type,
             status=status
         )
-        print(f"DEBUG: Created location: {_location}")
     return _location
 
 
@@ -326,9 +323,6 @@ class NautobotDevice(Device):
     def update(self, attrs):
         """Update Device in Nautobot from NautobotDevice object."""
         self.adapter.job.logger.debug(f"Updating Nautobot Device {self.name} with {attrs}")
-        print(f"DEBUG: NautobotDevice update called for {self.name}")
-        print(f"DEBUG: attrs keys: {list(attrs.keys()) if isinstance(attrs, dict) else 'Not a dict'}")
-        print(f"DEBUG: attrs: {attrs}")
         device = ORMDevice.objects.get(id=self.uuid)
         if "device_id" in attrs:
             device.custom_field_data["librenms_device_id"] = attrs["device_id"]

@@ -94,7 +94,8 @@ class LibrenmsAdapter(Adapter):
                 normalized_name = normalize_device_hostname(device[hostname_field], self.job)
                 location_data = parse_hostname_for_location(self.job.location_map, normalized_name, device["location"])
                 role = parse_hostname_for_role(self.job.hostname_map, normalized_name, self.job.default_role.name if self.job.default_role else "Unknown")
-                self.job.logger.debug(f"Role for {normalized_name}: {role}")
+                if self.job.debug:
+                    self.job.logger.debug(f"Role for {normalized_name}: {role}")
                 platform = device["os"]
                 device_type = device["hardware"]
 
@@ -102,16 +103,22 @@ class LibrenmsAdapter(Adapter):
                     self.job.hostname_field: normalized_name,
                     "location": location_data["name"],
                     "role": role,
-                    "os": platform,
+                    "platform": platform,
                     "device_type": device_type,
                 }
-                self.job.logger.debug(f"Device validation dictionary for {device[hostname_field]}: {device_validation_dict}")
+                if self.job.debug:
+                    self.job.logger.debug(f"Device validation dictionary for {device[hostname_field]}: {device_validation_dict}")
                 validation_result = has_required_values(device_validation_dict, self.job)
 
-                self.job.logger.debug(f"Validation result for {device[hostname_field]}: {validation_result}")
+                if self.job.debug:
+                    self.job.logger.debug(f"Device Load Errors: {device.get('load_errors', [])}")
+                    self.job.logger.debug(f"Validation result for {device[hostname_field]}: {validation_result}")
                 
                 if any(value is False for value in validation_result.values()):
-                    self.failed_import_devices.append(device[hostname_field])
+                    # Include the device with load errors in the failed list
+                    failed_device = device.copy()
+                    failed_device["load_errors"] = device_validation_dict.get("load_errors", [])
+                    self.failed_import_devices.append(failed_device)
                     return
 
                 try:
