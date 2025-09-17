@@ -47,21 +47,25 @@ class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         description="Load LibreNMS Devices from uploaded JSON file. Must be a JSON file.",
         label="Devices Data Load File",
         required=False,
+        default=None,
     )
     locations_load_file = FileVar(
         description="Load LibreNMS Locations from uploaded JSON file. Must be a JSON file.",
         label="Locations Data Load File",
         required=False,
+        default=None,
     )
     location_map = JSONVar(
         label="Location Mapping.  JSON Format",
         required=False,
         description="Map of information regarding LibreNMS Locations and their parent Location(s).",
+        default=None,
     )
     hostname_map = JSONVar(
         label="Hostname Mapping.  JSON Format",
         required=False,
         description="Map of information regarding LibreNMS Hostnames to Roles.",
+        default=None,
     )
     default_role = ObjectVar(
         model=Role,
@@ -70,11 +74,13 @@ class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         required=False,
         label="Default Role",
         description="Default Role to use for devices that do not have a role in the hostname map.",
+        default=None,
     )
     unpermitted_values = JSONVar(
         label="Unpermitted Values",
         description="List of values that are not permitted to be imported into Hardware, Hostname, Location, OS, or Type fields.",
         required=False,
+        default=None,
     )
     librenms_server = ObjectVar(
         model=ExternalIntegration,
@@ -192,8 +198,8 @@ class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         tenant,
         load_type,
         *args,
-        devices_load_file=None,
-        locations_load_file=None,
+        devices_load_file,
+        locations_load_file,
         **kwargs,
     ):  # pylint: disable=arguments-differ
         """Perform data synchronization."""
