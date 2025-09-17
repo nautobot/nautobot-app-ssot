@@ -109,6 +109,7 @@ class LibrenmsAdapter(Adapter):
                 if self.job.debug:
                     self.job.logger.debug(f"Device validation dictionary for {device[hostname_field]}: {device_validation_dict}")
                 validation_result = has_required_values(device_validation_dict, self.job)
+                device["field_validation"] = validation_result
 
                 if self.job.debug:
                     self.job.logger.debug(f"Device Load Errors: {device.get('load_errors', [])}")
