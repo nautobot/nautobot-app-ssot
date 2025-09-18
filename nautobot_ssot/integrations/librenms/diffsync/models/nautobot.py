@@ -14,7 +14,7 @@ from nautobot.dcim.models import SoftwareImageFile as ORMSoftwareImageFile
 from nautobot.dcim.models import SoftwareVersion as ORMSoftwareVersion
 from nautobot.extras.models import Role, Status
 from nautobot.tenancy.models import Tenant as ORMTenant
-from nautobot_ssot.integrations.librenms.constants import os_manufacturer_map
+from nautobot_ssot.integrations.librenms.constants import os_manufacturer_map, LIBRENMS_LIB_MAPPER, LIBRENMS_LIB_MAPPER_REVERSE
 from nautobot_ssot.integrations.librenms.diffsync.models.base import Device, Location, Port
 from nautobot_ssot.integrations.librenms.utils import check_sor_field
 from nautobot_ssot.integrations.librenms.utils.nautobot import (
@@ -32,17 +32,26 @@ def ensure_role(role_name: str, content_type):
 
 def ensure_platform(platform_name: str, manufacturer: str):
     """Safely returns a Platform that support Devices."""
+    _manufacturer, _ = ORMManufacturer.objects.get_or_create(name=manufacturer)
+    
+    # Map the original OS name to the normalized platform name for network_driver lookup
+    normalized_platform = LIBRENMS_LIB_MAPPER.get(platform_name, platform_name)
+    
+    # First try to find platform by network_driver (using normalized name)
     try:
-        _manufacturer, _ = ORMManufacturer.objects.get_or_create(name=manufacturer)
-        _platform = ORMPlatform.objects.get_or_create(name=platform_name, manufacturer=_manufacturer)[0]
+        _platform = ORMPlatform.objects.get(network_driver=normalized_platform, manufacturer=_manufacturer)
         return _platform
     except ORMPlatform.DoesNotExist:
-        try:
-            _platform = ORMPlatform.objects.get_or_create(name=platform_name, manufacturer=_manufacturer)[0]
-            return _platform
-        except ORMPlatform.DoesNotExist:
-            _platform = verify_platform(platform_name=platform_name, manu=_manufacturer.id)
-            return _platform
+        pass
+    
+    # If not found by network_driver, try to find by name (using original name)
+    try:
+        _platform = ORMPlatform.objects.get(name=platform_name, manufacturer=_manufacturer)
+        return _platform
+    except ORMPlatform.DoesNotExist:
+        # If still not found, create it using verify_platform with original name
+        _platform = verify_platform(platform_name=platform_name, manu=_manufacturer.id)
+        return _platform
 
 
 def ensure_software_version(platform: ORMPlatform, manufacturer: str, version: str, device_type: DeviceType):
@@ -261,7 +270,7 @@ class NautobotDevice(Device):
         if manufacturer_name is None:
             raise ValueError(f"Manufacturer mapping not found for platform: {attrs['platform']}")
         _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
-        _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=_manufacturer.name)
+        _platform = ensure_platform(platform_name=LIBRENMS_LIB_MAPPER.get(attrs["platform"]), manufacturer=_manufacturer.name)
         _device_type = DeviceType.objects.get_or_create(model=attrs["device_type"], manufacturer=_manufacturer)[0]
         # Get location data from the device attributes
         location_name = attrs["location"]
@@ -345,14 +354,15 @@ class NautobotDevice(Device):
         if "serial_no" in attrs:
             device.serial = attrs["serial_no"]
         if "platform" in attrs:
-            manufacturer_name = os_manufacturer_map.get(attrs["os"])
+            # Get the original OS name for manufacturer lookup
+            manufacturer_name = os_manufacturer_map.get(attrs["platform"])
             if manufacturer_name is None:
-                raise ValueError(f"Manufacturer mapping not found for OS: {attrs['os']}")
+                raise ValueError(f"Manufacturer mapping not found for OS: {attrs['platform']}")
             _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
-            device.platform = (ensure_platform(platform_name=attrs["os"], manufacturer=_manufacturer.name),)
+            _platform = ensure_platform(platform_name=LIBRENMS_LIB_MAPPER.get(attrs["platform"]), manufacturer=_manufacturer.name)
         if "os_version" in attrs:
             _software_version = ensure_software_version(
-                platform=device.platform,
+                platform=_platform,
                 manufacturer=device.device_type.manufacturer.name,
                 version=attrs["os_version"],
                 device_type=device.device_type,

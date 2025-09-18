@@ -383,3 +383,21 @@ manufacturer_os_map = {
     "ZTE": ["zxdsl"],
     "Zyxel": ["zynos", "zywall", "zyxelnwa", "zyxelwlc"],
 }
+
+# LibreNMS | Normalized
+LIBRENMS_LIB_MAPPER = {
+    "arista_eos": "arista_eos",
+    "iosxe": "cisco_ios",
+    "iosxr": "cisco_xr",
+    "nxos": "cisco_nxos",
+    "junos": "juniper_junos",
+}
+
+# Normalized | LibreNMS
+LIBRENMS_LIB_MAPPER_REVERSE = {
+    "arista_eos": "arista_eos",
+    "cisco_ios": "iosxe",
+    "cisco_nxos": "nxos",
+    "cisco_xr": "iosxr",
+    "juniper_junos": "junos",
+}
