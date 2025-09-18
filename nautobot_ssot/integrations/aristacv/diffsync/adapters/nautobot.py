@@ -132,7 +132,7 @@ class NautobotAdapter(Adapter):
             try:
                 self.add(new_ip)
             except ObjectAlreadyExists as err:
-                self.job.logger.warning(f"Unable to load {ipaddr.address} as appears to be a duplicate. {err}")
+                self.job.logger.warning(f"Unable to load {ipaddr.address}. IPAddress already in diffsync store. {err}")
             ip_to_intfs = IPAddressToInterface.objects.filter(ip_address=ipaddr)
             for mapping in ip_to_intfs:
                 new_map = self.ipassignment(
