@@ -117,3 +117,18 @@ Please note that the behavior in the SNOW integration now is to swallow and log 
 
 - [#954](https://github.com/nautobot/nautobot-app-ssot/issues/954) - Update ruff to target Python 3.9
 - Rebaked from the cookie `nautobot-app-v2.5.1`.
+
+## [v3.9.4 (2025-09-18)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.9.4)
+
+### Release Overview
+
+This release is focused on some vulnerabilities being fixed and a bugfix for the Meraki integration.
+
+### Security
+
+- [#968](https://github.com/nautobot/nautobot-app-ssot/issues/968) - https://github.com/advisories/GHSA-mw26-5g2v-hqw3
+- [#968](https://github.com/nautobot/nautobot-app-ssot/issues/968) - Deepdiff needs to be pinned to >8.6.0, requiring ipfabric to be bumped
+
+### Fixed
+
+- [#962](https://github.com/nautobot/nautobot-app-ssot/issues/962) - Meraki get-organization-devices API may omit notes key in response, changed slice to get() on the dictionary payload.
