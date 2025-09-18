@@ -1,3 +1,4 @@
 Fixes sync of anycast IPs.
 Implements tag deduplication.
 Removes log noise when duplicate IP or IPAssignments are found.
+Fixes cert failures for CVaaS implementations (verify cert = False). Such cases can happen when SSL inspection for nautobot workers is in place.
