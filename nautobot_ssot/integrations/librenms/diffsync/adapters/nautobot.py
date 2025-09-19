@@ -16,7 +16,6 @@ from nautobot_ssot.integrations.librenms.diffsync.models.nautobot import (
 from nautobot_ssot.integrations.librenms.utils import (
     check_sor_field,
     get_sor_field_nautobot_object,
-    normalize_device_hostname,
 )
 
 
@@ -47,7 +46,8 @@ class NautobotAdapter(Adapter):
         else:
             locations = OrmLocation.objects.all()
         for nb_location in locations:
-            self.job.logger.debug(f"Loading Nautobot Location {nb_location}")
+            if self.job.debug:
+                self.job.logger.debug(f"Loading Nautobot Location {nb_location}")
             try:
                 self.get(self.location, nb_location.name)
             except ObjectNotFound:
@@ -76,7 +76,8 @@ class NautobotAdapter(Adapter):
         else:
             devices = OrmDevice.objects.all()
         for nb_device in devices:
-            self.job.logger.debug(f"Loading Nautobot Device {nb_device}")
+            if self.job.debug:
+                self.job.logger.debug(f"Loading Nautobot Device {nb_device}")
             try:
                 self.get(self.device, nb_device.name)
             except ObjectNotFound:
@@ -92,7 +93,7 @@ class NautobotAdapter(Adapter):
                 if nb_device.custom_field_data.get("librenms_device_id"):
                     _device_id = nb_device.custom_field_data.get("librenms_device_id")
                 new_device = NautobotDevice(
-                    name=normalize_device_hostname(nb_device.name),
+                    name=nb_device.name,
                     device_id=_device_id,
                     location=nb_device.location.name,
                     status=nb_device.status.name,

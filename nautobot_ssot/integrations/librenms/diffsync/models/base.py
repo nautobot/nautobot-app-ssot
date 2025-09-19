@@ -42,9 +42,12 @@ class Device(DiffSyncModel):
     _attributes = (
         "device_id",
         "location",
+        "parent_location",
+        "snmp_location",
         "tenant",
         "status",
         "device_type",
+        "ip_address",
         "role",
         "manufacturer",
         "platform",
@@ -58,6 +61,8 @@ class Device(DiffSyncModel):
     name: str
     device_id: Optional[int] = None
     location: str
+    parent_location: Optional[str] = None
+    snmp_location: Optional[str] = None
     tenant: Optional[str] = None
     status: str
     device_type: str
