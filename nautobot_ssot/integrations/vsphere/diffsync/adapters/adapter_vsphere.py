@@ -6,7 +6,7 @@ import ipaddress
 from typing import List
 
 from diffsync import Adapter
-from netutils.ip import cidr_to_netmask
+from netutils.ip import cidr_to_netmask, cidr_to_netmaskv6
 
 from nautobot_ssot.integrations.vsphere.diffsync.models.vsphere import (
     ClusterGroupModel,
@@ -18,22 +18,28 @@ from nautobot_ssot.integrations.vsphere.diffsync.models.vsphere import (
 )
 
 
-def deduce_network_from_ip(ip: ipaddress.IPv4Address, subnet_mask: str):
-    """Figure out the network of a given IP and its subnet mask."""
-    ip_int = int(ip)
-    subnet_int = int(ipaddress.IPv4Address(subnet_mask))
+def deduce_network_from_ip(ip: str, subnet_mask: str) -> str:
+    """Deduce the network address from an IP and subnet mask. Supports both IPv4 and IPv6.
 
-    # Perform a bitwise AND operation between the IP address and the subnet mask
-    network_int = ip_int & subnet_int
+    Args:
+        ip (str): IP address (e.g., "192.168.2.88" or "2001:db8::1234")
+        subnet_mask (str): Subnet mask (e.g., "255.255.254.0" or "ffff:ffff:ffff:ffff::")
 
-    # Convert the result back to an IPv4 address
-    network_address = str(ipaddress.IPv4Address(network_int))
+    Returns:
+        str: Network address in CIDR notation (e.g., "192.168.2.0/23" or "2001:db8::/64")
+    """
+    mask_obj = ipaddress.ip_address(subnet_mask)
 
-    return network_address
+    # Convert subnet mask to prefix length
+    prefix_len = bin(int(mask_obj)).count("1")
+
+    # Create full CIDR string
+    network = ipaddress.ip_network(f"{ip}/{prefix_len}", strict=False)
+    return str(network.network_address)
 
 
 def create_ipaddr(address: str):
-    """Create an IPV4 or IPV4 object."""
+    """Create an IPV4 or IPV6 object."""
     try:
         ip_address = ipaddress.IPv4Address(address)
     except ipaddress.AddressValueError:
@@ -154,7 +160,10 @@ class VsphereDiffSync(Adapter):
                     continue
 
                 _ = ipv4_addresses.append(addr) if addr.version == 4 else ipv6_addresses.append(addr)
-                netmask = cidr_to_netmask(ip_address["prefix_length"])
+                if addr.version == 6:
+                    netmask = cidr_to_netmaskv6(ip_address["prefix_length"])
+                else:
+                    netmask = cidr_to_netmask(ip_address["prefix_length"])
                 prefix = deduce_network_from_ip(addr, netmask)
 
                 diffsync_prefix, _ = self.get_or_instantiate(
