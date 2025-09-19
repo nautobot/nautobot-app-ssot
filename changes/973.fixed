@@ -1,0 +1,2 @@
+Fixes issue when creating new SecretsGroup's with Secrets associations not being created when more than one is specified.
+Provides additional checks to ensure secrets are specified before creating associations.
