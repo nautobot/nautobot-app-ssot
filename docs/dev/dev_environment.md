@@ -365,12 +365,7 @@ Once the dependencies are resolved, stop the existing containers, rebuild the Do
 Let's say for example you want the new app you're creating to integrate into Slack. To do this, you will want to integrate into the existing Nautobot ChatOps App.
 
 ```bash
-<<<<<<< HEAD
-➜ poetry shell
-➜ poetry add nautobot-ssot
-=======
 ➜ poetry add nautobot-chatops
->>>>>>> 481ce30 (Cookie updated by NetworkToCode Cookie Drift Manager Tool)
 ```
 
 Once you activate the virtual environment via Poetry, you then tell Poetry to install the new app.

@@ -32,19 +32,12 @@ from nautobot.extras.choices import JobResultStatusChoices
 from nautobot.extras.models import JobResult
 from nautobot.extras.utils import extras_features
 
-<<<<<<< HEAD
 from nautobot_ssot.integrations.infoblox.models import SSOTInfobloxConfig
 from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
 from nautobot_ssot.integrations.servicenow.models import SSOTServiceNowConfig
-=======
-# Nautobot imports
-from nautobot.apps.constants import CHARFIELD_MAX_LENGTH
-from nautobot.apps.models import PrimaryModel, extras_features
->>>>>>> 481ce30 (Cookie updated by NetworkToCode Cookie Drift Manager Tool)
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 
-<<<<<<< HEAD
 
 class DiffJSONEncoder(DjangoJSONEncoder):
     """Custom JSON encoder for the Sync.diff field."""
@@ -92,11 +85,6 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
 
     job_result = models.ForeignKey(to=JobResult, on_delete=models.CASCADE, blank=True, null=True)
     hide_in_diff_view = True
-=======
-    name = models.CharField(max_length=CHARFIELD_MAX_LENGTH, unique=True)
-    description = models.CharField(max_length=CHARFIELD_MAX_LENGTH, blank=True)
-    # additional model fields
->>>>>>> 481ce30 (Cookie updated by NetworkToCode Cookie Drift Manager Tool)
 
     class Meta:
         """Metaclass attributes of Sync model."""

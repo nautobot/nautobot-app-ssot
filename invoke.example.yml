@@ -1,10 +1,6 @@
 ---
 nautobot_ssot:
-<<<<<<< HEAD
-  nautobot_ver: "2.1.0"
-=======
   nautobot_ver: "2.4.2"
->>>>>>> 481ce30 (Cookie updated by NetworkToCode Cookie Drift Manager Tool)
   python_ver: "3.11"
   # local: false
   # compose_dir: "/full/path/to/nautobot-app-ssot/development"
