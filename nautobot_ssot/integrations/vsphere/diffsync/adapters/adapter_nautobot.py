@@ -72,10 +72,11 @@ class NBAdapter(NautobotAdapter):
                 self.add(diffsync_model)
             except ObjectAlreadyExists:
                 self.job.logger.warning(
-                    f"IP Address {diffsync_model} already exists in DiffSync. This is an expected warning if you have multiple interaces with the same IP."
+                    f"IP Address {diffsync_model} already exists in DiffSync. This is an expected warning if you have multiple interaces with the same IP. {parameters}"
                 )
-        self.add(diffsync_model)
-        self._handle_children(database_object, diffsync_model)
+        else:
+            self.add(diffsync_model)
+            self._handle_children(database_object, diffsync_model)
         return diffsync_model
 
     def _load_objects(self, diffsync_model):
