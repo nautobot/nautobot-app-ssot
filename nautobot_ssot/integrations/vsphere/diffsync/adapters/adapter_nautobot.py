@@ -52,7 +52,7 @@ class NBAdapter(NautobotAdapter):
             try:
                 vm.validated_save()
             except ValidationError as err:
-                self.logger.error(f"Unable to set primary IP {info} on {vm}: {err}")
+                self.job.logger.error(f"Unable to set primary IP {info} on {vm}: {err}")
 
     def _load_objects(self, diffsync_model):
         """Overriding _load_objects so we can pass in the config object to the models."""
