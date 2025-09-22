@@ -6,6 +6,7 @@ import ipaddress
 from typing import List
 
 from diffsync import Adapter
+from diffsync.exceptions import ObjectAlreadyExists
 from netutils.ip import cidr_to_netmask, cidr_to_netmaskv6
 
 from nautobot_ssot.integrations.vsphere.diffsync.models.vsphere import (
@@ -191,7 +192,10 @@ class VsphereDiffSync(Adapter):
                         ],
                     },
                 )
-                diffsync_vminterface.add_child(diffsync_ipaddress)
+                try:
+                    diffsync_vminterface.add_child(diffsync_ipaddress)
+                except ObjectAlreadyExists as err:
+                    self.job.logger.warning(f"IP Address {diffsync_ipaddress} already exists: {err}")
 
         return ipv4_addresses, ipv6_addresses
 
