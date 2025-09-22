@@ -192,7 +192,9 @@ class IPAddressModel(vSphereModelDiffSync):
             IPAddressModel: The IP address model.
         """
         try:
-            ip_address = cls._model.objects.get(**ids)
+            ip_address = cls._model.objects.get(
+                host=ids["host"], mask_length=ids["mask_length"], status__name=ids["status__name"]
+            )
             vm_interface = VMInterface.objects.get(
                 name=ids["vm_interfaces"][0]["name"],
                 virtual_machine__name=ids["vm_interfaces"][0]["virtual_machine__name"],
