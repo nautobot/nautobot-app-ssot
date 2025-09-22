@@ -183,8 +183,6 @@ class VsphereDiffSync(Adapter):
                         "host": ip_address["ip_address"],
                         "mask_length": ip_address["prefix_length"],
                         "status__name": self.config.default_ip_status_map[ip_address["state"]],
-                    },
-                    {
                         "vm_interfaces": [
                             {
                                 "name": diffsync_vminterface.name,

@@ -169,8 +169,8 @@ class IPAddressModel(vSphereModelDiffSync):
 
     _model = IPAddress
     _modelname = "ip_address"
-    _identifiers = ("host", "mask_length", "status__name")
-    _attributes = ("vm_interfaces",)
+    _identifiers = ("host", "mask_length", "status__name", "vm_interfaces")
+    _attributes = ()
 
     host: str
     mask_length: int
@@ -194,8 +194,8 @@ class IPAddressModel(vSphereModelDiffSync):
         try:
             ip_address = cls._model.objects.get(**ids)
             vm_interface = VMInterface.objects.get(
-                name=attrs["vm_interfaces"][0]["name"],
-                virtual_machine__name=attrs["vm_interfaces"][0]["virtual_machine__name"],
+                name=ids["vm_interfaces"][0]["name"],
+                virtual_machine__name=ids["vm_interfaces"][0]["virtual_machine__name"],
             )
             vm_interface.ip_addresses.set([ip_address])
             vm_interface.validated_save()
