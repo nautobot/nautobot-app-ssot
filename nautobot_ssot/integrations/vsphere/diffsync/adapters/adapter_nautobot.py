@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 
 import pydantic
 from diffsync.enum import DiffSyncFlags
-from diffsync.exceptions import ObjectAlreadExists
+from diffsync.exceptions import ObjectAlreadyExists
 from django.core.exceptions import ValidationError
 from nautobot.ipam.models import IPAddress
 from nautobot.virtualization.models import VirtualMachine
@@ -70,7 +70,7 @@ class NBAdapter(NautobotAdapter):
         if diffsync_model._modelname == "ip_address":
             try:
                 self.add(diffsync_model)
-            except ObjectAlreadExists:
+            except ObjectAlreadyExists:
                 self.job.logger.warning(
                     f"IP Address {diffsync_model} already exists in DiffSync. This is an expected warning if you have multiple interaces with the same IP."
                 )
