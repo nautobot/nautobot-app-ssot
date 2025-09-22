@@ -217,14 +217,14 @@ class VMInterfaceModel(vSphereModelDiffSync):
     _modelname = "interface"
     _identifiers = ("name", "virtual_machine__name")
     _attributes = ("enabled", "mac_address", "status__name")
-    _children = {"ip_address": "ip_addresses"}
+    # _children = {"ip_address": "ip_addresses"}
 
     name: str
     virtual_machine__name: str
     enabled: bool
     status__name: str
     mac_address: Optional[str] = None
-    ip_addresses: List[IPAddress] = []
+    # ip_addresses: List[IPAddress] = []
 
 
 class VirtualMachineModel(vSphereModelDiffSync):

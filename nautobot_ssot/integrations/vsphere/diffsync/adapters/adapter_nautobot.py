@@ -25,7 +25,7 @@ class NBAdapter(NautobotAdapter):
 
     _primary_ips: List[Dict[str, Any]]
 
-    top_level = ("prefix", "clustergroup", "virtual_machine")
+    top_level = ("prefix", "clustergroup", "virtual_machine", "ip_address")
     prefix = PrefixModel
     clustergroup = ClusterGroupModel
     cluster = ClusterModel
@@ -56,28 +56,28 @@ class NBAdapter(NautobotAdapter):
             except ValidationError as err:
                 self.job.logger.error(f"Unable to set primary IP {info} on {vm}: {err}")
 
-    def _load_single_object(self, database_object, diffsync_model, parameter_names):
-        """Load a single diffsync object from a single database object."""
-        parameters = {}
-        for parameter_name in parameter_names:
-            self._handle_single_parameter(parameters, parameter_name, database_object, diffsync_model)
-        parameters["pk"] = database_object.pk
-        try:
-            diffsync_model = diffsync_model(**parameters)
-        except pydantic.ValidationError as error:
-            raise ValueError(f"Parameters: {parameters}") from error
-        # If an IP is assigned to multiple interfaces, each VM will attempt to add it to DiffSync. We just catch the error if it already exists as we only need it in the diffsync store once.
-        if diffsync_model._modelname == "ip_address":
-            try:
-                self.add(diffsync_model)
-            except ObjectAlreadyExists:
-                self.job.logger.warning(
-                    f"IP Address {diffsync_model} already exists in DiffSync. This is an expected warning if you have multiple interaces with the same IP. {parameters}"
-                )
-        else:
-            self.add(diffsync_model)
-            self._handle_children(database_object, diffsync_model)
-        return diffsync_model
+    # def _load_single_object(self, database_object, diffsync_model, parameter_names):
+    #     """Load a single diffsync object from a single database object."""
+    #     parameters = {}
+    #     for parameter_name in parameter_names:
+    #         self._handle_single_parameter(parameters, parameter_name, database_object, diffsync_model)
+    #     parameters["pk"] = database_object.pk
+    #     try:
+    #         diffsync_model = diffsync_model(**parameters)
+    #     except pydantic.ValidationError as error:
+    #         raise ValueError(f"Parameters: {parameters}") from error
+    #     # If an IP is assigned to multiple interfaces, each VM will attempt to add it to DiffSync. We just catch the error if it already exists as we only need it in the diffsync store once.
+    #     if diffsync_model._modelname == "ip_address":
+    #         try:
+    #             self.add(diffsync_model)
+    #         except ObjectAlreadyExists:
+    #             self.job.logger.warning(
+    #                 f"IP Address {diffsync_model} already exists in DiffSync. This is an expected warning if you have multiple interaces with the same IP. {parameters}"
+    #             )
+    #     else:
+    #         self.add(diffsync_model)
+    #         self._handle_children(database_object, diffsync_model)
+    #     return diffsync_model
 
     def _load_objects(self, diffsync_model):
         """Overriding _load_objects so we can pass in the config object to the models."""

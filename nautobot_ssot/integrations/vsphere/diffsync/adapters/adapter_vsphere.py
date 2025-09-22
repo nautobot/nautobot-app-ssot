@@ -66,7 +66,7 @@ class VsphereDiffSync(Adapter):
     ip_address = IPAddressModel
     prefix = PrefixModel
 
-    top_level = ["prefix", "clustergroup", "virtual_machine"]
+    top_level = ["prefix", "clustergroup", "virtual_machine", "ip_address"]
 
     def __init__(self, *args, job=None, sync=None, client, config, cluster_filters, **kwargs):
         """Initialize the vSphereDiffSync."""
@@ -76,6 +76,7 @@ class VsphereDiffSync(Adapter):
         self.client = client
         self.config = config
         self.cluster_filters = cluster_filters
+        self.ip_address_map = {}
 
     def _add_diffsync_virtualmachine(self, virtual_machine, virtual_machine_details, cluster_name):
         """Add virtualmachine to DiffSync and call load_vm_interfaces().
@@ -178,24 +179,50 @@ class VsphereDiffSync(Adapter):
                     {"type": "network"},
                 )
 
-                diffsync_ipaddress, _ = self.get_or_instantiate(
-                    self.ip_address,
-                    {
-                        "host": ip_address["ip_address"],
-                        "mask_length": ip_address["prefix_length"],
-                        "status__name": self.config.default_ip_status_map[ip_address["state"]],
-                        "vm_interfaces": [
+                # Add info to IP Mapper to load later.
+                default = {
+                    "mask_length": ip_address["prefix_length"],
+                    "status__name": self.config.default_ip_status_map[ip_address["state"]],
+                    "vm_interfaces": [
+                        {
+                            "name": diffsync_vminterface.name,
+                            "virtual_machine__name": diffsync_virtualmachine.name,
+                        }
+                    ],
+                }
+
+                ip_info = self.ip_address_map.setdefault(ip_address["ip_address"], default)
+                if ip_info != default:
+                    # If the IP already exists in the map, ensure the vm_interface is included
+                    if {
+                        "name": diffsync_vminterface.name,
+                        "virtual_machine__name": diffsync_virtualmachine.name,
+                    } not in ip_info["vm_interfaces"]:
+                        ip_info["vm_interfaces"].append(
                             {
                                 "name": diffsync_vminterface.name,
                                 "virtual_machine__name": diffsync_virtualmachine.name,
                             }
-                        ],
-                    },
-                )
-                try:
-                    diffsync_vminterface.add_child(diffsync_ipaddress)
-                except ObjectAlreadyExists as err:
-                    self.job.logger.warning(f"IP Address {diffsync_ipaddress} already exists: {err}")
+                        )
+
+                # diffsync_ipaddress, _ = self.get_or_instantiate(
+                #     self.ip_address,
+                #     {
+                #         "host": ip_address["ip_address"],
+                #         "mask_length": ip_address["prefix_length"],
+                #         "status__name": self.config.default_ip_status_map[ip_address["state"]],
+                #         "vm_interfaces": [
+                #             {
+                #                 "name": diffsync_vminterface.name,
+                #                 "virtual_machine__name": diffsync_virtualmachine.name,
+                #             }
+                #         ],
+                #     },
+                # )
+                # try:
+                #     diffsync_vminterface.add_child(diffsync_ipaddress)
+                # except ObjectAlreadyExists as err:
+                #     self.job.logger.warning(f"IP Address {diffsync_ipaddress} already exists: {err}")
 
         return ipv4_addresses, ipv6_addresses
 
@@ -313,6 +340,19 @@ class VsphereDiffSync(Adapter):
                 virtual_machine, virtual_machine_details, self.config.default_cluster_name
             )
 
+    def load_ip_map(self):
+        """Load all IP Addresses from the IP Map into DiffSync."""
+        for ip, info in self.ip_address_map.items():
+            diffsync_ipaddress, _ = self.get_or_instantiate(
+                self.ip_address,
+                {
+                    "host": ip,
+                    "mask_length": info["mask_length"],
+                    "status__name": info["status__name"],
+                    "vm_interfaces": info["vm_interfaces"],
+                },
+            )
+
     def load(self):
         """Load data from vSphere."""
         if self.config.use_clusters:
@@ -320,4 +360,5 @@ class VsphereDiffSync(Adapter):
         else:
             self.job.logger.info("Not syncing Clusters or Cluster Groups per user settings. Using default Cluster.")
             self.load_standalone_vms()
+        self.load_ip_map()
         self.job.logger.info("Finished loading data from vSphere.")
