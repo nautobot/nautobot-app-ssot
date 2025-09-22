@@ -345,8 +345,8 @@ location:
     tenant:  # str
     physical_address:  # str
     shipping_address:  # str
-    latitude:  # str
-    longitude:  # str
+    latitude:  # float
+    longitude:  # float
     contact_name:  # str
     contact_phone:  # str
     contact_email:  # str
