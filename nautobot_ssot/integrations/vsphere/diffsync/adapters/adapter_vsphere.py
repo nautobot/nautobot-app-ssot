@@ -6,7 +6,6 @@ import ipaddress
 from typing import List
 
 from diffsync import Adapter
-from diffsync.exceptions import ObjectAlreadyExists
 from netutils.ip import cidr_to_netmask, cidr_to_netmaskv6
 
 from nautobot_ssot.integrations.vsphere.diffsync.models.vsphere import (
