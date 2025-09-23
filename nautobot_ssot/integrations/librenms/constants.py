@@ -250,6 +250,7 @@ manufacturer_os_map = {
     "Allworx": ["allworxvoip"],
     "APC": ["apc", "poweralert"],
     "Apple": ["airport"],
+    "AppLogic": ["procera"],
     "Aruba Networks": ["arbos", "arubainstant", "arubaos", "arubaoscx"],
     "Areca": ["areca"],
     "Arris": ["arrisc4", "arriscm", "arrisdsr4410md"],
@@ -391,6 +392,7 @@ LIBRENMS_LIB_MAPPER = {
     "iosxr": "cisco_xr",
     "nxos": "cisco_nxos",
     "junos": "juniper_junos",
+    "procera": "applogic_procera",
 }
 
 # Normalized | LibreNMS
@@ -400,4 +402,5 @@ LIBRENMS_LIB_MAPPER_REVERSE = {
     "cisco_nxos": "nxos",
     "cisco_xr": "iosxr",
     "juniper_junos": "junos",
+    "applogic_procera": "procera",
 }

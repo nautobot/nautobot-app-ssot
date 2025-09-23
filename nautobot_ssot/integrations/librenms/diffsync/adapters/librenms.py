@@ -90,103 +90,98 @@ class LibrenmsAdapter(Adapter):
             self.job.logger.debug(f"Loading LibreNMS Device {device[hostname_field]}")
 
         if device["os"] != "ping":
-            if device["type"] in PLUGIN_CFG.get("librenms_permitted_values", {}).get("role"):
-                if device["os"] in PLUGIN_CFG.get("librenms_permitted_values", {}).get("platform"):
-                    normalized_name = normalize_device_hostname(device[hostname_field], self.job)
-                    location_data = parse_hostname_for_location(self.job.location_map, normalized_name, device["location"])
-                    role = parse_hostname_for_role(self.job.hostname_map, normalized_name, self.job.default_role.name if self.job.default_role else "Unknown")
-                    ip_address = device.get("ip", None)
-                    platform = device["os"]
+            if device["type"] in PLUGIN_CFG.get("librenms_permitted_values", {}).get("role") and (device["os"] in PLUGIN_CFG.get("librenms_permitted_values", {}).get("platform", [device["os"]])):
+                normalized_name = normalize_device_hostname(device[hostname_field], self.job)
+                location_data = parse_hostname_for_location(self.job.location_map, normalized_name, device["location"])
+                role = parse_hostname_for_role(self.job.hostname_map, normalized_name, self.job.default_role.name if self.job.default_role else "Unknown")
+                ip_address = device.get("ip", None)
+                platform = device["os"]
+                self.job.logger.debug(f"Platform for {normalized_name}: {platform}")
+                device_type = device["hardware"]
+                if self.job.debug:
+                    self.job.logger.debug(f"Role for {normalized_name}: {role}")
                     self.job.logger.debug(f"Platform for {normalized_name}: {platform}")
-                    device_type = device["hardware"]
-                    if self.job.debug:
-                        self.job.logger.debug(f"Role for {normalized_name}: {role}")
-                        self.job.logger.debug(f"Platform for {normalized_name}: {platform}")
-                        self.job.logger.debug(f"Device type for {normalized_name}: {device_type}")
+                    self.job.logger.debug(f"Device type for {normalized_name}: {device_type}")
 
-                    device_validation_dict = {
-                        self.job.hostname_field: normalized_name,
-                        "location": location_data["name"],
-                        "role": role,
-                        "platform": platform,
-                        "device_type": device_type,
-                    }
-                    if self.job.debug:
-                        self.job.logger.debug(f"Device validation dictionary for {device[hostname_field]}: {device_validation_dict}")
-                    validation_result = has_required_values(device_validation_dict, self.job)
-                    device["field_validation"] = validation_result
+                device_validation_dict = {
+                    self.job.hostname_field: normalized_name,
+                    "location": location_data["name"],
+                    "role": role,
+                    "platform": platform,
+                    "device_type": device_type,
+                }
+                if self.job.debug:
+                    self.job.logger.debug(f"Device validation dictionary for {device[hostname_field]}: {device_validation_dict}")
+                validation_result = has_required_values(device_validation_dict, self.job)
+                device["field_validation"] = validation_result
 
-                    if self.job.debug:
-                        self.job.logger.debug(f"Device Load Errors: {device.get('load_errors', [])}")
-                        self.job.logger.debug(f"Validation result for {device[hostname_field]}: {validation_result}")
-                    
-                    if any(value is False for value in validation_result.values()):
-                        # Include the device with load errors in the failed list
-                        failed_device = device.copy()
-                        failed_device["load_errors"] = device_validation_dict.get("load_errors", [])
-                        self.failed_import_devices.append(failed_device)
+                if self.job.debug:
+                    self.job.logger.debug(f"Device Load Errors: {device.get('load_errors', [])}")
+                    self.job.logger.debug(f"Validation result for {device[hostname_field]}: {validation_result}")
+                
+                if any(value is False for value in validation_result.values()):
+                    # Include the device with load errors in the failed list
+                    failed_device = device.copy()
+                    failed_device["load_errors"] = device_validation_dict.get("load_errors", [])
+                    self.failed_import_devices.append(failed_device)
+                    return
+
+                try:
+                    self.get(self.device, normalized_name)
+                except ObjectNotFound:
+                    # Normalize the device hostname and check if it's valid
+                    if normalized_name is None:
+                        self.job.logger.warning(
+                            f"Device {device[hostname_field]} has invalid hostname. Skipping."
+                        )
+                        self.failed_import_devices.append(device)
                         return
 
+                    if device["disabled"] == 1:
+                        _status = "Offline"
+                    else:
+                        _status = librenms_status_map[device["status"]]
                     try:
-                        self.get(self.device, normalized_name)
-                    except ObjectNotFound:
-                        # Normalize the device hostname and check if it's valid
-                        if normalized_name is None:
+                        # Check if manufacturer mapping exists
+                        manufacturer = os_manufacturer_map.get(device["os"])
+                        if manufacturer is None:
+                            if "load_errors" not in device:
+                                device["load_errors"] = []
+                            device["load_errors"].append(f"Manufacturer mapping not found for OS: {device['os']}")
                             self.job.logger.warning(
-                                f"Device {device[hostname_field]} has invalid hostname. Skipping."
+                                f"Device {device[hostname_field]} failed to load: {device['load_errors']}"
                             )
                             self.failed_import_devices.append(device)
                             return
 
-                        if device["disabled"] == 1:
-                            _status = "Offline"
-                        else:
-                            _status = librenms_status_map[device["status"]]
-                        try:
-                            # Check if manufacturer mapping exists
-                            manufacturer = os_manufacturer_map.get(device["os"])
-                            if manufacturer is None:
-                                if "load_errors" not in device:
-                                    device["load_errors"] = []
-                                device["load_errors"].append(f"Manufacturer mapping not found for OS: {device['os']}")
-                                self.job.logger.warning(
-                                    f"Device {device[hostname_field]} failed to load: {device['load_errors']}"
-                                )
-                                self.failed_import_devices.append(device)
-                                return
-
-                            # Store the full location data in the device for the NautobotDevice to use
-                            device["_location_data"] = location_data
-                            
-                            new_device = self.device(
-                                name=normalized_name,
-                                device_id=device["device_id"],
-                                location=location_data["name"],
-                                parent_location=location_data["parent"],
-                                snmp_location=device["location"],
-                                role=role,
-                                serial_no=device["serial"] if device["serial"] is not None else "",
-                                status=_status,
-                                manufacturer=manufacturer,
-                                device_type=device["hardware"],
-                                platform=platform,
-                                os_version=device["version"] if device["version"] is not None else "Unknown",
-                                tenant=self.job.tenant.name if self.job.tenant else None,
-                                system_of_record=os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
-                            )
-                        except ValidationError as err:
-                            device.get("load_errors", []).append(err)
-                            self.failed_import_devices.append(device)
-                            self.job.logger.warning(f"Device {device[hostname_field]} failed to load: {err}")
-                            return
-                        try:
-                            self.add(new_device)
-                        except ObjectAlreadyExists:
-                            self.job.logger.warning(f"Device {device[hostname_field]} already exists. Skipping.")
-                else:
-                    self.job.logger.warning(
-                        f'Device {device[hostname_field]} platform "{device["os"]}" is not permitted by the configuration. Skipping.'
-                    )
+                        # Store the full location data in the device for the NautobotDevice to use
+                        device["_location_data"] = location_data
+                        
+                        new_device = self.device(
+                            name=normalized_name,
+                            device_id=device["device_id"],
+                            location=location_data["name"],
+                            parent_location=location_data["parent"],
+                            snmp_location=device["location"],
+                            role=role,
+                            serial_no=device["serial"] if device["serial"] is not None else "",
+                            status=_status,
+                            manufacturer=manufacturer,
+                            device_type=device["hardware"],
+                            platform=platform,
+                            os_version=device["version"] if device["version"] is not None else "Unknown",
+                            tenant=self.job.tenant.name if self.job.tenant else None,
+                            system_of_record=os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
+                        )
+                    except ValidationError as err:
+                        device.get("load_errors", []).append(err)
+                        self.failed_import_devices.append(device)
+                        self.job.logger.warning(f"Device {device[hostname_field]} failed to load: {err}")
+                        return
+                    try:
+                        self.add(new_device)
+                    except ObjectAlreadyExists:
+                        self.job.logger.warning(f"Device {device[hostname_field]} already exists. Skipping.")
             else:
                 self.job.logger.warning(
                     f'Device {device[hostname_field]} role "{device["type"]}" is not permitted by the configuration. Skipping.'
