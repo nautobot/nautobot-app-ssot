@@ -273,7 +273,7 @@ class NautobotDevice(Device):
             raise ValueError(f"Manufacturer mapping not found for platform: {attrs['platform']}")
         _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
         _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=_manufacturer.name)
-        self.logger.debug(f"Platform: {_platform}")
+        adapter.job.logger.debug(f"Platform: {_platform}")
         _device_type = DeviceType.objects.get_or_create(model=attrs["device_type"], manufacturer=_manufacturer)[0]
         # Get location data from the device attributes
         location_name = attrs["location"]
