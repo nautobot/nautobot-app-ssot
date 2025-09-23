@@ -8,10 +8,10 @@ from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.core.exceptions import ValidationError
 
 from nautobot_ssot.integrations.librenms.constants import (
+    LIBRENMS_LIB_MAPPER,
     PLUGIN_CFG,
     librenms_status_map,
     os_manufacturer_map,
-    LIBRENMS_LIB_MAPPER,
 )
 from nautobot_ssot.integrations.librenms.diffsync.models.librenms import (
     LibrenmsDevice,
@@ -23,7 +23,7 @@ from nautobot_ssot.integrations.librenms.utils import (
     normalize_gps_coordinates,
 )
 from nautobot_ssot.integrations.librenms.utils.librenms import LibreNMSApi
-from nautobot_ssot.utils import parse_hostname_for_role, parse_hostname_for_location
+from nautobot_ssot.utils import parse_hostname_for_location, parse_hostname_for_role
 
 
 class LibrenmsAdapter(Adapter):
@@ -79,14 +79,14 @@ class LibrenmsAdapter(Adapter):
             self.job.logger.warning(f"Device data is not a dictionary: {type(device)} - {device}")
             self.failed_import_devices.append(device)
             return
-            
+
         # Get the hostname field to use
         hostname_field = (
             os.getenv("NAUTOBOT_SSOT_LIBRENMS_HOSTNAME_FIELD", "sysName")
             if self.job.hostname_field == "env_var"
             else self.job.hostname_field or "sysName"
         )
-        
+
         if self.job.debug:
             self.job.logger.debug(f"Loading LibreNMS Device {device[hostname_field]}")
 
@@ -94,7 +94,11 @@ class LibrenmsAdapter(Adapter):
             if device["type"] in PLUGIN_CFG.get("librenms_permitted_values", {}).get("role"):
                 normalized_name = normalize_device_hostname(device[hostname_field], self.job)
                 location_data = parse_hostname_for_location(self.job.location_map, normalized_name, device["location"])
-                role = parse_hostname_for_role(self.job.hostname_map, normalized_name, self.job.default_role.name if self.job.default_role else "Unknown")
+                role = parse_hostname_for_role(
+                    self.job.hostname_map,
+                    normalized_name,
+                    self.job.default_role.name if self.job.default_role else "Unknown",
+                )
                 normalized_platform = LIBRENMS_LIB_MAPPER.get(device["os"], device["os"])
                 ip_address = device.get("ip", None)
                 self.job.logger.debug(f"Platform for {normalized_name}: {normalized_platform}")
@@ -112,18 +116,17 @@ class LibrenmsAdapter(Adapter):
                     "device_type": device_type,
                 }
                 if self.job.debug:
-                    self.job.logger.debug(f"Device validation dictionary for {device[hostname_field]}: {device_validation_dict}")
+                    self.job.logger.debug(
+                        f"Device validation dictionary for {device[hostname_field]}: {device_validation_dict}"
+                    )
                 validation_result = has_required_values(device_validation_dict, self.job)
                 device["field_validation"] = validation_result
 
                 if self.job.debug:
-                    self.job.logger.debug(f"Device Load Errors: {device.get('load_errors', [])}")
                     self.job.logger.debug(f"Validation result for {device[hostname_field]}: {validation_result}")
-                
+
                 if any(value is False for value in validation_result.values()):
-                    # Include the device with load errors in the failed list
                     failed_device = device.copy()
-                    failed_device["load_errors"] = device_validation_dict.get("load_errors", [])
                     self.failed_import_devices.append(failed_device)
                     return
 
@@ -132,9 +135,7 @@ class LibrenmsAdapter(Adapter):
                 except ObjectNotFound:
                     # Normalize the device hostname and check if it's valid
                     if normalized_name is None:
-                        self.job.logger.warning(
-                            f"Device {device[hostname_field]} has invalid hostname. Skipping."
-                        )
+                        self.job.logger.warning(f"Device {device[hostname_field]} has invalid hostname. Skipping.")
                         self.failed_import_devices.append(device)
                         return
 
@@ -146,18 +147,15 @@ class LibrenmsAdapter(Adapter):
                         # Check if manufacturer mapping exists
                         manufacturer = os_manufacturer_map.get(device["os"])
                         if manufacturer is None:
-                            if "load_errors" not in device:
-                                device["load_errors"] = []
-                            device["load_errors"].append(f"Manufacturer mapping not found for OS: {device['os']}")
                             self.job.logger.warning(
-                                f"Device {device[hostname_field]} failed to load: {device['load_errors']}"
+                                f"Device {device[hostname_field]} failed to load. Manufacturer mapping not found for OS: {device['os']}."
                             )
                             self.failed_import_devices.append(device)
                             return
 
                         # Store the full location data in the device for the NautobotDevice to use
                         device["_location_data"] = location_data
-                        
+
                         new_device = self.device(
                             name=normalized_name,
                             device_id=device["device_id"],
@@ -175,7 +173,6 @@ class LibrenmsAdapter(Adapter):
                             system_of_record=os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
                         )
                     except ValidationError as err:
-                        device.get("load_errors", []).append(err)
                         self.failed_import_devices.append(device)
                         self.job.logger.warning(f"Device {device[hostname_field]} failed to load: {err}")
                         return

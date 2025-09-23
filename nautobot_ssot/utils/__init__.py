@@ -63,7 +63,9 @@ def create_or_update_custom_field(apps, key, field_type, label):
     return CustomField.objects.update_or_create(key=cf_dict["key"], defaults=cf_dict)
 
 
-def parse_hostname_for_location(location_map: dict[str, dict[str, str]], device_hostname: str, device_location: str) -> dict:
+def parse_hostname_for_location(
+    location_map: dict[str, dict[str, str]], device_hostname: str, device_location: str
+) -> dict:
     """Parse device hostname from location_map to get Device Location.
 
     Args:
@@ -78,11 +80,12 @@ def parse_hostname_for_location(location_map: dict[str, dict[str, str]], device_
         if isinstance(location_map, str):
             try:
                 import json
+
                 location_map = json.loads(location_map)
             except (json.JSONDecodeError, TypeError):
                 # If it's not valid JSON, treat as empty
                 location_map = None
-        
+
         if location_map:
             # Handle dictionary format where key is pattern and value contains Name/Parent
             if isinstance(location_map, dict):
@@ -108,7 +111,7 @@ def parse_hostname_for_location(location_map: dict[str, dict[str, str]], device_
                                 "parent": entry.get("parent", None),
                             }
                             return device_location_data
-        
+
         # If no match found in location_map, fall back to device_location
         device_location_data = {
             "name": device_location,

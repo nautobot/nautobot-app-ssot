@@ -14,6 +14,7 @@ from nautobot.dcim.models import SoftwareImageFile as ORMSoftwareImageFile
 from nautobot.dcim.models import SoftwareVersion as ORMSoftwareVersion
 from nautobot.extras.models import Role, Status
 from nautobot.tenancy.models import Tenant as ORMTenant
+
 from nautobot_ssot.integrations.librenms.constants import os_manufacturer_map
 from nautobot_ssot.integrations.librenms.diffsync.models.base import Device, Location, Port
 from nautobot_ssot.integrations.librenms.utils import check_sor_field
@@ -57,81 +58,87 @@ def ensure_software_version(platform: ORMPlatform, manufacturer: str, version: s
     return _software_version
 
 
-def ensure_location(location_data: dict, location_type: LocationType, parent_location_name: str = None, parent_location_type: LocationType = None):
+def ensure_location(
+    location_data: dict,
+    location_type: LocationType,
+    parent_location_name: str = None,
+    parent_location_type: LocationType = None,
+):
     """Safely returns a Location."""
     # Get or create an Active status for locations
     status, _ = Status.objects.get_or_create(name="Active")
-    
+
     # Extract location name and parent from location_data
     location_name = location_data.get("name")
     # Use parent from location_data if not provided as parameter
     if parent_location_name is None:
         parent_location_name = location_data.get("parent")
-    
-    
+
     # First, try to find existing location by name and location type
     # We need to handle parent relationships properly
     if parent_location_name:
         # For locations with a parent, we need to find the parent first
         parent_location_type = location_type.parent if location_type.parent else location_type
         try:
-            parent_location = ORMLocation.objects.get(name__iexact=parent_location_name, location_type=parent_location_type)
+            parent_location = ORMLocation.objects.get(
+                name__iexact=parent_location_name, location_type=parent_location_type
+            )
         except ORMLocation.MultipleObjectsReturned:
             # If multiple parent locations with same name and type, use the first one
-            parent_location = ORMLocation.objects.filter(name__iexact=parent_location_name, location_type=parent_location_type).first()
+            parent_location = ORMLocation.objects.filter(
+                name__iexact=parent_location_name, location_type=parent_location_type
+            ).first()
         except ORMLocation.DoesNotExist:
             # Parent doesn't exist, we'll create it later
             parent_location = None
-        
+
         # Now look for the location with the specific parent
         if parent_location:
             try:
-                existing_location = ORMLocation.objects.get(name__iexact=location_name, location_type=location_type, parent=parent_location)
+                existing_location = ORMLocation.objects.get(
+                    name__iexact=location_name, location_type=location_type, parent=parent_location
+                )
                 return existing_location
             except ORMLocation.DoesNotExist:
                 pass
             except ORMLocation.MultipleObjectsReturned:
                 # If multiple locations with same name, type, and parent, use the first one
-                existing_location = ORMLocation.objects.filter(name__iexact=location_name, location_type=location_type, parent=parent_location).first()
+                existing_location = ORMLocation.objects.filter(
+                    name__iexact=location_name, location_type=location_type, parent=parent_location
+                ).first()
                 return existing_location
     else:
         # For root locations (no parent), look for locations with no parent
         try:
-            existing_location = ORMLocation.objects.get(name__iexact=location_name, location_type=location_type, parent__isnull=True)
+            existing_location = ORMLocation.objects.get(
+                name__iexact=location_name, location_type=location_type, parent__isnull=True
+            )
             return existing_location
         except ORMLocation.DoesNotExist:
             pass
         except ORMLocation.MultipleObjectsReturned:
             # If multiple root locations with same name and type, use the first one
-            existing_location = ORMLocation.objects.filter(name__iexact=location_name, location_type=location_type, parent__isnull=True).first()
+            existing_location = ORMLocation.objects.filter(
+                name__iexact=location_name, location_type=location_type, parent__isnull=True
+            ).first()
             return existing_location
-    
+
     # If no existing location found, create a new one
     if parent_location_name:
         # Use the parent_location we found earlier, or create it if it doesn't exist
-        if 'parent_location' not in locals() or parent_location is None:
+        if "parent_location" not in locals() or parent_location is None:
             # Recursively ensure the parent location exists
             parent_location_data = {
                 "name": parent_location_name,
-                "parent": None  # Parent locations don't have parents in this context
+                "parent": None,  # Parent locations don't have parents in this context
             }
-            parent_location = ensure_location(
-                location_data=parent_location_data,
-                location_type=parent_location_type
-            )
-        
+            parent_location = ensure_location(location_data=parent_location_data, location_type=parent_location_type)
+
         _location = ORMLocation.objects.create(
-            name=location_name, 
-            parent=parent_location, 
-            location_type=location_type,
-            status=status
+            name=location_name, parent=parent_location, location_type=location_type, status=status
         )
     else:
-        _location = ORMLocation.objects.create(
-            name=location_name, 
-            location_type=location_type,
-            status=status
-        )
+        _location = ORMLocation.objects.create(name=location_name, location_type=location_type, status=status)
     return _location
 
 
@@ -190,34 +197,39 @@ class NautobotLocation(Location):
             self.adapter.job.logger.debug(f"Updating Nautobot Location {self.name}")
 
         # Build query based on parent relationship
-        query_kwargs = {
-            'name': self.name,
-            'location_type': self.adapter.job.location_type
-        }
-        
+        query_kwargs = {"name": self.name, "location_type": self.adapter.job.location_type}
+
         # Handle parent relationship properly
-        if hasattr(self, 'parent') and self.parent:
+        if hasattr(self, "parent") and self.parent:
             # Find the parent location first
             try:
-                parent_location = ORMLocation.objects.get(name__iexact=self.parent, location_type=self.adapter.job.location_type.parent)
-                query_kwargs['parent'] = parent_location
+                parent_location = ORMLocation.objects.get(
+                    name__iexact=self.parent, location_type=self.adapter.job.location_type.parent
+                )
+                query_kwargs["parent"] = parent_location
             except ORMLocation.MultipleObjectsReturned:
-                parent_location = ORMLocation.objects.filter(name__iexact=self.parent, location_type=self.adapter.job.location_type.parent).first()
-                query_kwargs['parent'] = parent_location
+                parent_location = ORMLocation.objects.filter(
+                    name__iexact=self.parent, location_type=self.adapter.job.location_type.parent
+                ).first()
+                query_kwargs["parent"] = parent_location
             except ORMLocation.DoesNotExist:
-                self.adapter.job.logger.error(f"Parent location {self.parent} not found for updating location {self.name}")
+                self.adapter.job.logger.error(
+                    f"Parent location {self.parent} not found for updating location {self.name}"
+                )
                 return super().update(attrs)
         else:
             # Root location (no parent)
-            query_kwargs['parent__isnull'] = True
-        
+            query_kwargs["parent__isnull"] = True
+
         try:
             location = ORMLocation.objects.get(**query_kwargs)
         except ORMLocation.MultipleObjectsReturned:
             # If multiple locations with same criteria, use the first one
             location = ORMLocation.objects.filter(**query_kwargs).first()
         except ORMLocation.DoesNotExist:
-            self.adapter.job.logger.error(f"Location {self.name} with type {self.adapter.job.location_type} not found for update")
+            self.adapter.job.logger.error(
+                f"Location {self.name} with type {self.adapter.job.location_type} not found for update"
+            )
             return super().update(attrs)
         if "latitude" in attrs:
             location.latitude = attrs["latitude"]
@@ -266,15 +278,12 @@ class NautobotDevice(Device):
         # Get location data from the device attributes
         location_name = attrs["location"]
         parent_location_name = attrs.get("parent_location")
-        
-        location_data = {
-            "name": location_name,
-            "parent": parent_location_name
-        }
+
+        location_data = {"name": location_name, "parent": parent_location_name}
         _location = ensure_location(location_data=location_data, location_type=adapter.job.location_type)
         if adapter.job.debug:
             adapter.job.logger.debug(f'Device Location {attrs["location"]}')
-        
+
         # Handle tenant - convert string to Tenant object if needed
         _tenant = None
         if attrs.get("tenant"):
@@ -285,7 +294,7 @@ class NautobotDevice(Device):
                     adapter.job.logger.warning(f"Tenant {attrs['tenant']} not found, skipping tenant assignment")
         elif adapter.tenant:
             _tenant = adapter.tenant
-            
+
         try:
             new_device = ORMDevice(
                 name=ids["name"],
@@ -311,11 +320,11 @@ class NautobotDevice(Device):
             "system_of_record": os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
             "last_synced_from_sor": datetime.today().date().isoformat(),
         }
-        
+
         # Add SNMP location as custom field if available
         if attrs.get("snmp_location"):
             custom_fields["snmp_location"] = attrs["snmp_location"]
-        
+
         new_device.custom_field_data.update(custom_fields)
         new_device.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -334,12 +343,9 @@ class NautobotDevice(Device):
             # Get location data from the device attributes
             location_name = attrs["location"]
             parent_location_name = attrs.get("parent_location")
-            
+
             # Ensure the location exists with proper parent
-            location_data = {
-                "name": location_name,
-                "parent": parent_location_name
-            }
+            location_data = {"name": location_name, "parent": parent_location_name}
             _location = ensure_location(location_data=location_data, location_type=self.adapter.job.location_type)
             device.location = _location
         if "serial_no" in attrs:
@@ -350,7 +356,7 @@ class NautobotDevice(Device):
             if manufacturer_name is None:
                 raise ValueError(f"Manufacturer mapping not found for OS: {attrs['platform']}")
             _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
-            _platform = ensure_platform(platform_name=get(attrs["platform"]), manufacturer=_manufacturer.name)
+            _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=_manufacturer.name)
         if "os_version" in attrs:
             _software_version = ensure_software_version(
                 platform=_platform,
@@ -362,11 +368,11 @@ class NautobotDevice(Device):
         custom_fields = {"last_synced_from_sor": datetime.today().date().isoformat()}
         if not check_sor_field(device):
             custom_fields["system_of_record"] = os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS")
-        
+
         # Add SNMP location as custom field if available
         if attrs.get("snmp_location"):
             custom_fields["snmp_location"] = attrs["snmp_location"]
-        
+
         device.custom_field_data.update(custom_fields)
         device.validated_save()
         return super().update(attrs)
