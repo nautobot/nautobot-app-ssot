@@ -11,6 +11,7 @@ from nautobot_ssot.integrations.librenms.constants import (
     PLUGIN_CFG,
     librenms_status_map,
     os_manufacturer_map,
+    LIBRENMS_LIB_MAPPER,
 )
 from nautobot_ssot.integrations.librenms.diffsync.models.librenms import (
     LibrenmsDevice,
@@ -90,13 +91,13 @@ class LibrenmsAdapter(Adapter):
             self.job.logger.debug(f"Loading LibreNMS Device {device[hostname_field]}")
 
         if device["os"] != "ping":
-            if device["type"] in PLUGIN_CFG.get("librenms_permitted_values", {}).get("role") and (device["os"] in PLUGIN_CFG.get("librenms_permitted_values", {}).get("platform", [device["os"]])):
+            if device["type"] in PLUGIN_CFG.get("librenms_permitted_values", {}).get("role"):
                 normalized_name = normalize_device_hostname(device[hostname_field], self.job)
                 location_data = parse_hostname_for_location(self.job.location_map, normalized_name, device["location"])
                 role = parse_hostname_for_role(self.job.hostname_map, normalized_name, self.job.default_role.name if self.job.default_role else "Unknown")
+                normalized_platform = LIBRENMS_LIB_MAPPER.get(device["os"], device["os"])
                 ip_address = device.get("ip", None)
-                platform = device["os"]
-                self.job.logger.debug(f"Platform for {normalized_name}: {platform}")
+                self.job.logger.debug(f"Platform for {normalized_name}: {normalized_platform}")
                 device_type = device["hardware"]
                 if self.job.debug:
                     self.job.logger.debug(f"Role for {normalized_name}: {role}")
@@ -107,7 +108,7 @@ class LibrenmsAdapter(Adapter):
                     self.job.hostname_field: normalized_name,
                     "location": location_data["name"],
                     "role": role,
-                    "platform": platform,
+                    "platform": device["os"],
                     "device_type": device_type,
                 }
                 if self.job.debug:
@@ -168,7 +169,7 @@ class LibrenmsAdapter(Adapter):
                             status=_status,
                             manufacturer=manufacturer,
                             device_type=device["hardware"],
-                            platform=platform,
+                            platform=normalized_platform,
                             os_version=device["version"] if device["version"] is not None else "Unknown",
                             tenant=self.job.tenant.name if self.job.tenant else None,
                             system_of_record=os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
