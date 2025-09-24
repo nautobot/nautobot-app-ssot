@@ -15,7 +15,7 @@ from nautobot.dcim.models import SoftwareVersion as ORMSoftwareVersion
 from nautobot.extras.models import Role, Status
 from nautobot.tenancy.models import Tenant as ORMTenant
 
-from nautobot_ssot.integrations.librenms.constants import os_manufacturer_map
+from nautobot_ssot.integrations.librenms.constants import os_manufacturer_map, LIBRENMS_LIB_MAPPER_REVERSE
 from nautobot_ssot.integrations.librenms.diffsync.models.base import Device, Location, Port
 from nautobot_ssot.integrations.librenms.utils import check_sor_field
 from nautobot_ssot.integrations.librenms.utils.nautobot import (
@@ -268,9 +268,9 @@ class NautobotDevice(Device):
         """Create Device in Nautobot from NautobotDevice object."""
         if adapter.job.debug:
             adapter.job.logger.debug(f'Creating Nautobot Device {ids["name"]}')
-        manufacturer_name = os_manufacturer_map.get(attrs["platform"])
+        manufacturer_name = os_manufacturer_map.get(LIBRENMS_LIB_MAPPER_REVERSE[attrs["platform"]])
         if manufacturer_name is None:
-            raise ValueError(f"Manufacturer mapping not found for platform: {attrs['platform']}")
+            raise ValueError(f"Manufacturer mapping not found for platform: {LIBRENMS_LIB_MAPPER_REVERSE[attrs['platform']]}")
         _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
         _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=_manufacturer.name)
         adapter.job.logger.debug(f"Platform: {_platform}")
@@ -352,9 +352,9 @@ class NautobotDevice(Device):
             device.serial = attrs["serial_no"]
         if "platform" in attrs:
             # Get the original OS name for manufacturer lookup
-            manufacturer_name = os_manufacturer_map.get(attrs["platform"])
+            manufacturer_name = os_manufacturer_map.get(LIBRENMS_LIB_MAPPER_REVERSE[attrs["platform"]])
             if manufacturer_name is None:
-                raise ValueError(f"Manufacturer mapping not found for OS: {attrs['platform']}")
+                raise ValueError(f"Manufacturer mapping not found for OS: {LIBRENMS_LIB_MAPPER_REVERSE[attrs['platform']]}")
             _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
             _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=_manufacturer.name)
         if "os_version" in attrs:
