@@ -2,6 +2,7 @@
 
 # pylint: disable=duplicate-code
 
+import ipaddress
 import json
 import logging
 import os
@@ -241,11 +242,30 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
         device_groups = self.api_call(path=url)
         return device_groups
 
-    def get_librenms_ip_for_device(self, hostname: str):
+    def get_librenms_ips_for_device(self, librenms_device_id: int):
         """Get IP by Device details from LibreNMS API endpoint."""
-        url = f"/api/v0/devices/{hostname}/ip"
+        url = f"/api/v0/devices/{librenms_device_id}/ip"
         ips = self.api_call(path=url)
         return ips
+
+    def get_librenms_ipinfo_for_device_ip(self, librenms_device_id: int, ip_address: str):
+        """Get IP info for a device IP address from LibreNMS API endpoint."""
+        device_ips = self.get_librenms_ips_for_device(librenms_device_id)
+        if device_ips['status'] == 'ok' and device_ips['count'] > 0:
+            ipaddress_ip_interface = ipaddress.ip_address(ip_address)
+            if isinstance(ipaddress_ip_interface, ipaddress.IPv4Address):
+                for ip in device_ips["addresses"]:
+                    if ip["ipv4_address"] == ip_address:
+                        ip_network_info = ipaddress.ip_interface(f"{ip_address}/24")
+                        ip_address_info = ipaddress.ip_interface(f"{ip_address}/{ip['ipv4_prefixlen']}")
+                        return {"network": f"{ip_network_info.network.with_prefixlen}", "address": f"{ip_address_info.with_prefixlen}"}
+            elif isinstance(ipaddress_ip_interface, ipaddress.IPv6Address):
+                for ip in device_ips["addresses"]:
+                    if ip["ipv6_address"] == ip_address:
+                        ip_network_info = ipaddress.ip_interface(f"{ip_address}/64")
+                        ip_address_info = ipaddress.ip_interface(f"{ip_address}/{ip['ipv6_prefixlen']}")
+                        return {"network": f"{ip_network_info.network.with_prefixlen}", "address": f"{ip_address_info.with_prefixlen}"}
+        return None
 
     def get_librenms_vrf(self):
         """Get VRF details from LibreNMS API endpoint."""

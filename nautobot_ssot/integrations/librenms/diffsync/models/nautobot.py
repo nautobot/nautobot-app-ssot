@@ -13,6 +13,7 @@ from nautobot.dcim.models import Platform as ORMPlatform
 from nautobot.dcim.models import SoftwareImageFile as ORMSoftwareImageFile
 from nautobot.dcim.models import SoftwareVersion as ORMSoftwareVersion
 from nautobot.extras.models import Role, Status
+from nautobot.ipam.models import IPAddress, IPAddressToInterface, Interface, Namespace, Prefix
 from nautobot.tenancy.models import Tenant as ORMTenant
 
 from nautobot_ssot.integrations.librenms.constants import os_manufacturer_map, LIBRENMS_LIB_MAPPER_REVERSE
@@ -21,6 +22,32 @@ from nautobot_ssot.integrations.librenms.utils import check_sor_field
 from nautobot_ssot.integrations.librenms.utils.nautobot import (
     verify_platform,
 )
+
+def ensure_ip_address(ip_address: str, ip_prefix: str, adapter: object):
+    """Safely returns an IPAddress."""
+    _namespace = Namespace.objects.get_or_create(name=adapter.job.tenant.name)[0]
+    _namespace.validated_save()
+    _prefix = Prefix.objects.get_or_create(prefix=ip_prefix, namespace=_namespace, status=Status.objects.get(name="Active"))[0]
+    _prefix.validated_save()
+    _ipaddress = IPAddress.objects.get_or_create(address=ip_address, parent=_prefix, namespace=_namespace, status=Status.objects.get(name="Active"))[0]
+    _ipaddress.validated_save()
+
+    return _ipaddress
+
+
+def ensure_interface(interface_name: str, device: ORMDevice):
+    """Safely returns an Interface."""
+    _interface, created = ORMInterface.objects.get_or_create(
+        name=interface_name, 
+        device=device,
+        defaults={
+            'status': Status.objects.get(name="Active"),
+            'type': "virtual"
+        }
+    )
+    if created:
+        _interface.validated_save()
+    return _interface
 
 
 def ensure_role(role_name: str, content_type):
@@ -278,7 +305,13 @@ class NautobotDevice(Device):
         # Get location data from the device attributes
         location_name = attrs["location"]
         parent_location_name = attrs.get("parent_location")
-
+        # Get IP address and prefix length from the device attributes
+        ip_address = attrs.get("ip_address")
+        ip_prefix = attrs.get("ip_prefix")
+        _ipaddress = None  # Initialize to None
+        if ip_address and ip_prefix:
+            _ipaddress = ensure_ip_address(ip_address=ip_address, ip_prefix=ip_prefix, adapter=adapter)
+        
         location_data = {"name": location_name, "parent": parent_location_name}
         _location = ensure_location(location_data=location_data, location_type=adapter.job.location_type)
         if adapter.job.debug:
@@ -327,7 +360,23 @@ class NautobotDevice(Device):
 
         new_device.custom_field_data.update(custom_fields)
         new_device.validated_save()
-        return super().create(adapter=adapter, ids=ids, attrs=attrs)
+        
+        # Set primary IP and interface after device is created and saved
+        if _ipaddress:
+            _interface = ensure_interface(interface_name="Management", device=new_device)
+            # Create the IP address to interface relationship
+            IPAddressToInterface.objects.get_or_create(
+                ip_address=_ipaddress,
+                interface=_interface,
+                defaults={'vm_interface': None}
+            )
+            new_device.primary_ip4 = _ipaddress
+            new_device.validated_save()
+        
+        # Remove tenant from attrs since we've already handled it
+        attrs_copy = attrs.copy()
+        attrs_copy.pop("tenant", None)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs_copy)
 
     def update(self, attrs):
         """Update Device in Nautobot from NautobotDevice object."""
@@ -365,6 +414,18 @@ class NautobotDevice(Device):
                 device_type=device.device_type,
             )
             _software_version.devices.add(device)
+        
+        ip_address = attrs.get("ip_address")
+        ip_prefix = attrs.get("ip_prefix")
+        if ip_address and ip_prefix:
+            _ipaddress = ensure_ip_address(ip_address=ip_address, ip_prefix=ip_prefix, adapter=self.adapter)
+            _interface = ensure_interface(interface_name="Management", device=device)
+            IPAddressToInterface.objects.get_or_create(
+                ip_address=_ipaddress,
+                interface=_interface,
+                defaults={'vm_interface': None}
+            )
+            device.primary_ip4 = _ipaddress
         custom_fields = {"last_synced_from_sor": datetime.today().date().isoformat()}
         if not check_sor_field(device):
             custom_fields["system_of_record"] = os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS")

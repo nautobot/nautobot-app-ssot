@@ -101,6 +101,13 @@ class LibrenmsAdapter(Adapter):
                 )
                 normalized_platform = LIBRENMS_LIB_MAPPER.get(device["os"], device["os"])
                 ip_address = device.get("ip", None)
+                ip_info = None  # Initialize ip_info to None
+                if ip_address:
+                    try:
+                        ip_info = self.lnms_api.get_librenms_ipinfo_for_device_ip(device["device_id"], ip_address)
+                    except Exception as e:
+                        self.job.logger.warning(f"Error getting IP info for {ip_address}: {e}")
+                        ip_info = None
                 self.job.logger.debug(f"Platform for {normalized_name}: {normalized_platform}")
                 device_type = device["hardware"]
                 if self.job.debug:
@@ -170,6 +177,8 @@ class LibrenmsAdapter(Adapter):
                             platform=normalized_platform,
                             os_version=device["version"] if device["version"] is not None else "Unknown",
                             tenant=self.job.tenant.name if self.job.tenant else None,
+                            ip_address=ip_info["address"] if ip_info else None,
+                            ip_prefix=ip_info["network"] if ip_info else None,
                             system_of_record=os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
                         )
                     except ValidationError as err:
@@ -212,6 +221,7 @@ class LibrenmsAdapter(Adapter):
                 self.job.logger.debug(f"First device content: {all_devices['devices'][0]}")
 
         for _device in all_devices["devices"]:
+
             self.load_device(device=_device)
 
         if PLUGIN_CFG.get("librenms_show_failures"):

@@ -48,6 +48,7 @@ class Device(DiffSyncModel):
         "status",
         "device_type",
         "ip_address",
+        "ip_prefix",
         "role",
         "manufacturer",
         "platform",
@@ -67,6 +68,7 @@ class Device(DiffSyncModel):
     status: str
     device_type: str
     ip_address: Optional[str] = None
+    ip_prefix: Optional[str] = None
     role: Optional[str] = None
     manufacturer: str
     platform: Optional[str] = None
