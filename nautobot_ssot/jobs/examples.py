@@ -19,7 +19,7 @@ from django.templatetags.static import static
 from django.urls import reverse
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer, Platform
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
-from nautobot.extras.jobs import ObjectVar, StringVar
+from nautobot.extras.jobs import BooleanVar, ObjectVar, StringVar
 from nautobot.extras.models import ExternalIntegration, Role, Status
 from nautobot.extras.secrets.exceptions import SecretError
 from nautobot.ipam.models import IPAddress, Namespace, Prefix
@@ -545,7 +545,8 @@ class NautobotRemote(Adapter):
                 pk=lt_entry["id"],
             )
             self.add(location_type)
-            self.job.logger.debug(f"Loaded {location_type} LocationType from remote Nautobot instance")
+            if self.job.debug:
+                self.job.logger.debug(f"Loaded {location_type} LocationType from remote Nautobot instance")
 
     def load_locations(self):
         """Load Locations data from the remote Nautobot instance."""
@@ -628,7 +629,8 @@ class NautobotRemote(Adapter):
                 pk=prefix_entry["id"],
             )
             self.add(prefix)
-            self.job.logger.debug(f"Loaded {prefix} from remote Nautobot instance")
+            if self.job.debug:
+                self.job.logger.debug(f"Loaded {prefix} from remote Nautobot instance")
 
     def load_ipaddresses(self):
         """Load IPAddresses data from the remote Nautobot instance."""
@@ -646,7 +648,8 @@ class NautobotRemote(Adapter):
                 pk=ipaddr_entry["id"],
             )
             self.add(ipaddr)
-            self.job.logger.debug(f"Loaded {ipaddr} from remote Nautobot instance")
+            if self.job.debug:
+                self.job.logger.debug(f"Loaded {ipaddr} from remote Nautobot instance")
 
     def load_manufacturers(self):
         """Load Manufacturers data from the remote Nautobot instance."""
@@ -657,7 +660,8 @@ class NautobotRemote(Adapter):
                 pk=manufacturer["id"],
             )
             self.add(manufacturer)
-            self.job.logger.debug(f"Loaded {manufacturer} from remote Nautobot instance")
+            if self.job.debug:
+                self.job.logger.debug(f"Loaded {manufacturer} from remote Nautobot instance")
 
     def load_device_types(self):
         """Load DeviceTypes data from the remote Nautobot instance."""
@@ -674,10 +678,11 @@ class NautobotRemote(Adapter):
                     pk=device_type["id"],
                 )
                 self.add(devicetype)
-                self.job.logger.debug(f"Loaded {devicetype} from remote Nautobot instance")
+                if self.job.debug:
+                    self.job.logger.debug(f"Loaded {devicetype} from remote Nautobot instance")
                 manufacturer.add_child(devicetype)
             except ObjectNotFound:
-                self.job.logger.debug(f"Unable to find Manufacturer {device_type['manufacturer']['name']}")
+                self.job.logger.warning(f"Unable to find Manufacturer {device_type['manufacturer']['name']}")
 
     def load_platforms(self):
         """Load Platforms data from the remote Nautobot instance."""
@@ -691,7 +696,8 @@ class NautobotRemote(Adapter):
                 pk=platform["id"],
             )
             self.add(platform)
-            self.job.logger.debug(f"Loaded {platform} from remote Nautobot instance")
+            if self.job.debug:
+                self.job.logger.debug(f"Loaded {platform} from remote Nautobot instance")
 
     def load_devices(self):
         """Load Devices data from the remote Nautobot instance."""
@@ -718,7 +724,8 @@ class NautobotRemote(Adapter):
                 pk=device["id"],
             )
             self.add(device)
-            self.job.logger.debug(f"Loaded {device} from remote Nautobot instance")
+            if self.job.debug:
+                self.job.logger.debug(f"Loaded {device} from remote Nautobot instance")
 
     def load_interfaces(self):
         """Load Interfaces data from the remote Nautobot instance."""
@@ -746,9 +753,10 @@ class NautobotRemote(Adapter):
                     pk=interface["id"],
                 )
                 self.add(new_interface)
-                self.job.logger.debug(
-                    f"Loaded {new_interface} for {interface['device']['name']} from remote Nautobot instance"
-                )
+                if self.job.debug:
+                    self.job.logger.debug(
+                        f"Loaded {new_interface} for {interface['device']['name']} from remote Nautobot instance"
+                    )
                 device.add_child(new_interface)
 
     def get_content_types(self, entry):
@@ -841,6 +849,7 @@ class ExampleDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
         description="Remote Nautobot instance to load Sites and Regions from", default="https://demo.nautobot.com"
     )
     source_token = StringVar(description="REST API authentication token for remote Nautobot instance", default="a" * 40)
+    debug = BooleanVar(description="Enable debug logging", default=False)
 
     def __init__(self):
         """Initialize ExampleDataSource."""
@@ -883,6 +892,7 @@ class ExampleDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
         """Run sync."""
         self.dryrun = kwargs.get("dryrun", True)
         self.memory_profiling = kwargs.get("memory_profiling", False)
+        self.debug = kwargs.get("debug", False)
         self.source = kwargs.get("source")
         self.source_url = kwargs.get("source_url")
         self.source_token = kwargs.get("source_token")
