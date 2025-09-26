@@ -20,6 +20,7 @@ from django.urls import reverse
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer, Platform
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.jobs import BooleanVar, ObjectVar, StringVar
+from nautobot.extras.jobs import BooleanVar, ObjectVar, StringVar
 from nautobot.extras.models import ExternalIntegration, Role, Status
 from nautobot.extras.secrets.exceptions import SecretError
 from nautobot.ipam.models import IPAddress, Namespace, Prefix
@@ -549,6 +550,8 @@ class NautobotRemote(Adapter):
             self.add(location_type)
             if self.job.debug:
                 self.job.logger.debug(f"Loaded {location_type} LocationType from remote Nautobot instance")
+            if self.job.debug:
+                self.job.logger.debug(f"Loaded {location_type} LocationType from remote Nautobot instance")
 
     def load_locations(self):
         """Load Locations data from the remote Nautobot instance."""
@@ -624,30 +627,23 @@ class NautobotRemote(Adapter):
     def load_prefixes(self):
         """Load Prefixes data from the remote Nautobot instance."""
         for prefix_entry in self._get_api_data("api/ipam/prefixes/?depth=2"):
-            try:
-                namespace = self.get(self.namespace, prefix_entry["namespace"]["name"])
-                prefix = self.prefix(
-                    network=prefix_entry["network"],
-                    prefix_length=prefix_entry["prefix_length"],
-                    namespace__name=prefix_entry["namespace"]["name"],
-                    description=prefix_entry["description"],
-                    locations=[
-                        {"name": x["name"], "location_type__name": x["location_type"]["name"]}
-                        for x in prefix_entry["locations"]
-                    ],
-                    status__name=prefix_entry["status"]["name"] if prefix_entry["status"].get("name") else "Active",
-                    tenant__name=prefix_entry["tenant"]["name"] if prefix_entry["tenant"] else None,
-                    tags=prefix_entry["tags"] if prefix_entry.get("tags") else [],
-                    pk=prefix_entry["id"],
-                )
-                self.add(prefix)
-                namespace.add_child(prefix)
-                if self.job.debug:
-                    self.job.logger.debug(f"Loaded {prefix} from remote Nautobot instance")
-            except ObjectNotFound:
-                self.job.logger.warning(
-                    f"Unable to find Namespace {prefix_entry['namespace']['name']} for {prefix_entry['network']}/{prefix_entry['prefix_length']}."
-                )
+            prefix = self.prefix(
+                network=prefix_entry["network"],
+                prefix_length=prefix_entry["prefix_length"],
+                namespace__name=prefix_entry["namespace"]["name"],
+                description=prefix_entry["description"],
+                locations=[
+                    {"name": x["name"], "location_type__name": x["location_type"]["name"]}
+                    for x in prefix_entry["locations"]
+                ],
+                status__name=prefix_entry["status"]["name"] if prefix_entry["status"].get("name") else "Active",
+                tenant__name=prefix_entry["tenant"]["name"] if prefix_entry["tenant"] else None,
+                tags=prefix_entry["tags"] if prefix_entry.get("tags") else [],
+                pk=prefix_entry["id"],
+            )
+            self.add(prefix)
+            if self.job.debug:
+                self.job.logger.debug(f"Loaded {prefix} from remote Nautobot instance")
 
     def load_ipaddresses(self):
         """Load IPAddresses data from the remote Nautobot instance."""
@@ -667,6 +663,8 @@ class NautobotRemote(Adapter):
             self.add(ipaddr)
             if self.job.debug:
                 self.job.logger.debug(f"Loaded {ipaddr} from remote Nautobot instance")
+            if self.job.debug:
+                self.job.logger.debug(f"Loaded {ipaddr} from remote Nautobot instance")
 
     def load_manufacturers(self):
         """Load Manufacturers data from the remote Nautobot instance."""
@@ -677,6 +675,8 @@ class NautobotRemote(Adapter):
                 pk=manufacturer["id"],
             )
             self.add(manufacturer)
+            if self.job.debug:
+                self.job.logger.debug(f"Loaded {manufacturer} from remote Nautobot instance")
             if self.job.debug:
                 self.job.logger.debug(f"Loaded {manufacturer} from remote Nautobot instance")
 
@@ -697,8 +697,11 @@ class NautobotRemote(Adapter):
                 self.add(devicetype)
                 if self.job.debug:
                     self.job.logger.debug(f"Loaded {devicetype} from remote Nautobot instance")
+                if self.job.debug:
+                    self.job.logger.debug(f"Loaded {devicetype} from remote Nautobot instance")
                 manufacturer.add_child(devicetype)
             except ObjectNotFound:
+                self.job.logger.warning(f"Unable to find Manufacturer {device_type['manufacturer']['name']}")
                 self.job.logger.warning(f"Unable to find Manufacturer {device_type['manufacturer']['name']}")
 
     def load_platforms(self):
@@ -713,6 +716,8 @@ class NautobotRemote(Adapter):
                 pk=platform["id"],
             )
             self.add(platform)
+            if self.job.debug:
+                self.job.logger.debug(f"Loaded {platform} from remote Nautobot instance")
             if self.job.debug:
                 self.job.logger.debug(f"Loaded {platform} from remote Nautobot instance")
 
@@ -869,6 +874,7 @@ class ExampleDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
         description="Remote Nautobot instance to load Sites and Regions from", default="https://demo.nautobot.com"
     )
     source_token = StringVar(description="REST API authentication token for remote Nautobot instance", default="a" * 40)
+    debug = BooleanVar(description="Enable debug logging", default=False)
     debug = BooleanVar(description="Enable debug logging", default=False)
 
     def __init__(self):
