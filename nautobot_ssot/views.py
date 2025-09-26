@@ -26,6 +26,7 @@ from nautobot.apps.ui import (
 from nautobot.apps.views import (
     ContentTypePermissionRequiredMixin,
     EnhancedPaginator,
+    NautobotUIViewSet,
     ObjectBulkDestroyViewMixin,
     ObjectDestroyViewMixin,
     ObjectDetailViewMixin,
@@ -39,6 +40,7 @@ from nautobot.extras.models import Job as JobModel
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from nautobot_ssot import filters, forms, tables
 from nautobot_ssot.api import serializers
 from nautobot_ssot.integrations import utils
 from nautobot_ssot.templatetags.render_diff import render_diff
@@ -47,7 +49,7 @@ from .filters import SyncFilterSet, SyncLogEntryFilterSet
 from .forms import SyncBulkEditForm, SyncFilterForm, SyncForm, SyncLogEntryFilterForm
 from .jobs import get_data_jobs
 from .jobs.base import DataSource, DataTarget
-from .models import Sync, SyncLogEntry
+from .models import Sync, SyncLogEntry, SyncRecord
 from .tables import DashboardTable, SyncLogEntryTable, SyncTable, SyncTableSingleSourceOrTarget
 
 
@@ -390,3 +392,16 @@ class SSOTConfigView(ContentTypePermissionRequiredMixin, DjangoView):
         """Return table with links to configuration pages for enabled integrations."""
         enabled_integrations = list(utils.each_enabled_integration())
         return render(request, "nautobot_ssot/ssot_configs.html", {"enabled_integrations": enabled_integrations})
+
+
+class SyncRecordUIViewSet(NautobotUIViewSet):
+    """ViewSet for SyncRecord views."""
+
+    bulk_update_form_class = forms.SyncRecordBulkEditForm
+    filterset_class = filters.SyncRecordFilterSet
+    filterset_form_class = forms.SyncRecordFilterForm
+    form_class = forms.SyncRecordForm
+    lookup_field = "pk"
+    queryset = SyncRecord.objects.all()
+    serializer_class = serializers.SyncRecordSerializer
+    table_class = tables.SyncRecordTable

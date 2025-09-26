@@ -1,6 +1,6 @@
 """App additions to the Nautobot navigation menu."""
 
-from nautobot.apps.ui import NavMenuGroup, NavMenuItem, NavMenuTab
+from nautobot.apps.ui import NavMenuAddButton, NavMenuGroup, NavMenuItem, NavMenuTab
 
 from .integrations.utils import each_enabled_integration_module
 
@@ -19,6 +19,17 @@ items = [
         link="plugins:nautobot_ssot:synclogentry_list",
         name="Logs",
         permissions=["nautobot_ssot.view_synclogentry"],
+    ),
+    NavMenuItem(
+        link="plugins:nautobot_ssot:syncrecord_list",
+        name="Sync Records",
+        permissions=["nautobot_ssot.view_syncrecord"],
+        buttons=(
+            NavMenuAddButton(
+                link="plugins:nautobot_ssot:syncrecord_add",
+                permissions=["nautobot_ssot.add_syncrecord"],
+            ),
+        ),
     ),
 ]
 
