@@ -12,6 +12,7 @@ app_name = "nautobot_ssot"
 router = NautobotUIViewSetRouter()
 router.register("history", views.SyncUIViewSet)
 router.register("logs", views.SyncLogEntryUIViewSet)
+router.register("sync-records", views.SyncRecordUIViewSet)
 
 urlpatterns = [
     path("", views.DashboardView.as_view(), name="dashboard"),

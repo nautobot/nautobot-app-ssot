@@ -1,14 +1,13 @@
 """Filtering logic for Sync and SyncLogEntry records."""
 
-from django_filters import ModelMultipleChoiceFilter
-from nautobot.apps.filters import BaseFilterSet, NautobotFilterSet, SearchFilter
+from nautobot.apps.filters import NameSearchFilterSet, NautobotFilterSet, SearchFilter
 
 from nautobot_ssot import models
 from nautobot_ssot.integrations.infoblox.filters import SSOTInfobloxConfigFilterSet
 from nautobot_ssot.integrations.itential.filters import AutomationGatewayModelFilterSet
 
 
-class SyncFilterSet(BaseFilterSet):  # pylint: disable=too-many-ancestors
+class SyncFilterSet(NautobotFilterSet):  # pylint: disable=too-many-ancestors
     """Filter for Sync."""
 
     q = SearchFilter(
@@ -28,6 +27,7 @@ class SyncFilterSet(BaseFilterSet):  # pylint: disable=too-many-ancestors
         fields = ["dry_run", "job_result"]  # pylint: disable=nb-use-fields-all
 
 
+class SyncLogEntryFilterSet(NautobotFilterSet):  # pylint: disable=too-many-ancestors
 class SyncLogEntryFilterSet(NautobotFilterSet):  # pylint: disable=too-many-ancestors
     """Filter capabilities for SyncLogEntry instances."""
 
@@ -51,9 +51,35 @@ class SyncLogEntryFilterSet(NautobotFilterSet):  # pylint: disable=too-many-ance
         fields = ["sync", "action", "status", "synced_object_type"]  # pylint: disable=nb-use-fields-all
 
 
+class SyncRecordFilterSet(NameSearchFilterSet, NautobotFilterSet):  # pylint: disable=too-many-ancestors
+    """Filter for SyncRecord."""
+
+    q = SearchFilter(
+        filter_predicates={
+            "sync": "icontains",
+            "source": "icontains",
+            "target": "icontains",
+            "obj_type": "icontains",
+            "obj_name": "icontains",
+            "action": "icontains",
+            "status": "icontains",
+            "synced_object_type": "icontains",
+        }
+    )
+
+    class Meta:
+        """Meta attributes for filter."""
+
+        model = models.SyncRecord
+
+        # add any fields from the model that you would like to filter your searches by using those
+        fields = ["source", "target", "obj_type", "obj_name", "action", "status", "synced_object_type"]
+
+
 __all__ = (
     "AutomationGatewayModelFilterSet",
     "SSOTInfobloxConfigFilterSet",
     "SyncFilterSet",
     "SyncLogEntryFilterSet",
+    "SyncRecordFilterSet",
 )

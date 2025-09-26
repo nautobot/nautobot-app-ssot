@@ -28,7 +28,8 @@ from django.urls import reverse
 from django.utils.formats import date_format
 from django.utils.html import format_html
 from django.utils.timezone import now
-from nautobot.core.models import BaseModel
+from nautobot.apps.constants import CHARFIELD_MAX_LENGTH
+from nautobot.apps.models import BaseModel, PrimaryModel
 from nautobot.extras.choices import JobResultStatusChoices
 from nautobot.extras.models import JobResult
 from nautobot.extras.utils import extras_features
@@ -272,6 +273,60 @@ class SyncLogEntry(BaseModel):  # pylint: disable=nb-string-field-blank-null
             SyncLogEntryStatusChoices.STATUS_FAILURE: "warning",
             SyncLogEntryStatusChoices.STATUS_ERROR: "danger",
         }.get(self.status)
+
+
+@extras_features("export_templates", "graphql")
+class SyncRecord(PrimaryModel):
+    """Record of a single object that was synced during a data sync operation.
+
+    This model is primarily intended to support idempotency of sync operations,
+    by recording which objects have already been synced from a given source to a given target.
+    """
+
+    sync = models.ForeignKey(to=Sync, on_delete=models.CASCADE, related_name="records", related_query_name="record")
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    source = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="System data is read from")
+    target = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="System data is written to")
+    kwargs = models.JSONField(blank=True, null=True, help_text="Keyword arguments that were used to initialize the target adapter")
+    flags = models.BinaryField(blank=True, help_text="Flags that were used to initialize the target adapter")
+    obj_type = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="Type of the object that was diffed")
+    obj_name = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="Name of the object that was diffed")
+    obj_keys = models.JSONField(blank=True, null=True, help_text="Keys of the object that was diffed")
+    source_attrs = models.JSONField(blank=True, null=True, help_text="Source attributes of the object that was diffed")
+    target_attrs = models.JSONField(blank=True, null=True, help_text="Target attributes of the object that was diffed")
+
+    action = models.CharField(max_length=32, choices=SyncLogEntryActionChoices)
+    status = models.CharField(max_length=32, choices=SyncLogEntryStatusChoices)
+
+    synced_object_type = models.ForeignKey(
+        to=ContentType,
+        blank=True,
+        null=True,
+        on_delete=models.PROTECT,
+    )
+    synced_object_id = models.UUIDField(blank=True, null=True)
+    synced_object = GenericForeignKey(ct_field="synced_object_type", fk_field="synced_object_id")
+    children = models.ForeignKey(
+        to="self",
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True,
+        related_name="parent_records",
+        related_query_name="parent_record",
+    )
+
+    class Meta:
+        """Metaclass attributes of SyncRecord."""
+
+        unique_together = ("source", "target", "synced_object_type", "synced_object_id")
+        ordering = ["-timestamp"]
+
+    def __str__(self):
+        """String representation of a SyncRecord instance."""
+        return f"{self.source} → {self.target}: {self.synced_object}"
+
+
 
 
 class SSOTConfig(models.Model):  # pylint: disable=nb-incorrect-base-class
