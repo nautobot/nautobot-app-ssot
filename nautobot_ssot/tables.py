@@ -1,10 +1,10 @@
 """Data tables for Single Source of Truth (SSOT) views."""
 
 from django_tables2 import Column, DateTimeColumn, JSONColumn, LinkColumn, TemplateColumn
-from nautobot.apps.tables import BaseTable, ToggleColumn
+from nautobot.apps.tables import BaseTable, ButtonsColumn, ToggleColumn
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
-from .models import Sync, SyncLogEntry
+from .models import Sync, SyncLogEntry, SyncRecord
 
 ACTION_LOGS_LINK = """
 <a class="{{ link_class }}"
@@ -197,4 +197,32 @@ class SyncLogEntryTable(BaseTable):
             "message",
         )
         default_columns = ("pk", "timestamp", "sync", "action", "synced_object", "status", "diff", "message")
+        order_by = ("-timestamp",)
+
+
+class SyncRecordTable(BaseTable):
+    # pylint: disable=R0903
+    """Table for list view."""
+
+    timestamp = ToggleColumn()
+    source = Column(linkify=True)
+    target = Column(linkify=True)
+    obj_name = Column(linkify=True)
+    synced_object = Column(linkify=True)
+    actions = ButtonsColumn(
+        SyncRecord,
+        # Option for modifying the default action buttons on each row:
+        buttons=("changelog", "edit", "delete"),
+        # Option for modifying the pk for the action buttons:
+        pk_field="pk",
+    )
+
+    class Meta(BaseTable.Meta):
+        """Meta attributes."""
+
+        model = SyncRecord
+        fields = ["__all__"]
+
+        # Option for modifying the columns that show up in the list view by default:
+        default_columns = ("timestamp", "source", "target", "synced_object", "obj_name")
         order_by = ("-timestamp",)
