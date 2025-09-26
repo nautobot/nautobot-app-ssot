@@ -3,9 +3,10 @@
 from django import forms
 from nautobot.apps.forms import (
     BootstrapMixin,
-    DynamicModelMultipleChoiceField,
     NautobotBulkEditForm,
     NautobotFilterForm,
+    NautobotModelForm,
+    TagsBulkEditFormMixin,
     NautobotModelForm,
     TagsBulkEditFormMixin,
     add_blank_choice,
@@ -13,6 +14,7 @@ from nautobot.apps.forms import (
 from nautobot.core.forms import BOOLEAN_WITH_BLANK_CHOICES
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
+from .models import Sync, SyncLogEntry, SyncRecord
 from .models import Sync, SyncLogEntry, SyncRecord
 
 
@@ -80,9 +82,39 @@ class SyncRecordFilterForm(NautobotFilterForm):
     field_order = ["q", "name"]
 
     q = forms.CharField(
+class SyncRecordForm(NautobotModelForm):  # pylint: disable=too-many-ancestors
+    """SyncRecord creation/edit form."""
+
+    class Meta:
+        """Meta attributes."""
+
+        model = SyncRecord
+        fields = "__all__"
+
+
+class SyncRecordBulkEditForm(TagsBulkEditFormMixin, NautobotBulkEditForm):  # pylint: disable=too-many-ancestors
+    """SyncRecord bulk edit form."""
+
+    pk = forms.ModelMultipleChoiceField(queryset=SyncRecord.objects.all(), widget=forms.MultipleHiddenInput)
+    description = forms.CharField(required=False)
+
+    class Meta:
+        """Meta attributes."""
+
+        nullable_fields = [
+            "description",
+        ]
+
+
+class SyncRecordFilterForm(NautobotFilterForm):
+    """Filter form to filter searches."""
+
+    model = SyncRecord
+    field_order = ["q", "name"]
+
+    q = forms.CharField(
         required=False,
         label="Search",
-        help_text="Search within objects.",
+        help_text="Search within Name.",
     )
-    source_adapter = forms.CharField(required=False, label="Source Adapter")
-    target_adapter = forms.CharField(required=False, label="Target Adapter")
+    name = forms.CharField(required=False, label="Name")

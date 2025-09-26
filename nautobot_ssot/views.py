@@ -27,6 +27,7 @@ from nautobot.apps.ui import (
 from nautobot.apps.views import (
     ContentTypePermissionRequiredMixin,
     EnhancedPaginator,
+    NautobotUIViewSet,
     ObjectBulkDestroyViewMixin,
     ObjectDestroyViewMixin,
     ObjectDetailViewMixin,
@@ -42,6 +43,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from nautobot_ssot import filters, forms, tables
+from nautobot_ssot import filters, forms, tables
 from nautobot_ssot.api import serializers
 from nautobot_ssot.integrations import utils
 from nautobot_ssot.templatetags.render_diff import render_diff
@@ -50,6 +52,7 @@ from .filters import SyncFilterSet, SyncLogEntryFilterSet
 from .forms import SyncFilterForm, SyncForm, SyncLogEntryFilterForm
 from .jobs import get_data_jobs
 from .jobs.base import DataSource, DataTarget
+from .models import Sync, SyncLogEntry, SyncRecord
 from .models import Sync, SyncLogEntry, SyncRecord
 from .tables import DashboardTable, SyncLogEntryTable, SyncTable, SyncTableSingleSourceOrTarget
 
@@ -408,7 +411,7 @@ class SSOTConfigView(ContentTypePermissionRequiredMixin, DjangoView):
         return render(request, "nautobot_ssot/ssot_configs.html", {"enabled_integrations": enabled_integrations})
 
 
-class SyncRecordUIViewSet(ReadOnlyNautobotUIViewSet):
+class SyncRecordUIViewSet(NautobotUIViewSet):
     """ViewSet for SyncRecord views."""
 
     bulk_update_form_class = forms.SyncRecordBulkEditForm
@@ -419,88 +422,3 @@ class SyncRecordUIViewSet(ReadOnlyNautobotUIViewSet):
     queryset = SyncRecord.objects.all()
     serializer_class = serializers.SyncRecordSerializer
     table_class = tables.SyncRecordTable
-    action_buttons: tuple = ()
-
-    def get_extra_context(self, request, instance):  # pylint: disable=signature-differs
-        """Provide additional context for the list template."""
-        context = super().get_extra_context(request, instance)
-        if self.action == "list":
-            try:
-                successful_status = Status.objects.get(name="Successful")
-            except Status.DoesNotExist:
-                successful_status = None
-                context["successful_status"] = None
-                context["showing_completed"] = False
-            else:
-                context["successful_status"] = successful_status
-                # Check if we're currently showing completed records
-                status_ids = request.GET.getlist("status")
-                successful_status_id_str = str(successful_status.id)
-                context["showing_completed"] = successful_status_id_str in status_ids
-        return context
-
-    def alter_queryset(self, request):
-        """Build actual runtime queryset to automatically remove `Successful` by default."""
-        try:
-            successful_status = Status.objects.get(name="Successful")
-        except Status.DoesNotExist:
-            # If Successful status doesn't exist, return queryset as-is
-            return self.queryset
-
-        # Get status IDs from URL parameters (they come as strings)
-        status_ids = request.GET.getlist("status")
-        successful_status_id_str = str(successful_status.id)
-
-        # If the button was clicked and successful_status ID is in the params, show ONLY successful records
-        if successful_status_id_str in status_ids:
-            return self.queryset.filter(status=successful_status)
-
-        # By default, exclude successful records
-        return self.queryset.exclude(status=successful_status)
-
-    # Here is an example of using the UI  Component Framework for the detail view.
-    # More information can be found in the Nautobot documentation:
-    # https://docs.nautobot.com/projects/core/en/stable/development/core/ui-component-framework/
-    object_detail_content = ObjectDetailContent(
-        extra_buttons=[],
-        panels=[
-            ObjectFieldsPanel(
-                weight=100,
-                section=SectionChoices.LEFT_HALF,
-                fields="__all__",
-                # Alternatively, you can specify a list of field names:
-                # fields=[
-                #     "name",
-                #     "description",
-                # ],
-                # Some fields may require additional configuration, we can use value_transforms
-                # value_transforms={
-                #     "name": [helpers.bettertitle]
-                # },
-            ),
-            # If there is a ForeignKey or M2M with this model we can use ObjectsTablePanel
-            # to display them in a table format.
-            ObjectsTablePanel(
-                weight=200,
-                section=SectionChoices.RIGHT_HALF,
-                table_class=tables.SyncRecordTable,
-                table_filter="parent",
-            ),
-        ],
-    )
-
-
-def process_bulk_syncrecords(request):
-    """Endpoint for processing mulitple SyncRecords."""
-    pks = request.POST.getlist("pk")
-    if not pks:
-        messages.error(request, "No items selected for bulk action")
-        url = reverse("plugins:nautobot_ssot:syncrecord_list")
-        return redirect(url)
-    job = JobModel.objects.get(name="Process Sync Records")
-    _job_result = JobResult.enqueue_job(job, request.user, records=pks)
-    messages.success(
-        request, f"Bulk Processing initiated - Check the Job Results for more info {_job_result.get_absolute_url()}"
-    )
-    url = reverse("plugins:nautobot_ssot:syncrecord_list")
-    return redirect(url)

@@ -2,9 +2,9 @@
 
 from django_tables2 import Column, DateTimeColumn, JSONColumn, LinkColumn, TemplateColumn
 from nautobot.apps.tables import BaseTable, ButtonsColumn, ToggleColumn
-from nautobot.extras.tables import StatusTableMixin
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
+from .models import Sync, SyncLogEntry, SyncRecord
 from .models import Sync, SyncLogEntry, SyncRecord
 
 ACTION_LOGS_LINK = """
@@ -201,20 +201,19 @@ class SyncLogEntryTable(BaseTable):
         order_by = ("-timestamp",)
 
 
-class SyncRecordTable(StatusTableMixin, BaseTable):
+class SyncRecordTable(BaseTable):
     # pylint: disable=R0903
     """Table for list view."""
 
-    pk = ToggleColumn()
+    timestamp = ToggleColumn()
+    source = Column(linkify=True)
+    target = Column(linkify=True)
     obj_name = Column(linkify=True)
-    obj_type = Column()
-    source_adapter = Column()
-    target_adapter = Column()
-    action = Column()
+    synced_object = Column(linkify=True)
     actions = ButtonsColumn(
         SyncRecord,
         # Option for modifying the default action buttons on each row:
-        buttons=("delete"),
+        buttons=("changelog", "edit", "delete"),
         # Option for modifying the pk for the action buttons:
         pk_field="pk",
     )
@@ -223,20 +222,8 @@ class SyncRecordTable(StatusTableMixin, BaseTable):
         """Meta attributes."""
 
         model = SyncRecord
-        fields = [
-            "pk",
-            "obj_name",
-            "obj_type",
-            "source_adapter",
-            "target_adapter",
-            "status",
-            "action",
-            "actions",
-            "message",
-            "sync",
-            "timestamp",
-        ]
+        fields = ["__all__"]
 
         # Option for modifying the columns that show up in the list view by default:
-        default_columns = ("pk", "source_adapter", "target_adapter", "obj_type", "obj_name", "status", "actions")
-        order_by = ("timestamp",)
+        default_columns = ("timestamp", "source", "target", "synced_object", "obj_name")
+        order_by = ("-timestamp",)

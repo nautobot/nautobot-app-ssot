@@ -30,9 +30,8 @@ from django.urls import reverse
 from django.utils.formats import date_format
 from django.utils.html import format_html
 from django.utils.timezone import now
-from django_enum import EnumField
 from nautobot.apps.constants import CHARFIELD_MAX_LENGTH
-from nautobot.apps.models import BaseModel
+from nautobot.apps.models import BaseModel, PrimaryModel
 from nautobot.extras.choices import JobResultStatusChoices
 from nautobot.extras.models import JobResult, StatusField
 from nautobot.extras.utils import extras_features
@@ -284,8 +283,8 @@ class SyncLogEntry(BaseModel):  # pylint: disable=nb-string-field-blank-null
         }.get(self.status)
 
 
-@extras_features("export_templates", "graphql", "statuses")
-class SyncRecord(BaseModel):
+@extras_features("export_templates", "graphql")
+class SyncRecord(PrimaryModel):
     """Record of a single object that was synced during a data sync operation.
 
     This model is primarily intended to support idempotency of sync operations,
@@ -295,53 +294,18 @@ class SyncRecord(BaseModel):
     sync = models.ForeignKey(to=Sync, on_delete=models.CASCADE, related_name="records", related_query_name="record")
     timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
-    module = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="Python module that Adapters reside in.")
-    source_adapter = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="System data is read from")
-    target_adapter = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="System data is written to")
-    source_kwargs = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Keyword arguments that were used to initialize the source adapter",
-        verbose_name="Source Adapter Keyword Arguments",
-    )
-    target_kwargs = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Keyword arguments that were used to initialize the target adapter",
-        verbose_name="Target Adapter Keyword Arguments",
-    )
-    diffsync_flags = EnumField(
-        DiffSyncFlags,
-        blank=True,
-        null=True,
-        help_text="Flags that were used to initialize the target adapter",
-        verbose_name="DiffSync Flags",
-        default=None,
-    )
-    obj_type = models.CharField(
-        max_length=CHARFIELD_MAX_LENGTH, help_text="Type of the object that was diffed", verbose_name="Object Type"
-    )
-    obj_name = models.CharField(
-        max_length=CHARFIELD_MAX_LENGTH, help_text="Name of the object that was diffed", verbose_name="Object Name"
-    )
-    obj_keys = models.JSONField(
-        blank=True, null=True, help_text="Keys of the object that was diffed", verbose_name="Object Keys"
-    )
-    source_attrs = models.JSONField(
-        blank=True,
-        null=True,
-        help_text="Source attributes of the object that was diffed",
-        verbose_name="Source Attributes",
-    )
-    target_attrs = models.JSONField(
-        blank=True,
-        null=True,
-        help_text="Target attributes of the object that was diffed",
-        verbose_name="Target Attributes",
-    )
+    source = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="System data is read from")
+    target = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="System data is written to")
+    kwargs = models.JSONField(blank=True, null=True, help_text="Keyword arguments that were used to initialize the target adapter")
+    flags = models.BinaryField(blank=True, help_text="Flags that were used to initialize the target adapter")
+    obj_type = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="Type of the object that was diffed")
+    obj_name = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="Name of the object that was diffed")
+    obj_keys = models.JSONField(blank=True, null=True, help_text="Keys of the object that was diffed")
+    source_attrs = models.JSONField(blank=True, null=True, help_text="Source attributes of the object that was diffed")
+    target_attrs = models.JSONField(blank=True, null=True, help_text="Target attributes of the object that was diffed")
 
-    action = models.CharField(max_length=32, choices=SyncRecordActionChoices)
-    status = StatusField(blank=False, null=False, verbose_name="Import Status")
+    action = models.CharField(max_length=32, choices=SyncLogEntryActionChoices)
+    status = models.CharField(max_length=32, choices=SyncLogEntryStatusChoices)
 
     synced_object_type = models.ForeignKey(
         to=ContentType,
@@ -351,61 +315,26 @@ class SyncRecord(BaseModel):
     )
     synced_object_id = models.UUIDField(blank=True, null=True)
     synced_object = GenericForeignKey(ct_field="synced_object_type", fk_field="synced_object_id")
-    parent = models.ForeignKey(
+    children = models.ForeignKey(
         to="self",
         on_delete=models.CASCADE,
         blank=True,
         null=True,
-        related_name="children",
-        related_query_name="children",
+        related_name="parent_records",
+        related_query_name="parent_record",
     )
-    message = models.TextField(blank=True, null=True, max_length=1024)
 
     class Meta:
         """Metaclass attributes of SyncRecord."""
 
-        unique_together = ("sync", "obj_name", "obj_type")
-        ordering = ["timestamp"]
+        unique_together = ("source", "target", "synced_object_type", "synced_object_id")
+        ordering = ["-timestamp"]
 
     def __str__(self):
         """String representation of a SyncRecord instance."""
-        return f"{self.source_adapter} → {self.target_adapter}: {self.obj_type} {self.obj_name}"
+        return f"{self.source} → {self.target}: {self.synced_object}"
 
-    def get_ancestors(self, record=None):
-        """Recursive function to return all ancestors of a SyncRecord.
 
-        Args:
-            record (SyncRecord, optional): Child SyncRecord to traverse from. If not set, then this record (self) will be used.
-        """
-        if not record:
-            record = self
-
-        ancestors = []
-        for parent_record in record.parent.all():
-            logger.debug("Processing SyncRecord %s...", parent_record)
-            ancestors.append(parent_record)
-            if parent_record.parent.exists():
-                ancestors.extend(parent_record.get_ancestors())
-
-        return ancestors
-
-    def get_descendants(self, record=None):
-        """
-        Recursively return a list of the children of all child records.
-
-        Args:
-            record (SyncRecord): Parent SyncRecord to traverse from. If not set, this record (self) is used.
-        """
-        if record is None:
-            record = self
-
-        descendants = []
-        for child_record in record.children.all():
-            logger.debug("Processing SynCrecord %s...", child_record)
-            descendants.append(child_record)
-            if child_record.children.exists():
-                descendants.extend(child_record.get_descendants())
-        return descendants
 
 
 class SSOTConfig(models.Model):  # pylint: disable=nb-incorrect-base-class

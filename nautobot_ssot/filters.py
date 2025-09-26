@@ -1,6 +1,5 @@
 """Filtering logic for Sync and SyncLogEntry records."""
 
-from django_filters import ModelMultipleChoiceFilter
 from nautobot.apps.filters import NameSearchFilterSet, NautobotFilterSet, SearchFilter
 
 from nautobot_ssot import models
@@ -8,6 +7,7 @@ from nautobot_ssot.integrations.infoblox.filters import SSOTInfobloxConfigFilter
 from nautobot_ssot.integrations.itential.filters import AutomationGatewayModelFilterSet
 
 
+class SyncFilterSet(NautobotFilterSet):  # pylint: disable=too-many-ancestors
 class SyncFilterSet(NautobotFilterSet):  # pylint: disable=too-many-ancestors
     """Filter for Sync."""
 
@@ -28,6 +28,7 @@ class SyncFilterSet(NautobotFilterSet):  # pylint: disable=too-many-ancestors
         fields = ["dry_run", "job_result"]  # pylint: disable=nb-use-fields-all
 
 
+class SyncLogEntryFilterSet(NautobotFilterSet):  # pylint: disable=too-many-ancestors
 class SyncLogEntryFilterSet(NautobotFilterSet):  # pylint: disable=too-many-ancestors
     """Filter capabilities for SyncLogEntry instances."""
 
@@ -56,12 +57,14 @@ class SyncRecordFilterSet(NameSearchFilterSet, NautobotFilterSet):  # pylint: di
 
     q = SearchFilter(
         filter_predicates={
-            "source_adapter": "icontains",
-            "target_adapter": "icontains",
+            "sync": "icontains",
+            "source": "icontains",
+            "target": "icontains",
             "obj_type": "icontains",
             "obj_name": "icontains",
             "action": "icontains",
-            "message": "icontains",
+            "status": "icontains",
+            "synced_object_type": "icontains",
         }
     )
 
@@ -71,7 +74,7 @@ class SyncRecordFilterSet(NameSearchFilterSet, NautobotFilterSet):  # pylint: di
         model = models.SyncRecord
 
         # add any fields from the model that you would like to filter your searches by using those
-        fields = ["sync", "source_adapter", "target_adapter", "obj_type", "obj_name", "action", "status", "message"]
+        fields = ["source", "target", "obj_type", "obj_name", "action", "status", "synced_object_type"]
 
 
 __all__ = (
@@ -79,5 +82,6 @@ __all__ = (
     "SSOTInfobloxConfigFilterSet",
     "SyncFilterSet",
     "SyncLogEntryFilterSet",
+    "SyncRecordFilterSet",
     "SyncRecordFilterSet",
 )
