@@ -69,7 +69,7 @@ class TestAdapter(NautobotAdapter):
 ##############
 
 
-@skip("Skipped pending further development.")
+@skip("Sorting disabled.")
 class TestCaseIsSortableFieldFunction(TestCase):
     """Tests for `_is_sortable_field` function."""
 
@@ -87,7 +87,7 @@ class TestCaseIsSortableFieldFunction(TestCase):
         self.assertFalse(test)
 
 
-@skip("Skipped pending further development.")
+@skip("Sorting disabled.")
 class TestCaseGetSortedAttributesFromModel(TestCase):
     """Tests for `get_sortable_fields_from_model` function."""
 
@@ -100,7 +100,7 @@ class TestCaseGetSortedAttributesFromModel(TestCase):
         self.assertTrue(len(result) == 0)
 
 
-@skip("Skipped pending further development.")
+@skip("Sorting disabled.")
 class TestCaseSortRelationships(TestCase):
     """Tests for `sort_relationships` function."""
 
@@ -147,7 +147,7 @@ class TestCaseSortRelationships(TestCase):
         self.assertTrue(self.target.get_all("tenant")[0].tags[0]["name"] == "A Tag")
 
 
-@skip("Skipped pending further development.")
+@skip("Sorting disabled.")
 class TestGetSortKeyFromTypedDict(TestCase):
     """Unit tests for `get_sort_key_from_typed_dict` function."""
 
