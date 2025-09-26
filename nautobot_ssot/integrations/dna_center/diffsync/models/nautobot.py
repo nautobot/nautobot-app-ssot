@@ -29,7 +29,8 @@ if core_supports_softwareversion():
 try:
     from nautobot.extras.models.metadata import ObjectMetadata  # noqa: F401
 
-    from nautobot_ssot.integrations.dna_center.utils.nautobot import add_or_update_metadata_on_object
+    from nautobot_ssot.integrations.dna_center.constants import SCOPED_FIELDS_MAPPING
+    from nautobot_ssot.integrations.metadata_utils import add_or_update_metadata_on_object
 
     METADATA_FOUND = True
 except (ImportError, RuntimeError):
@@ -63,7 +64,7 @@ class NautobotArea(base.Area):
             return None
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_area, scoped_fields=["name", "location_type", "status"]
+                adapter=adapter, obj=new_area, scoped_fields=SCOPED_FIELDS_MAPPING["area"]
             )
             metadata.validated_save()
         if ids["parent"] not in adapter.region_map:
@@ -78,11 +79,7 @@ class NautobotArea(base.Area):
             metadata = add_or_update_metadata_on_object(
                 adapter=self.adapter,
                 obj=region,
-                scoped_fields=[
-                    "name",
-                    "location_type",
-                    "status",
-                ],
+                scoped_fields=SCOPED_FIELDS_MAPPING["area"],
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -129,15 +126,7 @@ class NautobotBuilding(base.Building):
             metadata = add_or_update_metadata_on_object(
                 adapter=adapter,
                 obj=new_building,
-                scoped_fields=[
-                    "name",
-                    "location_type",
-                    "parent",
-                    "physical_address",
-                    "status",
-                    "latitude",
-                    "longitude",
-                ],
+                scoped_fields=SCOPED_FIELDS_MAPPING["building"],
             )
             metadata.validated_save()
         if ids["area"] not in adapter.site_map:
@@ -171,17 +160,7 @@ class NautobotBuilding(base.Building):
         site.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter,
-                obj=site,
-                scoped_fields=[
-                    "name",
-                    "location_type",
-                    "parent",
-                    "physical_address",
-                    "status",
-                    "latitude",
-                    "longitude",
-                ],
+                adapter=self.adapter, obj=site, scoped_fields=SCOPED_FIELDS_MAPPING["building"]
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -219,14 +198,7 @@ class NautobotFloor(base.Floor):
         new_floor.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter,
-                obj=new_floor,
-                scoped_fields=[
-                    "name",
-                    "location_type",
-                    "parent",
-                    "status",
-                ],
+                adapter=adapter, obj=new_floor, scoped_fields=SCOPED_FIELDS_MAPPING["floor"]
             )
             metadata.validated_save()
         if ids["area"] not in adapter.floor_map:
@@ -249,14 +221,7 @@ class NautobotFloor(base.Floor):
         floor.validated_save()
         if METADATA_FOUND:
             metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter,
-                obj=floor,
-                scoped_fields=[
-                    "name",
-                    "location_type",
-                    "parent",
-                    "status",
-                ],
+                adapter=self.adapter, obj=floor, scoped_fields=SCOPED_FIELDS_MAPPING["floor"]
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -326,17 +291,7 @@ class NautobotDevice(base.Device):
             metadata = add_or_update_metadata_on_object(
                 adapter=adapter,
                 obj=new_device,
-                scoped_fields=[
-                    "name",
-                    "status",
-                    "role",
-                    "location",
-                    "device_type",
-                    "serial",
-                    "plaform",
-                    "controller_managed_device_group",
-                    "tenant",
-                ],
+                scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             adapter.objects_to_create["metadata"].append(metadata)
         new_device.cf["system_of_record"] = "DNA Center"
@@ -413,17 +368,7 @@ class NautobotDevice(base.Device):
             metadata = add_or_update_metadata_on_object(
                 adapter=self.adapter,
                 obj=device,
-                scoped_fields=[
-                    "name",
-                    "status",
-                    "role",
-                    "location",
-                    "device_type",
-                    "serial",
-                    "plaform",
-                    "controller_managed_device_group",
-                    "tenant",
-                ],
+                scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -462,18 +407,7 @@ class NautobotPort(base.Port):
             metadata = add_or_update_metadata_on_object(
                 adapter=adapter,
                 obj=new_port,
-                scoped_fields=[
-                    "name",
-                    "device",
-                    "description",
-                    "enabled",
-                    "type",
-                    "mode",
-                    "mac_address",
-                    "mtu",
-                    "status",
-                    "mgmt_only",
-                ],
+                scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             adapter.objects_to_create["metadata"].append(metadata)
         new_port.cf["system_of_record"] = "DNA Center"
@@ -510,18 +444,7 @@ class NautobotPort(base.Port):
             metadata = add_or_update_metadata_on_object(
                 adapter=self.adapter,
                 obj=port,
-                scoped_fields=[
-                    "name",
-                    "device",
-                    "description",
-                    "enabled",
-                    "type",
-                    "mode",
-                    "mac_address",
-                    "mtu",
-                    "status",
-                    "mgmt_only",
-                ],
+                scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             metadata.validated_save()
         return super().update(attrs)
@@ -562,12 +485,7 @@ class NautobotPrefix(base.Prefix):
             metadata = add_or_update_metadata_on_object(
                 adapter=adapter,
                 obj=new_prefix,
-                scoped_fields=[
-                    "prefix",
-                    "namespace",
-                    "status",
-                    "tenant",
-                ],
+                scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             adapter.objects_to_create["metadata"].append(metadata)
         new_prefix.cf["system_of_record"] = "DNA Center"
@@ -589,12 +507,7 @@ class NautobotPrefix(base.Prefix):
             metadata = add_or_update_metadata_on_object(
                 adapter=self.adapter,
                 obj=prefix,
-                scoped_fields=[
-                    "prefix",
-                    "namespace",
-                    "status",
-                    "tenant",
-                ],
+                scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             metadata.validated_save()
         prefix.cf["system_of_record"] = "DNA Center"
@@ -632,12 +545,7 @@ class NautobotIPAddress(base.IPAddress):
             metadata = add_or_update_metadata_on_object(
                 adapter=adapter,
                 obj=new_ip,
-                scoped_fields=[
-                    "address",
-                    "namespace",
-                    "status",
-                    "tenant",
-                ],
+                scoped_fields=SCOPED_FIELDS_MAPPING,
             )
             adapter.objects_to_create["metadata"].append(metadata)
         adapter.ipaddr_map[ids["host"]] = new_ip.id
@@ -659,12 +567,7 @@ class NautobotIPAddress(base.IPAddress):
                 metadata = add_or_update_metadata_on_object(
                     adapter=self.adapter,
                     obj=ipaddr,
-                    scoped_fields=[
-                        "address",
-                        "namespace",
-                        "status",
-                        "tenant",
-                    ],
+                    scoped_fields=SCOPED_FIELDS_MAPPING,
                 )
                 metadata.validated_save()
         except ValidationError as err:

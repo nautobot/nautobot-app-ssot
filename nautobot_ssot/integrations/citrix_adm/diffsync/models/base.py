@@ -105,11 +105,12 @@ class Address(DiffSyncModel):
     """DiffSync model for Citrix ADM IP Addresses."""
 
     _modelname = "address"
-    _identifiers = ("address", "prefix")
-    _attributes = ("tenant", "tags")
+    _identifiers = ("host_address", "tenant")
+    _attributes = ("mask_length", "prefix", "tags")
     _children = {}
 
-    address: str
+    host_address: str
+    mask_length: int
     prefix: str
     tenant: Optional[str] = None
     tags: Optional[list] = None
@@ -121,11 +122,11 @@ class IPAddressOnInterface(DiffSyncModel):
     """DiffSync model for Citrix ADM tracking IPAddress on particular Device interfaces."""
 
     _modelname = "ip_on_intf"
-    _identifiers = ("address", "device", "port")
+    _identifiers = ("host_address", "device", "port")
     _attributes = ("primary",)
     _children = {}
 
-    address: str
+    host_address: str
     device: str
     port: str
     primary: bool

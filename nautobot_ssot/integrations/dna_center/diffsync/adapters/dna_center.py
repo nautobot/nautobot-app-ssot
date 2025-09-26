@@ -522,9 +522,16 @@ class DnaCenterAdapter(Adapter):
             platform = DNA_CENTER_LIB_MAPPER[dev["softwareType"]]
         else:
             if not dev.get("softwareType") and dev.get("type"):
-                for series in ["2700", "2800", "3800", "9120", "9124", "9130", "9136", "9166"]:
+                for series in ["2700", "2800", "3800", "9120", "9124", "9130", "9136", "9166", "9115"]:
                     if series in dev["type"]:
                         platform = "cisco_ios"
+                        break
+
+                for series in ["8540", "1850", "1562"]:
+                    if series in dev["type"]:
+                        platform = "cisco_aireos"
+                        break
+
             if (
                 (dev.get("family") and "Meraki" in dev["family"])
                 or (dev.get("platformId") and dev["platformId"].startswith(("MX", "MS", "MR", "Z")))

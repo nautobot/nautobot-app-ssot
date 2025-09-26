@@ -45,13 +45,13 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
         if not parsed_url.hostname or not parsed_url.port:
             raise ValueError("Invalid URL provided for CloudVision")
         token = config.token
+        if config.verify_ssl:
+            channel_creds = grpc.ssl_channel_credentials()
+        else:
+            channel_creds = grpc.ssl_channel_credentials(
+                bytes(ssl.get_server_certificate((parsed_url.hostname, parsed_url.port)), "utf-8")
+            )
         if config.is_on_premise:
-            if config.verify_ssl:
-                channel_creds = grpc.ssl_channel_credentials()
-            else:
-                channel_creds = grpc.ssl_channel_credentials(
-                    bytes(ssl.get_server_certificate((parsed_url.hostname, parsed_url.port)), "utf-8")
-                )
             if token:
                 call_creds = grpc.access_token_call_credentials(token)
             elif config.cvp_user != "" and config.cvp_password != "":
@@ -75,7 +75,6 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
             self.metadata = ((self.AUTH_KEY_PATH, token),)
         else:
             call_creds = grpc.access_token_call_credentials(token)
-            channel_creds = grpc.ssl_channel_credentials()
         conn_creds = grpc.composite_channel_credentials(channel_creds, call_creds)
         self.comm_channel = grpc.secure_channel(f"{parsed_url.hostname}:{parsed_url.port}", conn_creds)
         self.__client = rtr_client.RouterV1Stub(self.comm_channel)
@@ -282,7 +281,8 @@ def get_tags_by_type(client, logger, creator_type: int = tag_models.CREATOR_TYPE
                 "label": resp.value.key.label.value,
                 "value": resp.value.key.value.value,
             }
-            tags.append(dev_tag)
+            if dev_tag not in tags:
+                tags.append(dev_tag)
     except grpc.RpcError as err:
         logger.error(f"Error when pulling Tags: {err}")
     return tags
@@ -310,7 +310,8 @@ def get_device_tags(client, device_id: str):
             "label": resp.value.key.label.value,
             "value": resp.value.key.value.value,
         }
-        tags.append(dev_tag)
+        if dev_tag not in tags:
+            tags.append(dev_tag)
     return tags
 
 

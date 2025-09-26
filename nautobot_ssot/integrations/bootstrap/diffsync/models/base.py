@@ -898,7 +898,6 @@ class CustomField(DiffSyncModel):
     weight: int
     filter_logic: str
     advanced_ui: bool
-    validation_regex: str
     required: bool = False
     content_types: List[str] = []
     custom_field_choices: Optional[list] = []
@@ -906,6 +905,40 @@ class CustomField(DiffSyncModel):
     validation_maximum: Optional[int] = None
     validation_regex: Optional[str] = None
     default: Optional[Union[str, bool, dict]] = None
+
+    uuid: Optional[UUID] = None
+
+
+class ExternalIntegration(DiffSyncModel):
+    """DiffSync model for External Integrations."""
+
+    _modelname = "external_integration"
+    _identifiers = ("name",)
+    _attributes = (
+        "remote_url",
+        "timeout",
+        "verify_ssl",
+        "secrets_group",
+        "headers",
+        "http_method",
+        "ca_file_path",
+        "extra_config",
+        "tags",
+        "system_of_record",
+    )
+    _children = {}
+
+    name: str
+    remote_url: str
+    timeout: int
+    verify_ssl: bool = True
+    secrets_group: Optional[str] = None
+    headers: Optional[dict] = None
+    http_method: Optional[str] = None
+    ca_file_path: Optional[str] = None
+    extra_config: Optional[dict] = None
+    tags: Optional[List[str]] = None
+    system_of_record: str
 
     uuid: Optional[UUID] = None
 

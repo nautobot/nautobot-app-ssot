@@ -1,3 +1,0 @@
-- Gracefully swallow ServiceNow exceptions
-- Adds ServiceNow duplicate file reports
-- Fixes ServiceNow comparison filters to only compare against company names with Manufacturer set to True
