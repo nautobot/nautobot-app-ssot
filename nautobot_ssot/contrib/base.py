@@ -1,5 +1,7 @@
 """Abstract base classes for primary contrib module classes.
 
+NOTE: Classes in this file should not have any implementation.
+
 These base classes are meant to define the expected interactions between the various classes
 within contrib to allow for additional customization and extension based on individual needs.
 
@@ -10,16 +12,14 @@ As such, we must identify the requirements and expectations each class has on th
 the attributes and methods in the parent classes. The intent is any SSoT integration using one contrib
 class, but not the other, can inherit from the associated class in their custom definition to ensure the
 contrib-provided class can properly interact without raising errors.
-
-TODO: Update inheritance and references in adapter and model classes when finalized
 """
 
 from abc import ABC, abstractmethod
 from typing import Any
 from uuid import UUID
 
-from diffsync import Adapter, DiffSyncModel
-from django.db.models import Model
+from diffsync import DiffSyncModel
+from django.db.models import Model, QuerySet
 from nautobot.extras.jobs import BaseJob
 from nautobot.extras.models.metadata import MetadataType
 from typing_extensions import ClassVar, Dict, List, Optional
@@ -27,7 +27,7 @@ from typing_extensions import ClassVar, Dict, List, Optional
 from nautobot_ssot.utils.cache import ORMCache
 
 
-class BaseNautobotAdapter(Adapter, ABC):
+class BaseNautobotAdapter(ABC):
     """Abstract Base Class for `NautobotAdapter`."""
 
     cache: ORMCache
@@ -35,48 +35,25 @@ class BaseNautobotAdapter(Adapter, ABC):
     metadata_type: MetadataType
     metadata_scope_fields: Dict[DiffSyncModel, List]
 
-    def __init__(self, *args, **kwargs):
-        """Initialize the class."""
-        # Required Attributes to be passed to adapter.
-        self.job = kwargs["job"]
 
-        # Attributes with defaults or set if included in kwargs
-        self.cache = kwargs.pop("cache", ORMCache())
-        self.metadata_type = kwargs.pop("metadata_type", None)
-        self.metadata_scope_fields = kwargs.pop("metadata_scope_fields", {})
-
-        super().__init__(*args, **kwargs)
-
-
-class BaseNautobotModel(DiffSyncModel, ABC):
+class BaseNautobotModel(ABC):
     """Abstract Base Class for `NautobotModel`."""
 
     _model: ClassVar[Model]
     _type_hints: ClassVar[Dict[str, Any]]
-    # TODO: Make `adapter` a required field when unittests can be updated.
-    #       This will allow the system to validate it was properly created for required functionality.
-    adapter: Optional[BaseNautobotAdapter] = None
+    adapter: Optional[BaseNautobotAdapter]
 
-    # For storing and tracking ORM object primary keys. Not synced.
-    pk: Optional[UUID] = None
-
-    # Abstract Methods
-    # ==============================================
+    # DB Object Attributes
+    pk: Optional[UUID] = None  # For storing and tracking ORM object primary keys. Not synced.
 
     @classmethod
     @abstractmethod
-    def get_queryset(cls):
-        """Return queryset for model."""
-
-    # Default Methods
-    # ==============================================
-
-    @classmethod
     def get_synced_attributes(cls) -> List[str]:
-        """Return a list of attribute names the model compares against in the DiffSync process."""
-        return list(cls._identifiers) + list(cls._attributes)
+        """Abstract method for returning a list of all attributes synced during the SSoT process."""
+        ...
 
     @classmethod
-    def get_model_meta_field(cls, attr_name: str):
-        """Get attribute metadata from ORM object."""
-        return cls._model._meta.get_field(attr_name)
+    @abstractmethod
+    def _get_queryset(cls) -> QuerySet:
+        """Abstract method for retreiving data from Nautobot about associated model."""
+        ...
