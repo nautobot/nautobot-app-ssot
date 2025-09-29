@@ -50,10 +50,8 @@ class BaseNautobotModel(ABC):
     @abstractmethod
     def get_synced_attributes(cls) -> List[str]:
         """Abstract method for returning a list of all attributes synced during the SSoT process."""
-        ...
 
     @classmethod
     @abstractmethod
     def _get_queryset(cls) -> QuerySet:
         """Abstract method for retreiving data from Nautobot about associated model."""
-        ...
