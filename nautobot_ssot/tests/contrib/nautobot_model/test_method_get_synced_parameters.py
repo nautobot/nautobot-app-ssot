@@ -1,6 +1,7 @@
 """Tests for contrib.NautobotModel."""
 
 from nautobot.core.testing import TestCase
+
 from nautobot_ssot.contrib import NautobotModel
 from nautobot_ssot.contrib.model import NautobotModel
 
@@ -21,7 +22,10 @@ class TestMethodGetSyncedParameters(TestCase):
 
     def test_multiple_identifiers(self):
         class LocalModel(NautobotModel):
-            _identifiers = ("name", "parent__name",)
+            _identifiers = (
+                "name",
+                "parent__name",
+            )
             _attributes = ()
 
             name: str

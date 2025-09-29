@@ -4,7 +4,7 @@
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
 import re
-from typing import Dict, Type
+from typing import Dict, List, Type
 
 import pydantic
 from diffsync import DiffSync, DiffSyncModel
@@ -14,9 +14,9 @@ from django.db.models import Model
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship
 from nautobot.extras.models.metadata import MetadataType
-from typing import List
 from typing_extensions import get_type_hints
 
+from nautobot_ssot.contrib.base import BaseNautobotAdapter, BaseNautobotModel
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
@@ -29,7 +29,6 @@ from nautobot_ssot.utils.orm import (
     orm_attribute_lookup,
 )
 from nautobot_ssot.utils.typing import get_inner_type
-from nautobot_ssot.contrib.base import BaseNautobotAdapter, BaseNautobotModel
 
 
 class NautobotAdapter(DiffSync, BaseNautobotAdapter):
