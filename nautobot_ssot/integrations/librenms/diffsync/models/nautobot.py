@@ -61,10 +61,10 @@ def ensure_role(role_name: str, content_type):
 def ensure_platform(platform_name: str, manufacturer: str):
     """Safely returns a Platform that support Devices."""
     _manufacturer, _ = ORMManufacturer.objects.get_or_create(name=manufacturer)
-
+    _network_driver = ANSIBLE_LIB_MAPPER.get(platform_name, platform_name)
     # Try to find platform by network_driver (using normalized name)
     try:
-        _platform = ORMPlatform.objects.get(network_driver=platform_name, manufacturer=_manufacturer)
+        _platform = ORMPlatform.objects.get(network_driver=_network_driver, manufacturer=_manufacturer)
         return _platform
     except ORMPlatform.DoesNotExist:
         # If not found, create it using verify_platform with normalized platform name

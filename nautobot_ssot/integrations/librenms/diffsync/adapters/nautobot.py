@@ -86,24 +86,33 @@ class NautobotAdapter(Adapter):
                 except AttributeError:
                     _software_version = None
                 try:
-                    _ip_address = nb_device.primary_ip.host
+                    _ip_address = str(nb_device.primary_ip4.address)
+                    _ip_prefix = str(nb_device.primary_ip4.parent.prefix)
                 except AttributeError:
                     _ip_address = None
                 _device_id = None
                 if nb_device.custom_field_data.get("librenms_device_id"):
                     _device_id = nb_device.custom_field_data.get("librenms_device_id")
+                if nb_device.custom_field_data.get("snmp_location"):
+                    _snmp_location = nb_device.custom_field_data.get("snmp_location")
+                else:
+                    _snmp_location = None
                 new_device = NautobotDevice(
                     name=nb_device.name,
+                    tenant=nb_device.tenant.name if nb_device.tenant else None,
                     device_id=_device_id,
                     location=nb_device.location.name,
+                    parent_location=nb_device.location.parent.name if nb_device.location.parent else None,
                     status=nb_device.status.name,
                     device_type=nb_device.device_type.model,
                     role=nb_device.role.name,
                     manufacturer=nb_device.device_type.manufacturer.name,
-                    platform=nb_device.platform.name,
+                    platform=nb_device.platform.network_driver,
                     os_version=_software_version,
                     serial_no=nb_device.serial,
                     ip_address=_ip_address,
+                    ip_prefix=_ip_prefix,
+                    snmp_location=_snmp_location,
                     system_of_record=get_sor_field_nautobot_object(nb_device),
                     uuid=nb_device.id,
                 )
