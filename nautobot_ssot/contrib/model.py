@@ -5,19 +5,19 @@
 
 from collections import defaultdict
 from datetime import datetime
-from typing import ClassVar, Optional
-from uuid import UUID
+from typing import List
 
 from diffsync import DiffSyncModel
 from diffsync.exceptions import ObjectCrudException, ObjectNotCreated, ObjectNotDeleted, ObjectNotUpdated
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import MultipleObjectsReturned, ValidationError
-from django.db.models import Model, ProtectedError
+from django.db.models import ProtectedError, QuerySet
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
 from nautobot.extras.models.metadata import ObjectMetadata
 from typing_extensions import get_type_hints
 
+from nautobot_ssot.contrib.base import BaseNautobotModel
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
@@ -25,7 +25,7 @@ from nautobot_ssot.contrib.types import (
 )
 
 
-class NautobotModel(DiffSyncModel):
+class NautobotModel(DiffSyncModel, BaseNautobotModel):
     """
     Base model for any diffsync models interfacing with Nautobot through the ORM.
 
@@ -36,17 +36,16 @@ class NautobotModel(DiffSyncModel):
     model class.
     """
 
-    _model: ClassVar[Model]
-
-    pk: Optional[UUID] = None
+    @classmethod
+    def get_synced_attributes(cls) -> List[str]:
+        """Return a list of parameters synced as part of the SSoT Process."""
+        return list(cls._identifiers) + list(cls._attributes)
 
     @classmethod
-    def _get_queryset(cls):
+    def _get_queryset(cls) -> QuerySet:
         """Get the queryset used to load the models data from Nautobot."""
         available_fields = {field.name for field in cls._model._meta.get_fields()}
-        parameter_names = [
-            parameter for parameter in list(cls._identifiers) + list(cls._attributes) if parameter in available_fields
-        ]
+        parameter_names = [parameter for parameter in cls.get_synced_attributes() if parameter in available_fields]
         # Here we identify any foreign keys (i.e. fields with '__' in them) so that we can load them directly in the
         # first query if this function hasn't been overridden.
         prefetch_related_parameters = [parameter.split("__")[0] for parameter in parameter_names if "__" in parameter]
@@ -54,7 +53,7 @@ class NautobotModel(DiffSyncModel):
         return qs.prefetch_related(*prefetch_related_parameters)
 
     @classmethod
-    def get_queryset(cls):
+    def get_queryset(cls) -> QuerySet:
         """Get the queryset used to load the models data from Nautobot."""
         return cls._model.objects.all()
 
