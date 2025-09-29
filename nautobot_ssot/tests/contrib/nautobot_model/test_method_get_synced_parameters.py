@@ -1,8 +1,6 @@
 """Tests for contrib.NautobotModel."""
 
 from nautobot.core.testing import TestCase
-
-from nautobot_ssot.contrib import NautobotModel
 from nautobot_ssot.contrib.model import NautobotModel
 
 
