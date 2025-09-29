@@ -20,7 +20,7 @@ from nautobot.extras.jobs import BooleanVar, DryRunVar, Job
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices
 from nautobot_ssot.contrib.adapter import NautobotAdapter
-from nautobot_ssot.models import BaseModel, Sync, SyncLogEntry
+from nautobot_ssot.models import BaseModel, Sync, SyncLogEntry, SyncRecord
 
 DataMapping = namedtuple("DataMapping", ["source_name", "source_url", "target_name", "target_url"])
 """Entry in the list returned by a job's data_mappings() API.
@@ -79,6 +79,23 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         """
         if self.source_adapter is not None and self.target_adapter is not None:
             self.diff = self.source_adapter.diff_to(self.target_adapter, flags=self.diffsync_flags)
+
+            for child in self.diff.get_children():
+                new_record = SyncRecord.objects.create(
+                    sync=self.sync,
+                    source=child.source_name,
+                    target=child.dest_name,
+                    kwargs=self.target_adapter._meta_kwargs,  # pylint: disable=protected-access
+                    flags=self.diffsync_flags,
+                    obj_type=child.type,
+                    obj_name=child.name,
+                    obj_keys=child.keys,
+                    source_attrs=child.source_attrs,
+                    target_attrs=child.dest_attrs,
+                    action=child.action,
+                    status="success",
+                )
+                new_record.validated_save()
             self.sync.diff = {}
             self.sync.summary = self.diff.summary()
             self.sync.save()
