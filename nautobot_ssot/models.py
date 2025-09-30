@@ -39,7 +39,12 @@ from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
 from nautobot_ssot.integrations.servicenow.models import SSOTServiceNowConfig
 from nautobot_ssot.templatetags.shorter_timedelta import shorter_timedelta
 
-from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
+from .choices import (
+    SyncLogEntryActionChoices,
+    SyncLogEntryStatusChoices,
+    SyncRecordActionChoices,
+    SyncRecordStatusChoices,
+)
 
 
 class DiffJSONEncoder(DjangoJSONEncoder):
@@ -296,8 +301,8 @@ class SyncRecord(PrimaryModel):
     source_attrs = models.JSONField(blank=True, null=True, help_text="Source attributes of the object that was diffed")
     target_attrs = models.JSONField(blank=True, null=True, help_text="Target attributes of the object that was diffed")
 
-    action = models.CharField(max_length=32, choices=SyncLogEntryActionChoices)
-    status = models.CharField(max_length=32, choices=SyncLogEntryStatusChoices)
+    action = models.CharField(max_length=32, choices=SyncRecordActionChoices)
+    status = models.CharField(max_length=32, choices=SyncRecordStatusChoices)
 
     synced_object_type = models.ForeignKey(
         to=ContentType,
