@@ -45,9 +45,8 @@ from .choices import (
     SyncLogEntryActionChoices,
     SyncLogEntryStatusChoices,
     SyncRecordActionChoices,
+    SyncRecordStatusChoices,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class DiffJSONEncoder(DjangoJSONEncoder):
@@ -304,8 +303,8 @@ class SyncRecord(PrimaryModel):
     source_attrs = models.JSONField(blank=True, null=True, help_text="Source attributes of the object that was diffed")
     target_attrs = models.JSONField(blank=True, null=True, help_text="Target attributes of the object that was diffed")
 
-    action = models.CharField(max_length=32, choices=SyncLogEntryActionChoices)
-    status = models.CharField(max_length=32, choices=SyncLogEntryStatusChoices)
+    action = models.CharField(max_length=32, choices=SyncRecordActionChoices)
+    status = models.CharField(max_length=32, choices=SyncRecordStatusChoices)
 
     synced_object_type = models.ForeignKey(
         to=ContentType,
