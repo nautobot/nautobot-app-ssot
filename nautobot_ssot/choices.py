@@ -31,3 +31,33 @@ class SyncLogEntryStatusChoices(ChoiceSet):
         (STATUS_FAILURE, "failed"),
         (STATUS_ERROR, "errored"),
     )
+
+
+class SyncRecordActionChoices(ChoiceSet):
+    """Valid values for a SyncRecord.action field."""
+
+    ACTION_CREATE = "create"
+    ACTION_UPDATE = "update"
+    ACTION_DELETE = "delete"
+
+    CHOICES = (
+        (ACTION_CREATE, "create"),
+        (ACTION_UPDATE, "update"),
+        (ACTION_DELETE, "delete"),
+    )
+
+
+class SyncRecordStatusChoices(ChoiceSet):
+    """Valid values for a SyncRecord.status field."""
+
+    STATUS_PENDING = "pending"
+    STATUS_SUCCESS = "success"
+    STATUS_FAILURE = "failure"
+    STATUS_ERROR = "error"
+
+    CHOICES = (
+        (STATUS_PENDING, "pending"),
+        (STATUS_SUCCESS, "succeeded"),
+        (STATUS_FAILURE, "failed"),
+        (STATUS_ERROR, "errored"),
+    )
