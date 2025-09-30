@@ -12,6 +12,8 @@ class TestMethodGetSyncedParameters(TestCase):
         """Test a single identifier."""
 
         class LocalModel(NautobotModel):
+            """Local test model class."""
+
             _identifiers = ("name",)
             _attributes = ()
 
@@ -25,6 +27,8 @@ class TestMethodGetSyncedParameters(TestCase):
         """Test multiple identifiers, including a related field."""
 
         class LocalModel(NautobotModel):
+            """Local test model class."""
+
             _identifiers = (
                 "name",
                 "parent__name",
@@ -43,6 +47,8 @@ class TestMethodGetSyncedParameters(TestCase):
         """Test only attributes."""
 
         class LocalModel(NautobotModel):
+            """Local test model class."""
+
             _identifiers = ()
             _attributes = ("description", "status")
 
@@ -58,6 +64,8 @@ class TestMethodGetSyncedParameters(TestCase):
         """Test both identifiers and attributes."""
 
         class LocalModel(NautobotModel):
+            """Local test model class."""
+
             _identifiers = ("name",)
             _attributes = ("description", "status")
 
@@ -75,6 +83,8 @@ class TestMethodGetSyncedParameters(TestCase):
         """Test empty identifiers and attributes."""
 
         class LocalModel(NautobotModel):
+            """Local test model class."""
+
             _identifiers = ()
             _attributes = ()
 
