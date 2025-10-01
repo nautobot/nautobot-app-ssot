@@ -388,6 +388,7 @@ manufacturer_os_map = {
 # LibreNMS | Normalized
 LIBRENMS_LIB_MAPPER = {
     "arista_eos": "arista_eos",
+    "ios": "cisco_ios",
     "iosxe": "cisco_xe",
     "iosxr": "cisco_xr",
     "nxos": "cisco_nxos",
@@ -398,6 +399,7 @@ LIBRENMS_LIB_MAPPER = {
 # Normalized | LibreNMS
 LIBRENMS_LIB_MAPPER_REVERSE = {
     "arista_eos": "arista_eos",
+    "cisco_ios": "ios",
     "cisco_xe": "iosxe",
     "cisco_nxos": "nxos",
     "cisco_xr": "iosxr",

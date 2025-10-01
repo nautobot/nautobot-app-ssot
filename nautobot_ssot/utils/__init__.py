@@ -67,15 +67,7 @@ def parse_hostname_for_location(
     Returns:
         dict: Dictionary of DeviceLocation data. Includes location name and parent location name.
     """
-    # Handle case where location_map might be a JSON string
-    if isinstance(location_map, str):
-        try:
-            location_map = json.loads(location_map)
-        except (json.JSONDecodeError, TypeError):
-            # If it's not valid JSON, treat as empty
-            location_map = None
-
-    # Early return if no location_map provided or after JSON parsing failed
+    # Early return if no location_map provided
     if not location_map:
         return {
             "name": device_location,
@@ -136,7 +128,7 @@ def parse_hostname_for_role(hostname_map: List[Tuple[str, str]], device_hostname
 
     if hostname_map:
         for entry in hostname_map:
-            match = re.match(pattern=entry[0], string=device_hostname)
+            match = re.search(pattern=entry[0], string=device_hostname)
             if match:
                 device_role = entry[1]
     return device_role

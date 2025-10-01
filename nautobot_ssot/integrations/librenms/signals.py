@@ -97,6 +97,19 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     )
     snmp_location_custom_field.content_types.add(ContentType.objects.get_for_model(signal_to_model_mapping["device"]))
 
+    # Create SNMP location custom field
+    snmp_location_cf_dict = {
+        "type": CustomFieldTypeChoices.TYPE_TEXT,
+        "key": "snmp_location",
+        "label": "SNMP Location",
+        "default": None,
+        "filter_logic": "exact",
+    }
+    snmp_location_custom_field, _ = CustomField.objects.update_or_create(
+        key=snmp_location_cf_dict["key"], defaults=snmp_location_cf_dict
+    )
+    snmp_location_custom_field.content_types.add(ContentType.objects.get_for_model(signal_to_model_mapping["device"]))
+
     models_to_sync = [
         "device",
         "interface",

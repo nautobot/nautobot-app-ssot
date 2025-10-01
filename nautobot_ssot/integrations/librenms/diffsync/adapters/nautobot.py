@@ -47,7 +47,7 @@ class NautobotAdapter(Adapter):
             locations = OrmLocation.objects.all()
         for nb_location in locations:
             if self.job.debug:
-                self.job.logger.debug(f"Loading Nautobot Location {nb_location}")
+                self.job.logger.debug(f"Nautobot Adapter Loading Nautobot Location {nb_location}")
             try:
                 self.get(self.location, nb_location.name)
             except ObjectNotFound:
@@ -77,7 +77,13 @@ class NautobotAdapter(Adapter):
             devices = OrmDevice.objects.all()
         for nb_device in devices:
             if self.job.debug:
-                self.job.logger.debug(f"Loading Nautobot Device {nb_device}")
+                self.job.logger.debug(f"Nautobot Adapter Loading Nautobot Device {nb_device}")
+                self.job.logger.debug(
+                    f"Nautobot Adapter Platform for {nb_device.name}: {nb_device.platform.network_driver}"
+                )
+                self.job.logger.debug(
+                    f"Nautobot Adapter Manufacturer for {nb_device.name}: {nb_device.device_type.manufacturer.name}"
+                )
             try:
                 self.get(self.device, nb_device.name)
             except ObjectNotFound:
@@ -108,7 +114,7 @@ class NautobotAdapter(Adapter):
                     device_type=nb_device.device_type.model,
                     role=nb_device.role.name,
                     manufacturer=nb_device.device_type.manufacturer.name,
-                    platform=nb_device.platform.network_driver,
+                    platform=nb_device.platform.name,
                     os_version=_software_version,
                     serial_no=nb_device.serial,
                     ip_address=_ip_address,

@@ -3,14 +3,12 @@
 # pylint: disable=duplicate-code
 
 import ipaddress
-import json
 import logging
-import os
 
 import requests
 import urllib3
 
-from nautobot_ssot.exceptions import RequestConnectError, RequestHTTPError
+from nautobot_ssot.exceptions import RequestConnectError
 
 LOGGER = logging.getLogger(__name__)
 
@@ -104,8 +102,6 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
         token: str,
         port: int = 443,
         verify: bool = True,
-        devices_load_file=None,
-        locations_load_file=None,
     ):
         """Create LibreNMS API connection."""
         super().__init__(url=url)
@@ -113,59 +109,8 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
         self.token = token
         self.verify = verify
         self.headers = {"Accept": "*/*", "X-Auth-Token": f"{self.token}"}
-        self.devices_load_file = devices_load_file
-        self.locations_load_file = locations_load_file
 
         LOGGER.info("Headers %s", self.headers)
-
-    def get_librenms_devices_from_file(self):
-        """Get Devices from LibreNMS example file."""
-        if self.devices_load_file:
-            try:
-                # Reset file pointer to beginning
-                self.devices_load_file.seek(0)
-                # Read and decode the uploaded file
-                content = self.devices_load_file.read().decode("utf-8")
-                devices = json.loads(content)
-                LOGGER.info("Loaded devices from uploaded JSON file")
-                LOGGER.debug("File returned devices type: %s", type(devices))
-                if devices and "devices" in devices:
-                    LOGGER.debug("Devices array type: %s", type(devices["devices"]))
-                    if devices["devices"]:
-                        LOGGER.debug("First device type: %s", type(devices["devices"][0]))
-                return devices
-            except (json.JSONDecodeError, UnicodeDecodeError) as err:
-                LOGGER.error("Error parsing uploaded devices file: %s", err)
-                raise RequestHTTPError(f"Invalid JSON in uploaded devices file: {err}") from err
-        else:
-            with open(
-                file=f"{os.getcwd()}/nautobot_ssot/tests/librenms/fixtures/get_librenms_devices.json",
-                encoding="utf-8",
-            ) as API_CALL_FIXTURE:  # pylint: disable=invalid-name
-                devices = json.load(API_CALL_FIXTURE)
-            return devices
-
-    def get_librenms_locations_from_file(self):
-        """Get Locations from LibreNMS example file."""
-        if self.locations_load_file:
-            try:
-                # Reset file pointer to beginning
-                self.locations_load_file.seek(0)
-                # Read and decode the uploaded file
-                content = self.locations_load_file.read().decode("utf-8")
-                locations = json.loads(content)
-                LOGGER.info("Loaded locations from uploaded JSON file")
-                return locations
-            except (json.JSONDecodeError, UnicodeDecodeError) as err:
-                LOGGER.error("Error parsing uploaded locations file: %s", err)
-                raise (f"Invalid JSON in uploaded locations file: {err}") from err
-        else:
-            with open(
-                file=f"{os.getcwd()}/nautobot_ssot/tests/librenms/fixtures/get_librenms_locations.json",
-                encoding="utf-8",
-            ) as API_CALL_FIXTURE:  # pylint: disable=invalid-name
-                locations = json.load(API_CALL_FIXTURE)
-            return locations
 
     def get_librenms_devices(self):
         """Get Devices from LibreNMS API endpoint."""

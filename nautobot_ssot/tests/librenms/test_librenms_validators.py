@@ -4,6 +4,7 @@ import os
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
+from parameterized import parameterized
 
 from nautobot_ssot.integrations.librenms.utils import (
     check_sor_field,
@@ -19,25 +20,18 @@ from nautobot_ssot.integrations.librenms.utils import (
 class TestNormalizeGPSCoordinates(TestCase):
     """Test GPS coordinate normalization."""
 
-    def test_normalize_gps_coordinates_float(self):
-        """Test normalizing float GPS coordinates."""
-        result = normalize_gps_coordinates(41.874677429096174)
-        self.assertEqual(result, 41.874677)
-
-    def test_normalize_gps_coordinates_string(self):
-        """Test normalizing string GPS coordinates."""
-        result = normalize_gps_coordinates("41.874677429096174")
-        self.assertEqual(result, 41.874677)
-
-    def test_normalize_gps_coordinates_already_rounded(self):
-        """Test normalizing already rounded coordinates."""
-        result = normalize_gps_coordinates(41.874677)
-        self.assertEqual(result, 41.874677)
-
-    def test_normalize_gps_coordinates_negative(self):
-        """Test normalizing negative coordinates."""
-        result = normalize_gps_coordinates(-87.62672768379687)
-        self.assertEqual(result, -87.626728)
+    @parameterized.expand(
+        [
+            ("float_coordinates", 41.874677429096174, 41.874677),
+            ("string_coordinates", "41.874677429096174", 41.874677),
+            ("already_rounded", 41.874677, 41.874677),
+            ("negative_coordinates", -87.62672768379687, -87.626728),
+        ]
+    )
+    def test_normalize_gps_coordinates(self, _test_name, input_value, expected_result):
+        """Test normalizing GPS coordinates with various input types."""
+        result = normalize_gps_coordinates(input_value)
+        self.assertEqual(result, expected_result)
 
 
 class TestNormalizeSetting(TestCase):
@@ -82,44 +76,19 @@ class TestNormalizeDeviceHostname(TestCase):
         self.job = MagicMock()
         self.job.hostname_field = "hostname"
 
-    @patch("nautobot_ssot.integrations.librenms.utils.settings")
-    def test_normalize_device_hostname_ip_address_allowed(self, mock_settings):
-        """Test normalizing IP address hostname when allowed."""
-        mock_settings.PLUGINS_CONFIG = {"nautobot_ssot": {"librenms_allow_ip_hostnames": True}}
-        device = {"hostname": "192.168.1.1"}
-
-        result = normalize_device_hostname(device, self.job)
-        self.assertEqual(result, "192.168.1.1")
-
-    @patch("nautobot_ssot.integrations.librenms.utils.settings")
-    def test_normalize_device_hostname_ip_address_not_allowed(self, mock_settings):
-        """Test normalizing IP address hostname when not allowed."""
-        mock_settings.PLUGINS_CONFIG = {"nautobot_ssot": {"librenms_allow_ip_hostnames": False}}
-        device = {"hostname": "192.168.1.1"}
-
-        result = normalize_device_hostname(device, self.job)
-        self.assertEqual(result, {"valid": False, "reason": "The hostname cannot be an IP Address"})
-
-    def test_normalize_device_hostname_domain_name(self):
+    @parameterized.expand(
+        [
+            ("domain_name", "router.example.com", "ROUTER"),
+            ("simple_name", "router", "ROUTER"),
+            ("mixed_case", "Router.Example.COM", "ROUTER"),
+        ]
+    )
+    def test_normalize_device_hostname_domain_name(self, _test_name, input_value, expected_result):
         """Test normalizing domain name hostname."""
-        device = {"hostname": "router.example.com"}
+        device = {"hostname": input_value}
 
         result = normalize_device_hostname(device, self.job)
-        self.assertEqual(result, "ROUTER")
-
-    def test_normalize_device_hostname_simple_name(self):
-        """Test normalizing simple hostname."""
-        device = {"hostname": "router"}
-
-        result = normalize_device_hostname(device, self.job)
-        self.assertEqual(result, "ROUTER")
-
-    def test_normalize_device_hostname_mixed_case(self):
-        """Test normalizing mixed case hostname."""
-        device = {"hostname": "Router.Example.COM"}
-
-        result = normalize_device_hostname(device, self.job)
-        self.assertEqual(result, "ROUTER")
+        self.assertEqual(result, expected_result)
 
 
 class TestHasRequiredValues(TestCase):
@@ -188,6 +157,62 @@ class TestHasRequiredValues(TestCase):
         # Check that hostname is invalid
         self.assertFalse(result["hostname"]["valid"])
         self.assertEqual(result["hostname"]["reason"], "String is required")
+
+    @parameterized.expand(
+        [
+            ("allowed_ip_v4", "192.168.1.1", True),
+            ("allowed_ip_v6", "2001:db8::1", True),
+        ]
+    )
+    @patch("nautobot_ssot.integrations.librenms.utils.settings")
+    def test_has_required_values_hostname_is_ip_address_allowed(
+        self, _test_name, input_value, expected_result, mock_settings
+    ):
+        """Test when hostname is an IP address."""
+        mock_settings.PLUGINS_CONFIG = {"nautobot_ssot": {"librenms_allow_ip_hostnames": True}}
+        device = {
+            "hostname": input_value,
+            "location": "test-location",
+            "role": "network",
+            "platform": "ios",
+            "device_type": "cisco-ios",
+        }
+
+        result = has_required_values(device, self.job)
+
+        # Check that hostname is invalid
+        self.assertEqual(result["hostname"]["valid"], expected_result)
+
+    @parameterized.expand(
+        [
+            ("not_allowed_ip_v4", "192.168.1.1", False, "The hostname cannot be an IP Address"),
+            ("not_allowed_ip_v6", "2001:db8::1:1", False, "The hostname cannot be an IP Address"),
+        ]
+    )
+    @patch("nautobot_ssot.integrations.librenms.utils.settings")
+    def test_has_required_values_hostname_is_ip_address_not_allowed(
+        self,
+        _test_name,
+        input_value,
+        expected_result,  # pylint: disable=unused-argument
+        expected_reason,
+        mock_settings,
+    ):
+        """Test when hostname is an IP address and not allowed."""
+        mock_settings.PLUGINS_CONFIG = {"nautobot_ssot": {"librenms_allow_ip_hostnames": False}}
+        device = {
+            "hostname": input_value,
+            "location": "test-location",
+            "role": "network",
+            "platform": "ios",
+            "device_type": "cisco-ios",
+        }
+
+        result = has_required_values(device, self.job)
+
+        # Check that hostname is invalid
+        self.assertFalse(result["hostname"]["valid"])
+        self.assertEqual(result["hostname"]["reason"], expected_reason)
 
     def test_has_required_values_multiple_missing(self):
         """Test when multiple required values are missing."""
