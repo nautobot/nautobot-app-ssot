@@ -34,7 +34,6 @@ PLUGINS_CONFIG = {
 
 
 #### LibreNMS as DataSource
-
 The way you add your LibreNMS server instance is through the "External Integrations" objects in Nautobot. First, create a secret in Nautobot with your LibreNMS API token using an Environment Variable (or sync via secrets provider). Then create a SecretsGroup object and select the Secret you just created and set the Access Type to `HTTP(S)` and the Secret Type to `Token`.
 
 Once this is created, go into the Extensibility Menu and select `External Integrations`. Add an External Intergration with the Remote URL being your LibreNMS server URL (including http(s)://), set the method to `GET`, and select any other headers/settings you might need for your specific instance. Select the secrets group you created as this will inject the API token. Once created, you will select this External Integration when you run the LibreNMS to Nautobot SSoT job.
@@ -42,12 +41,10 @@ Once this is created, go into the Extensibility Menu and select `External Integr
 ![LibreNMS External Integration](../../images/librenms-external-integration.png)
 
 #### LibreNMS as DataTarget
-
 NotYetImplemented
 
 
 ### LibreNMS API
-
 An API key with global read-only permissions is the minimum needed to sync information from LibreNMS.
 
 
