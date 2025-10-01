@@ -3,29 +3,19 @@
 # pylint: disable=protected-access
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
+from abc import ABC
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
+from nautobot_ssot.contrib.enums import RelationshipSideEnum
 
 
-class SortType(Enum):
-    """Enum for identifying sortable field types when sorting SSoT fields.
-
-    Enum used for future extension if required.
-    """
-
-    DICT = 1
-
-
-class RelationshipSideEnum(Enum):
-    """This details which side of a custom relationship the model it's defined on is on."""
-
-    SOURCE = "SOURCE"
-    DESTINATION = "DESTINATION"
+class CustomAnnotation(ABC):
+    """Base class for identifying custom annotations."""
 
 
 @dataclass
-class CustomRelationshipAnnotation:
+class CustomRelationshipAnnotation(CustomAnnotation):
     """Map a model field to an arbitrary custom relationship.
 
     For usage with `typing.Annotated`.
@@ -56,7 +46,7 @@ class CustomRelationshipAnnotation:
 
 
 @dataclass
-class CustomFieldAnnotation:
+class CustomFieldAnnotation(CustomAnnotation):
     """Map a model field to an arbitrary custom field name.
 
     For usage with `typing.Annotated`.
