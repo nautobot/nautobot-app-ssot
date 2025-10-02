@@ -177,36 +177,6 @@ class IPAddressModel(vSphereModelDiffSync):
     status__name: str
     vm_interfaces: List[InterfacesDict] = []
 
-    @classmethod
-    def create(cls, adapter, ids, attrs):
-        """Create the IP address.
-
-        This is being overriden because the interface that the IP address is assigned to may already exist. Diffsync won't take that into account.
-
-        Args:
-            adapter (Adapter): The adapter.
-            ids (dict[str, Any]): The natural keys for the IP address.
-            attrs (dict[str, Any]): The attributes to assign to the IP address.
-
-        Returns:
-            IPAddressModel: The IP address model.
-        """
-        try:
-            ip_address = cls._model.objects.get(
-                host=ids["host"], mask_length=ids["mask_length"], status__name=ids["status__name"]
-            )
-            vm_interface = VMInterface.objects.get(
-                name=ids["vm_interfaces"][0]["name"],
-                virtual_machine__name=ids["vm_interfaces"][0]["virtual_machine__name"],
-            )
-            vm_interface.ip_addresses.set([ip_address])
-            vm_interface.validated_save()
-            # Calling return base as super() isn't called here.
-            return cls.create_base(adapter, ids, attrs)
-        except cls._model.DoesNotExist:
-            # If the IP address doesn't exist, normal diffsync process will create it and associate with the interface.
-            return super().create(adapter, ids, attrs)
-
 
 class VMInterfaceModel(vSphereModelDiffSync):
     """VMInterface Diffsync model."""
