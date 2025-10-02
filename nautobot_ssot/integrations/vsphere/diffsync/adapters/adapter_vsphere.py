@@ -204,25 +204,6 @@ class VsphereDiffSync(Adapter):
                             }
                         )
 
-                # diffsync_ipaddress, _ = self.get_or_instantiate(
-                #     self.ip_address,
-                #     {
-                #         "host": ip_address["ip_address"],
-                #         "mask_length": ip_address["prefix_length"],
-                #         "status__name": self.config.default_ip_status_map[ip_address["state"]],
-                #         "vm_interfaces": [
-                #             {
-                #                 "name": diffsync_vminterface.name,
-                #                 "virtual_machine__name": diffsync_virtualmachine.name,
-                #             }
-                #         ],
-                #     },
-                # )
-                # try:
-                #     diffsync_vminterface.add_child(diffsync_ipaddress)
-                # except ObjectAlreadyExists as err:
-                #     self.job.logger.warning(f"IP Address {diffsync_ipaddress} already exists: {err}")
-
         return ipv4_addresses, ipv6_addresses
 
     def load_primary_ip(self, ipv4_addresses, ipv6_addresses, diffsync_virtualmachine):
@@ -348,8 +329,8 @@ class VsphereDiffSync(Adapter):
                     "host": ip,
                     "mask_length": info["mask_length"],
                     "status__name": info["status__name"],
-                    "vm_interfaces": info["vm_interfaces"],
                 },
+                {"vm_interfaces": info["vm_interfaces"]},
             )
 
     def load(self):

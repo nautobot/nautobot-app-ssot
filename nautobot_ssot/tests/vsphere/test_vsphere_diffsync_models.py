@@ -198,7 +198,6 @@ class TestVSphereDiffSyncModelsCreate(TestCase):
         self.vsphere_adapter.add(vm_interface_ip)
         self.vsphere_adapter.add(prefix_test)
         vm_test.add_child(vm_interface_test)
-        vm_interface_test.add_child(vm_interface_ip)
 
         nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
         nb_adapter.job = MagicMock()
@@ -289,7 +288,6 @@ class TestVSphereDiffSyncModelsCreate(TestCase):
         self.vsphere_adapter.add(vm_interface_ip)
         self.vsphere_adapter.add(prefix_test)
         vm_test.add_child(vm_interface_test)
-        vm_interface_test.add_child(vm_interface_ip)
 
         nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
         nb_adapter.job = MagicMock()
@@ -342,7 +340,6 @@ class TestVSphereDiffSyncModelsCreate(TestCase):
         self.vsphere_adapter.add(vm_interface_ip)
         self.vsphere_adapter.add(prefix_test)
         vm_test.add_child(vm_interface_test)
-        vm_interface_test.add_child(vm_interface_ip)
 
         nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
         nb_adapter.job = MagicMock()
@@ -560,7 +557,6 @@ class TestVSphereDiffSyncModelsUpdate(TestCase):
         self.vsphere_adapter.add(prefix_test)
         vm_test.add_child(vm_interface_test_1)
         vm_test.add_child(vm_interface_test_2)
-        vm_interface_test_1.add_child(vm_interface_ip)
 
         nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
         nb_adapter.job = MagicMock()
@@ -677,8 +673,6 @@ class TestVSphereDiffSyncModelsUpdate(TestCase):
         self.vsphere_adapter.add(prefix_test_2)
         vm_test.add_child(vm_interface_test_1)
         vm_test.add_child(vm_interface_test_2)
-        vm_interface_test_1.add_child(vm_interface_ip_1)
-        vm_interface_test_2.add_child(vm_interface_ip_2)
 
         nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
         nb_adapter.job = MagicMock()
@@ -792,8 +786,6 @@ class TestVSphereDiffSyncModelsUpdate(TestCase):
         self.vsphere_adapter.add(prefix_test_2)
         vm_test.add_child(vm_interface_test_1)
         vm_test.add_child(vm_interface_test_2)
-        vm_interface_test_1.add_child(vm_interface_ip_1)
-        vm_interface_test_2.add_child(vm_interface_ip_2)
 
         nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
         nb_adapter.job = MagicMock()
@@ -986,8 +978,6 @@ class TestVSphereDiffSyncModelsDelete(TestCase):
         self.vsphere_adapter.add(prefix_test_2)
         vm_test.add_child(vm_interface_test_1)
         vm_test.add_child(vm_interface_test_2)
-        vm_interface_test_1.add_child(vm_interface_ip_1)
-        vm_interface_test_2.add_child(vm_interface_ip_2)
 
         nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
         nb_adapter.job = MagicMock()

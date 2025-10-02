@@ -169,8 +169,8 @@ class IPAddressModel(vSphereModelDiffSync):
 
     _model = IPAddress
     _modelname = "ip_address"
-    _identifiers = ("host", "mask_length", "status__name", "vm_interfaces")
-    _attributes = ()
+    _identifiers = ("host", "mask_length", "status__name")
+    _attributes = ("vm_interfaces",)
 
     host: str
     mask_length: int
@@ -217,14 +217,12 @@ class VMInterfaceModel(vSphereModelDiffSync):
     _modelname = "interface"
     _identifiers = ("name", "virtual_machine__name")
     _attributes = ("enabled", "mac_address", "status__name")
-    # _children = {"ip_address": "ip_addresses"}
 
     name: str
     virtual_machine__name: str
     enabled: bool
     status__name: str
     mac_address: Optional[str] = None
-    # ip_addresses: List[IPAddress] = []
 
 
 class VirtualMachineModel(vSphereModelDiffSync):

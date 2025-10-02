@@ -157,7 +157,12 @@ class TestVsphereAdapter(unittest.TestCase):
             diffsync_vminterface,
             diffsync_virtualmachine,
         )
-        vm_ip = self.vsphere_adapter.get("ip_address", "192.168.2.88__23__Active")
+        self.vsphere_adapter.load_ip_map()
+
+        vm_ip = self.vsphere_adapter.get(
+            "ip_address",
+            "192.168.2.88__23__Active",
+        )
         self.assertEqual(vm_ip.host, "192.168.2.88")
         self.assertEqual(vm_ip.mask_length, 23)
         self.assertEqual(vm_ip.status__name, "Active")
@@ -166,7 +171,10 @@ class TestVsphereAdapter(unittest.TestCase):
             [{"name": "Network adapter 1", "virtual_machine__name": "Nautobot"}],
         )
 
-        prefix = self.vsphere_adapter.get("prefix", "192.168.2.0__23__Global__Active")
+        prefix = self.vsphere_adapter.get(
+            "prefix",
+            "192.168.2.0__23__Global__Active",
+        )
         self.assertEqual(prefix.network, "192.168.2.0")
         self.assertEqual(prefix.prefix_length, 23)
         self.assertEqual(prefix.namespace__name, "Global")
@@ -201,7 +209,13 @@ class TestVsphereAdapter(unittest.TestCase):
             diffsync_vminterface,
             diffsync_virtualmachine,
         )
-        vm_ip = self.vsphere_adapter.get("ip_address", "2001:0db8:85a3:0000:0000:8a2e:0370:7334__64__Active")
+
+        # Must call load_ip_map to populate the IP since I'm deferring it.
+        self.vsphere_adapter.load_ip_map()
+        vm_ip = self.vsphere_adapter.get(
+            "ip_address",
+            "2001:0db8:85a3:0000:0000:8a2e:0370:7334__64__Active",
+        )
         self.assertEqual(vm_ip.host, "2001:0db8:85a3:0000:0000:8a2e:0370:7334")
         self.assertEqual(vm_ip.mask_length, 64)
         self.assertEqual(vm_ip.status__name, "Active")
