@@ -167,6 +167,8 @@ class PrefixModel(vSphereModelDiffSync):
 class IPAddressModel(vSphereModelDiffSync):
     """IPAddress Diffsync model."""
 
+    model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+
     _model = IPAddress
     _modelname = "ip_address"
     _identifiers = ("host", "mask_length", "status__name")
@@ -176,6 +178,14 @@ class IPAddressModel(vSphereModelDiffSync):
     mask_length: int
     status__name: str
     vm_interfaces: List[InterfacesDict] = []
+
+    @classmethod
+    def get_queryset(cls, config, cluster_filters):
+        """Return the queryset for the model. This is overriden to pass in the config object.
+
+        We are only loading IP addresses that have been tagged as being synced from vSphere.
+        """
+        return cls._model.objects.filter(tags__name__in=["SSoT Synced from vSphere"])
 
 
 class VMInterfaceModel(vSphereModelDiffSync):

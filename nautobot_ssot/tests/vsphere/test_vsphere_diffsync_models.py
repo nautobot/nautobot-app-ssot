@@ -522,6 +522,7 @@ class TestVSphereDiffSyncModelsUpdate(TestCase):
             type="network",
         )
         nb_ip = IPAddress.objects.create(host="192.168.1.1", mask_length=24, status=self.active_status)
+        nb_ip.tags.set([self.ssot_tag])
         nb_ip.vm_interfaces.set([nb_vm_interface_1])
 
         vm_test = self.vsphere_adapter.virtual_machine(**_get_virtual_machine_dict({"name": "TestVM"}))
@@ -617,7 +618,9 @@ class TestVSphereDiffSyncModelsUpdate(TestCase):
             type="network",
         )
         nb_ip_1 = IPAddress.objects.create(host="192.168.1.1", mask_length=24, status=self.active_status)
+        nb_ip_1.tags.set([self.ssot_tag])
         nb_ip_2 = IPAddress.objects.create(host="10.10.10.1", mask_length=24, status=self.active_status)
+        nb_ip_2.tags.set([self.ssot_tag])
         nb_ip_1.vm_interfaces.set([nb_vm_interface_1])
         nb_ip_2.vm_interfaces.set([nb_vm_interface_2])
         nb_vm.primary_ip4 = nb_ip_1
@@ -730,7 +733,9 @@ class TestVSphereDiffSyncModelsUpdate(TestCase):
             type="network",
         )
         nb_ip_1 = IPAddress.objects.create(host="fd12:3456:789a:1::1234", mask_length=64, status=self.active_status)
+        nb_ip_1.tags.set([self.ssot_tag])
         nb_ip_2 = IPAddress.objects.create(host="2001:db8:abcd:42::abcd", mask_length=64, status=self.active_status)
+        nb_ip_2.tags.set([self.ssot_tag])
         nb_ip_1.vm_interfaces.set([nb_vm_interface_1])
         nb_ip_2.vm_interfaces.set([nb_vm_interface_2])
         nb_vm.primary_ip6 = nb_ip_1
@@ -922,7 +927,9 @@ class TestVSphereDiffSyncModelsDelete(TestCase):
             type="network",
         )
         nb_ip_1 = IPAddress.objects.create(host="192.168.1.1", mask_length=24, status=self.active_status)
+        nb_ip_1.tags.set([self.ssot_tag])
         nb_ip_2 = IPAddress.objects.create(host="10.10.10.1", mask_length=24, status=self.active_status)
+        nb_ip_2.tags.set([self.ssot_tag])
         nb_ip_1.vm_interfaces.set([nb_vm_interface_1])
         nb_ip_2.vm_interfaces.set([nb_vm_interface_2])
         nb_vm.primary_ip4 = nb_ip_1
