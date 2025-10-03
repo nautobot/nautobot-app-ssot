@@ -12,6 +12,7 @@ import structlog
 # pylint: disable=no-self-argument
 from diffsync.enum import DiffSyncFlags
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db.utils import OperationalError
 from django.templatetags.static import static
 from django.utils import timezone
@@ -80,22 +81,12 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         if self.source_adapter is not None and self.target_adapter is not None:
             self.diff = self.source_adapter.diff_to(self.target_adapter, flags=self.diffsync_flags)
 
-            for child in self.diff.get_children():
-                new_record = SyncRecord.objects.create(
-                    sync=self.sync,
-                    source=child.source_name,
-                    target=child.dest_name,
-                    kwargs=self.target_adapter._meta_kwargs,  # pylint: disable=protected-access
-                    flags=self.diffsync_flags,
-                    obj_type=child.type,
-                    obj_name=child.name,
-                    obj_keys=child.keys,
-                    source_attrs=child.source_attrs,
-                    target_attrs=child.dest_attrs,
-                    action=child.action,
-                    status="success",
-                )
-                new_record.validated_save()
+            self.source_adapter._meta_kwargs.pop("job")
+            self.target_adapter._meta_kwargs.pop("job")
+            self.target_adapter._meta_kwargs.pop("sync")
+
+            self.create_sync_records(diff=self.diff)
+
             self.sync.diff = {}
             self.sync.summary = self.diff.summary()
             self.sync.save()
@@ -108,6 +99,41 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             self.logger.info(self.diff.summary())
         else:
             self.logger.warning("Not both adapters were properly initialized prior to diff calculation.")
+
+    def create_sync_records(self, diff, parent=None):
+        """Create SyncRecord from DiffElement.
+
+        Args:
+            parent (_type_, optional): _description_. Defaults to None.
+        """
+        for child in diff.get_children():
+            if child.action:
+                try:
+                    new_record = SyncRecord(
+                        sync=self.sync,
+                        source=f"{self.__class__.__module__}.{child.source_name}",
+                        target=f"{self.__class__.__module__}.{child.dest_name}",
+                        source_kwargs=self.source_adapter._meta_kwargs  # pylint: disable=protected-access
+                        if getattr(self.source_adapter, "_meta_kwargs")
+                        else {},
+                        target_kwargs=self.target_adapter._meta_kwargs  # pylint: disable=protected-access
+                        if getattr(self.target_adapter, "_meta_kwargs")
+                        else {},
+                        diffsync_flags=self.diffsync_flags,
+                        obj_type=child.type,
+                        obj_name=child.name,
+                        obj_keys=child.keys,
+                        source_attrs=child.source_attrs,
+                        target_attrs=child.dest_attrs,
+                        action=str(child.action),
+                        status="pending",
+                        parent=parent,
+                    )
+                    new_record.validated_save()
+                except ValidationError as err:
+                    self.logger.error(err)
+            if child.child_diff.has_diffs():
+                self.create_sync_records(diff=child.child_diff, parent=new_record)
 
     def execute_sync(self):
         """Method to synchronize the difference from `self.diff`, from SOURCE to TARGET adapter.

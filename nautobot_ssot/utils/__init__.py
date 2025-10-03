@@ -2,6 +2,7 @@
 
 import logging
 import re
+from importlib import import_module
 from importlib.metadata import PackageNotFoundError, version
 from typing import List, Tuple
 
@@ -86,3 +87,17 @@ def validate_dlm_installed() -> bool:
     except PackageNotFoundError:
         pass
     return False
+
+
+def import_from_dotted_path(path: str):
+    """Import a Python module from a dotted path.
+
+    Args:
+        path (str): The dotted path to the module.
+
+    Returns:
+        The module.
+    """
+    module_path, _, attr = path.rpartition(".")
+    module = import_module(module_path)
+    return getattr(module, attr)
