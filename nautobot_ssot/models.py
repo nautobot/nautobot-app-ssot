@@ -19,6 +19,7 @@ JobResult 1<->1 Sync 1-->n SyncLogEntry
 
 from datetime import timedelta
 
+from diffsync.enum import DiffSyncFlags
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
@@ -28,6 +29,7 @@ from django.urls import reverse
 from django.utils.formats import date_format
 from django.utils.html import format_html
 from django.utils.timezone import now
+from django_enum import EnumField
 from nautobot.apps.constants import CHARFIELD_MAX_LENGTH
 from nautobot.apps.models import BaseModel, PrimaryModel
 from nautobot.extras.choices import JobResultStatusChoices
@@ -293,13 +295,47 @@ class SyncRecord(PrimaryModel):
 
     source = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="System data is read from")
     target = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="System data is written to")
-    kwargs = models.JSONField(blank=True, null=True, help_text="Keyword arguments that were used to initialize the target adapter")
-    flags = models.BinaryField(blank=True, help_text="Flags that were used to initialize the target adapter")
-    obj_type = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="Type of the object that was diffed")
-    obj_name = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="Name of the object that was diffed")
-    obj_keys = models.JSONField(blank=True, null=True, help_text="Keys of the object that was diffed")
-    source_attrs = models.JSONField(blank=True, null=True, help_text="Source attributes of the object that was diffed")
-    target_attrs = models.JSONField(blank=True, null=True, help_text="Target attributes of the object that was diffed")
+    source_kwargs = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Keyword arguments that were used to initialize the source adapter",
+        verbose_name="Source Adapter Keyword Arguments",
+    )
+    target_kwargs = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Keyword arguments that were used to initialize the target adapter",
+        verbose_name="Target Adapter Keyword Arguments",
+    )
+    diffsync_flags = EnumField(
+        DiffSyncFlags,
+        blank=True,
+        null=True,
+        help_text="Flags that were used to initialize the target adapter",
+        verbose_name="DiffSync Flags",
+        default=None,
+    )
+    obj_type = models.CharField(
+        max_length=CHARFIELD_MAX_LENGTH, help_text="Type of the object that was diffed", verbose_name="Object Type"
+    )
+    obj_name = models.CharField(
+        max_length=CHARFIELD_MAX_LENGTH, help_text="Name of the object that was diffed", verbose_name="Object Name"
+    )
+    obj_keys = models.JSONField(
+        blank=True, null=True, help_text="Keys of the object that was diffed", verbose_name="Object Keys"
+    )
+    source_attrs = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="Source attributes of the object that was diffed",
+        verbose_name="Source Attributes",
+    )
+    target_attrs = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="Target attributes of the object that was diffed",
+        verbose_name="Target Attributes",
+    )
 
     action = models.CharField(max_length=32, choices=SyncRecordActionChoices)
     status = models.CharField(max_length=32, choices=SyncRecordStatusChoices)
@@ -312,13 +348,13 @@ class SyncRecord(PrimaryModel):
     )
     synced_object_id = models.UUIDField(blank=True, null=True)
     synced_object = GenericForeignKey(ct_field="synced_object_type", fk_field="synced_object_id")
-    children = models.ForeignKey(
+    parent = models.ForeignKey(
         to="self",
         on_delete=models.CASCADE,
         blank=True,
         null=True,
-        related_name="parent_records",
-        related_query_name="parent_record",
+        related_name="children_records",
+        related_query_name="child_record",
     )
 
     class Meta:
@@ -332,8 +368,6 @@ class SyncRecord(PrimaryModel):
         return f"{self.source} → {self.target}: {self.synced_object}"
 
 
-
-
 class SSOTConfig(models.Model):  # pylint: disable=nb-incorrect-base-class
     """Non-db model providing user permission constraints."""
 
@@ -342,10 +376,4 @@ class SSOTConfig(models.Model):  # pylint: disable=nb-incorrect-base-class
         default_permissions = ("view",)
 
 
-__all__ = (
-    "SSOTInfobloxConfig",
-    "AutomationGatewayModel",
-    "SSOTServiceNowConfig",
-    "Sync",
-    "SyncLogEntry",
-)
+__all__ = ("SSOTInfobloxConfig", "AutomationGatewayModel", "SSOTServiceNowConfig", "Sync", "SyncLogEntry", "SyncRecord")
