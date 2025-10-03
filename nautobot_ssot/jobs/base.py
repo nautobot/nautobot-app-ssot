@@ -145,22 +145,12 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         if self.source_adapter is not None and self.target_adapter is not None:
             self.diff = self.source_adapter.diff_to(self.target_adapter, flags=self.diffsync_flags)
 
-            for child in self.diff.get_children():
-                new_record = SyncRecord.objects.create(
-                    sync=self.sync,
-                    source=child.source_name,
-                    target=child.dest_name,
-                    kwargs=self.target_adapter._meta_kwargs,  # pylint: disable=protected-access
-                    flags=self.diffsync_flags,
-                    obj_type=child.type,
-                    obj_name=child.name,
-                    obj_keys=child.keys,
-                    source_attrs=child.source_attrs,
-                    target_attrs=child.dest_attrs,
-                    action=child.action,
-                    status="success",
-                )
-                new_record.validated_save()
+            self.source_adapter._meta_kwargs.pop("job")
+            self.target_adapter._meta_kwargs.pop("job")
+            self.target_adapter._meta_kwargs.pop("sync")
+
+            self.create_sync_records(diff=self.diff)
+
             self.sync.diff = {}
             self.sync.summary = self.diff.summary()
             self.sync.save()
@@ -180,32 +170,32 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         Args:
             parent (_type_, optional): _description_. Defaults to None.
         """
-        pending_status = Status.objects.get(name="Pending")
         for child in diff.get_children():
             if child.action:
-                new_record, _ = SyncRecord.objects.update_or_create(
-                    module=self.__class__.__module__,
-                    source_adapter=child.source_name,
-                    target_adapter=child.dest_name,
-                    obj_type=child.type,
-                    obj_name=child.name,
-                    defaults={
-                        "sync": self.sync,
-                        "source_kwargs": self.source_adapter._meta_kwargs  # pylint: disable=protected-access
+                try:
+                    new_record = SyncRecord(
+                        sync=self.sync,
+                        source=f"{self.__class__.__module__}.{child.source_name}",
+                        target=f"{self.__class__.__module__}.{child.dest_name}",
+                        source_kwargs=self.source_adapter._meta_kwargs  # pylint: disable=protected-access
                         if getattr(self.source_adapter, "_meta_kwargs")
                         else {},
-                        "target_kwargs": self.target_adapter._meta_kwargs  # pylint: disable=protected-access
+                        target_kwargs=self.target_adapter._meta_kwargs  # pylint: disable=protected-access
                         if getattr(self.target_adapter, "_meta_kwargs")
                         else {},
-                        "diffsync_flags": self.diffsync_flags,
-                        "obj_keys": child.keys,
-                        "source_attrs": child.source_attrs,
-                        "target_attrs": child.dest_attrs,
-                        "action": str(child.action),
-                        "status": pending_status,
-                        "parent": parent,
-                    },
-                )
+                        diffsync_flags=self.diffsync_flags,
+                        obj_type=child.type,
+                        obj_name=child.name,
+                        obj_keys=child.keys,
+                        source_attrs=child.source_attrs,
+                        target_attrs=child.dest_attrs,
+                        action=str(child.action),
+                        status="pending",
+                        parent=parent,
+                    )
+                    new_record.validated_save()
+                except ValidationError as err:
+                    self.logger.error(err)
             if child.child_diff.has_diffs():
                 self.create_sync_records(diff=child.child_diff, parent=new_record)
 
