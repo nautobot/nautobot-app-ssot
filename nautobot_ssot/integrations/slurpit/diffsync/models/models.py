@@ -427,16 +427,16 @@ class NautobotIPAddressToInterfaceModel(IPAddressToInterfaceModel):
                 host=attrs["interface__device__primary_ip4__host"],
                 tenant=obj.interface.device.tenant,
             )
-            obj.interface.device.validated_save()
+            obj.interface.device.validated_save()  # pylint:disable=no-member
         if (
             attrs.get("interface__device__primary_ip6__host")
             and ids["ip_address__host"] == attrs["interface__device__primary_ip6__host"]
         ):
             obj.interface.device.primary_ip6 = IPAddress.objects.get(
                 host=attrs["interface__device__primary_ip6__host"],
-                tenant=obj.interface.device.tenant,
+                tenant=obj.interface.device.tenant,  # pylint:disable=no-member
             )
-            obj.interface.device.validated_save()
+            obj.interface.device.validated_save()  # pylint:disable=no-member
         return super().create_base(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
