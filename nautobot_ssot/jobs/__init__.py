@@ -11,6 +11,7 @@ from nautobot_ssot.exceptions import JobException
 from nautobot_ssot.integrations.utils import each_enabled_integration_module
 from nautobot_ssot.jobs.base import DataSource, DataTarget
 from nautobot_ssot.jobs.examples import ExampleDataSource, ExampleDataTarget
+from nautobot_ssot.jobs.process_records import ProcessRecordsJob, ProcessRecordsJobButtonReceiver
 
 logger = logging.getLogger("nautobot.ssot")
 
@@ -18,7 +19,7 @@ hide_jobs_setting = settings.PLUGINS_CONFIG["nautobot_ssot"].get("hide_example_j
 if is_truthy(hide_jobs_setting):
     jobs = []
 else:
-    jobs = [ExampleDataSource, ExampleDataTarget]
+    jobs = [ExampleDataSource, ExampleDataTarget, ProcessRecordsJob, ProcessRecordsJobButtonReceiver]
 
 
 def _add_integrations():

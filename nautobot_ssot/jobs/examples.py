@@ -521,7 +521,7 @@ class NautobotRemote(Adapter):
         self.load_device_types()
         self.load_platforms()
         self.load_devices()
-        self.load_interfaces()
+        # self.load_interfaces()
 
     def load_location_types(self):
         """Load LocationType data from the remote Nautobot instance."""
