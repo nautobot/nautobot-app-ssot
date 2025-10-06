@@ -13,7 +13,6 @@ pip install nautobot-ssot[librenms]
 ```
 
 ## Configuration
-
 Once the SSoT package has been installed you simply need to enable the integration by setting `enable_librenms` to True.
 
 ```python
@@ -23,11 +22,16 @@ PLUGINS_CONFIG = {
   "nautobot_ssot": {
         # Other nautobot_ssot settings omitted.
         "enable_librenms": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_LIBRENMS", "true")),
+        "librenms_allow_ip_hostnames": is_truthy(os.getenv("NAUTOBOT_SSOT_LIBRENMS_ALLOW_IP_HOSTNAMES", "false")),
+        "librenms_permitted_values": {  # Allows the SSOT to only sync certain values from LibreNMS
+            "role": ["network"],
+        },
   }
 }
 ```
 
 ### External Integrations
+
 
 #### LibreNMS as DataSource
 
@@ -41,6 +45,12 @@ Once this is created, go into the Extensibility Menu and select `External Integr
 
 NotYetImplemented
 
+
 ### LibreNMS API
 
 An API key with global read-only permissions is the minimum needed to sync information from LibreNMS.
+
+
+### Field Validation
+
+Name, Role, DeviceType, Location, and Platform fields must have a populated string.  Cannot be None or an empty value.

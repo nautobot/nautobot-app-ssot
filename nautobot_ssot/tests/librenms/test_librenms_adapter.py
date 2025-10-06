@@ -1,6 +1,6 @@
 """Unit test for LibreNMS object models."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from django.contrib.contenttypes.models import ContentType
 from nautobot.core.testing import TransactionTestCase

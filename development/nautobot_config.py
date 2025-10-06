@@ -150,7 +150,6 @@ PLUGINS_CONFIG = {
         "aci_ignore_tenants": os.getenv("NAUTOBOT_SSOT_ACI_IGNORE_TENANTS", "").split(","),
         # The below value will appear in the Comments field on objects created in Nautobot
         "aci_comments": os.getenv("NAUTOBOT_SSOT_ACI_COMMENTS"),
-        "allow_ip_hostname": False,
         "aristacv_apply_import_tag": is_truthy(os.getenv("NAUTOBOT_ARISTACV_IMPORT_TAG", "false")),
         "aristacv_controller_site": os.getenv("NAUTOBOT_ARISTACV_CONTROLLER_SITE", ""),
         "aristacv_create_controller": is_truthy(os.getenv("NAUTOBOT_ARISTACV_CREATE_CONTROLLER", "false")),
@@ -297,7 +296,6 @@ PLUGINS_CONFIG = {
         "librenms_show_failures": is_truthy(os.getenv("NAUTOBOT_SSOT_LIBRENMS_SHOW_FAILURES", "true")),
         "librenms_permitted_values": {
             "role": ["network"],
-            "platform": ["arista_eos", "iosxe", "iosxr", "nxos", "junos"],
         },
         "servicenow_instance": os.getenv("SERVICENOW_INSTANCE", ""),
         "servicenow_password": os.getenv("SERVICENOW_PASSWORD", ""),

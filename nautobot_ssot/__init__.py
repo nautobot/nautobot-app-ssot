@@ -24,7 +24,6 @@ _CONFLICTING_APP_NAMES = [
     "nautobot_ssot_infoblox",
     "nautobot_ssot_ipfabric",
     "nautobot_ssot_itential",
-    "nautobot_ssot_librenms",
     "nautobot_ssot_meraki",
     "nautobot_ssot_servicenow",
     "nautobot_ssot_solarwinds",

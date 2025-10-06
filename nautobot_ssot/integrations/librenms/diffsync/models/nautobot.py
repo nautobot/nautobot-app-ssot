@@ -62,14 +62,14 @@ def ensure_platform(platform_name: str, manufacturer: str):
     """Safely returns a Platform that support Devices."""
     _manufacturer, _ = ORMManufacturer.objects.get_or_create(name=manufacturer)
     _network_driver = ANSIBLE_LIB_MAPPER.get(platform_name, platform_name)
-    # Try to find platform by network_driver (using normalized name)
-    try:
-        _platform = ORMPlatform.objects.get(network_driver=_network_driver, manufacturer=_manufacturer)
-        return _platform
-    except ORMPlatform.DoesNotExist:
-        # If not found, create it using verify_platform with normalized platform name
-        _platform = verify_platform(platform_name=platform_name, manu=_manufacturer.id)
-        return _platform
+    _platform, _ = ORMPlatform.objects.get_or_create(
+        name=platform_name, 
+        defaults={
+            "network_driver": _network_driver,
+            "manufacturer": _manufacturer
+        }
+    )
+    return _platform
 
 
 def ensure_software_version(platform: ORMPlatform, manufacturer: str, version: str, device_type: DeviceType):
@@ -183,16 +183,17 @@ class NautobotLocation(Location):
             existing_location = ORMLocation.objects.get(name=ids["name"], parent__isnull=True)
             if adapter.job.debug:
                 adapter.job.logger.debug(f'Location {ids["name"]} already exists, skipping creation')
-            return super().create(adapter=adapter, ids=ids, attrs=attrs)
+            return None
         except ORMLocation.DoesNotExist:
             pass  # Location doesn't exist, proceed with creation
         except ORMLocation.MultipleObjectsReturned:
             adapter.job.logger.warning(f'Multiple locations found with name {ids["name"]}, using first one')
             existing_location = ORMLocation.objects.filter(name=ids["name"], parent__isnull=True).first()
-            return super().create(adapter=adapter, ids=ids, attrs=attrs)
+            return None
 
         try:
-            adapter.job.logger.debug(f"Location Type {adapter.job.location_type}")
+            if adapter.job.debug:
+                adapter.job.logger.debug(f"Location Type {adapter.job.location_type}")
             _location_type = LocationType.objects.get(id=adapter.job.location_type.id)
         except LocationType.DoesNotExist:
             adapter.job.logger.warning(
@@ -216,7 +217,7 @@ class NautobotLocation(Location):
             }
         )
         new_location.validated_save()
-        return super().create(adapter=adapter, ids=ids, attrs=attrs)
+        return None
 
     def update(self, attrs):
         """Update Location in Nautobot from NautobotLocation object."""
@@ -243,7 +244,7 @@ class NautobotLocation(Location):
                 self.adapter.job.logger.error(
                     f"Parent location {self.parent} not found for updating location {self.name}"
                 )
-                return super().update(attrs)
+                return None
         else:
             # Root location (no parent)
             query_kwargs["parent__isnull"] = True
@@ -257,7 +258,7 @@ class NautobotLocation(Location):
             self.adapter.job.logger.error(
                 f"Location {self.name} with type {self.adapter.job.location_type} not found for update"
             )
-            return super().update(attrs)
+            return None
         if "latitude" in attrs:
             location.latitude = attrs["latitude"]
         if "longitude" in attrs:
@@ -296,8 +297,6 @@ class NautobotDevice(Device):
         if adapter.job.debug:
             adapter.job.logger.debug(f'Creating Nautobot Device {ids["name"]}')
         manufacturer_name = os_manufacturer_map.get(LIBRENMS_LIB_MAPPER_REVERSE[attrs["platform"]])
-        if manufacturer_name is None:
-            raise ValueError(f"Manufacturer mapping not found for platform: {LIBRENMS_LIB_MAPPER_REVERSE[attrs['platform']]}")
         _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
         _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=_manufacturer.name)
         adapter.job.logger.debug(f"Platform: {_platform}")
@@ -332,7 +331,7 @@ class NautobotDevice(Device):
             new_device = ORMDevice(
                 name=ids["name"],
                 device_type=_device_type,
-                status=Status.objects.get_or_create(name=attrs["status"])[0],
+                status=Status.objects.get(name=attrs["status"])[0],
                 role=ensure_role(role_name=attrs["role"], content_type=ORMDevice),
                 tenant=_tenant,
                 location=_location,

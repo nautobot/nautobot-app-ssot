@@ -1,7 +1,1 @@
 Added data validation for name, role, device_type, location and platform.
-
-All failures are reported in one error message per device, as well as a list containing all failed devices.
-
-Role, DeviceType, and Platform objects are created if they do not exist.  Other failures to these object types are reported.
-
-Only creates/syncs roles in the `librenms_permitted_values{"roles":[]}` list.  If this setting does not exist or the list is empty, all roles will be added and sync.

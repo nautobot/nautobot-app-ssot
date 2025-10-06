@@ -97,7 +97,7 @@ class LibrenmsAdapter(Adapter):
                 role = parse_hostname_for_role(
                     self.job.hostname_map,
                     normalized_name,
-                    self.job.default_role.name if self.job.default_role else "Unknown",
+                    self.job.default_role if self.job.default_role else "Unknown",
                 )
                 normalized_platform = LIBRENMS_LIB_MAPPER.get(device["os"], device["os"])
                 ip_address = device.get("ip", None)
@@ -132,7 +132,7 @@ class LibrenmsAdapter(Adapter):
                 if self.job.debug:
                     self.job.logger.debug(f"Validation result for {device[hostname_field]}: {validation_result}")
 
-                if any(value is False for value in validation_result.values()):
+                if any(value["valid"] is False for value in validation_result.values()):
                     failed_device = device.copy()
                     self.failed_import_devices.append(failed_device)
                     return
@@ -140,51 +140,38 @@ class LibrenmsAdapter(Adapter):
                 try:
                     self.get(self.device, normalized_name)
                 except ObjectNotFound:
-                    # Normalize the device hostname and check if it's valid
-                    if normalized_name is None:
-                        self.job.logger.warning(f"Device {device[hostname_field]} has invalid hostname. Skipping.")
-                        self.failed_import_devices.append(device)
-                        return
-
                     if device["disabled"] == 1:
                         _status = "Offline"
                     else:
                         _status = librenms_status_map[device["status"]]
-                    try:
-                        # Check if manufacturer mapping exists
                         manufacturer = os_manufacturer_map.get(device["os"])
-                        if manufacturer is None:
-                            self.job.logger.warning(
-                                f"Device {device[hostname_field]} failed to load. Manufacturer mapping not found for OS: {device['os']}."
-                            )
-                            self.failed_import_devices.append(device)
-                            return
 
                         # Store the full location data in the device for the NautobotDevice to use
                         device["_location_data"] = location_data
 
-                        new_device = self.device(
-                            name=normalized_name,
-                            device_id=device["device_id"],
-                            location=location_data["name"],
-                            parent_location=location_data["parent"],
-                            snmp_location=device["location"],
-                            role=role,
-                            serial_no=device["serial"] if device["serial"] is not None else "",
-                            status=_status,
-                            manufacturer=manufacturer,
-                            device_type=device["hardware"],
-                            platform=normalized_platform,
-                            os_version=device["version"] if device["version"] is not None else "Unknown",
-                            tenant=self.job.tenant.name if self.job.tenant else None,
-                            ip_address=ip_info["address"] if ip_info else None,
-                            ip_prefix=ip_info["network"] if ip_info else None,
-                            system_of_record=os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
-                        )
-                    except ValidationError as err:
-                        self.failed_import_devices.append(device)
-                        self.job.logger.warning(f"Device {device[hostname_field]} failed to load: {err}")
-                        return
+                        try:
+                            new_device = self.device(
+                                name=normalized_name,
+                                device_id=device["device_id"],
+                                location=location_data["name"],
+                                parent_location=location_data["parent"],
+                                snmp_location=device["location"],
+                                role=role,
+                                serial_no=device["serial"] if device["serial"] is not None else "",
+                                status=_status,
+                                manufacturer=manufacturer,
+                                device_type=device["hardware"],
+                                platform=normalized_platform,
+                                os_version=device["version"] if device["version"] is not None else "Unknown",
+                                tenant=self.job.tenant.name if self.job.tenant else None,
+                                ip_address=ip_info["address"] if ip_info else None,
+                                ip_prefix=ip_info["network"] if ip_info else None,
+                                system_of_record=os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
+                            )
+                        except ValidationError as err:
+                            self.failed_import_devices.append(device)
+                            self.job.logger.warning(f"Device {device[hostname_field]} failed to load: {err}")
+                            return
                     try:
                         self.add(new_device)
                     except ObjectAlreadyExists:

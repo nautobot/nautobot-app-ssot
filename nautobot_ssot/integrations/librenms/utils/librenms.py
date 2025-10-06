@@ -10,34 +10,9 @@ import os
 import requests
 import urllib3
 
+from nautobot_ssot.exceptions import RequestConnectError, RequestHTTPError
+
 LOGGER = logging.getLogger(__name__)
-
-
-class LibreNMSApiError(Exception):
-    """Exception raised for errors in the LibreNMS API."""
-
-    def __init__(self, message: str):
-        """Initialize LibreNMSApiError."""
-        self.message = message
-        super().__init__(self.message)
-
-
-class LibreNMSApiConnectionError(LibreNMSApiError):
-    """Exception raised for errors in the LibreNMS API connection."""
-
-    def __init__(self, message: str):
-        """Initialize LibreNMSApiConnectionError."""
-        self.message = message
-        super().__init__(self.message)
-
-
-class LibreNMSApiRequestError(LibreNMSApiError):
-    """Exception raised for errors in the LibreNMS API request."""
-
-    def __init__(self, message: str):
-        """Initialize LibreNMSApiRequestError."""
-        self.message = message
-        super().__init__(self.message)
 
 
 class ApiEndpoint:  # pylint: disable=too-few-public-methods
@@ -88,7 +63,8 @@ class ApiEndpoint:  # pylint: disable=too-few-public-methods
             payload (dict, optional): Message payload to be sent as part of API call.
 
         Raises:
-            LibreNMSApiConnectionError: Error thrown if request errors.
+            RequestConnectError: Error thrown if request errors.
+            RequestHTTPError: Error thrown if HTTP errors.
 
         Returns:
             dict: JSON payload of API response.
@@ -120,7 +96,7 @@ class ApiEndpoint:  # pylint: disable=too-few-public-methods
             return resp.json()
         except requests.exceptions.HTTPError as err:
             LOGGER.error(f"Error in communicating to LibreNMS API: {err}")
-            raise LibreNMSApiConnectionError(f"Error communicating to the LibreNMS API: {err}") from err
+            raise RequestConnectError(f"Error communicating to the LibreNMS API: {err}") from err
 
 
 class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
@@ -164,7 +140,7 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
                 return devices
             except (json.JSONDecodeError, UnicodeDecodeError) as err:
                 LOGGER.error(f"Error parsing uploaded devices file: {err}")
-                raise LibreNMSApiRequestError(f"Invalid JSON in uploaded devices file: {err}") from err
+                raise RequestHTTPError(f"Invalid JSON in uploaded devices file: {err}") from err
         else:
             with open(
                 file=f"{os.getcwd()}/nautobot_ssot/tests/librenms/fixtures/get_librenms_devices.json",
@@ -186,7 +162,7 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
                 return locations
             except (json.JSONDecodeError, UnicodeDecodeError) as err:
                 LOGGER.error(f"Error parsing uploaded locations file: {err}")
-                raise LibreNMSApiRequestError(f"Invalid JSON in uploaded locations file: {err}") from err
+                raise (f"Invalid JSON in uploaded locations file: {err}") from err
         else:
             with open(
                 file=f"{os.getcwd()}/nautobot_ssot/tests/librenms/fixtures/get_librenms_locations.json",

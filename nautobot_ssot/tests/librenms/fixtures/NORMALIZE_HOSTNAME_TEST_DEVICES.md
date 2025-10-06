@@ -124,7 +124,7 @@ if has_required_values(device, job):
 This ensures that:
 - Hostname normalization only occurs after required values validation
 - The normalized hostname is stored in `validated_device["name"]`
-- Any errors from hostname normalization are collected in `device["load_errors"]`
+- Any errors from hostname normalization cause the function to return `None`
 
 ## Coverage Assessment: ✅ COMPREHENSIVE
 

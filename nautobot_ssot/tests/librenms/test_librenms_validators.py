@@ -95,11 +95,10 @@ class TestNormalizeDeviceHostname(TestCase):
     def test_normalize_device_hostname_ip_address_not_allowed(self, mock_settings):
         """Test normalizing IP address hostname when not allowed."""
         mock_settings.PLUGINS_CONFIG = {"nautobot_ssot": {"librenms_allow_ip_hostnames": False}}
-        device = {"hostname": "192.168.1.1", "load_errors": []}
+        device = {"hostname": "192.168.1.1"}
 
         result = normalize_device_hostname(device, self.job)
-        self.assertIsNone(result)
-        self.assertIn("The hostname cannot be an IP Address", device["load_errors"])
+        self.assertEqual(result, {"valid": False, "reason": "The hostname cannot be an IP Address"})
 
     def test_normalize_device_hostname_domain_name(self):
         """Test normalizing domain name hostname."""
@@ -130,67 +129,168 @@ class TestHasRequiredValues(TestCase):
         """Set up test case."""
         self.job = MagicMock()
         self.job.hostname_field = "hostname"
+        self.job.unpermitted_values = None
+        self.job.default_role.name = "network"
 
     def test_has_required_values_all_present(self):
         """Test when all required values are present."""
         device = {
             "hostname": "test-device",
             "location": "test-location",
-            "type": "network",
-            "os": "ios",
-            "hardware": "cisco-ios",
-            "load_errors": [],
+            "role": "test-role",
+            "platform": "ios",
+            "device_type": "cisco-ios",
         }
 
         result = has_required_values(device, self.job)
-        self.assertTrue(result)
-        self.assertEqual(len(device["load_errors"]), 0)
+        
+        # Check that all fields are valid
+        self.assertTrue(result["hostname"]["valid"])
+        self.assertTrue(result["location"]["valid"])
+        self.assertTrue(result["role"]["valid"])
+        self.assertTrue(result["platform"]["valid"])
+        self.assertTrue(result["device_type"]["valid"])
 
     def test_has_required_values_missing_hostname(self):
         """Test when hostname is missing."""
         device = {
             "hostname": None,  # Missing hostname
             "location": "test-location",
-            "type": "network",
-            "os": "ios",
-            "hardware": "cisco-ios",
-            "load_errors": [],
+            "role": "network",
+            "platform": "ios",
+            "device_type": "cisco-ios",
         }
 
         result = has_required_values(device, self.job)
-        self.assertFalse(result)
-        self.assertIn("hostname string is required", device["load_errors"])
+        
+        # Check that hostname is invalid
+        self.assertFalse(result["hostname"]["valid"])
+        self.assertEqual(result["hostname"]["reason"], "String is required")
+        
+        # Other fields should still be valid
+        self.assertTrue(result["location"]["valid"])
+        self.assertTrue(result["role"]["valid"])
+        self.assertTrue(result["platform"]["valid"])
+        self.assertTrue(result["device_type"]["valid"])
 
     def test_has_required_values_empty_hostname(self):
         """Test when hostname is empty."""
         device = {
             "hostname": "",
             "location": "test-location",
-            "type": "network",
-            "os": "ios",
-            "hardware": "cisco-ios",
-            "load_errors": [],
+            "role": "network",
+            "platform": "ios",
+            "device_type": "cisco-ios",
         }
 
         result = has_required_values(device, self.job)
-        self.assertFalse(result)
-        self.assertIn("hostname string is required", device["load_errors"])
+        
+        # Check that hostname is invalid
+        self.assertFalse(result["hostname"]["valid"])
+        self.assertEqual(result["hostname"]["reason"], "String is required")
 
     def test_has_required_values_multiple_missing(self):
         """Test when multiple required values are missing."""
         device = {
             "hostname": "test-device",
             "location": "",
-            "type": None,
-            "os": "ios",
-            "hardware": "cisco-ios",
-            "load_errors": [],
+            "role": None,
+            "platform": "ios",
+            "device_type": "cisco-ios",
         }
 
         result = has_required_values(device, self.job)
-        self.assertFalse(result)
-        self.assertIn("location string is required", device["load_errors"])
-        self.assertIn("type string is required", device["load_errors"])
+        
+        # Check that location and role are invalid
+        self.assertFalse(result["location"]["valid"])
+        self.assertEqual(result["location"]["reason"], "String is required")
+        self.assertFalse(result["role"]["valid"])
+        self.assertEqual(result["role"]["reason"], "String is required")
+        
+        # Other fields should still be valid
+        self.assertTrue(result["hostname"]["valid"])
+        self.assertTrue(result["platform"]["valid"])
+        self.assertTrue(result["device_type"]["valid"])
+
+    def test_has_required_values_unpermitted_values(self):
+        """Test when device has unpermitted values."""
+        self.job.unpermitted_values = ["forbidden-role"]
+        device = {
+            "hostname": "test-device",
+            "location": "test-location",
+            "role": "forbidden-role",
+            "platform": "ios",
+            "device_type": "cisco-ios",
+        }
+
+        result = has_required_values(device, self.job)
+        
+        # Check that role is invalid due to unpermitted value
+        self.assertFalse(result["role"]["valid"])
+        self.assertEqual(result["role"]["reason"], "role cannot be 'forbidden-role'")
+
+    def test_has_required_values_manufacturer_mapping_missing(self):
+        """Test when manufacturer mapping is missing for platform."""
+        device = {
+            "hostname": "test-device",
+            "location": "test-location",
+            "role": "network",
+            "platform": "unknown-os",  # OS not in os_manufacturer_map
+            "device_type": "cisco-ios",
+        }
+
+        result = has_required_values(device, self.job)
+        
+        # Check that platform is invalid due to missing manufacturer mapping
+        self.assertFalse(result["platform"]["valid"])
+        self.assertEqual(result["platform"]["reason"], "Manufacturer mapping not found for OS: unknown-os")
+
+    def test_has_required_values_manufacturer_mapping_exists(self):
+        """Test when manufacturer mapping exists for platform."""
+        device = {
+            "hostname": "test-device",
+            "location": "test-location",
+            "role": "network",
+            "platform": "ios",  # OS that exists in os_manufacturer_map
+            "device_type": "cisco-ios",
+        }
+
+        result = has_required_values(device, self.job)
+        
+        # Check that platform is valid
+        self.assertTrue(result["platform"]["valid"])
+
+    def test_has_required_values_platform_empty(self):
+        """Test when platform is empty."""
+        device = {
+            "hostname": "test-device",
+            "location": "test-location",
+            "role": "network",
+            "platform": "",
+            "device_type": "cisco-ios",
+        }
+
+        result = has_required_values(device, self.job)
+        
+        # Check that platform is invalid due to empty string
+        self.assertFalse(result["platform"]["valid"])
+        self.assertEqual(result["platform"]["reason"], "String is required")
+
+    def test_has_required_values_platform_none(self):
+        """Test when platform is None."""
+        device = {
+            "hostname": "test-device",
+            "location": "test-location",
+            "role": "network",
+            "platform": None,
+            "device_type": "cisco-ios",
+        }
+
+        result = has_required_values(device, self.job)
+        
+        # Check that platform is invalid due to None value
+        self.assertFalse(result["platform"]["valid"])
+        self.assertEqual(result["platform"]["reason"], "String is required")
 
 
 class TestCheckSorField(TestCase):
