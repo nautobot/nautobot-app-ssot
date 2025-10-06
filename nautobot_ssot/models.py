@@ -354,7 +354,7 @@ class SyncRecord(PrimaryModel):
         blank=True,
         null=True,
         related_name="children_records",
-        related_query_name="child_record",
+        related_query_name="children",
     )
 
     class Meta:
@@ -365,7 +365,7 @@ class SyncRecord(PrimaryModel):
 
     def __str__(self):
         """String representation of a SyncRecord instance."""
-        return f"{self.source} → {self.target}: {self.synced_object}"
+        return f"{self.source} → {self.target}: {self.obj_type} {self.obj_name}"
 
 
 class SSOTConfig(models.Model):  # pylint: disable=nb-incorrect-base-class
