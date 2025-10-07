@@ -195,7 +195,49 @@ class NautobotTestSetup:
         self.bs_adapter.job = MagicMock()
         self.bs_adapter.job.logger.info = MagicMock()
         self.status_active = None
+        self._empty_database()
         self._initialize_data()
+
+    def _empty_database(self):
+        """Empty the database before trying to populate data."""
+        for model in (
+            Circuit,
+            CircuitTermination,
+            CircuitType,
+            ComputedField,
+            Contact,
+            CustomField,
+            Device,
+            DeviceType,
+            DynamicGroup,
+            ExternalIntegration,
+            GitRepository,
+            GraphQLQuery,
+            InventoryItem,
+            JobResult,
+            Location,
+            LocationType,
+            Manufacturer,
+            Namespace,
+            Platform,
+            Prefix,
+            Provider,
+            ProviderNetwork,
+            RIR,
+            Role,
+            ScheduledJob,
+            Secret,
+            SecretsGroup,
+            Status,
+            Tag,
+            Team,
+            Tenant,
+            TenantGroup,
+            VLAN,
+            VLANGroup,
+            VRF,
+        ):
+            model.objects.all().delete()
 
     def _initialize_data(self):
         self._setup_tags()
