@@ -24,7 +24,7 @@ class ProcessRecordsJob(Job):
         label="Sync Records",
         description="The Sync Records to process.",
     )
-    include_children = BooleanVar(default=False)
+    include_children = BooleanVar(default=False, description="Include children SyncRecords when processing.")
 
     class Meta:
         """Meta attributes of ProcessRecordsJob."""
