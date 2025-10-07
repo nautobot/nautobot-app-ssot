@@ -44,21 +44,7 @@ class ProcessRecordsJob(Job):
         self.include_children = kwargs.get("include_children", False)
         self.logger.info("Running Process Records Job.")
 
-        # create a new Diff to hold DiffElements
-        diff = Diff()
-
-        for record in self.records:
-            self.logger.info(f"Processing record {record.obj_name}.")
-            diff_element = DiffElement(
-                obj_type=record.obj_type,
-                name=record.obj_name,
-                keys=record.obj_keys,
-                source_name=record.source,
-                dest_name=record.target,
-            )
-            diff_element.source_attrs = record.source_attrs
-            diff_element.dest_attrs = record.target_attrs
-            diff.add(diff_element)
+        self.load_sync_records(records=self.records)
 
         # recreate adapters
         source_adapter_cls = import_from_dotted_path(self.records[0].source)
@@ -83,6 +69,29 @@ class ProcessRecordsJob(Job):
             self.logger.info("Sync was a success!")
         else:
             self.logger.warning("Sync failed!")
+    def load_sync_records(self, records: List[SyncRecord], parent: DiffElement = None):
+        """Recursive function to load SyncRecords into DiffElements.
+
+        Args:
+            records (List[dict]): List of SyncRecords to be loaded into DiffElements.
+            parent (DiffElement, optional): Parent DiffElement to assign child DiffElements to. Defaults to None.
+        """
+        for record in records:
+            self.logger.info("Processing record %s.", record.obj_name)
+            diff_element = DiffElement(
+                obj_type=record.obj_type,
+                name=record.obj_name,
+                keys=record.obj_keys,
+                source_name=record.source,
+                dest_name=record.target,
+            )
+            diff_element.source_attrs = record.source_attrs
+            diff_element.dest_attrs = record.target_attrs
+            self.diff.add(diff_element)
+            if parent:
+                parent.add_child(diff_element)
+            if self.include_children and len(record.children.all()) > 0:
+                self.load_sync_records(records=record.children.all(), parent=diff_element)
 
 
 class ProcessRecordsJobButtonReceiver(JobButtonReceiver):
