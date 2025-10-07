@@ -148,11 +148,6 @@ class ProcessRecordsJobButtonReceiver(JobButtonReceiver):
         name = "Process SyncRecords Button Receiver"
         has_sensitive_variables = False
 
-    def __init__(self, *args, **kwargs):
-        """Initialize the Job."""
-        super().__init__(*args, **kwargs)
-        self.data = {}
-
     def receive_job_button(self, obj):
         """Function to execute the job button receiver."""
         self.logger.info("Running Job Button Receiver.", extra={"object": obj})
