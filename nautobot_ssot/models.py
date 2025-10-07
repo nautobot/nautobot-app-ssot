@@ -353,15 +353,15 @@ class SyncRecord(PrimaryModel):
         on_delete=models.CASCADE,
         blank=True,
         null=True,
-        related_name="children_records",
+        related_name="children",
         related_query_name="children",
     )
 
     class Meta:
         """Metaclass attributes of SyncRecord."""
 
-        unique_together = ("source", "target", "synced_object_type", "synced_object_id")
-        ordering = ["-timestamp"]
+        unique_together = ("source", "target", "obj_name", "obj_type")
+        ordering = ["timestamp"]
 
     def __str__(self):
         """String representation of a SyncRecord instance."""
