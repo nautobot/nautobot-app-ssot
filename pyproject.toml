@@ -54,7 +54,7 @@ httpx = { version = ">=0.23.3", optional = true }
 # used for DNA Center integration
 dnacentersdk = { version = "^2.5.6", optional = true }
 meraki = { version = "^1.37.2,<1.46.0", optional = true }
-slurpit-sdk = { version = "^0.9.58", optional = true }
+slurpit-sdk = { version = "0.9.93", optional = true }  # Pinned to 0.9.93 due to significant changes being made to the sdk's api
 
 [tool.poetry.group.dev.dependencies]
 coverage = "*"
