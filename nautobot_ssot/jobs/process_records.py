@@ -1,5 +1,7 @@
 """Job to process SyncRecords."""
 
+from typing import List
+
 from diffsync.diff import Diff, DiffElement
 from diffsync.helpers import DiffSyncSyncer
 from nautobot.apps.jobs import BooleanVar, Job, JobButtonReceiver, MultiObjectVar
@@ -54,12 +56,8 @@ class ProcessRecordsJob(Job):
         source_adapter_cls = import_from_dotted_path(self.records[0].source)
         target_adapter_cls = import_from_dotted_path(self.records[0].target)
 
-        try:
-            source_adapter = source_adapter_cls(job=self, **self.records[0].source_kwargs)
-            target_adapter = target_adapter_cls(job=self, **self.records[0].target_kwargs)
-        except Exception as err:
-            self.logger.error(err)
-            return None
+        source_adapter = source_adapter_cls(job=self, **self.records[0].source_kwargs)
+        target_adapter = target_adapter_cls(job=self, **self.records[0].target_kwargs)
 
         self.logger.info("Performing synchronization of selected records.")
         syncer = DiffSyncSyncer(
