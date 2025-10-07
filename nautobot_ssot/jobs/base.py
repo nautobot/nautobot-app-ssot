@@ -108,30 +108,28 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         """
         for child in diff.get_children():
             if child.action:
-                try:
-                    new_record = SyncRecord(
-                        sync=self.sync,
-                        source=f"{self.__class__.__module__}.{child.source_name}",
-                        target=f"{self.__class__.__module__}.{child.dest_name}",
-                        source_kwargs=self.source_adapter._meta_kwargs  # pylint: disable=protected-access
+                new_record, _ = SyncRecord.objects.update_or_create(
+                    source=f"{self.__class__.__module__}.{child.source_name}",
+                    target=f"{self.__class__.__module__}.{child.dest_name}",
+                    obj_type=child.type,
+                    obj_name=child.name,
+                    defaults={
+                        "sync": self.sync,
+                        "source_kwargs": self.source_adapter._meta_kwargs  # pylint: disable=protected-access
                         if getattr(self.source_adapter, "_meta_kwargs")
                         else {},
-                        target_kwargs=self.target_adapter._meta_kwargs  # pylint: disable=protected-access
+                        "target_kwargs": self.target_adapter._meta_kwargs  # pylint: disable=protected-access
                         if getattr(self.target_adapter, "_meta_kwargs")
                         else {},
-                        diffsync_flags=self.diffsync_flags,
-                        obj_type=child.type,
-                        obj_name=child.name,
-                        obj_keys=child.keys,
-                        source_attrs=child.source_attrs,
-                        target_attrs=child.dest_attrs,
-                        action=str(child.action),
-                        status="pending",
-                        parent=parent,
-                    )
-                    new_record.validated_save()
-                except ValidationError as err:
-                    self.logger.error(err)
+                        "diffsync_flags": self.diffsync_flags,
+                        "obj_keys": child.keys,
+                        "source_attrs": child.source_attrs,
+                        "target_attrs": child.dest_attrs,
+                        "action": str(child.action),
+                        "status": "pending",
+                        "parent": parent,
+                    },
+                )
             if child.child_diff.has_diffs():
                 self.create_sync_records(diff=child.child_diff, parent=new_record)
 
