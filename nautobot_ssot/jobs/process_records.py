@@ -38,6 +38,7 @@ class ProcessRecordsJob(Job):
         """Initialize ProcessRecordsJob."""
         self.source_adapter = None
         self.target_adapter = None
+        self.diff = Diff()
         super().__init__()
 
     def run(self, *args, **kwargs):
@@ -61,10 +62,10 @@ class ProcessRecordsJob(Job):
 
         self.logger.info("Performing synchronization of selected records.")
         syncer = DiffSyncSyncer(
-            diff=diff,
+            diff=self.diff,
             src_diffsync=source_adapter,
             dst_diffsync=target_adapter,
-            flags=record.diffsync_flags,
+            flags=self.records[0].diffsync_flags,
         )
         result = syncer.perform_sync()
         if result:
