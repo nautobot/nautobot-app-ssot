@@ -2,11 +2,15 @@
 
 from typing import List
 
+import structlog
 from diffsync.diff import Diff, DiffElement
 from diffsync.helpers import DiffSyncSyncer
+from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from nautobot.apps.jobs import BooleanVar, Job, JobButtonReceiver, MultiObjectVar
 from nautobot.extras.models import JobResult
 
+from nautobot_ssot.choices import SyncRecordStatusChoices
 from nautobot_ssot.models import SyncRecord
 from nautobot_ssot.utils import import_from_dotted_path
 
@@ -61,6 +65,16 @@ class ProcessRecordsJob(Job):
         target_adapter = target_adapter_cls(job=self, **self.records[0].target_kwargs)
 
         self.logger.info("Performing synchronization of selected records.")
+        structlog.configure(
+            processors=[
+                self._structlog_to_sync_record,
+                structlog.stdlib.render_to_log_kwargs,
+            ],
+            context_class=dict,
+            logger_factory=structlog.stdlib.LoggerFactory(),
+            wrapper_class=structlog.stdlib.BoundLogger,
+            cache_logger_on_first_use=True,
+        )
         syncer = DiffSyncSyncer(
             diff=self.diff,
             src_diffsync=source_adapter,
@@ -72,6 +86,7 @@ class ProcessRecordsJob(Job):
             self.logger.info("Sync was a success!")
         else:
             self.logger.warning("Sync failed!")
+
     def load_sync_records(self, records: List[SyncRecord], parent: DiffElement = None):
         """Recursive function to load SyncRecords into DiffElements.
 
@@ -95,6 +110,33 @@ class ProcessRecordsJob(Job):
                 parent.add_child(diff_element)
             if self.include_children and len(record.children.all()) > 0:
                 self.load_sync_records(records=record.children.all(), parent=diff_element)
+
+    def _structlog_to_sync_record(self, _logger, _log_method, event_dict):
+        """Update status of SyncRecord and associate to synced object if found."""
+        if all(key in event_dict for key in ("src", "dst", "action", "model", "unique_id", "diffs", "status")):
+            # The DiffSync log gives us a model name (string) and unique_id (string).
+            # Try to look up the actual Nautobot object that this describes.
+            job_model = self.records[0].sync.job_result.job_model
+            job_cls = import_from_dotted_path(f"{job_model.module_name}.{job_model.job_class_name}")
+            job = job_cls()
+            synced_object = job.lookup_object(  # pylint: disable=assignment-from-none
+                event_dict["model"], event_dict["unique_id"]
+            )
+            try:
+                record = SyncRecord.objects.get(obj_type=event_dict["model"], obj_name=event_dict["unique_id"])
+                record.status = SyncRecordStatusChoices.STATUS_SUCCESS
+                if synced_object:
+                    record.synced_object_id = synced_object.id
+                    record.synced_object_type = ContentType.objects.get_for_model(synced_object)
+                record.validated_save()
+            except SyncRecord.DoesNotExist as err:
+                self.logger.error(
+                    "Unable to find SyncRecord for %s %s. %s", event_dict["model"], event_dict["unique_id"], err
+                )
+            except ValidationError as err:
+                self.logger.error("Error saving SyncRecord: %s", err)
+
+        return event_dict
 
 
 class ProcessRecordsJobButtonReceiver(JobButtonReceiver):
