@@ -41,6 +41,10 @@ class ProcessRecordsJob(Job):
     def run(self, *args, **kwargs):
         """Run the job."""
         self.records = kwargs.get("records", [])
+        if not self.records:
+            self.logger.error("No records specified so unable to continue Job.")
+            return
+
         self.include_children = kwargs.get("include_children", False)
         self.logger.info("Running Process Records Job.")
 
