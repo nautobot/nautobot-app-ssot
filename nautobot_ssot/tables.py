@@ -206,9 +206,9 @@ class SyncRecordTable(BaseTable):
 
     timestamp = ToggleColumn()
     source = Column(linkify=True)
-    target = Column(linkify=True)
-    obj_type = Column(linkify=True)
-    obj_name = Column(linkify=True)
+    target = Column(linkify=False)
+    obj_type = Column(linkify=False)
+    obj_name = Column(linkify=False)
     action = Column()
     actions = ButtonsColumn(
         SyncRecord,
@@ -226,4 +226,4 @@ class SyncRecordTable(BaseTable):
 
         # Option for modifying the columns that show up in the list view by default:
         default_columns = ("timestamp", "source", "target", "obj_type", "obj_name")
-        order_by = ("-timestamp",)
+        order_by = ("timestamp",)
