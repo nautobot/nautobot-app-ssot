@@ -15,14 +15,13 @@ contrib-provided class can properly interact without raising errors.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, ClassVar, Optional
 from uuid import UUID
 
 from diffsync import DiffSyncModel
 from django.db.models import Model, QuerySet
 from nautobot.extras.jobs import BaseJob
 from nautobot.extras.models.metadata import MetadataType
-from typing_extensions import ClassVar, Dict, List, Optional
 
 from nautobot_ssot.utils.cache import ORMCache
 
@@ -33,14 +32,14 @@ class BaseNautobotAdapter(ABC):
     cache: ORMCache
     job: BaseJob
     metadata_type: MetadataType
-    metadata_scope_fields: Dict[DiffSyncModel, List]
+    metadata_scope_fields: dict[DiffSyncModel, list]
 
 
 class BaseNautobotModel(ABC):
     """Abstract Base Class for `NautobotModel`."""
 
     _model: ClassVar[Model]
-    _type_hints: ClassVar[Dict[str, Any]]
+    _type_hints: ClassVar[dict[str, Any]]
     adapter: Optional[BaseNautobotAdapter]
 
     # DB Object Attributes
@@ -48,7 +47,7 @@ class BaseNautobotModel(ABC):
 
     @classmethod
     @abstractmethod
-    def get_synced_attributes(cls) -> List[str]:
+    def get_synced_attributes(cls) -> list[str]:
         """Abstract method for returning a list of all attributes synced during the SSoT process."""
 
     @classmethod
