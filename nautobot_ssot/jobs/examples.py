@@ -939,18 +939,89 @@ class ExampleDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
 
     def lookup_object(self, model_name, unique_id):  # pylint: disable=too-many-return-statements, too-many-branches, too-many-locals
         """Look up a Nautobot object based on the DiffSync model name and unique ID."""
-        if model_name == "prefix":
-            try:
-                return Prefix.objects.get(
-                    prefix=unique_id.split("__")[0], tenant__name=unique_id.split("__")[1] or None
+        match model_name:
+            case "locationtype":
+                try:
+                    return LocationType.objects.get(name=unique_id)
+                except LocationType.DoesNotExist:
+                    pass
+            case "location":
+                try:
+                    return Location.objects.get(name=unique_id)
+                except Location.DoesNotExist:
+                    pass
+            case "role":
+                try:
+                    return Role.objects.get(name=unique_id)
+                except Role.DoesNotExist:
+                    pass
+            case "status":
+                try:
+                    return Status.objects.get(name=unique_id)
+                except Status.DoesNotExist:
+                    pass
+            case "namespace":
+                try:
+                    return Namespace.objects.get(name=unique_id)
+                except Namespace.DoesNotExist:
+                    pass
+            case "prefix":
+                network, prefix_length, namespace__name = unique_id.split("__")
+                try:
+                    return Prefix.objects.get(
+                        network=network, prefix_length=prefix_length, namespace__name=namespace__name
+                    )
+                except Prefix.DoesNotExist:
+                    pass
+            case "ipaddress":
+                host, mask_length, parent__network, parent__prefix_length, parent__namespace__name = unique_id.split(
+                    "__"
                 )
-            except Prefix.DoesNotExist:
-                pass
-        elif model_name == "tenant":
-            try:
-                return Tenant.objects.get(name=unique_id)
-            except Tenant.DoesNotExist:
-                pass
+                try:
+                    return IPAddress.objects.get(
+                        host=host,
+                        mask_length=mask_length,
+                        parent__network=parent__network,
+                        parent__prefix_length=parent__prefix_length,
+                        parent__namespace__name=parent__namespace__name,
+                    )
+                except IPAddress.DoesNotExist:
+                    pass
+            case "tenant":
+                try:
+                    return Tenant.objects.get(name=unique_id)
+                except Tenant.DoesNotExist:
+                    pass
+            case "manufacturer":
+                try:
+                    return Manufacturer.objects.get(name=unique_id)
+                except Manufacturer.DoesNotExist:
+                    pass
+            case "devicetype":
+                model, manufacturer__name = unique_id.split("__")
+                try:
+                    return DeviceType.objects.get(model=model, manufacturer__name=manufacturer__name)
+                except DeviceType.DoesNotExist:
+                    pass
+            case "platform":
+                try:
+                    return Platform.objects.get(name=unique_id)
+                except Platform.DoesNotExist:
+                    pass
+            case "device":
+                dev_name, location__name, location__parent__name = unique_id.split("__")
+                try:
+                    return Device.objects.get(
+                        name=dev_name, location__name=location__name, location__parent__name=location__parent__name
+                    )
+                except Device.DoesNotExist:
+                    pass
+            case "interface":
+                intf_name, device__name = unique_id.split("__")
+                try:
+                    return Interface.objects.get(name=intf_name, device__name=device__name)
+                except Interface.DoesNotExist:
+                    pass
         return None
 
 
