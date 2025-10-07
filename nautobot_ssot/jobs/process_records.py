@@ -152,4 +152,4 @@ class ProcessRecordsJobButtonReceiver(JobButtonReceiver):
         """Function to execute the job button receiver."""
         self.logger.info("Running Job Button Receiver.", extra={"object": obj})
         user = self.user
-        JobResult.enqueue_job(ProcessRecordsJob, user=user, profile=False, data={"records": [obj.id]})
+        JobResult.enqueue_job(ProcessRecordsJob, user=user, profile=False, records=[obj.id], include_children=False)
