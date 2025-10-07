@@ -6,7 +6,6 @@ import ipaddress
 from typing import List
 
 from diffsync import Adapter
-from netutils.ip import cidr_to_netmask, cidr_to_netmaskv6
 
 from nautobot_ssot.integrations.vsphere.diffsync.models.vsphere import (
     ClusterGroupModel,
@@ -161,11 +160,7 @@ class VsphereDiffSync(Adapter):
                     continue
 
                 _ = ipv4_addresses.append(addr) if addr.version == 4 else ipv6_addresses.append(addr)
-                if addr.version == 6:
-                    netmask = cidr_to_netmaskv6(ip_address["prefix_length"])
-                else:
-                    netmask = cidr_to_netmask(ip_address["prefix_length"])
-                prefix = deduce_network_from_ip(addr, netmask)
+                prefix = str(ipaddress.ip_network(f"{addr}/{ip_address['prefix_length']}", strict=False)).split("/")[0]
 
                 diffsync_prefix, _ = self.get_or_instantiate(
                     self.prefix,
