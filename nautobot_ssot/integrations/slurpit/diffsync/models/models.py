@@ -1,13 +1,7 @@
 # pylint: disable=R0801
 """Data models for the DiffSync integration."""
 
-from typing import List, Optional, Union
-
-try:
-    from typing import Annotated  # Python>=3.9
-except ImportError:
-    from typing_extensions import Annotated
-
+from typing import Annotated, List, Optional, Union
 
 from django.core.exceptions import ObjectDoesNotExist
 from nautobot.dcim.models import Device, DeviceType, Interface, InventoryItem, Location, Manufacturer, Platform

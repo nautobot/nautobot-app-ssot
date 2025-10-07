@@ -1,12 +1,12 @@
 """Unit tests for contrib sorting."""
 
-from typing import List, Optional
+from typing import Annotated, List, Optional
 from unittest.mock import MagicMock
 
 from django.test import TestCase
 from nautobot.extras.models import Tag
 from nautobot.tenancy.models import Tenant
-from typing_extensions import Annotated, TypedDict, get_type_hints
+from typing_extensions import TypedDict, get_type_hints
 
 from nautobot_ssot.contrib import NautobotAdapter, NautobotModel
 from nautobot_ssot.contrib.sorting import (
