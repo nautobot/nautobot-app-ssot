@@ -61,8 +61,8 @@ class ProcessRecordsJob(Job):
         source_adapter_cls = import_from_dotted_path(self.records[0].source)
         target_adapter_cls = import_from_dotted_path(self.records[0].target)
 
-        source_adapter = source_adapter_cls(job=self, **self.records[0].source_kwargs)
-        target_adapter = target_adapter_cls(job=self, **self.records[0].target_kwargs)
+        self.source_adapter = source_adapter_cls(job=self, **self.records[0].source_kwargs)
+        self.target_adapter = target_adapter_cls(job=self, **self.records[0].target_kwargs)
 
         self.logger.info("Performing synchronization of selected records.")
         structlog.configure(
@@ -77,8 +77,8 @@ class ProcessRecordsJob(Job):
         )
         syncer = DiffSyncSyncer(
             diff=self.diff,
-            src_diffsync=source_adapter,
-            dst_diffsync=target_adapter,
+            src_diffsync=self.source_adapter,
+            dst_diffsync=self.target_adapter,
             flags=self.records[0].diffsync_flags,
         )
         result = syncer.perform_sync()
