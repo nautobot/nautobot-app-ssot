@@ -73,7 +73,17 @@ class SyncRecordFilterSet(NameSearchFilterSet, NautobotFilterSet):  # pylint: di
         model = models.SyncRecord
 
         # add any fields from the model that you would like to filter your searches by using those
-        fields = ["source", "target", "obj_type", "obj_name", "action", "status", "synced_object_type"]
+        fields = [
+            "sync",
+            "source",
+            "target",
+            "obj_type",
+            "obj_name",
+            "action",
+            "status",
+            "synced_object_type",
+            "synced_object_id",
+        ]
 
 
 __all__ = (
