@@ -10,6 +10,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
     Contact,
     CustomField,
     DynamicGroup,
+    ExternalIntegration,
     GitRepository,
     GraphQLQuery,
     Location,
@@ -630,3 +631,20 @@ if validate_dlm_installed:
         def delete(self):
             """Delete ValidatedSoftware in Bootstrap from BootstrapValidatedSoftware object."""
             return self
+
+
+class BootstrapExternalIntegration(ExternalIntegration):
+    """Bootstrap implementation of ExternalIntegration DiffSync model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create ExternalIntegration in Bootstrap from BootstrapExternalIntegration object."""
+        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update ExternalIntegration in Bootstrap from BootstrapExternalIntegration object."""
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete ExternalIntegration in Bootstrap from BootstrapExternalIntegration object."""
+        return self

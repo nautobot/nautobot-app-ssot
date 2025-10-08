@@ -4,7 +4,7 @@ Here you will find detailed instructions on how to **install** and **configure**
 
 ## Prerequisites
 
-- The app is compatible with Nautobot 2.0.0 and higher.
+- The app is compatible with Nautobot 2.4.2 and higher.
 - Databases supported: PostgreSQL, MySQL
 
 !!! note
@@ -82,7 +82,8 @@ The app behavior can be controlled with the following list of settings:
 | Key                  | Example        | Default   | Description                                                                 |
 |----------------------|----------------|-----------|-----------------------------------------------------------------------------|
 | `hide_example_jobs`  | `True`         | `False`   | A boolean to represent whether or not to display the example job.           |
-| `enable_metadata_for`| `DataSourceJob`| *(empty)* | List of job class names for which object metadata support should be enabled.|
+| `enable_metadata_for`| `DataSourceJob`| *(empty)* | List of job class names for which object metadata support should be enabled.      |
+| `enable_global_search`| `False`| `True` | A boolean to represent wether or not to allow nautobot global search to include SSOT Sync logs.      |
 
 ## Integrations Configuration
 

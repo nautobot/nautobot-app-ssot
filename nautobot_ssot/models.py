@@ -103,9 +103,8 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
     def annotated_queryset(cls):
         """Construct an efficient queryset for this model and related data."""
         return (
-            cls.objects.defer("diff")
+            cls.objects.defer("diff", "summary")
             .select_related("job_result")
-            .prefetch_related("logs")
             .annotate(
                 num_unchanged=models.Count(
                     "log",

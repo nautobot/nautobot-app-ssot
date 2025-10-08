@@ -259,23 +259,25 @@ class NautobotAddress(Address):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create IP Address in Nautobot from NautobotAddress object."""
-        if attrs.get("tenant"):
-            pf_namespace = Namespace.objects.get_or_create(name=attrs["tenant"])[0]
+        if ids.get("tenant"):
+            pf_namespace = Namespace.objects.get_or_create(name=ids["tenant"])[0]
         else:
             pf_namespace = Namespace.objects.get(name="Global")
+        print(f"Using namespace {pf_namespace} for {ids['host_address']}")
         new_ip = IPAddress(
-            address=ids["address"],
-            parent=Prefix.objects.get(prefix=ids["prefix"], namespace=pf_namespace),
+            host=ids["host_address"],
+            mask_length=attrs["mask_length"],
+            parent=Prefix.objects.get(prefix=attrs["prefix"], namespace=pf_namespace),
             status=Status.objects.get(name="Active"),
             namespace=pf_namespace,
         )
-        if attrs.get("tenant"):
-            new_ip.tenant = Tenant.objects.get_or_create(name=attrs["tenant"])[0]
+        if ids.get("tenant"):
+            new_ip.tenant = adapter.job.tenant
         if attrs.get("tags"):
             new_ip.tags.set(attrs["tags"])
             for tag in attrs["tags"]:
-                new_tag = Tag.objects.get(name=tag)
-                new_tag.content_types.add(ContentType.objects.get_for_model(NewDevice))
+                new_tag = Tag.objects.get_or_create(name=tag)[0]
+                new_tag.content_types.add(ContentType.objects.get_for_model(IPAddress))
         new_ip.custom_field_data["system_of_record"] = "Citrix ADM"
         new_ip.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         new_ip.validated_save()
@@ -284,16 +286,15 @@ class NautobotAddress(Address):
     def update(self, attrs):
         """Update IP Address in Nautobot from NautobotAddress object."""
         addr = IPAddress.objects.get(id=self.uuid)
-        if "tenant" in attrs:
-            if attrs.get("tenant"):
-                addr.tenant = Tenant.objects.update_or_create(name=attrs["tenant"])[0]
-            else:
-                addr.tenant = None
+        if attrs.get("mask_length"):
+            addr.mask_length = attrs["mask_length"]
+        if attrs.get("prefix"):
+            addr.parent = Prefix.objects.get(prefix=attrs["prefix"], namespace=addr.parent.namespace)
         if "tags" in attrs:
             addr.tags.set(attrs["tags"])
             for tag in attrs["tags"]:
-                new_tag = Tag.objects.get(name=tag)
-                new_tag.content_types.add(ContentType.objects.get_for_model(NewDevice))
+                new_tag = Tag.objects.get_or_create(name=tag)[0]
+                new_tag.content_types.add(ContentType.objects.get_for_model(IPAddress))
         else:
             addr.tags.clear()
         addr.custom_field_data["system_of_record"] = "Citrix ADM"
@@ -316,8 +317,9 @@ class NautobotIPAddressOnInterface(IPAddressOnInterface):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create IPAddressToInterface in Nautobot from IPAddressOnInterface object."""
+        tenant_name = adapter.job.tenant.name if adapter.job.tenant else "Global"
         new_map = IPAddressToInterface(
-            ip_address=IPAddress.objects.get(address=ids["address"]),
+            ip_address=IPAddress.objects.get(host=ids["host_address"], parent__namespace__name=tenant_name),
             interface=Interface.objects.get(name=ids["port"], device__name=ids["device"]),
         )
         new_map.validated_save()
@@ -326,7 +328,7 @@ class NautobotIPAddressOnInterface(IPAddressOnInterface):
                 new_map.interface.device.primary_ip4 = new_map.ip_address
             else:
                 new_map.interface.device.primary_ip6 = new_map.ip_address
-            new_map.interface.device.validated_save()
+            new_map.interface.device.validated_save()  # pylint:disable=no-member
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):

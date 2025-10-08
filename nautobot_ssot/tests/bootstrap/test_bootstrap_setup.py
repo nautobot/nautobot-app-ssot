@@ -30,6 +30,7 @@ from nautobot.extras.models import (
     Contact,
     CustomField,
     DynamicGroup,
+    ExternalIntegration,
     GitRepository,
     GraphQLQuery,
     Job,
@@ -121,6 +122,7 @@ MODELS_TO_SYNC = [
     "vrf",
     "prefix",
     "scheduled_job",
+    "external_integration",
 ]
 
 MODELS_TO_TEST = [
@@ -153,6 +155,7 @@ MODELS_TO_TEST = [
     "vrf",
     "prefix",
     "scheduled_job",
+    "external_integration",
 ]
 
 
@@ -192,7 +195,49 @@ class NautobotTestSetup:
         self.bs_adapter.job = MagicMock()
         self.bs_adapter.job.logger.info = MagicMock()
         self.status_active = None
+        self._empty_database()
         self._initialize_data()
+
+    def _empty_database(self):
+        """Empty the database before trying to populate data."""
+        for model in (
+            Circuit,
+            CircuitTermination,
+            CircuitType,
+            ComputedField,
+            Contact,
+            CustomField,
+            Device,
+            DeviceType,
+            DynamicGroup,
+            ExternalIntegration,
+            GitRepository,
+            GraphQLQuery,
+            InventoryItem,
+            JobResult,
+            Location,
+            LocationType,
+            Manufacturer,
+            Namespace,
+            Platform,
+            Prefix,
+            Provider,
+            ProviderNetwork,
+            RIR,
+            Role,
+            ScheduledJob,
+            Secret,
+            SecretsGroup,
+            Status,
+            Tag,
+            Team,
+            Tenant,
+            TenantGroup,
+            VLAN,
+            VLANGroup,
+            VRF,
+        ):
+            model.objects.all().delete()
 
     def _initialize_data(self):
         self._setup_tags()
@@ -224,6 +269,7 @@ class NautobotTestSetup:
         self._setup_vlans()
         self._setup_vrfs()
         self._setup_prefixes()
+        self._setup_external_integrations()
         if dlm_supports_softwarelcm():
             self._setup_software_and_images()
         self._setup_validated_software()
@@ -1017,6 +1063,8 @@ class NautobotTestSetup:
                 _soft_image.refresh_from_db()
 
     def _setup_validated_software(self):
+        if not validate_dlm_installed():
+            return
         for validated_software_data in GLOBAL_YAML_SETTINGS["validated_software"]:
             tags = self._get_validated_software_tags(validated_software_data["tags"])
             devices = self._get_devices(validated_software_data["devices"])
@@ -1027,7 +1075,7 @@ class NautobotTestSetup:
 
             software = self._get_software(validated_software_data["software"])
 
-            validated_software = ValidatedSoftwareLCM.objects.create(
+            validated_software = ValidatedSoftwareLCM.objects.create(  # pylint:disable=possibly-used-before-assignment
                 software=software,
                 start=validated_software_data["valid_since"],
                 end=validated_software_data["valid_until"],
@@ -1069,6 +1117,30 @@ class NautobotTestSetup:
             )
             scheduled_job.validated_save()
 
+    def _setup_external_integrations(self):
+        """Set up external integrations for testing."""
+        for _ext_int in GLOBAL_YAML_SETTINGS["external_integration"]:
+            _secrets_group = None
+            if _ext_int.get("secrets_group"):
+                _secrets_group = SecretsGroup.objects.get(name=_ext_int["secrets_group"])
+            _nb_ext_int = ExternalIntegration.objects.create(
+                name=_ext_int["name"],
+                remote_url=_ext_int["remote_url"],
+                verify_ssl=_ext_int["verify_ssl"],
+                secrets_group=_secrets_group,
+                http_method=_ext_int["http_method"],
+                ca_file_path=_ext_int["ca_file_path"],
+                timeout=_ext_int["timeout"],
+                headers=_ext_int["headers"],
+                extra_config=_ext_int["extra_config"],
+            )
+            _nb_ext_int.custom_field_data["system_of_record"] = "Bootstrap"
+            if _ext_int["tags"]:
+                for _tag in _ext_int["tags"]:
+                    _nb_ext_int.tags.add(Tag.objects.get(name=_tag))
+            _nb_ext_int.save()
+            _nb_ext_int.refresh_from_db()
+
     def _get_validated_software_tags(self, tag_names):
         return [Tag.objects.get(name=tag_name) for tag_name in tag_names]
 
@@ -1090,6 +1162,7 @@ class NautobotTestSetup:
     def _get_software(self, software_name):
         platform_name, software_version = software_name.split(" - ")
         platform = Platform.objects.get(name=platform_name)
+        software = None
         if core_supports_softwareversion():
             software = SoftwareVersion.objects.get_or_create(
                 version=software_version, platform=platform, status=self.status_active

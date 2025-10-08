@@ -473,34 +473,47 @@
   ],
   "secret": [
     {
-      "name": "Github_Service_Acct",
+      "name": "Service_Acct_User",
       "provider": "environment-variable",
       "parameters": {
-        "variable": "GITHUB_SERVICE_ACCT",
+        "variable": "SERVICE_ACCT_USER",
         "path": null
       }
     },
     {
-      "name": "Github_Service_Token",
+      "name": "Service_Acct_Token",
       "provider": "environment-variable",
       "parameters": {
-        "variable": "GITHUB_SERVICE_TOKEN",
+        "variable": "SERVICE_ACCT_TOKEN",
+        "path": null
+      }
+    },
+    {
+      "name": "Service_Acct_Password",
+      "provider": "environment-variable",
+      "parameters": {
+        "variable": "SERVICE_ACCT_PASSWORD",
         "path": null
       }
     }
   ],
   "secrets_group": [
     {
-      "name": "Github_Service_Account",
+      "name": "Service_Account",
       "secrets": [
         {
-          "name": "Github_Service_Acct",
+          "name": "Service_Acct_User",
           "secret_type": "username",
           "access_type": "HTTP(S)"
         },
         {
-          "name": "Github_Service_Token",
+          "name": "Service_Acct_Token",
           "secret_type": "token",
+          "access_type": "HTTP(S)"
+        },
+        {
+          "name": "Service_Acct_Password",
+          "secret_type": "password",
           "access_type": "HTTP(S)"
         }
       ]
@@ -511,7 +524,7 @@
       "name": "Backbone Config Contexts",
       "url": "https://github.com/nautobot/backbone-config-contexts.git",
       "branch": "main",
-      "secrets_group": "Github_Service_Account",
+      "secrets_group": "Service_Account",
       "provided_contents": [
         "config contexts"
       ]
@@ -520,7 +533,7 @@
       "name": "Datacenter Config Contexts",
       "url": "https://github.com/nautobot/datacenter-config-contexts.git",
       "branch": "develop",
-      "secrets_group": "Github_Service_Account",
+      "secrets_group": "Service_Account",
       "provided_contents": [
         "config contexts"
       ]
@@ -1092,6 +1105,27 @@
       "object_tags": [],
       "tags": [],
       "system_of_record": "Bootstrap"
+    }
+  ],
+  "external_integration": [
+    {
+      "name": "Test Integration",
+      "remote_url": "https://my.integration.instance:45321",
+      "verify_ssl": false,
+      "secrets_group": "Service_Account",
+      "http_method": "GET",
+      "ca_file_path": "/tmp/test",
+      "timeout": 30,
+      "headers": {
+        "Accept": "application/yang-data+json",
+        "Content-Type": "application/yang-data+json"
+      },
+      "extra_config": {
+        "test_extra_config": [
+          "extra_value"
+        ]
+      },
+      "tags": []
     }
   ]
 }

@@ -2,10 +2,10 @@
 
 from collections import defaultdict
 from dataclasses import dataclass, field
+from typing import DefaultDict, Hashable, Type
 
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
-from typing_extensions import DefaultDict, Dict, FrozenSet, Hashable, Tuple, Type
 
 # This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
 # and therefore a frozenset rather than a normal set or a list.
@@ -17,14 +17,14 @@ from typing_extensions import DefaultDict, Dict, FrozenSet, Hashable, Tuple, Typ
 #   ("group__name", "Customers"),
 #  ]
 # )
-ParameterSet = FrozenSet[Tuple[str, Hashable]]
+ParameterSet = frozenset[tuple[str, Hashable]]
 
 
 @dataclass
 class ORMCache:
     """Basic caching class for use in `NautobotAdapter` and other tools when interacting with the database."""
 
-    cache: DefaultDict[str, Dict[ParameterSet, Model]] = field(init=False, repr=False)
+    cache: DefaultDict[str, dict[ParameterSet, Model]] = field(init=False, repr=False)
     cache_hits: DefaultDict[str, int] = field(init=False)
 
     def __post_init__(self):
@@ -41,7 +41,7 @@ class ORMCache:
         """Get number of hits for specified cache key."""
         return self.cache_hits.get(cache_key, None)
 
-    def get_from_orm(self, model_class: Type[Model], parameters: Dict):
+    def get_from_orm(self, model_class: Type[Model], parameters: dict):
         """Retrieve an object from the ORM or the cache."""
         parameter_set = frozenset(parameters.items())
         content_type = ContentType.objects.get_for_model(model_class)

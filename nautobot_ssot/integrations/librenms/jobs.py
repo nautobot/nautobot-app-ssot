@@ -261,8 +261,8 @@ class LibrenmsDataTarget(DataTarget):
         self.ping_fallback = ping_fallback
         self.sync_locations = sync_locations
         self.location_type = location_type
-        self.hostname_field == "env_var"
-        self.load_type == "api"
+        self.hostname_field = "env_var"
+        self.load_type = "api"
         self.tenant = tenant
         self.debug = debug
         self.dryrun = dryrun
