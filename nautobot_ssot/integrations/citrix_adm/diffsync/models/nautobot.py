@@ -328,7 +328,7 @@ class NautobotIPAddressOnInterface(IPAddressOnInterface):
                 new_map.interface.device.primary_ip4 = new_map.ip_address
             else:
                 new_map.interface.device.primary_ip6 = new_map.ip_address
-            new_map.interface.device.validated_save()
+            new_map.interface.device.validated_save()  # pylint:disable=no-member
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
