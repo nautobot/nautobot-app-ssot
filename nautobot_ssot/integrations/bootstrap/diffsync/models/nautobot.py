@@ -2155,7 +2155,7 @@ class NautobotSecretsGroup(SecretsGroup):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create SecretsGroup in Nautobot from NautobotSecretsGroup object."""
-        adapter.job.logger.info(f"Creating Nautobot SecretsGroup: {ids['name']} TEST CONFIRMED")
+        adapter.job.logger.info(f"Creating Nautobot SecretsGroup: {ids['name']}")
         _new_secrets_group = ORMSecretsGroup(name=ids["name"])
         _new_secrets_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_secrets_group.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
