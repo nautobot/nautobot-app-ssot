@@ -2872,7 +2872,11 @@ class NautobotSoftware(_Software_Base_Class):
         """Delete Software in Nautobot from NautobotSoftware object."""
         try:
             _platform = ORMPlatform.objects.get(name=self.platform)
-            _software = ORMSoftware.objects.get(version=self.version, device_platform=_platform)
+            if dlm_supports_softwarelcm():
+                _software = ORMSoftware.objects.get(version=self.version, device_platform=_platform)
+            if core_supports_softwareversion():
+                _software = ORMSoftware.objects.get(version=self.version, platform=_platform)
+            self.adapter.job.logger.warning(f"Deleting Nautobot Software Object ({self.platform} - {self.version}.)")
             super().delete()
             _software.delete()
             return self

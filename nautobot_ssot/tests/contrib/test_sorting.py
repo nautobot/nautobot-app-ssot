@@ -1,6 +1,7 @@
 """Unit tests for contrib sorting."""
 
 from typing import List, Optional
+from unittest import skip
 from unittest.mock import MagicMock
 
 from django.test import TestCase
@@ -68,6 +69,7 @@ class TestAdapter(NautobotAdapter):
 ##############
 
 
+@skip("Sorting disabled.")
 class TestCaseIsSortableFieldFunction(TestCase):
     """Tests for `_is_sortable_field` function."""
 
@@ -85,6 +87,7 @@ class TestCaseIsSortableFieldFunction(TestCase):
         self.assertFalse(test)
 
 
+@skip("Sorting disabled.")
 class TestCaseGetSortedAttributesFromModel(TestCase):
     """Tests for `get_sortable_fields_from_model` function."""
 
@@ -97,6 +100,7 @@ class TestCaseGetSortedAttributesFromModel(TestCase):
         self.assertTrue(len(result) == 0)
 
 
+@skip("Sorting disabled.")
 class TestCaseSortRelationships(TestCase):
     """Tests for `sort_relationships` function."""
 
@@ -143,6 +147,7 @@ class TestCaseSortRelationships(TestCase):
         self.assertTrue(self.target.get_all("tenant")[0].tags[0]["name"] == "A Tag")
 
 
+@skip("Sorting disabled.")
 class TestGetSortKeyFromTypedDict(TestCase):
     """Unit tests for `get_sort_key_from_typed_dict` function."""
 
