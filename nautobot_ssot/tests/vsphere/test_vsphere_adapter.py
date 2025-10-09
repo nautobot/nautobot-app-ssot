@@ -157,7 +157,12 @@ class TestVsphereAdapter(unittest.TestCase):
             diffsync_vminterface,
             diffsync_virtualmachine,
         )
-        vm_ip = self.vsphere_adapter.get("ip_address", "192.168.2.88__23__Active")
+        self.vsphere_adapter.load_ip_map()
+
+        vm_ip = self.vsphere_adapter.get(
+            "ip_address",
+            "192.168.2.88__23__Active",
+        )
         self.assertEqual(vm_ip.host, "192.168.2.88")
         self.assertEqual(vm_ip.mask_length, 23)
         self.assertEqual(vm_ip.status__name, "Active")
@@ -166,8 +171,61 @@ class TestVsphereAdapter(unittest.TestCase):
             [{"name": "Network adapter 1", "virtual_machine__name": "Nautobot"}],
         )
 
-        prefix = self.vsphere_adapter.get("prefix", "192.168.2.0__23__Global__Active")
+        prefix = self.vsphere_adapter.get(
+            "prefix",
+            "192.168.2.0__23__Global__Active",
+        )
         self.assertEqual(prefix.network, "192.168.2.0")
         self.assertEqual(prefix.prefix_length, 23)
+        self.assertEqual(prefix.namespace__name, "Global")
+        self.assertEqual(prefix.type, "network")
+
+    def test_load_ipv6_addresses(self):
+        mock_interfaces = unittest.mock.MagicMock()
+        mock_interfaces.json.return_value = json_fixture(f"{FIXTURES}/get_vm_interfaces_ipv6.json")
+        diffsync_virtualmachine, _ = self.vsphere_adapter.get_or_instantiate(
+            self.vsphere_adapter.virtual_machine,
+            {"name": "Nautobot", "cluster__name": "HeshLawCluster"},
+            {
+                "vcpus": 10,
+                "memory": 49152,
+                "disk": 64,
+                "status__name": "Active",
+            },
+        )
+        diffsync_vminterface, _ = self.vsphere_adapter.get_or_instantiate(
+            self.vsphere_adapter.interface,
+            {"name": "Network adapter 1", "virtual_machine__name": "Nautobot"},
+            {
+                "enabled": False,
+                "mac_address": "00:50:56:b5:e5:5f",
+                "status__name": "Active",
+            },
+        )
+
+        self.vsphere_adapter.load_ip_addresses(
+            mock_interfaces.json()["value"],
+            "00:50:56:b5:e5:5f",
+            diffsync_vminterface,
+            diffsync_virtualmachine,
+        )
+
+        # Must call load_ip_map to populate the IP since I'm deferring it.
+        self.vsphere_adapter.load_ip_map()
+        vm_ip = self.vsphere_adapter.get(
+            "ip_address",
+            "2001:0db8:85a3:0000:0000:8a2e:0370:7334__64__Active",
+        )
+        self.assertEqual(vm_ip.host, "2001:0db8:85a3:0000:0000:8a2e:0370:7334")
+        self.assertEqual(vm_ip.mask_length, 64)
+        self.assertEqual(vm_ip.status__name, "Active")
+        self.assertEqual(
+            vm_ip.vm_interfaces,
+            [{"name": "Network adapter 1", "virtual_machine__name": "Nautobot"}],
+        )
+
+        prefix = self.vsphere_adapter.get("prefix", "2001:db8:85a3::__64__Global__Active")
+        self.assertEqual(prefix.network, "2001:db8:85a3::")
+        self.assertEqual(prefix.prefix_length, 64)
         self.assertEqual(prefix.namespace__name, "Global")
         self.assertEqual(prefix.type, "network")

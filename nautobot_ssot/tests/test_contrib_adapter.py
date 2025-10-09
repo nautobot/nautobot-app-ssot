@@ -1,6 +1,6 @@
 """Tests for contrib.NautobotAdapter."""
 
-from typing import List
+from typing import Annotated, List, Optional
 from unittest import skip
 from unittest.mock import MagicMock
 
@@ -16,7 +16,7 @@ from nautobot.extras import models as extras_models
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.ipam import models as ipam_models
 from nautobot.tenancy import models as tenancy_models
-from typing_extensions import Annotated, Optional, TypedDict
+from typing_extensions import TypedDict
 
 from nautobot_ssot.contrib import CustomFieldAnnotation, NautobotAdapter, NautobotModel
 from nautobot_ssot.tests.contrib_base_classes import (

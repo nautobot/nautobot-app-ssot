@@ -1,12 +1,13 @@
 """Collection of utility functions for interacting with Django ORM."""
 
+from typing import Type
 from uuid import UUID
 
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model, QuerySet
 from nautobot.core.models import BaseModel
 from nautobot.extras.models import Relationship, RelationshipAssociation
-from typing_extensions import Any, Dict, Tuple, Type, get_type_hints, is_typeddict
+from typing_extensions import Any, get_type_hints, is_typeddict
 
 from nautobot_ssot.contrib.types import RelationshipSideEnum
 from nautobot_ssot.utils.types import RelationshipAssociationParameters
@@ -86,7 +87,7 @@ def get_custom_relationship_association_parameters(
     relationship: Relationship,
     db_obj_id: UUID,
     relationship_side: RelationshipSideEnum,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build relationship parameters for retreiving associations of a specified database object.
 
     Relationship parameters are the fields required to connect one relationship association(s) for a single Nautobot
@@ -98,7 +99,7 @@ def get_custom_relationship_association_parameters(
         relationship_side (RelationshipSideEnum): Instance of enum defining which side of relationship `db_obj_id` is on.
 
     Returns:
-        Dict[str, Any]: Dictionary of values representing ORM parameters to filter by.
+        dict[str, Any]: Dictionary of values representing ORM parameters to filter by.
 
     Raises:
         TypeError: When parameters passed to the function are not of the corret/specified type.
@@ -128,7 +129,7 @@ def get_custom_relationship_associations(
     relationship: Relationship,
     db_obj: BaseModel,
     relationship_side: RelationshipSideEnum,
-) -> Tuple[QuerySet, int]:
+) -> tuple[QuerySet, int]:
     """Get custom relationship associations from database and their count.
 
     Args:
@@ -139,7 +140,7 @@ def get_custom_relationship_associations(
         relationship_side (RelationshipSideEnum): Enum defining which side of the relationship `db_obj` is on.
 
     Returns:
-        Tuple[QuerySet, int]:
+        tuple[QuerySet, int]:
             Tuple containing the ORM query set of RelationshipAssociations and integer count of total items.
 
     Raises:

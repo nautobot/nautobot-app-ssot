@@ -198,7 +198,6 @@ class TestVSphereDiffSyncModelsCreate(TestCase):
         self.vsphere_adapter.add(vm_interface_ip)
         self.vsphere_adapter.add(prefix_test)
         vm_test.add_child(vm_interface_test)
-        vm_interface_test.add_child(vm_interface_ip)
 
         nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
         nb_adapter.job = MagicMock()
@@ -222,7 +221,6 @@ class TestVSphereDiffSyncModelsCreate(TestCase):
             type="network",
         )
         self.vsphere_adapter.add(prefix_test)
-
         nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
         nb_adapter.job = MagicMock()
         nb_adapter.load()
@@ -232,6 +230,27 @@ class TestVSphereDiffSyncModelsCreate(TestCase):
         self.assertEqual(nb_prefix.network, "192.168.10.0")
         self.assertEqual(nb_prefix.prefix_length, 24)
         self.assertEqual(str(nb_prefix.prefix), "192.168.10.0/24")
+        self.assertEqual(nb_prefix.namespace.name, "Global")
+        self.assertEqual(nb_prefix.type, "network")
+
+    def test_prefix_ipv6_creation(self):
+        prefix_test = self.vsphere_adapter.prefix(
+            network="2001:db8:85a3::",
+            prefix_length=64,
+            namespace__name="Global",
+            status__name="Active",
+            type="network",
+        )
+        self.vsphere_adapter.add(prefix_test)
+        nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
+        nb_adapter.job = MagicMock()
+        nb_adapter.load()
+        self.vsphere_adapter.sync_to(nb_adapter)
+
+        nb_prefix = Prefix.objects.get(network="2001:db8:85a3::", prefix_length=64)
+        self.assertEqual(nb_prefix.network, "2001:db8:85a3::")
+        self.assertEqual(nb_prefix.prefix_length, 64)
+        self.assertEqual(str(nb_prefix.prefix), "2001:db8:85a3::/64")
         self.assertEqual(nb_prefix.namespace.name, "Global")
         self.assertEqual(nb_prefix.type, "network")
 
@@ -269,7 +288,6 @@ class TestVSphereDiffSyncModelsCreate(TestCase):
         self.vsphere_adapter.add(vm_interface_ip)
         self.vsphere_adapter.add(prefix_test)
         vm_test.add_child(vm_interface_test)
-        vm_interface_test.add_child(vm_interface_ip)
 
         nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
         nb_adapter.job = MagicMock()
@@ -285,6 +303,58 @@ class TestVSphereDiffSyncModelsCreate(TestCase):
         self.assertEqual(nb_vm.disk, 50)
         self.assertEqual(nb_vm.cluster.name, "TestCluster")
         self.assertEqual(nb_vm.primary_ip.host, "192.168.1.1")
+
+    def test_vm_creation_and_vm_primary_ipv6(self):
+        nb_clustergroup, _ = ClusterGroup.objects.get_or_create(name="TestClusterGroup")
+        nb_clustertype, _ = ClusterType.objects.get_or_create(name="VMWare vSphere")
+        Cluster.objects.create(
+            name="TestCluster",
+            cluster_group=nb_clustergroup,
+            cluster_type=nb_clustertype,
+        )
+
+        vm_test = self.vsphere_adapter.virtual_machine(
+            **_get_virtual_machine_dict(
+                {"name": "TestVM", "primary_ip6__host": "2001:0db8:85a3:0000:0000:8a2e:0370:7334"}
+            )
+        )
+        vm_interface_test = self.vsphere_adapter.interface(
+            **_get_virtual_machine_interface_dict({"name": "Network Adapter 1", "virtual_machine__name": "TestVM"})
+        )
+        vm_interface_ip = self.vsphere_adapter.ip_address(
+            host="2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+            mask_length=64,
+            status__name="Active",
+            vm_interfaces=[{"name": "Network Adapter 1", "virtual_machine__name": "TestVM"}],
+        )
+        prefix_test = self.vsphere_adapter.prefix(
+            network="2001:0db8:85a3::",
+            prefix_length=24,
+            namespace__name="Global",
+            status__name="Active",
+            type="network",
+        )
+
+        self.vsphere_adapter.add(vm_test)
+        self.vsphere_adapter.add(vm_interface_test)
+        self.vsphere_adapter.add(vm_interface_ip)
+        self.vsphere_adapter.add(prefix_test)
+        vm_test.add_child(vm_interface_test)
+
+        nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
+        nb_adapter.job = MagicMock()
+        nb_adapter.load()
+        self.vsphere_adapter.sync_to(nb_adapter)
+
+        nb_adapter.sync_complete(source=None, diff=None)
+        nb_vm = VirtualMachine.objects.get(name="TestVM")
+        self.assertEqual(nb_vm.name, "TestVM")
+        self.assertEqual(nb_vm.status.name, "Active")
+        self.assertEqual(nb_vm.vcpus, 3)
+        self.assertEqual(nb_vm.memory, 4096)
+        self.assertEqual(nb_vm.disk, 50)
+        self.assertEqual(nb_vm.cluster.name, "TestCluster")
+        self.assertEqual(nb_vm.primary_ip.host, "2001:db8:85a3::8a2e:370:7334")
 
 
 class TestVSphereDiffSyncModelsUpdate(TestCase):
@@ -452,6 +522,7 @@ class TestVSphereDiffSyncModelsUpdate(TestCase):
             type="network",
         )
         nb_ip = IPAddress.objects.create(host="192.168.1.1", mask_length=24, status=self.active_status)
+        nb_ip.tags.set([self.ssot_tag])
         nb_ip.vm_interfaces.set([nb_vm_interface_1])
 
         vm_test = self.vsphere_adapter.virtual_machine(**_get_virtual_machine_dict({"name": "TestVM"}))
@@ -487,7 +558,6 @@ class TestVSphereDiffSyncModelsUpdate(TestCase):
         self.vsphere_adapter.add(prefix_test)
         vm_test.add_child(vm_interface_test_1)
         vm_test.add_child(vm_interface_test_2)
-        vm_interface_test_1.add_child(vm_interface_ip)
 
         nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
         nb_adapter.job = MagicMock()
@@ -548,7 +618,9 @@ class TestVSphereDiffSyncModelsUpdate(TestCase):
             type="network",
         )
         nb_ip_1 = IPAddress.objects.create(host="192.168.1.1", mask_length=24, status=self.active_status)
+        nb_ip_1.tags.set([self.ssot_tag])
         nb_ip_2 = IPAddress.objects.create(host="10.10.10.1", mask_length=24, status=self.active_status)
+        nb_ip_2.tags.set([self.ssot_tag])
         nb_ip_1.vm_interfaces.set([nb_vm_interface_1])
         nb_ip_2.vm_interfaces.set([nb_vm_interface_2])
         nb_vm.primary_ip4 = nb_ip_1
@@ -604,8 +676,6 @@ class TestVSphereDiffSyncModelsUpdate(TestCase):
         self.vsphere_adapter.add(prefix_test_2)
         vm_test.add_child(vm_interface_test_1)
         vm_test.add_child(vm_interface_test_2)
-        vm_interface_test_1.add_child(vm_interface_ip_1)
-        vm_interface_test_2.add_child(vm_interface_ip_2)
 
         nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
         nb_adapter.job = MagicMock()
@@ -616,6 +686,121 @@ class TestVSphereDiffSyncModelsUpdate(TestCase):
         nb_vm = VirtualMachine.objects.get(name="TestVM")
         self.assertEqual(nb_vm.name, "TestVM")
         self.assertEqual(nb_vm.primary_ip.host, "10.10.10.1")
+
+    def test_vm_primary_ip6_update(self):  # pylint: disable=too-many-locals
+        nb_clustergroup, _ = ClusterGroup.objects.get_or_create(name="TestClusterGroup")
+        nb_clustertype, _ = ClusterType.objects.get_or_create(name="VMWare vSphere")
+        nb_cluster = Cluster.objects.create(
+            name="TestCluster",
+            cluster_group=nb_clustergroup,
+            cluster_type=nb_clustertype,
+        )
+        nb_vm = VirtualMachine.objects.create(
+            name="TestVM",
+            status=self.active_status,
+            vcpus=3,
+            memory=4096,
+            disk=50,
+            cluster=nb_cluster,
+        )
+        nb_vm.tags.set([self.ssot_tag])
+        nb_vm_interface_1 = VMInterface.objects.create(
+            name="Network Adapter 1",
+            enabled=True,
+            virtual_machine=nb_vm,
+            mac_address="AA:BB:CC:DD:EE:FF",
+            status=self.active_status,
+        )
+        nb_vm_interface_2 = VMInterface.objects.create(
+            name="Network Adapter 2",
+            enabled=True,
+            virtual_machine=nb_vm,
+            mac_address="BB:BB:BB:BB:BB:BB",
+            status=self.active_status,
+        )
+        Prefix.objects.create(
+            network="fd12:3456:789a:1::",
+            prefix_length=64,
+            namespace=Namespace.objects.get(name="Global"),
+            status=self.active_status,
+            type="network",
+        )
+        Prefix.objects.create(
+            network="2001:db8:abcd:42::",
+            prefix_length=64,
+            namespace=Namespace.objects.get(name="Global"),
+            status=self.active_status,
+            type="network",
+        )
+        nb_ip_1 = IPAddress.objects.create(host="fd12:3456:789a:1::1234", mask_length=64, status=self.active_status)
+        nb_ip_1.tags.set([self.ssot_tag])
+        nb_ip_2 = IPAddress.objects.create(host="2001:db8:abcd:42::abcd", mask_length=64, status=self.active_status)
+        nb_ip_2.tags.set([self.ssot_tag])
+        nb_ip_1.vm_interfaces.set([nb_vm_interface_1])
+        nb_ip_2.vm_interfaces.set([nb_vm_interface_2])
+        nb_vm.primary_ip6 = nb_ip_1
+        nb_vm.validated_save()
+
+        vm_test = self.vsphere_adapter.virtual_machine(
+            **_get_virtual_machine_dict({"name": "TestVM", "primary_ip6__host": "2001:db8:abcd:42::abcd"})
+        )
+        vm_interface_test_1 = self.vsphere_adapter.interface(
+            **_get_virtual_machine_interface_dict({"name": "Network Adapter 1", "virtual_machine__name": "TestVM"})
+        )
+        vm_interface_test_2 = self.vsphere_adapter.interface(
+            **_get_virtual_machine_interface_dict(
+                {
+                    "name": "Network Adapter 2",
+                    "virtual_machine__name": "TestVM",
+                    "mac_address": "BB:BB:BB:BB:BB:BB",
+                }
+            )
+        )
+        vm_interface_ip_1 = self.vsphere_adapter.ip_address(
+            host="fd12:3456:789a:1::1234",
+            mask_length=64,
+            status__name="Active",
+            vm_interfaces=[{"name": "Network Adapter 1", "virtual_machine__name": "TestVM"}],
+        )
+        vm_interface_ip_2 = self.vsphere_adapter.ip_address(
+            host="2001:db8:abcd:42::abcd",
+            mask_length=64,
+            status__name="Active",
+            vm_interfaces=[{"name": "Network Adapter 2", "virtual_machine__name": "TestVM"}],
+        )
+        prefix_test_1 = self.vsphere_adapter.prefix(
+            network="fd12:3456:789a:1::",
+            prefix_length=64,
+            namespace__name="Global",
+            status__name="Active",
+            type="network",
+        )
+        prefix_test_2 = self.vsphere_adapter.prefix(
+            network="2001:db8:abcd:42::",
+            prefix_length=64,
+            namespace__name="Global",
+            status__name="Active",
+            type="network",
+        )
+        self.vsphere_adapter.add(vm_test)
+        self.vsphere_adapter.add(vm_interface_test_1)
+        self.vsphere_adapter.add(vm_interface_test_2)
+        self.vsphere_adapter.add(vm_interface_ip_1)
+        self.vsphere_adapter.add(vm_interface_ip_2)
+        self.vsphere_adapter.add(prefix_test_1)
+        self.vsphere_adapter.add(prefix_test_2)
+        vm_test.add_child(vm_interface_test_1)
+        vm_test.add_child(vm_interface_test_2)
+
+        nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
+        nb_adapter.job = MagicMock()
+        nb_adapter.load()
+
+        self.vsphere_adapter.sync_to(nb_adapter)
+        nb_adapter.sync_complete(source=None, diff=None)
+        nb_vm = VirtualMachine.objects.get(name="TestVM")
+        self.assertEqual(nb_vm.name, "TestVM")
+        self.assertEqual(nb_vm.primary_ip.host, "2001:db8:abcd:42::abcd")
 
 
 class TestVSphereDiffSyncModelsDelete(TestCase):
@@ -742,7 +927,9 @@ class TestVSphereDiffSyncModelsDelete(TestCase):
             type="network",
         )
         nb_ip_1 = IPAddress.objects.create(host="192.168.1.1", mask_length=24, status=self.active_status)
+        nb_ip_1.tags.set([self.ssot_tag])
         nb_ip_2 = IPAddress.objects.create(host="10.10.10.1", mask_length=24, status=self.active_status)
+        nb_ip_2.tags.set([self.ssot_tag])
         nb_ip_1.vm_interfaces.set([nb_vm_interface_1])
         nb_ip_2.vm_interfaces.set([nb_vm_interface_2])
         nb_vm.primary_ip4 = nb_ip_1
@@ -798,8 +985,6 @@ class TestVSphereDiffSyncModelsDelete(TestCase):
         self.vsphere_adapter.add(prefix_test_2)
         vm_test.add_child(vm_interface_test_1)
         vm_test.add_child(vm_interface_test_2)
-        vm_interface_test_1.add_child(vm_interface_ip_1)
-        vm_interface_test_2.add_child(vm_interface_ip_2)
 
         nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
         nb_adapter.job = MagicMock()

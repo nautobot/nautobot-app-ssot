@@ -195,7 +195,49 @@ class NautobotTestSetup:
         self.bs_adapter.job = MagicMock()
         self.bs_adapter.job.logger.info = MagicMock()
         self.status_active = None
+        self._empty_database()
         self._initialize_data()
+
+    def _empty_database(self):
+        """Empty the database before trying to populate data."""
+        for model in (
+            Circuit,
+            CircuitTermination,
+            CircuitType,
+            ComputedField,
+            Contact,
+            CustomField,
+            Device,
+            DeviceType,
+            DynamicGroup,
+            ExternalIntegration,
+            GitRepository,
+            GraphQLQuery,
+            InventoryItem,
+            JobResult,
+            Location,
+            LocationType,
+            Manufacturer,
+            Namespace,
+            Platform,
+            Prefix,
+            Provider,
+            ProviderNetwork,
+            RIR,
+            Role,
+            ScheduledJob,
+            Secret,
+            SecretsGroup,
+            Status,
+            Tag,
+            Team,
+            Tenant,
+            TenantGroup,
+            VLAN,
+            VLANGroup,
+            VRF,
+        ):
+            model.objects.all().delete()
 
     def _initialize_data(self):
         self._setup_tags()
@@ -1021,6 +1063,8 @@ class NautobotTestSetup:
                 _soft_image.refresh_from_db()
 
     def _setup_validated_software(self):
+        if not validate_dlm_installed():
+            return
         for validated_software_data in GLOBAL_YAML_SETTINGS["validated_software"]:
             tags = self._get_validated_software_tags(validated_software_data["tags"])
             devices = self._get_devices(validated_software_data["devices"])
@@ -1031,7 +1075,7 @@ class NautobotTestSetup:
 
             software = self._get_software(validated_software_data["software"])
 
-            validated_software = ValidatedSoftwareLCM.objects.create(
+            validated_software = ValidatedSoftwareLCM.objects.create(  # pylint:disable=possibly-used-before-assignment
                 software=software,
                 start=validated_software_data["valid_since"],
                 end=validated_software_data["valid_until"],
@@ -1076,6 +1120,7 @@ class NautobotTestSetup:
     def _setup_external_integrations(self):
         """Set up external integrations for testing."""
         for _ext_int in GLOBAL_YAML_SETTINGS["external_integration"]:
+            _secrets_group = None
             if _ext_int.get("secrets_group"):
                 _secrets_group = SecretsGroup.objects.get(name=_ext_int["secrets_group"])
             _nb_ext_int = ExternalIntegration.objects.create(
@@ -1117,6 +1162,7 @@ class NautobotTestSetup:
     def _get_software(self, software_name):
         platform_name, software_version = software_name.split(" - ")
         platform = Platform.objects.get(name=platform_name)
+        software = None
         if core_supports_softwareversion():
             software = SoftwareVersion.objects.get_or_create(
                 version=software_version, platform=platform, status=self.status_active

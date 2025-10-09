@@ -2884,6 +2884,10 @@ class NautobotSoftware(_Software_Base_Class):
             self.adapter.job.logger.warning(
                 f"Unable to find Software {self.platform} - {self.version} for deletion. {err}"
             )
+        except ProtectedError as err:
+            self.adapter.job.logger.warning(
+                f"Unable to delete Software {self.platform} - {self.version}, as it is referenced by another object. {err}"
+            )
 
 
 class NautobotSoftwareImage(_SoftwareImage_Base_Class):

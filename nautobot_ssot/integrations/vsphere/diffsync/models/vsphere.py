@@ -167,6 +167,8 @@ class PrefixModel(vSphereModelDiffSync):
 class IPAddressModel(vSphereModelDiffSync):
     """IPAddress Diffsync model."""
 
+    model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+
     _model = IPAddress
     _modelname = "ip_address"
     _identifiers = ("host", "mask_length", "status__name")
@@ -178,32 +180,12 @@ class IPAddressModel(vSphereModelDiffSync):
     vm_interfaces: List[InterfacesDict] = []
 
     @classmethod
-    def create(cls, adapter, ids, attrs):
-        """Create the IP address.
+    def get_queryset(cls, config, cluster_filters):
+        """Return the queryset for the model. This is overriden to pass in the config object.
 
-        This is being overriden because the interface that the IP address is assigned to may already exist. Diffsync won't take that into account.
-
-        Args:
-            adapter (Adapter): The adapter.
-            ids (dict[str, Any]): The natural keys for the IP address.
-            attrs (dict[str, Any]): The attributes to assign to the IP address.
-
-        Returns:
-            IPAddressModel: The IP address model.
+        We are only loading IP addresses that have been tagged as being synced from vSphere.
         """
-        try:
-            ip_address = cls._model.objects.get(**ids)
-            vm_interface = VMInterface.objects.get(
-                name=attrs["vm_interfaces"][0]["name"],
-                virtual_machine__name=attrs["vm_interfaces"][0]["virtual_machine__name"],
-            )
-            vm_interface.ip_addresses.set([ip_address])
-            vm_interface.validated_save()
-            # Calling return base as super() isn't called here.
-            return cls.create_base(adapter, ids, attrs)
-        except cls._model.DoesNotExist:
-            # If the IP address doesn't exist, normal diffsync process will create it and associate with the interface.
-            return super().create(adapter, ids, attrs)
+        return cls._model.objects.filter(tags__name__in=["SSoT Synced from vSphere"])
 
 
 class VMInterfaceModel(vSphereModelDiffSync):
@@ -215,14 +197,12 @@ class VMInterfaceModel(vSphereModelDiffSync):
     _modelname = "interface"
     _identifiers = ("name", "virtual_machine__name")
     _attributes = ("enabled", "mac_address", "status__name")
-    _children = {"ip_address": "ip_addresses"}
 
     name: str
     virtual_machine__name: str
     enabled: bool
     status__name: str
     mac_address: Optional[str] = None
-    ip_addresses: List[IPAddress] = []
 
 
 class VirtualMachineModel(vSphereModelDiffSync):
