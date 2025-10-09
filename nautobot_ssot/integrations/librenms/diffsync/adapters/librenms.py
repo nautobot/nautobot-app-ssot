@@ -95,7 +95,11 @@ class LibrenmsAdapter(Adapter):
                 normalized_name = normalize_device_hostname(device[hostname_field], self.job)
                 if isinstance(normalized_name, str):
                     location_data = parse_hostname_for_location(
-                        str(self.job.location_map) if self.job.location_map else {"name": device["location"], "parent": device["location"]}, normalized_name, device["location"]
+                        str(self.job.location_map)
+                        if self.job.location_map
+                        else {"name": device["location"], "parent": device["location"]},
+                        normalized_name,
+                        device["location"],
                     )
                     role = parse_hostname_for_role(
                         str(self.job.hostname_map) if self.job.hostname_map else None,

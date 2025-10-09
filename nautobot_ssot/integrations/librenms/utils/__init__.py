@@ -58,9 +58,9 @@ def has_required_values(device, job):
     }
 
     unpermitted_values = getattr(job, "unpermitted_values", None)
-    
+
     # Convert JSONVar to proper data type if needed
-    if unpermitted_values and hasattr(unpermitted_values, '__str__') and not isinstance(unpermitted_values, list):
+    if unpermitted_values and hasattr(unpermitted_values, "__str__") and not isinstance(unpermitted_values, list):
         try:
             unpermitted_values = json.loads(str(unpermitted_values))
         except (json.JSONDecodeError, TypeError):

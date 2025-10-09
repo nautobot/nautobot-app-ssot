@@ -7,10 +7,8 @@ from nautobot.core.testing import TransactionTestCase
 from nautobot.dcim.models import Device, Location, LocationType
 from nautobot.extras.models import JobResult, Status
 
-from nautobot_ssot.integrations.librenms.constants import PLUGIN_CFG
 from nautobot_ssot.integrations.librenms.diffsync.adapters.librenms import LibrenmsAdapter
 from nautobot_ssot.integrations.librenms.jobs import LibrenmsDataSource
-from nautobot_ssot.integrations.librenms.utils import normalize_device_hostname
 from nautobot_ssot.tests.librenms.fixtures import DEVICE_FIXTURE_RECV, LOCATION_FIXURE_RECV
 
 
@@ -70,13 +68,13 @@ class TestLibreNMSAdapterTestCase(TransactionTestCase):
     @patch("nautobot_ssot.integrations.librenms.diffsync.adapters.librenms.has_required_values")
     def test_data_loading(self, mock_has_required_values):
         """Test that devices and locations are loaded correctly."""
-        
+
         def mock_validation(device_dict, job):
             """Mock validation to return valid for GRCH-AP-P2-UTPO-303-60, invalid for others."""
             # Check if this is the device we want to test
             hostname_field = getattr(job, "hostname_field", "hostname")
             device_name = device_dict.get(hostname_field, "")
-            
+
             if device_name == "GRCH-AP-P2-UTPO-303-60":
                 # Return valid for our test device
                 return {
@@ -91,9 +89,9 @@ class TestLibreNMSAdapterTestCase(TransactionTestCase):
                 return {
                     hostname_field: {"valid": False, "reason": "Test validation failure"},
                 }
-        
+
         mock_has_required_values.side_effect = mock_validation
-        
+
         self.librenms_adapter.load()
 
         # Debugging outputs
@@ -103,10 +101,13 @@ class TestLibreNMSAdapterTestCase(TransactionTestCase):
         # Check that the specific device was loaded
         loaded_devices = list(self.librenms_adapter.get_all("device"))
         device_names = [dev.name for dev in loaded_devices]
-        
-        self.assertIn("GRCH-AP-P2-UTPO-303-60", device_names, 
-                     f"Expected device GRCH-AP-P2-UTPO-303-60 not found in loaded devices: {device_names}")
-        
+
+        self.assertIn(
+            "GRCH-AP-P2-UTPO-303-60",
+            device_names,
+            f"Expected device GRCH-AP-P2-UTPO-303-60 not found in loaded devices: {device_names}",
+        )
+
         # Check that locations were loaded
         loaded_locations = list(self.librenms_adapter.get_all("location"))
         self.assertGreater(len(loaded_locations), 0, "No locations were loaded")
