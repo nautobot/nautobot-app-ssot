@@ -104,7 +104,7 @@ class LibrenmsAdapter(Adapter):
                     role = parse_hostname_for_role(
                         str(self.job.hostname_map) if self.job.hostname_map else None,
                         normalized_name,
-                        self.job.default_role if self.job.default_role else "Unknown",
+                        self.job.default_role.name if self.job.default_role else None,
                     )
                     normalized_platform = LIBRENMS_LIB_MAPPER.get(device["os"], device["os"])
                     ip_address = device.get("ip", None)

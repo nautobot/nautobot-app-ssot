@@ -84,11 +84,10 @@ class TestLibreNMSAdapterTestCase(TransactionTestCase):
                     "platform": {"valid": True},
                     "device_type": {"valid": True},
                 }
-            else:
-                # Return invalid for all other devices - just need one field to be invalid
-                return {
-                    hostname_field: {"valid": False, "reason": "Test validation failure"},
-                }
+            # Return invalid for all other devices - just need one field to be invalid
+            return {
+                hostname_field: {"valid": False, "reason": "Test validation failure"},
+            }
 
         mock_has_required_values.side_effect = mock_validation
 

@@ -11,8 +11,10 @@ from netutils.lib_mapper import ANSIBLE_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER_RE
 
 from nautobot_ssot.utils import dlm_supports_softwarelcm
 
-if dlm_supports_softwarelcm():
+try:
     from nautobot_device_lifecycle_mgmt.models import SoftwareLCM
+except ImportError:
+    SoftwareLCM = None
 
 
 def verify_platform(platform_name: str, manu: UUID) -> Platform:
@@ -54,6 +56,10 @@ def add_software_lcm(diffsync, platform: str, version: str):
     Returns:
         UUID: UUID of the OS Version that is being found or created.
     """
+    if SoftwareLCM is None:
+        diffsync.job.logger.warning("Device Lifecycle Management plugin not available. Skipping SoftwareLCM creation.")
+        return None
+    
     platform_obj = Platform.objects.get(network_driver=platform)
     try:
         os_ver = SoftwareLCM.objects.get(device_platform=platform_obj, version=version).id
@@ -70,6 +76,10 @@ def add_software_lcm(diffsync, platform: str, version: str):
 
 def assign_version_to_device(diffsync, device: Device, software_lcm: UUID):
     """Add Relationship between Device and SoftwareLCM."""
+    if SoftwareLCM is None:
+        diffsync.job.logger.warning("Device Lifecycle Management plugin not available. Skipping SoftwareLCM relationship assignment.")
+        return
+    
     try:
         software_relation = Relationship.objects.get(label="Software on Device")
         relationship = RelationshipAssociation.objects.get(relationship=software_relation, destination_id=device.id)

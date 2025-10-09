@@ -158,7 +158,7 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
                 return locations
             except (json.JSONDecodeError, UnicodeDecodeError) as err:
                 LOGGER.error("Error parsing uploaded locations file: %s", err)
-                raise (f"Invalid JSON in uploaded locations file: {err}") from err
+                raise ValueError(f"Invalid JSON in uploaded locations file: {err}") from err
         else:
             with open(
                 file=f"{os.getcwd()}/nautobot_ssot/tests/librenms/fixtures/get_librenms_locations.json",
