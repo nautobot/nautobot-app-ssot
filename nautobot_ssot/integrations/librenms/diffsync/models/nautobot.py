@@ -13,23 +13,25 @@ from nautobot.dcim.models import Platform as ORMPlatform
 from nautobot.dcim.models import SoftwareImageFile as ORMSoftwareImageFile
 from nautobot.dcim.models import SoftwareVersion as ORMSoftwareVersion
 from nautobot.extras.models import Role, Status
-from nautobot.ipam.models import IPAddress, IPAddressToInterface, Interface, Namespace, Prefix
-from nautobot.tenancy.models import Tenant as ORMTenant
+from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix
+from netutils.lib_mapper import ANSIBLE_LIB_MAPPER
 
-from nautobot_ssot.integrations.librenms.constants import os_manufacturer_map, LIBRENMS_LIB_MAPPER_REVERSE
+from nautobot_ssot.integrations.librenms.constants import LIBRENMS_LIB_MAPPER_REVERSE, os_manufacturer_map
 from nautobot_ssot.integrations.librenms.diffsync.models.base import Device, Location, Port
 from nautobot_ssot.integrations.librenms.utils import check_sor_field
-from nautobot_ssot.integrations.librenms.utils.nautobot import (
-    verify_platform,
-)
+
 
 def ensure_ip_address(ip_address: str, ip_prefix: str, adapter: object):
     """Safely returns an IPAddress."""
     _namespace = Namespace.objects.get_or_create(name=adapter.job.tenant.name)[0]
     _namespace.validated_save()
-    _prefix = Prefix.objects.get_or_create(prefix=ip_prefix, namespace=_namespace, status=Status.objects.get(name="Active"))[0]
+    _prefix = Prefix.objects.get_or_create(
+        prefix=ip_prefix, namespace=_namespace, status=Status.objects.get(name="Active")
+    )[0]
     _prefix.validated_save()
-    _ipaddress = IPAddress.objects.get_or_create(address=ip_address, parent=_prefix, namespace=_namespace, status=Status.objects.get(name="Active"))[0]
+    _ipaddress = IPAddress.objects.get_or_create(
+        address=ip_address, parent=_prefix, namespace=_namespace, status=Status.objects.get(name="Active")
+    )[0]
     _ipaddress.validated_save()
 
     return _ipaddress
@@ -38,12 +40,7 @@ def ensure_ip_address(ip_address: str, ip_prefix: str, adapter: object):
 def ensure_interface(interface_name: str, device: ORMDevice):
     """Safely returns an Interface."""
     _interface, created = ORMInterface.objects.get_or_create(
-        name=interface_name, 
-        device=device,
-        defaults={
-            'status': Status.objects.get(name="Active"),
-            'type': "virtual"
-        }
+        name=interface_name, device=device, defaults={"status": Status.objects.get(name="Active"), "type": "virtual"}
     )
     if created:
         _interface.validated_save()
@@ -63,11 +60,7 @@ def ensure_platform(platform_name: str, manufacturer: str):
     _manufacturer, _ = ORMManufacturer.objects.get_or_create(name=manufacturer)
     _network_driver = ANSIBLE_LIB_MAPPER.get(platform_name, platform_name)
     _platform, _ = ORMPlatform.objects.get_or_create(
-        name=platform_name, 
-        defaults={
-            "network_driver": _network_driver,
-            "manufacturer": _manufacturer
-        }
+        name=platform_name, defaults={"network_driver": _network_driver, "manufacturer": _manufacturer}
     )
     return _platform
 
@@ -189,7 +182,7 @@ class NautobotLocation(Location):
         except ORMLocation.MultipleObjectsReturned:
             adapter.job.logger.warning(f'Multiple locations found with name {ids["name"]}, using first one')
             existing_location = ORMLocation.objects.filter(name=ids["name"], parent__isnull=True).first()
-            return None
+            return existing_location
 
         try:
             if adapter.job.debug:
@@ -310,22 +303,13 @@ class NautobotDevice(Device):
         _ipaddress = None  # Initialize to None
         if ip_address and ip_prefix:
             _ipaddress = ensure_ip_address(ip_address=ip_address, ip_prefix=ip_prefix, adapter=adapter)
-        
+
         location_data = {"name": location_name, "parent": parent_location_name}
         _location = ensure_location(location_data=location_data, location_type=adapter.job.location_type)
         if adapter.job.debug:
             adapter.job.logger.debug(f'Device Location {attrs["location"]}')
 
-        # Handle tenant - convert string to Tenant object if needed
-        _tenant = None
-        if attrs.get("tenant"):
-            try:
-                _tenant = ORMTenant.objects.get(name=attrs["tenant"])
-            except ORMTenant.DoesNotExist:
-                if adapter.job.debug:
-                    adapter.job.logger.warning(f"Tenant {attrs['tenant']} not found, skipping tenant assignment")
-        elif adapter.tenant:
-            _tenant = adapter.tenant
+        _tenant = adapter.tenant
 
         try:
             new_device = ORMDevice(
@@ -359,19 +343,17 @@ class NautobotDevice(Device):
 
         new_device.custom_field_data.update(custom_fields)
         new_device.validated_save()
-        
+
         # Set primary IP and interface after device is created and saved
         if _ipaddress:
             _interface = ensure_interface(interface_name="Management", device=new_device)
             # Create the IP address to interface relationship
             IPAddressToInterface.objects.get_or_create(
-                ip_address=_ipaddress,
-                interface=_interface,
-                defaults={'vm_interface': None}
+                ip_address=_ipaddress, interface=_interface, defaults={"vm_interface": None}
             )
             new_device.primary_ip4 = _ipaddress
             new_device.validated_save()
-        
+
         # Remove tenant from attrs since we've already handled it
         attrs_copy = attrs.copy()
         attrs_copy.pop("tenant", None)
@@ -402,7 +384,9 @@ class NautobotDevice(Device):
             # Get the original OS name for manufacturer lookup
             manufacturer_name = os_manufacturer_map.get(LIBRENMS_LIB_MAPPER_REVERSE[attrs["platform"]])
             if manufacturer_name is None:
-                raise ValueError(f"Manufacturer mapping not found for OS: {LIBRENMS_LIB_MAPPER_REVERSE[attrs['platform']]}")
+                raise ValueError(
+                    f"Manufacturer mapping not found for OS: {LIBRENMS_LIB_MAPPER_REVERSE[attrs['platform']]}"
+                )
             _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
             _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=_manufacturer.name)
         if "os_version" in attrs:
@@ -413,16 +397,14 @@ class NautobotDevice(Device):
                 device_type=device.device_type,
             )
             _software_version.devices.add(device)
-        
+
         ip_address = attrs.get("ip_address")
         ip_prefix = attrs.get("ip_prefix")
         if ip_address and ip_prefix:
             _ipaddress = ensure_ip_address(ip_address=ip_address, ip_prefix=ip_prefix, adapter=self.adapter)
             _interface = ensure_interface(interface_name="Management", device=device)
             IPAddressToInterface.objects.get_or_create(
-                ip_address=_ipaddress,
-                interface=_interface,
-                defaults={'vm_interface': None}
+                ip_address=_ipaddress, interface=_interface, defaults={"vm_interface": None}
             )
             device.primary_ip4 = _ipaddress
         custom_fields = {"last_synced_from_sor": datetime.today().date().isoformat()}

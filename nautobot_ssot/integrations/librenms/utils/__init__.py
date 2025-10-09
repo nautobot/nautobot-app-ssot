@@ -4,9 +4,9 @@
 
 import inspect
 import ipaddress
+import json
 import logging
 import os
-import re
 
 from constance import config as constance_name
 from django.conf import settings
@@ -35,7 +35,7 @@ def normalize_device_hostname(device, job):
     if isinstance(device, str):
         hostname_str = device
     else:
-        hostname_str = device.get(getattr(job, 'hostname_field', 'hostname'), '')
+        hostname_str = device.get(getattr(job, "hostname_field", "hostname"), "")
 
     try:
         hostname = ipaddress.ip_address(hostname_str)
@@ -48,7 +48,7 @@ def normalize_device_hostname(device, job):
 
 def has_required_values(device, job):
     """Check if the device has required values."""
-    hostname_field = getattr(job, 'hostname_field', 'hostname')
+    hostname_field = getattr(job, "hostname_field", "hostname")
     required_values_dict = {
         hostname_field: {"valid": True},
         "location": {"valid": True},
@@ -57,7 +57,15 @@ def has_required_values(device, job):
         "device_type": {"valid": True},
     }
 
-    unpermitted_values = getattr(job, 'unpermitted_values', None)
+    unpermitted_values = getattr(job, "unpermitted_values", None)
+    
+    # Convert JSONVar to proper data type if needed
+    if unpermitted_values and hasattr(unpermitted_values, '__str__') and not isinstance(unpermitted_values, list):
+        try:
+            unpermitted_values = json.loads(str(unpermitted_values))
+        except (json.JSONDecodeError, TypeError):
+            # If it's not valid JSON, treat as None
+            unpermitted_values = None
 
     for key in required_values_dict:
         if key in device and isinstance(device[key], dict) and device[key].get("reason"):
@@ -70,11 +78,10 @@ def has_required_values(device, job):
         if unpermitted_values and device.get(key) in unpermitted_values:
             required_values_dict[key]["valid"] = False
             required_values_dict[key]["reason"] = f"{key} cannot be '{device[key]}'"
-
-    # Check if manufacturer mapping exists for the OS
-    if "platform" in device and device["platform"]:
-        if os_manufacturer_map.get(device["platform"]) is None:
-            required_values_dict["platform"] = {"valid": False, "reason": f"Manufacturer mapping not found for OS: {device['platform']}"}
+            continue
+        if key == "platform" and device.get(key) not in os_manufacturer_map:
+            required_values_dict[key]["valid"] = False
+            required_values_dict[key]["reason"] = f"Manufacturer mapping not found for OS: {device[key]}"
 
     return required_values_dict
 

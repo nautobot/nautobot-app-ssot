@@ -76,10 +76,6 @@ class ApiEndpoint:  # pylint: disable=too-few-public-methods
         else:
             params = {**self.params, **params}
 
-        LOGGER.debug(
-            f"LibreNMS API Call: Headers: {self.headers} Method: {method} URL: {url} Params: {params} Payload: {payload}"
-        )
-
         resp = requests.request(
             method=method,
             headers=self.headers,
@@ -90,12 +86,12 @@ class ApiEndpoint:  # pylint: disable=too-few-public-methods
             timeout=self.timeout,
         )
         try:
-            LOGGER.debug(f"LibreNMS Response: {resp}")
+            LOGGER.debug("LibreNMS Response: %s", resp)
             resp.raise_for_status()
 
             return resp.json()
         except requests.exceptions.HTTPError as err:
-            LOGGER.error(f"Error in communicating to LibreNMS API: {err}")
+            LOGGER.error("Error in communicating to LibreNMS API: %s", err)
             raise RequestConnectError(f"Error communicating to the LibreNMS API: {err}") from err
 
 
@@ -120,7 +116,7 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
         self.devices_load_file = devices_load_file
         self.locations_load_file = locations_load_file
 
-        LOGGER.info(f"Headers {self.headers}")
+        LOGGER.info("Headers %s", self.headers)
 
     def get_librenms_devices_from_file(self):
         """Get Devices from LibreNMS example file."""
@@ -132,14 +128,14 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
                 content = self.devices_load_file.read().decode("utf-8")
                 devices = json.loads(content)
                 LOGGER.info("Loaded devices from uploaded JSON file")
-                LOGGER.debug(f"File returned devices type: {type(devices)}")
+                LOGGER.debug("File returned devices type: %s", type(devices))
                 if devices and "devices" in devices:
-                    LOGGER.debug(f"Devices array type: {type(devices['devices'])}")
+                    LOGGER.debug("Devices array type: %s", type(devices["devices"]))
                     if devices["devices"]:
-                        LOGGER.debug(f"First device type: {type(devices['devices'][0])}")
+                        LOGGER.debug("First device type: %s", type(devices["devices"][0]))
                 return devices
             except (json.JSONDecodeError, UnicodeDecodeError) as err:
-                LOGGER.error(f"Error parsing uploaded devices file: {err}")
+                LOGGER.error("Error parsing uploaded devices file: %s", err)
                 raise RequestHTTPError(f"Invalid JSON in uploaded devices file: {err}") from err
         else:
             with open(
@@ -161,7 +157,7 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
                 LOGGER.info("Loaded locations from uploaded JSON file")
                 return locations
             except (json.JSONDecodeError, UnicodeDecodeError) as err:
-                LOGGER.error(f"Error parsing uploaded locations file: {err}")
+                LOGGER.error("Error parsing uploaded locations file: %s", err)
                 raise (f"Invalid JSON in uploaded locations file: {err}") from err
         else:
             with open(
@@ -175,11 +171,11 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
         """Get Devices from LibreNMS API endpoint."""
         url = "/api/v0/devices"
         devices = self.api_call(path=url)
-        LOGGER.debug(f"API returned devices type: {type(devices)}")
+        LOGGER.debug("API returned devices type: %s", type(devices))
         if devices and "devices" in devices:
-            LOGGER.debug(f"Devices array type: {type(devices['devices'])}")
+            LOGGER.debug("Devices array type: %s", type(devices["devices"]))
             if devices["devices"]:
-                LOGGER.debug(f"First device type: {type(devices['devices'][0])}")
+                LOGGER.debug("First device type: %s", type(devices["devices"][0]))
         return devices
 
     def get_librenms_ports(self):
@@ -227,20 +223,26 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
     def get_librenms_ipinfo_for_device_ip(self, librenms_device_id: int, ip_address: str):
         """Get IP info for a device IP address from LibreNMS API endpoint."""
         device_ips = self.get_librenms_ips_for_device(librenms_device_id)
-        if device_ips['status'] == 'ok' and device_ips['count'] > 0:
+        if device_ips["status"] == "ok" and device_ips["count"] > 0:
             ipaddress_ip_interface = ipaddress.ip_address(ip_address)
             if isinstance(ipaddress_ip_interface, ipaddress.IPv4Address):
-                for ip in device_ips["addresses"]:
-                    if ip["ipv4_address"] == ip_address:
+                for ipv4_address in device_ips["addresses"]:
+                    if ipv4_address["ipv4_address"] == ip_address:
                         ip_network_info = ipaddress.ip_interface(f"{ip_address}/24")
-                        ip_address_info = ipaddress.ip_interface(f"{ip_address}/{ip['ipv4_prefixlen']}")
-                        return {"network": f"{ip_network_info.network.with_prefixlen}", "address": f"{ip_address_info.with_prefixlen}"}
+                        ip_address_info = ipaddress.ip_interface(f"{ip_address}/{ipv4_address['ipv4_prefixlen']}")
+                        return {
+                            "network": f"{ip_network_info.network.with_prefixlen}",
+                            "address": f"{ip_address_info.with_prefixlen}",
+                        }
             elif isinstance(ipaddress_ip_interface, ipaddress.IPv6Address):
-                for ip in device_ips["addresses"]:
-                    if ip["ipv6_address"] == ip_address:
+                for ipv6_address in device_ips["addresses"]:
+                    if ipv6_address["ipv6_address"] == ip_address:
                         ip_network_info = ipaddress.ip_interface(f"{ip_address}/64")
-                        ip_address_info = ipaddress.ip_interface(f"{ip_address}/{ip['ipv6_prefixlen']}")
-                        return {"network": f"{ip_network_info.network.with_prefixlen}", "address": f"{ip_address_info.with_prefixlen}"}
+                        ip_address_info = ipaddress.ip_interface(f"{ip_address}/{ipv6_address['ipv6_prefixlen']}")
+                        return {
+                            "network": f"{ip_network_info.network.with_prefixlen}",
+                            "address": f"{ip_address_info.with_prefixlen}",
+                        }
         return None
 
     def get_librenms_vrf(self):

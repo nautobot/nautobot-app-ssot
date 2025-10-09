@@ -143,8 +143,6 @@ class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attri
 
     def load_source_adapter(self):
         """Load data from LibreNMS into DiffSync models."""
-        if self.location_map:
-            self.location_mappings = self.location_map
         if self.load_type == "api":
             if not self.librenms_server:
                 raise ValueError("LibreNMS Instance is required when load_type is 'api'")
@@ -182,7 +180,7 @@ class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         self.target_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync, tenant=self.tenant)
         self.target_adapter.load()
 
-    def run(  # pylint: disable=too-many-arguments
+    def run(  # pylint: disable=too-many-arguments, too-many-locals
         self,
         dryrun,
         memory_profiling,

@@ -90,6 +90,7 @@ class NautobotAdapter(Adapter):
                     _ip_prefix = str(nb_device.primary_ip4.parent.prefix)
                 except AttributeError:
                     _ip_address = None
+                    _ip_prefix = None
                 _device_id = None
                 if nb_device.custom_field_data.get("librenms_device_id"):
                     _device_id = nb_device.custom_field_data.get("librenms_device_id")

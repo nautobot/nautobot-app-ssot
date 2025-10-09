@@ -143,7 +143,7 @@ class TestHasRequiredValues(TestCase):
         }
 
         result = has_required_values(device, self.job)
-        
+
         # Check that all fields are valid
         self.assertTrue(result["hostname"]["valid"])
         self.assertTrue(result["location"]["valid"])
@@ -162,11 +162,11 @@ class TestHasRequiredValues(TestCase):
         }
 
         result = has_required_values(device, self.job)
-        
+
         # Check that hostname is invalid
         self.assertFalse(result["hostname"]["valid"])
         self.assertEqual(result["hostname"]["reason"], "String is required")
-        
+
         # Other fields should still be valid
         self.assertTrue(result["location"]["valid"])
         self.assertTrue(result["role"]["valid"])
@@ -184,7 +184,7 @@ class TestHasRequiredValues(TestCase):
         }
 
         result = has_required_values(device, self.job)
-        
+
         # Check that hostname is invalid
         self.assertFalse(result["hostname"]["valid"])
         self.assertEqual(result["hostname"]["reason"], "String is required")
@@ -200,13 +200,13 @@ class TestHasRequiredValues(TestCase):
         }
 
         result = has_required_values(device, self.job)
-        
+
         # Check that location and role are invalid
         self.assertFalse(result["location"]["valid"])
         self.assertEqual(result["location"]["reason"], "String is required")
         self.assertFalse(result["role"]["valid"])
         self.assertEqual(result["role"]["reason"], "String is required")
-        
+
         # Other fields should still be valid
         self.assertTrue(result["hostname"]["valid"])
         self.assertTrue(result["platform"]["valid"])
@@ -224,7 +224,7 @@ class TestHasRequiredValues(TestCase):
         }
 
         result = has_required_values(device, self.job)
-        
+
         # Check that role is invalid due to unpermitted value
         self.assertFalse(result["role"]["valid"])
         self.assertEqual(result["role"]["reason"], "role cannot be 'forbidden-role'")
@@ -240,7 +240,7 @@ class TestHasRequiredValues(TestCase):
         }
 
         result = has_required_values(device, self.job)
-        
+
         # Check that platform is invalid due to missing manufacturer mapping
         self.assertFalse(result["platform"]["valid"])
         self.assertEqual(result["platform"]["reason"], "Manufacturer mapping not found for OS: unknown-os")
@@ -256,7 +256,7 @@ class TestHasRequiredValues(TestCase):
         }
 
         result = has_required_values(device, self.job)
-        
+
         # Check that platform is valid
         self.assertTrue(result["platform"]["valid"])
 
@@ -271,7 +271,7 @@ class TestHasRequiredValues(TestCase):
         }
 
         result = has_required_values(device, self.job)
-        
+
         # Check that platform is invalid due to empty string
         self.assertFalse(result["platform"]["valid"])
         self.assertEqual(result["platform"]["reason"], "String is required")
@@ -287,7 +287,7 @@ class TestHasRequiredValues(TestCase):
         }
 
         result = has_required_values(device, self.job)
-        
+
         # Check that platform is invalid due to None value
         self.assertFalse(result["platform"]["valid"])
         self.assertEqual(result["platform"]["reason"], "String is required")
