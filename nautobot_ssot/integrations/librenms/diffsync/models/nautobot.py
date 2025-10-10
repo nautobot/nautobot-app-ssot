@@ -315,7 +315,7 @@ class NautobotDevice(Device):
             new_device = ORMDevice(
                 name=ids["name"],
                 device_type=_device_type,
-                status=Status.objects.get(name=attrs["status"])[0],
+                status=Status.objects.get(name=attrs["status"]),
                 role=ensure_role(role_name=attrs["role"], content_type=ORMDevice),
                 tenant=_tenant,
                 location=_location,

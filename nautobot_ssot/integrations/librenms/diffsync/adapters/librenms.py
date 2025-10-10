@@ -184,7 +184,13 @@ class LibrenmsAdapter(Adapter):
                     if device["disabled"] == 1:
                         _status = "Offline"
                     else:
-                        _status = librenms_status_map[device["status"]]
+                        # Handle case where device["status"] might be a Status object
+                        status_value = device["status"]
+                        if hasattr(status_value, 'value'):
+                            status_value = status_value.value
+                        elif hasattr(status_value, 'name'):
+                            status_value = status_value.name
+                        _status = librenms_status_map.get(status_value, "Active")
                         manufacturer = os_manufacturer_map.get(device["os"])
 
                         # Store the full location data in the device for the NautobotDevice to use
