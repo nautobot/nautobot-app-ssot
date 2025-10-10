@@ -103,14 +103,14 @@ class LibrenmsAdapter(Adapter):
                             location_map = {"name": device["location"], "parent": device["location"]}
                     elif not location_map:
                         location_map = {"name": device["location"], "parent": device["location"]}
-                    
+
                     hostname_map = self.job.hostname_map
                     if hostname_map and hasattr(hostname_map, "__str__") and not isinstance(hostname_map, list):
                         try:
                             hostname_map = json.loads(str(hostname_map))
                         except (json.JSONDecodeError, TypeError):
                             hostname_map = None
-                    
+
                     location_data = parse_hostname_for_location(
                         location_map,
                         normalized_name,
@@ -186,9 +186,9 @@ class LibrenmsAdapter(Adapter):
                     else:
                         # Handle case where device["status"] might be a Status object
                         status_value = device["status"]
-                        if hasattr(status_value, 'value'):
+                        if hasattr(status_value, "value"):
                             status_value = status_value.value
-                        elif hasattr(status_value, 'name'):
+                        elif hasattr(status_value, "name"):
                             status_value = status_value.name
                         _status = librenms_status_map.get(status_value, "Active")
                         manufacturer = os_manufacturer_map.get(device["os"])
