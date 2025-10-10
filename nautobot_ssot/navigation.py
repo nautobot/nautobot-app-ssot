@@ -1,7 +1,6 @@
 """App additions to the Nautobot navigation menu."""
 
 from nautobot.apps.ui import (
-    NavMenuAddButton,
     NavigationIconChoices,
     NavigationWeightChoices,
     NavMenuGroup,
@@ -34,12 +33,6 @@ items = [
         link="plugins:nautobot_ssot:syncrecord_list",
         name="Sync Records",
         permissions=["nautobot_ssot.view_syncrecord"],
-        buttons=(
-            NavMenuAddButton(
-                link="plugins:nautobot_ssot:syncrecord_add",
-                permissions=["nautobot_ssot.add_syncrecord"],
-            ),
-        ),
     ),
 ]
 
