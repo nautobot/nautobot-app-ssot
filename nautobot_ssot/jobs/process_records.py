@@ -7,8 +7,7 @@ from diffsync.diff import Diff, DiffElement
 from diffsync.helpers import DiffSyncSyncer
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
-from nautobot.apps.jobs import BooleanVar, Job, JobButtonReceiver, MultiObjectVar
-from nautobot.extras.models import JobResult
+from nautobot.apps.jobs import BooleanVar, Job, MultiObjectVar
 
 from nautobot_ssot.choices import SyncRecordStatusChoices
 from nautobot_ssot.models import SyncRecord
@@ -33,7 +32,7 @@ class ProcessRecordsJob(Job):
     class Meta:
         """Meta attributes of ProcessRecordsJob."""
 
-        name = "Process Records Job"
+        name = "Process Records"
         description = "Process SyncRecords that are in a pending state."
         commit_default = False
         has_sensitive_variables = False
@@ -137,19 +136,3 @@ class ProcessRecordsJob(Job):
                 self.logger.error("Error saving SyncRecord: %s", err)
 
         return event_dict
-
-
-class ProcessRecordsJobButtonReceiver(JobButtonReceiver):
-    """Job button receiver for SyncRecords."""
-
-    class Meta:
-        """Meta attributes of ProcessRecordsJobButtonReceiver."""
-
-        name = "Process SyncRecords Button Receiver"
-        has_sensitive_variables = False
-
-    def receive_job_button(self, obj):
-        """Function to execute the job button receiver."""
-        self.logger.info("Running Job Button Receiver.", extra={"object": obj})
-        user = self.user
-        JobResult.enqueue_job(ProcessRecordsJob, user=user, profile=False, records=[obj.id], include_children=False)
