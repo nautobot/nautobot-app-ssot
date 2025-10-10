@@ -94,15 +94,30 @@ class LibrenmsAdapter(Adapter):
             if device["type"] in PLUGIN_CFG.get("librenms_permitted_values", {}).get("role"):
                 normalized_name = normalize_device_hostname(device[hostname_field], self.job)
                 if isinstance(normalized_name, str):
+                    # Convert JSONVar to proper data type if needed
+                    location_map = self.job.location_map
+                    if location_map and hasattr(location_map, "__str__") and not isinstance(location_map, dict):
+                        try:
+                            location_map = json.loads(str(location_map))
+                        except (json.JSONDecodeError, TypeError):
+                            location_map = {"name": device["location"], "parent": device["location"]}
+                    elif not location_map:
+                        location_map = {"name": device["location"], "parent": device["location"]}
+                    
+                    hostname_map = self.job.hostname_map
+                    if hostname_map and hasattr(hostname_map, "__str__") and not isinstance(hostname_map, list):
+                        try:
+                            hostname_map = json.loads(str(hostname_map))
+                        except (json.JSONDecodeError, TypeError):
+                            hostname_map = None
+                    
                     location_data = parse_hostname_for_location(
-                        str(self.job.location_map)
-                        if self.job.location_map
-                        else {"name": device["location"], "parent": device["location"]},
+                        location_map,
                         normalized_name,
                         device["location"],
                     )
                     role = parse_hostname_for_role(
-                        str(self.job.hostname_map) if self.job.hostname_map else None,
+                        hostname_map,
                         normalized_name,
                         self.job.default_role.name if self.job.default_role else None,
                     )

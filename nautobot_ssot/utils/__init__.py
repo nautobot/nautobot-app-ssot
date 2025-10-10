@@ -145,7 +145,7 @@ def parse_hostname_for_role(hostname_map: List[Tuple[str, str]], device_hostname
 
     if hostname_map:
         for entry in hostname_map:
-            match = re.match(pattern=entry[0], string=device_hostname)
+            match = re.search(pattern=entry[0], string=device_hostname)
             if match:
                 device_role = entry[1]
     return device_role
