@@ -12,7 +12,6 @@ import structlog
 # pylint: disable=no-self-argument
 from diffsync.enum import DiffSyncFlags
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.db.utils import OperationalError
 from django.templatetags.static import static
 from django.utils import timezone
