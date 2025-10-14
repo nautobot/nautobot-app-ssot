@@ -131,7 +131,7 @@ class LibrenmsAdapter(Adapter):
                         normalized_name,
                         self.job.default_role.name if self.job.default_role else None,
                     )
-                    normalized_platform = LIBRENMS_LIB_MAPPER.get(device["os"], device["os"])
+                    normalized_platform = ANSIBLE_LIB_MAPPER_REVERSE.get(LIBRENMS_LIB_MAPPER.get(device["os"], device["os"]))
                     ip_address = device.get("ip", None)
                     ip_info = None  # Initialize ip_info to None
                     if ip_address:
