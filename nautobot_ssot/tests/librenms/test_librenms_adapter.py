@@ -39,19 +39,10 @@ class TestLibreNMSAdapterTestCase(TransactionTestCase):
         self.librenms_client.verify_ssl = True
 
         # Mock device and location data
-        self.librenms_client.get_librenms_devices_from_file.return_value = {
-            "count": len(DEVICE_FIXTURE_RECV),
-            "devices": DEVICE_FIXTURE_RECV,
-        }
-        self.librenms_client.get_librenms_locations_from_file.return_value = {
-            "count": len(LOCATION_FIXURE_RECV),
-            "locations": LOCATION_FIXURE_RECV,
-        }
+        self.librenms_client.get_librenms_devices.return_value = DEVICE_FIXTURE_RECV
+        self.librenms_client.get_librenms_locations.return_value = LOCATION_FIXURE_RECV
 
         self.job = LibrenmsDataSource()
-        self.job.load_type = "file"
-        self.job.devices_load_file = "./nautobot_ssot/tests/librenms/fixtures/get_librenms_devices.json"
-        self.job.locations_load_file = "./nautobot_ssot/tests/librenms/fixtures/get_librenms_locations.json"
         self.job.hostname_field = "sysName"
         self.job.sync_locations = True
         self.job.location_type = LocationType.objects.get_or_create(name="Site")[0]
@@ -64,6 +55,7 @@ class TestLibreNMSAdapterTestCase(TransactionTestCase):
             name=self.job.class_path, task_name="fake task", worker="default"
         )
         self.librenms_adapter = LibrenmsAdapter(job=self.job, sync=None, librenms_api=self.librenms_client)
+
 
     @patch("nautobot_ssot.integrations.librenms.diffsync.adapters.librenms.has_required_values")
     def test_data_loading(self, mock_has_required_values):

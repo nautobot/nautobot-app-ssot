@@ -42,30 +42,30 @@ def verify_platform(platform_name: str, manu: UUID) -> Platform:
         platform_obj.validated_save()
     return platform_obj
 
+if dlm_supports_softwarelcm():
+    def add_software_lcm(diffsync, platform: str, version: str):
+        """Add OS Version as SoftwareLCM if Device Lifecycle Plugin found.
 
-def add_software_lcm(diffsync, platform: str, version: str):
-    """Add OS Version as SoftwareLCM if Device Lifecycle Plugin found.
+        Args:
+            diffsync (DiffSyncAdapter): DiffSync adapter with Job and maps.
+            platform (str): Name of platform to associate version to.
+            version (str): The software version to be created for specified platform.
 
-    Args:
-        diffsync (DiffSyncAdapter): DiffSync adapter with Job and maps.
-        platform (str): Name of platform to associate version to.
-        version (str): The software version to be created for specified platform.
-
-    Returns:
-        UUID: UUID of the OS Version that is being found or created.
-    """
-    platform_obj = Platform.objects.get(network_driver=platform)
-    try:
-        os_ver = SoftwareLCM.objects.get(device_platform=platform_obj, version=version).id
-    except SoftwareLCM.DoesNotExist:
-        diffsync.job.logger.info(f"Creating Version {version} for {platform}.")
-        os_ver = SoftwareLCM(
-            device_platform=platform_obj,
-            version=version,
-        )
-        os_ver.validated_save()
-        os_ver = os_ver.id
-    return os_ver
+        Returns:
+            UUID: UUID of the OS Version that is being found or created.
+        """
+        platform_obj = Platform.objects.get(network_driver=platform)
+        try:
+            os_ver = SoftwareLCM.objects.get(device_platform=platform_obj, version=version).id
+        except SoftwareLCM.DoesNotExist:
+            diffsync.job.logger.info(f"Creating Version {version} for {platform}.")
+            os_ver = SoftwareLCM(
+                device_platform=platform_obj,
+                version=version,
+            )
+            os_ver.validated_save()
+            os_ver = os_ver.id
+        return os_ver
 
 
 def assign_version_to_device(diffsync, device: Device, software_lcm: UUID):

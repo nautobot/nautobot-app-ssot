@@ -91,7 +91,7 @@ class LibrenmsAdapter(Adapter):
             self.job.logger.debug(f"Loading LibreNMS Device {device[hostname_field]}")
 
         if device["os"] != "ping":
-            if device["type"] in PLUGIN_CFG.get("librenms_permitted_values", {}).get("role"):
+            if device["type"] in PLUGIN_CFG.get("librenms_permitted_values", {}).get("role", []):
                 normalized_name = normalize_device_hostname(device[hostname_field], self.job)
                 if isinstance(normalized_name, str):
                     # Convert JSONVar to proper data type if needed
@@ -99,17 +99,27 @@ class LibrenmsAdapter(Adapter):
                     if location_map and hasattr(location_map, "__str__") and not isinstance(location_map, dict):
                         try:
                             location_map = json.loads(str(location_map))
+                            # If the parsed JSON is empty or None, fall back to device location
+                            if not location_map:
+                                location_map = {"name": device["location"], "parent": device["location"]}
                         except (json.JSONDecodeError, TypeError):
                             location_map = {"name": device["location"], "parent": device["location"]}
-                    elif not location_map:
+                    elif not location_map or (hasattr(location_map, "__len__") and len(location_map) == 0):
+                        # Handle empty job form variable or empty dict/list
                         location_map = {"name": device["location"], "parent": device["location"]}
 
                     hostname_map = self.job.hostname_map
                     if hostname_map and hasattr(hostname_map, "__str__") and not isinstance(hostname_map, list):
                         try:
                             hostname_map = json.loads(str(hostname_map))
+                            # If the parsed JSON is empty or None, set to None
+                            if not hostname_map:
+                                hostname_map = None
                         except (json.JSONDecodeError, TypeError):
                             hostname_map = None
+                    elif not hostname_map or (hasattr(hostname_map, "__len__") and len(hostname_map) == 0):
+                        # Handle empty job form variable or empty list
+                        hostname_map = None
 
                     location_data = parse_hostname_for_location(
                         location_map,
@@ -141,7 +151,7 @@ class LibrenmsAdapter(Adapter):
                         self.job.hostname_field: normalized_name,
                         "location": location_data["name"],
                         "role": role,
-                        "platform": device["os"],
+                        "platform": normalized_platform,
                         "device_type": device_type,
                     }
                     if self.job.debug:
