@@ -289,7 +289,7 @@ class NautobotDevice(Device):
         """Create Device in Nautobot from NautobotDevice object."""
         if adapter.job.debug:
             adapter.job.logger.debug(f'Creating Nautobot Device {ids["name"]}')
-        manufacturer_name = os_manufacturer_map.get(LIBRENMS_LIB_MAPPER_REVERSE[attrs["platform"]])
+        manufacturer_name = attrs["manufacturer"]
         _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
         _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=_manufacturer.name)
         adapter.job.logger.debug(f"Platform: {_platform}")

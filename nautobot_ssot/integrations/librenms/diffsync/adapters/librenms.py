@@ -25,6 +25,8 @@ from nautobot_ssot.integrations.librenms.utils import (
 from nautobot_ssot.integrations.librenms.utils.librenms import LibreNMSApi
 from nautobot_ssot.utils import parse_hostname_for_location, parse_hostname_for_role
 
+from netutils.lib_mapper import ANSIBLE_LIB_MAPPER_REVERSE
+
 
 class LibrenmsAdapter(Adapter):
     """DiffSync adapter for LibreNMS."""
@@ -151,7 +153,7 @@ class LibrenmsAdapter(Adapter):
                         self.job.hostname_field: normalized_name,
                         "location": location_data["name"],
                         "role": role,
-                        "platform": normalized_platform,
+                        "platform": device["os"],
                         "device_type": device_type,
                     }
                     if self.job.debug:
@@ -218,7 +220,7 @@ class LibrenmsAdapter(Adapter):
                                 status=_status,
                                 manufacturer=manufacturer,
                                 device_type=device["hardware"],
-                                platform=normalized_platform,
+                                platform=normalized_platform if normalized_platform else device["os"],
                                 os_version=device["version"] if device["version"] is not None else "Unknown",
                                 tenant=str(self.job.tenant) if self.job.tenant else None,
                                 ip_address=str(ip_info["address"]) if ip_info and ip_info.get("address") else None,

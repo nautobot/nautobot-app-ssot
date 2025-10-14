@@ -108,7 +108,7 @@ class NautobotAdapter(Adapter):
                     device_type=nb_device.device_type.model,
                     role=nb_device.role.name,
                     manufacturer=nb_device.device_type.manufacturer.name,
-                    platform=nb_device.platform.network_driver,
+                    platform=nb_device.platform.name,
                     os_version=_software_version,
                     serial_no=nb_device.serial,
                     ip_address=_ip_address,
