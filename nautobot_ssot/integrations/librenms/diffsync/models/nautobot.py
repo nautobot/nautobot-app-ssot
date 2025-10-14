@@ -382,10 +382,10 @@ class NautobotDevice(Device):
             device.serial = attrs["serial_no"]
         if "platform" in attrs:
             # Get the original OS name for manufacturer lookup
-            manufacturer_name = os_manufacturer_map.get(LIBRENMS_LIB_MAPPER_REVERSE[attrs["platform"]])
+            manufacturer_name = attrs["manufacturer"]
             if manufacturer_name is None:
                 raise ValueError(
-                    f"Manufacturer mapping not found for OS: {LIBRENMS_LIB_MAPPER_REVERSE[attrs['platform']]}"
+                    f"Manufacturer mapping not found for OS: {attrs['platform']}"
                 )
             _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
             _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=_manufacturer.name)
