@@ -127,6 +127,9 @@ class ForwardEnterpriseClient:
         query_id: Optional[str] = None,
         commit_id: Optional[str] = None,
         parameters: Optional[Dict[str, Any]] = None,
+        *,
+        max_items: Optional[int] = None,
+        page_size: Optional[int] = None,
     ) -> list:
         """Execute an NQE query against Forward Enterprise.
 
@@ -137,6 +140,8 @@ class ForwardEnterpriseClient:
             query_id (str, optional): The Query ID from NQE Library to execute
             commit_id (str, optional): Specific version of the query to run
             parameters (dict, optional): Parameters for the query
+            max_items (int, optional): Maximum number of items to return (useful to cap responses)
+            page_size (int, optional): Page size for paginated requests (defaults to Forward constant)
 
         Returns:
             list: The query results
@@ -161,19 +166,19 @@ class ForwardEnterpriseClient:
             params["snapshotId"] = snapshot_id
 
         # Build request payload - either query source or queryId is required
-        payload = {}
+        base_payload: Dict[str, Any] = {}
         if query:
             cleaned_query = self._clean_query(query)
-            payload["query"] = cleaned_query
+            base_payload["query"] = cleaned_query
         elif query_id:
-            payload["queryId"] = query_id
+            base_payload["queryId"] = query_id
             if commit_id:
-                payload["commitId"] = commit_id
+                base_payload["commitId"] = commit_id
         else:
             raise ForwardEnterpriseValidationError("Either 'query' or 'query_id' must be provided")
 
         if parameters:
-            payload["parameters"] = parameters
+            base_payload["parameters"] = parameters
 
         headers = {
             "Accept": "application/json",
@@ -181,72 +186,93 @@ class ForwardEnterpriseClient:
             "Authorization": f"Basic {self.api_token}",
         }
 
-        # Debug logging for request
-        if self.job:
-            self.job.logger.info("Forward Enterprise request URL: %s", url)
-            self.job.logger.info("Forward Enterprise request payload: %s", payload)
+        effective_page_size = page_size or constants.DEFAULT_PAGE_SIZE
+        collected: list = []
+        offset = 0
+        total_num_items: Optional[int] = None
 
         try:
-            response = requests.post(
-                url,
-                json=payload,
-                headers=headers,
-                params=params,
-                timeout=constants.DEFAULT_API_TIMEOUT,
-                verify=self.verify_ssl,
-            )
+            while True:
+                payload = dict(base_payload)
+                payload["queryOptions"] = {"offset": offset, "limit": effective_page_size}
 
-            # Handle specific HTTP status codes
-            if response.status_code == 401:
-                raise ForwardEnterpriseAuthenticationError("Authentication failed. Check API token and permissions.")
-            if response.status_code == 403:
-                raise ForwardEnterpriseAuthenticationError(
-                    "Access denied. Insufficient permissions for this operation."
-                )
-            if response.status_code == 400:
-                try:
-                    error_data = response.json()
-                    error_msg = error_data.get("message", "Bad request")
-                except (ValueError, KeyError):
-                    error_msg = response.text or "Bad request"
-                raise ForwardEnterpriseQueryError(
-                    f"Query validation failed: {error_msg}", query=query, query_id=query_id
-                )
-            if not response.ok:
-                raise ForwardEnterpriseAPIError(
-                    f"API request failed with status {response.status_code}: {response.text}",
-                    status_code=response.status_code,
-                    response_content=response.text,
-                )
-
-            try:
-                data = response.json()
-            except ValueError as e:
-                raise ForwardEnterpriseAPIError(
-                    f"Invalid JSON response from API: {e}", response_content=response.text
-                ) from e
-
-            # Handle API-level errors in response
-            if isinstance(data, dict) and data.get("error"):
-                error_msg = data.get("error", {}).get("message", "Unknown API error")
-                raise ForwardEnterpriseQueryError(
-                    f"Query execution failed: {error_msg}", query=query, query_id=query_id
-                )
-
-            # According to the API spec, results are in the "items" field
-            if isinstance(data, dict) and "items" in data:
-                result = data["items"]
-            elif isinstance(data, list):
-                result = data
-            else:
                 if self.job:
-                    self.job.logger.warning("Unexpected response format: %s", type(data))
-                result = []
+                    self.job.logger.info("Forward Enterprise request URL: %s", url)
+                    self.job.logger.info("Forward Enterprise request payload: %s", payload)
+
+                response = requests.post(
+                    url,
+                    json=payload,
+                    headers=headers,
+                    params=params,
+                    timeout=constants.DEFAULT_API_TIMEOUT,
+                    verify=self.verify_ssl,
+                )
+
+                # Handle specific HTTP status codes
+                if response.status_code == 401:
+                    raise ForwardEnterpriseAuthenticationError("Authentication failed. Check API token and permissions.")
+                if response.status_code == 403:
+                    raise ForwardEnterpriseAuthenticationError("Access denied. Insufficient permissions for this operation.")
+                if response.status_code == 400:
+                    try:
+                        error_data = response.json()
+                        error_msg = error_data.get("message", "Bad request")
+                    except (ValueError, KeyError):
+                        error_msg = response.text or "Bad request"
+                    raise ForwardEnterpriseQueryError(
+                        f"Query validation failed: {error_msg}", query=query, query_id=query_id
+                    )
+                if not response.ok:
+                    raise ForwardEnterpriseAPIError(
+                        f"API request failed with status {response.status_code}: {response.text}",
+                        status_code=response.status_code,
+                        response_content=response.text,
+                    )
+
+                try:
+                    data = response.json()
+                except ValueError as e:
+                    raise ForwardEnterpriseAPIError(
+                        f"Invalid JSON response from API: {e}", response_content=response.text
+                    ) from e
+
+                # Handle API-level errors in response
+                if isinstance(data, dict) and data.get("error"):
+                    error_msg = data.get("error", {}).get("message", "Unknown API error")
+                    raise ForwardEnterpriseQueryError(
+                        f"Query execution failed: {error_msg}", query=query, query_id=query_id
+                    )
+
+                if isinstance(data, dict):
+                    items = data.get("items", []) or []
+                    total_num_items = data.get("totalNumItems", total_num_items)
+                elif isinstance(data, list):
+                    items = data
+                    total_num_items = None
+                else:
+                    if self.job:
+                        self.job.logger.warning("Unexpected response format: %s", type(data))
+                    items = []
+
+                collected.extend(items)
+
+                if max_items is not None and len(collected) >= max_items:
+                    collected = collected[:max_items]
+                    break
+
+                if len(items) < effective_page_size:
+                    break
+
+                if total_num_items is not None and (offset + len(items)) >= total_num_items:
+                    break
+
+                offset += len(items)
 
             if self.job:
-                self.job.logger.info("Forward Enterprise response: %s items returned", len(result))
+                self.job.logger.info("Forward Enterprise response: %s items returned", len(collected))
 
-            return result
+            return collected
 
         except requests.exceptions.ConnectionError as e:
             error_msg = f"Connection failed to Forward Enterprise: {e}"
