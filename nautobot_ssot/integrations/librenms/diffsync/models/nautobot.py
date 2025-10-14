@@ -289,7 +289,9 @@ class NautobotDevice(Device):
         """Create Device in Nautobot from NautobotDevice object."""
         if adapter.job.debug:
             adapter.job.logger.debug(f'Creating Nautobot Device {ids["name"]}')
-        manufacturer_name = attrs["manufacturer"]
+        manufacturer_name = attrs.get("manufacturer")
+        if manufacturer_name is None:
+            raise ValueError(f"Manufacturer is required for device {ids['name']}")
         _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
         _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=_manufacturer.name)
         adapter.job.logger.debug(f"Platform: {_platform}")
@@ -382,7 +384,7 @@ class NautobotDevice(Device):
             device.serial = attrs["serial_no"]
         if "platform" in attrs:
             # Get the original OS name for manufacturer lookup
-            manufacturer_name = attrs["manufacturer"]
+            manufacturer_name = attrs.get("manufacturer")
             if manufacturer_name is None:
                 raise ValueError(
                     f"Manufacturer mapping not found for OS: {attrs['platform']}"
