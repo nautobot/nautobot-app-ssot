@@ -394,7 +394,7 @@ class SSOTConfigView(ContentTypePermissionRequiredMixin, DjangoView):
         return render(request, "nautobot_ssot/ssot_configs.html", {"enabled_integrations": enabled_integrations})
 
 
-class SyncRecordUIViewSet(NautobotUIViewSet):
+class SyncRecordUIViewSet(ReadOnlyNautobotUIViewSet):
     """ViewSet for SyncRecord views."""
 
     bulk_update_form_class = forms.SyncRecordBulkEditForm
@@ -405,6 +405,7 @@ class SyncRecordUIViewSet(NautobotUIViewSet):
     queryset = SyncRecord.objects.all()
     serializer_class = serializers.SyncRecordSerializer
     table_class = tables.SyncRecordTable
+    action_buttons: tuple = ()
 
     # Here is an example of using the UI  Component Framework for the detail view.
     # More information can be found in the Nautobot documentation:
