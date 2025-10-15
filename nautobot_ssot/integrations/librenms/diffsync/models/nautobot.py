@@ -396,6 +396,7 @@ class NautobotDevice(Device):
                 )
             _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
             _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=_manufacturer.name)
+            device.platform = _platform
         if "os_version" in attrs:
             _software_version = ensure_software_version(
                 platform=_platform,
