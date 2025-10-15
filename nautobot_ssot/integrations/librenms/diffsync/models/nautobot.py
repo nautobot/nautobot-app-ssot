@@ -387,7 +387,7 @@ class NautobotDevice(Device):
             # Get the original OS name for manufacturer lookup
             if self.adapter.job.debug:
                 self.adapter.job.logger.debug(f"N_Model attrs: {attrs}")
-            manufacturer_name = os_manufacturer_map.get(LIBRENMS_LIB_MAPPER_REVERSE.get(ANSIBLE_LIB_MAPPER.get(attrs["platform"], attrs["manufacturer"])), attrs["manufacturer"])
+            manufacturer_name = os_manufacturer_map.get(LIBRENMS_LIB_MAPPER_REVERSE.get(ANSIBLE_LIB_MAPPER.get(attrs["platform"], attrs["platform"])), attrs["platform"])
             if self.adapter.job.debug:
                 self.adapter.job.logger.debug(f"N_ModelManufacturer for {self.name} from attrs: {manufacturer_name}")
             if manufacturer_name is None:
