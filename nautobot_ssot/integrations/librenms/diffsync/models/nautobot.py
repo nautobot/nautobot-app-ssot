@@ -14,9 +14,9 @@ from nautobot.dcim.models import SoftwareImageFile as ORMSoftwareImageFile
 from nautobot.dcim.models import SoftwareVersion as ORMSoftwareVersion
 from nautobot.extras.models import Role, Status
 from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix
-from netutils.lib_mapper import ANSIBLE_LIB_MAPPER
+from netutils.lib_mapper import ANSIBLE_LIB_MAPPER, ANSIBLE_LIB_MAPPER_REVERSE
 
-from nautobot_ssot.integrations.librenms.constants import LIBRENMS_LIB_MAPPER_REVERSE, os_manufacturer_map
+from nautobot_ssot.integrations.librenms.constants import LIBRENMS_LIB_MAPPER,LIBRENMS_LIB_MAPPER_REVERSE, os_manufacturer_map
 from nautobot_ssot.integrations.librenms.diffsync.models.base import Device, Location, Port
 from nautobot_ssot.integrations.librenms.utils import check_sor_field
 
@@ -58,7 +58,7 @@ def ensure_role(role_name: str, content_type):
 def ensure_platform(platform_name: str, manufacturer: str):
     """Safely returns a Platform that support Devices."""
     _manufacturer, _ = ORMManufacturer.objects.get_or_create(name=manufacturer)
-    _network_driver = ANSIBLE_LIB_MAPPER.get(platform_name, platform_name)
+    _network_driver = LIBRENMS_LIB_MAPPER.get(ANSIBLE_LIB_MAPPER.get(platform_name, platform_name), platform_name)
     _platform, _ = ORMPlatform.objects.get_or_create(
         name=platform_name, defaults={"network_driver": _network_driver, "manufacturer": _manufacturer}
     )
@@ -289,7 +289,8 @@ class NautobotDevice(Device):
         """Create Device in Nautobot from NautobotDevice object."""
         if adapter.job.debug:
             adapter.job.logger.debug(f'Creating Nautobot Device {ids["name"]}')
-        manufacturer_name = attrs.get("manufacturer")
+            adapter.job.logger.debug(f"N_Model ids: {ids}")
+        manufacturer_name = os_manufacturer_map.get(LIBRENMS_LIB_MAPPER_REVERSE.get(ANSIBLE_LIB_MAPPER.get(attrs["platform"])))
         if manufacturer_name is None:
             raise ValueError(f"Manufacturer is required for device {ids['name']}")
         _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
@@ -384,10 +385,14 @@ class NautobotDevice(Device):
             device.serial = attrs["serial_no"]
         if "platform" in attrs:
             # Get the original OS name for manufacturer lookup
-            manufacturer_name = attrs.get("manufacturer")
+            if self.adapter.job.debug:
+                self.adapter.job.logger.debug(f"N_Model attrs: {attrs}")
+            manufacturer_name = os_manufacturer_map.get(LIBRENMS_LIB_MAPPER_REVERSE.get(ANSIBLE_LIB_MAPPER.get(attrs["platform"])))
+            if self.adapter.job.debug:
+                self.adapter.job.logger.debug(f"N_ModelManufacturer for {self.name} from attrs: {manufacturer_name}")
             if manufacturer_name is None:
                 raise ValueError(
-                    f"Manufacturer mapping not found for OS: {attrs['platform']}"
+                    f"N_Model Manufacturer mapping not found for OS: {attrs['platform']}"
                 )
             _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
             _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=_manufacturer.name)

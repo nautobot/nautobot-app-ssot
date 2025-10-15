@@ -142,12 +142,12 @@ class LibrenmsAdapter(Adapter):
                         except Exception as e:
                             self.job.logger.warning(f"Error getting IP info for {ip_address}: {e}")
                             ip_info = None
-                    self.job.logger.debug(f"Platform for {normalized_name}: {normalized_platform}")
                     device_type = device["hardware"]
                     if self.job.debug:
-                        self.job.logger.debug(f"Role for {normalized_name}: {role}")
-                        self.job.logger.debug(f"Platform for {normalized_name}: {normalized_platform}")
-                        self.job.logger.debug(f"Device type for {normalized_name}: {device_type}")
+                        self.job.logger.debug(f"L_AdapterRole for {normalized_name}: {role}")
+                        self.job.logger.debug(f"L_Adapter Platform Original Value for {normalized_name}: {device['os']}")
+                        self.job.logger.debug(f"L_Adapter Platform for {normalized_name}: {normalized_platform}")
+                        self.job.logger.debug(f"L_AdapterDevice type for {normalized_name}: {device_type}")
 
                     device_validation_dict = {
                         self.job.hostname_field: normalized_name,
@@ -204,6 +204,8 @@ class LibrenmsAdapter(Adapter):
                             status_value = status_value.name
                         _status = librenms_status_map.get(status_value, "Active")
                         manufacturer = os_manufacturer_map.get(device["os"])
+                        if self.job.debug:
+                            self.job.logger.debug(f"Manufacturer for {normalized_name}: {manufacturer}")
 
                         # Store the full location data in the device for the NautobotDevice to use
                         device["_location_data"] = location_data

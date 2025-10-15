@@ -77,7 +77,9 @@ class NautobotAdapter(Adapter):
             devices = OrmDevice.objects.all()
         for nb_device in devices:
             if self.job.debug:
-                self.job.logger.debug(f"Loading Nautobot Device {nb_device}")
+                self.job.logger.debug(f"N_Adapter Loading Nautobot Device {nb_device}")
+                self.job.logger.debug(f"N_Adapter Platform for {nb_device.name}: {nb_device.platform.network_driver}")
+                self.job.logger.debug(f"N_Adapter Manufacturer for {nb_device.name}: {nb_device.device_type.manufacturer.name}")
             try:
                 self.get(self.device, nb_device.name)
             except ObjectNotFound:
