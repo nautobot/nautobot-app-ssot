@@ -387,20 +387,15 @@ class NautobotDevice(Device):
             # Get the original OS name for manufacturer lookup
             if self.adapter.job.debug:
                 self.adapter.job.logger.debug(f"N_Model attrs: {attrs}")
-            manufacturer_name = os_manufacturer_map.get(LIBRENMS_LIB_MAPPER_REVERSE.get(ANSIBLE_LIB_MAPPER.get(attrs["platform"], attrs["platform"])), attrs["platform"])
+            manufacturer_name = device.device_type.manufacturer.name
             if self.adapter.job.debug:
                 self.adapter.job.logger.debug(f"N_ModelManufacturer for {self.name} from attrs: {manufacturer_name}")
-            if manufacturer_name is None:
-                raise ValueError(
-                    f"N_Model Manufacturer mapping not found for OS: {attrs['platform']}"
-                )
-            _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
-            _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=_manufacturer.name)
+            _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=manufacturer_name)
             device.platform = _platform
         if "os_version" in attrs:
             _software_version = ensure_software_version(
                 platform=_platform,
-                manufacturer=device.device_type.manufacturer.name,
+                manufacturer=manufacturer_name,
                 version=attrs["os_version"],
                 device_type=device.device_type,
             )
