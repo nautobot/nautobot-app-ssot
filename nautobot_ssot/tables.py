@@ -204,12 +204,12 @@ class SyncRecordTable(BaseTable):
     # pylint: disable=R0903
     """Table for list view."""
 
-    timestamp = ToggleColumn()
+    pk = ToggleColumn()
     source = Column(linkify=True)
     target = Column(linkify=False)
     obj_type = Column(linkify=False)
     obj_name = Column(linkify=False)
-    action = Column()
+    status = Column()
     actions = ButtonsColumn(
         SyncRecord,
         # Option for modifying the default action buttons on each row:
@@ -225,5 +225,5 @@ class SyncRecordTable(BaseTable):
         fields = ["__all__"]
 
         # Option for modifying the columns that show up in the list view by default:
-        default_columns = ("timestamp", "source", "target", "obj_type", "obj_name")
-        order_by = ("timestamp",)
+        default_columns = ("pk", "source", "target", "obj_type", "obj_name", "status")
+        order_by = ("pk",)
