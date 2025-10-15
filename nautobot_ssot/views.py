@@ -407,6 +407,12 @@ class SyncRecordUIViewSet(ReadOnlyNautobotUIViewSet):
     table_class = tables.SyncRecordTable
     action_buttons: tuple = ()
 
+    def alter_queryset(self, request):
+        """Build actual runtime queryset to automatically remove `Succeeded` by default."""
+        if "success" not in request.GET.getlist("status"):
+            return self.queryset.exclude(status="success")
+        return self.queryset
+
     # Here is an example of using the UI  Component Framework for the detail view.
     # More information can be found in the Nautobot documentation:
     # https://docs.nautobot.com/projects/core/en/stable/development/core/ui-component-framework/
