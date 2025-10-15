@@ -44,12 +44,14 @@ class LocationTypeModel(NautobotModel):
     _identifiers = ("name",)
     # To keep this example simple, we don't include **all** attributes of a Location here. But you could!
     _attributes = ("content_types", "description", "nestable", "parent__name")
+    _children = {"location": "locations"}
 
     # Data type declarations for all identifiers and attributes
     name: str
     description: str
     nestable: bool
     parent__name: Optional[str] = None
+    locations: List["LocationModel"] = []
     content_types: List[ContentTypeDict] = []
 
 
@@ -77,6 +79,7 @@ class LocationModel(NautobotModel):
         "description",
         "tags",
     )
+    _children = {"device": "devices"}
 
     # Data type declarations for all identifiers and attributes
     name: str
@@ -87,6 +90,7 @@ class LocationModel(NautobotModel):
     tenant__name: Optional[str] = None
     description: str
     tags: List[TagDict] = []
+    devices: List["DeviceModel"] = list()
 
 
 class RoleModel(NautobotModel):
@@ -124,10 +128,12 @@ class NamespaceModel(NautobotModel):
     _modelname = "namespace"
     _identifiers = ("name",)
     _attributes = ("description", "tags")
+    _children = {"prefix": "prefixes"}
 
     name: str
     description: Optional[str] = ""
     tags: List[TagDict] = []
+    prefixes: List["PrefixModel"] = []
 
 
 class PrefixModel(NautobotModel):
@@ -139,6 +145,7 @@ class PrefixModel(NautobotModel):
     _identifiers = ("network", "prefix_length", "namespace__name")
     # To keep this example simple, we don't include **all** attributes of a Prefix here. But you could!
     _attributes = ("description", "tenant__name", "status__name", "locations", "tags")
+    _children = {"ipaddress": "ip_addresses"}
 
     # Data type declarations for all identifiers and attributes
     network: str
@@ -150,6 +157,7 @@ class PrefixModel(NautobotModel):
     tags: List[TagDict] = []
 
     locations: List[LocationDict] = []
+    ip_addresses: List["IPAddressModel"] = []
 
 
 class IPAddressModel(NautobotModel):
@@ -169,7 +177,7 @@ class IPAddressModel(NautobotModel):
     parent__namespace__name: str
     status__name: str
     ip_version: int
-    tenant__name: Optional[str]
+    tenant__name: Optional[str] = None
     tags: List[TagDict] = []
 
 
@@ -184,7 +192,6 @@ class TenantModel(NautobotModel):
     _children = {}
 
     name: str
-    prefixes: List[PrefixModel] = []
     tags: List[TagDict] = []
 
 
@@ -255,7 +262,7 @@ class DeviceModel(NautobotModel):
     )
     _children = {"interface": "interfaces"}
 
-    name: str
+    name: Optional[str] = ""
     location__name: str
     location__location_type__name: str
     location__parent__name: Optional[str] = None
@@ -268,7 +275,7 @@ class DeviceModel(NautobotModel):
     status__name: str
     tenant__name: Optional[str]
     asset_tag: Optional[str]
-    interfaces: List["InterfaceModel"] = []
+    interfaces: Optional[List["InterfaceModel"]] = []
     tags: List[TagDict] = []
 
 
@@ -466,15 +473,11 @@ class NautobotRemote(Adapter):
     top_level = [
         "tenant",
         "status",
-        "locationtype",
-        "location",
         "manufacturer",
         "platform",
         "role",
-        "device",
+        "locationtype",
         "namespace",
-        "prefix",
-        "ipaddress",
     ]
 
     def __init__(self, *args, url=None, token=None, job=None, **kwargs):
@@ -540,22 +543,30 @@ class NautobotRemote(Adapter):
 
     def load_locations(self):
         """Load Locations data from the remote Nautobot instance."""
-        for loc_entry in self._get_api_data("api/dcim/locations/?depth=3"):
-            location_args = {
-                "name": loc_entry["name"],
-                "status__name": loc_entry["status"]["name"] if loc_entry["status"].get("name") else "Active",
-                "location_type__name": loc_entry["location_type"]["name"],
-                "tenant__name": loc_entry["tenant"]["name"] if loc_entry.get("tenant") else None,
-                "description": loc_entry["description"],
-                "tags": loc_entry["tags"] if loc_entry.get("tags") else [],
-                "pk": loc_entry["id"],
-            }
-            if loc_entry["parent"]:
-                location_args["parent__name"] = loc_entry["parent"]["name"]
-                location_args["parent__location_type__name"] = loc_entry["parent"]["location_type"]["name"]
-            new_location = self.location(**location_args)
-            self.add(new_location)
-            self.job.logger.debug(f"Loaded {new_location} Location from remote Nautobot instance")
+        try:
+            for loc_entry in self._get_api_data("api/dcim/locations/?depth=3"):
+                locationtype = self.get(self.locationtype, loc_entry["location_type"]["name"])
+                location_args = {
+                    "name": loc_entry["name"],
+                    "status__name": loc_entry["status"]["name"] if loc_entry["status"].get("name") else "Active",
+                    "location_type__name": loc_entry["location_type"]["name"],
+                    "tenant__name": loc_entry["tenant"]["name"] if loc_entry.get("tenant") else None,
+                    "description": loc_entry["description"],
+                    "tags": loc_entry["tags"] if loc_entry.get("tags") else [],
+                    "pk": loc_entry["id"],
+                }
+                if loc_entry["parent"]:
+                    location_args["parent__name"] = loc_entry["parent"]["name"]
+                    location_args["parent__location_type__name"] = loc_entry["parent"]["location_type"]["name"]
+                new_location = self.location(**location_args)
+                self.add(new_location)
+                locationtype.add_child(new_location)
+                if self.job.debug:
+                    self.job.logger.debug(f"Loaded {new_location} Location from remote Nautobot instance")
+        except ObjectNotFound:
+            self.job.logger.warning(
+                f"Unable to find LocationType {loc_entry['location_type']['name']} for {loc_entry['name']}."
+            )
 
     def load_roles(self):
         """Load Roles data from the remote Nautobot instance."""
@@ -604,23 +615,30 @@ class NautobotRemote(Adapter):
     def load_prefixes(self):
         """Load Prefixes data from the remote Nautobot instance."""
         for prefix_entry in self._get_api_data("api/ipam/prefixes/?depth=2"):
-            prefix = self.prefix(
-                network=prefix_entry["network"],
-                prefix_length=prefix_entry["prefix_length"],
-                namespace__name=prefix_entry["namespace"]["name"],
-                description=prefix_entry["description"],
-                locations=[
-                    {"name": x["name"], "location_type__name": x["location_type"]["name"]}
-                    for x in prefix_entry["locations"]
-                ],
-                status__name=prefix_entry["status"]["name"] if prefix_entry["status"].get("name") else "Active",
-                tenant__name=prefix_entry["tenant"]["name"] if prefix_entry["tenant"] else None,
-                tags=prefix_entry["tags"] if prefix_entry.get("tags") else [],
-                pk=prefix_entry["id"],
-            )
-            self.add(prefix)
-            if self.job.debug:
-                self.job.logger.debug(f"Loaded {prefix} from remote Nautobot instance")
+            try:
+                namespace = self.get(self.namespace, prefix_entry["namespace"]["name"])
+                prefix = self.prefix(
+                    network=prefix_entry["network"],
+                    prefix_length=prefix_entry["prefix_length"],
+                    namespace__name=prefix_entry["namespace"]["name"],
+                    description=prefix_entry["description"],
+                    locations=[
+                        {"name": x["name"], "location_type__name": x["location_type"]["name"]}
+                        for x in prefix_entry["locations"]
+                    ],
+                    status__name=prefix_entry["status"]["name"] if prefix_entry["status"].get("name") else "Active",
+                    tenant__name=prefix_entry["tenant"]["name"] if prefix_entry["tenant"] else None,
+                    tags=prefix_entry["tags"] if prefix_entry.get("tags") else [],
+                    pk=prefix_entry["id"],
+                )
+                self.add(prefix)
+                namespace.add_child(prefix)
+                if self.job.debug:
+                    self.job.logger.debug(f"Loaded {prefix} from remote Nautobot instance")
+            except ObjectNotFound:
+                self.job.logger.warning(
+                    f"Unable to find Namespace {prefix_entry['namespace']['name']} for {prefix_entry['network']}/{prefix_entry['prefix_length']}."
+                )
 
     def load_ipaddresses(self):
         """Load IPAddresses data from the remote Nautobot instance."""
@@ -692,30 +710,37 @@ class NautobotRemote(Adapter):
     def load_devices(self):
         """Load Devices data from the remote Nautobot instance."""
         for device in self._get_api_data("api/dcim/devices/?depth=3"):
-            device = self.device(
-                name=device["name"],
-                location__name=device["location"]["name"],
-                location__parent__name=(
-                    device["location"]["parent"]["name"] if device["location"].get("parent") else None
-                ),
-                location__parent__location_type__name=(
-                    device["location"]["parent"]["location_type"]["name"] if device["location"].get("parent") else None
-                ),
-                location__location_type__name=device["location"]["location_type"]["name"],
-                device_type__manufacturer__name=device["device_type"]["manufacturer"]["name"],
-                device_type__model=device["device_type"]["model"],
-                platform__name=device["platform"]["name"] if device.get("platform") else None,
-                role__name=device["role"]["name"],
-                asset_tag=device["asset_tag"] if device.get("asset_tag") else None,
-                serial=device["serial"] if device.get("serial") else "",
-                status__name=device["status"]["name"],
-                tenant__name=device["tenant"]["name"] if device.get("tenant") else None,
-                tags=device["tags"] if device.get("tags") else [],
-                pk=device["id"],
-            )
-            self.add(device)
-            if self.job.debug:
-                self.job.logger.debug(f"Loaded {device} from remote Nautobot instance")
+            try:
+                location = self.get(self.location, device["location"]["name"])
+                new_device = self.device(
+                    name=device["name"],
+                    location__name=device["location"]["name"],
+                    location__parent__name=(
+                        device["location"]["parent"]["name"] if device["location"].get("parent") else None
+                    ),
+                    location__parent__location_type__name=(
+                        device["location"]["parent"]["location_type"]["name"]
+                        if device["location"].get("parent")
+                        else None
+                    ),
+                    location__location_type__name=device["location"]["location_type"]["name"],
+                    device_type__manufacturer__name=device["device_type"]["manufacturer"]["name"],
+                    device_type__model=device["device_type"]["model"],
+                    platform__name=device["platform"]["name"] if device.get("platform") else None,
+                    role__name=device["role"]["name"],
+                    asset_tag=device["asset_tag"] if device.get("asset_tag") else None,
+                    serial=device["serial"] if device.get("serial") else "",
+                    status__name=device["status"]["name"],
+                    tenant__name=device["tenant"]["name"] if device.get("tenant") else None,
+                    tags=device["tags"] if device.get("tags") else [],
+                    pk=device["id"],
+                )
+                self.add(new_device)
+                location.add_child(new_device)
+                if self.job.debug:
+                    self.job.logger.debug(f"Loaded {device} from remote Nautobot instance")
+            except ObjectNotFound:
+                self.job.logger.warning(f"Unable to find Location {device['location']['name']} for {device['name']}.")
 
     def load_interfaces(self):
         """Load Interfaces data from the remote Nautobot instance."""
@@ -823,15 +848,11 @@ class NautobotLocal(NautobotAdapter):
     top_level = [
         "tenant",
         "status",
-        "locationtype",
-        "location",
         "manufacturer",
         "platform",
         "role",
-        "device",
+        "locationtype",
         "namespace",
-        "prefix",
-        "ipaddress",
     ]
 
 
