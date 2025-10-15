@@ -56,14 +56,12 @@ class SyncRecordFilterSet(NameSearchFilterSet, NautobotFilterSet):  # pylint: di
 
     q = SearchFilter(
         filter_predicates={
-            "sync": "icontains",
             "source": "icontains",
             "target": "icontains",
             "obj_type": "icontains",
             "obj_name": "icontains",
             "action": "icontains",
             "status": "icontains",
-            "synced_object_type": "icontains",
         }
     )
 
@@ -81,8 +79,6 @@ class SyncRecordFilterSet(NameSearchFilterSet, NautobotFilterSet):  # pylint: di
             "obj_name",
             "action",
             "status",
-            "synced_object_type",
-            "synced_object_id",
         ]
 
 
