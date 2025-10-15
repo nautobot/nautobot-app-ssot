@@ -32,7 +32,7 @@ class ProcessRecordsJob(Job):
     class Meta:
         """Meta attributes of ProcessRecordsJob."""
 
-        name = "Process Records"
+        name = "Process Sync Records"
         description = "Process SyncRecords that are in a pending state."
         commit_default = False
         has_sensitive_variables = False
