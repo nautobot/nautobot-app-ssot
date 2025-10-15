@@ -226,4 +226,4 @@ class SyncRecordTable(BaseTable):
 
         # Option for modifying the columns that show up in the list view by default:
         default_columns = ("pk", "source", "target", "obj_type", "obj_name", "status")
-        order_by = ("pk",)
+        order_by = ("timestamp",)
