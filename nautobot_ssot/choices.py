@@ -52,12 +52,12 @@ class SyncRecordStatusChoices(ChoiceSet):
 
     STATUS_PENDING = "pending"
     STATUS_SUCCESS = "success"
-    STATUS_FAILURE = "failure"
+    STATUS_FAILURE = "failed"
     STATUS_ERROR = "error"
 
     CHOICES = (
         (STATUS_PENDING, "pending"),
-        (STATUS_SUCCESS, "succeeded"),
+        (STATUS_SUCCESS, "success"),
         (STATUS_FAILURE, "failed"),
         (STATUS_ERROR, "errored"),
     )
