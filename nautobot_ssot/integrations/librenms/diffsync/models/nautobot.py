@@ -290,7 +290,7 @@ class NautobotDevice(Device):
         if adapter.job.debug:
             adapter.job.logger.debug(f'Creating Nautobot Device {ids["name"]}')
             adapter.job.logger.debug(f"N_Model ids: {ids}")
-        manufacturer_name = os_manufacturer_map.get(LIBRENMS_LIB_MAPPER_REVERSE.get(ANSIBLE_LIB_MAPPER.get(attrs["platform"], attrs["manufacturer"])), attrs["manufacturer"])
+        manufacturer_name = os_manufacturer_map.get(LIBRENMS_LIB_MAPPER_REVERSE.get(ANSIBLE_LIB_MAPPER.get(attrs["platform"], attrs["platform"])), attrs["platform"])
         if manufacturer_name is None:
             raise ValueError(f"Manufacturer is required for device {ids['name']}")
         _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
