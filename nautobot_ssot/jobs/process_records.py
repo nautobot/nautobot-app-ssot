@@ -44,7 +44,7 @@ class ProcessRecordsJob(Job):
         self.diff = Diff()
         super().__init__()
 
-    def run(self, *args, **kwargs):
+    def run(self, **kwargs):
         """Run the job."""
         self.records = kwargs.get("records", [])
         if not self.records:
@@ -112,7 +112,7 @@ class ProcessRecordsJob(Job):
 
     def _structlog_to_sync_record(self, _logger, _log_method, event_dict):
         """Update status of SyncRecord and associate to synced object if found."""
-        if all(key in event_dict for key in ("src", "dst", "action", "model", "unique_id", "diffs", "status")):
+        if all(key in event_dict for key in ("src", "dst", "action", "event", "model", "unique_id", "diffs", "status")):
             # The DiffSync log gives us a model name (string) and unique_id (string).
             # Try to look up the actual Nautobot object that this describes.
             job_model = self.records[0].sync.job_result.job_model
@@ -123,7 +123,8 @@ class ProcessRecordsJob(Job):
             )
             try:
                 record = SyncRecord.objects.get(obj_type=event_dict["model"], obj_name=event_dict["unique_id"])
-                record.status = SyncRecordStatusChoices.STATUS_SUCCESS
+                record.status = event_dict["status"]
+                record.message = event_dict["event"]
                 if synced_object:
                     record.synced_object_id = synced_object.id
                     record.synced_object_type = ContentType.objects.get_for_model(synced_object)
