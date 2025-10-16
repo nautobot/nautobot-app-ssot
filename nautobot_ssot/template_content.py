@@ -1,7 +1,10 @@
 """App template content extensions of base Nautobot views."""
 
+from django.shortcuts import redirect
 from django.urls import reverse
-from nautobot.extras.plugins import TemplateExtension
+from nautobot.apps.ui import Button, ButtonColorChoices, TemplateExtension
+from nautobot.core.views.utils import get_obj_from_context
+from nautobot.extras.models import Job, JobResult
 
 from nautobot_ssot.models import Sync
 
@@ -28,4 +31,33 @@ class JobResultSyncLink(TemplateExtension):
             return ""
 
 
-template_extensions = [JobResultSyncLink]
+class CreateProcessRecordButton(Button):  # pylint: disable=abstract-method
+    """Button for processing a Sync Record."""
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the Create Layout button."""
+        super().__init__(label="Process Record", icon="mdi-import", color="info", weight=100, *args, **kwargs)
+
+    def get_link(self, context):
+        """Generate the URL to create a layout with the location pre-selected."""
+        record = get_obj_from_context(context)
+        job = Job.objects.get(name="Process Sync Records")
+        # _job_result = JobResult.enqueue_job(job, context["request"].user, records=[record.id])
+        # Generate a URL for Process Sync Records Job with the record ID as a parameter
+        return f"/extras/jobs/{job.id}/run/?records={record.id}"
+
+    def should_render(self, context):
+        """Only render if the user has permissions to change SyncRecords."""
+        user = context["request"].user
+        # Check if user has permission to add a layout
+        return user.has_perm("nautobot_ssot.change_syncrecord")
+
+
+class SyncRecordsJobButton(TemplateExtension):  # pylint: disable=abstract-method
+    """Class to modify FailedSSoT list view."""
+
+    model = "nautobot_ssot.syncrecord"
+
+    object_detail_buttons = [CreateProcessRecordButton()]
+
+template_extensions = [JobResultSyncLink, SyncRecordsJobButton]

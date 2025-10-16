@@ -1,0 +1,20 @@
+{% extends 'generic/object_list.html' %}
+
+{% load static %}
+
+{% block buttons %}
+<a href="{% url 'plugins:nautobot_ssot:syncrecord_list' %}?status=success" class="btn btn-primary" id="completed-button">
+  <span class="mdi mdi-link" aria-hidden="true"></span> Completed Records
+</a>
+{% endblock %}
+
+{% block bulk_buttons %}
+{% if table.rows|length > 0 %}
+<div class="btn-group">
+    <button type="submit" name="process" formaction="{% url 'plugins:nautobot_ssot:process_bulk_syncrecords' %}" class="btn btn-info">
+        <span class="mdi mdi-import" aria-hidden="true"></span> Process Selected
+    </button>
+</div>
+</span>
+{% endif %}
+{% endblock bulk_buttons %}
