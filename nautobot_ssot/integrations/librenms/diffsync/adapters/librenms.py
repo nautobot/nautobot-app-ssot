@@ -150,7 +150,7 @@ class LibrenmsAdapter(Adapter):
                     if self.job.debug:
                         self.job.logger.debug(f"L_AdapterRole for {normalized_name}: {role}")
                         self.job.logger.debug(f"L_Adapter Platform Original Value for {normalized_name}: {device['os']}")
-                        self.job.logger.debug(f"L_Adapter Platform for {normalized_name}: {normalized_platform}")
+                        self.job.logger.debug(f"L_Adapter Platform for {normalized_name}: {normalized_platform_name}")
                         self.job.logger.debug(f"L_AdapterDevice type for {normalized_name}: {device_type}")
 
                     device_validation_dict = {
