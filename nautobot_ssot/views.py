@@ -1,13 +1,15 @@
 """Django views for Single Source of Truth (SSoT)."""
 
 from django.conf import settings
+from django.contrib import messages
 from django.http import Http404
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.template import loader
 from django.template.defaultfilters import date
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.timesince import timesince
+from django.urls import reverse
 from django.views import View as DjangoView
 from django_tables2 import RequestConfig
 from nautobot.apps.ui import (
@@ -36,7 +38,7 @@ from nautobot.apps.views import (
     get_obj_from_context,
 )
 from nautobot.core.ui.utils import flatten_context
-from nautobot.extras.models import Job as JobModel
+from nautobot.extras.models import Job as JobModel, JobResult
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -184,7 +186,7 @@ class DashboardView(ObjectListView):
             self.request,
             {
                 "paginator_class": EnhancedPaginator,
-                "per_page": 10,
+                "per_page": 30,
             },
         ).configure(table)
         context = {
@@ -417,6 +419,7 @@ class SyncRecordUIViewSet(ReadOnlyNautobotUIViewSet):
     # More information can be found in the Nautobot documentation:
     # https://docs.nautobot.com/projects/core/en/stable/development/core/ui-component-framework/
     object_detail_content = ObjectDetailContent(
+        extra_buttons=[],
         panels=[
             ObjectFieldsPanel(
                 weight=100,
@@ -442,3 +445,18 @@ class SyncRecordUIViewSet(ReadOnlyNautobotUIViewSet):
             ),
         ],
     )
+
+
+def process_bulk_syncrecords(request, action="None"):
+    """Endpoint for processing mulitple SyncRecords."""
+    _action = action
+    pks = request.POST.getlist("pk")
+    if not pks:
+        messages.error(request, "No items selected for bulk action")
+        url = reverse("plugins:nautobot_ssot:syncrecord_list")
+        return redirect(url)
+    job = Job.objects.get(name="Process Sync Records")
+    _job_result = JobResult.enqueue_job(job, request.user, records=pks)
+    messages.success(request, "Bulk Processing initiated - Check the Job Results for more info")
+    url = reverse("plugins:nautobot_ssot:syncrecord_list")
+    return redirect(url)

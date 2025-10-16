@@ -20,6 +20,7 @@ urlpatterns = [
     path("data-targets/<path:class_path>/", views.DataSourceTargetView.as_view(), name="data_target"),
     path("config/", views.SSOTConfigView.as_view(), name="config"),
     path("docs/", RedirectView.as_view(url=static("nautobot_ssot/docs/index.html")), name="docs"),
+    path("process_bulk_syncrecords/", views.process_bulk_syncrecords, name="process_bulk_syncrecords"),
 ]
 
 
