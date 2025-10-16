@@ -366,6 +366,7 @@ class NautobotDevice(Device):
         """Update Device in Nautobot from NautobotDevice object."""
         self.adapter.job.logger.debug(f"Updating Nautobot Device {self.name} with {attrs}")
         device = ORMDevice.objects.get(id=self.uuid)
+        manufacturer_name = device.device_type.manufacturer.name
         if "device_id" in attrs:
             device.custom_field_data["librenms_device_id"] = attrs["device_id"]
         if "status" in attrs:
@@ -387,7 +388,6 @@ class NautobotDevice(Device):
             # Get the original OS name for manufacturer lookup
             if self.adapter.job.debug:
                 self.adapter.job.logger.debug(f"N_Model attrs: {attrs}")
-            manufacturer_name = device.device_type.manufacturer.name
             if self.adapter.job.debug:
                 self.adapter.job.logger.debug(f"N_ModelManufacturer for {self.name} from attrs: {manufacturer_name}")
             _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=manufacturer_name)

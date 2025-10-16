@@ -133,7 +133,11 @@ class LibrenmsAdapter(Adapter):
                         normalized_name,
                         self.job.default_role.name if self.job.default_role else None,
                     )
-                    normalized_platform = ANSIBLE_LIB_MAPPER_REVERSE.get(LIBRENMS_LIB_MAPPER.get(device["os"], device["os"]))
+                    
+                    # Normalize the platform name using the LIBRENMS_LIB_MAPPER dictionary (ie: "procera" -> "applogic_procera")
+                    normalized_platform_network_driver = LIBRENMS_LIB_MAPPER.get(device["os"], device["os"])
+                    normalized_platform_name = ANSIBLE_LIB_MAPPER_REVERSE.get(normalized_platform_network_driver, normalized_platform_network_driver)
+
                     ip_address = device.get("ip", None)
                     ip_info = None  # Initialize ip_info to None
                     if ip_address:
@@ -222,7 +226,7 @@ class LibrenmsAdapter(Adapter):
                                 status=_status,
                                 manufacturer=manufacturer,
                                 device_type=device["hardware"],
-                                platform=normalized_platform if normalized_platform else device["os"],
+                                platform=normalized_platform_name,
                                 os_version=device["version"] if device["version"] is not None else "Unknown",
                                 tenant=str(self.job.tenant) if self.job.tenant else None,
                                 ip_address=str(ip_info["address"]) if ip_info and ip_info.get("address") else None,
