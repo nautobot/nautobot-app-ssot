@@ -220,7 +220,7 @@ description = "High-level concurrency and networking framework on top of asyncio
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "(python_version <= \"3.12\" or extra == \"all\" or extra == \"ipfabric\") and (extra == \"all\" or extra == \"slurpit\" or extra == \"ipfabric\")"
+markers = "extra == \"all\" or extra == \"ipfabric\" or extra == \"slurpit\""
 files = [
     {file = "anyio-4.11.0-py3-none-any.whl", hash = "sha256:0287e96f4d26d4149305414d4e3bc32f0dcd0862365a4bddea19d7a1ec38c4fc"},
     {file = "anyio-4.11.0.tar.gz", hash = "sha256:82a8d0b81e318cc5ce71a5f1f8b5c4e63619620b63141ef8c995fa0db95a57c4"},
@@ -1890,7 +1890,7 @@ files = [
     {file = "exceptiongroup-1.3.0-py3-none-any.whl", hash = "sha256:4d111e6e0c13d0644cad6ddaa7ed0261a0b36971f6d23e7ec9b4b9097da78a10"},
     {file = "exceptiongroup-1.3.0.tar.gz", hash = "sha256:b241f5885f560bc56a59ee63ca4c6a8bfa46ae4ad651af316d4e81817bb9fd88"},
 ]
-markers = {main = "python_version == \"3.10\" and (extra == \"all\" or extra == \"slurpit\" or extra == \"ipfabric\")", dev = "python_version == \"3.10\""}
+markers = {main = "(extra == \"all\" or extra == \"ipfabric\" or extra == \"slurpit\") and python_version == \"3.10\"", dev = "python_version == \"3.10\""}
 
 [package.dependencies]
 typing-extensions = {version = ">=4.6.0", markers = "python_version < \"3.13\""}
@@ -2441,7 +2441,7 @@ description = "A pure-Python, bring-your-own-I/O implementation of HTTP/1.1"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "(python_version <= \"3.12\" or extra == \"all\" or extra == \"ipfabric\") and (extra == \"all\" or extra == \"slurpit\" or extra == \"ipfabric\")"
+markers = "extra == \"all\" or extra == \"ipfabric\" or extra == \"slurpit\""
 files = [
     {file = "h11-0.16.0-py3-none-any.whl", hash = "sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86"},
     {file = "h11-0.16.0.tar.gz", hash = "sha256:4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1"},
@@ -2484,7 +2484,7 @@ description = "A minimal low-level HTTP client."
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "(python_version <= \"3.12\" or extra == \"all\" or extra == \"ipfabric\") and (extra == \"all\" or extra == \"slurpit\" or extra == \"ipfabric\")"
+markers = "extra == \"all\" or extra == \"ipfabric\" or extra == \"slurpit\""
 files = [
     {file = "httpcore-1.0.9-py3-none-any.whl", hash = "sha256:2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55"},
     {file = "httpcore-1.0.9.tar.gz", hash = "sha256:6e34463af53fd2ab5d807f399a9b45ea31c3dfa2276f15a2c3f00afff6e176e8"},
@@ -2507,7 +2507,7 @@ description = "The next generation HTTP client."
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "(python_version <= \"3.12\" or extra == \"all\" or extra == \"ipfabric\") and (extra == \"all\" or extra == \"slurpit\" or extra == \"ipfabric\")"
+markers = "extra == \"all\" or extra == \"ipfabric\" or extra == \"slurpit\""
 files = [
     {file = "httpx-0.27.2-py3-none-any.whl", hash = "sha256:7bb2708e112d8fdd7829cd4243970f0c223274051cb35ee80c03301ee29a3df0"},
     {file = "httpx-0.27.2.tar.gz", hash = "sha256:f7c2be1d2f3c3c3160d441802406b206c2b76f5947b11115e6df10c6c65e66c2"},
@@ -5155,7 +5155,7 @@ colorama = {version = ">=0.4.5", markers = "sys_platform == \"win32\""}
 dill = [
     {version = ">=0.2", markers = "python_version < \"3.11\""},
     {version = ">=0.3.7", markers = "python_version >= \"3.12\""},
-    {version = ">=0.3.6", markers = "python_version >= \"3.11\""},
+    {version = ">=0.3.6", markers = "python_version == \"3.11\""},
 ]
 isort = ">=4.2.5,<5.13 || >5.13,<7"
 mccabe = ">=0.6,<0.8"
@@ -6068,15 +6068,15 @@ files = [
 
 [[package]]
 name = "slurpit-sdk"
-version = "0.9.93"
+version = "0.9.100"
 description = "A robust Python SDK for slurpit"
 optional = true
-python-versions = "<3.13,>=3.8"
+python-versions = ">=3.8"
 groups = ["main"]
-markers = "python_version <= \"3.12\" and (extra == \"all\" or extra == \"slurpit\")"
+markers = "extra == \"all\" or extra == \"slurpit\""
 files = [
-    {file = "slurpit_sdk-0.9.93-py3-none-any.whl", hash = "sha256:ccb29a2b5b2fde269cc21707cf0f179f9b1a99bc8364922e9d7106e1ef09fcf9"},
-    {file = "slurpit_sdk-0.9.93.tar.gz", hash = "sha256:c34eca31fc4c49698a96816184be56392ea3849682578e0bd484cb36f2785e21"},
+    {file = "slurpit_sdk-0.9.100-py3-none-any.whl", hash = "sha256:6f61da9a6774dcbf03ef84674361e552318d9fd4b5f71481be5475b623030e4d"},
+    {file = "slurpit_sdk-0.9.100.tar.gz", hash = "sha256:7662e9edfa0ea7d175138fb9f45fab5c6dfbccac72e4e7650c6daacdb4b61bd3"},
 ]
 
 [package.dependencies]
@@ -6104,7 +6104,7 @@ description = "Sniff out which async library your code is running under"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "(python_version <= \"3.12\" or extra == \"all\" or extra == \"ipfabric\") and (extra == \"all\" or extra == \"slurpit\" or extra == \"ipfabric\")"
+markers = "extra == \"all\" or extra == \"ipfabric\" or extra == \"slurpit\""
 files = [
     {file = "sniffio-1.3.1-py3-none-any.whl", hash = "sha256:2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2"},
     {file = "sniffio-1.3.1.tar.gz", hash = "sha256:f4324edc670a0f49750a81b895f35c3adb843cca46f0530f79fc1babb23789dc"},
@@ -6902,4 +6902,4 @@ slurpit = ["slurpit-sdk"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "377d56cd63864e29b4b02936b78bb56e97bf1a2db9676a00a189ee364a835eed"
+content-hash = "f57a757966da0ecc0828728df3eb8bba1c04332c7ba56645959b4cc6bcd25141"
