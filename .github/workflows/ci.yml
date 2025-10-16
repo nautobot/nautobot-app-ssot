@@ -123,8 +123,7 @@ jobs:
       - name: "Constrain Nautobot version and regenerate lock file"
         env:
           INVOKE_NAUTOBOT_SSOT_LOCAL: "true"
-          PY_CONSTRAINT: "${{ matrix.python-version == '3.9' && '3.9.2' || matrix.python-version }}"
-        run: "poetry run invoke lock --constrain-nautobot-ver --constrain-python-ver=${{ env.PY_CONSTRAINT }}"
+        run: "poetry run invoke lock --constrain-nautobot-ver --constrain-python-ver=${{ matrix.python-version }}"
       - name: "Set up Docker Buildx"
         id: "buildx"
         uses: "docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2"  # v3.10.0
@@ -181,8 +180,7 @@ jobs:
       - name: "Constrain Nautobot version and regenerate lock file"
         env:
           INVOKE_NAUTOBOT_SSOT_LOCAL: "true"
-          PY_CONSTRAINT: "${{ matrix.python-version == '3.9' && '3.9.2' || matrix.python-version }}"
-        run: "poetry run invoke lock --constrain-nautobot-ver --constrain-python-ver=${{ env.PY_CONSTRAINT }}"
+        run: "poetry run invoke lock --constrain-nautobot-ver --constrain-python-ver=${{ matrix.python-version }}"
       - name: "Set up Docker Buildx"
         id: "buildx"
         uses: "docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2"  # v3.10.0
@@ -233,8 +231,7 @@ jobs:
       - name: "Constrain Nautobot version and regenerate lock file"
         env:
           INVOKE_NAUTOBOT_SSOT_LOCAL: "true"
-          PY_CONSTRAINT: "${{ matrix.python-version == '3.9' && '3.9.2' || matrix.python-version }}"
-        run: "poetry run invoke lock --constrain-nautobot-ver --constrain-python-ver=${{ env.PY_CONSTRAINT }}"
+        run: "poetry run invoke lock --constrain-nautobot-ver --constrain-python-ver=${{ matrix.python-version }}"
       - name: "Set up Docker Buildx"
         id: "buildx"
         uses: "docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2"  # v3.10.0
