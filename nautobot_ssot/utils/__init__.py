@@ -83,6 +83,7 @@ def parse_hostname_for_role(hostname_map: List[Tuple[str, str]], device_hostname
     return device_role
 
 
+# TODO: Remove this. SSoT v4 will not support older versions of DLM
 def dlm_supports_softwarelcm() -> bool:
     """Validate if the DLM version installed is lower than 3.0.0.
 
@@ -98,6 +99,7 @@ def dlm_supports_softwarelcm() -> bool:
     return False
 
 
+# TODO: Remove this. SSoT no longer supports Nautobot 2.1
 def core_supports_softwareversion() -> bool:
     """Validate if the core Nautobot version installed is 2.2.0 or higher.
 
