@@ -1,6 +1,6 @@
 """Base classes for contrib testing."""
 
-from typing import List, Optional
+from typing import Annotated, List, Optional
 from unittest import skip
 from unittest.mock import MagicMock
 
@@ -13,7 +13,7 @@ from diffsync.exceptions import ObjectNotCreated, ObjectNotDeleted, ObjectNotUpd
 from django.contrib.contenttypes.models import ContentType
 from nautobot.core.testing import TestCase
 from nautobot.dcim.choices import InterfaceTypeChoices
-from typing_extensions import Annotated, TypedDict
+from typing_extensions import TypedDict
 
 from nautobot_ssot.contrib import (
     CustomFieldAnnotation,

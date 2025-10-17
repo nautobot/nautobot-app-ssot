@@ -1,12 +1,7 @@
 # pylint: disable=R0801
 """DiffSyncModel subclasses for Nautobot-to-SolarWinds data sync."""
 
-try:
-    from typing import Annotated  # Python>=3.9
-except ImportError:
-    from typing_extensions import Annotated  # Python<3.9
-
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
 from diffsync.enum import DiffSyncModelFlags
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, Manufacturer, Platform, SoftwareVersion

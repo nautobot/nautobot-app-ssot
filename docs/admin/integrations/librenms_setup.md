@@ -21,7 +21,7 @@ PLUGINS = ["nautobot_ssot"]
 
 PLUGINS_CONFIG = {
   "nautobot_ssot": {
-        # Other nautobot_ssot settings ommitted.
+        # Other nautobot_ssot settings omitted.
         "enable_librenms": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_LIBRENMS", "true")),
   }
 }

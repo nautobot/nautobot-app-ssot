@@ -1,7 +1,6 @@
 """Unittests for typing utility functions."""
 
 from nautobot.core.testing import TestCase
-from typing_extensions import List
 
 from nautobot_ssot.utils.typing import get_inner_type
 
@@ -13,7 +12,7 @@ class TestGetInnerType(TestCase):
         """Example class with type hints."""
 
         a: str
-        b: List[str]
+        b: list[str]
 
     def test_get_attribute_with_inner_type(self):
         """Get a valid attribute with inner type."""

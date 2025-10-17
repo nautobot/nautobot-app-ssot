@@ -50,6 +50,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     DynamicGroup = apps.get_model("extras", "DynamicGroup")
     GitRepository = apps.get_model("extras", "GitRepository")
     Role = apps.get_model("extras", "Role")
+    ExternalIntegration = apps.get_model("extras", "ExternalIntegration")
 
     signal_to_model_mapping = {
         "manufacturer": Manufacturer,
@@ -78,6 +79,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         "secrets_group": SecretsGroup,
         "dynamic_group": DynamicGroup,
         "git_repository": GitRepository,
+        "external_integration": ExternalIntegration,
     }
 
     if core_supports_softwareversion():

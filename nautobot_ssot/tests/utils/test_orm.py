@@ -1,12 +1,14 @@
 """Unittests for ORM utility functions."""
 
+from typing import Optional
+
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 from nautobot.circuits.models import Provider
 from nautobot.dcim.models import Location, LocationType
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation, Status
-from typing_extensions import Optional, TypedDict
+from typing_extensions import TypedDict
 
 from nautobot_ssot.contrib.types import RelationshipSideEnum
 from nautobot_ssot.utils.orm import (

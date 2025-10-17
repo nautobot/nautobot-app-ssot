@@ -24,12 +24,15 @@ from nautobot.dcim.models import (
     LocationType,
     Manufacturer,
     Platform,
+    SoftwareImageFile,
+    SoftwareVersion,
 )
 from nautobot.extras.models import (
     ComputedField,
     Contact,
     CustomField,
     DynamicGroup,
+    ExternalIntegration,
     GitRepository,
     GraphQLQuery,
     Job,
@@ -55,16 +58,14 @@ from nautobot_ssot.integrations.bootstrap.diffsync.adapters.nautobot import (
 )
 from nautobot_ssot.integrations.bootstrap.jobs import BootstrapDataSource
 from nautobot_ssot.integrations.bootstrap.utils import get_scheduled_start_time
-from nautobot_ssot.utils import core_supports_softwareversion, dlm_supports_softwarelcm, validate_dlm_installed
+from nautobot_ssot.utils import dlm_supports_softwarelcm
 
-if core_supports_softwareversion():
-    from nautobot.dcim.models import SoftwareImageFile, SoftwareVersion  # pylint: disable=ungrouped-imports
+try:
+    from nautobot_device_lifecycle_mgmt.models import ValidatedSoftwareLCM
 
-    if validate_dlm_installed():
-        from nautobot_device_lifecycle_mgmt.models import ValidatedSoftwareLCM
-
-if dlm_supports_softwarelcm():
-    from nautobot_device_lifecycle_mgmt.models import SoftwareImageLCM, SoftwareLCM, ValidatedSoftwareLCM
+    HAS_DLM = True
+except ImportError:
+    HAS_DLM = False
 
 
 def load_yaml(path):
@@ -121,6 +122,7 @@ MODELS_TO_SYNC = [
     "vrf",
     "prefix",
     "scheduled_job",
+    "external_integration",
 ]
 
 MODELS_TO_TEST = [
@@ -153,6 +155,7 @@ MODELS_TO_TEST = [
     "vrf",
     "prefix",
     "scheduled_job",
+    "external_integration",
 ]
 
 
@@ -192,7 +195,49 @@ class NautobotTestSetup:
         self.bs_adapter.job = MagicMock()
         self.bs_adapter.job.logger.info = MagicMock()
         self.status_active = None
+        self._empty_database()
         self._initialize_data()
+
+    def _empty_database(self):
+        """Empty the database before trying to populate data."""
+        for model in (
+            Circuit,
+            CircuitTermination,
+            CircuitType,
+            ComputedField,
+            Contact,
+            CustomField,
+            Device,
+            DeviceType,
+            DynamicGroup,
+            ExternalIntegration,
+            GitRepository,
+            GraphQLQuery,
+            InventoryItem,
+            JobResult,
+            Location,
+            LocationType,
+            Manufacturer,
+            Namespace,
+            Platform,
+            Prefix,
+            Provider,
+            ProviderNetwork,
+            RIR,
+            Role,
+            ScheduledJob,
+            Secret,
+            SecretsGroup,
+            Status,
+            Tag,
+            Team,
+            Tenant,
+            TenantGroup,
+            VLAN,
+            VLANGroup,
+            VRF,
+        ):
+            model.objects.all().delete()
 
     def _initialize_data(self):
         self._setup_tags()
@@ -224,8 +269,8 @@ class NautobotTestSetup:
         self._setup_vlans()
         self._setup_vrfs()
         self._setup_prefixes()
-        if dlm_supports_softwarelcm():
-            self._setup_software_and_images()
+        self._setup_external_integrations()
+        # self._setup_software_and_images()  # TODO: Is this still needed? It was only valid in DLM <3.0.0 prior to SSoT v4
         self._setup_validated_software()
         self._setup_scheduled_job()
 
@@ -929,94 +974,51 @@ class NautobotTestSetup:
 
     def _setup_software_and_images(self):
         """Set up software and software images for testing."""
-        # Handle software versions for both old and new Nautobot versions
-        if core_supports_softwareversion():
-            # For Nautobot >=2.3.0
-            for _software in GLOBAL_YAML_SETTINGS["software_version"]:
-                _tags = []
-                for _tag in _software["tags"]:
-                    _tags.append(Tag.objects.get(name=_tag))
-                _platform = Platform.objects.get(name=_software["platform"])
-                _soft = SoftwareVersion.objects.create(
-                    version=_software["version"],
-                    platform=_platform,
-                    status=self.status_active,
-                    alias=_software["alias"],
-                    end_of_support_date=_software["eos_date"],
-                    documentation_url=_software["documentation_url"],
-                    long_term_support=_software["long_term_support"],
-                    pre_release=_software["pre_release"],
-                )
-                _soft.custom_field_data["system_of_record"] = "Bootstrap"
-                _soft.validated_save()
-                _soft.refresh_from_db()
+        # Handle software versions
+        for _software in GLOBAL_YAML_SETTINGS["software_version"]:
+            _tags = []
+            for _tag in _software["tags"]:
+                _tags.append(Tag.objects.get(name=_tag))
+            _platform = Platform.objects.get(name=_software["platform"])
+            _soft = SoftwareVersion.objects.create(
+                version=_software["version"],
+                platform=_platform,
+                status=self.status_active,
+                alias=_software["alias"],
+                end_of_support_date=_software["eos_date"],
+                documentation_url=_software["documentation_url"],
+                long_term_support=_software["long_term_support"],
+                pre_release=_software["pre_release"],
+            )
+            _soft.custom_field_data["system_of_record"] = "Bootstrap"
+            _soft.validated_save()
+            _soft.refresh_from_db()
 
-            # For Nautobot >=2.3.0
-            for _software_image in GLOBAL_YAML_SETTINGS["software_image_file"]:
-                _tags = []
-                for _tag in _software_image["tags"]:
-                    _tags.append(Tag.objects.get(name=_tag))
-                _platform = Platform.objects.get(name=_software_image["platform"])
-                _software = SoftwareVersion.objects.get(
-                    version=_software_image["software_version"].split(" - ")[1], platform=_platform
-                )
-                _soft_image = SoftwareImageFile.objects.create(
-                    software_version=_software,
-                    image_file_name=_software_image["image_file_name"],
-                    image_file_checksum=_software_image["image_file_checksum"],
-                    image_file_size=_software_image["file_size"],
-                    hashing_algorithm=_software_image["hashing_algorithm"],
-                    download_url=_software_image["download_url"],
-                    default_image=_software_image["default_image"],
-                    status=self.status_active,
-                )
-                _soft_image.custom_field_data["system_of_record"] = "Bootstrap"
-                _soft_image.validated_save()
-                _soft_image.refresh_from_db()
-        else:
-            # For Nautobot <2.3.0
-            for _software in GLOBAL_YAML_SETTINGS["software"]:
-                _tags = []
-                for _tag in _software["tags"]:
-                    _tags.append(Tag.objects.get(name=_tag))
-                _platform = Platform.objects.get(name=_software["platform"])
-                _soft = SoftwareLCM.objects.create(
-                    version=_software["version"],
-                    alias=_software["alias"],
-                    device_platform=_platform,
-                    end_of_support=_software["eos_date"],
-                    long_term_support=_software["long_term_support"],
-                    pre_release=_software["pre_release"],
-                    documentation_url=_software["documentation_url"],
-                    tags=_tags,
-                )
-                _soft.custom_field_data["system_of_record"] = "Bootstrap"
-                _soft.validated_save()
-                _soft.refresh_from_db()
-
-            # For Nautobot <2.3.0
-            for _software_image in GLOBAL_YAML_SETTINGS["software_image"]:
-                _tags = []
-                for _tag in _software_image["tags"]:
-                    _tags.append(Tag.objects.get(name=_tag))
-                _platform = Platform.objects.get(name=_software_image["platform"])
-                _software = SoftwareLCM.objects.get(
-                    version=_software_image["software_version"], device_platform=_platform
-                )
-                _soft_image = SoftwareImageLCM.objects.create(
-                    software=_software,
-                    image_file_name=_software_image["file_name"],
-                    image_file_checksum=_software_image["image_file_checksum"],
-                    hashing_algorithm=_software_image["hashing_algorithm"],
-                    download_url=_software_image["download_url"],
-                    default_image=_software_image["default_image"],
-                    tags=_tags,
-                )
-                _soft_image.custom_field_data["system_of_record"] = "Bootstrap"
-                _soft_image.validated_save()
-                _soft_image.refresh_from_db()
+        for _software_image in GLOBAL_YAML_SETTINGS["software_image_file"]:
+            _tags = []
+            for _tag in _software_image["tags"]:
+                _tags.append(Tag.objects.get(name=_tag))
+            _platform = Platform.objects.get(name=_software_image["platform"])
+            _software = SoftwareVersion.objects.get(
+                version=_software_image["software_version"].split(" - ")[1], platform=_platform
+            )
+            _soft_image = SoftwareImageFile.objects.create(
+                software_version=_software,
+                image_file_name=_software_image["image_file_name"],
+                image_file_checksum=_software_image["image_file_checksum"],
+                image_file_size=_software_image["file_size"],
+                hashing_algorithm=_software_image["hashing_algorithm"],
+                download_url=_software_image["download_url"],
+                default_image=_software_image["default_image"],
+                status=self.status_active,
+            )
+            _soft_image.custom_field_data["system_of_record"] = "Bootstrap"
+            _soft_image.validated_save()
+            _soft_image.refresh_from_db()
 
     def _setup_validated_software(self):
+        if not HAS_DLM:
+            return
         for validated_software_data in GLOBAL_YAML_SETTINGS["validated_software"]:
             tags = self._get_validated_software_tags(validated_software_data["tags"])
             devices = self._get_devices(validated_software_data["devices"])
@@ -1069,6 +1071,30 @@ class NautobotTestSetup:
             )
             scheduled_job.validated_save()
 
+    def _setup_external_integrations(self):
+        """Set up external integrations for testing."""
+        for _ext_int in GLOBAL_YAML_SETTINGS["external_integration"]:
+            _secrets_group = None
+            if _ext_int.get("secrets_group"):
+                _secrets_group = SecretsGroup.objects.get(name=_ext_int["secrets_group"])
+            _nb_ext_int = ExternalIntegration.objects.create(
+                name=_ext_int["name"],
+                remote_url=_ext_int["remote_url"],
+                verify_ssl=_ext_int["verify_ssl"],
+                secrets_group=_secrets_group,
+                http_method=_ext_int["http_method"],
+                ca_file_path=_ext_int["ca_file_path"],
+                timeout=_ext_int["timeout"],
+                headers=_ext_int["headers"],
+                extra_config=_ext_int["extra_config"],
+            )
+            _nb_ext_int.custom_field_data["system_of_record"] = "Bootstrap"
+            if _ext_int["tags"]:
+                for _tag in _ext_int["tags"]:
+                    _nb_ext_int.tags.add(Tag.objects.get(name=_tag))
+            _nb_ext_int.save()
+            _nb_ext_int.refresh_from_db()
+
     def _get_validated_software_tags(self, tag_names):
         return [Tag.objects.get(name=tag_name) for tag_name in tag_names]
 
@@ -1090,12 +1116,10 @@ class NautobotTestSetup:
     def _get_software(self, software_name):
         platform_name, software_version = software_name.split(" - ")
         platform = Platform.objects.get(name=platform_name)
-        if core_supports_softwareversion():
-            software = SoftwareVersion.objects.get_or_create(
-                version=software_version, platform=platform, status=self.status_active
-            )[0]
-        elif dlm_supports_softwarelcm():
-            software = SoftwareLCM.objects.get_or_create(version=software_version, device_platform=platform)[0]
+        software = None
+        software = SoftwareVersion.objects.get_or_create(
+            version=software_version, platform=platform, status=self.status_active
+        )[0]
         return software
 
     def _set_validated_software_relations(
