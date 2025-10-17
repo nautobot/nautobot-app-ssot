@@ -8,7 +8,7 @@
         {% elif sync.job_result.status == 'PENDING' %}label-default
         {% elif sync.job_result.status == 'STARTED' %}label-warning
         {% endif %}"
-        title="{{ sync }}">
+        title="{{ sync.source }} → {{sync.target}}, {{sync.start_time }}">
     </a>
     &nbsp;
 {% endfor %}
