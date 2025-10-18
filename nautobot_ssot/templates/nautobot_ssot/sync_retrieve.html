@@ -1,0 +1,11 @@
+{% extends 'generic/object_retrieve.html' %}
+{% load helpers %}
+
+{% block extra_styles %}
+    <style>
+        li.diff-added { list-style-type: "+ "; color: #3c763d; background-color: #dff0d8;}
+        li.diff-subtracted { list-style-type: "- "; color: #a94442; background-color: #f2dede;}
+        li.diff-changed { list-style-type: "! "; color: #8a6d3b; background-color: #fcf8e3;}
+        li.diff-unchanged { list-style-type: circle; color: #333; background-color: white;}
+    </style>
+{% endblock extra_styles %}

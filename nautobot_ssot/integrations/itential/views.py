@@ -1,6 +1,14 @@
 """Itential SSoT Views."""
 
 from nautobot.apps import views
+from nautobot.apps.ui import (
+    Breadcrumbs,
+    ModelBreadcrumbItem,
+    ObjectDetailContent,
+    ObjectFieldsPanel,
+    SectionChoices,
+    ViewNameBreadcrumbItem,
+)
 
 from nautobot_ssot.integrations.itential import filters, forms, models, tables
 from nautobot_ssot.integrations.itential.api import serializers
@@ -17,3 +25,26 @@ class AutomationGatewayModelUIViewSet(views.NautobotUIViewSet):
     serializer_class = serializers.AutomationGatewayModelSerializer
     table_class = tables.AutomationGatewayModelTable
     lookup_field = "pk"
+    base_template = "generic/object_retrieve.html"
+    breadcrumbs = Breadcrumbs(
+        items={
+            "list": [
+                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
+                ModelBreadcrumbItem(model=models.AutomationGatewayModel),
+            ],
+            "detail": [
+                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
+                ModelBreadcrumbItem(),
+            ],
+        }
+    )
+
+    object_detail_content = ObjectDetailContent(
+        panels=(
+            ObjectFieldsPanel(
+                weight=100,
+                section=SectionChoices.LEFT_HALF,
+                fields="__all__",
+            ),
+        )
+    )

@@ -26,6 +26,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.urls import reverse
 from django.utils.formats import date_format
+from django.utils.html import format_html
 from django.utils.timezone import now
 from nautobot.core.models import BaseModel
 from nautobot.extras.choices import JobResultStatusChoices
@@ -35,6 +36,7 @@ from nautobot.extras.utils import extras_features
 from nautobot_ssot.integrations.infoblox.models import SSOTInfobloxConfig
 from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
 from nautobot_ssot.integrations.servicenow.models import SSOTServiceNowConfig
+from nautobot_ssot.templatetags.shorter_timedelta import shorter_timedelta
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 
@@ -58,8 +60,8 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
     Essentially an extension of the JobResult model to add a few additional fields.
     """
 
-    source = models.CharField(max_length=64, help_text="System data is read from")
-    target = models.CharField(max_length=64, help_text="System data is written to")
+    source = models.CharField(max_length=64, help_text="System data is read from", verbose_name="Data Source")
+    target = models.CharField(max_length=64, help_text="System data is written to", verbose_name="Data Target")
 
     start_time = models.DateTimeField(blank=True, null=True, db_index=True)
     # end_time is represented by the job_result.date_done field
@@ -79,6 +81,7 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
     dry_run = models.BooleanField(
         default=False,
         help_text="Report what data would be synced but do not make any changes",
+        verbose_name="Type",
     )
     diff = models.JSONField(blank=True, encoder=DiffJSONEncoder)
     summary = models.JSONField(blank=True, null=True)
@@ -90,6 +93,8 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
         """Metaclass attributes of Sync model."""
 
         ordering = ["start_time"]
+        verbose_name = "data sync"
+        verbose_name_plural = "SSoT Sync History"
 
     def __str__(self):
         """String representation of a Sync instance."""
@@ -147,6 +152,13 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
         if self.job_result and self.job_result.date_done:
             return self.job_result.date_done - self.start_time
 
+    @property
+    def end_time(self):
+        """End time of this Sync, if known."""
+        if self.job_result and self.job_result.date_done:
+            return self.job_result.date_done
+        return None
+
     def get_source_url(self):
         """Get the absolute url of the source worker associated with this instance."""
         if self.source == "Nautobot" or not self.job_result:
@@ -156,6 +168,12 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
             kwargs={"class_path": self.job_result.job_model.class_path},
         )
 
+    def get_source_display(self):
+        """Display the name and link to the source worker associated with this instance."""
+        if self.get_source_url():
+            return format_html('<a href="{}">{}</a>', self.get_source_url(), self.source)
+        return self.source
+
     def get_target_url(self):
         """Get the absolute url of the target worker associated with this instance."""
         if self.target == "Nautobot" or not self.job_result:
@@ -163,6 +181,33 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
         return reverse(
             "plugins:nautobot_ssot:data_target",
             kwargs={"class_path": self.job_result.job_model.class_path},
+        )
+
+    def get_target_display(self):
+        """Display the name and link to the target worker associated with this instance."""
+        if self.get_target_url():
+            return format_html('<a href="{}">{}</a>', self.get_target_url(), self.target)
+        return self.target
+
+    def get_duration_display(self):
+        """Display the duration of this Sync and each phase."""
+        return format_html(
+            """
+                {} total
+                <ul>
+                    <li>{} loading from {}</li>
+                    <li>{} loading from {}</li>
+                    <li>{} calculating diffs</li>
+                    <li>{} performing sync</li>
+                </ul>
+            """,
+            shorter_timedelta(self.duration),
+            shorter_timedelta(self.source_load_time),
+            self.source,
+            shorter_timedelta(self.target_load_time),
+            self.target,
+            shorter_timedelta(self.diff_time),
+            shorter_timedelta(self.sync_time),
         )
 
 

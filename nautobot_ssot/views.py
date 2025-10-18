@@ -1,24 +1,154 @@
 """Django views for Single Source of Truth (SSoT)."""
 
-import pprint
-
+from django.conf import settings
 from django.http import Http404
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import render
+from django.template import loader
+from django.template.defaultfilters import date
+from django.urls import reverse
+from django.utils.html import format_html
+from django.utils.timesince import timesince
 from django.views import View as DjangoView
 from django_tables2 import RequestConfig
-from nautobot.core.views.generic import BulkDeleteView, ObjectDeleteView, ObjectListView, ObjectView
-from nautobot.core.views.mixins import ContentTypePermissionRequiredMixin
-from nautobot.core.views.paginator import EnhancedPaginator
+from nautobot.apps.ui import (
+    Breadcrumbs,
+    DistinctViewTab,
+    ModelBreadcrumbItem,
+    ObjectDetailContent,
+    ObjectFieldsPanel,
+    ObjectsTablePanel,
+    ObjectTextPanel,
+    SectionChoices,
+    Tab,
+    ViewNameBreadcrumbItem,
+    render_component_template,
+)
+from nautobot.apps.views import (
+    ContentTypePermissionRequiredMixin,
+    EnhancedPaginator,
+    ObjectBulkDestroyViewMixin,
+    ObjectDestroyViewMixin,
+    ObjectDetailViewMixin,
+    ObjectListView,
+    ObjectListViewMixin,
+    ObjectView,
+    get_obj_from_context,
+)
+from nautobot.core.ui.utils import flatten_context
 from nautobot.extras.models import Job as JobModel
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
+from nautobot_ssot.api import serializers
 from nautobot_ssot.integrations import utils
+from nautobot_ssot.templatetags.render_diff import render_diff
 
 from .filters import SyncFilterSet, SyncLogEntryFilterSet
-from .forms import SyncFilterForm, SyncLogEntryFilterForm
+from .forms import SyncBulkEditForm, SyncFilterForm, SyncForm, SyncLogEntryFilterForm
 from .jobs import get_data_jobs
 from .jobs.base import DataSource, DataTarget
 from .models import Sync, SyncLogEntry
 from .tables import DashboardTable, SyncLogEntryTable, SyncTable, SyncTableSingleSourceOrTarget
+
+
+class SyncObjectPanel(ObjectFieldsPanel):
+    """Custom ObjectFieldsPanel to support the rendering of sync duration."""
+
+    def render_value(self, key, value, context):
+        """Render the value for display in the table."""
+        if key == "duration":
+            obj = get_obj_from_context(context, self.context_object_key)
+            return obj.get_duration_display()
+        # TODO: NEXT-3.0 Replace label label-* with Bootstrap 5 badge classes when Nautobot supports Bootstrap 5
+        # TODO: If Core adds a different way to render job result status labels, use here:
+        if key == "job_result__status":
+            if value == "FAILURE":
+                return format_html('<label class="label label-danger">Failed</label>')
+            if value == "PENDING":
+                return format_html('<label class="label label-default">Pending</label>')
+            if value == "STARTED":
+                return format_html('<label class="label label-warning">Running</label>')
+            if value == "SUCCESS":
+                return format_html('<label class="label label-success">Completed</label>')
+            else:
+                return format_html('<label class="label label-default">N/A</label>')
+        return super().render_value(key, value, context)
+
+
+class StatisticsObjectPanel(ObjectFieldsPanel):
+    """Custom ObjectFieldsPanel to support the rendering of sync statistics."""
+
+    def render_value(self, key, value, context):
+        """Render the value for display in the table."""
+        # TODO: NEXT-3.0 Replace label label-* with Bootstrap 5 badge classes when Nautobot supports Bootstrap 5
+        obj = get_obj_from_context(context, self.context_object_key)
+        print(f"Rendering value for key: {key}, value: {value}")
+        if key == "num_created":
+            return format_html(
+                '<a href="{}?action=create" class="label label-success">{}</a>',
+                reverse("plugins:nautobot_ssot:sync_logentries", kwargs={"pk": obj.pk}),
+                value,
+            )
+        if key == "num_updated":
+            return format_html(
+                '<a href="{}?action=update" class="label label-warning">{}</a>',
+                reverse("plugins:nautobot_ssot:sync_logentries", kwargs={"pk": obj.pk}),
+                value,
+            )
+        if key == "num_deleted":
+            return format_html(
+                '<a href="{}?action=delete" class="label label-danger">{}</a>',
+                reverse("plugins:nautobot_ssot:sync_logentries", kwargs={"pk": obj.pk}),
+                value,
+            )
+        if key == "num_failed":
+            return format_html(
+                '<a href="{}?status=failure">{}</a>',
+                reverse("plugins:nautobot_ssot:sync_logentries", kwargs={"pk": obj.pk}),
+                value,
+            )
+        if key == "num_errored":
+            return format_html(
+                '<a href="{}?status=error">{}</a>',
+                reverse("plugins:nautobot_ssot:sync_logentries", kwargs={"pk": obj.pk}),
+                value,
+            )
+        return super().render_value(key, value, context)
+
+
+class DiffPanel(ObjectTextPanel):
+    """Custom ObjectTextPanel to support the rendering of sync diffs."""
+
+    def get_value(self, context):
+        """Render the value for the diff."""
+        obj = get_obj_from_context(context, "object")
+        return render_diff(obj.diff)
+
+
+class JobResultViewTab(DistinctViewTab):
+    """View tab for JobResult associated objects."""
+
+    def render(self, context):
+        """Render the tab's contents (layout and panels) to HTML."""
+        # Check should_render_content first as it's generally a cheaper calculation than should_render checking perms
+        if not self.should_render_content(context) or not self.should_render(context):
+            return ""
+
+        with context.update(
+            {
+                "tab_id": self.tab_id,
+                "label": self.render_label(context),
+                "include_plugin_content": self.tab_id == "main",
+                "left_half_panels": self.panels_for_section(SectionChoices.LEFT_HALF),
+                "right_half_panels": self.panels_for_section(SectionChoices.RIGHT_HALF),
+                "full_width_panels": self.panels_for_section(SectionChoices.FULL_WIDTH),
+                **self.get_extra_context(context),
+            }
+        ):
+            template = loader.get_template("nautobot_ssot/inc/jobresult_tab.html")
+            # tab_content = render_component_template(self.LAYOUT_TEMPLATE_PATHS[self.layout], context)
+            tab_content = template.render(flatten_context(context), request=context.get("request"))
+            return render_component_template(self.content_wrapper_template_path, context, tab_content=tab_content)
 
 
 class DashboardView(ObjectListView):
@@ -94,96 +224,166 @@ class DataSourceTargetView(ObjectView):
         }
 
 
-class SyncListView(ObjectListView):
-    """View for listing Sync records."""
+class SyncUIViewSet(
+    ObjectDetailViewMixin,
+    ObjectListViewMixin,
+    ObjectDestroyViewMixin,
+    ObjectBulkDestroyViewMixin,
+):
+    """ViewSet for Sync."""
 
+    bulk_update_form_class = SyncBulkEditForm
+    filterset_class = SyncFilterSet
+    filterset_form_class = SyncFilterForm
+    form_class = SyncForm
+    # TODO INIT verify this is the lookup field you want
+    lookup_field = "pk"
     queryset = Sync.annotated_queryset()
-    filterset = SyncFilterSet
-    filterset_form = SyncFilterForm
-    table = SyncTable
-    action_buttons = []
-    template_name = "nautobot_ssot/history.html"
-
-    def extra_context(self):
-        """Extend the view context with additional information."""
-        data_sources, data_targets = get_data_jobs()
-        return {
-            "data_sources": data_sources,
-            "data_targets": data_targets,
+    serializer_class = serializers.SyncSerializer
+    table_class = SyncTable
+    base_template = "generic/object_retrieve.html"
+    action_buttons = ("export",)
+    breadcrumbs = Breadcrumbs(
+        items={
+            "list": [
+                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
+                ModelBreadcrumbItem(model=Sync),
+            ],
+            "detail": [
+                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
+                ModelBreadcrumbItem(),
+            ],
         }
+    )
+
+    object_detail_content = ObjectDetailContent(
+        panels=(
+            SyncObjectPanel(
+                weight=100,
+                section=SectionChoices.LEFT_HALF,
+                fields=[
+                    "source",
+                    "target",
+                    "dry_run",
+                    "start_time",
+                    "end_time",
+                    "duration",
+                    "job_result__status",
+                    "job_result",
+                ],
+                value_transforms={
+                    "dry_run": [
+                        lambda val: format_html('<span class="dry_run label label-default">Dry Run</span>')
+                        if val
+                        else format_html('<span class="dry_run label label-info">Sync</span>')
+                    ],
+                    "start_time": [
+                        lambda val: format_html(
+                            '{} <span class="text-muted">({} ago)</span>',
+                            date(val, settings.DATETIME_FORMAT),
+                            timesince(val),
+                        )
+                    ],
+                    "end_time": [
+                        lambda val: format_html(
+                            '{} <span class="text-muted">({} ago)</span>',
+                            date(val, settings.DATETIME_FORMAT),
+                            timesince(val),
+                        )
+                        if val
+                        else None
+                    ],
+                },
+            ),
+            StatisticsObjectPanel(
+                weight=200,
+                section=SectionChoices.RIGHT_HALF,
+                label="Statistics",
+                fields=[
+                    "num_created",
+                    "num_updated",
+                    "num_deleted",
+                    "num_failed",
+                    "num_errored",
+                ],
+                key_transforms={
+                    "num_created": "creates",
+                    "num_updated": "updates",
+                    "num_deleted": "deletes",
+                    "num_failed": "failures",
+                    "num_errored": "errors",
+                },
+            ),
+            DiffPanel(
+                weight=300,
+                section=SectionChoices.FULL_WIDTH,
+                label="Diff",
+                object_field="diff",
+                render_as=ObjectTextPanel.RenderOptions.PLAINTEXT,
+                render_placeholder=True,
+            ),
+        ),
+        extra_tabs=(
+            DistinctViewTab(
+                weight=Tab.WEIGHT_CHANGELOG_TAB + 200,
+                tab_id="logentries",
+                label="Sync Logs",
+                url_name="plugins:nautobot_ssot:sync_logentries",
+                hide_if_empty=False,
+                related_object_attribute="logs",
+                panels=(
+                    ObjectsTablePanel(
+                        weight=100,
+                        section=SectionChoices.FULL_WIDTH,
+                        table_class=SyncLogEntryTable,
+                        table_filter="sync",
+                        related_field_name="sync",
+                        tab_id="logentries",
+                        enable_bulk_actions=False,
+                        include_paginator=True,
+                    ),
+                ),
+            ),
+            JobResultViewTab(
+                weight=Tab.WEIGHT_CHANGELOG_TAB + 100,
+                tab_id="jobresult",
+                label="Job Logs",
+                url_name="plugins:nautobot_ssot:sync_jobresult",
+                hide_if_empty=False,
+            ),
+        ),
+    )
+
+    @action(detail=True, url_path="logs", custom_view_base_action="view")
+    def logentries(self, request, *args, **kwargs):
+        """Log entries action for Sync UIViewSet."""
+        return Response({})
+
+    @action(detail=True, url_path="jobresult", custom_view_base_action="view")
+    def jobresult(self, request, *args, **kwargs):
+        """Job result action for Sync UIViewSet."""
+        return Response({})
 
 
-class SyncDeleteView(ObjectDeleteView):
-    """View for deleting a single Sync record."""
+class SyncLogEntryUIViewSet(ObjectListViewMixin):
+    """ViewSet for SyncLogEntry."""
 
-    queryset = Sync.objects.all()
-
-
-class SyncBulkDeleteView(BulkDeleteView):
-    """View for bulk-deleting Sync records."""
-
-    queryset = Sync.objects.all()
-    table = SyncTable
-    filterset = SyncFilterSet
-
-
-class SyncView(ObjectView):
-    """View for details of a single Sync record."""
-
-    queryset = Sync.annotated_queryset()
-    template_name = "nautobot_ssot/sync_detail.html"
-
-    def get_extra_context(self, request, instance):
-        """Add additional context to the view."""
-        return {
-            "diff": pprint.pformat(instance.diff, width=180, compact=True),
-        }
-
-
-class SyncJobResultView(ObjectView):
-    """View for the JobResult associated with a single Sync record."""
-
-    queryset = Sync.objects.all()
-    template_name = "nautobot_ssot/sync_jobresult.html"
-
-    def get_extra_context(self, request, instance):
-        """Add additional context to the view."""
-        return {
-            "active_tab": "jobresult",
-        }
-
-
-class SyncLogEntriesView(ObjectListView):
-    """View for SyncLogEntries associated with a given Sync."""
-
+    filterset_class = SyncLogEntryFilterSet
+    filterset_form_class = SyncLogEntryFilterForm
+    lookup_field = "pk"
     queryset = SyncLogEntry.objects.all()
-    filterset = SyncLogEntryFilterSet
-    filterset_form = SyncLogEntryFilterForm
-    table = SyncLogEntryTable
-    action_buttons = []
-    template_name = "nautobot_ssot/sync_logentries.html"
-
-    def get(self, request, pk):  # pylint: disable=arguments-differ
-        """HTTP GET request handler."""
-        self.instance = get_object_or_404(Sync.objects.all(), pk=pk)  # pylint: disable=attribute-defined-outside-init
-        self.queryset = SyncLogEntry.objects.filter(sync=self.instance)
-
-        return super().get(request)
-
-    def extra_context(self):
-        """Add additional context to the view."""
-        return {"active_tab": "logentries", "object": self.instance}
-
-
-class SyncLogEntryListView(ObjectListView):
-    """View for listing SyncLogEntry records."""
-
-    queryset = SyncLogEntry.objects.all()
-    filterset = SyncLogEntryFilterSet
-    filterset_form = SyncLogEntryFilterForm
-    table = SyncLogEntryTable
-    action_buttons = []
-    template_name = "nautobot_ssot/synclogentry_list.html"
+    serializer_class = serializers.SyncLogEntrySerializer
+    table_class = SyncLogEntryTable
+    base_template = "generic/object_retrieve.html"
+    action_buttons = ("export",)
+    breadcrumbs = Breadcrumbs(
+        items={
+            "list": [
+                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
+                ModelBreadcrumbItem(model=SyncLogEntry),
+            ],
+        }
+    )
 
 
 class SSOTConfigView(ContentTypePermissionRequiredMixin, DjangoView):

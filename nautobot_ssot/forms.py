@@ -1,7 +1,7 @@
 """Forms for working with Sync and SyncLogEntry models."""
 
 from django import forms
-from nautobot.apps.forms import BootstrapMixin, add_blank_choice
+from nautobot.apps.forms import BootstrapMixin, DynamicModelMultipleChoiceField, NautobotFilterForm, add_blank_choice
 from nautobot.core.forms import BOOLEAN_WITH_BLANK_CHOICES
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
@@ -20,19 +20,19 @@ class SyncFilterForm(BootstrapMixin, forms.ModelForm):
         fields = ["dry_run"]
 
 
-class SyncLogEntryFilterForm(BootstrapMixin, forms.ModelForm):
+class SyncLogEntryFilterForm(NautobotFilterForm):
     """Form for filtering SyncLogEntry records."""
 
+    model = SyncLogEntry
     q = forms.CharField(required=False, label="Search")
-    sync = forms.ModelChoiceField(queryset=Sync.objects.defer("diff").all(), required=False)
+    sync = DynamicModelMultipleChoiceField(
+        queryset=Sync.objects.defer("diff").all(),
+        to_field_name="name",
+        required=False,
+        label="Sync",
+    )
     action = forms.ChoiceField(choices=add_blank_choice(SyncLogEntryActionChoices), required=False)
     status = forms.ChoiceField(choices=add_blank_choice(SyncLogEntryStatusChoices), required=False)
-
-    class Meta:
-        """Metaclass attributes of SyncLogEntryFilterForm."""
-
-        model = SyncLogEntry
-        fields = ["sync", "action", "status"]
 
 
 class SyncForm(BootstrapMixin, forms.Form):  # pylint: disable=nb-incorrect-base-class
@@ -44,3 +44,18 @@ class SyncForm(BootstrapMixin, forms.Form):  # pylint: disable=nb-incorrect-base
         label="Dry run",
         help_text="Perform a dry run, making no actual changes to the database.",
     )
+
+
+class SyncBulkEditForm(BootstrapMixin, forms.Form):  # pylint: disable=nb-incorrect-base-class
+    """Form for bulk editing Sync records."""
+
+    dry_run = forms.NullBooleanField(
+        required=False,
+        label="Dry run",
+        help_text="Perform a dry run, making no actual changes to the database.",
+    )
+
+    class Meta:
+        """Metaclass attributes of SyncBulkEditForm."""
+
+        model = Sync
