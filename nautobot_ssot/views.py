@@ -63,12 +63,12 @@ class SyncObjectPanel(ObjectFieldsPanel):
         # TODO: If Core adds a different way to render job result status labels, use here:
         if key == "job_result__status":
             status_labels = {
-                "FAILURE": ('label label-danger', "Failed"),
-                "PENDING": ('label label-default', "Pending"),
-                "STARTED": ('label label-warning', "Running"),
-                "SUCCESS": ('label label-success', "Completed"),
+                "FAILURE": ("label label-danger", "Failed"),
+                "PENDING": ("label label-default", "Pending"),
+                "STARTED": ("label label-warning", "Running"),
+                "SUCCESS": ("label label-success", "Completed"),
             }
-            css_class, text = status_labels.get(value, ('label label-default', "N/A"))
+            css_class, text = status_labels.get(value, ("label label-default", "N/A"))
             return format_html(f'<label class="{css_class}">{text}</label>')
         return super().render_value(key, value, context)
 
