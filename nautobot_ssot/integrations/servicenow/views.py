@@ -12,7 +12,7 @@ class SSOTServiceNowConfigView(UpdateView):
     """App configuration view for nautobot-ssot-servicenow."""
 
     form_class = SSOTServiceNowConfigForm
-    template_name = "nautobot_ssot_servicenow/config.html"
+    template_name = "nautobot_ssot/ssotservicenowconfig.html"
 
     def get_object(self, queryset=None):  # pylint: disable=unused-argument
         """Retrieve the SSOTServiceNowConfig singleton instance."""
