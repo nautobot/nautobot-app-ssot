@@ -66,10 +66,14 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         verbose_name="Infoblox WAPI version",
     )
     enable_sync_to_infoblox = models.BooleanField(
-        default=False, verbose_name="Enable Sync from Nautobot to Infoblox", help_text="Enable syncing of data from Nautobot to Infoblox."
+        default=False,
+        verbose_name="Enable Sync from Nautobot to Infoblox",
+        help_text="Enable syncing of data from Nautobot to Infoblox.",
     )
     enable_sync_to_nautobot = models.BooleanField(
-        default=True, verbose_name="Enable Sync from Infoblox to Nautobot", help_text="Enable syncing of data from Infoblox to Nautobot."
+        default=True,
+        verbose_name="Enable Sync from Infoblox to Nautobot",
+        help_text="Enable syncing of data from Infoblox to Nautobot.",
     )
     import_ip_addresses = models.BooleanField(
         default=False,
@@ -127,7 +131,11 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         help_text="Model types that can be deleted in Infoblox.",
     )
     nautobot_deletable_models = models.JSONField(
-        encoder=DjangoJSONEncoder, default=list, blank=True, help_text="Model types that can be deleted in Nautobot.", verbose_name="Nautobot - deletable models"
+        encoder=DjangoJSONEncoder,
+        default=list,
+        blank=True,
+        help_text="Model types that can be deleted in Nautobot.",
+        verbose_name="Nautobot - deletable models",
     )
 
     class Meta:

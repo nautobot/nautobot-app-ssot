@@ -1,6 +1,5 @@
 """Views implementation for SSOT vSphere."""
 
-
 # pylint: disable=duplicate-code
 from nautobot.apps.ui import (
     Breadcrumbs,
@@ -98,7 +97,6 @@ class SSOTvSphereConfigUIViewSet(
                 label="vSphere Virtual Machine Interface Status Mappings",
                 object_field="default_vm_interface_map",
                 render_as=ObjectTextPanel.RenderOptions.JSON,
-            )
+            ),
         ]
     )
-

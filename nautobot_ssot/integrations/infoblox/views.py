@@ -10,11 +10,11 @@ from nautobot.apps.ui import (
     ViewNameBreadcrumbItem,
 )
 from nautobot.apps.views import (
+    ObjectChangeLogViewMixin,
     ObjectDestroyViewMixin,
     ObjectDetailViewMixin,
     ObjectEditViewMixin,
     ObjectListViewMixin,
-    ObjectChangeLogViewMixin,
     ObjectNotesViewMixin,
 )
 
@@ -31,7 +31,7 @@ class SSOTInfobloxConfigUIViewSet(
     ObjectListViewMixin,
     ObjectEditViewMixin,
     ObjectChangeLogViewMixin,
-    ObjectNotesViewMixin
+    ObjectNotesViewMixin,
 ):  # pylint: disable=abstract-method
     """SSOTInfobloxConfig UI ViewSet."""
 
@@ -110,6 +110,6 @@ class SSOTInfobloxConfigUIViewSet(
                 label="Extensible Attributes/Custom Fields to Ignore",
                 object_field="cf_fields_ignore",
                 render_as=ObjectTextPanel.RenderOptions.JSON,
-            )
+            ),
         ]
     )
