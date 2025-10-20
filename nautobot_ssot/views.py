@@ -62,16 +62,14 @@ class SyncObjectPanel(ObjectFieldsPanel):
         # TODO: NEXT-3.0 Replace label label-* with Bootstrap 5 badge classes when Nautobot supports Bootstrap 5
         # TODO: If Core adds a different way to render job result status labels, use here:
         if key == "job_result__status":
-            if value == "FAILURE":
-                return format_html('<label class="label label-danger">Failed</label>')
-            if value == "PENDING":
-                return format_html('<label class="label label-default">Pending</label>')
-            if value == "STARTED":
-                return format_html('<label class="label label-warning">Running</label>')
-            if value == "SUCCESS":
-                return format_html('<label class="label label-success">Completed</label>')
-            else:
-                return format_html('<label class="label label-default">N/A</label>')
+            status_labels = {
+                "FAILURE": ('label label-danger', "Failed"),
+                "PENDING": ('label label-default', "Pending"),
+                "STARTED": ('label label-warning', "Running"),
+                "SUCCESS": ('label label-success', "Completed"),
+            }
+            css_class, text = status_labels.get(value, ('label label-default', "N/A"))
+            return format_html(f'<label class="{css_class}">{text}</label>')
         return super().render_value(key, value, context)
 
 

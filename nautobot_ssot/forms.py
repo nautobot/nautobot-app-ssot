@@ -20,7 +20,7 @@ class SyncFilterForm(BootstrapMixin, forms.ModelForm):
         fields = ["dry_run"]
 
 
-class SyncLogEntryFilterForm(NautobotFilterForm):
+class SyncLogEntryFilterForm(NautobotFilterForm):  # pylint: disable=too-many-ancestors
     """Form for filtering SyncLogEntry records."""
 
     model = SyncLogEntry
