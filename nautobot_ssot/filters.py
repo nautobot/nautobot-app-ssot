@@ -62,6 +62,7 @@ class SyncRecordFilterSet(NameSearchFilterSet, NautobotFilterSet):  # pylint: di
             "obj_name": "icontains",
             "action": "icontains",
             "status": "icontains",
+            "message": "icontains"
         }
     )
 
@@ -79,6 +80,7 @@ class SyncRecordFilterSet(NameSearchFilterSet, NautobotFilterSet):  # pylint: di
             "obj_name",
             "action",
             "status",
+            "message"
         ]
 
 
