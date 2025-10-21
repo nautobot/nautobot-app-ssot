@@ -25,7 +25,6 @@ class AutomationGatewayModelUIViewSet(views.NautobotUIViewSet):
     serializer_class = serializers.AutomationGatewayModelSerializer
     table_class = tables.AutomationGatewayModelTable
     lookup_field = "pk"
-    base_template = "generic/object_retrieve.html"
     breadcrumbs = Breadcrumbs(
         items={
             "list": [

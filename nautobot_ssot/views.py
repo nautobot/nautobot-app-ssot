@@ -80,7 +80,6 @@ class StatisticsObjectPanel(ObjectFieldsPanel):
         """Render the value for display in the table."""
         # TODO: NEXT-3.0 Replace label label-* with Bootstrap 5 badge classes when Nautobot supports Bootstrap 5
         obj = get_obj_from_context(context, self.context_object_key)
-        print(f"Rendering value for key: {key}, value: {value}")
         if key == "num_created":
             return format_html(
                 '<a href="{}?action=create" class="label label-success">{}</a>',
@@ -239,7 +238,6 @@ class SyncUIViewSet(
     queryset = Sync.annotated_queryset()
     serializer_class = serializers.SyncSerializer
     table_class = SyncTable
-    base_template = "generic/object_retrieve.html"
     action_buttons = ("export",)
     breadcrumbs = Breadcrumbs(
         items={
@@ -372,7 +370,6 @@ class SyncLogEntryUIViewSet(ObjectListViewMixin):
     queryset = SyncLogEntry.objects.all()
     serializer_class = serializers.SyncLogEntrySerializer
     table_class = SyncLogEntryTable
-    base_template = "generic/object_retrieve.html"
     action_buttons = ("export",)
     breadcrumbs = Breadcrumbs(
         items={

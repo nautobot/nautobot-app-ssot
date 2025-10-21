@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
             name="sync",
             options={
                 "ordering": ["start_time"],
-                "verbose_name": "data sync",
+                "verbose_name": "Data Sync",
                 "verbose_name_plural": "SSoT Sync History",
             },
         ),

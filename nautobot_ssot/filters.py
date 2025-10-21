@@ -1,6 +1,6 @@
 """Filtering logic for Sync and SyncLogEntry records."""
-
-from nautobot.apps.filters import BaseFilterSet, NaturalKeyOrPKMultipleChoiceFilter, NautobotFilterSet, SearchFilter
+from django_filters import ModelMultipleChoiceFilter
+from nautobot.apps.filters import BaseFilterSet, NautobotFilterSet, SearchFilter
 
 from nautobot_ssot import models
 from nautobot_ssot.integrations.infoblox.filters import SSOTInfobloxConfigFilterSet
@@ -38,8 +38,7 @@ class SyncLogEntryFilterSet(NautobotFilterSet):  # pylint: disable=too-many-ance
         }
     )
 
-    sync = NaturalKeyOrPKMultipleChoiceFilter(
-        to_field_name="name",
+    sync = ModelMultipleChoiceFilter(
         queryset=models.Sync.objects.all(),
         label="Sync (name or ID)",
     )

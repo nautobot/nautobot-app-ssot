@@ -93,7 +93,7 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
         """Metaclass attributes of Sync model."""
 
         ordering = ["start_time"]
-        verbose_name = "data sync"
+        verbose_name = "Data Sync"
         verbose_name_plural = "SSoT Sync History"
 
     def __str__(self):
@@ -186,8 +186,9 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
 
     def get_target_display(self):
         """Display the name and link to the target worker associated with this instance."""
-        if self.get_target_url():
-            return format_html('<a href="{}">{}</a>', self.get_target_url(), self.target)
+        target_url = self.get_target_url()
+        if target_url:
+            return format_html('<a href="{}">{}</a>', target_url, self.target)
         return self.target
 
     def get_duration_display(self):
