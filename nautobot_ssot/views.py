@@ -464,10 +464,8 @@ class SyncRecordUIViewSet(ReadOnlyNautobotUIViewSet):
         ],
     )
 
-
-def process_bulk_syncrecords(request, action="None"):
+def process_bulk_syncrecords(request):
     """Endpoint for processing mulitple SyncRecords."""
-    _action = action
     pks = request.POST.getlist("pk")
     if not pks:
         messages.error(request, "No items selected for bulk action")
