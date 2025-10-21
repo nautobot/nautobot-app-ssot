@@ -13,7 +13,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Development Status :: 5 - Production/Stable",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -27,9 +26,9 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.9.2,<3.13"
+python = ">=3.10,<3.13"
 # Used for local development
-nautobot = ">=2.4.2,<3.0.0"
+nautobot = ">=2.4.20,<3.0.0"
 diffsync = "^2.0.0"
 Jinja2 = { version = ">=2.11.3", optional = true }
 Markdown = "!=3.3.5"
@@ -203,6 +202,7 @@ no-docstring-rgx = "^(_|test_|Meta$)"
 
 [tool.pylint.messages_control]
 disable = """,
+    abstract-method,
     line-too-long,
     too-few-public-methods,
     too-many-positional-arguments,
@@ -217,6 +217,9 @@ notes = """,
     FIXME,
     XXX,
     """
+
+[tool.pylint.similarities]
+min-similarity-lines = 7
 
 [tool.pylint-nautobot]
 supported_nautobot_versions = [

@@ -2,7 +2,7 @@
 
 from django.db import models
 from django.shortcuts import reverse
-from nautobot.core.models import BaseModel
+from nautobot.apps.models import BaseModel
 
 
 class SSOTServiceNowConfig(BaseModel):  # pylint: disable=nb-string-field-blank-null
@@ -10,13 +10,6 @@ class SSOTServiceNowConfig(BaseModel):  # pylint: disable=nb-string-field-blank-
 
     def delete(self, *args, **kwargs):
         """Cannot be deleted."""
-
-    @classmethod
-    def load(cls):
-        """Singleton instance getter."""
-        if cls.objects.all().exists():
-            return cls.objects.first()
-        return cls.objects.create()
 
     servicenow_instance = models.CharField(
         max_length=100,
@@ -39,3 +32,10 @@ class SSOTServiceNowConfig(BaseModel):  # pylint: disable=nb-string-field-blank-
     def get_absolute_url(self, api=False):  # pylint: disable=unused-argument
         """Get URL for the associated configuration view."""
         return reverse("plugins:nautobot_ssot:servicenow_config")
+
+    @classmethod
+    def load(cls):
+        """Singleton instance getter."""
+        if cls.objects.all().exists():
+            return cls.objects.first()
+        return cls.objects.create()
