@@ -42,7 +42,9 @@ def verify_platform(platform_name: str, manu: UUID) -> Platform:
         platform_obj.validated_save()
     return platform_obj
 
+
 if dlm_supports_softwarelcm():
+
     def add_software_lcm(diffsync, platform: str, version: str):
         """Add OS Version as SoftwareLCM if Device Lifecycle Plugin found.
 

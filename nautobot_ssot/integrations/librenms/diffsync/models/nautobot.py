@@ -14,9 +14,13 @@ from nautobot.dcim.models import SoftwareImageFile as ORMSoftwareImageFile
 from nautobot.dcim.models import SoftwareVersion as ORMSoftwareVersion
 from nautobot.extras.models import Role, Status
 from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix
-from netutils.lib_mapper import ANSIBLE_LIB_MAPPER, ANSIBLE_LIB_MAPPER_REVERSE
+from netutils.lib_mapper import ANSIBLE_LIB_MAPPER
 
-from nautobot_ssot.integrations.librenms.constants import LIBRENMS_LIB_MAPPER,LIBRENMS_LIB_MAPPER_REVERSE, os_manufacturer_map
+from nautobot_ssot.integrations.librenms.constants import (
+    LIBRENMS_LIB_MAPPER,
+    LIBRENMS_LIB_MAPPER_REVERSE,
+    os_manufacturer_map,
+)
 from nautobot_ssot.integrations.librenms.diffsync.models.base import Device, Location, Port
 from nautobot_ssot.integrations.librenms.utils import check_sor_field
 
@@ -290,7 +294,10 @@ class NautobotDevice(Device):
         if adapter.job.debug:
             adapter.job.logger.debug(f'Creating Nautobot Device {ids["name"]}')
             adapter.job.logger.debug(f"N_Model ids: {ids}")
-        manufacturer_name = os_manufacturer_map.get(LIBRENMS_LIB_MAPPER_REVERSE.get(ANSIBLE_LIB_MAPPER.get(attrs["platform"], attrs["platform"])), attrs["platform"])
+        manufacturer_name = os_manufacturer_map.get(
+            LIBRENMS_LIB_MAPPER_REVERSE.get(ANSIBLE_LIB_MAPPER.get(attrs["platform"], attrs["platform"])),
+            attrs["platform"],
+        )
         if manufacturer_name is None:
             raise ValueError(f"Manufacturer is required for device {ids['name']}")
         _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
@@ -394,7 +401,7 @@ class NautobotDevice(Device):
         if "os_version" in attrs:
             _software_version = ensure_software_version(
                 platform=_platform,
-                manufacturer=manufacturer_name,
+                manufacturer=self.manufacturer.name,
                 version=attrs["os_version"],
                 device_type=device.device_type,
             )

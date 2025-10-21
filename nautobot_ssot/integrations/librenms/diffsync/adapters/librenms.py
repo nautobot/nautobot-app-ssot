@@ -6,6 +6,7 @@ import os
 from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.core.exceptions import ValidationError
+from netutils.lib_mapper import ANSIBLE_LIB_MAPPER_REVERSE
 
 from nautobot_ssot.integrations.librenms.constants import (
     LIBRENMS_LIB_MAPPER,
@@ -24,8 +25,6 @@ from nautobot_ssot.integrations.librenms.utils import (
 )
 from nautobot_ssot.integrations.librenms.utils.librenms import LibreNMSApi
 from nautobot_ssot.utils import parse_hostname_for_location, parse_hostname_for_role
-
-from netutils.lib_mapper import ANSIBLE_LIB_MAPPER_REVERSE
 
 
 class LibrenmsAdapter(Adapter):
@@ -133,10 +132,12 @@ class LibrenmsAdapter(Adapter):
                         normalized_name,
                         self.job.default_role.name if self.job.default_role else None,
                     )
-                    
+
                     # Normalize the platform name using the LIBRENMS_LIB_MAPPER dictionary (ie: "procera" -> "applogic_procera")
                     normalized_platform_network_driver = LIBRENMS_LIB_MAPPER.get(device["os"], device["os"])
-                    normalized_platform_name = ANSIBLE_LIB_MAPPER_REVERSE.get(normalized_platform_network_driver, normalized_platform_network_driver)
+                    normalized_platform_name = ANSIBLE_LIB_MAPPER_REVERSE.get(
+                        normalized_platform_network_driver, normalized_platform_network_driver
+                    )
 
                     ip_address = device.get("ip", None)
                     ip_info = None  # Initialize ip_info to None
@@ -149,7 +150,9 @@ class LibrenmsAdapter(Adapter):
                     device_type = device["hardware"]
                     if self.job.debug:
                         self.job.logger.debug(f"L_AdapterRole for {normalized_name}: {role}")
-                        self.job.logger.debug(f"L_Adapter Platform Original Value for {normalized_name}: {device['os']}")
+                        self.job.logger.debug(
+                            f"L_Adapter Platform Original Value for {normalized_name}: {device['os']}"
+                        )
                         self.job.logger.debug(f"L_Adapter Platform for {normalized_name}: {normalized_platform_name}")
                         self.job.logger.debug(f"L_AdapterDevice type for {normalized_name}: {device_type}")
 

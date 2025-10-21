@@ -56,7 +56,6 @@ class TestLibreNMSAdapterTestCase(TransactionTestCase):
         )
         self.librenms_adapter = LibrenmsAdapter(job=self.job, sync=None, librenms_api=self.librenms_client)
 
-
     @patch("nautobot_ssot.integrations.librenms.diffsync.adapters.librenms.has_required_values")
     def test_data_loading(self, mock_has_required_values):
         """Test that devices and locations are loaded correctly."""
