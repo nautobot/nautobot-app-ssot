@@ -1,14 +1,20 @@
 """Forms for working with Sync and SyncLogEntry models."""
 
 from django import forms
-from nautobot.apps.forms import BootstrapMixin, DynamicModelMultipleChoiceField, NautobotBulkEditForm, NautobotFilterForm, add_blank_choice
+from nautobot.apps.forms import (
+    BootstrapMixin,
+    DynamicModelMultipleChoiceField,
+    NautobotBulkEditForm,
+    NautobotFilterForm,
+    add_blank_choice,
+)
 from nautobot.core.forms import BOOLEAN_WITH_BLANK_CHOICES
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 from .models import Sync, SyncLogEntry
 
 
-class SyncFilterForm(NautobotFilterForm):
+class SyncFilterForm(NautobotFilterForm):  # pylint: disable=too-many-ancestors
     """Form for filtering SyncOverview records."""
 
     model = Sync
@@ -41,7 +47,7 @@ class SyncForm(BootstrapMixin, forms.Form):  # pylint: disable=nb-incorrect-base
     )
 
 
-class SyncBulkEditForm(NautobotBulkEditForm):  # pylint: disable=nb-incorrect-base-class
+class SyncBulkEditForm(NautobotBulkEditForm):  # pylint: disable=too-many-ancestors
     """Form for bulk editing Sync records."""
 
     dry_run = forms.NullBooleanField(

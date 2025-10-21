@@ -35,4 +35,5 @@ class SSOTServiceNowConfigView(ObjectPermissionRequiredMixin, UpdateView):
         return super().form_valid(form)
 
     def get_required_permission(self):
+        """Return the required permission to access this view."""
         return get_permission_for_model(self.queryset.model, "change")

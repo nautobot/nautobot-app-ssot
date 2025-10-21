@@ -1,4 +1,5 @@
 """Filtering logic for Sync and SyncLogEntry records."""
+
 from django_filters import ModelMultipleChoiceFilter
 from nautobot.apps.filters import BaseFilterSet, NautobotFilterSet, SearchFilter
 
