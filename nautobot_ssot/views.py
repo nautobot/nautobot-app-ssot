@@ -69,7 +69,7 @@ class SyncObjectPanel(ObjectFieldsPanel):
                 "SUCCESS": ("label label-success", "Completed"),
             }
             css_class, text = status_labels.get(value, ("label label-default", "N/A"))
-            return format_html(f'<label class="{css_class}">{text}</label>')
+            return format_html('<label class="{}">{}</label>', css_class, text)
         return super().render_value(key, value, context)
 
 
