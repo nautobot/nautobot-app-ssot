@@ -7,7 +7,6 @@ from django.template import loader
 from django.template.defaultfilters import date
 from django.urls import reverse
 from django.utils.html import format_html
-from django.utils.safestring import mark_safe
 from django.utils.timesince import timesince
 from django.views import View as DjangoView
 from django_tables2 import RequestConfig
