@@ -2,7 +2,7 @@
 
 from django.db import models
 from django.shortcuts import reverse
-from nautobot.apps.models import BaseManager, BaseModel, RestrictedQuerySet
+from nautobot.apps.models import BaseModel
 
 
 class SSOTServiceNowConfig(BaseModel):  # pylint: disable=nb-string-field-blank-null
@@ -24,7 +24,6 @@ class SSOTServiceNowConfig(BaseModel):  # pylint: disable=nb-string-field-blank-
         blank=True,
         help_text="Secrets group for authentication to ServiceNow. Should contain a REST username and REST password.",
     )
-    objects = BaseManager.from_queryset(RestrictedQuerySet)()
 
     def __str__(self):
         """String representation of singleton instance."""
