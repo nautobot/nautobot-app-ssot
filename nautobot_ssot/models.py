@@ -170,8 +170,9 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
 
     def get_source_display(self):
         """Display the name and link to the source worker associated with this instance."""
-        if self.get_source_url():
-            return format_html('<a href="{}">{}</a>', self.get_source_url(), self.source)
+        source_url = self.get_source_url()
+        if source_url:
+            return format_html('<a href="{}">{}</a>', source_url, self.source)
         return self.source
 
     def get_target_url(self):
