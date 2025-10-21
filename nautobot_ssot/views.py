@@ -457,6 +457,8 @@ def process_bulk_syncrecords(request, action="None"):
         return redirect(url)
     job = Job.objects.get(name="Process Sync Records")
     _job_result = JobResult.enqueue_job(job, request.user, records=pks)
-    messages.success(request, "Bulk Processing initiated - Check the Job Results for more info")
+    messages.success(
+        request, f"Bulk Processing initiated - Check the Job Results for more info {_job_result.get_absolute_url()}"
+    )
     url = reverse("plugins:nautobot_ssot:syncrecord_list")
     return redirect(url)
