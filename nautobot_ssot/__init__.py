@@ -53,8 +53,6 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
     description = "Nautobot app that enables Single Source of Truth.  Allows users to aggregate distributed data sources and/or distribute Nautobot data to other data sources such as databases and SDN controllers."
     base_url = "ssot"
     required_settings = []
-    min_version = "2.1.0"
-    max_version = "2.9999"
     default_settings = {
         "aci_tag": "",
         "aci_tag_color": "",
@@ -130,6 +128,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
     caching_config = {}
     config_view_name = "plugins:nautobot_ssot:config"
     docs_view_name = "plugins:nautobot_ssot:docs"
+    searchable_models = ["sync"]
 
     def __init__(self, *args, **kwargs):
         """Initialize a NautobotSSOTAppConfig instance and set default attributes."""

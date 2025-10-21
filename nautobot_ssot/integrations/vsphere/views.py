@@ -1,6 +1,15 @@
 """Views implementation for SSOT vSphere."""
 
 # pylint: disable=duplicate-code
+from nautobot.apps.ui import (
+    Breadcrumbs,
+    ModelBreadcrumbItem,
+    ObjectDetailContent,
+    ObjectFieldsPanel,
+    ObjectTextPanel,
+    SectionChoices,
+    ViewNameBreadcrumbItem,
+)
 from nautobot.apps.views import (
     ObjectChangeLogViewMixin,
     ObjectDestroyViewMixin,
@@ -9,7 +18,6 @@ from nautobot.apps.views import (
     ObjectListViewMixin,
     ObjectNotesViewMixin,
 )
-from nautobot.extras.views import ObjectChangeLogView, ObjectNotesView
 
 from .api.serializers import SSOTvSphereConfigSerializer
 from .filters import SSOTvSphereConfigFilterSet
@@ -37,30 +45,58 @@ class SSOTvSphereConfigUIViewSet(
     lookup_field = "pk"
     action_buttons = ("add",)
 
-    def get_template_name(self):
-        """Override inherited method to allow custom location for templates."""
-        action = self.action
-        app_label = "nautobot_ssot_vsphere"
-        model_opts = self.queryset.model._meta
-        if action in ["create", "update"]:
-            template_name = f"{app_label}/{model_opts.model_name}_update.html"
-        elif action == "retrieve":
-            template_name = f"{app_label}/{model_opts.model_name}_retrieve.html"
-        elif action == "list":
-            template_name = f"{app_label}/{model_opts.model_name}_list.html"
-        else:
-            template_name = super().get_template_name()
-
-        return template_name
-
-
-class SSOTvSphereConfigChangeLogView(ObjectChangeLogView):
-    """SSOTvSphereConfig ChangeLog View."""
-
-    base_template = "nautobot_ssot_infoblox/ssotvsphereconfig_retrieve.html"
-
-
-class SSOTvSphereConfigNotesView(ObjectNotesView):
-    """SSOTvSphereConfig Notes View."""
-
-    base_template = "nautobot_ssot_infoblox/ssotvsphereconfig_retrieve.html"
+    breadcrumbs = Breadcrumbs(
+        items={
+            "list": [
+                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
+                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:config", label="SSOT Configs"),
+                ModelBreadcrumbItem(model=SSOTvSphereConfig),
+            ],
+            "detail": [
+                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
+                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:config", label="SSOT Configs"),
+                ModelBreadcrumbItem(model=SSOTvSphereConfig),
+            ],
+        }
+    )
+    object_detail_content = ObjectDetailContent(
+        panels=[
+            ObjectFieldsPanel(
+                weight=100,
+                section=SectionChoices.LEFT_HALF,
+                fields=[
+                    "name",
+                    "description",
+                    "vsphere_instance",
+                    "default_ignore_link_local",
+                    "use_clusters",
+                    "primary_ip_sort_by",
+                    "sync_tagged_only",
+                    "default_clustergroup_name",
+                    "default_cluster_name",
+                    "default_cluster_type",
+                ],
+            ),
+            ObjectTextPanel(
+                weight=200,
+                section=SectionChoices.RIGHT_HALF,
+                label="vSphere Virtual Machine Status Mappings",
+                object_field="default_vm_status_map",
+                render_as=ObjectTextPanel.RenderOptions.JSON,
+            ),
+            ObjectTextPanel(
+                weight=300,
+                section=SectionChoices.RIGHT_HALF,
+                label="vSphere Virtual Machine IP Status Mappings",
+                object_field="default_ip_status_map",
+                render_as=ObjectTextPanel.RenderOptions.JSON,
+            ),
+            ObjectTextPanel(
+                weight=400,
+                section=SectionChoices.RIGHT_HALF,
+                label="vSphere Virtual Machine Interface Status Mappings",
+                object_field="default_vm_interface_map",
+                render_as=ObjectTextPanel.RenderOptions.JSON,
+            ),
+        ]
+    )

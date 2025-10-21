@@ -106,13 +106,6 @@ class SyncViewsTestCase(  # pylint: disable=too-many-ancestors
             200,
         )
 
-    def test_has_advanced_tab(self):
-        pass
-
-    @skip("Not implemented")
-    def test_list_objects_with_permission(self):
-        pass
-
 
 class SyncLogEntryViewsTestCase(ViewTestCases.ListObjectsViewTestCase):  # pylint: disable=too-many-ancestors
     """Test views related to the SyncLogEntry model."""
@@ -147,25 +140,7 @@ class SyncLogEntryViewsTestCase(ViewTestCases.ListObjectsViewTestCase):  # pylin
                 message="Log message",
             )
 
-    def test_has_advanced_tab(self):
-        pass
-
-    @skip("Not implemented")
-    def test_list_objects_with_permission(self):
-        pass
-
-    @skip("Not implemented")
-    def test_list_objects_anonymous(self):
-        pass
-
-    @skip("Not implemented")
-    def test_list_objects_filtered(self):
-        pass
-
+    # This test is skipped because their is no object detail view for the SyncLogEntry model to get a url for.
     @skip("Not implemented")
     def test_list_objects_with_constrained_permission(self):
-        pass
-
-    @skip("Not implemented")
-    def test_list_objects_unknown_filter_no_strict_filtering(self):
         pass
