@@ -284,15 +284,9 @@ class SyncUIViewSet(
                     "job_result",
                 ],
                 value_transforms={
-                    "dry_run": [
-                        lambda val: dry_run_label(val),
-                    ],
-                    "start_time": [
-                        lambda val: datetime_with_timesince(val),
-                    ],
-                    "end_time": [
-                        lambda val: datetime_with_timesince(val),
-                    ],
+                    "dry_run": [dry_run_label],
+                    "start_time": [datetime_with_timesince],
+                    "end_time": [datetime_with_timesince],
                 },
             ),
             StatisticsObjectPanel(
