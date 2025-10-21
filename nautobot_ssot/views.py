@@ -7,6 +7,7 @@ from django.template import loader
 from django.template.defaultfilters import date
 from django.urls import reverse
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from django.utils.timesince import timesince
 from django.views import View as DjangoView
 from django_tables2 import RequestConfig
@@ -49,6 +50,23 @@ from .jobs import get_data_jobs
 from .jobs.base import DataSource, DataTarget
 from .models import Sync, SyncLogEntry
 from .tables import DashboardTable, SyncLogEntryTable, SyncTable, SyncTableSingleSourceOrTarget
+
+
+def dry_run_label(value) -> str:
+    """Return HTML label for dry run status."""
+    badge, text = ("default", "Dry Run") if value else ("info", "Sync")
+    return format_html('<span class="dry_run label label-{}">{}</span>', badge, text)
+
+
+def datetime_with_timesince(value) -> str:
+    """Return formatted datetime with timesince HTML."""
+    if not value:
+        return None
+    return format_html(
+        '{} <span class="text-muted">({} ago)</span>',
+        date(value, settings.DATETIME_FORMAT),
+        timesince(value),
+    )
 
 
 class SyncObjectPanel(ObjectFieldsPanel):
@@ -233,7 +251,6 @@ class SyncUIViewSet(
     filterset_class = SyncFilterSet
     filterset_form_class = SyncFilterForm
     form_class = SyncForm
-    # TODO INIT verify this is the lookup field you want
     lookup_field = "pk"
     queryset = Sync.annotated_queryset()
     serializer_class = serializers.SyncSerializer
@@ -269,25 +286,13 @@ class SyncUIViewSet(
                 ],
                 value_transforms={
                     "dry_run": [
-                        lambda val: format_html('<span class="dry_run label label-default">Dry Run</span>')
-                        if val
-                        else format_html('<span class="dry_run label label-info">Sync</span>')
+                        lambda val: dry_run_label(val),
                     ],
                     "start_time": [
-                        lambda val: format_html(
-                            '{} <span class="text-muted">({} ago)</span>',
-                            date(val, settings.DATETIME_FORMAT),
-                            timesince(val),
-                        )
+                        lambda val: datetime_with_timesince(val),
                     ],
                     "end_time": [
-                        lambda val: format_html(
-                            '{} <span class="text-muted">({} ago)</span>',
-                            date(val, settings.DATETIME_FORMAT),
-                            timesince(val),
-                        )
-                        if val
-                        else None
+                        lambda val: datetime_with_timesince(val),
                     ],
                 },
             ),
