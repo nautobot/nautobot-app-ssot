@@ -3,6 +3,7 @@
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.utils.text import slugify
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField as OrmCF
@@ -63,7 +64,8 @@ def process_ext_attrs(adapter, obj: object, extattrs: dict):  # pylint: disable=
                         )
                 else:
                     try:
-                        obj.locations.add(adapter.location_map[attr_value])
+                        location_object = adapter.location_map[attr_value]
+                        transaction.on_commit(lambda: obj.locations.add(location_object))
                     except KeyError as err:
                         adapter.job.logger.warning(
                             f"Unable to find Location {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
@@ -181,6 +183,7 @@ class NautobotNetwork(Network):
     """Nautobot implementation of the Network Model."""
 
     @classmethod
+    @transaction.atomic
     def create(cls, adapter, ids, attrs):
         """Create Prefix object in Nautobot."""
         namespace_name = map_network_view_to_namespace(
