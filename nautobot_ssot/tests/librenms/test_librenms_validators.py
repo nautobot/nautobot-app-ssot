@@ -4,6 +4,7 @@ import os
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
+from parameterized import parameterized
 
 from nautobot_ssot.integrations.librenms.utils import (
     check_sor_field,
@@ -19,25 +20,16 @@ from nautobot_ssot.integrations.librenms.utils import (
 class TestNormalizeGPSCoordinates(TestCase):
     """Test GPS coordinate normalization."""
 
-    def test_normalize_gps_coordinates_float(self):
-        """Test normalizing float GPS coordinates."""
-        result = normalize_gps_coordinates(41.874677429096174)
-        self.assertEqual(result, 41.874677)
-
-    def test_normalize_gps_coordinates_string(self):
-        """Test normalizing string GPS coordinates."""
-        result = normalize_gps_coordinates("41.874677429096174")
-        self.assertEqual(result, 41.874677)
-
-    def test_normalize_gps_coordinates_already_rounded(self):
-        """Test normalizing already rounded coordinates."""
-        result = normalize_gps_coordinates(41.874677)
-        self.assertEqual(result, 41.874677)
-
-    def test_normalize_gps_coordinates_negative(self):
-        """Test normalizing negative coordinates."""
-        result = normalize_gps_coordinates(-87.62672768379687)
-        self.assertEqual(result, -87.626728)
+    @parameterized.expand([
+        ("float_coordinates", 41.874677429096174, 41.874677),
+        ("string_coordinates", "41.874677429096174", 41.874677),
+        ("already_rounded", 41.874677, 41.874677),
+        ("negative_coordinates", -87.62672768379687, -87.626728),
+    ])
+    def test_normalize_gps_coordinates(self, test_name, input_value, expected_result):
+        """Test normalizing GPS coordinates with various input types."""
+        result = normalize_gps_coordinates(input_value)
+        self.assertEqual(result, expected_result)
 
 
 class TestNormalizeSetting(TestCase):
