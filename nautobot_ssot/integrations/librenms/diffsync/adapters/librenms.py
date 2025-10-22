@@ -52,7 +52,7 @@ class LibrenmsAdapter(Adapter):
     def load_location(self, location: dict):
         """Load Location objects from LibreNMS into DiffSync models."""
         if self.job.debug:
-            self.job.logger.debug(f'Loading LibreNMS Location {location["location"]}')
+            self.job.logger.debug(f'LibreNMS Adapter Loading LibreNMS Location {location["location"]}')
 
         try:
             self.get(self.location, location["location"])
@@ -89,7 +89,7 @@ class LibrenmsAdapter(Adapter):
         )
 
         if self.job.debug:
-            self.job.logger.debug(f"Loading LibreNMS Device {device[hostname_field]}")
+            self.job.logger.debug(f"LibreNMS Adapter Loading LibreNMS Device {device[hostname_field]}")
 
         if device["os"] != "ping":
             if device["type"] in PLUGIN_CFG.get("librenms_permitted_values", {}).get("role", []):
@@ -149,12 +149,12 @@ class LibrenmsAdapter(Adapter):
                             ip_info = None
                     device_type = device["hardware"]
                     if self.job.debug:
-                        self.job.logger.debug(f"L_AdapterRole for {normalized_name}: {role}")
+                        self.job.logger.debug(f"LibreNMS Adapter Role for {normalized_name}: {role}")
                         self.job.logger.debug(
-                            f"L_Adapter Platform Original Value for {normalized_name}: {device['os']}"
+                            f"LibreNMS Adapter Platform Original Value for {normalized_name}: {device['os']}"
                         )
-                        self.job.logger.debug(f"L_Adapter Platform for {normalized_name}: {normalized_platform_name}")
-                        self.job.logger.debug(f"L_AdapterDevice type for {normalized_name}: {device_type}")
+                        self.job.logger.debug(f"LibreNMS Adapter Platform for {normalized_name}: {normalized_platform_name}")
+                        self.job.logger.debug(f"LibreNMS Adapter Device type for {normalized_name}: {device_type}")
 
                     device_validation_dict = {
                         self.job.hostname_field: normalized_name,
@@ -212,7 +212,7 @@ class LibrenmsAdapter(Adapter):
                         _status = librenms_status_map.get(status_value, "Active")
                         manufacturer = os_manufacturer_map.get(device["os"])
                         if self.job.debug:
-                            self.job.logger.debug(f"Manufacturer for {normalized_name}: {manufacturer}")
+                            self.job.logger.debug(f"LibreNMS Adapter Manufacturer for {normalized_name}: {manufacturer}")
 
                         # Store the full location data in the device for the NautobotDevice to use
                         device["_location_data"] = location_data
@@ -238,7 +238,7 @@ class LibrenmsAdapter(Adapter):
                             )
                         except ValidationError as err:
                             self.failed_import_devices.append(device)
-                            self.job.logger.warning(f"Device {device[hostname_field]} failed to load: {err}")
+                            self.job.logger.warning(f"LibreNMS Adapter Device {device[hostname_field]} failed to load: {err}")
                             return
                     try:
                         self.add(new_device)
@@ -259,12 +259,7 @@ class LibrenmsAdapter(Adapter):
             else self.job.hostname_field or "sysName"
         )
 
-        load_source = self.job.load_type
-
-        if load_source != "file":
-            all_devices = self.lnms_api.get_librenms_devices()
-        else:
-            all_devices = self.lnms_api.get_librenms_devices_from_file()
+        all_devices = self.lnms_api.get_librenms_devices()
 
         self.job.logger.info(f'Loading {all_devices["count"]} Devices from LibreNMS.')
 
@@ -287,10 +282,7 @@ class LibrenmsAdapter(Adapter):
                 self.job.logger.info("There weren't any failed device loads. Congratulations!")
 
         if self.job.sync_locations:
-            if load_source != "file":
-                all_locations = self.lnms_api.get_librenms_locations()
-            else:
-                all_locations = self.lnms_api.get_librenms_locations_from_file()
+            all_locations = self.lnms_api.get_librenms_locations()
 
             self.job.logger.info(f'Loading {all_locations["count"]} Locations from LibreNMS.')
 
