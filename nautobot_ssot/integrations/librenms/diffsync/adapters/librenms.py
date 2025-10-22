@@ -153,7 +153,9 @@ class LibrenmsAdapter(Adapter):
                         self.job.logger.debug(
                             f"LibreNMS Adapter Platform Original Value for {normalized_name}: {device['os']}"
                         )
-                        self.job.logger.debug(f"LibreNMS Adapter Platform for {normalized_name}: {normalized_platform_name}")
+                        self.job.logger.debug(
+                            f"LibreNMS Adapter Platform for {normalized_name}: {normalized_platform_name}"
+                        )
                         self.job.logger.debug(f"LibreNMS Adapter Device type for {normalized_name}: {device_type}")
 
                     device_validation_dict = {
@@ -212,7 +214,9 @@ class LibrenmsAdapter(Adapter):
                         _status = librenms_status_map.get(status_value, "Active")
                         manufacturer = os_manufacturer_map.get(device["os"])
                         if self.job.debug:
-                            self.job.logger.debug(f"LibreNMS Adapter Manufacturer for {normalized_name}: {manufacturer}")
+                            self.job.logger.debug(
+                                f"LibreNMS Adapter Manufacturer for {normalized_name}: {manufacturer}"
+                            )
 
                         # Store the full location data in the device for the NautobotDevice to use
                         device["_location_data"] = location_data
@@ -238,7 +242,9 @@ class LibrenmsAdapter(Adapter):
                             )
                         except ValidationError as err:
                             self.failed_import_devices.append(device)
-                            self.job.logger.warning(f"LibreNMS Adapter Device {device[hostname_field]} failed to load: {err}")
+                            self.job.logger.warning(
+                                f"LibreNMS Adapter Device {device[hostname_field]} failed to load: {err}"
+                            )
                             return
                     try:
                         self.add(new_device)

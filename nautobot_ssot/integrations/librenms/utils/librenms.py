@@ -3,14 +3,12 @@
 # pylint: disable=duplicate-code
 
 import ipaddress
-import json
 import logging
-import os
 
 import requests
 import urllib3
 
-from nautobot_ssot.exceptions import RequestConnectError, RequestHTTPError
+from nautobot_ssot.exceptions import RequestConnectError
 
 LOGGER = logging.getLogger(__name__)
 
@@ -113,7 +111,6 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
         self.headers = {"Accept": "*/*", "X-Auth-Token": f"{self.token}"}
 
         LOGGER.info("Headers %s", self.headers)
-
 
     def get_librenms_devices(self):
         """Get Devices from LibreNMS API endpoint."""

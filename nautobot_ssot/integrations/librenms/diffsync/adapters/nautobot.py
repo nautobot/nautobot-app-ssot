@@ -78,7 +78,9 @@ class NautobotAdapter(Adapter):
         for nb_device in devices:
             if self.job.debug:
                 self.job.logger.debug(f"Nautobot Adapter Loading Nautobot Device {nb_device}")
-                self.job.logger.debug(f"Nautobot Adapter Platform for {nb_device.name}: {nb_device.platform.network_driver}")
+                self.job.logger.debug(
+                    f"Nautobot Adapter Platform for {nb_device.name}: {nb_device.platform.network_driver}"
+                )
                 self.job.logger.debug(
                     f"Nautobot Adapter Manufacturer for {nb_device.name}: {nb_device.device_type.manufacturer.name}"
                 )

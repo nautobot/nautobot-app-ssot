@@ -3,8 +3,9 @@
 # pylint: disable=duplicate-code
 import os
 from ast import literal_eval
+
 from django.templatetags.static import static
-from nautobot.apps.jobs import BooleanVar, ChoiceVar, FileVar, JSONVar, ObjectVar, StringVar, TextVar
+from nautobot.apps.jobs import BooleanVar, ChoiceVar, ObjectVar, StringVar, TextVar
 from nautobot.core.celery import register_jobs
 from nautobot.dcim.models import LocationType
 from nautobot.extras.choices import (
@@ -138,7 +139,6 @@ class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attri
             token=token,
             verify=self.librenms_server.verify_ssl,
         )
-
 
         self.source_adapter = librenms.LibrenmsAdapter(job=self, sync=self.sync, librenms_api=librenms_api)
         self.source_adapter.load()
