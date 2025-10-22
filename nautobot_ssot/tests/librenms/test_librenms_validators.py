@@ -28,7 +28,7 @@ class TestNormalizeGPSCoordinates(TestCase):
             ("negative_coordinates", -87.62672768379687, -87.626728),
         ]
     )
-    def test_normalize_gps_coordinates(self, test_name, input_value, expected_result):
+    def test_normalize_gps_coordinates(self, _test_name, input_value, expected_result):
         """Test normalizing GPS coordinates with various input types."""
         result = normalize_gps_coordinates(input_value)
         self.assertEqual(result, expected_result)
