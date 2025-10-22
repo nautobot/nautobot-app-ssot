@@ -20,12 +20,14 @@ from nautobot_ssot.integrations.librenms.utils import (
 class TestNormalizeGPSCoordinates(TestCase):
     """Test GPS coordinate normalization."""
 
-    @parameterized.expand([
-        ("float_coordinates", 41.874677429096174, 41.874677),
-        ("string_coordinates", "41.874677429096174", 41.874677),
-        ("already_rounded", 41.874677, 41.874677),
-        ("negative_coordinates", -87.62672768379687, -87.626728),
-    ])
+    @parameterized.expand(
+        [
+            ("float_coordinates", 41.874677429096174, 41.874677),
+            ("string_coordinates", "41.874677429096174", 41.874677),
+            ("already_rounded", 41.874677, 41.874677),
+            ("negative_coordinates", -87.62672768379687, -87.626728),
+        ]
+    )
     def test_normalize_gps_coordinates(self, test_name, input_value, expected_result):
         """Test normalizing GPS coordinates with various input types."""
         result = normalize_gps_coordinates(input_value)
