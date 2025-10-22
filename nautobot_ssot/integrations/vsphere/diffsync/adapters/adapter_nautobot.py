@@ -3,6 +3,7 @@
 from typing import Any, Dict, List
 
 from diffsync.enum import DiffSyncFlags
+from django.core.exceptions import ValidationError
 from nautobot.ipam.models import IPAddress
 from nautobot.virtualization.models import VirtualMachine
 
@@ -22,7 +23,7 @@ class NBAdapter(NautobotAdapter):
 
     _primary_ips: List[Dict[str, Any]]
 
-    top_level = ("prefix", "clustergroup", "virtual_machine")
+    top_level = ("prefix", "clustergroup", "virtual_machine", "ip_address")
     prefix = PrefixModel
     clustergroup = ClusterGroupModel
     cluster = ClusterModel
@@ -48,7 +49,10 @@ class NBAdapter(NautobotAdapter):
             for ip in ["primary_ip4", "primary_ip6"]:
                 if info[ip]:
                     setattr(vm, ip, IPAddress.objects.get(host=info[ip]))
-            vm.validated_save()
+            try:
+                vm.validated_save()
+            except ValidationError as err:
+                self.job.logger.error(f"Unable to set primary IP {info} on {vm}: {err}")
 
     def _load_objects(self, diffsync_model):
         """Overriding _load_objects so we can pass in the config object to the models."""

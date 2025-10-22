@@ -51,13 +51,13 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
     default_status = models.ForeignKey(
         to="extras.Status",
         on_delete=models.PROTECT,
-        verbose_name="Default Object Status",
-        help_text="Default Object Status",
+        verbose_name="Default Status for Imported Objects",
+        help_text="Default Status for Imported Objects",
     )
     infoblox_instance = models.ForeignKey(
         to="extras.ExternalIntegration",
         on_delete=models.PROTECT,
-        verbose_name="Infoblox Instance Config",
+        verbose_name="Infoblox Instance",
         help_text="Infoblox Instance",
     )
     infoblox_wapi_version = models.CharField(
@@ -66,10 +66,14 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         verbose_name="Infoblox WAPI version",
     )
     enable_sync_to_infoblox = models.BooleanField(
-        default=False, verbose_name="Sync to Infoblox", help_text="Enable syncing of data from Nautobot to Infoblox."
+        default=False,
+        verbose_name="Enable Sync from Nautobot to Infoblox",
+        help_text="Enable syncing of data from Nautobot to Infoblox.",
     )
     enable_sync_to_nautobot = models.BooleanField(
-        default=True, verbose_name="Sync to Nautobot", help_text="Enable syncing of data from Infoblox to Nautobot."
+        default=True,
+        verbose_name="Enable Sync from Infoblox to Nautobot",
+        help_text="Enable syncing of data from Infoblox to Nautobot.",
     )
     import_ip_addresses = models.BooleanField(
         default=False,
@@ -105,7 +109,7 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         max_length=CHARFIELD_MAX_LENGTH,
         default=DNSRecordTypeChoices.HOST_RECORD,
         choices=DNSRecordTypeChoices,
-        verbose_name="DBS record type",
+        verbose_name="Infoblox - DNS record type",
         help_text="Choose what type of Infoblox DNS record to create for IP Addresses.",
     )
     fixed_address_type = models.CharField(
@@ -116,17 +120,22 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
     )
     job_enabled = models.BooleanField(
         default=False,
-        verbose_name="Enabled for Sync Job",
+        verbose_name="Can be used in Sync Job",
         help_text="Enable use of this configuration in the sync jobs.",
     )
     infoblox_deletable_models = models.JSONField(
         encoder=DjangoJSONEncoder,
         default=list,
         blank=True,
+        verbose_name="Infoblox - deletable models",
         help_text="Model types that can be deleted in Infoblox.",
     )
     nautobot_deletable_models = models.JSONField(
-        encoder=DjangoJSONEncoder, default=list, blank=True, help_text="Model types that can be deleted in Nautobot."
+        encoder=DjangoJSONEncoder,
+        default=list,
+        blank=True,
+        help_text="Model types that can be deleted in Nautobot.",
+        verbose_name="Nautobot - deletable models",
     )
 
     class Meta:

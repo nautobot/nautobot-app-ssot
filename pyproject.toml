@@ -204,6 +204,7 @@ no-docstring-rgx = "^(_|test_|Meta$)"
 
 [tool.pylint.messages_control]
 disable = """,
+    abstract-method,
     line-too-long,
     too-few-public-methods,
     too-many-positional-arguments,
@@ -218,6 +219,9 @@ notes = """,
     FIXME,
     XXX,
     """
+
+[tool.pylint.similarities]
+min-similarity-lines = 7
 
 [tool.pylint-nautobot]
 supported_nautobot_versions = [
