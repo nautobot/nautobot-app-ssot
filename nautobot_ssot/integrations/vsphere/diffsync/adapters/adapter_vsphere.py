@@ -6,7 +6,6 @@ import ipaddress
 from typing import List
 
 from diffsync import Adapter
-from netutils.ip import cidr_to_netmask
 
 from nautobot_ssot.integrations.vsphere.diffsync.models.vsphere import (
     ClusterGroupModel,
@@ -18,22 +17,28 @@ from nautobot_ssot.integrations.vsphere.diffsync.models.vsphere import (
 )
 
 
-def deduce_network_from_ip(ip: ipaddress.IPv4Address, subnet_mask: str):
-    """Figure out the network of a given IP and its subnet mask."""
-    ip_int = int(ip)
-    subnet_int = int(ipaddress.IPv4Address(subnet_mask))
+def deduce_network_from_ip(ip: str, subnet_mask: str) -> str:
+    """Deduce the network address from an IP and subnet mask. Supports both IPv4 and IPv6.
 
-    # Perform a bitwise AND operation between the IP address and the subnet mask
-    network_int = ip_int & subnet_int
+    Args:
+        ip (str): IP address (e.g., "192.168.2.88" or "2001:db8::1234")
+        subnet_mask (str): Subnet mask (e.g., "255.255.254.0" or "ffff:ffff:ffff:ffff::")
 
-    # Convert the result back to an IPv4 address
-    network_address = str(ipaddress.IPv4Address(network_int))
+    Returns:
+        str: Network address in CIDR notation (e.g., "192.168.2.0/23" or "2001:db8::/64")
+    """
+    mask_obj = ipaddress.ip_address(subnet_mask)
 
-    return network_address
+    # Convert subnet mask to prefix length
+    prefix_len = bin(int(mask_obj)).count("1")
+
+    # Create full CIDR string
+    network = ipaddress.ip_network(f"{ip}/{prefix_len}", strict=False)
+    return str(network.network_address)
 
 
 def create_ipaddr(address: str):
-    """Create an IPV4 or IPV4 object."""
+    """Create an IPV4 or IPV6 object."""
     try:
         ip_address = ipaddress.IPv4Address(address)
     except ipaddress.AddressValueError:
@@ -59,7 +64,7 @@ class VsphereDiffSync(Adapter):
     ip_address = IPAddressModel
     prefix = PrefixModel
 
-    top_level = ["prefix", "clustergroup", "virtual_machine"]
+    top_level = ["prefix", "clustergroup", "virtual_machine", "ip_address"]
 
     def __init__(self, *args, job=None, sync=None, client, config, cluster_filters, **kwargs):
         """Initialize the vSphereDiffSync."""
@@ -69,6 +74,7 @@ class VsphereDiffSync(Adapter):
         self.client = client
         self.config = config
         self.cluster_filters = cluster_filters
+        self.ip_address_map = {}
 
     def _add_diffsync_virtualmachine(self, virtual_machine, virtual_machine_details, cluster_name):
         """Add virtualmachine to DiffSync and call load_vm_interfaces().
@@ -154,8 +160,7 @@ class VsphereDiffSync(Adapter):
                     continue
 
                 _ = ipv4_addresses.append(addr) if addr.version == 4 else ipv6_addresses.append(addr)
-                netmask = cidr_to_netmask(ip_address["prefix_length"])
-                prefix = deduce_network_from_ip(addr, netmask)
+                prefix = str(ipaddress.ip_network(f"{addr}/{ip_address['prefix_length']}", strict=False)).split("/")[0]
 
                 diffsync_prefix, _ = self.get_or_instantiate(
                     self.prefix,
@@ -168,23 +173,31 @@ class VsphereDiffSync(Adapter):
                     {"type": "network"},
                 )
 
-                diffsync_ipaddress, _ = self.get_or_instantiate(
-                    self.ip_address,
-                    {
-                        "host": ip_address["ip_address"],
-                        "mask_length": ip_address["prefix_length"],
-                        "status__name": self.config.default_ip_status_map[ip_address["state"]],
-                    },
-                    {
-                        "vm_interfaces": [
+                # Add info to IP Mapper to load later.
+                default = {
+                    "mask_length": ip_address["prefix_length"],
+                    "status__name": self.config.default_ip_status_map[ip_address["state"]],
+                    "vm_interfaces": [
+                        {
+                            "name": diffsync_vminterface.name,
+                            "virtual_machine__name": diffsync_virtualmachine.name,
+                        }
+                    ],
+                }
+
+                ip_info = self.ip_address_map.setdefault(ip_address["ip_address"], default)
+                if ip_info != default:
+                    # If the IP already exists in the map, ensure the vm_interface is included
+                    if {
+                        "name": diffsync_vminterface.name,
+                        "virtual_machine__name": diffsync_virtualmachine.name,
+                    } not in ip_info["vm_interfaces"]:
+                        ip_info["vm_interfaces"].append(
                             {
                                 "name": diffsync_vminterface.name,
                                 "virtual_machine__name": diffsync_virtualmachine.name,
                             }
-                        ],
-                    },
-                )
-                diffsync_vminterface.add_child(diffsync_ipaddress)
+                        )
 
         return ipv4_addresses, ipv6_addresses
 
@@ -302,6 +315,19 @@ class VsphereDiffSync(Adapter):
                 virtual_machine, virtual_machine_details, self.config.default_cluster_name
             )
 
+    def load_ip_map(self):
+        """Load all IP Addresses from the IP Map into DiffSync."""
+        for ip, info in self.ip_address_map.items():
+            diffsync_ipaddress, _ = self.get_or_instantiate(
+                self.ip_address,
+                {
+                    "host": ip,
+                    "mask_length": info["mask_length"],
+                    "status__name": info["status__name"],
+                },
+                {"vm_interfaces": info["vm_interfaces"]},
+            )
+
     def load(self):
         """Load data from vSphere."""
         if self.config.use_clusters:
@@ -309,4 +335,5 @@ class VsphereDiffSync(Adapter):
         else:
             self.job.logger.info("Not syncing Clusters or Cluster Groups per user settings. Using default Cluster.")
             self.load_standalone_vms()
+        self.load_ip_map()
         self.job.logger.info("Finished loading data from vSphere.")
