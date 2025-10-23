@@ -259,7 +259,7 @@ class SyncLogEntry(BaseModel):  # pylint: disable=nb-string-field-blank-null
     def get_action_class(self):
         """Map self.action to a Bootstrap label class."""
         return {
-            SyncLogEntryActionChoices.ACTION_NO_CHANGE: "default",
+            SyncLogEntryActionChoices.ACTION_NO_CHANGE: "secondary",
             SyncLogEntryActionChoices.ACTION_CREATE: "success",
             SyncLogEntryActionChoices.ACTION_UPDATE: "info",
             SyncLogEntryActionChoices.ACTION_DELETE: "warning",
