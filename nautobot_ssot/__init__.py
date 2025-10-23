@@ -19,7 +19,6 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
     base_url = "ssot"
     required_settings = []
     default_settings = {}
-    caching_config = {}
     docs_view_name = "plugins:nautobot_ssot:docs"
     searchable_models = ["sync"]
 
