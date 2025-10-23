@@ -10,7 +10,7 @@
 
 {% block content %}
     <div class="row">
-        <div class="col-md-6">
+        <div class="col-lg-6">
             <div class="card">
                 <div class="card-header">
                     <strong>Data Sources</strong>
@@ -70,7 +70,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
+        <div class="col-lg-6">
             {% include table_template|default:'responsive_table.html' %}
             <div class="float-end">
                 <a href="{% url 'plugins:nautobot_ssot:sync_list' %}">All History</a>
