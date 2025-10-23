@@ -1,5 +1,6 @@
 """Django views for Single Source of Truth (SSoT)."""
 
+<<<<<<< HEAD
 from django.conf import settings
 from django.http import Http404
 from django.shortcuts import render
@@ -38,6 +39,11 @@ from nautobot.core.ui.utils import flatten_context
 from nautobot.extras.models import Job as JobModel
 from rest_framework.decorators import action
 from rest_framework.response import Response
+=======
+from nautobot.apps.views import NautobotUIViewSet
+from nautobot.apps.ui import ObjectDetailContent, ObjectFieldsPanel, ObjectsTablePanel, SectionChoices
+from nautobot.core.templatetags import helpers
+>>>>>>> edeaf08 (Cookie updated by NetworkToCode Cookie Drift Manager Tool)
 
 from nautobot_ssot.api import serializers
 from nautobot_ssot.integrations import utils
@@ -289,6 +295,7 @@ class SyncUIViewSet(
                     "end_time": [datetime_with_timesince],
                 },
             ),
+<<<<<<< HEAD
             StatisticsObjectPanel(
                 weight=200,
                 section=SectionChoices.RIGHT_HALF,
@@ -346,6 +353,18 @@ class SyncUIViewSet(
                 hide_if_empty=False,
             ),
         ),
+=======
+            # If there is a ForeignKey or M2M with this model we can use ObjectsTablePanel
+            # to display them in a table format.
+            # ObjectsTablePanel(
+                # weight=200,
+                # section=SectionChoices.RIGHT_HALF,
+                # table_class=tables.SyncTable,
+                # You will want to filter the table using the related_name
+                # filter="syncs",
+            # ),
+        ],
+>>>>>>> edeaf08 (Cookie updated by NetworkToCode Cookie Drift Manager Tool)
     )
 
     @action(detail=True, url_path="logs", custom_view_base_action="view")
