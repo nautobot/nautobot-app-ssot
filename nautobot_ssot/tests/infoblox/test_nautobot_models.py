@@ -4,7 +4,8 @@
 from unittest.mock import Mock
 
 from django.contrib.contenttypes.models import ContentType
-from django.test import TestCase
+from nautobot.apps.testing import TestCase
+from nautobot.dcim.models import Location, LocationType
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Status, Tag
 from nautobot.ipam.models import IPAddress, Namespace, Prefix
@@ -115,6 +116,11 @@ class TestModelNautobotNetwork(TestCase):
         self.status_active, _ = Status.objects.get_or_create(name="Active")
         self.tag_sync_from_infoblox, _ = Tag.objects.get_or_create(name="SSoT Synced from Infoblox")
         self.infoblox_adapter = InfobloxAdapter(conn=Mock(), config=self.config)
+        self.location_type, _ = LocationType.objects.get_or_create(name="Test LocationType 1")
+        self.location_type.content_types.add(ContentType.objects.get_for_model(Prefix))
+        self.location, _ = Location.objects.get_or_create(
+            name="Test Location 1", location_type=self.location_type, status=self.status_active
+        )
         inf_ds_namespace = self.infoblox_adapter.namespace(
             name="Global",
             ext_attrs={},
@@ -128,14 +134,19 @@ class TestModelNautobotNetwork(TestCase):
 
     def test_network_create_network(self):
         """Validate network gets created."""
-        inf_network_atrs = {"network_type": "network", "namespace": "dev"}
+        inf_network_atrs = {
+            "network_type": "network",
+            "namespace": "dev",
+            "ext_attrs": {"location": self.location.name},
+        }
         inf_ds_network = self.infoblox_adapter.prefix(**_get_network_dict(inf_network_atrs))
         self.infoblox_adapter.add(inf_ds_network)
 
         nb_adapter = NautobotAdapter(config=self.config)
         nb_adapter.job = Mock()
-        nb_adapter.load()
-        self.infoblox_adapter.sync_to(nb_adapter)
+        with self.captureOnCommitCallbacks(execute=True):
+            nb_adapter.load()
+            self.infoblox_adapter.sync_to(nb_adapter)
 
         prefix = Prefix.objects.get(network="10.0.0.0", prefix_length="8", namespace__name="dev")
 
@@ -145,6 +156,7 @@ class TestModelNautobotNetwork(TestCase):
         self.assertEqual("TestNetwork", prefix.description)
         self.assertEqual("network", prefix.type)
         self.assertIn(self.tag_sync_from_infoblox, prefix.tags.all())
+        self.assertQuerysetEqualAndNotEmpty([self.location], prefix.locations.all())
 
     def test_network_update_network(self):
         """Validate network gets updated."""
