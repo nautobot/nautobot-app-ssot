@@ -1,5 +1,7 @@
 """Nautobot Models for Infoblox integration with SSoT app."""
 
+import functools
+
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
@@ -38,7 +40,7 @@ from nautobot_ssot.integrations.infoblox.utils.diffsync import (
 from nautobot_ssot.integrations.infoblox.utils.nautobot import get_prefix_vlans
 
 
-def process_ext_attrs(adapter, obj: object, extattrs: dict):  # pylint: disable=too-many-branches
+def process_ext_attrs(adapter, obj: object, extattrs: dict):  # pylint: disable=too-many-branches,too-many-statements
     """Process Extensibility Attributes into Custom Fields or link to found objects.
 
     Args:
@@ -65,7 +67,7 @@ def process_ext_attrs(adapter, obj: object, extattrs: dict):  # pylint: disable=
                 else:
                     try:
                         location_object = adapter.location_map[attr_value]
-                        transaction.on_commit(lambda: obj.locations.add(location_object))
+                        transaction.on_commit(functools.partial(obj.locations.add, location_object))
                     except KeyError as err:
                         adapter.job.logger.warning(
                             f"Unable to find Location {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
