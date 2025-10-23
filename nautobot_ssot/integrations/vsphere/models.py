@@ -96,6 +96,10 @@ class SSOTvSphereConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         max_length=CHARFIELD_MAX_LENGTH, verbose_name="Default Cluster Type", default="VMWare vSphere"
     )
     is_saved_view_model = False
+    is_dynamic_group_associable_model = False
+    is_metadata_associable_model = False
+    is_contact_associable_model = False
+    is_data_compliance_model = False
 
     class Meta:
         """Meta class for SSOTvSphereConfig."""

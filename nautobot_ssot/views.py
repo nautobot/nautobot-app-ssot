@@ -80,11 +80,11 @@ class SyncObjectPanel(ObjectFieldsPanel):
         if key == "job_result__status":
             status_labels = {
                 "FAILURE": ("badge bg-danger", "Failed"),
-                "PENDING": ("badge bg-default", "Pending"),
+                "PENDING": ("badge bg-secondary", "Pending"),
                 "STARTED": ("badge bg-warning", "Running"),
                 "SUCCESS": ("badge bg-success", "Completed"),
             }
-            css_class, text = status_labels.get(value, ("badge bg-default", "N/A"))
+            css_class, text = status_labels.get(value, ("badge bg-secondary", "N/A"))
             return format_html('<span class="{}">{}</span>', css_class, text)
         return super().render_value(key, value, context)
 
@@ -170,6 +170,13 @@ class DashboardView(ObjectListView):
     table = DashboardTable
     action_buttons = []
     template_name = "nautobot_ssot/dashboard.html"
+    breadcrumbs = Breadcrumbs(
+        items={
+            "list": [
+                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
+            ],
+        }
+    )
 
     def extra_context(self):
         """Extend the view context with additional details."""

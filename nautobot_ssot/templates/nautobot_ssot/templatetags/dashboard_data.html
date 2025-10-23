@@ -2,14 +2,14 @@
     <a href="{% url 'plugins:nautobot_ssot:sync' pk=sync.pk %}" class="badge
         {% if sync.job_result.status == 'SUCCESS' %}bg-success
         {% elif sync.job_result.status == 'FAILURE' %}bg-danger
-        {% elif sync.job_result.status == 'RECEIVED' %}bg-default
+        {% elif sync.job_result.status == 'RECEIVED' %}bg-secondary
         {% elif sync.job_result.status == 'REVOKED' %}bg-danger
         {% elif sync.job_result.status == 'RETRY' %}bg-warning
-        {% elif sync.job_result.status == 'PENDING' %}bg-default
+        {% elif sync.job_result.status == 'PENDING' %}bg-secondary
         {% elif sync.job_result.status == 'STARTED' %}bg-warning
-        {% endif %} py-6 px-2"
+        {% endif %} py-8 px-5"
         title="{{ sync }}">
     </a>
     &nbsp;
 {% endfor %}
-<span class="badge" title="Total syncs">{{ count }}</span>
+<span class="badge bg-primary" title="Total syncs">{{ count }}</span>

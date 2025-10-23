@@ -1,19 +1,16 @@
 {% extends "generic/object_create.html" %}
 
+{% block breadcrumbs %}
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'plugins:nautobot_ssot:dashboard' %}">Single Source of Truth</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'plugins:nautobot_ssot:config' %}">SSOT Configs</a></li>
+        <li class="breadcrumb-item">ServiceNow Configuration</li>
+    </ol>
+{% endblock breadcrumbs %}
+
 {% block header %}
-    <div class="row d-print-none">
-        <div class="col-sm-8 col-md-9">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{% url 'plugins:nautobot_ssot:dashboard' %}">Single Source of Truth</a></li>
-                <li class="breadcrumb-item"><a href="{% url 'plugins:nautobot_ssot:config' %}">SSOT Configs</a></li>
-                <li class="breadcrumb-item">ServiceNow Configuration</li>
-            </ol>
-        </div>
-    </div>
-    <div class="float-end d-print-none">
-    </div>
     {% if settings.PLUGINS_CONFIG.nautobot_ssot.servicenow_instance or settings.PLUGINS_CONFIG.nautobot_ssot.servicenow_username or settings.PLUGINS_CONFIG.nautobot_ssot.servicenow_password %}
-        <div class="alert alert-warning" role="alert">
+        <div class="alert alert-warning text-center" role="alert">
             Some configuration of this plugin has been defined in <code>{{ settings.SETTINGS_PATH }}</code>,
             which takes precedence over any settings specified via this form.
             If you want to use this form to configure Nautobot SSoT ServiceNow, please remove entries starting with

@@ -29,7 +29,7 @@
                                 </h4>
                                 <span class="float-end">
                                     <a class="btn btn-sm btn-primary" href="{% url 'extras:job_run' pk=data_source.pk %}">
-                                        <i class="mdi mdi-play"></i> Sync
+                                        <span class="mdi mdi-play"></span> Sync
                                     </a>
                                 </span>
                                 <p class="list-group-item-text text-secondary">{{ data_source.description }}</p>
@@ -58,7 +58,7 @@
                                 </h4>
                                 <span class="float-end">
                                     <a class="btn btn-sm btn-primary" href="{% url 'extras:job_run' pk=data_target.pk %}">
-                                        <i class="mdi mdi-play"></i> Sync
+                                        <span class="mdi mdi-play"></span> Sync
                                     </a>
                                 </span>
                                 <p class="list-group-item-text text-secondary">{{ data_target.description }}</p>

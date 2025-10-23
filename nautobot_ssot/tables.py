@@ -24,7 +24,7 @@ STATUS_LOGS_LINK = """
 
 DRY_RUN_LABEL = """
 {% if record.dry_run %}
-<span class="dry_run badge bg-default">Dry Run</span>
+<span class="dry_run badge bg-secondary">Dry Run</span>
 {% else %}
 <span class="dry_run badge bg-info">Sync</span>
 {% endif %}
