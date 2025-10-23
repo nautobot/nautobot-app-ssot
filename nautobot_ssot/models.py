@@ -31,7 +31,7 @@ from django.utils.html import format_html
 from django.utils.timezone import now
 from django_enum import EnumField
 from nautobot.apps.constants import CHARFIELD_MAX_LENGTH
-from nautobot.apps.models import BaseModel, PrimaryModel
+from nautobot.apps.models import BaseModel
 from nautobot.extras.choices import JobResultStatusChoices
 from nautobot.extras.models import JobResult
 from nautobot.extras.utils import extras_features
@@ -283,7 +283,7 @@ class SyncLogEntry(BaseModel):  # pylint: disable=nb-string-field-blank-null
 
 
 @extras_features("export_templates", "graphql")
-class SyncRecord(PrimaryModel):
+class SyncRecord(BaseModel):
     """Record of a single object that was synced during a data sync operation.
 
     This model is primarily intended to support idempotency of sync operations,
@@ -361,7 +361,7 @@ class SyncRecord(PrimaryModel):
     class Meta:
         """Metaclass attributes of SyncRecord."""
 
-        unique_together = ("source", "target", "obj_name", "obj_type")
+        unique_together = ("sync", "obj_name", "obj_type")
         ordering = ["timestamp"]
 
     def __str__(self):
