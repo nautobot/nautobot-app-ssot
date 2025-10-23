@@ -24,9 +24,9 @@ STATUS_LOGS_LINK = """
 
 DRY_RUN_LABEL = """
 {% if record.dry_run %}
-<span class="dry_run label label-default">Dry Run</span>
+<span class="dry_run badge bg-default">Dry Run</span>
 {% else %}
-<span class="dry_run label label-info">Sync</span>
+<span class="dry_run badge bg-info">Sync</span>
 {% endif %}
 """
 
@@ -155,10 +155,10 @@ class SyncTableSingleSourceOrTarget(SyncTable):  # pylint: disable=nb-no-model-f
         )
 
 
-ACTION_LABEL = """<span class="label label-{{ record.get_action_class }}">{{ record.action }}</span>"""
+ACTION_LABEL = """<span class="badge bg-{{ record.get_action_class }}">{{ record.action }}</span>"""
 
 
-LOG_STATUS_LABEL = """<span class="label label-{{ record.get_status_class }}">{{ record.status }}</span>"""
+LOG_STATUS_LABEL = """<span class="badge bg-{{ record.get_status_class }}">{{ record.status }}</span>"""
 
 
 SYNCED_OBJECT = """

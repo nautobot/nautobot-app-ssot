@@ -6,13 +6,13 @@
     <div class="row">
         <div class="col-md-12">
             <ol class="breadcrumb">
-                <li><a href="{% url 'plugins:nautobot_ssot:dashboard' %}">Single Source of Truth</a></li>
-                <li>Data {{ source_or_target | title }}s</li>
-                <li>{{ object }}</li>
+                <li class="breadcrumb-item"><a href="{% url 'plugins:nautobot_ssot:dashboard' %}">Single Source of Truth</a></li>
+                <li class="breadcrumb-item">Data {{ source_or_target | title }}s</li>
+                <li class="breadcrumb-item">{{ object }}</li>
             </ol>
         </div>
     </div>
-    <div class="pull-right noprint">
+    <div class="float-end d-print-none">
         <a class="btn btn-primary" href="{% url 'extras:job_run' pk=object.pk %}">
             <i class="mdi mdi-play"></i> Sync Now
         </a>
@@ -54,9 +54,9 @@
                 </tr>
             </table>
             {% if job_class.config_information %}
-                <div class="panel panel-default">
-                    <div class="panel-heading"><strong>Configuration</strong></div>
-                    <table class="table panel-body table-hover">
+                <div class="card">
+                    <div class="card-header"><strong>Configuration</strong></div>
+                    <table class="table card-body table-hover">
                         <tr>
                             <th>Parameter</th>
                             <th>Value</th>
@@ -74,9 +74,9 @@
             {% endif %}
         </div>
         <div class="col-md-6">
-            <div class="panel panel-default">
-                <div class="panel-heading"><strong>Data Mappings</strong></div>
-                <table class="table panel-body table-hover">
+            <div class="card">
+                <div class="card-header"><strong>Data Mappings</strong></div>
+                <table class="table card-body table-hover">
                     <tr>
                         <th>{{ job_class.data_source }}</th>
                         <th>{{ job_class.data_target }}</th>
