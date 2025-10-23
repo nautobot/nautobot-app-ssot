@@ -307,7 +307,31 @@ class InfobloxAdapter(Adapter):
             ip_record (object): Parent IP Address record
             namespace (str): Namespace of this record
         """
-        host_record = self.conn.get_host_record_by_ref(ref)
+        try:
+            host_record = self.conn.get_host_record_by_ref(ref)
+        except requests.exceptions.HTTPError as exc:
+            if exc.response.status_code == 404:
+                self.job.logger.warning(f"Host record {ref} not found, likely dynamic and expired.")
+                # remove any existing stale Host record from Nautobot
+                try:
+                    stale=self.dnshostrecord(
+                        address=ip_record.address,
+                        prefix=ip_record.prefix,
+                        prefix_length=ip_record.prefix_length,
+                        namespace=namespace,
+                        dns_name="",
+                        ip_addr_type=ip_record.ip_addr_type,
+                        description="",
+                        status=ip_record.status,
+                        ext_attrs=record_ext_attrs,
+                        ref=ref,                          
+                    )
+                    self.remove(stale)
+                except Exception:  # noqa: S110
+                    pass
+                return
+            raise                    
+                        
         record_ext_attrs = get_ext_attr_dict(
             extattrs=host_record.get("extattrs", {}), excluded_attrs=self.excluded_attrs
         )
