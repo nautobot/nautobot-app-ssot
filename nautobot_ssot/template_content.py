@@ -1,10 +1,9 @@
 """App template content extensions of base Nautobot views."""
 
-from django.shortcuts import redirect
 from django.urls import reverse
-from nautobot.apps.ui import Button, ButtonColorChoices, TemplateExtension
+from nautobot.apps.ui import Button, TemplateExtension
 from nautobot.core.views.utils import get_obj_from_context
-from nautobot.extras.models import Job, JobResult
+from nautobot.extras.models import Job
 
 from nautobot_ssot.models import Sync
 
@@ -31,15 +30,15 @@ class JobResultSyncLink(TemplateExtension):
             return ""
 
 
-class CreateProcessRecordButton(Button):  # pylint: disable=abstract-method
+class ProcessRecordButton(Button):  # pylint: disable=abstract-method
     """Button for processing a Sync Record."""
 
     def __init__(self, *args, **kwargs):
-        """Initialize the Create Layout button."""
+        """Initialize the Process Record button."""
         super().__init__(label="Process Record", icon="mdi-import", color="info", weight=100, *args, **kwargs)
 
     def get_link(self, context):
-        """Generate the URL to create a layout with the location pre-selected."""
+        """Generate the URL to run Job with Sync Record pre-selected."""
         record = get_obj_from_context(context)
         job = Job.objects.get(name="Process Sync Records")
         # _job_result = JobResult.enqueue_job(job, context["request"].user, records=[record.id])
@@ -58,6 +57,7 @@ class SyncRecordsJobButton(TemplateExtension):  # pylint: disable=abstract-metho
 
     model = "nautobot_ssot.syncrecord"
 
-    object_detail_buttons = [CreateProcessRecordButton()]
+    object_detail_buttons = [ProcessRecordButton()]
+
 
 template_extensions = [JobResultSyncLink, SyncRecordsJobButton]
