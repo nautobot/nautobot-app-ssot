@@ -195,8 +195,10 @@ class TestForwardEnterpriseAdapter(TestCase):
         )
 
         # Mock the necessary methods using patch
-        with patch.object(adapter, "vrf") as mock_vrf, patch.object(adapter, "add") as mock_add, patch.object(
-            adapter, "get", side_effect=KeyError
+        with (
+            patch.object(adapter, "vrf") as mock_vrf,
+            patch.object(adapter, "add") as mock_add,
+            patch.object(adapter, "get", side_effect=KeyError),
         ):
             # Test with special VRF names including management VRF
             adapter.load_vrf("management", "Global")
@@ -346,20 +348,22 @@ class TestForwardEnterpriseAdapter(TestCase):
         adapter.client.get_ipam_query_from_config = Mock(return_value="test_ipam_query")
 
         # Mock the object creation methods to capture calls
-        with patch.object(adapter, "prefix") as mock_prefix, patch.object(
-            adapter, "ipaddress"
-        ) as mock_ipaddress, patch.object(adapter, "vrf") as mock_vrf, patch.object(
-            adapter, "get", side_effect=KeyError
-        ), patch.multiple(
-            adapter,
-            load_tags=Mock(),
-            load_locations=Mock(),
-            load_manufacturers=Mock(),
-            load_device_types=Mock(),
-            load_platforms=Mock(),
-            load_roles=Mock(),
-            load_devices=Mock(),
-            _ensure_interface_exists=Mock(),
+        with (
+            patch.object(adapter, "prefix") as mock_prefix,
+            patch.object(adapter, "ipaddress") as mock_ipaddress,
+            patch.object(adapter, "vrf") as mock_vrf,
+            patch.object(adapter, "get", side_effect=KeyError),
+            patch.multiple(
+                adapter,
+                load_tags=Mock(),
+                load_locations=Mock(),
+                load_manufacturers=Mock(),
+                load_device_types=Mock(),
+                load_platforms=Mock(),
+                load_roles=Mock(),
+                load_devices=Mock(),
+                _ensure_interface_exists=Mock(),
+            ),
         ):
             adapter.load()
 
@@ -464,16 +468,18 @@ class TestForwardEnterpriseAdapter(TestCase):
             if model_name in created_objects:
                 created_objects[model_name].append(obj)
 
-        with patch.object(adapter, "add", side_effect=mock_add), patch.object(
-            adapter, "get", side_effect=KeyError
-        ), patch.multiple(
-            adapter,
-            load_tags=Mock(),
-            load_locations=Mock(),
-            load_manufacturers=Mock(),
-            load_device_types=Mock(),
-            load_platforms=Mock(),
-            load_roles=Mock(),
+        with (
+            patch.object(adapter, "add", side_effect=mock_add),
+            patch.object(adapter, "get", side_effect=KeyError),
+            patch.multiple(
+                adapter,
+                load_tags=Mock(),
+                load_locations=Mock(),
+                load_manufacturers=Mock(),
+                load_device_types=Mock(),
+                load_platforms=Mock(),
+                load_roles=Mock(),
+            ),
         ):
             adapter.load()
 
@@ -490,8 +496,10 @@ class TestForwardEnterpriseAdapter(TestCase):
         )
 
         # First run - VRF doesn't exist
-        with patch.object(adapter, "vrf") as mock_vrf, patch.object(adapter, "add") as mock_add, patch.object(
-            adapter, "get", side_effect=KeyError
+        with (
+            patch.object(adapter, "vrf") as mock_vrf,
+            patch.object(adapter, "add") as mock_add,
+            patch.object(adapter, "get", side_effect=KeyError),
         ):
             adapter.load_vrf("management", "Global")
             mock_vrf.assert_called_once()
@@ -505,8 +513,10 @@ class TestForwardEnterpriseAdapter(TestCase):
         mock_existing_vrf = Mock()
         mock_existing_vrf.system_of_record = "Forward Enterprise"
 
-        with patch.object(adapter, "vrf") as mock_vrf, patch.object(adapter, "add") as mock_add, patch.object(
-            adapter, "get", return_value=mock_existing_vrf
+        with (
+            patch.object(adapter, "vrf") as mock_vrf,
+            patch.object(adapter, "add") as mock_add,
+            patch.object(adapter, "get", return_value=mock_existing_vrf),
         ):
             adapter.load_vrf("management", "Global")
 
