@@ -29,7 +29,6 @@ include = [
 python = ">=3.10,<3.13"
 # Used for local development
 nautobot = ">=2.4.20,<3.0.0"
-<<<<<<< HEAD
 diffsync = "^2.0.0"
 Jinja2 = { version = ">=2.11.3", optional = true }
 Markdown = "!=3.3.5"
@@ -55,8 +54,6 @@ httpx = { version = ">=0.23.3", optional = true }
 dnacentersdk = { version = "^2.5.6", optional = true }
 meraki = { version = "^1.37.2,<1.46.0", optional = true }
 slurpit-sdk = { version = "0.9.93", optional = true }  # Pinned to 0.9.93 due to significant changes being made to the sdk's api
-=======
->>>>>>> edeaf08 (Cookie updated by NetworkToCode Cookie Drift Manager Tool)
 
 [tool.poetry.group.dev.dependencies]
 coverage = "*"
@@ -79,15 +76,12 @@ to-json-schema = "*"
 jsonschema = "*"
 djlint = ">=1.36.4,<2.0.0"
 djhtml = ">=3.0.8,<4.0.0"
-<<<<<<< HEAD
 requests-mock = "^1.10.0"
 parameterized = "^0.8.1"
 myst-parser = "^2.0.0"
 responses = "^0.14.0"
 virtualenv = "20.13.0"
-=======
 tomli = { version = "*", markers = "python_version < '3.11'" }  # tomli is included in the stdlib as of Python 3.11
->>>>>>> edeaf08 (Cookie updated by NetworkToCode Cookie Drift Manager Tool)
 
 [tool.poetry.group.docs.dependencies]
 # Render custom markdown for version added/changed/remove notes
@@ -225,17 +219,9 @@ notes = """,
     XXX,
     """
 
-<<<<<<< HEAD
 [tool.pylint.similarities]
 min-similarity-lines = 7
 
-[tool.pylint-nautobot]
-supported_nautobot_versions = [
-    "2"
-]
-
-=======
->>>>>>> edeaf08 (Cookie updated by NetworkToCode Cookie Drift Manager Tool)
 [tool.ruff]
 line-length = 120
 target-version = "py39"

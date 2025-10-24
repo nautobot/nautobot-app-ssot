@@ -53,7 +53,6 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
     description = "Nautobot app that enables Single Source of Truth.  Allows users to aggregate distributed data sources and/or distribute Nautobot data to other data sources such as databases and SDN controllers."
     base_url = "ssot"
     required_settings = []
-<<<<<<< HEAD
     default_settings = {
         "aci_tag": "",
         "aci_tag_color": "",
@@ -126,11 +125,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "servicenow_username": "",
         "enable_global_search": True,
     }
-    caching_config = {}
     config_view_name = "plugins:nautobot_ssot:config"
-=======
-    default_settings = {}
->>>>>>> edeaf08 (Cookie updated by NetworkToCode Cookie Drift Manager Tool)
     docs_view_name = "plugins:nautobot_ssot:docs"
     searchable_models = ["sync"]
 
