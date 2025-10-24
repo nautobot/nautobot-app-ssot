@@ -42,7 +42,9 @@ class NautobotDiffSyncAdapter(NautobotAdapter):
                     except (ObjectDoesNotExist, AttributeError) as exception:
                         if self.job:
                             self.job.logger.warning(
-                                "Skipping device %s due to broken location reference: %s", database_object.name, str(exception)
+                                "Skipping device %s due to broken location reference: %s",
+                                database_object.name,
+                                str(exception),
                             )
                         continue
 
