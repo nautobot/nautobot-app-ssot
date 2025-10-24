@@ -202,7 +202,7 @@ class CloudvisionAdapter(Adapter):
                     f"Attempting to load IP Address {intf['address']} for {intf['interface']} on {dev.name}."
                 )
             intf_vrf = cloudvision.get_interface_vrf(client=self.conn, dId=dev.serial, interface=intf["interface"])
-            if intf["address"] and intf["address"] != "none":
+            if intf["address"] and intf["address"] not in ["none", "0.0.0.0/0"]:
                 prefix = ipaddress.ip_interface(intf["address"]).network.with_prefixlen
                 self.get_or_instantiate(self.namespace, ids={"name": intf_vrf})
                 self.get_or_instantiate(
@@ -218,10 +218,10 @@ class CloudvisionAdapter(Adapter):
                 try:
                     self.add(new_ip)
                 except ObjectAlreadyExists as err:
-                    self.job.logger.warning(
-                        f"Unable to load {intf['address']} for {dev.name} on {intf['interface']}. {err}"
-                    )
-                    continue
+                    if self.job.debug:
+                        self.job.logger.info(
+                            f"Unable to load {intf['address']}. IPAddress already in diffsync store. {err}"
+                        )
                 self.get_or_instantiate(
                     self.ipassignment,
                     ids={
@@ -250,7 +250,7 @@ class CloudvisionAdapter(Adapter):
             dev_tags.append({"label": "topology_type", "value": "-"})
 
         for tag in dev_tags:
-            if tag["label"] in ["hostname", "serialnumber", "Container"]:
+            if tag["label"] in ["hostname", "serialnumber", "Container", "vrf"]:
                 continue
             if tag["label"] == "mpls" or tag["label"] == "ztp":
                 tag["value"] = bool(distutils.util.strtobool(tag["value"]))
@@ -266,7 +266,8 @@ class CloudvisionAdapter(Adapter):
                 )
                 self.add(new_cf)
             except ObjectAlreadyExists:
-                self.job.logger.warning(f"Duplicate tag encountered for {tag['label']} on device {device.name}")
+                if self.job.debug:
+                    self.job.logger.info(f"Duplicate tag encountered for {tag['label']} on device {device.name}")
             except ValidationError as ve:
                 self.job.logger.warning(f"Pydantic Validation Error for CustomField: {ve}")
 

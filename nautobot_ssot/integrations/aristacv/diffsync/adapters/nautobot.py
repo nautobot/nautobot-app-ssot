@@ -105,7 +105,9 @@ class NautobotAdapter(Adapter):
 
     def load_ip_addresses(self):
         """Add Nautobot IPAddress objects as DiffSync IPAddress models."""
-        for ipaddr in OrmIPAddress.objects.filter(interfaces__device__device_type__manufacturer__name__in=["Arista"]):
+        for ipaddr in OrmIPAddress.objects.filter(
+            interfaces__device__device_type__manufacturer__name__in=["Arista"]
+        ).distinct():
             try:
                 self.get(self.namespace, ipaddr.parent.namespace.name)
             except ObjectNotFound:
@@ -132,7 +134,7 @@ class NautobotAdapter(Adapter):
             try:
                 self.add(new_ip)
             except ObjectAlreadyExists as err:
-                self.job.logger.warning(f"Unable to load {ipaddr.address} as appears to be a duplicate. {err}")
+                self.job.logger.warning(f"Unable to load {ipaddr.address}. IPAddress already in diffsync store. {err}")
             ip_to_intfs = IPAddressToInterface.objects.filter(ip_address=ipaddr)
             for mapping in ip_to_intfs:
                 new_map = self.ipassignment(
@@ -144,7 +146,16 @@ class NautobotAdapter(Adapter):
                     or len(mapping.ip_address.primary_ip6_for.all()) > 0,
                     uuid=mapping.id,
                 )
-                self.add(new_map)
+                try:
+                    self.add(new_map)
+                except ObjectAlreadyExists as err:
+                    self.job.logger.warning(
+                        "Unable to attach %sDevice: %sInterface: %s. Error: %s",
+                        ipaddr.address,
+                        mapping.interface.device.name,
+                        mapping.interface.name,
+                        err,
+                    )
 
     def sync_complete(self, source: Adapter, *args, **kwargs):
         """Perform actions after sync is completed.

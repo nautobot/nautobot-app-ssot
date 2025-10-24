@@ -1,11 +1,13 @@
 ---
 name: 🐛 Bug Report
 about: Report a reproducible bug in the current release of nautobot-ssot
+labels:
+  - "type: bug"
 ---
 
 ### Environment
 * Python version:  <!-- Example: 3.11.4 -->
-* Nautobot version:  <!-- Example: 2.0.0 -->
+* Nautobot version:  <!-- Example: 2.4.2 -->
 * nautobot-ssot version:  <!-- Example: 1.0.0 -->
 
 <!-- What did you expect to happen? -->

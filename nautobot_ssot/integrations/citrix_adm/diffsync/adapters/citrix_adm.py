@@ -198,12 +198,13 @@ class CitrixAdmAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                         _tags.sort()
                     _primary = bool("MGMT" in _tags or "MIP" in _tags)
                     self.load_address(
-                        address=addr,
+                        host_addr=port["ipaddress"],
+                        mask_length=port["netmask"],
                         prefix=prefix,
                         tags=_tags,
                     )
                     self.load_address_to_interface(
-                        address=addr,
+                        host_addr=port["ipaddress"],
                         device=adc["hostname"],
                         port=port["port"],
                         primary=_primary,
@@ -254,43 +255,37 @@ class CitrixAdmAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
             )
             self.add(new_pf)
 
-    def load_address(self, address: str, prefix: str, tags: Optional[list] = None):
+    def load_address(self, host_addr: str, mask_length: int, prefix: str, tags: Optional[list] = None):
         """Load CitrixAdmAddress DiffSync model with specified data.
 
         Args:
-            address (str): IP Address to be loaded.
+            host_addr (str): IP Address to be loaded.
+            mask_length (int): Mask length for IP Address.
             prefix (str): Prefix that IP Address resides in.
-            device (str): Device that IP resides on.
-            port (str): Interface that IP is configured on.
-            primary (str): Whether the IP is primary IP for assigned device. Defaults to False.
             tags (list): List of tags assigned to IP. Defaults to None.
         """
-        try:
-            self.get(self.address, {"address": address, "prefix": prefix})
-        except ObjectNotFound:
-            new_addr = self.address(
-                address=address,
-                prefix=prefix,
-                tenant=self.tenant.name if self.tenant else None,
-                uuid=None,
-                tags=tags if tags else [],
-            )
-            self.add(new_addr)
+        self.get_or_instantiate(
+            self.address,
+            ids={"host_address": host_addr, "tenant": self.tenant.name if self.tenant else None},
+            attrs={
+                "mask_length": mask_length,
+                "prefix": prefix,
+                "tags": tags if tags else [],
+            },
+        )
 
-    def load_address_to_interface(self, address: str, device: str, port: str, primary: bool = False):
+    def load_address_to_interface(self, host_addr: str, device: str, port: str, primary: bool = False):
         """Load CitrixAdmIPAddressOnInterface DiffSync model with specified data.
 
         Args:
-            address (str): IP Address in mapping.
+            host_addr (str): IP Address in mapping, e.g. "10.0.0.1".
             device (str): Device that IP resides on.
             port (str): Interface that IP is configured on.
             primary (str): Whether the IP is primary IP for assigned device. Defaults to False.
         """
-        try:
-            self.get(self.ip_on_intf, {"address": address, "device": device, "port": port})
-        except ObjectNotFound:
-            new_map = self.ip_on_intf(address=address, device=device, port=port, primary=primary, uuid=None)
-            self.add(new_map)
+        self.get_or_instantiate(
+            self.ip_on_intf, ids={"host_address": host_addr, "device": device, "port": port}, attrs={"primary": primary}
+        )
 
     def find_closer_parent_prefix(self) -> None:
         """Find more accurate parent Prefix for loaded IPAddresses."""
@@ -302,11 +297,10 @@ class CitrixAdmAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 ):
                     continue
                 if not is_ip_within(ipaddr.prefix, prefix.prefix):
-                    host_addr = ipaddr.address.split("/")[0]
-                    if is_ip_within(host_addr, prefix.prefix):
+                    if is_ip_within(ipaddr.host_address, prefix.prefix):
                         if self.job.debug:
                             self.job.logger.debug(
-                                "More specific Prefix %s found for IPAddress %s", prefix.prefix, ipaddr.address
+                                "More specific Prefix %s found for IPAddress %s", prefix.prefix, ipaddr.host_address
                             )
                         ipaddr.prefix = prefix.prefix
                         self.update(ipaddr)

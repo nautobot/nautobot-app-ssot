@@ -14,11 +14,20 @@ class AutomationGatewayModelTable(BaseTable):
     """AutomationGatewayModel Table."""
 
     pk = ToggleColumn()
-    name = tables.LinkColumn()
+    name = tables.Column(linkify=True)
     actions = ButtonsColumn(models.AutomationGatewayModel)
 
-    class Meta:
+    class Meta(BaseTable.Meta):
         """Meta class definition."""
 
         model = models.AutomationGatewayModel
         fields = ["name", "description", "location", "location_descendants", "gateway", "enabled"]
+        default_columns = (
+            "name",
+            "description",
+            "location",
+            "location_descendants",
+            "gateway",
+            "enabled",
+            "actions",
+        )

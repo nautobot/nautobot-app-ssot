@@ -1,8 +1,11 @@
 """Filtering logic for Sync and SyncLogEntry records."""
 
-from nautobot.apps.filters import BaseFilterSet, SearchFilter
+from django_filters import ModelMultipleChoiceFilter
+from nautobot.apps.filters import BaseFilterSet, NautobotFilterSet, SearchFilter
 
 from nautobot_ssot import models
+from nautobot_ssot.integrations.infoblox.filters import SSOTInfobloxConfigFilterSet
+from nautobot_ssot.integrations.itential.filters import AutomationGatewayModelFilterSet
 
 
 class SyncFilterSet(BaseFilterSet):  # pylint: disable=too-many-ancestors
@@ -25,7 +28,7 @@ class SyncFilterSet(BaseFilterSet):  # pylint: disable=too-many-ancestors
         fields = ["dry_run", "job_result"]  # pylint: disable=nb-use-fields-all
 
 
-class SyncLogEntryFilterSet(BaseFilterSet):  # pylint: disable=too-many-ancestors
+class SyncLogEntryFilterSet(NautobotFilterSet):  # pylint: disable=too-many-ancestors
     """Filter capabilities for SyncLogEntry instances."""
 
     q = SearchFilter(
@@ -36,8 +39,21 @@ class SyncLogEntryFilterSet(BaseFilterSet):  # pylint: disable=too-many-ancestor
         }
     )
 
+    sync = ModelMultipleChoiceFilter(
+        queryset=models.Sync.objects.all(),
+        label="Sync (name or ID)",
+    )
+
     class Meta:
         """Metaclass attributes of SyncLogEntryFilter."""
 
         model = models.SyncLogEntry
         fields = ["sync", "action", "status", "synced_object_type"]  # pylint: disable=nb-use-fields-all
+
+
+__all__ = (
+    "AutomationGatewayModelFilterSet",
+    "SSOTInfobloxConfigFilterSet",
+    "SyncFilterSet",
+    "SyncLogEntryFilterSet",
+)

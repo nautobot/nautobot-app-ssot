@@ -214,6 +214,7 @@ PLUGINS_CONFIG = {
             "prefix": True,
             "scheduled_job": True,
             "custom_field": True,
+            "external_integration": True,
         },
         "citrix_adm_update_sites": is_truthy(os.getenv("NAUTOBOT_SSOT_CITRIX_ADM_UPDATE_SITES", "true")),
         "enable_aci": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ACI")),
@@ -309,6 +310,7 @@ PLUGINS_CONFIG = {
         "servicenow_username": os.getenv("SERVICENOW_USERNAME", ""),
         "vsphere_url": os.getenv("NAUTOBOT_SSOT_VSPHERE_URL", "https://replace.me.local"),
         "vsphere_verify_ssl": is_truthy(os.getenv("NAUTOBOT_SSOT_VSPHERE_VERIFY_SSL", "false")),
+        "enable_global_search": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_GLOBAL_SEARCH", "true")),
     },
     "nautobot_device_lifecycle_mgmt": {
         "barchart_bar_width": float(os.environ.get("BARCHART_BAR_WIDTH", 0.1)),

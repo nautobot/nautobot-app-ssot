@@ -2,10 +2,14 @@
 
 from nautobot.apps.api import OrderedDefaultRouter
 
+from nautobot_ssot.api import views
 from nautobot_ssot.integrations.utils import each_enabled_integration_module
 
 urlpatterns = []
 router = OrderedDefaultRouter()
+
+router.register("history", views.SyncViewSet)
+router.register("logs", views.SyncLogEntryViewSet)
 
 
 def _add_integrations():

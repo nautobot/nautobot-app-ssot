@@ -1,6 +1,8 @@
 """Common TypedDict definitions used in Many-to-Many relationships."""
 
-from typing_extensions import Annotated, TypedDict
+from typing import Annotated
+
+from typing_extensions import TypedDict
 
 
 class SortKey:

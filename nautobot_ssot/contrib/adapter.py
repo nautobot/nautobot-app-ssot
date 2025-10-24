@@ -4,7 +4,7 @@
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
 import re
-from typing import Dict, Type
+from typing import Dict, List, Type
 
 import pydantic
 from diffsync import DiffSync, DiffSyncModel
@@ -16,6 +16,7 @@ from nautobot.extras.models import Relationship
 from nautobot.extras.models.metadata import MetadataType
 from typing_extensions import get_type_hints
 
+from nautobot_ssot.contrib.base import BaseNautobotAdapter, BaseNautobotModel
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
@@ -30,7 +31,7 @@ from nautobot_ssot.utils.orm import (
 from nautobot_ssot.utils.typing import get_inner_type
 
 
-class NautobotAdapter(DiffSync):
+class NautobotAdapter(DiffSync, BaseNautobotAdapter):
     """
     Adapter for loading data from Nautobot through the ORM.
 
@@ -63,9 +64,9 @@ class NautobotAdapter(DiffSync):
         )
         self.cache.invalidate_cache(zero_out_hits=zero_out_hits)
 
-    def _load_objects(self, diffsync_model):
+    def _load_objects(self, diffsync_model: BaseNautobotModel):
         """Given a diffsync model class, load a list of models from the database and return them."""
-        parameter_names = self._get_parameter_names(diffsync_model)
+        parameter_names = diffsync_model.get_synced_attributes()
         for database_object in diffsync_model._get_queryset():
             self._load_single_object(database_object, diffsync_model, parameter_names)
 
@@ -78,8 +79,9 @@ class NautobotAdapter(DiffSync):
         metadata_for_this_field = getattr(type_hints[parameter_name], "__metadata__", [])
         for metadata in metadata_for_this_field:
             if isinstance(metadata, CustomFieldAnnotation):
-                if metadata.name in database_object.cf:
-                    parameters[parameter_name] = database_object.cf[metadata.key]
+                field_key = metadata.key or metadata.name
+                if field_key in database_object.cf:
+                    parameters[parameter_name] = database_object.cf[field_key]
                 is_custom_field = True
                 break
             if isinstance(metadata, CustomRelationshipAnnotation):
@@ -139,13 +141,13 @@ class NautobotAdapter(DiffSync):
         self._handle_children(database_object, diffsync_model)
         return diffsync_model
 
-    def _handle_children(self, database_object, diffsync_model):
+    def _handle_children(self, database_object, diffsync_model: BaseNautobotModel):
         """Recurse through all the children for this model."""
         for children_parameter, children_field in diffsync_model._children.items():
             children = getattr(database_object, children_field).all()
-            diffsync_model_child = self._get_diffsync_class(model_name=children_parameter)
+            diffsync_model_child: BaseNautobotModel = self._get_diffsync_class(model_name=children_parameter)
             for child in children:
-                parameter_names = self._get_parameter_names(diffsync_model_child)
+                parameter_names = diffsync_model_child.get_synced_attributes()
                 child_diffsync_object = self._load_single_object(child, diffsync_model_child, parameter_names)
                 diffsync_model.add_child(child_diffsync_object)
 
@@ -182,7 +184,7 @@ class NautobotAdapter(DiffSync):
         # for this many-to-many relationship.
         inner_type = get_inner_type(diffsync_model, parameter_name)
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
-        relationship: Relationship = self.get_from_orm_cache({"label": annotation.name}, Relationship)
+        relationship: Relationship = self.cache.get_from_orm(Relationship, {"label": annotation.name})
         relationship_associations, _ = get_custom_relationship_associations(
             relationship=relationship,
             db_obj=database_object,
@@ -319,7 +321,7 @@ class NautobotAdapter(DiffSync):
         )
 
         # Get All diffsync models from adapter's top_level attribute
-        diffsync_models = []
+        diffsync_models: List[BaseNautobotModel] = []
         for model_name in self.top_level:
             diffsync_model = self._get_diffsync_class(model_name)
             diffsync_models.append(diffsync_model)
@@ -336,7 +338,7 @@ class NautobotAdapter(DiffSync):
                 metadata_type.content_types.add(content_type)
             # Define scope fields per model
             obj_metadata_scope_fields = list(
-                {parameter.split("__", maxsplit=1)[0] for parameter in self._get_parameter_names(diffsync_model)}
+                {parameter.split("__", maxsplit=1)[0] for parameter in diffsync_model.get_synced_attributes()}
             )
             self.metadata_scope_fields[diffsync_model] = obj_metadata_scope_fields
 

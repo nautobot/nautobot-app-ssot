@@ -304,7 +304,9 @@ def get_dlc_version_map():
         dict: Nested dictionary of versions mapped to their ID and to their Platform.
     """
     version_map = {}
-    for ver in SoftwareLCM.objects.only("id", "device_platform", "version"):
+    if not dlm_supports_softwarelcm():
+        return version_map
+    for ver in SoftwareLCM.objects.only("id", "device_platform", "version"):  # pylint:disable=possibly-used-before-assignment
         if ver.device_platform.network_driver not in version_map:
             version_map[ver.device_platform.network_driver] = {}
         version_map[ver.device_platform.network_driver][ver.version] = ver.id
