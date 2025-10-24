@@ -246,60 +246,60 @@ class DeviceModel(ModelQuerySetMixin, NautobotModel):
 
     @field_validator("device_type__manufacturer__name")
     @classmethod
-    def validate_manufacturer(cls, v):
+    def validate_manufacturer(cls, value):
         """Normalize manufacturer name without DB lookup."""
-        if v is None:
+        if value is None:
             return "Unknown"
-        name = str(v).strip()
+        name = str(value).strip()
         return name if name else "Unknown"
 
     @field_validator("device_type__model")
     @classmethod
-    def validate_device_type(cls, v, _info):
+    def validate_device_type(cls, value, _info):
         """Normalize device type model without DB lookup."""
-        if v is None:
+        if value is None:
             return "Unknown"
-        model = str(v).strip()
+        model = str(value).strip()
         return model if model else "Unknown"
 
     @field_validator("role__name")
     @classmethod
-    def validate_role(cls, v):
+    def validate_role(cls, value):
         """Normalize role name; avoid DB lookup and use default when missing."""
-        if v is None:
+        if value is None:
             return get_default_device_role()
-        name = str(v).strip()
+        name = str(value).strip()
         return name if name else get_default_device_role()
 
     @field_validator("status__name")
     @classmethod
-    def validate_status(cls, v):
+    def validate_status(cls, value):
         """Normalize status name; avoid DB lookup and use default when missing."""
-        if v is None:
+        if value is None:
             return get_default_device_status()
-        name = str(v).strip()
+        name = str(value).strip()
         return name if name else get_default_device_status()
 
     @field_validator("location__name")
     @classmethod
-    def validate_location(cls, v):
+    def validate_location(cls, value):
         """Normalize location name using shared utility."""
-        return normalize_location_name(v)
+        return normalize_location_name(value)
 
     @field_validator("platform__name")
     @classmethod
-    def validate_platform(cls, v, _info):
+    def validate_platform(cls, value, _info):
         """Normalize platform name; avoid DB lookup."""
-        if v is None:
+        if value is None:
             return None
-        name = str(v).strip()
+        name = str(value).strip()
         return name if name else None
 
     @field_validator("serial")
     @classmethod
-    def ensure_serial_not_none(cls, v):
+    def ensure_serial_not_none(cls, value):
         """Ensure serial is never None."""
-        return ensure_not_none(v)
+        return ensure_not_none(value)
 
     @classmethod
     def create(cls, adapter, ids, attrs):
@@ -308,9 +308,9 @@ class DeviceModel(ModelQuerySetMixin, NautobotModel):
             adapter.job.logger.info("Creating Device: %s", ids["name"])
         try:
             return super().create(adapter, ids, attrs)
-        except (ObjectCrudException, ValidationError, ValueError, TypeError) as e:
+        except (ObjectCrudException, ValidationError, ValueError, TypeError) as exception:
             if adapter.job:
-                adapter.job.logger.error("Failed to create Device %s: %s", ids["name"], e)
+                adapter.job.logger.error("Failed to create Device %s: %s", ids["name"], exception)
                 adapter.job.logger.debug("Device creation failed with attributes: %s", attrs)
             raise
         except Exception:
@@ -380,49 +380,49 @@ class InterfaceModel(ModelQuerySetMixin, NautobotModel):
 
     @field_validator("type")
     @classmethod
-    def normalize_interface_type_validator(cls, v):
+    def normalize_interface_type_validator(cls, value):
         """Normalize interface type to match Nautobot choices."""
-        return normalize_interface_type(v)
+        return normalize_interface_type(value)
 
     @field_validator("status__name")
     @classmethod
-    def validate_interface_status(cls, v):
+    def validate_interface_status(cls, value):
         """Validate interface status or use default."""
-        if not v:
+        if not value:
             return get_default_interface_status()
         try:
-            status = get_status(v)
+            status = get_status(value)
             return status.name
         except (AttributeError, ValueError, LookupError):
             return get_default_interface_status()
 
     @field_validator("description")
     @classmethod
-    def ensure_description_not_none(cls, v):
+    def ensure_description_not_none(cls, value):
         """Ensure description is never None."""
-        return ensure_not_none(v)
+        return ensure_not_none(value)
 
     @field_validator("mac_address")
     @classmethod
-    def ensure_mac_address_not_none(cls, v):
+    def ensure_mac_address_not_none(cls, value):
         """Ensure MAC address is never None."""
-        return ensure_not_none(v)
+        return ensure_not_none(value)
 
     @field_validator("mtu")
     @classmethod
-    def validate_mtu(cls, v):
+    def validate_mtu(cls, value):
         """Validate MTU is reasonable."""
-        if v is None:
+        if value is None:
             return constants.DEFAULT_MTU  # Default MTU
-        if isinstance(v, str):
+        if isinstance(value, str):
             try:
-                v = int(v)
+                value = int(value)
             except ValueError:
                 return constants.DEFAULT_MTU
         # Ensure MTU is within reasonable range
-        if v < constants.MIN_MTU or v > constants.MAX_MTU:
+        if value < constants.MIN_MTU or value > constants.MAX_MTU:
             return constants.DEFAULT_MTU
-        return v
+        return value
 
 
 # IPAM Models for Forward Enterprise
@@ -494,29 +494,29 @@ class VRFModel(DiffSyncModel):
 
     @field_validator("name")
     @classmethod
-    def validate_vrf_name(cls, v):
+    def validate_vrf_name(cls, value):
         """Validate VRF name is present."""
-        if not v:
+        if not value:
             raise ValueError("VRF name cannot be empty")
-        return v
+        return value
 
     @field_validator("namespace__name")
     @classmethod
-    def validate_namespace(cls, v):
+    def validate_namespace(cls, value):
         """Ensure namespace is set."""
-        return v if v else "Global"
+        return value if value else "Global"
 
     @field_validator("description")
     @classmethod
-    def ensure_description_not_none(cls, v):
+    def ensure_description_not_none(cls, value):
         """Ensure description is never None."""
-        return ensure_not_none(v)
+        return ensure_not_none(value)
 
     @field_validator("rd")
     @classmethod
-    def ensure_rd_not_none(cls, v):
+    def ensure_rd_not_none(cls, value):
         """Ensure RD is never None."""
-        return ensure_not_none(v)
+        return ensure_not_none(value)
 
 
 # Nautobot IPAM Model Classes (for target adapter)
@@ -570,9 +570,9 @@ class NautobotVRFModel(NautobotModel):
 
                 try:
                     existing_vrf.validated_save()
-                except (ValueError, TypeError, AttributeError) as e:
+                except (ValueError, TypeError, AttributeError) as exception:
                     if adapter.job:
-                        adapter.job.logger.warning("Could not update VRF %s: %s", ids["name"], e)
+                        adapter.job.logger.warning("Could not update VRF %s: %s", ids["name"], exception)
 
                 # Return DiffSync model instance for the existing VRF
                 return cls(adapter=adapter, **ids, **attrs)
@@ -580,9 +580,9 @@ class NautobotVRFModel(NautobotModel):
             # VRF doesn't exist, create normally with validation
             return super().create(adapter, ids, attrs)
 
-        except (AttributeError, TypeError, ValueError, Namespace.DoesNotExist) as e:
+        except (AttributeError, TypeError, ValueError, Namespace.DoesNotExist) as exception:
             if adapter.job:
-                adapter.job.logger.warning("Error in VRF create method: %s, falling back to default create", e)
+                adapter.job.logger.warning("Error in VRF create method: %s, falling back to default create", exception)
             return super().create(adapter, ids, attrs)
 
 
@@ -722,9 +722,9 @@ class NautobotPrefixModel(NautobotModel):
                             f"Could not assign {failed} VRF(s) to prefix (will retry in post-sync)"
                         )
 
-                except (KeyError, AttributeError, TypeError, ValueError) as e:
+                except (KeyError, AttributeError, TypeError, ValueError) as exception:
                     if adapter.job:
-                        adapter.job.logger.warning(f"Error assigning VRFs to prefix: {e}")
+                        adapter.job.logger.warning(f"Error assigning VRFs to prefix: {exception}")
 
             return new_prefix_obj
 
@@ -738,9 +738,11 @@ class NautobotPrefixModel(NautobotModel):
 
             # Re-raise if it's a different error
             raise
-        except (KeyError, AttributeError, TypeError, ValueError) as e:
+        except (KeyError, AttributeError, TypeError, ValueError) as exception:
             if adapter.job:
-                adapter.job.logger.warning(f"Error in prefix create method: {e}, falling back to default create")
+                adapter.job.logger.warning(
+                    f"Error in prefix create method: {exception}, falling back to default create"
+                )
             return super().create(adapter, ids, attrs)
 
 
@@ -801,9 +803,11 @@ class NautobotIPAddressModel(NautobotModel):
 
             # Re-raise if it's a different error
             raise
-        except (KeyError, AttributeError, TypeError, ValueError) as e:
+        except (KeyError, AttributeError, TypeError, ValueError) as exception:
             if adapter.job:
-                adapter.job.logger.warning(f"Error in IP address create method: {e}, falling back to default create")
+                adapter.job.logger.warning(
+                    f"Error in IP address create method: {exception}, falling back to default create"
+                )
             return super().create(adapter, ids, attrs)
 
 
@@ -847,9 +851,11 @@ class NautobotIPAssignmentModel(NautobotModel):
 
             # Re-raise if it's a different error
             raise
-        except (KeyError, AttributeError, TypeError, ValueError) as e:
+        except (KeyError, AttributeError, TypeError, ValueError) as exception:
             if adapter.job:
-                adapter.job.logger.warning(f"Error in IP assignment create method: {e}, falling back to default create")
+                adapter.job.logger.warning(
+                    f"Error in IP assignment create method: {exception}, falling back to default create"
+                )
             return super().create(adapter, ids, attrs)
 
 
@@ -877,19 +883,21 @@ class VLANModel(DiffSyncModel):
 
     @field_validator("vid")
     @classmethod
-    def validate_vid(cls, v):
+    def validate_vid(cls, value):
         """Validate VLAN ID is within valid range."""
-        if not isinstance(v, int) or v < constants.MIN_VLAN_ID or v > constants.MAX_VLAN_ID:
-            raise ValueError(f"VLAN ID must be between {constants.MIN_VLAN_ID} and {constants.MAX_VLAN_ID}, got {v}")
-        return v
+        if not isinstance(value, int) or value < constants.MIN_VLAN_ID or value > constants.MAX_VLAN_ID:
+            raise ValueError(
+                f"VLAN ID must be between {constants.MIN_VLAN_ID} and {constants.MAX_VLAN_ID}, got {value}"
+            )
+        return value
 
     @field_validator("name")
     @classmethod
-    def validate_name(cls, v):
+    def validate_name(cls, value):
         """Ensure VLAN name is present."""
-        if not v or not v.strip():
+        if not value or not value.strip():
             raise ValueError("VLAN name cannot be empty")
-        return v.strip()
+        return value.strip()
 
 
 class NautobotVLANModel(NautobotModel):
@@ -988,7 +996,7 @@ class NautobotVLANModel(NautobotModel):
 
             return new_vlan_obj
 
-        except (KeyError, AttributeError, TypeError, ValueError) as e:
+        except (KeyError, AttributeError, TypeError, ValueError) as exception:
             if adapter.job:
-                adapter.job.logger.warning(f"Error in VLAN create method: {e}, falling back to default create")
+                adapter.job.logger.warning(f"Error in VLAN create method: {exception}, falling back to default create")
             return super().create(adapter, ids, attrs)

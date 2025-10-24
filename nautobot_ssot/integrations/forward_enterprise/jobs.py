@@ -17,6 +17,7 @@ from nautobot_ssot.jobs.base import DataMapping, DataSource
 name = "SSoT - Forward Enterprise"  # pylint: disable=invalid-name
 
 
+# pylint: disable=too-many-instance-attributes
 class ForwardEnterpriseDataSource(DataSource, Job):
     """Forward Enterprise Single Source of Truth Data Source.
 
@@ -165,7 +166,7 @@ class ForwardEnterpriseDataSource(DataSource, Job):
             self.logger.info("Sorting relationships for consistent ordering...")
             sort_relationships(self.source_adapter, self.target_adapter)
 
-    # pylint: disable=too-many-arguments, arguments-differ, too-many-positional-arguments
+    # pylint: disable=too-many-arguments, arguments-differ
     def run(
         self,
         dryrun,
@@ -281,6 +282,7 @@ class ForwardEnterpriseDataSource(DataSource, Job):
                         continue
 
                     # Use shared method to assign VRFs (eliminates code duplication)
+                    # pylint: disable=protected-access
                     assigned, failed = NautobotPrefixModel._assign_vrfs_to_prefix(
                         django_prefix=django_prefix,
                         vrfs=prefix_model.vrfs,
@@ -296,14 +298,14 @@ class ForwardEnterpriseDataSource(DataSource, Job):
                 except Prefix.DoesNotExist:
                     # Prefix doesn't exist - this is fine, might have been deleted or not created
                     continue
-                except Exception as e:
+                except Exception as exception:  # pylint: disable=broad-exception-caught
                     self.logger.warning(
-                        f"Error assigning VRFs to prefix {prefix_model.network}/{prefix_model.prefix_length}: {e}"
+                        f"Error assigning VRFs to prefix {prefix_model.network}/{prefix_model.prefix_length}: {exception}"
                     )
                     total_failed += 1
 
-        except Exception as e:
-            self.logger.error(f"Error during post-sync VRF assignment: {e}")
+        except Exception as exception:  # pylint: disable=broad-exception-caught
+            self.logger.error("Error during post-sync VRF assignment: %s", exception)
             return
 
         # Log summary

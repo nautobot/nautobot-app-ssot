@@ -42,12 +42,11 @@ def get_or_create_location_for_vlan_group(location_name, adapter_job=None):
 
         return location, location_created
 
-    except (ValidationError, ValueError, TypeError) as e:
+    except (ValidationError, ValueError, TypeError) as exception:
         if adapter_job:
-            adapter_job.logger.warning("Could not create/find location '%s': %s", location_name, e)
+            adapter_job.logger.warning("Could not create/find location '%s': %s", location_name, exception)
         return None, False
-    # pylint: disable=broad-exception-caught
-    except Exception as exc:
+    except Exception as exc:  # pylint: disable=broad-exception-caught
         if adapter_job:
             adapter_job.logger.error(f"Unexpected error handling location '{location_name}': {exc}")
         return None, False
@@ -73,5 +72,5 @@ def normalize_location_name(name):
     """Normalize location name to a canonical value for SSoT/Forward Enterprise."""
     if name is None:
         return "Unknown"
-    s = str(name).strip()
-    return "Unknown" if s.lower() in ("", "unknown", "null", "none") else s
+    normalized = str(name).strip()
+    return "Unknown" if normalized.lower() in ("", "unknown", "null", "none") else normalized

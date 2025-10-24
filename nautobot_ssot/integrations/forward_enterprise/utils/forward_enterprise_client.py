@@ -118,7 +118,7 @@ class ForwardEnterpriseClient:
         cleaned_query = re.sub(r"\s+", " ", cleaned_query)
         return cleaned_query
 
-    # pylint: disable=too-many-arguments, too-many-branches, too-many-locals, too-many-positional-arguments, too-many-statements
+    # pylint: disable=too-many-arguments, too-many-branches, too-many-locals, too-many-statements
     def execute_nqe_query(
         self,
         query: Optional[str] = None,
@@ -221,10 +221,10 @@ class ForwardEnterpriseClient:
 
             try:
                 data = response.json()
-            except ValueError as e:
+            except ValueError as exception:
                 raise ForwardEnterpriseAPIError(
-                    f"Invalid JSON response from API: {e}", response_content=response.text
-                ) from e
+                    f"Invalid JSON response from API: {exception}", response_content=response.text
+                ) from exception
 
             # Handle API-level errors in response
             if isinstance(data, dict) and data.get("error"):
@@ -248,21 +248,21 @@ class ForwardEnterpriseClient:
 
             return result
 
-        except requests.exceptions.ConnectionError as e:
-            error_msg = f"Connection failed to Forward Enterprise: {e}"
+        except requests.exceptions.ConnectionError as exception:
+            error_msg = f"Connection failed to Forward Enterprise: {exception}"
             if self.job:
                 self.job.logger.error(error_msg)
-            raise ForwardEnterpriseConnectionError(error_msg) from e
-        except requests.exceptions.Timeout as e:
-            error_msg = f"Request timeout to Forward Enterprise: {e}"
+            raise ForwardEnterpriseConnectionError(error_msg) from exception
+        except requests.exceptions.Timeout as exception:
+            error_msg = f"Request timeout to Forward Enterprise: {exception}"
             if self.job:
                 self.job.logger.error(error_msg)
-            raise ForwardEnterpriseConnectionError(error_msg) from e
-        except requests.exceptions.RequestException as e:
-            error_msg = f"HTTP request failed: {e}"
+            raise ForwardEnterpriseConnectionError(error_msg) from exception
+        except requests.exceptions.RequestException as exception:
+            error_msg = f"HTTP request failed: {exception}"
             if self.job:
                 self.job.logger.error(error_msg)
-            raise ForwardEnterpriseAPIError(error_msg) from e
+            raise ForwardEnterpriseAPIError(error_msg) from exception
 
     # Query configuration mappings
     QUERY_MAPPINGS = {

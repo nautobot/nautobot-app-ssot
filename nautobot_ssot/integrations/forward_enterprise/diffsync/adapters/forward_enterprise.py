@@ -1,5 +1,5 @@
 """Forward Enterprise adapter for nautobot-ssot plugin."""
-# pylint: disable=R0801,too-many-instance-attributes,too-many-arguments,too-many-positional-arguments,too-many-locals,too-many-branches,too-many-statements,too-many-return-statements
+# pylint: disable=R0801,too-many-instance-attributes,too-many-arguments,too-many-locals,too-many-branches,too-many-statements,too-many-return-statements
 
 import ipaddress
 from datetime import datetime
@@ -10,7 +10,7 @@ from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
 from nautobot.dcim.models import Device, Interface, Location
 from nautobot.extras.models import Tag
-from nautobot.ipam.models import VLAN, VRF, IPAddress, Prefix
+from nautobot.ipam.models import VLAN, VRF, IPAddress, Namespace, Prefix
 
 from nautobot_ssot.integrations.forward_enterprise import constants
 from nautobot_ssot.integrations.forward_enterprise.diffsync.models.models import (
@@ -103,9 +103,6 @@ class ForwardEnterpriseAdapter(DiffSync):
 
         # Handle namespace with default (adapter responsibility, not job responsibility)
         if namespace is None and sync_ipam:
-            # Import here to avoid circular imports
-            from nautobot.ipam.models import Namespace
-
             namespace = Namespace.objects.get(name="Global")
         self.namespace = namespace
 
@@ -299,13 +296,13 @@ class ForwardEnterpriseAdapter(DiffSync):
             # Create device model with validation
             device_model = self._create_device_model(device_data)
             self.add(device_model)
-        except ForwardEnterpriseError as e:
-            log_processing_warning(self.job.logger if self.job else None, "device", device_name, str(e))
+        except ForwardEnterpriseError as exception:
+            log_processing_warning(self.job.logger if self.job else None, "device", device_name, str(exception))
             # Continue processing with placeholder if needed
             placeholder = create_placeholder_device(device_name)
             self.add(placeholder)
-        except (ValueError, KeyError, AttributeError, TypeError) as e:
-            log_processing_error(self.job.logger if self.job else None, "device", device_name, e)
+        except (ValueError, KeyError, AttributeError, TypeError) as exception:
+            log_processing_error(self.job.logger if self.job else None, "device", device_name, exception)
             # Add placeholder device to prevent sync failures
             placeholder = create_placeholder_device(device_name)
             self.add(placeholder)
@@ -422,15 +419,18 @@ class ForwardEnterpriseAdapter(DiffSync):
                     try:
                         device = self.get("device", device_name)
                         device.add_child(interface)
-                    except (AttributeError, ObjectNotFound) as e:
+                    except (AttributeError, ObjectNotFound) as exception:
                         if self.job:
                             self.job.logger.warning(
-                                "Could not add interface %s as child of device %s: %s", interface_name, device_name, e
+                                "Could not add interface %s as child of device %s: %s",
+                                interface_name,
+                                device_name,
+                                exception,
                             )
-                except (ValueError, TypeError) as e:
+                except (ValueError, TypeError) as exception:
                     if self.job:
                         self.job.logger.warning(
-                            f"Failed to create interface {interface_name} for device {device_name}: {e}"
+                            f"Failed to create interface {interface_name} for device {device_name}: {exception}"
                         )
 
     # -----------------
@@ -597,10 +597,13 @@ class ForwardEnterpriseAdapter(DiffSync):
                 try:
                     device = self.get("device", device_name)
                     device.add_child(interface)
-                except (AttributeError, ObjectNotFound) as e:
+                except (AttributeError, ObjectNotFound) as exception:
                     if self.job:
                         self.job.logger.warning(
-                            "Could not add interface %s as child of device %s: %s", interface_name, device_name, e
+                            "Could not add interface %s as child of device %s: %s",
+                            interface_name,
+                            device_name,
+                            exception,
                         )
 
             except ObjectAlreadyExists:
@@ -823,9 +826,9 @@ class ForwardEnterpriseAdapter(DiffSync):
                 # Create IP assignment to interface (this can have duplicates for different interfaces)
                 self.load_ipassignment(ip_address, device_name, interface_name)
 
-            except (KeyError, ValueError, TypeError) as e:
+            except (KeyError, ValueError, TypeError) as exception:
                 if self.job:
-                    self.job.logger.warning("Failed to process IPAM record %s: %s", ipam_record, e)
+                    self.job.logger.warning("Failed to process IPAM record %s: %s", ipam_record, exception)
 
     def load_vlans(self):
         """Extract and load VLAN information from interface names and data, scoped by location."""

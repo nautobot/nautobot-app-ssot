@@ -39,10 +39,10 @@ class NautobotDiffSyncAdapter(NautobotAdapter):
                     try:
                         # Test if location access works (this will raise RelatedObjectDoesNotExist if broken)
                         _ = database_object.location
-                    except (ObjectDoesNotExist, AttributeError) as e:
+                    except (ObjectDoesNotExist, AttributeError) as exception:
                         if self.job:
                             self.job.logger.warning(
-                                "Skipping device %s due to broken location reference: %s", database_object.name, str(e)
+                                "Skipping device %s due to broken location reference: %s", database_object.name, str(exception)
                             )
                         continue
 
