@@ -73,7 +73,7 @@ def ensure_device_content_type_on_location_type(location_type_name: str = "Site"
         location_type, _ = LocationType.objects.get_or_create(
             name=location_type_name,
             defaults={
-                "description": f"Location type created by Forward Enterprise integration",
+                "description": "Location type created by Forward Enterprise integration",
             },
         )
 
