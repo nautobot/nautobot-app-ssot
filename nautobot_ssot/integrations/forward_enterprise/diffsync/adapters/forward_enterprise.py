@@ -35,7 +35,10 @@ from nautobot_ssot.integrations.forward_enterprise.utils.diffsync import (
 )
 from nautobot_ssot.integrations.forward_enterprise.utils.forward_enterprise_client import ForwardEnterpriseClient
 from nautobot_ssot.integrations.forward_enterprise.utils.location_helpers import normalize_location_name
-from nautobot_ssot.integrations.forward_enterprise.utils.nautobot import prefetch_nautobot_objects
+from nautobot_ssot.integrations.forward_enterprise.utils.nautobot import (
+    ensure_device_content_type_on_location_type,
+    prefetch_nautobot_objects,
+)
 from nautobot_ssot.integrations.forward_enterprise.utils.vlan_extraction import (
     create_vlan_group_name,
     extract_vlans_by_location,
@@ -78,9 +81,18 @@ class ForwardEnterpriseAdapter(DiffSync):
         job,
         sync_interfaces=False,
         sync_ipam=False,
+        namespace=None,
         **kwargs,
     ):
-        """Initialize the Forward Enterprise adapter."""
+        """Initialize the Forward Enterprise adapter.
+
+        Args:
+            job: The Nautobot job instance
+            sync_interfaces: Whether to sync interface data
+            sync_ipam: Whether to sync IPAM data (VRFs, Prefixes, IPs)
+            namespace: Nautobot Namespace object for IPAM objects (defaults to Global if None)
+            **kwargs: Additional keyword arguments for parent class
+        """
         self.job = job
         self.sync_interfaces = sync_interfaces
         self.sync_ipam = sync_ipam
@@ -89,6 +101,14 @@ class ForwardEnterpriseAdapter(DiffSync):
         self.ipam_data = []
         self.loaded_vrfs = set()  # Track loaded VRFs to prevent duplicates
 
+        # Handle namespace with default (adapter responsibility, not job responsibility)
+        if namespace is None and sync_ipam:
+            # Import here to avoid circular imports
+            from nautobot.ipam.models import Namespace
+
+            namespace = Namespace.objects.get(name="Global")
+        self.namespace = namespace
+
         # Get verify_ssl from job's External Integration
         verify_ssl = job.credentials.verify_ssl if job and hasattr(job, "credentials") else True
 
@@ -96,7 +116,7 @@ class ForwardEnterpriseAdapter(DiffSync):
         self.client = ForwardEnterpriseClient(job=job, verify_ssl=verify_ssl)
 
         # Filter out old query parameters that are no longer supported
-        filtered_kwargs = {k: v for k, v in kwargs.items() if k not in ["query", "query_id"]}
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k not in ["query", "query_id", "namespace"]}
         super().__init__(**filtered_kwargs)
 
     def load_tags(self):
@@ -140,6 +160,10 @@ class ForwardEnterpriseAdapter(DiffSync):
 
     def load_locations(self):
         """Load locations from Forward Enterprise data."""
+        # Ensure the location type allows devices to be assigned to it
+        # This prevents "Devices may not associate to locations of type X" errors
+        ensure_device_content_type_on_location_type(constants.DEFAULT_LOCATION_TYPE)
+
         locations = set()
         for device in self.devices_data:
             raw_name = device.get("location")
@@ -148,7 +172,7 @@ class ForwardEnterpriseAdapter(DiffSync):
                 try:
                     data = {
                         "name": location_name,
-                        "location_type__name": "Site",
+                        "location_type__name": constants.DEFAULT_LOCATION_TYPE,
                         "description": f"Location imported from {constants.SYSTEM_OF_RECORD}",
                         "status__name": "Active",
                         "tags": [{"name": f"SSoT Synced from {constants.SYSTEM_OF_RECORD}"}],
@@ -757,7 +781,9 @@ class ForwardEnterpriseAdapter(DiffSync):
             )
 
         # Create all VRFs first before processing prefixes
-        namespace = "Global"
+        # Use the configured namespace from the job, not hard-coded "Global"
+        namespace_obj = getattr(self, "namespace", None)
+        namespace = namespace_obj.name if namespace_obj else "Global"
         for vrf_name in unique_vrfs:
             if vrf_name:  # Skip None VRFs
                 self.load_vrf(vrf_name, namespace)

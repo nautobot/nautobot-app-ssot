@@ -620,20 +620,87 @@ class NautobotPrefixModel(NautobotModel):
         Optional[str], CustomFieldAnnotation(name="last_synced_from_sor", key="last_synced_from_sor")
     ] = None
 
+    @staticmethod
+    def _assign_vrfs_to_prefix(django_prefix, vrfs, adapter, log_prefix=""):
+        """Assign VRFs to a Django Prefix object.
+
+        This is a shared method used by both create() and the post-sync VRF assignment.
+        Eliminates code duplication and ensures consistent VRF handling.
+
+        Args:
+            django_prefix: Django Prefix model instance
+            vrfs: List of VRF references (dict or string format)
+            adapter: DiffSync adapter instance
+            log_prefix: Optional prefix for log messages
+
+        Returns:
+            tuple: (assigned_count, failed_count)
+        """
+        assigned_count = 0
+        failed_count = 0
+
+        for vrf_item in vrfs:
+            # Handle dict format (VRFDict) - this is the expected format from the adapter
+            if isinstance(vrf_item, dict):
+                vrf_name = vrf_item.get("name")
+                vrf_namespace = vrf_item.get("namespace__name")
+            # Handle string format for backward compatibility
+            elif isinstance(vrf_item, str) and "__" in vrf_item:
+                vrf_name, vrf_namespace = vrf_item.split("__", 1)
+            else:
+                if adapter and adapter.job:
+                    adapter.job.logger.warning(
+                        f"{log_prefix}Invalid VRF format: {vrf_item}, expected dict or 'vrf_name__namespace_name' string"
+                    )
+                failed_count += 1
+                continue
+
+            if vrf_name and vrf_namespace:
+                try:
+                    namespace = Namespace.objects.get(name=vrf_namespace)
+                    vrf_obj = VRF.objects.get(name=vrf_name, namespace=namespace)
+
+                    # Check if already assigned to avoid duplicate additions
+                    if not django_prefix.vrfs.filter(pk=vrf_obj.pk).exists():
+                        django_prefix.vrfs.add(vrf_obj)
+                        assigned_count += 1
+                        if adapter and adapter.job:
+                            adapter.job.logger.debug(
+                                f"{log_prefix}Assigned VRF {vrf_name} to prefix {django_prefix.network}/{django_prefix.prefix_length}"
+                            )
+
+                except Namespace.DoesNotExist:
+                    if adapter and adapter.job:
+                        adapter.job.logger.warning(
+                            f"{log_prefix}Namespace {vrf_namespace} does not exist for VRF {vrf_name}"
+                        )
+                    failed_count += 1
+                except VRF.DoesNotExist:
+                    if adapter and adapter.job:
+                        adapter.job.logger.debug(
+                            f"{log_prefix}VRF {vrf_name} (namespace: {vrf_namespace}) not yet created, will retry in post-sync"
+                        )
+                    failed_count += 1
+
+        return assigned_count, failed_count
+
     @classmethod
-    def create(cls, adapter, ids, attrs):  # pylint: disable=too-many-branches
-        """Create prefix with proper VRF assignment handling and graceful duplicate handling."""
+    def create(cls, adapter, ids, attrs):
+        """Create prefix with proper VRF assignment handling and graceful duplicate handling.
+
+        VRF assignment is attempted during create but may fail if VRFs don't exist yet.
+        The post-sync phase will retry any failed assignments after all objects are created.
+        """
         if adapter.job:
             adapter.job.logger.info("Creating Prefix: %s/%s", ids["network"], ids["prefix_length"])
-        try:  # pylint: disable=too-many-branches, too-many-nested-blocks
+        try:
             # Remove vrfs from attrs temporarily to avoid contrib model processing
             vrfs = attrs.pop("vrfs", [])
 
             # Create the prefix without VRFs first
             new_prefix_obj = super().create(adapter, ids, attrs)
 
-            # Handle VRF assignment manually if VRFs are specified
-            # pylint: disable=too-many-nested-blocks
+            # Handle VRF assignment if VRFs are specified
             if vrfs:
                 try:
                     # Get the actual Django model instance
@@ -643,26 +710,17 @@ class NautobotPrefixModel(NautobotModel):
                         namespace__name=ids["namespace__name"],
                     )
 
-                    # Process each VRF string in format "vrf_name__namespace_name"
-                    for vrf_str in vrfs:
-                        if "__" in vrf_str:
-                            vrf_name, vrf_namespace = vrf_str.split("__")
-                            try:
-                                namespace = Namespace.objects.get(name=vrf_namespace)
-                                vrf_obj = VRF.objects.get(name=vrf_name, namespace=namespace)
-                                django_prefix.vrfs.add(vrf_obj)
-                                if adapter.job:
-                                    adapter.job.logger.info(
-                                        f"Assigned VRF {vrf_name} to prefix {ids['network']}/{ids['prefix_length']}"
-                                    )
-                            except (Namespace.DoesNotExist, VRF.DoesNotExist) as e:
-                                if adapter.job:
-                                    adapter.job.logger.warning(f"Could not assign VRF {vrf_str} to prefix: {e}")
-                        else:
-                            if adapter.job:
-                                adapter.job.logger.warning(
-                                    f"Invalid VRF format: {vrf_str}, expected 'vrf_name__namespace_name'"
-                                )
+                    # Use shared method to assign VRFs (DRY principle)
+                    assigned, failed = cls._assign_vrfs_to_prefix(django_prefix, vrfs, adapter)
+
+                    if assigned > 0 and adapter.job:
+                        adapter.job.logger.info(
+                            f"Assigned {assigned} VRF(s) to prefix {ids['network']}/{ids['prefix_length']}"
+                        )
+                    if failed > 0 and adapter.job:
+                        adapter.job.logger.debug(
+                            f"Could not assign {failed} VRF(s) to prefix (will retry in post-sync)"
+                        )
 
                 except (KeyError, AttributeError, TypeError, ValueError) as e:
                     if adapter.job:

@@ -53,3 +53,8 @@ DEFAULT_MTU = 1500
 # VLAN ID Constraints
 MIN_VLAN_ID = 1
 MAX_VLAN_ID = 4094
+
+# Location Configuration
+# Location type to use for locations imported from Forward Enterprise
+# Must be a location type in Nautobot that allows device content type
+DEFAULT_LOCATION_TYPE = CONFIG.get("forward_enterprise_default_location_type", "Site")

@@ -266,11 +266,57 @@ LOGGING = {
 }
 ```
 
+## Advanced Configuration
+
+### Configurable Location Type
+
+By default, the integration creates locations with the "Site" LocationType. If your Nautobot instance uses a different location hierarchy, you can configure the location type via `nautobot_config.py`:
+
+```python
+PLUGINS_CONFIG = {
+    "nautobot_ssot": {
+        "forward_enterprise_default_location_type": "Building",  # or "Room", "Rack", etc.
+    }
+}
+```
+
+**Automatic LocationType Setup**: The integration automatically ensures that:
+- The specified LocationType exists (creates it if needed)
+- The LocationType allows Device content type
+- The LocationType allows Location content type (for hierarchical locations)
+
+This eliminates the need for manual LocationType configuration in Nautobot admin.
+
+### VRF Assignment Behavior
+
+The integration handles VRF-to-Prefix relationships with a two-phase approach:
+
+1. **Sync Phase**: VRFs and Prefixes are created, with VRF assignment attempted during prefix creation
+2. **Post-Sync Phase**: Any VRF assignments that failed (because VRFs weren't created yet) are automatically retried
+
+This ensures that all prefixes have their correct VRF assignments in a single sync run, even when VRFs are being created for the first time.
+
+**Logging**:
+- VRF assignments during sync are logged at DEBUG level (expected retries)
+- VRF assignments during post-sync are logged at INFO level (successful corrections)
+- Failed assignments are logged at WARNING level (configuration issues)
+
+### IPAM Namespace Configuration
+
+IPAM objects (VRFs, Prefixes, IP Addresses) are created in the namespace specified in the job configuration. If no namespace is specified, the "Global" namespace is used by default.
+
+The namespace parameter allows you to:
+- Segregate Forward Enterprise data from other sources
+- Support multi-tenancy scenarios
+- Maintain separate IP addressing schemes
+
 ## Best Practices
 
-1. **Start with Device Sync**: Enable only device synchronization initially
-2. **Test with Dry Run**: Always test with dry run enabled first
-3. **Use Tagged Sync**: Leverage tagged object filtering for selective sync
+1. **Start with Device Sync**: Enable only device synchronization initially to verify configuration
+2. **Test with Dry Run**: Always test with dry run enabled first to preview changes
+3. **Use Tagged Sync**: Leverage tagged object filtering for selective synchronization
 4. **Monitor Job Results**: Review sync details for any warnings or errors
 5. **Regular Sync Schedule**: Set up automated sync jobs for data freshness
 6. **Backup Before Sync**: Take database backups before large sync operations
+7. **Safe Mode Default**: Keep delete mode disabled unless you specifically need object cleanup
+8. **Review VRF Assignments**: Check post-sync logs to ensure all VRFs are properly assigned to prefixes

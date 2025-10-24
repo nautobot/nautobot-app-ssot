@@ -25,9 +25,14 @@ class NautobotDiffSyncAdapter(NautobotAdapter):
     """DiffSync adapter for Nautobot."""
 
     def _load_objects(self, diffsync_model):
-        """Given a diffsync model class, load a list of models from the database and return them. Passing in job kwargs for model filtering."""
+        """Given a diffsync model class, load a list of models from the database and return them.
+
+        Uses job instance attributes (sync_forward_tagged_only) for model filtering.
+        """
         parameter_names = self._get_parameter_names(diffsync_model)
-        for database_object in diffsync_model._get_queryset(data=self.job.kwargs):  # pylint: disable=W0212
+        # Build data dict from job attributes instead of job.kwargs
+        data = {"sync_forward_tagged_only": True}  # Always use tagged-only mode for Forward Enterprise
+        for database_object in diffsync_model._get_queryset(data=data):  # pylint: disable=W0212
             try:
                 # Special handling for DeviceModel to check for broken location references
                 if diffsync_model.__name__ == "DeviceModel":

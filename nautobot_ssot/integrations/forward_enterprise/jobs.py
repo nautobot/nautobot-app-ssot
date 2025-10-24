@@ -5,12 +5,13 @@ from django.templatetags.static import static
 from nautobot.core.utils.lookup import get_route_for_model
 from nautobot.extras.jobs import BooleanVar, Job, ObjectVar
 from nautobot.extras.models import ExternalIntegration
-from nautobot.ipam.models import Namespace
+from nautobot.ipam.models import Namespace, Prefix
 
 from nautobot_ssot.contrib.sorting import sort_relationships
 from nautobot_ssot.integrations.forward_enterprise import constants
 from nautobot_ssot.integrations.forward_enterprise.diffsync.adapters.forward_enterprise import ForwardEnterpriseAdapter
 from nautobot_ssot.integrations.forward_enterprise.diffsync.adapters.nautobot import NautobotDiffSyncAdapter
+from nautobot_ssot.integrations.forward_enterprise.diffsync.models.models import NautobotPrefixModel
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 
 name = "SSoT - Forward Enterprise"  # pylint: disable=invalid-name
@@ -64,8 +65,10 @@ class ForwardEnterpriseDataSource(DataSource, Job):
     def __init__(self, *args, **kwargs):
         """Initialize the ForwardEnterpriseDataSource job."""
         super().__init__(*args, **kwargs)
-        # Initialize kwargs attribute to avoid pylint warning
-        self.kwargs = {}
+        # Initialize sync flags as instance attributes (will be set in run())
+        self.sync_interfaces = False
+        self.sync_ipam = False
+        self.delete_objects = False
 
     class Meta:
         """Metadata for the ForwardEnterpriseDataSource job."""
@@ -132,28 +135,19 @@ class ForwardEnterpriseDataSource(DataSource, Job):
         """
         self.logger.info("Loading source adapter: Forward Enterprise")
 
-        # Get the actual values that will be passed to the adapter
-        sync_interfaces_value = bool(
-            self.kwargs.get("sync_interfaces") if hasattr(self, "kwargs") else getattr(self, "sync_interfaces", False)
-        )
-        sync_ipam_value = bool(
-            self.kwargs.get("sync_ipam") if hasattr(self, "kwargs") else getattr(self, "sync_ipam", False)
-        )
-
         # Log the effective adapter flags for clarity
         self.logger.info(
             "Source adapter flags: sync_interfaces=%s, sync_ipam=%s",
-            sync_interfaces_value,
-            sync_ipam_value,
+            self.sync_interfaces,
+            self.sync_ipam,
         )
 
         self.source_adapter = ForwardEnterpriseAdapter(
             job=self,
-            sync_interfaces=sync_interfaces_value,
-            sync_ipam=sync_ipam_value,
+            sync_interfaces=self.sync_interfaces,
+            sync_ipam=self.sync_ipam,
+            namespace=self.namespace,
         )
-        # Pass namespace to adapter for IPAM operations
-        self.source_adapter.namespace = self.namespace
         self.source_adapter.load()
 
     def load_target_adapter(self):
@@ -199,11 +193,12 @@ class ForwardEnterpriseDataSource(DataSource, Job):
         """
         self.logger.info("Running Forward Enterprise DataSource job")
 
-        # Store job parameters as instance attributes
+        # Store job parameters as instance attributes (standard pattern from Device42/ACI)
         self.credentials = credentials
         self.namespace = namespace
-        if not self.namespace:
-            self.namespace = Namespace.objects.get(name="Global")
+        self.sync_interfaces = sync_interfaces
+        self.sync_ipam = sync_ipam
+        self.delete_objects = delete_objects
 
         # Configure DiffSync flags based on delete_objects parameter
         if delete_objects:
@@ -222,17 +217,104 @@ class ForwardEnterpriseDataSource(DataSource, Job):
                 "To enable deletions, use the 'Delete Unmatched Objects' option."
             )
 
-        # Store sync options in kwargs for access by adapters
-        # Always use tagged-only mode for Forward Enterprise integration
-        self.kwargs = {
-            "sync_forward_tagged_only": True,  # Always use tagged-only mode
-            "sync_interfaces": sync_interfaces,
-            "sync_ipam": sync_ipam,
-            "delete_objects": delete_objects,
-        }
-
         # Call parent run method to execute the sync
         super().run(dryrun=dryrun, memory_profiling=memory_profiling, *args, **kwargs)
+
+    def execute_sync(self):
+        """Execute the sync and then assign VRFs to prefixes that were created during sync.
+
+        This overrides the base execute_sync to add a post-sync VRF assignment phase.
+        This is necessary because DiffSync doesn't guarantee that VRF objects are created
+        in the database before Prefix objects try to reference them, even though VRFs
+        appear before Prefixes in the top_level list.
+        """
+        # First, execute the normal sync
+        super().execute_sync()
+
+        # Then, assign VRFs to any prefixes that are missing VRF assignments
+        # This ensures VRFs are properly linked even if they were created in the same sync
+        self._assign_vrfs_to_prefixes()
+
+    def _assign_vrfs_to_prefixes(self):
+        """Assign VRFs to prefixes after sync completes.
+
+        During the sync phase, Prefix.create() may try to assign VRFs that don't exist yet
+        in the Nautobot database. This method retries VRF assignment for all prefixes that
+        have VRF references in the source adapter but failed to get VRFs assigned during
+        the initial create.
+
+        Uses the shared _assign_vrfs_to_prefix() method from NautobotPrefixModel to ensure
+        consistent logic and eliminate code duplication (DRY principle).
+        """
+        if not self.source_adapter or not hasattr(self.source_adapter, "get_all"):
+            return
+
+        self.logger.info("Post-sync: Assigning VRFs to prefixes...")
+
+        total_assigned = 0
+        total_failed = 0
+        prefixes_processed = 0
+
+        try:
+            # Get all prefix models from the source adapter
+            prefix_models = list(self.source_adapter.get_all("prefix"))
+
+            for prefix_model in prefix_models:
+                # Skip prefixes without VRF references
+                if not prefix_model.vrfs:
+                    continue
+
+                try:
+                    # Get the actual Django Prefix object
+                    django_prefix = Prefix.objects.get(
+                        network=prefix_model.network,
+                        prefix_length=prefix_model.prefix_length,
+                        namespace__name=prefix_model.namespace__name,
+                    )
+
+                    # Check if prefix already has VRFs assigned
+                    current_vrf_count = django_prefix.vrfs.count()
+                    expected_vrf_count = len(prefix_model.vrfs)
+
+                    # If VRF count matches, skip this prefix
+                    if current_vrf_count == expected_vrf_count:
+                        continue
+
+                    # Use shared method to assign VRFs (eliminates code duplication)
+                    assigned, failed = NautobotPrefixModel._assign_vrfs_to_prefix(
+                        django_prefix=django_prefix,
+                        vrfs=prefix_model.vrfs,
+                        adapter=self.source_adapter,
+                        log_prefix="Post-sync: ",
+                    )
+
+                    total_assigned += assigned
+                    total_failed += failed
+                    if assigned > 0 or failed > 0:
+                        prefixes_processed += 1
+
+                except Prefix.DoesNotExist:
+                    # Prefix doesn't exist - this is fine, might have been deleted or not created
+                    continue
+                except Exception as e:
+                    self.logger.warning(
+                        f"Error assigning VRFs to prefix {prefix_model.network}/{prefix_model.prefix_length}: {e}"
+                    )
+                    total_failed += 1
+
+        except Exception as e:
+            self.logger.error(f"Error during post-sync VRF assignment: {e}")
+            return
+
+        # Log summary
+        if total_assigned > 0:
+            self.logger.info(
+                f"Post-sync: Assigned {total_assigned} VRF-to-Prefix relationship(s) across {prefixes_processed} prefix(es)"
+            )
+        if total_failed > 0:
+            self.logger.warning(f"Post-sync: Failed to assign {total_failed} VRF-to-Prefix relationship(s)")
+        if total_assigned == 0 and total_failed == 0:
+            self.logger.info("Post-sync: No VRF assignments needed (all prefixes already have correct VRFs)")
 
 
 jobs = [ForwardEnterpriseDataSource]

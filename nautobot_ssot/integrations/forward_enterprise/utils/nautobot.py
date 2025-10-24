@@ -2,7 +2,7 @@
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ObjectDoesNotExist
-from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer, Platform
+from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Manufacturer, Platform
 from nautobot.extras.models import Role, Status
 from nautobot.ipam.models import VRF, Namespace, VLANGroup
 
@@ -54,6 +54,42 @@ def prefetch_nautobot_objects():
     list(Platform.objects.select_related("manufacturer").all())
     list(VRF.objects.select_related("namespace").all())
     list(Namespace.objects.all())
+
+
+def ensure_device_content_type_on_location_type(location_type_name: str = "Site"):
+    """Ensure that Device content type is added to the specified location type.
+
+    This allows devices to be assigned to locations of this type.
+    If the location type doesn't exist, it will be created.
+
+    Args:
+        location_type_name (str): The name of the location type to update. Defaults to "Site".
+    """
+    try:
+        device_content_type = ContentType.objects.get_for_model(Device)
+        location_content_type = ContentType.objects.get_for_model(Location)
+
+        # Get or create the location type
+        location_type, _ = LocationType.objects.get_or_create(
+            name=location_type_name,
+            defaults={
+                "description": f"Location type created by Forward Enterprise integration",
+            },
+        )
+
+        # Ensure Device content type is enabled
+        if device_content_type not in location_type.content_types.all():
+            location_type.content_types.add(device_content_type)
+
+        # Ensure Location content type is enabled (locations can have parent locations)
+        if location_content_type not in location_type.content_types.all():
+            location_type.content_types.add(location_content_type)
+
+        location_type.save()
+
+    except ContentType.DoesNotExist:
+        # If content type doesn't exist, we'll skip this step
+        pass
 
 
 def ensure_vlan_group_content_type_on_location_type(location_type_name: str = "Site"):
