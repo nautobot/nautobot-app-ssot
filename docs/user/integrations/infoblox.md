@@ -12,7 +12,7 @@ Below are the data mappings between objects within Infoblox and the correspondin
 | IP Address               | IP Address    |
 | VLAN                     | VLAN          |
 | VLAN view                | VLAN Group    |
-| Network container        | Aggregate     |
+| Network container        | Prefix.       |
 | Extensibility Attributes | Custom Fields |
 
 ## Extensibility Attributes
