@@ -8,7 +8,7 @@ try:
 except ImportError:
     ObjectCrudException = Exception  # Fallback for when diffsync is not available
 
-from nautobot_ssot.integrations.forward_enterprise.diffsync.models.models import (
+from nautobot_ssot.integrations.forward_enterprise.diffsync.models import (
     DeviceModel,
     InterfaceModel,
     IPAddressModel,
@@ -90,11 +90,11 @@ class TestForwardEnterpriseModels(TestCase):
 
     def test_ipaddress_model_uid(self):
         """Test IPAddressModel unique ID generation."""
-        ip = IPAddressModel(
+        ip_address = IPAddressModel(
             host="10.100.0.135", mask_length=31, parent__network="10.100.0.134", parent__prefix_length=31
         )
         expected_uid = "10.100.0.135__31"
-        self.assertEqual(ip.get_unique_id(), expected_uid)
+        self.assertEqual(ip_address.get_unique_id(), expected_uid)
 
     def test_location_model_uid(self):
         """Test LocationModel unique ID generation."""
@@ -165,7 +165,7 @@ class TestForwardEnterpriseModels(TestCase):
         mock_adapter.job.logger = Mock()
 
         # Test IP Address duplicate handling
-        with patch("nautobot_ssot.integrations.forward_enterprise.diffsync.models.models.super") as mock_super:
+        with patch("nautobot_ssot.integrations.forward_enterprise.diffsync.models.nautobot.super") as mock_super:
             mock_super().create.side_effect = ObjectCrudException("IP address with this Parent and Host already exists")
 
             # Provide required identifiers for IPAddress
@@ -176,7 +176,7 @@ class TestForwardEnterpriseModels(TestCase):
             # The duplicate handling doesn't log warnings, just returns None
 
         # Test Prefix duplicate handling
-        with patch("nautobot_ssot.integrations.forward_enterprise.diffsync.models.models.super") as mock_super:
+        with patch("nautobot_ssot.integrations.forward_enterprise.diffsync.models.nautobot.super") as mock_super:
             mock_super().create.side_effect = ObjectCrudException("prefix already exists")
 
             # Provide required identifiers for Prefix
@@ -185,7 +185,7 @@ class TestForwardEnterpriseModels(TestCase):
             self.assertIsNone(result)
 
         # Test VLAN duplicate handling
-        with patch("nautobot_ssot.integrations.forward_enterprise.diffsync.models.models.super") as mock_super:
+        with patch("nautobot_ssot.integrations.forward_enterprise.diffsync.models.nautobot.super") as mock_super:
             mock_super().create.side_effect = ObjectCrudException("VLAN with this already exists")
 
             # Provide required identifiers for VLAN

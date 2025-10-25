@@ -6,9 +6,7 @@ from typing import Any, Dict
 from diffsync import DiffSyncModelFlags
 
 from nautobot_ssot.integrations.forward_enterprise import constants
-from nautobot_ssot.integrations.forward_enterprise.diffsync.models.models import (
-    DeviceModel,
-)
+from nautobot_ssot.integrations.forward_enterprise.diffsync.models import DeviceModel
 
 
 def create_placeholder_device(device_name: str, **kwargs) -> DeviceModel:

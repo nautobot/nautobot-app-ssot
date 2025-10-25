@@ -11,7 +11,7 @@ from nautobot_ssot.contrib.sorting import sort_relationships
 from nautobot_ssot.integrations.forward_enterprise import constants
 from nautobot_ssot.integrations.forward_enterprise.diffsync.adapters.forward_enterprise import ForwardEnterpriseAdapter
 from nautobot_ssot.integrations.forward_enterprise.diffsync.adapters.nautobot import NautobotDiffSyncAdapter
-from nautobot_ssot.integrations.forward_enterprise.diffsync.models.models import NautobotPrefixModel
+from nautobot_ssot.integrations.forward_enterprise.diffsync.models import NautobotPrefixModel
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 
 name = "SSoT - Forward Enterprise"  # pylint: disable=invalid-name
@@ -300,7 +300,10 @@ class ForwardEnterpriseDataSource(DataSource, Job):
                     continue
                 except Exception as exception:  # pylint: disable=broad-exception-caught
                     self.logger.warning(
-                        f"Error assigning VRFs to prefix {prefix_model.network}/{prefix_model.prefix_length}: {exception}"
+                        "Error assigning VRFs to prefix %s/%s: %s",
+                        prefix_model.network,
+                        prefix_model.prefix_length,
+                        exception,
                     )
                     total_failed += 1
 
@@ -311,10 +314,12 @@ class ForwardEnterpriseDataSource(DataSource, Job):
         # Log summary
         if total_assigned > 0:
             self.logger.info(
-                f"Post-sync: Assigned {total_assigned} VRF-to-Prefix relationship(s) across {prefixes_processed} prefix(es)"
+                "Post-sync: Assigned %s VRF-to-Prefix relationship(s) across %s prefix(es)",
+                total_assigned,
+                prefixes_processed,
             )
         if total_failed > 0:
-            self.logger.warning(f"Post-sync: Failed to assign {total_failed} VRF-to-Prefix relationship(s)")
+            self.logger.warning("Post-sync: Failed to assign %s VRF-to-Prefix relationship(s)", total_failed)
         if total_assigned == 0 and total_failed == 0:
             self.logger.info("Post-sync: No VRF assignments needed (all prefixes already have correct VRFs)")
 

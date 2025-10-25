@@ -5,7 +5,7 @@ from diffsync.exceptions import ObjectAlreadyExists
 from django.core.exceptions import ObjectDoesNotExist
 
 from nautobot_ssot.contrib import NautobotAdapter
-from nautobot_ssot.integrations.forward_enterprise.diffsync.models.models import (
+from nautobot_ssot.integrations.forward_enterprise.diffsync.models import (
     DeviceModel,
     DeviceTypeModel,
     InterfaceModel,

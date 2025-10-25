@@ -13,7 +13,7 @@ from nautobot.extras.models import Tag
 from nautobot.ipam.models import VLAN, VRF, IPAddress, Namespace, Prefix
 
 from nautobot_ssot.integrations.forward_enterprise import constants
-from nautobot_ssot.integrations.forward_enterprise.diffsync.models.models import (
+from nautobot_ssot.integrations.forward_enterprise.diffsync.models import (
     DeviceModel,
     DeviceTypeModel,
     InterfaceModel,
