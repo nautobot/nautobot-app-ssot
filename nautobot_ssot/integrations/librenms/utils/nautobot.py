@@ -1,5 +1,7 @@
 """Utility functions for working with Nautobot."""
 
+# pylint: disable=duplicate-code
+
 from uuid import UUID
 
 from django.contrib.contenttypes.models import ContentType
@@ -41,29 +43,31 @@ def verify_platform(platform_name: str, manu: UUID) -> Platform:
     return platform_obj
 
 
-def add_software_lcm(diffsync, platform: str, version: str):
-    """Add OS Version as SoftwareLCM if Device Lifecycle Plugin found.
+if dlm_supports_softwarelcm():
 
-    Args:
-        diffsync (DiffSyncAdapter): DiffSync adapter with Job and maps.
-        platform (str): Name of platform to associate version to.
-        version (str): The software version to be created for specified platform.
+    def add_software_lcm(diffsync, platform: str, version: str):
+        """Add OS Version as SoftwareLCM if Device Lifecycle Plugin found.
 
-    Returns:
-        UUID: UUID of the OS Version that is being found or created.
-    """
-    platform_obj = Platform.objects.get(network_driver=platform)
-    try:
-        os_ver = SoftwareLCM.objects.get(device_platform=platform_obj, version=version).id
-    except SoftwareLCM.DoesNotExist:
-        diffsync.job.logger.info(f"Creating Version {version} for {platform}.")
-        os_ver = SoftwareLCM(
-            device_platform=platform_obj,
-            version=version,
-        )
-        os_ver.validated_save()
-        os_ver = os_ver.id
-    return os_ver
+        Args:
+            diffsync (DiffSyncAdapter): DiffSync adapter with Job and maps.
+            platform (str): Name of platform to associate version to.
+            version (str): The software version to be created for specified platform.
+
+        Returns:
+            UUID: UUID of the OS Version that is being found or created.
+        """
+        platform_obj = Platform.objects.get(network_driver=platform)
+        try:
+            os_ver = SoftwareLCM.objects.get(device_platform=platform_obj, version=version).id
+        except SoftwareLCM.DoesNotExist:
+            diffsync.job.logger.info(f"Creating Version {version} for {platform}.")
+            os_ver = SoftwareLCM(
+                device_platform=platform_obj,
+                version=version,
+            )
+            os_ver.validated_save()
+            os_ver = os_ver.id
+        return os_ver
 
 
 def assign_version_to_device(diffsync, device: Device, software_lcm: UUID):

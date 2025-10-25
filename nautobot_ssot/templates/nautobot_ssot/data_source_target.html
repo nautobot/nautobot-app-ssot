@@ -1,4 +1,4 @@
-{% extends 'generic/object_detail.html' %}
+{% extends "generic/object_detail.html" %}
 {% load helpers %}
 {% load render_table from django_tables2 %}
 
@@ -17,14 +17,14 @@
             <i class="mdi mdi-play"></i> Sync Now
         </a>
     </div>
-    <h1>{% block title %}SSoT - {{ object }}{% endblock %}</h1>
+    <h1>{% block title %}SSoT - {{ object }}{% endblock title %}</h1>
     <style>
         .mdi-database::before {
             font-size: 200px;
             line-height: 200px;
         }
     </style>
-{% endblock %}
+{% endblock header %}
 
 {% block content %}
     <div class="row">
@@ -115,4 +115,4 @@
             {% include table_template|default:'responsive_table.html' %}
         </div>
     </div>
-{% endblock %}
+{% endblock content %}

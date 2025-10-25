@@ -1,5 +1,30 @@
 ## Usage
 
+## Configuration
+
+The LibreNMS integration supports several configuration options that can be set in your `nautobot_config.py` file:
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `librenms_permitted_values` | dict | `{"role": ["network"]}` | Controls which device roles from LibreNMS are allowed to be imported into Nautobot. Only devices with roles listed in the `role` array will be synchronized. |
+| `librenms_allow_ip_hostnames` | boolean | `false` | Whether to allow devices with IP addresses as hostnames to be imported. |
+| `librenms_show_failures` | boolean | `true` | Whether to display detailed information about devices that failed to import. |
+
+### Example Configuration
+
+```python
+PLUGINS_CONFIG = {
+    "nautobot_ssot": {
+        "enable_librenms": True,
+        "librenms_permitted_values": {
+            "role": ["network", "access", "core", "distribution"],
+        },
+        "librenms_allow_ip_hostnames": False,
+        "librenms_show_failures": True,
+    }
+}
+```
+
 ## Process
 
 ### Shared Job Options

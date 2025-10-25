@@ -13,7 +13,6 @@ pip install nautobot-ssot[librenms]
 ```
 
 ## Configuration
-
 Once the SSoT package has been installed you simply need to enable the integration by setting `enable_librenms` to True.
 
 ```python
@@ -23,14 +22,18 @@ PLUGINS_CONFIG = {
   "nautobot_ssot": {
         # Other nautobot_ssot settings omitted.
         "enable_librenms": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_LIBRENMS", "true")),
+        "librenms_allow_ip_hostnames": is_truthy(os.getenv("NAUTOBOT_SSOT_LIBRENMS_ALLOW_IP_HOSTNAMES", "false")),
+        "librenms_permitted_values": {  # Allows the SSOT to only sync certain values from LibreNMS
+            "role": ["network"],
+        },
   }
 }
 ```
 
 ### External Integrations
 
-#### LibreNMS as DataSource
 
+#### LibreNMS as DataSource
 The way you add your LibreNMS server instance is through the "External Integrations" objects in Nautobot. First, create a secret in Nautobot with your LibreNMS API token using an Environment Variable (or sync via secrets provider). Then create a SecretsGroup object and select the Secret you just created and set the Access Type to `HTTP(S)` and the Secret Type to `Token`.
 
 Once this is created, go into the Extensibility Menu and select `External Integrations`. Add an External Intergration with the Remote URL being your LibreNMS server URL (including http(s)://), set the method to `GET`, and select any other headers/settings you might need for your specific instance. Select the secrets group you created as this will inject the API token. Once created, you will select this External Integration when you run the LibreNMS to Nautobot SSoT job.
@@ -38,9 +41,13 @@ Once this is created, go into the Extensibility Menu and select `External Integr
 ![LibreNMS External Integration](../../images/librenms-external-integration.png)
 
 #### LibreNMS as DataTarget
-
 NotYetImplemented
 
-### LibreNMS API
 
+### LibreNMS API
 An API key with global read-only permissions is the minimum needed to sync information from LibreNMS.
+
+
+### Field Validation
+
+Name, Role, DeviceType, Location, and Platform fields must have a populated string.  Cannot be None or an empty value.
