@@ -124,6 +124,7 @@ nav:
           - Slurpit: "user/integrations/slurpit.md"
           - SolarWinds: "user/integrations/solarwinds.md"
           - vSphere: "user/integrations/vsphere.md"
+          - Forward Enterprise: "user/integrations/forwardenterprise.md"
       - Modeling: "user/modeling.md"
       - Performance: "user/performance.md"
       - Frequently Asked Questions: "user/faq.md"

@@ -1,0 +1,1 @@
+"""Forward Enterprise adapter init."""
