@@ -1,4 +1,5 @@
 """Forward Enterprise Models for Forward Enterprise integration with SSoT app."""
+# pylint: disable=duplicate-code
 
 from typing import List, Optional
 
