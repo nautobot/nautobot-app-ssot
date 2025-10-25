@@ -62,8 +62,8 @@ invoke = "*"
 ipython = "*"
 jedi = "^0.17.2"
 pylint = "*"
-pylint-django = "*"
-pylint-nautobot = "*"
+pylint-django = ">=2.5.4"
+pylint-nautobot = ">=0.3.1"
 ruff = "0.5.5"
 yamllint = "*"
 markdown-include = "*"
@@ -81,6 +81,7 @@ parameterized = "^0.8.1"
 myst-parser = "^2.0.0"
 responses = "^0.14.0"
 virtualenv = "20.13.0"
+tomli = { version = "*", markers = "python_version < '3.11'" }  # tomli is included in the stdlib as of Python 3.11
 
 [tool.poetry.group.docs.dependencies]
 # Render custom markdown for version added/changed/remove notes
@@ -221,11 +222,6 @@ notes = """,
 [tool.pylint.similarities]
 min-similarity-lines = 7
 
-[tool.pylint-nautobot]
-supported_nautobot_versions = [
-    "2"
-]
-
 [tool.ruff]
 line-length = 120
 target-version = "py39"
@@ -303,6 +299,11 @@ filename = "docs/admin/release_notes/version_X.Y.md"
 template = "development/towncrier_template.j2"
 start_string = "<!-- towncrier release notes start -->"
 issue_format = "[#{issue}](https://github.com/nautobot/nautobot-app-ssot/issues/{issue})"
+
+[[tool.towncrier.type]]
+directory = "breaking"
+name = "Breaking Changes"
+showcontent = true
 
 [[tool.towncrier.type]]
 directory = "security"
