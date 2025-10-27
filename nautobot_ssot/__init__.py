@@ -125,7 +125,6 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "servicenow_username": "",
         "enable_global_search": True,
     }
-    caching_config = {}
     config_view_name = "plugins:nautobot_ssot:config"
     docs_view_name = "plugins:nautobot_ssot:docs"
     searchable_models = ["sync"]

@@ -2161,27 +2161,32 @@ class NautobotSecretsGroup(SecretsGroup):
         _new_secrets_group.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_secrets_group.validated_save()
 
-        for _secret in attrs["secrets"]:
-            try:
-                _orm_secret = ORMSecret.objects.get(name=_secret["name"])
-                _new_secrets_group.secrets.add(_orm_secret)
-                _new_secrets_group.validated_save()
-                _sga = _new_secrets_group.secrets_group_associations.get(secret__id=_orm_secret.id)
-                _sga.access_type = _secret["access_type"]
-                _sga.secret_type = _secret["secret_type"]
-                _sga.validated_save()
-                if METADATA_FOUND:
-                    metadata = add_or_update_metadata_on_object(
-                        adapter=adapter,
-                        obj=_new_secrets_group,
-                        scoped_fields=SCOPED_FIELDS_MAPPING,
+        if "secrets" in attrs:
+            for _secret in attrs["secrets"]:
+                try:
+                    _orm_secret = ORMSecret.objects.get(name=_secret["name"])
+                    try:
+                        _sga = _new_secrets_group.secrets_group_associations.get(secret__id=_orm_secret.id)
+                    except ORMSecretsGroupAssociation.DoesNotExist:
+                        _sga = ORMSecretsGroupAssociation(
+                            secrets_group=_new_secrets_group,
+                            secret=_orm_secret,
+                        )
+                    _sga.access_type = _secret["access_type"]
+                    _sga.secret_type = _secret["secret_type"]
+                    _sga.validated_save()
+                    if METADATA_FOUND:
+                        metadata = add_or_update_metadata_on_object(
+                            adapter=adapter,
+                            obj=_new_secrets_group,
+                            scoped_fields=SCOPED_FIELDS_MAPPING,
+                        )
+                        metadata.validated_save()
+                except ORMSecret.DoesNotExist:
+                    adapter.job.logger.warning(
+                        f"Secret - {_secret['name']} does not exist in Nautobot, ensure it is created."
                     )
-                    metadata.validated_save()
-                return super().create(adapter=adapter, ids=ids, attrs=attrs)
-            except ORMSecret.DoesNotExist:
-                adapter.job.logger.warning(
-                    f"Secret - {_secret['name']} does not exist in Nautobot, ensure it is created."
-                )
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update SecretsGroup in Nautobot from NautobotSecretsGroup object."""
