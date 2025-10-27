@@ -1,10 +1,11 @@
 """Extending vSphere SDK."""
 
+import json
 import logging
 import re
 import urllib.parse
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, List
 
 import requests
 import urllib3
@@ -156,3 +157,37 @@ class VsphereClient:  # pylint: disable=too-many-instance-attributes
             "GET",
             f"{self.vsphere_uri}/rest/vcenter/vm/{vm_id}/guest/networking/interfaces",
         )
+
+    def get_vm_guest_os(self, vm_id: str) -> Dict:
+        """Get VM guest OS details."""
+        return self._request(
+            "GET",
+            f"{self.vsphere_uri}/rest/vcenter/vm/{vm_id}/guest/identity",
+        )
+
+    def get_attached_tags_on_objects(self, object_ids: list) -> Dict:
+        """Get all tags associated with an object or objects."""
+        return self._request(
+            "POST",
+            f"{self.uri}/api/cis/tagging/tag-association?action=list-attached-tags-on-objects",
+            data=json.dumps({"object_ids": [object_ids]}),
+        )
+
+    def get_tags(self) -> List:
+        """Get all used tags."""
+        return self._request("GET", f"{self.vsphere_uri}/rest/com/vmware/cis/tagging/tag")
+
+    def get_tag_associations(self, tag_id: str) -> Dict:
+        """Get all objects associated with a given tag ID."""
+        return self._request(
+            "GET",
+            f"{self.vsphere_uri}/rest/com/vmware/cis/tagging/tag-association/{tag_id}/?action=list-attached-objects",
+        )
+
+    def get_tag_details(self, tag_id: str):
+        """Get the tag name from a given tag ID."""
+        return self._request("GET", f"{self.uri}/rest/com/vmware/cis/tagging/tag/id:{tag_id}")
+
+    def get_category_details(self, category_id: str):
+        """Get the tag category from a given tag ID."""
+        return self._request("GET", f"{self.uri}/rest/com/vmware/cis/tagging/category/id:{category_id}")

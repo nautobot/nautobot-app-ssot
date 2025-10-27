@@ -76,6 +76,10 @@ class TestVSphereDiffSyncModelsCreate(TestCase):
         ]:
             self.active_status.content_types.add(ContentType.objects.get_for_model(model))
             self.active_status.validated_save()
+        for tag_name in ["SSoT Synced from vSphere", "Owner__EEE"]:
+            tag, _ = Tag.objects.get_or_create(name=tag_name)
+            tag.content_types.add(ContentType.objects.get_for_model(VirtualMachine))
+            tag.validated_save()
 
     def test_clustergroup_creation(self):
         clustergroup_test = self.vsphere_adapter.clustergroup(name="TestClusterGroup")
@@ -122,8 +126,14 @@ class TestVSphereDiffSyncModelsCreate(TestCase):
             cluster_group=nb_clustergroup,
             cluster_type=nb_clustertype,
         )
+        owner_tag = self.vsphere_adapter.tag(name="Owner__EEE")
+        sync_tag = self.vsphere_adapter.tag(name="SSoT Synced from vSphere")
+        self.vsphere_adapter.add(owner_tag)
+        self.vsphere_adapter.add(sync_tag)
 
-        vm_test = self.vsphere_adapter.virtual_machine(**_get_virtual_machine_dict({"name": "TestVM"}))
+        vm_test = self.vsphere_adapter.virtual_machine(
+            **_get_virtual_machine_dict({"name": "TestVM", "tags": [{"name": "Owner__EEE"}]})
+        )
         self.vsphere_adapter.add(vm_test)
 
         nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
@@ -138,6 +148,8 @@ class TestVSphereDiffSyncModelsCreate(TestCase):
         self.assertEqual(nb_vm.memory, 4096)
         self.assertEqual(nb_vm.disk, 50)
         self.assertEqual(nb_vm.cluster.name, "TestCluster")
+        self.assertIn("SSoT Synced from vSphere", [tag.name for tag in nb_vm.tags.all()])
+        self.assertIn("Owner__EEE", [tag.name for tag in nb_vm.tags.all()])
 
     def test_vminterface_creation(self):
         nb_clustergroup, _ = ClusterGroup.objects.get_or_create(name="TestClusterGroup")
@@ -356,6 +368,19 @@ class TestVSphereDiffSyncModelsCreate(TestCase):
         self.assertEqual(nb_vm.cluster.name, "TestCluster")
         self.assertEqual(nb_vm.primary_ip.host, "2001:db8:85a3::8a2e:370:7334")
 
+    def test_tag_creation(self):
+        tag_test = self.vsphere_adapter.tag(name="Owner__EEE", description="", content_types=["VirtualMachine"])
+        self.vsphere_adapter.add(tag_test)
+
+        nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
+        nb_adapter.job = MagicMock()
+
+        nb_adapter.load()
+        self.vsphere_adapter.sync_to(nb_adapter)
+
+        nb_tag = Tag.objects.get(name="Owner__EEE")
+        self.assertEqual(nb_tag.name, "Owner__EEE")
+
 
 class TestVSphereDiffSyncModelsUpdate(TestCase):
     """Test cases for vSphere DiffSync models."""
@@ -370,6 +395,7 @@ class TestVSphereDiffSyncModelsUpdate(TestCase):
         )
         self.active_status, _ = Status.objects.get_or_create(name="Active")
         self.ssot_tag, _ = Tag.objects.get_or_create(name="SSoT Synced from vSphere")
+        self.operating_system_tag, _ = Tag.objects.get_or_create(name="Linux__Operating_System")
 
     def test_cluster_clustertype_update(self):
         ClusterGroup.objects.get_or_create(name="TestClusterGroup")
@@ -414,8 +440,22 @@ class TestVSphereDiffSyncModelsUpdate(TestCase):
             cluster=nb_cluster,
         )
         nb_vm.tags.set([self.ssot_tag])
+
+        owner_tag = self.vsphere_adapter.tag(name="Linux__Operating_System")
+        sync_tag = self.vsphere_adapter.tag(name="SSoT Synced from vSphere")
+        self.vsphere_adapter.add(owner_tag)
+        self.vsphere_adapter.add(sync_tag)
+
         vm_test = self.vsphere_adapter.virtual_machine(
-            **_get_virtual_machine_dict({"name": "TestVM", "vcpus": 100, "memory": 100, "disk": 100})
+            **_get_virtual_machine_dict(
+                {
+                    "name": "TestVM",
+                    "vcpus": 100,
+                    "memory": 100,
+                    "disk": 100,
+                    "tags": [{"name": "Linux__Operating_System"}],
+                }
+            )
         )
 
         self.vsphere_adapter.add(vm_test)
@@ -432,6 +472,7 @@ class TestVSphereDiffSyncModelsUpdate(TestCase):
         self.assertEqual(nb_vm.memory, 100)
         self.assertEqual(nb_vm.disk, 100)
         self.assertEqual(nb_vm.cluster.name, "TestCluster")
+        # self.assertEqual(1, 2)
 
     def test_vminterface_update(self):
         nb_clustergroup, _ = ClusterGroup.objects.get_or_create(name="TestClusterGroup")
@@ -802,6 +843,25 @@ class TestVSphereDiffSyncModelsUpdate(TestCase):
         self.assertEqual(nb_vm.name, "TestVM")
         self.assertEqual(nb_vm.primary_ip.host, "2001:db8:abcd:42::abcd")
 
+    def test_tag_update(self):
+        tag, _ = Tag.objects.get_or_create(name="Owner__EEE", description="")
+        tag.content_types.set([ContentType.objects.get_for_model(VirtualMachine)])
+
+        tag_test_updated = self.vsphere_adapter.tag(
+            name="Owner__EEE", description="Updated description", content_types=["VirtualMachine"]
+        )
+        self.vsphere_adapter.add(tag_test_updated)
+
+        nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
+        nb_adapter.job = MagicMock()
+
+        nb_adapter.load()
+        self.vsphere_adapter.sync_to(nb_adapter)
+
+        nb_tag = Tag.objects.get(name="Owner__EEE")
+        self.assertEqual(nb_tag.name, "Owner__EEE")
+        self.assertEqual(nb_tag.description, "Updated description")
+
 
 class TestVSphereDiffSyncModelsDelete(TestCase):
     """Test cases for vSphere DiffSync models and their delete attribute."""
@@ -995,3 +1055,16 @@ class TestVSphereDiffSyncModelsDelete(TestCase):
         nb_vm = VirtualMachine.objects.get(name="TestVM")
         self.assertEqual(nb_vm.name, "TestVM")
         self.assertEqual(nb_vm.primary_ip, None)
+
+    def test_tag_delete(self):
+        tag, _ = Tag.objects.get_or_create(name="Owner__EEE", description="")
+        tag.content_types.set([ContentType.objects.get_for_model(VirtualMachine)])
+
+        nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
+        nb_adapter.job = MagicMock()
+
+        nb_adapter.load()
+        self.vsphere_adapter.sync_to(nb_adapter)
+
+        with self.assertRaises(Tag.DoesNotExist):
+            Tag.objects.get(name="Owner__EEE")

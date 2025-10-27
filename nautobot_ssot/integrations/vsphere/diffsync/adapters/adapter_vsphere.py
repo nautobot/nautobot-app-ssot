@@ -12,6 +12,7 @@ from nautobot_ssot.integrations.vsphere.diffsync.models.vsphere import (
     ClusterModel,
     IPAddressModel,
     PrefixModel,
+    TagModel,
     VirtualMachineModel,
     VMInterfaceModel,
 )
@@ -57,6 +58,7 @@ def get_disk_total(disks: List):
 class VsphereDiffSync(Adapter):
     """vSphere adapter for DiffSync."""
 
+    tag = TagModel
     clustergroup = ClusterGroupModel
     cluster = ClusterModel
     virtual_machine = VirtualMachineModel
@@ -64,7 +66,7 @@ class VsphereDiffSync(Adapter):
     ip_address = IPAddressModel
     prefix = PrefixModel
 
-    top_level = ["prefix", "clustergroup", "virtual_machine", "ip_address"]
+    top_level = ["tag", "prefix", "clustergroup", "virtual_machine", "ip_address"]
 
     def __init__(self, *args, job=None, sync=None, client, config, cluster_filters, **kwargs):
         """Initialize the vSphereDiffSync."""
@@ -75,8 +77,18 @@ class VsphereDiffSync(Adapter):
         self.config = config
         self.cluster_filters = cluster_filters
         self.ip_address_map = {}
+        # Example Tag Map Format:
+        # [
+        #     {
+        #         "urn:vmomi:InventoryServiceTag:cb703991-b580-4751-ae2d-22c70a426311:GLOBAL": {
+        #             "name": "Tag1__Category1",
+        #             "associations": [{"id": "vm-1234", "type": "VirtualMachine"}],
+        #         }
+        #     }
+        # ]
+        self.tag_map = {}
 
-    def _add_diffsync_virtualmachine(self, virtual_machine, virtual_machine_details, cluster_name):
+    def _add_diffsync_virtualmachine(self, virtual_machine, virtual_machine_details, cluster_name, tags):
         """Add virtualmachine to DiffSync and call load_vm_interfaces().
 
         Args:
@@ -95,6 +107,7 @@ class VsphereDiffSync(Adapter):
                     get_disk_total(virtual_machine_details["disks"]) if virtual_machine_details.get("disks") else None
                 ),
                 "status__name": self.config.default_vm_status_map[virtual_machine["power_state"]],
+                "tags": tags,
             },
         )
         self.load_vm_interfaces(
@@ -102,6 +115,16 @@ class VsphereDiffSync(Adapter):
             vm_id=virtual_machine["vm"],
             diffsync_virtualmachine=diffsync_virtualmachine,
         )
+
+    def _create_vm_tag_list(self, vm_id):
+        """Create a list of tags associated to a Virtual Machine."""
+        tags = [{"name": "SSoT Synced from vSphere"}]
+        for tag_id, tag_data in self.tag_map.items():
+            for association in tag_data.get("associations"):
+                if association.get("id") == vm_id and association.get("type") == "VirtualMachine":
+                    tags.append({"name": tag_data["name"]})
+
+        return tags
 
     def load_cluster_groups(self):
         """Load Cluster Groups (DataCenters)."""
@@ -117,14 +140,18 @@ class VsphereDiffSync(Adapter):
         self.job.log_debug(message=f"Loading VirtualMachines from Cluster {cluster}: {virtual_machines}")
 
         for virtual_machine in virtual_machines:
-            virtual_machine_details = self.client.get_vm_details(virtual_machine["vm"]).json()["value"]
+            vm_id = virtual_machine["vm"]
+            virtual_machine_details = self.client.get_vm_details(vm_id).json()["value"]
             self.job.log_debug(message=f"Virtual Machine Details: {virtual_machine_details}")
             if virtual_machine.get("cpu_count") is None or virtual_machine.get("memory_size_MiB") is None:
                 self.job.logger.info(
                     f"Skipping Virtual Machine {virtual_machine['name']} due to missing CPU or Memory details."
                 )
                 continue
-            self._add_diffsync_virtualmachine(virtual_machine, virtual_machine_details, cluster["name"])
+
+            self._add_diffsync_virtualmachine(
+                virtual_machine, virtual_machine_details, cluster["name"], self._create_vm_tag_list(vm_id)
+            )
 
     def load_ip_addresses(
         self,
@@ -304,7 +331,8 @@ class VsphereDiffSync(Adapter):
         default_diffsync_clustergroup.add_child(default_diffsync_cluster)
         virtual_machines = self.client.get_vms().json()["value"]
         for virtual_machine in virtual_machines:
-            virtual_machine_details = self.client.get_vm_details(virtual_machine["vm"]).json()["value"]
+            vm_id = virtual_machine["vm"]
+            virtual_machine_details = self.client.get_vm_details(vm_id).json()["value"]
             self.job.log_debug(message=f"Virtual Machine Details: {virtual_machine_details}")
             if virtual_machine.get("cpu_count") is None or virtual_machine.get("memory_size_MiB") is None:
                 self.job.logger.info(
@@ -312,7 +340,10 @@ class VsphereDiffSync(Adapter):
                 )
                 continue
             self._add_diffsync_virtualmachine(
-                virtual_machine, virtual_machine_details, self.config.default_cluster_name
+                virtual_machine,
+                virtual_machine_details,
+                self.config.default_cluster_name,
+                self._create_vm_tag_list(vm_id),
             )
 
     def load_ip_map(self):
@@ -328,12 +359,34 @@ class VsphereDiffSync(Adapter):
                 {"vm_interfaces": info["vm_interfaces"]},
             )
 
+    def load_tags(self):
+        """Load all Tags from vSphere only if a tag is associated to a VirtualMachine."""
+        tags = self.client.get_tags()
+        self.job.log_debug(message=f"Loading Tags: {tags}")
+        for tag_id in tags:
+            associated_objects = self.client.get_tag_associations(tag_id=tag_id)
+            if "VirtualMachine" in [association.get("type") for association in associated_objects]:
+                tag_details = self.client.get_tag_details(tag_id=tag_id)
+                name = tag_details.get("name")
+                category_data = self.client.get_category_details(tag_details.get("category_id"))
+                category_name = category_data.get("name")
+                tag_name = f"{name}__{category_name}"
+                self.get_or_instantiate(
+                    self.tag,
+                    {"name": tag_name},
+                    {"description": tag_details.get("description", "")},
+                )
+
+                # Add tag info to tag_map for use with VMs later
+                self.tag_map[tag_id] = {"name": tag_name, "associations": associated_objects}
+
     def load(self):
         """Load data from vSphere."""
+        self.load_tags()
         if self.config.use_clusters:
             self.load_data()
         else:
             self.job.logger.info("Not syncing Clusters or Cluster Groups per user settings. Using default Cluster.")
             self.load_standalone_vms()
         self.load_ip_map()
-        self.job.logger.info("Finished loading data from vSphere.")
+        self.job.logger.info("Finished loading data from vSphere.")  #

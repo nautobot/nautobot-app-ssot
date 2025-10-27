@@ -39,6 +39,7 @@ Configuration instances contain the below settings:
 | Use Clusters                  | True                                                                           | Sync Cluster and ClusterGroups from vSphere. If set to False, a default Cluster and Clust Group will be used. |
 | Sync to Nautobot              | True                                                                           | Allows this config to be used in the job syncing from vSphere to Nautobot                                     |
 | Sync Tagged Only              | True                                                                           | Only take into consideration tagged VMs (on the Nautobot side) when performing the sync.                      |
+| Sync vSphere VM Tags          | True                                                                           | Sync tags from vSphere that are assigned to Virtual Machines.
 | Virtual Machine Status Map    | `{"POWERED_OFF": "Offline", "POWERED_ON": "Active", "SUSPENDED": "Suspended"}` | Maps vSphere Virtual Machine status to Nautobot status.                                                       |
 | Virtual Machine IP Status Map | `{"PREFERRED": "Active", "UNKNOWN": "Reserved"}`                               | Maps vSphere IP status to Nautobot status                                                                     |
 | Virtual Machine Interface Map | `{"CONNECTED": true, "NOT_CONNECTED": false}`                                  | Maps vSphere interface state to boolean values.                                                               |
@@ -105,6 +106,15 @@ Virtual Machine Interface Status Map is a mandatory setting used to map the stat
 }
 ```
 > Note: Installation of the vSphere integration will ensure that the above 2 Statuses exist. If you change this setting, you will have to ensure that the Nautobot Status you are mapping to has already been created. It is highly recommended to leave the default settings here.
+
+## Syncing vSphere Tags
+
+The tag structure in vSphere differs from that in Nautobot. In vSphere, each tag is defined by both its **category** and **name**, and the user interface displays them together. For example, if you have a category called Operating System with tags Windows and Linux, the tags assigned to virtual machines (VMs) appear as combinations of both—showing the tag name alongside its category.
+
+To maintain parity between the two systems, this SSoT sync creates Nautobot tags using the following format: `{tag_name}__{tag_category}`. Using the example above, the resultings tags in Nautobot would be: `Linux__Operating_System` and `Windows__Operating_System`
+
+> Note: In the event there are spaces in either the tag name or tag category, those spaces are replaced with underscores.
+
 ## Custom Fields, Statuses and Tags
 
 The vSphere Integration requires the following Nautobot Custom Fields and Tags to function correctly. These are created automatically when Nautobot is started and care should be taken to ensure these are not deleted. 

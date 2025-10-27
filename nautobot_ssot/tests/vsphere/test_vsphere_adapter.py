@@ -2,6 +2,7 @@
 
 import os
 import unittest
+from unittest.mock import Mock
 
 from nautobot_ssot.integrations.vsphere.diffsync.adapters.adapter_vsphere import (
     VsphereDiffSync,
@@ -79,6 +80,13 @@ class TestVsphereAdapter(unittest.TestCase):
             {"name": "HeshLawCluster", "cluster_type__name": "VMWare vSphere"},
         )
 
+        self.vsphere_adapter.tag_map = {
+            "urn:vmomi:InventoryServiceTag:cb703991-b580-4751-ae2d-22c70a426311:GLOBAL": {
+                "name": "Owner__EEE",
+                "associations": [{"type": "VirtualMachine", "id": "vm-1012"}],
+            }
+        }
+
         self.vsphere_adapter.load_virtualmachines(cluster_json_info, diffsync_cluster)
         vm1 = self.vsphere_adapter.get(
             "virtual_machine",
@@ -93,6 +101,8 @@ class TestVsphereAdapter(unittest.TestCase):
         self.assertEqual(vm1.cluster__name, "HeshLawCluster")
         self.assertEqual(vm1.primary_ip4__host, "192.168.2.88")
         self.assertEqual(vm1.primary_ip6__host, None)
+        self.assertEqual(len(vm1.tags), 2)
+        self.assertIn("Owner__EEE", [tag["name"] for tag in vm1.tags])
 
         vm2 = self.vsphere_adapter.get("virtual_machine", {"name": "Nautobot", "cluster__name": "HeshLawCluster"})
         self.assertEqual(vm2.name, "Nautobot")
@@ -102,6 +112,8 @@ class TestVsphereAdapter(unittest.TestCase):
         self.assertEqual(vm2.status__name, "Active")
         self.assertEqual(vm2.cluster__name, "HeshLawCluster")
         self.assertEqual(vm2.primary_ip4__host, "172.18.0.1")
+        self.assertEqual(len(vm2.tags), 1)
+        self.assertIn("SSoT Synced from vSphere", [tag["name"] for tag in vm2.tags])
 
     def test_load_vm_interfaces(self):
         vm_detail_json = json_fixture(f"{FIXTURES}/vm_details_nautobot.json")["value"]
@@ -229,3 +241,24 @@ class TestVsphereAdapter(unittest.TestCase):
         self.assertEqual(prefix.prefix_length, 64)
         self.assertEqual(prefix.namespace__name, "Global")
         self.assertEqual(prefix.type, "network")
+
+    def resp(self, data):
+        m = Mock()
+        m.json.return_value = data
+        return m
+
+    def test_load_tags(self):
+        """Test loading tags from vSphere."""
+        self.vsphere_adapter.client.get_tags.return_value = json_fixture(f"{FIXTURES}/get_tags.json")
+        self.vsphere_adapter.client.get_tag_associations.return_value = json_fixture(
+            f"{FIXTURES}/get_tag_associations.json"
+        )
+        self.vsphere_adapter.client.get_tag_details.return_value = json_fixture(f"{FIXTURES}/get_tag_details.json")
+        self.vsphere_adapter.client.get_category_details.return_value = json_fixture(
+            f"{FIXTURES}/get_category_details.json"
+        )
+
+        self.vsphere_adapter.load_tags()
+        tags = self.vsphere_adapter.get_all("tag")
+        self.assertEqual(len(tags), 1)
+        self.assertIn("Owner__EEE", [tag.name for tag in tags])
