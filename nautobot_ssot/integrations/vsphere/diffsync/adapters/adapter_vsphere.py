@@ -363,8 +363,11 @@ class VsphereDiffSync(Adapter):
 
     def load_tags(self):
         """Load all Tags from vSphere only if a tag is associated to a VirtualMachine."""
-        tags = self.client.get_tags()
+        tags = self.client.get_tags().json()
         self.job.log_debug(message=f"Loading Tags: {tags}")
+        if not tags:
+            self.job.logger.info("No tags found in vSphere to load.")
+            return
         for tag_id in tags:
             associated_objects = self.client.get_tag_associations(tag_id=tag_id)
             if "VirtualMachine" in [association.get("type") for association in associated_objects]:
