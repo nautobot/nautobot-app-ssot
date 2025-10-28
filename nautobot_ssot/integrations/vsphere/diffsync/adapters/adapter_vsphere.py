@@ -371,9 +371,9 @@ class VsphereDiffSync(Adapter):
         for tag_id in tags:
             associated_objects = self.client.get_tag_associations(tag_id=tag_id)
             if "VirtualMachine" in [association.get("type") for association in associated_objects]:
-                tag_details = self.client.get_tag_details(tag_id=tag_id)
+                tag_details = self.client.get_tag_details(tag_id=tag_id).json()
                 name = tag_details.get("name")
-                category_data = self.client.get_category_details(tag_details.get("category_id"))
+                category_data = self.client.get_category_details(tag_details.get("category_id")).json()
                 category_name = category_data.get("name")
                 tag_name = f"{name}__{category_name}"
                 self.get_or_instantiate(
