@@ -205,11 +205,12 @@ class SyncRecordTable(BaseTable):
     """Table for list view."""
 
     pk = ToggleColumn()
-    source = Column(linkify=True)
-    target = Column(linkify=False)
-    obj_type = Column(linkify=False)
-    obj_name = Column(linkify=False)
+    obj_name = Column(linkify=True)
+    obj_type = Column()
+    source = Column()
+    target = Column()
     status = Column()
+    action = Column()
     actions = ButtonsColumn(
         SyncRecord,
         # Option for modifying the default action buttons on each row:
@@ -222,7 +223,7 @@ class SyncRecordTable(BaseTable):
         """Meta attributes."""
 
         model = SyncRecord
-        fields = ["pk", "source", "target", "obj_type", "obj_name", "status", "actions", "message", "sync"]
+        fields = ["pk", "obj_name", "obj_type", "source", "target", "status", "action", "actions", "message", "sync"]
 
         # Option for modifying the columns that show up in the list view by default:
         default_columns = ("pk", "source", "target", "obj_type", "obj_name", "status", "actions")

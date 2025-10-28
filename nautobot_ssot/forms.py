@@ -3,6 +3,7 @@
 from django import forms
 from nautobot.apps.forms import (
     BootstrapMixin,
+    DynamicModelMultipleChoiceField,
     NautobotBulkEditForm,
     NautobotFilterForm,
     NautobotModelForm,

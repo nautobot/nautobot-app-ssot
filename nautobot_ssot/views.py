@@ -9,7 +9,6 @@ from django.template.defaultfilters import date
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.timesince import timesince
-from django.urls import reverse
 from django.views import View as DjangoView
 from django_tables2 import RequestConfig
 from nautobot.apps.ui import (
@@ -28,7 +27,6 @@ from nautobot.apps.ui import (
 from nautobot.apps.views import (
     ContentTypePermissionRequiredMixin,
     EnhancedPaginator,
-    NautobotUIViewSet,
     ObjectBulkDestroyViewMixin,
     ObjectDestroyViewMixin,
     ObjectDetailViewMixin,
@@ -38,7 +36,8 @@ from nautobot.apps.views import (
     get_obj_from_context,
 )
 from nautobot.core.ui.utils import flatten_context
-from nautobot.extras.models import Job as JobModel, JobResult
+from nautobot.extras.models import Job as JobModel
+from nautobot.extras.models import JobResult
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -48,11 +47,25 @@ from nautobot_ssot.integrations import utils
 from nautobot_ssot.templatetags.render_diff import render_diff
 
 from .filters import SyncFilterSet, SyncLogEntryFilterSet
-from .forms import SyncBulkEditForm, SyncFilterForm, SyncForm, SyncLogEntryFilterForm
+from .forms import SyncFilterForm, SyncForm, SyncLogEntryFilterForm
 from .jobs import get_data_jobs
 from .jobs.base import DataSource, DataTarget
 from .models import Sync, SyncLogEntry, SyncRecord
 from .tables import DashboardTable, SyncLogEntryTable, SyncTable, SyncTableSingleSourceOrTarget
+
+
+class ReadOnlyNautobotUIViewSet(  # pylint: disable=abstract-method
+    ObjectDetailViewMixin,
+    ObjectListViewMixin,
+    ObjectDestroyViewMixin,
+    ObjectBulkDestroyViewMixin,
+    # Shows the mixins disabled for read-only functionality
+    # ObjectEditViewMixin,
+    # ObjectDestroyViewMixin,
+    # ObjectBulkCreateViewMixin,
+    # ObjectBulkUpdateViewMixin,
+):
+    """ReadOnly ViewSet for Nautobot UI views."""
 
 
 def dry_run_label(value) -> str:
@@ -250,7 +263,6 @@ class SyncUIViewSet(
 ):
     """ViewSet for Sync."""
 
-    bulk_update_form_class = SyncBulkEditForm
     filterset_class = SyncFilterSet
     filterset_form_class = SyncFilterForm
     form_class = SyncForm
@@ -446,6 +458,7 @@ class SyncRecordUIViewSet(ReadOnlyNautobotUIViewSet):
         ],
     )
 
+
 def process_bulk_syncrecords(request):
     """Endpoint for processing mulitple SyncRecords."""
     pks = request.POST.getlist("pk")
@@ -453,7 +466,7 @@ def process_bulk_syncrecords(request):
         messages.error(request, "No items selected for bulk action")
         url = reverse("plugins:nautobot_ssot:syncrecord_list")
         return redirect(url)
-    job = Job.objects.get(name="Process Sync Records")
+    job = JobModel.objects.get(name="Process Sync Records")
     _job_result = JobResult.enqueue_job(job, request.user, records=pks)
     messages.success(
         request, f"Bulk Processing initiated - Check the Job Results for more info {_job_result.get_absolute_url()}"
