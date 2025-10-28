@@ -119,10 +119,12 @@ class VsphereDiffSync(Adapter):
     def _create_vm_tag_list(self, vm_id):
         """Create a list of tags associated to a Virtual Machine."""
         tags = [{"name": "SSoT Synced from vSphere"}]
-        for tag_id, tag_data in self.tag_map.items():
-            for association in tag_data.get("associations"):
-                if association.get("id") == vm_id and association.get("type") == "VirtualMachine":
-                    tags.append({"name": tag_data["name"]})
+
+        if self.config.sync_vsphere_tags is True:
+            for tag_id, tag_data in self.tag_map.items():
+                for association in tag_data.get("associations"):
+                    if association.get("id") == vm_id and association.get("type") == "VirtualMachine":
+                        tags.append({"name": tag_data["name"]})
 
         return tags
 
@@ -382,7 +384,8 @@ class VsphereDiffSync(Adapter):
 
     def load(self):
         """Load data from vSphere."""
-        self.load_tags()
+        if self.config.sync_vsphere_tags:
+            self.load_tags()
         if self.config.use_clusters:
             self.load_data()
         else:

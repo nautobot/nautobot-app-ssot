@@ -60,7 +60,7 @@ class SSOTvSphereConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         help_text="Enable use of Clusters. If set to False, all Virtual Machines will be placed in the default cluster.",
     )
     sync_vsphere_tags = models.BooleanField(
-        default=False,
+        default=True,
         verbose_name="Sync vSphere Tags",
         help_text="Enable syncing of vSphere tags on VMs to Nautobot VMs as Tags.",
     )
