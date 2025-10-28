@@ -180,7 +180,7 @@ class VsphereClient:  # pylint: disable=too-many-instance-attributes
     def get_tag_associations(self, tag_id: str) -> Dict:
         """Get all objects associated with a given tag ID."""
         return self._request(
-            "GET",
+            "POST",
             f"{self.vsphere_uri}/rest/com/vmware/cis/tagging/tag-association/{tag_id}/?action=list-attached-objects",
         )
 
