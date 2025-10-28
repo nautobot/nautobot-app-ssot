@@ -1,5 +1,6 @@
 """Filtering logic for Sync and SyncLogEntry records."""
 
+from django_filters import ModelMultipleChoiceFilter
 from nautobot.apps.filters import NameSearchFilterSet, NautobotFilterSet, SearchFilter
 
 from nautobot_ssot import models
@@ -27,7 +28,6 @@ class SyncFilterSet(NautobotFilterSet):  # pylint: disable=too-many-ancestors
         fields = ["dry_run", "job_result"]  # pylint: disable=nb-use-fields-all
 
 
-class SyncLogEntryFilterSet(NautobotFilterSet):  # pylint: disable=too-many-ancestors
 class SyncLogEntryFilterSet(NautobotFilterSet):  # pylint: disable=too-many-ancestors
     """Filter capabilities for SyncLogEntry instances."""
 
@@ -62,7 +62,7 @@ class SyncRecordFilterSet(NameSearchFilterSet, NautobotFilterSet):  # pylint: di
             "obj_name": "icontains",
             "action": "icontains",
             "status": "icontains",
-            "message": "icontains"
+            "message": "icontains",
         }
     )
 
@@ -72,16 +72,7 @@ class SyncRecordFilterSet(NameSearchFilterSet, NautobotFilterSet):  # pylint: di
         model = models.SyncRecord
 
         # add any fields from the model that you would like to filter your searches by using those
-        fields = [
-            "sync",
-            "source",
-            "target",
-            "obj_type",
-            "obj_name",
-            "action",
-            "status",
-            "message"
-        ]
+        fields = ["sync", "source", "target", "obj_type", "obj_name", "action", "status", "message"]
 
 
 __all__ = (
