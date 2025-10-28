@@ -169,7 +169,7 @@ class VsphereClient:  # pylint: disable=too-many-instance-attributes
         """Get all tags associated with an object or objects."""
         return self._request(
             "POST",
-            f"{self.uri}/api/cis/tagging/tag-association?action=list-attached-tags-on-objects",
+            f"{self.vsphere_uri}/api/cis/tagging/tag-association?action=list-attached-tags-on-objects",
             data=json.dumps({"object_ids": [object_ids]}),
         )
 
@@ -186,8 +186,8 @@ class VsphereClient:  # pylint: disable=too-many-instance-attributes
 
     def get_tag_details(self, tag_id: str):
         """Get the tag name from a given tag ID."""
-        return self._request("GET", f"{self.uri}/rest/com/vmware/cis/tagging/tag/id:{tag_id}")
+        return self._request("GET", f"{self.vsphere_uri}/rest/com/vmware/cis/tagging/tag/id:{tag_id}")
 
     def get_category_details(self, category_id: str):
         """Get the tag category from a given tag ID."""
-        return self._request("GET", f"{self.uri}/rest/com/vmware/cis/tagging/category/id:{category_id}")
+        return self._request("GET", f"{self.vsphere_uri}/rest/com/vmware/cis/tagging/category/id:{category_id}")

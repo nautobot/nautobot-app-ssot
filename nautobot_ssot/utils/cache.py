@@ -2,7 +2,7 @@
 
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import DefaultDict, Hashable, Type
+from typing import DefaultDict, Hashable, Type  # pylint: disable=deprecated-class
 
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model

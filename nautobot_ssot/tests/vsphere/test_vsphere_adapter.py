@@ -2,7 +2,6 @@
 
 import os
 import unittest
-from unittest.mock import Mock
 
 from nautobot_ssot.integrations.vsphere.diffsync.adapters.adapter_vsphere import (
     VsphereDiffSync,
@@ -241,11 +240,6 @@ class TestVsphereAdapter(unittest.TestCase):
         self.assertEqual(prefix.prefix_length, 64)
         self.assertEqual(prefix.namespace__name, "Global")
         self.assertEqual(prefix.type, "network")
-
-    def resp(self, data):
-        m = Mock()
-        m.json.return_value = data
-        return m
 
     def test_load_tags(self):
         """Test loading tags from vSphere."""
