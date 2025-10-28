@@ -369,9 +369,11 @@ class VsphereDiffSync(Adapter):
             self.job.logger.info("No tags found in vSphere to load.")
             return
         for tag_id in tags:
-            associated_objects = self.client.get_tag_associations(tag_id=tag_id)
+            associated_objects = self.client.get_tag_associations(tag_id=tag_id).json()
+            self.job.log_debug(message=f"Associated objects for tag {tag_id}: {associated_objects}")
             if "VirtualMachine" in [association.get("type") for association in associated_objects]:
                 tag_details = self.client.get_tag_details(tag_id=tag_id).json()
+                self.job.log_debug(message=f"Tag details for tag {tag_id}: {tag_details}")
                 name = tag_details.get("name")
                 category_data = self.client.get_category_details(tag_details.get("category_id")).json()
                 category_name = category_data.get("name")
