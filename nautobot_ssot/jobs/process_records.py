@@ -9,7 +9,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from nautobot.apps.jobs import BooleanVar, Job, MultiObjectVar
 
-from nautobot_ssot.choices import SyncRecordStatusChoices
 from nautobot_ssot.models import SyncRecord
 from nautobot_ssot.utils import import_from_dotted_path
 
