@@ -126,7 +126,7 @@ class VsphereDiffSync(Adapter):
                     if association.get("id") == vm_id and association.get("type") == "VirtualMachine":
                         tags.append({"name": tag_data["name"]})
 
-        return sorted(tags, key=lambda x: x["name"])
+        return sorted(tags, key=lambda x: x["name"].lower())
 
     def load_cluster_groups(self):
         """Load Cluster Groups (DataCenters)."""
@@ -358,7 +358,7 @@ class VsphereDiffSync(Adapter):
                     "mask_length": info["mask_length"],
                     "status__name": info["status__name"],
                 },
-                {"vm_interfaces": sorted(info["vm_interfaces"], key=lambda x: x["virtual_machine__name"])},
+                {"vm_interfaces": sorted(info["vm_interfaces"], key=lambda x: x["virtual_machine__name"].lower())},
             )
 
     def load_tags(self):
