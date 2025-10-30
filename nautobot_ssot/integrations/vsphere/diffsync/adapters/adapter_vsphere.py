@@ -387,10 +387,11 @@ class VsphereDiffSync(Adapter):
                 # Add tag info to tag_map for use with VMs later
                 self.tag_map[tag_id] = {"name": tag_name, "associations": associated_objects}
 
-        self.get_or_instantiate(self.tag, {"name": "SSoT Synced from vSphere"}, {"description": ""})
-
     def load(self):
         """Load data from vSphere."""
+        # Regardless of settings, we must include the SSot Synced from vSphere tag
+        self.get_or_instantiate(self.tag, {"name": "SSoT Synced from vSphere"}, {"description": ""})
+
         if self.config.sync_vsphere_tags:
             self.load_tags()
         if self.config.use_clusters:
