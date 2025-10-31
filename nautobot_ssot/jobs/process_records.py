@@ -8,11 +8,15 @@ from diffsync.helpers import DiffSyncSyncer
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from nautobot.apps.jobs import BooleanVar, Job, MultiObjectVar
+from nautobot.extras.models import Status
 
 from nautobot_ssot.models import SyncRecord
 from nautobot_ssot.utils import import_from_dotted_path
 
 name = "Process Records Job"  # pylint: disable=invalid-name
+
+
+STATUS_MAP = {"success": "Successful", "error": "Error", "failed": "Failed"}
 
 
 class ProcessRecordsJob(Job):
@@ -122,8 +126,8 @@ class ProcessRecordsJob(Job):
             )
             try:
                 record = SyncRecord.objects.get(obj_type=event_dict["model"], obj_name=event_dict["unique_id"])
-                record.status = event_dict["status"]
-                record.message = event_dict["event"]
+                record.status = Status.objects.get(name=STATUS_MAP[event_dict["status"]])
+                record.message = event_dict["event"] if event_dict.get("event") else ""
                 if synced_object:
                     record.synced_object_id = synced_object.id
                     record.synced_object_type = ContentType.objects.get_for_model(synced_object)

@@ -17,6 +17,7 @@ from django.templatetags.static import static
 from django.utils import timezone
 from django.utils.functional import classproperty
 from nautobot.extras.jobs import BooleanVar, DryRunVar, Job
+from nautobot.extras.models import Status
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices
 from nautobot_ssot.contrib.adapter import NautobotAdapter
@@ -105,6 +106,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         Args:
             parent (_type_, optional): _description_. Defaults to None.
         """
+        pending_status = Status.objects.get(name="Pending")
         for child in diff.get_children():
             if child.action:
                 new_record, _ = SyncRecord.objects.update_or_create(
@@ -125,7 +127,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
                         "source_attrs": child.source_attrs,
                         "target_attrs": child.dest_attrs,
                         "action": str(child.action),
-                        "status": "pending",
+                        "status": pending_status,
                         "parent": parent,
                     },
                 )
