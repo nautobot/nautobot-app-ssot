@@ -46,7 +46,6 @@ from .choices import (
     SyncLogEntryActionChoices,
     SyncLogEntryStatusChoices,
     SyncRecordActionChoices,
-    SyncRecordStatusChoices,
 )
 
 
@@ -283,7 +282,7 @@ class SyncLogEntry(BaseModel):  # pylint: disable=nb-string-field-blank-null
         }.get(self.status)
 
 
-@extras_features("export_templates", "graphql")
+@extras_features("export_templates", "graphql", "statuses")
 class SyncRecord(BaseModel):
     """Record of a single object that was synced during a data sync operation.
 
@@ -339,7 +338,7 @@ class SyncRecord(BaseModel):
     )
 
     action = models.CharField(max_length=32, choices=SyncRecordActionChoices)
-    status = models.CharField(max_length=32, choices=SyncRecordStatusChoices)
+    status = StatusField(blank=False, null=False, verbose_name="Import Status")
 
     synced_object_type = models.ForeignKey(
         to=ContentType,
