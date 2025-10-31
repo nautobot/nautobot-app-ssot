@@ -1,0 +1,30 @@
+[
+    {
+        "id": "vm-5073",
+        "type": "VirtualMachine"
+    },
+    {
+        "id": "vm-248",
+        "type": "VirtualMachine"
+    },
+    {
+        "id": "vm-4025",
+        "type": "VirtualMachine"
+    },
+    {
+        "id": "vm-384",
+        "type": "VirtualMachine"
+    },
+    {
+        "id": "vm-410",
+        "type": "VirtualMachine"
+    },
+    {
+        "id": "vm-4024",
+        "type": "VirtualMachine"
+    },
+    {
+        "id": "vm-5001",
+        "type": "VirtualMachine"
+    }
+]

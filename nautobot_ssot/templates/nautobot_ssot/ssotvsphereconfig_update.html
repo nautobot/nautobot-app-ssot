@@ -1,4 +1,4 @@
-{% extends 'generic/object_create.html' %}
+{% extends "generic/object_create.html" %}
 {% load form_helpers %}
 
 {% block form %}
@@ -12,6 +12,7 @@
             {% render_field form.enable_sync_to_nautobot %}
             {% render_field form.default_ignore_link_local %}
             {% render_field form.use_clusters %}
+            {% render_field form.sync_vsphere_tags %}
             {% render_field form.primary_ip_sort_by %}
             {% render_field form.default_status %}
             {% render_field form.sync_tagged_only %}
@@ -45,4 +46,4 @@
             {% render_field form.object_note %}
         </div>
     </div>
-{% endblock %}
+{% endblock form %}

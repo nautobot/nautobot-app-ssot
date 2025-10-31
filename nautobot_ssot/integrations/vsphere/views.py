@@ -70,6 +70,7 @@ class SSOTvSphereConfigUIViewSet(
                     "vsphere_instance",
                     "default_ignore_link_local",
                     "use_clusters",
+                    "sync_vsphere_tags",
                     "primary_ip_sort_by",
                     "sync_tagged_only",
                     "default_clustergroup_name",
