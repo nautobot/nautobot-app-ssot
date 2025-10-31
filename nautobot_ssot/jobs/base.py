@@ -170,6 +170,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         Args:
             parent (_type_, optional): _description_. Defaults to None.
         """
+        pending_status = Status.objects.get(name="Pending")
         for child in diff.get_children():
             if child.action:
                 new_record, _ = SyncRecord.objects.update_or_create(
@@ -190,7 +191,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
                         "source_attrs": child.source_attrs,
                         "target_attrs": child.dest_attrs,
                         "action": str(child.action),
-                        "status": "pending",
+                        "status": pending_status,
                         "parent": parent,
                     },
                 )
