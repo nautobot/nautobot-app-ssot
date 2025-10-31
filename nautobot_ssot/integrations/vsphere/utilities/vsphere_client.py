@@ -158,21 +158,6 @@ class VsphereClient:  # pylint: disable=too-many-instance-attributes
             f"{self.vsphere_uri}/rest/vcenter/vm/{vm_id}/guest/networking/interfaces",
         )
 
-    def get_vm_guest_os(self, vm_id: str) -> Dict:
-        """Get VM guest OS details."""
-        return self._request(
-            "GET",
-            f"{self.vsphere_uri}/rest/vcenter/vm/{vm_id}/guest/identity",
-        )
-
-    def get_attached_tags_on_objects(self, object_ids: list) -> Dict:
-        """Get all tags associated with an object or objects."""
-        return self._request(
-            "POST",
-            f"{self.vsphere_uri}/api/cis/tagging/tag-association?action=list-attached-tags-on-objects",
-            data=json.dumps({"object_ids": [object_ids]}),
-        )
-
     def get_tags(self) -> List:
         """Get all used tags."""
         return self._request("GET", f"{self.vsphere_uri}/api/cis/tagging/tag")
