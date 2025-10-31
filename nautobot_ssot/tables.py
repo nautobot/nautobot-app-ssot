@@ -2,6 +2,7 @@
 
 from django_tables2 import Column, DateTimeColumn, JSONColumn, LinkColumn, TemplateColumn
 from nautobot.apps.tables import BaseTable, ButtonsColumn, ToggleColumn
+from nautobot.extras.tables import StatusTableMixin
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 from .models import Sync, SyncLogEntry, SyncRecord
@@ -200,7 +201,7 @@ class SyncLogEntryTable(BaseTable):
         order_by = ("-timestamp",)
 
 
-class SyncRecordTable(BaseTable):
+class SyncRecordTable(StatusTableMixin, BaseTable):
     # pylint: disable=R0903
     """Table for list view."""
 
@@ -209,7 +210,6 @@ class SyncRecordTable(BaseTable):
     obj_type = Column()
     source = Column()
     target = Column()
-    status = Column()
     action = Column()
     actions = ButtonsColumn(
         SyncRecord,
