@@ -2,6 +2,7 @@
 
 import os
 import unittest
+from unittest.mock import Mock
 
 from nautobot_ssot.integrations.vsphere.diffsync.adapters.adapter_vsphere import (
     VsphereDiffSync,
@@ -29,10 +30,16 @@ class TestVsphereAdapter(unittest.TestCase):
                 cluster_filters=None,
             )
 
+    def resp_with_json(self, path):
+        """Generator for mock responses with JSON data."""
+        r = Mock()
+        r.json.return_value = json_fixture(path)
+        return r
+
     def test_load_clustergroups(self):
-        mock_response = unittest.mock.MagicMock()
-        mock_response.json.return_value = json_fixture(f"{FIXTURES}/get_datacenters.json")
-        self.vsphere_adapter.client.get_datacenters.return_value = mock_response
+        self.vsphere_adapter.client.get_datacenters.return_value = self.resp_with_json(
+            f"{FIXTURES}/get_datacenters.json"
+        )
         self.vsphere_adapter.load_cluster_groups()
         clustergroup = self.vsphere_adapter.get("clustergroup", "CrunchyDatacenter")
         self.assertEqual(clustergroup.name, "CrunchyDatacenter")
@@ -43,9 +50,9 @@ class TestVsphereAdapter(unittest.TestCase):
         self.vsphere_adapter.load_cluster_groups = mock_response_clustergroup
         self.vsphere_adapter.get_or_instantiate(self.vsphere_adapter.clustergroup, {"name": "CrunchyDatacenter"})
 
-        mock_response_clusters = unittest.mock.MagicMock()
-        mock_response_clusters.json.return_value = json_fixture(f"{FIXTURES}/get_clusters.json")
-        self.vsphere_adapter.client.get_clusters_from_dc.return_value = mock_response_clusters
+        self.vsphere_adapter.client.get_clusters_from_dc.return_value = self.resp_with_json(
+            f"{FIXTURES}/get_clusters.json"
+        )
         self.vsphere_adapter.load_data()
 
         cluster = self.vsphere_adapter.get("cluster", "HeshLawCluster")
@@ -54,9 +61,9 @@ class TestVsphereAdapter(unittest.TestCase):
         self.assertEqual(cluster.cluster_group__name, "CrunchyDatacenter")
 
     def test_load_virtualmachines(self):
-        mock_response_cluster = unittest.mock.MagicMock()
-        mock_response_cluster.json.return_value = json_fixture(f"{FIXTURES}/get_vms_from_cluster.json")
-        self.vsphere_adapter.client.get_vms_from_cluster.return_value = mock_response_cluster
+        self.vsphere_adapter.client.get_vms_from_cluster.return_value = self.resp_with_json(
+            f"{FIXTURES}/get_vms_from_cluster.json"
+        )
 
         mock_response_vm_details = unittest.mock.MagicMock()
         mock_response_vm_details.json.side_effect = [
@@ -243,12 +250,14 @@ class TestVsphereAdapter(unittest.TestCase):
 
     def test_load_tags(self):
         """Test loading tags from vSphere."""
-        self.vsphere_adapter.client.get_tags.return_value = json_fixture(f"{FIXTURES}/get_tags.json")
-        self.vsphere_adapter.client.get_tag_associations.return_value = json_fixture(
+        self.vsphere_adapter.client.get_tags.return_value = self.resp_with_json(f"{FIXTURES}/get_tags.json")
+        self.vsphere_adapter.client.get_tag_associations.return_value = self.resp_with_json(
             f"{FIXTURES}/get_tag_associations.json"
         )
-        self.vsphere_adapter.client.get_tag_details.return_value = json_fixture(f"{FIXTURES}/get_tag_details.json")
-        self.vsphere_adapter.client.get_category_details.return_value = json_fixture(
+        self.vsphere_adapter.client.get_tag_details.return_value = self.resp_with_json(
+            f"{FIXTURES}/get_tag_details.json"
+        )
+        self.vsphere_adapter.client.get_category_details.return_value = self.resp_with_json(
             f"{FIXTURES}/get_category_details.json"
         )
 

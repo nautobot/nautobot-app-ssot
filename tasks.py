@@ -1008,8 +1008,8 @@ def tests(context, failfast=False, keepdb=False, lint_only=False):
     # Sorted loosely from fastest to slowest
     print("Running ruff...")
     ruff(context)
-    # print("Running djlint...")
-    # djlint(context)
+    print("Running djlint...")
+    djlint(context)
     print("Running yamllint...")
     yamllint(context)
     print("Running markdownlint...")
