@@ -37,7 +37,7 @@ from nautobot.apps.views import (
 )
 from nautobot.core.ui.utils import flatten_context
 from nautobot.extras.models import Job as JobModel
-from nautobot.extras.models import JobResult
+from nautobot.extras.models import JobResult, Status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -421,11 +421,42 @@ class SyncRecordUIViewSet(ReadOnlyNautobotUIViewSet):
     table_class = tables.SyncRecordTable
     action_buttons: tuple = ()
 
+    def get_extra_context(self, request, instance):  # pylint: disable=signature-differs
+        """Provide additional context for the list template."""
+        context = super().get_extra_context(request, instance)
+        if self.action == "list":
+            try:
+                successful_status = Status.objects.get(name="Successful")
+            except Status.DoesNotExist:
+                successful_status = None
+                context["successful_status"] = None
+                context["showing_completed"] = False
+            else:
+                context["successful_status"] = successful_status
+                # Check if we're currently showing completed records
+                status_ids = request.GET.getlist("status")
+                successful_status_id_str = str(successful_status.id)
+                context["showing_completed"] = successful_status_id_str in status_ids
+        return context
+
     def alter_queryset(self, request):
-        """Build actual runtime queryset to automatically remove `Succeeded` by default."""
-        if "success" not in request.GET.getlist("status"):
-            return self.queryset.exclude(status="success")
-        return self.queryset
+        """Build actual runtime queryset to automatically remove `Successful` by default."""
+        try:
+            successful_status = Status.objects.get(name="Successful")
+        except Status.DoesNotExist:
+            # If Successful status doesn't exist, return queryset as-is
+            return self.queryset
+
+        # Get status IDs from URL parameters (they come as strings)
+        status_ids = request.GET.getlist("status")
+        successful_status_id_str = str(successful_status.id)
+
+        # If the button was clicked and successful_status ID is in the params, show ONLY successful records
+        if successful_status_id_str in status_ids:
+            return self.queryset.filter(status=successful_status)
+
+        # By default, exclude successful records
+        return self.queryset.exclude(status=successful_status)
 
     # Here is an example of using the UI  Component Framework for the detail view.
     # More information can be found in the Nautobot documentation:
