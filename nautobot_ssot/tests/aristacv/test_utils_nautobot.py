@@ -1,12 +1,9 @@
 """Tests of CloudVision utility methods."""
 
-from unittest import skip
-from unittest.mock import MagicMock
-
 from django.test import override_settings
 from nautobot.core.testing import TestCase
 from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer
-from nautobot.extras.models import Relationship, Role, Status, Tag
+from nautobot.extras.models import Role, Status, Tag
 
 from nautobot_ssot.integrations.aristacv.utils import nautobot
 
