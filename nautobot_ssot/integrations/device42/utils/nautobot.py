@@ -250,19 +250,6 @@ def verify_circuit_type(circuit_type: str) -> CircuitType:
     return _ct
 
 
-def get_software_version_from_lcm(relations: dict):
-    """Method to obtain Software version for a Device from Relationship.
-
-    Args:
-        relations (dict): Results of a `get_relationships()` on a Device.
-
-    Returns:
-        str: String of SoftwareLCM version.
-    """
-    version = ""
-    return version
-
-
 def get_version_from_custom_field(fields: OrderedDict):
     """Method to obtain a software version for a Device from its custom fields."""
     for field, value in fields.items():
