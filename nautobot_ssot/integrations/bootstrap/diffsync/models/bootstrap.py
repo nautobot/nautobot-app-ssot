@@ -32,6 +32,7 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
     Team,
     Tenant,
     TenantGroup,
+    ValidatedSoftware,
     VLANGroup,
 )
 
@@ -517,15 +518,15 @@ class BootstrapScheduledJob(ScheduledJob):
 
     @classmethod
     def create(cls, diffsync, ids, attrs):
-        """Create ScheduledJob in Bootstrap from BootstrapValidatedSoftware object."""
+        """Create ScheduledJob in Bootstrap from BootstrapScheduledJob object."""
         return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
 
     def update(self, attrs):
-        """Update ScheduledJob in Bootstrap from BootstrapValidatedSoftware object."""
+        """Update ScheduledJob in Bootstrap from BootstrapScheduledJob object."""
         return super().update(attrs)
 
     def delete(self):
-        """Delete ScheduledJob in Bootstrap from BootstrapValidatedSoftware object."""
+        """Delete ScheduledJob in Bootstrap from BootstrapScheduledJob object."""
         return self
 
 
@@ -560,6 +561,23 @@ class BootstrapSoftwareImage(SoftwareImageFile):
 
     def delete(self):
         """Delete SoftwareImage in Bootstrap from BootstrapSoftwareImage object."""
+        return self
+
+
+class BootstrapValidatedSoftware(ValidatedSoftware):
+    """Bootstrap implementation of Bootstrap ScheduledJob model."""
+
+    @classmethod
+    def create(cls, diffsync, ids, attrs):
+        """Create ValidatedSoftware in Bootstrap from BootstrapValidatedSoftware object."""
+        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update ValidatedSoftware in Bootstrap from BootstrapValidatedSoftware object."""
+        return super().update(attrs)
+
+    def delete(self):
+        """Delete ValidatedSoftware in Bootstrap from BootstrapValidatedSoftware object."""
         return self
 
 
