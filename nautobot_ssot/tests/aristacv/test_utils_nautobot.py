@@ -70,40 +70,6 @@ class TestNautobotUtils(TestCase):
         result = nautobot.verify_import_tag()
         self.assertEqual(result.name, "cloudvision_imported")
 
-    @skip("DLC App disabled")
-    def test_get_device_version_dlc_success(self):
-        """Test the get_device_version method pulling from Device Lifecycle app."""
-        software_relation = Relationship.objects.get(label="Software on Device")
-
-        mock_version = MagicMock()
-        mock_version.source.version = MagicMock()
-        mock_version.source.version = "1.0"
-
-        mock_device = MagicMock()
-        mock_device.get_relationships = MagicMock()
-        mock_device.get_relationships.return_value = {"destination": {software_relation: [mock_version]}}
-
-        result = nautobot.get_device_version(mock_device)
-        self.assertEqual(result, "1.0")
-
-    @skip("DLC App disabled")
-    def test_get_device_version_dlc_fail(self):
-        """Test the get_device_version method pulling from Device Lifecycle app but failing."""
-        mock_device = MagicMock()
-        mock_device.get_relationships = MagicMock()
-        mock_device.get_relationships.return_value = {}
-
-        result = nautobot.get_device_version(mock_device)
-        self.assertEqual(result, "")
-
-    def test_get_device_version_dlc_exception(self):
-        """Test the get_device_version method pulling from the Device Custom Field."""
-        mock_device = MagicMock()
-        mock_device.custom_field_data = {"arista_eos": "1.0"}
-
-        result = nautobot.get_device_version(mock_device)
-        self.assertEqual(result, "1.0")
-
     @override_settings(
         PLUGINS_CONFIG={
             "nautobot_ssot": {

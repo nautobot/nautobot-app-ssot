@@ -249,15 +249,6 @@ def verify_import_tag():
     return import_tag
 
 
-def get_device_version(device):
-    """Determines Device version from Custom Field or RelationshipAssociation.
-
-    Args:
-        device (Device): The Device object to determine software version for.
-    """
-    return device.custom_field_data["arista_eos"] if device.custom_field_data.get("arista_eos") else ""
-
-
 def parse_hostname(hostname: str, hostname_patterns: list):
     """Parse a device's hostname to find site and role.
 
