@@ -263,8 +263,6 @@ There are a couple models like Tags and Git Repositories that have associated co
 - nautobot_device_lifecycle_mgmt.devicesoftwarevalidationresult
 - nautobot_device_lifecycle_mgmt.hardwarelcm
 - nautobot_device_lifecycle_mgmt.inventoryitemsoftwarevalidationresult
-- nautobot_device_lifecycle_mgmt.softwareimagelcm
-- nautobot_device_lifecycle_mgmt.softwarelcm
 - nautobot_device_lifecycle_mgmt.validatedsoftwarelcm
 - nautobot_device_lifecycle_mgmt.vulnerabilitylcm
 - nautobot_golden_config.compliancefeature

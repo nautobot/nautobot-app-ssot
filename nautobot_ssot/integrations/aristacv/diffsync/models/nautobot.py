@@ -2,14 +2,11 @@
 
 import logging
 
-from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from nautobot.core.settings_funcs import is_truthy
 from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import Interface as OrmInterface
 from nautobot.dcim.models import Platform as OrmPlatform
-from nautobot.extras.models import Relationship as OrmRelationship
-from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
 from nautobot.extras.models import Status as OrmStatus
 from nautobot.ipam.models import IPAddress as OrmIPAddress
 from nautobot.ipam.models import IPAddressToInterface
@@ -32,11 +29,6 @@ from nautobot_ssot.integrations.aristacv.diffsync.models.base import (
 )
 from nautobot_ssot.integrations.aristacv.types import CloudVisionAppConfig
 from nautobot_ssot.integrations.aristacv.utils import nautobot
-from nautobot_ssot.utils import dlm_supports_softwarelcm
-
-if dlm_supports_softwarelcm():
-    from nautobot_device_lifecycle_mgmt.models import SoftwareLCM  # noqa: F401 # pylint: disable=unused-import
-
 
 logger = logging.getLogger(__name__)
 
@@ -99,9 +91,6 @@ class NautobotDevice(Device):
             new_device.tags.add(import_tag)
         try:
             new_device.validated_save()
-            if dlm_supports_softwarelcm() and attrs.get("version"):
-                software_lcm = cls._add_software_lcm(platform=platform.name, version=attrs["version"])
-                cls._assign_version_to_device(adapter=adapter, device=new_device, software_lcm=software_lcm)
             return super().create(ids=ids, adapter=adapter, attrs=attrs)
         except ValidationError as err:
             adapter.job.logger.warning(f"Unable to create Device {ids['name']}. {err}")
@@ -119,7 +108,7 @@ class NautobotDevice(Device):
             dev.device_type = nautobot.verify_device_type_object(attrs["device_model"])
         if "serial" in attrs:
             dev.serial = attrs["serial"]
-        if "version" in attrs and dlm_supports_softwarelcm():
+        if "version" in attrs:
             software_lcm = self._add_software_lcm(platform=dev.platform.name, version=attrs["version"])
             self._assign_version_to_device(adapter=self.adapter, device=dev, software_lcm=software_lcm)
         try:
@@ -138,43 +127,6 @@ class NautobotDevice(Device):
             self.adapter.objects_to_delete["devices"].append(device)
             super().delete()
         return self
-
-    @staticmethod
-    def _add_software_lcm(platform: str, version: str):
-        """Add OS Version as SoftwareLCM if Device Lifecycle App found."""
-        _platform = OrmPlatform.objects.get(name=platform)
-        try:
-            os_ver = SoftwareLCM.objects.get(device_platform=_platform, version=version)
-        except SoftwareLCM.DoesNotExist:
-            os_ver = SoftwareLCM(
-                device_platform=_platform,
-                version=version,
-            )
-            os_ver.validated_save()
-        return os_ver
-
-    @staticmethod
-    def _assign_version_to_device(adapter, device, software_lcm):
-        """Add Relationship between Device and SoftwareLCM."""
-        software_relation = OrmRelationship.objects.get(label="Software on Device")
-        relations = device.get_relationships()
-        for _, relationships in relations.items():
-            for relationship, queryset in relationships.items():
-                if relationship == software_relation:
-                    if adapter.job.debug:
-                        adapter.job.logger.warning(
-                            f"Deleting Software Version Relationships for {device.name} to assign a new version."
-                        )
-                    queryset.delete()
-
-        new_assoc = OrmRelationshipAssociation(
-            relationship=software_relation,
-            source_type=ContentType.objects.get_for_model(SoftwareLCM),
-            source=software_lcm,
-            destination_type=ContentType.objects.get_for_model(OrmDevice),
-            destination=device,
-        )
-        new_assoc.validated_save()
 
 
 class NautobotPort(Port):

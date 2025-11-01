@@ -1,7 +1,7 @@
 """Tests of CloudVision utility methods."""
 
 from unittest import skip
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from django.test import override_settings
 from nautobot.core.testing import TestCase
@@ -96,12 +96,10 @@ class TestNautobotUtils(TestCase):
         result = nautobot.get_device_version(mock_device)
         self.assertEqual(result, "")
 
-    @patch("nautobot_ssot.integrations.aristacv.utils.nautobot.dlm_supports_softwarelcm")
-    def test_get_device_version_dlc_exception(self, mock_dlm_supports_softwarelcm):
+    def test_get_device_version_dlc_exception(self):
         """Test the get_device_version method pulling from the Device Custom Field."""
         mock_device = MagicMock()
         mock_device.custom_field_data = {"arista_eos": "1.0"}
-        mock_dlm_supports_softwarelcm.return_value = False
 
         result = nautobot.get_device_version(mock_device)
         self.assertEqual(result, "1.0")

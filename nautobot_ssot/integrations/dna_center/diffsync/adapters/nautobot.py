@@ -14,9 +14,8 @@ from nautobot.dcim.models import Interface as OrmInterface
 from nautobot.dcim.models import Location as OrmLocation
 from nautobot.dcim.models import LocationType as OrmLocationType
 from nautobot.dcim.models import Platform
-from nautobot.extras.models import Relationship as OrmRelationship
-from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
 from nautobot.extras.models import Status as OrmStatus
+from nautobot.extras.models.metadata import ObjectMetadata
 from nautobot.ipam.models import IPAddress as OrmIPAddress
 from nautobot.ipam.models import IPAddressToInterface as OrmIPAddressToInterface
 from nautobot.ipam.models import Namespace
@@ -34,16 +33,7 @@ from nautobot_ssot.integrations.dna_center.diffsync.models.nautobot import (
     NautobotPort,
     NautobotPrefix,
 )
-from nautobot_ssot.utils import dlm_supports_softwarelcm
-
-try:
-    from nautobot.extras.models.metadata import ObjectMetadata  # noqa: F401
-
-    from nautobot_ssot.integrations.metadata_utils import object_has_metadata
-
-    METADATA_FOUND = True
-except (ImportError, RuntimeError):
-    METADATA_FOUND = False
+from nautobot_ssot.integrations.metadata_utils import object_has_metadata
 
 
 class NautobotAdapter(Adapter):
@@ -112,8 +102,7 @@ class NautobotAdapter(Adapter):
                     parent_of_parent=parent_of_parent,
                     uuid=area.id,
                 )
-                if METADATA_FOUND:
-                    new_region.metadata = object_has_metadata(obj=area, integration=self.job.data_source)
+                new_region.metadata = object_has_metadata(obj=area, integration=self.job.data_source)
                 if not PLUGIN_CFG.get("dna_center_delete_locations"):
                     new_region.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
                 self.add(new_region)
@@ -144,8 +133,7 @@ class NautobotAdapter(Adapter):
                     tenant=building.tenant.name if building.tenant else None,
                     uuid=building.id,
                 )
-                if METADATA_FOUND:
-                    new_building.metadata = object_has_metadata(obj=building, integration=self.job.data_source)
+                new_building.metadata = object_has_metadata(obj=building, integration=self.job.data_source)
                 if not PLUGIN_CFG.get("dna_center_delete_locations"):
                     new_building.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
                 self.add(new_building)
@@ -167,9 +155,8 @@ class NautobotAdapter(Adapter):
                 uuid=floor.id,
             )
             self.add(new_floor)
-            if METADATA_FOUND:
-                if object_has_metadata(obj=floor, integration=self.job.data_source):
-                    new_floor.metadata = True
+            if object_has_metadata(obj=floor, integration=self.job.data_source):
+                new_floor.metadata = True
             try:
                 if floor.parent:
                     building = self.get(
@@ -193,19 +180,6 @@ class NautobotAdapter(Adapter):
             version = None
             if getattr(dev, "software_version"):
                 version = dev.software_version.version
-            if dlm_supports_softwarelcm():
-                dlm_version = None
-                try:
-                    soft_lcm = OrmRelationship.objects.get(label="Software on Device")
-                    dlm_version = OrmRelationshipAssociation.objects.get(
-                        relationship=soft_lcm, destination_id=dev.id
-                    ).source.version
-                except OrmRelationship.DoesNotExist:
-                    pass
-                except OrmRelationshipAssociation.DoesNotExist:
-                    pass
-                if dlm_version != version:
-                    version = None
             bldg_name, floor_name = None, None
             if dev.location.location_type == self.job.floor_loctype:
                 floor_name = dev.location.name
@@ -232,9 +206,8 @@ class NautobotAdapter(Adapter):
                 ),
                 uuid=dev.id,
             )
-            if METADATA_FOUND:
-                if object_has_metadata(obj=dev, integration=self.job.data_source):
-                    new_dev.metadata = True
+            if object_has_metadata(obj=dev, integration=self.job.data_source):
+                new_dev.metadata = True
             if self.tenant:
                 new_dev.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
             self.add(new_dev)
@@ -261,9 +234,8 @@ class NautobotAdapter(Adapter):
                 status=port.status.name,
                 uuid=port.id,
             )
-            if METADATA_FOUND:
-                if object_has_metadata(obj=port, integration=self.job.data_source):
-                    new_port.metadata = True
+            if object_has_metadata(obj=port, integration=self.job.data_source):
+                new_port.metadata = True
             if self.tenant:
                 new_port.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
             self.add(new_port)
@@ -284,9 +256,8 @@ class NautobotAdapter(Adapter):
                 tenant=prefix.tenant.name if prefix.tenant else None,
                 uuid=prefix.id,
             )
-            if METADATA_FOUND:
-                if object_has_metadata(obj=prefix, integration=self.job.data_source):
-                    new_prefix.metadata = True
+            if object_has_metadata(obj=prefix, integration=self.job.data_source):
+                new_prefix.metadata = True
             if self.tenant:
                 new_prefix.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
             self.add(new_prefix)
@@ -306,9 +277,8 @@ class NautobotAdapter(Adapter):
                 tenant=ipaddr.tenant.name if ipaddr.tenant else None,
                 uuid=ipaddr.id,
             )
-            if METADATA_FOUND:
-                if object_has_metadata(obj=ipaddr, integration=self.job.data_source):
-                    new_ipaddr.metadata = True
+            if object_has_metadata(obj=ipaddr, integration=self.job.data_source):
+                new_ipaddr.metadata = True
             if self.tenant:
                 new_ipaddr.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
             try:
