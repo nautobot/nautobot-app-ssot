@@ -7,6 +7,7 @@ from nautobot.core.settings_funcs import is_truthy
 from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import Interface as OrmInterface
 from nautobot.dcim.models import Platform as OrmPlatform
+from nautobot.dcim.models import SoftwareVersion
 from nautobot.extras.models import Status as OrmStatus
 from nautobot.ipam.models import IPAddress as OrmIPAddress
 from nautobot.ipam.models import IPAddressToInterface
@@ -109,8 +110,10 @@ class NautobotDevice(Device):
         if "serial" in attrs:
             dev.serial = attrs["serial"]
         if "version" in attrs:
-            software_lcm = self._add_software_lcm(platform=dev.platform.name, version=attrs["version"])
-            self._assign_version_to_device(adapter=self.adapter, device=dev, software_lcm=software_lcm)
+            dev.software_version = SoftwareVersion.objects.get_or_create(
+                version=attrs["version"],
+                device_platform_id=dev.platform,
+            )[0]
         try:
             dev.validated_save()
             return super().update(attrs)
