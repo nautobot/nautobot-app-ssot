@@ -1,7 +1,7 @@
 """Tests for contrib.NautobotModel."""
 
 from typing import List, Optional
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from django.contrib.contenttypes.models import ContentType
 from nautobot.circuits import models as circuits_models
@@ -10,6 +10,7 @@ from nautobot.dcim import models as dcim_models
 from nautobot.dcim.choices import InterfaceTypeChoices
 from nautobot.extras import models as extras_models
 from nautobot.extras.choices import RelationshipTypeChoices
+from nautobot.ipam import models as ipam_models
 from nautobot.tenancy import models as tenancy_models
 
 from nautobot_ssot.contrib import NautobotAdapter, NautobotModel
@@ -287,3 +288,28 @@ class AnnotationsSubclassingTest(TestCase):
                 self.fail("Don't use `Klass.__annotations__`, prefer `typing.get_type_hints`.")
             else:
                 raise error
+
+
+class QuerySetPrefetchRelatedTest(TestCase):
+    """Test that _get_queryset adds expected prefetch_related params to the queryset."""
+
+    @patch("django.db.models.query.QuerySet.prefetch_related")
+    def test__get_queryset(self, prefetch_related_mock):
+        """Test that _get_queryset adds expected prefetch_related params to the queryset."""
+
+        class BaseIPAddressModel(NautobotModel):
+            """Test contrib model."""
+
+            _model = ipam_models.IPAddress
+            _modelname = "ipaddress"
+            _identifiers = ("host", "mask_length", "parent__namespace__name")
+            _attributes = ("status__name", "tenant__name")
+
+            host: str
+            mask_length: int
+            parent__namespace__name: str
+            status__name: str
+            tenant__name: str
+
+        BaseIPAddressModel._get_queryset()  # pylint: disable=protected-access
+        prefetch_related_mock.assert_called_with("parent__namespace", "status", "tenant")

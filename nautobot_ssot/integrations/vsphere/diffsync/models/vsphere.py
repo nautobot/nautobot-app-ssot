@@ -1,13 +1,16 @@
 """vSphere SSoT DiffSync models."""
 
 import datetime
+import random
 from collections import defaultdict
 from typing import List, Optional
 
+from diffsync import DiffSyncModel
 from diffsync.enum import DiffSyncModelFlags
 from diffsync.exceptions import ObjectCrudException
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
+from nautobot.core.choices import ColorChoices
 from nautobot.extras.models.customfields import CustomField, CustomFieldTypeChoices
 from nautobot.extras.models.tags import Tag
 from nautobot.ipam.models import IPAddress, Prefix
@@ -20,6 +23,7 @@ from nautobot.virtualization.models import (
 from typing_extensions import TypedDict
 
 from nautobot_ssot.contrib import NautobotModel
+from nautobot_ssot.contrib.typeddicts import TagDict
 
 TODAY = datetime.date.today().isoformat()
 
@@ -213,14 +217,7 @@ class VirtualMachineModel(vSphereModelDiffSync):
     _model = VirtualMachine
     _modelname = "virtual_machine"
     _identifiers = ("name", "cluster__name")
-    _attributes = (
-        "status__name",
-        "vcpus",
-        "memory",
-        "disk",
-        "primary_ip4__host",
-        "primary_ip6__host",
-    )
+    _attributes = ("status__name", "vcpus", "memory", "disk", "primary_ip4__host", "primary_ip6__host", "tags")
     _children = {"interface": "interfaces"}
 
     name: str
@@ -231,6 +228,7 @@ class VirtualMachineModel(vSphereModelDiffSync):
     cluster__name: str
     primary_ip4__host: Optional[str] = None
     primary_ip6__host: Optional[str] = None
+    tags: List[TagDict] = []
 
     interfaces: List[VMInterface] = []
 
@@ -361,3 +359,70 @@ class ClusterGroupModel(vSphereModelDiffSync):
 
     name: str
     clusters: Optional[List[ClusterModel]] = list()
+
+
+class TagModel(NautobotModel):
+    """Tag Diffsync model."""
+
+    _model = Tag
+    _modelname = "tag"
+    _identifiers = ("name",)
+    _attributes = ("description",)
+    _children = {}
+
+    name: str
+    description: Optional[str] = ""
+
+    @classmethod
+    def create(cls, adapter, ids, attrs):
+        """Create Tag in Nautobot from NautobotTag object."""
+        _content_types = []
+        adapter.job.logger.info(f"Creating Nautobot Tag: {ids['name']}")
+        _color = random.choice(ColorChoices.values())  # noqa: S311
+        _new_tag = Tag(
+            name=ids["name"],
+            color=_color,
+            description=attrs["description"],
+        )
+        _new_tag.validated_save()
+        _new_tag.content_types.set([ContentType.objects.get_for_model(VirtualMachine)])
+        _new_tag.validated_save()
+        return DiffSyncModel.create(adapter=adapter, ids=ids, attrs=attrs)
+
+    def update(self, attrs):
+        """Update Tag in Nautobot from NautobotTag object."""
+        self.adapter.job.logger.info(f"Updating Tag {self.name}")
+        _update_tag = Tag.objects.get(name=self.name)
+        if attrs.get("description"):
+            _update_tag.description = attrs["description"]
+        _update_tag.validated_save()
+        return super(NautobotModel, self).update(attrs)
+
+    def delete(self):
+        """Delete Tag in Nautobot from NautobotTag object."""
+        self.adapter.job.logger.debug(f"Delete Tag: {self.name}")
+        try:
+            _tag = Tag.objects.get(name=self.name)
+            super().delete()
+            _tag.delete()
+            return self
+        except Tag.DoesNotExist as err:
+            self.adapter.job.logger.warning(f"Unable to find Tag {self.name} for deletion. {err}")
+
+    @classmethod
+    def _get_queryset(cls, config, cluster_filters):
+        """Get the queryset used to load the models data from Nautobot. This is overriden to pass in the config object."""
+        available_fields = {field.name for field in cls._model._meta.get_fields()}
+        parameter_names = [
+            parameter for parameter in list(cls._identifiers) + list(cls._attributes) if parameter in available_fields
+        ]
+        # Here we identify any foreign keys (i.e. fields with '__' in them) so that we can load them directly in the
+        # first query if this function hasn't been overridden.
+        prefetch_related_parameters = [parameter.split("__")[0] for parameter in parameter_names if "__" in parameter]
+        qs = cls.get_queryset(config, cluster_filters)
+        return qs.prefetch_related(*prefetch_related_parameters)
+
+    @classmethod
+    def get_queryset(cls, config, cluster_filters):
+        """Return the queryset for the model. This is overriden to pass in the config object."""
+        return cls._model.objects.all()
