@@ -45,10 +45,14 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
     def _get_queryset(cls) -> QuerySet:
         """Get the queryset used to load the models data from Nautobot."""
         available_fields = {field.name for field in cls._model._meta.get_fields()}
-        parameter_names = [parameter for parameter in cls.get_synced_attributes() if parameter in available_fields]
+        parameter_names = [
+            parameter for parameter in cls.get_synced_attributes() if parameter.split("__")[0] in available_fields
+        ]
         # Here we identify any foreign keys (i.e. fields with '__' in them) so that we can load them directly in the
         # first query if this function hasn't been overridden.
-        prefetch_related_parameters = [parameter.split("__")[0] for parameter in parameter_names if "__" in parameter]
+        prefetch_related_parameters = [
+            "__".join(parameter.split("__")[:-1]) for parameter in parameter_names if "__" in parameter
+        ]
         qs = cls.get_queryset()
         return qs.prefetch_related(*prefetch_related_parameters)
 

@@ -8,7 +8,7 @@
         {% elif sync.job_result.status == 'PENDING' %}bg-secondary
         {% elif sync.job_result.status == 'STARTED' %}bg-warning
         {% endif %} py-8 px-5"
-        title="{{ sync.source }} → {{sync.target}}, {{sync.start_time }}">
+        title="{{ sync.source }} → {{ sync.target }}, {{ sync.start_time }}">
     </a>
     &nbsp;
 {% endfor %}

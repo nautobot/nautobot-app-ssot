@@ -313,18 +313,27 @@ class SyncUIViewSet(
                     "num_errored": "errors",
                 },
             ),
-            DiffPanel(
-                weight=300,
-                section=SectionChoices.FULL_WIDTH,
-                label="Diff",
-                object_field="diff",
-                render_as=ObjectTextPanel.RenderOptions.PLAINTEXT,
-                render_placeholder=True,
-            ),
         ),
         extra_tabs=(
             DistinctViewTab(
-                weight=Tab.WEIGHT_CHANGELOG_TAB + 200,
+                weight=Tab.WEIGHT_CHANGELOG_TAB + 100,
+                tab_id="diff",
+                label="Diff",
+                url_name="plugins:nautobot_ssot:sync_diff",
+                hide_if_empty=False,
+                panels=(
+                    DiffPanel(
+                        weight=300,
+                        section=SectionChoices.FULL_WIDTH,
+                        label="Diff",
+                        object_field="diff",
+                        render_as=ObjectTextPanel.RenderOptions.PLAINTEXT,
+                        render_placeholder=True,
+                    ),
+                ),
+            ),
+            DistinctViewTab(
+                weight=Tab.WEIGHT_CHANGELOG_TAB + 300,
                 tab_id="logentries",
                 label="Sync Logs",
                 url_name="plugins:nautobot_ssot:sync_logentries",
@@ -344,7 +353,7 @@ class SyncUIViewSet(
                 ),
             ),
             JobResultViewTab(
-                weight=Tab.WEIGHT_CHANGELOG_TAB + 100,
+                weight=Tab.WEIGHT_CHANGELOG_TAB + 200,
                 tab_id="jobresult",
                 label="Job Logs",
                 url_name="plugins:nautobot_ssot:sync_jobresult",
@@ -352,6 +361,11 @@ class SyncUIViewSet(
             ),
         ),
     )
+
+    @action(detail=True, url_path="diff", custom_view_base_action="view")
+    def diff(self, request, *args, **kwargs):
+        """Diff action for Sync UIViewSet."""
+        return Response({})
 
     @action(detail=True, url_path="logs", custom_view_base_action="view")
     def logentries(self, request, *args, **kwargs):

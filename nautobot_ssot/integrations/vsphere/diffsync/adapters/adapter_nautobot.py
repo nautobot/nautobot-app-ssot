@@ -13,6 +13,7 @@ from nautobot_ssot.integrations.vsphere.diffsync.models.vsphere import (
     ClusterModel,
     IPAddressModel,
     PrefixModel,
+    TagModel,
     VirtualMachineModel,
     VMInterfaceModel,
 )
@@ -23,7 +24,8 @@ class NBAdapter(NautobotAdapter):
 
     _primary_ips: List[Dict[str, Any]]
 
-    top_level = ("prefix", "clustergroup", "virtual_machine", "ip_address")
+    top_level = ("tag", "prefix", "clustergroup", "virtual_machine", "ip_address")
+    tag = TagModel
     prefix = PrefixModel
     clustergroup = ClusterGroupModel
     cluster = ClusterModel

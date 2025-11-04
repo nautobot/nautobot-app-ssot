@@ -1,0 +1,1 @@
+Move diff to a separate tab so in case of a large diff only the diff tab timeouts but not entire Sync object detailed view.

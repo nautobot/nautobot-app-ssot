@@ -1,10 +1,10 @@
-{% extends 'generic/object_list.html' %}
+{% extends "generic/object_list.html" %}
 {% load buttons %}
 {% load helpers %}
 {% load static %}
 {% load dashboard_helpers %}
 
-{% block header %}{% endblock %}
+{% block header %}{% endblock header %}
 
 {% block title %}Single Source of Truth{% endblock %}
 
@@ -78,4 +78,4 @@
             <div class="clearfix"></div>
         </div>
     </div>
-{% endblock %}
+{% endblock content %}

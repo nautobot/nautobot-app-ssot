@@ -1,0 +1,1 @@
+Fixes contrib NautobotModel _get_queryset method to properly add related fields to prefetch_related method.
