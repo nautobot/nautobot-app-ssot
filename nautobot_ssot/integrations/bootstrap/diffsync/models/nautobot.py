@@ -124,7 +124,7 @@ class NautobotTenantGroup(TenantGroup):
         new_tenant_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_tenant_group.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=new_tenant_group, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter, obj=new_tenant_group, scoped_fields=SCOPED_FIELDS_MAPPING["tenancy.tenantgroup"]
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -144,7 +144,7 @@ class NautobotTenantGroup(TenantGroup):
         metadata = add_or_update_metadata_on_object(
             adapter=self.adapter,
             obj=_update_tenant_group,
-            scoped_fields=SCOPED_FIELDS_MAPPING,
+            scoped_fields=SCOPED_FIELDS_MAPPING["tenancy.tenantgroup"],
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -193,7 +193,7 @@ class NautobotTenant(Tenant):
         new_tenant.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_tenant.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=new_tenant, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter, obj=new_tenant, scoped_fields=SCOPED_FIELDS_MAPPING["tenancy.tenant"]
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -220,7 +220,7 @@ class NautobotTenant(Tenant):
         _update_tenant.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_tenant.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=_update_tenant, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=_update_tenant, scoped_fields=SCOPED_FIELDS_MAPPING["tenancy.tenant"]
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -261,7 +261,9 @@ class NautobotRole(Role):
         _new_role.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_role.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_role.validated_save()
-        metadata = add_or_update_metadata_on_object(adapter=adapter, obj=_new_role, scoped_fields=SCOPED_FIELDS_MAPPING)
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=_new_role, scoped_fields=SCOPED_FIELDS_MAPPING["extras.role"]
+        )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
@@ -289,7 +291,7 @@ class NautobotRole(Role):
         _update_role.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_role.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=_update_role, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=_update_role, scoped_fields=SCOPED_FIELDS_MAPPING["extras.role"]
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -318,7 +320,7 @@ class NautobotManufacturer(Manufacturer):
         _new_manufacturer.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_manufacturer.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=_new_manufacturer, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter, obj=_new_manufacturer, scoped_fields=SCOPED_FIELDS_MAPPING["dcim.manufacturer"]
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -336,7 +338,7 @@ class NautobotManufacturer(Manufacturer):
         metadata = add_or_update_metadata_on_object(
             adapter=self.adapter,
             obj=_update_manufacturer,
-            scoped_fields=SCOPED_FIELDS_MAPPING,
+            scoped_fields=SCOPED_FIELDS_MAPPING["dcim.manufacturer"],
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -380,7 +382,7 @@ class NautobotPlatform(Platform):
             _new_platform.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
             _new_platform.validated_save()
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_platform, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=_new_platform, scoped_fields=SCOPED_FIELDS_MAPPING["dcim.platform"]
             )
             metadata.validated_save()
         except ORMManufacturer.DoesNotExist:
@@ -405,7 +407,7 @@ class NautobotPlatform(Platform):
             _update_platform.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_platform.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=_update_platform, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=_update_platform, scoped_fields=SCOPED_FIELDS_MAPPING["dcim.platform"]
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -465,7 +467,7 @@ class NautobotLocationType(LocationType):
         _new_location_type.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_location_type.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=_new_location_type, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter, obj=_new_location_type, scoped_fields=SCOPED_FIELDS_MAPPING["dcim.locationtype"]
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -504,7 +506,7 @@ class NautobotLocationType(LocationType):
         metadata = add_or_update_metadata_on_object(
             adapter=self.adapter,
             obj=_update_location_type,
-            scoped_fields=SCOPED_FIELDS_MAPPING,
+            scoped_fields=SCOPED_FIELDS_MAPPING["dcim.locationtype"],
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -575,7 +577,7 @@ class NautobotLocation(Location):
             _new_location.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
             _new_location.validated_save()
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_location, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=_new_location, scoped_fields=SCOPED_FIELDS_MAPPING["dcim.location"]
             )
             metadata.validated_save()
         except ORMStatus.DoesNotExist:
@@ -649,7 +651,7 @@ class NautobotLocation(Location):
         _update_location.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_location.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=_update_location, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=_update_location, scoped_fields=SCOPED_FIELDS_MAPPING["dcim.location"]
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -686,7 +688,9 @@ class NautobotTeam(Team):
         _new_team.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_team.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_team.validated_save()
-        metadata = add_or_update_metadata_on_object(adapter=adapter, obj=_new_team, scoped_fields=SCOPED_FIELDS_MAPPING)
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=_new_team, scoped_fields=SCOPED_FIELDS_MAPPING["extras.team"]
+        )
         metadata.validated_save()
         # TODO: Need to consider how to allow loading from teams or contacts models.
         # if "contacts" in attrs:
@@ -720,7 +724,7 @@ class NautobotTeam(Team):
         _update_team.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_team.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=_update_team, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=_update_team, scoped_fields=SCOPED_FIELDS_MAPPING["extras.team"]
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -759,7 +763,7 @@ class NautobotContact(Contact):
                 _new_contact.teams.add(lookup_team_for_contact(team=_team))
             _new_contact.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=_new_contact, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter, obj=_new_contact, scoped_fields=SCOPED_FIELDS_MAPPING["extras.contact"]
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -785,7 +789,7 @@ class NautobotContact(Contact):
         _update_contact.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_contact.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=_update_contact, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=_update_contact, scoped_fields=SCOPED_FIELDS_MAPPING["extras.contact"]
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -830,7 +834,7 @@ class NautobotProvider(Provider):
         _new_provider.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_provider.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=_new_provider, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter, obj=_new_provider, scoped_fields=SCOPED_FIELDS_MAPPING["circuits.provider"]
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -862,7 +866,7 @@ class NautobotProvider(Provider):
         _update_provider.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_provider.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=_update_provider, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=_update_provider, scoped_fields=SCOPED_FIELDS_MAPPING["circuits.provider"]
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -905,7 +909,7 @@ class NautobotProviderNetwork(ProviderNetwork):
         _new_provider_network.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_provider_network.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=_new_provider_network, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter, obj=_new_provider_network, scoped_fields=SCOPED_FIELDS_MAPPING["circuits.providernetwork"]
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -935,7 +939,7 @@ class NautobotProviderNetwork(ProviderNetwork):
         metadata = add_or_update_metadata_on_object(
             adapter=self.adapter,
             obj=_update_provider_network,
-            scoped_fields=SCOPED_FIELDS_MAPPING,
+            scoped_fields=SCOPED_FIELDS_MAPPING["circuits.providernetwork"],
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -967,7 +971,7 @@ class NautobotCircuitType(CircuitType):
         _new_circuit_type.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_circuit_type.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=_new_circuit_type, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter, obj=_new_circuit_type, scoped_fields=SCOPED_FIELDS_MAPPING["circuits.circuittype"]
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -987,7 +991,7 @@ class NautobotCircuitType(CircuitType):
         metadata = add_or_update_metadata_on_object(
             adapter=self.adapter,
             obj=_update_circuit_type,
-            scoped_fields=SCOPED_FIELDS_MAPPING,
+            scoped_fields=SCOPED_FIELDS_MAPPING["circuits.circuittype"],
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -1041,7 +1045,7 @@ class NautobotCircuit(Circuit):
         _new_circuit.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_circuit.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=_new_circuit, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter, obj=_new_circuit, scoped_fields=SCOPED_FIELDS_MAPPING["circuits.circuit"]
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -1081,7 +1085,7 @@ class NautobotCircuit(Circuit):
         _update_circuit.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_circuit.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=_update_circuit, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=_update_circuit, scoped_fields=SCOPED_FIELDS_MAPPING["circuits.circuit"]
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -1168,7 +1172,7 @@ class NautobotCircuitTermination(CircuitTermination):
         metadata = add_or_update_metadata_on_object(
             adapter=adapter,
             obj=_new_circuit_termination,
-            scoped_fields=SCOPED_FIELDS_MAPPING,
+            scoped_fields=SCOPED_FIELDS_MAPPING["circuits.circuittermination"],
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -1226,7 +1230,7 @@ class NautobotCircuitTermination(CircuitTermination):
         metadata = add_or_update_metadata_on_object(
             adapter=self.adapter,
             obj=_update_circuit_termination,
-            scoped_fields=SCOPED_FIELDS_MAPPING,
+            scoped_fields=SCOPED_FIELDS_MAPPING["circuits.circuittermination"],
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -1267,7 +1271,7 @@ class NautobotNamespace(Namespace):
                     f"Nautobot Location {attrs['location']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=new_namespace, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter, obj=new_namespace, scoped_fields=SCOPED_FIELDS_MAPPING["ipam.namespace"]
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -1293,7 +1297,7 @@ class NautobotNamespace(Namespace):
         metadata = add_or_update_metadata_on_object(
             adapter=self.adapter,
             obj=_update_namespace,
-            scoped_fields=SCOPED_FIELDS_MAPPING,
+            scoped_fields=SCOPED_FIELDS_MAPPING["ipam.namespace"],
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -1329,7 +1333,9 @@ class NautobotRiR(RiR):
         new_rir.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_rir.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_rir.validated_save()
-        metadata = add_or_update_metadata_on_object(adapter=adapter, obj=new_rir, scoped_fields=SCOPED_FIELDS_MAPPING)
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=new_rir, scoped_fields=SCOPED_FIELDS_MAPPING["ipam.rir"]
+        )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
@@ -1346,7 +1352,7 @@ class NautobotRiR(RiR):
         _update_rir.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_rir.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=_update_rir, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=_update_rir, scoped_fields=SCOPED_FIELDS_MAPPING["ipam.rir"]
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -1390,7 +1396,7 @@ class NautobotVLANGroup(VLANGroup):
         new_vlan_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_vlan_group.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=new_vlan_group, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter, obj=new_vlan_group, scoped_fields=SCOPED_FIELDS_MAPPING["ipam.vlangroup"]
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -1419,7 +1425,7 @@ class NautobotVLANGroup(VLANGroup):
         metadata = add_or_update_metadata_on_object(
             adapter=self.adapter,
             obj=_update_vlan_group,
-            scoped_fields=SCOPED_FIELDS_MAPPING,
+            scoped_fields=SCOPED_FIELDS_MAPPING["ipam.vlangroup"],
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -1518,7 +1524,9 @@ class NautobotVLAN(VLAN):
         if _locations:
             for _location in _locations:
                 new_vlan.locations.add(_location)
-        metadata = add_or_update_metadata_on_object(adapter=adapter, obj=new_vlan, scoped_fields=SCOPED_FIELDS_MAPPING)
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=new_vlan, scoped_fields=SCOPED_FIELDS_MAPPING["ipam.vlan"]
+        )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
@@ -1593,7 +1601,7 @@ class NautobotVLAN(VLAN):
         _update_vlan.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_vlan.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=_update_vlan, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=_update_vlan, scoped_fields=SCOPED_FIELDS_MAPPING["ipam.vlan"]
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -1651,7 +1659,9 @@ class NautobotVRF(VRF):
         new_vrf.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_vrf.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_vrf.validated_save()
-        metadata = add_or_update_metadata_on_object(adapter=adapter, obj=new_vrf, scoped_fields=SCOPED_FIELDS_MAPPING)
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=new_vrf, scoped_fields=SCOPED_FIELDS_MAPPING["ipam.vrf"]
+        )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
@@ -1682,7 +1692,7 @@ class NautobotVRF(VRF):
         _update_vrf.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_vrf.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=_update_vrf, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=_update_vrf, scoped_fields=SCOPED_FIELDS_MAPPING["ipam.vrf"]
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -1858,7 +1868,7 @@ class NautobotPrefix(Prefix):
                     f"Nautobot VRF {attrs['vrfs']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
             metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_prefix, scoped_fields=SCOPED_FIELDS_MAPPING
+                adapter=adapter, obj=new_prefix, scoped_fields=SCOPED_FIELDS_MAPPING["ipam.prefix"]
             )
             metadata.validated_save()
             return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -2001,7 +2011,7 @@ class NautobotPrefix(Prefix):
         _update_prefix.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_prefix.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=_update_prefix, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=_update_prefix, scoped_fields=SCOPED_FIELDS_MAPPING["ipam.prefix"]
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -2034,7 +2044,7 @@ class NautobotSecret(Secret):
         new_secret.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_secret.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=new_secret, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter, obj=new_secret, scoped_fields=SCOPED_FIELDS_MAPPING["extras.secret"]
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -2051,7 +2061,7 @@ class NautobotSecret(Secret):
             _update_secret.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_secret.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=_update_secret, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=_update_secret, scoped_fields=SCOPED_FIELDS_MAPPING["extras.secret"]
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -2097,7 +2107,7 @@ class NautobotSecretsGroup(SecretsGroup):
                     metadata = add_or_update_metadata_on_object(
                         adapter=adapter,
                         obj=_new_secrets_group,
-                        scoped_fields=SCOPED_FIELDS_MAPPING,
+                        scoped_fields=SCOPED_FIELDS_MAPPING["extras.secretsgroup"],
                     )
                     metadata.validated_save()
                 except ORMSecret.DoesNotExist:
@@ -2135,7 +2145,7 @@ class NautobotSecretsGroup(SecretsGroup):
         _update_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_group.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=_update_group, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=_update_group, scoped_fields=SCOPED_FIELDS_MAPPING["extras.secretsgroup"]
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -2173,7 +2183,7 @@ class NautobotGitRepository(GitRepository):
         new_gitrepository.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_gitrepository.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=new_gitrepository, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter, obj=new_gitrepository, scoped_fields=SCOPED_FIELDS_MAPPING["extras.gitrepository"]
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -2196,7 +2206,7 @@ class NautobotGitRepository(GitRepository):
         _update_git_repo.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_git_repo.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=_update_git_repo, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=_update_git_repo, scoped_fields=SCOPED_FIELDS_MAPPING["extras.gitrepository"]
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -2245,7 +2255,7 @@ class NautobotDynamicGroup(DynamicGroup):
             _new_nb_dg.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
             _new_nb_dg.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=_new_nb_dg, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter, obj=_new_nb_dg, scoped_fields=SCOPED_FIELDS_MAPPING["extras.dynamicgroup"]
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -2265,7 +2275,7 @@ class NautobotDynamicGroup(DynamicGroup):
         metadata = add_or_update_metadata_on_object(
             adapter=self.adapter,
             obj=_update_dyn_group,
-            scoped_fields=SCOPED_FIELDS_MAPPING,
+            scoped_fields=SCOPED_FIELDS_MAPPING["extras.dynamicgroup"],
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -2300,7 +2310,7 @@ class NautobotComputedField(ComputedField):
         )
         _new_computed_field.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=_new_computed_field, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter, obj=_new_computed_field, scoped_fields=SCOPED_FIELDS_MAPPING["extras.computedfield"]
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -2321,7 +2331,7 @@ class NautobotComputedField(ComputedField):
             comp_field.template = attrs["template"]
         comp_field.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=comp_field, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=comp_field, scoped_fields=SCOPED_FIELDS_MAPPING["extras.computedfield"]
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -2376,7 +2386,7 @@ class NautobotCustomField(CustomField):
             )
             _new_cf.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=_new_custom_field, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter, obj=_new_custom_field, scoped_fields=SCOPED_FIELDS_MAPPING["extras.customfield"]
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -2423,7 +2433,7 @@ class NautobotCustomField(CustomField):
 
         cust_field.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=cust_field, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=cust_field, scoped_fields=SCOPED_FIELDS_MAPPING["extras.customfield"]
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -2465,7 +2475,9 @@ class NautobotTag(Tag):
         _new_tag.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_tag.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_tag.validated_save()
-        metadata = add_or_update_metadata_on_object(adapter=adapter, obj=_new_tag, scoped_fields=SCOPED_FIELDS_MAPPING)
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=_new_tag, scoped_fields=SCOPED_FIELDS_MAPPING["extras.tag"]
+        )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
@@ -2491,7 +2503,7 @@ class NautobotTag(Tag):
         _update_tag.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_tag.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=_update_tag, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=_update_tag, scoped_fields=SCOPED_FIELDS_MAPPING["extras.tag"]
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -2518,7 +2530,7 @@ class NautobotGraphQLQuery(GraphQLQuery):
         _new_query = ORMGraphQLQuery(name=ids["name"], query=attrs["query"])
         _new_query.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=_new_query, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter, obj=_new_query, scoped_fields=SCOPED_FIELDS_MAPPING["extras.graphqlquery"]
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -2531,7 +2543,7 @@ class NautobotGraphQLQuery(GraphQLQuery):
             _query.query = attrs["query"]
         _query.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=_query, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=_query, scoped_fields=SCOPED_FIELDS_MAPPING["extras.graphqlquery"]
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -2596,7 +2608,7 @@ class NautobotScheduledJob(ScheduledJob):
         )
         scheduled_job.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=scheduled_job, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter, obj=scheduled_job, scoped_fields=SCOPED_FIELDS_MAPPING["extras.scheduledjob"]
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -2644,7 +2656,9 @@ class NautobotScheduledJob(ScheduledJob):
             job.enabled = attrs["enabled"]
 
         job.validated_save()
-        metadata = add_or_update_metadata_on_object(adapter=self.adapter, obj=job, scoped_fields=SCOPED_FIELDS_MAPPING)
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=job, scoped_fields=SCOPED_FIELDS_MAPPING["extras.scheduledjob"]
+        )
         metadata.validated_save()
         return super().update(attrs)
 
@@ -2679,7 +2693,7 @@ class NautobotSoftware(SoftwareVersion):
         _new_software = ORMSoftware(
             version=ids["version"],
             alias=attrs["alias"],
-            device_platform=_platform,
+            platform=_platform,
             end_of_support_date=attrs["eos_date"],
             long_term_support=attrs["long_term_support"],
             pre_release=attrs["pre_release"],
@@ -2695,7 +2709,7 @@ class NautobotSoftware(SoftwareVersion):
         _new_software.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_software.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=_new_software, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter, obj=_new_software, scoped_fields=SCOPED_FIELDS_MAPPING["dcim.softwareversion"]
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -2733,7 +2747,7 @@ class NautobotSoftware(SoftwareVersion):
         _update_software.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_software.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=_update_software, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=_update_software, scoped_fields=SCOPED_FIELDS_MAPPING["dcim.softwareversion"]
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -2798,7 +2812,7 @@ class NautobotSoftwareImage(SoftwareImageFile):
         _new_soft_image.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_soft_image.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=_new_soft_image, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter, obj=_new_soft_image, scoped_fields=SCOPED_FIELDS_MAPPING["extras.softwareimagefile"]
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -2845,7 +2859,7 @@ class NautobotSoftwareImage(SoftwareImageFile):
         metadata = add_or_update_metadata_on_object(
             adapter=self.adapter,
             obj=_update_soft_image,
-            scoped_fields=SCOPED_FIELDS_MAPPING,
+            scoped_fields=SCOPED_FIELDS_MAPPING["extras.softwareimagefile"],
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -2854,7 +2868,7 @@ class NautobotSoftwareImage(SoftwareImageFile):
         """Delete SoftwareImage in Nautobot from NautobotSoftwareImage object."""
         try:
             _platform = ORMPlatform.objects.get(name=self.platform)
-            _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
+            _software = ORMSoftware.objects.get(version=self.software_version, platform=_platform)
             _soft_image = ORMSoftwareImage.objects.get(software=_software)
             super().delete()
             _soft_image.delete()
@@ -2938,7 +2952,7 @@ if validate_dlm_installed():
             metadata = add_or_update_metadata_on_object(
                 adapter=adapter,
                 obj=_new_validated_software,
-                scoped_fields=SCOPED_FIELDS_MAPPING,
+                scoped_fields=SCOPED_FIELDS_MAPPING["nautobot_device_lifecycle_mgmt.validatedsoftwarelcm"],
             )
             metadata.validated_save()
             return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -3023,7 +3037,7 @@ if validate_dlm_installed():
             metadata = add_or_update_metadata_on_object(
                 adapter=self.adapter,
                 obj=_update_validated_software,
-                scoped_fields=SCOPED_FIELDS_MAPPING,
+                scoped_fields=SCOPED_FIELDS_MAPPING["nautobot_device_lifecycle_mgmt.validatedsoftwarelcm"],
             )
             metadata.validated_save()
             return super().update(attrs)
@@ -3070,7 +3084,9 @@ class NautobotExternalIntegration(ExternalIntegration):
         new_externalintegration.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_externalintegration.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=new_externalintegration, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter,
+            obj=new_externalintegration,
+            scoped_fields=SCOPED_FIELDS_MAPPING["extras.externalintegration"],
         )
         metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
@@ -3120,7 +3136,9 @@ class NautobotExternalIntegration(ExternalIntegration):
         )
         _update_externalintegration.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=_update_externalintegration, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter,
+            obj=_update_externalintegration,
+            scoped_fields=SCOPED_FIELDS_MAPPING["extras.externalintegration"],
         )
         metadata.validated_save()
         return super().update(attrs)
