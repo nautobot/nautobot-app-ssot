@@ -4,6 +4,7 @@ from datetime import datetime
 from unittest import skip
 
 from django.contrib.contenttypes.models import ContentType
+from django.test import override_settings
 from django.urls import reverse
 from nautobot.apps.testing import ViewTestCases
 from nautobot.core.testing.utils import disable_warnings
@@ -36,7 +37,7 @@ class SyncViewsTestCase(  # pylint: disable=too-many-ancestors
                 task_name="nautobot_ssot.jobs.examples.ExampleDataSource",
                 worker="default",
             )
-            Sync.objects.create(
+            cls.sync = Sync.objects.create(
                 source="Example Data Source",
                 target="Nautobot",
                 start_time=datetime.now(),
@@ -105,6 +106,30 @@ class SyncViewsTestCase(  # pylint: disable=too-many-ancestors
             ),
             200,
         )
+
+    @override_settings(EXEMPT_VIEW_PERMISSIONS=["*"])
+    def test_sync_diff_tab(self):
+        self.add_permissions("nautobot_ssot.view_sync")
+
+        url = reverse("plugins:nautobot_ssot:sync_diff", kwargs={"pk": self.sync.pk})
+        response = self.client.get(url)
+        self.assertHttpStatus(response, 200)
+
+    @override_settings(EXEMPT_VIEW_PERMISSIONS=["*"])
+    def test_sync_logentries_tab(self):
+        self.add_permissions("nautobot_ssot.view_synclogentry")
+
+        url = reverse("plugins:nautobot_ssot:sync_logentries", kwargs={"pk": self.sync.pk})
+        response = self.client.get(url)
+        self.assertHttpStatus(response, 200)
+
+    @override_settings(EXEMPT_VIEW_PERMISSIONS=["*"])
+    def test_sync_jobresult_tab(self):
+        self.add_permissions("extras.view_jobresult")
+
+        url = reverse("plugins:nautobot_ssot:sync_jobresult", kwargs={"pk": self.sync.pk})
+        response = self.client.get(url)
+        self.assertHttpStatus(response, 200)
 
 
 class SyncLogEntryViewsTestCase(ViewTestCases.ListObjectsViewTestCase):  # pylint: disable=too-many-ancestors
