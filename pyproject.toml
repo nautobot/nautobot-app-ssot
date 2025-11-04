@@ -59,7 +59,8 @@ slurpit-sdk = { version = "0.9.100", optional = true }  # Pinned to 0.9.100 due 
 
 [tool.poetry.group.dev.dependencies]
 coverage = "*"
-django-debug-toolbar = "<4.4"
+# Currently pinned to 5.2.0 due to https://github.com/django-commons/django-debug-toolbar/issues/2168
+django-debug-toolbar = "~5.2.0"
 invoke = "*"
 ipython = "*"
 jedi = "^0.17.2"
