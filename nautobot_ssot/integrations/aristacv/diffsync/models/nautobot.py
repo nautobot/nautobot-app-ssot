@@ -112,7 +112,7 @@ class NautobotDevice(Device):
         if "version" in attrs:
             dev.software_version = SoftwareVersion.objects.get_or_create(
                 version=attrs["version"],
-                device_platform_id=dev.platform,
+                platform=dev.platform,
             )[0]
         try:
             dev.validated_save()

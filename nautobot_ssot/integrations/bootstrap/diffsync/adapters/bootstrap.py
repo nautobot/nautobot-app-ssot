@@ -894,14 +894,12 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load Software objects from Bootstrap into DiffSync Models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Software {software}")
-        # Always map device_platform to platform for consistency
-        platform = software.get("device_platform") or software.get("platform")
         try:
             self.get(
                 self.software_version,
                 {
                     "version": software["version"],
-                    "platform": platform,
+                    "platform": software.get("platform"),
                 },
             )
         except ObjectNotFound:
@@ -926,7 +924,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
 
             _new_software = self.software_version(
                 version=software["version"],
-                platform=platform,
+                platform=software.get("platform"),
                 status=_status,
                 alias=_alias,
                 release_date=_release_date,

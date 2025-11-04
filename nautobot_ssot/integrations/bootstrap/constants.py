@@ -129,25 +129,22 @@ SCOPED_FIELDS_MAPPING = {
     "ipam.vlan": ["name", "vid", "vlan_group", "description", "status", "role", "locations", "tenant", "tags"],
     "ipam.vlangroup": ["name", "location", "description"],
     "ipam.vrf": ["name", "namespace", "rd", "description", "tenant", "tags"],
-}
-
-SCOPED_FIELDS_MAPPING["dcim.softwareimagefile"] = [
-    "software_version",
-    "image_file_name",
-    "platform",
-    "status",
-    "image_file_size",
-    "device_types",
-    "download_url",
-    "image_file_checksum",
-    "hashing_algorithm",
-    "default_image",
-    "tags",
-]
-SCOPED_FIELDS_MAPPING["dcim.softwareversion"] = (
-    [
+    "dcim.softwareimagefile": [
+        "software_version",
+        "image_file_name",
+        "platform",
+        "status",
+        "image_file_size",
+        "device_types",
+        "download_url",
+        "image_file_checksum",
+        "hashing_algorithm",
+        "default_image",
+        "tags",
+    ],
+    "dcim.softwareversion": [
         "version",
-        "device_platform",
+        "platform",
         "alias",
         "release_date",
         "end_of_support_date",
@@ -157,7 +154,7 @@ SCOPED_FIELDS_MAPPING["dcim.softwareversion"] = (
         "documentation_url",
         "tags",
     ],
-)
+}
 
 if validate_dlm_installed():
     SCOPED_FIELDS_MAPPING["nautobot_device_lifecycle_mgmt.validatedsoftwarelcm"] = [
