@@ -125,7 +125,9 @@ class ProcessRecordsJob(Job):
                 event_dict["model"], event_dict["unique_id"]
             )
             try:
-                record = SyncRecord.objects.get(obj_type=event_dict["model"], obj_name=event_dict["unique_id"])
+                record = SyncRecord.objects.get(
+                    obj_type=event_dict["model"], obj_name=event_dict["unique_id"], sync=self.records[0].sync
+                )
                 record.status = Status.objects.get(name=STATUS_MAP[event_dict["status"]])
                 record.message = event_dict["event"] if event_dict.get("event") else ""
                 if synced_object:
