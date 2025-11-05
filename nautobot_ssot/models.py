@@ -17,6 +17,7 @@ The interaction between these models and Nautobot's native JobResult model deser
 JobResult 1<->1 Sync 1-->n SyncLogEntry
 """
 
+import logging
 from datetime import timedelta
 
 from diffsync.enum import DiffSyncFlags
@@ -46,6 +47,8 @@ from .choices import (
     SyncLogEntryStatusChoices,
     SyncRecordActionChoices,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class DiffJSONEncoder(DjangoJSONEncoder):
@@ -366,7 +369,43 @@ class SyncRecord(BaseModel):
 
     def __str__(self):
         """String representation of a SyncRecord instance."""
-        return f"{self.source} → {self.target}: {self.obj_type} {self.obj_name}"
+        return f"{self.source_adapter} → {self.target_adapter}: {self.obj_type} {self.obj_name}"
+
+    def get_ancestors(self, record=None):
+        """Recursive function to return all ancestors of a SyncRecord.
+
+        Args:
+            record (SyncRecord, optional): Child SyncRecord to traverse from. If not set, then this record (self) will be used.
+        """
+        if not record:
+            record = self
+
+        ancestors = []
+        for parent_record in record.parent.all():
+            logger.debug("Processing SyncRecord %s...", parent_record)
+            ancestors.append(parent_record)
+            if parent_record.parent.exists():
+                ancestors.extend(parent_record.get_ancestors())
+
+        return ancestors
+
+    def get_descendants(self, record=None):
+        """
+        Recursively return a list of the children of all child records.
+
+        Args:
+            record (SyncRecord): Parent SyncRecord to traverse from. If not set, this record (self) is used.
+        """
+        if record is None:
+            record = self
+
+        descendants = []
+        for child_record in record.children.all():
+            logger.debug("Processing SynCrecord %s...", child_record)
+            descendants.append(child_record)
+            if child_record.children.exists():
+                descendants.extend(child_record.get_descendants())
+        return descendants
 
 
 class SSOTConfig(models.Model):  # pylint: disable=nb-incorrect-base-class
