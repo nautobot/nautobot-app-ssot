@@ -15,7 +15,6 @@ from nautobot.dcim.models import (
     SoftwareVersion,
 )
 from nautobot.extras.models import Role
-from nautobot.extras.models.metadata import ObjectMetadata  # noqa: F401
 from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix
 
 from nautobot_ssot.integrations.dna_center.constants import SCOPED_FIELDS_MAPPING
@@ -51,10 +50,11 @@ class NautobotArea(base.Area):
         except ValidationError as err:
             adapter.job.logger.warning(f"Unable to create {adapter.job.area_loctype.name} {ids['name']}. {err}")
             return None
-        metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=new_area, scoped_fields=SCOPED_FIELDS_MAPPING["area"]
+        add_or_update_metadata_on_object(
+            adapter=adapter,
+            obj=new_area,
+            scoped_fields=SCOPED_FIELDS_MAPPING
         )
-        metadata.validated_save()
         if ids["parent"] not in adapter.region_map:
             adapter.region_map[ids["parent"]] = {}
         adapter.region_map[ids["parent"]][ids["name"]] = new_area.id
@@ -63,12 +63,11 @@ class NautobotArea(base.Area):
     def update(self, attrs):
         """Update Region in Nautobot from Area object."""
         region = Location.objects.get(id=self.uuid)
-        metadata = add_or_update_metadata_on_object(
+        add_or_update_metadata_on_object(
             adapter=self.adapter,
             obj=region,
-            scoped_fields=SCOPED_FIELDS_MAPPING["area"],
+            scoped_fields=SCOPED_FIELDS_MAPPING
         )
-        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -109,12 +108,11 @@ class NautobotBuilding(base.Building):
         except ValidationError as err:
             adapter.job.logger.error(f"Unable to create {adapter.job.building_loctype.name} {ids['name']}. {err}")
             return None
-        metadata = add_or_update_metadata_on_object(
+        add_or_update_metadata_on_object(
             adapter=adapter,
             obj=new_building,
-            scoped_fields=SCOPED_FIELDS_MAPPING["building"],
+            scoped_fields=SCOPED_FIELDS_MAPPING
         )
-        metadata.validated_save()
         if ids["area"] not in adapter.site_map:
             adapter.site_map[ids["area"]] = {}
         adapter.site_map[ids["area"]][ids["name"]] = new_building.id
@@ -144,10 +142,11 @@ class NautobotBuilding(base.Building):
             else:
                 site.tenant = None
         site.validated_save()
-        metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=site, scoped_fields=SCOPED_FIELDS_MAPPING["building"]
+        add_or_update_metadata_on_object(
+            adapter=self.adapter,
+            obj=site,
+            scoped_fields=SCOPED_FIELDS_MAPPING
         )
-        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -181,10 +180,11 @@ class NautobotFloor(base.Floor):
         if attrs.get("tenant"):
             new_floor.tenant_id = adapter.tenant_map[attrs["tenant"]]
         new_floor.validated_save()
-        metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=new_floor, scoped_fields=SCOPED_FIELDS_MAPPING["floor"]
+        add_or_update_metadata_on_object(
+            adapter=adapter,
+            obj=new_floor,
+            scoped_fields=SCOPED_FIELDS_MAPPING
         )
-        metadata.validated_save()
         if ids["area"] not in adapter.floor_map:
             adapter.floor_map[ids["area"]] = {}
         if ids["building"] not in adapter.floor_map[ids["area"]]:
@@ -203,10 +203,11 @@ class NautobotFloor(base.Floor):
             else:
                 floor.tenant = None
         floor.validated_save()
-        metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=floor, scoped_fields=SCOPED_FIELDS_MAPPING["floor"]
+        add_or_update_metadata_on_object(
+            adapter=self.adapter,
+            obj=floor,
+            scoped_fields=SCOPED_FIELDS_MAPPING
         )
-        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -269,7 +270,7 @@ class NautobotDevice(base.Device):
         metadata = add_or_update_metadata_on_object(
             adapter=adapter,
             obj=new_device,
-            scoped_fields=SCOPED_FIELDS_MAPPING,
+            scoped_fields=SCOPED_FIELDS_MAPPING
         )
         adapter.objects_to_create["metadata"].append(metadata)
         new_device.cf["system_of_record"] = "DNA Center"
@@ -335,12 +336,11 @@ class NautobotDevice(base.Device):
             )[0]
         device.cf["system_of_record"] = "DNA Center"
         device.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
-        metadata = add_or_update_metadata_on_object(
+        add_or_update_metadata_on_object(
             adapter=self.adapter,
             obj=device,
-            scoped_fields=SCOPED_FIELDS_MAPPING,
+            scoped_fields=SCOPED_FIELDS_MAPPING
         )
-        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -376,7 +376,7 @@ class NautobotPort(base.Port):
         metadata = add_or_update_metadata_on_object(
             adapter=adapter,
             obj=new_port,
-            scoped_fields=SCOPED_FIELDS_MAPPING,
+            scoped_fields=SCOPED_FIELDS_MAPPING
         )
         adapter.objects_to_create["metadata"].append(metadata)
         new_port.cf["system_of_record"] = "DNA Center"
@@ -409,12 +409,11 @@ class NautobotPort(base.Port):
         port.cf["system_of_record"] = "DNA Center"
         port.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
         port.validated_save()
-        metadata = add_or_update_metadata_on_object(
+        add_or_update_metadata_on_object(
             adapter=self.adapter,
             obj=port,
-            scoped_fields=SCOPED_FIELDS_MAPPING,
+            scoped_fields=SCOPED_FIELDS_MAPPING
         )
-        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -452,7 +451,7 @@ class NautobotPrefix(base.Prefix):
         metadata = add_or_update_metadata_on_object(
             adapter=adapter,
             obj=new_prefix,
-            scoped_fields=SCOPED_FIELDS_MAPPING,
+            scoped_fields=SCOPED_FIELDS_MAPPING
         )
         adapter.objects_to_create["metadata"].append(metadata)
         new_prefix.cf["system_of_record"] = "DNA Center"
@@ -470,12 +469,11 @@ class NautobotPrefix(base.Prefix):
             else:
                 prefix.tenant = None
         prefix.validated_save()
-        metadata = add_or_update_metadata_on_object(
+        add_or_update_metadata_on_object(
             adapter=self.adapter,
             obj=prefix,
-            scoped_fields=SCOPED_FIELDS_MAPPING,
+            scoped_fields=SCOPED_FIELDS_MAPPING
         )
-        metadata.validated_save()
         prefix.cf["system_of_record"] = "DNA Center"
         prefix.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
         return super().update(attrs)
@@ -510,7 +508,7 @@ class NautobotIPAddress(base.IPAddress):
         metadata = add_or_update_metadata_on_object(
             adapter=adapter,
             obj=new_ip,
-            scoped_fields=SCOPED_FIELDS_MAPPING,
+            scoped_fields=SCOPED_FIELDS_MAPPING
         )
         adapter.objects_to_create["metadata"].append(metadata)
         adapter.ipaddr_map[ids["host"]] = new_ip.id
@@ -528,12 +526,11 @@ class NautobotIPAddress(base.IPAddress):
         ipaddr.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
         try:
             ipaddr.validated_save()
-            metadata = add_or_update_metadata_on_object(
+            add_or_update_metadata_on_object(
                 adapter=self.adapter,
                 obj=ipaddr,
-                scoped_fields=SCOPED_FIELDS_MAPPING,
+                scoped_fields=SCOPED_FIELDS_MAPPING
             )
-            metadata.validated_save()
         except ValidationError as err:
             self.adapter.job.logger.warning(f"Unable to update {ipaddr}: {err}")
         return super().update(attrs)
