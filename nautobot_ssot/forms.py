@@ -82,6 +82,7 @@ class SyncRecordFilterForm(NautobotFilterForm):
     q = forms.CharField(
         required=False,
         label="Search",
-        help_text="Search within Name.",
+        help_text="Search within objects.",
     )
-    name = forms.CharField(required=False, label="Name")
+    source_adapter = forms.CharField(required=False, label="Source Adapter")
+    target_adapter = forms.CharField(required=False, label="Target Adapter")

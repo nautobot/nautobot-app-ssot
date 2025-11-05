@@ -292,8 +292,9 @@ class SyncRecord(BaseModel):
     sync = models.ForeignKey(to=Sync, on_delete=models.CASCADE, related_name="records", related_query_name="record")
     timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
-    source = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="System data is read from")
-    target = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="System data is written to")
+    module = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="Python module that Adapters reside in.")
+    source_adapter = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="System data is read from")
+    target_adapter = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="System data is written to")
     source_kwargs = models.JSONField(
         default=dict,
         blank=True,

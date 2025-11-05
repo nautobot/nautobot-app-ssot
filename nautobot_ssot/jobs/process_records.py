@@ -60,8 +60,8 @@ class ProcessRecordsJob(Job):
         self.load_sync_records(records=self.records)
 
         # recreate adapters
-        source_adapter_cls = import_from_dotted_path(self.records[0].source)
-        target_adapter_cls = import_from_dotted_path(self.records[0].target)
+        source_adapter_cls = import_from_dotted_path(f"{self.records[0].module}.{self.records[0].source_adapter}")
+        target_adapter_cls = import_from_dotted_path(f"{self.records[0].module}.{self.records[0].target_adapter}")
 
         self.source_adapter = source_adapter_cls(job=self, **self.records[0].source_kwargs)
         self.target_adapter = target_adapter_cls(job=self, **self.records[0].target_kwargs)
@@ -102,8 +102,8 @@ class ProcessRecordsJob(Job):
                 obj_type=record.obj_type,
                 name=record.obj_name,
                 keys=record.obj_keys,
-                source_name=record.source,
-                dest_name=record.target,
+                source_name=record.source_adapter,
+                dest_name=record.target_adapter,
             )
             diff_element.source_attrs = record.source_attrs
             diff_element.dest_attrs = record.target_attrs
