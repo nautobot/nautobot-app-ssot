@@ -381,11 +381,12 @@ class SyncRecord(BaseModel):
             record = self
 
         ancestors = []
-        for parent_record in record.parent.all():
-            logger.debug("Processing SyncRecord %s...", parent_record)
-            ancestors.append(parent_record)
-            if parent_record.parent.exists():
-                ancestors.extend(parent_record.get_ancestors())
+        if record.parent:
+            for parent_record in record.parent.all():
+                logger.debug("Processing SyncRecord %s...", parent_record)
+                ancestors.append(parent_record)
+                if parent_record.parent.exists():
+                    ancestors.extend(parent_record.get_ancestors())
 
         return ancestors
 
