@@ -110,8 +110,9 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         for child in diff.get_children():
             if child.action:
                 new_record, _ = SyncRecord.objects.update_or_create(
-                    source=f"{self.__class__.__module__}.{child.source_name}",
-                    target=f"{self.__class__.__module__}.{child.dest_name}",
+                    module=self.__class__.__module__,
+                    source_adapter=child.source_name,
+                    target_adapter=child.dest_name,
                     obj_type=child.type,
                     obj_name=child.name,
                     defaults={

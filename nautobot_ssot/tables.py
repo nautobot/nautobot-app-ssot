@@ -208,8 +208,8 @@ class SyncRecordTable(StatusTableMixin, BaseTable):
     pk = ToggleColumn()
     obj_name = Column(linkify=True)
     obj_type = Column()
-    source = Column()
-    target = Column()
+    source_adapter = Column()
+    target_adapter = Column()
     action = Column()
     actions = ButtonsColumn(
         SyncRecord,
@@ -223,8 +223,20 @@ class SyncRecordTable(StatusTableMixin, BaseTable):
         """Meta attributes."""
 
         model = SyncRecord
-        fields = ["pk", "obj_name", "obj_type", "source", "target", "status", "action", "actions", "message", "sync"]
+        fields = [
+            "pk",
+            "obj_name",
+            "obj_type",
+            "source_adapter",
+            "target_adapter",
+            "status",
+            "action",
+            "actions",
+            "message",
+            "sync",
+            "timestamp",
+        ]
 
         # Option for modifying the columns that show up in the list view by default:
-        default_columns = ("pk", "source", "target", "obj_type", "obj_name", "status", "actions")
+        default_columns = ("pk", "source_adapter", "target_adapter", "obj_type", "obj_name", "status", "actions")
         order_by = ("timestamp",)
