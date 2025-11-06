@@ -48,11 +48,10 @@ class NautobotDatacenter(Datacenter):
             location_type=adapter.job.dc_loctype,
         )
         new_site.validated_save()
-        add_or_update_metadata_on_object(
-            adapter=adapter,
-            obj=new_site,
-            scoped_fields=SCOPED_FIELDS_MAPPING
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=new_site, scoped_fields=SCOPED_FIELDS_MAPPING
         )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -66,11 +65,10 @@ class NautobotDatacenter(Datacenter):
         if "longitude" in attrs:
             site.longitude = attrs["longitude"]
         site.validated_save()
-        add_or_update_metadata_on_object(
-            adapter=self.adapter,
-            obj=site,
-            scoped_fields=SCOPED_FIELDS_MAPPING
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=site, scoped_fields=SCOPED_FIELDS_MAPPING
         )
+        metadata.validated_save()
         return super().update(attrs)
 
 
@@ -86,11 +84,10 @@ class NautobotOSVersion(OSVersion):
             status=Status.objects.get(name="Active"),
         )
         new_ver.validated_save()
-        add_or_update_metadata_on_object(
-            adapter=adapter,
-            obj=new_ver,
-            scoped_fields=SCOPED_FIELDS_MAPPING
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=new_ver, scoped_fields=SCOPED_FIELDS_MAPPING
         )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def delete(self):
@@ -140,11 +137,10 @@ class NautobotDevice(Device):
         new_device.custom_field_data["system_of_record"] = "Citrix ADM"
         new_device.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         new_device.validated_save()
-        add_or_update_metadata_on_object(
-            adapter=adapter,
-            obj=new_device,
-            scoped_fields=SCOPED_FIELDS_MAPPING
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=new_device, scoped_fields=SCOPED_FIELDS_MAPPING
         )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -179,11 +175,10 @@ class NautobotDevice(Device):
         device.custom_field_data["system_of_record"] = "Citrix ADM"
         device.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         device.validated_save()
-        add_or_update_metadata_on_object(
-            adapter=self.adapter,
-            obj=device,
-            scoped_fields=SCOPED_FIELDS_MAPPING
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=device, scoped_fields=SCOPED_FIELDS_MAPPING
         )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -212,11 +207,10 @@ class NautobotPort(Port):
         new_port.custom_field_data["system_of_record"] = "Citrix ADM"
         new_port.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         new_port.validated_save()
-        add_or_update_metadata_on_object(
-            adapter=adapter,
-            obj=new_port,
-            scoped_fields=SCOPED_FIELDS_MAPPING
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=new_port, scoped_fields=SCOPED_FIELDS_MAPPING
         )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -229,11 +223,10 @@ class NautobotPort(Port):
         port.custom_field_data["system_of_record"] = "Citrix ADM"
         port.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         port.validated_save()
-        add_or_update_metadata_on_object(
-            adapter=self.adapter,
-            obj=port,
-            scoped_fields=SCOPED_FIELDS_MAPPING
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=port, scoped_fields=SCOPED_FIELDS_MAPPING
         )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -263,11 +256,10 @@ class NautobotSubnet(Subnet):
         _pf.custom_field_data.update({"system_of_record": "Citrix ADM"})
         _pf.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _pf.validated_save()
-        add_or_update_metadata_on_object(
-            adapter=adapter,
-            obj=_pf,
-            scoped_fields=SCOPED_FIELDS_MAPPING
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=_pf, scoped_fields=SCOPED_FIELDS_MAPPING
         )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -281,11 +273,10 @@ class NautobotSubnet(Subnet):
         _pf.custom_field_data.update({"system_of_record": "Citrix ADM"})
         _pf.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _pf.validated_save()
-        add_or_update_metadata_on_object(
-            adapter=self.adapter,
-            obj=_pf,
-            scoped_fields=SCOPED_FIELDS_MAPPING
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_pf, scoped_fields=SCOPED_FIELDS_MAPPING
         )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):  # pylint: disable=inconsistent-return-statements
@@ -328,11 +319,10 @@ class NautobotAddress(Address):
         new_ip.custom_field_data["system_of_record"] = "Citrix ADM"
         new_ip.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         new_ip.validated_save()
-        add_or_update_metadata_on_object(
-            adapter=adapter,
-            obj=new_ip,
-            scoped_fields=SCOPED_FIELDS_MAPPING
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=new_ip, scoped_fields=SCOPED_FIELDS_MAPPING
         )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -352,11 +342,10 @@ class NautobotAddress(Address):
         addr.custom_field_data["system_of_record"] = "Citrix ADM"
         addr.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         addr.validated_save()
-        add_or_update_metadata_on_object(
-            adapter=self.adapter,
-            obj=addr,
-            scoped_fields=SCOPED_FIELDS_MAPPING
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=addr, scoped_fields=SCOPED_FIELDS_MAPPING
         )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -386,11 +375,10 @@ class NautobotIPAddressOnInterface(IPAddressOnInterface):
             else:
                 new_map.interface.device.primary_ip6 = new_map.ip_address
             new_map.interface.device.validated_save()  # pylint:disable=no-member
-        add_or_update_metadata_on_object(
-            adapter=adapter,
-            obj=new_map,
-            scoped_fields=SCOPED_FIELDS_MAPPING
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=new_map, scoped_fields=SCOPED_FIELDS_MAPPING
         )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -403,11 +391,10 @@ class NautobotIPAddressOnInterface(IPAddressOnInterface):
                 ip_to_intf.interface.device.primary_ip6 = ip_to_intf.ip_address
             ip_to_intf.interface.device.validated_save()
         ip_to_intf.validated_save()
-        add_or_update_metadata_on_object(
-            adapter=self.adapter,
-            obj=ip_to_intf,
-            scoped_fields=SCOPED_FIELDS_MAPPING
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=ip_to_intf, scoped_fields=SCOPED_FIELDS_MAPPING
         )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
