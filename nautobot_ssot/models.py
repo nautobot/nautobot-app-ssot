@@ -374,41 +374,61 @@ class SyncRecord(BaseModel):
         return f"{self.source_adapter} → {self.target_adapter}: {self.obj_type} {self.obj_name}"
 
     def get_ancestors(self, record=None):
-        """Recursive function to return all ancestors of a SyncRecord.
+        """Return a filterable QuerySet of all ancestors of a SyncRecord.
 
         Args:
             record (SyncRecord, optional): Child SyncRecord to traverse from. If not set, then this record (self) will be used.
+
+        Returns:
+            QuerySet: A QuerySet of all ancestor SyncRecords, ordered by timestamp.
         """
         if not record:
             record = self
 
-        ancestors = []
-        if record.parent:
-            for parent_record in record.parent.all():
-                logger.debug("Processing SyncRecord %s...", parent_record)
-                ancestors.append(parent_record)
-                if parent_record.parent.exists():
-                    ancestors.extend(parent_record.get_ancestors())
+        # Collect all ancestor primary keys by traversing up the parent chain
+        ancestor_pks = []
+        current_record = record
 
-        return ancestors
+        while current_record.parent:
+            parent_record = current_record.parent
+            logger.debug("Processing SyncRecord %s...", parent_record)
+            ancestor_pks.append(parent_record.pk)
+            current_record = parent_record
+
+        # Return a filterable QuerySet
+        if ancestor_pks:
+            return self.__class__.objects.filter(pk__in=ancestor_pks)
+        return self.__class__.objects.none()
 
     def get_descendants(self, record=None):
         """
-        Recursively return a list of the children of all child records.
+        Recursively return a filterable QuerySet of all descendants of a SyncRecord.
 
         Args:
-            record (SyncRecord): Parent SyncRecord to traverse from. If not set, this record (self) is used.
+            record (SyncRecord, optional): Parent SyncRecord to traverse from. If not set, then this record (self) will be used.
+
+        Returns:
+            QuerySet: A QuerySet of all descendant SyncRecords, ordered by timestamp.
         """
         if record is None:
             record = self
 
-        descendants = []
-        for child_record in record.children.all():
-            logger.debug("Processing SynCrecord %s...", child_record)
-            descendants.append(child_record)
-            if child_record.children.exists():
-                descendants.extend(child_record.get_descendants())
-        return descendants
+        # Collect all descendant primary keys by traversing down the tree
+        descendant_pks = []
+        records_to_process = [record]
+
+        while records_to_process:
+            current_record = records_to_process.pop(0)
+            child_records = current_record.children.all()
+            for child_record in child_records:
+                logger.debug("Processing SyncRecord %s...", child_record)
+                descendant_pks.append(child_record.pk)
+                records_to_process.append(child_record)
+
+        # Return a filterable QuerySet
+        if descendant_pks:
+            return self.__class__.objects.filter(pk__in=descendant_pks)
+        return self.__class__.objects.none()
 
 
 class SSOTConfig(models.Model):  # pylint: disable=nb-incorrect-base-class
