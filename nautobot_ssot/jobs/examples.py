@@ -911,6 +911,7 @@ class ExampleDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
 
     def run(  # pylint: disable=too-many-arguments, arguments-differ
         self,
+        create_records,
         dryrun,
         memory_profiling,
         source,
@@ -920,6 +921,7 @@ class ExampleDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
         **kwargs,
     ):
         """Run sync."""
+        self.create_records = create_records
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
         self.debug = kwargs.get("debug", False)
@@ -945,7 +947,7 @@ class ExampleDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
             self.logger.error("Error setting up job: %s", error)
             raise
 
-        super().run(dryrun, memory_profiling, *args, **kwargs)
+        super().run(create_records, dryrun, memory_profiling, *args, **kwargs)
 
     def load_source_adapter(self):
         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""
@@ -1093,6 +1095,7 @@ class ExampleDataTarget(DataTarget):
 
     def run(  # pylint: disable=too-many-arguments, arguments-differ
         self,
+        create_records,
         dryrun,
         memory_profiling,
         target,
@@ -1102,6 +1105,7 @@ class ExampleDataTarget(DataTarget):
         **kwargs,
     ):
         """Run sync."""
+        self.create_records = create_records
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
         try:
@@ -1126,7 +1130,7 @@ class ExampleDataTarget(DataTarget):
             self.logger.error("Error setting up job: %s", error)
             raise
 
-        super().run(dryrun, memory_profiling, *args, **kwargs)
+        super().run(create_records, dryrun, memory_profiling, *args, **kwargs)
 
     def load_source_adapter(self):
         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""

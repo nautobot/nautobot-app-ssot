@@ -49,6 +49,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
       - `data_source_icon` and `data_target_icon`
     """
 
+    create_records = BooleanVar(description="Whether to create Sync Records or not.", default=True)
     dryrun = DryRunVar(
         description="Perform a dry-run, making no actual changes to Nautobot data.",
         default=True,
@@ -81,11 +82,11 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         if self.source_adapter is not None and self.target_adapter is not None:
             self.diff = self.source_adapter.diff_to(self.target_adapter, flags=self.diffsync_flags)
 
-            self.source_adapter._meta_kwargs.pop("job")
-            self.target_adapter._meta_kwargs.pop("job")
-            self.target_adapter._meta_kwargs.pop("sync")
-
-            self.create_sync_records(diff=self.diff)
+            if self.create_records:
+                self.source_adapter._meta_kwargs.pop("job")
+                self.target_adapter._meta_kwargs.pop("job")
+                self.target_adapter._meta_kwargs.pop("sync")
+                self.create_sync_records(diff=self.diff)
 
             self.sync.diff = {}
             self.sync.summary = self.diff.summary()
@@ -110,7 +111,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         pending_status = Status.objects.get(name="Pending")
         for child in diff.get_children():
             if child.action:
-                new_record, _ = SyncRecord.objects.update_or_create(
+                new_record, _ = SyncRecord.objects.get_or_create(
                     module=self.__class__.__module__,
                     source_adapter=child.source_name,
                     target_adapter=child.dest_name,
@@ -342,6 +343,8 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         Workaround for https://github.com/netbox-community/netbox/issues/5529
         """
         got_vars = super()._get_vars()
+        if hasattr(cls, "create_records"):
+            got_vars["create_records"] = cls.create_records
         if hasattr(cls, "dryrun"):
             got_vars["dryrun"] = cls.dryrun
 
@@ -387,7 +390,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         """Icon corresponding to the data_target."""
         return getattr(cls.Meta, "data_target_icon", None)
 
-    def run(self, dryrun, memory_profiling, *args, **kwargs):  # pylint:disable=arguments-differ
+    def run(self, create_records, dryrun, memory_profiling, *args, **kwargs):  # pylint:disable=arguments-differ
         """Job entry point from Nautobot - do not override!"""
         self.sync = Sync.objects.create(
             source=self.data_source,
