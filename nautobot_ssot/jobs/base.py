@@ -104,7 +104,8 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         """Create SyncRecord from DiffElement.
 
         Args:
-            parent (_type_, optional): _description_. Defaults to None.
+            diff (DiffElement, optional): Parent DiffElement to find children. If not defined will be set to self.
+            parent (SyncRecord, optional): Parent SyncRecord to assign to newly created child SyncRecords. Defaults to None.
         """
         pending_status = Status.objects.get(name="Pending")
         for child in diff.get_children():
