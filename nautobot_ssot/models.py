@@ -292,7 +292,9 @@ class SyncRecord(BaseModel):
     by recording which objects have already been synced from a given source to a given target.
     """
 
-    sync = models.ForeignKey(to=Sync, on_delete=models.CASCADE, related_name="records", related_query_name="record")
+    sync = models.ForeignKey(
+        to=Sync, on_delete=models.SET_NULL, related_name="records", related_query_name="record", null=True
+    )
     timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
     module = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="Python module that Adapters reside in.")
