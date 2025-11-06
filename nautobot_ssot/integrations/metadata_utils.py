@@ -10,6 +10,7 @@ from nautobot.extras.models.metadata import MetadataType, MetadataTypeDataTypeCh
 
 logger = logging.getLogger("nautobot.ssot")
 
+
 def object_has_metadata(obj: object, integration: str) -> Optional[bool]:
     """Check if object has MetadataType assigned to it.
 
@@ -65,9 +66,7 @@ def add_or_update_metadata_on_object(
         )
         metadata.scoped_fields = relevant_fields
     except ObjectMetadata.DoesNotExist:
-        metadata = ObjectMetadata(
-            assigned_object=obj, metadata_type=last_sync_type, scoped_fields=relevant_fields
-        )
+        metadata = ObjectMetadata(assigned_object=obj, metadata_type=last_sync_type, scoped_fields=relevant_fields)
     metadata.value = datetime.now().isoformat(timespec="seconds")
 
     if adapter.job.debug:
