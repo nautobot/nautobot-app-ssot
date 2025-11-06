@@ -2698,6 +2698,7 @@ class NautobotSoftware(SoftwareVersion):
             long_term_support=attrs["long_term_support"],
             pre_release=attrs["pre_release"],
             documentation_url=attrs["documentation_url"],
+            status=_status
         )
         adapter.job.logger.info(f"Creating Nautobot Software object {ids['platform']} - {ids['version']}.")
         if attrs.get("tags"):

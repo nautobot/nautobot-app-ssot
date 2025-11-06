@@ -56,7 +56,7 @@ def add_or_update_metadata_on_object(
         relevant_fields.extend(scoped_fields[model_type])
     else:
         adapter.job.logger.warning(f"Model type {model_type} not defined in scoped_fields for {obj}.")
-    
+
     last_sync_type.content_types.add(ContentType.objects.get_for_model(type(obj)))
     try:
         metadata = ObjectMetadata.objects.get(
@@ -69,7 +69,7 @@ def add_or_update_metadata_on_object(
             assigned_object=obj, metadata_type=last_sync_type, scoped_fields=relevant_fields
         )
     metadata.value = datetime.now().isoformat(timespec="seconds")
-    
+
     if adapter.job.debug:
         adapter.job.logger.debug(f"Metadata {last_sync_type} added to {obj}.")
     return metadata
