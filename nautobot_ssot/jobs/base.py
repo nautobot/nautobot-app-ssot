@@ -132,8 +132,8 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
                         "parent": parent,
                     },
                 )
-            if child.child_diff.has_diffs():
-                self.create_sync_records(diff=child.child_diff, parent=new_record)
+                if child.child_diff.has_diffs():
+                    self.create_sync_records(diff=child.child_diff, parent=new_record)
 
     def execute_sync(self):
         """Method to synchronize the difference from `self.diff`, from SOURCE to TARGET adapter.
