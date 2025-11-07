@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 """Constants for use within Nautobot SSoT for Bootstrap."""
 
 from nautobot_ssot.utils import (
