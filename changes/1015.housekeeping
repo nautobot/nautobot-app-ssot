@@ -1,0 +1,3 @@
+Fixed deprecated diffsync adapter class.
+Fixed Nautobot v3 REST API calls in the ExampleDataSource job by adding exclude_m2m=false query parameter.
+Fixed TestCase incorrect base class.
