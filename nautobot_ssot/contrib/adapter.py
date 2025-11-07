@@ -7,7 +7,7 @@ import re
 from typing import Dict, List, Type
 
 import pydantic
-from diffsync import DiffSync, DiffSyncModel
+from diffsync import Adapter, DiffSyncModel
 from diffsync.exceptions import ObjectCrudException
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
@@ -31,7 +31,7 @@ from nautobot_ssot.utils.orm import (
 from nautobot_ssot.utils.typing import get_inner_type
 
 
-class NautobotAdapter(DiffSync, BaseNautobotAdapter):
+class NautobotAdapter(Adapter, BaseNautobotAdapter):
     """
     Adapter for loading data from Nautobot through the ORM.
 
