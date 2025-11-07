@@ -51,7 +51,9 @@ class NautobotArea(base.Area):
         except ValidationError as err:
             adapter.job.logger.warning(f"Unable to create {adapter.job.area_loctype.name} {ids['name']}. {err}")
             return None
-        metadata = add_or_update_metadata_on_object(adapter=adapter, obj=new_area, scoped_fields=SCOPED_FIELDS_MAPPING)
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=new_area, scoped_fields=SCOPED_FIELDS_MAPPING["area"]
+        )
         metadata.validated_save()
         if ids["parent"] not in adapter.region_map:
             adapter.region_map[ids["parent"]] = {}
@@ -62,7 +64,7 @@ class NautobotArea(base.Area):
         """Update Region in Nautobot from Area object."""
         region = Location.objects.get(id=self.uuid)
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=region, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=region, scoped_fields=SCOPED_FIELDS_MAPPING["area"]
         )
         metadata.validated_save()
         return super().update(attrs)
@@ -106,7 +108,7 @@ class NautobotBuilding(base.Building):
             adapter.job.logger.error(f"Unable to create {adapter.job.building_loctype.name} {ids['name']}. {err}")
             return None
         metadata = add_or_update_metadata_on_object(
-            adapter=adapter, obj=new_building, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=adapter, obj=new_building, scoped_fields=SCOPED_FIELDS_MAPPING["building"]
         )
         metadata.validated_save()
         if ids["area"] not in adapter.site_map:
@@ -138,7 +140,9 @@ class NautobotBuilding(base.Building):
             else:
                 site.tenant = None
         site.validated_save()
-        metadata = add_or_update_metadata_on_object(adapter=self.adapter, obj=site, scoped_fields=SCOPED_FIELDS_MAPPING)
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=site, scoped_fields=SCOPED_FIELDS_MAPPING["building"]
+        )
         metadata.validated_save()
         return super().update(attrs)
 
@@ -173,7 +177,9 @@ class NautobotFloor(base.Floor):
         if attrs.get("tenant"):
             new_floor.tenant_id = adapter.tenant_map[attrs["tenant"]]
         new_floor.validated_save()
-        metadata = add_or_update_metadata_on_object(adapter=adapter, obj=new_floor, scoped_fields=SCOPED_FIELDS_MAPPING)
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=new_floor, scoped_fields=SCOPED_FIELDS_MAPPING["floor"]
+        )
         metadata.validated_save()
         if ids["area"] not in adapter.floor_map:
             adapter.floor_map[ids["area"]] = {}
@@ -194,7 +200,7 @@ class NautobotFloor(base.Floor):
                 floor.tenant = None
         floor.validated_save()
         metadata = add_or_update_metadata_on_object(
-            adapter=self.adapter, obj=floor, scoped_fields=SCOPED_FIELDS_MAPPING
+            adapter=self.adapter, obj=floor, scoped_fields=SCOPED_FIELDS_MAPPING["floor"]
         )
         metadata.validated_save()
         return super().update(attrs)
