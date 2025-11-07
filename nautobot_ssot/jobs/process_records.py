@@ -7,10 +7,10 @@ from diffsync.diff import Diff, DiffElement
 from diffsync.helpers import DiffSyncSyncer
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
-from nautobot.apps.jobs import BooleanVar, Job, MultiObjectVar
+from nautobot.apps.jobs import BooleanVar, Job, MultiObjectVar, ObjectVar
 from nautobot.extras.models import Status
 
-from nautobot_ssot.models import SyncRecord
+from nautobot_ssot.models import Sync, SyncRecord
 from nautobot_ssot.utils import import_from_dotted_path
 
 name = "Process Records Job"  # pylint: disable=invalid-name
@@ -22,6 +22,9 @@ STATUS_MAP = {"success": "Successful", "error": "Error", "failed": "Failed"}
 class ProcessRecordsJob(Job):
     """Job to process SyncRecords."""
 
+    sync = ObjectVar(
+        model=Sync, required=False, queryset=Sync.objects.all(), label="Sync", description="Sync to process."
+    )
     records = MultiObjectVar(
         model=SyncRecord,
         required=True,
@@ -50,9 +53,13 @@ class ProcessRecordsJob(Job):
     def run(self, **kwargs):
         """Run the job."""
         self.records = kwargs.get("records", [])
-        if not self.records:
-            self.logger.error("No records specified so unable to continue Job.")
+        self.sync = kwargs.get("sync", [])
+        if (not self.records and not self.sync) or (self.records and self.sync):
+            self.logger.error("Please specify either a Sync or some SyncRecords to be processed.")
             return
+
+        if self.sync:
+            self.records = SyncRecord.objects.filter(sync=self.sync).order_by("timestamp")
 
         self.include_children = kwargs.get("include_children", False)
         self.logger.info("Running Process Records Job.")
