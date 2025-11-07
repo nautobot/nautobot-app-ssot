@@ -1,8 +1,9 @@
 """Caching classes for use in SSoT processes."""
 
 from collections import defaultdict
+from collections.abc import Hashable
 from dataclasses import dataclass, field
-from typing import DefaultDict, Hashable, Type  # pylint: disable=deprecated-class
+from typing import DefaultDict, Type
 
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model

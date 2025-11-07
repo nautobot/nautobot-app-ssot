@@ -6,7 +6,7 @@ from nautobot.apps.jobs import BooleanVar, ChoiceVar
 
 from nautobot_ssot.integrations.bootstrap.diffsync.adapters import bootstrap, nautobot
 from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
-from nautobot_ssot.utils import core_supports_softwareversion, dlm_supports_softwarelcm, validate_dlm_installed
+from nautobot_ssot.utils import validate_dlm_installed
 
 name = "Bootstrap SSoT"  # pylint: disable=invalid-name
 
@@ -86,16 +86,9 @@ class BootstrapDataSource(DataSource):
             DataMapping("vrf", "", "VRF", "ipam.vrf"),
             DataMapping("prefix", "", "Prefix", "ipam.prefix"),
         ]
-        if core_supports_softwareversion():
-            data_mappings.append(DataMapping("software_image", "", "SoftwareImageFile", "dcim:software-image-file"))
-            data_mappings.append(DataMapping("software", "", "SoftwareVersion", "dcim:software-version"))
-            if validate_dlm_installed():
-                data_mappings.append(
-                    DataMapping("validated_software", "", "ValidatedSoftware", "extras:validated-software")
-                )
-        elif dlm_supports_softwarelcm():
-            data_mappings.append(DataMapping("software_image", "", "SoftwareImage", "extras:software-image"))
-            data_mappings.append(DataMapping("software", "", "Software", "extras:software"))
+        data_mappings.append(DataMapping("software_image", "", "SoftwareImageFile", "dcim:software-image-file"))
+        data_mappings.append(DataMapping("software", "", "SoftwareVersion", "dcim:software-version"))
+        if validate_dlm_installed():
             data_mappings.append(
                 DataMapping("validated_software", "", "ValidatedSoftware", "extras:validated-software")
             )

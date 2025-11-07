@@ -120,7 +120,7 @@ scheduled_job:
       cleanup_types: ["extras.ObjectChange"]
       max_age: 90
 software:
-  - device_platform: "arista_eos"
+  - platform: "arista_eos"
     version: "4.25.10M"
     alias:
     release_date: "2023-12-04"
@@ -263,8 +263,6 @@ There are a couple models like Tags and Git Repositories that have associated co
 - nautobot_device_lifecycle_mgmt.devicesoftwarevalidationresult
 - nautobot_device_lifecycle_mgmt.hardwarelcm
 - nautobot_device_lifecycle_mgmt.inventoryitemsoftwarevalidationresult
-- nautobot_device_lifecycle_mgmt.softwareimagelcm
-- nautobot_device_lifecycle_mgmt.softwarelcm
 - nautobot_device_lifecycle_mgmt.validatedsoftwarelcm
 - nautobot_device_lifecycle_mgmt.vulnerabilitylcm
 - nautobot_golden_config.compliancefeature
@@ -837,7 +835,7 @@ Create Software objects. Uses the following data structure:
 
 ```yaml
 software:
-  - device_platform: # str
+  - platform: # str
     status: * # str
     version: # str
     alias: # str
@@ -849,7 +847,7 @@ software:
     tags: [] # List[str]
 ```
 
-The `device_platform` key must be a Platform that exists in Nautobot or is created by this plugin. The date fields `release_date` and `eos_date` need to be formatted YYYY-MM-DD in order to properly import. Fields with a * are required if on Nautobot version 2.3.0 or later as the models moved to Core from the Device LifeCycle app and added additional required fields.
+The `platform` key must be a Platform that exists in Nautobot or is created by this plugin. The date fields `release_date` and `eos_date` need to be formatted YYYY-MM-DD in order to properly import. Fields with a * are required if on Nautobot version 2.3.0 or later as the models moved to Core from the Device LifeCycle app and added additional required fields.
 
 ### SoftwareImage
 

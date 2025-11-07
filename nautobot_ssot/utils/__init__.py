@@ -5,16 +5,9 @@ import re
 from importlib.metadata import PackageNotFoundError, version
 from typing import List, Tuple
 
+from nautobot.dcim.models import Controller, ControllerManagedDeviceGroup
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.models import SecretsGroup
-
-try:
-    from nautobot.dcim.models import Controller, ControllerManagedDeviceGroup
-
-    CONTROLLER_FOUND = True
-except (ImportError, RuntimeError):
-    CONTROLLER_FOUND = False
-
 
 logger = logging.getLogger("nautobot.ssot")
 
@@ -36,20 +29,18 @@ def get_username_password_https_from_secretsgroup(group: SecretsGroup):
     return username, password
 
 
-if CONTROLLER_FOUND:
+def verify_controller_managed_device_group(controller: Controller) -> ControllerManagedDeviceGroup:
+    """Validate that Controller Managed Device Group exists or create it.
 
-    def verify_controller_managed_device_group(controller: Controller) -> ControllerManagedDeviceGroup:
-        """Validate that Controller Managed Device Group exists or create it.
+    Args:
+        controller (Controller): Controller for associated ManagedDeviceGroup.
 
-        Args:
-            controller (Controller): Controller for associated ManagedDeviceGroup.
-
-        Returns:
-            ControllerManagedDeviceGroup: The ControllerManagedDeviceGroup that was either found or created for the Controller.
-        """
-        return ControllerManagedDeviceGroup.objects.get_or_create(
-            controller=controller, defaults={"name": f"{controller.name} Managed Devices"}
-        )[0]
+    Returns:
+        ControllerManagedDeviceGroup: The ControllerManagedDeviceGroup that was either found or created for the Controller.
+    """
+    return ControllerManagedDeviceGroup.objects.get_or_create(
+        controller=controller, defaults={"name": f"{controller.name} Managed Devices"}
+    )[0]
 
 
 def create_or_update_custom_field(apps, key, field_type, label):
@@ -81,33 +72,6 @@ def parse_hostname_for_role(hostname_map: List[Tuple[str, str]], device_hostname
             if match:
                 device_role = entry[1]
     return device_role
-
-
-def dlm_supports_softwarelcm() -> bool:
-    """Validate if the DLM version installed is lower than 3.0.0.
-
-    Returns:
-        bool: True if DLM version is lower than 3.0.0, False otherwise.
-    """
-    try:
-        dlm_version = version("nautobot_device_lifecycle_mgmt")
-        if re.match(r"[012]\.", dlm_version):
-            return True
-    except PackageNotFoundError:
-        pass
-    return False
-
-
-def core_supports_softwareversion() -> bool:
-    """Validate if the core Nautobot version installed is 2.2.0 or higher.
-
-    Returns:
-        bool: True if Nautobot version is 2.2.0 or higher, False otherwise.
-    """
-    nb_version = version("nautobot")
-    if re.match(r"2\.[23456789]\.", nb_version):
-        return True
-    return False
 
 
 def validate_dlm_installed() -> bool:

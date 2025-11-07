@@ -1,12 +1,9 @@
 """Tests of CloudVision utility methods."""
 
-from unittest import skip
-from unittest.mock import MagicMock, patch
-
 from django.test import override_settings
 from nautobot.core.testing import TestCase
 from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer
-from nautobot.extras.models import Relationship, Role, Status, Tag
+from nautobot.extras.models import Role, Status, Tag
 
 from nautobot_ssot.integrations.aristacv.utils import nautobot
 
@@ -69,42 +66,6 @@ class TestNautobotUtils(TestCase):
         """Test the verify_import_tag method for non-existing Tag."""
         result = nautobot.verify_import_tag()
         self.assertEqual(result.name, "cloudvision_imported")
-
-    @skip("DLC App disabled")
-    def test_get_device_version_dlc_success(self):
-        """Test the get_device_version method pulling from Device Lifecycle app."""
-        software_relation = Relationship.objects.get(label="Software on Device")
-
-        mock_version = MagicMock()
-        mock_version.source.version = MagicMock()
-        mock_version.source.version = "1.0"
-
-        mock_device = MagicMock()
-        mock_device.get_relationships = MagicMock()
-        mock_device.get_relationships.return_value = {"destination": {software_relation: [mock_version]}}
-
-        result = nautobot.get_device_version(mock_device)
-        self.assertEqual(result, "1.0")
-
-    @skip("DLC App disabled")
-    def test_get_device_version_dlc_fail(self):
-        """Test the get_device_version method pulling from Device Lifecycle app but failing."""
-        mock_device = MagicMock()
-        mock_device.get_relationships = MagicMock()
-        mock_device.get_relationships.return_value = {}
-
-        result = nautobot.get_device_version(mock_device)
-        self.assertEqual(result, "")
-
-    @patch("nautobot_ssot.integrations.aristacv.utils.nautobot.dlm_supports_softwarelcm")
-    def test_get_device_version_dlc_exception(self, mock_dlm_supports_softwarelcm):
-        """Test the get_device_version method pulling from the Device Custom Field."""
-        mock_device = MagicMock()
-        mock_device.custom_field_data = {"arista_eos": "1.0"}
-        mock_dlm_supports_softwarelcm.return_value = False
-
-        result = nautobot.get_device_version(mock_device)
-        self.assertEqual(result, "1.0")
 
     @override_settings(
         PLUGINS_CONFIG={

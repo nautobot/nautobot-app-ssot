@@ -546,7 +546,7 @@ graph_ql_query:
         }
       }
 software:
-  - device_platform: "arista_eos"
+  - platform: "arista_eos"
     status: "Active"
     version: "4.25.10M"
     alias: ""
@@ -556,7 +556,7 @@ software:
     lts: false
     pre_release: false
     tags: ["Backbone"]
-  - device_platform: "cisco_ios"
+  - platform: "cisco_ios"
     status: "Active"
     version: "03.11.04.E"
     alias: "Cisco Validated"
@@ -566,7 +566,7 @@ software:
     lts: false
     pre_release: false
     tags: ["Test"]
-  - device_platform: "paloalto_panos"
+  - platform: "paloalto_panos"
     status: "Active"
     version: "11.0.3"
     alias: "Panos Preferred"
@@ -576,7 +576,7 @@ software:
     lts: false
     pre_release: false
     tags: ["Test"]
-  - device_platform: "arista_eos"
+  - platform: "arista_eos"
     status: "Active"
     version: "15.4.3"
     alias: "Arista Preferred"

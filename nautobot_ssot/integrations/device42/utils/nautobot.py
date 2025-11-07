@@ -11,18 +11,14 @@ from django.contrib.contenttypes.models import ContentType
 from nautobot.circuits.models import CircuitType
 from nautobot.dcim.models import Device, Interface, Location, LocationType, Platform, Rack, RackGroup, VirtualChassis
 from nautobot.extras.choices import CustomFieldTypeChoices
-from nautobot.extras.models import CustomField, Relationship, Role, Tag
+from nautobot.extras.models import CustomField, Role, Tag
 from nautobot.ipam.models import VLAN, Prefix
 from netutils.lib_mapper import ANSIBLE_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER_REVERSE
 from taggit.managers import TaggableManager
 
 from nautobot_ssot.integrations.device42.diffsync.models.base.dcim import Device as NautobotDevice
-from nautobot_ssot.utils import dlm_supports_softwarelcm
 
 logger = logging.getLogger(__name__)
-
-if dlm_supports_softwarelcm():
-    from nautobot_device_lifecycle_mgmt.models import SoftwareLCM  # noqa: F401 # pylint: disable=unused-import
 
 
 def get_random_color() -> str:
@@ -254,25 +250,6 @@ def verify_circuit_type(circuit_type: str) -> CircuitType:
     return _ct
 
 
-def get_software_version_from_lcm(relations: dict):
-    """Method to obtain Software version for a Device from Relationship.
-
-    Args:
-        relations (dict): Results of a `get_relationships()` on a Device.
-
-    Returns:
-        str: String of SoftwareLCM version.
-    """
-    version = ""
-    if dlm_supports_softwarelcm():
-        _softwarelcm = Relationship.objects.get(label="Software on Device")
-        if _softwarelcm in relations["destination"]:
-            if len(relations["destination"][_softwarelcm]) > 0:
-                if hasattr(relations["destination"][_softwarelcm][0].source, "version"):
-                    version = relations["destination"][_softwarelcm][0].source.version
-    return version
-
-
 def get_version_from_custom_field(fields: OrderedDict):
     """Method to obtain a software version for a Device from its custom fields."""
     for field, value in fields.items():
@@ -304,12 +281,6 @@ def get_dlc_version_map():
         dict: Nested dictionary of versions mapped to their ID and to their Platform.
     """
     version_map = {}
-    if not dlm_supports_softwarelcm():
-        return version_map
-    for ver in SoftwareLCM.objects.only("id", "device_platform", "version"):  # pylint:disable=possibly-used-before-assignment
-        if ver.device_platform.network_driver not in version_map:
-            version_map[ver.device_platform.network_driver] = {}
-        version_map[ver.device_platform.network_driver][ver.version] = ver.id
     return version_map
 
 

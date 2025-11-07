@@ -67,6 +67,7 @@ class TestNautobotDatacenter(TransactionTestCase):
             "latitude": 12.345,
             "longitude": -67.89,
         }
+        self.test_dc.adapter = self.adapter
         actual = NautobotDatacenter.update(self=self.test_dc, attrs=update_attrs)
         self.site_obj.refresh_from_db()
         self.assertEqual(float(self.site_obj.latitude), update_attrs["latitude"])
@@ -153,6 +154,7 @@ class TestNautobotAddress(TransactionTestCase):  # pylint: disable=too-many-inst
             tags=[],
             uuid=self.update_ip_obj.id,
         )
+        update_ip.adapter = self.adapter
         self.test_prefix.validated_save()
         updated_parent = Prefix.objects.create(
             prefix="10.1.1.1/32", namespace=self.test_namespace, status=self.status_active
@@ -179,6 +181,7 @@ class TestNautobotAddress(TransactionTestCase):  # pylint: disable=too-many-inst
             tags=[],
             uuid=self.update_ip_obj.id,
         )
+        update_ip.adapter = self.adapter
         self.test_prefix.validated_save()
         update_tags = {"tags": []}
         results = update_ip.update(attrs=update_tags)

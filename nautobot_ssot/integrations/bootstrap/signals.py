@@ -5,9 +5,7 @@ from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices
 
 from nautobot_ssot.utils import (
-    core_supports_softwareversion,
     create_or_update_custom_field,
-    dlm_supports_softwarelcm,
     validate_dlm_installed,
 )
 
@@ -82,34 +80,17 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         "external_integration": ExternalIntegration,
     }
 
-    if core_supports_softwareversion():
-        try:
-            _SoftwareVersion = apps.get_model("dcim", "SoftwareVersion")
-            signal_to_model_mapping["software"] = _SoftwareVersion
-        except LookupError as err:
-            print(f"Unable to find SoftwareVersion model from Nautobot Core. {err}")
-        try:
-            _SoftwareImageFile = apps.get_model("dcim", "SoftwareImageFile")
-            signal_to_model_mapping["software_image"] = _SoftwareImageFile
-        except LookupError as err:
-            print(f"Unable to find SoftwareImageFile model from Nautobot Core. {err}")
-        if validate_dlm_installed():
-            try:
-                ValidatedSoftwareLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "ValidatedSoftwareLCM")
-                signal_to_model_mapping["validated_software"] = ValidatedSoftwareLCM
-            except LookupError as err:
-                print(f"Unable to find ValidatedSoftwareLCM model from Device Lifecycle Management App. {err}")
-    elif dlm_supports_softwarelcm():
-        try:
-            SoftwareLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "SoftwareLCM")
-            signal_to_model_mapping["software"] = SoftwareLCM
-        except LookupError as err:
-            print(f"Unable to find SoftwareLCM model from Device Lifecycle Management App. {err}")
-        try:
-            SoftwareImageLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "SoftwareImageLCM")
-            signal_to_model_mapping["software_image"] = SoftwareImageLCM
-        except LookupError as err:
-            print(f"Unable to find SoftwareImageLCM model from Device Lifecycle Management App. {err}")
+    try:
+        _SoftwareVersion = apps.get_model("dcim", "SoftwareVersion")
+        signal_to_model_mapping["software"] = _SoftwareVersion
+    except LookupError as err:
+        print(f"Unable to find SoftwareVersion model from Nautobot Core. {err}")
+    try:
+        _SoftwareImageFile = apps.get_model("dcim", "SoftwareImageFile")
+        signal_to_model_mapping["software_image"] = _SoftwareImageFile
+    except LookupError as err:
+        print(f"Unable to find SoftwareImageFile model from Nautobot Core. {err}")
+    if validate_dlm_installed():
         try:
             ValidatedSoftwareLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "ValidatedSoftwareLCM")
             signal_to_model_mapping["validated_software"] = ValidatedSoftwareLCM
