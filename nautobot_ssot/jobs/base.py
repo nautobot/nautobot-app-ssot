@@ -3,6 +3,7 @@
 
 import tracemalloc
 from collections import namedtuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from typing import Iterable, Optional
 
@@ -53,6 +54,10 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         default=True,
     )
     memory_profiling = BooleanVar(description="Perform a memory profiling analysis.", default=False)
+    parallel_loading = BooleanVar(
+        description="Load source and target adapters in parallel for improved performance.",
+        default=True,
+    )
 
     def load_source_adapter(self):
         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`.
@@ -101,6 +106,78 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             self.source_adapter.sync_to(self.target_adapter, flags=self.diffsync_flags)
         else:
             self.logger.warning("Not both adapters were properly initialized prior to synchronization.")
+
+    def _load_adapters_parallel(self):
+        """Load source and target adapters in parallel using ThreadPoolExecutor.
+
+        Returns:
+            tuple: (source_adapter, target_adapter) after both have been loaded
+        """
+        source_adapter = None
+        target_adapter = None
+        source_error = None
+        target_error = None
+
+        def load_source():
+            """Load source adapter in a separate thread."""
+            # Close any existing database connections for this thread
+            # Django requires each thread to manage its own connections
+            from django.db import connections
+
+            connections.close_all()
+            try:
+                self.load_source_adapter()
+                return ("source", self.source_adapter, None)
+            except Exception as error:  # pylint: disable=broad-except
+                return ("source", None, error)
+            finally:
+                # Close connections when done
+                connections.close_all()
+
+        def load_target():
+            """Load target adapter in a separate thread."""
+            # Close any existing database connections for this thread
+            # Django requires each thread to manage its own connections
+            from django.db import connections
+
+            connections.close_all()
+            try:
+                self.load_target_adapter()
+                return ("target", self.target_adapter, None)
+            except Exception as error:  # pylint: disable=broad-except
+                return ("target", None, error)
+            finally:
+                # Close connections when done
+                connections.close_all()
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            # Submit both adapter loading tasks
+            future_to_adapter = {
+                executor.submit(load_source): "source",
+                executor.submit(load_target): "target",
+            }
+
+            # Wait for both to complete
+            for future in as_completed(future_to_adapter):
+                adapter_type, adapter, error = future.result()
+                if error:
+                    if adapter_type == "source":
+                        source_error = error
+                    else:
+                        target_error = error
+                else:
+                    if adapter_type == "source":
+                        source_adapter = adapter
+                    else:
+                        target_adapter = adapter
+
+        # Raise errors if any occurred
+        if source_error:
+            raise source_error
+        if target_error:
+            raise target_error
+
+        return source_adapter, target_adapter
 
     def sync_data(self, memory_profiling):  # pylint: disable=too-many-statements
         """Method to load data from adapters, calculate diffs and sync (if not dry-run).
@@ -157,31 +234,69 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
 
         start_time = datetime.now()
 
-        self.logger.info("Loading current data from source adapter...")
-        self.load_source_adapter()
-        load_source_adapter_time = datetime.now()
-        self.sync.source_load_time = load_source_adapter_time - start_time
-        self.sync.save()
-        self.logger.info(
-            "Source Load Time from %s: %s",
-            self.source_adapter,
-            self.sync.source_load_time,
-        )
-        if memory_profiling:
-            record_memory_trace("source_load")
+        # Check if parallel loading is enabled (default True, can be overridden per job)
+        use_parallel = getattr(self, "parallel_loading", True)
+        if isinstance(use_parallel, bool):
+            parallel_enabled = use_parallel
+        else:
+            # If it's a BooleanVar instance, get its value from kwargs or default
+            parallel_enabled = getattr(self, "_parallel_loading_value", True)
 
-        self.logger.info("Loading current data from target adapter...")
-        self.load_target_adapter()
-        load_target_adapter_time = datetime.now()
-        self.sync.target_load_time = load_target_adapter_time - load_source_adapter_time
-        self.sync.save()
-        self.logger.info(
-            "Target Load Time from %s: %s",
-            self.target_adapter,
-            self.sync.target_load_time,
-        )
-        if memory_profiling:
-            record_memory_trace("target_load")
+        # Initialize variables for timing
+        adapter_load_end_time = None
+        load_target_adapter_time = None
+
+        if parallel_enabled:
+            self.logger.info("Loading source and target adapters in parallel...")
+            parallel_start = datetime.now()
+            try:
+                self._load_adapters_parallel()
+                parallel_end = datetime.now()
+                parallel_duration = parallel_end - parallel_start
+                adapter_load_end_time = parallel_end
+                self.logger.info(
+                    "Parallel adapter loading completed in %s",
+                    parallel_duration,
+                )
+                # For parallel loading, we record the total time for both
+                # Individual times are not meaningful in parallel execution
+                self.sync.source_load_time = parallel_duration
+                self.sync.target_load_time = parallel_duration
+                self.sync.save()
+                if memory_profiling:
+                    # Record memory after both adapters are loaded
+                    record_memory_trace("parallel_load")
+            except Exception as error:
+                self.logger.error("Error during parallel adapter loading: %s", error)
+                raise
+        else:
+            # Sequential loading (original behavior)
+            self.logger.info("Loading current data from source adapter...")
+            self.load_source_adapter()
+            load_source_adapter_time = datetime.now()
+            self.sync.source_load_time = load_source_adapter_time - start_time
+            self.sync.save()
+            self.logger.info(
+                "Source Load Time from %s: %s",
+                self.source_adapter,
+                self.sync.source_load_time,
+            )
+            if memory_profiling:
+                record_memory_trace("source_load")
+
+            self.logger.info("Loading current data from target adapter...")
+            self.load_target_adapter()
+            load_target_adapter_time = datetime.now()
+            adapter_load_end_time = load_target_adapter_time
+            self.sync.target_load_time = load_target_adapter_time - load_source_adapter_time
+            self.sync.save()
+            self.logger.info(
+                "Target Load Time from %s: %s",
+                self.target_adapter,
+                self.sync.target_load_time,
+            )
+            if memory_profiling:
+                record_memory_trace("target_load")
 
         # Check if the adapter is an instance of NautobotAdapter to determine if it's a contrib implementation,
         # in which case we should create the required MetadataType object.
@@ -194,10 +309,14 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         # NOTE: Disabled for the time being due to ongoing issues.
         # sort_relationships(self.source_adapter, self.target_adapter)
 
+        # Calculate the time after adapter loading for diff calculation
+        if adapter_load_end_time is None:
+            adapter_load_end_time = datetime.now()
+
         self.logger.info("Calculating diffs...")
         self.calculate_diff()
         calculate_diff_time = datetime.now()
-        self.sync.diff_time = calculate_diff_time - load_target_adapter_time
+        self.sync.diff_time = calculate_diff_time - adapter_load_end_time
         self.sync.save()
         self.logger.info("Diff Calculation Time: %s", self.sync.diff_time)
         if memory_profiling:
@@ -303,6 +422,9 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
 
         if hasattr(cls, "memory_profiling"):
             got_vars["memory_profiling"] = cls.memory_profiling
+
+        if hasattr(cls, "parallel_loading"):
+            got_vars["parallel_loading"] = cls.parallel_loading
         return got_vars
 
     def __init__(self):
@@ -343,7 +465,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         """Icon corresponding to the data_target."""
         return getattr(cls.Meta, "data_target_icon", None)
 
-    def run(self, dryrun, memory_profiling, *args, **kwargs):  # pylint:disable=arguments-differ
+    def run(self, dryrun, memory_profiling, parallel_loading=None, *args, **kwargs):  # pylint:disable=arguments-differ
         """Job entry point from Nautobot - do not override!"""
         self.sync = Sync.objects.create(
             source=self.data_source,
@@ -353,6 +475,12 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             start_time=timezone.now(),
             diff={},
         )
+
+        # Store parallel_loading value for use in sync_data
+        # If not provided, default to True (parallel loading enabled by default)
+        if parallel_loading is None:
+            parallel_loading = True
+        self._parallel_loading_value = parallel_loading
 
         # Add _structlog_to_sync_log_entry as a processor for structlog calls from DiffSync
         structlog.configure(
