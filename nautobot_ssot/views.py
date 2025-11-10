@@ -2,6 +2,7 @@
 
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.contenttypes.models import ContentType
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.template import loader
@@ -35,7 +36,6 @@ from nautobot.apps.views import (
     ObjectView,
     get_obj_from_context,
 )
-from nautobot.core.ui.utils import flatten_context
 from nautobot.extras.models import Job as JobModel
 from nautobot.extras.models import JobResult, Status
 from rest_framework.decorators import action
@@ -51,7 +51,13 @@ from .forms import SyncFilterForm, SyncForm, SyncLogEntryFilterForm
 from .jobs import get_data_jobs
 from .jobs.base import DataSource, DataTarget
 from .models import Sync, SyncLogEntry, SyncRecord
-from .tables import DashboardTable, SyncLogEntryTable, SyncTable, SyncTableSingleSourceOrTarget
+from .tables import (
+    DashboardTable,
+    SyncLogEntryTable,
+    SyncRecordHistoryTable,
+    SyncTable,
+    SyncTableSingleSourceOrTarget,
+)
 
 
 class ReadOnlyNautobotUIViewSet(  # pylint: disable=abstract-method
@@ -488,6 +494,74 @@ class SyncRecordUIViewSet(ReadOnlyNautobotUIViewSet):
             ),
         ],
     )
+
+
+class SyncedObjectHistoryView(ContentTypePermissionRequiredMixin, DjangoView):
+    """View to display SyncRecord history for a synced object (e.g., Tenant, Device)."""
+
+    template_name = "nautobot_ssot/synced_object_history.html"
+
+    def get_required_permission(self):
+        """Permissions required for the view."""
+        return "nautobot_ssot.view_syncrecord"
+
+    def get_object(self, request, pk):
+        """Get the synced object instance."""
+        # Get ContentType from query parameter or find it from existing SyncRecords
+        app_label = request.GET.get("app_label")
+        model = request.GET.get("model")
+
+        if app_label and model:
+            try:
+                content_type = ContentType.objects.get(app_label=app_label, model=model)
+            except ContentType.DoesNotExist:
+                raise Http404("ContentType not found")
+        else:
+            # Try to find ContentType from existing SyncRecords
+            sync_record = SyncRecord.objects.filter(synced_object_id=pk).first()
+            if not sync_record or not sync_record.synced_object_type:
+                raise Http404("No SyncRecords found for this object")
+            content_type = sync_record.synced_object_type
+
+        # Get the synced object
+        model_class = content_type.model_class()
+        try:
+            return model_class.objects.get(pk=pk)
+        except model_class.DoesNotExist:
+            raise Http404("Synced object not found")
+
+    # pylint: disable-next=arguments-differ
+    def get(self, request, pk):
+        """Display SyncRecords for the synced object with the given pk."""
+        instance = self.get_object(request, pk)
+        content_type = ContentType.objects.get_for_model(instance)
+
+        # Get all SyncRecords for this synced object
+        records = (
+            SyncRecord.objects.filter(synced_object_id=pk, synced_object_type=content_type)
+            .order_by("-timestamp")
+            .restrict(request.user, "view")
+        )
+
+        # Create table using the history-specific table class
+        table = SyncRecordHistoryTable(records, user=request.user)
+        RequestConfig(request, paginate={"per_page": 25}).configure(table)
+        # Always set context attribute to avoid AttributeError when render_table tries to delete it
+        # django-tables2's render_table tag tries to delete table.context after rendering
+        # Set it unconditionally to ensure it exists when the template tag tries to delete it
+        table.context = object()
+
+        # Build context manually since we can't use parent's get_extra_context (no static queryset)
+        # The parent's get_extra_context tries to determine model from queryset, which we don't have
+        context = {
+            "object": instance,
+            "table": table,
+            "content_type": content_type,
+            "request": request,
+        }
+
+        # Render the template with the context
+        return render(request, self.template_name, context)
 
 
 def process_bulk_syncrecords(request):

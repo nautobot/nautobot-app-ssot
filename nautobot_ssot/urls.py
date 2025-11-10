@@ -21,6 +21,7 @@ urlpatterns = [
     path("config/", views.SSOTConfigView.as_view(), name="config"),
     path("docs/", RedirectView.as_view(url=static("nautobot_ssot/docs/index.html")), name="docs"),
     path("process_bulk_syncrecords/", views.process_bulk_syncrecords, name="process_bulk_syncrecords"),
+    path("sync-records/<uuid:pk>/history/", views.SyncedObjectHistoryView.as_view(), name="syncrecord_history"),
 ]
 
 

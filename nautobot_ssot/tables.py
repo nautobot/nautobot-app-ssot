@@ -240,3 +240,33 @@ class SyncRecordTable(StatusTableMixin, BaseTable):
         # Option for modifying the columns that show up in the list view by default:
         default_columns = ("pk", "source_adapter", "target_adapter", "obj_type", "obj_name", "status", "actions")
         order_by = ("timestamp",)
+
+
+class SyncRecordHistoryTable(StatusTableMixin, BaseTable):
+    """Table for SyncRecord history view (shows history for a synced object)."""
+
+    timestamp = DateTimeColumn(linkify=True, short=True)
+    source_adapter = Column()
+    target_adapter = Column()
+    action = Column()
+    diff = JSONColumn(accessor="get_diff", orderable=False)
+    # status is provided by StatusTableMixin
+
+    class Meta(BaseTable.Meta):
+        """Meta attributes."""
+
+        model = SyncRecord
+        fields = [
+            "timestamp",
+            "source_adapter",
+            "target_adapter",
+            "action",
+            "status",
+            "diff",
+            "message",
+            "sync",
+        ]
+
+        # Columns shown by default in the history view
+        default_columns = ("timestamp", "source_adapter", "target_adapter", "action", "status", "diff", "message")
+        order_by = ("-timestamp",)  # Most recent first

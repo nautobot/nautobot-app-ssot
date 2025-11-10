@@ -363,6 +363,67 @@ class SyncRecord(BaseModel):
     )
     message = models.TextField(blank=True, null=True, max_length=1024)
 
+    def get_diff(self):
+        """Compute a diff-like structure from source_attrs and target_attrs for rendering.
+
+        Returns a dict in the format expected by render_diff template tag:
+        {
+            obj_type: {
+                obj_name: {
+                    "+": {attr: new_value},  # Attributes added or changed (target values)
+                    "-": {attr: old_value}   # Attributes removed or changed (source values)
+                }
+            }
+        }
+
+        For CREATE: all attributes in source_attrs go to "+"
+        For UPDATE: changed attributes appear in both "+" (new) and "-" (old)
+        For DELETE: all attributes in target_attrs go to "-"
+        """
+        if not self.source_attrs and not self.target_attrs:
+            return {}
+
+        source_attrs = self.source_attrs or {}
+        target_attrs = self.target_attrs or {}
+
+        # Compute what changed: added, removed, or modified
+        # "+" contains attributes that are in target (new/added values)
+        # "-" contains attributes that are in source (old/removed values)
+        added_or_changed = {}
+        removed_or_changed = {}
+
+        # For attributes in target: they are new/added/changed
+        # If CREATE: target_attrs is empty, all source_attrs go to "+"
+        # If UPDATE: changed values go to "+" (new) and "-" (old)
+        for key, source_value in source_attrs.items():
+            target_value = target_attrs.get(key)
+            # If attribute doesn't exist in source or has different value, it's in target
+            if key not in target_attrs or target_value != source_value:
+                added_or_changed[key] = source_value
+                # If it existed in source with different value, also track the old value
+                if key in target_attrs:
+                    removed_or_changed[key] = target_value
+
+        # For attributes in target but not in source: they were removed
+        # If DELETE: source_attrs is empty, all target_attrs go to "-"
+        for key, target_value in target_attrs.items():
+            if key not in source_attrs:
+                removed_or_changed[key] = source_attrs.get(key)
+
+        # Only include in diff if there are actual changes
+        if not added_or_changed and not removed_or_changed:
+            return {}
+
+        diff = {
+            self.obj_type: {
+                self.obj_name: {
+                    "+": added_or_changed,
+                    "-": removed_or_changed,
+                }
+            }
+        }
+        return diff
+
     class Meta:
         """Metaclass attributes of SyncRecord."""
 
