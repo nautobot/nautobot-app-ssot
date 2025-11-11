@@ -917,11 +917,13 @@ class ExampleDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
 
     def load_source_adapter(self):
         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""
+        self.logger.info("Loading source adapter: NautobotRemote")
         self.source_adapter = NautobotRemote(url=self.source_url, token=self.source_token, job=self)
         self.source_adapter.load()
 
     def load_target_adapter(self):
         """Method to instantiate and load the TARGET adapter into `self.target_adapter`."""
+        self.logger.info("Loading target adapter: NautobotLocal")
         self.target_adapter = NautobotLocal(job=self, sync=self.sync)
         self.target_adapter.load()
 
