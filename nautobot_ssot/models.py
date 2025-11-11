@@ -298,8 +298,12 @@ class SyncRecord(BaseModel):
     timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
     module = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="Python module that Adapters reside in.")
-    source_adapter = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="System data is read from")
-    target_adapter = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="System data is written to")
+    source_adapter = models.CharField(
+        max_length=CHARFIELD_MAX_LENGTH, help_text="System data is read from", verbose_name="Source Adapter"
+    )
+    target_adapter = models.CharField(
+        max_length=CHARFIELD_MAX_LENGTH, help_text="System data is written to", verbose_name="Target Adapter"
+    )
     source_kwargs = models.JSONField(
         default=dict,
         blank=True,
