@@ -80,21 +80,18 @@ class BaseSyncRecordTabExtension(TemplateExtension):
     def detail_tabs(self):
         """Add a Configuration Compliance tab to the Device detail view if the Configuration Compliance associated to it."""
         app_label, model = self.model.split(".")
+        # ContentType model names are stored in lowercase
+        model_lower = model.lower()
         try:
             if SyncRecord.objects.filter(
                 synced_object_id=self.context["object"].id,
                 synced_object_type__app_label=app_label,
-                synced_object_type__model=model,
+                synced_object_type__model=model_lower,
             ).exists():
                 return [
                     {
                         "title": "Sync History",
-                        "url": reverse(
-                            "plugins:nautobot_ssot:syncrecord_history",
-                            kwargs={
-                                "pk": self.context["object"].id,
-                            },
-                        ),
+                        "url": f"{reverse('plugins:nautobot_ssot:syncrecord_history', kwargs={'pk': self.context['object'].id})}?app_label={app_label}&model={model_lower}",
                     }
                 ]
         except ObjectDoesNotExist:

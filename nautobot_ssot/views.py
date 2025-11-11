@@ -4,7 +4,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.contenttypes.models import ContentType
 from django.http import Http404
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect
 from django.template import loader
 from django.template.defaultfilters import date
 from django.urls import reverse
@@ -12,6 +12,7 @@ from django.utils.html import format_html
 from django.utils.timesince import timesince
 from django.views import View as DjangoView
 from django_tables2 import RequestConfig
+from nautobot.apps import utils as app_utils
 from nautobot.apps.ui import (
     Breadcrumbs,
     DistinctViewTab,
@@ -496,49 +497,95 @@ class SyncRecordUIViewSet(ReadOnlyNautobotUIViewSet):
     )
 
 
-class SyncedObjectHistoryView(ContentTypePermissionRequiredMixin, DjangoView):
+class SyncedObjectHistoryView(ContentTypePermissionRequiredMixin, ObjectView):
     """View to display SyncRecord history for a synced object (e.g., Tenant, Device)."""
 
     template_name = "nautobot_ssot/synced_object_history.html"
+    lookup_field = "pk"
+    queryset = SyncRecord.objects.none()
 
     def get_required_permission(self):
         """Permissions required for the view."""
         return "nautobot_ssot.view_syncrecord"
 
-    def get_object(self, request, pk):
-        """Get the synced object instance."""
+    def _get_content_type(self, request, pk):
+        """Get the ContentType for the synced object."""
         # Get ContentType from query parameter or find it from existing SyncRecords
         app_label = request.GET.get("app_label")
         model = request.GET.get("model")
 
+        # Try query parameters first if provided
         if app_label and model:
             try:
-                content_type = ContentType.objects.get(app_label=app_label, model=model)
+                # ContentType model names are stored in lowercase
+                content_type = ContentType.objects.get(app_label=app_label, model=model.lower())
+                return content_type
             except ContentType.DoesNotExist:
-                raise Http404("ContentType not found")
-        else:
-            # Try to find ContentType from existing SyncRecords
-            sync_record = SyncRecord.objects.filter(synced_object_id=pk).first()
-            if not sync_record or not sync_record.synced_object_type:
-                raise Http404("No SyncRecords found for this object")
-            content_type = sync_record.synced_object_type
+                # Fall through to finding from SyncRecords
+                pass
+
+        # Fallback: Try to find ContentType from existing SyncRecords
+        sync_record = SyncRecord.objects.filter(synced_object_id=pk).first()
+        if sync_record and sync_record.synced_object_type:
+            return sync_record.synced_object_type
+
+        # If we still don't have a ContentType, raise an error
+        raise Http404(
+            f"No SyncRecords found for object with pk={pk}. "
+            f"Please ensure this object has been synced at least once."
+        )
+
+    def get_object(self, request, *args, **kwargs):
+        """Get the synced object instance."""
+        # Return cached instance if available (set by our get() method)
+        if hasattr(self, "_cached_instance"):
+            return self._cached_instance
+
+        pk = kwargs.get(self.lookup_field)
+        if pk is None and args:
+            pk = args[0]
+        if pk is None:
+            raise Http404("Synced object identifier not provided")
+
+        content_type = self._get_content_type(request, pk)
 
         # Get the synced object
         model_class = content_type.model_class()
         try:
-            return model_class.objects.get(pk=pk)
+            instance = model_class.objects.get(pk=pk)
         except model_class.DoesNotExist:
             raise Http404("Synced object not found")
 
+        # Cache for later use
+        self.synced_object_type = content_type
+        return instance
+
     # pylint: disable-next=arguments-differ
-    def get(self, request, pk):
-        """Display SyncRecords for the synced object with the given pk."""
-        instance = self.get_object(request, pk)
-        content_type = ContentType.objects.get_for_model(instance)
+    def get(self, request, *args, **kwargs):
+        """Override ObjectView get to handle object lookup before it tries to use queryset."""
+        # Get the object first using our custom logic
+        instance = self.get_object(request, *args, **kwargs)
+        # Cache the instance so if ObjectView calls get_object() again, we return the cached one
+        self._cached_instance = instance
+        # Temporarily set a proper queryset for the instance's model so ObjectView doesn't fail
+        original_queryset = self.queryset
+        try:
+            model_class = type(instance)
+            self.queryset = model_class.objects.all()
+            return super().get(request, *args, **kwargs)
+        finally:
+            self.queryset = original_queryset
+            # Clean up cached instance
+            if hasattr(self, "_cached_instance"):
+                delattr(self, "_cached_instance")
+
+    def get_extra_context(self, request, instance):
+        """Provide additional context for the object detail template."""
+        content_type = getattr(self, "synced_object_type", ContentType.objects.get_for_model(instance))
 
         # Get all SyncRecords for this synced object
         records = (
-            SyncRecord.objects.filter(synced_object_id=pk, synced_object_type=content_type)
+            SyncRecord.objects.filter(synced_object_id=instance.pk, synced_object_type=content_type)
             .order_by("-timestamp")
             .restrict(request.user, "view")
         )
@@ -551,17 +598,12 @@ class SyncedObjectHistoryView(ContentTypePermissionRequiredMixin, DjangoView):
         # Set it unconditionally to ensure it exists when the template tag tries to delete it
         table.context = object()
 
-        # Build context manually since we can't use parent's get_extra_context (no static queryset)
-        # The parent's get_extra_context tries to determine model from queryset, which we don't have
-        context = {
-            "object": instance,
-            "table": table,
-            "content_type": content_type,
-            "request": request,
-        }
-
-        # Render the template with the context
-        return render(request, self.template_name, context)
+        context = super().get_extra_context(request, instance)
+        context.update(app_utils.get_detail_view_components_context_for_model(instance))
+        context["active_tab"] = "syncrecord_history"
+        context["table"] = table
+        context["content_type"] = content_type
+        return context
 
 
 def process_bulk_syncrecords(request):
