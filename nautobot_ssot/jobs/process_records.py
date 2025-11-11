@@ -48,6 +48,7 @@ class ProcessRecordsJob(Job):
         self.source_adapter = None
         self.target_adapter = None
         self.diff = Diff()
+        self.processed_records = []
         super().__init__()
 
     def run(self, **kwargs):
@@ -104,6 +105,9 @@ class ProcessRecordsJob(Job):
             parent (DiffElement, optional): Parent DiffElement to assign child DiffElements to. Defaults to None.
         """
         for record in records:
+            if record.id in self.processed_records:
+                continue
+            self.processed_records.append(record.id)
             self.logger.info("Processing record %s.", record.obj_name)
             diff_element = DiffElement(
                 obj_type=record.obj_type,
