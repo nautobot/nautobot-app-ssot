@@ -214,10 +214,15 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
                 # Set up job_result in this thread
                 self.job_result = job_result
 
+                # Track timing for source adapter loading
+                source_start_time = datetime.now()
                 self.load_source_adapter()
-                return ("source", self.source_adapter, None, log_handler.records)
+                source_end_time = datetime.now()
+                source_duration = source_end_time - source_start_time
+
+                return ("source", self.source_adapter, None, log_handler.records, source_duration)
             except Exception as error:  # pylint: disable=broad-except
-                return ("source", None, error, log_handler.records)
+                return ("source", None, error, log_handler.records, None)
             finally:
                 # Remove handlers and close connections
                 job_logger.removeHandler(log_handler)
@@ -266,10 +271,15 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
                 # Set up job_result in this thread
                 self.job_result = job_result
 
+                # Track timing for target adapter loading
+                target_start_time = datetime.now()
                 self.load_target_adapter()
-                return ("target", self.target_adapter, None, log_handler.records)
+                target_end_time = datetime.now()
+                target_duration = target_end_time - target_start_time
+
+                return ("target", self.target_adapter, None, log_handler.records, target_duration)
             except Exception as error:  # pylint: disable=broad-except
-                return ("target", None, error, log_handler.records)
+                return ("target", None, error, log_handler.records, None)
             finally:
                 # Remove handlers and close connections
                 job_logger.removeHandler(log_handler)
@@ -280,6 +290,8 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
 
         source_log_records = []
         target_log_records = []
+        source_duration = None
+        target_duration = None
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             # Submit both adapter loading tasks
@@ -290,71 +302,104 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
 
             # Wait for both to complete
             for future in as_completed(future_to_adapter):
-                adapter_type, adapter, error, log_records = future.result()
+                adapter_type, adapter, error, log_records, duration = future.result()
                 if error:
                     if adapter_type == "source":
                         source_error = error
                         source_log_records = log_records
+                        source_duration = duration
                     else:
                         target_error = error
                         target_log_records = log_records
+                        target_duration = duration
                 else:
                     if adapter_type == "source":
                         source_adapter = adapter
                         source_log_records = log_records
+                        source_duration = duration
                     else:
                         target_adapter = adapter
                         target_log_records = log_records
+                        target_duration = duration
 
         # Create JobLogEntry objects for all captured log messages
         # This ensures logs from threads are visible in the Job Results
-        # Process source and target logs separately to set appropriate grouping
+        # Merge source and target logs by timestamp to show interleaved execution
 
-        def create_job_log_entries(log_records, adapter_type):
-            """Create JobLogEntry objects for a set of log records with appropriate grouping."""
-            # Remove duplicates based on message and timestamp
-            seen_messages = set()
-            unique_records = []
-            for record in log_records:
-                # Create a unique key for the message
-                message_key = (record.getMessage(), record.created)
-                if message_key not in seen_messages:
-                    seen_messages.add(message_key)
-                    unique_records.append(record)
+        def create_job_log_entry(record, adapter_type):
+            """Create a single JobLogEntry object from a log record."""
+            # Map logging levels to appropriate log levels for JobLogEntry
+            if record.levelno >= logging.ERROR:
+                log_level = "error"
+            elif record.levelno >= logging.WARNING:
+                log_level = "warning"
+            elif record.levelno >= logging.INFO:
+                log_level = "info"
+            else:
+                log_level = "debug"
 
-            for record in unique_records:
-                # Map logging levels to appropriate log levels for JobLogEntry
-                if record.levelno >= logging.ERROR:
-                    log_level = "error"
-                elif record.levelno >= logging.WARNING:
-                    log_level = "warning"
-                elif record.levelno >= logging.INFO:
-                    log_level = "info"
-                else:
-                    log_level = "debug"
+            # Format the message
+            message = record.getMessage()
+            if record.exc_info:
+                # Include exception information if present
+                message += "\n" + "".join(traceback.format_exception(*record.exc_info))
 
-                # Format the message
-                message = record.getMessage()
-                if record.exc_info:
-                    # Include exception information if present
-                    message += "\n" + "".join(traceback.format_exception(*record.exc_info))
+            # Create JobLogEntry object with grouping set to adapter type
+            # Note: JobLogEntry fields may vary by Nautobot version, using common fields
+            JobLogEntry.objects.create(
+                job_result=job_result,
+                log_level=log_level,
+                message=message,
+                grouping=adapter_type,  # Group by source or target adapter
+            )
 
-                # Create JobLogEntry object with grouping set to adapter type
-                # Note: JobLogEntry fields may vary by Nautobot version, using common fields
-                JobLogEntry.objects.create(
-                    job_result=job_result,
-                    log_level=log_level,
-                    message=message,
-                    grouping=adapter_type,  # Group by source or target adapter
-                )
+        # Merge source and target logs by timestamp to show interleaved execution
+        # Tag each record with its adapter type before merging
+        all_log_records = []
+        for record in source_log_records:
+            all_log_records.append((record.created, "source", record))
+        for record in target_log_records:
+            all_log_records.append((record.created, "target", record))
 
-        # Create JobLogEntry objects for source adapter logs
-        if source_log_records:
-            create_job_log_entries(source_log_records, "source")
+        # Remove duplicates based on message and timestamp
+        seen_messages = set()
+        unique_records = []
+        for timestamp, adapter_type, record in all_log_records:
+            # Create a unique key for the message
+            message_key = (record.getMessage(), timestamp)
+            if message_key not in seen_messages:
+                seen_messages.add(message_key)
+                unique_records.append((timestamp, adapter_type, record))
 
-        # Create JobLogEntry objects for target adapter logs
-        if target_log_records:
-            create_job_log_entries(target_log_records, "target")
+        # Sort by timestamp to show chronological order (interleaved execution)
+        unique_records.sort(key=lambda x: x[0])
+
+        # Create JobLogEntry objects in chronological order
+        for timestamp, adapter_type, record in unique_records:
+            create_job_log_entry(record, adapter_type)
+
+        # Add timing log messages for each adapter
+        if source_duration is not None:
+            # Create a log entry for source adapter load time
+            source_adapter_name = str(source_adapter) if source_adapter else "source adapter"
+            source_timing_message = f"Source adapter ({source_adapter_name}) loaded in {source_duration}"
+            JobLogEntry.objects.create(
+                job_result=job_result,
+                log_level="info",
+                message=source_timing_message,
+                grouping="source",
+            )
+
+        if target_duration is not None:
+            # Create a log entry for target adapter load time
+            target_adapter_name = str(target_adapter) if target_adapter else "target adapter"
+            target_timing_message = f"Target adapter ({target_adapter_name}) loaded in {target_duration}"
+            JobLogEntry.objects.create(
+                job_result=job_result,
+                log_level="info",
+                message=target_timing_message,
+                grouping="target",
+            )
 
         # Raise errors if any occurred
         if source_error:
