@@ -215,6 +215,29 @@ class BootstrapAdapter(Adapter, LabelMixin):
         self.sync = sync
         self.conn = client
 
+    def load_branch_overrides(self, item_type, original_item, key="name"):
+        """Load any extra values from branch override files."""
+        if branch_items := self.branch_vars.get(item_type):
+            default_values = [obj for obj in branch_items if obj.get(key) == "default"]
+            if default_values:
+                default_values = default_values[0]
+
+            for branch_item in branch_items:
+                if branch_item == default_values:
+                    continue
+                if branch_item.get(key) == original_item.get(key):
+                    if self.job.debug:
+                        self.job.logger.debug(f"Loading branch values to {original_item[key]}, values: {branch_item}")
+                    original_item = original_item | branch_item # branch value always overrides
+                    break
+            if default_values:
+                default_values_filtered = {k: v for k, v in default_values.items() if k != key}
+                if self.job.debug:
+                    self.job.logger.debug(f"Loading only missing default values to {original_item[key]}, possible values: {default_values_filtered}")
+                original_item = default_values_filtered | original_item # original value always overrides
+
+        return original_item
+
     def load_tenant_group(self, bs_tenant_group, branch_vars):
         """Load TenantGroup objects from Bootstrap into DiffSync models."""
         if self.job.debug:
@@ -314,7 +337,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             self.get(self.location_type, bs_location_type["name"])
         except ObjectNotFound:
             _content_types = []
-            if bs_location_type["parent"]:
+            if bs_location_type.get("parent"):
                 _parent = bs_location_type["parent"]
             else:
                 _parent = None
@@ -339,7 +362,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         try:
             self.get(self.location, bs_location["name"])
         except ObjectNotFound:
-            if bs_location["parent"]:
+            if bs_location.get("parent"):
                 _parent = bs_location["parent"]
             else:
                 _parent = None
@@ -720,10 +743,11 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_secrets_group)
 
-    def load_git_repository(self, git_repo, branch_vars):
+    def load_git_repository(self, git_repo):
         """Load GitRepository objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap GitRepository: {git_repo}")
+        git_repo = self.load_branch_overrides(item_type="git_repository", original_item=git_repo)
         try:
             self.get(self.git_repository, git_repo["name"])
         except ObjectNotFound:
@@ -731,14 +755,14 @@ class BootstrapAdapter(Adapter, LabelMixin):
             for con_type in git_repo["provided_data_type"]:
                 _content_type = lookup_content_type(content_model_path="extras.gitrepository", content_type=con_type)
                 _data_types.append(_content_type)
-            if git_repo.get("branch"):
-                _branch = git_repo["branch"]
-            else:
-                _branch = branch_vars["git_branch"]
+
+            if not git_repo.get("branch"):
+                git_repo["branch"] = self.branch_vars.get("git_branch") # temporary backwards compatibility -- remove in v4
+
             new_git_repository = self.git_repository(
                 name=git_repo["name"],
                 url=git_repo["url"],
-                branch=_branch,
+                branch=git_repo.get("branch"),
                 provided_contents=_data_types,
                 secrets_group=git_repo["secrets_group_name"],
                 system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
@@ -841,10 +865,13 @@ class BootstrapAdapter(Adapter, LabelMixin):
             _new_graphqlq = self.graph_ql_query(name=query["name"], query=query["query"])
             self.add(_new_graphqlq)
 
-    def load_scheduled_job(self, scheduled_job):
+
+    def load_scheduled_job(self, scheduled_job, branch_vars):
         """Load ScheduledJob objects from Bootstrap into DiffSync Models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap ScheduledJob {scheduled_job}")
+
+        scheduled_job = self.load_branch_overrides(item_type="scheduled_job", original_item=scheduled_job)
         try:
             self.get(self.scheduled_job, scheduled_job["name"])
         except ObjectNotFound:
@@ -1055,6 +1082,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                     globals()[variable_name] = yaml_data
 
             branch_vars = globals()[environment_label]
+            self.branch_vars = branch_vars
             global_settings = globals().get("global_settings")
 
         elif load_type == "git":
@@ -1083,6 +1111,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                         globals()[variable_name] = yaml_data
 
                 branch_vars = globals()[environment_label]
+                self.branch_vars = branch_vars
                 global_settings = globals().get("global_settings")
 
         # Ensure global_settings is loaded
@@ -1252,7 +1281,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 self.job.logger.warning("git_repository not found in global_settings. Check if the key exists.")
             elif global_settings["git_repository"] is not None:  # noqa: F821
                 for git_repo in global_settings["git_repository"]:  # noqa: F821
-                    self.load_git_repository(git_repo=git_repo, branch_vars=branch_vars)
+                    self.load_git_repository(git_repo=git_repo)
 
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["dynamic_group"]:
             if not global_settings.get("dynamic_group"):  # noqa: F821
@@ -1294,7 +1323,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 self.job.logger.warning("scheduled_job not found in global_settings. Check if the key exists.")
             elif global_settings["scheduled_job"] is not None:  # noqa: F821
                 for job in global_settings["scheduled_job"]:  # noqa: F821
-                    self.load_scheduled_job(scheduled_job=job)
+                    self.load_scheduled_job(scheduled_job=job, branch_vars=branch_vars)
 
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software"]:
             if not global_settings.get("software"):  # noqa: F821
