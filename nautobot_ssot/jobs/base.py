@@ -431,6 +431,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         """Initialize a Job."""
         super().__init__()
         self.sync = None
+        self._parallel_loading_value = True
         self.diff = None
         self.source_adapter = None
         self.target_adapter = None
@@ -465,12 +466,15 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         """Icon corresponding to the data_target."""
         return getattr(cls.Meta, "data_target_icon", None)
 
-    def run(self, dryrun, memory_profiling, parallel_loading=None, *args, **kwargs):  # pylint:disable=arguments-differ
+    def run(self, *args, **kwargs):
         """Job entry point from Nautobot - do not override!"""
+        self.dryrun = kwargs.get("dryrun", True)
+        self.memory_profiling = kwargs.get("memory_profiling", False)
+        self.parallel_loading = kwargs.get("parallel_loading", True)
         self.sync = Sync.objects.create(
             source=self.data_source,
             target=self.data_target,
-            dry_run=dryrun,
+            dry_run=self.dryrun,
             job_result=self.job_result,
             start_time=timezone.now(),
             diff={},
@@ -478,9 +482,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
 
         # Store parallel_loading value for use in sync_data
         # If not provided, default to True (parallel loading enabled by default)
-        if parallel_loading is None:
-            parallel_loading = True
-        self._parallel_loading_value = parallel_loading
+        self._parallel_loading_value = self.parallel_loading
 
         # Add _structlog_to_sync_log_entry as a processor for structlog calls from DiffSync
         structlog.configure(
@@ -493,7 +495,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             wrapper_class=structlog.stdlib.BoundLogger,
             cache_logger_on_first_use=True,
         )
-        self.sync_data(memory_profiling)
+        self.sync_data(self.memory_profiling)
 
 
 # pylint: disable=abstract-method
