@@ -2610,7 +2610,7 @@ class NautobotScheduledJob(ScheduledJob):
             job.interval = attrs["interval"]
         if attrs.get("crontab"):
             job.crontab = attrs["crontab"]
-        if attrs.get("job_vars"):
+        if attrs.get("job_vars") is not None:
             job.kwargs = attrs["job_vars"]
         if "profile" in attrs:
             job.celery_kwargs["nautobot_job_profile"] = attrs["profile"]
