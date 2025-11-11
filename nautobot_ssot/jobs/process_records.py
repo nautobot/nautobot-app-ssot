@@ -13,7 +13,7 @@ from nautobot.extras.models import Status
 from nautobot_ssot.models import Sync, SyncRecord
 from nautobot_ssot.utils import import_from_dotted_path
 
-name = "Process Records Job"  # pylint: disable=invalid-name
+name = "SSOT Utility"  # pylint: disable=invalid-name
 
 
 STATUS_MAP = {"success": "Successful", "error": "Error", "failed": "Failed"}
