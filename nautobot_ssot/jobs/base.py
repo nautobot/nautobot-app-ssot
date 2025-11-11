@@ -1,6 +1,9 @@
 # pylint: disable=protected-access
 """Base Job classes for sync workers."""
 
+import logging
+import threading
+import traceback
 import tracemalloc
 from collections import namedtuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -13,11 +16,13 @@ import structlog
 # pylint: disable=no-self-argument
 from diffsync.enum import DiffSyncFlags
 from django.conf import settings
+from django.db import connections
 from django.db.utils import OperationalError
 from django.templatetags.static import static
 from django.utils import timezone
 from django.utils.functional import classproperty
 from nautobot.extras.jobs import BooleanVar, DryRunVar, Job
+from nautobot.extras.models import JobLogEntry
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices
 from nautobot_ssot.contrib.adapter import NautobotAdapter
@@ -118,37 +123,163 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         source_error = None
         target_error = None
 
+        # Store references needed for logger setup in threads
+        job_result = self.job_result
+
+        # Custom logging handler to capture log records in threads
+        class ThreadLogHandler(logging.Handler):
+            """Handler that collects log records for later processing."""
+
+            def __init__(self, job_logger_name, thread_id):
+                super().__init__()
+                self.records = []
+                self.job_logger_name = job_logger_name
+                self.thread_id = thread_id  # Store the thread ID that owns this handler
+                # List of logger names to exclude (noisy third-party libraries)
+                self.excluded_loggers = [
+                    "urllib3",
+                    "requests",
+                    "httpcore",
+                    "httpx",
+                    "asyncio",
+                    "django.db.backends",  # SQL query logs
+                ]
+
+            def emit(self, record):
+                """Store the log record if it's relevant to the job and from this thread."""
+                # Only capture logs from the thread that owns this handler
+                current_thread_id = threading.get_ident()
+                if current_thread_id != self.thread_id:
+                    return  # This log is from a different thread, ignore it
+
+                # Skip DEBUG level logs from excluded loggers
+                if record.levelno == logging.DEBUG:
+                    logger_name = record.name
+                    # Check if this logger is in our exclusion list
+                    for excluded in self.excluded_loggers:
+                        if logger_name.startswith(excluded):
+                            return  # Skip this log record
+
+                # Capture logs from:
+                # 1. The job logger (exact match)
+                # 2. Nautobot loggers (any level)
+                # 3. Nautobot SSOT loggers (any level)
+                # 4. Any INFO level or above logs (to catch important messages from other sources)
+                if (
+                    record.name == self.job_logger_name
+                    or record.name.startswith("nautobot")
+                    or record.name.startswith("nautobot_ssot")
+                    or record.levelno >= logging.INFO
+                ):
+                    self.records.append(record)
+
         def load_source():
             """Load source adapter in a separate thread."""
             # Close any existing database connections for this thread
             # Django requires each thread to manage its own connections
-            from django.db import connections
-
             connections.close_all()
+
+            # Get the job's logger name
+            # The job logger typically follows the pattern: nautobot.extras.jobs.run_job[job_result_id]
+            job_logger_name = f"nautobot.extras.jobs.run_job[{job_result.id}]"
+
+            # Get the current thread ID to ensure this handler only captures logs from this thread
+            current_thread_id = threading.get_ident()
+
+            # Set up a custom handler to capture log messages from the job logger
+            log_handler = ThreadLogHandler(job_logger_name, current_thread_id)
+            log_handler.setLevel(logging.DEBUG)
+
+            # Add handler to the job-specific logger
+            job_logger = logging.getLogger(job_logger_name)
+            job_logger.addHandler(log_handler)
+            job_logger.setLevel(logging.DEBUG)
+
+            # Also capture from nautobot and nautobot_ssot loggers to catch adapter logs
+            nautobot_logger = logging.getLogger("nautobot")
+            nautobot_logger.addHandler(log_handler)
+            nautobot_logger.setLevel(logging.DEBUG)
+
+            nautobot_ssot_logger = logging.getLogger("nautobot_ssot")
+            nautobot_ssot_logger.addHandler(log_handler)
+            nautobot_ssot_logger.setLevel(logging.DEBUG)
+
+            # Also attach to root logger to catch any logs that might bubble up
+            # This ensures we don't miss any important messages
+            root_logger = logging.getLogger()
+            root_logger.addHandler(log_handler)
+            root_logger.setLevel(logging.DEBUG)
+
             try:
+                # Set up job_result in this thread
+                self.job_result = job_result
+
                 self.load_source_adapter()
-                return ("source", self.source_adapter, None)
+                return ("source", self.source_adapter, None, log_handler.records)
             except Exception as error:  # pylint: disable=broad-except
-                return ("source", None, error)
+                return ("source", None, error, log_handler.records)
             finally:
-                # Close connections when done
+                # Remove handlers and close connections
+                job_logger.removeHandler(log_handler)
+                nautobot_logger.removeHandler(log_handler)
+                nautobot_ssot_logger.removeHandler(log_handler)
+                root_logger.removeHandler(log_handler)
                 connections.close_all()
 
         def load_target():
             """Load target adapter in a separate thread."""
             # Close any existing database connections for this thread
             # Django requires each thread to manage its own connections
-            from django.db import connections
-
             connections.close_all()
+
+            # Get the job's logger name
+            job_logger_name = f"nautobot.extras.jobs.run_job[{job_result.id}]"
+
+            # Get the current thread ID to ensure this handler only captures logs from this thread
+            current_thread_id = threading.get_ident()
+
+            # Set up a custom handler to capture log messages from the job logger
+            log_handler = ThreadLogHandler(job_logger_name, current_thread_id)
+            log_handler.setLevel(logging.DEBUG)
+
+            # Add handler to the job-specific logger
+            job_logger = logging.getLogger(job_logger_name)
+            job_logger.addHandler(log_handler)
+            job_logger.setLevel(logging.DEBUG)
+
+            # Also capture from nautobot and nautobot_ssot loggers to catch adapter logs
+            nautobot_logger = logging.getLogger("nautobot")
+            nautobot_logger.addHandler(log_handler)
+            nautobot_logger.setLevel(logging.DEBUG)
+
+            nautobot_ssot_logger = logging.getLogger("nautobot_ssot")
+            nautobot_ssot_logger.addHandler(log_handler)
+            nautobot_ssot_logger.setLevel(logging.DEBUG)
+
+            # Also attach to root logger to catch any logs that might bubble up
+            # This ensures we don't miss any important messages
+            root_logger = logging.getLogger()
+            root_logger.addHandler(log_handler)
+            root_logger.setLevel(logging.DEBUG)
+
             try:
+                # Set up job_result in this thread
+                self.job_result = job_result
+
                 self.load_target_adapter()
-                return ("target", self.target_adapter, None)
+                return ("target", self.target_adapter, None, log_handler.records)
             except Exception as error:  # pylint: disable=broad-except
-                return ("target", None, error)
+                return ("target", None, error, log_handler.records)
             finally:
-                # Close connections when done
+                # Remove handlers and close connections
+                job_logger.removeHandler(log_handler)
+                nautobot_logger.removeHandler(log_handler)
+                nautobot_ssot_logger.removeHandler(log_handler)
+                root_logger.removeHandler(log_handler)
                 connections.close_all()
+
+        source_log_records = []
+        target_log_records = []
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             # Submit both adapter loading tasks
@@ -159,17 +290,71 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
 
             # Wait for both to complete
             for future in as_completed(future_to_adapter):
-                adapter_type, adapter, error = future.result()
+                adapter_type, adapter, error, log_records = future.result()
                 if error:
                     if adapter_type == "source":
                         source_error = error
+                        source_log_records = log_records
                     else:
                         target_error = error
+                        target_log_records = log_records
                 else:
                     if adapter_type == "source":
                         source_adapter = adapter
+                        source_log_records = log_records
                     else:
                         target_adapter = adapter
+                        target_log_records = log_records
+
+        # Create JobLogEntry objects for all captured log messages
+        # This ensures logs from threads are visible in the Job Results
+        # Process source and target logs separately to set appropriate grouping
+
+        def create_job_log_entries(log_records, adapter_type):
+            """Create JobLogEntry objects for a set of log records with appropriate grouping."""
+            # Remove duplicates based on message and timestamp
+            seen_messages = set()
+            unique_records = []
+            for record in log_records:
+                # Create a unique key for the message
+                message_key = (record.getMessage(), record.created)
+                if message_key not in seen_messages:
+                    seen_messages.add(message_key)
+                    unique_records.append(record)
+
+            for record in unique_records:
+                # Map logging levels to appropriate log levels for JobLogEntry
+                if record.levelno >= logging.ERROR:
+                    log_level = "error"
+                elif record.levelno >= logging.WARNING:
+                    log_level = "warning"
+                elif record.levelno >= logging.INFO:
+                    log_level = "info"
+                else:
+                    log_level = "debug"
+
+                # Format the message
+                message = record.getMessage()
+                if record.exc_info:
+                    # Include exception information if present
+                    message += "\n" + "".join(traceback.format_exception(*record.exc_info))
+
+                # Create JobLogEntry object with grouping set to adapter type
+                # Note: JobLogEntry fields may vary by Nautobot version, using common fields
+                JobLogEntry.objects.create(
+                    job_result=job_result,
+                    log_level=log_level,
+                    message=message,
+                    grouping=adapter_type,  # Group by source or target adapter
+                )
+
+        # Create JobLogEntry objects for source adapter logs
+        if source_log_records:
+            create_job_log_entries(source_log_records, "source")
+
+        # Create JobLogEntry objects for target adapter logs
+        if target_log_records:
+            create_job_log_entries(target_log_records, "target")
 
         # Raise errors if any occurred
         if source_error:
