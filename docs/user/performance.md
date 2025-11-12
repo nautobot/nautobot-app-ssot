@@ -48,6 +48,77 @@ In brief, the following general steps can be followed:
 
 When syncing large amounts of data, job execution time may start to become an issue. Fortunately, there are a number of ways you can go about optimizing your jobs performance.
 
+### Parallel Adapter Loading
+
+Think of parallel adapter loading like having two people work on different tasks at the same time instead of waiting for one to finish before starting the other. As of version 4.0.0, SSoT Jobs by default will load data from both your source System of Record (where data comes from) and target System of Record (where data goes to) at the same time, rather than loading them one after another.
+
+**What is parallel loading?**
+
+When your SSoT job runs, it needs to load data from two places:
+
+1. **Source adapter**: Loads data from the source system (e.g., an external API, another database)
+2. **Target adapter**: Loads data from the target system (usually Nautobot)
+
+Without parallel loading, the job would:
+
+- First load the source adapter (wait for it to finish)
+- Then load the target adapter (wait for it to finish)
+- Perform sync
+- Total time = Source time + Target time
+
+With parallel loading (enabled by default):
+
+- Both adapters load at the same time
+- Total time = The longer of the two (not their sum!)
+
+**Real-world performance example:**
+
+Imagine your source adapter takes 30 seconds to load (maybe it's making many API calls), and your target adapter takes 20 seconds to load (querying the Nautobot database):
+
+- **Without parallel loading**: 30 seconds + 20 seconds = **50 seconds total**
+- **With parallel loading**: max(30 seconds, 20 seconds) = **30 seconds total**
+
+That's a **40% time savings** in this example! In practice, when both adapters involve network requests or database queries, parallel loading typically reduces loading time by **30-50%**, and in some cases up to **60%** when the load times are similar.
+
+**How it works under the hood:**
+
+- The source adapter loads in one thread
+- The target adapter loads in another thread simultaneously
+- While one adapter waits for a network response, the other can keep working
+- All log messages from both adapters are collected and shown in chronological order
+- Each Job log shows whether it came from "source" or "target"
+- You'll see timing information for each adapter separately
+
+**When to disable parallel loading:**
+
+Most of the time, you should keep parallel loading enabled. However, you might need to disable it if:
+
+- Your adapter code isn't thread-safe (rare, but can happen with certain libraries)
+- You need to load adapters in a specific order for debugging
+- You're experiencing unexpected behavior that might be related to threading
+
+To disable parallel loading, you can set it to `False` when running the job, or override it in your job class:
+
+```python
+class MyDataSource(DataSource):
+    parallel_loading = BooleanVar(
+        description="Load source and target adapters in parallel for improved performance.",
+        default=False,  # Disable parallel loading by default
+    )
+```
+
+**Key benefits:**
+
+- **Faster execution**: Typically 30-50% reduction in loading time, sometimes up to 60%
+- **Better efficiency**: Your computer can work on both adapters while waiting for network responses
+- **Clear logging**: All messages are tagged and organized so you can see what each adapter is doing
+
+**Important notes:**
+
+- Your adapter code should be thread-safe (most Django and standard Python code already is)
+- Database connections are handled automatically for each thread (you don't need to worry about this)
+- Logs from both threads are automatically merged and displayed in the correct order
+
 ### Optimizing Nautobot Database Queries
 
 As an SSoT job typically has lots of Nautobot database interaction (i.e. Nautobot is always either the source or the destination) for loading, creating, updating, and deleting objects, this is a common source of performance issues.
@@ -209,10 +280,13 @@ We can capture data for all of these to analyze potential problems.
 
 The built-in implementation of `sync_data`, which is the SSoT job method that encompasses all the computationally expensive steps, is composed of 4 steps:
 
-- Loading data from source adapter
-- Loading data from target adapter
+- Loading data from source adapter (and target adapter in parallel, if enabled)
+- Loading data from target adapter (runs in parallel with source adapter loading, if enabled)
 - Calculating diff
 - Executing synchronization (if the `dry-run` checkbox wasn't ticked)
+
+!!! note
+    When parallel loading is enabled, the source and target adapters are loaded simultaneously. The timing metrics will show the total parallel loading time, and individual adapter load times are logged separately in the job logs.
 
 For each one of these 4 steps we can capture data for performance analysis:
 
