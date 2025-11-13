@@ -530,7 +530,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             except ObjectNotFound as err:
                 self.job.logger.warning(f"Circuit {_circuit_id} not found. {err}")
 
-    def load_namespace(self, bs_namespace, branch_vars):
+    def load_namespace(self, bs_namespace):
         """Load Namespace objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Namespace {bs_namespace}.")
@@ -545,7 +545,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_namespace)
 
-    def load_rir(self, bs_rir, branch_vars):
+    def load_rir(self, bs_rir):
         """Load RiR objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap RiR {bs_rir}.")
@@ -560,7 +560,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_rir)
 
-    def load_vlan_group(self, bs_vlan_group, branch_vars):
+    def load_vlan_group(self, bs_vlan_group):
         """Load VLANGroup objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap VLANGroup {bs_vlan_group}.")
@@ -575,7 +575,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_vlan_group)
 
-    def load_vlan(self, bs_vlan, branch_vars):
+    def load_vlan(self, bs_vlan):
         """Load VLAN objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap VLAN {bs_vlan}.")
@@ -603,7 +603,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_vlan)
 
-    def load_vrf(self, bs_vrf, branch_vars):
+    def load_vrf(self, bs_vrf):
         """Load VRF objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap VRF {bs_vrf}.")
@@ -627,7 +627,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_vrf)
 
-    def load_prefix(self, bs_prefix, branch_vars):
+    def load_prefix(self, bs_prefix):
         """Load Prefix objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Prefix {bs_prefix}.")
@@ -678,7 +678,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_prefix)
 
-    def load_secret(self, bs_secret, branch_vars):
+    def load_secret(self, bs_secret):
         """Load Secret objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Secret: {bs_secret}")
@@ -701,7 +701,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_secret)
 
-    def load_secrets_group(self, bs_sg, branch_vars):
+    def load_secrets_group(self, bs_sg):
         """Load SecretsGroup objects from Bootstrap into DiffSync models."""
         _secrets = []
         if self.job.debug:
