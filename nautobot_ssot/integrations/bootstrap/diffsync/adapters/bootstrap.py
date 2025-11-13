@@ -195,10 +195,9 @@ class BootstrapAdapter(Adapter, LabelMixin):
         "tag",
         "graph_ql_query",
         "external_integration",
+        "software_version",
+        "software_image_file",
     ]
-
-    top_level.append("software_version")
-    top_level.append("software_image_file")
     if validate_dlm_installed():
         top_level.append("validated_software")
 
@@ -894,6 +893,11 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load Software objects from Bootstrap into DiffSync Models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Software {software}")
+        if not software.get("version") or not software.get("platform"):
+            self.job.logger.warning(
+                f"Software: {software} is not formatted correctly in the yaml file. Version and platform are required."
+            )
+            return
         try:
             self.get(
                 self.software_version,
