@@ -214,7 +214,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         self.sync = sync
         self.conn = client
 
-    def load_tenant_group(self, bs_tenant_group, branch_vars):
+    def load_tenant_group(self, bs_tenant_group):
         """Load TenantGroup objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap TenantGroup: {bs_tenant_group}")
@@ -230,7 +230,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_tenant_group)
 
-    def load_tenant(self, bs_tenant, branch_vars):
+    def load_tenant(self, bs_tenant):
         """Load Tenant objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Tenant: {bs_tenant}")
@@ -247,7 +247,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_tenant)
 
-    def load_role(self, bs_role, branch_vars):
+    def load_role(self, bs_role):
         """Load Role objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Role {bs_role}")
@@ -270,7 +270,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_role)
 
-    def load_manufacturer(self, bs_manufacturer, branch_vars):
+    def load_manufacturer(self, bs_manufacturer):
         """Load Manufacturer objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Boostrap Manufacturer {bs_manufacturer}")
@@ -285,7 +285,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_manufacturer)
 
-    def load_platform(self, bs_platform, branch_vars):
+    def load_platform(self, bs_platform):
         """Load Platform objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Platform {bs_platform}")
@@ -304,7 +304,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_platform)
 
-    def load_location_type(self, bs_location_type, branch_vars):
+    def load_location_type(self, bs_location_type):
         """Load LocationType objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap LocationType {bs_location_type}")
@@ -330,7 +330,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_location_type)
 
-    def load_location(self, bs_location, branch_vars):
+    def load_location(self, bs_location):
         """Load Location objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Location {bs_location}")
@@ -368,7 +368,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_location)
 
-    def load_team(self, bs_team, branch_vars):
+    def load_team(self, bs_team):
         """Load Team objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Team {bs_team}")
@@ -392,7 +392,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_team)
 
-    def load_contact(self, bs_contact, branch_vars):
+    def load_contact(self, bs_contact):
         """Load Contact objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Boostrap Contact {bs_contact}")
@@ -415,7 +415,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_contact)
 
-    def load_provider(self, bs_provider, branch_vars):
+    def load_provider(self, bs_provider):
         """Load Provider objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Provider {bs_provider}")
@@ -435,7 +435,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_provider)
 
-    def load_provider_network(self, bs_provider_network, branch_vars):
+    def load_provider_network(self, bs_provider_network):
         """Load ProviderNetwork objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap ProviderNetwork {bs_provider_network}")
@@ -453,7 +453,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_provider_network)
 
-    def load_circuit_type(self, bs_circuit_type, branch_vars):
+    def load_circuit_type(self, bs_circuit_type):
         """Load CircuitType objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap CircuitType {bs_circuit_type} into DiffSync models.")
@@ -468,7 +468,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_circuit_type)
 
-    def load_circuit(self, bs_circuit, branch_vars):
+    def load_circuit(self, bs_circuit):
         """Load Circuit objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Circuit {bs_circuit} into DiffSync models.")
@@ -489,7 +489,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_circuit)
 
-    def load_circuit_termination(self, bs_circuit_termination, branch_vars):
+    def load_circuit_termination(self, bs_circuit_termination):
         """Load CircuitTermination objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(
