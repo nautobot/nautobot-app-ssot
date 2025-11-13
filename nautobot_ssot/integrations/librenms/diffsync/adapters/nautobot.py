@@ -47,7 +47,7 @@ class NautobotAdapter(Adapter):
             locations = OrmLocation.objects.all()
         for nb_location in locations:
             if self.job.debug:
-                self.job.logger.debug(f"Loading Nautobot Location {nb_location}")
+                self.job.logger.debug(f"Nautobot Adapter Loading Nautobot Location {nb_location}")
             try:
                 self.get(self.location, nb_location.name)
             except ObjectNotFound:
@@ -77,7 +77,13 @@ class NautobotAdapter(Adapter):
             devices = OrmDevice.objects.all()
         for nb_device in devices:
             if self.job.debug:
-                self.job.logger.debug(f"Loading Nautobot Device {nb_device}")
+                self.job.logger.debug(f"Nautobot Adapter Loading Nautobot Device {nb_device}")
+                self.job.logger.debug(
+                    f"Nautobot Adapter Platform for {nb_device.name}: {nb_device.platform.network_driver}"
+                )
+                self.job.logger.debug(
+                    f"Nautobot Adapter Manufacturer for {nb_device.name}: {nb_device.device_type.manufacturer.name}"
+                )
             try:
                 self.get(self.device, nb_device.name)
             except ObjectNotFound:
@@ -88,11 +94,8 @@ class NautobotAdapter(Adapter):
                 try:
                     _ip_address = str(nb_device.primary_ip4.address)
                     _ip_prefix = str(nb_device.primary_ip4.parent.prefix)
-                    _ip_address = str(nb_device.primary_ip4.address)
-                    _ip_prefix = str(nb_device.primary_ip4.parent.prefix)
                 except AttributeError:
                     _ip_address = None
-                    _ip_prefix = None
                     _ip_prefix = None
                 _device_id = None
                 if nb_device.custom_field_data.get("librenms_device_id"):
@@ -101,29 +104,20 @@ class NautobotAdapter(Adapter):
                     _snmp_location = nb_device.custom_field_data.get("snmp_location")
                 else:
                     _snmp_location = None
-                if nb_device.custom_field_data.get("snmp_location"):
-                    _snmp_location = nb_device.custom_field_data.get("snmp_location")
-                else:
-                    _snmp_location = None
                 new_device = NautobotDevice(
-                    name=nb_device.name,
-                    tenant=nb_device.tenant.name if nb_device.tenant else None,
                     name=nb_device.name,
                     tenant=nb_device.tenant.name if nb_device.tenant else None,
                     device_id=_device_id,
                     location=nb_device.location.name,
                     parent_location=nb_device.location.parent.name if nb_device.location.parent else None,
-                    parent_location=nb_device.location.parent.name if nb_device.location.parent else None,
                     status=nb_device.status.name,
                     device_type=nb_device.device_type.model,
                     role=nb_device.role.name,
                     manufacturer=nb_device.device_type.manufacturer.name,
-                    platform=nb_device.platform.network_driver,
+                    platform=nb_device.platform.name,
                     os_version=_software_version,
                     serial_no=nb_device.serial,
                     ip_address=_ip_address,
-                    ip_prefix=_ip_prefix,
-                    snmp_location=_snmp_location,
                     ip_prefix=_ip_prefix,
                     snmp_location=_snmp_location,
                     system_of_record=get_sor_field_nautobot_object(nb_device),

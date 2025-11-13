@@ -7,10 +7,8 @@ from nautobot.core.testing import TransactionTestCase
 from nautobot.dcim.models import Device, Location, LocationType
 from nautobot.extras.models import JobResult, Status
 
-from nautobot_ssot.integrations.librenms.constants import PLUGIN_CFG
 from nautobot_ssot.integrations.librenms.diffsync.adapters.librenms import LibrenmsAdapter
 from nautobot_ssot.integrations.librenms.jobs import LibrenmsDataSource
-from nautobot_ssot.integrations.librenms.utils import normalize_device_hostname
 from nautobot_ssot.tests.librenms.fixtures import DEVICE_FIXTURE_RECV, LOCATION_FIXURE_RECV
 
 

@@ -175,35 +175,12 @@ class NautobotLocation(Location):
         if adapter.job.debug:
             adapter.job.logger.debug(f'Creating Nautobot Location {ids["name"]}')
 
-        # Check if location already exists to avoid ValidationError
-        try:
-            existing_location = ORMLocation.objects.get(name=ids["name"], parent__isnull=True)
-            if adapter.job.debug:
-                adapter.job.logger.debug(f'Location {ids["name"]} already exists, skipping creation')
-            return None
-        except ORMLocation.DoesNotExist:
-            pass  # Location doesn't exist, proceed with creation
-        except ORMLocation.MultipleObjectsReturned:
-            adapter.job.logger.warning(f'Multiple locations found with name {ids["name"]}, using first one')
-            existing_location = ORMLocation.objects.filter(name=ids["name"], parent__isnull=True).first()
-            return existing_location
-
-        try:
-            if adapter.job.debug:
-                adapter.job.logger.debug(f"Location Type {adapter.job.location_type}")
-            _location_type = LocationType.objects.get(id=adapter.job.location_type.id)
-        except LocationType.DoesNotExist:
-            adapter.job.logger.warning(
-                f"Location Type {adapter.job.location_type} does not exist. Using default Site Location Type."
-            )
-            _location_type = LocationType.objects.get(name="Site")
-
         new_location = ORMLocation(
             name=ids["name"],
             latitude=attrs["latitude"],
             longitude=attrs["longitude"],
             status=Status.objects.get(name=attrs["status"]),
-            location_type=_location_type,
+            location_type=adapter.job.location_type,
         )
         if adapter.tenant:
             new_location.tenant = adapter.tenant
@@ -214,7 +191,7 @@ class NautobotLocation(Location):
             }
         )
         new_location.validated_save()
-        return None
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Location in Nautobot from NautobotLocation object."""
@@ -279,7 +256,7 @@ class NautobotLocation(Location):
             location = ORMLocation.objects.filter(id=self.uuid).first()
         except ORMLocation.DoesNotExist:
             self.adapter.job.logger.error(f"Location with UUID {self.uuid} not found for deletion")
-            return self
+            return None
         super().delete()
         location.delete()
         return self

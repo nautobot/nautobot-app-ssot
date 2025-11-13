@@ -109,8 +109,6 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
         self.token = token
         self.verify = verify
         self.headers = {"Accept": "*/*", "X-Auth-Token": f"{self.token}"}
-        self.devices_load_file = devices_load_file
-        self.locations_load_file = locations_load_file
 
         LOGGER.info("Headers %s", self.headers)
 
