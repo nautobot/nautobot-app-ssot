@@ -41,9 +41,9 @@ class BootstrapTenantGroup(TenantGroup):
     """Bootstrap implementation of TenantGroup DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create TenantGroup in Bootstrap from BootstrapTenantGroup object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update TenantGroup in Bootstrap from BootstrapTenantGroup object."""
@@ -58,9 +58,9 @@ class BootstrapTenant(Tenant):
     """Bootstrap implementation of TenantGroup DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Tenant in Bootstrap from BootstrapTenant object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Tenant in Bootstrap from BootstrapTenant object."""
@@ -75,9 +75,9 @@ class BootstrapRole(Role):
     """Bootstrap implementation of Role DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Role in Bootstrap from BootstrapRole object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Role in Bootstrap from BootstrapRole object."""
@@ -92,9 +92,9 @@ class BootstrapManufacturer(Manufacturer):
     """Bootstrap implementation of Manufacturer DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Manufacturer in Bootstrap from BootstrapManufacturer object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Manufacturer in Bootstrap from BootstrapManufacturer object."""
@@ -109,9 +109,9 @@ class BootstrapPlatform(Platform):
     """Bootstrap implementation of Platform DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Platform in Bootstrap from BootstrapPlatform object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Platform in Bootstrap from BootstrapPlatform object."""
@@ -126,9 +126,9 @@ class BootstrapLocationType(LocationType):
     """Bootstrap implementation of LocationType DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create LocationType in Bootstrap from BootstrapLocationType object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update LocationType in Bootstrap from BootstrapLocationType object."""
@@ -143,9 +143,9 @@ class BootstrapLocation(Location):
     """Bootstrap implementation of Location DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Location in Bootstrap from BootstrapLocation object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Location in Bootstrap from BootstrapLocation object."""
@@ -160,9 +160,9 @@ class BootstrapTeam(Team):
     """Bootstrap implementation of Team DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Team in Bootstrap from BootstrapTeam object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Team in Bootstrap from BootstrapTeam object."""
@@ -177,9 +177,9 @@ class BootstrapContact(Contact):
     """Bootstrap implementation of Contact DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Contact in Bootstrap from BootstrapContact object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Contact in Bootstrap from BootstrapContact object."""
@@ -194,9 +194,9 @@ class BootstrapProvider(Provider):
     """Bootstrap implementation of Provider DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Provider in Bootstrap from BootstrapProvider object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Provider in Bootstrap from BootstrapProvider object."""
@@ -211,9 +211,9 @@ class BootstrapProviderNetwork(ProviderNetwork):
     """Bootstrap implementation of ProviderNetwork DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create ProviderNetwork in Bootstrap from BootstrapProviderNetwork object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update ProviderNetwork in Bootstrap from BootstrapProviderNetwork object."""
@@ -228,9 +228,9 @@ class BootstrapCircuitType(CircuitType):
     """Bootstrap implementation of CircuitType DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create CircuitType in Bootstrap from BootstrapCircuitType object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update CircuitType in Bootstrap from BootstrapCircuitType object."""
@@ -245,9 +245,9 @@ class BootstrapCircuit(Circuit):
     """Bootstrap implementation of Circuit DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Circuit in Bootstrap from BootstrapCircuit object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Circuit in Bootstrap from BootstrapCircuit object."""
@@ -262,9 +262,9 @@ class BootstrapCircuitTermination(CircuitTermination):
     """Bootstrap implementation of CircuitTermination DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create CircuitTermination in Bootstrap from BootstrapCircuitTermination object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update CircuitTermination in Bootstrap from BootstrapCircuitTermination object."""
@@ -279,9 +279,9 @@ class BootstrapSecret(Secret):
     """Bootstrap implementation of Secret DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Secret in Bootstrap from BootstrapSecret object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Secret in Bootstrap from BootstrapSecret object."""
@@ -296,9 +296,9 @@ class BootstrapSecretsGroup(SecretsGroup):
     """Bootstrap implementation of Secret DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Secret in Bootstrap from BootstrapDevice object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Secret in Bootstrap from BootstrapSecret object."""
@@ -313,9 +313,9 @@ class BootstrapGitRepository(GitRepository):
     """Bootstrap implementation of GitRepository DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create GitRepository in Bootstrap from BootstrapGitRepository object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update GitRepository in Bootstrap from BootstrapGitRepository object."""
@@ -330,9 +330,9 @@ class BootstrapDynamicGroup(DynamicGroup):
     """Bootstrap implementation of DynamicGroup DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create DynamicGroup in Bootstrap from BootstrapDynamicGroup object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update DynamicGroup in Bootstrap from BootstrapDynamicGroup object."""
@@ -347,9 +347,9 @@ class BootstrapComputedField(ComputedField):
     """Bootstrap implementation of ComputedField DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create ComputedField in Bootstrap from BootstrapComputedField object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update ComputedField in Bootstrap from BootstrapComputedField object."""
@@ -364,9 +364,9 @@ class BootstrapCustomField(CustomField):
     """Bootstrap implementation of CustomField DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create CustomField in Bootstrap from BootstrapCustomField object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update CustomField in Bootstrap from BootstrapCustomField object."""
@@ -381,9 +381,9 @@ class BootstrapTag(Tag):
     """Bootstrap implementation of Bootstrap Tag model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Tag in Bootstrap from BootstrapTag object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Tag in Bootstrap from BootstrapTag object."""
@@ -398,9 +398,9 @@ class BootstrapGraphQLQuery(GraphQLQuery):
     """Bootstrap implementation of Bootstrap GraphQLQuery model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create GraphQLQuery in Bootstrap from BootstrapTag object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update GraphQLQuery in Bootstrap from BootstrapGraphQLQuery object."""
@@ -415,9 +415,9 @@ class BootstrapNamespace(Namespace):
     """Bootstrap implementation of Bootstrap Namespace model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Namespace in Bootstrap from BootstrapNamespace object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Namespace in Bootstrap from BootstrapNamespace object."""
@@ -432,9 +432,9 @@ class BootstrapRiR(RiR):
     """Bootstrap implementation of Bootstrap RiR model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create RiR in Bootstrap from BootstrapRiR object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update RiR in Bootstrap from BootstrapRiR object."""
@@ -449,9 +449,9 @@ class BootstrapVLANGroup(VLANGroup):
     """Bootstrap implementation of Bootstrap VLANGroup model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create VLANGroup in Bootstrap from BootstrapVLANGroup object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update VLANGroup in Bootstrap from BootstrapVLANGroup object."""
@@ -466,9 +466,9 @@ class BootstrapVLAN(VLAN):
     """Bootstrap implementation of Bootstrap VLAN model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create VLAN in Bootstrap from BootstrapVLAN object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update VLAN in Bootstrap from BootstrapVLAN object."""
@@ -483,9 +483,9 @@ class BootstrapVRF(VRF):
     """Bootstrap implementation of Bootstrap VRF model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create VRF in Bootstrap from BootstrapVRF object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update VRF in Bootstrap from BootstrapVRF object."""
@@ -500,9 +500,9 @@ class BootstrapPrefix(Prefix):
     """Bootstrap implementation of Bootstrap Prefix model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Prefix in Bootstrap from BootstrapPrefix object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Prefix in Bootstrap from BootstrapPrefix object."""
@@ -517,9 +517,9 @@ class BootstrapScheduledJob(ScheduledJob):
     """Bootstrap implementation of Bootstrap ScheduledJob model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create ScheduledJob in Bootstrap from BootstrapScheduledJob object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update ScheduledJob in Bootstrap from BootstrapScheduledJob object."""
@@ -534,9 +534,9 @@ class BootstrapSoftware(SoftwareVersion):
     """Bootstrap implementation of Bootstrap Software model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create Software in Bootstrap from BootstrapSoftware object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Software in Bootstrap from BootstrapSoftware object."""
@@ -551,9 +551,9 @@ class BootstrapSoftwareImage(SoftwareImageFile):
     """Bootstrap implementation of Bootstrap SoftwareImage model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create SoftwareImage in Bootstrap from BootstrapSoftwareImage object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update SoftwareImage in Bootstrap from BootstrapSoftwareImage object."""
@@ -568,9 +568,9 @@ class BootstrapValidatedSoftware(ValidatedSoftware):
     """Bootstrap implementation of Bootstrap ScheduledJob model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create ValidatedSoftware in Bootstrap from BootstrapValidatedSoftware object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update ValidatedSoftware in Bootstrap from BootstrapValidatedSoftware object."""
@@ -585,9 +585,9 @@ class BootstrapExternalIntegration(ExternalIntegration):
     """Bootstrap implementation of ExternalIntegration DiffSync model."""
 
     @classmethod
-    def create(cls, diffsync, ids, attrs):
+    def create(cls, adapter, ids, attrs):
         """Create ExternalIntegration in Bootstrap from BootstrapExternalIntegration object."""
-        return super().create(diffsync=diffsync, ids=ids, attrs=attrs)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update ExternalIntegration in Bootstrap from BootstrapExternalIntegration object."""

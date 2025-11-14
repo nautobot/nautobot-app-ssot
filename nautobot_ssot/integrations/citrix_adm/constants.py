@@ -54,7 +54,7 @@ SCOPED_FIELDS_MAPPING = {
     ],
     "dcim.softwareversion": [
         "version",
-        "device_platform",
+        "platform",
         "alias",
         "release_date",
         "end_of_support_date",
