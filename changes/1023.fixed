@@ -1,0 +1,1 @@
+Fix plugin initialization by moving config logic inside of ready()
