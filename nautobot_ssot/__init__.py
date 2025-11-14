@@ -38,6 +38,7 @@ def _check_for_conflicting_apps():
             "See: https://docs.nautobot.com/projects/ssot/en/latest/admin/upgrade/#potential-apps-conflicts"
         )
 
+
 class NautobotSSOTAppConfig(NautobotAppConfig):
     """App configuration for the nautobot_ssot app."""
 
