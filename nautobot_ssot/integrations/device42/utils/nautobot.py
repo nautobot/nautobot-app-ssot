@@ -250,14 +250,6 @@ def verify_circuit_type(circuit_type: str) -> CircuitType:
     return _ct
 
 
-def get_version_from_custom_field(fields: OrderedDict):
-    """Method to obtain a software version for a Device from its custom fields."""
-    for field, value in fields.items():
-        if field.label == "OS Version":
-            return value
-    return ""
-
-
 def determine_vc_position(vc_map: dict, virtual_chassis: str, device_name: str) -> int:
     """Determine position of Member Device in Virtual Chassis based on name and other factors.
 
@@ -270,35 +262,6 @@ def determine_vc_position(vc_map: dict, virtual_chassis: str, device_name: str) 
         int: Position for member device in Virtual Chassis. Will always be position 2 or higher as 1 is master device.
     """
     return sorted(vc_map[virtual_chassis]["members"]).index(device_name) + 2
-
-
-def get_dlc_version_map():
-    """Method to create nested dictionary of Software versions mapped to their ID along with Platform.
-
-    This should only be used if the Device Lifecycle app is found to be installed.
-
-    Returns:
-        dict: Nested dictionary of versions mapped to their ID and to their Platform.
-    """
-    version_map = {}
-    return version_map
-
-
-def get_cf_version_map():
-    """Method to create nested dictionary of Software versions mapped to their ID along with Platform.
-
-    This should only be used if the Device Lifecycle app is not found. It will instead use custom field "OS Version".
-
-    Returns:
-        dict: Nested dictionary of versions mapped to their ID and to their Platform.
-    """
-    version_map = {}
-    for dev in Device.objects.only("id", "platform", "_custom_field_data"):
-        if dev.platform.name not in version_map:
-            version_map[dev.platform.name] = {}
-        if "os-version" in dev.custom_field_data:
-            version_map[dev.platform.name][dev.custom_field_data["OS Version"]] = dev.id
-    return version_map
 
 
 def apply_vlans_to_port(adapter, device_name: str, mode: str, vlans: list, port: Interface):
