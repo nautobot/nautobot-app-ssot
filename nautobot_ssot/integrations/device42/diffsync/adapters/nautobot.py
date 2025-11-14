@@ -93,7 +93,6 @@ class NautobotAdapter(Adapter):
     provider_map = {}
     rp_map = {}
     fp_map = {}
-    softwarelcm_map = {}
     relationship_map = {}
 
     def __init__(self, *args, job, sync=None, **kwargs):
@@ -657,7 +656,6 @@ class NautobotAdapter(Adapter):
         self.role_map = {dr.name: dr.id for dr in Role.objects.only("id", "name")}
         self.namespace_map = {ns.name: ns.id for ns in Namespace.objects.only("id", "name")}
         self.relationship_map = {r.label: r.id for r in Relationship.objects.only("id", "label")}
-        self.softwarelcm_map = nautobot.get_cf_version_map()
 
         # Import all Nautobot Site records as Buildings
         self.load_sites()
