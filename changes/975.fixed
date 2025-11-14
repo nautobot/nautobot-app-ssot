@@ -1,1 +1,0 @@
-- In the Bootstrap User Guide, changes the type for the longitude and latitude fields under the `Location` section from `str` to `float`.
