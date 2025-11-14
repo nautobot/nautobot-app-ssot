@@ -77,6 +77,7 @@ def create_default_vsphere_config(vsphere_url="vcenter.local"):
             description="Unit Test Config.",
             vsphere_instance=external_integration,
             enable_sync_to_nautobot=True,
+            sync_vsphere_tags=True,
             default_vm_status_map=DEFAULT_VM_STATUS_MAP,
             default_ip_status_map=DEFAULT_IP_STATUS_MAP,
             default_vm_interface_map=DEFAULT_VM_INTERFACE_MAP,

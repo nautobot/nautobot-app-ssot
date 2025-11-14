@@ -1,5 +1,9 @@
 """Signals for LibreNMS SSoT."""
 
+# pylint: disable=duplicate-code
+
+# pylint: disable=duplicate-code
+
 import importlib.util
 
 from nautobot.core.signals import nautobot_database_ready
@@ -52,16 +56,6 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
 
     if LIFECYCLE_MGMT:
         try:
-            SoftwareLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "SoftwareLCM")
-            signal_to_model_mapping["software"] = SoftwareLCM
-        except LookupError as err:
-            print(f"Unable to find SoftwareLCM model from Device Lifecycle Management App. {err}")
-        try:
-            SoftwareImageLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "SoftwareImageLCM")
-            signal_to_model_mapping["software_image"] = SoftwareImageLCM
-        except LookupError as err:
-            print(f"Unable to find SoftwareImageLCM model from Device Lifecycle Management App. {err}")
-        try:
             ValidatedSoftwareLCM = apps.get_model("nautobot_device_lifecycle_mgmt", "ValidatedSoftwareLCM")
             signal_to_model_mapping["validated_software"] = ValidatedSoftwareLCM
         except LookupError as err:
@@ -91,6 +85,32 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         key=device_id_cf_dict["key"], defaults=device_id_cf_dict
     )
     device_id_custom_field.content_types.add(ContentType.objects.get_for_model(signal_to_model_mapping["device"]))
+
+    # Create SNMP location custom field
+    snmp_location_cf_dict = {
+        "type": CustomFieldTypeChoices.TYPE_TEXT,
+        "key": "snmp_location",
+        "label": "SNMP Location",
+        "default": None,
+        "filter_logic": "exact",
+    }
+    snmp_location_custom_field, _ = CustomField.objects.update_or_create(
+        key=snmp_location_cf_dict["key"], defaults=snmp_location_cf_dict
+    )
+    snmp_location_custom_field.content_types.add(ContentType.objects.get_for_model(signal_to_model_mapping["device"]))
+
+    # Create SNMP location custom field
+    snmp_location_cf_dict = {
+        "type": CustomFieldTypeChoices.TYPE_TEXT,
+        "key": "snmp_location",
+        "label": "SNMP Location",
+        "default": None,
+        "filter_logic": "exact",
+    }
+    snmp_location_custom_field, _ = CustomField.objects.update_or_create(
+        key=snmp_location_cf_dict["key"], defaults=snmp_location_cf_dict
+    )
+    snmp_location_custom_field.content_types.add(ContentType.objects.get_for_model(signal_to_model_mapping["device"]))
 
     models_to_sync = [
         "device",

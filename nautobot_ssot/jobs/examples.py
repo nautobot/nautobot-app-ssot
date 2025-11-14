@@ -832,7 +832,7 @@ class NautobotLocal(NautobotAdapter):
 # once you have the above DiffSync scaffolding in place.
 
 
-class ExampleDataSource(DataSource):
+class ExampleDataSource(DataSource):  # pylint: disable=too-many-instance-attributes
     """Sync Region and Site data from a remote Nautobot instance into the local Nautobot instance."""
 
     source = ObjectVar(
@@ -927,7 +927,7 @@ class ExampleDataSource(DataSource):
         self.target_adapter = NautobotLocal(job=self, sync=self.sync)
         self.target_adapter.load()
 
-    def lookup_object(self, model_name, unique_id):
+    def lookup_object(self, model_name, unique_id):  # pylint: disable=too-many-return-statements, too-many-branches, too-many-locals
         """Look up a Nautobot object based on the DiffSync model name and unique ID."""
         if model_name == "prefix":
             try:

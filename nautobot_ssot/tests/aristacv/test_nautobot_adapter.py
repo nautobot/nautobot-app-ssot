@@ -1,7 +1,5 @@
 """Unit tests for the Nautoobt DiffSync adapter class."""
 
-from unittest.mock import MagicMock, patch
-
 from nautobot.core.testing import TransactionTestCase
 from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Manufacturer
 from nautobot.extras.models import JobResult, Role, Status
@@ -53,14 +51,7 @@ class NautobotAdapterTestCase(TransactionTestCase):
 
     def test_load_devices(self):
         """Test the load_devices() function."""
-        mock_nautobot = MagicMock()
-        mock_nautobot.get_device_version = MagicMock()
-        mock_nautobot.get_device_version.return_value = "1.0"
-
-        with patch(
-            "nautobot_ssot.integrations.aristacv.utils.nautobot.get_device_version", mock_nautobot.get_device_version
-        ):
-            self.nb_adapter.load_devices()
+        self.nb_adapter.load_devices()
         self.assertEqual(
             {dev.name for dev in Device.objects.filter(device_type__manufacturer__name="Arista")},
             {dev.get_unique_id() for dev in self.nb_adapter.get_all("device")},

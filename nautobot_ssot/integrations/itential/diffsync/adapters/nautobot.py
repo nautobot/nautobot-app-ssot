@@ -136,5 +136,5 @@ class NautobotAnsibleDeviceAdapter(Adapter):
                 stacktrace = traceback.format_exc()
                 self.job.logger.warning(f"{nb_device.name} was not added to inventory due to an error.")
                 self.job.logger.warning(
-                    f"An exception ocurred: " f"`{type(exec).__name__}: {exc}`\n```\n{stacktrace}\n```"
+                    f"An exception ocurred: " f"`{type(exc).__name__}: {exc}`\n```\n{stacktrace}\n```"
                 )

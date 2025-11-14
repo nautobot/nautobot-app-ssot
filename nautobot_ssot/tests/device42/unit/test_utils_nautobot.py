@@ -144,6 +144,7 @@ class TestNautobotUtils(TransactionTestCase):  # pylint: disable=too-many-instan
 
     def test_update_custom_fields_add_cf(self):
         """Test the update_custom_fields method adds a CustomField."""
+        CustomField.objects.get_for_model(Location).delete()
         test_site = Location.objects.create(
             name="Test", location_type=LocationType.objects.get_or_create(name="Site")[0], status=self.status_active
         )
