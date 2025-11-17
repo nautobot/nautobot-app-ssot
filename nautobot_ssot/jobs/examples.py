@@ -911,53 +911,52 @@ class ExampleDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
             DataMapping("Interface (remote)", None, "Interface (local)", reverse("dcim:interface_list")),
         )
 
-    def run(  # pylint: disable=too-many-arguments, arguments-differ
+    def run(
         self,
-        create_records,
-        dryrun,
-        memory_profiling,
-        source,
-        source_url,
-        source_token,
         *args,
         **kwargs,
     ):
         """Run sync."""
-        self.create_records = create_records
-        self.dryrun = dryrun
-        self.memory_profiling = memory_profiling
+        self.create_records = kwargs.get("create_records", True)
+        self.dryrun = kwargs.get("dryrun", True)
+        self.memory_profiling = kwargs.get("memory_profiling", False)
+        self.source = kwargs.get("source")
+        self.source_url = kwargs.get("source_url")
+        self.source_token = kwargs.get("source_token")
         self.debug = kwargs.get("debug", False)
         try:
-            if source:
-                self.logger.info(f"Using external integration '{source}'")
-                self.source_url = source.remote_url
-                if not source.secrets_group:
+            if self.source:
+                self.logger.info(f"Using external integration '{self.source}'")
+                self.source_url = self.source.remote_url
+                if not self.source.secrets_group:
                     self.logger.error(
                         "%s is missing a SecretsGroup. You must specify a SecretsGroup to synchronize with this Nautobot instance.",
-                        source,
+                        self.source,
                     )
                     raise MissingSecretsGroupException(message="Missing SecretsGroup on specified ExternalIntegration.")
-                secrets_group = source.secrets_group
+                secrets_group = self.source.secrets_group
                 self.source_token = secrets_group.get_secret_value(
                     access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
                     secret_type=SecretsGroupSecretTypeChoices.TYPE_TOKEN,
                 )
             else:
-                self.source_url = source_url
-                self.source_token = source_token
+                self.source_url = self.source_url
+                self.source_token = self.source_token
         except SecretError as error:
             self.logger.error("Error setting up job: %s", error)
             raise
 
-        super().run(create_records, dryrun, memory_profiling, *args, **kwargs)
+        super().run(*args, **kwargs)
 
     def load_source_adapter(self):
         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""
+        self.logger.info("Loading source adapter: NautobotRemote")
         self.source_adapter = NautobotRemote(url=self.source_url, token=self.source_token, job=self)
         self.source_adapter.load()
 
     def load_target_adapter(self):
         """Method to instantiate and load the TARGET adapter into `self.target_adapter`."""
+        self.logger.info("Loading target adapter: NautobotLocal")
         self.target_adapter = NautobotLocal(job=self, sync=self.sync)
         self.target_adapter.load()
 
@@ -1097,42 +1096,37 @@ class ExampleDataTarget(DataTarget):
 
     def run(  # pylint: disable=too-many-arguments, arguments-differ
         self,
-        create_records,
-        dryrun,
-        memory_profiling,
-        target,
-        target_url,
-        target_token,
         *args,
         **kwargs,
     ):
         """Run sync."""
-        self.create_records = create_records
-        self.dryrun = dryrun
-        self.memory_profiling = memory_profiling
+        self.create_records = kwargs.get("create_records", True)
+        self.target = kwargs.get("target")
+        self.target_url = kwargs.get("target_url")
+        self.target_token = kwargs.get("target_token")
         try:
-            if target:
-                self.logger.info(f"Using external integration '{target}'")
-                self.target_url = target.remote_url
-                if not target.secrets_group:
+            if self.target:
+                self.logger.info(f"Using external integration '{self.target}'")
+                self.target_url = self.target.remote_url
+                if not self.target.secrets_group:
                     self.logger.error(
                         "%s is missing a SecretsGroup. You must specify a SecretsGroup to synchronize with this Nautobot instance.",
-                        target,
+                        self.target,
                     )
                     raise MissingSecretsGroupException("Missing SecretsGroup on specified ExternalIntegration.")
-                secrets_group = target.secrets_group
+                secrets_group = self.target.secrets_group
                 self.target_token = secrets_group.get_secret_value(
                     access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
                     secret_type=SecretsGroupSecretTypeChoices.TYPE_TOKEN,
                 )
             else:
-                self.target_url = target_url
-                self.target_token = target_token
+                self.target_url = self.target_url
+                self.target_token = self.target_token
         except SecretError as error:
             self.logger.error("Error setting up job: %s", error)
             raise
 
-        super().run(create_records, dryrun, memory_profiling, *args, **kwargs)
+        super().run(*args, **kwargs)
 
     def load_source_adapter(self):
         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""
