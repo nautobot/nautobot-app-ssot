@@ -1,0 +1,24 @@
+{% extends "generic/object_detail.html" %}
+{% load helpers %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <strong>Sync History</strong>
+                </div>
+                <div class="panel-body">
+                    {% if table.rows %}
+                        {% include 'responsive_table.html' %}
+                    {% else %}
+                        <div class="alert alert-info">
+                            <span class="mdi mdi-information"></span>
+                            No Sync Records found for this {{ object|meta:"verbose_name" }}.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock content %}

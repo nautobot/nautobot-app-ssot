@@ -31,3 +31,17 @@ class SyncLogEntryStatusChoices(ChoiceSet):
         (STATUS_FAILURE, "failed"),
         (STATUS_ERROR, "errored"),
     )
+
+
+class SyncRecordActionChoices(ChoiceSet):
+    """Valid values for a SyncRecord.action field."""
+
+    ACTION_CREATE = "create"
+    ACTION_UPDATE = "update"
+    ACTION_DELETE = "delete"
+
+    CHOICES = (
+        (ACTION_CREATE, "create"),
+        (ACTION_UPDATE, "update"),
+        (ACTION_DELETE, "delete"),
+    )

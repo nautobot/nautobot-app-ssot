@@ -26,8 +26,6 @@ from nautobot.dcim.models import (  # pylint: disable=ungrouped-imports
     Platform,
     SoftwareImageFile,
     SoftwareVersion,
-    SoftwareImageFile,
-    SoftwareVersion,
 )
 from nautobot.extras.models import (
     ComputedField,
@@ -60,14 +58,10 @@ from nautobot_ssot.integrations.bootstrap.diffsync.adapters.nautobot import (
 )
 from nautobot_ssot.integrations.bootstrap.jobs import BootstrapDataSource
 from nautobot_ssot.integrations.bootstrap.utils import get_scheduled_start_time
-from nautobot_ssot.utils import dlm_supports_softwarelcm
+from nautobot_ssot.utils import validate_dlm_installed
 
-try:
+if validate_dlm_installed():
     from nautobot_device_lifecycle_mgmt.models import ValidatedSoftwareLCM
-
-    HAS_DLM = True
-except ImportError:
-    HAS_DLM = False
 
 
 def load_yaml(path):
@@ -272,7 +266,6 @@ class NautobotTestSetup:
         self._setup_vrfs()
         self._setup_prefixes()
         self._setup_external_integrations()
-        # self._setup_software_and_images()  # TODO: Is this still needed? It was only valid in DLM <3.0.0 prior to SSoT v4
         self._setup_validated_software()
         self._setup_scheduled_job()
 
@@ -969,7 +962,7 @@ class NautobotTestSetup:
 
     def _setup_software_and_images(self):
         """Set up software and software images for testing."""
-        # Handle software versions
+        # Handle software versions for both old and new Nautobot versions
         for _software in GLOBAL_YAML_SETTINGS["software_version"]:
             _tags = []
             for _tag in _software["tags"]:
@@ -989,27 +982,6 @@ class NautobotTestSetup:
             _soft.validated_save()
             _soft.refresh_from_db()
 
-        for _software_image in GLOBAL_YAML_SETTINGS["software_image_file"]:
-            _tags = []
-            for _tag in _software_image["tags"]:
-                _tags.append(Tag.objects.get(name=_tag))
-            _platform = Platform.objects.get(name=_software_image["platform"])
-            _software = SoftwareVersion.objects.get(
-                version=_software_image["software_version"].split(" - ")[1], platform=_platform
-            )
-            _soft_image = SoftwareImageFile.objects.create(
-                software_version=_software,
-                image_file_name=_software_image["image_file_name"],
-                image_file_checksum=_software_image["image_file_checksum"],
-                image_file_size=_software_image["file_size"],
-                hashing_algorithm=_software_image["hashing_algorithm"],
-                download_url=_software_image["download_url"],
-                default_image=_software_image["default_image"],
-                status=self.status_active,
-            )
-            _soft_image.custom_field_data["system_of_record"] = "Bootstrap"
-            _soft_image.validated_save()
-            _soft_image.refresh_from_db()
         for _software_image in GLOBAL_YAML_SETTINGS["software_image_file"]:
             _tags = []
             for _tag in _software_image["tags"]:
@@ -1133,9 +1105,6 @@ class NautobotTestSetup:
         platform_name, software_version = software_name.split(" - ")
         platform = Platform.objects.get(name=platform_name)
         software = None
-        software = SoftwareVersion.objects.get_or_create(
-            version=software_version, platform=platform, status=self.status_active
-        )[0]
         software = SoftwareVersion.objects.get_or_create(
             version=software_version, platform=platform, status=self.status_active
         )[0]

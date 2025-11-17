@@ -6,12 +6,14 @@ from nautobot.apps.forms import (
     DynamicModelMultipleChoiceField,
     NautobotBulkEditForm,
     NautobotFilterForm,
+    NautobotModelForm,
+    TagsBulkEditFormMixin,
     add_blank_choice,
 )
 from nautobot.core.forms import BOOLEAN_WITH_BLANK_CHOICES
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
-from .models import Sync, SyncLogEntry
+from .models import Sync, SyncLogEntry, SyncRecord
 
 
 class SyncFilterForm(NautobotFilterForm):  # pylint: disable=too-many-ancestors
@@ -47,16 +49,40 @@ class SyncForm(BootstrapMixin, forms.Form):  # pylint: disable=nb-incorrect-base
     )
 
 
-class SyncBulkEditForm(NautobotBulkEditForm):  # pylint: disable=too-many-ancestors
-    """Form for bulk editing Sync records."""
-
-    dry_run = forms.NullBooleanField(
-        required=False,
-        label="Dry run",
-        help_text="Perform a dry run, making no actual changes to the database.",
-    )
+class SyncRecordForm(NautobotModelForm):  # pylint: disable=too-many-ancestors
+    """SyncRecord creation/edit form."""
 
     class Meta:
-        """Metaclass attributes of SyncBulkEditForm."""
+        """Meta attributes."""
 
-        model = Sync
+        model = SyncRecord
+        fields = "__all__"
+
+
+class SyncRecordBulkEditForm(TagsBulkEditFormMixin, NautobotBulkEditForm):  # pylint: disable=too-many-ancestors
+    """SyncRecord bulk edit form."""
+
+    pk = forms.ModelMultipleChoiceField(queryset=SyncRecord.objects.all(), widget=forms.MultipleHiddenInput)
+    description = forms.CharField(required=False)
+
+    class Meta:
+        """Meta attributes."""
+
+        nullable_fields = [
+            "description",
+        ]
+
+
+class SyncRecordFilterForm(NautobotFilterForm):
+    """Filter form to filter searches."""
+
+    model = SyncRecord
+    field_order = ["q", "name"]
+
+    q = forms.CharField(
+        required=False,
+        label="Search",
+        help_text="Search within objects.",
+    )
+    source_adapter = forms.CharField(required=False, label="Source Adapter")
+    target_adapter = forms.CharField(required=False, label="Target Adapter")

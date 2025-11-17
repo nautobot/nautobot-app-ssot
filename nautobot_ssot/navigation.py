@@ -29,6 +29,11 @@ items = [
         weight=300,
         permissions=["nautobot_ssot.view_synclogentry"],
     ),
+    NavMenuItem(
+        link="plugins:nautobot_ssot:syncrecord_list",
+        name="Sync Records",
+        permissions=["nautobot_ssot.view_syncrecord"],
+    ),
 ]
 
 

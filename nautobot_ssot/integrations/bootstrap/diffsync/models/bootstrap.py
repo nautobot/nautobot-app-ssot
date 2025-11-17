@@ -28,10 +28,13 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
     SecretsGroup,
     SoftwareImageFile,
     SoftwareVersion,
+    SoftwareImageFile,
+    SoftwareVersion,
     Tag,
     Team,
     Tenant,
     TenantGroup,
+    ValidatedSoftware,
     ValidatedSoftware,
     VLANGroup,
 )
@@ -523,13 +526,16 @@ class BootstrapScheduledJob(ScheduledJob):
 
     def update(self, attrs):
         """Update ScheduledJob in Bootstrap from BootstrapScheduledJob object."""
+        """Update ScheduledJob in Bootstrap from BootstrapScheduledJob object."""
         return super().update(attrs)
 
     def delete(self):
         """Delete ScheduledJob in Bootstrap from BootstrapScheduledJob object."""
+        """Delete ScheduledJob in Bootstrap from BootstrapScheduledJob object."""
         return self
 
 
+class BootstrapSoftware(SoftwareVersion):
 class BootstrapSoftware(SoftwareVersion):
     """Bootstrap implementation of Bootstrap Software model."""
 
@@ -547,6 +553,7 @@ class BootstrapSoftware(SoftwareVersion):
         return self
 
 
+class BootstrapSoftwareImage(SoftwareImageFile):
 class BootstrapSoftwareImage(SoftwareImageFile):
     """Bootstrap implementation of Bootstrap SoftwareImage model."""
 
@@ -566,6 +573,8 @@ class BootstrapSoftwareImage(SoftwareImageFile):
 
 class BootstrapValidatedSoftware(ValidatedSoftware):
     """Bootstrap implementation of Bootstrap ScheduledJob model."""
+class BootstrapValidatedSoftware(ValidatedSoftware):
+    """Bootstrap implementation of Bootstrap ScheduledJob model."""
 
     @classmethod
     def create(cls, adapter, ids, attrs):
@@ -575,7 +584,13 @@ class BootstrapValidatedSoftware(ValidatedSoftware):
     def update(self, attrs):
         """Update ValidatedSoftware in Bootstrap from BootstrapValidatedSoftware object."""
         return super().update(attrs)
+    def update(self, attrs):
+        """Update ValidatedSoftware in Bootstrap from BootstrapValidatedSoftware object."""
+        return super().update(attrs)
 
+    def delete(self):
+        """Delete ValidatedSoftware in Bootstrap from BootstrapValidatedSoftware object."""
+        return self
     def delete(self):
         """Delete ValidatedSoftware in Bootstrap from BootstrapValidatedSoftware object."""
         return self

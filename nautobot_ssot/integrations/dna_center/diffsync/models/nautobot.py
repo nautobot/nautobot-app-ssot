@@ -13,16 +13,21 @@ from nautobot.dcim.models import (
     Manufacturer,
     SoftwareImageFile,
     SoftwareVersion,
+    SoftwareImageFile,
+    SoftwareVersion,
 )
 from nautobot.extras.models import Role
 from nautobot.extras.models.metadata import ObjectMetadata  # noqa: F401
+from nautobot.extras.models.metadata import ObjectMetadata  # noqa: F401
 from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix
 
+from nautobot_ssot.integrations.dna_center.constants import SCOPED_FIELDS_MAPPING
 from nautobot_ssot.integrations.dna_center.constants import SCOPED_FIELDS_MAPPING
 from nautobot_ssot.integrations.dna_center.diffsync.models import base
 from nautobot_ssot.integrations.dna_center.utils.nautobot import (
     verify_platform,
 )
+from nautobot_ssot.integrations.metadata_utils import add_or_update_metadata_on_object
 from nautobot_ssot.integrations.metadata_utils import add_or_update_metadata_on_object
 
 
@@ -51,6 +56,10 @@ class NautobotArea(base.Area):
         except ValidationError as err:
             adapter.job.logger.warning(f"Unable to create {adapter.job.area_loctype.name} {ids['name']}. {err}")
             return None
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=new_area, scoped_fields=SCOPED_FIELDS_MAPPING["area"]
+        )
+        metadata.validated_save()
         metadata = add_or_update_metadata_on_object(
             adapter=adapter, obj=new_area, scoped_fields=SCOPED_FIELDS_MAPPING["area"]
         )
@@ -144,6 +153,10 @@ class NautobotBuilding(base.Building):
             adapter=self.adapter, obj=site, scoped_fields=SCOPED_FIELDS_MAPPING["building"]
         )
         metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=site, scoped_fields=SCOPED_FIELDS_MAPPING["building"]
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -181,6 +194,10 @@ class NautobotFloor(base.Floor):
             adapter=adapter, obj=new_floor, scoped_fields=SCOPED_FIELDS_MAPPING["floor"]
         )
         metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=new_floor, scoped_fields=SCOPED_FIELDS_MAPPING["floor"]
+        )
+        metadata.validated_save()
         if ids["area"] not in adapter.floor_map:
             adapter.floor_map[ids["area"]] = {}
         if ids["building"] not in adapter.floor_map[ids["area"]]:
@@ -199,6 +216,10 @@ class NautobotFloor(base.Floor):
             else:
                 floor.tenant = None
         floor.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=floor, scoped_fields=SCOPED_FIELDS_MAPPING["floor"]
+        )
+        metadata.validated_save()
         metadata = add_or_update_metadata_on_object(
             adapter=self.adapter, obj=floor, scoped_fields=SCOPED_FIELDS_MAPPING["floor"]
         )
@@ -318,6 +339,15 @@ class NautobotDevice(base.Device):
         if "controller_group" in attrs:
             device.controller_managed_device_group = self.adapter.job.controller_group
         if "version" in attrs:
+            if attrs.get("platform"):
+                platform = attrs["platform"]
+            else:
+                platform = self.platform
+            device.software_version = SoftwareVersion.objects.get_or_create(
+                version=attrs["version"],
+                platform_id=self.adapter.platform_map[platform],
+                defaults={"status_id": self.adapter.status_map["Active"]},
+            )[0]
             if attrs.get("platform"):
                 platform = attrs["platform"]
             else:

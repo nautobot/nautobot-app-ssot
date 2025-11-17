@@ -1,8 +1,10 @@
 """Django views for Single Source of Truth (SSoT)."""
 
 from django.conf import settings
+from django.contrib import messages
+from django.contrib.contenttypes.models import ContentType
 from django.http import Http404
-from django.shortcuts import render
+from django.shortcuts import redirect
 from django.template import loader
 from django.template.defaultfilters import date
 from django.urls import reverse
@@ -10,6 +12,7 @@ from django.utils.html import format_html
 from django.utils.timesince import timesince
 from django.views import View as DjangoView
 from django_tables2 import RequestConfig
+from nautobot.apps import utils as app_utils
 from nautobot.apps.ui import (
     Breadcrumbs,
     DistinctViewTab,
@@ -34,21 +37,42 @@ from nautobot.apps.views import (
     ObjectView,
     get_obj_from_context,
 )
-from nautobot.core.ui.utils import flatten_context
 from nautobot.extras.models import Job as JobModel
+from nautobot.extras.models import JobResult, Status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from nautobot_ssot import filters, forms, tables
 from nautobot_ssot.api import serializers
 from nautobot_ssot.integrations import utils
 from nautobot_ssot.templatetags.render_diff import render_diff
 
 from .filters import SyncFilterSet, SyncLogEntryFilterSet
-from .forms import SyncBulkEditForm, SyncFilterForm, SyncForm, SyncLogEntryFilterForm
+from .forms import SyncFilterForm, SyncForm, SyncLogEntryFilterForm
 from .jobs import get_data_jobs
 from .jobs.base import DataSource, DataTarget
-from .models import Sync, SyncLogEntry
-from .tables import DashboardTable, SyncLogEntryTable, SyncTable, SyncTableSingleSourceOrTarget
+from .models import Sync, SyncLogEntry, SyncRecord
+from .tables import (
+    DashboardTable,
+    SyncLogEntryTable,
+    SyncRecordHistoryTable,
+    SyncTable,
+    SyncTableSingleSourceOrTarget,
+)
+
+
+class ReadOnlyNautobotUIViewSet(  # pylint: disable=abstract-method
+    ObjectDetailViewMixin,
+    ObjectListViewMixin,
+    ObjectDestroyViewMixin,
+    ObjectBulkDestroyViewMixin,
+    # Shows the mixins disabled for read-only functionality
+    # ObjectEditViewMixin,
+    # ObjectDestroyViewMixin,
+    # ObjectBulkCreateViewMixin,
+    # ObjectBulkUpdateViewMixin,
+):
+    """ReadOnly ViewSet for Nautobot UI views."""
 
 
 def dry_run_label(value) -> str:
@@ -187,7 +211,7 @@ class DashboardView(ObjectListView):
             self.request,
             {
                 "paginator_class": EnhancedPaginator,
-                "per_page": 10,
+                "per_page": 30,
             },
         ).configure(table)
         context = {
@@ -251,7 +275,6 @@ class SyncUIViewSet(
 ):
     """ViewSet for Sync."""
 
-    bulk_update_form_class = SyncBulkEditForm
     filterset_class = SyncFilterSet
     filterset_form_class = SyncFilterForm
     form_class = SyncForm
@@ -409,3 +432,210 @@ class SSOTConfigView(ContentTypePermissionRequiredMixin, DjangoView):
         """Return table with links to configuration pages for enabled integrations."""
         enabled_integrations = list(utils.each_enabled_integration())
         return render(request, "nautobot_ssot/ssot_configs.html", {"enabled_integrations": enabled_integrations})
+
+
+class SyncRecordUIViewSet(ReadOnlyNautobotUIViewSet):
+    """ViewSet for SyncRecord views."""
+
+    bulk_update_form_class = forms.SyncRecordBulkEditForm
+    filterset_class = filters.SyncRecordFilterSet
+    filterset_form_class = forms.SyncRecordFilterForm
+    form_class = forms.SyncRecordForm
+    lookup_field = "pk"
+    queryset = SyncRecord.objects.all()
+    serializer_class = serializers.SyncRecordSerializer
+    table_class = tables.SyncRecordTable
+    action_buttons: tuple = ()
+
+    def get_extra_context(self, request, instance):  # pylint: disable=signature-differs
+        """Provide additional context for the list template."""
+        context = super().get_extra_context(request, instance)
+        if self.action == "list":
+            try:
+                successful_status = Status.objects.get(name="Successful")
+            except Status.DoesNotExist:
+                successful_status = None
+                context["successful_status"] = None
+                context["showing_completed"] = False
+            else:
+                context["successful_status"] = successful_status
+                # Check if we're currently showing completed records
+                status_ids = request.GET.getlist("status")
+                successful_status_id_str = str(successful_status.id)
+                context["showing_completed"] = successful_status_id_str in status_ids
+        return context
+
+    def alter_queryset(self, request):
+        """Build actual runtime queryset to automatically remove `Successful` by default."""
+        try:
+            successful_status = Status.objects.get(name="Successful")
+        except Status.DoesNotExist:
+            # If Successful status doesn't exist, return queryset as-is
+            return self.queryset
+
+        # Get status IDs from URL parameters (they come as strings)
+        status_ids = request.GET.getlist("status")
+        successful_status_id_str = str(successful_status.id)
+
+        # If the button was clicked and successful_status ID is in the params, show ONLY successful records
+        if successful_status_id_str in status_ids:
+            return self.queryset.filter(status=successful_status)
+
+        # By default, exclude successful records
+        return self.queryset.exclude(status=successful_status)
+
+    # Here is an example of using the UI  Component Framework for the detail view.
+    # More information can be found in the Nautobot documentation:
+    # https://docs.nautobot.com/projects/core/en/stable/development/core/ui-component-framework/
+    object_detail_content = ObjectDetailContent(
+        extra_buttons=[],
+        panels=[
+            ObjectFieldsPanel(
+                weight=100,
+                section=SectionChoices.LEFT_HALF,
+                fields="__all__",
+                # Alternatively, you can specify a list of field names:
+                # fields=[
+                #     "name",
+                #     "description",
+                # ],
+                # Some fields may require additional configuration, we can use value_transforms
+                # value_transforms={
+                #     "name": [helpers.bettertitle]
+                # },
+            ),
+            # If there is a ForeignKey or M2M with this model we can use ObjectsTablePanel
+            # to display them in a table format.
+            ObjectsTablePanel(
+                weight=200,
+                section=SectionChoices.RIGHT_HALF,
+                table_class=tables.SyncRecordTable,
+                table_filter="parent",
+            ),
+        ],
+    )
+
+
+class SyncedObjectHistoryView(ContentTypePermissionRequiredMixin, ObjectView):
+    """View to display SyncRecord history for a synced object (e.g., Tenant, Device)."""
+
+    template_name = "nautobot_ssot/synced_object_history.html"
+    lookup_field = "pk"
+    queryset = SyncRecord.objects.none()
+
+    def get_required_permission(self):
+        """Permissions required for the view."""
+        return "nautobot_ssot.view_syncrecord"
+
+    def _get_content_type(self, request, pk):
+        """Get the ContentType for the synced object."""
+        # Get ContentType from query parameter or find it from existing SyncRecords
+        app_label = request.GET.get("app_label")
+        model = request.GET.get("model")
+
+        # Try query parameters first if provided
+        if app_label and model:
+            try:
+                # ContentType model names are stored in lowercase
+                content_type = ContentType.objects.get(app_label=app_label, model=model.lower())
+                return content_type
+            except ContentType.DoesNotExist:
+                # Fall through to finding from SyncRecords
+                pass
+
+        # Fallback: Try to find ContentType from existing SyncRecords
+        sync_record = SyncRecord.objects.filter(synced_object_id=pk).first()
+        if sync_record and sync_record.synced_object_type:
+            return sync_record.synced_object_type
+
+        # If we still don't have a ContentType, raise an error
+        raise Http404(
+            f"No SyncRecords found for object with pk={pk}. "
+            f"Please ensure this object has been synced at least once."
+        )
+
+    def get_object(self, request, *args, **kwargs):
+        """Get the synced object instance."""
+        # Return cached instance if available (set by our get() method)
+        if hasattr(self, "_cached_instance"):
+            return self._cached_instance
+
+        pk = kwargs.get(self.lookup_field)
+        if pk is None and args:
+            pk = args[0]
+        if pk is None:
+            raise Http404("Synced object identifier not provided")
+
+        content_type = self._get_content_type(request, pk)
+
+        # Get the synced object
+        model_class = content_type.model_class()
+        try:
+            instance = model_class.objects.get(pk=pk)
+        except model_class.DoesNotExist:
+            raise Http404("Synced object not found")
+
+        # Cache for later use
+        self.synced_object_type = content_type
+        return instance
+
+    # pylint: disable-next=arguments-differ
+    def get(self, request, *args, **kwargs):
+        """Override ObjectView get to handle object lookup before it tries to use queryset."""
+        # Get the object first using our custom logic
+        instance = self.get_object(request, *args, **kwargs)
+        # Cache the instance so if ObjectView calls get_object() again, we return the cached one
+        self._cached_instance = instance
+        # Temporarily set a proper queryset for the instance's model so ObjectView doesn't fail
+        original_queryset = self.queryset
+        try:
+            model_class = type(instance)
+            self.queryset = model_class.objects.all()
+            return super().get(request, *args, **kwargs)
+        finally:
+            self.queryset = original_queryset
+            # Clean up cached instance
+            if hasattr(self, "_cached_instance"):
+                delattr(self, "_cached_instance")
+
+    def get_extra_context(self, request, instance):
+        """Provide additional context for the object detail template."""
+        content_type = getattr(self, "synced_object_type", ContentType.objects.get_for_model(instance))
+
+        # Get all SyncRecords for this synced object
+        records = (
+            SyncRecord.objects.filter(synced_object_id=instance.pk, synced_object_type=content_type)
+            .order_by("-timestamp")
+            .restrict(request.user, "view")
+        )
+
+        # Create table using the history-specific table class
+        table = SyncRecordHistoryTable(records, user=request.user)
+        RequestConfig(request, paginate={"per_page": 25}).configure(table)
+        # Always set context attribute to avoid AttributeError when render_table tries to delete it
+        # django-tables2's render_table tag tries to delete table.context after rendering
+        # Set it unconditionally to ensure it exists when the template tag tries to delete it
+        table.context = object()
+
+        context = super().get_extra_context(request, instance)
+        context.update(app_utils.get_detail_view_components_context_for_model(instance))
+        context["active_tab"] = "syncrecord_history"
+        context["table"] = table
+        context["content_type"] = content_type
+        return context
+
+
+def process_bulk_syncrecords(request):
+    """Endpoint for processing mulitple SyncRecords."""
+    pks = request.POST.getlist("pk")
+    if not pks:
+        messages.error(request, "No items selected for bulk action")
+        url = reverse("plugins:nautobot_ssot:syncrecord_list")
+        return redirect(url)
+    job = JobModel.objects.get(name="Process Sync Records")
+    _job_result = JobResult.enqueue_job(job, request.user, records=pks)
+    messages.success(
+        request, f"Bulk Processing initiated - Check the Job Results for more info {_job_result.get_absolute_url()}"
+    )
+    url = reverse("plugins:nautobot_ssot:syncrecord_list")
+    return redirect(url)

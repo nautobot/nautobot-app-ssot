@@ -17,8 +17,10 @@ The interaction between these models and Nautobot's native JobResult model deser
 JobResult 1<->1 Sync 1-->n SyncLogEntry
 """
 
+import logging
 from datetime import timedelta
 
+from diffsync.enum import DiffSyncFlags
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
@@ -28,9 +30,11 @@ from django.urls import reverse
 from django.utils.formats import date_format
 from django.utils.html import format_html
 from django.utils.timezone import now
-from nautobot.core.models import BaseModel
+from django_enum import EnumField
+from nautobot.apps.constants import CHARFIELD_MAX_LENGTH
+from nautobot.apps.models import BaseModel
 from nautobot.extras.choices import JobResultStatusChoices
-from nautobot.extras.models import JobResult
+from nautobot.extras.models import JobResult, StatusField
 from nautobot.extras.utils import extras_features
 
 from nautobot_ssot.integrations.infoblox.models import SSOTInfobloxConfig
@@ -38,7 +42,13 @@ from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
 from nautobot_ssot.integrations.servicenow.models import SSOTServiceNowConfig
 from nautobot_ssot.templatetags.shorter_timedelta import shorter_timedelta
 
-from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
+from .choices import (
+    SyncLogEntryActionChoices,
+    SyncLogEntryStatusChoices,
+    SyncRecordActionChoices,
+)
+
+logger = logging.getLogger(__name__)
 
 
 class DiffJSONEncoder(DjangoJSONEncoder):
@@ -274,6 +284,218 @@ class SyncLogEntry(BaseModel):  # pylint: disable=nb-string-field-blank-null
         }.get(self.status)
 
 
+@extras_features("export_templates", "graphql", "statuses")
+class SyncRecord(BaseModel):
+    """Record of a single object that was synced during a data sync operation.
+
+    This model is primarily intended to support idempotency of sync operations,
+    by recording which objects have already been synced from a given source to a given target.
+    """
+
+    sync = models.ForeignKey(
+        to=Sync, on_delete=models.SET_NULL, related_name="records", related_query_name="record", null=True
+    )
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    module = models.CharField(max_length=CHARFIELD_MAX_LENGTH, help_text="Python module that Adapters reside in.")
+    source_adapter = models.CharField(
+        max_length=CHARFIELD_MAX_LENGTH, help_text="System data is read from", verbose_name="Source Adapter"
+    )
+    target_adapter = models.CharField(
+        max_length=CHARFIELD_MAX_LENGTH, help_text="System data is written to", verbose_name="Target Adapter"
+    )
+    source_kwargs = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Keyword arguments that were used to initialize the source adapter",
+        verbose_name="Source Adapter Keyword Arguments",
+    )
+    target_kwargs = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Keyword arguments that were used to initialize the target adapter",
+        verbose_name="Target Adapter Keyword Arguments",
+    )
+    diffsync_flags = EnumField(
+        DiffSyncFlags,
+        blank=True,
+        null=True,
+        help_text="Flags that were used to initialize the target adapter",
+        verbose_name="DiffSync Flags",
+        default=None,
+    )
+    obj_type = models.CharField(
+        max_length=CHARFIELD_MAX_LENGTH, help_text="Type of the object that was diffed", verbose_name="Object Type"
+    )
+    obj_name = models.CharField(
+        max_length=CHARFIELD_MAX_LENGTH, help_text="Name of the object that was diffed", verbose_name="Object Name"
+    )
+    obj_keys = models.JSONField(
+        blank=True, null=True, help_text="Keys of the object that was diffed", verbose_name="Object Keys"
+    )
+    source_attrs = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="Source attributes of the object that was diffed",
+        verbose_name="Source Attributes",
+    )
+    target_attrs = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="Target attributes of the object that was diffed",
+        verbose_name="Target Attributes",
+    )
+
+    action = models.CharField(max_length=32, choices=SyncRecordActionChoices)
+    status = StatusField(blank=False, null=False, verbose_name="Import Status")
+
+    synced_object_type = models.ForeignKey(
+        to=ContentType,
+        blank=True,
+        null=True,
+        on_delete=models.PROTECT,
+    )
+    synced_object_id = models.UUIDField(blank=True, null=True)
+    synced_object = GenericForeignKey(ct_field="synced_object_type", fk_field="synced_object_id")
+    parent = models.ForeignKey(
+        to="self",
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True,
+        related_name="children",
+        related_query_name="children",
+    )
+    message = models.TextField(blank=True, null=True, max_length=1024)
+
+    def get_diff(self):
+        """Compute a diff-like structure from source_attrs and target_attrs for rendering.
+
+        Returns a dict in the format expected by render_diff template tag:
+        {
+            obj_type: {
+                obj_name: {
+                    "+": {attr: new_value},  # Attributes added or changed (target values)
+                    "-": {attr: old_value}   # Attributes removed or changed (source values)
+                }
+            }
+        }
+
+        For CREATE: all attributes in source_attrs go to "+"
+        For UPDATE: changed attributes appear in both "+" (new) and "-" (old)
+        For DELETE: all attributes in target_attrs go to "-"
+        """
+        if not self.source_attrs and not self.target_attrs:
+            return {}
+
+        source_attrs = self.source_attrs or {}
+        target_attrs = self.target_attrs or {}
+
+        # Compute what changed: added, removed, or modified
+        # "+" contains attributes that are in target (new/added values)
+        # "-" contains attributes that are in source (old/removed values)
+        added_or_changed = {}
+        removed_or_changed = {}
+
+        # For attributes in target: they are new/added/changed
+        # If CREATE: target_attrs is empty, all source_attrs go to "+"
+        # If UPDATE: changed values go to "+" (new) and "-" (old)
+        for key, source_value in source_attrs.items():
+            target_value = target_attrs.get(key)
+            # If attribute doesn't exist in source or has different value, it's in target
+            if key not in target_attrs or target_value != source_value:
+                added_or_changed[key] = source_value
+                # If it existed in source with different value, also track the old value
+                if key in target_attrs:
+                    removed_or_changed[key] = target_value
+
+        # For attributes in target but not in source: they were removed
+        # If DELETE: source_attrs is empty, all target_attrs go to "-"
+        for key, target_value in target_attrs.items():
+            if key not in source_attrs:
+                removed_or_changed[key] = source_attrs.get(key)
+
+        # Only include in diff if there are actual changes
+        if not added_or_changed and not removed_or_changed:
+            return {}
+
+        diff = {
+            self.obj_type: {
+                self.obj_name: {
+                    "+": added_or_changed,
+                    "-": removed_or_changed,
+                }
+            }
+        }
+        return diff
+
+    class Meta:
+        """Metaclass attributes of SyncRecord."""
+
+        unique_together = ("sync", "obj_name", "obj_type")
+        ordering = ["timestamp"]
+
+    def __str__(self):
+        """String representation of a SyncRecord instance."""
+        return f"{self.source_adapter} → {self.target_adapter}: {self.obj_type} {self.obj_name}"
+
+    def get_ancestors(self, record=None):
+        """Return a filterable QuerySet of all ancestors of a SyncRecord.
+
+        Args:
+            record (SyncRecord, optional): Child SyncRecord to traverse from. If not set, then this record (self) will be used.
+
+        Returns:
+            QuerySet: A QuerySet of all ancestor SyncRecords, ordered by timestamp.
+        """
+        if not record:
+            record = self
+
+        # Collect all ancestor primary keys by traversing up the parent chain
+        ancestor_pks = []
+        current_record = record
+
+        while current_record.parent:
+            parent_record = current_record.parent
+            logger.debug("Processing SyncRecord %s...", parent_record)
+            ancestor_pks.append(parent_record.pk)
+            current_record = parent_record
+
+        # Return a filterable QuerySet
+        if ancestor_pks:
+            return self.__class__.objects.filter(pk__in=ancestor_pks)
+        return self.__class__.objects.none()
+
+    def get_descendants(self, record=None):
+        """
+        Recursively return a filterable QuerySet of all descendants of a SyncRecord.
+
+        Args:
+            record (SyncRecord, optional): Parent SyncRecord to traverse from. If not set, then this record (self) will be used.
+
+        Returns:
+            QuerySet: A QuerySet of all descendant SyncRecords, ordered by timestamp.
+        """
+        if record is None:
+            record = self
+
+        # Collect all descendant primary keys by traversing down the tree
+        descendant_pks = []
+        records_to_process = [record]
+
+        while records_to_process:
+            current_record = records_to_process.pop(0)
+            child_records = current_record.children.all()
+            for child_record in child_records:
+                logger.debug("Processing SyncRecord %s...", child_record)
+                descendant_pks.append(child_record.pk)
+                records_to_process.append(child_record)
+
+        # Return a filterable QuerySet
+        if descendant_pks:
+            return self.__class__.objects.filter(pk__in=descendant_pks)
+        return self.__class__.objects.none()
+
+
 class SSOTConfig(models.Model):  # pylint: disable=nb-incorrect-base-class
     """Non-db model providing user permission constraints."""
 
@@ -282,10 +504,4 @@ class SSOTConfig(models.Model):  # pylint: disable=nb-incorrect-base-class
         default_permissions = ("view",)
 
 
-__all__ = (
-    "SSOTInfobloxConfig",
-    "AutomationGatewayModel",
-    "SSOTServiceNowConfig",
-    "Sync",
-    "SyncLogEntry",
-)
+__all__ = ("SSOTInfobloxConfig", "AutomationGatewayModel", "SSOTServiceNowConfig", "Sync", "SyncLogEntry", "SyncRecord")

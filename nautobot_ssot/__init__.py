@@ -6,9 +6,11 @@ from importlib import metadata
 
 from django.conf import settings
 from nautobot.core.settings_funcs import is_truthy
+from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.plugins import NautobotAppConfig
 
 from nautobot_ssot.integrations.utils import each_enabled_integration_module
+from nautobot_ssot.signals import nautobot_database_ready_callback
 
 logger = logging.getLogger("nautobot.ssot")
 __version__ = metadata.version(__name__)
@@ -147,6 +149,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         for module in each_enabled_integration_module("signals"):
             logger.debug("Registering signals for %s", module.__file__)
             module.register_signals(self)
+        nautobot_database_ready.connect(nautobot_database_ready_callback, sender=self)
 
 
 config = NautobotSSOTAppConfig  # pylint:disable=invalid-name

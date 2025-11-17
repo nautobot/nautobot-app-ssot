@@ -17,10 +17,11 @@ from django.templatetags.static import static
 from django.utils import timezone
 from django.utils.functional import classproperty
 from nautobot.extras.jobs import BooleanVar, DryRunVar, Job
+from nautobot.extras.models import Status
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices
 from nautobot_ssot.contrib.adapter import NautobotAdapter
-from nautobot_ssot.models import BaseModel, Sync, SyncLogEntry
+from nautobot_ssot.models import BaseModel, Sync, SyncLogEntry, SyncRecord
 
 DataMapping = namedtuple("DataMapping", ["source_name", "source_url", "target_name", "target_url"])
 """Entry in the list returned by a job's data_mappings() API.
@@ -48,6 +49,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
       - `data_source_icon` and `data_target_icon`
     """
 
+    create_records = BooleanVar(description="Whether to create Sync Records or not.", default=True)
     dryrun = DryRunVar(
         description="Perform a dry-run, making no actual changes to Nautobot data.",
         default=True,
@@ -79,6 +81,13 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         """
         if self.source_adapter is not None and self.target_adapter is not None:
             self.diff = self.source_adapter.diff_to(self.target_adapter, flags=self.diffsync_flags)
+
+            if self.create_records:
+                self.source_adapter._meta_kwargs.pop("job")
+                self.target_adapter._meta_kwargs.pop("job")
+                self.target_adapter._meta_kwargs.pop("sync")
+                self.create_sync_records(diff=self.diff)
+
             self.sync.diff = {}
             self.sync.summary = self.diff.summary()
             self.sync.save()
@@ -91,6 +100,42 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             self.logger.info(self.diff.summary())
         else:
             self.logger.warning("Not both adapters were properly initialized prior to diff calculation.")
+
+    def create_sync_records(self, diff, parent=None):
+        """Create SyncRecord from DiffElement.
+
+        Args:
+            diff (DiffElement, optional): Parent DiffElement to find children. If not defined will be set to self.
+            parent (SyncRecord, optional): Parent SyncRecord to assign to newly created child SyncRecords. Defaults to None.
+        """
+        pending_status = Status.objects.get(name="Pending")
+        for child in diff.get_children():
+            if child.action:
+                new_record, _ = SyncRecord.objects.get_or_create(
+                    module=self.__class__.__module__,
+                    source_adapter=child.source_name,
+                    target_adapter=child.dest_name,
+                    obj_type=child.type,
+                    obj_name=child.name,
+                    defaults={
+                        "sync": self.sync,
+                        "source_kwargs": self.source_adapter._meta_kwargs  # pylint: disable=protected-access
+                        if getattr(self.source_adapter, "_meta_kwargs")
+                        else {},
+                        "target_kwargs": self.target_adapter._meta_kwargs  # pylint: disable=protected-access
+                        if getattr(self.target_adapter, "_meta_kwargs")
+                        else {},
+                        "diffsync_flags": self.diffsync_flags,
+                        "obj_keys": child.keys,
+                        "source_attrs": child.source_attrs,
+                        "target_attrs": child.dest_attrs,
+                        "action": str(child.action),
+                        "status": pending_status,
+                        "parent": parent,
+                    },
+                )
+                if child.child_diff.has_diffs():
+                    self.create_sync_records(diff=child.child_diff, parent=new_record)
 
     def execute_sync(self):
         """Method to synchronize the difference from `self.diff`, from SOURCE to TARGET adapter.
@@ -298,6 +343,8 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         Workaround for https://github.com/netbox-community/netbox/issues/5529
         """
         got_vars = super()._get_vars()
+        if hasattr(cls, "create_records"):
+            got_vars["create_records"] = cls.create_records
         if hasattr(cls, "dryrun"):
             got_vars["dryrun"] = cls.dryrun
 
@@ -343,7 +390,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         """Icon corresponding to the data_target."""
         return getattr(cls.Meta, "data_target_icon", None)
 
-    def run(self, dryrun, memory_profiling, *args, **kwargs):  # pylint:disable=arguments-differ
+    def run(self, create_records, dryrun, memory_profiling, *args, **kwargs):  # pylint:disable=arguments-differ
         """Job entry point from Nautobot - do not override!"""
         self.sync = Sync.objects.create(
             source=self.data_source,

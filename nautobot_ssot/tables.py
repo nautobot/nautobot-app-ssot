@@ -1,10 +1,11 @@
 """Data tables for Single Source of Truth (SSOT) views."""
 
 from django_tables2 import Column, DateTimeColumn, JSONColumn, LinkColumn, TemplateColumn
-from nautobot.apps.tables import BaseTable, ToggleColumn
+from nautobot.apps.tables import BaseTable, ButtonsColumn, ToggleColumn
+from nautobot.extras.tables import StatusTableMixin
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
-from .models import Sync, SyncLogEntry
+from .models import Sync, SyncLogEntry, SyncRecord
 
 ACTION_LOGS_LINK = """
 <a class="{{ link_class }}"
@@ -198,3 +199,74 @@ class SyncLogEntryTable(BaseTable):
         )
         default_columns = ("pk", "timestamp", "sync", "action", "synced_object", "status", "diff", "message")
         order_by = ("-timestamp",)
+
+
+class SyncRecordTable(StatusTableMixin, BaseTable):
+    # pylint: disable=R0903
+    """Table for list view."""
+
+    pk = ToggleColumn()
+    obj_name = Column(linkify=True)
+    obj_type = Column()
+    source_adapter = Column()
+    target_adapter = Column()
+    action = Column()
+    actions = ButtonsColumn(
+        SyncRecord,
+        # Option for modifying the default action buttons on each row:
+        buttons=("delete"),
+        # Option for modifying the pk for the action buttons:
+        pk_field="pk",
+    )
+
+    class Meta(BaseTable.Meta):
+        """Meta attributes."""
+
+        model = SyncRecord
+        fields = [
+            "pk",
+            "obj_name",
+            "obj_type",
+            "source_adapter",
+            "target_adapter",
+            "status",
+            "action",
+            "actions",
+            "message",
+            "sync",
+            "timestamp",
+        ]
+
+        # Option for modifying the columns that show up in the list view by default:
+        default_columns = ("pk", "source_adapter", "target_adapter", "obj_type", "obj_name", "status", "actions")
+        order_by = ("timestamp",)
+
+
+class SyncRecordHistoryTable(StatusTableMixin, BaseTable):
+    """Table for SyncRecord history view (shows history for a synced object)."""
+
+    timestamp = DateTimeColumn(linkify=True, short=True)
+    source_adapter = Column()
+    target_adapter = Column()
+    action = Column()
+    diff = JSONColumn(accessor="get_diff", orderable=False)
+    # status is provided by StatusTableMixin
+
+    class Meta(BaseTable.Meta):
+        """Meta attributes."""
+
+        model = SyncRecord
+        fields = [
+            "timestamp",
+            "source_adapter",
+            "target_adapter",
+            "action",
+            "status",
+            "diff",
+            "message",
+            "sync",
+        ]
+
+        # Columns shown by default in the history view
+        default_columns = ("timestamp", "source_adapter", "target_adapter", "action", "status", "diff", "message")
+        order_by = ("-timestamp",)  # Most recent first

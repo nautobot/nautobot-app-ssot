@@ -19,17 +19,16 @@ from django.templatetags.static import static
 from django.urls import reverse
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer, Platform
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
-from nautobot.extras.jobs import ObjectVar, StringVar
+from nautobot.extras.jobs import BooleanVar, ObjectVar, StringVar
 from nautobot.extras.models import ExternalIntegration, Role, Status
 from nautobot.extras.secrets.exceptions import SecretError
 from nautobot.ipam.models import IPAddress, Namespace, Prefix
 from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.contrib import NautobotAdapter, NautobotModel
-from nautobot_ssot.contrib.typeddicts import TagDict
+from nautobot_ssot.contrib.typeddicts import ContentTypeDict, TagDict
 from nautobot_ssot.exceptions import MissingSecretsGroupException
 from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
-from nautobot_ssot.tests.contrib_base_classes import ContentTypeDict
 
 # In a more complex Job, you would probably want to move the DiffSyncModel subclasses into a separate Python module(s).
 
@@ -45,12 +44,14 @@ class LocationTypeModel(NautobotModel):
     _identifiers = ("name",)
     # To keep this example simple, we don't include **all** attributes of a Location here. But you could!
     _attributes = ("content_types", "description", "nestable", "parent__name")
+    _children = {"location": "locations"}
 
     # Data type declarations for all identifiers and attributes
     name: str
     description: str
     nestable: bool
     parent__name: Optional[str] = None
+    locations: List["LocationModel"] = []
     content_types: List[ContentTypeDict] = []
 
 
@@ -78,6 +79,7 @@ class LocationModel(NautobotModel):
         "description",
         "tags",
     )
+    _children = {"device": "devices"}
 
     # Data type declarations for all identifiers and attributes
     name: str
@@ -88,6 +90,7 @@ class LocationModel(NautobotModel):
     tenant__name: Optional[str] = None
     description: str
     tags: List[TagDict] = []
+    devices: List["DeviceModel"] = list()
 
 
 class RoleModel(NautobotModel):
@@ -125,10 +128,12 @@ class NamespaceModel(NautobotModel):
     _modelname = "namespace"
     _identifiers = ("name",)
     _attributes = ("description", "tags")
+    _children = {"prefix": "prefixes"}
 
     name: str
     description: Optional[str] = ""
     tags: List[TagDict] = []
+    prefixes: List["PrefixModel"] = []
 
 
 class PrefixModel(NautobotModel):
@@ -140,6 +145,7 @@ class PrefixModel(NautobotModel):
     _identifiers = ("network", "prefix_length", "namespace__name")
     # To keep this example simple, we don't include **all** attributes of a Prefix here. But you could!
     _attributes = ("description", "tenant__name", "status__name", "locations", "tags")
+    _children = {"ipaddress": "ip_addresses"}
 
     # Data type declarations for all identifiers and attributes
     network: str
@@ -151,6 +157,7 @@ class PrefixModel(NautobotModel):
     tags: List[TagDict] = []
 
     locations: List[LocationDict] = []
+    ip_addresses: List["IPAddressModel"] = []
 
 
 class IPAddressModel(NautobotModel):
@@ -170,7 +177,7 @@ class IPAddressModel(NautobotModel):
     parent__namespace__name: str
     status__name: str
     ip_version: int
-    tenant__name: Optional[str]
+    tenant__name: Optional[str] = None
     tags: List[TagDict] = []
 
 
@@ -185,7 +192,6 @@ class TenantModel(NautobotModel):
     _children = {}
 
     name: str
-    prefixes: List[PrefixModel] = []
     tags: List[TagDict] = []
 
 
@@ -256,7 +262,7 @@ class DeviceModel(NautobotModel):
     )
     _children = {"interface": "interfaces"}
 
-    name: str
+    name: Optional[str] = ""
     location__name: str
     location__location_type__name: str
     location__parent__name: Optional[str] = None
@@ -269,7 +275,7 @@ class DeviceModel(NautobotModel):
     status__name: str
     tenant__name: Optional[str]
     asset_tag: Optional[str]
-    interfaces: List["InterfaceModel"] = []
+    interfaces: Optional[List["InterfaceModel"]] = []
     tags: List[TagDict] = []
 
 
@@ -467,15 +473,11 @@ class NautobotRemote(Adapter):
     top_level = [
         "tenant",
         "status",
-        "locationtype",
-        "location",
         "manufacturer",
         "platform",
         "role",
-        "device",
+        "locationtype",
         "namespace",
-        "prefix",
-        "ipaddress",
     ]
 
     def __init__(self, *args, url=None, token=None, job=None, **kwargs):
@@ -530,7 +532,7 @@ class NautobotRemote(Adapter):
         self.load_device_types()
         self.load_platforms()
         self.load_devices()
-        self.load_interfaces()
+        # self.load_interfaces()
 
     def load_location_types(self):
         """Load LocationType data from the remote Nautobot instance."""
@@ -545,26 +547,35 @@ class NautobotRemote(Adapter):
                 pk=lt_entry["id"],
             )
             self.add(location_type)
-            self.job.logger.debug(f"Loaded {location_type} LocationType from remote Nautobot instance")
+            if self.job.debug:
+                self.job.logger.debug(f"Loaded {location_type} LocationType from remote Nautobot instance")
 
     def load_locations(self):
         """Load Locations data from the remote Nautobot instance."""
-        for loc_entry in self._get_api_data("api/dcim/locations/", depth=3):
-            location_args = {
-                "name": loc_entry["name"],
-                "status__name": loc_entry["status"]["name"] if loc_entry["status"].get("name") else "Active",
-                "location_type__name": loc_entry["location_type"]["name"],
-                "tenant__name": loc_entry["tenant"]["name"] if loc_entry.get("tenant") else None,
-                "description": loc_entry["description"],
-                "tags": loc_entry["tags"] if loc_entry.get("tags") else [],
-                "pk": loc_entry["id"],
-            }
-            if loc_entry["parent"]:
-                location_args["parent__name"] = loc_entry["parent"]["name"]
-                location_args["parent__location_type__name"] = loc_entry["parent"]["location_type"]["name"]
-            new_location = self.location(**location_args)
-            self.add(new_location)
-            self.job.logger.debug(f"Loaded {new_location} Location from remote Nautobot instance")
+        try:
+            for loc_entry in self._get_api_data("api/dcim/locations/?depth=3"):
+                locationtype = self.get(self.locationtype, loc_entry["location_type"]["name"])
+                location_args = {
+                    "name": loc_entry["name"],
+                    "status__name": loc_entry["status"]["name"] if loc_entry["status"].get("name") else "Active",
+                    "location_type__name": loc_entry["location_type"]["name"],
+                    "tenant__name": loc_entry["tenant"]["name"] if loc_entry.get("tenant") else None,
+                    "description": loc_entry["description"],
+                    "tags": loc_entry["tags"] if loc_entry.get("tags") else [],
+                    "pk": loc_entry["id"],
+                }
+                if loc_entry["parent"]:
+                    location_args["parent__name"] = loc_entry["parent"]["name"]
+                    location_args["parent__location_type__name"] = loc_entry["parent"]["location_type"]["name"]
+                new_location = self.location(**location_args)
+                self.add(new_location)
+                locationtype.add_child(new_location)
+                if self.job.debug:
+                    self.job.logger.debug(f"Loaded {new_location} Location from remote Nautobot instance")
+        except ObjectNotFound:
+            self.job.logger.warning(
+                f"Unable to find LocationType {loc_entry['location_type']['name']} for {loc_entry['name']}."
+            )
 
     def load_roles(self):
         """Load Roles data from the remote Nautobot instance."""
@@ -612,23 +623,31 @@ class NautobotRemote(Adapter):
 
     def load_prefixes(self):
         """Load Prefixes data from the remote Nautobot instance."""
-        for prefix_entry in self._get_api_data("api/ipam/prefixes/", depth=2):
-            prefix = self.prefix(
-                network=prefix_entry["network"],
-                prefix_length=prefix_entry["prefix_length"],
-                namespace__name=prefix_entry["namespace"]["name"],
-                description=prefix_entry["description"],
-                locations=[
-                    {"name": x["name"], "location_type__name": x["location_type"]["name"]}
-                    for x in prefix_entry["locations"]
-                ],
-                status__name=prefix_entry["status"]["name"] if prefix_entry["status"].get("name") else "Active",
-                tenant__name=prefix_entry["tenant"]["name"] if prefix_entry["tenant"] else None,
-                tags=prefix_entry["tags"] if prefix_entry.get("tags") else [],
-                pk=prefix_entry["id"],
-            )
-            self.add(prefix)
-            self.job.logger.debug(f"Loaded {prefix} from remote Nautobot instance")
+        for prefix_entry in self._get_api_data("api/ipam/prefixes/?depth=2"):
+            try:
+                namespace = self.get(self.namespace, prefix_entry["namespace"]["name"])
+                prefix = self.prefix(
+                    network=prefix_entry["network"],
+                    prefix_length=prefix_entry["prefix_length"],
+                    namespace__name=prefix_entry["namespace"]["name"],
+                    description=prefix_entry["description"],
+                    locations=[
+                        {"name": x["name"], "location_type__name": x["location_type"]["name"]}
+                        for x in prefix_entry["locations"]
+                    ],
+                    status__name=prefix_entry["status"]["name"] if prefix_entry["status"].get("name") else "Active",
+                    tenant__name=prefix_entry["tenant"]["name"] if prefix_entry["tenant"] else None,
+                    tags=prefix_entry["tags"] if prefix_entry.get("tags") else [],
+                    pk=prefix_entry["id"],
+                )
+                self.add(prefix)
+                namespace.add_child(prefix)
+                if self.job.debug:
+                    self.job.logger.debug(f"Loaded {prefix} from remote Nautobot instance")
+            except ObjectNotFound:
+                self.job.logger.warning(
+                    f"Unable to find Namespace {prefix_entry['namespace']['name']} for {prefix_entry['network']}/{prefix_entry['prefix_length']}."
+                )
 
     def load_ipaddresses(self):
         """Load IPAddresses data from the remote Nautobot instance."""
@@ -646,7 +665,8 @@ class NautobotRemote(Adapter):
                 pk=ipaddr_entry["id"],
             )
             self.add(ipaddr)
-            self.job.logger.debug(f"Loaded {ipaddr} from remote Nautobot instance")
+            if self.job.debug:
+                self.job.logger.debug(f"Loaded {ipaddr} from remote Nautobot instance")
 
     def load_manufacturers(self):
         """Load Manufacturers data from the remote Nautobot instance."""
@@ -657,7 +677,8 @@ class NautobotRemote(Adapter):
                 pk=manufacturer["id"],
             )
             self.add(manufacturer)
-            self.job.logger.debug(f"Loaded {manufacturer} from remote Nautobot instance")
+            if self.job.debug:
+                self.job.logger.debug(f"Loaded {manufacturer} from remote Nautobot instance")
 
     def load_device_types(self):
         """Load DeviceTypes data from the remote Nautobot instance."""
@@ -674,10 +695,11 @@ class NautobotRemote(Adapter):
                     pk=device_type["id"],
                 )
                 self.add(devicetype)
-                self.job.logger.debug(f"Loaded {devicetype} from remote Nautobot instance")
+                if self.job.debug:
+                    self.job.logger.debug(f"Loaded {devicetype} from remote Nautobot instance")
                 manufacturer.add_child(devicetype)
             except ObjectNotFound:
-                self.job.logger.debug(f"Unable to find Manufacturer {device_type['manufacturer']['name']}")
+                self.job.logger.warning(f"Unable to find Manufacturer {device_type['manufacturer']['name']}")
 
     def load_platforms(self):
         """Load Platforms data from the remote Nautobot instance."""
@@ -691,34 +713,43 @@ class NautobotRemote(Adapter):
                 pk=platform["id"],
             )
             self.add(platform)
-            self.job.logger.debug(f"Loaded {platform} from remote Nautobot instance")
+            if self.job.debug:
+                self.job.logger.debug(f"Loaded {platform} from remote Nautobot instance")
 
     def load_devices(self):
         """Load Devices data from the remote Nautobot instance."""
-        for device in self._get_api_data("api/dcim/devices/", depth=3):
-            device = self.device(
-                name=device["name"],
-                location__name=device["location"]["name"],
-                location__parent__name=(
-                    device["location"]["parent"]["name"] if device["location"].get("parent") else None
-                ),
-                location__parent__location_type__name=(
-                    device["location"]["parent"]["location_type"]["name"] if device["location"].get("parent") else None
-                ),
-                location__location_type__name=device["location"]["location_type"]["name"],
-                device_type__manufacturer__name=device["device_type"]["manufacturer"]["name"],
-                device_type__model=device["device_type"]["model"],
-                platform__name=device["platform"]["name"] if device.get("platform") else None,
-                role__name=device["role"]["name"],
-                asset_tag=device["asset_tag"] if device.get("asset_tag") else None,
-                serial=device["serial"] if device.get("serial") else "",
-                status__name=device["status"]["name"],
-                tenant__name=device["tenant"]["name"] if device.get("tenant") else None,
-                tags=device["tags"] if device.get("tags") else [],
-                pk=device["id"],
-            )
-            self.add(device)
-            self.job.logger.debug(f"Loaded {device} from remote Nautobot instance")
+        for device in self._get_api_data("api/dcim/devices/?depth=3"):
+            try:
+                location = self.get(self.location, device["location"]["name"])
+                new_device = self.device(
+                    name=device["name"],
+                    location__name=device["location"]["name"],
+                    location__parent__name=(
+                        device["location"]["parent"]["name"] if device["location"].get("parent") else None
+                    ),
+                    location__parent__location_type__name=(
+                        device["location"]["parent"]["location_type"]["name"]
+                        if device["location"].get("parent")
+                        else None
+                    ),
+                    location__location_type__name=device["location"]["location_type"]["name"],
+                    device_type__manufacturer__name=device["device_type"]["manufacturer"]["name"],
+                    device_type__model=device["device_type"]["model"],
+                    platform__name=device["platform"]["name"] if device.get("platform") else None,
+                    role__name=device["role"]["name"],
+                    asset_tag=device["asset_tag"] if device.get("asset_tag") else None,
+                    serial=device["serial"] if device.get("serial") else "",
+                    status__name=device["status"]["name"],
+                    tenant__name=device["tenant"]["name"] if device.get("tenant") else None,
+                    tags=device["tags"] if device.get("tags") else [],
+                    pk=device["id"],
+                )
+                self.add(new_device)
+                location.add_child(new_device)
+                if self.job.debug:
+                    self.job.logger.debug(f"Loaded {device} from remote Nautobot instance")
+            except ObjectNotFound:
+                self.job.logger.warning(f"Unable to find Location {device['location']['name']} for {device['name']}.")
 
     def load_interfaces(self):
         """Load Interfaces data from the remote Nautobot instance."""
@@ -746,10 +777,13 @@ class NautobotRemote(Adapter):
                     pk=interface["id"],
                 )
                 self.add(new_interface)
-                self.job.logger.debug(
-                    f"Loaded {new_interface} for {interface['device']['name']} from remote Nautobot instance"
-                )
-                device.add_child(new_interface)
+                if self.job.debug:
+                    self.job.logger.debug(
+                        f"Loaded {new_interface} for {interface['device']['name']} from remote Nautobot instance"
+                    )
+                dev.add_child(new_interface)
+            except ObjectNotFound:
+                self.job.logger.warning(f"Unable to find Device {interface['device']['name']} loaded.")
 
     def get_content_types(self, entry):
         """Create list of dicts of ContentTypes.
@@ -811,15 +845,11 @@ class NautobotLocal(NautobotAdapter):
     top_level = [
         "tenant",
         "status",
-        "locationtype",
-        "location",
         "manufacturer",
         "platform",
         "role",
-        "device",
+        "locationtype",
         "namespace",
-        "prefix",
-        "ipaddress",
     ]
 
 
@@ -841,6 +871,7 @@ class ExampleDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
         description="Remote Nautobot instance to load Sites and Regions from", default="https://demo.nautobot.com"
     )
     source_token = StringVar(description="REST API authentication token for remote Nautobot instance", default="a" * 40)
+    debug = BooleanVar(description="Enable debug logging", default=False)
 
     def __init__(self):
         """Initialize ExampleDataSource."""
@@ -877,6 +908,7 @@ class ExampleDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
 
     def run(  # pylint: disable=too-many-arguments, arguments-differ
         self,
+        create_records,
         dryrun,
         memory_profiling,
         source,
@@ -886,8 +918,10 @@ class ExampleDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
         **kwargs,
     ):
         """Run sync."""
+        self.create_records = create_records
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
+        self.debug = kwargs.get("debug", False)
         try:
             if source:
                 self.logger.info(f"Using external integration '{source}'")
@@ -910,7 +944,7 @@ class ExampleDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
             self.logger.error("Error setting up job: %s", error)
             raise
 
-        super().run(dryrun, memory_profiling, *args, **kwargs)
+        super().run(create_records, dryrun, memory_profiling, *args, **kwargs)
 
     def load_source_adapter(self):
         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""
@@ -924,18 +958,89 @@ class ExampleDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
 
     def lookup_object(self, model_name, unique_id):  # pylint: disable=too-many-return-statements, too-many-branches, too-many-locals
         """Look up a Nautobot object based on the DiffSync model name and unique ID."""
-        if model_name == "prefix":
-            try:
-                return Prefix.objects.get(
-                    prefix=unique_id.split("__")[0], tenant__name=unique_id.split("__")[1] or None
+        match model_name:
+            case "locationtype":
+                try:
+                    return LocationType.objects.get(name=unique_id)
+                except LocationType.DoesNotExist:
+                    pass
+            case "location":
+                try:
+                    return Location.objects.get(name=unique_id)
+                except Location.DoesNotExist:
+                    pass
+            case "role":
+                try:
+                    return Role.objects.get(name=unique_id)
+                except Role.DoesNotExist:
+                    pass
+            case "status":
+                try:
+                    return Status.objects.get(name=unique_id)
+                except Status.DoesNotExist:
+                    pass
+            case "namespace":
+                try:
+                    return Namespace.objects.get(name=unique_id)
+                except Namespace.DoesNotExist:
+                    pass
+            case "prefix":
+                network, prefix_length, namespace__name = unique_id.split("__")
+                try:
+                    return Prefix.objects.get(
+                        network=network, prefix_length=prefix_length, namespace__name=namespace__name
+                    )
+                except Prefix.DoesNotExist:
+                    pass
+            case "ipaddress":
+                host, mask_length, parent__network, parent__prefix_length, parent__namespace__name = unique_id.split(
+                    "__"
                 )
-            except Prefix.DoesNotExist:
-                pass
-        elif model_name == "tenant":
-            try:
-                return Tenant.objects.get(name=unique_id)
-            except Tenant.DoesNotExist:
-                pass
+                try:
+                    return IPAddress.objects.get(
+                        host=host,
+                        mask_length=mask_length,
+                        parent__network=parent__network,
+                        parent__prefix_length=parent__prefix_length,
+                        parent__namespace__name=parent__namespace__name,
+                    )
+                except IPAddress.DoesNotExist:
+                    pass
+            case "tenant":
+                try:
+                    return Tenant.objects.get(name=unique_id)
+                except Tenant.DoesNotExist:
+                    pass
+            case "manufacturer":
+                try:
+                    return Manufacturer.objects.get(name=unique_id)
+                except Manufacturer.DoesNotExist:
+                    pass
+            case "devicetype":
+                model, manufacturer__name = unique_id.split("__")
+                try:
+                    return DeviceType.objects.get(model=model, manufacturer__name=manufacturer__name)
+                except DeviceType.DoesNotExist:
+                    pass
+            case "platform":
+                try:
+                    return Platform.objects.get(name=unique_id)
+                except Platform.DoesNotExist:
+                    pass
+            case "device":
+                dev_name, location__name, location__parent__name = unique_id.split("__")
+                try:
+                    return Device.objects.get(
+                        name=dev_name, location__name=location__name, location__parent__name=location__parent__name
+                    )
+                except Device.DoesNotExist:
+                    pass
+            case "interface":
+                intf_name, device__name = unique_id.split("__")
+                try:
+                    return Interface.objects.get(name=intf_name, device__name=device__name)
+                except Interface.DoesNotExist:
+                    pass
         return None
 
 
@@ -987,6 +1092,7 @@ class ExampleDataTarget(DataTarget):
 
     def run(  # pylint: disable=too-many-arguments, arguments-differ
         self,
+        create_records,
         dryrun,
         memory_profiling,
         target,
@@ -996,6 +1102,7 @@ class ExampleDataTarget(DataTarget):
         **kwargs,
     ):
         """Run sync."""
+        self.create_records = create_records
         self.dryrun = dryrun
         self.memory_profiling = memory_profiling
         try:
@@ -1020,7 +1127,7 @@ class ExampleDataTarget(DataTarget):
             self.logger.error("Error setting up job: %s", error)
             raise
 
-        super().run(dryrun, memory_profiling, *args, **kwargs)
+        super().run(create_records, dryrun, memory_profiling, *args, **kwargs)
 
     def load_source_adapter(self):
         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""

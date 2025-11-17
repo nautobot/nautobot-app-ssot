@@ -20,3 +20,12 @@ class SyncLogEntryViewSet(NautobotModelViewSet):  # pylint: disable=too-many-anc
     queryset = models.SyncLogEntry.objects.all()
     serializer_class = serializers.SyncLogEntrySerializer
     filterset_class = filters.SyncLogEntryFilterSet
+
+
+class SyncRecordViewSet(NautobotModelViewSet):  # pylint: disable=too-many-ancestors
+    """SyncRecord viewset."""
+
+    queryset = models.SyncRecord.objects.all()
+    lookup_field = "pk"
+    serializer_class = serializers.SyncRecordSerializer
+    filterset_class = filters.SyncRecordFilterSet

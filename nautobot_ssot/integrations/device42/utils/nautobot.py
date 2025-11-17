@@ -12,6 +12,7 @@ from nautobot.circuits.models import CircuitType
 from nautobot.dcim.models import Device, Interface, Location, LocationType, Platform, Rack, RackGroup, VirtualChassis
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Role, Tag
+from nautobot.extras.models import CustomField, Role, Tag
 from nautobot.ipam.models import VLAN, Prefix
 from netutils.lib_mapper import ANSIBLE_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER_REVERSE
 from taggit.managers import TaggableManager
