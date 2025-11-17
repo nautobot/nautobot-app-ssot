@@ -1,10 +1,12 @@
 """Django views for Single Source of Truth (SSoT)."""
 
+import pprint
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.contenttypes.models import ContentType
 from django.http import Http404, JsonResponse
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.template import loader
 from django.template.defaultfilters import date
 from django.urls import reverse
@@ -37,6 +39,7 @@ from nautobot.apps.views import (
     ObjectView,
     get_obj_from_context,
 )
+from nautobot.core.ui.utils import flatten_context
 from nautobot.extras.models import Job as JobModel
 from nautobot.extras.models import JobResult, Status
 from rest_framework.decorators import action
@@ -643,12 +646,11 @@ class SyncDiffView(ObjectView):
 
     def get_extra_context(self, request, instance):
         """Add additional context to the view."""
-        import pprint
-
-        return {
-            "diff_data": instance.diff,
-            "diff_json": pprint.pformat(instance.diff, width=380, compact=False),
-        }
+        context = super().get_extra_context(request, instance)
+        context.update(app_utils.get_detail_view_components_context_for_model(instance))
+        context["diff_data"] = instance.diff
+        context["diff_json"] = pprint.pformat(instance.diff, width=380, compact=False)
+        return context
 
 
 class SyncDiffSectionContentView(DjangoView):
