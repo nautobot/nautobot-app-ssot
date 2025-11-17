@@ -3,7 +3,7 @@
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.contenttypes.models import ContentType
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import redirect
 from django.template import loader
 from django.template.defaultfilters import date
@@ -45,6 +45,7 @@ from rest_framework.response import Response
 from nautobot_ssot import filters, forms, tables
 from nautobot_ssot.api import serializers
 from nautobot_ssot.integrations import utils
+from nautobot_ssot.templatetags import render_diff_expanded
 from nautobot_ssot.templatetags.render_diff import render_diff
 
 from .filters import SyncFilterSet, SyncLogEntryFilterSet
@@ -158,7 +159,16 @@ class DiffPanel(ObjectTextPanel):
     def get_value(self, context):
         """Render the value for the diff."""
         obj = get_obj_from_context(context, "object")
-        return render_diff(obj.diff)
+        # Link to expanded diff view
+        expanded_url = reverse("plugins:nautobot_ssot:sync_diff", kwargs={"pk": obj.pk})
+        link_html = format_html(
+            '<div class="pull-right" style="margin-bottom:8px">'
+            '<a href="{}" class="btn btn-sm btn-primary">'
+            '<i class="fa fa-expand"></i> Expanded Diff'
+            "</a></div>",
+            expanded_url,
+        )
+        return format_html("{}{}", link_html, render_diff(obj.diff))
 
 
 class JobResultViewTab(DistinctViewTab):
@@ -623,6 +633,37 @@ class SyncedObjectHistoryView(ContentTypePermissionRequiredMixin, ObjectView):
         context["table"] = table
         context["content_type"] = content_type
         return context
+
+
+class SyncDiffView(ObjectView):
+    """View for expanded diff display of a single Sync record."""
+
+    queryset = Sync.annotated_queryset()
+    template_name = "nautobot_ssot/sync_diff_expanded.html"
+
+    def get_extra_context(self, request, instance):
+        """Add additional context to the view."""
+        import pprint
+
+        return {
+            "diff_data": instance.diff,
+            "diff_json": pprint.pformat(instance.diff, width=380, compact=False),
+        }
+
+
+class SyncDiffSectionContentView(DjangoView):
+    """Ajax view to return HTML for a specific diff section's content (lazy-loaded)."""
+
+    def get(self, request, pk, record_type):  # pylint: disable=arguments-differ
+        """Return the HTML content for a specific section of the diff."""
+        sync = Sync.annotated_queryset().get(pk=pk)
+        children = sync.diff.get(record_type, {})
+
+        # Render only inner content for this section
+        html = render_diff_expanded.render_section_children_html(
+            children, level=0, parent_section_id=f"root_{record_type}"
+        )
+        return JsonResponse({"html": str(html)})
 
 
 def process_bulk_syncrecords(request):

@@ -21,6 +21,10 @@ urlpatterns = [
     path("config/", views.SSOTConfigView.as_view(), name="config"),
     path("docs/", RedirectView.as_view(url=static("nautobot_ssot/docs/index.html")), name="docs"),
     path("process_bulk_syncrecords/", views.process_bulk_syncrecords, name="process_bulk_syncrecords"),
+    # Expanded diff view for a Sync
+    path("history/<uuid:pk>/diff/", views.SyncDiffView.as_view(), name="sync_diff"),
+    # Lazy-loaded expanded diff section content
+    path("history/<uuid:pk>/diff-section/<path:record_type>/", views.SyncDiffSectionContentView.as_view(), name="sync_diff_section"),
     path("sync-records/<uuid:pk>/history/", views.SyncedObjectHistoryView.as_view(), name="syncrecord_history"),
 ]
 

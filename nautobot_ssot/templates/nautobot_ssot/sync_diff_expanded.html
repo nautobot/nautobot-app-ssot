@@ -1,0 +1,539 @@
+{% extends 'generic/object_detail.html' %}
+{% load helpers %}
+{% load buttons %}
+{% load plugins %}
+{% load shorter_timedelta %}
+{% load render_diff_expanded %}
+{% load humanize_bytes %}
+
+{% block content %}
+<style>
+    .diff-expanded-container {
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 13px;
+        line-height: 1.4;
+    }
+    
+    .diff-section {
+        margin: 10px 0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background: #f9f9f9;
+    }
+    
+    .diff-section-header {
+        background: #f5f5f5;
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #ddd;
+        user-select: none;
+    }
+    
+    .diff-section-header:hover {
+        background: #e9e9e9;
+    }
+    
+    .diff-section-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .diff-toggle-icon {
+        margin-right: 8px;
+        transition: transform 0.2s ease;
+    }
+    
+    .diff-toggle-icon.expanded {
+        transform: rotate(90deg);
+    }
+    
+    .diff-section-stats {
+        display: flex;
+        gap: 5px;
+    }
+    
+    .diff-section-content {
+        padding: 10px;
+        background: white;
+    }
+    
+    .diff-item {
+        margin: 5px 0;
+        border: 1px solid #e0e0e0;
+        border-radius: 3px;
+        background: white;
+    }
+    
+    .diff-item-header {
+        padding: 6px 10px;
+        cursor: pointer;
+        background: #fafafa;
+        border-bottom: 1px solid #e0e0e0;
+        user-select: none;
+    }
+    
+    .diff-item-header:hover {
+        background: #f0f0f0;
+    }
+    
+    .diff-item-icon {
+        margin-right: 6px;
+        width: 12px;
+    }
+    
+    .diff-item-name {
+        font-weight: 500;
+    }
+    
+    .diff-item-content {
+        padding: 8px 10px;
+        background: white;
+    }
+    
+    .diff-attr {
+        margin: 3px 0;
+        padding: 4px 8px;
+        border-radius: 3px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .diff-attr.diff-added {
+        background: #d4edda;
+        border-left: 3px solid #28a745;
+    }
+    
+    .diff-attr.diff-subtracted {
+        background: #f8d7da;
+        border-left: 3px solid #dc3545;
+    }
+    
+    .diff-attr.diff-changed {
+        background: #fff3cd;
+        border-left: 3px solid #ffc107;
+    }
+    
+    .diff-attr-name {
+        font-weight: 500;
+        margin-right: 10px;
+    }
+    
+    .diff-attr-value {
+        color: #666;
+        word-break: break-all;
+    }
+    
+    .diff-item.diff-added {
+        border-left: 4px solid #28a745;
+    }
+    
+    .diff-item.diff-subtracted {
+        border-left: 4px solid #dc3545;
+    }
+    
+    .diff-item.diff-changed {
+        border-left: 4px solid #ffc107;
+    }
+    
+    .diff-item.diff-unchanged {
+        border-left: 4px solid #6c757d;
+    }
+    
+    .diff-stats-summary {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+    
+    .diff-stats-summary h4 {
+        margin-top: 0;
+        margin-bottom: 10px;
+    }
+    
+    .diff-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px;
+    }
+    
+    .diff-stat-item {
+        text-align: center;
+        padding: 10px;
+        border-radius: 4px;
+        background: white;
+    }
+    
+    .diff-stat-number {
+        font-size: 24px;
+        font-weight: bold;
+        display: block;
+    }
+    
+    .diff-stat-label {
+        font-size: 12px;
+        color: #666;
+        text-transform: uppercase;
+    }
+    
+    .diff-controls {
+        margin-bottom: 20px;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 4px;
+    }
+    
+    .diff-controls button {
+        margin-right: 10px;
+        margin-bottom: 5px;
+    }
+    
+    .diff-json {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 4px;
+        padding: 15px;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 12px;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .diff-view-toggle {
+        margin-bottom: 20px;
+    }
+    
+    .diff-view-content {
+        display: none;
+    }
+    
+    .diff-view-content.active {
+        display: block;
+    }
+
+    .diff-loading {
+        text-align: center;
+        padding: 20px;
+        color: #666;
+    }
+</style>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <strong>Expanded Diff View</strong>
+                <div class="pull-right">
+                    <a href="{% url 'plugins:nautobot_ssot:sync' pk=object.pk %}" class="btn btn-sm btn-default">
+                        <i class="fa fa-arrow-left"></i> Back to Sync Details
+                    </a>
+                </div>
+            </div>
+            <div class="panel-body">
+                <!-- Diff Statistics Summary -->
+                {% with stats=diff_data|diff_stats %}
+                <div class="diff-stats-summary">
+                    <h4><i class="fa fa-bar-chart"></i> Diff Statistics Summary</h4>
+                    <div class="diff-stats-grid">
+                        <div class="diff-stat-item">
+                            <span class="diff-stat-number text-primary">{{ stats.total }}</span>
+                            <span class="diff-stat-label">Total Items</span>
+                        </div>
+                        <div class="diff-stat-item">
+                            <span class="diff-stat-number text-success">{{ stats.added }}</span>
+                            <span class="diff-stat-label">Added</span>
+                        </div>
+                        <div class="diff-stat-item">
+                            <span class="diff-stat-number text-danger">{{ stats.removed }}</span>
+                            <span class="diff-stat-label">Removed</span>
+                        </div>
+                        <div class="diff-stat-item">
+                            <span class="diff-stat-number text-warning">{{ stats.modified }}</span>
+                            <span class="diff-stat-label">Modified</span>
+                        </div>
+                    </div>
+                </div>
+                {% endwith %}
+
+                <!-- View Controls -->
+                <div class="diff-controls">
+                    <div class="diff-view-toggle">
+                        <button class="btn btn-sm btn-primary active" onclick="showView('expanded')">
+                            <i class="fa fa-list"></i> Expanded View
+                        </button>
+                        <button class="btn btn-sm btn-default" onclick="showView('json')">
+                            <i class="fa fa-code"></i> JSON View
+                        </button>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-info" onclick="expandAll()">
+                            <i class="fa fa-expand"></i> Expand All
+                        </button>
+                        <button class="btn btn-sm btn-warning" onclick="collapseAll()">
+                            <i class="fa fa-compress"></i> Collapse All
+                        </button>
+                        <button class="btn btn-sm btn-success" onclick="expandAdded()">
+                            <i class="fa fa-plus"></i> Show Added Only
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="expandRemoved()">
+                            <i class="fa fa-minus"></i> Show Removed Only
+                        </button>
+                        <button class="btn btn-sm btn-warning" onclick="expandModified()">
+                            <i class="fa fa-edit"></i> Show Modified Only
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Expanded View -->
+                <div id="expanded-view" class="diff-view-content active">
+                    {% render_diff_expanded diff_data object.pk True %}
+                </div>
+
+                <!-- JSON View -->
+                <div id="json-view" class="diff-view-content">
+                    {% render_diff_json diff_data %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleSection(sectionId) {
+    const content = document.getElementById('content_' + sectionId);
+    const icon = document.getElementById('icon_' + sectionId);
+    
+    if (!content || !icon) {
+        return;
+    }
+
+    const isHidden = content.style.display === 'none' || content.style.display === '';
+
+    // If becoming visible and not loaded yet, lazy-load via fetch
+    if (isHidden) {
+        const isLoaded = content.dataset.loaded === 'true';
+        const fetchUrl = content.dataset.fetchUrl;
+        
+        if (!isLoaded && fetchUrl) {
+            // Show loading indicator
+            content.innerHTML = '<div class="diff-loading"><i class="fa fa-spinner fa-spin"></i> Loading...</div>';
+            content.style.display = 'block';
+            
+            // Fetch content
+            fetch(fetchUrl, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                content.innerHTML = data.html;
+                content.dataset.loaded = 'true';
+                icon.classList.add('expanded');
+            })
+            .catch(error => {
+                console.error('Error loading section:', error);
+                content.innerHTML = '<div class="alert alert-danger">Failed to load content. Please try again.</div>';
+                icon.classList.add('expanded');
+            });
+            return;
+        }
+        
+        // Already loaded or no fetch URL, just show it
+        content.style.display = 'block';
+        icon.classList.add('expanded');
+    } else {
+        content.style.display = 'none';
+        icon.classList.remove('expanded');
+    }
+}
+
+function toggleItem(itemId) {
+    const content = document.getElementById('item_content_' + itemId);
+    const icon = document.getElementById('item_icon_' + itemId);
+    
+    if (!content || !icon) {
+        return;
+    }
+    
+    if (content.style.display === 'none' || content.style.display === '') {
+        content.style.display = 'block';
+        icon.classList.add('expanded');
+    } else {
+        content.style.display = 'none';
+        icon.classList.remove('expanded');
+    }
+}
+
+function showView(viewType) {
+    // Hide all views
+    document.querySelectorAll('.diff-view-content').forEach(view => {
+        view.classList.remove('active');
+    });
+    
+    // Show selected view
+    const targetView = document.getElementById(viewType + '-view');
+    if (targetView) {
+        targetView.classList.add('active');
+    }
+    
+    // Update button states
+    document.querySelectorAll('.diff-view-toggle button').forEach(btn => {
+        btn.classList.remove('btn-primary', 'btn-default');
+        btn.classList.add('btn-default');
+    });
+    
+    if (event && event.target) {
+        event.target.classList.remove('btn-default');
+        event.target.classList.add('btn-primary');
+    }
+}
+
+function expandAll() {
+    document.querySelectorAll('.diff-section-content').forEach(content => {
+        // Trigger lazy load if needed
+        if (content.dataset.fetchUrl && content.dataset.loaded !== 'true') {
+            const sectionId = content.id.replace('content_', '');
+            toggleSection(sectionId);
+        } else {
+            content.style.display = 'block';
+        }
+    });
+    document.querySelectorAll('.diff-item-content').forEach(content => {
+        content.style.display = 'block';
+    });
+    document.querySelectorAll('.diff-toggle-icon, .diff-item-icon').forEach(icon => {
+        icon.classList.add('expanded');
+    });
+}
+
+function collapseAll() {
+    document.querySelectorAll('.diff-section-content').forEach(content => {
+        content.style.display = 'none';
+    });
+    document.querySelectorAll('.diff-item-content').forEach(content => {
+        content.style.display = 'none';
+    });
+    document.querySelectorAll('.diff-toggle-icon, .diff-item-icon').forEach(icon => {
+        icon.classList.remove('expanded');
+    });
+}
+
+function expandAdded() {
+    collapseAll();
+    const addedItems = document.querySelectorAll('.diff-item.diff-added');
+    addedItems.forEach(item => {
+        // Expand all ancestor sections so the item becomes visible
+        let sectionContent = item.closest('.diff-section-content');
+        while (sectionContent) {
+            // Trigger lazy load if needed
+            if (sectionContent.dataset.fetchUrl && sectionContent.dataset.loaded !== 'true') {
+                const sectionId = sectionContent.id.replace('content_', '');
+                toggleSection(sectionId);
+                // Wait a bit for async load, then continue
+                setTimeout(() => {
+                    sectionContent.style.display = 'block';
+                }, 100);
+            } else {
+                sectionContent.style.display = 'block';
+            }
+            const header = sectionContent.previousElementSibling;
+            if (header) {
+                const toggleIcon = header.querySelector('.diff-toggle-icon');
+                if (toggleIcon) toggleIcon.classList.add('expanded');
+            }
+            sectionContent = sectionContent.parentElement?.closest('.diff-section-content');
+        }
+
+        // Expand the item itself
+        const content = item.querySelector('.diff-item-content');
+        const icon = item.querySelector('.diff-item-icon');
+        if (content) {
+            content.style.display = 'block';
+            if (icon) icon.classList.add('expanded');
+        }
+    });
+}
+
+function expandRemoved() {
+    collapseAll();
+    const removedItems = document.querySelectorAll('.diff-item.diff-subtracted');
+    removedItems.forEach(item => {
+        // Expand all ancestor sections so the item becomes visible
+        let sectionContent = item.closest('.diff-section-content');
+        while (sectionContent) {
+            // Trigger lazy load if needed
+            if (sectionContent.dataset.fetchUrl && sectionContent.dataset.loaded !== 'true') {
+                const sectionId = sectionContent.id.replace('content_', '');
+                toggleSection(sectionId);
+                setTimeout(() => {
+                    sectionContent.style.display = 'block';
+                }, 100);
+            } else {
+                sectionContent.style.display = 'block';
+            }
+            const header = sectionContent.previousElementSibling;
+            if (header) {
+                const toggleIcon = header.querySelector('.diff-toggle-icon');
+                if (toggleIcon) toggleIcon.classList.add('expanded');
+            }
+            sectionContent = sectionContent.parentElement?.closest('.diff-section-content');
+        }
+
+        // Expand the item itself
+        const content = item.querySelector('.diff-item-content');
+        const icon = item.querySelector('.diff-item-icon');
+        if (content) {
+            content.style.display = 'block';
+            if (icon) icon.classList.add('expanded');
+        }
+    });
+}
+
+function expandModified() {
+    collapseAll();
+    const modifiedItems = document.querySelectorAll('.diff-item.diff-changed');
+    modifiedItems.forEach(item => {
+        // Expand all ancestor sections so the item becomes visible
+        let sectionContent = item.closest('.diff-section-content');
+        while (sectionContent) {
+            // Trigger lazy load if needed
+            if (sectionContent.dataset.fetchUrl && sectionContent.dataset.loaded !== 'true') {
+                const sectionId = sectionContent.id.replace('content_', '');
+                toggleSection(sectionId);
+                setTimeout(() => {
+                    sectionContent.style.display = 'block';
+                }, 100);
+            } else {
+                sectionContent.style.display = 'block';
+            }
+            const header = sectionContent.previousElementSibling;
+            if (header) {
+                const toggleIcon = header.querySelector('.diff-toggle-icon');
+                if (toggleIcon) toggleIcon.classList.add('expanded');
+            }
+            sectionContent = sectionContent.parentElement?.closest('.diff-section-content');
+        }
+
+        // Expand the item itself
+        const content = item.querySelector('.diff-item-content');
+        const icon = item.querySelector('.diff-item-icon');
+        if (content) {
+            content.style.display = 'block';
+            if (icon) icon.classList.add('expanded');
+        }
+    });
+}
+
+// Initialize the view
+document.addEventListener('DOMContentLoaded', function() {
+    // Sections are collapsed by default, will load on click
+});
+</script>
+{% endblock %}
+
