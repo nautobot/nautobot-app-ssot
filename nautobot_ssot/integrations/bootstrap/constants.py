@@ -1,7 +1,7 @@
+# pylint: disable=duplicate-code
 """Constants for use within Nautobot SSoT for Bootstrap."""
 
 from nautobot_ssot.utils import (
-    core_supports_softwareversion,
     validate_dlm_installed,
 )
 
@@ -130,10 +130,7 @@ SCOPED_FIELDS_MAPPING = {
     "ipam.vlan": ["name", "vid", "vlan_group", "description", "status", "role", "locations", "tenant", "tags"],
     "ipam.vlangroup": ["name", "location", "description"],
     "ipam.vrf": ["name", "namespace", "rd", "description", "tenant", "tags"],
-}
-
-if core_supports_softwareversion():
-    SCOPED_FIELDS_MAPPING["dcim.softwareimagefile"] = [
+    "dcim.softwareimagefile": [
         "software_version",
         "image_file_name",
         "platform",
@@ -145,21 +142,21 @@ if core_supports_softwareversion():
         "hashing_algorithm",
         "default_image",
         "tags",
-    ]
-    SCOPED_FIELDS_MAPPING["dcim.softwareversion"] = (
-        [
-            "version",
-            "device_platform",
-            "alias",
-            "release_date",
-            "end_of_support_date",
-            "status",
-            "long_term_support",
-            "pre_release",
-            "documentation_url",
-            "tags",
-        ],
-    )
+    ],
+    "dcim.softwareversion": [
+        "version",
+        "platform",
+        "alias",
+        "release_date",
+        "end_of_support_date",
+        "status",
+        "long_term_support",
+        "pre_release",
+        "documentation_url",
+        "tags",
+    ],
+}
+
 if validate_dlm_installed():
     SCOPED_FIELDS_MAPPING["nautobot_device_lifecycle_mgmt.validatedsoftwarelcm"] = [
         "software",

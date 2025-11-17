@@ -175,6 +175,7 @@ class DnaCenterAdapter(Adapter):
                 ids={
                     "name": self.job.dnac.location.name,
                     "building": self.job.dnac.location.parent.name,
+                    "area": self.job.dnac.location.parent.parent.name,
                 },
                 attrs={
                     "tenant": self.job.dnac.location.tenant.name if self.job.dnac.location.tenant else None,

@@ -17,6 +17,8 @@ from nautobot.dcim.models import (
     Manufacturer,
     Platform,
 )
+from nautobot.dcim.models import SoftwareImageFile as ORMSoftwareImage
+from nautobot.dcim.models import SoftwareVersion as ORMSoftware
 from nautobot.extras.models import (
     ComputedField,
     Contact,
@@ -67,10 +69,13 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import (
     NautobotScheduledJob,
     NautobotSecret,
     NautobotSecretsGroup,
+    NautobotSoftware,
+    NautobotSoftwareImage,
     NautobotTag,
     NautobotTeam,
     NautobotTenant,
     NautobotTenantGroup,
+    NautobotValidatedSoftware,
     NautobotVLAN,
     NautobotVLANGroup,
     NautobotVRF,
@@ -88,31 +93,9 @@ from nautobot_ssot.integrations.bootstrap.utils.nautobot import (
     get_prefix_location_assignments,
     get_vrf_prefix_assignments,
 )
-from nautobot_ssot.utils import core_supports_softwareversion, dlm_supports_softwarelcm, validate_dlm_installed
+from nautobot_ssot.utils import validate_dlm_installed
 
-if core_supports_softwareversion():
-    from nautobot.dcim.models import SoftwareImageFile as ORMSoftwareImage
-    from nautobot.dcim.models import SoftwareVersion as ORMSoftware
-
-    from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import (
-        NautobotSoftware,
-        NautobotSoftwareImage,
-    )
-
-    if validate_dlm_installed():
-        from nautobot_device_lifecycle_mgmt.models import (
-            ValidatedSoftwareLCM as ORMValidatedSoftware,
-        )
-
-        from nautobot_ssot.integrations.bootstrap.diffsync.models.nautobot import NautobotValidatedSoftware
-
-elif dlm_supports_softwarelcm():
-    from nautobot_device_lifecycle_mgmt.models import (
-        SoftwareImageLCM as ORMSoftwareImage,
-    )
-    from nautobot_device_lifecycle_mgmt.models import (
-        SoftwareLCM as ORMSoftware,
-    )
+if validate_dlm_installed():
     from nautobot_device_lifecycle_mgmt.models import (
         ValidatedSoftwareLCM as ORMValidatedSoftware,
     )
@@ -154,14 +137,9 @@ class NautobotAdapter(Adapter):
     graph_ql_query = NautobotGraphQLQuery
     external_integration = NautobotExternalIntegration
 
-    if core_supports_softwareversion():
-        software_version = NautobotSoftware
-        software_image_file = NautobotSoftwareImage
-        if validate_dlm_installed():
-            validated_software = NautobotValidatedSoftware
-    elif dlm_supports_softwarelcm():
-        software = NautobotSoftware
-        software_image = NautobotSoftwareImage
+    software_version = NautobotSoftware
+    software_image_file = NautobotSoftwareImage
+    if validate_dlm_installed():
         validated_software = NautobotValidatedSoftware
 
     top_level = [
@@ -196,14 +174,9 @@ class NautobotAdapter(Adapter):
         "external_integration",
     ]
 
-    if core_supports_softwareversion():
-        top_level.append("software_version")
-        top_level.append("software_image_file")
-        if validate_dlm_installed():
-            top_level.append("validated_software")
-    elif dlm_supports_softwarelcm():
-        top_level.append("software")
-        top_level.append("software_image")
+    top_level.append("software_version")
+    top_level.append("software_image_file")
+    if validate_dlm_installed():
         top_level.append("validated_software")
 
     def __init__(self, *args, job=None, sync=None, **kwargs):  # noqa: D417
@@ -1245,31 +1218,18 @@ class NautobotAdapter(Adapter):
     def load_software(self):
         """Method to load Software objects from Nautobot into NautobotSoftware Models."""
         for nb_software in ORMSoftware.objects.all():
-            if core_supports_softwareversion():
-                if self.job.debug:
-                    self.job.logger.debug(
-                        f"Loading Nautobot SoftwareVersion {nb_software.platform.name} - {nb_software.version}"
-                    )
-            else:
-                if self.job.debug:
-                    self.job.logger.debug(f"Loading Nautobot SoftwareLCM {nb_software}")
+            if self.job.debug:
+                self.job.logger.debug(
+                    f"Loading Nautobot SoftwareVersion {nb_software.platform.name} - {nb_software.version}"
+                )
             try:
-                if core_supports_softwareversion():
-                    self.get(
-                        self.software_version,
-                        {
-                            "version": nb_software.version,
-                            "platform": nb_software.platform.name,
-                        },
-                    )
-                else:
-                    self.get(
-                        self.software,
-                        {
-                            "version": nb_software.version,
-                            "platform": nb_software.device_platform.name,
-                        },
-                    )
+                self.get(
+                    self.software_version,
+                    {
+                        "version": nb_software.version,
+                        "platform": nb_software.platform.name,
+                    },
+                )
             except ObjectNotFound:
                 _tags = list(
                     ORMSoftware.objects.get(
@@ -1286,40 +1246,24 @@ class NautobotAdapter(Adapter):
                         if nb_software.custom_field_data["system_of_record"] is not None
                         else ""
                     )
-                if core_supports_softwareversion():
-                    _status = validate_software_version_status(
-                        nb_software.status.name, nb_software.version, self.job.logger
-                    )
+                _status = validate_software_version_status(
+                    nb_software.status.name, nb_software.version, self.job.logger
+                )
 
-                    new_software = self.software_version(
-                        version=nb_software.version,
-                        platform=nb_software.platform.name,
-                        alias=nb_software.alias,
-                        status=_status,
-                        release_date=nb_software.release_date,
-                        eos_date=nb_software.end_of_support_date,
-                        documentation_url=nb_software.documentation_url,
-                        long_term_support=nb_software.long_term_support,
-                        pre_release=nb_software.pre_release,
-                        tags=_tags,
-                        system_of_record=_sor,
-                        uuid=nb_software.id,
-                    )
-                else:
-                    new_software = self.software(
-                        version=nb_software.version,
-                        platform=nb_software.device_platform.name,
-                        alias=nb_software.alias,
-                        release_date=nb_software.release_date,
-                        eos_date=nb_software.end_of_support,
-                        documentation_url=nb_software.documentation_url,
-                        long_term_support=nb_software.long_term_support,
-                        pre_release=nb_software.pre_release,
-                        tags=_tags,
-                        system_of_record=_sor,
-                        uuid=nb_software.id,
-                    )
-
+                new_software = self.software_version(
+                    version=nb_software.version,
+                    platform=nb_software.platform.name,
+                    alias=nb_software.alias,
+                    status=_status,
+                    release_date=nb_software.release_date,
+                    eos_date=nb_software.end_of_support_date,
+                    documentation_url=nb_software.documentation_url,
+                    long_term_support=nb_software.long_term_support,
+                    pre_release=nb_software.pre_release,
+                    tags=_tags,
+                    system_of_record=_sor,
+                    uuid=nb_software.id,
+                )
                 if not check_sor_field(nb_software):
                     new_software.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
 
@@ -1328,70 +1272,47 @@ class NautobotAdapter(Adapter):
     def load_software_image(self):
         """Method to load SoftwareImage objects from Nautobot into NautobotSoftwareImage Models."""
         for nb_software_image in ORMSoftwareImage.objects.all():
-            if core_supports_softwareversion():
+            if self.job.debug:
+                self.job.logger.debug(
+                    f"Loading Nautobot SoftwareImageFile {nb_software_image.software_version.platform.name} - {nb_software_image.software_version.version} - {nb_software_image.image_file_name}"
+                )
+            try:
                 if self.job.debug:
                     self.job.logger.debug(
-                        f"Loading Nautobot SoftwareImageFile {nb_software_image.software_version.platform.name} - {nb_software_image.software_version.version} - {nb_software_image.image_file_name}"
+                        f"Loading Nautobot SoftwareImageFile {nb_software_image.software_version.platform.name} - {nb_software_image.software_version.version} - {nb_software_image.image_file_name}, and matching to {self.software_image_file}"
                     )
-            else:
-                if self.job.debug:
-                    self.job.logger.debug(f"Loading Nautobot SoftwareImageLCM {nb_software_image}")
-            try:
-                if core_supports_softwareversion():
-                    if self.job.debug:
-                        self.job.logger.debug(
-                            f"Loading Nautobot SoftwareImageFile {nb_software_image.software_version.platform.name} - {nb_software_image.software_version.version} - {nb_software_image.image_file_name}, and matching to {self.software_image_file}"
-                        )
-                    self.get(
-                        self.software_image_file,
-                        {
-                            "software_version": f"{nb_software_image.software_version.platform.name} - {nb_software_image.software_version.version}",
-                            "image_file_name": nb_software_image.image_file_name,
-                        },
-                    )
-                else:
-                    self.get(
-                        self.software_image,
-                        {
-                            "software_version": nb_software_image.software,
-                            "image_file_name": nb_software_image.image_file_name,
-                        },
-                    )
+                self.get(
+                    self.software_image_file,
+                    {
+                        "software_version": f"{nb_software_image.software_version.platform.name} - {nb_software_image.software_version.version}",
+                        "image_file_name": nb_software_image.image_file_name,
+                    },
+                )
             except ObjectNotFound:
-                if core_supports_softwareversion():
-                    _tags = list(
-                        ORMSoftwareImage.objects.get(
-                            software_version=nb_software_image.software_version,
-                            image_file_name=nb_software_image.image_file_name,
-                        )
-                        .tags.all()
-                        .values_list("name", flat=True)
+                _tags = list(
+                    ORMSoftwareImage.objects.get(
+                        software_version=nb_software_image.software_version,
+                        image_file_name=nb_software_image.image_file_name,
                     )
-                    _device_types = list(
-                        ORMSoftwareImage.objects.get(
-                            software_version=nb_software_image.software_version,
-                            image_file_name=nb_software_image.image_file_name,
-                        )
-                        .device_types.all()
-                        .values_list("model", flat=True)
+                    .tags.all()
+                    .values_list("name", flat=True)
+                )
+                _device_types = list(
+                    ORMSoftwareImage.objects.get(
+                        software_version=nb_software_image.software_version,
+                        image_file_name=nb_software_image.image_file_name,
                     )
-                else:
-                    _tags = list(
-                        ORMSoftwareImage.objects.get(
-                            software=nb_software_image.software, image_file_name=nb_software_image.image_file_name
-                        )
-                        .tags.all()
-                        .values_list("name", flat=True)
+                    .device_types.all()
+                    .values_list("model", flat=True)
+                )
+                _device_types = list(
+                    ORMSoftwareImage.objects.get(
+                        software_version=nb_software_image.software_version,
+                        image_file_name=nb_software_image.image_file_name,
                     )
-                if core_supports_softwareversion():
-                    _device_types = list(
-                        ORMSoftwareImage.objects.get(
-                            software_version=nb_software_image.software_version,
-                            image_file_name=nb_software_image.image_file_name,
-                        )
-                        .device_types.all()
-                        .values_list("model", flat=True)
-                    )
+                    .device_types.all()
+                    .values_list("model", flat=True)
+                )
                 _sor = ""
                 if "system_of_record" in nb_software_image.custom_field_data:
                     _sor = (
@@ -1399,44 +1320,29 @@ class NautobotAdapter(Adapter):
                         if nb_software_image.custom_field_data["system_of_record"] is not None
                         else ""
                     )
-                if core_supports_softwareversion():
-                    _status = validate_software_image_status(
-                        nb_software_image.status.name, nb_software_image.image_file_name, self.job.logger
-                    )
-                    _hashing_algorithm = validate_hashing_algorithm(
-                        nb_software_image.hashing_algorithm, nb_software_image.image_file_name, self.job.logger
-                    )
 
-                    new_software_image = self.software_image_file(
-                        status=_status,
-                        platform=nb_software_image.software_version.platform.name,
-                        software_version=f"{nb_software_image.software_version.platform.name} - {nb_software_image.software_version.version}",
-                        download_url=nb_software_image.download_url,
-                        image_file_name=nb_software_image.image_file_name,
-                        file_size=nb_software_image.image_file_size,
-                        image_file_checksum=nb_software_image.image_file_checksum,
-                        hashing_algorithm=_hashing_algorithm,
-                        default_image=nb_software_image.default_image,
-                        tags=_tags,
-                        device_types=sorted(_device_types),
-                        system_of_record=_sor,
-                        uuid=nb_software_image.id,
-                    )
-                else:
-                    new_software_image = self.software_image(
-                        file_name=nb_software_image.image_file_name,
-                        software=f"{nb_software_image.software.device_platform} - {nb_software_image.software.version}",
-                        platform=nb_software_image.software.device_platform.name,
-                        software_version=nb_software_image.software.version,
-                        download_url=nb_software_image.download_url,
-                        image_file_checksum=nb_software_image.image_file_checksum,
-                        hashing_algorithm=nb_software_image.hashing_algorithm,
-                        default_image=nb_software_image.default_image,
-                        tags=_tags,
-                        system_of_record=_sor,
-                        uuid=nb_software_image.id,
-                    )
+                _status = validate_software_image_status(
+                    nb_software_image.status.name, nb_software_image.image_file_name, self.job.logger
+                )
+                _hashing_algorithm = validate_hashing_algorithm(
+                    nb_software_image.hashing_algorithm, nb_software_image.image_file_name, self.job.logger
+                )
 
+                new_software_image = self.software_image_file(
+                    status=_status,
+                    platform=nb_software_image.software_version.platform.name,
+                    software_version=f"{nb_software_image.software_version.platform.name} - {nb_software_image.software_version.version}",
+                    download_url=nb_software_image.download_url,
+                    image_file_name=nb_software_image.image_file_name,
+                    file_size=nb_software_image.image_file_size,
+                    image_file_checksum=nb_software_image.image_file_checksum,
+                    hashing_algorithm=_hashing_algorithm,
+                    default_image=nb_software_image.default_image,
+                    tags=_tags,
+                    device_types=sorted(_device_types),
+                    system_of_record=_sor,
+                    uuid=nb_software_image.id,
+                )
                 if not check_sor_field(nb_software_image):
                     new_software_image.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
 
@@ -1446,14 +1352,9 @@ class NautobotAdapter(Adapter):
         """Method to load ValidatedSoftware objects from Nautobot into NautobotValidatedSoftware Models."""
         for nb_validated_software in ORMValidatedSoftware.objects.all():
             if self.job.debug:
-                if core_supports_softwareversion():
-                    self.job.logger.debug(
-                        f"Loading Nautobot ValidatedSoftwareLCM {nb_validated_software.software.platform.name} - {nb_validated_software.software.version}"
-                    )
-                else:
-                    self.job.logger.debug(
-                        f"Loading Nautobot ValidatedSoftwareLCM {nb_validated_software.software.device_platform.name} - {nb_validated_software.software.version}"
-                    )
+                self.job.logger.debug(
+                    f"Loading Nautobot ValidatedSoftwareLCM {nb_validated_software.software.platform.name} - {nb_validated_software.software.version}"
+                )
 
             _tags = sorted(list(nb_validated_software.tags.all().values_list("name", flat=True)))
             _devices = sorted(list(nb_validated_software.devices.all().values_list("name", flat=True)))
@@ -1468,13 +1369,7 @@ class NautobotAdapter(Adapter):
                     if nb_validated_software.custom_field_data["system_of_record"] is not None
                     else ""
                 )
-            if hasattr(nb_validated_software.software, "device_platform"):
-                if core_supports_softwareversion():
-                    _platform = nb_validated_software.software.platform.name
-                else:
-                    _platform = nb_validated_software.software.device_platform.name
-            else:
-                _platform = nb_validated_software.software.platform.name
+            _platform = nb_validated_software.software.platform.name
             new_validated_software, _ = self.get_or_instantiate(
                 self.validated_software,
                 ids={
@@ -1602,18 +1497,10 @@ class NautobotAdapter(Adapter):
             self.load_custom_field()
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["external_integration"]:
             self.load_external_integration()
-        if core_supports_softwareversion():
-            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software"]:
-                self.load_software()
-            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software_image"]:
-                self.load_software_image()
-            if validate_dlm_installed():
-                if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["validated_software"]:
-                    self.load_validated_software()
-        elif dlm_supports_softwarelcm():
-            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software"]:
-                self.load_software()
-            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software_image"]:
-                self.load_software_image()
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software"]:
+            self.load_software()
+        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software_image"]:
+            self.load_software_image()
+        if validate_dlm_installed():
             if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["validated_software"]:
                 self.load_validated_software()
