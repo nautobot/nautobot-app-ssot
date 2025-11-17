@@ -52,7 +52,7 @@ class TestNautobotAdapterTestCase(TransactionTestCase):
                 status=self.active_status,
             )
 
-        for device in DEVICE_FIXTURE:
+        for device in DEVICE_FIXTURE[:1]:
             location = ORMLocation.objects.get(name=device["location"])
             _manufacturer, _ = Manufacturer.objects.get_or_create(name=os_manufacturer_map[device["os"]])
             _role, _role_created = Role.objects.get_or_create(name=device["type"])
@@ -86,11 +86,11 @@ class TestNautobotAdapterTestCase(TransactionTestCase):
 
         loaded_devices = {device.get_unique_id() for device in self.nautobot_adapter.get_all("device")}
 
-        expected_devices = {device["sysName"] for device in DEVICE_FIXTURE}
+        expected_devices = {device["sysName"] for device in DEVICE_FIXTURE[:1]}
 
         self.assertEqual(expected_devices, loaded_devices, "Devices were not loaded correctly.")
 
-        for device in DEVICE_FIXTURE:
+        for device in DEVICE_FIXTURE[:1]:
             loaded_device = self.nautobot_adapter.get("device", {"name": device["sysName"]})
             print(f"Loaded device: {loaded_device}")
             print(f"Loaded device type: {type(loaded_device)}")

@@ -1,3 +1,4 @@
+# pylint: disable=protected-access
 """Base Job classes for sync workers."""
 
 import tracemalloc

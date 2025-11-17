@@ -16,7 +16,7 @@ from nautobot.circuits.models import (
     Provider,
     ProviderNetwork,
 )
-from nautobot.dcim.models import (
+from nautobot.dcim.models import (  # pylint: disable=ungrouped-imports
     Device,
     DeviceType,
     InventoryItem,
@@ -58,7 +58,6 @@ from nautobot_ssot.integrations.bootstrap.diffsync.adapters.nautobot import (
 )
 from nautobot_ssot.integrations.bootstrap.jobs import BootstrapDataSource
 from nautobot_ssot.integrations.bootstrap.utils import get_scheduled_start_time
-from nautobot_ssot.utils import dlm_supports_softwarelcm
 
 try:
     from nautobot_device_lifecycle_mgmt.models import ValidatedSoftwareLCM
@@ -270,7 +269,6 @@ class NautobotTestSetup:
         self._setup_vrfs()
         self._setup_prefixes()
         self._setup_external_integrations()
-        # self._setup_software_and_images()  # TODO: Is this still needed? It was only valid in DLM <3.0.0 prior to SSoT v4
         self._setup_validated_software()
         self._setup_scheduled_job()
 
@@ -453,13 +451,6 @@ class NautobotTestSetup:
                 _r.custom_field_data["system_of_record"] = "Bootstrap"
                 _r.validated_save()
             _con_types.clear()
-        # if DLM 3.x is installed, remove the added roles
-        if not dlm_supports_softwarelcm():
-            for dlm_v3_role in ["DLM Primary", "DLM Tier 1", "DLM Tier 2", "DLM Tier 3", "DLM Owner", "DLM Unassigned"]:
-                try:
-                    Role.objects.get(name=dlm_v3_role).delete()
-                except Role.DoesNotExist:
-                    pass
 
     def _setup_teams(self):
         for _team in GLOBAL_YAML_SETTINGS["team"]:

@@ -20,6 +20,8 @@ from nautobot.dcim.models import Location as ORMLocation
 from nautobot.dcim.models import LocationType as ORMLocationType
 from nautobot.dcim.models import Manufacturer as ORMManufacturer
 from nautobot.dcim.models import Platform as ORMPlatform
+from nautobot.dcim.models import SoftwareImageFile as ORMSoftwareImage
+from nautobot.dcim.models import SoftwareVersion as ORMSoftware
 from nautobot.extras.models import ComputedField as ORMComputedField
 from nautobot.extras.models import Contact as ORMContact
 from nautobot.extras.models import CustomField as ORMCustomField
@@ -47,16 +49,7 @@ from nautobot.tenancy.models import Tenant as ORMTenant
 from nautobot.tenancy.models import TenantGroup as ORMTenantGroup
 from nautobot.users.models import User as ORMUser
 
-try:
-    from nautobot.extras.models.metadata import ObjectMetadata  # noqa: F401
-
-    from nautobot_ssot.integrations.bootstrap.constants import SCOPED_FIELDS_MAPPING
-    from nautobot_ssot.integrations.metadata_utils import add_or_update_metadata_on_object
-
-    METADATA_FOUND = True
-except (ImportError, RuntimeError):
-    METADATA_FOUND = False
-
+from nautobot_ssot.integrations.bootstrap.constants import SCOPED_FIELDS_MAPPING
 from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
     VLAN,
     VRF,
@@ -83,6 +76,8 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
     ScheduledJob,
     Secret,
     SecretsGroup,
+    SoftwareImageFile,
+    SoftwareVersion,
     Tag,
     Team,
     Tenant,
@@ -96,33 +91,12 @@ from nautobot_ssot.integrations.bootstrap.utils import (
     lookup_content_type_id,
     lookup_team_for_contact,
 )
+from nautobot_ssot.integrations.metadata_utils import add_or_update_metadata_on_object
 from nautobot_ssot.utils import (
-    core_supports_softwareversion,
-    dlm_supports_softwarelcm,
     validate_dlm_installed,
 )
 
-if core_supports_softwareversion():
-    from nautobot.dcim.models import SoftwareImageFile as ORMSoftwareImage
-    from nautobot.dcim.models import SoftwareVersion as ORMSoftware
-
-    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import SoftwareImageFile, SoftwareVersion
-
-    _Software_Base_Class = SoftwareVersion
-    _SoftwareImage_Base_Class = SoftwareImageFile
-
-if dlm_supports_softwarelcm():
-    from nautobot_device_lifecycle_mgmt.models import (
-        SoftwareImageLCM as ORMSoftwareImage,
-    )
-    from nautobot_device_lifecycle_mgmt.models import (
-        SoftwareLCM as ORMSoftware,
-    )
-
-    from nautobot_ssot.integrations.bootstrap.diffsync.models.base import Software, SoftwareImage
-
-    _Software_Base_Class = Software
-    _SoftwareImage_Base_Class = SoftwareImage
+_SoftwareImage_Base_Class = SoftwareImageFile
 
 if validate_dlm_installed():
     from nautobot_device_lifecycle_mgmt.models import (
@@ -149,11 +123,10 @@ class NautobotTenantGroup(TenantGroup):
         new_tenant_group.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_tenant_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_tenant_group.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_tenant_group, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=new_tenant_group, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -168,13 +141,10 @@ class NautobotTenantGroup(TenantGroup):
             )
         _update_tenant_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_tenant_group.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter,
-                obj=_update_tenant_group,
-                scoped_fields=SCOPED_FIELDS_MAPPING,
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_tenant_group, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -220,11 +190,10 @@ class NautobotTenant(Tenant):
         new_tenant.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_tenant.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_tenant.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_tenant, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=new_tenant, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -248,11 +217,10 @@ class NautobotTenant(Tenant):
             _update_tenant.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_tenant.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_tenant.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_tenant, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_tenant, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -291,11 +259,8 @@ class NautobotRole(Role):
         _new_role.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_role.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_role.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_role, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(adapter=adapter, obj=_new_role, scoped_fields=SCOPED_FIELDS_MAPPING)
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -321,11 +286,10 @@ class NautobotRole(Role):
             _update_role.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_role.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_role.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_role, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_role, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -351,11 +315,10 @@ class NautobotManufacturer(Manufacturer):
         _new_manufacturer.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_manufacturer.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_manufacturer.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_manufacturer, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=_new_manufacturer, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -368,13 +331,10 @@ class NautobotManufacturer(Manufacturer):
             _update_manufacturer.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_manufacturer.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_manufacturer.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter,
-                obj=_update_manufacturer,
-                scoped_fields=SCOPED_FIELDS_MAPPING,
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_manufacturer, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -415,11 +375,10 @@ class NautobotPlatform(Platform):
             _new_platform.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
             _new_platform.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
             _new_platform.validated_save()
-            if METADATA_FOUND:
-                metadata = add_or_update_metadata_on_object(
-                    adapter=adapter, obj=_new_platform, scoped_fields=SCOPED_FIELDS_MAPPING
-                )
-                metadata.validated_save()
+            metadata = add_or_update_metadata_on_object(
+                adapter=adapter, obj=_new_platform, scoped_fields=SCOPED_FIELDS_MAPPING
+            )
+            metadata.validated_save()
         except ORMManufacturer.DoesNotExist:
             adapter.job.logger.warning(
                 f"Manufacturer {ids['manufacturer']} does not exist in Nautobot, be sure to create it."
@@ -441,11 +400,10 @@ class NautobotPlatform(Platform):
         if not check_sor_field(_update_platform):
             _update_platform.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_platform.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_platform, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_platform, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -502,11 +460,10 @@ class NautobotLocationType(LocationType):
         _new_location_type.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_location_type.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_location_type.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_location_type, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=_new_location_type, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -540,13 +497,10 @@ class NautobotLocationType(LocationType):
             )
         _update_location_type.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_location_type.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter,
-                obj=_update_location_type,
-                scoped_fields=SCOPED_FIELDS_MAPPING,
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_location_type, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -614,11 +568,10 @@ class NautobotLocation(Location):
             _new_location.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
             _new_location.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
             _new_location.validated_save()
-            if METADATA_FOUND:
-                metadata = add_or_update_metadata_on_object(
-                    adapter=adapter, obj=_new_location, scoped_fields=SCOPED_FIELDS_MAPPING
-                )
-                metadata.validated_save()
+            metadata = add_or_update_metadata_on_object(
+                adapter=adapter, obj=_new_location, scoped_fields=SCOPED_FIELDS_MAPPING
+            )
+            metadata.validated_save()
         except ORMStatus.DoesNotExist:
             adapter.job.logger.warning(f"Status {attrs['status']} could not be found. Make sure it exists.")
         except ORMLocationType.DoesNotExist:
@@ -689,11 +642,10 @@ class NautobotLocation(Location):
             _update_location.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_location.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_location.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_location, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_location, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -728,11 +680,8 @@ class NautobotTeam(Team):
         _new_team.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_team.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_team.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_team, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(adapter=adapter, obj=_new_team, scoped_fields=SCOPED_FIELDS_MAPPING)
+        metadata.validated_save()
         # TODO: Need to consider how to allow loading from teams or contacts models.
         # if "contacts" in attrs:
         #     # FIXME: There might be a better way to handle this that's easier on the database.
@@ -764,11 +713,10 @@ class NautobotTeam(Team):
             _update_team.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_team.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_team.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_team, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_team, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -804,11 +752,10 @@ class NautobotContact(Contact):
                 adapter.job.logger.debug(f"Looking up Team: {_team} for Contact: {ids['name']}.")
                 _new_contact.teams.add(lookup_team_for_contact(team=_team))
             _new_contact.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_contact, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=_new_contact, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -831,11 +778,10 @@ class NautobotContact(Contact):
             _update_contact.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_contact.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_contact.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_contact, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_contact, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -877,11 +823,10 @@ class NautobotProvider(Provider):
         _new_provider.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_provider.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_provider.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_provider, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=_new_provider, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -910,11 +855,10 @@ class NautobotProvider(Provider):
             _update_provider.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_provider.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_provider.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_provider, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_provider, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -954,11 +898,10 @@ class NautobotProviderNetwork(ProviderNetwork):
         _new_provider_network.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_provider_network.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_provider_network.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_provider_network, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=_new_provider_network, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -983,13 +926,10 @@ class NautobotProviderNetwork(ProviderNetwork):
                 {"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")}
             )
         _update_provider_network.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter,
-                obj=_update_provider_network,
-                scoped_fields=SCOPED_FIELDS_MAPPING,
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_provider_network, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -1018,11 +958,10 @@ class NautobotCircuitType(CircuitType):
         _new_circuit_type.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_circuit_type.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_circuit_type.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_circuit_type, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=_new_circuit_type, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -1037,13 +976,10 @@ class NautobotCircuitType(CircuitType):
                 {"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")}
             )
         _update_circuit_type.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter,
-                obj=_update_circuit_type,
-                scoped_fields=SCOPED_FIELDS_MAPPING,
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_circuit_type, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -1094,11 +1030,10 @@ class NautobotCircuit(Circuit):
         _new_circuit.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_circuit.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_circuit.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_circuit, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=_new_circuit, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -1135,11 +1070,10 @@ class NautobotCircuit(Circuit):
             _update_circuit.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_circuit.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_circuit.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_circuit, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_circuit, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -1221,13 +1155,10 @@ class NautobotCircuitTermination(CircuitTermination):
         )
         _new_circuit_termination.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_circuit_termination.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter,
-                obj=_new_circuit_termination,
-                scoped_fields=SCOPED_FIELDS_MAPPING,
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=_new_circuit_termination, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -1280,13 +1211,10 @@ class NautobotCircuitTermination(CircuitTermination):
                 {"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")}
             )
         _update_circuit_termination.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter,
-                obj=_update_circuit_termination,
-                scoped_fields=SCOPED_FIELDS_MAPPING,
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_circuit_termination, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -1324,11 +1252,10 @@ class NautobotNamespace(Namespace):
                 adapter.job.logger.warning(
                     f"Nautobot Location {attrs['location']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_namespace, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=new_namespace, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -1349,13 +1276,10 @@ class NautobotNamespace(Namespace):
             _update_namespace.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_namespace.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_namespace.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter,
-                obj=_update_namespace,
-                scoped_fields=SCOPED_FIELDS_MAPPING,
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_namespace, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -1389,11 +1313,8 @@ class NautobotRiR(RiR):
         new_rir.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_rir.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_rir.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_rir, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(adapter=adapter, obj=new_rir, scoped_fields=SCOPED_FIELDS_MAPPING)
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -1408,11 +1329,10 @@ class NautobotRiR(RiR):
             _update_rir.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_rir.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_rir.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_rir, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_rir, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -1453,11 +1373,10 @@ class NautobotVLANGroup(VLANGroup):
         new_vlan_group.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_vlan_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_vlan_group.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_vlan_group, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=new_vlan_group, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -1481,13 +1400,10 @@ class NautobotVLANGroup(VLANGroup):
             )
         _update_vlan_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_vlan_group.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter,
-                obj=_update_vlan_group,
-                scoped_fields=SCOPED_FIELDS_MAPPING,
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_vlan_group, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -1584,12 +1500,8 @@ class NautobotVLAN(VLAN):
         if _locations:
             for _location in _locations:
                 new_vlan.locations.add(_location)
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_vlan, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
-
+        metadata = add_or_update_metadata_on_object(adapter=adapter, obj=new_vlan, scoped_fields=SCOPED_FIELDS_MAPPING)
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -1662,12 +1574,10 @@ class NautobotVLAN(VLAN):
             _update_vlan.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_vlan.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_vlan.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_vlan, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
-
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_vlan, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -1723,11 +1633,8 @@ class NautobotVRF(VRF):
         new_vrf.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_vrf.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_vrf.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_vrf, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(adapter=adapter, obj=new_vrf, scoped_fields=SCOPED_FIELDS_MAPPING)
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -1756,11 +1663,10 @@ class NautobotVRF(VRF):
             _update_vrf.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_vrf.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_vrf.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_vrf, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_vrf, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -1933,11 +1839,10 @@ class NautobotPrefix(Prefix):
                 adapter.job.logger.warning(
                     f"Nautobot VRF {attrs['vrfs']} does not exist. Make sure it is created manually or defined in global_settings.yaml"
                 )
-            if METADATA_FOUND:
-                metadata = add_or_update_metadata_on_object(
-                    adapter=adapter, obj=new_prefix, scoped_fields=SCOPED_FIELDS_MAPPING
-                )
-                metadata.validated_save()
+            metadata = add_or_update_metadata_on_object(
+                adapter=adapter, obj=new_prefix, scoped_fields=SCOPED_FIELDS_MAPPING
+            )
+            metadata.validated_save()
             return super().create(adapter=adapter, ids=ids, attrs=attrs)
         except ValueError:
             adapter.job.logger.error(
@@ -2077,12 +1982,10 @@ class NautobotPrefix(Prefix):
             _update_prefix.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_prefix.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_prefix.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_prefix, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
-
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_prefix, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -2112,11 +2015,10 @@ class NautobotSecret(Secret):
         new_secret.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_secret.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_secret.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_secret, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=new_secret, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -2130,11 +2032,10 @@ class NautobotSecret(Secret):
         if not check_sor_field(_update_secret):
             _update_secret.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_secret.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_secret, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_secret, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -2175,13 +2076,10 @@ class NautobotSecretsGroup(SecretsGroup):
                     _sga.access_type = _secret["access_type"]
                     _sga.secret_type = _secret["secret_type"]
                     _sga.validated_save()
-                    if METADATA_FOUND:
-                        metadata = add_or_update_metadata_on_object(
-                            adapter=adapter,
-                            obj=_new_secrets_group,
-                            scoped_fields=SCOPED_FIELDS_MAPPING,
-                        )
-                        metadata.validated_save()
+                    metadata = add_or_update_metadata_on_object(
+                        adapter=adapter, obj=_new_secrets_group, scoped_fields=SCOPED_FIELDS_MAPPING
+                    )
+                    metadata.validated_save()
                 except ORMSecret.DoesNotExist:
                     adapter.job.logger.warning(
                         f"Secret - {_secret['name']} does not exist in Nautobot, ensure it is created."
@@ -2216,11 +2114,10 @@ class NautobotSecretsGroup(SecretsGroup):
             _update_group.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_group.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_group, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_group, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -2255,11 +2152,10 @@ class NautobotGitRepository(GitRepository):
         new_gitrepository.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         new_gitrepository.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_gitrepository.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_gitrepository, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=new_gitrepository, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -2279,11 +2175,10 @@ class NautobotGitRepository(GitRepository):
             _update_git_repo.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_git_repo.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_git_repo.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_git_repo, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_git_repo, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -2329,11 +2224,10 @@ class NautobotDynamicGroup(DynamicGroup):
                 _new_nb_dg.description = attrs["description"]
             _new_nb_dg.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
             _new_nb_dg.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_nb_dg, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=_new_nb_dg, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -2348,13 +2242,10 @@ class NautobotDynamicGroup(DynamicGroup):
             _update_dyn_group.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_dyn_group.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_dyn_group.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter,
-                obj=_update_dyn_group,
-                scoped_fields=SCOPED_FIELDS_MAPPING,
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_dyn_group, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -2386,11 +2277,10 @@ class NautobotComputedField(ComputedField):
             label=ids["label"], content_type=_content_type, template=attrs["template"]
         )
         _new_computed_field.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_computed_field, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=_new_computed_field, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -2408,11 +2298,10 @@ class NautobotComputedField(ComputedField):
         if attrs.get("template"):
             comp_field.template = attrs["template"]
         comp_field.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=comp_field, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=comp_field, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -2464,12 +2353,10 @@ class NautobotCustomField(CustomField):
                 value=choice["value"], weight=choice["weight"], custom_field=_new_custom_field
             )
             _new_cf.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_custom_field, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
-
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=_new_custom_field, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -2513,11 +2400,10 @@ class NautobotCustomField(CustomField):
                 _new_cf.validated_save()
 
         cust_field.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=cust_field, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=cust_field, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -2557,11 +2443,8 @@ class NautobotTag(Tag):
         _new_tag.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_tag.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_tag.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_tag, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(adapter=adapter, obj=_new_tag, scoped_fields=SCOPED_FIELDS_MAPPING)
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -2585,11 +2468,10 @@ class NautobotTag(Tag):
             _update_tag.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_tag.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_tag.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_tag, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_tag, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -2613,11 +2495,10 @@ class NautobotGraphQLQuery(GraphQLQuery):
         adapter.job.logger.info(f"Creating Nautobot GraphQLQuery: {ids['name']}")
         _new_query = ORMGraphQLQuery(name=ids["name"], query=attrs["query"])
         _new_query.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_query, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=_new_query, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -2627,11 +2508,10 @@ class NautobotGraphQLQuery(GraphQLQuery):
         if attrs.get("query"):
             _query.query = attrs["query"]
         _query.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_query, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_query, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -2693,12 +2573,10 @@ class NautobotScheduledJob(ScheduledJob):
             enabled=attrs.get("enabled"),
         )
         scheduled_job.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=scheduled_job, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
-
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=scheduled_job, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -2744,12 +2622,8 @@ class NautobotScheduledJob(ScheduledJob):
             job.enabled = attrs["enabled"]
 
         job.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=job, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
-
+        metadata = add_or_update_metadata_on_object(adapter=self.adapter, obj=job, scoped_fields=SCOPED_FIELDS_MAPPING)
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
@@ -2766,7 +2640,7 @@ class NautobotScheduledJob(ScheduledJob):
     from django.utils.dateparse import parse_datetime
 
 
-class NautobotSoftware(_Software_Base_Class):
+class NautobotSoftware(SoftwareVersion):
     """Nautobot implementation of Bootstrap Software model."""
 
     @classmethod
@@ -2778,35 +2652,18 @@ class NautobotSoftware(_Software_Base_Class):
         _tags = []
         for tag in attrs["tags"]:
             _tags.append(ORMTag.objects.get(name=tag))
-        if core_supports_softwareversion():
-            _status = ORMStatus.objects.get(name=attrs["status"])
+        _status = ORMStatus.objects.get(name=attrs["status"])
         _platform = ORMPlatform.objects.get(name=ids["platform"])
-        if dlm_supports_softwarelcm():
-            _new_software = ORMSoftware(
-                version=ids["version"],
-                alias=attrs["alias"],
-                device_platform=_platform,
-                end_of_support_date=attrs["eos_date"],
-                long_term_support=attrs["long_term_support"],
-                pre_release=attrs["pre_release"],
-                documentation_url=attrs["documentation_url"],
-            )
-        elif core_supports_softwareversion():
-            _new_software = ORMSoftware(
-                version=ids["version"],
-                alias=attrs["alias"],
-                status=_status,
-                platform=_platform,
-                end_of_support_date=attrs["eos_date"],
-                long_term_support=attrs["long_term_support"],
-                pre_release=attrs["pre_release"],
-                documentation_url=attrs["documentation_url"],
-            )
-        else:
-            adapter.job.logger.error(
-                f"Software model not found so skipping creation of {ids['version']} for {ids['platform']}."
-            )
-            return None
+        _new_software = ORMSoftware(
+            version=ids["version"],
+            alias=attrs["alias"],
+            platform=_platform,
+            end_of_support_date=attrs["eos_date"],
+            long_term_support=attrs["long_term_support"],
+            pre_release=attrs["pre_release"],
+            documentation_url=attrs["documentation_url"],
+            status=_status,
+        )
         adapter.job.logger.info(f"Creating Nautobot Software object {ids['platform']} - {ids['version']}.")
         if attrs.get("tags"):
             _new_software.validated_save()
@@ -2816,11 +2673,10 @@ class NautobotSoftware(_Software_Base_Class):
         _new_software.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_software.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_software.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_software, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=_new_software, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -2828,10 +2684,7 @@ class NautobotSoftware(_Software_Base_Class):
         if self.adapter.job.debug:
             self.adapter.job.logger.debug(f"Updating Software: {self.platform} - {self.version}.")
         _platform = ORMPlatform.objects.get(name=self.platform)
-        if dlm_supports_softwarelcm():
-            _update_software = ORMSoftware.objects.get(version=self.version, device_platform=_platform)
-        if core_supports_softwareversion():
-            _update_software = ORMSoftware.objects.get(version=self.version, platform=_platform)
+        _update_software = ORMSoftware.objects.get(version=self.version, platform=_platform)
         self.adapter.job.logger.info(f"Updating Software: {self.platform} - {self.version}.")
         if "alias" in attrs:
             _update_software.alias = attrs["alias"]
@@ -2840,10 +2693,7 @@ class NautobotSoftware(_Software_Base_Class):
         if attrs.get("release_date"):
             _update_software.release_date = attrs["release_date"]
         if attrs.get("eos_date"):
-            if core_supports_softwareversion():
-                _update_software.end_of_support_date = attrs["eos_date"]
-            else:
-                _update_software.end_of_support = attrs["eos_date"]
+            _update_software.end_of_support_date = attrs["eos_date"]
         if attrs.get("long_term_support"):
             _update_software.long_term_support = attrs["long_term_support"]
         if attrs.get("pre_release"):
@@ -2861,21 +2711,17 @@ class NautobotSoftware(_Software_Base_Class):
             _update_software.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _update_software.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_software.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_software, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_software, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
         """Delete Software in Nautobot from NautobotSoftware object."""
         try:
             _platform = ORMPlatform.objects.get(name=self.platform)
-            if dlm_supports_softwarelcm():
-                _software = ORMSoftware.objects.get(version=self.version, device_platform=_platform)
-            if core_supports_softwareversion():
-                _software = ORMSoftware.objects.get(version=self.version, platform=_platform)
+            _software = ORMSoftware.objects.get(version=self.version, platform=_platform)
             self.adapter.job.logger.warning(f"Deleting Nautobot Software Object ({self.platform} - {self.version}.)")
             super().delete()
             _software.delete()
@@ -2890,89 +2736,58 @@ class NautobotSoftware(_Software_Base_Class):
             )
 
 
-class NautobotSoftwareImage(_SoftwareImage_Base_Class):
+class NautobotSoftwareImage(SoftwareImageFile):
     """Nautobot implementation of Bootstrap SoftwareImage model."""
 
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create SoftwareImage in Nautobot from NautobotSoftwareImage object."""
-        if core_supports_softwareversion():
-            adapter.job.logger.info(f"Creating Software Image: {attrs['platform']} - {ids['software_version']}.")
-        else:
-            adapter.job.logger.info(f"Creating Software Image File: {attrs['platform']} - {ids['software']}.")
+        adapter.job.logger.info(f"Creating Software Image: {attrs['platform']} - {ids['software_version']}.")
         _tags = []
         _device_types = []
         if attrs["device_types"] is not None:
             for dt in attrs["device_types"]:
                 _device_types.append(ORMDeviceType.objects.get(model=dt))
-        if core_supports_softwareversion():
-            _status = ORMStatus.objects.get(name=attrs.get(attrs["status"], "Active"))
-        else:
-            _status = ORMStatus.objects.get(name="Active")
+        _status = ORMStatus.objects.get(name=attrs.get(attrs["status"], "Active"))
         if attrs["tags"] is not None:
             for tag in attrs["tags"]:
                 _tags.append(ORMTag.objects.get(name=tag))
         _platform = ORMPlatform.objects.get(name=attrs["platform"])
-        if core_supports_softwareversion():
-            if adapter.job.debug:
-                adapter.job.logger.debug(f"Getting Software: {ids['software_version']}.")
-            _software = ORMSoftware.objects.get(version=ids["software_version"].split(" - ")[1], platform=_platform)
-        else:
-            if adapter.job.debug:
-                adapter.job.logger.debug(f"Getting Software: {attrs['software_version']} - {attrs['platform']}.")
-            _software = ORMSoftware.objects.get(version=attrs["software_version"], device_platform=_platform)
-        if core_supports_softwareversion():
-            _new_soft_image = ORMSoftwareImage(
-                software_version=_software,
-                status=_status,
-                image_file_size=attrs["file_size"],
-                image_file_name=ids["image_file_name"],
-                image_file_checksum=attrs["image_file_checksum"],
-                hashing_algorithm=attrs["hashing_algorithm"],
-                download_url=attrs["download_url"],
-                default_image=attrs["default_image"],
-            )
-        else:
-            _new_soft_image = ORMSoftwareImage(
-                software=_software,
-                image_file_name=attrs["file_name"],
-                image_file_checksum=attrs["image_file_checksum"],
-                hashing_algorithm=attrs["hashing_algorithm"],
-                download_url=attrs["download_url"],
-                default_image=attrs["default_image"],
-            )
+        if adapter.job.debug:
+            adapter.job.logger.debug(f"Getting Software: {ids['software_version']}.")
+        _software = ORMSoftware.objects.get(version=ids["software_version"].split(" - ")[1], platform=_platform)
+        _new_soft_image = ORMSoftwareImage(
+            software_version=_software,
+            status=_status,
+            image_file_size=attrs["file_size"],
+            image_file_name=ids["image_file_name"],
+            image_file_checksum=attrs["image_file_checksum"],
+            hashing_algorithm=attrs["hashing_algorithm"],
+            download_url=attrs["download_url"],
+            default_image=attrs["default_image"],
+        )
         if attrs.get("tags"):
             _new_soft_image.validated_save()
             _new_soft_image.tags.clear()
             for tag in attrs["tags"]:
                 _new_soft_image.tags.add(ORMTag.objects.get(name=tag))
-        if attrs.get("device_types") and core_supports_softwareversion():
+        if attrs.get("device_types"):
             _new_soft_image.device_types.set(_device_types)
         _new_soft_image.custom_field_data.update({"system_of_record": os.getenv("SYSTEM_OF_RECORD", "Bootstrap")})
         _new_soft_image.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _new_soft_image.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=_new_soft_image, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=_new_soft_image, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update SoftwareImage in Nautobot from NautobotSoftwareImage object."""
-        if core_supports_softwareversion():
-            self.adapter.job.logger.info(f"Updating Software Image: {self.software_version}.")
-        else:
-            self.adapter.job.logger.info(f"Updating Software Image File: {self.platform} - {self.software}.")
+        self.adapter.job.logger.info(f"Updating Software Image: {self.software_version}.")
         _platform = ORMPlatform.objects.get(name=self.platform)
-        if core_supports_softwareversion():
-            _software = ORMSoftware.objects.get(version=self.software_version.split(" - ")[1], platform=_platform)
-        else:
-            _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
-        if core_supports_softwareversion():
-            _update_soft_image = ORMSoftwareImage.objects.get(software_version=_software)
-        else:
-            _update_soft_image = ORMSoftwareImage.objects.get(software=_software)
+        _software = ORMSoftware.objects.get(version=self.software_version.split(" - ")[1], platform=_platform)
+        _update_soft_image = ORMSoftwareImage.objects.get(software_version=_software)
         if attrs.get("platform"):
             _update_soft_image.platform = _platform
         if "status" in attrs:
@@ -3006,20 +2821,17 @@ class NautobotSoftwareImage(_SoftwareImage_Base_Class):
             )
         _update_soft_image.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         _update_soft_image.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter,
-                obj=_update_soft_image,
-                scoped_fields=SCOPED_FIELDS_MAPPING,
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_soft_image, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
         """Delete SoftwareImage in Nautobot from NautobotSoftwareImage object."""
         try:
             _platform = ORMPlatform.objects.get(name=self.platform)
-            _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
+            _software = ORMSoftware.objects.get(version=self.software_version, platform=_platform)
             _soft_image = ORMSoftwareImage.objects.get(software=_software)
             super().delete()
             _soft_image.delete()
@@ -3045,10 +2857,7 @@ if validate_dlm_installed():
             _object_tags = []  # noqa: F841
             try:
                 _platform = ORMPlatform.objects.get(name=attrs["platform"])
-                if dlm_supports_softwarelcm():
-                    _software = ORMSoftware.objects.get(version=attrs["software_version"], device_platform=_platform)
-                if core_supports_softwareversion():
-                    _software = ORMSoftware.objects.get(version=attrs["software_version"], platform=_platform)
+                _software = ORMSoftware.objects.get(version=attrs["software_version"], platform=_platform)
             except ORMPlatform.DoesNotExist:
                 adapter.job.logger.warning(
                     f"Platform ({attrs['platform']}) not found, unable to create Validated Software."
@@ -3103,13 +2912,10 @@ if validate_dlm_installed():
                     for _tag in attrs["tags"]:
                         _new_validated_software.tags.add(ORMTag.objects.get(name=_tag))
             _new_validated_software.validated_save()
-            if METADATA_FOUND:
-                metadata = add_or_update_metadata_on_object(
-                    adapter=adapter,
-                    obj=_new_validated_software,
-                    scoped_fields=SCOPED_FIELDS_MAPPING,
-                )
-                metadata.validated_save()
+            metadata = add_or_update_metadata_on_object(
+                adapter=adapter, obj=_new_validated_software, scoped_fields=SCOPED_FIELDS_MAPPING
+            )
+            metadata.validated_save()
             return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
         def update(self, attrs):
@@ -3124,10 +2930,7 @@ if validate_dlm_installed():
             _object_tags = []  # noqa: F841
             try:
                 _platform = ORMPlatform.objects.get(name=self.platform)
-                if dlm_supports_softwarelcm():
-                    _software = ORMSoftware.objects.get(version=self.software_version, device_platform=_platform)
-                if core_supports_softwareversion():
-                    _software = ORMSoftware.objects.get(version=self.software_version, platform=_platform)
+                _software = ORMSoftware.objects.get(version=self.software_version, platform=_platform)
             except ORMPlatform.DoesNotExist:
                 self.adapter.job.logger.warning(
                     f"Platform ({attrs['platform']}) not found, unable to create Validated Software."
@@ -3192,13 +2995,10 @@ if validate_dlm_installed():
                 {"last_synced_from_sor": datetime.today().date().isoformat()}
             )
             _update_validated_software.validated_save()
-            if METADATA_FOUND:
-                metadata = add_or_update_metadata_on_object(
-                    adapter=self.adapter,
-                    obj=_update_validated_software,
-                    scoped_fields=SCOPED_FIELDS_MAPPING,
-                )
-                metadata.validated_save()
+            metadata = add_or_update_metadata_on_object(
+                adapter=self.adapter, obj=_update_validated_software, scoped_fields=SCOPED_FIELDS_MAPPING
+            )
+            metadata.validated_save()
             return super().update(attrs)
 
         def delete(self):
@@ -3242,11 +3042,10 @@ class NautobotExternalIntegration(ExternalIntegration):
         )
         new_externalintegration.custom_field_data.update({"last_synced_from_sor": datetime.today().date().isoformat()})
         new_externalintegration.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=adapter, obj=new_externalintegration, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=adapter, obj=new_externalintegration, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
@@ -3293,11 +3092,10 @@ class NautobotExternalIntegration(ExternalIntegration):
             {"last_synced_from_sor": datetime.today().date().isoformat()}
         )
         _update_externalintegration.validated_save()
-        if METADATA_FOUND:
-            metadata = add_or_update_metadata_on_object(
-                adapter=self.adapter, obj=_update_externalintegration, scoped_fields=SCOPED_FIELDS_MAPPING
-            )
-            metadata.validated_save()
+        metadata = add_or_update_metadata_on_object(
+            adapter=self.adapter, obj=_update_externalintegration, scoped_fields=SCOPED_FIELDS_MAPPING
+        )
+        metadata.validated_save()
         return super().update(attrs)
 
     def delete(self):
