@@ -58,10 +58,13 @@ from nautobot_ssot.integrations.bootstrap.diffsync.adapters.nautobot import (
 )
 from nautobot_ssot.integrations.bootstrap.jobs import BootstrapDataSource
 from nautobot_ssot.integrations.bootstrap.utils import get_scheduled_start_time
-from nautobot_ssot.utils import validate_dlm_installed
 
-if validate_dlm_installed():
+try:
     from nautobot_device_lifecycle_mgmt.models import ValidatedSoftwareLCM
+
+    HAS_DLM = True
+except ImportError:
+    HAS_DLM = False
 
 
 def load_yaml(path):
@@ -962,7 +965,7 @@ class NautobotTestSetup:
 
     def _setup_software_and_images(self):
         """Set up software and software images for testing."""
-        # Handle software versions for both old and new Nautobot versions
+        # Handle software versions
         for _software in GLOBAL_YAML_SETTINGS["software_version"]:
             _tags = []
             for _tag in _software["tags"]:
@@ -1005,7 +1008,7 @@ class NautobotTestSetup:
             _soft_image.refresh_from_db()
 
     def _setup_validated_software(self):
-        if not validate_dlm_installed():
+        if not HAS_DLM:
             return
         for validated_software_data in GLOBAL_YAML_SETTINGS["validated_software"]:
             tags = self._get_validated_software_tags(validated_software_data["tags"])
@@ -1017,7 +1020,7 @@ class NautobotTestSetup:
 
             software = self._get_software(validated_software_data["software"])
 
-            validated_software = ValidatedSoftwareLCM.objects.create(  # pylint:disable=possibly-used-before-assignment
+            validated_software = ValidatedSoftwareLCM.objects.create(
                 software=software,
                 start=validated_software_data["valid_since"],
                 end=validated_software_data["valid_until"],
