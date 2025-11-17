@@ -7,34 +7,17 @@ from typing import Optional
 from diffsync import Adapter
 from django.contrib.contenttypes.models import ContentType
 from nautobot.extras.models.metadata import MetadataType, MetadataTypeDataTypeChoices, ObjectMetadata
-from nautobot.extras.models.metadata import MetadataType, MetadataTypeDataTypeChoices, ObjectMetadata
 
 logger = logging.getLogger("nautobot.ssot")
 
 
 def object_has_metadata(obj: object, integration: str) -> Optional[bool]:
     """Check if object has MetadataType assigned to it.
-def object_has_metadata(obj: object, integration: str) -> Optional[bool]:
-    """Check if object has MetadataType assigned to it.
 
     Args:
         obj (object): Object to check for MetadataType.
         integration (str): Name of SSOT integration is use for this Metadata.
-    Args:
-        obj (object): Object to check for MetadataType.
-        integration (str): Name of SSOT integration is use for this Metadata.
 
-    Returns:
-        bool: True if MetadataType is found, False otherwise.
-    """
-    try:
-        ObjectMetadata.objects.get(
-            assigned_object_id=obj.id,
-            metadata_type=MetadataType.objects.get(name=f"Last Sync from {integration}"),
-        )
-        return True
-    except (MetadataType.DoesNotExist, ObjectMetadata.DoesNotExist):
-        return False
     Returns:
         bool: True if MetadataType is found, False otherwise.
     """
@@ -53,15 +36,6 @@ def add_or_update_metadata_on_object(
 ) -> ObjectMetadata:  # pylint: disable=inconsistent-return-statements
     """Add or Update Metadata on passed object and assign scoped fields.
 
-def add_or_update_metadata_on_object(
-    adapter: Adapter, obj: object, scoped_fields: dict[str, list[str]]
-) -> ObjectMetadata:  # pylint: disable=inconsistent-return-statements
-    """Add or Update Metadata on passed object and assign scoped fields.
-
-    Args:
-        adapter (Adapter): Adapter that has logging facility.
-        obj (object): Object to assign Metadata to.
-        scoped_fields (dict[str, list[str]]): Dictionary mapping objects to a list of scoped fields for object.
     Args:
         adapter (Adapter): Adapter that has logging facility.
         obj (object): Object to assign Metadata to.
@@ -95,9 +69,6 @@ def add_or_update_metadata_on_object(
         metadata = ObjectMetadata(assigned_object=obj, metadata_type=last_sync_type, scoped_fields=relevant_fields)
     metadata.value = datetime.now().isoformat(timespec="seconds")
 
-    if adapter.job.debug:
-        adapter.job.logger.debug(f"Metadata {last_sync_type} added to {obj}.")
-    return metadata
     if adapter.job.debug:
         adapter.job.logger.debug(f"Metadata {last_sync_type} added to {obj}.")
     return metadata

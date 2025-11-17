@@ -652,20 +652,24 @@ class NautobotRemote(Adapter):
     def load_ipaddresses(self):
         """Load IPAddresses data from the remote Nautobot instance."""
         for ipaddr_entry in self._get_api_data("api/ipam/ip-addresses/", depth=2):
-            ipaddr = self.ipaddress(
-                host=ipaddr_entry["host"],
-                mask_length=ipaddr_entry["mask_length"],
-                parent__network=ipaddr_entry["parent"]["network"],
-                parent__prefix_length=ipaddr_entry["parent"]["prefix_length"],
-                parent__namespace__name=ipaddr_entry["parent"]["namespace"]["name"],
-                status__name=ipaddr_entry["status"]["name"],
-                ip_version=ipaddr_entry["ip_version"],
-                tenant__name=ipaddr_entry["tenant"]["name"] if ipaddr_entry.get("tenant") else None,
-                tags=ipaddr_entry["tags"] if ipaddr_entry.get("tags") else [],
-                pk=ipaddr_entry["id"],
+            ipaddr, loaded = self.get_or_instantiate(
+                self.ipaddress,
+                ids={
+                    "host": ipaddr_entry["host"],
+                    "mask_length": ipaddr_entry["mask_length"],
+                    "parent__network": ipaddr_entry["parent"]["network"],
+                    "parent__prefix_length": ipaddr_entry["parent"]["prefix_length"],
+                    "parent__namespace__name": ipaddr_entry["parent"]["namespace"]["name"],
+                },
+                attrs={
+                    "status__name": ipaddr_entry["status"]["name"],
+                    "ip_version": ipaddr_entry["ip_version"],
+                    "tenant__name": ipaddr_entry["tenant"]["name"] if ipaddr_entry.get("tenant") else None,
+                    "tags": ipaddr_entry["tags"] if ipaddr_entry.get("tags") else [],
+                    "pk": ipaddr_entry["id"],
+                },
             )
-            self.add(ipaddr)
-            if self.job.debug:
+            if loaded and self.job.debug:
                 self.job.logger.debug(f"Loaded {ipaddr} from remote Nautobot instance")
 
     def load_manufacturers(self):
@@ -761,29 +765,30 @@ class NautobotRemote(Adapter):
                         f"Skipping Interface {interface['name']} because it has no Device associated with it."
                     )
                     continue
-                new_interface = self.interface(
-                    name=interface["name"],
-                    device__name=interface["device"]["name"],
-                    device__location__name=interface["device"]["location"]["name"],
-                    device__location__parent__name=interface["device"]["location"]["parent"]["name"],
-                    description=interface["description"],
-                    enabled=interface["enabled"],
-                    mac_address=interface["mac_address"],
-                    mgmt_only=interface["mgmt_only"],
-                    mtu=interface["mtu"],
-                    type=interface["type"]["value"],
-                    status__name=interface["status"]["name"],
-                    tags=interface["tags"] if interface.get("tags") else [],
-                    pk=interface["id"],
-                )
-                self.add(new_interface)
-                if self.job.debug:
-                    self.job.logger.debug(
-                        f"Loaded {new_interface} for {interface['device']['name']} from remote Nautobot instance"
+                try:
+                    new_interface = self.interface(
+                        name=interface["name"],
+                        device__name=interface["device"]["name"],
+                        device__location__name=interface["device"]["location"]["name"],
+                        device__location__parent__name=interface["device"]["location"]["parent"]["name"],
+                        description=interface["description"],
+                        enabled=interface["enabled"],
+                        mac_address=interface["mac_address"],
+                        mgmt_only=interface["mgmt_only"],
+                        mtu=interface["mtu"],
+                        type=interface["type"]["value"],
+                        status__name=interface["status"]["name"],
+                        tags=interface["tags"] if interface.get("tags") else [],
+                        pk=interface["id"],
                     )
-                dev.add_child(new_interface)
-            except ObjectNotFound:
-                self.job.logger.warning(f"Unable to find Device {interface['device']['name']} loaded.")
+                    self.add(new_interface)
+                    if self.job.debug:
+                        self.job.logger.debug(
+                            f"Loaded {new_interface} for {interface['device']['name']} from remote Nautobot instance"
+                        )
+                    device.add_child(new_interface)
+                except ObjectNotFound:
+                    self.job.logger.warning(f"Unable to find Device {interface['device']['name']} loaded.")
 
     def get_content_types(self, entry):
         """Create list of dicts of ContentTypes.
