@@ -344,14 +344,14 @@ dev = ["backports.zoneinfo ; python_version < \"3.9\"", "freezegun (>=1.0,<2.0)"
 
 [[package]]
 name = "billiard"
-version = "4.2.2"
+version = "4.2.3"
 description = "Python multiprocessing fork with improvements and bugfixes"
 optional = false
 python-versions = ">=3.7"
 groups = ["main"]
 files = [
-    {file = "billiard-4.2.2-py3-none-any.whl", hash = "sha256:4bc05dcf0d1cc6addef470723aac2a6232f3c7ed7475b0b580473a9145829457"},
-    {file = "billiard-4.2.2.tar.gz", hash = "sha256:e815017a062b714958463e07ba15981d802dc53d41c5b69d28c5a7c238f8ecf3"},
+    {file = "billiard-4.2.3-py3-none-any.whl", hash = "sha256:989e9b688e3abf153f307b68a1328dfacfb954e30a4f920005654e276c69236b"},
+    {file = "billiard-4.2.3.tar.gz", hash = "sha256:96486f0885afc38219d02d5f0ccd5bec8226a414b834ab244008cbb0025b8dcb"},
 ]
 
 [[package]]
@@ -1267,24 +1267,28 @@ files = [
 
 [[package]]
 name = "diffsync"
-version = "2.1.0"
+version = "2.1.1a0"
 description = "Library to easily sync/diff/update 2 different data sources"
 optional = false
-python-versions = "<4.0,>=3.9"
+python-versions = ">=3.9,<4.0"
 groups = ["main"]
-files = [
-    {file = "diffsync-2.1.0-py3-none-any.whl", hash = "sha256:ffffdab7db9c3a1fc201da34b8803ad2a4d3088f30f424f60b0490850bd55437"},
-    {file = "diffsync-2.1.0.tar.gz", hash = "sha256:fb513c4a66f5c62b781796de23f361f8b1710901844667f8ccbe650ae58b27f0"},
-]
+files = []
+develop = false
 
 [package.dependencies]
-packaging = ">=21.3"
-pydantic = ">=2.0.0,<3.0.0"
-structlog = ">=20.1.0"
+packaging = ">= 21.3"
+pydantic = "^2.0.0"
+structlog = ">= 20.1.0"
 typing-extensions = {version = ">=4.0.1", markers = "python_version < \"3.11\""}
 
 [package.extras]
 redis = ["redis (>=4.3,<5.0)"]
+
+[package.source]
+type = "git"
+url = "https://github.com/networktocode/diffsync.git"
+reference = "develop"
+resolved_reference = "b9b13f842eb808c69411511c3a6c044f537275b8"
 
 [[package]]
 name = "dill"
@@ -1976,7 +1980,6 @@ description = "A platform independent file lock."
 optional = false
 python-versions = ">=3.10"
 groups = ["dev"]
-markers = "python_version < \"3.11\""
 files = [
     {file = "filelock-3.20.0-py3-none-any.whl", hash = "sha256:339b4732ffda5cd79b13f4e2711a31b0365ce445d95d243bb996273d072546a2"},
     {file = "filelock-3.20.0.tar.gz", hash = "sha256:711e943b4ec6be42e1d4e6690b48dc175c822967466bb31c0c293f34334c13f4"},
@@ -4029,14 +4032,14 @@ testing-docutils = ["pygments", "pytest (>=7,<8)", "pytest-param-files (>=0.3.4,
 
 [[package]]
 name = "nautobot"
-version = "3.0.0rc2"
+version = "3.0.0"
 description = "Source of truth and network automation platform."
 optional = false
 python-versions = "<3.14,>=3.10"
 groups = ["main"]
 files = [
-    {file = "nautobot-3.0.0rc2-py3-none-any.whl", hash = "sha256:cc8fa5c5560e52336dc93b63eca6beed3c0e13acb2aeabae91cf38bba5f99a8b"},
-    {file = "nautobot-3.0.0rc2.tar.gz", hash = "sha256:78209f55809a77fbb281afa0668ca942aedfebe7544064a9dd64f9ea9e92f637"},
+    {file = "nautobot-3.0.0-py3-none-any.whl", hash = "sha256:8c75b03563b793c1e626ba08d9c74b21e93b3168af13e2ca742781c6e7ffe641"},
+    {file = "nautobot-3.0.0.tar.gz", hash = "sha256:c159e66c09b3ed5d34927641da97066214fbb782b0adf0638ccd6f3f6d5d1667"},
 ]
 
 [package.dependencies]
@@ -4095,20 +4098,20 @@ sso = ["social-auth-core[saml] (>=4.8.1,<4.9.0)"]
 
 [[package]]
 name = "nautobot-device-lifecycle-mgmt"
-version = "4.0.0a2"
+version = "4.0.0"
 description = "Manages device lifecycles for platforms and software."
 optional = true
 python-versions = "<3.14,>=3.10"
 groups = ["main"]
 markers = "extra == \"all\" or extra == \"nautobot-device-lifecycle-mgmt\""
 files = [
-    {file = "nautobot_device_lifecycle_mgmt-4.0.0a2-py3-none-any.whl", hash = "sha256:080b06fd839ec197088aafd7230ee8aa64a8cd7fb06e57b32079ab53bdd033e1"},
-    {file = "nautobot_device_lifecycle_mgmt-4.0.0a2.tar.gz", hash = "sha256:66b3c00422e85ad2561cf79cb97fe95758bf116feabf0bf83565dab297e6a3e1"},
+    {file = "nautobot_device_lifecycle_mgmt-4.0.0-py3-none-any.whl", hash = "sha256:36ddccc92356f9d31f85620171034d17569aaa74ca4e6c49bfd8a40bb54d8925"},
+    {file = "nautobot_device_lifecycle_mgmt-4.0.0.tar.gz", hash = "sha256:aa2cf9937af3db25cb71e824d813e3c6c19b8791c88e9a636148e19f8e79f23b"},
 ]
 
 [package.dependencies]
 matplotlib = ">=3.3.4,<4.0.0"
-nautobot = ">=3.0.0a2,<3.0.0rc99"
+nautobot = ">=3.0.0,<4.0.0"
 netutils = ">=1.14.1"
 numpy = ">=1.26,<2.0"
 pycountry = ">=22.3.5,<23.0.0"
@@ -5294,7 +5297,7 @@ colorama = {version = ">=0.4.5", markers = "sys_platform == \"win32\""}
 dill = [
     {version = ">=0.2", markers = "python_version < \"3.11\""},
     {version = ">=0.3.7", markers = "python_version >= \"3.12\""},
-    {version = ">=0.3.6", markers = "python_version >= \"3.11\""},
+    {version = ">=0.3.6", markers = "python_version == \"3.11\""},
 ]
 isort = ">=4.2.5,<5.13 || >5.13,<7"
 mccabe = ">=0.6,<0.8"
@@ -5622,13 +5625,6 @@ optional = false
 python-versions = ">=3.8"
 groups = ["main", "dev", "docs"]
 files = [
-    {file = "PyYAML-6.0.3-cp38-cp38-macosx_10_13_x86_64.whl", hash = "sha256:c2514fceb77bc5e7a2f7adfaa1feb2fb311607c9cb518dbc378688ec73d8292f"},
-    {file = "PyYAML-6.0.3-cp38-cp38-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:9c57bb8c96f6d1808c030b1687b9b5fb476abaa47f0db9c0101f5e9f394e97f4"},
-    {file = "PyYAML-6.0.3-cp38-cp38-manylinux2014_s390x.manylinux_2_17_s390x.manylinux_2_28_s390x.whl", hash = "sha256:efd7b85f94a6f21e4932043973a7ba2613b059c4a000551892ac9f1d11f5baf3"},
-    {file = "PyYAML-6.0.3-cp38-cp38-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:22ba7cfcad58ef3ecddc7ed1db3409af68d023b7f940da23c6c2a1890976eda6"},
-    {file = "PyYAML-6.0.3-cp38-cp38-musllinux_1_2_x86_64.whl", hash = "sha256:6344df0d5755a2c9a276d4473ae6b90647e216ab4757f8426893b5dd2ac3f369"},
-    {file = "PyYAML-6.0.3-cp38-cp38-win32.whl", hash = "sha256:3ff07ec89bae51176c0549bc4c63aa6202991da2d9a6129d7aef7f1407d3f295"},
-    {file = "PyYAML-6.0.3-cp38-cp38-win_amd64.whl", hash = "sha256:5cf4e27da7e3fbed4d6c3d8e797387aaad68102272f8f9752883bc32d61cb87b"},
     {file = "PyYAML-6.0.3-cp38-cp38-macosx_10_13_x86_64.whl", hash = "sha256:c2514fceb77bc5e7a2f7adfaa1feb2fb311607c9cb518dbc378688ec73d8292f"},
     {file = "PyYAML-6.0.3-cp38-cp38-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:9c57bb8c96f6d1808c030b1687b9b5fb476abaa47f0db9c0101f5e9f394e97f4"},
     {file = "PyYAML-6.0.3-cp38-cp38-manylinux2014_s390x.manylinux_2_17_s390x.manylinux_2_28_s390x.whl", hash = "sha256:efd7b85f94a6f21e4932043973a7ba2613b059c4a000551892ac9f1d11f5baf3"},
@@ -7219,4 +7215,4 @@ slurpit = ["slurpit-sdk"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "d25ac04fb34665d7975179be7f9aa18cd1d6a9f8b882694bd279d8b55e9a249d"
+content-hash = "12136705660af834435181deafd8f0052b9c584f9cb4356019ae64bce6c1dc56"
