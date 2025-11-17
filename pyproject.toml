@@ -29,7 +29,6 @@ include = [
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.14"
-python = ">=3.10,<3.14"
 # Used for local development
 nautobot = "^3.0.0"
 # diffsync = "^2.0.0"
@@ -61,8 +60,6 @@ django-enum = "^2.2.5"
 
 [tool.poetry.group.dev.dependencies]
 coverage = "*"
-# Currently pinned to 5.2.0 due to https://github.com/django-commons/django-debug-toolbar/issues/2168
-django-debug-toolbar = "~5.2.0"
 # Currently pinned to 5.2.0 due to https://github.com/django-commons/django-debug-toolbar/issues/2168
 django-debug-toolbar = "~5.2.0"
 invoke = "*"
