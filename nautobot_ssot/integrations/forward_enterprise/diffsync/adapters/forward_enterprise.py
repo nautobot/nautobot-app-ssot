@@ -102,8 +102,9 @@ class ForwardEnterpriseAdapter(DiffSync):
         self.loaded_vrfs = set()  # Track loaded VRFs to prevent duplicates
 
         # Handle namespace with default (adapter responsibility, not job responsibility)
+        # Ensure the Namespace exists.
         if namespace is None and sync_ipam:
-            namespace = Namespace.objects.get(name="Global")
+            namespace, _ = Namespace.objects.get_or_create(name="Global")
         self.namespace = namespace
 
         # Get verify_ssl from job's External Integration
