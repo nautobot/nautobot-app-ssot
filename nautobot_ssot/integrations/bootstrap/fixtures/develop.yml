@@ -1,2 +1,10 @@
 ---
-git_branch: "develop"
+git_repository:
+  - name: "default"
+    branch: "develop"
+# git_branch: "develop" # this method has been deprecated, use above method
+scheduled_job:
+  - name: "Test Scheduled Job"
+    job_vars:
+      integration: 1234567890
+      tenant: 987765412

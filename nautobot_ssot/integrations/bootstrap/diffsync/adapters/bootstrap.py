@@ -214,11 +214,57 @@ class BootstrapAdapter(Adapter, LabelMixin):
         self.sync = sync
         self.conn = client
 
+    def load_branch_values(self, item_type, original_item, keys=None):
+        """Load any extra values from branch override files, supporting single or list keys."""
+        if not keys:
+            keys = ["name"]
+        elif not isinstance(keys, list):
+            keys = [keys]
+
+        def check_all_keys_match(branch_item, original_item, keys):
+            """Returns True if all values defined by lookup_key match between the two items."""
+            for k in keys:
+                original_value = original_item.get(k)
+                branch_value = branch_item.get(k)
+
+                # Not a match
+                if branch_value is None or branch_value != original_value:
+                    return False
+
+            # Match, same object
+            return True
+
+        if branch_items := self.branch_vars.get(item_type):
+            for branch_item in branch_items:
+                if branch_item.get("name") == "default":
+                    continue
+
+                if check_all_keys_match(branch_item, original_item, keys):
+                    if self.job.debug:
+                        self.job.logger.debug(f"Loading branch values to {original_item}, values: {branch_item}")
+
+                    original_item = original_item | branch_item  # branch/specific value always 'wins'
+                    break
+
+            default_values = [obj for obj in branch_items if obj.get("name") == "default"]
+            if default_values:
+                default_values_filtered = {
+                    k: v for k, v in default_values[0].items() if k not in keys
+                }  # don't override name/keys to 'default'
+                if self.job.debug:
+                    self.job.logger.debug(
+                        f"Loading only missing default values to {original_item}, possible values: {default_values_filtered}"
+                    )
+                original_item = default_values_filtered | original_item  # original value always 'wins'
+
+        return original_item
+
     def load_tenant_group(self, bs_tenant_group):
         """Load TenantGroup objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap TenantGroup: {bs_tenant_group}")
 
+        bs_tenant_group = self.load_branch_values(item_type="tenant_group", original_item=bs_tenant_group)
         try:
             self.get(self.tenant_group, bs_tenant_group["name"])
         except ObjectNotFound:
@@ -235,6 +281,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Tenant: {bs_tenant}")
 
+        bs_tenant = self.load_branch_values(item_type="tenant", original_item=bs_tenant)
         try:
             self.get(self.tenant, bs_tenant["name"])
         except ObjectNotFound:
@@ -252,6 +299,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Role {bs_role}")
 
+        bs_role = self.load_branch_values(item_type="role", original_item=bs_role)
         if len(bs_role["content_types"]) > 1:
             _content_types = bs_role["content_types"]
             _content_types.sort()
@@ -275,6 +323,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         if self.job.debug:
             self.job.logger.debug(f"Loading Boostrap Manufacturer {bs_manufacturer}")
 
+        bs_manufacturer = self.load_branch_values(item_type="manufacturer", original_item=bs_manufacturer)
         try:
             self.get(self.manufacturer, bs_manufacturer["name"])
         except ObjectNotFound:
@@ -290,6 +339,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Platform {bs_platform}")
 
+        bs_platform = self.load_branch_values(item_type="platform", original_item=bs_platform)
         try:
             self.get(self.platform, bs_platform["name"])
         except ObjectNotFound:
@@ -309,11 +359,12 @@ class BootstrapAdapter(Adapter, LabelMixin):
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap LocationType {bs_location_type}")
 
+        bs_location_type = self.load_branch_values(item_type="location_type", original_item=bs_location_type)
         try:
             self.get(self.location_type, bs_location_type["name"])
         except ObjectNotFound:
             _content_types = []
-            if bs_location_type["parent"]:
+            if bs_location_type.get("parent"):
                 _parent = bs_location_type["parent"]
             else:
                 _parent = None
@@ -335,10 +386,11 @@ class BootstrapAdapter(Adapter, LabelMixin):
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Location {bs_location}")
 
+        bs_location = self.load_branch_values(item_type="location", original_item=bs_location)
         try:
             self.get(self.location, bs_location["name"])
         except ObjectNotFound:
-            if bs_location["parent"]:
+            if bs_location.get("parent"):
                 _parent = bs_location["parent"]
             else:
                 _parent = None
@@ -373,6 +425,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Team {bs_team}")
 
+        bs_team = self.load_branch_values(item_type="team", original_item=bs_team)
         if "contacts" in bs_team:
             _contacts = []
             for _contact in bs_team["contacts"]:
@@ -397,6 +450,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         if self.job.debug:
             self.job.logger.debug(f"Loading Boostrap Contact {bs_contact}")
 
+        bs_contact = self.load_branch_values(item_type="contact", original_item=bs_contact)
         if "teams" in bs_contact:
             _teams = []
             for _team in bs_contact["teams"]:
@@ -420,6 +474,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Provider {bs_provider}")
 
+        bs_provider = self.load_branch_values(item_type="provider", original_item=bs_provider)
         try:
             self.get(self.provider, bs_provider["name"])
         except ObjectNotFound:
@@ -440,6 +495,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap ProviderNetwork {bs_provider_network}")
 
+        bs_provider_network = self.load_branch_values(item_type="provider_network", original_item=bs_provider_network)
         try:
             self.get(self.provider_network, bs_provider_network["name"])
         except ObjectNotFound:
@@ -458,6 +514,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap CircuitType {bs_circuit_type} into DiffSync models.")
 
+        bs_circuit_type = self.load_branch_values(item_type="circuit_type", original_item=bs_circuit_type)
         try:
             self.get(self.circuit_type, bs_circuit_type["name"])
         except ObjectNotFound:
@@ -473,6 +530,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Circuit {bs_circuit} into DiffSync models.")
 
+        bs_circuit = self.load_branch_values(item_type="circuit", original_item=bs_circuit, keys="circuit_id")
         try:
             self.get(self.circuit, bs_circuit["circuit_id"])
         except ObjectNotFound:
@@ -495,6 +553,9 @@ class BootstrapAdapter(Adapter, LabelMixin):
             self.job.logger.debug(
                 f"Loading Bootstrap CircuitTermination {bs_circuit_termination} into DiffSync models."
             )
+        bs_circuit_termination = self.load_branch_values(
+            item_type="circuit_termination", original_item=bs_circuit_termination
+        )
         _parts = bs_circuit_termination["name"].split("__")
         _circuit_id = _parts[0]
         _provider = _parts[1]
@@ -534,6 +595,8 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load Namespace objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Namespace {bs_namespace}.")
+
+        bs_namespace = self.load_branch_values(item_type="namespace", original_item=bs_namespace)
         try:
             self.get(self.namespace, bs_namespace["name"])
         except ObjectNotFound:
@@ -549,6 +612,8 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load RiR objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap RiR {bs_rir}.")
+
+        bs_rir = self.load_branch_values(item_type="rir", original_item=bs_rir)
         try:
             self.get(self.rir, bs_rir["name"])
         except ObjectNotFound:
@@ -564,6 +629,8 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load VLANGroup objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap VLANGroup {bs_vlan_group}.")
+
+        bs_vlan_group = self.load_branch_values(item_type="vlan_group", original_item=bs_vlan_group)
         try:
             self.get(self.vlan_group, bs_vlan_group["name"])
         except ObjectNotFound:
@@ -579,6 +646,8 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load VLAN objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap VLAN {bs_vlan}.")
+
+        bs_vlan = self.load_branch_values(item_type="vlan", original_item=bs_vlan, keys=["name", "vlan_group"])
         try:
             self.get(
                 self.vlan,
@@ -607,6 +676,8 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load VRF objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap VRF {bs_vrf}.")
+
+        bs_vrf = self.load_branch_values(item_type="vrf", original_item=bs_vrf)
         try:
             self.get(
                 self.vrf,
@@ -631,6 +702,8 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load Prefix objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Prefix {bs_prefix}.")
+
+        bs_prefix = self.load_branch_values(item_type="prefix", original_item=bs_prefix, keys=["network", "namespace"])
         try:
             self.get(
                 self.prefix,
@@ -682,6 +755,8 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load Secret objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Secret: {bs_secret}")
+
+        bs_secret = self.load_branch_values(item_type="secret", original_item=bs_secret)
         if bs_secret["provider"] == "environment-variable":
             params = {"variable": bs_secret["parameters"]["variable"]}
         elif bs_secret["provider"] == "text-file":
@@ -706,6 +781,8 @@ class BootstrapAdapter(Adapter, LabelMixin):
         _secrets = []
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap SecretsGroup: {bs_sg}")
+
+        bs_sg = self.load_branch_values(item_type="secrets_group", original_item=bs_sg)
         try:
             self.get(self.secrets_group, bs_sg["name"])
         except ObjectNotFound:
@@ -719,10 +796,11 @@ class BootstrapAdapter(Adapter, LabelMixin):
             )
             self.add(new_secrets_group)
 
-    def load_git_repository(self, git_repo, branch_vars):
+    def load_git_repository(self, git_repo):
         """Load GitRepository objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap GitRepository: {git_repo}")
+        git_repo = self.load_branch_values(item_type="git_repository", original_item=git_repo)
         try:
             self.get(self.git_repository, git_repo["name"])
         except ObjectNotFound:
@@ -730,14 +808,16 @@ class BootstrapAdapter(Adapter, LabelMixin):
             for con_type in git_repo["provided_data_type"]:
                 _content_type = lookup_content_type(content_model_path="extras.gitrepository", content_type=con_type)
                 _data_types.append(_content_type)
-            if git_repo.get("branch"):
-                _branch = git_repo["branch"]
-            else:
-                _branch = branch_vars["git_branch"]
+
+            if not git_repo.get("branch"):
+                git_repo["branch"] = self.branch_vars.get(
+                    "git_branch"
+                )  # temporary backwards compatibility -- remove in v4
+
             new_git_repository = self.git_repository(
                 name=git_repo["name"],
                 url=git_repo["url"],
-                branch=_branch,
+                branch=git_repo.get("branch"),
                 provided_contents=_data_types,
                 secrets_group=git_repo["secrets_group_name"],
                 system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
@@ -749,6 +829,8 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load DynamicGroup objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap DynamicGroup: {dyn_group}")
+
+        dyn_group = self.load_branch_values(item_type="dynamic_group", original_item=dyn_group)
         try:
             self.get(self.dynamic_group, dyn_group["name"])
         except ObjectNotFound:
@@ -765,6 +847,8 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load ComputedField objects from Bootstrap into DiffSync Models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap ComputedField: {comp_field}")
+
+        comp_field = self.load_branch_values(item_type="computed_field", original_item=comp_field, keys=["label"])
         try:
             self.get(self.computed_field, comp_field["label"])
         except ObjectNotFound:
@@ -779,6 +863,8 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load CustomField objects from Bootstrap into DiffSync Models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap CustomField: {custom_field}")
+
+        custom_field = self.load_branch_values(item_type="custom_field", original_item=custom_field, keys=["label"])
         for key in ["label", "type", "content_types"]:
             if key not in custom_field:
                 self.job.logger.error(
@@ -813,6 +899,8 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load Tag objects from Bootstrap into DiffSync Models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Tag: {tag}")
+
+        tag = self.load_branch_values(item_type="tag", original_item=tag)
         if len(tag["content_types"]) > 1:
             _content_types = tag["content_types"]
             _content_types.sort()
@@ -834,6 +922,8 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load GraphQLQuery objects from Bootstrap into DiffSync Models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap GraphQLQuery {query}")
+
+        query = self.load_branch_values(item_type="graph_ql_query", original_item=query)
         try:
             self.get(self.graph_ql_query, query["name"])
         except ObjectNotFound:
@@ -844,6 +934,8 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load ScheduledJob objects from Bootstrap into DiffSync Models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap ScheduledJob {scheduled_job}")
+        print(f"\n\n\nHUHUHWHAT: {scheduled_job=}")
+        scheduled_job = self.load_branch_values(item_type="scheduled_job", original_item=scheduled_job)
         try:
             self.get(self.scheduled_job, scheduled_job["name"])
         except ObjectNotFound:
@@ -893,11 +985,14 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load Software objects from Bootstrap into DiffSync Models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap Software {software}")
+
+        software = self.load_branch_values(item_type="software", original_item=software, keys=["platform", "version"])
         if not software.get("version") or not software.get("platform"):
             self.job.logger.warning(
                 f"Software: {software} is not formatted correctly in the yaml file. Version and platform are required."
             )
             return
+
         try:
             self.get(
                 self.software_version,
@@ -915,7 +1010,6 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 _eos_date = datetime.datetime.strptime(software["eos_date"], "%Y-%m-%d")
             except (TypeError, KeyError):
                 _eos_date = None
-
             _documentation_url = software.get("documentation_url", "")
             _alias = software.get("alias", "")
             _lts = software.get("lts", False)
@@ -947,6 +1041,10 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load SoftwareImage objects from Bootstrap into DiffSync Models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap SoftwareImage {software_image}")
+
+        software_image = self.load_branch_values(
+            item_type="software_image", original_item=software_image, keys=["software"]
+        )
         try:
             self.get(
                 self.software_image_file,
@@ -985,6 +1083,10 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load ValidatedSoftware objects from Bootstrap into DiffSync Models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap ValidatedSoftware {validated_software}")
+
+        validated_software = self.load_branch_values(
+            item_type="validated_software", original_item=validated_software, keys=["software"]
+        )
         try:
             self.get(
                 self.validated_software,
@@ -1016,6 +1118,8 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load ExternalIntegration objects from Bootstrap into DiffSync models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap ExternalIntegration: {ext_int}")
+
+        ext_int = self.load_branch_values(item_type="external_integration", original_item=ext_int)
         try:
             self.get(self.external_integration, ext_int["name"])
         except ObjectNotFound:
@@ -1059,6 +1163,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                     globals()[variable_name] = yaml_data
 
             branch_vars = globals()[environment_label]
+            self.branch_vars = branch_vars
             global_settings = globals().get("global_settings")
 
         elif load_type == "git":
@@ -1087,6 +1192,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                         globals()[variable_name] = yaml_data
 
                 branch_vars = globals()[environment_label]
+                self.branch_vars = branch_vars
                 global_settings = globals().get("global_settings")
 
         # Ensure global_settings is loaded
@@ -1253,7 +1359,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 self.job.logger.warning("git_repository not found in global_settings. Check if the key exists.")
             elif global_settings["git_repository"] is not None:  # noqa: F821
                 for git_repo in global_settings["git_repository"]:  # noqa: F821
-                    self.load_git_repository(git_repo=git_repo, branch_vars=branch_vars)
+                    self.load_git_repository(git_repo=git_repo)
 
         if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["dynamic_group"]:
             if not global_settings.get("dynamic_group"):  # noqa: F821
