@@ -139,8 +139,9 @@ class ProcessRecordsJob(Job):
                 record = SyncRecord.objects.get(
                     obj_type=event_dict["model"], obj_name=event_dict["unique_id"], sync=self.records[0].sync
                 )
-                record.status = Status.objects.get(name=STATUS_MAP[event_dict["status"]])
-                record.message = event_dict["event"] if event_dict.get("event") else ""
+                if record.status != Status.objects.get(name="Successful"):
+                    record.status = Status.objects.get(name=STATUS_MAP[event_dict["status"]])
+                    record.message = event_dict["event"] if event_dict.get("event") else ""
                 if synced_object:
                     record.synced_object_id = synced_object.id
                     record.synced_object_type = ContentType.objects.get_for_model(synced_object)
