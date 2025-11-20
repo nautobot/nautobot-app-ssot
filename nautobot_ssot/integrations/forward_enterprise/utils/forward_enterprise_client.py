@@ -236,10 +236,10 @@ class ForwardEnterpriseClient:
 
                 try:
                     data = response.json()
-                except ValueError as e:
+                except ValueError as error_data:
                     raise ForwardEnterpriseAPIError(
-                        f"Invalid JSON response from API: {e}", response_content=response.text
-                    ) from e
+                        f"Invalid JSON response from API: {error_data}", response_content=response.text
+                    ) from error_data
 
                 # Handle API-level errors in response
                 if isinstance(data, dict) and data.get("error"):
