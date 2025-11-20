@@ -27,6 +27,7 @@ _CONFLICTING_APP_NAMES = [
     "nautobot_ssot_meraki",
     "nautobot_ssot_servicenow",
     "nautobot_ssot_solarwinds",
+    "nautobot_ssot_forward_enterprise",
 ]
 
 
@@ -109,6 +110,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "enable_slurpit": False,
         "enable_solarwinds": False,
         "enable_itential": False,
+        "enable_forward_enterprise": False,
         "hide_example_jobs": True,
         "ipfabric_api_token": "",
         "ipfabric_host": "",
