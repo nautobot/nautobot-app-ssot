@@ -23,7 +23,6 @@ from nautobot_ssot.integrations.aristacv.diffsync.models.nautobot import (
     NautobotPrefix,
 )
 from nautobot_ssot.integrations.aristacv.types import CloudVisionAppConfig
-from nautobot_ssot.integrations.aristacv.utils import nautobot
 
 
 class NautobotAdapter(Adapter):
@@ -54,7 +53,7 @@ class NautobotAdapter(Adapter):
                     device_model=dev.device_type.model,
                     serial=dev.serial,
                     status=dev.status.name,
-                    version=nautobot.get_device_version(dev),
+                    version=dev.software_version.version if dev.software_version else None,
                     uuid=dev.id,
                 )
                 self.add(new_device)

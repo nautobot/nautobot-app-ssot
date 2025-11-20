@@ -2,7 +2,6 @@
 
 from decimal import Decimal
 from typing import Optional
-from uuid import UUID
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
@@ -17,8 +16,8 @@ from nautobot.dcim.models import Location as OrmSite
 from nautobot.dcim.models import Manufacturer as OrmManufacturer
 from nautobot.dcim.models import Rack as OrmRack
 from nautobot.dcim.models import RackGroup as OrmRackGroup
+from nautobot.dcim.models import SoftwareVersion as OrmSoftwareVersion
 from nautobot.dcim.models import VirtualChassis as OrmVC
-from nautobot.extras.models import RelationshipAssociation
 from nautobot.extras.models import Status as OrmStatus
 
 from nautobot_ssot.integrations.device42.constant import DEFAULTS, INTF_SPEED_MAP, PLUGIN_CFG
@@ -34,15 +33,6 @@ from nautobot_ssot.integrations.device42.diffsync.models.base.dcim import (
     Vendor,
 )
 from nautobot_ssot.integrations.device42.utils import device42, nautobot
-from nautobot_ssot.jobs.base import DataSource
-
-try:
-    from nautobot_device_lifecycle_mgmt.models import SoftwareLCM
-
-    LIFECYCLE_MGMT = True
-except (ImportError, RuntimeError):
-    print("Device Lifecycle app isn't installed so will revert to CustomField for OS version.")
-    LIFECYCLE_MGMT = False
 
 
 class NautobotBuilding(Building):
@@ -433,15 +423,12 @@ class NautobotDevice(Device):
                 manu=adapter.vendor_map[devicetype.manufacturer],
             )
         if attrs.get("os_version"):
-            if LIFECYCLE_MGMT and attrs.get("os"):
-                manu_id = new_device.device_type.manufacturer.id
-                if manu_id:
-                    soft_lcm = cls._add_software_lcm(
-                        adapter=adapter, os=attrs["os"], version=attrs["os_version"], manufacturer=manu_id
-                    )
-                    cls._assign_version_to_device(adapter=adapter, device=new_device.id, software_lcm=soft_lcm)
-            else:
-                attrs["custom_fields"].append({"key": "OS Version", "value": attrs["os_version"]})
+            if attrs.get("os"):
+                new_device.software_version = OrmSoftwareVersion.objects.get_or_create(
+                    platform_id=new_device.platform_id,
+                    version=attrs["os_version"],
+                    defaults={"status_id": adapter.status_map["Active"]},
+                )[0].id
         if attrs.get("cluster_host"):
             try:
                 _vc = adapter.cluster_map[attrs["cluster_host"]]
@@ -513,21 +500,11 @@ class NautobotDevice(Device):
             else:
                 _os = self.os
             if attrs.get("os_version"):
-                if LIFECYCLE_MGMT:
-                    soft_lcm = self._add_software_lcm(
-                        adapter=self.adapter,
-                        os=_os,
-                        version=attrs["os_version"],
-                        manufacturer=_dev.device_type.manufacturer.id,
-                    )
-                    self._assign_version_to_device(adapter=self.adapter, device=_dev.id, software_lcm=soft_lcm)
-                else:
-                    attrs["custom_fields"].append(
-                        {
-                            "key": "OS Version",
-                            "value": attrs["os_version"] if attrs.get("os_version") else self.os_version,
-                        }
-                    )
+                _dev.software_version_id = OrmSoftwareVersion.objects.get_or_create(
+                    platform_id=_dev.platform_id,
+                    version=attrs["os_version"],
+                    defaults={"status_id": self.adapter.status_map["Active"]},
+                )[0].id
         if "in_service" in attrs:
             if attrs["in_service"]:
                 _status = self.adapter.status_map["Active"]
@@ -606,54 +583,6 @@ class NautobotDevice(Device):
             _dev = OrmDevice.objects.get(id=self.uuid)
             self.adapter.objects_to_delete["device"].append(_dev)  # pylint: disable=protected-access
         return self
-
-    @staticmethod
-    def _add_software_lcm(adapter: DataSource, os: str, version: str, manufacturer: UUID):
-        """Add OS Version as SoftwareLCM if Device Lifecycle App found."""
-        _platform = nautobot.verify_platform(adapter=adapter, platform_name=os, manu=manufacturer)
-        try:
-            os_ver = adapter.softwarelcm_map[os][version]
-        except KeyError:
-            os_ver = SoftwareLCM(
-                device_platform_id=_platform,
-                version=version,
-            )
-            try:
-                os_ver.validated_save()
-            except ValidationError as err:
-                adapter.job.logger.warning(f"Error trying to create SoftwareLCM: {err}.")
-                return None
-            if os not in adapter.softwarelcm_map:
-                adapter.softwarelcm_map[os] = {}
-            adapter.softwarelcm_map[os][version] = os_ver.id
-            os_ver = os_ver.id
-        return os_ver
-
-    @staticmethod
-    def _assign_version_to_device(adapter, device: UUID, software_lcm: UUID):
-        """Add Relationship between Device and SoftwareLCM."""
-        try:
-            dev = OrmDevice.objects.get(id=device)
-            relations = dev.get_relationships()
-            software_relation_id = adapter.relationship_map["Software on Device"]
-            for _, relationships in relations.items():
-                for relationship, queryset in relationships.items():
-                    if relationship.id == software_relation_id:
-                        if adapter.job.debug:
-                            adapter.job.logger.warning(
-                                f"Deleting Software Version Relationships for {dev.name} to assign a new version."
-                            )
-                        queryset.delete()
-        except OrmDevice.DoesNotExist:
-            adapter.job.logger.warning(f"Unable to find Device {device} to assign software to.")
-        new_assoc = RelationshipAssociation(
-            relationship_id=adapter.relationship_map["Software on Device"],
-            source_type=ContentType.objects.get_for_model(SoftwareLCM),
-            source_id=software_lcm,
-            destination_type=ContentType.objects.get_for_model(OrmDevice),
-            destination_id=device,
-        )
-        new_assoc.validated_save()
 
 
 class NautobotPort(Port):

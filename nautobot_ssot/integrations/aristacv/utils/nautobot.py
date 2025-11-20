@@ -13,7 +13,6 @@ from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Man
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.models import (
     ExternalIntegration,
-    Relationship,
     Role,
     Secret,
     SecretsGroup,
@@ -24,7 +23,6 @@ from nautobot.extras.models import (
 
 from nautobot_ssot.integrations.aristacv import constants
 from nautobot_ssot.integrations.aristacv.types import CloudVisionAppConfig
-from nautobot_ssot.utils import dlm_supports_softwarelcm
 
 logger = logging.getLogger(__name__)
 
@@ -249,31 +247,6 @@ def verify_import_tag():
         import_tag.content_types.add(ContentType.objects.get_for_model(Device))
         import_tag.validated_save()
     return import_tag
-
-
-def get_device_version(device):
-    """Determines Device version from Custom Field or RelationshipAssociation.
-
-    Args:
-        device (Device): The Device object to determine software version for.
-    """
-    version = ""
-    if dlm_supports_softwarelcm():
-        software_relation = Relationship.objects.get(label="Software on Device")
-        relations = device.get_relationships()
-        try:
-            assigned_versions = relations["destination"][software_relation]
-            if len(assigned_versions) > 0:
-                version = assigned_versions[0].source.version
-            else:
-                return ""
-        except KeyError:
-            pass
-        except IndexError:
-            pass
-    else:
-        version = device.custom_field_data["arista_eos"] if device.custom_field_data.get("arista_eos") else ""
-    return version
 
 
 def parse_hostname(hostname: str, hostname_patterns: list):

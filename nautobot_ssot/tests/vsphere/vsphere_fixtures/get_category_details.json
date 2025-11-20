@@ -1,0 +1,26 @@
+{
+    "associable_types": [
+        "ClusterComputeResource",
+        "DistributedVirtualSwitch",
+        "VmwareDistributedVirtualSwitch",
+        "com.vmware.content.library.Item",
+        "ResourcePool",
+        "Folder",
+        "HostNetwork",
+        "DistributedVirtualPortgroup",
+        "VirtualApp",
+        "StoragePod",
+        "Datastore",
+        "Network",
+        "Datacenter",
+        "com.vmware.content.Library",
+        "HostSystem",
+        "OpaqueNetwork",
+        "VirtualMachine"
+    ],
+    "name": "EEE",
+    "description": "",
+    "id": "urn:vmomi:InventoryServiceCategory:1968de79-7f1a-4b1a-ae0c-3683b5708d8c:GLOBAL",
+    "used_by": [],
+    "cardinality": "SINGLE"
+}

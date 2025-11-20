@@ -40,10 +40,6 @@ def _check_for_conflicting_apps():
         )
 
 
-if not is_truthy(os.getenv("NAUTOBOT_SSOT_ALLOW_CONFLICTING_APPS", "False")):
-    _check_for_conflicting_apps()
-
-
 class NautobotSSOTAppConfig(NautobotAppConfig):
     """App configuration for the nautobot_ssot app."""
 
@@ -127,20 +123,9 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "servicenow_username": "",
         "enable_global_search": True,
     }
-    caching_config = {}
     config_view_name = "plugins:nautobot_ssot:config"
     docs_view_name = "plugins:nautobot_ssot:docs"
     searchable_models = ["sync"]
-
-    def __init__(self, *args, **kwargs):
-        """Initialize a NautobotSSOTAppConfig instance and set default attributes."""
-        super().__init__(*args, **kwargs)
-        # Only set searchable_models if enabled in config
-        if settings.PLUGINS_CONFIG["nautobot_ssot"].get("enable_global_search", True):
-            self.searchable_models = [
-                "Sync",
-                "SyncLogEntry",
-            ]
 
     def ready(self):
         """Trigger callback when database is ready."""
@@ -148,6 +133,15 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         for module in each_enabled_integration_module("signals"):
             logger.debug("Registering signals for %s", module.__file__)
             module.register_signals(self)
+        if not is_truthy(os.getenv("NAUTOBOT_SSOT_ALLOW_CONFLICTING_APPS", "False")):
+            _check_for_conflicting_apps()
+
+        # Only set searchable_models if enabled in config
+        if settings.PLUGINS_CONFIG["nautobot_ssot"].get("enable_global_search", True):
+            self.searchable_models = [
+                "Sync",
+                "SyncLogEntry",
+            ]
 
 
 config = NautobotSSOTAppConfig  # pylint:disable=invalid-name

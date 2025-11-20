@@ -54,7 +54,7 @@ from .tables import DashboardTable, SyncLogEntryTable, SyncTable, SyncTableSingl
 def dry_run_label(value) -> str:
     """Return HTML label for dry run status."""
     badge, text = ("default", "Dry Run") if value else ("info", "Sync")
-    return format_html('<span class="dry_run label label-{}">{}</span>', badge, text)
+    return format_html('<span class="dry_run badge bg-{}">{}</span>', badge, text)
 
 
 def datetime_with_timesince(value) -> str:
@@ -76,17 +76,16 @@ class SyncObjectPanel(ObjectFieldsPanel):
         if key == "duration":
             obj = get_obj_from_context(context, self.context_object_key)
             return obj.get_duration_display()
-        # TODO: NEXT-3.0 Replace label label-* with Bootstrap 5 badge classes when Nautobot supports Bootstrap 5
         # TODO: If Core adds a different way to render job result status labels, use here:
         if key == "job_result__status":
             status_labels = {
-                "FAILURE": ("label label-danger", "Failed"),
-                "PENDING": ("label label-default", "Pending"),
-                "STARTED": ("label label-warning", "Running"),
-                "SUCCESS": ("label label-success", "Completed"),
+                "FAILURE": ("badge bg-danger", "Failed"),
+                "PENDING": ("badge bg-secondary", "Pending"),
+                "STARTED": ("badge bg-warning", "Running"),
+                "SUCCESS": ("badge bg-success", "Completed"),
             }
-            css_class, text = status_labels.get(value, ("label label-default", "N/A"))
-            return format_html('<label class="{}">{}</label>', css_class, text)
+            css_class, text = status_labels.get(value, ("badge bg-secondary", "N/A"))
+            return format_html('<span class="{}">{}</span>', css_class, text)
         return super().render_value(key, value, context)
 
 
@@ -95,23 +94,22 @@ class StatisticsObjectPanel(ObjectFieldsPanel):
 
     def render_value(self, key, value, context):
         """Render the value for display in the table."""
-        # TODO: NEXT-3.0 Replace label label-* with Bootstrap 5 badge classes when Nautobot supports Bootstrap 5
         obj = get_obj_from_context(context, self.context_object_key)
         if key == "num_created":
             return format_html(
-                '<a href="{}?action=create" class="label label-success">{}</a>',
+                '<a href="{}?action=create" class="badge bg-success">{}</a>',
                 reverse("plugins:nautobot_ssot:sync_logentries", kwargs={"pk": obj.pk}),
                 value,
             )
         if key == "num_updated":
             return format_html(
-                '<a href="{}?action=update" class="label label-warning">{}</a>',
+                '<a href="{}?action=update" class="badge bg-warning">{}</a>',
                 reverse("plugins:nautobot_ssot:sync_logentries", kwargs={"pk": obj.pk}),
                 value,
             )
         if key == "num_deleted":
             return format_html(
-                '<a href="{}?action=delete" class="label label-danger">{}</a>',
+                '<a href="{}?action=delete" class="badge bg-danger">{}</a>',
                 reverse("plugins:nautobot_ssot:sync_logentries", kwargs={"pk": obj.pk}),
                 value,
             )
@@ -172,6 +170,13 @@ class DashboardView(ObjectListView):
     table = DashboardTable
     action_buttons = []
     template_name = "nautobot_ssot/dashboard.html"
+    breadcrumbs = Breadcrumbs(
+        items={
+            "list": [
+                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
+            ],
+        }
+    )
 
     def extra_context(self):
         """Extend the view context with additional details."""
@@ -308,18 +313,27 @@ class SyncUIViewSet(
                     "num_errored": "errors",
                 },
             ),
-            DiffPanel(
-                weight=300,
-                section=SectionChoices.FULL_WIDTH,
-                label="Diff",
-                object_field="diff",
-                render_as=ObjectTextPanel.RenderOptions.PLAINTEXT,
-                render_placeholder=True,
-            ),
         ),
         extra_tabs=(
             DistinctViewTab(
-                weight=Tab.WEIGHT_CHANGELOG_TAB + 200,
+                weight=Tab.WEIGHT_CHANGELOG_TAB + 100,
+                tab_id="diff",
+                label="Diff",
+                url_name="plugins:nautobot_ssot:sync_diff",
+                hide_if_empty=False,
+                panels=(
+                    DiffPanel(
+                        weight=300,
+                        section=SectionChoices.FULL_WIDTH,
+                        label="Diff",
+                        object_field="diff",
+                        render_as=ObjectTextPanel.RenderOptions.PLAINTEXT,
+                        render_placeholder=True,
+                    ),
+                ),
+            ),
+            DistinctViewTab(
+                weight=Tab.WEIGHT_CHANGELOG_TAB + 300,
                 tab_id="logentries",
                 label="Sync Logs",
                 url_name="plugins:nautobot_ssot:sync_logentries",
@@ -339,7 +353,7 @@ class SyncUIViewSet(
                 ),
             ),
             JobResultViewTab(
-                weight=Tab.WEIGHT_CHANGELOG_TAB + 100,
+                weight=Tab.WEIGHT_CHANGELOG_TAB + 200,
                 tab_id="jobresult",
                 label="Job Logs",
                 url_name="plugins:nautobot_ssot:sync_jobresult",
@@ -347,6 +361,11 @@ class SyncUIViewSet(
             ),
         ),
     )
+
+    @action(detail=True, url_path="diff", custom_view_base_action="view")
+    def diff(self, request, *args, **kwargs):
+        """Diff action for Sync UIViewSet."""
+        return Response({})
 
     @action(detail=True, url_path="logs", custom_view_base_action="view")
     def logentries(self, request, *args, **kwargs):

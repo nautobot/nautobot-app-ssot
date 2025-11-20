@@ -59,6 +59,11 @@ class SSOTvSphereConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         verbose_name="Use Clusters",
         help_text="Enable use of Clusters. If set to False, all Virtual Machines will be placed in the default cluster.",
     )
+    sync_vsphere_tags = models.BooleanField(
+        default=True,
+        verbose_name="Sync vSphere Tags",
+        help_text="Enable syncing of vSphere tags on VMs to Nautobot VMs as Tags.",
+    )
     default_vm_status_map = models.JSONField(default=_get_default_vm_status_map, encoder=DjangoJSONEncoder)
     default_ip_status_map = models.JSONField(default=_get_default_ip_status_map, encoder=DjangoJSONEncoder, blank=True)
     default_vm_interface_map = models.JSONField(
@@ -96,6 +101,10 @@ class SSOTvSphereConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         max_length=CHARFIELD_MAX_LENGTH, verbose_name="Default Cluster Type", default="VMWare vSphere"
     )
     is_saved_view_model = False
+    is_dynamic_group_associable_model = False
+    is_metadata_associable_model = False
+    is_contact_associable_model = False
+    is_data_compliance_model = False
 
     class Meta:
         """Meta class for SSOTvSphereConfig."""
