@@ -170,13 +170,8 @@ class DashboardView(ObjectListView):
     table = DashboardTable
     action_buttons = []
     template_name = "nautobot_ssot/dashboard.html"
-    breadcrumbs = Breadcrumbs(
-        items={
-            "list": [
-                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
-            ],
-        }
-    )
+    breadcrumbs = Breadcrumbs(items={})
+
 
     def extra_context(self):
         """Extend the view context with additional details."""
