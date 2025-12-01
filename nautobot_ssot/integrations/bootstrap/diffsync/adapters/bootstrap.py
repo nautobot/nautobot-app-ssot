@@ -13,7 +13,6 @@ from nautobot.extras.datasources.git import ensure_git_repository
 from nautobot.extras.models import GitRepository
 
 from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (  # noqa: F401
-from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (  # noqa: F401
     BootstrapCircuit,
     BootstrapCircuitTermination,
     BootstrapCircuitType,
@@ -39,8 +38,6 @@ from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (  # 
     BootstrapSecretsGroup,
     BootstrapSoftware,
     BootstrapSoftwareImage,
-    BootstrapSoftware,
-    BootstrapSoftwareImage,
     BootstrapTag,
     BootstrapTeam,
     BootstrapTenant,
@@ -58,16 +55,12 @@ from nautobot_ssot.integrations.bootstrap.utils import (
     validate_software_version_status,
 )
 from nautobot_ssot.utils import validate_dlm_installed
-from nautobot_ssot.utils import validate_dlm_installed
 
 if validate_dlm_installed():
     import nautobot_device_lifecycle_mgmt  # noqa: F401
 if validate_dlm_installed():
     import nautobot_device_lifecycle_mgmt  # noqa: F401
 
-    from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (  # noqa: F401
-        BootstrapValidatedSoftware,
-    )
     from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (  # noqa: F401
         BootstrapValidatedSoftware,
     )
@@ -109,9 +102,7 @@ class LabelMixin:
 
         _model_list.append("software_version")
         _model_list.append("software_image_file")
-        if validate_dlm_installed():
-        _model_list.append("software_version")
-        _model_list.append("software_image_file")
+
         if validate_dlm_installed():
             _model_list.append("validated_software")
 
@@ -174,9 +165,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
 
     software_version = BootstrapSoftware
     software_image_file = BootstrapSoftwareImage
-    if validate_dlm_installed():
-    software_version = BootstrapSoftware
-    software_image_file = BootstrapSoftwareImage
+
     if validate_dlm_installed():
         validated_software = BootstrapValidatedSoftware
 

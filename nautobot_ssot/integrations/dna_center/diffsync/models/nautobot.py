@@ -13,21 +13,15 @@ from nautobot.dcim.models import (
     Manufacturer,
     SoftwareImageFile,
     SoftwareVersion,
-    SoftwareImageFile,
-    SoftwareVersion,
 )
 from nautobot.extras.models import Role
-from nautobot.extras.models.metadata import ObjectMetadata  # noqa: F401
-from nautobot.extras.models.metadata import ObjectMetadata  # noqa: F401
 from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix
 
-from nautobot_ssot.integrations.dna_center.constants import SCOPED_FIELDS_MAPPING
 from nautobot_ssot.integrations.dna_center.constants import SCOPED_FIELDS_MAPPING
 from nautobot_ssot.integrations.dna_center.diffsync.models import base
 from nautobot_ssot.integrations.dna_center.utils.nautobot import (
     verify_platform,
 )
-from nautobot_ssot.integrations.metadata_utils import add_or_update_metadata_on_object
 from nautobot_ssot.integrations.metadata_utils import add_or_update_metadata_on_object
 
 

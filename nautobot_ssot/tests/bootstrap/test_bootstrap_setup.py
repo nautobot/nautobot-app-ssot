@@ -1005,7 +1005,7 @@ class NautobotTestSetup:
             _soft_image.refresh_from_db()
 
     def _setup_validated_software(self):
-        if not HAS_DLM:
+        if not validate_dlm_installed():
             return
         for validated_software_data in GLOBAL_YAML_SETTINGS["validated_software"]:
             tags = self._get_validated_software_tags(validated_software_data["tags"])
