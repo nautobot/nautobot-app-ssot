@@ -112,7 +112,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         else:
             self.logger.warning("Not both adapters were properly initialized prior to synchronization.")
 
-    def _load_adapters_parallel(self):
+    def _load_adapters_parallel(self):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
         """Load source and target adapters in parallel using ThreadPoolExecutor.
 
         Returns:
@@ -409,7 +409,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
 
         return source_adapter, target_adapter
 
-    def sync_data(self, memory_profiling):  # pylint: disable=too-many-statements
+    def sync_data(self, memory_profiling):  # pylint: disable=too-many-statements,too-many-locals,too-many-branches
         """Method to load data from adapters, calculate diffs and sync (if not dry-run).
 
         It is composed by 4 methods:
