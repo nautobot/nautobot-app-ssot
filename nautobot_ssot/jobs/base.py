@@ -729,13 +729,13 @@ class ThreadedAdapterLoader:  # pylint: disable=too-many-instance-attributes
         if self.adapter not in ("source", "target"):
             raise ValueError(f"Invalid adapter type ({self.adapter}). Must be `source` or `target`.")
 
-        # Close any existing database connections for this thread
-        # Django requires each thread to manage its own connections
-        connections.close_all()
-
-        # Get the current thread ID to ensure this handler only captures logs from this thread
-        self.thread_id = threading.get_ident()
-        self.set_loggers()
+        # Initialize logger-related attributes (will be set up in load() method)
+        self.log_handler = None
+        self.job_logger = None
+        self.nautobot_logger = None
+        self.nautobot_ssot_logger = None
+        self.root_logger = None
+        self.thread_id = None
 
     def set_loggers(self):
         """Set up the loggers."""
@@ -770,10 +770,14 @@ class ThreadedAdapterLoader:  # pylint: disable=too-many-instance-attributes
 
     def remove_logger_handlers(self):
         """Remove the logger handlers."""
-        self.job_logger.removeHandler(self.log_handler)
-        self.nautobot_logger.removeHandler(self.log_handler)
-        self.nautobot_ssot_logger.removeHandler(self.log_handler)
-        self.root_logger.removeHandler(self.log_handler)
+        if self.log_handler and self.job_logger:
+            self.job_logger.removeHandler(self.log_handler)
+        if self.log_handler and self.nautobot_logger:
+            self.nautobot_logger.removeHandler(self.log_handler)
+        if self.log_handler and self.nautobot_ssot_logger:
+            self.nautobot_ssot_logger.removeHandler(self.log_handler)
+        if self.log_handler and self.root_logger:
+            self.root_logger.removeHandler(self.log_handler)
 
     def load(self):
         """Load the adapter and return the adapter instance.
@@ -782,8 +786,17 @@ class ThreadedAdapterLoader:  # pylint: disable=too-many-instance-attributes
             The loaded adapter instance.
 
         Raises:
-            Exception: If adapter loading fails.
+            Exception: If adapter loading fails (preserves original exception type).
         """
+        # Close any existing database connections for this thread
+        # Django requires each thread to manage its own connections
+        connections.close_all()
+
+        # Get the current thread ID to ensure this handler only captures logs from this thread
+        self.thread_id = threading.get_ident()
+        # Set up loggers now (in the worker thread, not during initialization)
+        self.set_loggers()
+
         # Track timing for adapter loading
         start_time = datetime.now()
         method_name = f"load_{self.adapter}_adapter"
@@ -793,9 +806,6 @@ class ThreadedAdapterLoader:  # pylint: disable=too-many-instance-attributes
             getattr(self.job, method_name)()
             # Get the adapter from the job instance
             adapter = getattr(self.job, f"{self.adapter}_adapter")
-        except Exception as error:  # pylint: disable=broad-except
-            # We should raise here regardless, but this enables us to go into the "finally" stage regardless of what happens.
-            raise Exception(error) from error  # pylint: disable=broad-exception-raised, raise-missing-from
         finally:
             # Calculate duration (even if an error occurred)
             end_time = datetime.now()
