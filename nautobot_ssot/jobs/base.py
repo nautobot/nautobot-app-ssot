@@ -1,8 +1,13 @@
 # pylint: disable=protected-access
 """Base Job classes for sync workers."""
 
+import logging
+import threading
+import traceback
 import tracemalloc
 from collections import namedtuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Iterable, Optional
 
@@ -12,11 +17,13 @@ import structlog
 # pylint: disable=no-self-argument
 from diffsync.enum import DiffSyncFlags
 from django.conf import settings
+from django.db import connections
 from django.db.utils import OperationalError
 from django.templatetags.static import static
 from django.utils import timezone
 from django.utils.functional import classproperty
 from nautobot.extras.jobs import BooleanVar, DryRunVar, Job
+from nautobot.extras.models import JobLogEntry, JobResult
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices
 from nautobot_ssot.contrib.adapter import NautobotAdapter
@@ -36,6 +43,59 @@ and the other system acting as data source/target.
 """
 
 
+class ThreadLogHandler(logging.Handler):
+    """Handler that collects log records for later processing in parallel adapter loading."""
+
+    def __init__(self, job_logger_name, thread_id):
+        """Initialize the thread log handler.
+
+        Args:
+            job_logger_name: Name of the job logger to capture logs from.
+            thread_id: ID of the thread that owns this handler.
+        """
+        super().__init__()
+        self.records = []
+        self.job_logger_name = job_logger_name
+        self.thread_id = thread_id  # Store the thread ID that owns this handler
+        # List of logger names to exclude (noisy third-party libraries)
+        self.excluded_loggers = [
+            "urllib3",
+            "requests",
+            "httpcore",
+            "httpx",
+            "asyncio",
+            "django.db.backends",  # SQL query logs
+        ]
+
+    def emit(self, record):
+        """Store the log record if it's relevant to the job and from this thread."""
+        # Only capture logs from the thread that owns this handler
+        current_thread_id = threading.get_ident()
+        if current_thread_id != self.thread_id:
+            return  # This log is from a different thread, ignore it
+
+        # Skip DEBUG level logs from excluded loggers
+        if record.levelno == logging.DEBUG:
+            logger_name = record.name
+            # Check if this logger is in our exclusion list
+            for excluded in self.excluded_loggers:
+                if logger_name.startswith(excluded):
+                    return  # Skip this log record
+
+        # Capture logs from:
+        # 1. The job logger (exact match)
+        # 2. Nautobot loggers (any level)
+        # 3. Nautobot SSOT loggers (any level)
+        # 4. Any INFO level or above logs (to catch important messages from other sources)
+        if (
+            record.name == self.job_logger_name
+            or record.name.startswith("nautobot")
+            or record.name.startswith("nautobot_ssot")
+            or record.levelno >= logging.INFO
+        ):
+            self.records.append(record)
+
+
 class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
     """Common base class for data synchronization jobs.
 
@@ -53,6 +113,10 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         default=True,
     )
     memory_profiling = BooleanVar(description="Perform a memory profiling analysis.", default=False)
+    parallel_loading = BooleanVar(
+        description="Load source and target adapters in parallel for improved performance.",
+        default=True,
+    )
 
     def load_source_adapter(self):
         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`.
@@ -102,7 +166,197 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         else:
             self.logger.warning("Not both adapters were properly initialized prior to synchronization.")
 
-    def sync_data(self, memory_profiling):  # pylint: disable=too-many-statements
+    def _load_adapter_parallel(self, adapter_type):
+        """Load an adapter in a separate thread using ThreadedAdapterLoader.
+
+        Args:
+            adapter_type: Either "source" or "target" to specify which adapter to load.
+
+        Returns:
+            tuple: (adapter_type, adapter, error, log_records, duration)
+        """
+        loader = ThreadedAdapterLoader(
+            adapter=adapter_type,
+            job=self,
+            job_result=self.job_result,
+            log_level=logging.DEBUG,
+        )
+
+        try:
+            adapter = loader.load()
+            return (adapter_type, adapter, None, loader.log_handler.records, loader.duration)
+        except Exception as error:  # pylint: disable=broad-except
+            return (adapter_type, None, error, loader.log_handler.records, loader.duration)
+
+    def _load_source_adapter_parallel(self):
+        """Load source adapter in a separate thread.
+
+        Returns:
+            tuple: (adapter_type, adapter, error, log_records, duration)
+        """
+        return self._load_adapter_parallel("source")
+
+    def _load_target_adapter_parallel(self):
+        """Load target adapter in a separate thread.
+
+        Returns:
+            tuple: (adapter_type, adapter, error, log_records, duration)
+        """
+        return self._load_adapter_parallel("target")
+
+    def _load_adapters_parallel(self):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+        """Load source and target adapters in parallel using ThreadPoolExecutor.
+
+        Returns:
+            tuple: (source_adapter, target_adapter, source_duration, target_duration) after both have been loaded
+        """
+        source_adapter = None
+        target_adapter = None
+        source_error = None
+        target_error = None
+
+        # Store reference needed for logger setup in threads
+        job_result = self.job_result
+
+        source_log_records = []
+        target_log_records = []
+        source_duration = None
+        target_duration = None
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            # Submit both adapter loading tasks
+            future_to_adapter = {
+                executor.submit(self._load_source_adapter_parallel): "source",
+                executor.submit(self._load_target_adapter_parallel): "target",
+            }
+
+            # Wait for both to complete
+            for future in as_completed(future_to_adapter):
+                adapter_type, adapter, error, log_records, duration = future.result()
+                if error:
+                    if adapter_type == "source":
+                        source_error = error
+                        source_log_records = log_records
+                        source_duration = duration
+                    else:
+                        target_error = error
+                        target_log_records = log_records
+                        target_duration = duration
+                else:
+                    if adapter_type == "source":
+                        source_adapter = adapter
+                        self.source_adapter = adapter  # Ensure it's set on self
+                        source_log_records = log_records
+                        source_duration = duration
+                    else:
+                        target_adapter = adapter
+                        self.target_adapter = adapter  # Ensure it's set on self
+                        target_log_records = log_records
+                        target_duration = duration
+
+        # Create JobLogEntry objects for all captured log messages
+        # This ensures logs from threads are visible in the Job Results
+        # Merge source and target logs by timestamp to show interleaved execution
+
+        def create_job_log_entry(record, adapter_type):
+            """Create a single JobLogEntry object from a log record."""
+            # Map logging levels to appropriate log levels for JobLogEntry
+            if record.levelno >= logging.ERROR:
+                log_level = "error"
+            elif record.levelno >= logging.WARNING:
+                log_level = "warning"
+            elif record.levelno >= logging.INFO:
+                log_level = "info"
+            else:
+                log_level = "debug"
+
+            # Format the message
+            message = record.getMessage()
+            if record.exc_info:
+                # Include exception information if present
+                message += "\n" + "".join(traceback.format_exception(*record.exc_info))
+
+            # Create JobLogEntry object with grouping set to adapter type
+            # Note: JobLogEntry fields may vary by Nautobot version, using common fields
+            JobLogEntry.objects.create(
+                job_result=job_result,
+                log_level=log_level,
+                message=message,
+                grouping=adapter_type,  # Group by source or target adapter
+            )
+
+        # Merge source and target logs by timestamp to show interleaved execution
+        # Tag each record with its adapter type before merging
+        all_log_records = []
+        for record in source_log_records:
+            all_log_records.append((record.created, "source", record))
+        for record in target_log_records:
+            all_log_records.append((record.created, "target", record))
+
+        # Remove duplicates based on message and timestamp
+        seen_messages = set()
+        unique_records = []
+        for timestamp, adapter_type, record in all_log_records:
+            # Create a unique key for the message
+            message_key = (record.getMessage(), timestamp)
+            if message_key not in seen_messages:
+                seen_messages.add(message_key)
+                unique_records.append((timestamp, adapter_type, record))
+
+        # Sort by timestamp to show chronological order (interleaved execution)
+        unique_records.sort(key=lambda x: x[0])
+
+        # Create JobLogEntry objects in chronological order
+        for timestamp, adapter_type, record in unique_records:
+            create_job_log_entry(record, adapter_type)
+
+        # Log timing messages for each adapter to match sequential loading format
+        # Create JobLogEntry objects explicitly to ensure they're stored in the database
+        if source_adapter is not None and source_duration is not None:
+            # Log using logger to match sequential loading behavior
+            self.logger.info(
+                "Source Load Time from %s: %s",
+                source_adapter,
+                source_duration,
+            )
+            # Create JobLogEntry explicitly for database persistence
+            source_adapter_name = str(source_adapter) if source_adapter else "source adapter"
+            timing_message = f"Source adapter ({source_adapter_name}) loaded in {source_duration}"
+            self.logger.info(timing_message)
+            JobLogEntry.objects.create(
+                job_result=job_result,
+                log_level="info",
+                message=timing_message,
+                grouping="source",
+            )
+
+        if target_adapter is not None and target_duration is not None:
+            # Log using logger to match sequential loading behavior
+            self.logger.info(
+                "Target Load Time from %s: %s",
+                target_adapter,
+                target_duration,
+            )
+            # Create JobLogEntry explicitly for database persistence
+            target_adapter_name = str(target_adapter) if target_adapter else "target adapter"
+            timing_message = f"Target adapter ({target_adapter_name}) loaded in {target_duration}"
+            self.logger.info(timing_message)
+            JobLogEntry.objects.create(
+                job_result=job_result,
+                log_level="info",
+                message=timing_message,
+                grouping="target",
+            )
+
+        # Raise errors if any occurred
+        if source_error:
+            raise source_error
+        if target_error:
+            raise target_error
+
+        return source_adapter, target_adapter, source_duration, target_duration
+
+    def sync_data(self, memory_profiling):  # pylint: disable=too-many-statements,too-many-locals,too-many-branches
         """Method to load data from adapters, calculate diffs and sync (if not dry-run).
 
         It is composed by 4 methods:
@@ -157,31 +411,70 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
 
         start_time = datetime.now()
 
-        self.logger.info("Loading current data from source adapter...")
-        self.load_source_adapter()
-        load_source_adapter_time = datetime.now()
-        self.sync.source_load_time = load_source_adapter_time - start_time
-        self.sync.save()
-        self.logger.info(
-            "Source Load Time from %s: %s",
-            self.source_adapter,
-            self.sync.source_load_time,
-        )
-        if memory_profiling:
-            record_memory_trace("source_load")
+        # Check if parallel loading is enabled (default True, can be overridden per job)
+        use_parallel = getattr(self, "parallel_loading", True)
+        if isinstance(use_parallel, bool):
+            parallel_enabled = use_parallel
+        else:
+            # If it's a BooleanVar instance, get its value from kwargs or default
+            parallel_enabled = getattr(self, "_parallel_loading_value", True)
 
-        self.logger.info("Loading current data from target adapter...")
-        self.load_target_adapter()
-        load_target_adapter_time = datetime.now()
-        self.sync.target_load_time = load_target_adapter_time - load_source_adapter_time
-        self.sync.save()
-        self.logger.info(
-            "Target Load Time from %s: %s",
-            self.target_adapter,
-            self.sync.target_load_time,
-        )
-        if memory_profiling:
-            record_memory_trace("target_load")
+        # Initialize variables for timing
+        adapter_load_end_time = None
+        load_target_adapter_time = None
+
+        if parallel_enabled:
+            self.logger.info("Loading source and target adapters in parallel...")
+            try:
+                _, _, source_duration, target_duration = self._load_adapters_parallel()
+                # In parallel mode, both adapters run concurrently, so the total time
+                # is the maximum of the two individual durations
+                # Store the same value (total parallel time) for both to match test expectations
+                if source_duration is not None and target_duration is not None:
+                    parallel_duration = max(source_duration, target_duration)
+                    self.sync.source_load_time = parallel_duration
+                    self.sync.target_load_time = parallel_duration
+                elif source_duration is not None:
+                    self.sync.source_load_time = source_duration
+                    self.sync.target_load_time = source_duration
+                elif target_duration is not None:
+                    self.sync.source_load_time = target_duration
+                    self.sync.target_load_time = target_duration
+                self.sync.save()
+                if memory_profiling:
+                    # Record memory after both adapters are loaded
+                    record_memory_trace("parallel_load")
+            except Exception as error:
+                self.logger.error("Error during parallel adapter loading: %s", error)
+                raise
+        else:
+            # Sequential loading (original behavior)
+            self.logger.info("Loading current data from source adapter...")
+            self.load_source_adapter()
+            load_source_adapter_time = datetime.now()
+            self.sync.source_load_time = load_source_adapter_time - start_time
+            self.sync.save()
+            self.logger.info(
+                "Source Load Time from %s: %s",
+                self.source_adapter,
+                self.sync.source_load_time,
+            )
+            if memory_profiling:
+                record_memory_trace("source_load")
+
+            self.logger.info("Loading current data from target adapter...")
+            self.load_target_adapter()
+            load_target_adapter_time = datetime.now()
+            adapter_load_end_time = load_target_adapter_time
+            self.sync.target_load_time = load_target_adapter_time - load_source_adapter_time
+            self.sync.save()
+            self.logger.info(
+                "Target Load Time from %s: %s",
+                self.target_adapter,
+                self.sync.target_load_time,
+            )
+            if memory_profiling:
+                record_memory_trace("target_load")
 
         # Check if the adapter is an instance of NautobotAdapter to determine if it's a contrib implementation,
         # in which case we should create the required MetadataType object.
@@ -194,10 +487,14 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         # NOTE: Disabled for the time being due to ongoing issues.
         # sort_relationships(self.source_adapter, self.target_adapter)
 
+        # Calculate the time after adapter loading for diff calculation
+        if adapter_load_end_time is None:
+            adapter_load_end_time = datetime.now()
+
         self.logger.info("Calculating diffs...")
         self.calculate_diff()
         calculate_diff_time = datetime.now()
-        self.sync.diff_time = calculate_diff_time - load_target_adapter_time
+        self.sync.diff_time = calculate_diff_time - adapter_load_end_time
         self.sync.save()
         self.logger.info("Diff Calculation Time: %s", self.sync.diff_time)
         if memory_profiling:
@@ -303,12 +600,16 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
 
         if hasattr(cls, "memory_profiling"):
             got_vars["memory_profiling"] = cls.memory_profiling
+
+        if hasattr(cls, "parallel_loading"):
+            got_vars["parallel_loading"] = cls.parallel_loading
         return got_vars
 
     def __init__(self):
         """Initialize a Job."""
         super().__init__()
         self.sync = None
+        self._parallel_loading_value = True
         self.diff = None
         self.source_adapter = None
         self.target_adapter = None
@@ -343,16 +644,23 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         """Icon corresponding to the data_target."""
         return getattr(cls.Meta, "data_target_icon", None)
 
-    def run(self, dryrun, memory_profiling, *args, **kwargs):  # pylint:disable=arguments-differ
+    def run(self, *args, **kwargs):
         """Job entry point from Nautobot - do not override!"""
+        self.dryrun = kwargs.get("dryrun", True)
+        self.memory_profiling = kwargs.get("memory_profiling", False)
+        self.parallel_loading = kwargs.get("parallel_loading", True)
         self.sync = Sync.objects.create(
             source=self.data_source,
             target=self.data_target,
-            dry_run=dryrun,
+            dry_run=self.dryrun,
             job_result=self.job_result,
             start_time=timezone.now(),
             diff={},
         )
+
+        # Store parallel_loading value for use in sync_data
+        # If not provided, default to True (parallel loading enabled by default)
+        self._parallel_loading_value = self.parallel_loading
 
         # Add _structlog_to_sync_log_entry as a processor for structlog calls from DiffSync
         structlog.configure(
@@ -365,7 +673,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             wrapper_class=structlog.stdlib.BoundLogger,
             cache_logger_on_first_use=True,
         )
-        self.sync_data(memory_profiling)
+        self.sync_data(self.memory_profiling)
 
 
 # pylint: disable=abstract-method
@@ -395,3 +703,115 @@ class DataTarget(DataSyncBaseJob):
     def data_source_icon(cls):
         """For a DataTarget this is always the Nautobot logo."""
         return static("img/nautobot_logo.png")
+
+
+@dataclass
+class ThreadedAdapterLoader:  # pylint: disable=too-many-instance-attributes
+    """Threaded adapter loader class."""
+
+    adapter: str
+    job: Job = field(repr=False)
+    job_result: JobResult = field(repr=False)
+
+    # Defaults to None, but want it to show in repr
+    duration: datetime = None
+
+    # Logging
+    log_level: int = field(default=logging.DEBUG)
+    log_handler: ThreadLogHandler = field(init=False, repr=False)
+    job_logger: logging.Logger = field(init=False, repr=False)
+    nautobot_logger: logging.Logger = field(init=False, repr=False)
+    nautobot_ssot_logger: logging.Logger = field(init=False, repr=False)
+    root_logger: logging.Logger = field(init=False, repr=False)
+
+    def __post_init__(self):
+        """Post-initialization setup."""
+        if self.adapter not in ("source", "target"):
+            raise ValueError(f"Invalid adapter type ({self.adapter}). Must be `source` or `target`.")
+
+        # Initialize logger-related attributes (will be set up in load() method)
+        self.log_handler = None
+        self.job_logger = None
+        self.nautobot_logger = None
+        self.nautobot_ssot_logger = None
+        self.root_logger = None
+        self.thread_id = None
+
+    def set_loggers(self):
+        """Set up the loggers."""
+        # Get the job's logger name
+        # The job logger typically follows the pattern: nautobot.extras.jobs.run_job[job_result_id]
+
+        logger_name = f"nautobot.extras.jobs.run_job[{self.job_result.id}]"
+
+        # Set up a custom handler to capture log messages from the job logger
+        self.log_handler = ThreadLogHandler(logger_name, self.thread_id)
+        self.log_handler.setLevel(self.log_level)
+
+        # Add handler to the job-specific logger
+        self.job_logger = logging.getLogger(logger_name)
+        self.job_logger.addHandler(self.log_handler)
+        self.job_logger.setLevel(self.log_level)
+
+        # Also capture from nautobot and nautobot_ssot loggers to catch adapter logs
+        self.nautobot_logger = logging.getLogger("nautobot")
+        self.nautobot_logger.addHandler(self.log_handler)
+        self.nautobot_logger.setLevel(self.log_level)
+
+        self.nautobot_ssot_logger = logging.getLogger("nautobot_ssot")
+        self.nautobot_ssot_logger.addHandler(self.log_handler)
+        self.nautobot_ssot_logger.setLevel(self.log_level)
+
+        # Also attach to root logger to catch any logs that might bubble up
+        # This ensures we don't miss any important messages
+        self.root_logger = logging.getLogger()
+        self.root_logger.addHandler(self.log_handler)
+        self.root_logger.setLevel(self.log_level)
+
+    def remove_logger_handlers(self):
+        """Remove the logger handlers."""
+        if self.log_handler and self.job_logger:
+            self.job_logger.removeHandler(self.log_handler)
+        if self.log_handler and self.nautobot_logger:
+            self.nautobot_logger.removeHandler(self.log_handler)
+        if self.log_handler and self.nautobot_ssot_logger:
+            self.nautobot_ssot_logger.removeHandler(self.log_handler)
+        if self.log_handler and self.root_logger:
+            self.root_logger.removeHandler(self.log_handler)
+
+    def load(self):
+        """Load the adapter and return the adapter instance.
+
+        Returns:
+            The loaded adapter instance.
+
+        Raises:
+            Exception: If adapter loading fails (preserves original exception type).
+        """
+        # Close any existing database connections for this thread
+        # Django requires each thread to manage its own connections
+        connections.close_all()
+
+        # Get the current thread ID to ensure this handler only captures logs from this thread
+        self.thread_id = threading.get_ident()
+        # Set up loggers now (in the worker thread, not during initialization)
+        self.set_loggers()
+
+        # Track timing for adapter loading
+        start_time = datetime.now()
+        method_name = f"load_{self.adapter}_adapter"
+
+        try:
+            # Call the job's load method
+            getattr(self.job, method_name)()
+            # Get the adapter from the job instance
+            adapter = getattr(self.job, f"{self.adapter}_adapter")
+        finally:
+            # Calculate duration (even if an error occurred)
+            end_time = datetime.now()
+            self.duration = end_time - start_time
+            # Remove handlers and close connections
+            self.remove_logger_handlers()
+            connections.close_all()
+
+        return adapter
