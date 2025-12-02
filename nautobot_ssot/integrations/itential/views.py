@@ -2,9 +2,12 @@
 
 from nautobot.apps import views
 from nautobot.apps.ui import (
+    Breadcrumbs,
+    ModelBreadcrumbItem,
     ObjectDetailContent,
     ObjectFieldsPanel,
     SectionChoices,
+    ViewNameBreadcrumbItem,
 )
 
 from nautobot_ssot.integrations.itential import filters, forms, models, tables
@@ -22,6 +25,14 @@ class AutomationGatewayModelUIViewSet(views.NautobotUIViewSet):
     serializer_class = serializers.AutomationGatewayModelSerializer
     table_class = tables.AutomationGatewayModelTable
     lookup_field = "pk"
+    breadcrumbs = Breadcrumbs(
+        items={
+            "detail": [
+                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
+                ModelBreadcrumbItem(),
+            ],
+        }
+    )
 
     object_detail_content = ObjectDetailContent(
         panels=(
