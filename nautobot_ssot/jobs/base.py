@@ -252,7 +252,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         """Load source and target adapters in parallel using ThreadPoolExecutor.
 
         Returns:
-            tuple: (source_adapter, target_adapter) after both have been loaded
+            tuple: (source_adapter, target_adapter, source_duration, target_duration) after both have been loaded
         """
         source_adapter = None
         target_adapter = None
@@ -289,10 +289,12 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
                 else:
                     if adapter_type == "source":
                         source_adapter = adapter
+                        self.source_adapter = adapter  # Ensure it's set on self
                         source_log_records = log_records
                         source_duration = duration
                     else:
                         target_adapter = adapter
+                        self.target_adapter = adapter  # Ensure it's set on self
                         target_log_records = log_records
                         target_duration = duration
 
@@ -352,26 +354,41 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         for timestamp, adapter_type, record in unique_records:
             create_job_log_entry(record, adapter_type)
 
-        # Add timing log messages for each adapter
-        if source_duration is not None:
-            # Create a log entry for source adapter load time
+        # Log timing messages for each adapter to match sequential loading format
+        # Create JobLogEntry objects explicitly to ensure they're stored in the database
+        if source_adapter is not None and source_duration is not None:
+            # Log using logger to match sequential loading behavior
+            self.logger.info(
+                "Source Load Time from %s: %s",
+                source_adapter,
+                source_duration,
+            )
+            # Create JobLogEntry explicitly for database persistence
             source_adapter_name = str(source_adapter) if source_adapter else "source adapter"
-            source_timing_message = f"Source adapter ({source_adapter_name}) loaded in {source_duration}"
+            timing_message = f"Source adapter ({source_adapter_name}) loaded in {source_duration}"
+            self.logger.info(timing_message)
             JobLogEntry.objects.create(
                 job_result=job_result,
                 log_level="info",
-                message=source_timing_message,
+                message=timing_message,
                 grouping="source",
             )
 
-        if target_duration is not None:
-            # Create a log entry for target adapter load time
+        if target_adapter is not None and target_duration is not None:
+            # Log using logger to match sequential loading behavior
+            self.logger.info(
+                "Target Load Time from %s: %s",
+                target_adapter,
+                target_duration,
+            )
+            # Create JobLogEntry explicitly for database persistence
             target_adapter_name = str(target_adapter) if target_adapter else "target adapter"
-            target_timing_message = f"Target adapter ({target_adapter_name}) loaded in {target_duration}"
+            timing_message = f"Target adapter ({target_adapter_name}) loaded in {target_duration}"
+            self.logger.info(timing_message)
             JobLogEntry.objects.create(
                 job_result=job_result,
                 log_level="info",
-                message=target_timing_message,
+                message=timing_message,
                 grouping="target",
             )
 
@@ -381,7 +398,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         if target_error:
             raise target_error
 
-        return source_adapter, target_adapter
+        return source_adapter, target_adapter, source_duration, target_duration
 
     def sync_data(self, memory_profiling):  # pylint: disable=too-many-statements,too-many-locals,too-many-branches
         """Method to load data from adapters, calculate diffs and sync (if not dry-run).
@@ -452,20 +469,21 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
 
         if parallel_enabled:
             self.logger.info("Loading source and target adapters in parallel...")
-            parallel_start = datetime.now()
             try:
-                self._load_adapters_parallel()
-                parallel_end = datetime.now()
-                parallel_duration = parallel_end - parallel_start
-                adapter_load_end_time = parallel_end
-                self.logger.info(
-                    "Parallel adapter loading completed in %s",
-                    parallel_duration,
-                )
-                # For parallel loading, we record the total time for both
-                # Individual times are not meaningful in parallel execution
-                self.sync.source_load_time = parallel_duration
-                self.sync.target_load_time = parallel_duration
+                _, _, source_duration, target_duration = self._load_adapters_parallel()
+                # In parallel mode, both adapters run concurrently, so the total time
+                # is the maximum of the two individual durations
+                # Store the same value (total parallel time) for both to match test expectations
+                if source_duration is not None and target_duration is not None:
+                    parallel_duration = max(source_duration, target_duration)
+                    self.sync.source_load_time = parallel_duration
+                    self.sync.target_load_time = parallel_duration
+                elif source_duration is not None:
+                    self.sync.source_load_time = source_duration
+                    self.sync.target_load_time = source_duration
+                elif target_duration is not None:
+                    self.sync.source_load_time = target_duration
+                    self.sync.target_load_time = target_duration
                 self.sync.save()
                 if memory_profiling:
                     # Record memory after both adapters are loaded
