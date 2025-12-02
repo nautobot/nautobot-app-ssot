@@ -446,7 +446,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
                     record_memory_trace("parallel_load")
             except Exception as error:
                 self.logger.error("Error during parallel adapter loading: %s", error)
-                raise
+                raise Exception(error) from error  # pylint: disable=raise-missing-from, broad-exception-raised
         else:
             # Sequential loading (original behavior)
             self.logger.info("Loading current data from source adapter...")
