@@ -1,6 +1,6 @@
 ---
 name: "CI"
-concurrency:  # Cancel any existing runs of this workflow for this same PR
+concurrency: # Cancel any existing runs of this workflow for this same PR
   group: "${{ github.workflow }}-${{ github.ref }}"
   cancel-in-progress: true
 on: # yamllint disable-line rule:truthy rule:comments
@@ -124,9 +124,9 @@ jobs:
         run: "poetry run invoke lock --constrain-nautobot-ver --constrain-python-ver=${{ matrix.python-version }}"
       - name: "Set up Docker Buildx"
         id: "buildx"
-        uses: "docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2"  # v3.10.0
+        uses: "docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2" # v3.10.0
       - name: "Build"
-        uses: "docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25"  # v5.4.0
+        uses: "docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25" # v5.4.0
         with:
           builder: "${{ steps.buildx.outputs.name }}"
           context: "./"
@@ -152,7 +152,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        python-version: ["3.10"]  # 3.13 stable is tested in unittest_report stage.
+        python-version: ["3.10"] # 3.13 stable is tested in unittest_report stage.
         db-backend: ["postgresql"]
         nautobot-version: ["stable"]
         include:
@@ -181,9 +181,9 @@ jobs:
         run: "poetry run invoke lock --constrain-nautobot-ver --constrain-python-ver=${{ matrix.python-version }}"
       - name: "Set up Docker Buildx"
         id: "buildx"
-        uses: "docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2"  # v3.10.0
+        uses: "docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2" # v3.10.0
       - name: "Build"
-        uses: "docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25"  # v5.4.0
+        uses: "docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25" # v5.4.0
         with:
           builder: "${{ steps.buildx.outputs.name }}"
           context: "./"
@@ -232,9 +232,9 @@ jobs:
         run: "poetry run invoke lock --constrain-nautobot-ver --constrain-python-ver=${{ matrix.python-version }}"
       - name: "Set up Docker Buildx"
         id: "buildx"
-        uses: "docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2"  # v3.10.0
+        uses: "docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2" # v3.10.0
       - name: "Build"
-        uses: "docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25"  # v5.4.0
+        uses: "docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25" # v5.4.0
         with:
           builder: "${{ steps.buildx.outputs.name }}"
           context: "./"
@@ -260,7 +260,7 @@ jobs:
           contains(fromJson('["develop","ltm-1.6"]'), github.base_ref) &&
           (github.head_ref != 'main') && (!startsWith(github.head_ref, 'release'))
         id: "coverage_comment"
-        uses: "py-cov-action/python-coverage-comment-action@d1ff8fbb5ff80feedb3faa0f6d7b424f417ad0e1"  # v3.30
+        uses: "py-cov-action/python-coverage-comment-action@d1ff8fbb5ff80feedb3faa0f6d7b424f417ad0e1" # v3.30
         with:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           MINIMUM_GREEN: 90
