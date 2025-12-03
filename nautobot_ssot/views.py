@@ -170,13 +170,6 @@ class DashboardView(ObjectListView):
     table = DashboardTable
     action_buttons = []
     template_name = "nautobot_ssot/dashboard.html"
-    breadcrumbs = Breadcrumbs(
-        items={
-            "list": [
-                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
-            ],
-        }
-    )
 
     def extra_context(self):
         """Extend the view context with additional details."""
@@ -262,10 +255,6 @@ class SyncUIViewSet(
     action_buttons = ("export",)
     breadcrumbs = Breadcrumbs(
         items={
-            "list": [
-                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
-                ModelBreadcrumbItem(model=Sync),
-            ],
             "detail": [
                 ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
                 ModelBreadcrumbItem(),
@@ -388,14 +377,6 @@ class SyncLogEntryUIViewSet(ObjectListViewMixin):
     serializer_class = serializers.SyncLogEntrySerializer
     table_class = SyncLogEntryTable
     action_buttons = ("export",)
-    breadcrumbs = Breadcrumbs(
-        items={
-            "list": [
-                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
-                ModelBreadcrumbItem(model=SyncLogEntry),
-            ],
-        }
-    )
 
 
 class SSOTConfigView(ContentTypePermissionRequiredMixin, DjangoView):
