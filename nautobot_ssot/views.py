@@ -11,13 +11,16 @@ from django.utils.timesince import timesince
 from django.views import View as DjangoView
 from django_tables2 import RequestConfig
 from nautobot.apps.ui import (
+    Breadcrumbs,
     DistinctViewTab,
+    ModelBreadcrumbItem,
     ObjectDetailContent,
     ObjectFieldsPanel,
     ObjectsTablePanel,
     ObjectTextPanel,
     SectionChoices,
     Tab,
+    ViewNameBreadcrumbItem,
     render_component_template,
 )
 from nautobot.apps.views import (
@@ -250,6 +253,14 @@ class SyncUIViewSet(
     serializer_class = serializers.SyncSerializer
     table_class = SyncTable
     action_buttons = ("export",)
+    breadcrumbs = Breadcrumbs(
+        items={
+            "detail": [
+                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
+                ModelBreadcrumbItem(),
+            ],
+        }
+    )
 
     object_detail_content = ObjectDetailContent(
         panels=(
