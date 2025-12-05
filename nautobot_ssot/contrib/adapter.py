@@ -46,6 +46,12 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
         self.cache: ORMCache = kwargs.pop("cache", ORMCache())
         self.metadata_type = None
         self.metadata_scope_fields = {}
+        self.validate_adapter()
+
+    def validate_adapter(self):
+        """Validate adapter is properly built."""
+        if not hasattr(self, "top_level") or not self.top_level:
+            raise ValueError("'top_level' needs to be set on the class.")
 
     def get_from_orm_cache(self, parameters: Dict, model_class: Type[Model]):
         """Retrieve an object from the ORM or the cache."""
@@ -153,9 +159,6 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
 
     def load(self):
         """Generic implementation of the load function."""
-        if not hasattr(self, "top_level") or not self.top_level:
-            raise ValueError("'top_level' needs to be set on the class.")
-
         for model_name in self.top_level:
             diffsync_model = self._get_diffsync_class(model_name)
 

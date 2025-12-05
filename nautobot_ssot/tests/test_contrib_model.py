@@ -27,6 +27,12 @@ from nautobot_ssot.tests.test_contrib_adapter import (
     CustomRelationShipTestAdapterSource,
 )
 
+class MockNautobotAdapter(NautobotAdapter):
+    """"""
+
+    top_level = MagicMock()
+
+
 
 class BaseModelCustomRelationshipOneToManyTest(TestCase):
     """Tests for manipulating custom relationships through the shared base model code."""
@@ -133,7 +139,7 @@ class BaseModelCustomRelationshipTestWithDeviceData(TestCaseWithDeviceData):
         )
 
         CableModel.create(
-            adapter=NautobotAdapter(job=MagicMock()),
+            adapter=MockNautobotAdapter(job=MagicMock()),
             ids={
                 "termination_a__device__name": device.name,
                 "termination_a__name": interface_a.name,
@@ -166,7 +172,7 @@ class BaseModelManyToManyTest(TestCase):
         tenant.tags.add(self.tags[0])
 
         adapter_tenant = NautobotTenant(name=self.tenant_name, tags=[{"name": self.tags[0].name}], pk=tenant.pk)
-        adapter_tenant.adapter = NautobotAdapter(job=None, sync=None)
+        adapter_tenant.adapter = MockNautobotAdapter(job=None, sync=None)
         adapter_tenant.update(attrs={"tags": [{"name": tag.name} for tag in self.tags]})
 
         tenant.refresh_from_db()
@@ -184,7 +190,7 @@ class BaseModelManyToManyTest(TestCase):
         adapter_tenant = NautobotTenant(
             name=self.tenant_name, tags=[{"name": tag.name} for tag in self.tags], pk=tenant.pk
         )
-        adapter_tenant.adapter = NautobotAdapter(job=None, sync=None)
+        adapter_tenant.adapter = MockNautobotAdapter(job=None, sync=None)
         adapter_tenant.update(attrs={"tags": [{"name": self.tags[0].name}]})
 
         tenant.refresh_from_db()
@@ -202,7 +208,7 @@ class BaseModelManyToManyTest(TestCase):
         adapter_tenant = NautobotTenant(
             name=self.tenant_name, tags=[{"name": tag.name} for tag in self.tags], pk=tenant.pk
         )
-        adapter_tenant.adapter = NautobotAdapter(job=None, sync=None)
+        adapter_tenant.adapter = MockNautobotAdapter(job=None, sync=None)
         adapter_tenant.update(attrs={"tags": []})
 
         tenant.refresh_from_db()
@@ -219,7 +225,7 @@ class BaseModelManyToManyTest(TestCase):
 
         content_types = [{"app_label": "dcim", "model": "device"}, {"app_label": "circuits", "model": "provider"}]
         tag_diffsync = TagModel(name=name, pk=tag.pk)
-        tag_diffsync.adapter = NautobotAdapter(job=None, sync=None)
+        tag_diffsync.adapter = MockNautobotAdapter(job=None, sync=None)
         tag_diffsync.update(attrs={"content_types": content_types})
 
         tag.refresh_from_db()
@@ -238,7 +244,7 @@ class BaseModelManyToManyTest(TestCase):
         tag.content_types.set([ContentType.objects.get(**parameters) for parameters in content_types])
 
         tag_diffsync = TagModel(name=name, pk=tag.pk)
-        tag_diffsync.adapter = NautobotAdapter(job=None, sync=None)
+        tag_diffsync.adapter = MockNautobotAdapter(job=None, sync=None)
         tag_diffsync.update(attrs={"content_types": []})
 
         tag.refresh_from_db()
