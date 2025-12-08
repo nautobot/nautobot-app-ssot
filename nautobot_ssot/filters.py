@@ -9,7 +9,6 @@ from nautobot_ssot.integrations.itential.filters import AutomationGatewayModelFi
 
 
 class SyncFilterSet(NautobotFilterSet):  # pylint: disable=too-many-ancestors
-class SyncFilterSet(NautobotFilterSet):  # pylint: disable=too-many-ancestors
     """Filter for Sync."""
 
     q = SearchFilter(
@@ -80,6 +79,5 @@ __all__ = (
     "SSOTInfobloxConfigFilterSet",
     "SyncFilterSet",
     "SyncLogEntryFilterSet",
-    "SyncRecordFilterSet",
     "SyncRecordFilterSet",
 )

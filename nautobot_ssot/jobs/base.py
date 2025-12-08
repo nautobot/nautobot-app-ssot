@@ -28,7 +28,6 @@ from nautobot.extras.models import JobLogEntry, JobResult, Status
 from nautobot_ssot.choices import SyncLogEntryActionChoices
 from nautobot_ssot.contrib.adapter import NautobotAdapter
 from nautobot_ssot.models import BaseModel, Sync, SyncLogEntry, SyncRecord
-from nautobot_ssot.models import BaseModel, Sync, SyncLogEntry, SyncRecord
 
 DataMapping = namedtuple("DataMapping", ["source_name", "source_url", "target_name", "target_url"])
 """Entry in the list returned by a job's data_mappings() API.

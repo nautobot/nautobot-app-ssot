@@ -8,14 +8,11 @@ from nautobot.apps.forms import (
     NautobotFilterForm,
     NautobotModelForm,
     TagsBulkEditFormMixin,
-    NautobotModelForm,
-    TagsBulkEditFormMixin,
     add_blank_choice,
 )
 from nautobot.core.forms import BOOLEAN_WITH_BLANK_CHOICES
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
-from .models import Sync, SyncLogEntry, SyncRecord
 from .models import Sync, SyncLogEntry, SyncRecord
 
 
@@ -52,37 +49,6 @@ class SyncForm(BootstrapMixin, forms.Form):  # pylint: disable=nb-incorrect-base
     )
 
 
-class SyncRecordForm(NautobotModelForm):  # pylint: disable=too-many-ancestors
-    """SyncRecord creation/edit form."""
-
-    class Meta:
-        """Meta attributes."""
-
-        model = SyncRecord
-        fields = "__all__"
-
-
-class SyncRecordBulkEditForm(TagsBulkEditFormMixin, NautobotBulkEditForm):  # pylint: disable=too-many-ancestors
-    """SyncRecord bulk edit form."""
-
-    pk = forms.ModelMultipleChoiceField(queryset=SyncRecord.objects.all(), widget=forms.MultipleHiddenInput)
-    description = forms.CharField(required=False)
-
-    class Meta:
-        """Meta attributes."""
-
-        nullable_fields = [
-            "description",
-        ]
-
-
-class SyncRecordFilterForm(NautobotFilterForm):
-    """Filter form to filter searches."""
-
-    model = SyncRecord
-    field_order = ["q", "name"]
-
-    q = forms.CharField(
 class SyncRecordForm(NautobotModelForm):  # pylint: disable=too-many-ancestors
     """SyncRecord creation/edit form."""
 
