@@ -2,7 +2,6 @@
 
 # pylint: disable=duplicate-code
 import os
-from ast import literal_eval
 
 from django.templatetags.static import static
 from nautobot.apps.jobs import BooleanVar, ChoiceVar, JSONVar, ObjectVar, StringVar
@@ -67,7 +66,7 @@ class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         label="Unpermitted Values",
         description="List of values that are not permitted to be imported into Hardware, Hostname, Location, OS, or Type fields. (ex: ['Router', 'Switch', 'Firewall'])",
         required=False,
-        default=None,
+        default=[],
     )
     sync_locations = BooleanVar(description="Whether to Sync Locations from LibreNMS to Nautobot.", default=False)
     location_type = ObjectVar(
@@ -177,7 +176,7 @@ class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         self.location_map = location_map
         self.hostname_map = hostname_map
         self.default_role = default_role
-        self.unpermitted_values = literal_eval(unpermitted_values)
+        self.unpermitted_values = unpermitted_values
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 
