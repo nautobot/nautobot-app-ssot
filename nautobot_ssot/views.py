@@ -2,9 +2,7 @@
 
 from django.conf import settings
 from django.contrib import messages
-from django.contrib import messages
 from django.http import Http404
-from django.shortcuts import redirect, render
 from django.shortcuts import redirect, render
 from django.template import loader
 from django.template.defaultfilters import date
@@ -44,7 +42,6 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from nautobot_ssot import filters, forms, tables
-from nautobot_ssot import filters, forms, tables
 from nautobot_ssot.api import serializers
 from nautobot_ssot.integrations import utils
 from nautobot_ssot.templatetags.render_diff import render_diff
@@ -53,7 +50,6 @@ from .filters import SyncFilterSet, SyncLogEntryFilterSet
 from .forms import SyncFilterForm, SyncForm, SyncLogEntryFilterForm
 from .jobs import get_data_jobs
 from .jobs.base import DataSource, DataTarget
-from .models import Sync, SyncLogEntry, SyncRecord
 from .models import Sync, SyncLogEntry, SyncRecord
 from .tables import DashboardTable, SyncLogEntryTable, SyncTable, SyncTableSingleSourceOrTarget
 
@@ -201,7 +197,6 @@ class DashboardView(ObjectListView):
             self.request,
             {
                 "paginator_class": EnhancedPaginator,
-                "per_page": 30,
                 "per_page": 30,
             },
         ).configure(table)
