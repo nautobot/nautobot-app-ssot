@@ -2,6 +2,7 @@
 
 from diffsync import Adapter, DiffSyncModel
 from diffsync.exceptions import ObjectNotFound
+from django.conf import settings
 from netutils.ip import ipaddress_interface, ipaddress_network, is_ip_within, netmask_to_cidr
 
 from nautobot_ssot.exceptions import JobException
@@ -16,7 +17,7 @@ from nautobot_ssot.integrations.meraki.diffsync.models.meraki import (
     MerakiPrefix,
     MerakiPrefixLocation,
 )
-from nautobot_ssot.integrations.meraki.utils.meraki import get_role_from_devicetype
+from nautobot_ssot.integrations.meraki.utils.meraki import get_mgmt_port_from_uplinks, get_role_from_devicetype
 from nautobot_ssot.utils import parse_hostname_for_role
 
 
@@ -125,12 +126,13 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                         },
                     )
                     if loaded:
+                        # TODO: Replace categorization based on model name to productType
                         if dev["model"].startswith(("MX", "MG", "Z")):
-                            self.load_firewall_ports(device=new_dev, serial=dev["serial"], network_id=dev["networkId"])
-                        if dev["model"].startswith(("MS", "C9300")):
-                            self.load_switch_ports(device=new_dev, serial=dev["serial"])
-                        if dev["model"].startswith(("MR", "CW")):
+                            self.load_firewall_ports(device=new_dev, serial=dev["serial"], network_id=dev["networkId"], lan_ip=dev.get("lanIp"))
+                        elif dev["model"].startswith(("MR", "CW")):
                             self.load_ap_ports(device=new_dev, serial=dev["serial"])
+                        elif dev["model"].startswith(("MS", "C9300")):
+                            self.load_switch_ports(device=new_dev, serial=dev["serial"], lan_ip=dev.get("lanIp"))
             else:
                 self.job.logger.warning(f"Device serial {dev['serial']} is missing hostname so will be skipped.")
 
@@ -145,7 +147,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
             )
             self.add(new_hardware)
 
-    def load_firewall_ports(self, device: DiffSyncModel, serial: str, network_id: str):  # pylint: disable=too-many-locals
+    def load_firewall_ports(self, device: DiffSyncModel, serial: str, network_id: str, lan_ip: str):  # pylint: disable=too-many-locals
         """Load ports of a firewall, cellular, or teleworker device from Meraki dashboard into DiffSync models."""
         mgmt_ports = self.conn.get_management_ports(serial=serial)
         uplink_settings = self.conn.get_uplink_settings(serial=serial)
@@ -153,6 +155,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
 
         # keep track of whether a primary IP has already been found since we can only assign one
         primary_found = False
+        mgmt_ip = None
         for port in mgmt_ports.keys():
             uplink_status = "Planned"
             if serial in self.org_uplink_statuses:
@@ -185,7 +188,8 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                             prefix=prefix,
                             location=self.conn.network_map[network_id]["name"],
                         )
-                        host_addr, mask_length = port_svis["address"].split("/")
+                        mgmt_ip = port_svis["address"]
+                        host_addr, mask_length = mgmt_ip.split("/")
                         self.load_ipaddress(
                             host_addr=host_addr,
                             mask_length=mask_length,
@@ -197,8 +201,46 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                             port=port,
                             primary=bool(uplink_status == "Active" and not primary_found),
                         )
-                    if uplink_status == "Active":
-                        primary_found = True
+                if uplink_status == "Active":
+                    primary_found = True
+        if not mgmt_ip and settings.PLUGINS_CONFIG["nautobot_ssot"].get("meraki_allow_dhcp_mgmt_ips"):
+            uplink_ports = self.conn.get_org_uplink_addresses_by_device(serial=serial)
+            mgmt_ip, mgmt_port_name = get_mgmt_port_from_uplinks(mgmt_ip=lan_ip, uplink_ports=uplink_ports)
+            mgmt_ip_mask_length = 32  # In this case the subnet mask will be set to 32 since we can't get it from the device configuration
+            net_prefix = ipaddress_interface(ip=mgmt_ip, attr="network.with_prefixlen")
+            try:
+                self.get(self.port, {"name": mgmt_port_name, "device": device.name})
+            except ObjectNotFound:
+                mgmt_port = self.port(
+                    name=mgmt_port_name,
+                    device=device.name,
+                    management=True,
+                    enabled=True,
+                    port_type="1000base-t",
+                    port_status="Active",
+                    tagging=False,
+                    uuid=None,
+                )
+                self.add(mgmt_port)
+                device.add_child(mgmt_port)
+            if mgmt_ip:
+                self.load_prefix(prefix=net_prefix)
+                self.load_prefix_location(
+                    prefix=net_prefix,
+                    location=self.conn.network_map[network_id]["name"],
+                )
+                self.load_ipaddress(
+                    host_addr=mgmt_ip,
+                    mask_length=mgmt_ip_mask_length,
+                    prefix=net_prefix,
+                )
+                self.load_ipassignment(
+                    host_address=mgmt_ip,
+                    dev_name=device.name,
+                    port=mgmt_port_name,
+                    primary=True,
+                )
+
         if lan_ports:
             self.process_lan_ports(device, lan_ports)
 
@@ -226,11 +268,12 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 self.add(new_port)
                 device.add_child(new_port)
 
-    def load_switch_ports(self, device: DiffSyncModel, serial: str):
+    def load_switch_ports(self, device: DiffSyncModel, serial: str, lan_ip: str):
         """Load ports of a switch device from Meraki dashboard into DiffSync models."""
         mgmt_ports = self.conn.get_management_ports(serial=serial)
         org_switchports = self.conn.get_org_switchports()
 
+        net_prefix = None
         for port in mgmt_ports.keys():
             try:
                 self.get(self.port, {"name": port, "device": device.name})
@@ -248,19 +291,19 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 self.add(mgmt_port)
                 device.add_child(mgmt_port)
                 if mgmt_ports[port].get("usingStaticIp"):
-                    prefix = ipaddress_interface(
+                    net_prefix = ipaddress_interface(
                         ip=f"{mgmt_ports[port]['staticIp']}/{netmask_to_cidr(netmask=mgmt_ports[port]['staticSubnetMask'])}",
                         attr="network.with_prefixlen",
                     )
-                    self.load_prefix(prefix=prefix)
+                    self.load_prefix(prefix=net_prefix)
                     self.load_prefix_location(
-                        prefix=prefix,
+                        prefix=net_prefix,
                         location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
                     )
                     self.load_ipaddress(
                         host_addr=mgmt_ports[port]["staticIp"],
                         mask_length=netmask_to_cidr(mgmt_ports[port]["staticSubnetMask"]),
-                        prefix=prefix,
+                        prefix=net_prefix,
                     )
                     self.load_ipassignment(
                         host_address=mgmt_ports[port]["staticIp"],
@@ -268,6 +311,46 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                         port=port,
                         primary=True,
                     )
+        # If mgmt IP is obtained through DHCP we should get it through uplink ports (if allowed by meraki_allow_dhcp_mgmt_ips setting).
+        if (not net_prefix) and settings.PLUGINS_CONFIG["nautobot_ssot"].get("meraki_allow_dhcp_mgmt_ips"):
+            uplink_ports = self.conn.get_org_uplink_addresses_by_device(serial=serial)
+            if uplink_ports:  # Find the mgmt interface from the uplink interfaces
+                mgmt_ip, mgmt_port_name = get_mgmt_port_from_uplinks(mgmt_ip=lan_ip, uplink_ports=uplink_ports)
+                net_prefix = ipaddress_interface(ip=mgmt_ip, attr="network.with_prefixlen")
+                mgmt_ip_mask_length = 32  # In this case the subnet mask will be set to 32 since we can't get it from the device configuration
+                try:
+                    self.get(self.port, {"name": mgmt_port_name, "device": device.name})
+                except ObjectNotFound:
+                    mgmt_port = self.port(
+                        name=mgmt_port_name,
+                        device=device.name,
+                        management=True,
+                        enabled=True,
+                        port_type="1000base-t",
+                        port_status="Active",
+                        tagging=False,
+                        uuid=None,
+                    )
+                    self.add(mgmt_port)
+                    device.add_child(mgmt_port)
+                if mgmt_ip:
+                    self.load_prefix(prefix=net_prefix)
+                    self.load_prefix_location(
+                        prefix=net_prefix,
+                        location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
+                    )
+                    self.load_ipaddress(
+                        host_addr=mgmt_ip,
+                        mask_length=mgmt_ip_mask_length,
+                        prefix=net_prefix,
+                    )
+                    self.load_ipassignment(
+                        host_address=mgmt_ip,
+                        dev_name=device.name,
+                        port=mgmt_port_name,
+                        primary=True,
+                    )
+
         if serial in org_switchports:
             for port in org_switchports[serial]["ports"]:
                 new_port = self.port(
@@ -286,7 +369,6 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
     def load_ap_ports(self, device: DiffSyncModel, serial: str):
         """Load ports of a MR device from Meraki dashboard into DiffSync models."""
         mgmt_ports = self.conn.get_management_ports(serial=serial)
-
         net_prefix = None
         for port in mgmt_ports.keys():
             try:

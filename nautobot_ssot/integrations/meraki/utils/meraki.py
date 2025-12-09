@@ -1,6 +1,6 @@
 """Utility functions for working with Meraki."""
 
-from typing import List
+from typing import Dict, List, Optional, Tuple
 
 import meraki
 
@@ -242,3 +242,54 @@ def get_role_from_devicetype(dev_model: str, devicetype_map: dict) -> str:
         if entry[0] in dev_model:
             dev_role = entry[1]
     return dev_role
+
+
+def get_mgmt_port_from_uplinks(
+    mgmt_ip: Optional[str],
+    uplink_ports: List[Dict],
+) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Derive the management IP and management interface from Meraki uplink data.
+
+    If `mgmt_ip` is provided, the function tries to find which uplink interface
+    has that IP. If `mgmt_ip` is None, it falls back to the first uplink address
+    it finds and treats that as the management IP.
+
+    Parameters
+    ----------
+    mgmt_ip :
+        Existing management IP address, if known. If None, it will be inferred.
+    uplink_ports :
+        Iterable of uplink-port dictionaries as returned by the API.
+
+    Returns
+    -------
+    (mgmt_ip, mgmt_port_name) :
+        The (possibly updated) management IP and the corresponding interface
+        name, or (None, None) if nothing could be determined.
+    """
+    if not uplink_ports:
+        return mgmt_ip, None
+
+    # If this structure is always a list with one element that has "uplinks",
+    # keep your original semantics:
+    uplinks = next(iter(uplink_ports), {}).get("uplinks", [])
+
+    # Case 1: mgmt_ip is already known → just find the matching interface
+    if mgmt_ip:
+        for uplink_port in uplinks:
+            for uplink_ip in uplink_port.get("addresses", []):
+                if uplink_ip.get("address") == mgmt_ip:
+                    return mgmt_ip, uplink_port.get("interface")
+        # Not found, keep mgmt_ip but no interface
+        return mgmt_ip, None
+
+    # Case 2: mgmt_ip is unknown → take the first available address
+    for uplink_port in uplinks:
+        for uplink_ip in uplink_port.get("addresses", []):
+            address = uplink_ip.get("address")
+            if address:
+                return address, uplink_port.get("interface")
+
+    # Nothing found at all
+    return None, None
