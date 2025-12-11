@@ -92,7 +92,7 @@ class LibrenmsAdapter(Adapter):
         if self.job.debug:
             self.job.logger.debug(f"LibreNMS Adapter Loading LibreNMS Device {device[hostname_field]}")
 
-        if device["os"] != "ping":
+        if device["os"] != "ping" and device.get(hostname_field) is not None:
             if device["type"] in PLUGIN_CFG.get("librenms_permitted_values", {}).get("role", []):
                 normalized_name = normalize_device_hostname(device[hostname_field], self.job)
                 if isinstance(normalized_name, str):
