@@ -30,7 +30,7 @@ include = [
 python = ">=3.10,<3.14"
 # Used for local development
 nautobot = ">=3.0.0,<4.0.0"
-diffsync = "^2.0.0"
+diffsync = "^2.2.0"
 Jinja2 = { version = ">=2.11.3", optional = true }
 Markdown = "!=3.3.5"
 PyYAML = { version = ">=6", optional = true }

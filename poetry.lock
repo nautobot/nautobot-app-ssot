@@ -1289,14 +1289,14 @@ files = [
 
 [[package]]
 name = "diffsync"
-version = "2.1.0"
+version = "2.2.0"
 description = "Library to easily sync/diff/update 2 different data sources"
 optional = false
-python-versions = "<4.0,>=3.9"
+python-versions = "<3.14,>=3.10"
 groups = ["main"]
 files = [
-    {file = "diffsync-2.1.0-py3-none-any.whl", hash = "sha256:ffffdab7db9c3a1fc201da34b8803ad2a4d3088f30f424f60b0490850bd55437"},
-    {file = "diffsync-2.1.0.tar.gz", hash = "sha256:fb513c4a66f5c62b781796de23f361f8b1710901844667f8ccbe650ae58b27f0"},
+    {file = "diffsync-2.2.0-py3-none-any.whl", hash = "sha256:6f6bdc934613de0dbeb4927d5ce37f52ad9897de57ce84f7d5fea252fd1a4a01"},
+    {file = "diffsync-2.2.0.tar.gz", hash = "sha256:95e97edb5b5adb86c1e48e1f6a97f1204bde4ce94bf88aa15038740e8ec40daf"},
 ]
 
 [package.dependencies]
@@ -1998,7 +1998,6 @@ description = "A platform independent file lock."
 optional = false
 python-versions = ">=3.10"
 groups = ["dev"]
-markers = "python_version < \"3.11\""
 files = [
     {file = "filelock-3.20.0-py3-none-any.whl", hash = "sha256:339b4732ffda5cd79b13f4e2711a31b0365ce445d95d243bb996273d072546a2"},
     {file = "filelock-3.20.0.tar.gz", hash = "sha256:711e943b4ec6be42e1d4e6690b48dc175c822967466bb31c0c293f34334c13f4"},
@@ -5362,7 +5361,7 @@ colorama = {version = ">=0.4.5", markers = "sys_platform == \"win32\""}
 dill = [
     {version = ">=0.2", markers = "python_version < \"3.11\""},
     {version = ">=0.3.7", markers = "python_version >= \"3.12\""},
-    {version = ">=0.3.6", markers = "python_version >= \"3.11\""},
+    {version = ">=0.3.6", markers = "python_version == \"3.11\""},
 ]
 isort = ">=4.2.5,<5.13 || >5.13,<7"
 mccabe = ">=0.6,<0.8"
@@ -7238,4 +7237,4 @@ slurpit = ["slurpit-sdk"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "283ec135347785ca24b9ead4de688e67488c9495487a40c71af899ce3130168a"
+content-hash = "c591ed1ad4e11cfdbbe6270570886ad05096abd68d8fe5a882bdad2dc3e598b8"
