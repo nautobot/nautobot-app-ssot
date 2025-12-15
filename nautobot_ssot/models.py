@@ -359,7 +359,7 @@ class SyncRecord(BaseModel):
         related_name="children",
         related_query_name="children",
     )
-    message = models.TextField(blank=True, null=True, max_length=1024)
+    message = models.TextField(blank=True, max_length=1024)
 
     class Meta:
         """Metaclass attributes of SyncRecord."""
