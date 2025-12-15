@@ -145,4 +145,5 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
 
         nautobot_database_ready.connect(nautobot_database_ready_callback, sender=self)
 
+
 config = NautobotSSOTAppConfig  # pylint:disable=invalid-name

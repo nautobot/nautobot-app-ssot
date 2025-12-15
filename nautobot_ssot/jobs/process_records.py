@@ -47,7 +47,7 @@ class ProcessRecordsJob(Job):
         self.diff = Diff()
         super().__init__()
 
-    def run(self, **kwargs):
+    def run(self, *args, **kwargs):
         """Run the job."""
         self.records = kwargs.get("records", [])
         if not self.records:
@@ -88,6 +88,7 @@ class ProcessRecordsJob(Job):
             self.logger.info("Sync was a success!")
         else:
             self.logger.warning("Sync failed!")
+        super().run(*args, **kwargs)
 
     def load_sync_records(self, records: List[SyncRecord], parent: DiffElement = None):
         """Recursive function to load SyncRecords into DiffElements.

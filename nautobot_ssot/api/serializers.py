@@ -25,9 +25,6 @@ class SyncLogEntrySerializer(NautobotModelSerializer):  # pylint: disable=too-ma
         fields = "__all__"
 
 
-"""API serializers for nautobot_ssot."""
-
-
 class SyncRecordSerializer(NautobotModelSerializer):  # pylint: disable=too-many-ancestors
     """SyncRecord Serializer."""
 

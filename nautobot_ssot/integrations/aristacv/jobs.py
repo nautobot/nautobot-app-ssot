@@ -17,7 +17,7 @@ from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
 name = "SSoT - Arista CloudVision"  # pylint: disable=invalid-name
 
 
-class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
+class CloudVisionDataSource(DataSource):  # pylint: disable=too-many-instance-attributes
     """CloudVision SSoT Data Source."""
 
     debug = BooleanVar(description="Enable for more verbose debug logging")
@@ -125,7 +125,7 @@ class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 
-class CloudVisionDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
+class CloudVisionDataTarget(DataTarget):  # pylint: disable=too-many-instance-attributes
     """CloudVision SSoT Data Target."""
 
     debug = BooleanVar(description="Enable for more verbose debug logging")

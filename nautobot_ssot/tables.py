@@ -6,7 +6,6 @@ from nautobot.extras.tables import StatusTableMixin
 
 from .choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 from .models import Sync, SyncLogEntry, SyncRecord
-from .models import Sync, SyncLogEntry, SyncRecord
 
 ACTION_LOGS_LINK = """
 <a class="{{ link_class }}"

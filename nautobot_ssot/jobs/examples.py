@@ -90,7 +90,7 @@ class LocationModel(NautobotModel):
     tenant__name: Optional[str] = None
     description: str
     tags: List[TagDict] = []
-    devices: List["DeviceModel"] = list()
+    devices: List["DeviceModel"] = []
 
 
 class RoleModel(NautobotModel):

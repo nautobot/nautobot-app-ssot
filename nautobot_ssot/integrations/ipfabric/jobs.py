@@ -99,7 +99,7 @@ class OptionalObjectVar(ScriptVariable):
 
 
 # pylint:disable=too-few-public-methods
-class IpFabricDataSource(DataSource):
+class IpFabricDataSource(DataSource):  # pylint: disable=too-many-instance-attributes
     """Job syncing data from IP Fabric to Nautobot."""
 
     client = None

@@ -11,7 +11,7 @@ from nautobot_ssot.utils import validate_dlm_installed
 name = "Bootstrap SSoT"  # pylint: disable=invalid-name
 
 
-class BootstrapDataSource(DataSource):
+class BootstrapDataSource(DataSource):  # pylint: disable=too-many-instance-attributes
     """Bootstrap SSoT Data Source."""
 
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)

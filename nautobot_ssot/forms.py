@@ -73,7 +73,7 @@ class SyncRecordBulkEditForm(TagsBulkEditFormMixin, NautobotBulkEditForm):  # py
         ]
 
 
-class SyncRecordFilterForm(NautobotFilterForm):
+class SyncRecordFilterForm(NautobotFilterForm):  # pylint: disable=too-many-ancestors
     """Filter form to filter searches."""
 
     model = SyncRecord
