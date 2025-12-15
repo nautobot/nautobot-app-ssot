@@ -211,6 +211,8 @@ class DnaCenterMultiLevelLocationJobTest(TransactionTestCase):  # pylint: disabl
             tenant=None,
             dryrun=False,
             memory_profiling=False,
+            create_records=False,
+            parallel_loading=False,
         )
         log_entries = JobLogEntry.objects.filter(job_result=result)
         self.assertEqual(log_entries.filter(message__contains="location with this name already exists").count(), 0)

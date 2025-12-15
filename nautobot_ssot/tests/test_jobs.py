@@ -29,6 +29,7 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         """Per-test setup."""
         super().setUp()
         self.job = self.job_class()
+        self.job.create_records = False
 
         self.job.job_result = JobResult.objects.create(
             name="fake job",
@@ -150,6 +151,7 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
     def test_calculate_diff(self):
         """Test calculate_diff() method."""
         self.job.sync = Mock()
+        self.job.create_records = False
         self.job.source_adapter = Mock()
         self.job.target_adapter = Mock()
         self.job.source_adapter.diff_to().dict.return_value = {}
@@ -160,6 +162,7 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
     def test_calculate_diff_fail_diff_save_too_large(self):
         """Test calculate_diff() method logs failure."""
         self.job.sync = Mock()
+        self.job.create_records = False
         self.job.sync.save.side_effect = [None, OperationalError("Fail")]
         self.job.source_adapter = Mock()
         self.job.target_adapter = Mock()
@@ -174,6 +177,7 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
     def test_calculate_diff_fail_diff_save_generic(self):
         """Test calculate_diff() method logs failure."""
         self.job.sync = Mock()
+        self.job.create_records = False
         self.job.sync.save.side_effect = [None, IntegrityError("Fail")]
         self.job.source_adapter = Mock()
         self.job.target_adapter = Mock()
@@ -200,7 +204,7 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         self.job.load_source_adapter = load_source
         self.job.load_target_adapter = load_target
 
-        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True, create_records=False)
         # Both adapters should be loaded
         self.assertIsNotNone(self.job.source_adapter)
         self.assertIsNotNone(self.job.target_adapter)
@@ -227,7 +231,7 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         self.job.load_source_adapter = load_source
         self.job.load_target_adapter = load_target
 
-        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=False)
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=False, create_records=False)
         # Both adapters should be loaded
         self.assertIsNotNone(self.job.source_adapter)
         self.assertIsNotNone(self.job.target_adapter)
@@ -258,7 +262,7 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         self.job.load_target_adapter = load_target
 
         start_time = time.time()
-        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True, create_records=False)
         end_time = time.time()
 
         # Both adapters should be loaded
@@ -284,7 +288,7 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         self.job.load_target_adapter = load_target
 
         with self.assertRaises(ValueError) as context:
-            self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+            self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True, create_records=False)
 
         self.assertEqual(str(context.exception), "Source adapter failed")
         # Target adapter may or may not be loaded depending on timing
@@ -306,7 +310,7 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         self.job.load_target_adapter = load_target
 
         with self.assertRaises(ValueError) as context:
-            self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+            self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True, create_records=False)
 
         self.assertEqual(str(context.exception), "Target adapter failed")
         # Source adapter may or may not be loaded depending on timing
@@ -330,7 +334,7 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
 
         # Should raise the first error encountered (order may vary)
         with self.assertRaises((ValueError, RuntimeError)):
-            self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+            self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True, create_records=False)
 
     def test_parallel_loading_logs_captured(self):
         """Test that logs from threads are captured and stored as JobLogEntry objects."""
@@ -356,7 +360,7 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         self.job.load_source_adapter = load_source
         self.job.load_target_adapter = load_target
 
-        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True, create_records=False)
 
         # Check that JobLogEntry objects were created
         log_entries = JobLogEntry.objects.filter(job_result=self.job.job_result)
@@ -395,7 +399,7 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         self.job.load_source_adapter = load_source
         self.job.load_target_adapter = load_target
 
-        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True, create_records=False)
 
         # Timing should be recorded
         self.assertIsNotNone(self.job.sync.source_load_time)
@@ -429,7 +433,7 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         self.job.load_source_adapter = load_source
         self.job.load_target_adapter = load_target
 
-        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=False)
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=False, create_records=False)
 
         # Timing should be recorded
         self.assertIsNotNone(self.job.sync.source_load_time)
@@ -471,7 +475,7 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         self.job.load_target_adapter = load_target
 
         # Should not raise any database connection errors
-        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True, create_records=False)
 
         # Both adapters should be loaded successfully
         self.assertIsNotNone(self.job.source_adapter)
@@ -499,7 +503,7 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         self.job.load_source_adapter = load_source
         self.job.load_target_adapter = load_target
 
-        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True, create_records=False)
 
         # Check log entries
         log_entries = JobLogEntry.objects.filter(job_result=self.job.job_result)
@@ -510,6 +514,7 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         duplicate_count = log_messages.count("Duplicate message")
         self.assertGreaterEqual(duplicate_count, 1)
 
+    @patch("nautobot_ssot.jobs.base.DataSyncBaseJob.create_records", False)
     def test_parallel_loading_vs_sequential_performance(self):
         """Test that parallel loading is faster than sequential for slow adapters."""
         mock_diff = self._create_mock_diff()
@@ -538,7 +543,7 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         parallel_job.load_target_adapter = parallel_load_target
 
         parallel_start = time.time()
-        parallel_job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+        parallel_job.run(dryrun=True, memory_profiling=False, parallel_loading=True, create_records=False)
         parallel_duration = time.time() - parallel_start
 
         # Test sequential loading
@@ -565,7 +570,7 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         sequential_job.load_target_adapter = sequential_load_target
 
         sequential_start = time.time()
-        sequential_job.run(dryrun=True, memory_profiling=False, parallel_loading=False)
+        sequential_job.run(dryrun=True, memory_profiling=False, parallel_loading=False, create_records=False)
         sequential_duration = time.time() - sequential_start
 
         # Parallel should be faster (approximately half the time for equal delays)
