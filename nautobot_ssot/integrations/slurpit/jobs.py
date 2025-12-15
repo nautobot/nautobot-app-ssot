@@ -113,37 +113,30 @@ class SlurpitDataSource(DataSource, Job):  # pylint: disable=too-many-instance-a
         self.target_adapter = NautobotDiffSyncAdapter(job=self)
         self.target_adapter.load()
 
-    # pylint: disable-next=too-many-arguments, arguments-differ
-    def run(
-        self,
-        dryrun,
-        memory_profiling,
-        credentials,
-        site_loctype,
-        namespace,
-        ignore_prefixes,
-        sync_slurpit_tagged_only,
-        *args,
-        **kwargs,
-    ):
+    def run(self, *args, **kwargs):
         """Run the Slurpit DataSource job."""
         self.logger.info("Running Slurpit DataSource job")
-        self.credentials = credentials
-        self.site_loctype = site_loctype
+        self.credentials = kwargs.get("credentials")
+        self.site_loctype = kwargs.get("site_loctype")
         if not self.site_loctype:
             self.site_loctype = LocationType.objects.get_or_create(name="Site")[0]
         self.site_loctype.content_types.add(ContentType.objects.get_for_model(Device))
-        self.namespace = namespace
+        self.namespace = kwargs.get("namespace")
         if not self.namespace:
             self.namespace = Namespace.objects.get(name="Global")
-        self.ignore_prefixes = ignore_prefixes
+        self.ignore_prefixes = kwargs.get("ignore_prefixes")
 
         self.diffsync_flags |= DiffSyncFlags.SKIP_UNMATCHED_DST
 
         self.kwargs = {
-            "sync_slurpit_tagged_only": sync_slurpit_tagged_only,
+            "sync_slurpit_tagged_only": kwargs.get("sync_slurpit_tagged_only"),
         }
-        super().run(dryrun=dryrun, memory_profiling=memory_profiling, *args, **kwargs)
+        self.dryrun = kwargs.get("dryrun")
+        self.memory_profiling = kwargs.get("memory_profiling")
+        self.create_records = kwargs.get("create_records")
+        self.parallel_loading = kwargs.get("parallel_loading")
+        self.sync_slurpit_tagged_only = kwargs.get("sync_slurpit_tagged_only")
+        super().run(*args, **kwargs)
 
 
 jobs = [SlurpitDataSource]

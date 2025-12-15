@@ -154,25 +154,23 @@ class VsphereDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
 
     def run(
         self,
-        dryrun,
-        memory_profiling,
-        debug,
-        cluster_filters,
         *args,
         **kwargs,
-    ):  # pylint: disable=arguments-differ, too-many-arguments
+    ):
         """Run sync."""
-        self.dryrun = dryrun
-        self.debug = debug
-        self.memory_profiling = memory_profiling
-        self.cluster_filters = cluster_filters
+        self.dryrun = kwargs.get("dryrun")
+        self.debug = kwargs.get("debug")
+        self.memory_profiling = kwargs.get("memory_profiling")
+        self.cluster_filters = kwargs.get("cluster_filters")
+        self.create_records = kwargs.get("create_records")
+        self.parallel_loading = kwargs.get("parallel_loading")
         self.config = kwargs.get("config")
         if not self.config.enable_sync_to_nautobot:
             self.logger.error("Can't run sync to Nautobot, provided config does not have it enabled.")
             raise ValueError("Config not enabled for sync to Nautobot.")
         options = f"`Debug`: {self.debug}, `Dry Run`: {self.dryrun}, `Sync Tagged Only`: {self.config.sync_tagged_only}, `Cluster Filter`: {','.join([cluster.name for cluster in self.cluster_filters])}"  # NOQA
         self.logger.info(f"Starting job with the following options: {options}")
-        return super().run(dryrun, memory_profiling, *args, **kwargs)
+        return super().run(*args, **kwargs)
 
 
 jobs = [VsphereDataSource]

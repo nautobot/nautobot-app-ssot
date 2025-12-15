@@ -93,16 +93,16 @@ class AciDataSource(DataSource, Job):  # pylint: disable=abstract-method, too-ma
         )
         self.target_adapter.load()
 
-    def run(  # pylint: disable=arguments-differ, too-many-arguments
-        self, dryrun, memory_profiling, apic, device_site, debug, *args, **kwargs
-    ):
+    def run(self, *args, **kwargs):
         """Perform data synchronization."""
-        self.apic = apic
-        self.device_site = device_site
-        self.debug = debug
-        self.dryrun = dryrun
-        self.memory_profiling = memory_profiling
-        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
+        self.apic = kwargs.get("apic")
+        self.device_site = kwargs.get("device_site")
+        self.debug = kwargs.get("debug")
+        self.dryrun = kwargs.get("dryrun")
+        self.memory_profiling = kwargs.get("memory_profiling")
+        self.create_records = kwargs.get("create_records")
+        self.parallel_loading = kwargs.get("parallel_loading")
+        super().run(*args, **kwargs)
 
 
 jobs = [AciDataSource]

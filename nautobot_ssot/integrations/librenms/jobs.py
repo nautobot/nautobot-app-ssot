@@ -148,37 +148,21 @@ class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         self.target_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync, tenant=self.tenant)
         self.target_adapter.load()
 
-    def run(  # pylint: disable=too-many-arguments, too-many-locals
-        self,
-        dryrun,
-        memory_profiling,
-        debug,
-        librenms_server,
-        hostname_field,
-        sync_locations,
-        location_type,
-        location_map,
-        hostname_map,
-        default_role,
-        unpermitted_values,
-        tenant,
-        *args,
-        **kwargs,
-    ):  # pylint: disable=arguments-differ
+    def run(self, *args, **kwargs):
         """Perform data synchronization."""
-        self.librenms_server = librenms_server
-        self.hostname_field = hostname_field
-        self.sync_locations = sync_locations
-        self.location_type = location_type
-        self.tenant = tenant
-        self.debug = debug
-        self.dryrun = dryrun
-        self.memory_profiling = memory_profiling
-        self.location_map = location_map
-        self.hostname_map = hostname_map
-        self.default_role = default_role
-        self.unpermitted_values = literal_eval(unpermitted_values)
-        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
+        self.librenms_server = kwargs.get("librenms_server")
+        self.hostname_field = kwargs.get("hostname_field")
+        self.sync_locations = kwargs.get("sync_locations")
+        self.location_type = kwargs.get("location_type")
+        self.tenant = kwargs.get("tenant")
+        self.debug = kwargs.get("debug")
+        self.dryrun = kwargs.get("dryrun")
+        self.memory_profiling = kwargs.get("memory_profiling")
+        self.location_map = kwargs.get("location_map")
+        self.hostname_map = kwargs.get("hostname_map")
+        self.default_role = kwargs.get("default_role")
+        self.unpermitted_values = literal_eval(kwargs.get("unpermitted_values"))
+        super().run(*args, **kwargs)
 
 
 class LibrenmsDataTarget(DataTarget):  # pylint: disable=too-many-instance-attributes
@@ -266,32 +250,21 @@ class LibrenmsDataTarget(DataTarget):  # pylint: disable=too-many-instance-attri
         self.target_adapter = librenms.LibrenmsAdapter(job=self, sync=self.sync, librenms_api=librenms_api)
         self.target_adapter.load()
 
-    def run(  # pylint: disable=too-many-arguments
-        self,
-        dryrun,
-        memory_profiling,
-        debug,
-        librenms_server,
-        force_add,
-        ping_fallback,
-        sync_locations,
-        location_type,
-        tenant,
-        *args,
-        **kwargs,
-    ):  # pylint: disable=arguments-differ
+    def run(self, *args, **kwargs):
         """Perform data synchronization."""
-        self.librenms_server = librenms_server
-        self.force_add = force_add
-        self.ping_fallback = ping_fallback
-        self.sync_locations = sync_locations
-        self.location_type = location_type
+        self.librenms_server = kwargs.get("librenms_server")
+        self.force_add = kwargs.get("force_add")
+        self.ping_fallback = kwargs.get("ping_fallback")
+        self.sync_locations = kwargs.get("sync_locations")
+        self.location_type = kwargs.get("location_type")
         self.hostname_field = "env_var"
-        self.tenant = tenant
-        self.debug = debug
-        self.dryrun = dryrun
-        self.memory_profiling = memory_profiling
-        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
+        self.tenant = kwargs.get("tenant")
+        self.debug = kwargs.get("debug")
+        self.dryrun = kwargs.get("dryrun")
+        self.memory_profiling = kwargs.get("memory_profiling")
+        self.create_records = kwargs.get("create_records")
+        self.parallel_loading = kwargs.get("parallel_loading")
+        super().run(*args, **kwargs)
 
 
 jobs = [LibrenmsDataSource, LibrenmsDataTarget]

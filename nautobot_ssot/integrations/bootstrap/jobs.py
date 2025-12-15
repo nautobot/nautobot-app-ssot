@@ -98,13 +98,15 @@ class BootstrapDataSource(DataSource):  # pylint: disable=too-many-instance-attr
         self.target_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync)
         self.target_adapter.load()
 
-    def run(self, load_source, dryrun, memory_profiling, debug, *args, **kwargs):  # pylint: disable=arguments-differ
+    def run(self, *args, **kwargs):
         """Perform data synchronization."""
-        self.debug = debug
-        self.dryrun = dryrun
-        self.memory_profiling = memory_profiling
-        self.load_source = load_source
-        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
+        self.debug = kwargs.get("debug")
+        self.dryrun = kwargs.get("dryrun")
+        self.memory_profiling = kwargs.get("memory_profiling")
+        self.load_source = kwargs.get("load_source")
+        self.create_records = kwargs.get("create_records")
+        self.parallel_loading = kwargs.get("parallel_loading")
+        super().run(*args, **kwargs)
 
 
 class BootstrapDataTarget(DataTarget):

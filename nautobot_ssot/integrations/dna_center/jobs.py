@@ -179,36 +179,23 @@ class DnaCenterDataSource(DataSource):  # pylint: disable=too-many-instance-attr
                 f"{self.building_loctype.name} is not parent to {self.floor_loctype.name}. Please correct.",
             )
 
-    def run(
-        self,
-        dryrun,
-        memory_profiling,
-        debug,
-        dnac,
-        area_loctype,
-        building_loctype,
-        floor_loctype,
-        location_map,
-        hostname_map,
-        bulk_import,
-        tenant,
-        *args,
-        **kwargs,  # pylint: disable=arguments-differ, too-many-arguments
-    ):
+    def run(self, *args, **kwargs):
         """Perform data synchronization."""
-        self.dnac = dnac
-        self.area_loctype = area_loctype
-        self.building_loctype = building_loctype
-        self.floor_loctype = floor_loctype
+        self.dnac = kwargs.get("dnac")
+        self.area_loctype = kwargs.get("area_loctype")
+        self.building_loctype = kwargs.get("building_loctype")
+        self.floor_loctype = kwargs.get("floor_loctype")
         self.validate_locationtypes()
-        self.location_map = location_map
-        self.hostname_map = literal_eval(hostname_map)
-        self.tenant = tenant
-        self.debug = debug
-        self.bulk_import = bulk_import
-        self.dryrun = dryrun
-        self.memory_profiling = memory_profiling
-        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
+        self.location_map = kwargs.get("location_map")
+        self.hostname_map = literal_eval(kwargs.get("hostname_map"))
+        self.tenant = kwargs.get("tenant")
+        self.debug = kwargs.get("debug")
+        self.bulk_import = kwargs.get("bulk_import")
+        self.dryrun = kwargs.get("dryrun")
+        self.memory_profiling = kwargs.get("memory_profiling")
+        self.create_records = kwargs.get("create_records")
+        self.parallel_loading = kwargs.get("parallel_loading")
+        super().run(*args, **kwargs)
 
 
 jobs = [DnaCenterDataSource]

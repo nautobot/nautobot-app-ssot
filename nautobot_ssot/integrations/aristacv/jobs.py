@@ -5,7 +5,7 @@ from django.templatetags.static import static
 from django.urls import reverse
 from nautobot.core.utils.lookup import get_route_for_model
 from nautobot.dcim.models import DeviceType
-from nautobot.extras.jobs import BooleanVar, Job
+from nautobot.extras.jobs import BooleanVar
 
 from nautobot_ssot.exceptions import MissingConfigSetting
 from nautobot_ssot.integrations.aristacv.diffsync.adapters.cloudvision import CloudvisionAdapter
@@ -109,20 +109,14 @@ class CloudVisionDataSource(DataSource):  # pylint: disable=too-many-instance-at
         self.target_adapter = NautobotAdapter(job=self)
         self.target_adapter.load()
 
-    def run(  # pylint: disable=arguments-differ, too-many-arguments, duplicate-code
-        self,
-        dryrun,
-        memory_profiling,
-        debug,
-        *args,
-        **kwargs,
-    ):
+    def run(self, *args, **kwargs):
         """Perform data synchronization."""
-        self.debug = debug
-        self.dryrun = dryrun
-        self.memory_profiling = memory_profiling
-
-        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
+        self.debug = kwargs.get("debug")
+        self.dryrun = kwargs.get("dryrun")
+        self.memory_profiling = kwargs.get("memory_profiling")
+        self.create_records = kwargs.get("create_records")
+        self.parallel_loading = kwargs.get("parallel_loading")
+        super().run(*args, **kwargs)
 
 
 class CloudVisionDataTarget(DataTarget):  # pylint: disable=too-many-instance-attributes
