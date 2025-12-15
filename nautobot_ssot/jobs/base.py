@@ -108,6 +108,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
       - `data_source_icon` and `data_target_icon`
     """
 
+    create_records = BooleanVar(description="Whether to create Sync Records or not.", default=True)
     dryrun = DryRunVar(
         description="Perform a dry-run, making no actual changes to Nautobot data.",
         default=True,
@@ -148,7 +149,9 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             self.target_adapter._meta_kwargs.pop("job")
             self.target_adapter._meta_kwargs.pop("sync")
 
-            self.create_sync_records(diff=self.diff)
+            if self.create_records:
+                self.logger.debug("Creating Sync Records...")
+                self.create_sync_records(diff=self.diff)
 
             self.sync.diff = {}
             self.sync.summary = self.diff.summary()
