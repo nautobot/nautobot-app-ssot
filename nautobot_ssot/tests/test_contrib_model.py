@@ -29,7 +29,7 @@ from nautobot_ssot.tests.test_contrib_adapter import (
 
 
 class MockNautobotAdapter(NautobotAdapter):
-    """"""
+    """Mock Nautobot adapter for testing."""
 
     top_level = MagicMock()
 
