@@ -27,11 +27,11 @@ from nautobot_ssot.tests.test_contrib_adapter import (
     CustomRelationShipTestAdapterSource,
 )
 
+
 class MockNautobotAdapter(NautobotAdapter):
     """"""
 
     top_level = MagicMock()
-
 
 
 class BaseModelCustomRelationshipOneToManyTest(TestCase):
