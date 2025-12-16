@@ -1,0 +1,1 @@
+Moved Class validations for `nautobot_ssot.contrib.adapter.NautobotAdapter` to validate during `__init__`.
