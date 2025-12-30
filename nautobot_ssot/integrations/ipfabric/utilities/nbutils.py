@@ -48,9 +48,13 @@ def create_location(
         None: When there is a failure in getting or creating a Location.
     """
     try:
+        location_type = LocationType.objects.get(name="Site")
+        if not location_type.content_types.filter(app_label="ipam", model="vlan").exists():
+            location_type.content_types.add(ContentType.objects.get_for_model(VLAN))
+
         location_obj, _ = Location.objects.get_or_create(
             name=location_name,
-            location_type=LocationType.objects.get(name="Site"),
+            location_type=location_type,
             status=Status.objects.get(name="Active"),
         )
     except Location.MultipleObjectsReturned:
@@ -483,16 +487,26 @@ def create_vlan(  # pylint: disable=too-many-arguments
         VLAN: When a VLAN Object is retrieved or created.
         None: When there is a failure in getting or creating a VLAN.
     """
+    # Ensure LocationType allows VLANs
+    if location_obj and not location_obj.location_type.content_types.filter(app_label="ipam", model="vlan").exists():
+        location_obj.location_type.content_types.add(ContentType.objects.get_for_model(VLAN))
+
     try:
-        vlan_obj, _ = location_obj.vlans.get_or_create(
-            name=vlan_name, vid=vlan_id, status=Status.objects.get(name=vlan_status), description=description
+        vlan_obj, _ = VLAN.objects.get_or_create(
+            vid=vlan_id,
+            location=location_obj,
+            defaults={
+                "name": vlan_name,
+                "status": Status.objects.get(name=vlan_status),
+                "description": description,
+            },
         )
     except VLAN.MultipleObjectsReturned:
         if logger:
             logger.error(f"Multiple VLANs returned with name {vlan_name} and ID {vlan_id}")
-    except (DjangoBaseDBError, ValidationError):
+    except (DjangoBaseDBError, ValidationError) as err:
         if logger:
-            logger.error(f"Unable to create a new VLAN named {vlan_name} with an ID {vlan_id}")
+            logger.error(f"Unable to create a new VLAN named {vlan_name} with an ID {vlan_id}. Error: {err}")
     else:
         try:
             tag_object(nautobot_object=vlan_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
