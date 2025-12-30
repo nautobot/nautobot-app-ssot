@@ -834,7 +834,7 @@ class Vlan(DiffSyncExtras):
         else:
             description = attrs.get("description")
             if adapter.job.debug:
-                logger.debug("Creating VLAN: %s description: %s", vlan_name, description)
+                adapter.job.logger.debug("Creating VLAN: %s description: %s", vlan_name, description)
             vlan = tonb_nbutils.create_vlan(
                 vlan_name=vlan_name,
                 vlan_id=vlan_id,
@@ -845,9 +845,10 @@ class Vlan(DiffSyncExtras):
             )
             if vlan:
                 return super().create(ids=ids, adapter=adapter, attrs=attrs)
-            adapter.job.logger.error.debug(
-                f"Unable to get or create a VLAN named {vlan_name} with VLAN ID {vlan_id} at location named {location_name}"
-            )
+            if adapter.job.debug:
+                adapter.job.logger.debug(
+                    f"Unable to get or create a VLAN named {vlan_name} with VLAN ID {vlan_id} at location named {location_name}"
+                )
         return None
 
     def delete(self) -> Optional["DiffSyncModel"]:
