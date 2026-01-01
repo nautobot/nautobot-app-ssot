@@ -6,7 +6,7 @@ labels:
 ---
 
 ### Environment
-* Nautobot version:  <!-- Example: 2.4.20 -->
+* Nautobot version:  <!-- Example: 3.0.0 -->
 * nautobot-ssot version:  <!-- Example: 1.0.0 -->
 
 <!--
