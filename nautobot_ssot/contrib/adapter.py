@@ -27,9 +27,11 @@ from nautobot_ssot.utils.orm import (
     get_custom_relationship_associations,
     load_typed_dict,
     orm_attribute_lookup,
+    load_list_of_typed_dicts,
+    get_custom_foreign_key_value,
 )
 from nautobot_ssot.utils.typing import get_inner_type
-
+from nautobot_ssot.contrib.enums import AttributeType
 
 class NautobotAdapter(Adapter, BaseNautobotAdapter):
     """
@@ -71,6 +73,41 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
             self._load_single_object(database_object, diffsync_model, parameter_names)
 
     def _handle_single_parameter(self, parameters, parameter_name, database_object, diffsync_model):
+        attr_type = diffsync_model.get_attr_type(parameter_name)
+
+        # Load parameter data based on parameter type.
+        if hasattr(self, f"load_param_{parameter_name}"):
+            # Start with checking for overrides to attribute loaders
+            parameters[parameter_name] = getattr(self, f"load_param_{parameter_name}")(parameter_name, database_object)
+        elif attr_type == AttributeType.STANDARD:
+            parameters[parameter_name] = getattr(database_object, parameter_name)
+        elif attr_type == AttributeType.FOREIGN_KEY:
+            parameters[parameter_name] = orm_attribute_lookup(database_object, parameter_name)
+        elif attr_type == AttributeType.N_TO_MANY_RELATIONSHIP:
+            parameters[parameter_name] = load_list_of_typed_dicts(
+                get_inner_type(diffsync_model, parameter_name),
+                getattr(database_object, parameter_name).all(),
+            )
+        elif attr_type == AttributeType.CUSTOM_FIELD:
+            annotation = diffsync_model.get_annotation(parameter_name)
+            field_key = annotation.key or annotation.name
+            if field_key in database_object.cf:
+                parameters[parameter_name] = database_object.cf[field_key]
+        elif attr_type == AttributeType.CUSTOM_FOREIGN_KEY:
+            annotation = diffsync_model.get_annotation(parameter_name)
+            parameters[parameter_name] = get_custom_foreign_key_value(
+                relationship=self.cache.get_from_orm(Relationship, {"label": annotation.name}),
+                db_obj=database_object,
+                attr_name=parameter_name,
+                annotation=annotation,
+            )
+        elif attr_type == AttributeType.CUSTOM_N_TO_MANY_RELATIONSHIP:
+            parameters[parameter_name] = self._handle_custom_relationship_to_many_relationship(
+                database_object, diffsync_model, parameter_name, diffsync_model.get_annotation(parameter_name)
+            )
+
+    def old(self, parameters, parameter_name, database_object, diffsync_model):
+
         type_hints = get_type_hints(diffsync_model, include_extras=True)
         # Handle custom fields and custom relationships. See CustomFieldAnnotation and CustomRelationshipAnnotation
         # docstrings for more details.
@@ -95,9 +132,15 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
         # the 'many' side.
         if "__" in parameter_name:
             if custom_relationship_annotation:
-                parameters[parameter_name] = self._handle_custom_relationship_foreign_key(
-                    database_object, parameter_name, custom_relationship_annotation
-                )
+                try:
+                    parameters[parameter_name] = get_custom_foreign_key_value(
+                        relationship=self.cache.get_from_orm(Relationship, {"label": custom_relationship_annotation.name}),
+                        db_obj=database_object,
+                        attr_name=parameter_name,
+                        annotation=custom_relationship_annotation,
+                    )
+                except ValueError as err:
+                    self.job.logger.warning(err)
             else:
                 parameters[parameter_name] = orm_attribute_lookup(database_object, parameter_name)
             return
@@ -115,8 +158,9 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
         # Note: This includes the side of a generic foreign key that constitutes the foreign key,
         # i.e. the 'one' side.
         if database_field.many_to_many or database_field.one_to_many:
-            parameters[parameter_name] = self._handle_to_many_relationship(
-                database_object, diffsync_model, parameter_name
+            parameters[parameter_name] = load_list_of_typed_dicts(
+                get_inner_type(diffsync_model, parameter_name),
+                getattr(database_object, parameter_name).all(),
             )
             return
 
@@ -217,94 +261,6 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
             )
 
         return related_objects_list
-
-    def _handle_to_many_relationship(self, database_object, diffsync_model, parameter_name):
-        """Handle a single one- or many-to-many relationship field.
-
-        one- or many-to-many relationships are type annotated as a list of typed dictionaries. The typed
-        dictionary type expresses, which attributes we are interested in for diffsync.
-
-        :param database_object: The Django ORM database object
-        :param diffsync_model: The diffsync model class (not specific object) for this ORM object
-        :param parameter_name: The field name of the specific relationship to handle
-        :return: A list of dictionaries which represent the related objects.
-
-        :example:
-
-        Example parameters:
-        - a `nautobot.dcim.models.Interface` instance with two IP addresses assigned
-          through the `ip_addresses` many-to-many relationship as `database_object`
-        - an InterfaceModel class like the following `NautobotInterface` as `diffsync_model`
-
-        ```python
-        class IPAddressDict(TypedDict):
-            host: str
-            prefix_length: int
-
-
-        class NautobotInterface(NautobotModel):
-            _model = Interface
-            _modelname = "interface"
-            _identifiers = (
-                "name",
-                "device__name",
-            )
-            _attributes = ("ip_addresses",)
-
-            name: str
-            device__name: str
-            ip_addresses: List[IPAddressDict] = []
-        ```
-
-        - a field name like `ip_addresses` as the `parameter_name`
-
-        Example return list within the above input example:
-
-        ```python
-        [
-          {"host": "192.0.2.0/25", "prefix_length": 25},
-          {"host": "192.0.2.128/25", "prefix_length": 25},
-        ]
-        ```
-        """
-        # Introspect type annotations to deduce which fields are of interest
-        # for this many-to-many relationship.
-        inner_type = get_inner_type(diffsync_model, parameter_name)
-        related_objects_list = []
-        # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
-        for related_object in getattr(database_object, parameter_name).all():
-            dictionary_representation = load_typed_dict(inner_type, related_object)
-            # Only use those where there is a single field defined, all 'None's will not help us.
-            if any(dictionary_representation.values()):
-                related_objects_list.append(dictionary_representation)
-        return related_objects_list
-
-    def _handle_custom_relationship_foreign_key(
-        self, database_object, parameter_name: str, annotation: CustomRelationshipAnnotation
-    ):
-        """Handle a single custom relationship foreign key field."""
-        relationship_associations, association_count = get_custom_relationship_associations(
-            relationship=self.cache.get_from_orm(Relationship, {"label": annotation.name}),
-            db_obj=database_object,
-            relationship_side=annotation.side,
-        )
-
-        if association_count == 0:
-            return None
-        if association_count > 1:
-            self.job.logger.warning(
-                f"Foreign key ({database_object.__name__}.{parameter_name}) "
-                "custom relationship matched two associations - this shouldn't happen."
-            )
-
-        return orm_attribute_lookup(
-            getattr(
-                relationship_associations.first(),
-                "source" if annotation.side == RelationshipSideEnum.DESTINATION else "destination",
-            ),
-            # Discard the first part of the paramater name as it references the initial related object
-            re.sub("^(.*?)__", "", parameter_name),
-        )
 
     def get_or_create_metadatatype(self):
         """Retrieve or create a MetadataType object to track the last sync time of this SSoT job."""

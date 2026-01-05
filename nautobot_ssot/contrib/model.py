@@ -5,7 +5,7 @@
 
 from collections import defaultdict
 from datetime import datetime
-from typing import List
+from typing import Annotated, List, Union, get_type_hints, get_args
 
 from diffsync import DiffSyncModel
 from diffsync.exceptions import ObjectCrudException, ObjectNotCreated, ObjectNotDeleted, ObjectNotUpdated
@@ -15,7 +15,10 @@ from django.db.models import ProtectedError, QuerySet
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
 from nautobot.extras.models.metadata import ObjectMetadata
-from typing_extensions import get_type_hints
+from functools import lru_cache
+from nautobot_ssot.contrib.enums import AttributeType
+
+from django.db.models import Model as ModelObj
 
 from nautobot_ssot.contrib.base import BaseNautobotModel
 from nautobot_ssot.contrib.types import (
@@ -23,6 +26,24 @@ from nautobot_ssot.contrib.types import (
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
+from nautobot_ssot.contrib.enums import AttributeType
+
+
+class NautobotLoaderMixin:
+    """Mixin class to load"""
+
+    _identifiers: tuple[str]
+    _attributes: tuple[str]
+
+    @classmethod
+    def get_synced_attributes(cls) -> List[str]:
+        """Return a list of parameters synced as part of the SSoT Process."""
+        return list(cls._identifiers) + list(cls._attributes)
+
+    def load_from_orm_model(self, orm_obj: ModelObj):
+        """"""
+        synced_attributes = self.get_synced_attributes()
+
 
 
 class NautobotModel(DiffSyncModel, BaseNautobotModel):
@@ -40,6 +61,70 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
     def get_synced_attributes(cls) -> List[str]:
         """Return a list of parameters synced as part of the SSoT Process."""
         return list(cls._identifiers) + list(cls._attributes)
+
+    @classmethod
+    @lru_cache
+    def get_field(cls, attr_name: str):
+        return cls._model._meta.get_field(attr_name)
+
+    @classmethod
+    @lru_cache
+    def get_type_hints(cls) -> dict:
+        """Return type hints for model class and use caching when doing so."""
+        return get_type_hints(cls, include_extras=True)
+
+    @classmethod
+    @lru_cache
+    def get_annotation(cls, attr_name: str):
+        """Get attribute type hint annotation/metadata if found."""
+        type_hints = cls.get_type_hints()[attr_name]
+        for metadata in getattr(type_hints, "__metadata__", []):
+            if type(metadata) in (CustomFieldAnnotation, CustomRelationshipAnnotation):
+                return metadata
+        return None
+
+    @classmethod
+    @lru_cache
+    def get_attr_type(cls, attr_name: str):
+        is_foreign_key = True if "__" in attr_name else False
+        annotation = cls.get_annotation(attr_name)
+
+        if isinstance(annotation, CustomFieldAnnotation):
+            return AttributeType.CUSTOM_FIELD
+        if is_foreign_key:
+            if isinstance(annotation, CustomRelationshipAnnotation):
+                return AttributeType.CUSTOM_FOREIGN_KEY
+            return AttributeType.FOREIGN_KEY
+        if annotation:
+            return AttributeType.CUSTOM_N_TO_MANY_RELATIONSHIP
+        db_field = cls.get_field(attr_name)
+        if db_field.many_to_many or db_field.one_to_many:
+            return AttributeType.N_TO_MANY_RELATIONSHIP
+        return AttributeType.STANDARD
+
+
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
 
     @classmethod
     def _get_queryset(cls) -> QuerySet:
