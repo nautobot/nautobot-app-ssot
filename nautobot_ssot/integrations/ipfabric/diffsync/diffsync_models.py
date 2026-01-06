@@ -467,8 +467,8 @@ class Device(DiffSyncExtras):
             # tonb_nbutils.tag_object calls validated_save()
             try:
                 tonb_nbutils.tag_object(nautobot_object=_device, custom_field=LAST_SYNCHRONIZED_CF_NAME)
-            except (DjangoBaseDBError, ValidationError):
-                self.adapter.job.logger.error(f"Unable to update the existing Device named {self.name} with {attrs}")
+            except (DjangoBaseDBError, ValidationError) as err:
+                self.adapter.job.logger.error(f"Unable to update the existing Device named {self.name} with {attrs}. Error: {err}")
                 return_super = False
 
             vc_name = attrs.get("vc_name")

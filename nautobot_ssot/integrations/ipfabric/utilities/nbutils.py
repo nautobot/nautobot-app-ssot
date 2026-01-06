@@ -189,6 +189,11 @@ def create_platform_object(
         Platform: When a Platform Object is retrieved or created.
         None: When there is a failure in getting or creating a Platform.
     """
+    if not manufacturer_obj:
+        if logger:
+            logger.error(f"Unable to create Platform {platform} because Manufacturer is None")
+        return None
+
     if platform == "ios-xe":
         network_driver = "cisco_ios"
         napalm_driver = "cisco_ios"
@@ -196,20 +201,36 @@ def create_platform_object(
         network_driver = f"{manufacturer_obj.name.lower()}_{platform.lower()}"
         napalm_driver = NAPALM_LIB_MAPPER.get(platform, "")
 
-    defaults = {"network_driver": network_driver, "napalm_driver": napalm_driver}
+    defaults = {
+        "network_driver": network_driver,
+        "napalm_driver": napalm_driver,
+        "manufacturer": manufacturer_obj,
+    }
     try:
-        platform_obj, _ = Platform.objects.get_or_create(
-            name=platform,
-            manufacturer=manufacturer_obj,
-            defaults=defaults,
-        )
-        return platform_obj
+        platform_obj = Platform.objects.get(name=platform)
+        if platform_obj.manufacturer == manufacturer_obj:
+            return platform_obj
+        
+        if logger:
+            logger.warning(
+                f"Platform {platform} already exists but belongs to Manufacturer {platform_obj.manufacturer}, "
+                f"not {manufacturer_obj}. Skipping assignment to avoid validation errors."
+            )
+        return None
+
+    except Platform.DoesNotExist:
+        try:
+            platform_obj = Platform.objects.create(name=platform, **defaults)
+            return platform_obj
+        except (DjangoBaseDBError, ValidationError) as err:
+            if logger:
+                logger.error(f"Unable to create a new Platform named {platform}. Error: {err}")
     except Platform.MultipleObjectsReturned:
         if logger:
             logger.error(f"Multiple Platforms returned with the name {platform}")
     except (DjangoBaseDBError, ValidationError):
         if logger:
-            logger.error(f"Unable to create a new Platform named {platform}")
+            logger.error(f"Unable to retrieve Platform named {platform}")
     return None
 
 
