@@ -345,7 +345,7 @@ def create_ip(
         except IPAddress.MultipleObjectsReturned:
             if logger:
                 logger.error(f"Multiple IPAddresses returned with the address of {ip_address}/{subnet_mask}")
-        except (DjangoBaseDBError, ValidationError):
+        except (DjangoBaseDBError, ValidationError, Prefix.DoesNotExist):
             try:
                 parent, _ = Prefix.objects.get_or_create(
                     network="0.0.0.0",  # noqa: S104
