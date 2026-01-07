@@ -271,8 +271,6 @@ def get_mgmt_port_from_uplinks(
     if not uplink_ports:
         return mgmt_ip, None
 
-    # If this structure is always a list with one element that has "uplinks",
-    # keep your original semantics:
     uplinks = next(iter(uplink_ports), {}).get("uplinks", [])
 
     # Case 1: mgmt_ip is already known → just find the matching interface

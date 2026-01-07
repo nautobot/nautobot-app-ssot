@@ -53,6 +53,31 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
         self.device_map = {}
         self.org_uplink_statuses = self.conn.get_org_uplink_statuses()
 
+    def resolve_location_name(self, network_id):
+        """
+        Resolve the Nautobot Location name for Meraki SSoT object creation.
+
+        If the user has selected a Location in the Job input, that Location
+        is used for all objects created by the job. Otherwise, the Location
+        is derived from the Meraki network mapping, using the provided
+        network ID from the Meraki Dashboard.
+
+        Parameters
+        ----------
+        network_id : str
+            The Meraki network ID used to look up the corresponding location
+            in the Meraki network map.
+
+        Returns
+        -------
+        str
+            The resolved Nautobot Location name.
+        """
+        if self.job.location:
+            return self.job.location.name
+
+        return self.conn.network_map[network_id]["name"]
+
     def load_networks(self):
         """Load networks from Meraki dashboard into DiffSync models."""
         for net in self.conn.get_org_networks():
@@ -119,7 +144,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                             "status": status,
                             "role": role,
                             "model": dev["model"],
-                            "network": self.conn.network_map[dev["networkId"]]["name"],
+                            "network": self.resolve_location_name(dev["networkId"]),
                             "tenant": self.tenant.name if self.tenant else None,
                             "uuid": None,
                             "version": dev["firmware"],
@@ -128,7 +153,12 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                     if loaded:
                         # TODO: Replace categorization based on model name to productType
                         if dev["model"].startswith(("MX", "MG", "Z")):
-                            self.load_firewall_ports(device=new_dev, serial=dev["serial"], network_id=dev["networkId"], lan_ip=dev.get("lanIp"))
+                            self.load_firewall_ports(
+                                device=new_dev,
+                                serial=dev["serial"],
+                                network_id=dev["networkId"],
+                                lan_ip=dev.get("lanIp"),
+                            )
                         elif dev["model"].startswith(("MR", "CW")):
                             self.load_ap_ports(device=new_dev, serial=dev["serial"])
                         elif dev["model"].startswith(("MS", "C9300")):
@@ -186,7 +216,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                         self.load_prefix(prefix=prefix)
                         self.load_prefix_location(
                             prefix=prefix,
-                            location=self.conn.network_map[network_id]["name"],
+                            location=self.resolve_location_name(network_id),
                         )
                         mgmt_ip = port_svis["address"]
                         host_addr, mask_length = mgmt_ip.split("/")
@@ -206,7 +236,9 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
         if not mgmt_ip and settings.PLUGINS_CONFIG["nautobot_ssot"].get("meraki_allow_dhcp_mgmt_ips"):
             uplink_ports = self.conn.get_org_uplink_addresses_by_device(serial=serial)
             mgmt_ip, mgmt_port_name = get_mgmt_port_from_uplinks(mgmt_ip=lan_ip, uplink_ports=uplink_ports)
-            mgmt_ip_mask_length = 32  # In this case the subnet mask will be set to 32 since we can't get it from the device configuration
+            mgmt_ip_mask_length = (
+                32  # In this case the subnet mask will be set to 32 since we can't get it from the device configuration
+            )
             net_prefix = ipaddress_interface(ip=mgmt_ip, attr="network.with_prefixlen")
             try:
                 self.get(self.port, {"name": mgmt_port_name, "device": device.name})
@@ -227,7 +259,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 self.load_prefix(prefix=net_prefix)
                 self.load_prefix_location(
                     prefix=net_prefix,
-                    location=self.conn.network_map[network_id]["name"],
+                    location=self.resolve_location_name(network_id),
                 )
                 self.load_ipaddress(
                     host_addr=mgmt_ip,
@@ -298,7 +330,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                     self.load_prefix(prefix=net_prefix)
                     self.load_prefix_location(
                         prefix=net_prefix,
-                        location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
+                        location=self.resolve_location_name(self.device_map[device.name]["networkId"]),
                     )
                     self.load_ipaddress(
                         host_addr=mgmt_ports[port]["staticIp"],
@@ -337,7 +369,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                     self.load_prefix(prefix=net_prefix)
                     self.load_prefix_location(
                         prefix=net_prefix,
-                        location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
+                        location=self.resolve_location_name(self.device_map[device.name]["networkId"]),
                     )
                     self.load_ipaddress(
                         host_addr=mgmt_ip,
@@ -394,7 +426,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                     self.load_prefix(prefix=net_prefix)
                     self.load_prefix_location(
                         prefix=net_prefix,
-                        location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
+                        location=self.resolve_location_name(self.device_map[device.name]["networkId"]),
                     )
                     self.load_ipaddress(
                         host_addr=mgmt_ports[port]["staticIp"],
@@ -453,7 +485,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 self.load_prefix(prefix=prefix)
                 self.load_prefix_location(
                     prefix=prefix,
-                    location=self.conn.network_map[self.device_map[device.name]["networkId"]]["name"],
+                    location=self.resolve_location_name(self.device_map[device.name]["networkId"]),
                 )
                 self.load_ipaddress(host_addr=addr["address"], mask_length=prefix_length, prefix=prefix)
                 self.load_ipassignment(
@@ -526,7 +558,9 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
     def load(self):
         """Load data from Meraki into DiffSync models."""
         if self.conn.validate_organization_exists():
-            self.load_networks()
+            # Check If has been defined default location to use for imported objects.
+            if not self.job.location:
+                self.load_networks()
             self.load_devices()
         else:
             self.job.logger.error("Specified organization ID not found in Meraki dashboard.")

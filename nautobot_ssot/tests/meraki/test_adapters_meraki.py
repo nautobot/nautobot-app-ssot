@@ -50,6 +50,7 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         self.job.devicetype_mapping = [("MS", "Switch"), ("MX", "Firewall")]
         self.job.network_loctype = site_loctype
         self.job.location_map = {}
+        self.job.location = None
         self.job.job_result = JobResult.objects.create(
             name=self.job.class_path, task_name="fake task", worker="default"
         )
