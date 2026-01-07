@@ -375,6 +375,8 @@ def create_ip(
                 logger.debug(f"Initial IP creation failed for {ip_address}/{cidr}. Attempting to create specific parent subnet. Error: {err}")
             try:
                 network_obj = ipaddress.ip_network(f"{ip_address}/{cidr}", strict=False)
+                if logger:
+                    logger.info(f"Automatically creating missing parent subnet {network_obj} for IP {ip_address}/{cidr}")
                 parent, _ = Prefix.objects.get_or_create(
                     network=str(network_obj.network_address),
                     prefix_length=network_obj.prefixlen,
