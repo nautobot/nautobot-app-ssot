@@ -371,12 +371,10 @@ def create_ip(
             if logger:
                 logger.error(f"Multiple IPAddresses returned with the address of {ip_address}/{subnet_mask}")
         except (DjangoBaseDBError, ValidationError, Prefix.DoesNotExist) as err:
-            if logger.isEnabledFor(logging.DEBUG):
-                logger.debug(f"Initial IP creation failed for {ip_address}/{cidr}. Attempting to create specific parent subnet. Error: {err}")
             try:
                 network_obj = ipaddress.ip_network(f"{ip_address}/{cidr}", strict=False)
                 if logger:
-                    logger.info(f"Automatically creating missing parent subnet {network_obj} for IP {ip_address}/{cidr}")
+                    logger.info(f"Automatically creating missing prefix {network_obj} for IP {ip_address}/{cidr}")
                 parent, _ = Prefix.objects.get_or_create(
                     network=str(network_obj.network_address),
                     prefix_length=network_obj.prefixlen,
