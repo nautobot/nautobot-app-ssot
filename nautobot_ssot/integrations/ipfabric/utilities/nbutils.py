@@ -2,6 +2,7 @@
 """Utility functions for Nautobot ORM."""
 
 import datetime
+import ipaddress
 import logging
 from typing import Any, Optional
 
@@ -362,30 +363,37 @@ def create_ip(
         cidr = netmask_to_cidr(subnet_mask)
         ip_obj = None
         try:
-            ip_obj, _ = IPAddress.objects.get_or_create(address=f"{ip_address}/{cidr}", status=status_obj)
+            ip_obj, _ = IPAddress.objects.get_or_create(
+                address=f"{ip_address}/{cidr}",
+                defaults={"status": status_obj}
+            )
         except IPAddress.MultipleObjectsReturned:
             if logger:
                 logger.error(f"Multiple IPAddresses returned with the address of {ip_address}/{subnet_mask}")
-        except (DjangoBaseDBError, ValidationError, Prefix.DoesNotExist):
+        except (DjangoBaseDBError, ValidationError, Prefix.DoesNotExist) as err:
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(f"Initial IP creation failed for {ip_address}/{cidr}. Attempting to create specific parent subnet. Error: {err}")
             try:
+                network_obj = ipaddress.ip_network(f"{ip_address}/{cidr}", strict=False)
                 parent, _ = Prefix.objects.get_or_create(
-                    network="0.0.0.0",  # noqa: S104
-                    prefix_length=0,
+                    network=str(network_obj.network_address),
+                    prefix_length=network_obj.prefixlen,
                     type=PrefixTypeChoices.TYPE_NETWORK,
                     status=Status.objects.get_for_model(Prefix).get(name="Active"),
                     namespace=namespace_obj,
                 )
-            except (DjangoBaseDBError, ValidationError):
+            except (DjangoBaseDBError, ValidationError) as err:
                 if logger:
-                    logger.error(f"Unable to create a new IPAddress of {ip_address}/{subnet_mask}")
+                    logger.error(f"Unable to create a new IPAddress of {ip_address}/{subnet_mask}. Error: {err}")
             else:
                 try:
                     ip_obj, _ = IPAddress.objects.get_or_create(
-                        address=f"{ip_address}/{cidr}", status=status_obj, parent=parent
+                        address=f"{ip_address}/{cidr}",
+                        defaults={"status": status_obj}
                     )
-                except (DjangoBaseDBError, ValidationError):
+                except (DjangoBaseDBError, ValidationError) as err:
                     if logger:
-                        logger.error(f"Unable to create a new IPAddress of {ip_address}/{subnet_mask}")
+                        logger.error(f"Unable to create a new IPAddress of {ip_address}/{subnet_mask}. Error: {err}")
 
         if ip_obj:
             if object_pk:
