@@ -2,7 +2,7 @@
 
 import json
 from collections import defaultdict
-from unittest import TestCase
+from django.test import TestCase
 from unittest.mock import MagicMock, patch
 
 from ipfabric.models.device import Device
