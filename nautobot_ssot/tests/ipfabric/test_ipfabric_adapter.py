@@ -2,6 +2,7 @@
 
 import json
 from collections import defaultdict
+
 from django.test import TestCase
 from unittest.mock import MagicMock, patch
 

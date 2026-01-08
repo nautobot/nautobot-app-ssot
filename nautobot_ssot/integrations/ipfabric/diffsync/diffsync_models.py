@@ -29,8 +29,6 @@ from nautobot.dcim.models import (
 from nautobot.extras.models import Role, Tag
 from nautobot.extras.models.statuses import Status
 from nautobot.ipam.models import VLAN, IPAddress
-from netutils.ip import netmask_to_cidr
-
 import nautobot_ssot.integrations.ipfabric.utilities.nbutils as tonb_nbutils
 from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_DEVICE_ROLE,

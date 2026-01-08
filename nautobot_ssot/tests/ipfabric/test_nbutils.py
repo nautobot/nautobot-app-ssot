@@ -15,8 +15,8 @@ from nautobot.ipam.models import VLAN, IPAddress, Prefix, get_default_namespace
 
 from nautobot_ssot.integrations.ipfabric.utilities import (
     create_device_type_object,
-    create_ip,
     create_interface,
+    create_ip,
     create_location,
     create_manufacturer,
     create_platform_object,
@@ -724,7 +724,7 @@ class TestNautobotUtils(TestCase):
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.LAST_SYNCHRONIZED_CF_NAME")
     @unittest.mock.patch("logging.Logger", autospec=True)
-    def test_create_ip_tag_interface_db_error(self, mock_logger, mock_last_sync, mock_tag_object):
+    def test_create_ip_tag_interface_db_error(self, mock_logger, mock_last_sync, mock_tag_object):  # pylint: disable=unused-argument
         """Test `create_device_type_object` Utility."""
         logger = mock_logger("nb_job")
         mock_tag_object.side_effect = [DjangoBaseDBError, None]
