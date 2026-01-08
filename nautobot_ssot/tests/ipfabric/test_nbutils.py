@@ -880,11 +880,11 @@ class TestNautobotUtils(TestCase):
             location_type=loc_type,
             status=Status.objects.get(name="Active"),
         )
-        
+
         # Verify initial state
         vlan_ct = ContentType.objects.get_for_model(VLAN)
         self.assertNotIn(vlan_ct, loc_type.content_types.all())
-        
+
         # Create VLAN
         vlan = create_vlan(
             vlan_name="Test-VLAN",
@@ -893,11 +893,11 @@ class TestNautobotUtils(TestCase):
             location_obj=location,
             description="Test Description",
         )
-        
+
         # Verify VLAN was created and associated with location
         self.assertIsNotNone(vlan)
         self.assertEqual(vlan.location, location)
-        
+
         # Verify location type now allows VLANs
         self.assertIn(vlan_ct, loc_type.content_types.all())
 

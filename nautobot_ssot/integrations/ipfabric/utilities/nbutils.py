@@ -211,7 +211,7 @@ def create_platform_object(
         platform_obj = Platform.objects.get(name=platform)
         if platform_obj.manufacturer == manufacturer_obj:
             return platform_obj
-        
+
         if logger:
             logger.warning(
                 f"Platform {platform} already exists but belongs to Manufacturer {platform_obj.manufacturer}, "
@@ -370,7 +370,7 @@ def create_ip(
         except IPAddress.MultipleObjectsReturned:
             if logger:
                 logger.error(f"Multiple IPAddresses returned with the address of {ip_address}/{subnet_mask}")
-        except (DjangoBaseDBError, ValidationError, Prefix.DoesNotExist) as err:
+        except (DjangoBaseDBError, ValidationError, Prefix.DoesNotExist):
             try:
                 network_obj = ipaddress.ip_network(f"{ip_address}/{cidr}", strict=False)
                 if logger:
