@@ -413,6 +413,15 @@ class SyncRecord(BaseModel):
                 descendants.extend(child_record.get_descendants())
         return descendants
 
+    def validate_ready_to_sync(self):
+        """Validate if the SyncRecord is ready to be synced."""
+        if (
+            self.get_ancestors().exists()
+            and self.get_ancestors().filter(status__name__in=["Pending", "Error", "Failed"]).exists()
+        ):
+            return False
+        return True
+
 
 class SSOTConfig(models.Model):  # pylint: disable=nb-incorrect-base-class
     """Non-db model providing user permission constraints."""
