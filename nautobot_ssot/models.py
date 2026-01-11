@@ -372,22 +372,28 @@ class SyncRecord(BaseModel):
         return f"{self.source_adapter} → {self.target_adapter}: {self.obj_type} {self.obj_name}"
 
     def get_ancestors(self, record=None):
-        """Recursive function to return all ancestors of a SyncRecord.
+        """Return a QuerySet of all ancestors of a SyncRecord.
 
         Args:
             record (SyncRecord, optional): Child SyncRecord to traverse from. If not set, then this record (self) will be used.
+
+        Returns:
+            QuerySet: A QuerySet containing all ancestor SyncRecord instances.
         """
         if not record:
             record = self
 
-        ancestors = []
-        for parent_record in record.parent.all():
-            logger.debug("Processing SyncRecord %s...", parent_record)
-            ancestors.append(parent_record)
-            if parent_record.parent.exists():
-                ancestors.extend(parent_record.get_ancestors())
+        ancestor_ids = []
+        current = record
+        while current.parent is not None:
+            logger.debug("Processing SyncRecord %s...", current)
+            ancestor_ids.append(current.parent.pk)
+            current = current.parent
 
-        return ancestors
+        if not ancestor_ids:
+            return self.__class__.objects.none()
+
+        return self.__class__.objects.filter(pk__in=ancestor_ids)
 
     def get_descendants(self, record=None):
         """
