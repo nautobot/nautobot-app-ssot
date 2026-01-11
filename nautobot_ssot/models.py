@@ -378,7 +378,7 @@ class SyncRecord(BaseModel):
             record (SyncRecord, optional): Child SyncRecord to traverse from. If not set, then this record (self) will be used.
 
         Returns:
-            QuerySet: A QuerySet containing all ancestor SyncRecord instances.
+            QuerySet (QuerySet[SyncRecord]): A QuerySet containing all ancestor SyncRecord instances.
         """
         if not record:
             record = self
@@ -396,22 +396,30 @@ class SyncRecord(BaseModel):
         return self.__class__.objects.filter(pk__in=ancestor_ids)
 
     def get_descendants(self, record=None):
-        """
-        Recursively return a list of the children of all child records.
+        """Return a QuerySet of all descendants of a SyncRecord.
 
         Args:
-            record (SyncRecord): Parent SyncRecord to traverse from. If not set, this record (self) is used.
+            record (SyncRecord, optional): Parent SyncRecord to traverse from. If not set, this record (self) will be used.
+
+        Returns:
+            QuerySet (QuerySet[SyncRecord]): A QuerySet containing all descendant SyncRecord instances.
         """
         if record is None:
             record = self
 
-        descendants = []
-        for child_record in record.children.all():
-            logger.debug("Processing SynCrecord %s...", child_record)
-            descendants.append(child_record)
-            if child_record.children.exists():
-                descendants.extend(child_record.get_descendants())
-        return descendants
+        descendant_ids = []
+        queue = list(record.children.all())
+
+        while queue:
+            current = queue.pop(0)
+            logger.debug("Processing SyncRecord %s...", current)
+            descendant_ids.append(current.pk)
+            queue.extend(current.children.all())
+
+        if not descendant_ids:
+            return self.__class__.objects.none()
+
+        return self.__class__.objects.filter(pk__in=descendant_ids)
 
     def validate_ready_to_sync(self):
         """Validate if the SyncRecord is ready to be synced."""
