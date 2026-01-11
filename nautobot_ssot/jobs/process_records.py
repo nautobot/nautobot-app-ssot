@@ -57,6 +57,10 @@ class ProcessRecordsJob(Job):
         self.include_children = kwargs.get("include_children", False)
         self.logger.info("Running Process Records Job.")
 
+        if not self.validate_records_ready_to_sync():
+            self.logger.error("Records are not ready to be synced. Unable to continue Job.")
+            return
+
         self.load_sync_records(records=self.records)
 
         # recreate adapters
@@ -88,6 +92,34 @@ class ProcessRecordsJob(Job):
             self.logger.info("Sync was a success!")
         else:
             self.logger.warning("Sync failed!")
+
+    def validate_records_ready_to_sync(self):
+        """Validate if the SyncRecords are ready to be synced."""
+        record_ids = {record.pk for record in self.records}
+        for record in self.records:
+            self.logger.info("Validating record %s.", record.obj_name)
+            ready, pending_ancestors = record.validate_ready_to_sync()
+            if not ready:
+                # Check if any pending ancestors are in the current batch of records
+                pending_ancestor_ids = set(pending_ancestors.values_list("pk", flat=True))
+                conflicting_records = record_ids & pending_ancestor_ids
+                if conflicting_records:
+                    conflicting_record_names = [r.obj_name for r in self.records if r.pk in conflicting_records]
+                    self.logger.error(
+                        "Record %s is not ready to be synced. Pending ancestors include records in the current batch: %s.",
+                        record.obj_name,
+                        conflicting_record_names,
+                    )
+                else:
+                    self.logger.error(
+                        "Record %s is not ready to be synced. Pending ancestors: %s.",
+                        record.obj_name,
+                        pending_ancestors,
+                    )
+                return False
+            self.logger.info("Record %s is ready to be synced.", record.obj_name)
+        self.logger.info("All records are ready to be synced.")
+        return True
 
     def load_sync_records(self, records: List[SyncRecord], parent: DiffElement = None):
         """Recursive function to load SyncRecords into DiffElements.
