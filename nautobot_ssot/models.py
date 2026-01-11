@@ -422,13 +422,17 @@ class SyncRecord(BaseModel):
         return self.__class__.objects.filter(pk__in=descendant_ids)
 
     def validate_ready_to_sync(self):
-        """Validate if the SyncRecord is ready to be synced."""
-        if (
-            self.get_ancestors().exists()
-            and self.get_ancestors().filter(status__name__in=["Pending", "Error", "Failed"]).exists()
-        ):
-            return False
-        return True
+        """Validate if the SyncRecord is ready to be synced.
+
+        Returns:
+            tuple: A tuple containing:
+                - bool: True if the SyncRecord is ready to sync, False otherwise
+                - QuerySet[SyncRecord]: A QuerySet of ancestor SyncRecords that still need to be processed
+        """
+        ancestors = self.get_ancestors()
+        pending_ancestors = ancestors.filter(status__name__in=["Pending", "Error", "Failed"])
+        is_ready = not pending_ancestors.exists()
+        return (is_ready, pending_ancestors)
 
 
 class SSOTConfig(models.Model):  # pylint: disable=nb-incorrect-base-class
