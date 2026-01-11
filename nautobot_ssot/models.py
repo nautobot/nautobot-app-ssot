@@ -425,7 +425,7 @@ class SyncRecord(BaseModel):
         """Validate if the SyncRecord is ready to be synced.
 
         Returns:
-            tuple: A tuple containing:
+            tuple (bool, QuerySet[SyncRecord]): A tuple containing:
                 - bool: True if the SyncRecord is ready to sync, False otherwise
                 - QuerySet[SyncRecord]: A QuerySet of ancestor SyncRecords that still need to be processed
         """
