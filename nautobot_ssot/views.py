@@ -373,7 +373,23 @@ class SyncLogEntryUIViewSet(ObjectListViewMixin):
     filterset_class = SyncLogEntryFilterSet
     filterset_form_class = SyncLogEntryFilterForm
     lookup_field = "pk"
-    queryset = SyncLogEntry.objects.all()
+    queryset = SyncLogEntry.objects.select_related("sync").only(
+        "id",
+        "timestamp",
+        "sync_id",
+        "action",
+        "status",
+        "diff",
+        "message",
+        "synced_object_type",
+        "synced_object_id",
+        "object_repr",
+        # Sync fields needed for __str__ and link rendering
+        "sync__id",
+        "sync__source",
+        "sync__target",
+        "sync__start_time",
+    )
     serializer_class = serializers.SyncLogEntrySerializer
     table_class = SyncLogEntryTable
     action_buttons = ("export",)

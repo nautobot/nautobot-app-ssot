@@ -4,7 +4,9 @@ from datetime import datetime
 from unittest import skip
 
 from django.contrib.contenttypes.models import ContentType
+from django.db import connection
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from nautobot.apps.testing import ViewTestCases
 from nautobot.core.testing.utils import disable_warnings
@@ -13,6 +15,7 @@ from nautobot.users.models import ObjectPermission
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 from nautobot_ssot.models import Sync, SyncLogEntry
+from nautobot_ssot.views import SyncLogEntryUIViewSet
 
 
 class SyncViewsTestCase(  # pylint: disable=too-many-ancestors
@@ -150,7 +153,7 @@ class SyncLogEntryViewsTestCase(ViewTestCases.ListObjectsViewTestCase):  # pylin
             target="Nautobot",
             start_time=datetime.now(),
             dry_run=False,
-            diff={},
+            diff={"foo": "bar"},
             job_result=job_result,
         )
 
@@ -169,3 +172,45 @@ class SyncLogEntryViewsTestCase(ViewTestCases.ListObjectsViewTestCase):  # pylin
     @skip("Not implemented")
     def test_list_objects_with_constrained_permission(self):
         pass
+
+    def test_queryset_optimization(self):
+        """Test that the SyncLogEntry queryset uses select_related and only() correctly."""
+        # Get the queryset from the viewset
+        queryset = SyncLogEntryUIViewSet.queryset
+
+        # Evaluate the queryset to get all log entries
+        # This should trigger a single query with select_related
+        with CaptureQueriesContext(connection) as ctx:
+            log_entries = list(queryset.all())
+
+        # Should have exactly 1 query (the main query with select_related)
+        self.assertEqual(len(ctx.captured_queries), 1, "Queryset should use select_related to fetch in one query")
+
+        # Verify we have log entries
+        self.assertGreater(len(log_entries), 0)
+
+        # Test that accessing sync-related fields doesn't trigger additional queries
+        with CaptureQueriesContext(connection) as ctx:
+            for entry in log_entries:
+                # Access all the sync fields that are specified in the only() clause
+                _ = entry.sync.id
+                _ = entry.sync.source
+                _ = entry.sync.target
+                _ = entry.sync.start_time
+                # Also test accessing the sync object itself (for __str__)
+                _ = str(entry.sync)
+
+        # Should have 0 additional queries since select_related was used
+        self.assertEqual(len(ctx.captured_queries), 0, "Accessing sync fields should not trigger additional queries")
+
+        # Verify that sync.diff was NOT loaded (it's not in the only() clause)
+        # Accessing it should trigger an additional query
+        with CaptureQueriesContext(connection) as ctx:
+            _ = log_entries[0].sync.diff
+
+        # Should have 1 additional query to fetch the deferred diff field
+        self.assertEqual(
+            len(ctx.captured_queries),
+            1,
+            "Accessing sync.diff should trigger an additional query since it wasn't loaded in the original queryset",
+        )
