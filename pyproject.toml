@@ -82,7 +82,7 @@ requests-mock = "^1.10.0"
 parameterized = "^0.8.1"
 myst-parser = "^2.0.0"
 responses = "^0.14.0"
-virtualenv = "20.13.0"
+virtualenv = "20.36.1"
 tomli = { version = "*", markers = "python_version < '3.11'" }  # tomli is included in the stdlib as of Python 3.11
 
 [tool.poetry.group.docs.dependencies]
