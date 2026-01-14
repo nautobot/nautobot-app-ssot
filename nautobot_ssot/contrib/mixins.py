@@ -1,25 +1,14 @@
+""""""
 
-# pylint: disable=protected-access
-# Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
+from typing import get_type_hints, ClassVar
+from nautobot_ssot.utils.typing import get_inner_type
 
-from collections import defaultdict
-from datetime import datetime
-from typing import Annotated, List, Union, get_type_hints, get_args, ClassVar
 
-from diffsync import DiffSyncModel
-from diffsync.exceptions import ObjectCrudException, ObjectNotCreated, ObjectNotDeleted, ObjectNotUpdated
-from django.contrib.contenttypes.models import ContentType
-from django.core.exceptions import MultipleObjectsReturned, ValidationError
-from django.db.models import ProtectedError, QuerySet
-from nautobot.extras.choices import RelationshipTypeChoices
-from nautobot.extras.models import Relationship, RelationshipAssociation
-from nautobot.extras.models.metadata import ObjectMetadata
 from functools import lru_cache
 from nautobot_ssot.contrib.enums import AttributeType
 
 from django.db.models import Model as ModelObj
 
-from nautobot_ssot.contrib.base import BaseNautobotModel
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
@@ -30,7 +19,7 @@ from nautobot_ssot.contrib.enums import AttributeType
 
 class ModelAttributeMethods:
     """"""
-    
+
     _model: ClassVar[ModelObj]
 
     @classmethod
@@ -53,6 +42,14 @@ class ModelAttributeMethods:
             if isinstance(metadata, CustomAnnotation):
                 return metadata
         return None
+    
+    @classmethod
+    @lru_cache
+    def get_inner_type(cls, attr_name: str):
+        try:
+            return get_inner_type(cls, attr_name)
+        except AttributeError:
+            return None
 
     @classmethod
     @lru_cache

@@ -17,6 +17,17 @@ class SortType(Enum):
     DICT = 1
 
 
+@dataclass
+class AttributeType:
+    """"""
+
+    app_name: str
+
+@dataclass
+class StandardAttribute(AttributeType):
+    """"""
+
+
 class RelationshipSideEnum(Enum):
     """This details which side of a custom relationship the model it's defined on is on."""
 
@@ -24,8 +35,11 @@ class RelationshipSideEnum(Enum):
     DESTINATION = "DESTINATION"
 
 
+class CustomAnnotation:
+    """Base class used to identify annotation classes in SSoT operations."""
+
 @dataclass
-class CustomRelationshipAnnotation:
+class CustomRelationshipAnnotation(CustomAnnotation):
     """Map a model field to an arbitrary custom relationship.
 
     For usage with `typing.Annotated`.
@@ -56,7 +70,7 @@ class CustomRelationshipAnnotation:
 
 
 @dataclass
-class CustomFieldAnnotation:
+class CustomFieldAnnotation(CustomAnnotation):
     """Map a model field to an arbitrary custom field name.
 
     For usage with `typing.Annotated`.

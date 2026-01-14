@@ -22,6 +22,7 @@ from diffsync import DiffSyncModel
 from django.db.models import Model, QuerySet
 from nautobot.extras.jobs import BaseJob
 from nautobot.extras.models.metadata import MetadataType
+from nautobot_ssot.contrib.mixins import ModelAttributeMethods
 
 from nautobot_ssot.utils.cache import ORMCache
 
@@ -35,7 +36,7 @@ class BaseNautobotAdapter(ABC):
     metadata_scope_fields: dict[DiffSyncModel, list]
 
 
-class BaseNautobotModel(ABC):
+class BaseNautobotModel(ModelAttributeMethods, ABC):
     """Abstract Base Class for `NautobotModel`."""
 
     _model: ClassVar[Model]
