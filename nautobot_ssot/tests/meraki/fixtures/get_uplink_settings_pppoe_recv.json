@@ -1,0 +1,41 @@
+{
+  "wan1": {
+    "enabled": true,
+    "vlanTagging": {
+      "enabled": false
+    },
+    "svis": {
+      "ipv4": {
+        "assignmentMode": "static",
+        "address": "1.6.8.10"
+      },
+      "ipv6": {
+        "assignmentMode": "dynamic"
+      }
+    },
+    "pppoe": {
+      "enabled": true,
+      "authentication": {
+        "enabled": true,
+        "username": "pppoeusername"
+      }
+    }
+  },
+  "wan2": {
+    "enabled": true,
+    "vlanTagging": {
+      "enabled": false
+    },
+    "svis": {
+      "ipv4": {
+        "assignmentMode": "dynamic"
+      },
+      "ipv6": {
+        "assignmentMode": "dynamic"
+      }
+    },
+    "pppoe": {
+      "enabled": false
+    }
+  }
+}
