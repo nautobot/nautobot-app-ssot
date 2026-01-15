@@ -137,7 +137,7 @@ class IPAddress(DiffSyncModel):
 
     host: str
     mask_length: int
-    prefix: str
+    prefix: Optional[str] = None
     tenant: Optional[str] = None
 
     uuid: Optional[UUID] = None
