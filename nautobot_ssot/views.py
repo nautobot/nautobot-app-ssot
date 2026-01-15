@@ -35,6 +35,7 @@ from nautobot.apps.views import (
     get_obj_from_context,
 )
 from nautobot.core.ui.utils import flatten_context
+from nautobot.core.views.paginator import get_paginate_count
 from nautobot.extras.models import Job as JobModel
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -332,10 +333,9 @@ class SyncUIViewSet(
                     ObjectsTablePanel(
                         weight=100,
                         section=SectionChoices.FULL_WIDTH,
-                        table_class=SyncLogEntryTable,
-                        table_filter="sync",
                         related_field_name="sync",
                         tab_id="logentries",
+                        context_table_key="logs_table",
                         enable_bulk_actions=False,
                         include_paginator=True,
                     ),
@@ -359,7 +359,17 @@ class SyncUIViewSet(
     @action(detail=True, url_path="logs", custom_view_base_action="view")
     def logentries(self, request, *args, **kwargs):
         """Log entries action for Sync UIViewSet."""
-        return Response({})
+        sync = self.get_object()
+        queryset = sync.logs.all()
+        filterset = SyncLogEntryFilterSet(request.GET, queryset=queryset, request=request)
+
+        table = SyncLogEntryTable(filterset.qs, user=request.user)
+        RequestConfig(
+            request,
+            paginate={"paginator_class": EnhancedPaginator, "per_page": get_paginate_count(request)},
+        ).configure(table)
+
+        return Response({"logs_table": table})
 
     @action(detail=True, url_path="jobresult", custom_view_base_action="view")
     def jobresult(self, request, *args, **kwargs):
