@@ -143,7 +143,8 @@ def build_attributes_dict(diffsync_model: Type[BaseNautobotModel], obj: PrimaryM
     for attr_name in diffsync_model.get_synced_attributes():
         try:
             inner_type = diffsync_model.get_inner_type(attr_name)
-        except (IndexError, KeyError, TypeError):
+        #except (IndexError, KeyError, TypeError):
+        except AttributeError:
             inner_type = None
 
         if hasattr(adapter, f"load_param_{attr_name}"):

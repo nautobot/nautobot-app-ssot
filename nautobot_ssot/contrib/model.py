@@ -24,7 +24,37 @@ from nautobot_ssot.contrib.types import (
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
+from nautobot_ssot.utils.orm import get_content_type
+from diffsync.exceptions import ObjectNotCreated
+from nautobot_ssot.utils.cache import get_orm_object
 
+
+class NewNautobotModel(DiffSyncModel, BaseNautobotModel):
+
+    @classmethod
+    def get_synced_attributes(cls) -> List[str]:
+        """Return a list of parameters synced as part of the SSoT Process."""
+        return list(cls._identifiers) + list(cls._attributes)
+
+    @classmethod
+    def _queryset(cls):
+        """Get the queryset used to load the models data from Nautobot."""
+        return cls._model.objects.all()
+
+    @classmethod
+    def get_queryset(cls) -> QuerySet:
+        """Get the queryset used to load the models data from Nautobot."""
+        available_fields = {field.name for field in cls._model._meta.get_fields()}
+        parameter_names = [
+            parameter for parameter in cls.get_synced_attributes() if parameter.split("__")[0] in available_fields
+        ]
+        # Here we identify any foreign keys (i.e. fields with '__' in them) so that we can load them directly in the
+        # first query if this function hasn't been overridden.
+        prefetch_related_parameters = [
+            "__".join(parameter.split("__")[:-1]) for parameter in parameter_names if "__" in parameter
+        ]
+        qs = cls.get_queryset()
+        return qs.prefetch_related(*prefetch_related_parameters)
 
 
 class NautobotLoaderMixin:
@@ -88,7 +118,8 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
     def get_from_db(self):
         """Get the ORM object for this diffsync object from the database using the primary key."""
         try:
-            return self.adapter.get_from_orm_cache({"pk": self.pk}, self._model)
+            return get_orm_object(self._model, {"pk": self.pk})
+            # return self.adapter.get_from_orm_cache({"pk": self.pk}, self._model)
         except self._model.DoesNotExist as error:
             raise ObjectCrudException(f"No such {self._model._meta.verbose_name} instance with PK {self.pk}") from error
 
@@ -193,7 +224,9 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
 
         # Prepare handling of custom relationship many-to-many fields.
         if custom_relationship_annotation:
-            relationship = adapter.get_from_orm_cache({"label": custom_relationship_annotation.name}, Relationship)
+
+            relationship = get_orm_object(Relationship, {"label": custom_relationship_annotation.name})
+            #relationship = adapter.get_from_orm_cache({"label": custom_relationship_annotation.name}, Relationship)
             if custom_relationship_annotation.side == RelationshipSideEnum.DESTINATION:
                 related_object_content_type = relationship.source_type
             else:
@@ -210,7 +243,8 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
             else:
                 relationship_fields["custom_relationship_many_to_many_fields"][field] = {
                     "annotation": custom_relationship_annotation,
-                    "objects": [adapter.get_from_orm_cache(parameters, related_model_class) for parameters in value],
+                    "objects": [get_orm_object(related_model_class, parameters) for parameters in value],
+                    #"objects": [adapter.get_from_orm_cache(parameters, related_model_class) for parameters in value],
                 }
 
             return
@@ -222,7 +256,8 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
         if django_field.many_to_many or django_field.one_to_many:
             try:
                 relationship_fields["many_to_many_fields"][field] = [
-                    adapter.get_from_orm_cache(parameters, django_field.related_model) for parameters in value
+                    get_orm_object(django_field.related_model, parameters) for parameters in value
+                    #adapter.get_from_orm_cache(parameters, django_field.related_model) for parameters in value
                 ]
             except django_field.related_model.DoesNotExist as error:
                 raise ObjectCrudException(
@@ -255,7 +290,7 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
 
         # Set foreign keys
         cls._lookup_and_set_foreign_keys(relationship_fields["foreign_keys"], obj, adapter)
-
+        
         # Save the object to the database
         try:
             obj.validated_save()
@@ -263,6 +298,8 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
             raise ObjectCrudException(
                 f"Validated save failed for Django object:\n{error}\nParameters: {parameters}"
             ) from error
+        except ObjectNotCreated:
+            raise ValueError(relationship_fields, obj.__dict__)
 
         # Handle relationship association creation. This needs to be after object creation, because relationship
         # association objects rely on both sides already existing.
@@ -282,7 +319,8 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
             annotation = dictionary.pop("annotation")
             objects = dictionary.pop("objects")
             # TODO: Deduplicate this code
-            relationship = adapter.get_from_orm_cache({"label": annotation.name}, Relationship)
+            relationship = get_orm_object(Relationship, {"label": annotation.name})
+            #relationship = adapter.get_from_orm_cache({"label": annotation.name}, Relationship)
             parameters = {
                 "relationship": relationship,
                 "source_type": relationship.source_type,
@@ -295,7 +333,8 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
                     association_parameters = parameters.copy()
                     association_parameters["destination_id"] = object_to_relate.id
                     try:
-                        association = adapter.get_from_orm_cache(association_parameters, RelationshipAssociation)
+                        association = get_orm_object(RelationshipAssociation, association_parameters)
+                        #association = adapter.get_from_orm_cache(association_parameters, RelationshipAssociation)
                     except RelationshipAssociation.DoesNotExist:
                         association = RelationshipAssociation(**parameters, destination_id=object_to_relate.id)
                         association.validated_save()
@@ -306,7 +345,8 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
                     association_parameters = parameters.copy()
                     association_parameters["source_id"] = object_to_relate.id
                     try:
-                        association = adapter.get_from_orm_cache(association_parameters, RelationshipAssociation)
+                        association = get_orm_object(RelationshipAssociation, association_parameters)
+                        #association = adapter.get_from_orm_cache(association_parameters, RelationshipAssociation)
                     except RelationshipAssociation.DoesNotExist:
                         association = RelationshipAssociation(**parameters, source_id=object_to_relate.id)
                         association.validated_save()
@@ -342,7 +382,8 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
             annotation = related_model_dict.pop("_annotation")
             # TODO: Deduplicate this code
             try:
-                relationship = adapter.get_from_orm_cache({"label": annotation.name}, Relationship)
+                relationship = get_orm_object(Relationship, {"label": annotation.name})
+                #relationship = adapter.get_from_orm_cache({"label": annotation.name}, Relationship)
             except Relationship.DoesNotExist as error:
                 raise ObjectCrudException(f"No such relationship with label '{annotation.name}'") from error
             parameters = {
@@ -354,7 +395,8 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
                 parameters["source_id"] = obj.id
                 related_model_class = relationship.destination_type.model_class()
                 try:
-                    destination_object = adapter.get_from_orm_cache(related_model_dict, related_model_class)
+                    destination_object = get_orm_object(related_model_class, related_model_dict)
+                    # destination_object = adapter.get_from_orm_cache(related_model_dict, related_model_class)
                 except related_model_class.DoesNotExist as error:
                     raise ObjectCrudException(
                         f"Couldn't resolve custom relationship {relationship.name}, no such {related_model_class._meta.verbose_name} object with parameters {related_model_dict}."
@@ -369,7 +411,8 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
                 )
             else:
                 parameters["destination_id"] = obj.id
-                source_object = adapter.get_from_orm_cache(related_model_dict, relationship.source_type.model_class())
+                source_object = get_orm_object(relationship.source_type.model_class(), related_model_dict)
+                #source_object = adapter.get_from_orm_cache(related_model_dict, relationship.source_type.model_class())
                 RelationshipAssociation.objects.update_or_create(**parameters, defaults={"source_id": source_object.id})
 
     @classmethod
@@ -386,30 +429,37 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
         """
         for field_name, related_model_dict in foreign_keys.items():
             related_model = related_model_dict.pop("_model_class")
+            
+            
             # Generic foreign keys will not have this dictionary field. As such, we need to retrieve the appropriate
             # model class through other means.
             if not related_model:
                 try:
                     app_label = related_model_dict.pop("app_label")
                     model = related_model_dict.pop("model")
+                    related_model_content_type = get_content_type(app_label, model)
+                    related_model = related_model_content_type.model_class()
                 except KeyError as error:
                     raise ValueError(
                         f"Missing annotation for '{field_name}__app_label' or '{field_name}__model - this is required"
                         f"for generic foreign keys."
                     ) from error
-                try:
-                    related_model_content_type = adapter.get_from_orm_cache(
-                        {"app_label": app_label, "model": model}, ContentType
-                    )
-                    related_model = related_model_content_type.model_class()
+                # try:
+                #     related_model_content_type = get_content_type(app_label, model)
+                #     # related_model_content_type = get_orm_object(ContentType, {"app_label": app_label, "model": model})
+                #     # related_model_content_type = adapter.get_from_orm_cache({"app_label": app_label, "model": model}, ContentType)
+                #     related_model = related_model_content_type.model_class()
                 except ContentType.DoesNotExist as error:
                     raise ObjectCrudException(f"Unknown content type '{app_label}.{model}'.") from error
+            
+            
             # Set the foreign key to 'None' when none of the fields are set to anything
             if not any(related_model_dict.values()):
                 setattr(obj, field_name, None)
                 continue
             try:
-                related_object = adapter.get_from_orm_cache(related_model_dict, related_model)
+                related_object = get_orm_object(related_model, related_model_dict)
+                #related_object = adapter.get_from_orm_cache(related_model_dict, related_model)
             except related_model.DoesNotExist as error:
                 raise ObjectCrudException(
                     f"Couldn't find '{related_model._meta.verbose_name}' instance behind '{field_name}' with: {related_model_dict}."

@@ -1,6 +1,6 @@
 """"""
 
-from typing import get_type_hints, ClassVar
+from typing import get_args, get_type_hints, ClassVar
 from nautobot_ssot.utils.typing import get_inner_type
 
 
@@ -42,10 +42,18 @@ class ModelAttributeMethods:
             if isinstance(metadata, CustomAnnotation):
                 return metadata
         return None
-    
+
     @classmethod
-    @lru_cache
     def get_inner_type(cls, attr_name: str):
+        try:
+            return get_args(get_type_hints(cls)[attr_name])[0]
+        except IndexError as err:
+            return None
+            #raise TypeError("Class attribute does not have inner type defined.") from err
+        except KeyError as err:
+            return None
+            #raise AttributeError(f"type object '{cls}' has no attribute '{attr_name}'") from err
+
         try:
             return get_inner_type(cls, attr_name)
         except AttributeError:

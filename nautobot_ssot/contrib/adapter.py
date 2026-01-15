@@ -18,9 +18,43 @@ from nautobot_ssot.utils.cache import ORMCache
 from nautobot_ssot.contrib.interfaces.nautobot.attributes import build_attributes_dict
 
 
-
-
 class NautobotAdapter(Adapter, BaseNautobotAdapter):
+
+    def __init__(self, *args, job, sync=None, **kwargs):
+        """Instantiate this class, but do not load data immediately from the local system."""
+        super().__init__(*args, **kwargs)
+        self.job = job
+        self.sync = sync
+
+    def add_nautobot_object(self, diffsync_model: Type[BaseNautobotModel], db_obj: Model):
+        """Add a new Nautobot object from the ORM into the DiffSync Store."""
+        diffsync_object = diffsync_model(
+            pk=db_obj.pk,
+            **build_attributes_dict(diffsync_model, db_obj, self)
+        )
+        self.add(diffsync_object)
+        return diffsync_object
+
+    def add_child_objects(self, parent_obj: BaseNautobotModel, db_obj: Model):
+        """Add child objects to DiffSync store and to parent DiffSync object instance."""
+        for db_field_name, diff_field_name in parent_obj._children.items():
+            # Get DiffSync codel class for child
+            child_model: BaseNautobotModel = getattr(self, db_field_name)
+            for child_db_obj in getattr(db_obj, diff_field_name).all():
+                parent_obj.add_child(self.add_nautobot_object(child_model, child_db_obj))
+
+    def load(self):
+        """Load data from Nautobot into DiffSync Store."""
+        for model_name in self.top_level:
+            diffsync_model: BaseNautobotModel = getattr(self, model_name)
+            for db_obj in diffsync_model._get_queryset():
+                diffsync_obj = self.add_nautobot_object(diffsync_model, db_obj)
+                self.add_child_objects(diffsync_obj, db_obj)
+
+
+
+
+class NewNautobotAdapter(Adapter, BaseNautobotAdapter):
     """
     Adapter for loading data from Nautobot through the ORM.
 
