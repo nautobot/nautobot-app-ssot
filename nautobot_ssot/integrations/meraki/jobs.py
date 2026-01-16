@@ -69,7 +69,7 @@ class MerakiDataSource(DataSource):  # pylint: disable=too-many-instance-attribu
     sync_mx_lan_ips = BooleanVar(
         label="Sync Firewall LAN SVIs",
         default=False,
-        description="Sync LAN SVI gateway IP Addresses and Prefixes from MX/Z devices.",
+        description="Sync LAN SVI gateway IP Addresses and Prefixes from MX/MG/Z devices.",
     )
     tenant = ObjectVar(model=Tenant, label="Tenant", required=False)
 

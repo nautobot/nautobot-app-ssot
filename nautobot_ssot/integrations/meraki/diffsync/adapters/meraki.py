@@ -205,6 +205,10 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                         primary_found = True
         if lan_ports:
             self.process_lan_ports(device, lan_ports)
+        if getattr(self.job, "sync_mx_lan_ips", False):
+            model = self.device_map.get(device.name, {}).get("model", "")
+            if model.startswith(("MX", "MG", "Z")):
+                self.load_lan_svis(device=device, network_id=network_id)
 
     def process_lan_ports(self, device: DiffSyncModel, lan_ports: dict):
         """Load the switchports for a Device into DiffSync models.
@@ -444,6 +448,101 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 uuid=None,
             )
             self.add(new_map)
+    
+    def load_lan_svis(self, device: DiffSyncModel, network_id: str):
+        """Load LAN SVI interfaces, gateway IPs, and prefixes for MX/MG/Z devices."""
+        settings = self.conn.get_appliance_vlans_settings(network_id=network_id)
+        if settings.get("vlansEnabled") is True:
+            vlans = self.conn.get_appliance_vlans(network_id=network_id)
+            for vlan in vlans:
+                vlan_id = vlan.get("id")
+                subnet = vlan.get("subnet")
+                appliance_ip = vlan.get("applianceIp")
+                if not vlan_id or not subnet or not appliance_ip:
+                    if self.job.debug:
+                        self.job.logger.debug(
+                            f"Skipping VLAN SVI for {device.name}: missing id, subnet, or appliance IP."
+                        )
+                    continue
+                self.load_lan_svi_record(
+                    device=device,
+                    network_id=network_id,
+                    vlan_id=vlan_id,
+                    subnet=subnet,
+                    appliance_ip=appliance_ip,
+                    description=None,
+                )
+        elif settings.get("vlansEnabled") is False:
+            lan = self.conn.get_appliance_single_lan(network_id=network_id)
+            subnet = lan.get("subnet")
+            appliance_ip = lan.get("applianceIp")
+            if not subnet or not appliance_ip:
+                if self.job.debug:
+                    self.job.logger.debug(
+                        f"Skipping single-LAN SVI for {device.name}: missing subnet or appliance IP."
+                    )
+                return
+            self.load_lan_svi_record(
+                device=device,
+                network_id=network_id,
+                vlan_id="1",
+                subnet=subnet,
+                appliance_ip=appliance_ip,
+                description="Single LAN (VLANs disabled in Meraki)",
+            )
+        else:
+            if self.job.debug:
+                self.job.logger.debug(
+                    f"Unable to determine VLAN mode for network {network_id}; skipping LAN SVI load."
+                )
+
+    def load_lan_svi_record(
+        self,
+        device: DiffSyncModel,
+        network_id: str,
+        vlan_id: str,
+        subnet: str,
+        appliance_ip: str,
+        description: str = None,
+    ):
+        """Create/update Interface, Prefix, IPAddress, and IPAssignment for one MX/MG/Z SVI."""
+        port_name = f"Vlan{vlan_id}"
+        new_port, loaded = self.get_or_instantiate(
+            self.port,
+            ids={"name": port_name, "device": device.name},
+            attrs={
+                "management": False,
+                "enabled": True,
+                "port_type": "virtual",
+                "port_status": "Active",
+                "tagging": False,
+                "description": description,
+                "uuid": None,
+            },
+        )
+        if loaded:
+            self.add(new_port)
+            device.add_child(new_port)
+
+        prefix = ipaddress_network(ip=subnet, attr="with_prefixlen")
+        self.load_prefix(prefix=prefix)
+        self.load_prefix_location(
+            prefix=prefix,
+            location=self.conn.network_map[network_id]["name"],
+        )
+
+        mask_length = ipaddress_network(ip=subnet, attr="prefixlen")
+        self.load_ipaddress(
+            host_addr=appliance_ip,
+            mask_length=mask_length,
+            prefix=prefix,
+        )
+        self.load_ipassignment(
+            host_address=appliance_ip,
+            dev_name=device.name,
+            port=port_name,
+            primary=False,
+        )
 
     def load(self):
         """Load data from Meraki into DiffSync models."""

@@ -226,11 +226,11 @@ class DashboardClient:
             )
         return ports
 
-        def get_appliance_vlans(self, network_id: str) -> list:
-        """Retrieve VLANs for MX/Z devices in specified network ID.
+    def get_appliance_vlans(self, network_id: str) -> list:
+        """Retrieve VLANs for MX/MG/Z devices in specified network ID.
 
         Args:
-            network_id (str): Network ID that MX/Z device belongs to.
+            network_id (str): Network ID that MX/MG/Z device belongs to.
 
         Returns:
             list: List of VLAN dicts. Empty list if error or VLANs disabled.
@@ -245,10 +245,10 @@ class DashboardClient:
         return vlans
 
     def get_appliance_single_lan(self, network_id: str) -> dict:
-        """Retrieve single LAN settings for MX/Z devices in specified network ID, when VLANs are disabled.
+        """Retrieve single LAN settings for MX/MG/Z devices in specified network ID, when VLANs are disabled.
 
         Args:
-            network_id (str): Network ID that MX/Z device belongs to.
+            network_id (str): Network ID that MX/MG/Z device belongs to.
 
         Returns:
             dict: Single LAN config dict. Empty dict if error.
@@ -262,8 +262,8 @@ class DashboardClient:
             )
         return lan
 
-    def get_appliance_vlan_settings(self, network_id: str) -> dict:
-        """Retrieve VLAN settings for a Meraki MX/Z device in specified network ID."""
+    def get_appliance_vlans_settings(self, network_id: str) -> dict:
+        """Retrieve VLAN settings for a Meraki MX/MG/Z device in specified network ID."""
         settings = {}
         try:
             settings = self.conn.appliance.getNetworkApplianceVlansSettings(networkId=network_id)
