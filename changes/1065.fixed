@@ -1,0 +1,1 @@
+Ensured that SSL verification is passed to request directly to fix communication to instances with self-signed certificates.
