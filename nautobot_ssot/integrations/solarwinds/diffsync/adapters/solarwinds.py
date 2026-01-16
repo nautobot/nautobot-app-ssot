@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 
 from diffsync import Adapter, DiffSyncModel
 from diffsync.enum import DiffSyncModelFlags
-from netutils.ip import ipaddress_address, ipaddress_interface, is_ip_within
+from netutils.ip import ipaddress_interface, is_ip_within
 from netutils.mac import mac_to_format
 
 from nautobot_ssot.integrations.solarwinds.diffsync.models.solarwinds import (
@@ -443,7 +443,7 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
                 if not prefix.namespace__name == ipaddr.parent__namespace__name:
                     continue
                 subnet = f"{prefix.network}/{prefix.prefix_length}"
-                if ipaddress_address(parent_subnet, "version") != ipaddress_address(subnet, "version"):
+                if ipaddress_interface(parent_subnet, "version") != ipaddress_interface(subnet, "version"):
                     continue
                 if not is_ip_within(parent_subnet, subnet):
                     if is_ip_within(ipaddr.host, subnet):
