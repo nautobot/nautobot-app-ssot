@@ -111,6 +111,7 @@ class SolarWindsClient:  # pylint: disable=too-many-public-methods, too-many-ins
                 self.url + frag,
                 data=json.dumps(data, default=self._json_serial),
                 timeout=self.timeout,
+                verify=self._session.verify,
             )
 
             # try to extract reason from response when request returns error
