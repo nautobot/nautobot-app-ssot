@@ -262,7 +262,16 @@ class DashboardClient:
             )
         return lan
 
-
+    def get_appliance_vlan_settings(self, network_id: str) -> dict:
+        """Retrieve VLAN settings for a Meraki MX/Z device in specified network ID."""
+        settings = {}
+        try:
+            settings = self.conn.appliance.getNetworkApplianceVlansSettings(networkId=network_id)
+        except meraki.APIError as err:
+            self.logger.logger.warning(
+                f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
+            )
+        return settings
 
 def get_role_from_devicetype(dev_model: str, devicetype_map: dict) -> str:
     """Get Device Role using DeviceType from devicetype_mapping Setting.
