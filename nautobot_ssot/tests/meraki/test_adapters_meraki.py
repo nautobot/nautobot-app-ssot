@@ -307,3 +307,106 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
             {"1.6.8.10/32__Global"},
             {prefix.get_unique_id() for prefix in self.meraki.get_all("prefix")},
         )
+
+    def test_load_firewall_ports_lan_svis_disabled(self):
+        """LAN SVIs are skipped when sync_mx_lan_ips is False."""
+        mock_device = MagicMock()
+        mock_device.name = "HQ01"
+
+        self.job.sync_mx_lan_ips = False
+        self.meraki.device_map = {"HQ01": fix.GET_ORG_DEVICES_FIXTURE[1]}
+
+        # Avoid unrelated WAN/port side effects
+        self.meraki_client.get_management_ports.return_value = {}
+        self.meraki_client.get_uplink_settings.return_value = {}
+        self.meraki_client.get_appliance_switchports.return_value = []
+
+        self.meraki.load_firewall_ports(
+            device=mock_device,
+            serial="V4GD-ABDP-YVCK",
+            network_id="L_165471703274884707",
+        )
+
+        self.meraki_client.get_appliance_vlans_settings.assert_not_called()
+
+        ports = {port.get_unique_id() for port in self.meraki.get_all("port")}
+        self.assertNotIn("Vlan1234__HQ01", ports)
+        self.assertNotIn("Vlan1__HQ01", ports)
+
+    def test_load_firewall_ports_vlan_svis(self):
+        """VLAN-mode SVIs are loaded when sync_mx_lan_ips is True."""
+        mock_device = MagicMock()
+        mock_device.name = "HQ01"
+
+        self.job.sync_mx_lan_ips = True
+        self.meraki.device_map = {"HQ01": fix.GET_ORG_DEVICES_FIXTURE[1]}
+
+        self.meraki_client.get_appliance_vlans_settings.return_value = fix.GET_APPLIANCE_VLANS_SETTINGS_TRUE_FIXTURE
+        self.meraki_client.get_appliance_vlans.return_value = fix.GET_APPLIANCE_VLANS_FIXTURE
+
+        self.meraki_client.get_management_ports.return_value = {}
+        self.meraki_client.get_uplink_settings.return_value = {}
+        self.meraki_client.get_appliance_switchports.return_value = []
+
+        self.meraki.load_firewall_ports(
+            device=mock_device,
+            serial="V4GD-ABDP-YVCK",
+            network_id="L_165471703274884707",
+        )
+
+        self.meraki_client.get_appliance_single_lan.assert_not_called()
+
+        ports = {port.get_unique_id() for port in self.meraki.get_all("port")}
+        self.assertIn("Vlan1234__HQ01", ports)
+
+        prefixes = {pf.get_unique_id() for pf in self.meraki.get_all("prefix")}
+        self.assertIn("192.168.1.0/24__Global", prefixes)
+
+        ipaddrs = {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")}
+        self.assertIn("192.168.1.2__None", ipaddrs)
+
+        ipassignment = self.meraki.get(
+            "ipassignment",
+            {"address": "192.168.1.2", "device": "HQ01", "namespace": "Global", "port": "Vlan1234"},
+        )
+        self.assertFalse(ipassignment.primary)
+
+    def test_load_firewall_ports_single_lan_svi(self):
+        """Single-LAN SVIs are loaded when VLANs are disabled."""
+        mock_device = MagicMock()
+        mock_device.name = "HQ01"
+
+        self.job.sync_mx_lan_ips = True
+        self.meraki.device_map = {"HQ01": fix.GET_ORG_DEVICES_FIXTURE[1]}
+
+        self.meraki_client.get_appliance_vlans_settings.return_value = fix.GET_APPLIANCE_VLANS_SETTINGS_FALSE_FIXTURE
+        self.meraki_client.get_appliance_single_lan.return_value = fix.GET_APPLIANCE_SINGLE_LAN_FIXTURE
+
+        self.meraki_client.get_management_ports.return_value = {}
+        self.meraki_client.get_uplink_settings.return_value = {}
+        self.meraki_client.get_appliance_switchports.return_value = []
+
+        self.meraki.load_firewall_ports(
+            device=mock_device,
+            serial="V4GD-ABDP-YVCK",
+            network_id="L_165471703274884707",
+        )
+
+        self.meraki_client.get_appliance_vlans.assert_not_called()
+
+        ports = {port.get_unique_id() for port in self.meraki.get_all("port")}
+        self.assertIn("Vlan1__HQ01", ports)
+
+        prefixes = {pf.get_unique_id() for pf in self.meraki.get_all("prefix")}
+        self.assertIn("192.168.50.0/24__Global", prefixes)
+
+        ipaddrs = {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")}
+        self.assertIn("192.168.50.2__None", ipaddrs)
+
+        ipassignment = self.meraki.get(
+            "ipassignment",
+            {"address": "192.168.50.2", "device": "HQ01", "namespace": "Global", "port": "Vlan1"},
+        )
+        self.assertFalse(ipassignment.primary)
+
+
