@@ -363,10 +363,7 @@ def create_ip(
         cidr = netmask_to_cidr(subnet_mask)
         ip_obj = None
         try:
-            ip_obj, _ = IPAddress.objects.get_or_create(
-                address=f"{ip_address}/{cidr}",
-                defaults={"status": status_obj}
-            )
+            ip_obj, _ = IPAddress.objects.get_or_create(address=f"{ip_address}/{cidr}", defaults={"status": status_obj})
         except IPAddress.MultipleObjectsReturned:
             if logger:
                 logger.error(f"Multiple IPAddresses returned with the address of {ip_address}/{subnet_mask}")
@@ -388,8 +385,7 @@ def create_ip(
             else:
                 try:
                     ip_obj, _ = IPAddress.objects.get_or_create(
-                        address=f"{ip_address}/{cidr}",
-                        defaults={"status": status_obj}
+                        address=f"{ip_address}/{cidr}", defaults={"status": status_obj}
                     )
                 except (DjangoBaseDBError, ValidationError) as err:
                     if logger:
