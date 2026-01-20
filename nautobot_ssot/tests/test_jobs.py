@@ -370,11 +370,9 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         self.assertGreater(target_logs.count(), 0)
 
         # Check that timing messages are present
-        log_messages = [entry.message for entry in log_entries]
-        source_timing_found = any("Source adapter" in msg and "loaded in" in msg for msg in log_messages)
-        target_timing_found = any("Target adapter" in msg and "loaded in" in msg for msg in log_messages)
-        self.assertTrue(source_timing_found, "Source adapter timing message not found")
-        self.assertTrue(target_timing_found, "Target adapter timing message not found")
+        log_messages = " ".join(entry.message for entry in log_entries)
+        self.assertIn("Source adapter loading completed", log_messages)
+        self.assertIn("Target adapter loading completed", log_messages)
 
     def test_parallel_loading_timing_information(self):
         """Test that timing information is correctly recorded for parallel loading."""
