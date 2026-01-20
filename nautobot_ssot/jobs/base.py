@@ -391,19 +391,11 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
 
         start_time = datetime.now()
 
-        # Check if parallel loading is enabled (default True, can be overridden per job)
-        use_parallel = getattr(self, "parallel_loading", True)
-        if isinstance(use_parallel, bool):
-            parallel_enabled = use_parallel
-        else:
-            # If it's a BooleanVar instance, get its value from kwargs or default
-            parallel_enabled = getattr(self, "_parallel_loading_value", True)
-
         # Initialize variables for timing
         adapter_load_end_time = None
         load_target_adapter_time = None
 
-        if parallel_enabled:
+        if self.parallel_loading:
             self.logger.info("Loading source and target adapters in parallel...")
             try:
                 _, _, source_duration, target_duration = self._load_adapters_parallel()
