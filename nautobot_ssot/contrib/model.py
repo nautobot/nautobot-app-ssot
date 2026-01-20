@@ -18,6 +18,8 @@ from nautobot.extras.models.metadata import ObjectMetadata
 from functools import lru_cache
 from django.db.models import Model as ModelObj
 
+from nautobot_ssot.contrib.enums import AttributeType
+
 from nautobot_ssot.contrib.base import BaseNautobotModel
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
@@ -27,53 +29,68 @@ from nautobot_ssot.contrib.types import (
 from nautobot_ssot.utils.orm import get_content_type
 from diffsync.exceptions import ObjectNotCreated
 from nautobot_ssot.utils.cache import get_orm_object
+from dataclasses import dataclass
+
+# class NewNautobotModel(BaseNautobotModel):
+
+#     @classmethod
+#     def get_synced_attributes(cls) -> List[str]:
+#         """Return a list of parameters synced as part of the SSoT Process."""
+#         return list(cls._identifiers) + list(cls._attributes)
+
+#     @classmethod
+#     def _queryset(cls):
+#         """Get the queryset used to load the models data from Nautobot."""
+#         return cls._model.objects.all()
+
+#     @classmethod
+#     def get_queryset(cls) -> QuerySet:
+#         """Get the queryset used to load the models data from Nautobot."""
+#         available_fields = {field.name for field in cls._model._meta.get_fields()}
+#         parameter_names = [
+#             parameter for parameter in cls.get_synced_attributes() if parameter.split("__")[0] in available_fields
+#         ]
+#         # Here we identify any foreign keys (i.e. fields with '__' in them) so that we can load them directly in the
+#         # first query if this function hasn't been overridden.
+#         prefetch_related_parameters = [
+#             "__".join(parameter.split("__")[:-1]) for parameter in parameter_names if "__" in parameter
+#         ]
+#         qs = cls.get_queryset()
+#         return qs.prefetch_related(*prefetch_related_parameters)
 
 
-class NewNautobotModel(DiffSyncModel, BaseNautobotModel):
+# class NautobotLoaderMixin:
+#     """Mixin class to load"""
 
-    @classmethod
-    def get_synced_attributes(cls) -> List[str]:
-        """Return a list of parameters synced as part of the SSoT Process."""
-        return list(cls._identifiers) + list(cls._attributes)
+#     _identifiers: tuple[str]
+#     _attributes: tuple[str]
 
-    @classmethod
-    def _queryset(cls):
-        """Get the queryset used to load the models data from Nautobot."""
-        return cls._model.objects.all()
+#     @classmethod
+#     def get_synced_attributes(cls) -> List[str]:
+#         """Return a list of parameters synced as part of the SSoT Process."""
+#         return list(cls._identifiers) + list(cls._attributes)
 
-    @classmethod
-    def get_queryset(cls) -> QuerySet:
-        """Get the queryset used to load the models data from Nautobot."""
-        available_fields = {field.name for field in cls._model._meta.get_fields()}
-        parameter_names = [
-            parameter for parameter in cls.get_synced_attributes() if parameter.split("__")[0] in available_fields
-        ]
-        # Here we identify any foreign keys (i.e. fields with '__' in them) so that we can load them directly in the
-        # first query if this function hasn't been overridden.
-        prefetch_related_parameters = [
-            "__".join(parameter.split("__")[:-1]) for parameter in parameter_names if "__" in parameter
-        ]
-        qs = cls.get_queryset()
-        return qs.prefetch_related(*prefetch_related_parameters)
+#     def load_from_orm_model(self, orm_obj: ModelObj):
+#         """"""
+#         synced_attributes = self.get_synced_attributes()
 
 
-class NautobotLoaderMixin:
-    """Mixin class to load"""
+@dataclass
+class RelationshipFields:
+    """"""
 
-    _identifiers: tuple[str]
-    _attributes: tuple[str]
+    foreign_keys: dict = defaultdict(dict),
+    # Example: {"tags": [Tag-1, Tag-2]}
+    many_to_many_fields: dict = defaultdict(list),
+    # Example: TODO
+    custom_relationship_foreign_keys: dict = defaultdict(dict),
+    # Example: TODO
+    custom_relationship_many_to_many_fields: dict = defaultdict(dict),
 
-    @classmethod
-    def get_synced_attributes(cls) -> List[str]:
-        """Return a list of parameters synced as part of the SSoT Process."""
-        return list(cls._identifiers) + list(cls._attributes)
-
-    def load_from_orm_model(self, orm_obj: ModelObj):
+    def __post_init__(self):
         """"""
-        synced_attributes = self.get_synced_attributes()
 
-
-class NautobotModel(DiffSyncModel, BaseNautobotModel):
+class NautobotModel(BaseNautobotModel, DiffSyncModel):
     """
     Base model for any diffsync models interfacing with Nautobot through the ORM.
 
@@ -181,50 +198,41 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
             This is mutated over the course of this function.
         :param adapter: The related diffsync adapter used for looking up things in the cache.
         """
-        # Use type hints at runtime to determine which fields are custom fields
-        type_hints = get_type_hints(cls, include_extras=True)
-
-        cls._check_field(field)
-
-        # Handle custom fields. See CustomFieldAnnotation docstring for more details.
-        custom_relationship_annotation = None
-        metadata_for_this_field = getattr(type_hints[field], "__metadata__", [])
-        for metadata in metadata_for_this_field:
-            if isinstance(metadata, CustomFieldAnnotation):
-                obj.cf[metadata.key] = value
-                return
-            if isinstance(metadata, CustomRelationshipAnnotation):
-                custom_relationship_annotation = metadata
-                break
-
-        # Prepare handling of foreign keys and custom relationship foreign keys.
-        # Example: If field is `tenant__group__name`, then
-        # `foreign_keys["tenant"]["group__name"] = value` or
-        # `custom_relationship_foreign_keys["tenant"]["group__name"] = value`
-        # Also, the model class will be added to the dictionary for normal foreign keys, so we can later use it
-        # for querying:
-        # `foreign_keys["tenant"]["_model_class"] = nautobot.tenancy.models.Tenant
-        # For custom relationship foreign keys, we add the annotation instead:
-        # `custom_relationship_foreign_keys["tenant"]["_annotation"] = CustomRelationshipAnnotation(...)
-        if "__" in field:
+        attr_type = cls.get_attr_type(field)
+        if attr_type == AttributeType.STANDARD:
+            setattr(obj, field, value)
+        elif attr_type == AttributeType.FOREIGN_KEY:
             related_model, lookup = field.split("__", maxsplit=1)
-            # Custom relationship foreign keys
-            if custom_relationship_annotation:
-                relationship_fields["custom_relationship_foreign_keys"][related_model][lookup] = value
-                relationship_fields["custom_relationship_foreign_keys"][related_model]["_annotation"] = (
-                    custom_relationship_annotation
-                )
-            # Normal foreign keys
-            else:
-                django_field = cls._model._meta.get_field(related_model)
-                relationship_fields["foreign_keys"][related_model][lookup] = value
-                # Add a special key to the dictionary to point to the related model's class
-                relationship_fields["foreign_keys"][related_model]["_model_class"] = django_field.related_model
-            return
-
-        # Prepare handling of custom relationship many-to-many fields.
-        if custom_relationship_annotation:
-
+            django_field = cls._model._meta.get_field(related_model)
+            relationship_fields["foreign_keys"][related_model][lookup] = value
+            # Add a special key to the dictionary to point to the related model's class
+            relationship_fields["foreign_keys"][related_model]["_model_class"] = django_field.related_model
+        elif attr_type == AttributeType.N_TO_MANY_RELATIONSHIP:
+            django_field = cls._model._meta.get_field(field)
+            try:
+                relationship_fields["many_to_many_fields"][field] = [
+                    get_orm_object(django_field.related_model, parameters) for parameters in value
+                    #adapter.get_from_orm_cache(parameters, django_field.related_model) for parameters in value
+                ]
+            except django_field.related_model.DoesNotExist as error:
+                raise ObjectCrudException(
+                    f"Unable to populate many to many relationship '{django_field.name}' with parameters {value}, at least one related object not found."
+                ) from error
+            except MultipleObjectsReturned as error:
+                raise ObjectCrudException(
+                    f"Unable to populate many to many relationship '{django_field.name}' with parameters {value}, at least one related object found twice."
+                ) from error
+        elif attr_type == AttributeType.CUSTOM_FIELD:
+            obj.cf[cls.get_annotation(field).key] = value
+        elif attr_type == AttributeType.CUSTOM_FOREIGN_KEY:
+            related_model, lookup = field.split("__", maxsplit=1)
+            custom_relationship_annotation = cls.get_annotation(field)
+            relationship_fields["custom_relationship_foreign_keys"][related_model][lookup] = value
+            relationship_fields["custom_relationship_foreign_keys"][related_model]["_annotation"] = (
+                custom_relationship_annotation
+            )
+        elif attr_type == AttributeType.CUSTOM_N_TO_MANY_RELATIONSHIP:
+            custom_relationship_annotation = cls.get_annotation(field)
             relationship = get_orm_object(Relationship, {"label": custom_relationship_annotation.name})
             #relationship = adapter.get_from_orm_cache({"label": custom_relationship_annotation.name}, Relationship)
             if custom_relationship_annotation.side == RelationshipSideEnum.DESTINATION:
@@ -246,31 +254,6 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
                     "objects": [get_orm_object(related_model_class, parameters) for parameters in value],
                     #"objects": [adapter.get_from_orm_cache(parameters, related_model_class) for parameters in value],
                 }
-
-            return
-
-        django_field = cls._model._meta.get_field(field)
-
-        # Prepare handling of many-to-many fields. If we are dealing with a many-to-many field,
-        # we get all the related objects here to later set them once the object has been saved.
-        if django_field.many_to_many or django_field.one_to_many:
-            try:
-                relationship_fields["many_to_many_fields"][field] = [
-                    get_orm_object(django_field.related_model, parameters) for parameters in value
-                    #adapter.get_from_orm_cache(parameters, django_field.related_model) for parameters in value
-                ]
-            except django_field.related_model.DoesNotExist as error:
-                raise ObjectCrudException(
-                    f"Unable to populate many to many relationship '{django_field.name}' with parameters {value}, at least one related object not found."
-                ) from error
-            except MultipleObjectsReturned as error:
-                raise ObjectCrudException(
-                    f"Unable to populate many to many relationship '{django_field.name}' with parameters {value}, at least one related object found twice."
-                ) from error
-            return
-
-        # As the default case, just set the attribute directly
-        setattr(obj, field, value)
 
     @classmethod
     def _update_obj_with_parameters(cls, obj, parameters, adapter):

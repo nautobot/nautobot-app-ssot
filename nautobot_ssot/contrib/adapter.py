@@ -4,29 +4,27 @@
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
 from typing import Dict, List, Type
-
+from nautobot_ssot.contrib.cache import ORMCache
 from diffsync import Adapter
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 from nautobot.extras.models.metadata import MetadataType
 from nautobot_ssot.contrib.base import BaseNautobotAdapter, BaseNautobotModel
-
-from nautobot_ssot.utils.cache import ORMCache
-
+from nautobot.extras.models import Job
 from nautobot_ssot.contrib.interfaces.nautobot.attributes import build_attributes_dict
 from functools import lru_cache
-from nautobot_ssot.jobs.base import DataSyncBaseJob
 
 class NautobotAdapterMetadataMixin:
     """Mixin class to add Metadata object support to Nautobot-based DiffSync adapters."""
 
-    job: DataSyncBaseJob
     metadata_type_obj: MetadataType
     metadata_scope_fields: Dict[object, list[str]]
 
     def __init__(self, *args, **kwargs):
         """Initialize data for"""
         super().__init__(*args, **kwargs)
+
+
         # Define the metadata type on the adapter so that can be used on the models crud operations
         self.metadata_scope_fields = {}
         self.get_or_create_metadatatype()
@@ -70,16 +68,17 @@ class NautobotAdapterMetadataMixin:
 
 
 class NautobotAdapter(
+        #NautobotAdapterMetadataMixin,
+        BaseNautobotAdapter,
         Adapter,
-        NautobotAdapterMetadataMixin,
-        BaseNautobotAdapter
     ):
 
-    def __init__(self, *args, job, sync=None, **kwargs):
+    def __init__(self, *args, job: Job, sync=None, **kwargs):
         """Instantiate this class, but do not load data immediately from the local system."""
         super().__init__(*args, **kwargs)
         self.job = job
-        self.sync = sync
+        #self.sync = sync
+        self.cache = kwargs.pop("cache", ORMCache())
 
         # MetadataType name will be extracted from the Data Source name.
 

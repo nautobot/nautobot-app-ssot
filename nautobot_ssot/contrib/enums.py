@@ -10,3 +10,10 @@ class AttributeType(Enum):
     CUSTOM_FIELD = auto()
     CUSTOM_FOREIGN_KEY = auto()
     CUSTOM_N_TO_MANY_RELATIONSHIP = auto()
+
+
+class RelationshipSideEnum(Enum):
+    """This details which side of a custom relationship the model it's defined on is on."""
+
+    SOURCE = "SOURCE"
+    DESTINATION = "DESTINATION"
