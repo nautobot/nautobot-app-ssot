@@ -354,6 +354,14 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
             manufacturer (str): Manufacturer name for associated Platform.
         """
         platform = "UNKNOWN"
+        if "Arista" in manufacturer:
+            self.get_or_instantiate(
+                self.platform,
+                ids={"name": "arista.eos.eos", "manufacturer__name": manufacturer},
+                attrs={"network_driver": "arista_eos", "napalm_driver": ""},
+            )
+            platform = "arista.eos.eos"
+
         if "Aruba" in manufacturer:
             if device_type.startswith(("1", "60", "61", "62", "63", "64", "8", "93", "94")):
                 self.get_or_instantiate(
@@ -400,7 +408,24 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
                     attrs={"network_driver": "cisco_nxos", "napalm_driver": "nxos"},
                 )
                 platform = "cisco.nxos.nxos"
-        elif "Palo" in manufacturer:
+
+        if "F5 Networks" in manufacturer:
+            self.get_or_instantiate(
+                self.platform,
+                ids={"name": "f5networks.f5_bigip.bigip", "manufacturer__name": manufacturer},
+                attrs={"network_driver": "bigip_f5", "napalm_driver": "bigip_f5"},
+            )
+            platform = "f5networks.f5_bigip.bigip"
+
+        if "Juniper" in manufacturer:
+            self.get_or_instantiate(
+                self.platform,
+                ids={"name": "juniper.junos.junos", "manufacturer__name": manufacturer},
+                attrs={"network_driver": "juniper_junos", "napalm_driver": ""},
+            )
+            platform = "juniper.junos.junos"
+
+        if "Palo" in manufacturer:
             self.get_or_instantiate(
                 self.platform,
                 ids={"name": "paloaltonetworks.panos.panos", "manufacturer__name": manufacturer},
