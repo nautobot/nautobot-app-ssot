@@ -319,16 +319,6 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
                 source_adapter,
                 source_duration,
             )
-            # Create JobLogEntry explicitly for database persistence
-            source_adapter_name = str(source_adapter) if source_adapter else "source adapter"
-            timing_message = f"Source adapter ({source_adapter_name}) loaded in {source_duration}"
-            self.logger.info(timing_message)
-            JobLogEntry.objects.create(
-                job_result=job_result,
-                log_level="info",
-                message=timing_message,
-                grouping="source",
-            )
 
         if target_adapter is not None and target_duration is not None:
             # Log using logger to match sequential loading behavior
@@ -336,16 +326,6 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
                 "Target Load Time from %s: %s",
                 target_adapter,
                 target_duration,
-            )
-            # Create JobLogEntry explicitly for database persistence
-            target_adapter_name = str(target_adapter) if target_adapter else "target adapter"
-            timing_message = f"Target adapter ({target_adapter_name}) loaded in {target_duration}"
-            self.logger.info(timing_message)
-            JobLogEntry.objects.create(
-                job_result=job_result,
-                log_level="info",
-                message=timing_message,
-                grouping="target",
             )
 
         # Raise errors if any occurred
