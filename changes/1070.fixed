@@ -1,0 +1,1 @@
+Fixed duplicate logging that was occurring when using parallel processing option.
