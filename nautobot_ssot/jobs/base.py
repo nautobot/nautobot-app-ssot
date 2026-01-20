@@ -399,6 +399,8 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             self.logger.info("Loading source and target adapters in parallel...")
             try:
                 _, _, source_duration, target_duration = self._load_adapters_parallel()
+                # Record the actual end time as a datetime for calculating diff_time later
+                adapter_load_end_time = datetime.now()
                 # In parallel mode, both adapters run concurrently, so the total time
                 # is the maximum of the two individual durations
                 # Store the same value (total parallel time) for both to match test expectations
