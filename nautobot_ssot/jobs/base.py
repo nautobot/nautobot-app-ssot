@@ -692,6 +692,8 @@ class ThreadedAdapterLoader:  # pylint: disable=too-many-instance-attributes
     nautobot_logger: logging.Logger = field(init=False, repr=False)
     nautobot_ssot_logger: logging.Logger = field(init=False, repr=False)
     root_logger: logging.Logger = field(init=False, repr=False)
+    # Store original logger levels to restore them later
+    original_logger_levels: dict = field(init=False, repr=False, default_factory=dict)
 
     def __post_init__(self):
         """Post-initialization setup."""
@@ -704,6 +706,7 @@ class ThreadedAdapterLoader:  # pylint: disable=too-many-instance-attributes
         self.nautobot_logger = None
         self.nautobot_ssot_logger = None
         self.root_logger = None
+        self.original_logger_levels = {}
         self.thread_id = None
 
     def set_loggers(self):
@@ -719,34 +722,71 @@ class ThreadedAdapterLoader:  # pylint: disable=too-many-instance-attributes
 
         # Add handler to the job-specific logger
         self.job_logger = logging.getLogger(logger_name)
+        # Store original level before changing it
+        self.original_logger_levels["job_logger"] = self.job_logger.level
         self.job_logger.addHandler(self.log_handler)
         self.job_logger.setLevel(self.log_level)
 
         # Also capture from nautobot and nautobot_ssot loggers to catch adapter logs
         self.nautobot_logger = logging.getLogger("nautobot")
+        # Store original level before changing it
+        self.original_logger_levels["nautobot_logger"] = self.nautobot_logger.level
         self.nautobot_logger.addHandler(self.log_handler)
         self.nautobot_logger.setLevel(self.log_level)
 
         self.nautobot_ssot_logger = logging.getLogger("nautobot_ssot")
+        # Store original level before changing it
+        self.original_logger_levels["nautobot_ssot_logger"] = self.nautobot_ssot_logger.level
         self.nautobot_ssot_logger.addHandler(self.log_handler)
         self.nautobot_ssot_logger.setLevel(self.log_level)
 
         # Also attach to root logger to catch any logs that might bubble up
         # This ensures we don't miss any important messages
         self.root_logger = logging.getLogger()
+        # Store original level before changing it
+        self.original_logger_levels["root_logger"] = self.root_logger.level
         self.root_logger.addHandler(self.log_handler)
         self.root_logger.setLevel(self.log_level)
 
     def remove_logger_handlers(self):
-        """Remove the logger handlers."""
+        """Remove the logger handlers and restore original logger levels."""
         if self.log_handler and self.job_logger:
             self.job_logger.removeHandler(self.log_handler)
+            # Restore original level if we stored it
+            if "job_logger" in self.original_logger_levels:
+                original_level = self.original_logger_levels["job_logger"]
+                # If original level was NOTSET, we need to clear the level to restore inheritance
+                if original_level == logging.NOTSET:
+                    self.job_logger.setLevel(logging.NOTSET)
+                else:
+                    self.job_logger.setLevel(original_level)
         if self.log_handler and self.nautobot_logger:
             self.nautobot_logger.removeHandler(self.log_handler)
+            # Restore original level if we stored it
+            if "nautobot_logger" in self.original_logger_levels:
+                original_level = self.original_logger_levels["nautobot_logger"]
+                if original_level == logging.NOTSET:
+                    self.nautobot_logger.setLevel(logging.NOTSET)
+                else:
+                    self.nautobot_logger.setLevel(original_level)
         if self.log_handler and self.nautobot_ssot_logger:
             self.nautobot_ssot_logger.removeHandler(self.log_handler)
+            # Restore original level if we stored it
+            if "nautobot_ssot_logger" in self.original_logger_levels:
+                original_level = self.original_logger_levels["nautobot_ssot_logger"]
+                if original_level == logging.NOTSET:
+                    self.nautobot_ssot_logger.setLevel(logging.NOTSET)
+                else:
+                    self.nautobot_ssot_logger.setLevel(original_level)
         if self.log_handler and self.root_logger:
             self.root_logger.removeHandler(self.log_handler)
+            # Restore original level if we stored it
+            if "root_logger" in self.original_logger_levels:
+                original_level = self.original_logger_levels["root_logger"]
+                if original_level == logging.NOTSET:
+                    self.root_logger.setLevel(logging.NOTSET)
+                else:
+                    self.root_logger.setLevel(original_level)
 
     def load(self):
         """Load the adapter and return the adapter instance.
