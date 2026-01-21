@@ -2,9 +2,9 @@
 {% load form_helpers %}
 
 {% block form %}
-    <div class="panel panel-default">
-        <div class="panel-heading"><strong>vSphere Config</strong></div>
-        <div class="panel-body">
+    <div class="card">
+        <div class="card-header"><strong>vSphere Config</strong></div>
+        <div class="card-body">
             {% render_field form.name %}
             {% render_field form.description %}
             {% render_field form.vsphere_instance %}
@@ -22,27 +22,27 @@
             {% render_field form.default_tag_color %}
         </div>
     </div>
-    <div class="panel panel-default">
-        <div class="panel-heading"><strong>Data</strong></div>
-        <div class="panel-body">
+    <div class="card">
+        <div class="card-header"><strong>Data</strong></div>
+        <div class="card-body">
             {% render_field form.default_vm_status_map %}
         </div>
     </div>
-    <div class="panel panel-default">
-        <div class="panel-heading"><strong>Data</strong></div>
-        <div class="panel-body">
+    <div class="card">
+        <div class="card-header"><strong>Data</strong></div>
+        <div class="card-body">
             {% render_field form.default_ip_status_map %}
         </div>
     </div>
-    <div class="panel panel-default">
-        <div class="panel-heading"><strong>Data</strong></div>
-        <div class="panel-body">
+    <div class="card">
+        <div class="card-header"><strong>Data</strong></div>
+        <div class="card-body">
             {% render_field form.default_vm_interface_map %}
         </div>
     </div>
-    <div class="panel panel-default">
-        <div class="panel-heading"><strong>Notes</strong></div>
-        <div class="panel-body">
+    <div class="card">
+        <div class="card-header"><strong>Notes</strong></div>
+        <div class="card-body">
             {% render_field form.object_note %}
         </div>
     </div>

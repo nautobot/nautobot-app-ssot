@@ -35,6 +35,7 @@ from nautobot.apps.views import (
     get_obj_from_context,
 )
 from nautobot.core.ui.utils import flatten_context
+from nautobot.core.views.paginator import get_paginate_count
 from nautobot.extras.models import Job as JobModel
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -54,7 +55,7 @@ from .tables import DashboardTable, SyncLogEntryTable, SyncTable, SyncTableSingl
 def dry_run_label(value) -> str:
     """Return HTML label for dry run status."""
     badge, text = ("default", "Dry Run") if value else ("info", "Sync")
-    return format_html('<span class="dry_run label label-{}">{}</span>', badge, text)
+    return format_html('<span class="dry_run badge bg-{}">{}</span>', badge, text)
 
 
 def datetime_with_timesince(value) -> str:
@@ -76,17 +77,16 @@ class SyncObjectPanel(ObjectFieldsPanel):
         if key == "duration":
             obj = get_obj_from_context(context, self.context_object_key)
             return obj.get_duration_display()
-        # TODO: NEXT-3.0 Replace label label-* with Bootstrap 5 badge classes when Nautobot supports Bootstrap 5
         # TODO: If Core adds a different way to render job result status labels, use here:
         if key == "job_result__status":
             status_labels = {
-                "FAILURE": ("label label-danger", "Failed"),
-                "PENDING": ("label label-default", "Pending"),
-                "STARTED": ("label label-warning", "Running"),
-                "SUCCESS": ("label label-success", "Completed"),
+                "FAILURE": ("badge bg-danger", "Failed"),
+                "PENDING": ("badge bg-secondary", "Pending"),
+                "STARTED": ("badge bg-warning", "Running"),
+                "SUCCESS": ("badge bg-success", "Completed"),
             }
-            css_class, text = status_labels.get(value, ("label label-default", "N/A"))
-            return format_html('<label class="{}">{}</label>', css_class, text)
+            css_class, text = status_labels.get(value, ("badge bg-secondary", "N/A"))
+            return format_html('<span class="{}">{}</span>', css_class, text)
         return super().render_value(key, value, context)
 
 
@@ -95,23 +95,22 @@ class StatisticsObjectPanel(ObjectFieldsPanel):
 
     def render_value(self, key, value, context):
         """Render the value for display in the table."""
-        # TODO: NEXT-3.0 Replace label label-* with Bootstrap 5 badge classes when Nautobot supports Bootstrap 5
         obj = get_obj_from_context(context, self.context_object_key)
         if key == "num_created":
             return format_html(
-                '<a href="{}?action=create" class="label label-success">{}</a>',
+                '<a href="{}?action=create" class="badge bg-success">{}</a>',
                 reverse("plugins:nautobot_ssot:sync_logentries", kwargs={"pk": obj.pk}),
                 value,
             )
         if key == "num_updated":
             return format_html(
-                '<a href="{}?action=update" class="label label-warning">{}</a>',
+                '<a href="{}?action=update" class="badge bg-warning">{}</a>',
                 reverse("plugins:nautobot_ssot:sync_logentries", kwargs={"pk": obj.pk}),
                 value,
             )
         if key == "num_deleted":
             return format_html(
-                '<a href="{}?action=delete" class="label label-danger">{}</a>',
+                '<a href="{}?action=delete" class="badge bg-danger">{}</a>',
                 reverse("plugins:nautobot_ssot:sync_logentries", kwargs={"pk": obj.pk}),
                 value,
             )
@@ -257,10 +256,6 @@ class SyncUIViewSet(
     action_buttons = ("export",)
     breadcrumbs = Breadcrumbs(
         items={
-            "list": [
-                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
-                ModelBreadcrumbItem(model=Sync),
-            ],
             "detail": [
                 ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
                 ModelBreadcrumbItem(),
@@ -338,10 +333,9 @@ class SyncUIViewSet(
                     ObjectsTablePanel(
                         weight=100,
                         section=SectionChoices.FULL_WIDTH,
-                        table_class=SyncLogEntryTable,
-                        table_filter="sync",
                         related_field_name="sync",
                         tab_id="logentries",
+                        context_table_key="logs_table",
                         enable_bulk_actions=False,
                         include_paginator=True,
                     ),
@@ -365,7 +359,17 @@ class SyncUIViewSet(
     @action(detail=True, url_path="logs", custom_view_base_action="view")
     def logentries(self, request, *args, **kwargs):
         """Log entries action for Sync UIViewSet."""
-        return Response({})
+        sync = self.get_object()
+        queryset = sync.logs.all()
+        filterset = SyncLogEntryFilterSet(request.GET, queryset=queryset, request=request)
+
+        table = SyncLogEntryTable(filterset.qs, user=request.user)
+        RequestConfig(
+            request,
+            paginate={"paginator_class": EnhancedPaginator, "per_page": get_paginate_count(request)},
+        ).configure(table)
+
+        return Response({"logs_table": table})
 
     @action(detail=True, url_path="jobresult", custom_view_base_action="view")
     def jobresult(self, request, *args, **kwargs):
@@ -379,18 +383,26 @@ class SyncLogEntryUIViewSet(ObjectListViewMixin):
     filterset_class = SyncLogEntryFilterSet
     filterset_form_class = SyncLogEntryFilterForm
     lookup_field = "pk"
-    queryset = SyncLogEntry.objects.all()
+    queryset = SyncLogEntry.objects.select_related("sync").only(
+        "id",
+        "timestamp",
+        "sync_id",
+        "action",
+        "status",
+        "diff",
+        "message",
+        "synced_object_type",
+        "synced_object_id",
+        "object_repr",
+        # Sync fields needed for __str__ and link rendering
+        "sync__id",
+        "sync__source",
+        "sync__target",
+        "sync__start_time",
+    )
     serializer_class = serializers.SyncLogEntrySerializer
     table_class = SyncLogEntryTable
     action_buttons = ("export",)
-    breadcrumbs = Breadcrumbs(
-        items={
-            "list": [
-                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
-                ModelBreadcrumbItem(model=SyncLogEntry),
-            ],
-        }
-    )
 
 
 class SSOTConfigView(ContentTypePermissionRequiredMixin, DjangoView):

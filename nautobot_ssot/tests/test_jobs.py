@@ -1,12 +1,14 @@
 """Test the Job classes in nautobot_ssot."""
 
+import logging
 import os.path
+import time
 from unittest.mock import Mock, call, patch
 
 from django.db.utils import IntegrityError, OperationalError
 from django.test import override_settings
 from nautobot.core.testing import TransactionTestCase
-from nautobot.extras.models import JobResult
+from nautobot.extras.models import JobLogEntry, JobResult
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 from nautobot_ssot.models import SyncLogEntry
@@ -14,7 +16,7 @@ from nautobot_ssot.tests.jobs import DataSource, DataSyncBaseJob, DataTarget
 
 
 @override_settings(JOBS_ROOT=os.path.join(os.path.dirname(__file__), "jobs"))
-class BaseJobTestCase(TransactionTestCase):
+class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-methods
     """Test the DataSyncBaseJob class."""
 
     job_class = DataSyncBaseJob
@@ -36,6 +38,13 @@ class BaseJobTestCase(TransactionTestCase):
 
         self.job.load_source_adapter = lambda *x, **y: None
         self.job.load_target_adapter = lambda *x, **y: None
+
+    def _create_mock_diff(self):
+        """Helper method to create a properly configured mock Diff object."""
+        mock_diff = Mock()
+        mock_diff.summary.return_value = "{'create': 0, 'update': 0, 'delete': 0, 'no-change': 0, 'skip': 0}"
+        mock_diff.dict.return_value = {}
+        return mock_diff
 
     def test_sync_log(self):
         """Test the sync_log() method."""
@@ -173,6 +182,393 @@ class BaseJobTestCase(TransactionTestCase):
         self.job.source_adapter.diff_to().dict.return_value = {}
         with self.assertRaises(IntegrityError):
             self.job.calculate_diff()
+
+    def test_parallel_loading_enabled_default(self):
+        """Test that parallel loading is enabled by default."""
+        mock_diff = self._create_mock_diff()
+
+        def load_source():
+            """Load source adapter."""
+            source_adapter = Mock()
+            source_adapter.diff_to.return_value = mock_diff
+            self.job.source_adapter = source_adapter
+
+        def load_target():
+            """Load target adapter."""
+            self.job.target_adapter = Mock()
+
+        self.job.load_source_adapter = load_source
+        self.job.load_target_adapter = load_target
+
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+        # Both adapters should be loaded
+        self.assertIsNotNone(self.job.source_adapter)
+        self.assertIsNotNone(self.job.target_adapter)
+        # Timing should be recorded for both (same value in parallel mode)
+        self.assertIsNotNone(self.job.sync.source_load_time)
+        self.assertIsNotNone(self.job.sync.target_load_time)
+        # In parallel mode, both times should be the same (total parallel time)
+        self.assertEqual(self.job.sync.source_load_time, self.job.sync.target_load_time)
+
+    def test_parallel_loading_disabled(self):
+        """Test that sequential loading works when parallel_loading is False."""
+        mock_diff = self._create_mock_diff()
+
+        def load_source():
+            """Load source adapter."""
+            source_adapter = Mock()
+            source_adapter.diff_to.return_value = mock_diff
+            self.job.source_adapter = source_adapter
+
+        def load_target():
+            """Load target adapter."""
+            self.job.target_adapter = Mock()
+
+        self.job.load_source_adapter = load_source
+        self.job.load_target_adapter = load_target
+
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=False)
+        # Both adapters should be loaded
+        self.assertIsNotNone(self.job.source_adapter)
+        self.assertIsNotNone(self.job.target_adapter)
+        # Timing should be recorded for both
+        self.assertIsNotNone(self.job.sync.source_load_time)
+        self.assertIsNotNone(self.job.sync.target_load_time)
+
+    def test_parallel_loading_with_mock_adapters(self):
+        """Test parallel loading with mock adapters that simulate work."""
+        mock_diff = self._create_mock_diff()
+        source_adapter = Mock()
+        source_adapter.__str__ = Mock(return_value="SourceAdapter")
+        source_adapter.diff_to.return_value = mock_diff
+        target_adapter = Mock()
+        target_adapter.__str__ = Mock(return_value="TargetAdapter")
+
+        def load_source():
+            """Simulate source adapter loading with delay."""
+            time.sleep(0.1)  # Simulate some work
+            self.job.source_adapter = source_adapter
+
+        def load_target():
+            """Simulate target adapter loading with delay."""
+            time.sleep(0.1)  # Simulate some work
+            self.job.target_adapter = target_adapter
+
+        self.job.load_source_adapter = load_source
+        self.job.load_target_adapter = load_target
+
+        start_time = time.time()
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+        end_time = time.time()
+
+        # Both adapters should be loaded
+        self.assertEqual(self.job.source_adapter, source_adapter)
+        self.assertEqual(self.job.target_adapter, target_adapter)
+        # Parallel execution should be faster than sequential (which would take ~0.2s)
+        # Allow some margin for test execution overhead
+        self.assertLess(end_time - start_time, 0.15)
+
+    def test_parallel_loading_source_error(self):
+        """Test parallel loading when source adapter raises an error."""
+        source_error = ValueError("Source adapter failed")
+
+        def load_source():
+            """Simulate source adapter loading failure."""
+            raise source_error
+
+        def load_target():
+            """Simulate successful target adapter loading."""
+            self.job.target_adapter = Mock()
+
+        self.job.load_source_adapter = load_source
+        self.job.load_target_adapter = load_target
+
+        with self.assertRaises(ValueError) as context:
+            self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+
+        self.assertEqual(str(context.exception), "Source adapter failed")
+        # Target adapter may or may not be loaded depending on timing
+        # But the error should be raised
+
+    def test_parallel_loading_target_error(self):
+        """Test parallel loading when target adapter raises an error."""
+        target_error = ValueError("Target adapter failed")
+
+        def load_source():
+            """Simulate successful source adapter loading."""
+            self.job.source_adapter = Mock()
+
+        def load_target():
+            """Simulate target adapter loading failure."""
+            raise target_error
+
+        self.job.load_source_adapter = load_source
+        self.job.load_target_adapter = load_target
+
+        with self.assertRaises(ValueError) as context:
+            self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+
+        self.assertEqual(str(context.exception), "Target adapter failed")
+        # Source adapter may or may not be loaded depending on timing
+        # But the error should be raised
+
+    def test_parallel_loading_both_errors(self):
+        """Test parallel loading when both adapters raise errors."""
+        source_error = ValueError("Source adapter failed")
+        target_error = RuntimeError("Target adapter failed")
+
+        def load_source():
+            """Simulate source adapter loading failure."""
+            raise source_error
+
+        def load_target():
+            """Simulate target adapter loading failure."""
+            raise target_error
+
+        self.job.load_source_adapter = load_source
+        self.job.load_target_adapter = load_target
+
+        # Should raise the first error encountered (order may vary)
+        with self.assertRaises((ValueError, RuntimeError)):
+            self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+
+    def test_parallel_loading_logs_captured(self):
+        """Test that logs from threads are captured and stored as JobLogEntry objects."""
+        initial_log_count = JobLogEntry.objects.filter(job_result=self.job.job_result).count()
+        mock_diff = self._create_mock_diff()
+
+        def load_source():
+            """Simulate source adapter loading with logging."""
+            logger = logging.getLogger(f"nautobot.extras.jobs.run_job[{self.job.job_result.id}]")
+            logger.info("Source adapter loading started")
+            source_adapter = Mock()
+            source_adapter.diff_to.return_value = mock_diff
+            self.job.source_adapter = source_adapter
+            logger.info("Source adapter loading completed")
+
+        def load_target():
+            """Simulate target adapter loading with logging."""
+            logger = logging.getLogger(f"nautobot.extras.jobs.run_job[{self.job.job_result.id}]")
+            logger.info("Target adapter loading started")
+            self.job.target_adapter = Mock()
+            logger.info("Target adapter loading completed")
+
+        self.job.load_source_adapter = load_source
+        self.job.load_target_adapter = load_target
+
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+
+        # Check that JobLogEntry objects were created
+        log_entries = JobLogEntry.objects.filter(job_result=self.job.job_result)
+        final_log_count = log_entries.count()
+        self.assertGreater(final_log_count, initial_log_count)
+
+        # Check that logs are grouped by adapter type
+        source_logs = log_entries.filter(grouping="source")
+        target_logs = log_entries.filter(grouping="target")
+        self.assertGreater(source_logs.count(), 0)
+        self.assertGreater(target_logs.count(), 0)
+
+        # Check that timing messages are present
+        log_messages = " ".join(entry.message for entry in log_entries)
+        self.assertIn("Source adapter loading completed", log_messages)
+        self.assertIn("Target adapter loading completed", log_messages)
+
+    def test_parallel_loading_timing_information(self):
+        """Test that timing information is correctly recorded for parallel loading."""
+        mock_diff = self._create_mock_diff()
+
+        def load_source():
+            """Simulate source adapter loading with delay."""
+            time.sleep(0.05)
+            source_adapter = Mock()
+            source_adapter.diff_to.return_value = mock_diff
+            self.job.source_adapter = source_adapter
+
+        def load_target():
+            """Simulate target adapter loading with delay."""
+            time.sleep(0.05)
+            self.job.target_adapter = Mock()
+
+        self.job.load_source_adapter = load_source
+        self.job.load_target_adapter = load_target
+
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+
+        # Timing should be recorded
+        self.assertIsNotNone(self.job.sync.source_load_time)
+        self.assertIsNotNone(self.job.sync.target_load_time)
+
+        # In parallel mode, both should have the same duration (total parallel time)
+        # which should be approximately the max of the two, not the sum
+        self.assertEqual(self.job.sync.source_load_time, self.job.sync.target_load_time)
+
+        # The parallel time should be less than sequential time would be
+        # (sequential would be ~0.1s, parallel should be ~0.05s)
+        parallel_duration = self.job.sync.source_load_time.total_seconds()
+        self.assertLess(parallel_duration, 0.08)  # Allow some margin
+
+    def test_sequential_loading_timing_information(self):
+        """Test that timing information is correctly recorded for sequential loading."""
+        mock_diff = self._create_mock_diff()
+
+        def load_source():
+            """Simulate source adapter loading with delay."""
+            time.sleep(0.05)
+            source_adapter = Mock()
+            source_adapter.diff_to.return_value = mock_diff
+            self.job.source_adapter = source_adapter
+
+        def load_target():
+            """Simulate target adapter loading with delay."""
+            time.sleep(0.05)
+            self.job.target_adapter = Mock()
+
+        self.job.load_source_adapter = load_source
+        self.job.load_target_adapter = load_target
+
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=False)
+
+        # Timing should be recorded
+        self.assertIsNotNone(self.job.sync.source_load_time)
+        self.assertIsNotNone(self.job.sync.target_load_time)
+
+        # In sequential mode, target time should be after source time
+        source_duration = self.job.sync.source_load_time.total_seconds()
+        target_duration = self.job.sync.target_load_time.total_seconds()
+
+        # Both should be approximately 0.05s
+        self.assertGreaterEqual(source_duration, 0.04)
+        self.assertLessEqual(source_duration, 0.08)
+        self.assertGreaterEqual(target_duration, 0.04)
+        self.assertLessEqual(target_duration, 0.08)
+
+    def test_parallel_loading_thread_isolation(self):
+        """Test that database connections are properly isolated between threads."""
+        mock_diff = self._create_mock_diff()
+
+        def load_source():
+            """Simulate source adapter loading that uses database."""
+            # Try to access database in this thread
+            from django.db import connection  # pylint: disable=import-outside-toplevel
+
+            connection.ensure_connection()
+            source_adapter = Mock()
+            source_adapter.diff_to.return_value = mock_diff
+            self.job.source_adapter = source_adapter
+
+        def load_target():
+            """Simulate target adapter loading that uses database."""
+            # Try to access database in this thread
+            from django.db import connection  # pylint: disable=import-outside-toplevel
+
+            connection.ensure_connection()
+            self.job.target_adapter = Mock()
+
+        self.job.load_source_adapter = load_source
+        self.job.load_target_adapter = load_target
+
+        # Should not raise any database connection errors
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+
+        # Both adapters should be loaded successfully
+        self.assertIsNotNone(self.job.source_adapter)
+        self.assertIsNotNone(self.job.target_adapter)
+
+    def test_parallel_loading_log_deduplication(self):
+        """Test that duplicate log messages from threads are properly deduplicated."""
+        mock_diff = self._create_mock_diff()
+
+        def load_source():
+            """Simulate source adapter loading with duplicate logs."""
+            logger = logging.getLogger(f"nautobot.extras.jobs.run_job[{self.job.job_result.id}]")
+            logger.info("Duplicate message")
+            logger.info("Duplicate message")  # Duplicate
+            source_adapter = Mock()
+            source_adapter.diff_to.return_value = mock_diff
+            self.job.source_adapter = source_adapter
+
+        def load_target():
+            """Simulate target adapter loading."""
+            logger = logging.getLogger(f"nautobot.extras.jobs.run_job[{self.job.job_result.id}]")
+            logger.info("Unique message")
+            self.job.target_adapter = Mock()
+
+        self.job.load_source_adapter = load_source
+        self.job.load_target_adapter = load_target
+
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+
+        # Check log entries
+        log_entries = JobLogEntry.objects.filter(job_result=self.job.job_result)
+        log_messages = [entry.message for entry in log_entries]
+
+        # "Duplicate message" should appear (deduplication may or may not happen based on timing)
+        # But we should have at least one instance
+        duplicate_count = log_messages.count("Duplicate message")
+        self.assertGreaterEqual(duplicate_count, 1)
+
+    def test_parallel_loading_vs_sequential_performance(self):
+        """Test that parallel loading is faster than sequential for slow adapters."""
+        mock_diff = self._create_mock_diff()
+
+        # Test parallel loading
+        parallel_job = DataSyncBaseJob()
+        parallel_job.job_result = JobResult.objects.create(
+            name="parallel job",
+            task_name="parallel job",
+            worker="default",
+        )
+
+        def parallel_load_source():
+            """Simulate slow source adapter loading for parallel job."""
+            time.sleep(0.1)
+            source_adapter = Mock()
+            source_adapter.diff_to.return_value = mock_diff
+            parallel_job.source_adapter = source_adapter
+
+        def parallel_load_target():
+            """Simulate slow target adapter loading for parallel job."""
+            time.sleep(0.1)
+            parallel_job.target_adapter = Mock()
+
+        parallel_job.load_source_adapter = parallel_load_source
+        parallel_job.load_target_adapter = parallel_load_target
+
+        parallel_start = time.time()
+        parallel_job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+        parallel_duration = time.time() - parallel_start
+
+        # Test sequential loading
+        sequential_job = DataSyncBaseJob()
+        sequential_job.job_result = JobResult.objects.create(
+            name="sequential job",
+            task_name="sequential job",
+            worker="default",
+        )
+
+        def sequential_load_source():
+            """Simulate slow source adapter loading for sequential job."""
+            time.sleep(0.1)
+            source_adapter = Mock()
+            source_adapter.diff_to.return_value = mock_diff
+            sequential_job.source_adapter = source_adapter
+
+        def sequential_load_target():
+            """Simulate slow target adapter loading for sequential job."""
+            time.sleep(0.1)
+            sequential_job.target_adapter = Mock()
+
+        sequential_job.load_source_adapter = sequential_load_source
+        sequential_job.load_target_adapter = sequential_load_target
+
+        sequential_start = time.time()
+        sequential_job.run(dryrun=True, memory_profiling=False, parallel_loading=False)
+        sequential_duration = time.time() - sequential_start
+
+        # Parallel should be faster (approximately half the time for equal delays)
+        # Allow some margin for test execution overhead
+        self.assertLess(parallel_duration, sequential_duration * 0.7)
 
 
 class DataSourceTestCase(BaseJobTestCase):

@@ -15,16 +15,19 @@ class NautobotIPAddressToInterfaceModel(IPAddressToInterfaceModel):
         """Create IPAddressToInterface in Nautobot."""
         if adapter.job.debug:
             adapter.job.logger.debug(f"Creating IPAddressToInterface {ids} {attrs}")
-        intf = Interface.objects.get(name=ids["interface__name"], device__name=ids["interface__device__name"])
+        try:
+            intf = Interface.objects.get(name=ids["interface__name"], device__name=ids["interface__device__name"])
+        except (Interface.DoesNotExist, Interface.MultipleObjectsReturned):
+            adapter.job.logger.error(
+                f"Interface {ids['interface__name']} not found for device {ids['interface__device__name']}"
+            )
+            return None
 
-        # try:
         obj = IPAddressToInterface(
             ip_address=IPAddress.objects.get(host=ids["ip_address__host"], tenant=intf.device.tenant),
             interface=intf,
         )
         obj.validated_save()
-        # except IPAddress.DoesNotExist as e:
-        #     print(f"IP: {ids=}, {intf=}, {intf.device=}")
 
         if (
             attrs.get("interface__device__primary_ip4__host")

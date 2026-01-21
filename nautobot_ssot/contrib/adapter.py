@@ -7,7 +7,7 @@ import re
 from typing import Dict, List, Type
 
 import pydantic
-from diffsync import DiffSync, DiffSyncModel
+from diffsync import Adapter, DiffSyncModel
 from diffsync.exceptions import ObjectCrudException
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
@@ -31,7 +31,7 @@ from nautobot_ssot.utils.orm import (
 from nautobot_ssot.utils.typing import get_inner_type
 
 
-class NautobotAdapter(DiffSync, BaseNautobotAdapter):
+class NautobotAdapter(Adapter, BaseNautobotAdapter):
     """
     Adapter for loading data from Nautobot through the ORM.
 
@@ -46,6 +46,12 @@ class NautobotAdapter(DiffSync, BaseNautobotAdapter):
         self.cache: ORMCache = kwargs.pop("cache", ORMCache())
         self.metadata_type = None
         self.metadata_scope_fields = {}
+        self.validate_adapter()
+
+    def validate_adapter(self):
+        """Validate adapter is properly built."""
+        if not hasattr(self, "top_level") or not self.top_level:
+            raise ValueError("'top_level' needs to be set on the class.")
 
     def get_from_orm_cache(self, parameters: Dict, model_class: Type[Model]):
         """Retrieve an object from the ORM or the cache."""
@@ -153,9 +159,6 @@ class NautobotAdapter(DiffSync, BaseNautobotAdapter):
 
     def load(self):
         """Generic implementation of the load function."""
-        if not hasattr(self, "top_level") or not self.top_level:
-            raise ValueError("'top_level' needs to be set on the class.")
-
         for model_name in self.top_level:
             diffsync_model = self._get_diffsync_class(model_name)
 

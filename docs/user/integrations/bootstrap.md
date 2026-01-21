@@ -160,10 +160,32 @@ external_integration:
         - "9876"
 ```
 
+### Branch Specific Values
+If you are running multiple Nautobot environments, some values may need to be specific to the Nautobot environment. For example in `development` you might want all GitRepository objects to use the branch `develop`. Also for ScheduledJobs you might need to send specific UUID values as `job_vars`, which are unique to each Nautobot environment. You can create these 'branch values' that are specific to each object type. You will want to update your `PLUGINS_CONFIG` in `nautobot_config.py` to include the value you wish to use for the Branch Values File.
+
+```python
+PLUGINS_CONFIG = {
+    "nautobot_ssot": {
+        "bootstrap_nautobot_environment_branch": os.getenv("NAUTOBOT_BOOTSTRAP_SSOT_ENVIRONMENT_BRANCH", "develop"),
+    }
+}
+```
+
+Then create a YAML file in the same format as `global_settings.py`, to 'override' any specific object found in the Global Settings. If you wish to use a specific value for ALL object types, simply add an object with the `name` set to `default`, and it will take effect for all objects of that type that have a blank or missing value for that setting. If the object is already assigned a value, that value will take precedence over this default setting.
+
 #### develop.yml
 
 ```yaml
-git_branch: develop
+---
+git_repository: # Sets all git_repositories to this branch (if unspecified in global_settings)
+  - name: "default"
+    branch: "develop"
+# git_branch: "develop" # this method has been deprecated, use above method
+scheduled_job:
+  - name: "Test Scheduled Job" # Add job_vars with unique UUID's to a specific Job
+    job_vars:
+      integration: 1234567890
+      tenant: 987765412
 ```
 
 ## Content Types
