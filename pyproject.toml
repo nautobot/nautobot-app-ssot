@@ -297,7 +297,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.towncrier]
 package = "nautobot_ssot"
 directory = "changes"
-filename = "docs/admin/release_notes/version_3.11.md"
+filename = "docs/admin/release_notes/version_4.1.md"
 template = "development/towncrier_template.j2"
 start_string = "<!-- towncrier release notes start -->"
 issue_format = "[#{issue}](https://github.com/nautobot/nautobot-app-ssot/issues/{issue})"
