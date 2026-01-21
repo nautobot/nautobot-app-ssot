@@ -781,7 +781,7 @@ class ThreadedAdapterLoader:  # pylint: disable=too-many-instance-attributes
         self.root_logger.addHandler(self.log_handler)
         self.root_logger.setLevel(self.log_level)
 
-    def remove_logger_handlers(self):
+    def remove_logger_handlers(self):  # pylint: disable=too-many-branches
         """Remove the logger handlers and restore original logger levels."""
         if self.log_handler and self.job_logger:
             self.job_logger.removeHandler(self.log_handler)
