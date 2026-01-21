@@ -314,19 +314,27 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         # Create JobLogEntry objects explicitly to ensure they're stored in the database
         if source_adapter is not None and source_duration is not None:
             # Log using logger to match sequential loading behavior
-            self.logger.info(
-                "Source Load Time from %s: %s",
-                source_adapter,
-                source_duration,
-            )
+            message = f"Source Load Time from {source_adapter}: {source_duration}"
+            self.logger.info(message)
+            # Explicitly create JobLogEntry when in parallel mode to ensure it's captured
+            if self.parallel_loading:
+                JobLogEntry.objects.create(
+                    job_result=job_result,
+                    log_level="info",
+                    message=message,
+                )
 
         if target_adapter is not None and target_duration is not None:
             # Log using logger to match sequential loading behavior
-            self.logger.info(
-                "Target Load Time from %s: %s",
-                target_adapter,
-                target_duration,
-            )
+            message = f"Target Load Time from {target_adapter}: {target_duration}"
+            self.logger.info(message)
+            # Explicitly create JobLogEntry when in parallel mode to ensure it's captured
+            if self.parallel_loading:
+                JobLogEntry.objects.create(
+                    job_result=job_result,
+                    log_level="info",
+                    message=message,
+                )
 
         # Raise errors if any occurred
         if source_error:
@@ -395,6 +403,31 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         adapter_load_end_time = None
         load_target_adapter_time = None
 
+        # Helper function to create JobLogEntry explicitly when in parallel mode
+        # This ensures logs are captured even if logger configuration was affected by parallel loading
+        def log_and_create_entry(level, message, *args):
+            """Log message and explicitly create JobLogEntry in parallel mode."""
+            if args:
+                formatted_message = message % args
+            else:
+                formatted_message = message
+            self.logger.log(level, formatted_message)
+            # Explicitly create JobLogEntry when in parallel mode to ensure it's captured
+            if self.parallel_loading:
+                if level >= logging.ERROR:
+                    log_level = "error"
+                elif level >= logging.WARNING:
+                    log_level = "warning"
+                elif level >= logging.INFO:
+                    log_level = "info"
+                else:
+                    log_level = "debug"
+                JobLogEntry.objects.create(
+                    job_result=self.job_result,
+                    log_level=log_level,
+                    message=formatted_message,
+                )
+
         if self.parallel_loading:
             self.logger.info("Loading source and target adapters in parallel...")
             try:
@@ -419,7 +452,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
                     # Record memory after both adapters are loaded
                     record_memory_trace("parallel_load")
             except Exception as error:
-                self.logger.error("Error during parallel adapter loading: %s", error)
+                log_and_create_entry(logging.ERROR, "Error during parallel adapter loading: %s", error)
                 raise
         else:
             # Sequential loading (original behavior)
@@ -465,25 +498,25 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         if adapter_load_end_time is None:
             adapter_load_end_time = datetime.now()
 
-        self.logger.info("Calculating diffs...")
+        log_and_create_entry(logging.INFO, "Calculating diffs...")
         self.calculate_diff()
         calculate_diff_time = datetime.now()
         self.sync.diff_time = calculate_diff_time - adapter_load_end_time
         self.sync.save()
-        self.logger.info("Diff Calculation Time: %s", self.sync.diff_time)
+        log_and_create_entry(logging.INFO, "Diff Calculation Time: %s", self.sync.diff_time)
         if memory_profiling:
             record_memory_trace("diff")
 
         if self.sync.dry_run:
-            self.logger.info("As `dryrun` is set, skipping the actual data sync.")
+            log_and_create_entry(logging.INFO, "As `dryrun` is set, skipping the actual data sync.")
         else:
-            self.logger.info("Syncing from %s to %s...", self.source_adapter, self.target_adapter)
+            log_and_create_entry(logging.INFO, "Syncing from %s to %s...", self.source_adapter, self.target_adapter)
             self.execute_sync()
             execute_sync_time = datetime.now()
             self.sync.sync_time = execute_sync_time - calculate_diff_time
             self.sync.save()
-            self.logger.info("Sync complete")
-            self.logger.info("Sync Time: %s", self.sync.sync_time)
+            log_and_create_entry(logging.INFO, "Sync complete")
+            log_and_create_entry(logging.INFO, "Sync Time: %s", self.sync.sync_time)
             if memory_profiling:
                 record_memory_trace("sync")
 
