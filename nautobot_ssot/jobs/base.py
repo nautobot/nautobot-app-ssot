@@ -115,7 +115,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
     memory_profiling = BooleanVar(description="Perform a memory profiling analysis.", default=False)
     parallel_loading = BooleanVar(
         description="Load source and target adapters in parallel for improved performance.",
-        default=True,
+        default=False,
     )
 
     def load_source_adapter(self):
@@ -314,39 +314,27 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         # Create JobLogEntry objects explicitly to ensure they're stored in the database
         if source_adapter is not None and source_duration is not None:
             # Log using logger to match sequential loading behavior
-            self.logger.info(
-                "Source Load Time from %s: %s",
-                source_adapter,
-                source_duration,
-            )
-            # Create JobLogEntry explicitly for database persistence
-            source_adapter_name = str(source_adapter) if source_adapter else "source adapter"
-            timing_message = f"Source adapter ({source_adapter_name}) loaded in {source_duration}"
-            self.logger.info(timing_message)
-            JobLogEntry.objects.create(
-                job_result=job_result,
-                log_level="info",
-                message=timing_message,
-                grouping="source",
-            )
+            message = f"Source Load Time from {source_adapter}: {source_duration}"
+            self.logger.info(message)
+            # Explicitly create JobLogEntry when in parallel mode to ensure it's captured
+            if self.parallel_loading:
+                JobLogEntry.objects.create(
+                    job_result=job_result,
+                    log_level="info",
+                    message=message,
+                )
 
         if target_adapter is not None and target_duration is not None:
             # Log using logger to match sequential loading behavior
-            self.logger.info(
-                "Target Load Time from %s: %s",
-                target_adapter,
-                target_duration,
-            )
-            # Create JobLogEntry explicitly for database persistence
-            target_adapter_name = str(target_adapter) if target_adapter else "target adapter"
-            timing_message = f"Target adapter ({target_adapter_name}) loaded in {target_duration}"
-            self.logger.info(timing_message)
-            JobLogEntry.objects.create(
-                job_result=job_result,
-                log_level="info",
-                message=timing_message,
-                grouping="target",
-            )
+            message = f"Target Load Time from {target_adapter}: {target_duration}"
+            self.logger.info(message)
+            # Explicitly create JobLogEntry when in parallel mode to ensure it's captured
+            if self.parallel_loading:
+                JobLogEntry.objects.create(
+                    job_result=job_result,
+                    log_level="info",
+                    message=message,
+                )
 
         # Raise errors if any occurred
         if source_error:
@@ -411,22 +399,41 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
 
         start_time = datetime.now()
 
-        # Check if parallel loading is enabled (default True, can be overridden per job)
-        use_parallel = getattr(self, "parallel_loading", True)
-        if isinstance(use_parallel, bool):
-            parallel_enabled = use_parallel
-        else:
-            # If it's a BooleanVar instance, get its value from kwargs or default
-            parallel_enabled = getattr(self, "_parallel_loading_value", True)
-
         # Initialize variables for timing
         adapter_load_end_time = None
         load_target_adapter_time = None
 
-        if parallel_enabled:
+        # Helper function to create JobLogEntry explicitly when in parallel mode
+        # This ensures logs are captured even if logger configuration was affected by parallel loading
+        def log_and_create_entry(level, message, *args):
+            """Log message and explicitly create JobLogEntry in parallel mode."""
+            if args:
+                formatted_message = message % args
+            else:
+                formatted_message = message
+            self.logger.log(level, formatted_message)
+            # Explicitly create JobLogEntry when in parallel mode to ensure it's captured
+            if self.parallel_loading:
+                if level >= logging.ERROR:
+                    log_level = "error"
+                elif level >= logging.WARNING:
+                    log_level = "warning"
+                elif level >= logging.INFO:
+                    log_level = "info"
+                else:
+                    log_level = "debug"
+                JobLogEntry.objects.create(
+                    job_result=self.job_result,
+                    log_level=log_level,
+                    message=formatted_message,
+                )
+
+        if self.parallel_loading:
             self.logger.info("Loading source and target adapters in parallel...")
             try:
                 _, _, source_duration, target_duration = self._load_adapters_parallel()
+                # Record the actual end time as a datetime for calculating diff_time later
+                adapter_load_end_time = datetime.now()
                 # In parallel mode, both adapters run concurrently, so the total time
                 # is the maximum of the two individual durations
                 # Store the same value (total parallel time) for both to match test expectations
@@ -445,7 +452,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
                     # Record memory after both adapters are loaded
                     record_memory_trace("parallel_load")
             except Exception as error:
-                self.logger.error("Error during parallel adapter loading: %s", error)
+                log_and_create_entry(logging.ERROR, "Error during parallel adapter loading: %s", error)
                 raise
         else:
             # Sequential loading (original behavior)
@@ -491,25 +498,25 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         if adapter_load_end_time is None:
             adapter_load_end_time = datetime.now()
 
-        self.logger.info("Calculating diffs...")
+        log_and_create_entry(logging.INFO, "Calculating diffs...")
         self.calculate_diff()
         calculate_diff_time = datetime.now()
         self.sync.diff_time = calculate_diff_time - adapter_load_end_time
         self.sync.save()
-        self.logger.info("Diff Calculation Time: %s", self.sync.diff_time)
+        log_and_create_entry(logging.INFO, "Diff Calculation Time: %s", self.sync.diff_time)
         if memory_profiling:
             record_memory_trace("diff")
 
         if self.sync.dry_run:
-            self.logger.info("As `dryrun` is set, skipping the actual data sync.")
+            log_and_create_entry(logging.INFO, "As `dryrun` is set, skipping the actual data sync.")
         else:
-            self.logger.info("Syncing from %s to %s...", self.source_adapter, self.target_adapter)
+            log_and_create_entry(logging.INFO, "Syncing from %s to %s...", self.source_adapter, self.target_adapter)
             self.execute_sync()
             execute_sync_time = datetime.now()
             self.sync.sync_time = execute_sync_time - calculate_diff_time
             self.sync.save()
-            self.logger.info("Sync complete")
-            self.logger.info("Sync Time: %s", self.sync.sync_time)
+            log_and_create_entry(logging.INFO, "Sync complete")
+            log_and_create_entry(logging.INFO, "Sync Time: %s", self.sync.sync_time)
             if memory_profiling:
                 record_memory_trace("sync")
 
@@ -609,7 +616,6 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         """Initialize a Job."""
         super().__init__()
         self.sync = None
-        self._parallel_loading_value = True
         self.diff = None
         self.source_adapter = None
         self.target_adapter = None
@@ -648,7 +654,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         """Job entry point from Nautobot - do not override!"""
         self.dryrun = kwargs.get("dryrun", True)
         self.memory_profiling = kwargs.get("memory_profiling", False)
-        self.parallel_loading = kwargs.get("parallel_loading", True)
+        self.parallel_loading = kwargs.get("parallel_loading", False)
         self.sync = Sync.objects.create(
             source=self.data_source,
             target=self.data_target,
@@ -657,10 +663,6 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             start_time=timezone.now(),
             diff={},
         )
-
-        # Store parallel_loading value for use in sync_data
-        # If not provided, default to True (parallel loading enabled by default)
-        self._parallel_loading_value = self.parallel_loading
 
         # Add _structlog_to_sync_log_entry as a processor for structlog calls from DiffSync
         structlog.configure(
@@ -723,6 +725,8 @@ class ThreadedAdapterLoader:  # pylint: disable=too-many-instance-attributes
     nautobot_logger: logging.Logger = field(init=False, repr=False)
     nautobot_ssot_logger: logging.Logger = field(init=False, repr=False)
     root_logger: logging.Logger = field(init=False, repr=False)
+    # Store original logger levels to restore them later
+    original_logger_levels: dict = field(init=False, repr=False, default_factory=dict)
 
     def __post_init__(self):
         """Post-initialization setup."""
@@ -735,6 +739,7 @@ class ThreadedAdapterLoader:  # pylint: disable=too-many-instance-attributes
         self.nautobot_logger = None
         self.nautobot_ssot_logger = None
         self.root_logger = None
+        self.original_logger_levels = {}
         self.thread_id = None
 
     def set_loggers(self):
@@ -750,34 +755,71 @@ class ThreadedAdapterLoader:  # pylint: disable=too-many-instance-attributes
 
         # Add handler to the job-specific logger
         self.job_logger = logging.getLogger(logger_name)
+        # Store original level before changing it
+        self.original_logger_levels["job_logger"] = self.job_logger.level
         self.job_logger.addHandler(self.log_handler)
         self.job_logger.setLevel(self.log_level)
 
         # Also capture from nautobot and nautobot_ssot loggers to catch adapter logs
         self.nautobot_logger = logging.getLogger("nautobot")
+        # Store original level before changing it
+        self.original_logger_levels["nautobot_logger"] = self.nautobot_logger.level
         self.nautobot_logger.addHandler(self.log_handler)
         self.nautobot_logger.setLevel(self.log_level)
 
         self.nautobot_ssot_logger = logging.getLogger("nautobot_ssot")
+        # Store original level before changing it
+        self.original_logger_levels["nautobot_ssot_logger"] = self.nautobot_ssot_logger.level
         self.nautobot_ssot_logger.addHandler(self.log_handler)
         self.nautobot_ssot_logger.setLevel(self.log_level)
 
         # Also attach to root logger to catch any logs that might bubble up
         # This ensures we don't miss any important messages
         self.root_logger = logging.getLogger()
+        # Store original level before changing it
+        self.original_logger_levels["root_logger"] = self.root_logger.level
         self.root_logger.addHandler(self.log_handler)
         self.root_logger.setLevel(self.log_level)
 
-    def remove_logger_handlers(self):
-        """Remove the logger handlers."""
+    def remove_logger_handlers(self):  # pylint: disable=too-many-branches
+        """Remove the logger handlers and restore original logger levels."""
         if self.log_handler and self.job_logger:
             self.job_logger.removeHandler(self.log_handler)
+            # Restore original level if we stored it
+            if "job_logger" in self.original_logger_levels:
+                original_level = self.original_logger_levels["job_logger"]
+                # If original level was NOTSET, we need to clear the level to restore inheritance
+                if original_level == logging.NOTSET:
+                    self.job_logger.setLevel(logging.NOTSET)
+                else:
+                    self.job_logger.setLevel(original_level)
         if self.log_handler and self.nautobot_logger:
             self.nautobot_logger.removeHandler(self.log_handler)
+            # Restore original level if we stored it
+            if "nautobot_logger" in self.original_logger_levels:
+                original_level = self.original_logger_levels["nautobot_logger"]
+                if original_level == logging.NOTSET:
+                    self.nautobot_logger.setLevel(logging.NOTSET)
+                else:
+                    self.nautobot_logger.setLevel(original_level)
         if self.log_handler and self.nautobot_ssot_logger:
             self.nautobot_ssot_logger.removeHandler(self.log_handler)
+            # Restore original level if we stored it
+            if "nautobot_ssot_logger" in self.original_logger_levels:
+                original_level = self.original_logger_levels["nautobot_ssot_logger"]
+                if original_level == logging.NOTSET:
+                    self.nautobot_ssot_logger.setLevel(logging.NOTSET)
+                else:
+                    self.nautobot_ssot_logger.setLevel(original_level)
         if self.log_handler and self.root_logger:
             self.root_logger.removeHandler(self.log_handler)
+            # Restore original level if we stored it
+            if "root_logger" in self.original_logger_levels:
+                original_level = self.original_logger_levels["root_logger"]
+                if original_level == logging.NOTSET:
+                    self.root_logger.setLevel(logging.NOTSET)
+                else:
+                    self.root_logger.setLevel(original_level)
 
     def load(self):
         """Load the adapter and return the adapter instance.

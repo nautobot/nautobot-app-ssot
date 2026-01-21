@@ -533,8 +533,68 @@ class NautobotRemote(Adapter):
         self.load_interfaces()
 
     def load_location_types(self):
-        """Load LocationType data from the remote Nautobot instance."""
-        for lt_entry in self._get_api_data("api/dcim/location-types/", depth=1):
+        """Load LocationType data from the remote Nautobot instance.
+
+        Ensures parent LocationTypes are loaded before their children by using
+        topological sorting based on parent-child relationships.
+        """
+        # First, collect all location type entries
+        location_type_entries = list(self._get_api_data("api/dcim/location-types/", depth=1))
+
+        # Build a map of location type names to their entries
+        entries_by_name = {entry["name"]: entry for entry in location_type_entries}
+
+        # Build dependency graph: map parent name -> list of child entries
+        children_by_parent = {}
+        root_entries = []  # Entries with no parent
+
+        for entry in location_type_entries:
+            parent_name = entry.get("parent", {}).get("name") if entry.get("parent") else None
+            if parent_name:
+                if parent_name not in children_by_parent:
+                    children_by_parent[parent_name] = []
+                children_by_parent[parent_name].append(entry)
+            else:
+                root_entries.append(entry)
+
+        # Topological sort: process parents before children
+        processed = set()
+        ordered_entries = []
+
+        def process_entry(entry):
+            """Process an entry and its children recursively."""
+            entry_name = entry["name"]
+            if entry_name in processed:
+                return
+
+            # Process parent first if it exists and hasn't been processed
+            parent_name = entry.get("parent", {}).get("name") if entry.get("parent") else None
+            if parent_name and parent_name in entries_by_name:
+                parent_entry = entries_by_name[parent_name]
+                if parent_entry["name"] not in processed:
+                    process_entry(parent_entry)
+
+            # Now process this entry
+            ordered_entries.append(entry)
+            processed.add(entry_name)
+
+            # Process children
+            if entry_name in children_by_parent:
+                for child_entry in children_by_parent[entry_name]:
+                    process_entry(child_entry)
+
+        # Process all root entries (those with no parent)
+        for root_entry in root_entries:
+            process_entry(root_entry)
+
+        # Handle any remaining entries that might have been missed
+        # (e.g., circular references or orphaned entries)
+        for entry in location_type_entries:
+            if entry["name"] not in processed:
+                process_entry(entry)
+
+        # Load location types in the correct order
+        for lt_entry in ordered_entries:
             content_types = self.get_content_types(lt_entry)
             location_type = self.locationtype(
                 name=lt_entry["name"],
@@ -548,8 +608,68 @@ class NautobotRemote(Adapter):
             self.job.logger.debug(f"Loaded {location_type} LocationType from remote Nautobot instance")
 
     def load_locations(self):
-        """Load Locations data from the remote Nautobot instance."""
-        for loc_entry in self._get_api_data("api/dcim/locations/", depth=3):
+        """Load Locations data from the remote Nautobot instance.
+
+        Ensures parent Locations are loaded before their children by using
+        topological sorting based on parent-child relationships.
+        """
+        # First, collect all location entries
+        location_entries = list(self._get_api_data("api/dcim/locations/", depth=3))
+
+        # Build a map of location names to their entries
+        entries_by_name = {entry["name"]: entry for entry in location_entries}
+
+        # Build dependency graph: map parent name -> list of child entries
+        children_by_parent = {}
+        root_entries = []  # Entries with no parent
+
+        for entry in location_entries:
+            parent_name = entry.get("parent", {}).get("name") if entry.get("parent") else None
+            if parent_name:
+                if parent_name not in children_by_parent:
+                    children_by_parent[parent_name] = []
+                children_by_parent[parent_name].append(entry)
+            else:
+                root_entries.append(entry)
+
+        # Topological sort: process parents before children
+        processed = set()
+        ordered_entries = []
+
+        def process_entry(entry):
+            """Process an entry and its children recursively."""
+            entry_name = entry["name"]
+            if entry_name in processed:
+                return
+
+            # Process parent first if it exists and hasn't been processed
+            parent_name = entry.get("parent", {}).get("name") if entry.get("parent") else None
+            if parent_name and parent_name in entries_by_name:
+                parent_entry = entries_by_name[parent_name]
+                if parent_entry["name"] not in processed:
+                    process_entry(parent_entry)
+
+            # Now process this entry
+            ordered_entries.append(entry)
+            processed.add(entry_name)
+
+            # Process children
+            if entry_name in children_by_parent:
+                for child_entry in children_by_parent[entry_name]:
+                    process_entry(child_entry)
+
+        # Process all root entries (those with no parent)
+        for root_entry in root_entries:
+            process_entry(root_entry)
+
+        # Handle any remaining entries that might have been missed
+        # (e.g., circular references or orphaned entries)
+        for entry in location_entries:
+            if entry["name"] not in processed:
+                process_entry(entry)
+
+        # Load locations in the correct order
+        for loc_entry in ordered_entries:
             location_args = {
                 "name": loc_entry["name"],
                 "status__name": loc_entry["status"]["name"] if loc_entry["status"].get("name") else "Active",
