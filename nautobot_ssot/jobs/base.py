@@ -115,7 +115,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
     memory_profiling = BooleanVar(description="Perform a memory profiling analysis.", default=False)
     parallel_loading = BooleanVar(
         description="Load source and target adapters in parallel for improved performance.",
-        default=True,
+        default=False,
     )
 
     def load_source_adapter(self):
@@ -583,7 +583,6 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         """Initialize a Job."""
         super().__init__()
         self.sync = None
-        self._parallel_loading_value = True
         self.diff = None
         self.source_adapter = None
         self.target_adapter = None
@@ -622,7 +621,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         """Job entry point from Nautobot - do not override!"""
         self.dryrun = kwargs.get("dryrun", True)
         self.memory_profiling = kwargs.get("memory_profiling", False)
-        self.parallel_loading = kwargs.get("parallel_loading", True)
+        self.parallel_loading = kwargs.get("parallel_loading", False)
         self.sync = Sync.objects.create(
             source=self.data_source,
             target=self.data_target,
@@ -631,10 +630,6 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             start_time=timezone.now(),
             diff={},
         )
-
-        # Store parallel_loading value for use in sync_data
-        # If not provided, default to True (parallel loading enabled by default)
-        self._parallel_loading_value = self.parallel_loading
 
         # Add _structlog_to_sync_log_entry as a processor for structlog calls from DiffSync
         structlog.configure(
