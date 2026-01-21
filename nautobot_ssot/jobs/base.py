@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Iterable, Optional
 
 import structlog
+from celery.utils.log import get_logger
 
 # pylint-django doesn't understand classproperty, and complains unnecessarily. We disable this specific warning:
 # pylint: disable=no-self-argument
@@ -316,25 +317,11 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
             # Log using logger to match sequential loading behavior
             message = f"Source Load Time from {source_adapter}: {source_duration}"
             self.logger.info(message)
-            # Explicitly create JobLogEntry when in parallel mode to ensure it's captured
-            if self.parallel_loading:
-                JobLogEntry.objects.create(
-                    job_result=job_result,
-                    log_level="info",
-                    message=message,
-                )
 
         if target_adapter is not None and target_duration is not None:
             # Log using logger to match sequential loading behavior
             message = f"Target Load Time from {target_adapter}: {target_duration}"
             self.logger.info(message)
-            # Explicitly create JobLogEntry when in parallel mode to ensure it's captured
-            if self.parallel_loading:
-                JobLogEntry.objects.create(
-                    job_result=job_result,
-                    log_level="info",
-                    message=message,
-                )
 
         # Raise errors if any occurred
         if source_error:
@@ -403,31 +390,6 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         adapter_load_end_time = None
         load_target_adapter_time = None
 
-        # Helper function to create JobLogEntry explicitly when in parallel mode
-        # This ensures logs are captured even if logger configuration was affected by parallel loading
-        def log_and_create_entry(level, message, *args):
-            """Log message and explicitly create JobLogEntry in parallel mode."""
-            if args:
-                formatted_message = message % args
-            else:
-                formatted_message = message
-            self.logger.log(level, formatted_message)
-            # Explicitly create JobLogEntry when in parallel mode to ensure it's captured
-            if self.parallel_loading:
-                if level >= logging.ERROR:
-                    log_level = "error"
-                elif level >= logging.WARNING:
-                    log_level = "warning"
-                elif level >= logging.INFO:
-                    log_level = "info"
-                else:
-                    log_level = "debug"
-                JobLogEntry.objects.create(
-                    job_result=self.job_result,
-                    log_level=log_level,
-                    message=formatted_message,
-                )
-
         if self.parallel_loading:
             self.logger.info("Loading source and target adapters in parallel...")
             try:
@@ -452,7 +414,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
                     # Record memory after both adapters are loaded
                     record_memory_trace("parallel_load")
             except Exception as error:
-                log_and_create_entry(logging.ERROR, "Error during parallel adapter loading: %s", error)
+                self.logger.error("Error during parallel adapter loading: %s", error)
                 raise
         else:
             # Sequential loading (original behavior)
@@ -498,25 +460,25 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         if adapter_load_end_time is None:
             adapter_load_end_time = datetime.now()
 
-        log_and_create_entry(logging.INFO, "Calculating diffs...")
+        self.logger.info("Calculating diffs...")
         self.calculate_diff()
         calculate_diff_time = datetime.now()
         self.sync.diff_time = calculate_diff_time - adapter_load_end_time
         self.sync.save()
-        log_and_create_entry(logging.INFO, "Diff Calculation Time: %s", self.sync.diff_time)
+        self.logger.info("Diff Calculation Time: %s", self.sync.diff_time)
         if memory_profiling:
             record_memory_trace("diff")
 
         if self.sync.dry_run:
-            log_and_create_entry(logging.INFO, "As `dryrun` is set, skipping the actual data sync.")
+            self.logger.info("As `dryrun` is set, skipping the actual data sync.")
         else:
-            log_and_create_entry(logging.INFO, "Syncing from %s to %s...", self.source_adapter, self.target_adapter)
+            self.logger.info("Syncing from %s to %s...", self.source_adapter, self.target_adapter)
             self.execute_sync()
             execute_sync_time = datetime.now()
             self.sync.sync_time = execute_sync_time - calculate_diff_time
             self.sync.save()
-            log_and_create_entry(logging.INFO, "Sync complete")
-            log_and_create_entry(logging.INFO, "Sync Time: %s", self.sync.sync_time)
+            self.logger.info("Sync complete")
+            self.logger.info("Sync Time: %s", self.sync.sync_time)
             if memory_profiling:
                 record_memory_trace("sync")
 
@@ -725,8 +687,6 @@ class ThreadedAdapterLoader:  # pylint: disable=too-many-instance-attributes
     nautobot_logger: logging.Logger = field(init=False, repr=False)
     nautobot_ssot_logger: logging.Logger = field(init=False, repr=False)
     root_logger: logging.Logger = field(init=False, repr=False)
-    # Store original logger levels to restore them later
-    original_logger_levels: dict = field(init=False, repr=False, default_factory=dict)
 
     def __post_init__(self):
         """Post-initialization setup."""
@@ -739,7 +699,6 @@ class ThreadedAdapterLoader:  # pylint: disable=too-many-instance-attributes
         self.nautobot_logger = None
         self.nautobot_ssot_logger = None
         self.root_logger = None
-        self.original_logger_levels = {}
         self.thread_id = None
 
     def set_loggers(self):
@@ -755,71 +714,35 @@ class ThreadedAdapterLoader:  # pylint: disable=too-many-instance-attributes
 
         # Add handler to the job-specific logger
         self.job_logger = logging.getLogger(logger_name)
-        # Store original level before changing it
-        self.original_logger_levels["job_logger"] = self.job_logger.level
         self.job_logger.addHandler(self.log_handler)
         self.job_logger.setLevel(self.log_level)
 
         # Also capture from nautobot and nautobot_ssot loggers to catch adapter logs
         self.nautobot_logger = logging.getLogger("nautobot")
-        # Store original level before changing it
-        self.original_logger_levels["nautobot_logger"] = self.nautobot_logger.level
         self.nautobot_logger.addHandler(self.log_handler)
         self.nautobot_logger.setLevel(self.log_level)
 
         self.nautobot_ssot_logger = logging.getLogger("nautobot_ssot")
-        # Store original level before changing it
-        self.original_logger_levels["nautobot_ssot_logger"] = self.nautobot_ssot_logger.level
         self.nautobot_ssot_logger.addHandler(self.log_handler)
         self.nautobot_ssot_logger.setLevel(self.log_level)
 
         # Also attach to root logger to catch any logs that might bubble up
         # This ensures we don't miss any important messages
         self.root_logger = logging.getLogger()
-        # Store original level before changing it
-        self.original_logger_levels["root_logger"] = self.root_logger.level
         self.root_logger.addHandler(self.log_handler)
         self.root_logger.setLevel(self.log_level)
 
-    def remove_logger_handlers(self):  # pylint: disable=too-many-branches
-        """Remove the logger handlers and restore original logger levels."""
+    def restore_job_logging(self):  # pylint: disable=too-many-branches
+        """Restore original logger levels."""
         if self.log_handler and self.job_logger:
             self.job_logger.removeHandler(self.log_handler)
-            # Restore original level if we stored it
-            if "job_logger" in self.original_logger_levels:
-                original_level = self.original_logger_levels["job_logger"]
-                # If original level was NOTSET, we need to clear the level to restore inheritance
-                if original_level == logging.NOTSET:
-                    self.job_logger.setLevel(logging.NOTSET)
-                else:
-                    self.job_logger.setLevel(original_level)
         if self.log_handler and self.nautobot_logger:
             self.nautobot_logger.removeHandler(self.log_handler)
-            # Restore original level if we stored it
-            if "nautobot_logger" in self.original_logger_levels:
-                original_level = self.original_logger_levels["nautobot_logger"]
-                if original_level == logging.NOTSET:
-                    self.nautobot_logger.setLevel(logging.NOTSET)
-                else:
-                    self.nautobot_logger.setLevel(original_level)
         if self.log_handler and self.nautobot_ssot_logger:
             self.nautobot_ssot_logger.removeHandler(self.log_handler)
-            # Restore original level if we stored it
-            if "nautobot_ssot_logger" in self.original_logger_levels:
-                original_level = self.original_logger_levels["nautobot_ssot_logger"]
-                if original_level == logging.NOTSET:
-                    self.nautobot_ssot_logger.setLevel(logging.NOTSET)
-                else:
-                    self.nautobot_ssot_logger.setLevel(original_level)
         if self.log_handler and self.root_logger:
             self.root_logger.removeHandler(self.log_handler)
-            # Restore original level if we stored it
-            if "root_logger" in self.original_logger_levels:
-                original_level = self.original_logger_levels["root_logger"]
-                if original_level == logging.NOTSET:
-                    self.root_logger.setLevel(logging.NOTSET)
-                else:
-                    self.root_logger.setLevel(original_level)
+        self.job.logger = get_logger("celery.redirected")
 
     def load(self):
         """Load the adapter and return the adapter instance.
@@ -853,7 +776,7 @@ class ThreadedAdapterLoader:  # pylint: disable=too-many-instance-attributes
             end_time = datetime.now()
             self.duration = end_time - start_time
             # Remove handlers and close connections
-            self.remove_logger_handlers()
+            self.restore_job_logging()
             connections.close_all()
 
         return adapter
