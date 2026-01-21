@@ -346,7 +346,7 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
             self.role, ids={"name": role}, attrs={"content_types": [{"app_label": "dcim", "model": "device"}]}
         )
 
-    def load_platform(self, device_type: str, manufacturer: str):
+    def load_platform(self, device_type: str, manufacturer: str):  # pylint: disable=too-many-branches
         """Load Platform into DiffSync model based upon DeviceType.
 
         Args:
