@@ -9,7 +9,7 @@ from nautobot_ssot.contrib.enums import AttributeType
 
 from django.db.models import Model as ModelObj
 
-from nautobot_ssot.contrib.types import (
+from nautobot_ssot.contrib.annotations import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
     CustomAnnotation,

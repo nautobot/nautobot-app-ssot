@@ -21,7 +21,7 @@ from django.db.models import Model as ModelObj
 from nautobot_ssot.contrib.enums import AttributeType
 
 from nautobot_ssot.contrib.base import BaseNautobotModel
-from nautobot_ssot.contrib.types import (
+from nautobot_ssot.contrib.annotations import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
@@ -134,11 +134,7 @@ class NautobotModel(BaseNautobotModel, DiffSyncModel):
 
     def get_from_db(self):
         """Get the ORM object for this diffsync object from the database using the primary key."""
-        try:
-            return get_orm_object(self._model, {"pk": self.pk})
-            # return self.adapter.get_from_orm_cache({"pk": self.pk}, self._model)
-        except self._model.DoesNotExist as error:
-            raise ObjectCrudException(f"No such {self._model._meta.verbose_name} instance with PK {self.pk}") from error
+        return get_orm_object(self._model, {"pk": self.pk})
 
     def update(self, attrs):
         """Update the ORM object corresponding to this diffsync object."""

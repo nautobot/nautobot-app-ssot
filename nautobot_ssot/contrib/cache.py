@@ -39,7 +39,7 @@ class ORMCache:
         """Initialize the class."""
         self.cache_clear()
 
-    @lru_cache(maxsize=SSOT_CONFIG.get("orm_cache_max_size", 512), typed=True)
+    @lru_cache(maxsize=SSOT_CONFIG.get("orm_cache_max_size", None))
     def _get(self, model_class: Type[Model], parameter_set: ParameterSet):
         """Cached method for retreiving data from the database."""
         return model_class.objects.get(**dict(parameter_set))

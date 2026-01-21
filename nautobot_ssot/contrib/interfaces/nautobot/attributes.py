@@ -10,7 +10,7 @@ from django.db.models import Model
 from nautobot_ssot.contrib.base import BaseNautobotModel, BaseNautobotAdapter
 from typing import Type
 from nautobot_ssot.contrib.enums import AttributeType
-from nautobot_ssot.contrib.types import CustomFieldAnnotation, CustomRelationshipAnnotation, RelationshipSideEnum
+from nautobot_ssot.contrib.annotations import CustomFieldAnnotation, CustomRelationshipAnnotation, RelationshipSideEnum
 from nautobot.core.models.generics import PrimaryModel
 from nautobot.extras.models import Relationship
 from nautobot.extras.choices import RelationshipTypeChoices

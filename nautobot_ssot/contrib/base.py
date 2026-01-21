@@ -28,7 +28,7 @@ from diffsync import Adapter, DiffSyncModel
 from nautobot_ssot.utils.cache import ORMCache
 
 from functools import lru_cache
-from nautobot_ssot.contrib.types import (
+from nautobot_ssot.contrib.annotations import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
     CustomAnnotation,
@@ -51,7 +51,7 @@ class BaseNautobotModel():
 
     _model: ClassVar[Model]
     _type_hints: ClassVar[dict[str, Any]]
-    adapter: Optional[BaseNautobotAdapter]
+    _adapter: Optional[BaseNautobotAdapter]
 
     # DB Object Attributes
     pk: Optional[UUID] = None  # For storing and tracking ORM object primary keys. Not synced.
@@ -65,8 +65,6 @@ class BaseNautobotModel():
     @abstractmethod
     def _get_queryset(cls) -> QuerySet:
         """Abstract method for retreiving data from Nautobot about associated model."""
-
-
 
 
 
@@ -99,12 +97,6 @@ class BaseNautobotModel():
             return None
             #raise TypeError("Class attribute does not have inner type defined.") from err
         except KeyError as err:
-            return None
-            #raise AttributeError(f"type object '{cls}' has no attribute '{attr_name}'") from err
-
-        try:
-            return get_inner_type(cls, attr_name)
-        except AttributeError:
             return None
 
     @classmethod

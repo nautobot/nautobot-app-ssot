@@ -5,6 +5,7 @@
 
 from dataclasses import dataclass
 from enum import Enum
+from nautobot_ssot.contrib.enums import RelationshipSideEnum
 from typing import Optional
 
 
@@ -17,26 +18,9 @@ class SortType(Enum):
     DICT = 1
 
 
-@dataclass
-class AttributeType:
-    """"""
-
-    app_name: str
-
-@dataclass
-class StandardAttribute(AttributeType):
-    """"""
-
-
-class RelationshipSideEnum(Enum):
-    """This details which side of a custom relationship the model it's defined on is on."""
-
-    SOURCE = "SOURCE"
-    DESTINATION = "DESTINATION"
-
-
 class CustomAnnotation:
     """Base class used to identify annotation classes in SSoT operations."""
+
 
 @dataclass
 class CustomRelationshipAnnotation(CustomAnnotation):
