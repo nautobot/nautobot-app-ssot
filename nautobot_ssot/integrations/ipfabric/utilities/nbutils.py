@@ -322,7 +322,7 @@ def create_status(  # pylint: disable=too-many-arguments
     return None
 
 
-def create_ip(
+def create_ip(  # pylint: disable=too-many-statements
     ip_address: str,
     subnet_mask: str,
     status: str = "Active",
@@ -372,7 +372,7 @@ def create_ip(
                 network_obj = ipaddress.ip_network(f"{ip_address}/{cidr}", strict=False)
                 if logger:
                     logger.info(f"Automatically creating missing prefix {network_obj} for IP {ip_address}/{cidr}")
-                parent, _ = Prefix.objects.get_or_create(
+                _, _ = Prefix.objects.get_or_create(
                     network=str(network_obj.network_address),
                     prefix_length=network_obj.prefixlen,
                     type=PrefixTypeChoices.TYPE_NETWORK,

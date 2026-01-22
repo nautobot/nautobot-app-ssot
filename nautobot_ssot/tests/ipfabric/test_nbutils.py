@@ -1,5 +1,6 @@
 """Test Nautobot Utilities."""
 
+import ipaddress
 import unittest
 
 from django.contrib.contenttypes.models import ContentType
@@ -795,8 +796,8 @@ class TestNautobotUtils(TestCase):
         mock_status,
         mock_ip_get_or_create,
         mock_prefix_get_or_create,
-        mock_last_sync,
-        mock_tag_object,
+        _mock_last_sync,
+        _mock_tag_object,
     ):
         """Test `create_ip` falls back to creating prefix if IP creation fails."""
         mock_status.return_value.get.return_value = "mock_status"
@@ -813,9 +814,6 @@ class TestNautobotUtils(TestCase):
 
         ip_addr = "10.0.0.1"
         mask = "255.255.255.0"
-
-        # We need to import ipaddress to use in the test or trust the string matching
-        import ipaddress
 
         result = create_ip(ip_addr, mask, logger=logger)
 
@@ -843,7 +841,7 @@ class TestNautobotUtils(TestCase):
         mock_status,
         mock_ip_get_or_create,
         mock_prefix_get_or_create,
-        mock_tag_object,
+        _mock_tag_object,
     ):
         """Test `create_ip` logs error if fallback prefix creation fails."""
         mock_status.return_value.get.return_value = "mock_status"
