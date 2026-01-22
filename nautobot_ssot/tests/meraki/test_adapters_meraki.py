@@ -279,3 +279,31 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
             },
             {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")},
         )
+
+    def test_load_firewall_ports_pppoe_address_without_mask(self):
+        """Validate load_firewall_ports() handles PPPoE address without mask."""
+        mock_device = MagicMock()
+        mock_device.name = "HQ MX"
+
+        self.meraki_client.get_management_ports.return_value = {"wan1": {}}
+        self.meraki_client.get_uplink_settings.return_value = fix.GET_UPLINK_SETTINGS_PPPOE_RECV_FIXTURE
+        self.meraki_client.get_appliance_switchports.return_value = []
+
+        self.meraki.load_firewall_ports(
+            device=mock_device,
+            serial="V4GD-ABDP-YVCK",
+            network_id="L_165471703274884707",
+        )
+
+        self.assertEqual(
+            {"wan1__HQ MX"},
+            {port.get_unique_id() for port in self.meraki.get_all("port")},
+        )
+        self.assertEqual(
+            {"1.6.8.10__None"},
+            {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")},
+        )
+        self.assertEqual(
+            {"1.6.8.10/32__Global"},
+            {prefix.get_unique_id() for prefix in self.meraki.get_all("prefix")},
+        )

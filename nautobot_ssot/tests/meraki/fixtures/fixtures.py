@@ -36,3 +36,9 @@ GET_SWITCHPORT_STATUSES = load_json("./nautobot_ssot/tests/meraki/fixtures/get_s
 GET_UPLINK_SETTINGS_SENT = load_json("./nautobot_ssot/tests/meraki/fixtures/get_uplink_settings_sent.json")
 GET_UPLINK_SETTINGS_RECV = load_json("./nautobot_ssot/tests/meraki/fixtures/get_uplink_settings_recv.json")
 GET_APPLIANCE_SWITCHPORTS_FIXTURE = load_json("./nautobot_ssot/tests/meraki/fixtures/get_appliance_switchports.json")
+GET_UPLINK_SETTINGS_PPPOE_SENT_FIXTURE = load_json(
+    "./nautobot_ssot/tests/meraki/fixtures/get_uplink_settings_pppoe_sent.json"
+)
+GET_UPLINK_SETTINGS_PPPOE_RECV_FIXTURE = load_json(
+    "./nautobot_ssot/tests/meraki/fixtures/get_uplink_settings_pppoe_recv.json"
+)
