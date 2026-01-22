@@ -185,7 +185,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                             prefix=prefix,
                             location=self.conn.network_map[network_id]["name"],
                         )
-                        if port_uplink_settings['pppoe']['enabled']:
+                        if port_uplink_settings["pppoe"]["enabled"]:
                             host_addr = port_svis["address"]
                             mask_length = "32"
                         else:

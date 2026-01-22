@@ -279,6 +279,7 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
             },
             {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")},
         )
+
     def test_load_firewall_ports_pppoe_address_without_mask(self):
         """Validate load_firewall_ports() handles PPPoE address without mask."""
         mock_device = MagicMock()

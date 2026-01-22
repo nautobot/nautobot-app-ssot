@@ -137,8 +137,9 @@ class TestDashboardClient(TestCase):
         token = "your_api_token"  # noqa: S105
         client = DashboardClient(logger, org_id, token)
         client.conn.appliance.getDeviceApplianceUplinksSettings = MagicMock()
-        client.conn.appliance.getDeviceApplianceUplinksSettings.return_value = fix.GET_UPLINK_SETTINGS_PPPOE_SENT_FIXTURE
-
+        client.conn.appliance.getDeviceApplianceUplinksSettings.return_value = (
+            fix.GET_UPLINK_SETTINGS_PPPOE_SENT_FIXTURE
+        )
         actual = client.get_uplink_settings(serial="V4GD-ABDP-YVCK")
         expected = fix.GET_UPLINK_SETTINGS_PPPOE_RECV_FIXTURE
         self.assertEqual(actual, expected)
