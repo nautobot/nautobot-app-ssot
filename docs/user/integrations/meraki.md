@@ -64,7 +64,7 @@ With those configured, you will then need to define a LocationType to use for th
 
 ![Job Form](../../images/meraki_job_form.png)
 
-If you wish to just test the synchronization but not have any data created in Nautobot you'll want to select the `Dryrun` toggle. Clicking the `Debug` toggle will enable more verbose logging to inform you of what is occuring behind the scenes. After those toggles there are also dropdowns that allow you to specify the Meraki Controller to synchronize with and to define the LocationType to use for the imported Networks from Meraki. In addition, there are also some optional settings on the Job form:
+If you wish to just test the synchronization but not have any data created in Nautobot you'll want to select the `Dryrun` toggle. Clicking the `Debug` toggle will enable more verbose logging to inform you of what is occuring behind the scenes. The job will only sync IP Addresses/Prefixes from WAN interfaces by default. If you wish to sync LAN interfaces you'll want to select the `Sync Firewall LAN SVIs` toggle. After those toggles there are also dropdowns that allow you to specify the Meraki Controller to synchronize with and to define the LocationType to use for the imported Networks from Meraki. In addition, there are also some optional settings on the Job form:
 
 - Should the LocationType that you specify for the imported Networks require a parent Location to be assigned, you can define this parent one of two ways:
 
