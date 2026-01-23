@@ -309,11 +309,11 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         )
 
     def test_load_firewall_ports_lan_svis_disabled(self):
-        """LAN SVIs are skipped when sync_mx_lan_ips is False."""
+        """LAN SVIs are skipped when sync_firewall_lan_ips is False."""
         mock_device = MagicMock()
         mock_device.name = "HQ01"
 
-        self.job.sync_mx_lan_ips = False
+        self.job.sync_firewall_lan_ips = False
         self.meraki.device_map = {"HQ01": fix.GET_ORG_DEVICES_FIXTURE[1]}
 
         # Avoid unrelated WAN/port side effects
@@ -334,11 +334,11 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         self.assertNotIn("Vlan1__HQ01", ports)
 
     def test_load_firewall_ports_vlan_svis(self):
-        """VLAN-mode SVIs are loaded when sync_mx_lan_ips is True."""
+        """VLAN-mode SVIs are loaded when sync_firewall_lan_ips is True."""
         mock_device = MagicMock()
         mock_device.name = "HQ01"
 
-        self.job.sync_mx_lan_ips = True
+        self.job.sync_firewall_lan_ips = True
         self.meraki.device_map = {"HQ01": fix.GET_ORG_DEVICES_FIXTURE[1]}
 
         self.meraki_client.get_appliance_vlans_settings.return_value = fix.GET_APPLIANCE_VLANS_SETTINGS_TRUE_FIXTURE
@@ -376,7 +376,7 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         mock_device = MagicMock()
         mock_device.name = "HQ01"
 
-        self.job.sync_mx_lan_ips = True
+        self.job.sync_firewall_lan_ips = True
         self.meraki.device_map = {"HQ01": fix.GET_ORG_DEVICES_FIXTURE[1]}
 
         self.meraki_client.get_appliance_vlans_settings.return_value = fix.GET_APPLIANCE_VLANS_SETTINGS_FALSE_FIXTURE

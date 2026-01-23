@@ -205,7 +205,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                         primary_found = True
         if lan_ports:
             self.process_lan_ports(device, lan_ports)
-        if getattr(self.job, "sync_mx_lan_ips", False):
+        if getattr(self.job, "sync_firewall_lan_ips", False):
             model = self.device_map.get(device.name, {}).get("model", "")
             if model.startswith(("MX", "MG", "Z")):
                 self.load_lan_svis(device=device, network_id=network_id)

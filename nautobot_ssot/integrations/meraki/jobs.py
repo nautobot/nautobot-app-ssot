@@ -66,7 +66,7 @@ class MerakiDataSource(DataSource):  # pylint: disable=too-many-instance-attribu
         description="List of tuples containing DeviceTypes to assign to a specified Role. ex: [('MX', 'Firewall')]",
     )
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
-    sync_mx_lan_ips = BooleanVar(
+    sync_firewall_lan_ips = BooleanVar(
         label="Sync Firewall LAN SVIs",
         default=False,
         description="Sync LAN SVI gateway IP Addresses and Prefixes from MX/MG/Z devices.",
@@ -89,7 +89,7 @@ class MerakiDataSource(DataSource):  # pylint: disable=too-many-instance-attribu
         field_order = [
             "dryrun",
             "debug",
-            "sync_mx_lan_ips",
+            "sync_firewall_lan_ips",
             "instance",
             "network_loctype",
             "parent_location",
@@ -168,7 +168,7 @@ class MerakiDataSource(DataSource):  # pylint: disable=too-many-instance-attribu
         self.tenant = kwargs["tenant"]
         self.hostname_mapping = literal_eval(kwargs["hostname_mapping"])
         self.devicetype_mapping = literal_eval(kwargs["devicetype_mapping"])
-        self.sync_mx_lan_ips = kwargs["sync_mx_lan_ips"]
+        self.sync_firewall_lan_ips = kwargs["sync_firewall_lan_ips"]
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 
