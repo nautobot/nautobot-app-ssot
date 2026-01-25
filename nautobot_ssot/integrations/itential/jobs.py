@@ -64,13 +64,14 @@ class ItentialAutomationGatewayDataTarget(DataTarget):  # pylint: disable=too-ma
         self.logger.info("Loading data from Itential.")
         self.target_adapter.load()
 
-    def run(self, dryrun, memory_profiling, gateway, status, *args, **kwargs):  # pylint: disable=arguments-differ
+    def run(self, *args, **kwargs):
         """Execute sync."""
-        self.gateway = gateway
-        self.status = status
-        self.dryrun = dryrun
-        self.memory_profiling = memory_profiling
-        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
+        self.gateway = kwargs.get("gateway")
+        self.status = kwargs.get("status")
+        self.dryrun = kwargs.get("dryrun")
+        self.memory_profiling = kwargs.get("memory_profiling")
+        self.parallel_loading = kwargs.get("parallel_loading")
+        super().run(*args, **kwargs)
 
 
 jobs = [ItentialAutomationGatewayDataTarget]

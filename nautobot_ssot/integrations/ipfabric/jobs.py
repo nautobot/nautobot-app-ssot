@@ -216,29 +216,20 @@ class IpFabricDataSource(DataSource):
         }
 
     # pylint: disable-next=too-many-arguments, arguments-differ
-    def run(
-        self,
-        dryrun,
-        memory_profiling,
-        debug,
-        snapshot=None,
-        safe_delete_mode=True,
-        sync_ipfabric_tagged_only=True,
-        location_filter=None,
-        *args,
-        **kwargs,
-    ):
+    def run(self, *args, **kwargs):
         """Run the job."""
         self.kwargs = {
-            "snapshot": snapshot,
-            "dryrun": dryrun,
-            "safe_delete_mode": safe_delete_mode,
-            "sync_ipfabric_tagged_only": sync_ipfabric_tagged_only,
-            "location_filter": location_filter,
-            "debug": debug,
+            "snapshot": kwargs.get("snapshot"),
+            "dryrun": kwargs.get("dryrun"),
+            "safe_delete_mode": kwargs.get("safe_delete_mode"),
+            "sync_ipfabric_tagged_only": kwargs.get("sync_ipfabric_tagged_only"),
+            "location_filter": kwargs.get("location_filter"),
+            "debug": kwargs.get("debug"),
         }
-
-        super().run(dryrun=dryrun, memory_profiling=memory_profiling, *args, **kwargs)
+        self.dryrun = kwargs.get("dryrun")
+        self.memory_profiling = kwargs.get("memory_profiling")
+        self.parallel_loading = kwargs.get("parallel_loading")
+        super().run(*args, **kwargs)
 
     def load_source_adapter(self):
         """Not used."""

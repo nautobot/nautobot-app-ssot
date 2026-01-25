@@ -109,20 +109,13 @@ class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
         self.target_adapter = NautobotAdapter(job=self)
         self.target_adapter.load()
 
-    def run(  # pylint: disable=arguments-differ, too-many-arguments, duplicate-code
-        self,
-        dryrun,
-        memory_profiling,
-        debug,
-        *args,
-        **kwargs,
-    ):
+    def run(self, *args, **kwargs):
         """Perform data synchronization."""
-        self.debug = debug
-        self.dryrun = dryrun
-        self.memory_profiling = memory_profiling
-
-        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
+        self.debug = kwargs.get("debug")
+        self.dryrun = kwargs.get("dryrun")
+        self.memory_profiling = kwargs.get("memory_profiling")
+        self.parallel_loading = kwargs.get("parallel_loading")
+        super().run(*args, **kwargs)
 
 
 class CloudVisionDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
@@ -190,20 +183,13 @@ class CloudVisionDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
             self.target_adapter = CloudvisionAdapter(job=self, conn=client)
             self.target_adapter.load()
 
-    def run(  # pylint: disable=arguments-differ, too-many-arguments, duplicate-code
-        self,
-        dryrun,
-        memory_profiling,
-        debug,
-        *args,
-        **kwargs,
-    ):
+    def run(self, *args, **kwargs):
         """Perform data synchronization."""
-        self.debug = debug
-        self.dryrun = dryrun
-        self.memory_profiling = memory_profiling
-
-        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
+        self.debug = kwargs.get("debug")
+        self.dryrun = kwargs.get("dryrun")
+        self.memory_profiling = kwargs.get("memory_profiling")
+        self.parallel_loading = kwargs.get("parallel_loading")
+        super().run(*args, **kwargs)
 
 
 jobs = [CloudVisionDataSource, CloudVisionDataTarget]
