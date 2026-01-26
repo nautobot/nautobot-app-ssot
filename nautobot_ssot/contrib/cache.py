@@ -6,7 +6,8 @@ from nautobot_ssot.config import SSOT_CONFIG
 
 from django.db.models import Model
 from functools import lru_cache
-
+from nautobot.extras.models import Relationship
+from nautobot.core.models import BaseModel
 
 # This type describes a set of parameters to use as a dictionary key for the cache. As such, its needs to be hashable
 # and therefore a frozenset rather than a normal set or a list.
@@ -20,6 +21,9 @@ from functools import lru_cache
 # )
 ParameterSet = frozenset[tuple[str, Hashable]]
 
+@lru_cache
+def get_custom_relationship(label: str):
+    return Relationship.objects.get(label=label)
 
 class ORMCache:
     """Wrapper class for caching responses from Django ORM when using a Nautobot-based DiffSync Adapter.
@@ -38,15 +42,26 @@ class ORMCache:
     def __init__(self):
         """Initialize the class."""
         self.cache_clear()
+        self._get_or_create.cache_clear()
 
     @lru_cache(maxsize=SSOT_CONFIG.get("orm_cache_max_size", None))
-    def _get(self, model_class: Type[Model], parameter_set: ParameterSet):
+    def _get(self, model_class: Type[BaseModel], parameter_set: ParameterSet):
         """Cached method for retreiving data from the database."""
-        return model_class.objects.get(**dict(parameter_set))
-
-    def get(self, model_class: Type[Model], parameters: dict):
-        """Public method for retreiving cached data from the database."""
-        return self._get(model_class, frozenset(parameters))
+        try:
+            return model_class.objects.get(**dict(parameter_set))
+        except ValueError as err:
+            raise ValueError(parameter_set) from err
+        
+    @lru_cache(maxsize=SSOT_CONFIG.get("orm_cache_max_size", None), typed=True)
+    def _get_or_create(self, model_class: Type[BaseModel], parameter_set: ParameterSet):
+        """"""
+        parameters = dict(parameter_set)
+        try:
+            return model_class.objects.get(parameters)
+        except model_class.DoesNotExist:
+            obj = model_class(parameters)
+            obj.validated_save()
+            return obj
 
     def cache_clear(self):
         """Clear the cache."""
@@ -63,3 +78,15 @@ class ORMCache:
     def __repr__(self):
         """Representation of the class."""
         return f"ORMCache({self.cache_info()})"
+    
+    # Caching Methods
+
+    def get(self, model_class: Type[BaseModel], parameters: dict):
+        """Public method for retreiving cached data from the database."""
+        return self._get(model_class, frozenset(parameters))
+
+    def get_or_create(self, model_class: Type[BaseModel], parameters: dict):
+        """"""
+        return self._get_or_create(model_class, frozenset(parameters))
+        
+

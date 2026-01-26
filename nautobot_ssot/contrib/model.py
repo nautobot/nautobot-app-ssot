@@ -20,6 +20,7 @@ from django.db.models import Model as ModelObj
 
 from nautobot_ssot.contrib.enums import AttributeType
 
+from nautobot_ssot.contrib.cache import get_custom_relationship
 from nautobot_ssot.contrib.base import BaseNautobotModel
 from nautobot_ssot.contrib.annotations import (
     CustomFieldAnnotation,
@@ -30,6 +31,16 @@ from nautobot_ssot.utils.orm import get_content_type
 from diffsync.exceptions import ObjectNotCreated
 from nautobot_ssot.utils.cache import get_orm_object
 from dataclasses import dataclass
+
+from nautobot_ssot.contrib.interfaces.nautobot.update import (
+    update_custom_foreign_key,
+    update_custom_relationship_n_to_many_field,
+    update_custom_n_to_many_field,
+
+)
+
+
+
 
 # class NewNautobotModel(BaseNautobotModel):
 
@@ -126,12 +137,6 @@ class NautobotModel(BaseNautobotModel, DiffSyncModel):
         """Get the queryset used to load the models data from Nautobot."""
         return cls._model.objects.all()
 
-    @classmethod
-    def _check_field(cls, name):
-        """Check whether the given field name is defined on the diffsync (pydantic) model."""
-        if name not in cls.model_fields:  # pylint: disable=unsupported-membership-test
-            raise ObjectCrudException(f"Field {name} is not defined on the model.")
-
     def get_from_db(self):
         """Get the ORM object for this diffsync object from the database using the primary key."""
         return get_orm_object(self._model, {"pk": self.pk})
@@ -194,6 +199,8 @@ class NautobotModel(BaseNautobotModel, DiffSyncModel):
             This is mutated over the course of this function.
         :param adapter: The related diffsync adapter used for looking up things in the cache.
         """
+        if field not in cls.model_fields:  # pylint: disable=unsupported-membership-test
+            raise ObjectCrudException(f"Field {field} is not defined on the model.")
         attr_type = cls.get_attr_type(field)
         if attr_type == AttributeType.STANDARD:
             setattr(obj, field, value)
@@ -282,6 +289,9 @@ class NautobotModel(BaseNautobotModel, DiffSyncModel):
 
         # Handle relationship association creation. This needs to be after object creation, because relationship
         # association objects rely on both sides already existing.
+        
+        # for related_model_dict in relationship_fields["custom_relationship_foreign_keys"].values():
+        #     update_custom_foreign_key(obj, related_model_dict)
         cls._lookup_and_set_custom_relationship_foreign_keys(
             relationship_fields["custom_relationship_foreign_keys"], obj, adapter
         )
@@ -293,7 +303,7 @@ class NautobotModel(BaseNautobotModel, DiffSyncModel):
         cls._set_many_to_many_fields(relationship_fields["many_to_many_fields"], obj)
 
     @classmethod
-    def _set_custom_relationship_to_many_fields(cls, custom_relationship_many_to_many_fields, obj, adapter):
+    def old_set_custom_relationship_to_many_fields(cls, custom_relationship_many_to_many_fields, obj, adapter):
         for _, dictionary in custom_relationship_many_to_many_fields.items():
             annotation = dictionary.pop("annotation")
             objects = dictionary.pop("objects")
@@ -356,44 +366,39 @@ class NautobotModel(BaseNautobotModel, DiffSyncModel):
             many_to_many_field.set(related_objects)
 
     @classmethod
+    def get_or_create_relationship_asociation(cls, obj, obj_to_relate, relationship, annotation_side):
+        """"""
+
+        association_parameters = {
+            "relationship": relationship,
+            "source_type": relationship.source_type,
+            "destination_type": relationship.destination_type,
+        }
+        if annotation_side == RelationshipSideEnum.SOURCE:
+            association_parameters["source_id"] = obj.id
+            association_parameters["destination_id"] = obj_to_relate.id
+        else:
+            association_parameters["source_id"] = obj_to_relate.id
+            association_parameters["destination_id"] = obj.id
+
+        try:
+            association = get_orm_object(RelationshipAssociation, association_parameters)
+        except RelationshipAssociation.DoesNotExist:
+            # Create new association and save to database
+            association = RelationshipAssociation(**association_parameters)
+            association.validated_save()
+        return association
+
+    @classmethod
+    def _set_custom_relationship_to_many_fields(cls, custom_relationship_many_to_many_fields, obj, adapter):
+        for dictionary in custom_relationship_many_to_many_fields.values():
+            update_custom_n_to_many_field(obj, dictionary)
+
+    @classmethod
     def _lookup_and_set_custom_relationship_foreign_keys(cls, custom_relationship_foreign_keys, obj, adapter):
         for _, related_model_dict in custom_relationship_foreign_keys.items():
-            annotation = related_model_dict.pop("_annotation")
-            # TODO: Deduplicate this code
-            try:
-                relationship = get_orm_object(Relationship, {"label": annotation.name})
-                #relationship = adapter.get_from_orm_cache({"label": annotation.name}, Relationship)
-            except Relationship.DoesNotExist as error:
-                raise ObjectCrudException(f"No such relationship with label '{annotation.name}'") from error
-            parameters = {
-                "relationship": relationship,
-                "source_type": relationship.source_type,
-                "destination_type": relationship.destination_type,
-            }
-            if annotation.side == RelationshipSideEnum.SOURCE:
-                parameters["source_id"] = obj.id
-                related_model_class = relationship.destination_type.model_class()
-                try:
-                    destination_object = get_orm_object(related_model_class, related_model_dict)
-                    # destination_object = adapter.get_from_orm_cache(related_model_dict, related_model_class)
-                except related_model_class.DoesNotExist as error:
-                    raise ObjectCrudException(
-                        f"Couldn't resolve custom relationship {relationship.name}, no such {related_model_class._meta.verbose_name} object with parameters {related_model_dict}."
-                    ) from error
-                except related_model_class.MultipleObjectsReturned as error:
-                    raise ObjectCrudException(
-                        f"Couldn't resolve custom relationship {relationship.name}, multiple {related_model_class._meta.verbose_name} objects with parameters {related_model_dict}."
-                    ) from error
-                RelationshipAssociation.objects.update_or_create(
-                    **parameters,
-                    defaults={"destination_id": destination_object.id},
-                )
-            else:
-                parameters["destination_id"] = obj.id
-                source_object = get_orm_object(relationship.source_type.model_class(), related_model_dict)
-                #source_object = adapter.get_from_orm_cache(related_model_dict, relationship.source_type.model_class())
-                RelationshipAssociation.objects.update_or_create(**parameters, defaults={"source_id": source_object.id})
-
+            update_custom_foreign_key(obj, related_model_dict)
+  
     @classmethod
     def _lookup_and_set_foreign_keys(cls, foreign_keys, obj, adapter):
         """
@@ -425,7 +430,6 @@ class NautobotModel(BaseNautobotModel, DiffSyncModel):
                     ) from error
                 # try:
                 #     related_model_content_type = get_content_type(app_label, model)
-                #     # related_model_content_type = get_orm_object(ContentType, {"app_label": app_label, "model": model})
                 #     # related_model_content_type = adapter.get_from_orm_cache({"app_label": app_label, "model": model}, ContentType)
                 #     related_model = related_model_content_type.model_class()
                 except ContentType.DoesNotExist as error:
@@ -461,3 +465,6 @@ class NautobotModel(BaseNautobotModel, DiffSyncModel):
         obj_metadata.scoped_fields = obj_metadata_scope_fields
         obj_metadata.value = datetime.now()
         obj_metadata.validated_save()
+
+
+

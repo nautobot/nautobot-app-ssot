@@ -51,6 +51,7 @@ class CustomRelationshipAnnotation(CustomAnnotation):
 
     name: str
     side: RelationshipSideEnum
+    sort_key = None
 
 
 @dataclass

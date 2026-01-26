@@ -24,24 +24,9 @@ class NautobotAdapterMetadataMixin:
         """Initialize data for"""
         super().__init__(*args, **kwargs)
 
-
         # Define the metadata type on the adapter so that can be used on the models crud operations
         self.metadata_scope_fields = {}
         self.get_or_create_metadatatype()
-
-    @classmethod
-    @lru_cache
-    def get_model_list(self) -> List[BaseNautobotModel]:
-        """Return a list of all DiffSync models associated with this adapter, including child models not listed in `top_level`."""
-         # Get All diffsync models from adapter's top_level attribute
-        diffsync_models: List[BaseNautobotModel] = []
-        for model_name in self.top_level:
-            diffsync_model = getattr(self, model_name)
-            diffsync_models.append(diffsync_model)
-            for children_parameter, _ in diffsync_model._children.items():
-                diffsync_model_child = getattr(self, model_name=children_parameter)
-                diffsync_models.append(diffsync_model_child)
-        return diffsync_models
 
     def get_or_create_metadatatype(self):
         """Retrieve or create a MetadataType object to track the last sync time of this SSoT job."""
@@ -98,6 +83,20 @@ class NautobotAdapter(
             child_model: BaseNautobotModel = getattr(self, db_field_name)
             for child_db_obj in getattr(db_obj, diff_field_name).all():
                 parent_obj.add_child(self.add_nautobot_object(child_model, child_db_obj))
+
+    @classmethod
+    @lru_cache
+    def get_model_list(self) -> List[BaseNautobotModel]:
+        """Return a list of all DiffSync models associated with this adapter, including child models not listed in `top_level`."""
+         # Get All diffsync models from adapter's top_level attribute
+        diffsync_models: List[BaseNautobotModel] = []
+        for model_name in self.top_level:
+            diffsync_model = getattr(self, model_name)
+            diffsync_models.append(diffsync_model)
+            for children_parameter, _ in diffsync_model._children.items():
+                diffsync_model_child = getattr(self, model_name=children_parameter)
+                diffsync_models.append(diffsync_model_child)
+        return diffsync_models
 
     def load(self):
         """Load data from Nautobot into DiffSync Store."""
