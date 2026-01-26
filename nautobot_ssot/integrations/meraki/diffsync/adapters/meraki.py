@@ -206,9 +206,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
         if lan_ports:
             self.process_lan_ports(device, lan_ports)
         if getattr(self.job, "sync_firewall_lan_ips", False):
-            model = self.device_map.get(device.name, {}).get("model", "")
-            if model.startswith(("MX", "MG", "Z")):
-                self.load_lan_svis(device=device, network_id=network_id)
+            self.load_lan_svis(device=device, network_id=network_id)
 
     def process_lan_ports(self, device: DiffSyncModel, lan_ports: dict):
         """Load the switchports for a Device into DiffSync models.
@@ -448,7 +446,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 uuid=None,
             )
             self.add(new_map)
-    
+
     def load_lan_svis(self, device: DiffSyncModel, network_id: str):
         """Load LAN SVI interfaces, gateway IPs, and prefixes for MX/MG/Z devices."""
         settings = self.conn.get_appliance_vlans_settings(network_id=network_id)
@@ -464,48 +462,44 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                             f"Skipping VLAN SVI for {device.name}: missing id, subnet, or appliance IP."
                         )
                     continue
-                self.load_lan_svi_record(
-                    device=device,
-                    network_id=network_id,
-                    vlan_id=vlan_id,
-                    subnet=subnet,
-                    appliance_ip=appliance_ip,
-                    description=None,
-                )
+                svi = {
+                    "vlan_id": vlan_id,
+                    "subnet": subnet,
+                    "appliance_ip": appliance_ip,
+                    "description": None,
+                }
+                self.load_lan_svi_record(device=device, network_id=network_id, svi=svi)
         elif settings.get("vlansEnabled") is False:
             lan = self.conn.get_appliance_single_lan(network_id=network_id)
             subnet = lan.get("subnet")
             appliance_ip = lan.get("applianceIp")
             if not subnet or not appliance_ip:
                 if self.job.debug:
-                    self.job.logger.debug(
-                        f"Skipping single-LAN SVI for {device.name}: missing subnet or appliance IP."
-                    )
+                    self.job.logger.debug(f"Skipping single-LAN SVI for {device.name}: missing subnet or appliance IP.")
                 return
-            self.load_lan_svi_record(
-                device=device,
-                network_id=network_id,
-                vlan_id="1",
-                subnet=subnet,
-                appliance_ip=appliance_ip,
-                description="Single LAN (VLANs disabled in Meraki)",
-            )
+            svi = {
+                "vlan_id": "1",
+                "subnet": subnet,
+                "appliance_ip": appliance_ip,
+                "description": "Single LAN (VLANs disabled in Meraki)",
+            }
+            self.load_lan_svi_record(device=device, network_id=network_id, svi=svi)
         else:
             if self.job.debug:
-                self.job.logger.debug(
-                    f"Unable to determine VLAN mode for network {network_id}; skipping LAN SVI load."
-                )
+                self.job.logger.debug(f"Unable to determine VLAN mode for network {network_id}; skipping LAN SVI load.")
 
     def load_lan_svi_record(
         self,
         device: DiffSyncModel,
         network_id: str,
-        vlan_id: str,
-        subnet: str,
-        appliance_ip: str,
-        description: str = None,
+        svi: dict,
     ):
         """Create/update Interface, Prefix, IPAddress, and IPAssignment for one MX/MG/Z SVI."""
+        vlan_id = svi["vlan_id"]
+        subnet = svi["subnet"]
+        appliance_ip = svi["appliance_ip"]
+        description = svi.get("description")
+
         port_name = f"Vlan{vlan_id}"
         new_port, loaded = self.get_or_instantiate(
             self.port,

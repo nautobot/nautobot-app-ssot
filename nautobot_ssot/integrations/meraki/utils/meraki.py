@@ -273,6 +273,7 @@ class DashboardClient:
             )
         return settings
 
+
 def get_role_from_devicetype(dev_model: str, devicetype_map: dict) -> str:
     """Get Device Role using DeviceType from devicetype_mapping Setting.
 

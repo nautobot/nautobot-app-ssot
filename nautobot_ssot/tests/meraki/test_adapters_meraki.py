@@ -408,5 +408,3 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
             {"address": "192.168.50.2", "device": "HQ01", "namespace": "Global", "port": "Vlan1"},
         )
         self.assertFalse(ipassignment.primary)
-
-
