@@ -297,6 +297,7 @@ PLUGINS_CONFIG = {
         "librenms_permitted_values": {
             "role": ["network"],
         },
+        "meraki_allow_dhcp_mgmt_ips": is_truthy(os.getenv("NAUTOBOT_SSOT_MERAKI_ALLOW_DHCP_MGMT_IPS", "false")),
         "servicenow_instance": os.getenv("SERVICENOW_INSTANCE", ""),
         "servicenow_password": os.getenv("SERVICENOW_PASSWORD", ""),
         "servicenow_username": os.getenv("SERVICENOW_USERNAME", ""),
