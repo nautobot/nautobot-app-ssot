@@ -175,7 +175,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
             )
             self.add(new_hardware)
 
-    def load_firewall_ports(self, device: DiffSyncModel, serial: str, network_id: str, lan_ip: str):  # pylint: disable=too-many-locals
+    def load_firewall_ports(self, device: DiffSyncModel, serial: str, network_id: str, lan_ip: str):  # pylint: disable=too-many-locals,too-many-statements,too-many-branches
         """Load ports of a firewall, cellular, or teleworker device from Meraki dashboard into DiffSync models."""
         mgmt_ports = self.conn.get_management_ports(serial=serial)
         uplink_settings = self.conn.get_uplink_settings(serial=serial)
@@ -305,7 +305,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 self.add(new_port)
                 device.add_child(new_port)
 
-    def load_switch_ports(self, device: DiffSyncModel, serial: str, lan_ip: str):
+    def load_switch_ports(self, device: DiffSyncModel, serial: str, lan_ip: str):  # pylint: disable=too-many-statements,too-many-branches
         """Load ports of a switch device from Meraki dashboard into DiffSync models."""
         mgmt_ports = self.conn.get_management_ports(serial=serial)
         org_switchports = self.conn.get_org_switchports()
