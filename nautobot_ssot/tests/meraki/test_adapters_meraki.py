@@ -294,6 +294,7 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
             device=mock_device,
             serial="V4GD-ABDP-YVCK",
             network_id="L_165471703274884707",
+            lan_ip=None,
         )
 
         self.assertEqual(
