@@ -168,6 +168,16 @@ class DnaCenterAdapter(Adapter):
                 f"Unable to find Location assigned to {self.job.dnac.name} so skipping loading of Locations for Controller."
             )
             return
+        if self.job.dnac.location.location_type == self.job.area_loctype:
+            self.job.logger.error(
+                f"Controller {self.job.dnac.name} is assigned to a {self.job.dnac.location.location_type.name} Location. Controllers must not be assigned to an Area Location Type."
+            )
+            return
+        if not self.job.dnac.location.parent:
+            self.job.logger.error(
+                f"Controller {self.job.dnac.name} has no parent Location. Controllers must be assigned to a Location that has a parent."
+            )
+            return
 
         if self.job.dnac.location.location_type == self.job.floor_loctype:
             self.get_or_instantiate(
@@ -183,8 +193,7 @@ class DnaCenterAdapter(Adapter):
                 },
             )
         if (
-            self.job.dnac.location.parent
-            and self.job.dnac.location.parent.parent
+            self.job.dnac.location.parent.parent
             and self.job.dnac.location.parent.parent.location_type == self.job.building_loctype
         ):
             self.get_or_instantiate(
@@ -237,8 +246,7 @@ class DnaCenterAdapter(Adapter):
                 attrs={"uuid": None},
             )
         if (
-            self.job.dnac.location.parent
-            and self.job.dnac.location.parent.parent
+            self.job.dnac.location.parent.parent
             and self.job.dnac.location.parent.parent.location_type == self.job.area_loctype
         ):
             self.get_or_instantiate(
