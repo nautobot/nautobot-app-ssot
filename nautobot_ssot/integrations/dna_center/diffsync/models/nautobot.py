@@ -126,8 +126,7 @@ class NautobotBuilding(base.Building):
         site = Location.objects.get(id=self.uuid)
         if self.adapter.job.debug:
             self.adapter.job.logger.info(f"Updating Site {site.name}.")
-        if "address" in attrs:
-            site.physical_address = attrs["address"]
+        site.physical_address = attrs["address"] if "address" in attrs else ""
         if "area" in attrs:
             site.parent_id = self.adapter.region_map[attrs["area_parent"]][attrs["area"]]
         if "latitude" in attrs:
