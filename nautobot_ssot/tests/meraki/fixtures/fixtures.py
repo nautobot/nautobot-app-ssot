@@ -42,3 +42,11 @@ GET_UPLINK_SETTINGS_PPPOE_SENT_FIXTURE = load_json(
 GET_UPLINK_SETTINGS_PPPOE_RECV_FIXTURE = load_json(
     "./nautobot_ssot/tests/meraki/fixtures/get_uplink_settings_pppoe_recv.json"
 )
+GET_APPLIANCE_VLANS_SETTINGS_TRUE_FIXTURE = load_json(
+    "./nautobot_ssot/tests/meraki/fixtures/get_appliance_vlans_settings_true.json"
+)
+GET_APPLIANCE_VLANS_SETTINGS_FALSE_FIXTURE = load_json(
+    "./nautobot_ssot/tests/meraki/fixtures/get_appliance_vlans_settings_false.json"
+)
+GET_APPLIANCE_VLANS_FIXTURE = load_json("./nautobot_ssot/tests/meraki/fixtures/get_appliance_vlans.json")
+GET_APPLIANCE_SINGLE_LAN_FIXTURE = load_json("./nautobot_ssot/tests/meraki/fixtures/get_appliance_single_lan.json")

@@ -226,6 +226,53 @@ class DashboardClient:
             )
         return ports
 
+    def get_appliance_vlans(self, network_id: str) -> list:
+        """Retrieve VLANs for MX/MG/Z devices in specified network ID.
+
+        Args:
+            network_id (str): Network ID that MX/MG/Z device belongs to.
+
+        Returns:
+            list: List of VLAN dicts. Empty list if error or VLANs disabled.
+        """
+        vlans = []
+        try:
+            vlans = self.conn.appliance.getNetworkApplianceVlans(networkId=network_id)
+        except meraki.APIError as err:
+            self.logger.logger.warning(
+                f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
+            )
+        return vlans
+
+    def get_appliance_single_lan(self, network_id: str) -> dict:
+        """Retrieve single LAN settings for MX/MG/Z devices in specified network ID, when VLANs are disabled.
+
+        Args:
+            network_id (str): Network ID that MX/MG/Z device belongs to.
+
+        Returns:
+            dict: Single LAN config dict. Empty dict if error.
+        """
+        lan = {}
+        try:
+            lan = self.conn.appliance.getNetworkApplianceSingleLan(networkId=network_id)
+        except meraki.APIError as err:
+            self.logger.logger.warning(
+                f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
+            )
+        return lan
+
+    def get_appliance_vlans_settings(self, network_id: str) -> dict:
+        """Retrieve VLAN settings for a Meraki MX/MG/Z device in specified network ID."""
+        settings = {}
+        try:
+            settings = self.conn.appliance.getNetworkApplianceVlansSettings(networkId=network_id)
+        except meraki.APIError as err:
+            self.logger.logger.warning(
+                f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
+            )
+        return settings
+
 
 def get_role_from_devicetype(dev_model: str, devicetype_map: dict) -> str:
     """Get Device Role using DeviceType from devicetype_mapping Setting.

@@ -1,0 +1,19 @@
+{
+    "subnet": "192.168.50.0/24",
+    "applianceIp": "192.168.50.2",
+    "mandatoryDhcp": { "enabled": true },
+    "ipv6": {
+        "enabled": true,
+        "prefixAssignments": [
+            {
+                "autonomous": false,
+                "staticPrefix": "2001:db8:3c4d:50::/64",
+                "staticApplianceIp6": "2001:db8:3c4d:50::1",
+                "origin": {
+                    "type": "internet",
+                    "interfaces": [ "wan0" ]
+                }
+            }
+        ]
+    }
+}
