@@ -50,3 +50,8 @@ GET_APPLIANCE_VLANS_SETTINGS_FALSE_FIXTURE = load_json(
 )
 GET_APPLIANCE_VLANS_FIXTURE = load_json("./nautobot_ssot/tests/meraki/fixtures/get_appliance_vlans.json")
 GET_APPLIANCE_SINGLE_LAN_FIXTURE = load_json("./nautobot_ssot/tests/meraki/fixtures/get_appliance_single_lan.json")
+GET_ORG_DEVICES_DHCP_FIXTURE = load_json("./nautobot_ssot/tests/meraki/fixtures/get_org_devices_dhcp.json")
+GET_ORG_UPLINK_ADDRESSES_BY_DEVICE_SW_DHCP_FIXTURE = load_json(
+    "./nautobot_ssot/tests/meraki/fixtures/get_org_uplink_addresses_by_device_sw_dhcp.json"
+)
+GET_MANAGEMENT_PORTS_RECV_DHCP_FIXTURE = load_json("./nautobot_ssot/tests/meraki/fixtures/get_management_ports_recv_dhcp.json")

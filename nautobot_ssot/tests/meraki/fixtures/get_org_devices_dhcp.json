@@ -1,0 +1,31 @@
+[
+        {
+        "name": "HQ-SW-1",
+        "serial": "Q5TJ-GUYY-GY8W",
+        "mac": "3c:8b:7f:0d:3a:99",
+        "networkId": "L_628815097971621533",
+        "productType": "switch",
+        "model": "C9300-48UXM",
+        "address": "",
+        "lat": 29.75348,
+        "lng": -95.3602,
+        "notes": "",
+        "tags": [
+            "recently-added"
+        ],
+        "lanIp": "146.171.212.44",
+        "configurationUpdatedAt": "2025-11-13T17:19:06Z",
+        "firmware": "cs-16-9",
+        "url": "",
+        "details": [
+            {
+                "name": "Catalyst serial",
+                "value": "FJC26141GEF"
+            },
+            {
+                "name": "Running software version",
+                "value": "CS 16.9"
+            }
+        ]
+    }
+]
