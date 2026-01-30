@@ -47,6 +47,14 @@ class MerakiDataSource(DataSource):  # pylint: disable=too-many-instance-attribu
         label="Parent Location",
         required=False,
     )
+    location = ObjectVar(
+        model=Location,
+        queryset=Location.objects.all(),
+        description="Default Location to use for imported objects.",
+        display_field="display",
+        label="Default Location",
+        required=False,
+    )
     location_map = JSONVar(
         label="Location Mapping",
         required=False,
@@ -164,6 +172,7 @@ class MerakiDataSource(DataSource):  # pylint: disable=too-many-instance-attribu
         self.network_loctype = kwargs["network_loctype"]
         self.parent_location = kwargs["parent_location"]
         self.location_map = kwargs["location_map"]
+        self.location = kwargs["location"]
         self.debug = debug
         self.tenant = kwargs["tenant"]
         self.hostname_mapping = literal_eval(kwargs["hostname_mapping"])
