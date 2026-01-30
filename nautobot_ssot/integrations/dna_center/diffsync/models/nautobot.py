@@ -78,7 +78,7 @@ class NautobotArea(base.Area):
             return None
         area = Location.objects.get(id=self.uuid)
         if self.adapter.job.debug:
-            self.adapter.job.logger.info(f"Deleting {self.adapter.job.building_loctype.name} {area.name}.")
+            self.adapter.job.logger.info(f"Deleting {self.adapter.job.area_loctype.name} {area.name}.")
         self.adapter.objects_to_delete["regions"].append(area)
         return self
 
