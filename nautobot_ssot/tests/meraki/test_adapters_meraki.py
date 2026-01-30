@@ -2,8 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
-from django.test import override_settings
 from django.contrib.contenttypes.models import ContentType
+from django.test import override_settings
 from nautobot.core.testing import TransactionTestCase
 from nautobot.dcim.models import Device, Location, LocationType
 from nautobot.extras.models import JobResult, Status
@@ -415,13 +415,7 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         )
         self.assertFalse(ipassignment.primary)
 
-    @override_settings(
-            PLUGINS_CONFIG={
-                "nautobot_ssot":{
-                    "meraki_allow_dhcp_mgmt_ips":True
-                }
-            }
-    )
+    @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"meraki_allow_dhcp_mgmt_ips": True}})
     def test_load_switch_with_dhcp_mgmt_ip(self):
         """Validate load_switch_ports() loads a switch with a dynamic management ip."""
         mock_device = MagicMock()
@@ -430,20 +424,17 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         self.meraki.device_map = {"HQ-SW-1": fix.GET_ORG_DEVICES_DHCP_FIXTURE[0]}
         self.meraki.conn.network_map = {"L_628815097971621533": {"name": "HQ-SW-1"}}
 
-        self.meraki_client.get_org_uplink_addresses_by_device.return_value = fix.GET_ORG_UPLINK_ADDRESSES_BY_DEVICE_SW_DHCP_FIXTURE
+        self.meraki_client.get_org_uplink_addresses_by_device.return_value = (
+            fix.GET_ORG_UPLINK_ADDRESSES_BY_DEVICE_SW_DHCP_FIXTURE
+        )
         self.meraki_client.get_management_ports.return_value = fix.GET_MANAGEMENT_PORTS_RECV_DHCP_FIXTURE
         self.meraki_client.self.conn.get_org_switchports.return_value = fix.GET_MANAGEMENT_PORTS_RECV_DHCP_FIXTURE
 
         self.meraki.load_switch_ports(
-            device=mock_device,
-            serial=fix.GET_ORG_DEVICES_DHCP_FIXTURE[0]["serial"],
-            lan_ip="146.171.212.44"
+            device=mock_device, serial=fix.GET_ORG_DEVICES_DHCP_FIXTURE[0]["serial"], lan_ip="146.171.212.44"
         )
         self.assertEqual(
-            {
-                "wan1__HQ-SW-1",
-                "man1__HQ-SW-1"
-            },
+            {"wan1__HQ-SW-1", "man1__HQ-SW-1"},
             {uplink.get_unique_id() for uplink in self.meraki.get_all("port")},
         )
         self.assertEqual(
@@ -453,13 +444,7 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
             {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")},
         )
 
-    @override_settings(
-            PLUGINS_CONFIG={
-                "nautobot_ssot":{
-                    "meraki_allow_dhcp_mgmt_ips":True
-                }
-            }
-    )
+    @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"meraki_allow_dhcp_mgmt_ips": True}})
     def test_default_location(self):
         """Test default location job input var."""
         self.job.location = MagicMock()
@@ -470,7 +455,9 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
 
         self.meraki_client.get_org_devices.return_value = fix.GET_ORG_DEVICES_DHCP_FIXTURE
 
-        self.meraki_client.get_org_uplink_addresses_by_device.return_value = fix.GET_ORG_UPLINK_ADDRESSES_BY_DEVICE_SW_DHCP_FIXTURE
+        self.meraki_client.get_org_uplink_addresses_by_device.return_value = (
+            fix.GET_ORG_UPLINK_ADDRESSES_BY_DEVICE_SW_DHCP_FIXTURE
+        )
         self.meraki_client.get_management_ports.return_value = fix.GET_MANAGEMENT_PORTS_RECV_DHCP_FIXTURE
         self.meraki_client.self.conn.get_org_switchports.return_value = fix.GET_MANAGEMENT_PORTS_RECV_DHCP_FIXTURE
         self.meraki.load_devices()

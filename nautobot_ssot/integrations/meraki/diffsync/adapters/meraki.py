@@ -757,8 +757,8 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
 
     def load_lan_svis(self, device: DiffSyncModel, network_id: str):
         """Load LAN SVI interfaces, gateway IPs, and prefixes for MX/MG/Z devices."""
-        settings = self.conn.get_appliance_vlans_settings(network_id=network_id)
-        if settings.get("vlansEnabled") is True:
+        appliance_vlans_settings = self.conn.get_appliance_vlans_settings(network_id=network_id)
+        if appliance_vlans_settings.get("vlansEnabled") is True:
             vlans = self.conn.get_appliance_vlans(network_id=network_id)
             for vlan in vlans:
                 vlan_id = vlan.get("id")
@@ -777,7 +777,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                     "description": None,
                 }
                 self.load_lan_svi_record(device=device, network_id=network_id, svi=svi)
-        elif settings.get("vlansEnabled") is False:
+        elif appliance_vlans_settings.get("vlansEnabled") is False:
             lan = self.conn.get_appliance_single_lan(network_id=network_id)
             subnet = lan.get("subnet")
             appliance_ip = lan.get("applianceIp")
