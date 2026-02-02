@@ -34,8 +34,8 @@ class Building(DiffSyncModel):
     address: Optional[str] = None
     area: Optional[str] = None
     area_parent: Optional[str] = None
-    latitude: Optional[str] = None
-    longitude: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     tenant: Optional[str] = None
     floors: Optional[List["Floor"]] = []
     metadata: Optional[bool] = True
