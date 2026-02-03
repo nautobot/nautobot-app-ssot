@@ -294,7 +294,7 @@ class NautobotDevice(base.Device):
             else:
                 area_name = self.area
             device.location_id = self.adapter.site_map[area_name][site_name]
-            if attrs["floor"]:
+            if attrs.get("floor"):
                 device.location_id = self.adapter.floor_map[area_name][site_name][attrs["floor"]]
         if "model" in attrs:
             if attrs.get("vendor"):
