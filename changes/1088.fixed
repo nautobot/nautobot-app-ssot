@@ -1,0 +1,1 @@
+Set Location.physical_address in DNA Center SSOT to an empty string if source data is None

@@ -217,7 +217,7 @@ class DnaCenterAdapter(Adapter):
                     "area": self.job.dnac.location.parent.name if self.job.dnac.location.parent else None,
                 },
                 attrs={
-                    "address": self.job.dnac.location.physical_address,
+                    "address": self.job.dnac.location.physical_address or "",
                     "area_parent": (
                         self.job.dnac.location.parent.parent.name
                         if self.job.dnac.location.parent and self.job.dnac.location.parent.parent
