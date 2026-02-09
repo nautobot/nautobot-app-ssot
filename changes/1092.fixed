@@ -1,1 +1,1 @@
-Fixed DNA center resyncing Latitude and longitude every sync in building model by changing data type to decimal.
+Fixed DNA center resyncing Latitude and longitude every sync in building model by changing data type to float.
