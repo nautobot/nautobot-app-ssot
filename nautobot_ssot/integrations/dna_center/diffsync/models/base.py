@@ -115,7 +115,7 @@ class Port(DiffSyncModel):
     port_type: str
     port_mode: str
     mac_addr: Optional[str] = None
-    mtu: int
+    mtu: Optional[int]
     status: str
     enabled: bool
     metadata: Optional[bool] = True
