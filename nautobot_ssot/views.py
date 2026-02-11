@@ -137,17 +137,21 @@ def get_job_run_status_chart():
     if not counts_by_status:
         counts_by_status["No syncs yet"] = 1
 
-    # Build data in JOB_STATUS_ORDER so slice colors match status semantics
-    ordered_data = {}
-    for status in JOB_STATUS_ORDER:
-        if status in counts_by_status and counts_by_status[status] > 0:
-            ordered_data[status] = counts_by_status[status]
+    # Build data in JOB_STATUS_ORDER so slice colors match status semantics.
+    # Use normalized format to preserve order - Nautobot's _transform_data sorts keys
+    # alphabetically which would assign colors wrong (e.g. Failed before Success).
+    ordered_labels = [s for s in JOB_STATUS_ORDER if s in counts_by_status and counts_by_status[s] > 0]
+    ordered_values = [counts_by_status[s] for s in ordered_labels]
+    data = {
+        "x": ordered_labels,
+        "series": [{"name": "Job Run Status", "data": ordered_values}],
+    }
 
     chart = EChartsBase(
         chart_type=EChartsTypeChoices.PIE,
         header="Job Run Status",
         description="Distribution of sync job outcomes",
-        data={"Job Run Status": ordered_data},
+        data=data,
         theme_colors=JOB_STATUS_THEME_COLORS,
     )
 
