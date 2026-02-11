@@ -1,15 +1,29 @@
 """Django views for Single Source of Truth (SSoT)."""
 
+from collections import defaultdict
+from datetime import timedelta
+
 from django.conf import settings
+from django.db.models import Count
+from django.db.models.functions import TruncDate
 from django.http import Http404
 from django.shortcuts import render
 from django.template import loader
 from django.template.defaultfilters import date
 from django.urls import reverse
 from django.utils.html import format_html
+from django.utils.text import slugify
 from django.utils.timesince import timesince
 from django.views import View as DjangoView
 from django_tables2 import RequestConfig
+
+try:
+    from nautobot.apps.ui import EChartsBase, EChartsTypeChoices
+    from nautobot.core.ui.constants import UI_COLORS
+except ImportError:
+    EChartsBase = None
+    EChartsTypeChoices = None
+    UI_COLORS = {}
 from nautobot.apps.ui import (
     Breadcrumbs,
     DistinctViewTab,
@@ -44,12 +58,409 @@ from nautobot_ssot.api import serializers
 from nautobot_ssot.integrations import utils
 from nautobot_ssot.templatetags.render_diff import render_diff
 
+from .choices import SyncLogEntryActionChoices
 from .filters import SyncFilterSet, SyncLogEntryFilterSet
 from .forms import SyncBulkEditForm, SyncFilterForm, SyncForm, SyncLogEntryFilterForm
 from .jobs import get_data_jobs
 from .jobs.base import DataSource, DataTarget
 from .models import Sync, SyncLogEntry
 from .tables import DashboardTable, SyncLogEntryTable, SyncTable, SyncTableSingleSourceOrTarget
+
+# Friendly display names for JobResult status values
+JOB_STATUS_DISPLAY = {
+    "PENDING": "Pending",
+    "STARTED": "Running",
+    "SUCCESS": "Success",
+    "FAILURE": "Failed",
+    "ERROR": "Error",
+    "REVOKED": "Revoked",
+    "RETRY": "Retry",
+    "RECEIVED": "Received",
+}
+
+# Canonical order for pie chart (determines which status gets which color)
+JOB_STATUS_ORDER = [
+    "Success",
+    "Failed",
+    "Error",
+    "Running",
+    "Pending",
+    "Revoked",
+    "Retry",
+    "Received",
+    "No syncs yet",
+    "Unknown",
+]
+
+
+def _status_color(name, light, dark):
+    """Get color dict from UI_COLORS or fallback to provided hex values."""
+    if UI_COLORS and name in UI_COLORS:
+        return UI_COLORS[name]
+    return {"light": light, "dark": dark}
+
+
+# Theme colors matching status semantics (green=success, red=failure, orange=in-progress, gray=neutral)
+JOB_STATUS_THEME_COLORS = [
+    _status_color("green", "#1ca92a", "#2ecc40"),  # Success
+    _status_color("red", "#e01f1f", "#ff4c4c"),  # Failed
+    _status_color("red-darker", "#731c1c", "#813131"),  # Error
+    _status_color("orange", "#e07807", "#ff9933"),  # Running
+    _status_color("gray", "#b0b0b0", "#828282"),  # Pending
+    _status_color("red-darker", "#731c1c", "#813131"),  # Revoked
+    _status_color("orange-lighter", "#f1c28f", "#ffd1a3"),  # Retry
+    _status_color("gray-lighter", "#dbdbdb", "#c7c7c7"),  # Received
+    _status_color("gray", "#b0b0b0", "#828282"),  # No syncs yet
+    _status_color("gray-darker", "#5e5e5e", "#494949"),  # Unknown
+]
+
+
+def get_job_run_status_chart():
+    """Build an ECharts pie chart for Job Run Status distribution.
+
+    Returns the chart and render context, or None if ECharts is unavailable.
+    """
+    if EChartsBase is None or EChartsTypeChoices is None:
+        return None
+
+    status_counts = (
+        Sync.objects.filter(job_result__isnull=False).values("job_result__status").annotate(count=Count("pk"))
+    )
+
+    # Build count lookup by display name
+    counts_by_status = {}
+    for item in status_counts:
+        status_raw = item["job_result__status"] or "Unknown"
+        status_display = JOB_STATUS_DISPLAY.get(status_raw, status_raw.title())
+        counts_by_status[status_display] = item["count"]
+
+    if not counts_by_status:
+        counts_by_status["No syncs yet"] = 1
+
+    # Build data in JOB_STATUS_ORDER so slice colors match status semantics
+    ordered_data = {}
+    for status in JOB_STATUS_ORDER:
+        if status in counts_by_status and counts_by_status[status] > 0:
+            ordered_data[status] = counts_by_status[status]
+
+    chart = EChartsBase(
+        chart_type=EChartsTypeChoices.PIE,
+        header="Job Run Status",
+        description="Distribution of sync job outcomes",
+        data={"Job Run Status": ordered_data},
+        theme_colors=JOB_STATUS_THEME_COLORS,
+    )
+
+    return {
+        "chart": chart,
+        "chart_config": chart.get_config(),
+        "chart_container_id": slugify(f"echart-{chart.header}"),
+        "chart_width": "100%",
+        "chart_height": "24rem",
+    }
+
+
+def get_integration_activity_chart():
+    """Build an ECharts bar chart showing sync count per integration.
+
+    Returns the chart and render context, or None if ECharts is unavailable.
+    """
+    if EChartsBase is None or EChartsTypeChoices is None:
+        return None
+
+    # Count syncs by integration: source when pulling from external, target when pushing to external
+    source_counts = (
+        Sync.objects.filter(source__isnull=False)
+        .exclude(source="Nautobot")
+        .values("source")
+        .annotate(count=Count("pk"))
+    )
+    target_counts = (
+        Sync.objects.filter(target__isnull=False)
+        .exclude(target="Nautobot")
+        .values("target")
+        .annotate(count=Count("pk"))
+    )
+
+    # Merge: integration name -> total count (source + target)
+    counts_by_integration = {}
+    for item in source_counts:
+        counts_by_integration[item["source"]] = counts_by_integration.get(item["source"], 0) + item["count"]
+    for item in target_counts:
+        counts_by_integration[item["target"]] = counts_by_integration.get(item["target"], 0) + item["count"]
+
+    if not counts_by_integration:
+        return None
+
+    # ECharts bar format: {"SeriesName": {"x1": val1, "x2": val2}}
+    data = {"Syncs": dict(sorted(counts_by_integration.items(), key=lambda x: -x[1]))}
+
+    chart = EChartsBase(
+        chart_type=EChartsTypeChoices.BAR,
+        header="Integration Activity",
+        description="Number of sync runs per integration (data source or target)",
+        data=data,
+    )
+
+    return {
+        "chart": chart,
+        "chart_config": chart.get_config(),
+        "chart_container_id": slugify(f"echart-{chart.header}"),
+        "chart_width": "100%",
+        "chart_height": "24rem",
+    }
+
+
+def _chart_context(chart, chart_id_suffix=""):
+    """Build common chart render context."""
+    return {
+        "chart": chart,
+        "chart_config": chart.get_config(),
+        "chart_container_id": slugify(f"echart-{chart.header}{chart_id_suffix}"),
+        "chart_width": "100%",
+        "chart_height": "24rem",
+    }
+
+
+def get_sync_runs_over_time_chart(days=30):
+    """Build a line chart showing sync runs per day over the last N days."""
+    if EChartsBase is None or EChartsTypeChoices is None:
+        return None
+
+    from django.utils import timezone
+
+    since = timezone.now() - timedelta(days=days)
+    daily_counts = (
+        Sync.objects.filter(start_time__gte=since)
+        .annotate(date=TruncDate("start_time"))
+        .values("date")
+        .annotate(count=Count("pk"))
+        .order_by("date")
+    )
+    data = {"Syncs": {str(item["date"]): item["count"] for item in daily_counts}}
+    if not data["Syncs"]:
+        return None
+
+    chart = EChartsBase(
+        chart_type=EChartsTypeChoices.LINE,
+        header="Sync Runs Over Time",
+        description=f"Number of sync runs per day (last {days} days)",
+        data=data,
+    )
+    return _chart_context(chart)
+
+
+def get_sync_actions_chart():
+    """Build a pie chart showing distribution of sync actions (create/update/delete/no-change)."""
+    if EChartsBase is None or EChartsTypeChoices is None:
+        return None
+
+    action_counts = SyncLogEntry.objects.values("action").annotate(count=Count("pk")).order_by("-count")
+    action_display = {
+        SyncLogEntryActionChoices.ACTION_CREATE: "Creates",
+        SyncLogEntryActionChoices.ACTION_UPDATE: "Updates",
+        SyncLogEntryActionChoices.ACTION_DELETE: "Deletes",
+        SyncLogEntryActionChoices.ACTION_NO_CHANGE: "No change",
+    }
+    data = {
+        "Actions": {
+            action_display.get(item["action"], item["action"] or "Unknown"): item["count"] for item in action_counts
+        }
+    }
+    if not data["Actions"]:
+        return None
+
+    chart = EChartsBase(
+        chart_type=EChartsTypeChoices.PIE,
+        header="Sync Actions Distribution",
+        description="Creates, updates, deletes, and no-change operations",
+        data=data,
+    )
+    return _chart_context(chart)
+
+
+def get_sync_duration_over_time_chart(days=30):
+    """Build a line chart showing average sync duration per day over the last N days."""
+    if EChartsBase is None or EChartsTypeChoices is None:
+        return None
+
+    from django.utils import timezone
+
+    since = timezone.now() - timedelta(days=days)
+    syncs = (
+        Sync.objects.filter(start_time__gte=since)
+        .annotate(date=TruncDate("start_time"))
+        .values("date", "source_load_time", "target_load_time", "diff_time", "sync_time")
+        .order_by("date")
+    )
+
+    daily_totals = defaultdict(lambda: {"sum": 0, "count": 0})
+    for s in syncs:
+        total = timedelta(0)
+        for field in ("source_load_time", "target_load_time", "diff_time", "sync_time"):
+            val = s.get(field)
+            if val:
+                total += val
+        if total.total_seconds() > 0:
+            date_key = str(s["date"])
+            daily_totals[date_key]["sum"] += total.total_seconds()
+            daily_totals[date_key]["count"] += 1
+
+    data = {
+        "Avg Duration (sec)": {
+            d: round(v["sum"] / v["count"], 1) if v["count"] else 0 for d, v in sorted(daily_totals.items())
+        }
+    }
+    if not data["Avg Duration (sec)"]:
+        return None
+
+    chart = EChartsBase(
+        chart_type=EChartsTypeChoices.LINE,
+        header="Sync Duration Over Time",
+        description=f"Average sync duration per day (last {days} days)",
+        data=data,
+    )
+    return _chart_context(chart)
+
+
+def get_sync_phase_breakdown_chart(limit=10):
+    """Build a stacked bar chart showing time spent in each sync phase for recent syncs."""
+    if EChartsBase is None or EChartsTypeChoices is None:
+        return None
+
+    recent = list(
+        Sync.objects.filter(
+            source_load_time__isnull=False,
+            sync_time__isnull=False,
+        )
+        .values("id", "source", "target", "source_load_time", "target_load_time", "diff_time", "sync_time")
+        .order_by("-start_time")[:limit]
+    )
+    if not recent:
+        return None
+
+    # Build labels (short) and data for stacked bar
+    def _to_secs(val):
+        if val is None:
+            return 0.0
+        if hasattr(val, "total_seconds"):
+            return round(val.total_seconds(), 1)
+        return 0.0
+
+    labels = []
+    source_vals = []
+    target_vals = []
+    diff_vals = []
+    sync_vals = []
+    for s in reversed(recent):
+        src = (s.get("source") or "?")[:8]
+        tgt = (s.get("target") or "?")[:8]
+        labels.append(f"{src}→{tgt}" if src != "?" or tgt != "?" else str(s.get("id", "?"))[:8])
+        source_vals.append(_to_secs(s.get("source_load_time")))
+        target_vals.append(_to_secs(s.get("target_load_time")))
+        diff_vals.append(_to_secs(s.get("diff_time")))
+        sync_vals.append(_to_secs(s.get("sync_time")))
+
+    data = {
+        "Source load": dict(zip(labels, source_vals)),
+        "Target load": dict(zip(labels, target_vals)),
+        "Diff calc": dict(zip(labels, diff_vals)),
+        "Sync": dict(zip(labels, sync_vals)),
+    }
+    chart = EChartsBase(
+        chart_type=EChartsTypeChoices.BAR,
+        header="Sync Phase Breakdown",
+        description=f"Time per phase for last {limit} syncs (seconds)",
+        data=data,
+    )
+    return _chart_context(chart)
+
+
+def get_success_failure_by_integration_chart():
+    """Build a grouped bar chart showing success vs failure count per integration."""
+    if EChartsBase is None or EChartsTypeChoices is None:
+        return None
+
+    # Per integration: count success and failure (the non-Nautobot side of each sync)
+    syncs = Sync.objects.filter(job_result__isnull=False).values("source", "target", "job_result__status")
+    integration_success = {}
+    integration_failure = {}
+    for s in syncs:
+        integration = s["source"] if s["source"] != "Nautobot" else s["target"]
+        if integration:
+            if s["job_result__status"] == "SUCCESS":
+                integration_success[integration] = integration_success.get(integration, 0) + 1
+            elif s["job_result__status"] in ("FAILURE", "ERROR"):
+                integration_failure[integration] = integration_failure.get(integration, 0) + 1
+
+    all_integrations = sorted(set(integration_success) | set(integration_failure))
+    if not all_integrations:
+        return None
+
+    success_data = {i: integration_success.get(i, 0) for i in all_integrations}
+    failure_data = {i: integration_failure.get(i, 0) for i in all_integrations}
+    data = {"Success": success_data, "Failed": failure_data}
+    chart = EChartsBase(
+        chart_type=EChartsTypeChoices.BAR,
+        header="Success vs Failure by Integration",
+        description="Sync outcomes per integration",
+        data=data,
+        theme_colors=[
+            _status_color("green", "#1ca92a", "#2ecc40"),
+            _status_color("red", "#e01f1f", "#ff4c4c"),
+        ],
+    )
+    return _chart_context(chart)
+
+
+def get_memory_usage_chart(limit=10):
+    """Build a bar chart showing peak memory usage per sync phase for recent syncs."""
+    if EChartsBase is None or EChartsTypeChoices is None:
+        return None
+
+    recent = list(
+        Sync.objects.filter(source_load_memory_peak__isnull=False)
+        .values(
+            "id",
+            "source",
+            "target",
+            "source_load_memory_peak",
+            "target_load_memory_peak",
+            "diff_memory_peak",
+            "sync_memory_peak",
+        )
+        .order_by("-start_time")[:limit]
+    )
+    if not recent:
+        return None
+
+    labels = []
+    source_vals = []
+    target_vals = []
+    diff_vals = []
+    sync_vals = []
+    for s in reversed(recent):
+        src = (s.get("source") or "?")[:6]
+        tgt = (s.get("target") or "?")[:6]
+        labels.append(f"{src}→{tgt}")
+        source_vals.append(round((s["source_load_memory_peak"] or 0) / 1024 / 1024, 2))  # MB
+        target_vals.append(round((s["target_load_memory_peak"] or 0) / 1024 / 1024, 2))
+        diff_vals.append(round((s["diff_memory_peak"] or 0) / 1024 / 1024, 2))
+        sync_vals.append(round((s["sync_memory_peak"] or 0) / 1024 / 1024, 2))
+
+    data = {
+        "Source load (MB)": dict(zip(labels, source_vals)),
+        "Target load (MB)": dict(zip(labels, target_vals)),
+        "Diff (MB)": dict(zip(labels, diff_vals)),
+        "Sync (MB)": dict(zip(labels, sync_vals)),
+    }
+    chart = EChartsBase(
+        chart_type=EChartsTypeChoices.BAR,
+        header="Memory Usage by Phase",
+        description=f"Peak memory per phase for last {limit} syncs (MB)",
+        data=data,
+    )
+    return _chart_context(chart)
 
 
 def dry_run_label(value) -> str:
@@ -200,6 +611,38 @@ class DashboardView(ObjectListView):
             context["target"][target.name] = self.queryset.filter(
                 job_result__task_name=target.class_path,
             )
+
+        job_status_chart = get_job_run_status_chart()
+        if job_status_chart:
+            context["job_status_chart"] = job_status_chart
+
+        integration_activity_chart = get_integration_activity_chart()
+        if integration_activity_chart:
+            context["integration_activity_chart"] = integration_activity_chart
+
+        sync_runs_chart = get_sync_runs_over_time_chart()
+        if sync_runs_chart:
+            context["sync_runs_chart"] = sync_runs_chart
+
+        sync_actions_chart = get_sync_actions_chart()
+        if sync_actions_chart:
+            context["sync_actions_chart"] = sync_actions_chart
+
+        sync_duration_chart = get_sync_duration_over_time_chart()
+        if sync_duration_chart:
+            context["sync_duration_chart"] = sync_duration_chart
+
+        sync_phase_chart = get_sync_phase_breakdown_chart()
+        if sync_phase_chart:
+            context["sync_phase_chart"] = sync_phase_chart
+
+        success_failure_chart = get_success_failure_by_integration_chart()
+        if success_failure_chart:
+            context["success_failure_chart"] = success_failure_chart
+
+        memory_usage_chart = get_memory_usage_chart()
+        if memory_usage_chart:
+            context["memory_usage_chart"] = memory_usage_chart
 
         return context
 

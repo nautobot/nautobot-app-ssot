@@ -9,6 +9,130 @@
 {% block title %}Single Source of Truth{% endblock title %}
 
 {% block content %}
+    {% if job_status_chart or integration_activity_chart or sync_runs_chart or sync_actions_chart or sync_duration_chart or sync_phase_chart or success_failure_chart or memory_usage_chart %}
+        <div class="row mb-3">
+            {% if job_status_chart %}
+                <div class="col-lg-6 col-xl-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <strong>{{ job_status_chart.chart.header }}</strong>
+                        </div>
+                        <div class="card-body">
+                            {% if job_status_chart.chart.description %}
+                                <p class="text-muted">{{ job_status_chart.chart.description }}</p>
+                            {% endif %}
+                            {% render_echart job_status_chart.chart job_status_chart.chart_config job_status_chart.chart_container_id job_status_chart.chart_width job_status_chart.chart_height %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+            {% if integration_activity_chart %}
+                <div class="col-lg-6 col-xl-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <strong>{{ integration_activity_chart.chart.header }}</strong>
+                        </div>
+                        <div class="card-body">
+                            {% if integration_activity_chart.chart.description %}
+                                <p class="text-muted">{{ integration_activity_chart.chart.description }}</p>
+                            {% endif %}
+                            {% render_echart integration_activity_chart.chart integration_activity_chart.chart_config integration_activity_chart.chart_container_id integration_activity_chart.chart_width integration_activity_chart.chart_height %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+            {% if sync_runs_chart %}
+                <div class="col-lg-6 col-xl-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <strong>{{ sync_runs_chart.chart.header }}</strong>
+                        </div>
+                        <div class="card-body">
+                            {% if sync_runs_chart.chart.description %}
+                                <p class="text-muted">{{ sync_runs_chart.chart.description }}</p>
+                            {% endif %}
+                            {% render_echart sync_runs_chart.chart sync_runs_chart.chart_config sync_runs_chart.chart_container_id sync_runs_chart.chart_width sync_runs_chart.chart_height %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+            {% if sync_actions_chart %}
+                <div class="col-lg-6 col-xl-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <strong>{{ sync_actions_chart.chart.header }}</strong>
+                        </div>
+                        <div class="card-body">
+                            {% if sync_actions_chart.chart.description %}
+                                <p class="text-muted">{{ sync_actions_chart.chart.description }}</p>
+                            {% endif %}
+                            {% render_echart sync_actions_chart.chart sync_actions_chart.chart_config sync_actions_chart.chart_container_id sync_actions_chart.chart_width sync_actions_chart.chart_height %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+            {% if sync_duration_chart %}
+                <div class="col-lg-6 col-xl-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <strong>{{ sync_duration_chart.chart.header }}</strong>
+                        </div>
+                        <div class="card-body">
+                            {% if sync_duration_chart.chart.description %}
+                                <p class="text-muted">{{ sync_duration_chart.chart.description }}</p>
+                            {% endif %}
+                            {% render_echart sync_duration_chart.chart sync_duration_chart.chart_config sync_duration_chart.chart_container_id sync_duration_chart.chart_width sync_duration_chart.chart_height %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+            {% if sync_phase_chart %}
+                <div class="col-lg-6 col-xl-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <strong>{{ sync_phase_chart.chart.header }}</strong>
+                        </div>
+                        <div class="card-body">
+                            {% if sync_phase_chart.chart.description %}
+                                <p class="text-muted">{{ sync_phase_chart.chart.description }}</p>
+                            {% endif %}
+                            {% render_echart sync_phase_chart.chart sync_phase_chart.chart_config sync_phase_chart.chart_container_id sync_phase_chart.chart_width sync_phase_chart.chart_height %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+            {% if success_failure_chart %}
+                <div class="col-lg-6 col-xl-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <strong>{{ success_failure_chart.chart.header }}</strong>
+                        </div>
+                        <div class="card-body">
+                            {% if success_failure_chart.chart.description %}
+                                <p class="text-muted">{{ success_failure_chart.chart.description }}</p>
+                            {% endif %}
+                            {% render_echart success_failure_chart.chart success_failure_chart.chart_config success_failure_chart.chart_container_id success_failure_chart.chart_width success_failure_chart.chart_height %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+            {% if memory_usage_chart %}
+                <div class="col-lg-6 col-xl-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <strong>{{ memory_usage_chart.chart.header }}</strong>
+                        </div>
+                        <div class="card-body">
+                            {% if memory_usage_chart.chart.description %}
+                                <p class="text-muted">{{ memory_usage_chart.chart.description }}</p>
+                            {% endif %}
+                            {% render_echart memory_usage_chart.chart memory_usage_chart.chart_config memory_usage_chart.chart_container_id memory_usage_chart.chart_width memory_usage_chart.chart_height %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
     <div class="row">
         <div class="col-lg-6">
             <div class="card">
