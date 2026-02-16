@@ -612,10 +612,10 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         """Icon corresponding to the data_target."""
         return getattr(cls.Meta, "data_target_icon", None)
 
-    def run(self, *args, **kwargs):
+    def run(self, dryrun=True,  memory_profiling=False, *args, **kwargs):
         """Job entry point from Nautobot - do not override!"""
-        self.dryrun = kwargs.get("dryrun", True)
-        self.memory_profiling = kwargs.get("memory_profiling", False)
+        self.dryrun = dryrun
+        self.memory_profiling = memory_profiling
         self.parallel_loading = kwargs.get("parallel_loading", False)
         self.sync = Sync.objects.create(
             source=self.data_source,
