@@ -146,7 +146,7 @@ class NautobotAdapter(Adapter):
 
     def load_sites(self):
         """Add Nautobot Site objects as DiffSync Building models."""
-        for site in Location.objects.filter(location_type=self.job.building_loctype.name):
+        for site in Location.objects.filter(location_type=self.job.building_loctype):
             self.site_map[site.name] = site.id
             try:
                 building = self.building(

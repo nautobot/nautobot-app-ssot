@@ -1,0 +1,1 @@
+Fixed Device42 integration `load_sites()` passing `LocationType.name` string instead of `LocationType` instance to `Location.objects.filter()`, causing the sync job to fail.
