@@ -236,7 +236,13 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
         self.location_override = kwargs.get("location_override")
         self.containers = kwargs.get("containers")
         self.top_container = kwargs.get("top_container")
-        self.location_type = kwargs.get("location_type")
+        self.location_type = (
+            kwargs["location_type"]
+            if kwargs.get("location_type")
+            else self.location_override.location_type
+            if self.location_override
+            else None
+        )
         self.parent = kwargs.get("parent")
         self.tenant = kwargs.get("tenant")
         self.role_map = kwargs.get("role_map")
