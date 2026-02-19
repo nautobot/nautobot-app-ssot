@@ -5,7 +5,7 @@ Here you will find any steps necessary to upgrade the App in your Nautobot envir
 ## Upgrading to 4.1
 
 !!! note "BaseJob.run() Signature Change"
-    The `DataSyncBaseJob.run()` method (inherited by `DataSource` and `DataTarget`) now uses `*args` and `**kwargs` in its signature. This change minimizes impact when additional Job variables are added to the base class in future releases, as has been occurring with `dryrun`, `memory_profiling`, and `parallel_loading`. Custom jobs that override `run()` should pull any needed arguments from the `kwargs` dictionary, then pass `*args` and `**kwargs` through to `super().run()`. See the [Jobs development guide](../dev/jobs.md#step-3---the-job) for details and examples.
+    The `DataSyncBaseJob.run()` method (inherited by `DataSource` and `DataTarget`) now uses `*args` and `**kwargs` in its signature. This change minimizes impact when additional Job variables are added to the base class in future releases, as has been occurring with `dryrun`, `memory_profiling`, and `parallel_loading`. Custom jobs that override `run()` should pull any needed arguments from the `kwargs` dictionary, then pass `*args` and `**kwargs` through to `super().run()`. See the [Jobs development guide](../dev/jobs.md#step-3-the-job) for details and examples.
 
 ## Upgrade Guide
 
