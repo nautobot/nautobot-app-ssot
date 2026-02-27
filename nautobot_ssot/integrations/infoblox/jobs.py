@@ -40,7 +40,7 @@ def _get_infoblox_client_config(app_config, debug):
     return infoblox_client_config
 
 
-class InfobloxDataSource(DataSource):
+class InfobloxDataSource(DataSource):  # pylint: disable=too-many-instance-attributes
     """Infoblox SSoT Data Source."""
 
     debug = BooleanVar(description="Enable for verbose debug logging.")
@@ -107,7 +107,7 @@ class InfobloxDataSource(DataSource):
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 
-class InfobloxDataTarget(DataTarget):
+class InfobloxDataTarget(DataTarget):  # pylint: disable=too-many-instance-attributes
     """Infoblox SSoT Data Target."""
 
     debug = BooleanVar(description="Enable for verbose debug logging.")
