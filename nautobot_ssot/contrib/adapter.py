@@ -14,7 +14,6 @@ from django.db.models import Model
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship
 from nautobot.extras.models.metadata import MetadataType
-from typing_extensions import get_type_hints
 
 from nautobot_ssot.contrib.base import BaseNautobotAdapter, BaseNautobotModel
 from nautobot_ssot.contrib.types import (
@@ -86,9 +85,7 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
                 parameters[parameter_name] = database_object.cf[field_key]
             return
 
-        custom_relationship_annotation = annotation \
-            if isinstance(annotation, CustomRelationshipAnnotation) \
-            else None
+        custom_relationship_annotation = annotation if isinstance(annotation, CustomRelationshipAnnotation) else None
 
         # Handling of foreign keys where the local side is the many and the remote side the one.
         # Note: This includes the side of a generic foreign key that has the foreign key, i.e.

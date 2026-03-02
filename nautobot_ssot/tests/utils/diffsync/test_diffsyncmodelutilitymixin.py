@@ -1,17 +1,22 @@
 """
 Comprehensive unit tests for DiffSyncModelUtilityMixin.
 """
+
 import unittest
 from typing import Annotated, ClassVar
-from nautobot_ssot.utils.diffsync import DiffSyncModelUtilityMixin
+
 from nautobot_ssot.contrib.types import CustomAnnotation
+from nautobot_ssot.utils.diffsync import DiffSyncModelUtilityMixin
+
 
 class DummyAnnotation(CustomAnnotation):
     def __init__(self, value):
         self.value = value
 
+
 class DummyModel(DiffSyncModelUtilityMixin):
     """Model with identifiers, attributes, and various type annotations for testing."""
+
     _identifiers: ClassVar[tuple] = ("id1",)
     _attributes: ClassVar[tuple] = ("attr1", "attr2", "plain", "no_type")
     id1: str
@@ -20,10 +25,13 @@ class DummyModel(DiffSyncModelUtilityMixin):
     plain: float
     no_type = None
 
+
 class EmptyModel(DiffSyncModelUtilityMixin):
     """Model with no identifiers or attributes for edge case testing."""
+
     _identifiers: ClassVar[tuple] = ()
     _attributes: ClassVar[tuple] = ()
+
 
 class TestDiffSyncModelUtilityMixin(unittest.TestCase):
     """Unit tests for DiffSyncModelUtilityMixin covering all utility methods and edge cases."""

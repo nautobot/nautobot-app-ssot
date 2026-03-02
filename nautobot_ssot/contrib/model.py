@@ -5,7 +5,6 @@
 
 from collections import defaultdict
 from datetime import datetime
-from typing import List
 
 from diffsync import DiffSyncModel
 from diffsync.exceptions import ObjectCrudException, ObjectNotCreated, ObjectNotDeleted, ObjectNotUpdated
@@ -15,8 +14,6 @@ from django.db.models import ProtectedError, QuerySet
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
 from nautobot.extras.models.metadata import ObjectMetadata
-from typing_extensions import get_type_hints
-from nautobot_ssot.utils.diffsync import DiffSyncModelUtilityMixin
 
 from nautobot_ssot.contrib.base import BaseNautobotModel
 from nautobot_ssot.contrib.types import (
@@ -24,6 +21,7 @@ from nautobot_ssot.contrib.types import (
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
+from nautobot_ssot.utils.diffsync import DiffSyncModelUtilityMixin
 
 
 class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel):
@@ -133,9 +131,6 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
             This is mutated over the course of this function.
         :param adapter: The related diffsync adapter used for looking up things in the cache.
         """
-        # Use type hints at runtime to determine which fields are custom fields
-        type_hints = get_type_hints(cls, include_extras=True)
-
         cls._check_field(field)
 
         # Handle custom fields. See CustomFieldAnnotation docstring for more details.
@@ -144,9 +139,7 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
             obj.cf[annotation.key] = value
             return
 
-        custom_relationship_annotation = annotation \
-            if isinstance(annotation, CustomRelationshipAnnotation) \
-            else None
+        custom_relationship_annotation = annotation if isinstance(annotation, CustomRelationshipAnnotation) else None
 
         # Prepare handling of foreign keys and custom relationship foreign keys.
         # Example: If field is `tenant__group__name`, then

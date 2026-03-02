@@ -1,16 +1,16 @@
 """Utility functions and classes for use with the DiffSync library."""
 
-
-from typing import get_type_hints, ClassVar, get_args, Type, Any, get_origin, Tuple, Annotated, Union
-from nautobot_ssot.contrib.types import CustomAnnotation
 from functools import lru_cache
+from typing import Annotated, ClassVar, Union, get_args, get_origin, get_type_hints
+
+from nautobot_ssot.contrib.types import CustomAnnotation
 
 
 class DiffSyncModelUtilityMixin:
     """
     A `DiffSyncModel` utility mixin providing extended functionality to more easily get the data you need.
 
-    NOTE:
+    Note:
         - This mixin acts only on attributes and methods found in `diffsync.DiffSyncModel`.
         - Class vars included in this mixin class mirror the `DiffSyncModel` class for type local hinting purposes only.
         - All methods expect that attribute names exist and are type-annotated; missing attributes will raise KeyError.
@@ -48,6 +48,7 @@ class DiffSyncModelUtilityMixin:
 
         Args:
             attr_name (str): Attribute name.
+
         Returns:
             tuple: Type arguments for the attribute's type hint.
         """
@@ -56,12 +57,11 @@ class DiffSyncModelUtilityMixin:
     @classmethod
     @lru_cache
     def get_attr_annotation(cls, attr_name: str) -> Union[CustomAnnotation, None]:
-        """
-        Get custom annotation from attribute metadata, if it exists.
-        Returns None if attribute is not annotated.
+        """Get custom annotation from attribute metadata, else None.
 
         Args:
             attr_name (str): Attribute name.
+
         Returns:
             Any: Custom annotation instance or None.
         """
@@ -79,6 +79,7 @@ class DiffSyncModelUtilityMixin:
 
         Args:
             attr_name (str): Attribute name.
+
         Returns:
             bool: True if annotated, False otherwise.
         """
@@ -94,6 +95,7 @@ class DiffSyncModelUtilityMixin:
 
         Args:
             attr_name (str): Attribute name.
+
         Returns:
             type: The class type of the attribute.
         """

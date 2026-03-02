@@ -4,8 +4,8 @@
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
 from dataclasses import dataclass
-from enum import Enum
 from typing import Optional
+
 from nautobot_ssot.contrib.enums import RelationshipSideEnum
 
 
