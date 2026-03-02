@@ -11,6 +11,7 @@ from nautobot_ssot.utils.diffsync import DiffSyncModelUtilityMixin
 
 class DummyAnnotation(CustomAnnotation):
     """Dummy annotation for unittests."""
+
     def __init__(self, value):
         self.value = value
 
