@@ -60,7 +60,7 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
     @staticmethod
     def _get_parameter_names(diffsync_model):
         """Ignore the differences between identifiers and attributes, because at this point they don't matter to us."""
-        return list(diffsync_model._identifiers) + list(diffsync_model._attributes)  # pylint: disable=protected-access
+        return diffsync_model.get_synced_attributes()
 
     def invalidate_cache(self, zero_out_hits=True):
         """Deprecated, kept for backwards compatibility."""
@@ -77,24 +77,18 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
             self._load_single_object(database_object, diffsync_model, parameter_names)
 
     def _handle_single_parameter(self, parameters, parameter_name, database_object, diffsync_model):
-        type_hints = get_type_hints(diffsync_model, include_extras=True)
         # Handle custom fields and custom relationships. See CustomFieldAnnotation and CustomRelationshipAnnotation
         # docstrings for more details.
-        is_custom_field = False
-        custom_relationship_annotation = None
-        metadata_for_this_field = getattr(type_hints[parameter_name], "__metadata__", [])
-        for metadata in metadata_for_this_field:
-            if isinstance(metadata, CustomFieldAnnotation):
-                field_key = metadata.key or metadata.name
-                if field_key in database_object.cf:
-                    parameters[parameter_name] = database_object.cf[field_key]
-                is_custom_field = True
-                break
-            if isinstance(metadata, CustomRelationshipAnnotation):
-                custom_relationship_annotation = metadata
-                break
-        if is_custom_field:
+        annotation = diffsync_model.get_attr_annotation(parameter_name)
+        if isinstance(annotation, CustomFieldAnnotation):
+            field_key = annotation.key or annotation.name
+            if field_key in database_object.cf:
+                parameters[parameter_name] = database_object.cf[field_key]
             return
+
+        custom_relationship_annotation = annotation \
+            if isinstance(annotation, CustomRelationshipAnnotation) \
+            else None
 
         # Handling of foreign keys where the local side is the many and the remote side the one.
         # Note: This includes the side of a generic foreign key that has the foreign key, i.e.

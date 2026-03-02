@@ -16,6 +16,7 @@ from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
 from nautobot.extras.models.metadata import ObjectMetadata
 from typing_extensions import get_type_hints
+from nautobot_ssot.utils.diffsync import DiffSyncModelUtilityMixin
 
 from nautobot_ssot.contrib.base import BaseNautobotModel
 from nautobot_ssot.contrib.types import (
@@ -25,7 +26,7 @@ from nautobot_ssot.contrib.types import (
 )
 
 
-class NautobotModel(DiffSyncModel, BaseNautobotModel):
+class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel):
     """
     Base model for any diffsync models interfacing with Nautobot through the ORM.
 
@@ -36,10 +37,10 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
     model class.
     """
 
-    @classmethod
-    def get_synced_attributes(cls) -> List[str]:
-        """Return a list of parameters synced as part of the SSoT Process."""
-        return list(cls._identifiers) + list(cls._attributes)
+    # @classmethod
+    # def get_synced_attributes(cls) -> List[str]:
+    #     """Return a list of parameters synced as part of the SSoT Process."""
+    #     return list(cls._identifiers) + list(cls._attributes)
 
     @classmethod
     def _get_queryset(cls) -> QuerySet:
@@ -138,15 +139,14 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
         cls._check_field(field)
 
         # Handle custom fields. See CustomFieldAnnotation docstring for more details.
-        custom_relationship_annotation = None
-        metadata_for_this_field = getattr(type_hints[field], "__metadata__", [])
-        for metadata in metadata_for_this_field:
-            if isinstance(metadata, CustomFieldAnnotation):
-                obj.cf[metadata.key] = value
-                return
-            if isinstance(metadata, CustomRelationshipAnnotation):
-                custom_relationship_annotation = metadata
-                break
+        annotation = cls.get_attr_annotation(field)
+        if isinstance(annotation, CustomFieldAnnotation):
+            obj.cf[annotation.key] = value
+            return
+
+        custom_relationship_annotation = annotation \
+            if isinstance(annotation, CustomRelationshipAnnotation) \
+            else None
 
         # Prepare handling of foreign keys and custom relationship foreign keys.
         # Example: If field is `tenant__group__name`, then
