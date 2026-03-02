@@ -1,23 +1,17 @@
 """Utility functions and classes for use with the DiffSync library."""
 
-# pylint: disable=protected-access
-# Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
-
 from typing import List
 
-from typing_extensions import get_type_hints, ClassVar, get_args, Union, Type, Dict, Any
-from nautobot_ssot.contrib.types import (
-    CustomFieldAnnotation,
-    CustomRelationshipAnnotation,
-    CustomAnnotation,
-)
+from typing_extensions import get_type_hints, ClassVar, get_args, Union, Type, Any
+from nautobot_ssot.contrib.types import CustomAnnotation
 from functools import lru_cache
 
 
 class DiffSyncModelUtilityMixin:
     """A `DiffSyncModel` utility mixin providing extended functionality to more easily get the data you need.
 
-    NOTE: This mixin acts only on attributes and methods found in `diffsync.DiffSyncModel`.
+    NOTE: This mixin acts only on attributes and methods found in `diffsync.DiffSyncModel`. Class vars included
+          in this mixin class mirror the `DiffSyncModel` class for type local hinting purposes only.
     """
 
     _identifiers: ClassVar[tuple]
