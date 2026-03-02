@@ -1,0 +1,39 @@
+[
+    {
+        "mac": "3c:8b:7f:0d:3a:99",
+        "name": "HQ-SW-1",
+        "network": {
+            "id": "L_628815097971621533"
+        },
+        "productType": "switch",
+        "serial": "Q5TJ-GUYY-GY8W",
+        "tags": [
+            "recently-added"
+        ],
+        "uplinks": [
+            {
+                "interface": "man1",
+                "addresses": [
+                    {
+                        "protocol": "ipv4",
+                        "address": "146.171.212.44",
+                        "gateway": "146.171.212.1",
+                        "assignmentMode": "dynamic",
+                        "nameservers": {
+                            "addresses": [
+                                "149.23.8.8",
+                                "149.23.10.10"
+                            ]
+                        },
+                        "public": {
+                            "address": "136.32.98.1"
+                        },
+                        "vlan": {
+                            "id": "1"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+]

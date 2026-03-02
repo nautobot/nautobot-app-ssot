@@ -27,10 +27,6 @@ class AutomationGatewayModelUIViewSet(views.NautobotUIViewSet):
     lookup_field = "pk"
     breadcrumbs = Breadcrumbs(
         items={
-            "list": [
-                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
-                ModelBreadcrumbItem(model=models.AutomationGatewayModel),
-            ],
             "detail": [
                 ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
                 ModelBreadcrumbItem(),

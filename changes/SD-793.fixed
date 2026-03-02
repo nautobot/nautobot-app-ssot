@@ -1,0 +1,1 @@
+Fixed various issues in IPFabric SSoT integration, including logging errors, platform creation, IP creation fallback, and VLAN location handling.

@@ -35,6 +35,7 @@ from nautobot.apps.views import (
     get_obj_from_context,
 )
 from nautobot.core.ui.utils import flatten_context
+from nautobot.core.views.paginator import get_paginate_count
 from nautobot.extras.models import Job as JobModel
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -170,13 +171,6 @@ class DashboardView(ObjectListView):
     table = DashboardTable
     action_buttons = []
     template_name = "nautobot_ssot/dashboard.html"
-    breadcrumbs = Breadcrumbs(
-        items={
-            "list": [
-                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
-            ],
-        }
-    )
 
     def extra_context(self):
         """Extend the view context with additional details."""
@@ -262,10 +256,6 @@ class SyncUIViewSet(
     action_buttons = ("export",)
     breadcrumbs = Breadcrumbs(
         items={
-            "list": [
-                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
-                ModelBreadcrumbItem(model=Sync),
-            ],
             "detail": [
                 ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
                 ModelBreadcrumbItem(),
@@ -343,10 +333,9 @@ class SyncUIViewSet(
                     ObjectsTablePanel(
                         weight=100,
                         section=SectionChoices.FULL_WIDTH,
-                        table_class=SyncLogEntryTable,
-                        table_filter="sync",
                         related_field_name="sync",
                         tab_id="logentries",
+                        context_table_key="logs_table",
                         enable_bulk_actions=False,
                         include_paginator=True,
                     ),
@@ -370,7 +359,17 @@ class SyncUIViewSet(
     @action(detail=True, url_path="logs", custom_view_base_action="view")
     def logentries(self, request, *args, **kwargs):
         """Log entries action for Sync UIViewSet."""
-        return Response({})
+        sync = self.get_object()
+        queryset = sync.logs.all()
+        filterset = SyncLogEntryFilterSet(request.GET, queryset=queryset, request=request)
+
+        table = SyncLogEntryTable(filterset.qs, user=request.user)
+        RequestConfig(
+            request,
+            paginate={"paginator_class": EnhancedPaginator, "per_page": get_paginate_count(request)},
+        ).configure(table)
+
+        return Response({"logs_table": table})
 
     @action(detail=True, url_path="jobresult", custom_view_base_action="view")
     def jobresult(self, request, *args, **kwargs):
@@ -384,18 +383,26 @@ class SyncLogEntryUIViewSet(ObjectListViewMixin):
     filterset_class = SyncLogEntryFilterSet
     filterset_form_class = SyncLogEntryFilterForm
     lookup_field = "pk"
-    queryset = SyncLogEntry.objects.all()
+    queryset = SyncLogEntry.objects.select_related("sync").only(
+        "id",
+        "timestamp",
+        "sync_id",
+        "action",
+        "status",
+        "diff",
+        "message",
+        "synced_object_type",
+        "synced_object_id",
+        "object_repr",
+        # Sync fields needed for __str__ and link rendering
+        "sync__id",
+        "sync__source",
+        "sync__target",
+        "sync__start_time",
+    )
     serializer_class = serializers.SyncLogEntrySerializer
     table_class = SyncLogEntryTable
     action_buttons = ("export",)
-    breadcrumbs = Breadcrumbs(
-        items={
-            "list": [
-                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
-                ModelBreadcrumbItem(model=SyncLogEntry),
-            ],
-        }
-    )
 
 
 class SSOTConfigView(ContentTypePermissionRequiredMixin, DjangoView):

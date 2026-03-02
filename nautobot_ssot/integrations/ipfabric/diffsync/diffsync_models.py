@@ -467,8 +467,10 @@ class Device(DiffSyncExtras):
             # tonb_nbutils.tag_object calls validated_save()
             try:
                 tonb_nbutils.tag_object(nautobot_object=_device, custom_field=LAST_SYNCHRONIZED_CF_NAME)
-            except (DjangoBaseDBError, ValidationError):
-                self.adapter.job.logger.error(f"Unable to update the existing Device named {self.name} with {attrs}")
+            except (DjangoBaseDBError, ValidationError) as err:
+                self.adapter.job.logger.error(
+                    f"Unable to update the existing Device named {self.name} with {attrs}. Error: {err}"
+                )
                 return_super = False
 
             vc_name = attrs.get("vc_name")
@@ -834,7 +836,7 @@ class Vlan(DiffSyncExtras):
         else:
             description = attrs.get("description")
             if adapter.job.debug:
-                logger.debug("Creating VLAN: %s description: %s", vlan_name, description)
+                adapter.job.logger.debug("Creating VLAN: %s description: %s", vlan_name, description)
             vlan = tonb_nbutils.create_vlan(
                 vlan_name=vlan_name,
                 vlan_id=vlan_id,
@@ -845,9 +847,10 @@ class Vlan(DiffSyncExtras):
             )
             if vlan:
                 return super().create(ids=ids, adapter=adapter, attrs=attrs)
-            adapter.job.logger.error.debug(
-                f"Unable to get or create a VLAN named {vlan_name} with VLAN ID {vlan_id} at location named {location_name}"
-            )
+            if adapter.job.debug:
+                adapter.job.logger.debug(
+                    f"Unable to get or create a VLAN named {vlan_name} with VLAN ID {vlan_id} at location named {location_name}"
+                )
         return None
 
     def delete(self) -> Optional["DiffSyncModel"]:

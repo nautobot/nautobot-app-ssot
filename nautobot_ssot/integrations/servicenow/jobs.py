@@ -80,15 +80,15 @@ class ServiceNowDataTarget(DataTarget, Job):  # pylint: disable=abstract-method,
         self.target_adapter = ServiceNowDiffSync(client=snc, job=self, sync=self.sync, site_filter=self.site_filter)
         self.target_adapter.load()
 
-    def run(self, dryrun, memory_profiling, delete_records, site_filter, *args, **kwargs):  # pylint:disable=arguments-differ
+    def run(self, *args, **kwargs):
         """Run sync."""
-        self.dryrun = dryrun
-        self.memory_profiling = memory_profiling
-        self.site_filter = site_filter
-        self.delete_records = delete_records
+        self.dryrun = kwargs.get("dryrun")
+        self.memory_profiling = kwargs.get("memory_profiling")
+        self.site_filter = kwargs.get("site_filter")
+        self.delete_records = kwargs.get("delete_records")
         if not self.delete_records:
             self.diffsync_flags |= DiffSyncFlags.SKIP_UNMATCHED_DST
-        super().run(dryrun, memory_profiling, *args, **kwargs)
+        super().run(*args, **kwargs)
 
     def lookup_object(self, model_name, unique_id):
         """Look up a Nautobot object based on the DiffSync model name and unique ID."""

@@ -40,7 +40,7 @@ def _get_infoblox_client_config(app_config, debug):
     return infoblox_client_config
 
 
-class InfobloxDataSource(DataSource):
+class InfobloxDataSource(DataSource):  # pylint: disable=too-many-instance-attributes
     """Infoblox SSoT Data Source."""
 
     debug = BooleanVar(description="Enable for verbose debug logging.")
@@ -94,19 +94,20 @@ class InfobloxDataSource(DataSource):
         self.logger.info("Loading data from Nautobot...")
         self.target_adapter.load()
 
-    def run(self, dryrun, memory_profiling, debug, *args, **kwargs):  # pylint: disable=arguments-differ
+    def run(self, *args, **kwargs):
         """Perform data synchronization."""
-        self.debug = debug
-        self.dryrun = dryrun
+        self.debug = kwargs.get("debug")
+        self.dryrun = kwargs.get("dryrun")
         self.config = kwargs.get("config")
         if not self.config.enable_sync_to_nautobot:
             self.logger.error("Can't run sync to Nautobot, provided config doesn't have it enabled...")
             raise ValueError("Config not enabled for sync to Nautobot.")
-        self.memory_profiling = memory_profiling
+        self.memory_profiling = kwargs.get("memory_profiling")
+        self.parallel_loading = kwargs.get("parallel_loading")
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 
-class InfobloxDataTarget(DataTarget):
+class InfobloxDataTarget(DataTarget):  # pylint: disable=too-many-instance-attributes
     """Infoblox SSoT Data Target."""
 
     debug = BooleanVar(description="Enable for verbose debug logging.")
@@ -160,17 +161,18 @@ class InfobloxDataTarget(DataTarget):
         self.logger.info("Loading data from Infoblox...")
         self.target_adapter.load()
 
-    def run(self, dryrun, memory_profiling, debug, *args, **kwargs):  # pylint: disable=arguments-differ
+    def run(self, *args, **kwargs):
         """Perform data synchronization."""
-        self.debug = debug
-        self.dryrun = dryrun
+        self.debug = kwargs.get("debug")
+        self.dryrun = kwargs.get("dryrun")
         self.config = kwargs.get("config")
         # Additional guard against launching sync to Infoblox with config that doesn't allow it
         if not self.config.enable_sync_to_infoblox:
             self.logger.error("Can't run sync to Infoblox, provided config doesn't have it enabled...")
             raise ValueError("Config not enabled for sync to Infoblox.")
-        self.memory_profiling = memory_profiling
-        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
+        self.memory_profiling = kwargs.get("memory_profiling")
+        self.parallel_loading = kwargs.get("parallel_loading")
+        super().run(*args, **kwargs)
 
 
 jobs = [InfobloxDataSource, InfobloxDataTarget]

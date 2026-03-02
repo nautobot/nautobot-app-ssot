@@ -931,8 +931,10 @@ class NautobotTestSetup:
         for _repo in GLOBAL_YAML_SETTINGS["git_repository"]:
             if _repo.get("branch"):
                 _git_branch = _repo["branch"]
-            else:
+            elif DEVELOP_YAML_SETTINGS.get("git_branch"):
                 _git_branch = DEVELOP_YAML_SETTINGS["git_branch"]
+            else:
+                _git_branch = DEVELOP_YAML_SETTINGS["git_repository"][0]["branch"]
             _secrets_group = None
             if _repo.get("secrets_group_name"):
                 _secrets_group = SecretsGroup.objects.get(name=_repo["secrets_group_name"])
@@ -1051,6 +1053,10 @@ class NautobotTestSetup:
         for scheduled_job in GLOBAL_YAML_SETTINGS["scheduled_job"]:
             # Parse the start_time to preserve timezone info
             start_time = get_scheduled_start_time(scheduled_job["start_time"])
+            if DEVELOP_YAML_SETTINGS.get("scheduled_job"):
+                job_vars = DEVELOP_YAML_SETTINGS["scheduled_job"][0]["job_vars"]
+            else:
+                job_vars = {}
             scheduled_job = ScheduledJob(
                 name=scheduled_job["name"],
                 task=job.class_path,
@@ -1058,7 +1064,7 @@ class NautobotTestSetup:
                 start_time=start_time,
                 job_model=job,
                 user=admin,
-                kwargs={},
+                kwargs=job_vars,
             )
             scheduled_job.validated_save()
 

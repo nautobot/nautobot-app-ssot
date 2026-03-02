@@ -78,7 +78,7 @@ class TestSolarWindsClientTestCase(TransactionTestCase):  # pylint: disable=too-
         response = self.test_client._req("GET", "test")  # pylint: disable=protected-access
 
         self.assertEqual(response.status_code, 200)
-        mock_request.assert_called_once_with("GET", self.test_client.url + "test", data="null", timeout=60)
+        mock_request.assert_called_once_with("GET", self.test_client.url + "test", data="null", timeout=60, verify=True)
 
     @patch("nautobot_ssot.integrations.solarwinds.utils.solarwinds.requests.Session.request")
     def test_request_with_data(self, mock_request):
@@ -91,7 +91,7 @@ class TestSolarWindsClientTestCase(TransactionTestCase):  # pylint: disable=too-
 
         self.assertEqual(response.status_code, 201)
         mock_request.assert_called_once_with(
-            "POST", self.test_client.url + "create", data='{"key": "value"}', timeout=60
+            "POST", self.test_client.url + "create", data='{"key": "value"}', timeout=60, verify=True
         )
 
     @patch("nautobot_ssot.integrations.solarwinds.utils.solarwinds.requests.Session.request")
@@ -107,7 +107,9 @@ class TestSolarWindsClientTestCase(TransactionTestCase):  # pylint: disable=too-
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.reason, "Unauthorized")
         self.assertIsInstance(response, requests.Response)
-        mock_request.assert_called_once_with("GET", self.test_client.url + "unauthorized", data="null", timeout=60)
+        mock_request.assert_called_once_with(
+            "GET", self.test_client.url + "unauthorized", data="null", timeout=60, verify=True
+        )
 
     @patch("nautobot_ssot.integrations.solarwinds.utils.solarwinds.requests.Session.request")
     def test_request_json_decoding_error_handling(self, mock_request):
@@ -121,7 +123,9 @@ class TestSolarWindsClientTestCase(TransactionTestCase):  # pylint: disable=too-
 
         self.assertEqual(response.status_code, 500)
         self.assertIsInstance(response, requests.Response)
-        mock_request.assert_called_once_with("GET", self.test_client.url + "decode_error", data="null", timeout=60)
+        mock_request.assert_called_once_with(
+            "GET", self.test_client.url + "decode_error", data="null", timeout=60, verify=True
+        )
 
     @patch("nautobot_ssot.integrations.solarwinds.utils.solarwinds.requests.Session.request")
     def test_request_exception_handling(self, mock_request):
@@ -134,7 +138,9 @@ class TestSolarWindsClientTestCase(TransactionTestCase):  # pylint: disable=too-
         self.assertEqual(response.status_code, None)
         self.assertIsInstance(response, requests.Response)
         self.assertEqual(response.content, None)
-        mock_request.assert_called_once_with("GET", self.test_client.url + "timeout", data="null", timeout=60)
+        mock_request.assert_called_once_with(
+            "GET", self.test_client.url + "timeout", data="null", timeout=60, verify=True
+        )
 
     def test_get_filtered_container_ids_success(self):
         """Validate successful retrieval of container IDs with get_filtered_container_ids()."""

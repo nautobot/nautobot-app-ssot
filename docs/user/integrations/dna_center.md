@@ -30,6 +30,10 @@ From the Dashboard, you can also view more information about the App by clicking
 
 ![Detail View](../../images/dnac_detail-view.png)
 
+### Prerequisites
+
+#### Enable the Job
+
 In order to utilize this integration you must first enable the Job. You can find the available installed Jobs under Jobs -> Jobs:
 
 ![Job List](../../images/dnac_job_list.png)
@@ -42,15 +46,21 @@ You'll need to check the `Enabled` checkbox and then the `Update` button at the 
 
 ![Enabled Job](../../images/dnac_enabled_job.png)
 
+#### Create Secrets
+
 Once the Job is enabled, you'll need to manually create a few objects in Nautobot to use with the Job. First, you'll need to create a Secret that contains the username and password for authenticating to your desired DNA Center instance:
 
 ![Username Secret](../../images/dnac_username_secret.png)
 
 ![Password Secret](../../images/dnac_password_secret.png)
 
+#### Create SecretsGroup
+
 Once the required Secrets are created, you'll need to create a SecretsGroup that pairs them together and defines the Access Type of HTTP(S) like shown below:
 
 ![DNAC SecretsGroup](../../images/dnac_secretsgroup.png)
+
+#### Create ExternalIntegration
 
 With the SecretsGroup defined containing your instance credentials you'll then need to create an ExternalIntegration object to store the information about the DNA Center instance you wish to synchronize with.
 
@@ -60,15 +70,25 @@ With the SecretsGroup defined containing your instance credentials you'll then n
 
 ![DNAC ExternalIntegration](../../images/dnac_external_integration_adv.png)
 
-The final step before running the Job is to create a Controller that references the ExternalIntegration that you just created. You can attach a `Managed Device Group` to the Controller for all imported Devices to be placed in. If you don't create a Managed Device Group, one will be created automatically and associated to the specified Controller with the name of `<Controller name> Managed Devices`.
+#### Create Controller
+
+Now you must create a Controller that references the ExternalIntegration that you just created. You can attach a `Managed Device Group` to the Controller for all imported Devices to be placed in. If you don't create a Managed Device Group, one will be created automatically and associated to the specified Controller with the name of `<Controller name> Managed Devices`.
 
 ![DNAC Controller](../../images/dnac_controller.png)
 
 > You can utilize multiple DNA Center Controllers with this integration as long as you specify a unique Tenant per Controller. The failure to use differing Tenants will have the Devices, Prefixes, and IPAddresses potentially removed if they are non-existent on the additional Controller. Locations should remain unaffected.
 
-With those configured, you will then need to define a LocationType to use for each DNA Center location type of Areas, Buildings, and Floors. With those created, you can run the Job to start the synchronization:
+#### Create LocationTypes
+
+With those configured, you will then need to define the LocationTypes to use for each DNA Center location type of Areas, Buildings, and Floors.
+
+![LocationType Hierarchy](../../images/dnac_locationtype_hierarchy.png)
 
 > When creating the Area LocationType you must check the "Nestable" option.
+
+### Run the Job
+
+With those created, you can run the Job to start the synchronization:
 
 ![Job Form](../../images/dnac_job_form.png)
 

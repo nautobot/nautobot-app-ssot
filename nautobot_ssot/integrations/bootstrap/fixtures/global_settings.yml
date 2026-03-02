@@ -597,7 +597,7 @@ software_image:
     image_file_checksum: ""
     hashing_algorithm: "SHA256"
     default_image: false
-    device_types: ["arista-switch"]
+    device_types: []
     tags: ["Test"]
   - software: "paloalto_panos - 11.0.3"
     status: "Active"
@@ -836,7 +836,7 @@ prefix:
 scheduled_job:
   - name: "Test Scheduled Job"
     interval: "daily"
-    start_time: "2025-01-28T23:00:00+00:00"
+    start_time: "2025-12-28 23:00:00+00:00"
     job_model: "Export Object List"
     user: "admin"
 custom_field:

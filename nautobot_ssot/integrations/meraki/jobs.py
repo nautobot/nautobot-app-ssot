@@ -47,6 +47,14 @@ class MerakiDataSource(DataSource):  # pylint: disable=too-many-instance-attribu
         label="Parent Location",
         required=False,
     )
+    location = ObjectVar(
+        model=Location,
+        queryset=Location.objects.all(),
+        description="Default Location to use for imported objects.",
+        display_field="display",
+        label="Default Location",
+        required=False,
+    )
     location_map = JSONVar(
         label="Location Mapping",
         required=False,
@@ -66,6 +74,11 @@ class MerakiDataSource(DataSource):  # pylint: disable=too-many-instance-attribu
         description="List of tuples containing DeviceTypes to assign to a specified Role. ex: [('MX', 'Firewall')]",
     )
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
+    sync_firewall_lan_ips = BooleanVar(
+        label="Sync Firewall LAN SVIs",
+        default=False,
+        description="Sync LAN SVI gateway IP Addresses and Prefixes from MX/MG/Z devices.",
+    )
     tenant = ObjectVar(model=Tenant, label="Tenant", required=False)
 
     def __init__(self):
@@ -84,6 +97,7 @@ class MerakiDataSource(DataSource):  # pylint: disable=too-many-instance-attribu
         field_order = [
             "dryrun",
             "debug",
+            "sync_firewall_lan_ips",
             "instance",
             "network_loctype",
             "parent_location",
@@ -143,26 +157,22 @@ class MerakiDataSource(DataSource):  # pylint: disable=too-many-instance-attribu
         self.target_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync, tenant=self.tenant)
         self.target_adapter.load()
 
-    def run(
-        self,
-        dryrun,
-        memory_profiling,
-        debug,
-        *args,
-        **kwargs,
-    ):  # pylint: disable=arguments-differ
+    def run(self, *args, **kwargs):
         """Perform data synchronization."""
-        self.dryrun = dryrun
-        self.memory_profiling = memory_profiling
-        self.instance = kwargs["instance"]
-        self.network_loctype = kwargs["network_loctype"]
-        self.parent_location = kwargs["parent_location"]
-        self.location_map = kwargs["location_map"]
-        self.debug = debug
-        self.tenant = kwargs["tenant"]
-        self.hostname_mapping = literal_eval(kwargs["hostname_mapping"])
-        self.devicetype_mapping = literal_eval(kwargs["devicetype_mapping"])
-        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
+        self.instance = kwargs.get("instance")
+        self.network_loctype = kwargs.get("network_loctype")
+        self.parent_location = kwargs.get("parent_location")
+        self.location_map = kwargs.get("location_map")
+        self.location = kwargs.get("location")
+        self.debug = kwargs.get("debug")
+        self.tenant = kwargs.get("tenant")
+        self.hostname_mapping = literal_eval(kwargs.get("hostname_mapping", "[]"))
+        self.devicetype_mapping = literal_eval(kwargs.get("devicetype_mapping", "[]"))
+        self.sync_firewall_lan_ips = kwargs.get("sync_firewall_lan_ips")
+        self.dryrun = kwargs.get("dryrun")
+        self.memory_profiling = kwargs.get("memory_profiling")
+        self.parallel_loading = kwargs.get("parallel_loading")
+        super().run(*args, **kwargs)
 
 
 jobs = [MerakiDataSource]

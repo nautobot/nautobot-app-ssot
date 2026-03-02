@@ -67,13 +67,12 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             logger.info("Pseudo MGMT Interface: %s", pseudo_interface)
 
         for iface in device_interfaces:
-            # TODO: New Login IP columns in 7.3
-            if ip_address := iface.get("primaryIp"):
-                subnet_mask = (
-                    str(ipaddress.ip_interface(managed_ipv4[ip_address]["net"]).netmask)
-                    if ip_address in managed_ipv4
-                    else "255.255.255.255"
-                )
+            # loginIpv4 is available in 7.3+, fallback to primaryIp for older versions
+            if ip_address := iface.get("primaryIp") or iface.get("loginIpv4"):
+                if ip_address in managed_ipv4 and managed_ipv4[ip_address].get("net"):
+                    subnet_mask = str(ipaddress.ip_interface(managed_ipv4[ip_address]["net"]).netmask)
+                else:
+                    subnet_mask = "255.255.255.255"
             else:
                 subnet_mask = None
 

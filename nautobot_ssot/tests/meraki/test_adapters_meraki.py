@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 from django.contrib.contenttypes.models import ContentType
+from django.test import override_settings
 from nautobot.core.testing import TransactionTestCase
 from nautobot.dcim.models import Device, Location, LocationType
 from nautobot.extras.models import JobResult, Status
@@ -50,6 +51,7 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         self.job.devicetype_mapping = [("MS", "Switch"), ("MX", "Firewall")]
         self.job.network_loctype = site_loctype
         self.job.location_map = {}
+        self.job.location = None
         self.job.job_result = JobResult.objects.create(
             name=self.job.class_path, task_name="fake task", worker="default"
         )
@@ -278,4 +280,188 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
                 "2001:116:4811:7d51:b7e:a1fa:edbe:4f2c__None",
             },
             {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")},
+        )
+
+    def test_load_firewall_ports_pppoe_address_without_mask(self):
+        """Validate load_firewall_ports() handles PPPoE address without mask."""
+        mock_device = MagicMock()
+        mock_device.name = "HQ MX"
+
+        self.meraki_client.get_management_ports.return_value = {"wan1": {}}
+        self.meraki_client.get_uplink_settings.return_value = fix.GET_UPLINK_SETTINGS_PPPOE_RECV_FIXTURE
+        self.meraki_client.get_appliance_switchports.return_value = []
+
+        self.meraki.load_firewall_ports(
+            device=mock_device,
+            serial="V4GD-ABDP-YVCK",
+            network_id="L_165471703274884707",
+            lan_ip=None,
+        )
+
+        self.assertEqual(
+            {"wan1__HQ MX"},
+            {port.get_unique_id() for port in self.meraki.get_all("port")},
+        )
+        self.assertEqual(
+            {"1.6.8.10__None"},
+            {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")},
+        )
+        self.assertEqual(
+            {"1.6.8.10/32__Global"},
+            {prefix.get_unique_id() for prefix in self.meraki.get_all("prefix")},
+        )
+
+    def test_load_firewall_ports_lan_svis_disabled(self):
+        """LAN SVIs are skipped when sync_firewall_lan_ips is False."""
+        mock_device = MagicMock()
+        mock_device.name = "HQ01"
+
+        self.job.sync_firewall_lan_ips = False
+        self.meraki.device_map = {"HQ01": fix.GET_ORG_DEVICES_FIXTURE[1]}
+
+        # Avoid unrelated WAN/port side effects
+        self.meraki_client.get_management_ports.return_value = {}
+        self.meraki_client.get_uplink_settings.return_value = {}
+        self.meraki_client.get_appliance_switchports.return_value = []
+
+        self.meraki.load_firewall_ports(
+            device=mock_device,
+            serial="V4GD-ABDP-YVCK",
+            network_id="L_165471703274884707",
+            lan_ip=None,
+        )
+
+        self.meraki_client.get_appliance_vlans_settings.assert_not_called()
+
+        ports = {port.get_unique_id() for port in self.meraki.get_all("port")}
+        self.assertNotIn("Vlan1234__HQ01", ports)
+        self.assertNotIn("Vlan1__HQ01", ports)
+
+    def test_load_firewall_ports_vlan_svis(self):
+        """VLAN-mode SVIs are loaded when sync_firewall_lan_ips is True."""
+        mock_device = MagicMock()
+        mock_device.name = "HQ01"
+
+        self.job.sync_firewall_lan_ips = True
+        self.meraki.device_map = {"HQ01": fix.GET_ORG_DEVICES_FIXTURE[1]}
+
+        self.meraki_client.get_appliance_vlans_settings.return_value = fix.GET_APPLIANCE_VLANS_SETTINGS_TRUE_FIXTURE
+        self.meraki_client.get_appliance_vlans.return_value = fix.GET_APPLIANCE_VLANS_FIXTURE
+
+        self.meraki_client.get_management_ports.return_value = {}
+        self.meraki_client.get_uplink_settings.return_value = {}
+        self.meraki_client.get_appliance_switchports.return_value = []
+
+        self.meraki.load_firewall_ports(
+            device=mock_device,
+            serial="V4GD-ABDP-YVCK",
+            network_id="L_165471703274884707",
+            lan_ip=None,
+        )
+
+        self.meraki_client.get_appliance_single_lan.assert_not_called()
+
+        ports = {port.get_unique_id() for port in self.meraki.get_all("port")}
+        self.assertIn("Vlan1234__HQ01", ports)
+
+        prefixes = {pf.get_unique_id() for pf in self.meraki.get_all("prefix")}
+        self.assertIn("192.168.1.0/24__Global", prefixes)
+
+        ipaddrs = {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")}
+        self.assertIn("192.168.1.2__None", ipaddrs)
+
+        ipassignment = self.meraki.get(
+            "ipassignment",
+            {"address": "192.168.1.2", "device": "HQ01", "namespace": "Global", "port": "Vlan1234"},
+        )
+        self.assertFalse(ipassignment.primary)
+
+    def test_load_firewall_ports_single_lan_svi(self):
+        """Single-LAN SVIs are loaded when VLANs are disabled."""
+        mock_device = MagicMock()
+        mock_device.name = "HQ01"
+
+        self.job.sync_firewall_lan_ips = True
+        self.meraki.device_map = {"HQ01": fix.GET_ORG_DEVICES_FIXTURE[1]}
+
+        self.meraki_client.get_appliance_vlans_settings.return_value = fix.GET_APPLIANCE_VLANS_SETTINGS_FALSE_FIXTURE
+        self.meraki_client.get_appliance_single_lan.return_value = fix.GET_APPLIANCE_SINGLE_LAN_FIXTURE
+
+        self.meraki_client.get_management_ports.return_value = {}
+        self.meraki_client.get_uplink_settings.return_value = {}
+        self.meraki_client.get_appliance_switchports.return_value = []
+
+        self.meraki.load_firewall_ports(
+            device=mock_device,
+            serial="V4GD-ABDP-YVCK",
+            network_id="L_165471703274884707",
+            lan_ip=None,
+        )
+
+        self.meraki_client.get_appliance_vlans.assert_not_called()
+
+        ports = {port.get_unique_id() for port in self.meraki.get_all("port")}
+        self.assertIn("Vlan1__HQ01", ports)
+
+        prefixes = {pf.get_unique_id() for pf in self.meraki.get_all("prefix")}
+        self.assertIn("192.168.50.0/24__Global", prefixes)
+
+        ipaddrs = {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")}
+        self.assertIn("192.168.50.2__None", ipaddrs)
+
+        ipassignment = self.meraki.get(
+            "ipassignment",
+            {"address": "192.168.50.2", "device": "HQ01", "namespace": "Global", "port": "Vlan1"},
+        )
+        self.assertFalse(ipassignment.primary)
+
+    @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"meraki_allow_dhcp_mgmt_ips": True}})
+    def test_load_switch_with_dhcp_mgmt_ip(self):
+        """Validate load_switch_ports() loads a switch with a dynamic management ip."""
+        mock_device = MagicMock()
+        mock_device.name = "HQ-SW-1"
+
+        self.meraki.device_map = {"HQ-SW-1": fix.GET_ORG_DEVICES_DHCP_FIXTURE[0]}
+        self.meraki.conn.network_map = {"L_628815097971621533": {"name": "HQ-SW-1"}}
+
+        self.meraki_client.get_org_uplink_addresses_by_device.return_value = (
+            fix.GET_ORG_UPLINK_ADDRESSES_BY_DEVICE_SW_DHCP_FIXTURE
+        )
+        self.meraki_client.get_management_ports.return_value = fix.GET_MANAGEMENT_PORTS_RECV_DHCP_FIXTURE
+        self.meraki_client.self.conn.get_org_switchports.return_value = fix.GET_MANAGEMENT_PORTS_RECV_DHCP_FIXTURE
+
+        self.meraki.load_switch_ports(
+            device=mock_device, serial=fix.GET_ORG_DEVICES_DHCP_FIXTURE[0]["serial"], lan_ip="146.171.212.44"
+        )
+        self.assertEqual(
+            {"wan1__HQ-SW-1", "man1__HQ-SW-1"},
+            {uplink.get_unique_id() for uplink in self.meraki.get_all("port")},
+        )
+        self.assertEqual(
+            {
+                "146.171.212.44__None",
+            },
+            {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")},
+        )
+
+    @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"meraki_allow_dhcp_mgmt_ips": True}})
+    def test_default_location(self):
+        """Test default location job input var."""
+        self.job.location = MagicMock()
+        self.job.location.name = "default location"
+
+        mock_device = MagicMock()
+        mock_device.name = "HQ-SW-1"
+
+        self.meraki_client.get_org_devices.return_value = fix.GET_ORG_DEVICES_DHCP_FIXTURE
+
+        self.meraki_client.get_org_uplink_addresses_by_device.return_value = (
+            fix.GET_ORG_UPLINK_ADDRESSES_BY_DEVICE_SW_DHCP_FIXTURE
+        )
+        self.meraki_client.get_management_ports.return_value = fix.GET_MANAGEMENT_PORTS_RECV_DHCP_FIXTURE
+        self.meraki_client.self.conn.get_org_switchports.return_value = fix.GET_MANAGEMENT_PORTS_RECV_DHCP_FIXTURE
+        self.meraki.load_devices()
+        self.assertEqual(
+            {"default location"},
+            {dev.network for dev in self.meraki.get_all("device")},
         )

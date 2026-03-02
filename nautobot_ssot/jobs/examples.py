@@ -530,11 +530,71 @@ class NautobotRemote(Adapter):
         self.load_device_types()
         self.load_platforms()
         self.load_devices()
-        self.load_interfaces()
+        # self.load_interfaces()
 
     def load_location_types(self):
-        """Load LocationType data from the remote Nautobot instance."""
-        for lt_entry in self._get_api_data("api/dcim/location-types/", depth=1):
+        """Load LocationType data from the remote Nautobot instance.
+
+        Ensures parent LocationTypes are loaded before their children by using
+        topological sorting based on parent-child relationships.
+        """
+        # First, collect all location type entries
+        location_type_entries = list(self._get_api_data("api/dcim/location-types/", depth=1))
+
+        # Build a map of location type names to their entries
+        entries_by_name = {entry["name"]: entry for entry in location_type_entries}
+
+        # Build dependency graph: map parent name -> list of child entries
+        children_by_parent = {}
+        root_entries = []  # Entries with no parent
+
+        for entry in location_type_entries:
+            parent_name = entry.get("parent", {}).get("name") if entry.get("parent") else None
+            if parent_name:
+                if parent_name not in children_by_parent:
+                    children_by_parent[parent_name] = []
+                children_by_parent[parent_name].append(entry)
+            else:
+                root_entries.append(entry)
+
+        # Topological sort: process parents before children
+        processed = set()
+        ordered_entries = []
+
+        def process_entry(entry):
+            """Process an entry and its children recursively."""
+            entry_name = entry["name"]
+            if entry_name in processed:
+                return
+
+            # Process parent first if it exists and hasn't been processed
+            parent_name = entry.get("parent", {}).get("name") if entry.get("parent") else None
+            if parent_name and parent_name in entries_by_name:
+                parent_entry = entries_by_name[parent_name]
+                if parent_entry["name"] not in processed:
+                    process_entry(parent_entry)
+
+            # Now process this entry
+            ordered_entries.append(entry)
+            processed.add(entry_name)
+
+            # Process children
+            if entry_name in children_by_parent:
+                for child_entry in children_by_parent[entry_name]:
+                    process_entry(child_entry)
+
+        # Process all root entries (those with no parent)
+        for root_entry in root_entries:
+            process_entry(root_entry)
+
+        # Handle any remaining entries that might have been missed
+        # (e.g., circular references or orphaned entries)
+        for entry in location_type_entries:
+            if entry["name"] not in processed:
+                process_entry(entry)
+
+        # Load location types in the correct order
+        for lt_entry in ordered_entries:
             content_types = self.get_content_types(lt_entry)
             location_type = self.locationtype(
                 name=lt_entry["name"],
@@ -548,8 +608,68 @@ class NautobotRemote(Adapter):
             self.job.logger.debug(f"Loaded {location_type} LocationType from remote Nautobot instance")
 
     def load_locations(self):
-        """Load Locations data from the remote Nautobot instance."""
-        for loc_entry in self._get_api_data("api/dcim/locations/", depth=3):
+        """Load Locations data from the remote Nautobot instance.
+
+        Ensures parent Locations are loaded before their children by using
+        topological sorting based on parent-child relationships.
+        """
+        # First, collect all location entries
+        location_entries = list(self._get_api_data("api/dcim/locations/", depth=3))
+
+        # Build a map of location names to their entries
+        entries_by_name = {entry["name"]: entry for entry in location_entries}
+
+        # Build dependency graph: map parent name -> list of child entries
+        children_by_parent = {}
+        root_entries = []  # Entries with no parent
+
+        for entry in location_entries:
+            parent_name = entry.get("parent", {}).get("name") if entry.get("parent") else None
+            if parent_name:
+                if parent_name not in children_by_parent:
+                    children_by_parent[parent_name] = []
+                children_by_parent[parent_name].append(entry)
+            else:
+                root_entries.append(entry)
+
+        # Topological sort: process parents before children
+        processed = set()
+        ordered_entries = []
+
+        def process_entry(entry):
+            """Process an entry and its children recursively."""
+            entry_name = entry["name"]
+            if entry_name in processed:
+                return
+
+            # Process parent first if it exists and hasn't been processed
+            parent_name = entry.get("parent", {}).get("name") if entry.get("parent") else None
+            if parent_name and parent_name in entries_by_name:
+                parent_entry = entries_by_name[parent_name]
+                if parent_entry["name"] not in processed:
+                    process_entry(parent_entry)
+
+            # Now process this entry
+            ordered_entries.append(entry)
+            processed.add(entry_name)
+
+            # Process children
+            if entry_name in children_by_parent:
+                for child_entry in children_by_parent[entry_name]:
+                    process_entry(child_entry)
+
+        # Process all root entries (those with no parent)
+        for root_entry in root_entries:
+            process_entry(root_entry)
+
+        # Handle any remaining entries that might have been missed
+        # (e.g., circular references or orphaned entries)
+        for entry in location_entries:
+            if entry["name"] not in processed:
+                process_entry(entry)
+
+        # Load locations in the correct order
+        for loc_entry in ordered_entries:
             location_args = {
                 "name": loc_entry["name"],
                 "status__name": loc_entry["status"]["name"] if loc_entry["status"].get("name") else "Active",
@@ -875,50 +995,50 @@ class ExampleDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
             DataMapping("Interface (remote)", None, "Interface (local)", reverse("dcim:interface_list")),
         )
 
-    def run(  # pylint: disable=too-many-arguments, arguments-differ
+    def run(
         self,
-        dryrun,
-        memory_profiling,
-        source,
-        source_url,
-        source_token,
         *args,
         **kwargs,
     ):
         """Run sync."""
-        self.dryrun = dryrun
-        self.memory_profiling = memory_profiling
+        self.dryrun = kwargs.get("dryrun", True)
+        self.memory_profiling = kwargs.get("memory_profiling", False)
+        self.source = kwargs.get("source")
+        self.source_url = kwargs.get("source_url")
+        self.source_token = kwargs.get("source_token")
         try:
-            if source:
-                self.logger.info(f"Using external integration '{source}'")
-                self.source_url = source.remote_url
-                if not source.secrets_group:
+            if self.source:
+                self.logger.info(f"Using external integration '{self.source}'")
+                self.source_url = self.source.remote_url
+                if not self.source.secrets_group:
                     self.logger.error(
                         "%s is missing a SecretsGroup. You must specify a SecretsGroup to synchronize with this Nautobot instance.",
-                        source,
+                        self.source,
                     )
                     raise MissingSecretsGroupException(message="Missing SecretsGroup on specified ExternalIntegration.")
-                secrets_group = source.secrets_group
+                secrets_group = self.source.secrets_group
                 self.source_token = secrets_group.get_secret_value(
                     access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
                     secret_type=SecretsGroupSecretTypeChoices.TYPE_TOKEN,
                 )
             else:
-                self.source_url = source_url
-                self.source_token = source_token
+                self.source_url = self.source_url
+                self.source_token = self.source_token
         except SecretError as error:
             self.logger.error("Error setting up job: %s", error)
             raise
 
-        super().run(dryrun, memory_profiling, *args, **kwargs)
+        super().run(*args, **kwargs)
 
     def load_source_adapter(self):
         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""
+        self.logger.info("Loading source adapter: NautobotRemote")
         self.source_adapter = NautobotRemote(url=self.source_url, token=self.source_token, job=self)
         self.source_adapter.load()
 
     def load_target_adapter(self):
         """Method to instantiate and load the TARGET adapter into `self.target_adapter`."""
+        self.logger.info("Loading target adapter: NautobotLocal")
         self.target_adapter = NautobotLocal(job=self, sync=self.sync)
         self.target_adapter.load()
 
@@ -987,40 +1107,36 @@ class ExampleDataTarget(DataTarget):
 
     def run(  # pylint: disable=too-many-arguments, arguments-differ
         self,
-        dryrun,
-        memory_profiling,
-        target,
-        target_url,
-        target_token,
         *args,
         **kwargs,
     ):
         """Run sync."""
-        self.dryrun = dryrun
-        self.memory_profiling = memory_profiling
+        self.target = kwargs.get("target")
+        self.target_url = kwargs.get("target_url")
+        self.target_token = kwargs.get("target_token")
         try:
-            if target:
-                self.logger.info(f"Using external integration '{target}'")
-                self.target_url = target.remote_url
-                if not target.secrets_group:
+            if self.target:
+                self.logger.info(f"Using external integration '{self.target}'")
+                self.target_url = self.target.remote_url
+                if not self.target.secrets_group:
                     self.logger.error(
                         "%s is missing a SecretsGroup. You must specify a SecretsGroup to synchronize with this Nautobot instance.",
-                        target,
+                        self.target,
                     )
                     raise MissingSecretsGroupException("Missing SecretsGroup on specified ExternalIntegration.")
-                secrets_group = target.secrets_group
+                secrets_group = self.target.secrets_group
                 self.target_token = secrets_group.get_secret_value(
                     access_type=SecretsGroupAccessTypeChoices.TYPE_HTTP,
                     secret_type=SecretsGroupSecretTypeChoices.TYPE_TOKEN,
                 )
             else:
-                self.target_url = target_url
-                self.target_token = target_token
+                self.target_url = self.target_url
+                self.target_token = self.target_token
         except SecretError as error:
             self.logger.error("Error setting up job: %s", error)
             raise
 
-        super().run(dryrun, memory_profiling, *args, **kwargs)
+        super().run(*args, **kwargs)
 
     def load_source_adapter(self):
         """Method to instantiate and load the SOURCE adapter into `self.source_adapter`."""
