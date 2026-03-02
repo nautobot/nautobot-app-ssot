@@ -31,6 +31,7 @@ class DiffSyncModelUtilityMixin:
     @classmethod
     @lru_cache
     def get_attr_args(cls, attr_name: str) -> Tuple:
+        """Get attribute type hint arguments"""
         return get_args(cls.get_type_hints()[attr_name])
 
     @classmethod
@@ -46,7 +47,7 @@ class DiffSyncModelUtilityMixin:
     @classmethod
     @lru_cache
     def is_attr_annotated(cls, attr_name: str) -> bool:
-        """"""
+        """Check if attribute is annotated."""
         return get_origin(cls.get_type_hints()[attr_name]) in [Annotated]
 
     @classmethod
