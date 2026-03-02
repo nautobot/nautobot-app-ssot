@@ -294,7 +294,7 @@ class NautobotDevice(base.Device):
             else:
                 area_name = self.area
             device.location_id = self.adapter.site_map[area_name][site_name]
-            if attrs["floor"]:
+            if attrs.get("floor"):
                 device.location_id = self.adapter.floor_map[area_name][site_name][attrs["floor"]]
         if "model" in attrs:
             if attrs.get("vendor"):
@@ -329,6 +329,7 @@ class NautobotDevice(base.Device):
             )[0]
         device.cf["system_of_record"] = "DNA Center"
         device.cf["last_synced_from_sor"] = datetime.today().date().isoformat()
+        device.validated_save()
         metadata = add_or_update_metadata_on_object(
             adapter=self.adapter, obj=device, scoped_fields=SCOPED_FIELDS_MAPPING
         )

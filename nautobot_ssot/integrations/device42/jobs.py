@@ -146,20 +146,19 @@ class Device42DataSource(DataSource):  # pylint: disable=too-many-instance-attri
             self.logger.info("Loading data from Nautobot...")
         self.target_adapter.load()
 
-    def run(  # pylint: disable=arguments-differ, too-many-arguments
-        self, dryrun, memory_profiling, integration, debug, bulk_import, building_loctype, *args, **kwargs
-    ):
+    def run(self, *args, **kwargs):
         """Perform data synchronization."""
-        self.integration = integration
-        self.bulk_import = bulk_import
-        self.building_loctype = building_loctype
+        self.integration = kwargs.get("integration")
+        self.bulk_import = kwargs.get("bulk_import")
+        self.building_loctype = kwargs.get("building_loctype")
         if not self.building_loctype:
             self.building_loctype = LocationType.objects.get_or_create(name="Site")[0]
         ensure_contenttypes_on_location_type(location_type=self.building_loctype)
-        self.debug = debug
-        self.dryrun = dryrun
-        self.memory_profiling = memory_profiling
-        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
+        self.debug = kwargs.get("debug")
+        self.dryrun = kwargs.get("dryrun")
+        self.memory_profiling = kwargs.get("memory_profiling")
+        self.parallel_loading = kwargs.get("parallel_loading")
+        super().run(*args, **kwargs)
 
 
 jobs = [Device42DataSource]
