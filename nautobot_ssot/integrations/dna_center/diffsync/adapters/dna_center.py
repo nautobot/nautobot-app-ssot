@@ -1,7 +1,6 @@
 """Nautobot SSoT for Cisco DNA Center Adapter for DNA Center SSoT plugin."""
 
 import json
-from decimal import Decimal
 from typing import List, Optional
 
 from diffsync import Adapter
@@ -304,8 +303,8 @@ class DnaCenterAdapter(Adapter):
             attrs={
                 "address": address if address else "",
                 "area_parent": area_parent_name,
-                "latitude": float(round(Decimal(latitude if latitude else 0.0), 9)),
-                "longitude": float(round(Decimal(longitude if longitude else 0.0), 7)),
+                "latitude": latitude[:9].rstrip("0"),
+                "longitude": longitude[:7].rstrip("0"),
                 "tenant": self.tenant.name if self.tenant else None,
                 "metadata": True,
             },
