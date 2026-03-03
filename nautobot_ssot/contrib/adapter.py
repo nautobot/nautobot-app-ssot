@@ -57,11 +57,11 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
         return self.cache.get_from_orm(model_class, parameters)
 
     @staticmethod
-    def _get_parameter_names(diffsync_model):
+    def _get_parameter_names(diffsync_model: BaseNautobotModel):
         """Ignore the differences between identifiers and attributes, because at this point they don't matter to us."""
         return diffsync_model.get_synced_attributes()
 
-    def invalidate_cache(self, zero_out_hits=True):
+    def invalidate_cache(self, zero_out_hits: bool=True):
         """Deprecated, kept for backwards compatibility."""
         self.job.logger.warning(
             "Adapter class method `self.invalidate_cache()` is deprecated and will be removed in a future version. "
@@ -85,24 +85,25 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
                 parameters[parameter_name] = database_object.cf[field_key]
             return
 
-        custom_relationship_annotation = annotation if isinstance(annotation, CustomRelationshipAnnotation) else None
+        is_custom_relationship = isinstance(annotation, CustomRelationshipAnnotation)
+
 
         # Handling of foreign keys where the local side is the many and the remote side the one.
         # Note: This includes the side of a generic foreign key that has the foreign key, i.e.
         # the 'many' side.
         if "__" in parameter_name:
-            if custom_relationship_annotation:
+            if is_custom_relationship:
                 parameters[parameter_name] = self._handle_custom_relationship_foreign_key(
-                    database_object, parameter_name, custom_relationship_annotation
+                    database_object, parameter_name, annotation
                 )
             else:
                 parameters[parameter_name] = orm_attribute_lookup(database_object, parameter_name)
             return
 
         # Handling of one- and many-to custom relationship fields:
-        if custom_relationship_annotation:
+        if annotation:
             parameters[parameter_name] = self._handle_custom_relationship_to_many_relationship(
-                database_object, diffsync_model, parameter_name, custom_relationship_annotation
+                database_object, diffsync_model, parameter_name, annotation
             )
             return
 
@@ -130,13 +131,12 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
             self._handle_single_parameter(parameters, parameter_name, database_object, diffsync_model)
         parameters["pk"] = database_object.pk
         try:
-            diffsync_model = diffsync_model(**parameters)
+            diffsync_model_instance = diffsync_model(**parameters)
         except pydantic.ValidationError as error:
             raise ValueError(f"Parameters: {parameters}") from error
-        self.add(diffsync_model)
-
-        self._handle_children(database_object, diffsync_model)
-        return diffsync_model
+        self.add(diffsync_model_instance)
+        self._handle_children(database_object, diffsync_model_instance)
+        return diffsync_model_instance
 
     def _handle_children(self, database_object, diffsync_model: BaseNautobotModel):
         """Recurse through all the children for this model."""
@@ -151,11 +151,9 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
     def load(self):
         """Generic implementation of the load function."""
         for model_name in self.top_level:
-            diffsync_model = self._get_diffsync_class(model_name)
-
             # This function directly mutates the diffsync store, i.e. it will create and load the objects
             # for this specific model class as well as its children without returning anything.
-            self._load_objects(diffsync_model)
+            self._load_objects(self._get_diffsync_class(model_name))
 
     def _get_diffsync_class(self, model_name):
         """Given a model name, return the diffsync class."""
@@ -263,11 +261,13 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
         """
         # Introspect type annotations to deduce which fields are of interest
         # for this many-to-many relationship.
-        inner_type = get_inner_type(diffsync_model, parameter_name)
         related_objects_list = []
         # TODO: Allow for filtering, i.e. not taking into account all the objects behind the relationship.
         for related_object in getattr(database_object, parameter_name).all():
-            dictionary_representation = load_typed_dict(inner_type, related_object)
+            dictionary_representation = load_typed_dict(
+                get_inner_type(diffsync_model, parameter_name),
+                related_object,
+            )
             # Only use those where there is a single field defined, all 'None's will not help us.
             if any(dictionary_representation.values()):
                 related_objects_list.append(dictionary_representation)

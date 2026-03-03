@@ -313,7 +313,7 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
 
     @classmethod
     def _lookup_and_set_custom_relationship_foreign_keys(cls, custom_relationship_foreign_keys, obj, adapter):
-        for _, related_model_dict in custom_relationship_foreign_keys.items():
+        for related_model_dict in custom_relationship_foreign_keys.values():
             annotation = related_model_dict.pop("_annotation")
             # TODO: Deduplicate this code
             try:
