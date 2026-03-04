@@ -61,7 +61,7 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
         """Ignore the differences between identifiers and attributes, because at this point they don't matter to us."""
         return diffsync_model.get_synced_attributes()
 
-    def invalidate_cache(self, zero_out_hits: bool=True):
+    def invalidate_cache(self, zero_out_hits: bool = True):
         """Deprecated, kept for backwards compatibility."""
         self.job.logger.warning(
             "Adapter class method `self.invalidate_cache()` is deprecated and will be removed in a future version. "
@@ -86,7 +86,6 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
             return
 
         is_custom_relationship = isinstance(annotation, CustomRelationshipAnnotation)
-
 
         # Handling of foreign keys where the local side is the many and the remote side the one.
         # Note: This includes the side of a generic foreign key that has the foreign key, i.e.
