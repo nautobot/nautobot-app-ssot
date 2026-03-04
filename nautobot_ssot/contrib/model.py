@@ -35,11 +35,6 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
     model class.
     """
 
-    # @classmethod
-    # def get_synced_attributes(cls) -> List[str]:
-    #     """Return a list of parameters synced as part of the SSoT Process."""
-    #     return list(cls._identifiers) + list(cls._attributes)
-
     @classmethod
     def _get_queryset(cls) -> QuerySet:
         """Get the queryset used to load the models data from Nautobot."""
