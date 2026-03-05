@@ -197,11 +197,11 @@ class NautobotPort(Port):
 
 
 class NautobotNamespace(Namespace):
-    """Nautobot Prefix model."""
+    """Nautobot Namespace model."""
 
     @classmethod
     def create(cls, adapter, ids, attrs):
-        """Create Prefix in Nautobot from NautobotPrefix objects."""
+        """Create Namespace in Nautobot from NautobotNamespace objects."""
         if adapter.job.debug:
             adapter.job.logger.info(f"Creating Namespace {ids['name']}.")
         _ns = OrmNamespace(
