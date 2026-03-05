@@ -288,10 +288,10 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
                         "attributes": {
                             "country": "United States",
                             "address": "123 Broadway, New York City, New York 12345, United States",
-                            "latitude": "40.758746",
+                            "latitude": 40.758746,
                             "addressInheritedFrom": "2",
                             "type": "building",
-                            "longitude": "-73.978660",
+                            "longitude": -73.978660,
                         },
                     }
                 ],
