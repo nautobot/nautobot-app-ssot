@@ -7,8 +7,7 @@ from nautobot_ssot.contrib.types import CustomAnnotation
 
 
 class DiffSyncModelUtilityMixin:
-    """
-    A `DiffSyncModel` utility mixin providing extended functionality to more easily get the data you need.
+    """A `DiffSyncModel` utility mixin providing extended functionality to more easily get the data you need.
 
     Note:
         - This mixin acts only on attributes and methods found in `diffsync.DiffSyncModel`.
@@ -21,8 +20,7 @@ class DiffSyncModelUtilityMixin:
 
     @classmethod
     def get_synced_attributes(cls) -> list[str]:
-        """
-        Return a list of parameters synced as part of the SSoT Process.
+        """Return a list of parameters synced as part of the SSoT Process.
 
         Returns:
             list[str]: All identifiers and attributes to be synced.
@@ -32,8 +30,7 @@ class DiffSyncModelUtilityMixin:
     @classmethod
     @lru_cache
     def get_type_hints(cls) -> dict[str, type]:
-        """
-        Return cached type hints for this model class, including extras (annotations).
+        """Return cached type hints for this model class, including extras (annotations).
 
         Returns:
             dict[str, type]: Mapping of attribute names to their type hints.
@@ -43,8 +40,7 @@ class DiffSyncModelUtilityMixin:
     @classmethod
     @lru_cache
     def get_attr_args(cls, attr_name: str) -> tuple:
-        """
-        Get type arguments for the given attribute's type hint.
+        """Get type arguments for the given attribute's type hint.
 
         Args:
             attr_name (str): Attribute name.
@@ -74,8 +70,7 @@ class DiffSyncModelUtilityMixin:
     @classmethod
     @lru_cache
     def is_attr_annotated(cls, attr_name: str) -> bool:
-        """
-        Check if attribute is annotated with typing.Annotated.
+        """Check if attribute is annotated with typing.Annotated.
 
         Args:
             attr_name (str): Attribute name.
@@ -88,8 +83,7 @@ class DiffSyncModelUtilityMixin:
     @classmethod
     @lru_cache
     def get_attr_type(cls, attr_name: str) -> type:
-        """
-        Get class type of specified attribute.
+        """Get class type of specified attribute.
 
         NOTE: If attribute is `Annotated`, returns the inner type, not `Annotated`.
 
