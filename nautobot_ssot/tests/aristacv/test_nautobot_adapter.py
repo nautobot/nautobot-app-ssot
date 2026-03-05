@@ -1,4 +1,4 @@
-"""Unit tests for the Nautoobt DiffSync adapter class."""
+"""Unit tests for the Nautobot DiffSync adapter class."""
 
 from diffsync.enum import DiffSyncModelFlags
 from django.test import override_settings
