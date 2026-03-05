@@ -224,8 +224,12 @@ class DnaCenterAdapter(Adapter):
                         if self.job.dnac.location.parent and self.job.dnac.location.parent.parent
                         else None
                     ),
-                    "latitude": float(round(Decimal(self.job.dnac.location.latitude if self.job.dnac.location.latitude else 0.0), 9)),
-                    "longitude": float(round(Decimal(self.job.dnac.location.longitude if self.job.dnac.location.longitude else 0.0), 7)),
+                    "latitude": float(
+                        round(Decimal(self.job.dnac.location.latitude if self.job.dnac.location.latitude else 0.0), 9)
+                    ),
+                    "longitude": float(
+                        round(Decimal(self.job.dnac.location.longitude if self.job.dnac.location.longitude else 0.0), 7)
+                    ),
                     "tenant": self.job.dnac.location.tenant.name if self.job.dnac.location.tenant else None,
                     "uuid": None,
                 },
