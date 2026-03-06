@@ -392,7 +392,7 @@ class IPAddressToInterfaceModel(ModelQuerySetMixin, NautobotModel):
     interface__device__primary_ip6__host: Optional[str] = None
 
 
-class NautobotIPAddressToInterfaceModel(IPAddressToInterfaceModel):
+class NautobotIPAddressToInterfaceModel(IPAddressToInterfaceModel):  # pylint: disable=too-many-ancestors
     """IPAddressToInterface model for Nautobot."""
 
     @classmethod
