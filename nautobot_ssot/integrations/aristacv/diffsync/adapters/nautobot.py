@@ -112,9 +112,7 @@ class NautobotAdapter(Adapter):
                 name=ns.name,
                 uuid=ns.id,
             )
-            if self.job.app_config.delete_namespaces_on_sync:
-                new_ns.model_flags = DiffSyncModelFlags(0)
-            else:
+            if not self.job.app_config.delete_namespaces_on_sync:
                 new_ns.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
             self.add(new_ns)
 
@@ -126,9 +124,7 @@ class NautobotAdapter(Adapter):
                 namespace=pf.namespace.name,
                 uuid=pf.id,
             )
-            if self.job.app_config.delete_prefixes_on_sync:
-                new_pf.model_flags = DiffSyncModelFlags(0)
-            else:
+            if not self.job.app_config.delete_prefixes_on_sync:
                 new_pf.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
             self.add(new_pf)
 
