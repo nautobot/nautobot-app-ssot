@@ -108,6 +108,8 @@ class CloudVisionDataSourceJobTest(TestCase):
                 "aristacv_cvp_user": "admin",
                 "aristacv_verify": True,
                 "aristacv_delete_devices_on_sync": True,
+                "aristacv_delete_namespaces_on_sync": True,
+                "aristacv_delete_prefixes_on_sync": True,
                 "aristacv_from_cloudvision_default_site": "HQ",
                 "aristacv_from_cloudvision_default_device_role": "Router",
                 "aristacv_from_cloudvision_default_device_role_color": "ff0000",
@@ -125,6 +127,8 @@ class CloudVisionDataSourceJobTest(TestCase):
         self.assertEqual(config_information["Verify SSL"], "True")
         self.assertEqual(config_information["User Name"], "admin")
         self.assertEqual(config_information["Delete Devices On Sync"], True)
+        self.assertEqual(config_information["Delete Namespaces On Sync"], True)
+        self.assertEqual(config_information["Delete Prefixes On Sync"], True)
         self.assertEqual(config_information["New Device Default Site"], "HQ")
         self.assertEqual(config_information["New Device Default Role"], "Router")
         self.assertEqual(config_information["New Device Default Role Color"], "ff0000")

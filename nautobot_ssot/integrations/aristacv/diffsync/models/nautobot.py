@@ -197,11 +197,11 @@ class NautobotPort(Port):
 
 
 class NautobotNamespace(Namespace):
-    """Nautobot Prefix model."""
+    """Nautobot Namespace model."""
 
     @classmethod
     def create(cls, adapter, ids, attrs):
-        """Create Prefix in Nautobot from NautobotPrefix objects."""
+        """Create Namespace in Nautobot from NautobotNamespace objects."""
         if adapter.job.debug:
             adapter.job.logger.info(f"Creating Namespace {ids['name']}.")
         _ns = OrmNamespace(
@@ -212,9 +212,12 @@ class NautobotNamespace(Namespace):
 
     def delete(self):
         """Delete Namespace in Nautobot."""
-        super().delete()
-        _ns = OrmNamespace.objects.get(id=self.uuid)
-        self.adapter.objects_to_delete["namespaces"].append(_ns)
+        if self.adapter.job.app_config.delete_namespaces_on_sync:
+            super().delete()
+            if self.adapter.job.debug:
+                self.adapter.job.logger.warning(f"Namespace {self.name} will be deleted per app settings.")
+            _ns = OrmNamespace.objects.get(id=self.uuid)
+            self.adapter.objects_to_delete["namespaces"].append(_ns)
         return self
 
 
@@ -236,9 +239,12 @@ class NautobotPrefix(Prefix):
 
     def delete(self):
         """Delete Prefix in Nautobot."""
-        super().delete()
-        _pf = OrmPrefix.objects.get(id=self.uuid)
-        self.adapter.objects_to_delete["prefixes"].append(_pf)
+        if self.adapter.job.app_config.delete_prefixes_on_sync:
+            super().delete()
+            if self.adapter.job.debug:
+                self.adapter.job.logger.warning(f"Prefix {self.prefix} will be deleted per app settings.")
+            _pf = OrmPrefix.objects.get(id=self.uuid)
+            self.adapter.objects_to_delete["prefixes"].append(_pf)
         return self
 
 
