@@ -16,3 +16,14 @@ This document describes all new features and changes in the release. The format 
 
 - [#1027](https://github.com/nautobot/nautobot-app-ssot/issues/1027) - Added Job input to Assign All Meraki Devices Under a Single Location
 - [#1028](https://github.com/nautobot/nautobot-app-ssot/issues/1028) - Added setting to Allow Syncing of DHCP-Based Management IPs
+
+## [v3.12.1 (2026-03-09)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.12.1)
+
+### Added
+
+- [#1096](https://github.com/nautobot/nautobot-app-ssot/issues/1096) - Added two new settings to the Arista CV integration to allow for the deletion of namespaces and prefixes that are present in Nautobot but not present in CloudVision (both default to False).
+
+### Fixed
+
+- [#1096](https://github.com/nautobot/nautobot-app-ssot/issues/1096) - Fixed a bug in the Arista CV integration that was attempting to create duplicate namespaces and prefixes that were already present in Nautobot but were not associated with an Arista device.
+- [#1098](https://github.com/nautobot/nautobot-app-ssot/issues/1098) - Fixed Device42 integration `load_sites()` passing `LocationType.name` string instead of `LocationType` instance to `Location.objects.filter()`, causing the sync job to fail.

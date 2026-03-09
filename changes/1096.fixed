@@ -1,1 +1,0 @@
-Fixed a bug in the Arista CV integration that was attempting to create duplicate namespaces and prefixes that were already present in Nautobot but were not associated with an Arista device.
