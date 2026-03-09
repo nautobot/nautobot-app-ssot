@@ -115,6 +115,7 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
         job.devicetype_mapping = [("MS", "Switch"), ("MX", "Firewall")]
         job.network_loctype = self.site_type
         job.tenant = None
+        job.device_status = None
         job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
         self.nb_adapter = NautobotAdapter(job=job, sync=None)
 
