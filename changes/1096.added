@@ -1,0 +1,1 @@
+Added two new settings to the Arista CV integration to allow for the deletion of namespaces and prefixes that are present in Nautobot but not present in CloudVision (both default to False).

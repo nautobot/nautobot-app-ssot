@@ -3,6 +3,7 @@
 from collections import defaultdict
 
 from diffsync import Adapter
+from diffsync.enum import DiffSyncModelFlags
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import ProtectedError
@@ -12,6 +13,8 @@ from nautobot.extras.models import Relationship as OrmRelationship
 from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
 from nautobot.ipam.models import IPAddress as OrmIPAddress
 from nautobot.ipam.models import IPAddressToInterface
+from nautobot.ipam.models import Namespace as OrmNamespace
+from nautobot.ipam.models import Prefix as OrmPrefix
 
 from nautobot_ssot.integrations.aristacv.diffsync.models.nautobot import (
     NautobotCustomField,
@@ -101,6 +104,29 @@ class NautobotAdapter(Adapter):
                 self.job.logger.warning(
                     f"Unable to find Device {intf.device.name} in diff to assign to port {intf.name}. {err}"
                 )
+
+    def load_namespaces(self):
+        """Add Nautobot Namespace objects as DiffSync Namespace models."""
+        for ns in OrmNamespace.objects.all():
+            new_ns = self.namespace(
+                name=ns.name,
+                uuid=ns.id,
+            )
+            if not self.job.app_config.delete_namespaces_on_sync:
+                new_ns.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+            self.add(new_ns)
+
+    def load_prefixes(self):
+        """Add Nautobot Prefix objects as DiffSync Prefix models."""
+        for pf in OrmPrefix.objects.all():
+            new_pf = self.prefix(
+                prefix=str(pf.prefix),
+                namespace=pf.namespace.name,
+                uuid=pf.id,
+            )
+            if not self.job.app_config.delete_prefixes_on_sync:
+                new_pf.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+            self.add(new_pf)
 
     def load_ip_addresses(self):
         """Add Nautobot IPAddress objects as DiffSync IPAddress models."""
@@ -209,4 +235,6 @@ class NautobotAdapter(Adapter):
         """Load Nautobot models into DiffSync models."""
         self.load_devices()
         self.load_interfaces()
+        self.load_namespaces()
+        self.load_prefixes()
         self.load_ip_addresses()
