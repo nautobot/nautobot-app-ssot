@@ -31,3 +31,14 @@ Version 3.11 marks the designation of the 3.x branch as a Long Term Maintenance 
 - [#1007](https://github.com/nautobot/nautobot-app-ssot/issues/1007) - Cleaned up outdated code related to older versions of Nautobot and the Device Lifecycle Management App.
 - Rebaked from the cookie `nautobot-app-v2.7.0`.
 - Rebaked from the cookie `nautobot-app-v2.7.1`.
+
+## [v3.11.1 (2026-01-12)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.11.1)
+
+### Fixed
+
+- [#1019](https://github.com/nautobot/nautobot-app-ssot/issues/1019) - Fixed `unpermitted_values` bug and additional KeyError bug.
+- [#1055](https://github.com/nautobot/nautobot-app-ssot/issues/1055) - Fixed a performance issue with the SSoT log entries table view.
+
+### Housekeeping
+
+- Rebaked from the cookie `nautobot-app-v2.7.2`.
