@@ -31,7 +31,7 @@ class SyncBulkEditForm(TagsBulkEditFormMixin, NautobotBulkEditForm):  # pylint: 
         ]
 
 
-class SyncFilterForm(NautobotFilterForm):
+class SyncFilterForm(NautobotFilterForm):  # pylint: disable=too-many-ancestors
     """Filter form to filter searches."""
 
     model = models.Sync

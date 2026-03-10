@@ -6,7 +6,7 @@ from nautobot_ssot import filters, models
 from nautobot_ssot.tests import fixtures
 
 
-class SyncFilterTestCase(FilterTestCases.FilterTestCase):
+class SyncFilterTestCase(FilterTestCases.FilterTestCase):  # pylint: disable=too-many-ancestors
     """Sync Filter Test Case."""
 
     queryset = models.Sync.objects.all()
