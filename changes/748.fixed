@@ -1,0 +1,1 @@
+Fixed Bootstrap empty data handling where `if not None` ternary expressions always evaluated to the first branch, ignoring fallback defaults for color, parent, nestable, and other optional fields.

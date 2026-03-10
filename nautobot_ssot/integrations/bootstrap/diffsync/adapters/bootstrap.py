@@ -270,7 +270,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         except ObjectNotFound:
             new_tenant_group = self.tenant_group(
                 name=bs_tenant_group["name"],
-                parent=bs_tenant_group["parent"] if not None else None,
+                parent=bs_tenant_group.get("parent") or None,
                 description=bs_tenant_group["description"],
                 system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
             )
@@ -287,7 +287,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         except ObjectNotFound:
             new_tenant = self.tenant(
                 name=bs_tenant["name"],
-                tenant_group=bs_tenant["tenant_group"] if not None else None,
+                tenant_group=bs_tenant.get("tenant_group") or None,
                 description=bs_tenant["description"],
                 tags=bs_tenant["tags"],
                 system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
@@ -312,7 +312,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 name=bs_role["name"],
                 weight=bs_role["weight"],
                 description=bs_role["description"],
-                color=bs_role["color"] if not None else "9e9e9e",
+                color=bs_role.get("color") or "9e9e9e",
                 content_types=_content_types,
                 system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
             )
@@ -911,7 +911,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         except ObjectNotFound:
             _new_tag = self.tag(
                 name=tag["name"],
-                color=tag["color"] if not None else "9e9e9e",
+                color=tag.get("color") or "9e9e9e",
                 content_types=_content_types,
                 description=tag["description"],
                 system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
@@ -1071,7 +1071,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 download_url=software_image["download_url"],
                 image_file_checksum=software_image["image_file_checksum"],
                 hashing_algorithm=_hashing_algorithm,
-                default_image=software_image["default_image"] if not None else False,
+                default_image=software_image.get("default_image") or False,
                 tags=software_image["tags"],
                 system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
             )

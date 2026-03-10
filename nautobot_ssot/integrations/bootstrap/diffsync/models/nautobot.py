@@ -252,7 +252,7 @@ class NautobotRole(Role):
             name=ids["name"],
             weight=attrs["weight"],
             description=attrs["description"],
-            color=attrs.get("color", "#999999"),
+            color=attrs.get("color") or "#999999",
         )
         _new_role.validated_save()
         _new_role.content_types.set(_content_types)
@@ -446,7 +446,7 @@ class NautobotLocationType(LocationType):
         _new_location_type = ORMLocationType(
             name=ids["name"],
             parent=_parent,
-            nestable=attrs["nestable"] if not None else False,
+            nestable=attrs.get("nestable") or False,
             description=attrs["description"],
         )
         _new_location_type.validated_save()
@@ -549,7 +549,7 @@ class NautobotLocation(Location):
             _new_location = ORMLocation(
                 name=ids["name"],
                 location_type=_location_type,
-                parent=_parent if not None else None,
+                parent=_parent if _parent is not None else None,
                 status=_status,
                 facility=attrs["facility"],
                 asn=attrs["asn"],
@@ -2432,7 +2432,7 @@ class NautobotTag(Tag):
                 _content_types.append(lookup_content_type_for_taggable_model_path(_model))
             except ContentType.DoesNotExist:
                 adapter.job.logger.error(f"Unable to find ContentType for {_model}.")
-        _color = attrs.get("color", "#999999")
+        _color = attrs.get("color") or "#999999"
         _new_tag = ORMTag(
             name=ids["name"],
             color=_color,
@@ -2871,7 +2871,7 @@ if validate_dlm_installed():
 
             _new_validated_software = ORMValidatedSoftware(
                 software=_software,
-                start=ids["valid_since"] if not None else datetime.today().date(),
+                start=ids["valid_since"] if ids.get("valid_since") is not None else datetime.today().date(),
                 end=ids["valid_until"],
                 preferred=attrs["preferred_version"],
             )
