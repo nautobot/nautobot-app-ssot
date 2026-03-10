@@ -51,6 +51,7 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         self.job.network_loctype = site_loctype
         self.job.location_map = {}
         self.job.location = None
+        self.job.device_status = None
         self.job.job_result = JobResult.objects.create(
             name=self.job.class_path, task_name="fake task", worker="default"
         )
@@ -279,4 +280,24 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
                 "2001:116:4811:7d51:b7e:a1fa:edbe:4f2c__None",
             },
             {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")},
+        )
+
+    def test_device_status(self):
+        """Test device status job input var."""
+        self.job.device_status = Status.objects.get(name="Staged")
+
+        self.meraki_client.get_org_devices.return_value = [
+            {
+                "name": "HQ AP",
+                "serial": "L6XI-2BIN-EUTI",
+                "networkId": "L_165471703274884707",
+                "model": "MR42",
+                "notes": "",
+                "firmware": "wireless-29-5-1",
+            }
+        ]
+        self.meraki.load_devices()
+        self.assertEqual(
+            {"Staged"},
+            {dev.status for dev in self.meraki.get_all("device")},
         )

@@ -85,3 +85,20 @@ Running this Job will redirect you to a `Nautobot Job Result` view.
 ![JobResult View](../../images/meraki_jobresult.png)
 
 Once the Job has finished you can click on the `SSoT Sync Details` button at the top right of the Job Result page to see detailed information about the data that was synchronized from Meraki and the outcome of the sync Job.
+
+By default, the Meraki SDK uses a page size of 1000 and retrieves only the first page when fetching devices from the configured Meraki Dashboard. You can override this behavior by using the `api_total_pages` and `api_page_size` settings in your PLUGINS_CONFIG.
+
+The default values are:
+* `api_total_pages = "all"` so that all available devices are retrieved
+* `api_page_size = 1000` to align with the Meraki SDK default page size
+
+You can customize these settings in your PLUGINS_CONFIG as shown below:
+
+```python
+PLUGINS_CONFIG = {
+    "nautobot_ssot": {
+        "api_total_pages": int(os.getenv("API_TOTAL_PAGES", 1)),
+        "api_page_size": int(os.getenv("API_PAGE_SIZE", 500)),
+    }
+}
+```
