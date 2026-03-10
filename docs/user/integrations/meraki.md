@@ -89,8 +89,8 @@ Once the Job has finished you can click on the `SSoT Sync Details` button at the
 By default, the Meraki SDK uses a page size of 1000 and retrieves only the first page when fetching devices from the configured Meraki Dashboard. You can override this behavior by using the `api_total_pages` and `api_page_size` settings in your PLUGINS_CONFIG.
 
 The default values are:
-  * `api_total_pages = "all"` so that all available devices are retrieved
-  * `api_page_size = 1000` to align with the Meraki SDK default page size
+* `api_total_pages = "all"` so that all available devices are retrieved
+* `api_page_size = 1000` to align with the Meraki SDK default page size
 
 You can customize these settings in your PLUGINS_CONFIG as shown below:
 
