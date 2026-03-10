@@ -283,6 +283,11 @@ class VsphereDiffSync(Adapter):
 
         for nic in nics:
             nic_mac = nic["value"]["mac_address"].lower()
+            nic_state = nic["value"]["state"]
+            if nic_state not in self.config.default_vm_interface_map:
+                self.job.log_warning(
+                    message=f"Unknown NIC state '{nic_state}' for {nic['value']['label']} on {vm_id}, defaulting to disabled."
+                )
             diffsync_vminterface, _ = self.get_or_instantiate(
                 self.interface,
                 {
@@ -290,7 +295,7 @@ class VsphereDiffSync(Adapter):
                     "virtual_machine__name": diffsync_virtualmachine.name,
                 },
                 {
-                    "enabled": self.config.default_vm_interface_map[nic["value"]["state"]],
+                    "enabled": self.config.default_vm_interface_map.get(nic_state, False),
                     "status__name": "Active",
                     "mac_address": nic_mac.upper(),
                 },
