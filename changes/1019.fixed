@@ -1,0 +1,1 @@
+Fixed LibreNMS DataSource crash when the `unpermitted_values` field is left empty.

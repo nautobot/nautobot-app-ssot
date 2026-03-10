@@ -177,7 +177,7 @@ class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         self.location_map = location_map
         self.hostname_map = hostname_map
         self.default_role = default_role
-        self.unpermitted_values = literal_eval(unpermitted_values)
+        self.unpermitted_values = literal_eval(unpermitted_values) if unpermitted_values else None
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 
 
