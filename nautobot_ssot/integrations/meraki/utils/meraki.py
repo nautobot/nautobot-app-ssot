@@ -59,7 +59,9 @@ class DashboardClient:
         """
         networks = []
         try:
-            networks = self.conn.organizations.getOrganizationNetworks(organizationId=self.org_id, total_pages="all")
+            networks = self.conn.organizations.getOrganizationNetworks(
+                organizationId=self.org_id, total_pages="all"
+            )
             self.network_map = {net["id"]: net for net in networks}
         except meraki.APIError as err:
             self.logger.logger.warning(
@@ -75,7 +77,9 @@ class DashboardClient:
         """
         devices = []
         try:
-            devices = self.conn.organizations.getOrganizationDevices(organizationId=self.org_id, total_pages="all")
+            devices = self.conn.organizations.getOrganizationDevices(
+                organizationId=self.org_id, total_pages="all"
+            )
         except meraki.APIError as err:
             self.logger.logger.warning(
                 f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
@@ -90,7 +94,9 @@ class DashboardClient:
         """
         settings_map = {}
         try:
-            result = self.conn.organizations.getOrganizationUplinksStatuses(organizationId=self.org_id, total_pages="all")
+            result = self.conn.organizations.getOrganizationUplinksStatuses(
+                organizationId=self.org_id, total_pages="all"
+            )
             settings_map = {net["serial"]: net for net in result}
         except meraki.APIError as err:
             self.logger.logger.warning(
@@ -126,7 +132,9 @@ class DashboardClient:
         """
         port_map = {}
         try:
-            result = self.conn.switch.getOrganizationSwitchPortsBySwitch(organizationId=self.org_id, total_pages="all")
+            result = self.conn.switch.getOrganizationSwitchPortsBySwitch(
+                organizationId=self.org_id, total_pages="all"
+            )
             port_map = {switch["serial"]: switch for switch in result}
         except meraki.APIError as err:
             self.logger.logger.warning(
@@ -142,7 +150,9 @@ class DashboardClient:
         """
         statuses = {}
         try:
-            response = self.conn.organizations.getOrganizationDevicesStatuses(organizationId=self.org_id, total_pages="all")
+            response = self.conn.organizations.getOrganizationDevicesStatuses(
+                organizationId=self.org_id, total_pages="all"
+            )
             statuses = {dev["name"]: dev["status"] for dev in response}
         except meraki.APIError as err:
             self.logger.logger.warning(
