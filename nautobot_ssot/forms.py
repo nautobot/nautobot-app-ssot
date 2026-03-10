@@ -25,10 +25,31 @@ class SyncFilterForm(NautobotFilterForm):  # pylint: disable=too-many-ancestors
 class SyncLogEntryFilterForm(NautobotFilterForm):  # pylint: disable=too-many-ancestors
     """Form for filtering SyncLogEntry records."""
 
+<<<<<<< HEAD
     model = SyncLogEntry
     q = forms.CharField(required=False, label="Search")
     sync = DynamicModelMultipleChoiceField(
         queryset=Sync.objects.defer("diff").all(),
+=======
+    pk = forms.ModelMultipleChoiceField(queryset=models.Sync.objects.all(), widget=forms.MultipleHiddenInput)
+    description = forms.CharField(required=False, max_length=CHARFIELD_MAX_LENGTH)
+
+    class Meta:
+        """Meta attributes."""
+
+        nullable_fields = [
+            "description",
+        ]
+
+
+class SyncFilterForm(NautobotFilterForm):  # pylint: disable=too-many-ancestors
+    """Filter form to filter searches."""
+
+    model = models.Sync
+    field_order = ["q", "name"]
+
+    q = forms.CharField(
+>>>>>>> a91db4be (Cookie updated targeting develop by NetworkToCode Cookie Drift Manager Tool)
         required=False,
         label="Sync",
     )
