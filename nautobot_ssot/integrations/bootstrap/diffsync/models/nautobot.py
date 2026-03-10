@@ -580,7 +580,7 @@ class NautobotLocation(Location):
             )
         except ORMTenant.DoesNotExist:
             adapter.job.logger.warning(f"Tenant {attrs['tenant']} does not exist, verify it is created.")
-        except (ZoneInfoNotFoundError, KeyError, ValueError):
+        except (ZoneInfoNotFoundError, ValueError):
             adapter.job.logger.warning(
                 f"Timezone {attrs['time_zone']} could not be found. Verify the timezone is a valid timezone."
             )

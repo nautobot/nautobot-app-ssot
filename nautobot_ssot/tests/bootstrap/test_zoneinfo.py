@@ -64,7 +64,7 @@ class TestZoneInfoBehavior(TestCase):
 
     def test_zoneinfo_invalid_raises_not_found(self):
         """Test that ZoneInfo raises appropriate errors for invalid timezone strings."""
-        with self.assertRaises((ZoneInfoNotFoundError, KeyError)):
+        with self.assertRaises(ZoneInfoNotFoundError):
             ZoneInfo("Not/A/Real/Timezone")
 
     def test_zoneinfo_empty_string_raises_error(self):
@@ -75,7 +75,7 @@ class TestZoneInfoBehavior(TestCase):
         were bypassed. Note: ZoneInfo("") raises ValueError (not
         ZoneInfoNotFoundError) because empty string is not a valid key format.
         """
-        with self.assertRaises((ZoneInfoNotFoundError, KeyError, ValueError)):
+        with self.assertRaises((ZoneInfoNotFoundError, ValueError)):
             ZoneInfo("")
 
     def test_zoneinfo_guard_pattern(self):
@@ -110,15 +110,16 @@ class TestZoneInfoBehavior(TestCase):
     def test_exception_handling_pattern(self):
         """Test the exception handling pattern used in Bootstrap models.
 
-        The codebase catches (ZoneInfoNotFoundError, KeyError) to handle
-        invalid timezone strings. This test verifies both exception types
-        are properly caught.
+        The codebase catches (ZoneInfoNotFoundError, ValueError) to handle
+        invalid timezone strings. ZoneInfoNotFoundError is a subclass of
+        KeyError, so explicitly catching KeyError is unnecessary and could
+        mask unrelated dict-access errors.
         """
         invalid_timezones = ["Invalid/Timezone", "Fake", "123"]
         for tz_name in invalid_timezones:
             caught = False
             try:
                 ZoneInfo(tz_name)
-            except (ZoneInfoNotFoundError, KeyError):
+            except (ZoneInfoNotFoundError, ValueError):
                 caught = True
             self.assertTrue(caught, f"Expected exception for invalid timezone '{tz_name}'")
