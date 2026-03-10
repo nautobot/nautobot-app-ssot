@@ -42,7 +42,7 @@ class DashboardTable(BaseTable):  # pylint: disable=nb-sub-class-name
     target = Column(linkify=lambda record: record.get_target_url())
     status = TemplateColumn(
         template_code="{% include 'extras/inc/job_label.html' with result=record.job_result %}",
-        orderable=False,
+        accessor="job_result__status",
     )
     dry_run = TemplateColumn(template_code=DRY_RUN_LABEL, verbose_name="Type")
 
@@ -68,7 +68,7 @@ class SyncTable(BaseTable):
     dry_run = TemplateColumn(template_code=DRY_RUN_LABEL, verbose_name="Type")
     status = TemplateColumn(
         template_code="{% include 'extras/inc/job_label.html' with result=record.job_result %}",
-        orderable=False,
+        accessor="job_result__status",
     )
     user = Column(accessor="job_result__user", orderable=False, verbose_name="User")
 
