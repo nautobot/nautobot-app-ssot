@@ -72,9 +72,10 @@ class TestZoneInfoBehavior(TestCase):
 
         The Bootstrap model code guards against empty strings before calling
         ZoneInfo, but this test documents the expected behavior if the guard
-        were bypassed.
+        were bypassed. Note: ZoneInfo("") raises ValueError (not
+        ZoneInfoNotFoundError) because empty string is not a valid key format.
         """
-        with self.assertRaises((ZoneInfoNotFoundError, KeyError)):
+        with self.assertRaises((ZoneInfoNotFoundError, KeyError, ValueError)):
             ZoneInfo("")
 
     def test_zoneinfo_guard_pattern(self):

@@ -163,7 +163,7 @@ def is_valid_timezone(tz_name):
     try:
         ZoneInfo(tz_name)
         return True
-    except (ZoneInfoNotFoundError, KeyError):
+    except (ZoneInfoNotFoundError, KeyError, TypeError, ValueError):
         return False
 
 
