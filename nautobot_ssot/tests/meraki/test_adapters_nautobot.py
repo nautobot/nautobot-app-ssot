@@ -20,7 +20,7 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
 
     databases = ("default", "job_logs")
 
-    def setUp(self):  # pylint: disable=too-many-locals
+    def setUp(self):  # pylint: disable=too-many-locals disable=too-many-statements
         """Per-test-case data setup."""
         super().setUp()
         self.status_active = Status.objects.get(name="Active")
