@@ -399,10 +399,15 @@ class VsphereDiffSync(Adapter):
             if "VirtualMachine" in [association.get("type") for association in associated_objects]:
                 tag_details = self.client.get_tag_details(tag_id=tag_id).json()
                 self.job.log_debug(message=f"Tag details for tag {tag_id}: {tag_details}")
-                name = tag_details.get("name")
+                name = tag_details.get("name", "")
                 category_data = self.client.get_category_details(tag_details.get("category_id")).json()
-                category_name = category_data.get("name")
+                category_name = category_data.get("name", "")
                 tag_name = f"{name}__{category_name}"
+                if not name or not category_name:
+                    self.job.log_warning(
+                        message=f"Skipping vSphere tag {tag_id} with missing name or category: '{tag_name}'."
+                    )
+                    continue
                 self.get_or_instantiate(
                     self.tag,
                     {"name": tag_name},
