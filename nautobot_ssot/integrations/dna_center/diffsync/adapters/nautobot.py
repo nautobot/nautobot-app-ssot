@@ -1,8 +1,8 @@
 """Nautobot Adapter for DNA Center SSoT plugin."""
 
 from collections import defaultdict
-from typing import Optional
 from decimal import Decimal
+from typing import Optional
 
 from diffsync import Adapter
 from diffsync.enum import DiffSyncModelFlags
