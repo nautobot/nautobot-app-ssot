@@ -70,7 +70,7 @@ class SyncTable(BaseTable):
         template_code="{% include 'extras/inc/job_label.html' with result=record.job_result %}",
         accessor="job_result__status",
     )
-    user = Column(accessor="job_result__user", orderable=False, verbose_name="User")
+    user = Column(accessor="job_result__user", orderable=True, verbose_name="User")
 
     num_unchanged = TemplateColumn(
         template_code=ACTION_LOGS_LINK,
