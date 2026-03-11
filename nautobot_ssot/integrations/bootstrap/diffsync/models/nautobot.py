@@ -539,7 +539,7 @@ class NautobotLocation(Location):
                     _parent = ORMLocation.objects.get(name=attrs["parent"])
             if "tenant" in attrs:
                 if attrs["tenant"]:
-                    _tenant = Tenant.objects.get(name=attrs["tenant"])
+                    _tenant = ORMTenant.objects.get(name=attrs["tenant"])
             if "time_zone" in attrs:
                 _timezone = None
                 if attrs["time_zone"] and attrs["time_zone"] != "":
@@ -615,7 +615,7 @@ class NautobotLocation(Location):
         if "description" in attrs:
             _update_location.description = attrs["description"]
         if "tenant" in attrs:
-            _tenant = Tenant.objects.get(name=attrs["tenant"])
+            _tenant = ORMTenant.objects.get(name=attrs["tenant"])
             _update_location.tenant = _tenant
         if "physical_address" in attrs:
             _update_location.physical_address = attrs["physical_address"]
