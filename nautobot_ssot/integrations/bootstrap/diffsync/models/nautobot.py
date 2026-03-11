@@ -2,8 +2,8 @@
 
 import os
 from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-import pytz
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db.models.deletion import ProtectedError
@@ -543,7 +543,7 @@ class NautobotLocation(Location):
             if "time_zone" in attrs:
                 _timezone = None
                 if attrs["time_zone"] and attrs["time_zone"] != "":
-                    _timezone = pytz.timezone(attrs["time_zone"])
+                    _timezone = ZoneInfo(attrs["time_zone"])
             for _tag in attrs["tags"]:
                 _tags.append(ORMTag.objects.get(name=_tag))
             _new_location = ORMLocation(
@@ -580,7 +580,7 @@ class NautobotLocation(Location):
             )
         except ORMTenant.DoesNotExist:
             adapter.job.logger.warning(f"Tenant {attrs['tenant']} does not exist, verify it is created.")
-        except pytz.UnknownTimeZoneError:
+        except (ZoneInfoNotFoundError, ValueError):
             adapter.job.logger.warning(
                 f"Timezone {attrs['time_zone']} could not be found. Verify the timezone is a valid timezone."
             )
@@ -610,7 +610,7 @@ class NautobotLocation(Location):
         if "time_zone" in attrs:
             _timezone = None
             if attrs["time_zone"] and attrs["time_zone"] != "":
-                _timezone = pytz.timezone(attrs["time_zone"])
+                _timezone = ZoneInfo(attrs["time_zone"])
                 _update_location.time_zone = _timezone
         if "description" in attrs:
             _update_location.description = attrs["description"]

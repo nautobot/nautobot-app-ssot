@@ -4,8 +4,8 @@
 import json
 import os
 from unittest.mock import MagicMock
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-import pytz
 import yaml
 from django.contrib.contenttypes.models import ContentType
 from django.utils.text import slugify
@@ -158,12 +158,12 @@ MODELS_TO_TEST = [
 ]
 
 
-def is_valid_timezone(timezone):
-    """Return whether timezone passed is a valid timezone in pytz."""
+def is_valid_timezone(tz_name):
+    """Return whether timezone passed is a valid timezone."""
     try:
-        pytz.timezone(timezone)
+        ZoneInfo(tz_name)
         return True
-    except pytz.UnknownTimeZoneError:
+    except (ZoneInfoNotFoundError, TypeError, ValueError):
         return False
 
 
