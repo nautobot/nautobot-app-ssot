@@ -417,7 +417,7 @@ class PrefixRemoteModel(PrefixModel):
         return super().create(adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
-        """Update an existing Site record in remote Nautobot.
+        """Update an existing Prefix record in remote Nautobot.
 
         Args:
             attrs (dict): Updated values for this record's _attributes
@@ -429,12 +429,12 @@ class PrefixRemoteModel(PrefixModel):
             data["status"] = attrs["status__name"]
         if "tags" in attrs:
             data["tags"] = attrs["tags"] if attrs.get("tags") else []
-        self.adapter.patch(f"/api/dcim/locations/{self.pk}/", data)
+        self.adapter.patch(f"/api/ipam/prefixes/{self.pk}/", data)
         return super().update(attrs)
 
     def delete(self):
-        """Delete an existing Site record from remote Nautobot."""
-        self.adapter.delete(f"/api/dcim/locations/{self.pk}/")
+        """Delete an existing Prefix record from remote Nautobot."""
+        self.adapter.delete(f"/api/ipam/prefixes/{self.pk}/")
         return super().delete()
 
 
