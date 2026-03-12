@@ -67,7 +67,7 @@ class DashboardClient:
             )
         return networks
 
-    def get_org_devices(self) -> list:
+    def get_org_devices(self, total_pages="all", page_size=1000) -> list:
         """Retrieve all devices for specified Organization ID.
 
         Returns:
@@ -75,7 +75,9 @@ class DashboardClient:
         """
         devices = []
         try:
-            devices = self.conn.organizations.getOrganizationDevices(organizationId=self.org_id)
+            devices = self.conn.organizations.getOrganizationDevices(
+                organizationId=self.org_id, total_pages=total_pages, perPage=page_size
+            )
         except meraki.APIError as err:
             self.logger.logger.warning(
                 f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"

@@ -8,6 +8,7 @@ from nautobot.core.celery import register_jobs
 from nautobot.dcim.models import Controller, Location, LocationType
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.jobs import BooleanVar, JSONVar, ObjectVar, StringVar
+from nautobot.extras.models import Status
 from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.exceptions import JobException
@@ -72,6 +73,15 @@ class MerakiDataSource(DataSource):  # pylint: disable=too-many-instance-attribu
         required=False,
         default=[],
         description="List of tuples containing DeviceTypes to assign to a specified Role. ex: [('MX', 'Firewall')]",
+    )
+    device_status = ObjectVar(
+        model=Status,
+        queryset=Status.objects.all(),
+        query_params={"content_types": "dcim.device"},
+        description="Status for Meraki Devices (default: Active).",
+        display_field="display",
+        label="Device Status",
+        required=False,
     )
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
     sync_firewall_lan_ips = BooleanVar(
@@ -172,6 +182,7 @@ class MerakiDataSource(DataSource):  # pylint: disable=too-many-instance-attribu
         self.dryrun = kwargs.get("dryrun")
         self.memory_profiling = kwargs.get("memory_profiling")
         self.parallel_loading = kwargs.get("parallel_loading")
+        self.device_status = kwargs["device_status"]
         super().run(*args, **kwargs)
 
 

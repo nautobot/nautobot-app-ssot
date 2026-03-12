@@ -52,6 +52,10 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
         self.tenant = tenant
         self.device_map = {}
         self.org_uplink_statuses = self.conn.get_org_uplink_statuses()
+        # By default, the API call will retrieve all objects.
+        self.api_total_pages = settings.PLUGINS_CONFIG["nautobot_ssot"].get("api_total_pages", "all")
+        # The page size will default to 1000 objects, which is the meraki SDK default.
+        self.api_page_size = settings.PLUGINS_CONFIG["nautobot_ssot"].get("api_page_size", 1000)
 
     def resolve_location_name(self, network_id):
         """
@@ -103,14 +107,17 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
 
     def load_devices(self):  # pylint: disable=too-many-branches
         """Load devices from Meraki dashboard into DiffSync models."""
-        self.device_map = {dev["name"]: dev for dev in self.conn.get_org_devices()}
+        self.device_map = {
+            dev["name"]: dev
+            for dev in self.conn.get_org_devices(total_pages=self.api_total_pages, page_size=self.api_page_size)
+        }
         statuses = self.conn.get_org_device_statuses()
         status = "Offline"
         for dev in self.device_map.values():
             if dev.get("name"):
                 if dev["name"] in statuses:
                     if statuses[dev["name"]] == "online":
-                        status = "Active"
+                        status = self.job.device_status.name if self.job.device_status else "Active"
                 try:
                     self.get(self.device, dev["name"])
                     self.job.logger.warning(f"Duplicate device {dev['name']} found and being skipped.")
