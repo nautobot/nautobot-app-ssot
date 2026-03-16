@@ -682,13 +682,13 @@ class NautobotRemote(Adapter):
     def load_manufacturers(self):
         """Load Manufacturers data from the remote Nautobot instance."""
         for manufacturer in self._get_api_data("api/dcim/manufacturers/", depth=1):
-            manufacturer = self.manufacturer(
+            manufacturer_model = self.manufacturer(
                 name=manufacturer["name"],
                 description=manufacturer["description"],
                 pk=manufacturer["id"],
             )
-            self.add(manufacturer)
-            self.job.logger.debug(f"Loaded {manufacturer} from remote Nautobot instance")
+            self.add(manufacturer_model)
+            self.job.logger.debug(f"Loaded {manufacturer_model} from remote Nautobot instance")
 
     def load_device_types(self):
         """Load DeviceTypes data from the remote Nautobot instance."""
@@ -713,7 +713,7 @@ class NautobotRemote(Adapter):
     def load_platforms(self):
         """Load Platforms data from the remote Nautobot instance."""
         for platform in self._get_api_data("api/dcim/platforms/", depth=1):
-            platform = self.platform(
+            platform_model = self.platform(
                 name=platform["name"],
                 manufacturer__name=platform["manufacturer"]["name"] if platform.get("manufacturer") else "",
                 description=platform["description"],
@@ -721,13 +721,13 @@ class NautobotRemote(Adapter):
                 napalm_driver=platform["napalm_driver"],
                 pk=platform["id"],
             )
-            self.add(platform)
-            self.job.logger.debug(f"Loaded {platform} from remote Nautobot instance")
+            self.add(platform_model)
+            self.job.logger.debug(f"Loaded {platform_model} from remote Nautobot instance")
 
     def load_devices(self):
         """Load Devices data from the remote Nautobot instance."""
         for device in self._get_api_data("api/dcim/devices/", depth=3):
-            device = self.device(
+            device_model = self.device(
                 name=device["name"],
                 location__name=device["location"]["name"],
                 location__parent__name=(
@@ -748,8 +748,8 @@ class NautobotRemote(Adapter):
                 tags=device["tags"] if device.get("tags") else [],
                 pk=device["id"],
             )
-            self.add(device)
-            self.job.logger.debug(f"Loaded {device} from remote Nautobot instance")
+            self.add(device_model)
+            self.job.logger.debug(f"Loaded {device_model} from remote Nautobot instance")
 
     def load_interfaces(self):
         """Load Interfaces data from the remote Nautobot instance."""
