@@ -498,58 +498,24 @@ class NautobotRemote(Adapter):
             "Accept": "application/json",
             "Authorization": f"Token {self.token}",
         }
+    def _topological_sort_entries(self, entries, name_key="name", parent_key="parent"):
+        """Order entries so parents appear before their children.
 
-    def _get_api_data(self, url_path: str, **query_params) -> Generator:
-        """Returns data from a url_path using pagination."""
-        data = requests.get(
-            f"{self.url}/{url_path}",
-            headers=self.headers,
-            params={"limit": 200, "exclude_m2m": "false", **query_params},
-            timeout=600,
-        ).json()
-        yield from data["results"]
-        while data["next"]:
-            data = requests.get(
-                data["next"],
-                headers=self.headers,
-                timeout=600,
-            ).json()
-            yield from data["results"]
+        Args:
+            entries: List of dict-like entries with name and optional parent.
+            name_key: Key for entry name.
+            parent_key: Key for parent (expected to be dict with 'name' key).
 
-    def load(self):
-        """Load data from the remote Nautobot instance."""
-        self.load_statuses()
-        self.load_location_types()
-        self.load_locations()
-        self.load_roles()
-        self.load_tenants()
-        self.load_namespaces()
-        self.load_prefixes()
-        self.load_ipaddresses()
-        self.load_manufacturers()
-        self.load_device_types()
-        self.load_platforms()
-        self.load_devices()
-        # self.load_interfaces()
-
-    def load_location_types(self):
-        """Load LocationType data from the remote Nautobot instance.
-
-        Ensures parent LocationTypes are loaded before their children by using
-        topological sorting based on parent-child relationships.
+        Returns:
+            List of entries in topological order (parents before children).
         """
-        # First, collect all location type entries
-        location_type_entries = list(self._get_api_data("api/dcim/location-types/", depth=1))
-
-        # Build a map of location type names to their entries
-        entries_by_name = {entry["name"]: entry for entry in location_type_entries}
-
-        # Build dependency graph: map parent name -> list of child entries
+        entries_by_name = {entry[name_key]: entry for entry in entries}
         children_by_parent = {}
-        root_entries = []  # Entries with no parent
+        root_entries = []
 
-        for entry in location_type_entries:
-            parent_name = entry.get("parent", {}).get("name") if entry.get("parent") else None
+        for entry in entries:
+            parent_obj = entry.get(parent_key)
+            parent_name = parent_obj.get("name") if parent_obj else None
             if parent_name:
                 if parent_name not in children_by_parent:
                     children_by_parent[parent_name] = []
@@ -557,43 +523,42 @@ class NautobotRemote(Adapter):
             else:
                 root_entries.append(entry)
 
-        # Topological sort: process parents before children
         processed = set()
         ordered_entries = []
 
         def process_entry(entry):
-            """Process an entry and its children recursively."""
-            entry_name = entry["name"]
+            entry_name = entry[name_key]
             if entry_name in processed:
                 return
-
-            # Process parent first if it exists and hasn't been processed
-            parent_name = entry.get("parent", {}).get("name") if entry.get("parent") else None
+            parent_obj = entry.get(parent_key)
+            parent_name = parent_obj.get("name") if parent_obj else None
             if parent_name and parent_name in entries_by_name:
                 parent_entry = entries_by_name[parent_name]
-                if parent_entry["name"] not in processed:
+                if parent_entry[name_key] not in processed:
                     process_entry(parent_entry)
-
-            # Now process this entry
             ordered_entries.append(entry)
             processed.add(entry_name)
-
-            # Process children
             if entry_name in children_by_parent:
                 for child_entry in children_by_parent[entry_name]:
                     process_entry(child_entry)
 
-        # Process all root entries (those with no parent)
         for root_entry in root_entries:
             process_entry(root_entry)
-
-        # Handle any remaining entries that might have been missed
-        # (e.g., circular references or orphaned entries)
-        for entry in location_type_entries:
-            if entry["name"] not in processed:
+        for entry in entries:
+            if entry[name_key] not in processed:
                 process_entry(entry)
+        return ordered_entries
 
-        # Load location types in the correct order
+    def _get_api_data(self, url_path: str, **query_params) -> Generator:
+
+    def load_location_types(self):
+        """Load LocationType data from the remote Nautobot instance.
+
+        Ensures parent LocationTypes are loaded before their children by using
+        topological sorting based on parent-child relationships.
+        """
+        location_type_entries = list(self._get_api_data("api/dcim/location-types/", depth=1))
+        ordered_entries = self._topological_sort_entries(location_type_entries, name_key="name", parent_key="parent")
         for lt_entry in ordered_entries:
             content_types = self.get_content_types(lt_entry)
             location_type = self.locationtype(
@@ -613,62 +578,8 @@ class NautobotRemote(Adapter):
         Ensures parent Locations are loaded before their children by using
         topological sorting based on parent-child relationships.
         """
-        # First, collect all location entries
         location_entries = list(self._get_api_data("api/dcim/locations/", depth=3))
-
-        # Build a map of location names to their entries
-        entries_by_name = {entry["name"]: entry for entry in location_entries}
-
-        # Build dependency graph: map parent name -> list of child entries
-        children_by_parent = {}
-        root_entries = []  # Entries with no parent
-
-        for entry in location_entries:
-            parent_name = entry.get("parent", {}).get("name") if entry.get("parent") else None
-            if parent_name:
-                if parent_name not in children_by_parent:
-                    children_by_parent[parent_name] = []
-                children_by_parent[parent_name].append(entry)
-            else:
-                root_entries.append(entry)
-
-        # Topological sort: process parents before children
-        processed = set()
-        ordered_entries = []
-
-        def process_entry(entry):
-            """Process an entry and its children recursively."""
-            entry_name = entry["name"]
-            if entry_name in processed:
-                return
-
-            # Process parent first if it exists and hasn't been processed
-            parent_name = entry.get("parent", {}).get("name") if entry.get("parent") else None
-            if parent_name and parent_name in entries_by_name:
-                parent_entry = entries_by_name[parent_name]
-                if parent_entry["name"] not in processed:
-                    process_entry(parent_entry)
-
-            # Now process this entry
-            ordered_entries.append(entry)
-            processed.add(entry_name)
-
-            # Process children
-            if entry_name in children_by_parent:
-                for child_entry in children_by_parent[entry_name]:
-                    process_entry(child_entry)
-
-        # Process all root entries (those with no parent)
-        for root_entry in root_entries:
-            process_entry(root_entry)
-
-        # Handle any remaining entries that might have been missed
-        # (e.g., circular references or orphaned entries)
-        for entry in location_entries:
-            if entry["name"] not in processed:
-                process_entry(entry)
-
-        # Load locations in the correct order
+        ordered_entries = self._topological_sort_entries(location_entries, name_key="name", parent_key="parent")
         for loc_entry in ordered_entries:
             location_args = {
                 "name": loc_entry["name"],
