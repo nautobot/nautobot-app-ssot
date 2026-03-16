@@ -1,14 +1,12 @@
 """Sample data-source and data-target Jobs."""
 
-# Skip colon check for multiple statements on one line.
-# flake8: noqa: E701
 # pylint: disable=too-many-lines
-try:
-    from typing_extensions import TypedDict  # Python<3.9
-import json
-    from typing import TypedDict  # Python>=3.9
 
-from typing import Generator, List, Optional
+import copy
+import json
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Generator, List, Optional, TypedDict
 
 import requests
 from diffsync import Adapter
@@ -499,6 +497,35 @@ class NautobotRemote(Adapter):
             "Authorization": f"Token {self.token}",
         }
         self._content_type_cache = {}
+        self._thread_local = threading.local()
+
+    def __deepcopy__(self, memo):
+        """Custom deepcopy to handle threading.local which cannot be copied.
+
+        DiffSync may deepcopy the job (and thus adapters) during adapter creation.
+        threading.local objects are not deepcopy-able, so we produce a copy with
+        a fresh thread-local storage for the duplicate instance.
+        """
+        if id(self) in memo:
+            return memo[id(self)]
+        result = copy.copy(self)
+        memo[id(self)] = result
+        result._thread_local = threading.local()
+        return result
+
+    def _get_session(self) -> requests.Session:
+        """Get a thread-local requests.Session for connection reuse and persistence.
+
+        Each thread gets its own session to ensure thread-safety while benefiting
+        from TCP connection reuse (keep-alive) within that thread's API calls.
+        """
+        session = getattr(self._thread_local, "session", None)
+        if session is None:
+            session = requests.Session()
+            session.headers.update(self.headers)
+            self._thread_local.session = session
+        return self._thread_local.session
+
     def _topological_sort_entries(self, entries, name_key="name", parent_key="parent"):
         """Order entries so parents appear before their children.
 
@@ -583,6 +610,54 @@ class NautobotRemote(Adapter):
             results = data.get("results", [])
             yield from results
 
+    def load(self):
+        """Load data from the remote Nautobot instance using multithreading.
+
+        Independent API endpoints are fetched in parallel using ThreadPoolExecutor,
+        while respecting dependencies between data types (e.g., locations need
+        location_types and statuses; prefixes need locations, etc.).
+        """
+        # Phase 1: Load independent base data types in parallel
+        phase1_loaders = [
+            self.load_statuses,
+            self.load_location_types,
+            self.load_roles,
+            self.load_tenants,
+            self.load_namespaces,
+            self.load_manufacturers,
+            self.load_platforms,
+        ]
+        self._run_loaders_parallel(phase1_loaders)
+
+        # Phase 2: Load locations, prefixes, and device_types in parallel (depend on phase 1)
+        phase2_loaders = [self.load_locations, self.load_prefixes, self.load_device_types]
+        self._run_loaders_parallel(phase2_loaders)
+
+        # Phase 3: Load ipaddresses and devices in parallel (depend on phase 2)
+        phase3_loaders = [self.load_ipaddresses, self.load_devices]
+        self._run_loaders_parallel(phase3_loaders)
+        # self.load_interfaces()
+
+    def _run_loaders_parallel(self, loaders):
+        """Execute multiple load methods in parallel using ThreadPoolExecutor.
+
+        Args:
+            loaders: List of callables (load methods) to execute in parallel.
+        """
+        with ThreadPoolExecutor(max_workers=len(loaders)) as executor:
+            futures = {executor.submit(loader): loader for loader in loaders}
+            for future in as_completed(futures):
+                loader = futures[future]
+                try:
+                    future.result()
+                except Exception as err:
+                    self.job.logger.error(
+                        "Error loading data from %s: %s",
+                        loader.__name__,
+                        err,
+                        exc_info=True,
+                    )
+                    raise
 
     def load_location_types(self):
         """Load LocationType data from the remote Nautobot instance.
@@ -842,19 +917,22 @@ class NautobotRemote(Adapter):
 
     def post(self, path, data):
         """Send an appropriately constructed HTTP POST request."""
-        response = requests.post(f"{self.url}{path}", headers=self.headers, json=data, timeout=600)
+        session = self._get_session()
+        response = session.post(f"{self.url}{path}", json=data, timeout=600)
         response.raise_for_status()
         return response
 
     def patch(self, path, data):
         """Send an appropriately constructed HTTP PATCH request."""
-        response = requests.patch(f"{self.url}{path}", headers=self.headers, json=data, timeout=600)
+        session = self._get_session()
+        response = session.patch(f"{self.url}{path}", json=data, timeout=600)
         response.raise_for_status()
         return response
 
     def delete(self, path):
         """Send an appropriately constructed HTTP DELETE request."""
-        response = requests.delete(f"{self.url}{path}", headers=self.headers, timeout=600)
+        session = self._get_session()
+        response = session.delete(f"{self.url}{path}", timeout=600)
         response.raise_for_status()
         return response
 
@@ -1044,7 +1122,7 @@ class ExampleDataTarget(DataTarget):
             DataMapping("LocationType (local)", reverse("dcim:locationtype_list"), "LocationType (remote)", None),
             DataMapping("Location (local)", reverse("dcim:location_list"), "Location (remote)", None),
             DataMapping("Role (local)", reverse("extras:role_list"), "Role (remote)", None),
-            DataMapping("Namespace (local)", reverse("ipam:prefix_list"), "Namespace (remote)", None),
+            DataMapping("Namespace (local)", reverse("ipam:namespace_list"), "Namespace (remote)", None),
             DataMapping("Prefix (local)", reverse("ipam:prefix_list"), "Prefix (remote)", None),
             DataMapping("IPAddress (local)", reverse("ipam:ipaddress_list"), "IPAddress (remote)", None),
             DataMapping("Tenant (local)", reverse("tenancy:tenant_list"), "Tenant (remote)", None),
