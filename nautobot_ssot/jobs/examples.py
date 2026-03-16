@@ -5,7 +5,7 @@
 # pylint: disable=too-many-lines
 try:
     from typing_extensions import TypedDict  # Python<3.9
-except ImportError:
+import json
     from typing import TypedDict  # Python>=3.9
 
 from typing import Generator, List, Optional
@@ -551,6 +551,38 @@ class NautobotRemote(Adapter):
         return ordered_entries
 
     def _get_api_data(self, url_path: str, **query_params) -> Generator:
+        """Returns data from a url_path using pagination.
+
+        Uses the thread-local session for connection reuse and keep-alive.
+        """
+        session = self._get_session()
+        response = session.get(
+            f"{self.url}/{url_path}",
+            params={"limit": 200, "exclude_m2m": "false", **query_params},
+            timeout=600,
+        )
+        response.raise_for_status()
+        try:
+            data = response.json()
+        except json.JSONDecodeError as err:
+            self.job.logger.error("Failed to decode JSON response from %s: %s", url_path, err)
+            raise
+        results = data.get("results", [])
+        yield from results
+        while data.get("next"):
+            response = session.get(
+                data["next"],
+                timeout=600,
+            )
+            response.raise_for_status()
+            try:
+                data = response.json()
+            except json.JSONDecodeError as err:
+                self.job.logger.error("Failed to decode JSON response from pagination: %s", err)
+                raise
+            results = data.get("results", [])
+            yield from results
+
 
     def load_location_types(self):
         """Load LocationType data from the remote Nautobot instance.
