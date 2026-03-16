@@ -498,6 +498,7 @@ class NautobotRemote(Adapter):
             "Accept": "application/json",
             "Authorization": f"Token {self.token}",
         }
+        self._content_type_cache = {}
     def _topological_sort_entries(self, entries, name_key="name", parent_key="parent"):
         """Order entries so parents appear before their children.
 
@@ -785,6 +786,8 @@ class NautobotRemote(Adapter):
     def get_content_types(self, entry):
         """Create list of dicts of ContentTypes.
 
+        Uses a cache to avoid repeated database lookups for the same ContentType.
+
         Args:
             entry (dict): Record from Nautobot.
 
@@ -792,13 +795,17 @@ class NautobotRemote(Adapter):
             List[dict]: List of dictionaries of ContentTypes split into app_label and model.
         """
         content_types = []
-        for contenttype in entry["content_types"]:
-            app_label, model = tuple(contenttype.split("."))
-            try:
-                ContentType.objects.get(app_label=app_label, model=model)
-                content_types.append({"app_label": app_label, "model": model})
-            except ContentType.DoesNotExist:
-                pass
+        for contenttype in entry.get("content_types", []):
+            cache_key = contenttype
+            if cache_key not in self._content_type_cache:
+                try:
+                    app_label, model = tuple(contenttype.split("."))
+                    ContentType.objects.get(app_label=app_label, model=model)
+                    self._content_type_cache[cache_key] = {"app_label": app_label, "model": model}
+                except (ContentType.DoesNotExist, ValueError):
+                    self._content_type_cache[cache_key] = None
+            if self._content_type_cache[cache_key] is not None:
+                content_types.append(self._content_type_cache[cache_key])
         return content_types
 
     def post(self, path, data):
