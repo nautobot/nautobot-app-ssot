@@ -21,17 +21,18 @@ class JobResultSyncLink(TemplateExtension):
             return ""
         if sync_objects.count() == 0:
             return ""
+        sync = sync_objects.first()
         if sync_objects.count() > 1:
             return f"""
                 <div class="btn-group">
-                    <a href="{reverse('plugins:nautobot_ssot:sync', kwargs={'pk': sync_objects.pk})}" class="btn btn-primary">
-                        <span class="mdi mdi-database-sync-outline"></span> SSoT Sync Details OF FIRST RECORD, THERE WERE MULTIPLE FOUND
+                    <a href="{reverse('plugins:nautobot_ssot:sync', kwargs={'pk': sync.pk})}" class="btn btn-primary">
+                        <span class="mdi mdi-database-sync-outline"></span> SSoT Sync Details (first of multiple)
                     </a>
                 </div>
             """
         return f"""
             <div class="btn-group">
-                <a href="{reverse('plugins:nautobot_ssot:sync', kwargs={'pk': sync_objects.pk})}" class="btn btn-primary">
+                <a href="{reverse('plugins:nautobot_ssot:sync', kwargs={'pk': sync.pk})}" class="btn btn-primary">
                     <span class="mdi mdi-database-sync-outline"></span> SSoT Sync Details
                 </a>
             </div>
