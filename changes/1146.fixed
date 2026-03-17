@@ -1,0 +1,1 @@
+Fixed display of large diffs by implementing pagination in render_diff() method.
