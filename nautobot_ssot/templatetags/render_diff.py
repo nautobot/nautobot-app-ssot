@@ -112,9 +112,7 @@ def _render_pagination_controls(page_obj, request):
 
     if page_obj.has_previous():
         prev_url = _build_page_url(request, page_obj.previous_page_number())
-        items_html += format_html(
-            '<li class="page-item"><a class="page-link" href="{}">Previous</a></li>', prev_url
-        )
+        items_html += format_html('<li class="page-item"><a class="page-link" href="{}">Previous</a></li>', prev_url)
     else:
         items_html += '<li class="page-item disabled"><span class="page-link">Previous</span></li>'
 
@@ -123,9 +121,7 @@ def _render_pagination_controls(page_obj, request):
         if prev_page is not None and page_num - prev_page > 1:
             items_html += '<li class="page-item disabled"><span class="page-link">\u2026</span></li>'
         if page_num == current:
-            items_html += format_html(
-                '<li class="page-item active"><span class="page-link">{}</span></li>', page_num
-            )
+            items_html += format_html('<li class="page-item active"><span class="page-link">{}</span></li>', page_num)
         else:
             page_url = _build_page_url(request, page_num)
             items_html += format_html(
@@ -135,9 +131,7 @@ def _render_pagination_controls(page_obj, request):
 
     if page_obj.has_next():
         next_url = _build_page_url(request, page_obj.next_page_number())
-        items_html += format_html(
-            '<li class="page-item"><a class="page-link" href="{}">Next</a></li>', next_url
-        )
+        items_html += format_html('<li class="page-item"><a class="page-link" href="{}">Next</a></li>', next_url)
     else:
         items_html += '<li class="page-item disabled"><span class="page-link">Next</span></li>'
 
