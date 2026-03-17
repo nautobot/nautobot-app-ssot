@@ -1,14 +1,15 @@
 """Template tag for rendering a DiffSync diff dictionary in a more human-readable form."""
 
 from django import template
-from django.core.paginator import EmptyPage, InvalidPage, Paginator
+from django.core.paginator import EmptyPage, InvalidPage
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
+from nautobot.apps.views import EnhancedPaginator
+from nautobot.core.views.paginator import get_paginate_count
 
 register = template.Library()
 
-_DIFF_PAGE_PARAM = "diff_page"
-DEFAULT_DIFF_PAGE_SIZE = 50
+_PAGE_PARAM = "page"
 
 
 def render_diff_recursive(diff):
@@ -92,21 +93,14 @@ def _group_flat_items(flat_items):
 def _build_page_url(request, page_num):
     """Build a URL for a specific diff page, preserving existing query parameters."""
     params = request.GET.copy()
-    params[_DIFF_PAGE_PARAM] = page_num
+    params[_PAGE_PARAM] = page_num
     return f"?{params.urlencode()}"
 
 
 def _render_pagination_controls(page_obj, request):
-    """Return Bootstrap-compatible pagination HTML for the given page object."""
+    """Return Bootstrap-compatible pagination HTML using EnhancedPage.smart_pages()."""
     if not page_obj.has_other_pages():
         return mark_safe("")  # noqa: S308
-
-    paginator = page_obj.paginator
-    current = page_obj.number
-    num_pages = paginator.num_pages
-
-    # Always show first, last, and a window around the current page
-    pages_to_show = {1, num_pages} | set(range(max(1, current - 2), min(num_pages + 1, current + 3)))
 
     items_html = ""
 
@@ -116,18 +110,17 @@ def _render_pagination_controls(page_obj, request):
     else:
         items_html += '<li class="page-item disabled"><span class="page-link">Previous</span></li>'
 
-    prev_page = None
-    for page_num in sorted(pages_to_show):
-        if prev_page is not None and page_num - prev_page > 1:
+    for page_num in page_obj.smart_pages():
+        if not page_num:
+            # False is used as the ellipsis/skip marker by EnhancedPage.smart_pages()
             items_html += '<li class="page-item disabled"><span class="page-link">\u2026</span></li>'
-        if page_num == current:
+        elif page_num == page_obj.number:
             items_html += format_html('<li class="page-item active"><span class="page-link">{}</span></li>', page_num)
         else:
             page_url = _build_page_url(request, page_num)
             items_html += format_html(
                 '<li class="page-item"><a class="page-link" href="{}">{}</a></li>', page_url, page_num
             )
-        prev_page = page_num
 
     if page_obj.has_next():
         next_url = _build_page_url(request, page_obj.next_page_number())
@@ -139,7 +132,7 @@ def _render_pagination_controls(page_obj, request):
         '<p class="text-muted small">Showing {}\u2013{} of {} objects</p>',
         page_obj.start_index(),
         page_obj.end_index(),
-        paginator.count,
+        page_obj.paginator.count,
     )
 
     return format_html(
@@ -149,17 +142,17 @@ def _render_pagination_controls(page_obj, request):
     )
 
 
-def render_diff_paginated(diff, request, per_page=DEFAULT_DIFF_PAGE_SIZE):
+def render_diff_paginated(diff, request):
     """Render a paginated DiffSync diff dict to HTML with pagination controls.
 
-    Flattens the diff into a list of top-level objects, paginates them, and renders
-    only the current page. Falls back to a full render when the diff is small enough
-    to fit on a single page.
+    Uses Nautobot's EnhancedPaginator and PAGINATE_COUNT setting to determine page
+    size. Flattens the diff into a list of top-level objects, paginates them, and
+    renders only the current page. Falls back to a full render when the diff fits
+    on a single page.
 
     Args:
         diff: The diff dictionary to render.
-        request: The current HTTP request (used for page number and URL building).
-        per_page: Number of top-level diff objects per page (default 50).
+        request: The current HTTP request (used for page count, page number, and URL building).
 
     Returns:
         Safe HTML string with diff content and optional pagination controls.
@@ -167,17 +160,18 @@ def render_diff_paginated(diff, request, per_page=DEFAULT_DIFF_PAGE_SIZE):
     if not diff:
         return format_html("<p>No diff data available.</p>")
 
+    per_page = get_paginate_count(request)
     flat_items = _flatten_diff(diff)
 
     if len(flat_items) <= per_page:
         return render_diff(diff)
 
     try:
-        page_num = int(request.GET.get(_DIFF_PAGE_PARAM, 1))
+        page_num = int(request.GET.get(_PAGE_PARAM, 1))
     except (TypeError, ValueError):
         page_num = 1
 
-    paginator = Paginator(flat_items, per_page)
+    paginator = EnhancedPaginator(flat_items, per_page)
     try:
         page_obj = paginator.page(page_num)
     except (EmptyPage, InvalidPage):
