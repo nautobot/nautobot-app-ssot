@@ -112,8 +112,9 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
             dev["name"]: dev
             for dev in self.conn.get_org_devices(total_pages=self.api_total_pages, page_size=self.api_page_size)
         }
-        statuses = self.conn.get_org_device_statuses()
+        statuses = self.conn.get_org_device_statuses(total_pages=self.api_total_pages, page_size=self.api_page_size)
         status = "Offline"
+        org_switchports = self.conn.get_org_switchports(total_pages=self.api_total_pages)
         for dev in self.device_map.values():
             if dev.get("name"):
                 if dev["name"] in statuses:
@@ -169,7 +170,12 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                         elif dev["model"].startswith(("MR", "CW")):
                             self.load_ap_ports(device=new_dev, serial=dev["serial"])
                         elif dev["model"].startswith(("MS", "C9300")):
-                            self.load_switch_ports(device=new_dev, serial=dev["serial"], lan_ip=dev.get("lanIp"))
+                            self.load_switch_ports(
+                                device=new_dev,
+                                org_switchports=org_switchports,
+                                serial=dev["serial"],
+                                lan_ip=dev.get("lanIp"),
+                            )
             else:
                 self.job.logger.warning(f"Device serial {dev['serial']} is missing hostname so will be skipped.")
 
@@ -307,10 +313,9 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 self.add(new_port)
                 device.add_child(new_port)
 
-    def load_switch_ports(self, device: DiffSyncModel, serial: str, lan_ip: str):
+    def load_switch_ports(self, org_switchports: dict, device: DiffSyncModel, serial: str, lan_ip: str):
         """Load ports of a switch device from Meraki dashboard into DiffSync models."""
         mgmt_ports = self.conn.get_management_ports(serial=serial)
-        org_switchports = self.conn.get_org_switchports()
 
         net_prefix = None
         for port in mgmt_ports.keys():
