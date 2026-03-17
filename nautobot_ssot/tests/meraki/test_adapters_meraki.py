@@ -432,7 +432,7 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         self.meraki_client.self.conn.get_org_switchports.return_value = fix.GET_MANAGEMENT_PORTS_RECV_DHCP_FIXTURE
 
         self.meraki.load_switch_ports(
-            device=mock_device, serial=fix.GET_ORG_DEVICES_DHCP_FIXTURE[0]["serial"], lan_ip="146.171.212.44"
+            device=mock_device, org_switchports=fix.GET_MANAGEMENT_PORTS_RECV_DHCP_FIXTURE, serial=fix.GET_ORG_DEVICES_DHCP_FIXTURE[0]["serial"], lan_ip="146.171.212.44"
         )
         self.assertEqual(
             {"wan1__HQ-SW-1", "man1__HQ-SW-1"},
