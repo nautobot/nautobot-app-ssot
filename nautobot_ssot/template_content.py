@@ -15,11 +15,8 @@ class JobResultSyncLink(TemplateExtension):
 
     def buttons(self):
         """Inject a custom button into the JobResult detail view, if applicable."""
-        try:
-            sync_objects = Sync.objects.filter(job_result=self.context["object"])
-        except Sync.DoesNotExist:
-            return ""
-        if sync_objects.count() == 0:
+        sync_objects = Sync.objects.filter(job_result=self.context["object"])
+        if not sync_objects.exists():
             return ""
         sync = sync_objects.first()
         return f"""
