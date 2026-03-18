@@ -94,11 +94,11 @@ def _group_flat_items(flat_items):
 def _render_pagination_controls(page_obj, request):
     """Render pagination controls using Nautobot's standard inc/paginator.html template."""
     if not page_obj.has_other_pages():
-        return mark_safe("")  # noqa: S308
+        return ""
 
     tpl = get_template("inc/paginator.html")
     context = {"page": page_obj, "paginator": page_obj.paginator}
-    return mark_safe(tpl.render(context, request))  # noqa: S308
+    return tpl.render(context, request)
 
 
 def render_diff_paginated(diff, request):
