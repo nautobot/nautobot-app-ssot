@@ -2,6 +2,7 @@
 
 from django import template
 from django.core.paginator import EmptyPage, InvalidPage
+from django.template.loader import get_template
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from nautobot.apps.views import EnhancedPaginator
@@ -90,56 +91,14 @@ def _group_flat_items(flat_items):
     return grouped
 
 
-def _build_page_url(request, page_num):
-    """Build a URL for a specific diff page, preserving existing query parameters."""
-    params = request.GET.copy()
-    params[_PAGE_PARAM] = page_num
-    return f"?{params.urlencode()}"
-
-
 def _render_pagination_controls(page_obj, request):
-    """Return Bootstrap-compatible pagination HTML using EnhancedPage.smart_pages()."""
+    """Render pagination controls using Nautobot's standard inc/paginator.html template."""
     if not page_obj.has_other_pages():
         return mark_safe("")  # noqa: S308
 
-    items_html = ""
-
-    if page_obj.has_previous():
-        prev_url = _build_page_url(request, page_obj.previous_page_number())
-        items_html += format_html('<li class="page-item"><a class="page-link" href="{}">Previous</a></li>', prev_url)
-    else:
-        items_html += '<li class="page-item disabled"><span class="page-link">Previous</span></li>'
-
-    for page_num in page_obj.smart_pages():
-        if not page_num:
-            # False is used as the ellipsis/skip marker by EnhancedPage.smart_pages()
-            items_html += '<li class="page-item disabled"><span class="page-link">\u2026</span></li>'
-        elif page_num == page_obj.number:
-            items_html += format_html('<li class="page-item active"><span class="page-link">{}</span></li>', page_num)
-        else:
-            page_url = _build_page_url(request, page_num)
-            items_html += format_html(
-                '<li class="page-item"><a class="page-link" href="{}">{}</a></li>', page_url, page_num
-            )
-
-    if page_obj.has_next():
-        next_url = _build_page_url(request, page_obj.next_page_number())
-        items_html += format_html('<li class="page-item"><a class="page-link" href="{}">Next</a></li>', next_url)
-    else:
-        items_html += '<li class="page-item disabled"><span class="page-link">Next</span></li>'
-
-    summary = format_html(
-        '<p class="text-muted small">Showing {}\u2013{} of {} objects</p>',
-        page_obj.start_index(),
-        page_obj.end_index(),
-        page_obj.paginator.count,
-    )
-
-    return format_html(
-        '<nav aria-label="Diff pagination"><ul class="pagination">{}</ul></nav>{}',
-        mark_safe(items_html),  # noqa: S308
-        summary,
-    )
+    tpl = get_template("inc/paginator.html")
+    context = {"page": page_obj, "paginator": page_obj.paginator}
+    return mark_safe(tpl.render(context, request))  # noqa: S308
 
 
 def render_diff_paginated(diff, request):
