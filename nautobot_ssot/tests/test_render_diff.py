@@ -1,5 +1,6 @@
 """Test Render_diff templatetags."""
 
+from django.contrib.auth import get_user_model
 from django.test import RequestFactory
 from nautobot.core.testing import TestCase
 
@@ -100,8 +101,6 @@ class TestRenderDiffPaginated(TestCase):
     @classmethod
     def setUpTestData(cls):
         """Create a user for request context."""
-        from django.contrib.auth import get_user_model  # pylint: disable=import-outside-toplevel
-
         cls.user = get_user_model().objects.create(username="test_render_diff_user")
 
     def setUp(self):
