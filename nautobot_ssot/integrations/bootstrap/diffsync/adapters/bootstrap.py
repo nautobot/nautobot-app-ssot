@@ -1145,8 +1145,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             return
         method_name = f"load_{model_name}"
         for bs_entry in global_settings[model_name]:
-            if self.job.debug:
-                self.job.logger.debug()
+            # TODO: Add debug message here instead of individual `load_` methods (DRY)
             getattr(self, method_name)(bs_entry)
 
     def load(self):

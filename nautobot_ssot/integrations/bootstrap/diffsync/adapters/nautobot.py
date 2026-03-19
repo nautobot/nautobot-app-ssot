@@ -1438,6 +1438,14 @@ class NautobotAdapter(Adapter):
     def load(self):
         """Load data from Nautobot into DiffSync models."""
         for model in settings.PLUGINS_CONFIG.get("nautobot_ssot", {}).get("bootstrap_models_to_sync", {}):
-            getattr(self, f"load_{model}")()
+            if model == "software_version":
+                continue
+            try:
+                getattr(self, f"load_{model}")()
+            except AttributeError:
+                # Ignore missing attributes here. Many come up.
+                continue
+
+            # Unique processing based on model name
             if model == "validated_software" and validate_dlm_installed():
                 self.load_validated_software()
