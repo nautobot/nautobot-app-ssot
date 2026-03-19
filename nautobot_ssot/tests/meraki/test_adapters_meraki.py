@@ -51,6 +51,7 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         self.job.devicetype_mapping = [("MS", "Switch"), ("MX", "Firewall")]
         self.job.network_loctype = site_loctype
         self.job.location_map = {}
+        self.job.device_status = None
         self.job.location = None
         self.job.job_result = JobResult.objects.create(
             name=self.job.class_path, task_name="fake task", worker="default"
@@ -431,7 +432,10 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         self.meraki_client.self.conn.get_org_switchports.return_value = fix.GET_MANAGEMENT_PORTS_RECV_DHCP_FIXTURE
 
         self.meraki.load_switch_ports(
-            device=mock_device, serial=fix.GET_ORG_DEVICES_DHCP_FIXTURE[0]["serial"], lan_ip="146.171.212.44"
+            device=mock_device,
+            org_switchports=fix.GET_MANAGEMENT_PORTS_RECV_DHCP_FIXTURE,
+            serial=fix.GET_ORG_DEVICES_DHCP_FIXTURE[0]["serial"],
+            lan_ip="146.171.212.44",
         )
         self.assertEqual(
             {"wan1__HQ-SW-1", "man1__HQ-SW-1"},
@@ -464,4 +468,24 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         self.assertEqual(
             {"default location"},
             {dev.network for dev in self.meraki.get_all("device")},
+        )
+
+    def test_device_status(self):
+        """Test device status job input var."""
+        self.job.device_status = Status.objects.get(name="Staged")
+
+        self.meraki_client.get_org_devices.return_value = [
+            {
+                "name": "HQ AP",
+                "serial": "L6XI-2BIN-EUTI",
+                "networkId": "L_165471703274884707",
+                "model": "MR42",
+                "notes": "",
+                "firmware": "wireless-29-5-1",
+            }
+        ]
+        self.meraki.load_devices()
+        self.assertEqual(
+            {"Staged"},
+            {dev.status for dev in self.meraki.get_all("device")},
         )
