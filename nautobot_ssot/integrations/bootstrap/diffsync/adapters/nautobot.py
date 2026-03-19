@@ -1437,72 +1437,7 @@ class NautobotAdapter(Adapter):
 
     def load(self):
         """Load data from Nautobot into DiffSync models."""
-        models_to_sync = settings.PLUGINS_CONFIG.get("nautobot_ssot", {}).get("bootstrap_models_to_sync", {})
-
-        if models_to_sync.get("tenant_group", False):
-            self.load_tenant_group()
-        if models_to_sync.get("tenant", False):
-            self.load_tenant()
-        if models_to_sync.get("role", False):
-            self.load_role()
-        if models_to_sync.get("manufacturer", False):
-            self.load_manufacturer()
-        if models_to_sync.get("platform", False):
-            self.load_platform()
-        if models_to_sync.get("location_type", False):
-            self.load_location_type()
-        if models_to_sync.get("location", False):
-            self.load_location()
-        if models_to_sync.get("team", False):
-            self.load_team()
-        if models_to_sync.get("contact", False):
-            self.load_contact()
-        if models_to_sync.get("provider", False):
-            self.load_provider()
-        if models_to_sync.get("provider_network", False):
-            self.load_provider_network()
-        if models_to_sync.get("circuit_type", False):
-            self.load_circuit_type()
-        if models_to_sync.get("circuit", False):
-            self.load_circuit()
-        if models_to_sync.get("circuit_termination", False):
-            self.load_circuit_termination()
-        if models_to_sync.get("namespace", False):
-            self.load_namespace()
-        if models_to_sync.get("rir", False):
-            self.load_rir()
-        if models_to_sync.get("vlan_group", False):
-            self.load_vlan_group()
-        if models_to_sync.get("vlan", False):
-            self.load_vlan()
-        if models_to_sync.get("vrf", False):
-            self.load_vrf()
-        if models_to_sync.get("prefix", False):
-            self.load_prefix()
-        if models_to_sync.get("secret", False):
-            self.load_secret()
-        if models_to_sync.get("secrets_group", False):
-            self.load_secrets_group()
-        if models_to_sync.get("git_repository", False):
-            self.load_git_repository()
-        if models_to_sync.get("dynamic_group", False):
-            self.load_dynamic_group()
-        if models_to_sync.get("computed_field", False):
-            self.load_computed_field()
-        if models_to_sync.get("tag", False):
-            self.load_tag()
-        if models_to_sync.get("graph_ql_query", False):
-            self.load_graph_ql_query()
-        if models_to_sync.get("scheduled_job", False):
-            self.load_scheduled_job()
-        if models_to_sync.get("custom_field", False):
-            self.load_custom_field()
-        if models_to_sync.get("external_integration", False):
-            self.load_external_integration()
-        if models_to_sync.get("software", False):
-            self.load_software()
-        if models_to_sync.get("software_image", False):
-            self.load_software_image()
-        if validate_dlm_installed():
-            if models_to_sync.get("validated_software", False):
+        for model in settings.PLUGINS_CONFIG.get("nautobot_ssot", {}).get("bootstrap_models_to_sync", {}):
+            getattr(self, f"load_{model}")
+            if model == "validated_software" and validate_dlm_installed():
                 self.load_validated_software()
