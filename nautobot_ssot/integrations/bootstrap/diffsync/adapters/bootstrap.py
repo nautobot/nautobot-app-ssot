@@ -1213,7 +1213,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
 
         for model in settings.PLUGINS_CONFIG.get("nautobot_ssot", {}).get("bootstrap_models_to_sync", {}):
             self.load_model(global_settings, model)
-            
+
             # Unique processing based on model name
             if model == "external_integration" and validate_dlm_installed():
                 self.load_model(global_settings, "validated_software")
