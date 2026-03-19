@@ -1438,6 +1438,6 @@ class NautobotAdapter(Adapter):
     def load(self):
         """Load data from Nautobot into DiffSync models."""
         for model in settings.PLUGINS_CONFIG.get("nautobot_ssot", {}).get("bootstrap_models_to_sync", {}):
-            getattr(self, f"load_{model}")
+            getattr(self, f"load_{model}")()
             if model == "validated_software" and validate_dlm_installed():
                 self.load_validated_software()
