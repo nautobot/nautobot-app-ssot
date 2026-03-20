@@ -69,7 +69,7 @@ class IPAddressDict(TypedDict):
     """TypedDict for IPAM IP Address."""
 
     host: Annotated[str, SortKey]
-    prefix_length: int
+    mask_length: int
 
 
 class VirtualMachineDict(TypedDict):

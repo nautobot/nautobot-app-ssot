@@ -230,7 +230,7 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
         ```python
         class IPAddressDict(TypedDict):
             host: str
-            prefix_length: int
+            mask_length: int
 
 
         class NautobotInterface(NautobotModel):
@@ -253,8 +253,8 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
 
         ```python
         [
-          {"host": "192.0.2.0/25", "prefix_length": 25},
-          {"host": "192.0.2.128/25", "prefix_length": 25},
+          {"host": "192.0.2.0/25", "mask_length": 25},
+          {"host": "192.0.2.128/25", "mask_length": 25},
         ]
         ```
         """

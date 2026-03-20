@@ -67,7 +67,7 @@ class DashboardClient:
             )
         return networks
 
-    def get_org_devices(self) -> list:
+    def get_org_devices(self, total_pages="all", page_size=1000) -> list:
         """Retrieve all devices for specified Organization ID.
 
         Returns:
@@ -75,14 +75,16 @@ class DashboardClient:
         """
         devices = []
         try:
-            devices = self.conn.organizations.getOrganizationDevices(organizationId=self.org_id)
+            devices = self.conn.organizations.getOrganizationDevices(
+                organizationId=self.org_id, total_pages=total_pages, perPage=page_size
+            )
         except meraki.APIError as err:
             self.logger.logger.warning(
                 f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
             )
         return devices
 
-    def get_org_uplink_statuses(self) -> dict:
+    def get_org_uplink_statuses(self, total_pages="all", page_size=1000) -> dict:
         """Retrieve appliance uplink statuses for MX, MG, and Z devices for specified Organization ID.
 
         Returns:
@@ -90,7 +92,9 @@ class DashboardClient:
         """
         settings_map = {}
         try:
-            result = self.conn.organizations.getOrganizationUplinksStatuses(organizationId=self.org_id)
+            result = self.conn.organizations.getOrganizationUplinksStatuses(
+                organizationId=self.org_id, total_pages=total_pages, perPage=page_size
+            )
             settings_map = {net["serial"]: net for net in result}
         except meraki.APIError as err:
             self.logger.logger.warning(
@@ -118,7 +122,7 @@ class DashboardClient:
             )
         return addresses
 
-    def get_org_switchports(self) -> dict:
+    def get_org_switchports(self, total_pages="all") -> dict:
         """Retrieve all ports for switches in specified organization ID.
 
         Returns:
@@ -126,7 +130,9 @@ class DashboardClient:
         """
         port_map = {}
         try:
-            result = self.conn.switch.getOrganizationSwitchPortsBySwitch(organizationId=self.org_id)
+            result = self.conn.switch.getOrganizationSwitchPortsBySwitch(
+                organizationId=self.org_id, total_pages=total_pages
+            )
             port_map = {switch["serial"]: switch for switch in result}
         except meraki.APIError as err:
             self.logger.logger.warning(
@@ -134,7 +140,7 @@ class DashboardClient:
             )
         return port_map
 
-    def get_org_device_statuses(self) -> dict:
+    def get_org_device_statuses(self, total_pages="all", page_size=1000) -> dict:
         """Retrieve device statuses from Meraki dashboard.
 
         Returns:
@@ -142,7 +148,9 @@ class DashboardClient:
         """
         statuses = {}
         try:
-            response = self.conn.organizations.getOrganizationDevicesStatuses(organizationId=self.org_id)
+            response = self.conn.organizations.getOrganizationDevicesStatuses(
+                organizationId=self.org_id, total_pages=total_pages, perPage=page_size
+            )
             statuses = {dev["name"]: dev["status"] for dev in response}
         except meraki.APIError as err:
             self.logger.logger.warning(

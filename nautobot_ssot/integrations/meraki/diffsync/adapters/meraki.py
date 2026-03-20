@@ -52,6 +52,10 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
         self.tenant = tenant
         self.device_map = {}
         self.org_uplink_statuses = self.conn.get_org_uplink_statuses()
+        # By default, the API call will retrieve all objects.
+        self.api_total_pages = settings.PLUGINS_CONFIG["nautobot_ssot"].get("api_total_pages", "all")
+        # The page size will default to 1000 objects, which is the meraki SDK default.
+        self.api_page_size = settings.PLUGINS_CONFIG["nautobot_ssot"].get("api_page_size", 1000)
 
     def resolve_location_name(self, network_id):
         """
@@ -103,14 +107,18 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
 
     def load_devices(self):  # pylint: disable=too-many-branches
         """Load devices from Meraki dashboard into DiffSync models."""
-        self.device_map = {dev["name"]: dev for dev in self.conn.get_org_devices()}
-        statuses = self.conn.get_org_device_statuses()
+        self.device_map = {
+            dev["name"]: dev
+            for dev in self.conn.get_org_devices(total_pages=self.api_total_pages, page_size=self.api_page_size)
+        }
+        statuses = self.conn.get_org_device_statuses(total_pages=self.api_total_pages, page_size=self.api_page_size)
         status = "Offline"
+        org_switchports = self.conn.get_org_switchports(total_pages=self.api_total_pages)
         for dev in self.device_map.values():
             if dev.get("name"):
                 if dev["name"] in statuses:
                     if statuses[dev["name"]] == "online":
-                        status = "Active"
+                        status = self.job.device_status.name if self.job.device_status else "Active"
                 try:
                     self.get(self.device, dev["name"])
                     self.job.logger.warning(f"Duplicate device {dev['name']} found and being skipped.")
@@ -160,7 +168,12 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                         elif dev["model"].startswith(("MR", "CW")):
                             self.load_ap_ports(device=new_dev, serial=dev["serial"])
                         elif dev["model"].startswith(("MS", "C9300")):
-                            self.load_switch_ports(device=new_dev, serial=dev["serial"], lan_ip=dev.get("lanIp"))
+                            self.load_switch_ports(
+                                device=new_dev,
+                                org_switchports=org_switchports,
+                                serial=dev["serial"],
+                                lan_ip=dev.get("lanIp"),
+                            )
             else:
                 self.job.logger.warning(f"Device serial {dev['serial']} is missing hostname so will be skipped.")
 
@@ -305,10 +318,9 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 self.add(new_port)
                 device.add_child(new_port)
 
-    def load_switch_ports(self, device: DiffSyncModel, serial: str, lan_ip: str):  # pylint: disable=too-many-statements,too-many-branches
+    def load_switch_ports(self, org_switchports: dict, device: DiffSyncModel, serial: str, lan_ip: str):  # pylint: disable=too-many-statements,too-many-branches
         """Load ports of a switch device from Meraki dashboard into DiffSync models."""
         mgmt_ports = self.conn.get_management_ports(serial=serial)
-        org_switchports = self.conn.get_org_switchports()
 
         net_prefix = None
         for port in mgmt_ports.keys():

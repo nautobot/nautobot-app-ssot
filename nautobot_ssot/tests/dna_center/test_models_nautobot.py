@@ -103,8 +103,8 @@ class TestNautobotBuilding(TransactionTestCase):
             address="",
             area="NY",
             area_parent=None,
-            latitude="",
-            longitude="",
+            latitude=0,
+            longitude=0,
             tenant="G&A",
             uuid=self.sec_site.id,
         )
@@ -116,8 +116,8 @@ class TestNautobotBuilding(TransactionTestCase):
         attrs = {
             "address": "123 Main St",
             "area_parent": None,
-            "latitude": "12.345",
-            "longitude": "-67.890",
+            "latitude": 12.345,
+            "longitude": -67.890,
             "tenant": "G&A",
         }
         ny_area = Location.objects.get_or_create(
@@ -138,16 +138,16 @@ class TestNautobotBuilding(TransactionTestCase):
         """Validate the NautobotBuilding update() method updates a Site with a tenant."""
         update_attrs = {
             "address": "456 Wall St",
-            "latitude": "23.456",
-            "longitude": "-78.901",
+            "latitude": 23.456,
+            "longitude": -78.901,
             "tenant": "G&A",
         }
         actual = NautobotBuilding.update(self=self.test_bldg, attrs=update_attrs)
         self.test_bldg.adapter.job.logger.info.assert_called_once_with("Updating Site Site 2.")
         self.sec_site.refresh_from_db()
         self.assertEqual(self.sec_site.physical_address, update_attrs["address"])
-        self.assertEqual(str(self.sec_site.latitude).rstrip("0"), update_attrs["latitude"])
-        self.assertEqual(f"{self.sec_site.longitude:.3f}", update_attrs["longitude"])
+        self.assertEqual(float(self.sec_site.latitude), update_attrs["latitude"])
+        self.assertEqual(float(self.sec_site.longitude), update_attrs["longitude"])
         self.assertEqual(self.sec_site.tenant.name, update_attrs["tenant"])
         self.assertEqual(actual, self.test_bldg)
 
@@ -155,8 +155,8 @@ class TestNautobotBuilding(TransactionTestCase):
         """Validate the NautobotBuilding update() method updates a Site without a tenant."""
         update_attrs = {
             "address": "456 Wall St",
-            "latitude": "23.456",
-            "longitude": "-78.901",
+            "latitude": 23.456,
+            "longitude": -78.901,
             "tenant": "",
         }
         NautobotBuilding.update(self=self.test_bldg, attrs=update_attrs)
