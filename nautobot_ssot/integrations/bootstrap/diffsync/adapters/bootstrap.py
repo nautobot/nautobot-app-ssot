@@ -1209,10 +1209,8 @@ class BootstrapAdapter(Adapter, LabelMixin):
         if global_settings is None:
             self.job.logger.error("global_settings not loaded. Check if the file exists in the correct directory.")
             return
-
-        for model in settings.PLUGINS_CONFIG.get("nautobot_ssot", {}).get("bootstrap_models_to_sync", {}):
+        for model, is_synced in settings.PLUGINS_CONFIG.get("nautobot_ssot", {}).get("bootstrap_models_to_sync", {}).items():
+            if not is_synced \
+                    or (model == "validated_software" and not validate_dlm_installed()):
+                continue
             self.load_model(global_settings, model)
-
-            # Unique processing based on model name
-            if model == "external_integration" and validate_dlm_installed():
-                self.load_model(global_settings, "validated_software")

@@ -1437,7 +1437,10 @@ class NautobotAdapter(Adapter):
 
     def load(self):
         """Load data from Nautobot into DiffSync models."""
-        for model in settings.PLUGINS_CONFIG.get("nautobot_ssot", {}).get("bootstrap_models_to_sync", {}):
+        for model, is_synced in settings.PLUGINS_CONFIG.get("nautobot_ssot", {}).get("bootstrap_models_to_sync", {}).items():
+            if not is_synced \
+                    or (model == "validated_software" and not validate_dlm_installed()):
+                continue
             try:
                 getattr(self, f"load_{model}")()
             except AttributeError:
@@ -1447,7 +1450,3 @@ class NautobotAdapter(Adapter):
                     " Skipping model load."
                 )
                 continue
-
-            # Unique processing based on model name
-            if model == "validated_software" and validate_dlm_installed():
-                self.load_validated_software()
