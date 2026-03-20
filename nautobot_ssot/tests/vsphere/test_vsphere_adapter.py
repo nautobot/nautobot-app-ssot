@@ -265,3 +265,30 @@ class TestVsphereAdapter(unittest.TestCase):
         tags = self.vsphere_adapter.get_all("tag")
         self.assertEqual(len(tags), 1)
         self.assertIn("Owner__EEE", [tag.name for tag in tags])
+
+    def test_load_tags_skips_when_name_and_category_missing(self):
+        """Tags associated to VMs but without tag or category name are skipped with a warning."""
+        tag_id = "urn:vmomi:InventoryServiceTag:bad-tag:GLOBAL"
+        get_tags_resp = Mock()
+        get_tags_resp.json.return_value = [tag_id]
+        self.vsphere_adapter.client.get_tags.return_value = get_tags_resp
+
+        assoc_resp = Mock()
+        assoc_resp.json.return_value = [{"type": "VirtualMachine", "id": "vm-1"}]
+        self.vsphere_adapter.client.get_tag_associations.return_value = assoc_resp
+
+        tag_details_resp = Mock()
+        tag_details_resp.json.return_value = {"category_id": "cat-1", "description": ""}
+        self.vsphere_adapter.client.get_tag_details.return_value = tag_details_resp
+
+        category_resp = Mock()
+        category_resp.json.return_value = {}
+        self.vsphere_adapter.client.get_category_details.return_value = category_resp
+
+        self.vsphere_adapter.load_tags()
+
+        self.vsphere_adapter.job.log_warning.assert_called_once_with(
+            message=f"Skipping vSphere tag {tag_id} with missing name and category."
+        )
+        self.assertNotIn(tag_id, self.vsphere_adapter.tag_map)
+        self.assertEqual(len(self.vsphere_adapter.get_all("tag")), 0)
