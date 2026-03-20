@@ -403,9 +403,7 @@ class VsphereDiffSync(Adapter):
                 category_data = self.client.get_category_details(tag_details.get("category_id")).json()
                 category_name = category_data.get("name")
                 if not name and not category_name:
-                    self.job.log_warning(
-                        message=f"Skipping vSphere tag {tag_id} with missing name and category."
-                    )
+                    self.job.log_warning(message=f"Skipping vSphere tag {tag_id} with missing name and category.")
                     continue
                 tag_name = f"{name}__{category_name}"
                 self.get_or_instantiate(
