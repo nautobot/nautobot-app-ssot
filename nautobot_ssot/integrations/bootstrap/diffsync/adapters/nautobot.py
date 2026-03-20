@@ -1442,6 +1442,10 @@ class NautobotAdapter(Adapter):
                 getattr(self, f"load_{model}")()
             except AttributeError:
                 # Ignore missing attributes here. Many come up.
+                self.job.logger.warning(
+                    f"Method `load_{model}` not found in `nautobot_ssot.integrations.bootsrap.diffsync.adapters.nautobot.NautobotAdapter`."
+                    " Skipping model load."
+                )
                 continue
 
             # Unique processing based on model name
