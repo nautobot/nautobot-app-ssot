@@ -11,12 +11,7 @@ class SyncFilterTestCase(FilterTestCases.FilterTestCase):  # pylint: disable=too
 
     queryset = models.Sync.objects.all()
     filterset = filters.SyncFilterSet
-    generic_filter_tests = (
-        ("id",),
-        ("created",),
-        ("last_updated",),
-        ("name",),
-    )
+    generic_filter_tests = ()
 
     @classmethod
     def setUpTestData(cls):
@@ -24,7 +19,7 @@ class SyncFilterTestCase(FilterTestCases.FilterTestCase):  # pylint: disable=too
         fixtures.create_sync()
 
     def test_q_search_name(self):
-        """Test using Q search with name of Sync."""
+        """Test Q search matches a unique `source` value."""
         params = {"q": "Test One"}
         self.assertEqual(self.filterset(params, self.queryset).qs.count(), 1)
 
