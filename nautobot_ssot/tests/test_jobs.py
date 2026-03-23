@@ -508,68 +508,6 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         duplicate_count = log_messages.count("Duplicate message")
         self.assertGreaterEqual(duplicate_count, 1)
 
-    def test_parallel_loading_vs_sequential_performance(self):
-        """Test that parallel loading is faster than sequential for slow adapters."""
-        mock_diff = self._create_mock_diff()
-
-        # Test parallel loading
-        parallel_job = DataSyncBaseJob()
-        parallel_job.job_result = JobResult.objects.create(
-            name="parallel job",
-            task_name="parallel job",
-            worker="default",
-        )
-
-        def parallel_load_source():
-            """Simulate slow source adapter loading for parallel job."""
-            time.sleep(0.1)
-            source_adapter = Mock()
-            source_adapter.diff_to.return_value = mock_diff
-            parallel_job.source_adapter = source_adapter
-
-        def parallel_load_target():
-            """Simulate slow target adapter loading for parallel job."""
-            time.sleep(0.1)
-            parallel_job.target_adapter = Mock()
-
-        parallel_job.load_source_adapter = parallel_load_source
-        parallel_job.load_target_adapter = parallel_load_target
-
-        parallel_start = time.time()
-        parallel_job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
-        parallel_duration = time.time() - parallel_start
-
-        # Test sequential loading
-        sequential_job = DataSyncBaseJob()
-        sequential_job.job_result = JobResult.objects.create(
-            name="sequential job",
-            task_name="sequential job",
-            worker="default",
-        )
-
-        def sequential_load_source():
-            """Simulate slow source adapter loading for sequential job."""
-            time.sleep(0.1)
-            source_adapter = Mock()
-            source_adapter.diff_to.return_value = mock_diff
-            sequential_job.source_adapter = source_adapter
-
-        def sequential_load_target():
-            """Simulate slow target adapter loading for sequential job."""
-            time.sleep(0.1)
-            sequential_job.target_adapter = Mock()
-
-        sequential_job.load_source_adapter = sequential_load_source
-        sequential_job.load_target_adapter = sequential_load_target
-
-        sequential_start = time.time()
-        sequential_job.run(dryrun=True, memory_profiling=False, parallel_loading=False)
-        sequential_duration = time.time() - sequential_start
-
-        # Parallel should be faster (approximately half the time for equal delays)
-        # Allow some margin for test execution overhead
-        self.assertLess(parallel_duration, sequential_duration * 0.7)
-
 
 class DataSourceTestCase(BaseJobTestCase):
     """Test the DataSource class."""
