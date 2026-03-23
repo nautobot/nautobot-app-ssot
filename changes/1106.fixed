@@ -1,1 +1,0 @@
-Fixed vSphere import failure when a VM has a disconnected network adapter with an unexpected state such as UNRECOVERABLE_ERROR.

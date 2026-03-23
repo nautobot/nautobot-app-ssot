@@ -1,1 +1,0 @@
-Fixed Bootstrap integration crash when user configuration is missing expected keys in bootstrap_models_to_sync settings.

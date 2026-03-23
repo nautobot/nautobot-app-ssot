@@ -1,1 +1,0 @@
-Fixed integrations to match example Job run() with args and kwargs ensuring that parallel processing option is saved.

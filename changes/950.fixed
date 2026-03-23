@@ -1,1 +1,0 @@
-Fixed bug in TemplateExtension that was causing an Exception when more than one Sync is returned in a get() query.
