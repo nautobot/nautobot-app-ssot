@@ -5,7 +5,6 @@
 
 from collections import defaultdict
 from datetime import datetime
-from typing import List
 
 from diffsync import DiffSyncModel
 from diffsync.exceptions import ObjectCrudException, ObjectNotCreated, ObjectNotDeleted, ObjectNotUpdated
@@ -15,7 +14,6 @@ from django.db.models import ProtectedError, QuerySet
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
 from nautobot.extras.models.metadata import ObjectMetadata
-from typing_extensions import get_type_hints
 
 from nautobot_ssot.contrib.base import BaseNautobotModel
 from nautobot_ssot.contrib.types import (
@@ -23,9 +21,10 @@ from nautobot_ssot.contrib.types import (
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
+from nautobot_ssot.utils.diffsync import DiffSyncModelUtilityMixin
 
 
-class NautobotModel(DiffSyncModel, BaseNautobotModel):
+class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel):
     """
     Base model for any diffsync models interfacing with Nautobot through the ORM.
 
@@ -35,11 +34,6 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
     In order to accomplish this, the `_model` field has to be set on subclasses to map them to the corresponding ORM
     model class.
     """
-
-    @classmethod
-    def get_synced_attributes(cls) -> List[str]:
-        """Return a list of parameters synced as part of the SSoT Process."""
-        return list(cls._identifiers) + list(cls._attributes)
 
     @classmethod
     def _get_queryset(cls) -> QuerySet:
@@ -132,21 +126,15 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
             This is mutated over the course of this function.
         :param adapter: The related diffsync adapter used for looking up things in the cache.
         """
-        # Use type hints at runtime to determine which fields are custom fields
-        type_hints = get_type_hints(cls, include_extras=True)
-
         cls._check_field(field)
 
         # Handle custom fields. See CustomFieldAnnotation docstring for more details.
-        custom_relationship_annotation = None
-        metadata_for_this_field = getattr(type_hints[field], "__metadata__", [])
-        for metadata in metadata_for_this_field:
-            if isinstance(metadata, CustomFieldAnnotation):
-                obj.cf[metadata.key] = value
-                return
-            if isinstance(metadata, CustomRelationshipAnnotation):
-                custom_relationship_annotation = metadata
-                break
+        annotation = cls.get_attr_annotation(field)
+        if isinstance(annotation, CustomFieldAnnotation):
+            obj.cf[annotation.key] = value
+            return
+
+        custom_relationship_annotation = annotation if isinstance(annotation, CustomRelationshipAnnotation) else None
 
         # Prepare handling of foreign keys and custom relationship foreign keys.
         # Example: If field is `tenant__group__name`, then
@@ -320,7 +308,7 @@ class NautobotModel(DiffSyncModel, BaseNautobotModel):
 
     @classmethod
     def _lookup_and_set_custom_relationship_foreign_keys(cls, custom_relationship_foreign_keys, obj, adapter):
-        for _, related_model_dict in custom_relationship_foreign_keys.items():
+        for related_model_dict in custom_relationship_foreign_keys.values():
             annotation = related_model_dict.pop("_annotation")
             # TODO: Deduplicate this code
             try:

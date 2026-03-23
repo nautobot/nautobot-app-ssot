@@ -2,6 +2,7 @@
 """Utility functions for Nautobot ORM."""
 
 import datetime
+import ipaddress
 import logging
 from typing import Any, Optional
 
@@ -48,9 +49,13 @@ def create_location(
         None: When there is a failure in getting or creating a Location.
     """
     try:
+        location_type = LocationType.objects.get(name="Site")
+        if not location_type.content_types.filter(app_label="ipam", model="vlan").exists():
+            location_type.content_types.add(ContentType.objects.get_for_model(VLAN))
+
         location_obj, _ = Location.objects.get_or_create(
             name=location_name,
-            location_type=LocationType.objects.get(name="Site"),
+            location_type=location_type,
             status=Status.objects.get(name="Active"),
         )
     except Location.MultipleObjectsReturned:
@@ -185,6 +190,11 @@ def create_platform_object(
         Platform: When a Platform Object is retrieved or created.
         None: When there is a failure in getting or creating a Platform.
     """
+    if not manufacturer_obj:
+        if logger:
+            logger.error(f"Unable to create Platform {platform} because Manufacturer is None")
+        return None
+
     if platform == "ios-xe":
         network_driver = "cisco_ios"
         napalm_driver = "cisco_ios"
@@ -192,20 +202,36 @@ def create_platform_object(
         network_driver = f"{manufacturer_obj.name.lower()}_{platform.lower()}"
         napalm_driver = NAPALM_LIB_MAPPER.get(platform, "")
 
-    defaults = {"network_driver": network_driver, "napalm_driver": napalm_driver}
+    defaults = {
+        "network_driver": network_driver,
+        "napalm_driver": napalm_driver,
+        "manufacturer": manufacturer_obj,
+    }
     try:
-        platform_obj, _ = Platform.objects.get_or_create(
-            name=platform,
-            manufacturer=manufacturer_obj,
-            defaults=defaults,
-        )
-        return platform_obj
+        platform_obj = Platform.objects.get(name=platform)
+        if platform_obj.manufacturer == manufacturer_obj:
+            return platform_obj
+
+        if logger:
+            logger.warning(
+                f"Platform {platform} already exists but belongs to Manufacturer {platform_obj.manufacturer}, "
+                f"not {manufacturer_obj}. Skipping assignment to avoid validation errors."
+            )
+        return None
+
+    except Platform.DoesNotExist:
+        try:
+            platform_obj = Platform.objects.create(name=platform, **defaults)
+            return platform_obj
+        except (DjangoBaseDBError, ValidationError) as err:
+            if logger:
+                logger.error(f"Unable to create a new Platform named {platform}. Error: {err}")
     except Platform.MultipleObjectsReturned:
         if logger:
             logger.error(f"Multiple Platforms returned with the name {platform}")
     except (DjangoBaseDBError, ValidationError):
         if logger:
-            logger.error(f"Unable to create a new Platform named {platform}")
+            logger.error(f"Unable to retrieve Platform named {platform}")
     return None
 
 
@@ -296,7 +322,7 @@ def create_status(  # pylint: disable=too-many-arguments
     return None
 
 
-def create_ip(
+def create_ip(  # pylint: disable=too-many-statements
     ip_address: str,
     subnet_mask: str,
     status: str = "Active",
@@ -337,30 +363,33 @@ def create_ip(
         cidr = netmask_to_cidr(subnet_mask)
         ip_obj = None
         try:
-            ip_obj, _ = IPAddress.objects.get_or_create(address=f"{ip_address}/{cidr}", status=status_obj)
+            ip_obj, _ = IPAddress.objects.get_or_create(address=f"{ip_address}/{cidr}", defaults={"status": status_obj})
         except IPAddress.MultipleObjectsReturned:
             if logger:
                 logger.error(f"Multiple IPAddresses returned with the address of {ip_address}/{subnet_mask}")
-        except (DjangoBaseDBError, ValidationError):
+        except (DjangoBaseDBError, ValidationError, Prefix.DoesNotExist):
             try:
-                parent, _ = Prefix.objects.get_or_create(
-                    network="0.0.0.0",  # noqa: S104
-                    prefix_length=0,
+                network_obj = ipaddress.ip_network(f"{ip_address}/{cidr}", strict=False)
+                if logger:
+                    logger.info(f"Automatically creating missing prefix {network_obj} for IP {ip_address}/{cidr}")
+                _, _ = Prefix.objects.get_or_create(
+                    network=str(network_obj.network_address),
+                    prefix_length=network_obj.prefixlen,
                     type=PrefixTypeChoices.TYPE_NETWORK,
                     status=Status.objects.get_for_model(Prefix).get(name="Active"),
                     namespace=namespace_obj,
                 )
-            except (DjangoBaseDBError, ValidationError):
+            except (DjangoBaseDBError, ValidationError) as err:
                 if logger:
-                    logger.error(f"Unable to create a new IPAddress of {ip_address}/{subnet_mask}")
+                    logger.error(f"Unable to create a new IPAddress of {ip_address}/{subnet_mask}. Error: {err}")
             else:
                 try:
                     ip_obj, _ = IPAddress.objects.get_or_create(
-                        address=f"{ip_address}/{cidr}", status=status_obj, parent=parent
+                        address=f"{ip_address}/{cidr}", defaults={"status": status_obj}
                     )
-                except (DjangoBaseDBError, ValidationError):
+                except (DjangoBaseDBError, ValidationError) as err:
                     if logger:
-                        logger.error(f"Unable to create a new IPAddress of {ip_address}/{subnet_mask}")
+                        logger.error(f"Unable to create a new IPAddress of {ip_address}/{subnet_mask}. Error: {err}")
 
         if ip_obj:
             if object_pk:
@@ -483,16 +512,26 @@ def create_vlan(  # pylint: disable=too-many-arguments
         VLAN: When a VLAN Object is retrieved or created.
         None: When there is a failure in getting or creating a VLAN.
     """
+    # Ensure LocationType allows VLANs
+    if location_obj and not location_obj.location_type.content_types.filter(app_label="ipam", model="vlan").exists():
+        location_obj.location_type.content_types.add(ContentType.objects.get_for_model(VLAN))
+
     try:
-        vlan_obj, _ = location_obj.vlans.get_or_create(
-            name=vlan_name, vid=vlan_id, status=Status.objects.get(name=vlan_status), description=description
+        vlan_obj, _ = VLAN.objects.get_or_create(
+            vid=vlan_id,
+            location=location_obj,
+            defaults={
+                "name": vlan_name,
+                "status": Status.objects.get(name=vlan_status),
+                "description": description,
+            },
         )
     except VLAN.MultipleObjectsReturned:
         if logger:
             logger.error(f"Multiple VLANs returned with name {vlan_name} and ID {vlan_id}")
-    except (DjangoBaseDBError, ValidationError):
+    except (DjangoBaseDBError, ValidationError) as err:
         if logger:
-            logger.error(f"Unable to create a new VLAN named {vlan_name} with an ID {vlan_id}")
+            logger.error(f"Unable to create a new VLAN named {vlan_name} with an ID {vlan_id}. Error: {err}")
     else:
         try:
             tag_object(nautobot_object=vlan_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)

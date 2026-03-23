@@ -3,9 +3,8 @@
 # test_nautobot_adapter.py
 # pylint: disable=R0912
 
-from datetime import datetime
+from datetime import datetime, timezone
 
-import pytz
 from deepdiff import DeepDiff
 from django.test import TransactionTestCase
 
@@ -30,12 +29,12 @@ def assert_nautobot_deep_diff(test_case, actual, expected, keys_to_normalize=Non
         if item_key == "start_time":
             # For start_time, preserve existing timezone or add UTC if none
             if datetime_obj.tzinfo is None:
-                datetime_obj = datetime_obj.replace(tzinfo=pytz.UTC)
+                datetime_obj = datetime_obj.replace(tzinfo=timezone.utc)
             # Use isoformat to preserve timezone info
             return datetime_obj.isoformat()
         # For all other datetime fields, ensure timezone and use T separator
         if datetime_obj.tzinfo is None:
-            datetime_obj = datetime_obj.replace(tzinfo=pytz.UTC)
+            datetime_obj = datetime_obj.replace(tzinfo=timezone.utc)
         return datetime_obj.isoformat()
 
     def handle_special_fields(item_key, item, normalized_dict, keys_to_normalize):

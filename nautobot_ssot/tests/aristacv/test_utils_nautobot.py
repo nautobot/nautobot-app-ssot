@@ -117,3 +117,33 @@ class TestNautobotUtils(TestCase):
         results = nautobot.parse_hostname(host, config.hostname_patterns)
         expected = (None, "leaf")
         self.assertEqual(results, expected)
+
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_cvaas_url": "https://www.arista.io",
+                "aristacv_cvp_user": "admin",
+            },
+        },
+    )
+    def test_get_config_delete_namespaces_prefixes_default(self):
+        """With no delete_namespaces/prefixes settings, get_config returns False for both."""
+        config = nautobot.get_config()
+        self.assertFalse(config.delete_namespaces_on_sync)
+        self.assertFalse(config.delete_prefixes_on_sync)
+
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_cvaas_url": "https://www.arista.io",
+                "aristacv_cvp_user": "admin",
+                "aristacv_delete_namespaces_on_sync": True,
+                "aristacv_delete_prefixes_on_sync": True,
+            },
+        },
+    )
+    def test_get_config_delete_namespaces_prefixes_override(self):
+        """With delete_namespaces/prefixes set True, get_config returns True for both."""
+        config = nautobot.get_config()
+        self.assertTrue(config.delete_namespaces_on_sync)
+        self.assertTrue(config.delete_prefixes_on_sync)

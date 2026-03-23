@@ -103,6 +103,10 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
     Works mostly as per the BaseJob API, with the following changes:
 
     - Concrete subclasses are responsible for implementing `self.sync_data()` (or related hooks), **not** `self.run()`.
+    - The `run()` method uses `*args` and `**kwargs` in its signature to minimize impact when additional Job
+      variables are added to the base class in future releases. Subclasses that override `run()` to add their own
+      job variables should pull any needed arguments from the `kwargs` dictionary, then pass `*args` and
+      `**kwargs` through to `super().run()`.
     - Subclasses may optionally define any Meta field supported by Jobs, as well as the following:
       - `dryrun_default` - defaults to True if unspecified
       - `data_source` and `data_target` as labels (by default, will use the `name` and/or "Nautobot" as appropriate)
@@ -613,7 +617,12 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         return getattr(cls.Meta, "data_target_icon", None)
 
     def run(self, *args, **kwargs):
-        """Job entry point from Nautobot - do not override!"""
+        """Job entry point from Nautobot - do not override!
+
+        Uses *args and **kwargs to accept all Job variables passed by Nautobot, including any that may be
+        added to this base class in future releases. This minimizes breakage for subclasses when new
+        variables (e.g., dryrun, memory_profiling, parallel_loading) are introduced.
+        """
         self.dryrun = kwargs.get("dryrun", True)
         self.memory_profiling = kwargs.get("memory_profiling", False)
         self.parallel_loading = kwargs.get("parallel_loading", False)

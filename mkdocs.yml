@@ -83,8 +83,10 @@ markdown_extensions:
           class: "mermaid"
           format: !!python/name:pymdownx.superfences.fence_code_format
   - "footnotes"
+  - "meta"
 plugins:
   - "search"
+  - "glightbox"
   - "mkdocstrings":
       default_handler: "python"
       handlers:
@@ -152,8 +154,10 @@ nav:
       - Compatibility Matrix: "admin/compatibility_matrix.md"
       - Release Notes:
           - "admin/release_notes/index.md"
+          - v4.2: "admin/release_notes/version_4.2.md"
           - v4.1: "admin/release_notes/version_4.1.md"
           - v4.0: "admin/release_notes/version_4.0.md"
+          - v3.12: "admin/release_notes/version_3.12.md"
           - v3.11: "admin/release_notes/version_3.11.md"
           - v3.10: "admin/release_notes/version_3.10.md"
           - v3.9: "admin/release_notes/version_3.9.md"

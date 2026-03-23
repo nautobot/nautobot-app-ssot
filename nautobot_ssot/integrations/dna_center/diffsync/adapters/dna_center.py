@@ -1,6 +1,7 @@
 """Nautobot SSoT for Cisco DNA Center Adapter for DNA Center SSoT plugin."""
 
 import json
+from decimal import Decimal
 from typing import List, Optional
 
 from diffsync import Adapter
@@ -168,6 +169,16 @@ class DnaCenterAdapter(Adapter):
                 f"Unable to find Location assigned to {self.job.dnac.name} so skipping loading of Locations for Controller."
             )
             return
+        if self.job.dnac.location.location_type == self.job.area_loctype:
+            self.job.logger.error(
+                f"Controller {self.job.dnac.name} is assigned to a {self.job.dnac.location.location_type.name} Location. Controllers must not be assigned to an Area Location Type."
+            )
+            return
+        if not self.job.dnac.location.parent:
+            self.job.logger.error(
+                f"Controller {self.job.dnac.name} has no parent Location. Controllers must be assigned to a Location that has a parent."
+            )
+            return
 
         if self.job.dnac.location.location_type == self.job.floor_loctype:
             self.get_or_instantiate(
@@ -183,8 +194,7 @@ class DnaCenterAdapter(Adapter):
                 },
             )
         if (
-            self.job.dnac.location.parent
-            and self.job.dnac.location.parent.parent
+            self.job.dnac.location.parent.parent
             and self.job.dnac.location.parent.parent.location_type == self.job.building_loctype
         ):
             self.get_or_instantiate(
@@ -208,14 +218,18 @@ class DnaCenterAdapter(Adapter):
                     "area": self.job.dnac.location.parent.name if self.job.dnac.location.parent else None,
                 },
                 attrs={
-                    "address": self.job.dnac.location.physical_address,
+                    "address": self.job.dnac.location.physical_address or "",
                     "area_parent": (
                         self.job.dnac.location.parent.parent.name
                         if self.job.dnac.location.parent and self.job.dnac.location.parent.parent
                         else None
                     ),
-                    "latitude": str(self.job.dnac.location.latitude),
-                    "longitude": str(self.job.dnac.location.longitude),
+                    "latitude": float(
+                        round(Decimal(self.job.dnac.location.latitude if self.job.dnac.location.latitude else 0.0), 9)
+                    ),
+                    "longitude": float(
+                        round(Decimal(self.job.dnac.location.longitude if self.job.dnac.location.longitude else 0.0), 7)
+                    ),
                     "tenant": self.job.dnac.location.tenant.name if self.job.dnac.location.tenant else None,
                     "uuid": None,
                 },
@@ -237,8 +251,7 @@ class DnaCenterAdapter(Adapter):
                 attrs={"uuid": None},
             )
         if (
-            self.job.dnac.location.parent
-            and self.job.dnac.location.parent.parent
+            self.job.dnac.location.parent.parent
             and self.job.dnac.location.parent.parent.location_type == self.job.area_loctype
         ):
             self.get_or_instantiate(
@@ -295,8 +308,8 @@ class DnaCenterAdapter(Adapter):
             attrs={
                 "address": address if address else "",
                 "area_parent": area_parent_name,
-                "latitude": latitude[:9].rstrip("0"),
-                "longitude": longitude[:7].rstrip("0"),
+                "latitude": float(round(Decimal(latitude if latitude else 0.0), 9)),
+                "longitude": float(round(Decimal(longitude if longitude else 0.0), 7)),
                 "tenant": self.tenant.name if self.tenant else None,
                 "metadata": True,
             },

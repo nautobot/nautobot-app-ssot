@@ -64,7 +64,7 @@ With those configured, you will then need to define a LocationType to use for th
 
 ![Job Form](../../images/meraki_job_form.png)
 
-If you wish to just test the synchronization but not have any data created in Nautobot you'll want to select the `Dryrun` toggle. Clicking the `Debug` toggle will enable more verbose logging to inform you of what is occuring behind the scenes. After those toggles there are also dropdowns that allow you to specify the Meraki Controller to synchronize with and to define the LocationType to use for the imported Networks from Meraki. In addition, there are also some optional settings on the Job form:
+If you wish to just test the synchronization but not have any data created in Nautobot you'll want to select the `Dryrun` toggle. Clicking the `Debug` toggle will enable more verbose logging to inform you of what is occuring behind the scenes. The job will only sync IP Addresses/Prefixes from WAN interfaces by default. If you wish to sync LAN interfaces you'll want to select the `Sync Firewall LAN SVIs` toggle. After those toggles there are also dropdowns that allow you to specify the Meraki Controller to synchronize with and to define the LocationType to use for the imported Networks from Meraki. In addition, there are also some optional settings on the Job form:
 
 - Should the LocationType that you specify for the imported Networks require a parent Location to be assigned, you can define this parent one of two ways:
 
@@ -85,3 +85,20 @@ Running this Job will redirect you to a `Nautobot Job Result` view.
 ![JobResult View](../../images/meraki_jobresult.png)
 
 Once the Job has finished you can click on the `SSoT Sync Details` button at the top right of the Job Result page to see detailed information about the data that was synchronized from Meraki and the outcome of the sync Job.
+
+By default, the Meraki SDK uses a page size of 1000 and retrieves only the first page when fetching devices from the configured Meraki Dashboard. You can override this behavior by using the `api_total_pages` and `api_page_size` settings in your PLUGINS_CONFIG.
+
+The default values are:
+* `api_total_pages = "all"` so that all available devices are retrieved
+* `api_page_size = 1000` to align with the Meraki SDK default page size
+
+You can customize these settings in your PLUGINS_CONFIG as shown below:
+
+```python
+PLUGINS_CONFIG = {
+    "nautobot_ssot": {
+        "api_total_pages": int(os.getenv("API_TOTAL_PAGES", 1)),
+        "api_page_size": int(os.getenv("API_PAGE_SIZE", 500)),
+    }
+}
+```

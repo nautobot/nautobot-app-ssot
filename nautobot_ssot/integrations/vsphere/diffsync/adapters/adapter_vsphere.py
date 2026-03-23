@@ -39,7 +39,16 @@ def deduce_network_from_ip(ip: str, subnet_mask: str) -> str:
 
 
 def create_ipaddr(address: str):
-    """Create an IPV4 or IPV6 object."""
+    """Create an IPv4 or IPv6 address object from a string.
+
+    Attempts to parse the address as IPv4 first, falling back to IPv6 if that fails.
+
+    Args:
+        address: IP address string to parse (e.g. ``"192.168.1.1"`` or ``"::1"``).
+
+    Returns:
+        An ``ipaddress.IPv4Address`` or ``ipaddress.IPv6Address`` instance.
+    """
     try:
         ip_address = ipaddress.IPv4Address(address)
     except ipaddress.AddressValueError:
@@ -48,11 +57,27 @@ def create_ipaddr(address: str):
 
 
 def get_disk_total(disks: List):
-    """Calculcate total disk capacity."""
-    total = 0
+    """Calculate total disk capacity in GiB from a list of vSphere disk objects.
+
+    Skips disks without a capacity (e.g. CD/DVD drives) and sums the remaining
+    disk capacities, converting from bytes to GiB (truncated to int).
+
+    Args:
+        disks: List of vSphere disk objects, each containing a nested ``value``
+            dict with an optional ``capacity`` field in bytes.
+
+    Returns:
+        Total disk capacity in GiB as an integer.
+    """
+    total_bytes = 0
     for disk in disks:
-        total += disk["value"]["capacity"]
-    return int(total / 1024.0**3)
+        value = disk.get("value") or {}
+        capacity = value.get("capacity")
+        if capacity is None:
+            continue
+        total_bytes += capacity
+
+    return int(total_bytes / 1024.0**3)
 
 
 class VsphereDiffSync(Adapter):
@@ -258,6 +283,11 @@ class VsphereDiffSync(Adapter):
 
         for nic in nics:
             nic_mac = nic["value"]["mac_address"].lower()
+            nic_state = nic["value"]["state"]
+            if nic_state not in self.config.default_vm_interface_map:
+                self.job.log_warning(
+                    message=f"Unknown NIC state '{nic_state}' for {nic['value']['label']} on {vm_id}, defaulting to disabled."
+                )
             diffsync_vminterface, _ = self.get_or_instantiate(
                 self.interface,
                 {
@@ -265,7 +295,7 @@ class VsphereDiffSync(Adapter):
                     "virtual_machine__name": diffsync_virtualmachine.name,
                 },
                 {
-                    "enabled": self.config.default_vm_interface_map[nic["value"]["state"]],
+                    "enabled": self.config.default_vm_interface_map.get(nic_state, False),
                     "status__name": "Active",
                     "mac_address": nic_mac.upper(),
                 },
@@ -377,6 +407,9 @@ class VsphereDiffSync(Adapter):
                 name = tag_details.get("name")
                 category_data = self.client.get_category_details(tag_details.get("category_id")).json()
                 category_name = category_data.get("name")
+                if not name and not category_name:
+                    self.job.log_warning(message=f"Skipping vSphere tag {tag_id} with missing name and category.")
+                    continue
                 tag_name = f"{name}__{category_name}"
                 self.get_or_instantiate(
                     self.tag,

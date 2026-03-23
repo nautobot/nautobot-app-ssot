@@ -114,7 +114,7 @@ class NautobotIPAddress(NautobotModel):
 
 ## *-to-many Relationships
 
-For "*-to-many" relationships such as (generic) foreign keys traversed backwards or [many-to-many relationships](https://docs.djangoproject.com/en/3.2/topics/db/examples/many_to_many/), we need to employ a different mechanism. Again we start by identifying which fields of the related object we are interested in for queries **to** the model. In this case, our example will be using an `Interface` model for which we also want to sync the associated IP addresses. For our scenario, lets assume that our IP addresses can be uniquely identified through the `host` and `prefix_length` fields:
+For "*-to-many" relationships such as (generic) foreign keys traversed backwards or [many-to-many relationships](https://docs.djangoproject.com/en/3.2/topics/db/examples/many_to_many/), we need to employ a different mechanism. Again we start by identifying which fields of the related object we are interested in for queries **to** the model. In this case, our example will be using an `Interface` model for which we also want to sync the associated IP addresses. For our scenario, lets assume that our IP addresses can be uniquely identified through the `host` and `mask_length` fields:
 
 ```python
 try:
@@ -125,7 +125,7 @@ except ImportError:
 class IPAddressDict(TypedDict):
     """This typed dict is 100% decoupled from the `NautobotIPAddress` class defined above."""
     host: str
-    prefix_length: int
+    mask_length: int
 ```
 
 !!! note

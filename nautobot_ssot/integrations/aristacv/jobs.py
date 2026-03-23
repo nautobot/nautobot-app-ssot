@@ -41,6 +41,8 @@ class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
             "User Name": config.cvp_user,
             "Verify SSL": str(config.verify_ssl),
             "Delete Devices On Sync": config.delete_devices_on_sync,
+            "Delete Namespaces On Sync": config.delete_namespaces_on_sync,
+            "Delete Prefixes On Sync": config.delete_prefixes_on_sync,
             "New Device Default Site": config.from_cloudvision_default_site,
             "New Device Default Role": config.from_cloudvision_default_device_role,
             "New Device Default Role Color": config.from_cloudvision_default_device_role_color,
@@ -89,14 +91,18 @@ class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
             )
             raise MissingConfigSetting(setting="from_cloudvision_default_device_role")
         if self.debug:
-            if self.app_config.delete_devices_on_sync:
-                self.logger.warning(
-                    "Devices not present in CloudVision but present in Nautobot will be deleted from Nautobot."
-                )
-            else:
-                self.logger.warning(
-                    "Devices not present in CloudVision but present in Nautobot will not be deleted from Nautobot."
-                )
+            self.logger.warning(
+                "Devices not present in CloudVision but present in Nautobot%s will be deleted from Nautobot.",
+                "" if self.app_config.delete_devices_on_sync else " not",
+            )
+            self.logger.warning(
+                "Namespaces not present in CloudVision but present in Nautobot%s will be deleted from Nautobot.",
+                "" if self.app_config.delete_namespaces_on_sync else " not",
+            )
+            self.logger.warning(
+                "Prefixes not present in CloudVision but present in Nautobot%s will be deleted from Nautobot.",
+                "" if self.app_config.delete_prefixes_on_sync else " not",
+            )
             self.logger.info("Connecting to CloudVision")
         with CloudvisionApi(self.app_config) as client:
             self.logger.info("Loading data from CloudVision")
@@ -109,20 +115,13 @@ class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
         self.target_adapter = NautobotAdapter(job=self)
         self.target_adapter.load()
 
-    def run(  # pylint: disable=arguments-differ, too-many-arguments, duplicate-code
-        self,
-        dryrun,
-        memory_profiling,
-        debug,
-        *args,
-        **kwargs,
-    ):
+    def run(self, *args, **kwargs):
         """Perform data synchronization."""
-        self.debug = debug
-        self.dryrun = dryrun
-        self.memory_profiling = memory_profiling
-
-        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
+        self.debug = kwargs.get("debug")
+        self.dryrun = kwargs.get("dryrun")
+        self.memory_profiling = kwargs.get("memory_profiling")
+        self.parallel_loading = kwargs.get("parallel_loading")
+        super().run(*args, **kwargs)
 
 
 class CloudVisionDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
@@ -176,34 +175,31 @@ class CloudVisionDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
     def load_target_adapter(self):
         """Load data from CloudVision into DiffSync models."""
         if self.debug:
-            if self.app_config.delete_devices_on_sync:
-                self.logger.warning(
-                    "Devices not present in CloudVision but present in Nautobot will be deleted from Nautobot."
-                )
-            else:
-                self.logger.warning(
-                    "Devices not present in CloudVision but present in Nautobot will not be deleted from Nautobot."
-                )
+            self.logger.warning(
+                "Devices not present in CloudVision but present in Nautobot%s will be deleted from Nautobot.",
+                "" if self.app_config.delete_devices_on_sync else " not",
+            )
+            self.logger.warning(
+                "Namespaces not present in CloudVision but present in Nautobot%s will be deleted from Nautobot.",
+                "" if self.app_config.delete_namespaces_on_sync else " not",
+            )
+            self.logger.warning(
+                "Prefixes not present in CloudVision but present in Nautobot%s will be deleted from Nautobot.",
+                "" if self.app_config.delete_prefixes_on_sync else " not",
+            )
             self.logger.info("Connecting to CloudVision")
         with CloudvisionApi(self.app_config) as client:
             self.logger.info("Loading data from CloudVision")
             self.target_adapter = CloudvisionAdapter(job=self, conn=client)
             self.target_adapter.load()
 
-    def run(  # pylint: disable=arguments-differ, too-many-arguments, duplicate-code
-        self,
-        dryrun,
-        memory_profiling,
-        debug,
-        *args,
-        **kwargs,
-    ):
+    def run(self, *args, **kwargs):
         """Perform data synchronization."""
-        self.debug = debug
-        self.dryrun = dryrun
-        self.memory_profiling = memory_profiling
-
-        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
+        self.debug = kwargs.get("debug")
+        self.dryrun = kwargs.get("dryrun")
+        self.memory_profiling = kwargs.get("memory_profiling")
+        self.parallel_loading = kwargs.get("parallel_loading")
+        super().run(*args, **kwargs)
 
 
 jobs = [CloudVisionDataSource, CloudVisionDataTarget]

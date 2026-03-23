@@ -1,5 +1,6 @@
 """Test Nautobot Utilities."""
 
+import ipaddress
 import unittest
 
 from django.contrib.contenttypes.models import ContentType
@@ -15,6 +16,7 @@ from nautobot.ipam.models import VLAN, IPAddress, Prefix, get_default_namespace
 
 from nautobot_ssot.integrations.ipfabric.utilities import (
     create_device_type_object,
+    create_interface,
     create_ip,
     create_location,
     create_manufacturer,
@@ -450,8 +452,8 @@ class TestNautobotUtils(TestCase):
         mock_prefix.assert_called_once()
         mock_ip.assert_has_calls(
             [
-                unittest.mock.call(address="192.168.0.1/32", status="mock_status"),
-                unittest.mock.call(address="192.168.0.1/32", status="mock_status", parent="mock_prefix"),
+                unittest.mock.call(address="192.168.0.1/32", defaults={"status": "mock_status"}),
+                unittest.mock.call(address="192.168.0.1/32", defaults={"status": "mock_status"}),
             ]
         )
         mock_tag_object.assert_called_once()
@@ -491,8 +493,8 @@ class TestNautobotUtils(TestCase):
         mock_prefix.assert_called_once()
         mock_ip.assert_has_calls(
             [
-                unittest.mock.call(address="192.168.0.1/32", status="mock_status"),
-                unittest.mock.call(address="192.168.0.1/32", status="mock_status", parent="mock_prefix"),
+                unittest.mock.call(address="192.168.0.1/32", defaults={"status": "mock_status"}),
+                unittest.mock.call(address="192.168.0.1/32", defaults={"status": "mock_status"}),
             ]
         )
         mock_tag_object.assert_called_once()
@@ -535,8 +537,8 @@ class TestNautobotUtils(TestCase):
         mock_prefix.assert_called_once()
         mock_ip.assert_has_calls(
             [
-                unittest.mock.call(address="192.168.0.1/32", status="mock_status"),
-                unittest.mock.call(address="192.168.0.1/32", status="mock_status", parent="mock_prefix"),
+                unittest.mock.call(address="192.168.0.1/32", defaults={"status": "mock_status"}),
+                unittest.mock.call(address="192.168.0.1/32", defaults={"status": "mock_status"}),
             ]
         )
         mock_tag_object.assert_has_calls(
@@ -583,8 +585,8 @@ class TestNautobotUtils(TestCase):
         mock_prefix.assert_called_once()
         mock_ip.assert_has_calls(
             [
-                unittest.mock.call(address="192.168.0.1/32", status="mock_status"),
-                unittest.mock.call(address="192.168.0.1/32", status="mock_status", parent="mock_prefix"),
+                unittest.mock.call(address="192.168.0.1/32", defaults={"status": "mock_status"}),
+                unittest.mock.call(address="192.168.0.1/32", defaults={"status": "mock_status"}),
             ]
         )
         mock_tag_object.assert_has_calls(
@@ -619,7 +621,7 @@ class TestNautobotUtils(TestCase):
         mock_ipaddress_to_interface.assert_not_called()
         mock_ip.assert_called_once()
         mock_tag_object.assert_not_called()
-        logger.error.assert_called_with("Unable to create a new IPAddress of 192.168.0.1/255.255.255.255")
+        logger.error.assert_called_with("Unable to create a new IPAddress of 192.168.0.1/255.255.255.255. Error: ")
 
     @unittest.mock.patch(
         "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
@@ -646,7 +648,9 @@ class TestNautobotUtils(TestCase):
         mock_ipaddress_to_interface.assert_not_called()
         mock_ip.assert_called_once()
         mock_tag_object.assert_not_called()
-        logger.error.assert_called_with("Unable to create a new IPAddress of 192.168.0.1/255.255.255.255")
+        logger.error.assert_called_with(
+            "Unable to create a new IPAddress of 192.168.0.1/255.255.255.255. Error: ['failure']"
+        )
 
     @unittest.mock.patch(
         "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
@@ -673,12 +677,12 @@ class TestNautobotUtils(TestCase):
         mock_ipaddress_to_interface.assert_not_called()
         mock_ip.assert_has_calls(
             [
-                unittest.mock.call(address="192.168.0.1/32", status="mock_status"),
-                unittest.mock.call(address="192.168.0.1/32", status="mock_status", parent="mock_prefix"),
+                unittest.mock.call(address="192.168.0.1/32", defaults={"status": "mock_status"}),
+                unittest.mock.call(address="192.168.0.1/32", defaults={"status": "mock_status"}),
             ]
         )
         mock_tag_object.assert_not_called()
-        logger.error.assert_called_with("Unable to create a new IPAddress of 192.168.0.1/255.255.255.255")
+        logger.error.assert_called_with("Unable to create a new IPAddress of 192.168.0.1/255.255.255.255. Error: ")
 
     @unittest.mock.patch(
         "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
@@ -705,17 +709,19 @@ class TestNautobotUtils(TestCase):
         mock_ipaddress_to_interface.assert_not_called()
         mock_ip.assert_has_calls(
             [
-                unittest.mock.call(address="192.168.0.1/32", status="mock_status"),
-                unittest.mock.call(address="192.168.0.1/32", status="mock_status", parent="mock_prefix"),
+                unittest.mock.call(address="192.168.0.1/32", defaults={"status": "mock_status"}),
+                unittest.mock.call(address="192.168.0.1/32", defaults={"status": "mock_status"}),
             ]
         )
         mock_tag_object.assert_not_called()
-        logger.error.assert_called_with("Unable to create a new IPAddress of 192.168.0.1/255.255.255.255")
+        logger.error.assert_called_with(
+            "Unable to create a new IPAddress of 192.168.0.1/255.255.255.255. Error: ['failure']"
+        )
 
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.LAST_SYNCHRONIZED_CF_NAME")
     @unittest.mock.patch("logging.Logger", autospec=True)
-    def test_create_ip_tag_interface_db_error(self, mock_logger, mock_last_sync, mock_tag_object):
+    def test_create_ip_tag_interface_db_error(self, mock_logger, mock_last_sync, mock_tag_object):  # pylint: disable=unused-argument
         """Test `create_device_type_object` Utility."""
         logger = mock_logger("nb_job")
         mock_tag_object.side_effect = [DjangoBaseDBError, None]
@@ -776,8 +782,126 @@ class TestNautobotUtils(TestCase):
             f"Unable to perform validated_save() on IPAddress {test_ip.address} with an ID of {test_ip.id}"
         )
 
-    # def test_create_interface(self):
-    #     """Test `create_interface` Utility."""
-    #     interface_details = {"name": "Test-Interface"}
-    #     test_interface = create_interface(self.device, interface_details)
-    #     self.assertEqual(test_interface.id, self.device.interfaces.get(name="Test-Interface").id)
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.LAST_SYNCHRONIZED_CF_NAME")
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Prefix.objects.get_or_create")
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create")
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model")
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Namespace")
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_create_ip_fallback_to_subnet_creation(
+        self,
+        mock_logger,
+        mock_namespace,
+        mock_status,
+        mock_ip_get_or_create,
+        mock_prefix_get_or_create,
+        _mock_last_sync,
+        _mock_tag_object,
+    ):
+        """Test `create_ip` falls back to creating prefix if IP creation fails."""
+        mock_status.return_value.get.return_value = "mock_status"
+        mock_namespace.objects.get.return_value = "mock_namespace"
+
+        # First IP create fails with Prefix.DoesNotExist (simulated)
+        # Second IP create succeeds
+        mock_ip_get_or_create.side_effect = [Prefix.DoesNotExist, ("mock_ip_obj", True)]
+
+        # Prefix creation succeeds
+        mock_prefix_get_or_create.return_value = ("mock_prefix", True)
+
+        logger = mock_logger("nb_job")
+
+        ip_addr = "10.0.0.1"
+        mask = "255.255.255.0"
+
+        result = create_ip(ip_addr, mask, logger=logger)
+
+        self.assertEqual(result, "mock_ip_obj")
+
+        # Verify logger info about creating prefix
+        expected_network = ipaddress.ip_network("10.0.0.1/24", strict=False)
+        logger.info.assert_called_with(f"Automatically creating missing prefix {expected_network} for IP {ip_addr}/24")
+
+        # Verify Prefix was created
+        mock_prefix_get_or_create.assert_called_once()
+        # Verify second IP creation attempt
+        self.assertEqual(mock_ip_get_or_create.call_count, 2)
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Prefix.objects.get_or_create")
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create")
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model")
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Namespace")
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_create_ip_fallback_subnet_creation_failure(
+        self,
+        mock_logger,
+        mock_namespace,
+        mock_status,
+        mock_ip_get_or_create,
+        mock_prefix_get_or_create,
+        _mock_tag_object,
+    ):
+        """Test `create_ip` logs error if fallback prefix creation fails."""
+        mock_status.return_value.get.return_value = "mock_status"
+        mock_namespace.objects.get.return_value = "mock_namespace"
+
+        # First IP create fails
+        mock_ip_get_or_create.side_effect = Prefix.DoesNotExist
+
+        # Prefix creation fails
+        mock_prefix_get_or_create.side_effect = DjangoBaseDBError()
+
+        logger = mock_logger("nb_job")
+        ip_addr = "10.0.0.1"
+        mask = "255.255.255.0"
+
+        result = create_ip(ip_addr, mask, logger=logger)
+
+        self.assertIsNone(result)
+
+        logger.error.assert_called_with(f"Unable to create a new IPAddress of {ip_addr}/{mask}. Error: ")
+
+    def test_create_vlan_updates_location_content_types(self):
+        """Test `create_vlan` ensures location type allows VLAN content type."""
+        # Create a location type that doesn't allow VLANs initially
+        loc_type = LocationType.objects.create(name="NoVLANs")
+        location = Location.objects.create(
+            name="Test-NoVLAN-Location",
+            location_type=loc_type,
+            status=Status.objects.get(name="Active"),
+        )
+
+        # Verify initial state
+        vlan_ct = ContentType.objects.get_for_model(VLAN)
+        self.assertNotIn(vlan_ct, loc_type.content_types.all())
+
+        # Create VLAN
+        vlan = create_vlan(
+            vlan_name="Test-VLAN",
+            vlan_id=100,
+            vlan_status="Active",
+            location_obj=location,
+            description="Test Description",
+        )
+
+        # Verify VLAN was created and associated with location
+        self.assertIsNotNone(vlan)
+        self.assertEqual(vlan.location, location)
+
+        # Verify location type now allows VLANs
+        self.assertIn(vlan_ct, loc_type.content_types.all())
+
+    def test_create_interface(self):
+        """Test `create_interface` Utility."""
+        interface_details = {"name": "Test-Interface"}
+        test_interface = create_interface(self.device, interface_details)
+        self.assertEqual(test_interface.id, self.device.interfaces.get(name="Test-Interface").id)
+
+    def test_create_interface_new(self):
+        """Test `create_interface` Utility for new interface."""
+        interface_details = {"name": "Test-Interface-New", "type": "virtual", "mtu": 1500}
+        test_interface = create_interface(self.device, interface_details)
+        self.assertEqual(test_interface.id, self.device.interfaces.get(name="Test-Interface-New").id)
+        self.assertEqual(test_interface.mtu, 1500)

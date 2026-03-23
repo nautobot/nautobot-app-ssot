@@ -160,6 +160,10 @@ PLUGINS_CONFIG = {
         "aristacv_cvp_token": os.getenv("NAUTOBOT_ARISTACV_CVP_TOKEN", ""),
         "aristacv_cvp_user": os.getenv("NAUTOBOT_ARISTACV_CVP_USERNAME", ""),
         "aristacv_delete_devices_on_sync": is_truthy(os.getenv("NAUTOBOT_ARISTACV_DELETE_ON_SYNC", "false")),
+        "aristacv_delete_namespaces_on_sync": is_truthy(
+            os.getenv("NAUTOBOT_ARISTACV_DELETE_NAMESPACES_ON_SYNC", "false")
+        ),
+        "aristacv_delete_prefixes_on_sync": is_truthy(os.getenv("NAUTOBOT_ARISTACV_DELETE_PREFIXES_ON_SYNC", "false")),
         "aristacv_from_cloudvision_default_device_role": "network",
         "aristacv_from_cloudvision_default_device_role_color": "ff0000",
         "aristacv_from_cloudvision_default_site": "cloudvision_imported",
@@ -297,6 +301,7 @@ PLUGINS_CONFIG = {
         "librenms_permitted_values": {
             "role": ["network"],
         },
+        "meraki_allow_dhcp_mgmt_ips": is_truthy(os.getenv("NAUTOBOT_SSOT_MERAKI_ALLOW_DHCP_MGMT_IPS", "false")),
         "servicenow_instance": os.getenv("SERVICENOW_INSTANCE", ""),
         "servicenow_password": os.getenv("SERVICENOW_PASSWORD", ""),
         "servicenow_username": os.getenv("SERVICENOW_USERNAME", ""),
