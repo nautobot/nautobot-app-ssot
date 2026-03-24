@@ -10,6 +10,12 @@ This document describes all new features and changes in the release. The format 
 <!-- towncrier release notes start -->
 
 
+## [v3.12.3 (2026-03-24)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.12.3)
+
+### Fixed
+
+- [#1146](https://github.com/nautobot/nautobot-app-ssot/issues/1146) - Fixed display of large diffs by implementing pagination in render_diff() method.
+
 ## [v3.12.2 (2026-03-24)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.12.2)
 
 ### Added
