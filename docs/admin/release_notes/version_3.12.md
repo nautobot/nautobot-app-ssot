@@ -10,6 +10,18 @@ This document describes all new features and changes in the release. The format 
 <!-- towncrier release notes start -->
 
 
+## [v3.12.2 (2026-03-24)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.12.2)
+
+### Added
+
+- [#1120](https://github.com/nautobot/nautobot-app-ssot/issues/1120) - Adds job input to define the default status for synced Meraki devices.
+
+### Fixed
+
+- [#1119](https://github.com/nautobot/nautobot-app-ssot/issues/1119) - Support Meraki SDK pagination to retrieve all organization devices.
+- [#1143](https://github.com/nautobot/nautobot-app-ssot/issues/1143) - Load meraki switchports only once, instead of loading them per device.
+- [#1154](https://github.com/nautobot/nautobot-app-ssot/issues/1154) - Support uv controlled development environment to run unittest.
+
 ## [v3.12.0 (2026-01-22)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.12.0)
 
 ### Added
