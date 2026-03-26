@@ -1,1 +1,0 @@
-Fixed Bootstrap location sync failing with AttributeError when a tenant is assigned to a location.

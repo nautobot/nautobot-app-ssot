@@ -1,1 +1,0 @@
-Replaced deprecated pytz with stdlib zoneinfo in the Bootstrap integration.

@@ -1,1 +1,0 @@
-Fixed vSphere sync failing when Virtual Machine has a disk with no capacity.

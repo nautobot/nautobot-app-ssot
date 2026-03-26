@@ -1,1 +1,0 @@
-Fixed non-sortable columns (duration, status, user, synced_object) causing errors in Sync and SyncLogEntry list views.

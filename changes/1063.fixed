@@ -1,1 +1,0 @@
-Fixed vSphere sync crash caused by tags with missing name or category resulting in empty-string DiffSync identifiers.
