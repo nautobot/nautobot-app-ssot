@@ -26,6 +26,7 @@ _CONFLICTING_APP_NAMES = [
     "nautobot_ssot_ipfabric",
     "nautobot_ssot_itential",
     "nautobot_ssot_meraki",
+    "nautobot_ssot_panorama",
     "nautobot_ssot_servicenow",
     "nautobot_ssot_solarwinds",
 ]
@@ -121,6 +122,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "enable_ipfabric": False,
         "enable_librenms": False,
         "enable_meraki": False,
+        "enable_panorama": False,
         "enable_servicenow": False,
         "enable_slurpit": False,
         "enable_solarwinds": False,
