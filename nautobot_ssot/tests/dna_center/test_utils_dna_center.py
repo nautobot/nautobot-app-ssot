@@ -33,7 +33,7 @@ class TestDnaCenterClient(TestCase):  # pylint: disable=too-many-public-methods
         self.verify = False
         self.dnac = DnaCenterClient(self.url, self.username, self.password, verify=self.verify)
         self.dnac.conn = MagicMock()
-        self.dnac.conn.sites.get_site_count.return_value = {"response": 4}
+        self.dnac.conn.sites.get_site_count.return_value = {"response": 31}
         self.dnac.conn.devices.get_device_count.return_value = {"response": 3}
 
         self.mock_response = create_autospec(Response)
@@ -69,6 +69,26 @@ class TestDnaCenterClient(TestCase):  # pylint: disable=too-many-public-methods
         self.dnac.conn.sites.get_site.return_value = RECV_LOCATION_FIXTURE
         actual = self.dnac.get_locations()
         self.assertEqual(actual, LOCATION_FIXTURE)
+
+    def test_get_locations_pagination(self):
+        """Test the get_locations method correctly paginates without skipping items.
+
+        Simulates a 1-based offset API returning a fixed page size. With N total items
+        and page_size P, an off-by-one in offset causes one duplicate per page. When the
+        accumulated duplicates inflate loc_data to >= total before all unique items are
+        fetched, the loop exits early and items are silently skipped.
+        """
+        all_locations = RECV_LOCATION_FIXTURE["response"][:30]
+
+        def fake_get_site(offset=1, limit=10, **kwargs):
+            """Simulate 1-based offset API returning up to limit items."""
+            start = offset - 1
+            return {"response": all_locations[start : start + limit]}
+
+        self.dnac.conn.sites.get_site.side_effect = fake_get_site
+        self.dnac.conn.sites.get_site_count.return_value = {"response": len(all_locations)}
+        actual = self.dnac.get_locations()
+        self.assertEqual(len(actual), len(all_locations))
 
     def test_get_locations_catches_api_error(self):
         """Test the get_locations method in DnaCenterClient catches dnacentersdkException."""
