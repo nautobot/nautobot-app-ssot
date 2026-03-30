@@ -1,6 +1,6 @@
 """Enums used in SSoT contrib processes."""
 
-from enum import Enum
+from enum import auto, Enum
 
 
 class SortType(Enum):
@@ -17,3 +17,14 @@ class RelationshipSideEnum(Enum):
 
     SOURCE = "SOURCE"
     DESTINATION = "DESTINATION"
+
+
+class AttributeType(Enum):
+    """Enum for identifying DiffSync model attribute types as used in contrib."""
+
+    STANDARD = auto()
+    FOREIGN_KEY = auto()
+    N_TO_MANY_RELATIONSHIP = auto()
+    CUSTOM_FIELD = auto()
+    CUSTOM_FOREIGN_KEY = auto()
+    CUSTOM_N_TO_MANY_RELATIONSHIP = auto()
