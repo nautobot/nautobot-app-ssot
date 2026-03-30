@@ -1401,7 +1401,6 @@ description = "A high-level Python web framework that encourages rapid developme
 optional = false
 python-versions = ">=3.10"
 groups = ["main", "dev"]
-markers = "python_version >= \"3.12\""
 files = [
     {file = "django-5.2.13-py3-none-any.whl", hash = "sha256:5788fce61da23788a8ce6f02583765ab060d396720924789f97fa42119d37f7a"},
     {file = "django-5.2.13.tar.gz", hash = "sha256:a31589db5188d074c63f0945c3888fad104627dfcc236fb2b97f71f89da33bc4"},
@@ -1430,33 +1429,11 @@ files = [
 
 [[package]]
 name = "django-celery-beat"
-version = "2.7.0"
-description = "Database-backed Periodic Tasks."
-optional = false
-python-versions = ">=3.8"
-groups = ["main"]
-markers = "python_version < \"3.12\""
-files = [
-    {file = "django_celery_beat-2.7.0-py3-none-any.whl", hash = "sha256:851c680d8fbf608ca5fecd5836622beea89fa017bc2b3f94a5b8c648c32d84b1"},
-    {file = "django_celery_beat-2.7.0.tar.gz", hash = "sha256:8482034925e09b698c05ad61c36ed2a8dbc436724a3fe119215193a4ca6dc967"},
-]
-
-[package.dependencies]
-celery = ">=5.2.3,<6.0"
-cron-descriptor = ">=1.2.32"
-Django = ">=2.2,<5.2"
-django-timezone-field = ">=5.0"
-python-crontab = ">=2.3.4"
-tzdata = "*"
-
-[[package]]
-name = "django-celery-beat"
 version = "2.8.1"
 description = "Database-backed Periodic Tasks."
 optional = false
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "python_version >= \"3.12\""
 files = [
     {file = "django_celery_beat-2.8.1-py3-none-any.whl", hash = "sha256:da2b1c6939495c05a551717509d6e3b79444e114a027f7b77bf3727c2a39d171"},
     {file = "django_celery_beat-2.8.1.tar.gz", hash = "sha256:dfad0201c0ac50c91a34700ef8fa0a10ee098cc7f3375fe5debed79f2204f80a"},
@@ -4379,7 +4356,6 @@ description = "Source of truth and network automation platform."
 optional = false
 python-versions = "<3.15,>=3.10"
 groups = ["main"]
-markers = "python_version >= \"3.12\""
 files = [
     {file = "nautobot-3.1.0a5-py3-none-any.whl", hash = "sha256:45bfbba1d2eadb190f8b8a8558ec332092233886a6c6dbdbe9b6271db10a47c3"},
     {file = "nautobot-3.1.0a5.tar.gz", hash = "sha256:9067b2a906203793128bff442f635d5a7ba7ae653d0476aee9451978635f0127"},
@@ -4768,6 +4744,35 @@ files = [
 [package.extras]
 dev = ["pytest", "tox"]
 lint = ["black"]
+
+[[package]]
+name = "pan-os-python"
+version = "1.12.5"
+description = "Framework for interacting with Palo Alto Networks devices via API"
+optional = true
+python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,>=2.7"
+groups = ["main"]
+markers = "extra == \"all\" or extra == \"panorama\""
+files = [
+    {file = "pan_os_python-1.12.5-py2.py3-none-any.whl", hash = "sha256:6967ca60f174cafaa15648388793204fccd646baf5bc065cf1e7acacea418bd7"},
+    {file = "pan_os_python-1.12.5.tar.gz", hash = "sha256:65e6b458c7459192c4662d9aa94f70a17140dda0100446217fe0fbb3965a3aba"},
+]
+
+[package.dependencies]
+pan-python = ">=0.17.0,<0.18.0"
+
+[[package]]
+name = "pan-python"
+version = "0.17.0"
+description = "Multi-tool set for Palo Alto Networks PAN-OS, Panorama, WildFire and AutoFocus"
+optional = true
+python-versions = "*"
+groups = ["main"]
+markers = "extra == \"all\" or extra == \"panorama\""
+files = [
+    {file = "pan-python-0.17.0.tar.gz", hash = "sha256:9c074ea2f69a63996a6fefe8935d60dca61660e14715ac19d257ea9b1c41c6e2"},
+    {file = "pan_python-0.17.0-py2.py3-none-any.whl", hash = "sha256:f4674e40763c46d5933244b3059a57884e4e28205ef6d0f9ce2dc2013e3db010"},
+]
 
 [[package]]
 name = "parameterized"
@@ -7037,7 +7042,6 @@ description = "Python Social Authentication, Django integration."
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "python_version >= \"3.12\""
 files = [
     {file = "social_auth_app_django-5.7.0-py3-none-any.whl", hash = "sha256:492b6f64e1e9fa5ed62b24bc19bde31c235fd4eb7fbd5c310e999e752b8f699a"},
     {file = "social_auth_app_django-5.7.0.tar.gz", hash = "sha256:c0cc118d1bb935dbf02acb8a57fabd7b07694452fce755a5956282c69f019c79"},
@@ -7966,7 +7970,7 @@ propcache = ">=0.2.1"
 
 [extras]
 aci = ["PyYAML"]
-all = ["Jinja2", "PyYAML", "cloudvision", "cvprac", "dnacentersdk", "dnspython", "ijson", "ipfabric", "meraki", "nautobot-device-lifecycle-mgmt", "netutils", "oauthlib", "python-magic", "pytz", "requests", "requests-oauthlib", "six", "slurpit-sdk", "urllib3"]
+all = ["Jinja2", "PyYAML", "cloudvision", "cvprac", "dnacentersdk", "dnspython", "ijson", "ipfabric", "meraki", "nautobot-device-lifecycle-mgmt", "netutils", "oauthlib", "pan-os-python", "python-magic", "pytz", "requests", "requests-oauthlib", "six", "slurpit-sdk", "urllib3"]
 aristacv = ["cloudvision", "cvprac"]
 bootstrap = []
 citrix-adm = ["netutils", "requests", "urllib3"]
@@ -7976,6 +7980,7 @@ infoblox = ["dnspython"]
 ipfabric = ["httpx", "ipfabric", "netutils"]
 meraki = ["meraki"]
 nautobot-device-lifecycle-mgmt = ["nautobot-device-lifecycle-mgmt"]
+panorama = ["pan-os-python"]
 pysnow = ["ijson", "oauthlib", "python-magic", "pytz", "requests", "requests-oauthlib", "six"]
 servicenow = ["Jinja2", "PyYAML", "ijson", "oauthlib", "python-magic", "pytz", "requests", "requests-oauthlib", "six"]
 slurpit = ["slurpit-sdk"]
@@ -7983,4 +7988,4 @@ slurpit = ["slurpit-sdk"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.15"
-content-hash = "f1d5ac2ab7d92092eb400bca71f3d108421850e03dca0b101649ec302325ce92"
+content-hash = "82d173b657adbf16c6725dcaa62ccf81cfcb5b6a42e9a6ea359427fd90b19840"

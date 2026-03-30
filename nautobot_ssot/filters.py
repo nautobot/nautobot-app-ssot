@@ -6,6 +6,7 @@ from nautobot.apps.filters import BaseFilterSet, NautobotFilterSet, SearchFilter
 from nautobot_ssot import models
 from nautobot_ssot.integrations.infoblox.filters import SSOTInfobloxConfigFilterSet
 from nautobot_ssot.integrations.itential.filters import AutomationGatewayModelFilterSet
+from nautobot_ssot.integrations.panorama.filters import LogicalGroupFilterSet, VirtualSystemFilterSet
 
 
 class SyncFilterSet(BaseFilterSet):  # pylint: disable=too-many-ancestors
@@ -53,7 +54,9 @@ class SyncLogEntryFilterSet(NautobotFilterSet):  # pylint: disable=too-many-ance
 
 __all__ = (
     "AutomationGatewayModelFilterSet",
+    "LogicalGroupFilterSet",
     "SSOTInfobloxConfigFilterSet",
     "SyncFilterSet",
     "SyncLogEntryFilterSet",
+    "VirtualSystemFilterSet",
 )

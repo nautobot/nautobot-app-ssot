@@ -13,6 +13,7 @@ This Nautobot app supports the following integrations:
 - [Itential](./itential.md)
 - [LibreNMS](./librenms.md)
 - [Cisco Meraki](./meraki.md)
+- [Palo Alto Panorama](./panorama.md)
 - [ServiceNow](./servicenow.md)
 - [Slurpit](./slurpit.md)
 - [SolarWinds](./solarwinds.md)

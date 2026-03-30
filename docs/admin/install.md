@@ -101,6 +101,7 @@ Set up each integration using the specific guides:
 - [Itential](./integrations/itential_setup.md)
 - [LibreNMS](./integrations/librenms_setup.md)
 - [Cisco Meraki](./integrations/meraki_setup.md)
+- [Palo Alto Panorama](./integrations/panorama_setup.md)
 - [ServiceNow](./integrations/servicenow_setup.md)
 - [Slurpit](./integrations/slurpit_setup.md)
 - [SolarWinds](./integrations/solarwinds_setup.md)

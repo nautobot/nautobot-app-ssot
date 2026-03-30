@@ -37,6 +37,7 @@ This Nautobot application framework includes the following integrations:
 - Itential
 - LibreNMS
 - Cisco Meraki
+- Palo Alto Panorama
 - ServiceNow
 - Slurpit
 - SolarWinds

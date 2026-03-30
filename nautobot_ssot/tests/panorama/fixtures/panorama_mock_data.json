@@ -1,0 +1,42 @@
+{
+    "firewalls": [
+        {
+            "name": "fw-01",
+            "serial": "serial001",
+            "location": "dg_1",
+            "firewall_system_info": {
+                "system": {
+                    "mgmt-ip": "10.0.0.1",
+                    "netmask": "24",
+                    "model": "PA-3220",
+                    "sw-version": "10.2.0",
+                    "multi-vsys": "off"
+                }
+            }
+        },
+        {
+            "name": "fw-02",
+            "serial": "serial002",
+            "firewall_system_info": {
+                "system": {
+                    "ip-address": "10.0.0.2",
+                    "netmask": "24",
+                    "model": "PA-3250",
+                    "sw-version": "10.2.0",
+                    "multi-vsys": "on"
+                }
+            }
+        }
+    ],
+    "device_groups": {"firewall-group": "shared", "datacenter-east": "shared", "datacenter-west": "shared"},
+    "vsys": {
+        "serial001": {
+            "vsys1": {"name": "vsys1", "devicegroup": "firewall-group", "cached_successfully": true, "interfaces": []}
+        }
+    },
+    "interfaces": {
+        "ethernet1/1": {"name": "ethernet1/1", "comment": "Data interface", "ip": ["192.168.1.1/24", "192.168.1.2/24"]},
+        "ethernet1/2": {"name": "ethernet1/2", "comment": "", "ip": []},
+        "ethernet1/3": {"name": "ethernet1/3", "comment": "No CIDR interface", "ip": ["192.168.2.1"]}
+    }
+}
