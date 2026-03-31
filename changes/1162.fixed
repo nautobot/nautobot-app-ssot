@@ -1,0 +1,1 @@
+Fixed SSoT tests that assumed integration/example Job records were preloaded, so they now pass regardless of local integration enablement settings.

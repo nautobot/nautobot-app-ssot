@@ -2,10 +2,12 @@
 
 from django.test import override_settings
 from nautobot.apps.testing import run_job_for_testing
-from nautobot.extras.models import Job, JobLogEntry
+from nautobot.extras.models import JobLogEntry
 
+from nautobot_ssot.integrations.itential.jobs import ItentialAutomationGatewayDataTarget
 from nautobot_ssot.integrations.itential.models import AutomationGatewayModel
 from nautobot_ssot.tests.itential.fixtures import base
+from nautobot_ssot.tests.utils.job_helpers import get_test_job_model
 
 
 @override_settings(
@@ -20,12 +22,13 @@ class ItentialSSoTJobsTestCase(base.ItentialSSoTBaseTransactionTestCase):
 
     databases = ("default", "job_logs")
 
+    @staticmethod
+    def _get_job_model():
+        return get_test_job_model(ItentialAutomationGatewayDataTarget)
+
     def test_job_success(self):
         """Test successful job."""
-        self.job = Job.objects.get(
-            job_class_name="ItentialAutomationGatewayDataTarget",
-            module_name="nautobot_ssot.integrations.itential.jobs",
-        )
+        self.job = self._get_job_model()
         job_result = run_job_for_testing(
             self.job, dryrun=False, memory_profiling=False, gateway=self.gateway.pk, status=self.status.pk
         )
@@ -39,10 +42,7 @@ class ItentialSSoTJobsTestCase(base.ItentialSSoTBaseTransactionTestCase):
     def test_job_disabled_gateway(self):
         """Test job with disabled automation gateway."""
         gateway = AutomationGatewayModel.objects.get(name="IAG10")
-        self.job = Job.objects.get(
-            job_class_name="ItentialAutomationGatewayDataTarget",
-            module_name="nautobot_ssot.integrations.itential.jobs",
-        )
+        self.job = self._get_job_model()
         job_result = run_job_for_testing(
             self.job, dryrun=False, memory_profiling=False, gateway=gateway.pk, status=self.status.pk
         )

@@ -14,7 +14,6 @@ from nautobot.extras.choices import CustomFieldTypeChoices, SecretsGroupAccessTy
 from nautobot.extras.models import (
     CustomField,
     ExternalIntegration,
-    Job,
     JobLogEntry,
     JobResult,
     Secret,
@@ -31,6 +30,7 @@ from nautobot_ssot.tests.dna_center.fixtures import (
     MULTI_LEVEL_LOCATION_FIXTURE,
     PORT_FIXTURE,
 )
+from nautobot_ssot.tests.utils.job_helpers import get_test_job_model
 
 
 class DnaCenterDataSourceJobTest(TestCase):
@@ -123,10 +123,7 @@ class DnaCenterMultiLevelLocationJobTest(TransactionTestCase):  # pylint: disabl
         self.test_loc = Location.objects.create(
             name="HQ", location_type=self.building_loctype, parent=us_region, status=self.status_active
         )
-        self.job = Job.objects.get(
-            job_class_name="DnaCenterDataSource",
-            module_name="nautobot_ssot.integrations.dna_center.jobs",
-        )
+        self.job = get_test_job_model(jobs.DnaCenterDataSource)
         self.job_result = JobResult.objects.create(
             name=self.job.class_path, task_name="Fake task", user=None, id=uuid.uuid4()
         )
