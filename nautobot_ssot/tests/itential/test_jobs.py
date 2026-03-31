@@ -22,7 +22,6 @@ class ItentialSSoTJobsTestCase(base.ItentialSSoTBaseTransactionTestCase):
 
     databases = ("default", "job_logs")
 
-
     def test_job_success(self):
         """Test successful job."""
         self.job = get_test_job_model(ItentialAutomationGatewayDataTarget)
