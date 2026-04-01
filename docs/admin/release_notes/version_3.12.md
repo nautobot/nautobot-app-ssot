@@ -10,6 +10,12 @@ This document describes all new features and changes in the release. The format 
 <!-- towncrier release notes start -->
 
 
+## [v3.12.4 (2026-04-01)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.12.4)
+
+### Fixed
+
+- [#1160](https://github.com/nautobot/nautobot-app-ssot/issues/1160) - Fixed a bug in the DNA Center integration where the get_locations method was not correctly paginating the results.
+
 ## [v3.12.3 (2026-03-24)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.12.3)
 
 ### Fixed
