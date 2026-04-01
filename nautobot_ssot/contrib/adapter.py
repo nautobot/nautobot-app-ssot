@@ -16,8 +16,8 @@ from nautobot.extras.models import Relationship
 from nautobot.extras.models.metadata import MetadataType
 
 from nautobot_ssot.contrib.base import BaseNautobotAdapter, BaseNautobotModel
+from nautobot_ssot.contrib.enums import AttributeType
 from nautobot_ssot.contrib.types import (
-    CustomFieldAnnotation,
     CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
@@ -31,8 +31,7 @@ from nautobot_ssot.utils.typing import get_inner_type
 
 
 class NautobotAdapter(Adapter, BaseNautobotAdapter):
-    """
-    Adapter for loading data from Nautobot through the ORM.
+    """Adapter for loading data from Nautobot through the ORM.
 
     This adapter is able to infer how to load data from Nautobot based on how the models attached to it are defined.
     """
@@ -76,52 +75,36 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
             self._load_single_object(database_object, diffsync_model, parameter_names)
 
     def _handle_single_parameter(self, parameters, parameter_name, database_object, diffsync_model):
-        # Handle custom fields and custom relationships. See CustomFieldAnnotation and CustomRelationshipAnnotation
-        # docstrings for more details.
-        annotation = diffsync_model.get_attr_annotation(parameter_name)
-        if isinstance(annotation, CustomFieldAnnotation):
-            field_key = annotation.key or annotation.name
-            if field_key in database_object.cf:
-                parameters[parameter_name] = database_object.cf[field_key]
-            return
-
-        is_custom_relationship = isinstance(annotation, CustomRelationshipAnnotation)
-
-        # Handling of foreign keys where the local side is the many and the remote side the one.
-        # Note: This includes the side of a generic foreign key that has the foreign key, i.e.
-        # the 'many' side.
-        if "__" in parameter_name:
-            if is_custom_relationship:
-                parameters[parameter_name] = self._handle_custom_relationship_foreign_key(
-                    database_object, parameter_name, annotation
-                )
-            else:
-                parameters[parameter_name] = orm_attribute_lookup(database_object, parameter_name)
-            return
-
-        # Handling of one- and many-to custom relationship fields:
-        if annotation:
-            parameters[parameter_name] = self._handle_custom_relationship_to_many_relationship(
-                database_object, diffsync_model, parameter_name, annotation
-            )
-            return
-
-        database_field = diffsync_model._model._meta.get_field(parameter_name)
-
-        # Handling of one- and many-to-many non-custom relationship fields.
-        # Note: This includes the side of a generic foreign key that constitutes the foreign key,
-        # i.e. the 'one' side.
-        if database_field.many_to_many or database_field.one_to_many:
-            parameters[parameter_name] = self._handle_to_many_relationship(
-                database_object, diffsync_model, parameter_name
-            )
-            return
-
-        # Handling of normal fields - as this is the default case, set the attribute directly.
+        # Handle parameter overrides
+        # TODO: Overrides would be better suited in the associated Model.
         if hasattr(self, f"load_param_{parameter_name}"):
             parameters[parameter_name] = getattr(self, f"load_param_{parameter_name}")(parameter_name, database_object)
-        else:
-            parameters[parameter_name] = getattr(database_object, parameter_name)
+            return
+
+        match diffsync_model.get_attr_enum(parameter_name):
+            case AttributeType.STANDARD:
+                parameters[parameter_name] = getattr(database_object, parameter_name)
+            case AttributeType.FOREIGN_KEY:
+                parameters[parameter_name] = orm_attribute_lookup(database_object, parameter_name)
+            case AttributeType.N_TO_MANY_RELATIONSHIP:
+                parameters[parameter_name] = self._handle_to_many_relationship(
+                    database_object, diffsync_model, parameter_name
+                )
+            case AttributeType.CUSTOM_FIELD:
+                annotation = diffsync_model.get_attr_annotation(parameter_name)
+                field_key = annotation.key or annotation.name
+                if field_key in database_object.cf:
+                    parameters[parameter_name] = database_object.cf[field_key]
+            case AttributeType.CUSTOM_FOREIGN_KEY:
+                parameters[parameter_name] = self._handle_custom_relationship_foreign_key(
+                    database_object,
+                    parameter_name,
+                    diffsync_model.get_attr_annotation(parameter_name),
+                )
+            case AttributeType.CUSTOM_N_TO_MANY_RELATIONSHIP:
+                parameters[parameter_name] = self._handle_custom_relationship_to_many_relationship(
+                    database_object, diffsync_model, parameter_name, diffsync_model.get_attr_annotation(parameter_name)
+                )
 
     def _load_single_object(self, database_object, diffsync_model, parameter_names):
         """Load a single diffsync object from a single database object."""

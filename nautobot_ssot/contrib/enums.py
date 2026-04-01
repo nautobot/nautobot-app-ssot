@@ -1,6 +1,6 @@
 """Enums used in SSoT contrib processes."""
 
-from enum import auto, Enum
+from enum import Enum, auto
 
 
 class SortType(Enum):

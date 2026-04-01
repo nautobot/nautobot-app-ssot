@@ -5,6 +5,7 @@
 
 from collections import defaultdict
 from datetime import datetime
+from functools import lru_cache
 
 from diffsync import DiffSyncModel
 from diffsync.exceptions import ObjectCrudException, ObjectNotCreated, ObjectNotDeleted, ObjectNotUpdated
@@ -16,9 +17,9 @@ from nautobot.extras.models import Relationship, RelationshipAssociation
 from nautobot.extras.models.metadata import ObjectMetadata
 
 from nautobot_ssot.contrib.base import BaseNautobotModel
+from nautobot_ssot.contrib.enums import AttributeType
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
-    CustomRelationshipAnnotation,
     RelationshipSideEnum,
 )
 from nautobot_ssot.utils.diffsync import DiffSyncModelUtilityMixin
@@ -116,6 +117,24 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
         return super().create(adapter, ids, attrs)
 
     @classmethod
+    @lru_cache
+    def get_attr_enum(cls, attr_name: str) -> AttributeType:
+        """Return `AttributeType` enum value for type hinted attribute."""
+        annotation = cls.get_attr_annotation(attr_name)
+        if isinstance(annotation, CustomFieldAnnotation):
+            return AttributeType.CUSTOM_FIELD
+        if "__" in attr_name:
+            if annotation:
+                return AttributeType.CUSTOM_FOREIGN_KEY
+            return AttributeType.FOREIGN_KEY
+        if annotation:
+            return AttributeType.CUSTOM_N_TO_MANY_RELATIONSHIP
+        django_field = cls._model._meta.get_field(attr_name)
+        if django_field.many_to_many or django_field.one_to_many:
+            return AttributeType.N_TO_MANY_RELATIONSHIP
+        return AttributeType.STANDARD
+
+    @classmethod
     def _handle_single_field(cls, field, obj, value, relationship_fields, adapter):  # pylint: disable=too-many-arguments,too-many-locals, too-many-branches
         """Set a single field on a Django object to a given value, or, for relationship fields, prepare setting.
 
@@ -128,88 +147,63 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
         """
         cls._check_field(field)
 
-        # Handle custom fields. See CustomFieldAnnotation docstring for more details.
         annotation = cls.get_attr_annotation(field)
-        if isinstance(annotation, CustomFieldAnnotation):
-            obj.cf[annotation.key] = value
-            return
-
-        custom_relationship_annotation = annotation if isinstance(annotation, CustomRelationshipAnnotation) else None
-
-        # Prepare handling of foreign keys and custom relationship foreign keys.
-        # Example: If field is `tenant__group__name`, then
-        # `foreign_keys["tenant"]["group__name"] = value` or
-        # `custom_relationship_foreign_keys["tenant"]["group__name"] = value`
-        # Also, the model class will be added to the dictionary for normal foreign keys, so we can later use it
-        # for querying:
-        # `foreign_keys["tenant"]["_model_class"] = nautobot.tenancy.models.Tenant
-        # For custom relationship foreign keys, we add the annotation instead:
-        # `custom_relationship_foreign_keys["tenant"]["_annotation"] = CustomRelationshipAnnotation(...)
-        if "__" in field:
-            related_model, lookup = field.split("__", maxsplit=1)
-            # Custom relationship foreign keys
-            if custom_relationship_annotation:
-                relationship_fields["custom_relationship_foreign_keys"][related_model][lookup] = value
-                relationship_fields["custom_relationship_foreign_keys"][related_model]["_annotation"] = (
-                    custom_relationship_annotation
-                )
-            # Normal foreign keys
-            else:
+        match cls.get_attr_enum(field):
+            case AttributeType.STANDARD:
+                setattr(obj, field, value)
+            case AttributeType.FOREIGN_KEY:
+                related_model, lookup = field.split("__", maxsplit=1)
                 django_field = cls._model._meta.get_field(related_model)
                 relationship_fields["foreign_keys"][related_model][lookup] = value
                 # Add a special key to the dictionary to point to the related model's class
                 relationship_fields["foreign_keys"][related_model]["_model_class"] = django_field.related_model
-            return
-
-        # Prepare handling of custom relationship many-to-many fields.
-        if custom_relationship_annotation:
-            relationship = adapter.get_from_orm_cache({"label": custom_relationship_annotation.name}, Relationship)
-            if custom_relationship_annotation.side == RelationshipSideEnum.DESTINATION:
-                related_object_content_type = relationship.source_type
-            else:
-                related_object_content_type = relationship.destination_type
-            related_model_class = related_object_content_type.model_class()
-            if (
-                relationship.type == RelationshipTypeChoices.TYPE_ONE_TO_MANY
-                and custom_relationship_annotation.side == RelationshipSideEnum.DESTINATION
-            ):
-                relationship_fields["custom_relationship_foreign_keys"][field] = {
-                    **value,
-                    "_annotation": custom_relationship_annotation,
-                }
-            else:
-                relationship_fields["custom_relationship_many_to_many_fields"][field] = {
-                    "annotation": custom_relationship_annotation,
-                    "objects": [adapter.get_from_orm_cache(parameters, related_model_class) for parameters in value],
-                }
-
-            return
-
-        django_field = cls._model._meta.get_field(field)
-
-        # Prepare handling of many-to-many fields. If we are dealing with a many-to-many field,
-        # we get all the related objects here to later set them once the object has been saved.
-        if django_field.many_to_many or django_field.one_to_many:
-            try:
-                relationship_fields["many_to_many_fields"][field] = [
-                    adapter.get_from_orm_cache(parameters, django_field.related_model) for parameters in value
-                ]
-            except django_field.related_model.DoesNotExist as error:
-                raise ObjectCrudException(
-                    f"Unable to populate many to many relationship '{django_field.name}' with parameters {value}, at least one related object not found."
-                ) from error
-            except MultipleObjectsReturned as error:
-                raise ObjectCrudException(
-                    f"Unable to populate many to many relationship '{django_field.name}' with parameters {value}, at least one related object found twice."
-                ) from error
-            return
-
-        # As the default case, just set the attribute directly
-        setattr(obj, field, value)
+            case AttributeType.N_TO_MANY_RELATIONSHIP:
+                django_field = cls._model._meta.get_field(field)
+                try:
+                    relationship_fields["many_to_many_fields"][field] = [
+                        adapter.get_from_orm_cache(parameters, django_field.related_model) for parameters in value
+                    ]
+                except django_field.related_model.DoesNotExist as error:
+                    raise ObjectCrudException(
+                        f"Unable to populate many to many relationship '{django_field.name}' with parameters {value}, at least one related object not found."
+                    ) from error
+                except MultipleObjectsReturned as error:
+                    raise ObjectCrudException(
+                        f"Unable to populate many to many relationship '{django_field.name}' with parameters {value}, at least one related object found twice."
+                    ) from error
+            case AttributeType.CUSTOM_FIELD:
+                obj.cf[annotation.key] = value
+            case AttributeType.CUSTOM_FOREIGN_KEY:
+                related_model, lookup = field.split("__", maxsplit=1)
+                relationship_fields["custom_relationship_foreign_keys"][related_model][lookup] = value
+                relationship_fields["custom_relationship_foreign_keys"][related_model]["_annotation"] = annotation
+            case AttributeType.CUSTOM_N_TO_MANY_RELATIONSHIP:
+                relationship = adapter.get_from_orm_cache({"label": annotation.name}, Relationship)
+                if annotation.side == RelationshipSideEnum.DESTINATION:
+                    related_object_content_type = relationship.source_type
+                else:
+                    related_object_content_type = relationship.destination_type
+                related_model_class = related_object_content_type.model_class()
+                if (
+                    relationship.type == RelationshipTypeChoices.TYPE_ONE_TO_MANY
+                    and annotation.side == RelationshipSideEnum.DESTINATION
+                ):
+                    relationship_fields["custom_relationship_foreign_keys"][field] = {
+                        **value,
+                        "_annotation": annotation,
+                    }
+                else:
+                    relationship_fields["custom_relationship_many_to_many_fields"][field] = {
+                        "annotation": annotation,
+                        "objects": [
+                            adapter.get_from_orm_cache(parameters, related_model_class) for parameters in value
+                        ],
+                    }
 
     @classmethod
     def _update_obj_with_parameters(cls, obj, parameters, adapter):
         """Update a given Nautobot ORM object with the given parameters."""
+        # TODO: Use Dataclasses instead of dictionaries for structured data storage and tracking.
         relationship_fields = {
             # Example: {"group": {"name": "Group Name", "_model_class": TenantGroup}}
             "foreign_keys": defaultdict(dict),
