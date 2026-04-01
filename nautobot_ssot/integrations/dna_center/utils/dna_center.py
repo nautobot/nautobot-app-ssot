@@ -45,9 +45,11 @@ class DnaCenterClient:
         try:
             total_num_sites = self.conn.sites.get_site_count()["response"]
             offset = 1
+            # Default page size is 50, max is 500, so we'll use a comfortable middle ground.
+            limit = 200
             while len(loc_data) < total_num_sites:
-                loc_data.extend(self.conn.sites.get_site(offset=offset)["response"])
-                offset = len(loc_data)
+                loc_data.extend(self.conn.sites.get_site(offset=offset, limit=limit)["response"])
+                offset += limit
             for _, item in enumerate(loc_data):
                 if item["siteNameHierarchy"] not in loc_names:
                     loc_names.append(item["siteNameHierarchy"])
