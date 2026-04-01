@@ -1,0 +1,1 @@
+Changed `_handle_single_paramater` in `NautobotAdapter` to utilize `AttributeType` enum class.

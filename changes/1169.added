@@ -1,0 +1,2 @@
+Added `AttributeType` enum class.
+Added class method to `NautobotModel` to get enum type of given attribute.
