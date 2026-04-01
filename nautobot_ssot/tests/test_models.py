@@ -7,9 +7,11 @@ import uuid
 from django.test import TestCase
 from django.utils.timezone import now
 from nautobot.extras.choices import JobResultStatusChoices
-from nautobot.extras.models import Job, JobResult
+from nautobot.extras.models import JobResult
 
+from nautobot_ssot.jobs.examples import ExampleDataSource, ExampleDataTarget
 from nautobot_ssot.models import Sync
+from nautobot_ssot.tests.utils.job_helpers import get_test_job_model
 
 
 class SyncTestCase(TestCase):
@@ -64,15 +66,17 @@ class SyncTestCase(TestCase):
         self.assertIsNone(self.target_sync.get_source_url())
         self.assertIsNone(self.source_sync.get_target_url())
 
+        source_job_model = get_test_job_model(ExampleDataSource)
+        target_job_model = get_test_job_model(ExampleDataTarget)
         self.source_sync.job_result = JobResult(
             name="ExampleDataSource",
-            job_model=Job.objects.get(module_name="nautobot_ssot.jobs.examples", job_class_name="ExampleDataSource"),
+            job_model=source_job_model,
             task_name="nautobot_ssot.jobs.examples.ExampleDataSource",
             worker="default",
         )
         self.target_sync.job_result = JobResult(
             name="ExampleDataTarget",
-            job_model=Job.objects.get(module_name="nautobot_ssot.jobs.examples", job_class_name="ExampleDataTarget"),
+            job_model=target_job_model,
             task_name="nautobot_ssot.jobs.examples.ExampleDataTarget",
             worker="default",
         )
