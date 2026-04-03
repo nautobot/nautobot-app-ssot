@@ -1,1 +1,0 @@
-Fixed a bug in the DNA Center integration where the get_locations method was not correctly paginating the results.
