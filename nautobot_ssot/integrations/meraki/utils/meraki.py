@@ -216,6 +216,24 @@ class DashboardClient:
             )
         return port_statuses
 
+    def get_switchport_routing_interfaces(self, serial: str) -> list:
+        """Retrieve routing interfaces for specified Switch Device.
+
+        Args:
+            serial (str): Serial of Switch Device to retrieve routing interfaces for.
+
+        Returns:
+            list: List of routing interfaces for specified Switch Device.
+        """
+        interfaces = []
+        try:
+            interfaces = self.conn.switch.getDeviceSwitchRoutingInterfaces(serial=serial)
+        except meraki.APIError as err:
+            self.logger.logger.warning(
+                f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
+            )
+        return interfaces
+
     def get_appliance_switchports(self, network_id: str) -> list:
         """Retrieve switchports for MX devices in specified network ID.
 
