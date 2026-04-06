@@ -50,7 +50,9 @@ class NBAdapter(NautobotAdapter):
             try:
                 vm = VirtualMachine.objects.get(**info["device"])
             except VirtualMachine.DoesNotExist:
-                self.job.logger.warning(f"VirtualMachine not found for {info['device']}, skipping primary IP assignment.")
+                self.job.logger.warning(
+                    f"VirtualMachine not found for {info['device']}, skipping primary IP assignment."
+                )
                 continue
             for ip in ["primary_ip4", "primary_ip6"]:
                 if info[ip]:
