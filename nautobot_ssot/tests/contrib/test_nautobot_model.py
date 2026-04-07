@@ -1,28 +1,17 @@
 """Tests for contrib.NautobotModel."""
 
+from typing import Annotated, List, Optional, TypedDict
+
+from django.core.exceptions import FieldDoesNotExist
 from nautobot.core.testing import TestCase
-
-from nautobot_ssot.contrib.model import NautobotModel
-from nautobot_ssot.contrib.enums import AttributeType
 from nautobot.dcim.models import Device
-from typing import TypedDict, List, Annotated, Optional
 
-from nautobot.extras.models import (
-    Relationship,
-    RelationshipAssociation,
-    CustomField,
-    CustomFieldModel,
-    CustomFieldChoice,
-)
+from nautobot_ssot.contrib.enums import AttributeType, RelationshipSideEnum
+from nautobot_ssot.contrib.model import NautobotModel
 from nautobot_ssot.contrib.types import (
-    CustomAnnotation,
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
 )
-from django.contrib.contenttypes.models import ContentType
-from nautobot_ssot.contrib.enums import RelationshipSideEnum
-
-from django.core.exceptions import FieldDoesNotExist
 
 
 class SoftwareImageFileDict(TypedDict):
@@ -36,17 +25,19 @@ class TagDict(TypedDict):
 
     name: str
 
+
 class DeviceDict(TypedDict):
     """Example device dict."""
 
 
-
-
 class TestGetAttrEnum(TestCase):
-    """"""
+    """Unittests for the `get_attr_enum` class method."""
 
     class DeviceModel(NautobotModel):
-        """"""
+        """Example model for unittests.
+
+        NOTE: We only need the typehints for this set of unittests.
+        """
 
         _modelname = "device"
         _model = Device
@@ -58,12 +49,11 @@ class TestGetAttrEnum(TestCase):
         #       `bool` is used here for testing purposes only since the method tested requires standard fields to be
         #       actual fields in the ORM model while checking for the `AttributeType` enum.
         #       This may change in the future as tests further expand.
-        vc_priority: bool  
+        vc_priority: bool
 
         # Foreign Keys
         status__name: str
         tenant__name: Optional[str]
-
 
         # N to many Relationships
         tags: List[TagDict] = []
@@ -75,10 +65,15 @@ class TestGetAttrEnum(TestCase):
         custom_bool: Optional[Annotated[bool, CustomFieldAnnotation(name="custom_bool")]]
 
         # Custom Foreign Keys
-        parent__name: Annotated[str, CustomRelationshipAnnotation(name="device_parent", side=RelationshipSideEnum.SOURCE)]
+        parent__name: Annotated[
+            str, CustomRelationshipAnnotation(name="device_parent", side=RelationshipSideEnum.SOURCE)
+        ]
 
         # Custom N to Many Relationships
-        children: Annotated[List[DeviceDict], CustomRelationshipAnnotation(name="device_children", side=RelationshipSideEnum.DESTINATION)]
+        children: Annotated[
+            List[DeviceDict],
+            CustomRelationshipAnnotation(name="device_children", side=RelationshipSideEnum.DESTINATION),
+        ]
 
         # Invalid Fields
         invalid_field: str
@@ -109,7 +104,6 @@ class TestGetAttrEnum(TestCase):
 
     def test_get_optional_n_to_many_attribute(self):
         self.assertEqual(self.DeviceModel.get_attr_enum("software_image_files"), AttributeType.N_TO_MANY_RELATIONSHIP)
-
 
     # Custom Fields
     # =============
