@@ -48,7 +48,13 @@ class DiffSyncModelUtilityMixin:
         Returns:
             tuple: Type arguments for the attribute's type hint.
         """
-        return get_args(cls.get_type_hints()[attr_name])
+        attr_hints = cls.get_type_hints()[attr_name]
+        args = get_args(attr_hints)
+        # We don't care about Optional hints here, it's only relavent for data validation.
+        # Instead, we need the attribute args from inside the Optional tag.
+        if attr_hints.__name__ == "Optional":
+            return get_args(args[0])
+        return args
 
     @classmethod
     @lru_cache
