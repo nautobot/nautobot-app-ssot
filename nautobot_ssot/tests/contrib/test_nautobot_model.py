@@ -29,6 +29,7 @@ class TagDict(TypedDict):
 class DeviceDict(TypedDict):
     """Example device dict."""
 
+    name: str
 
 class TestGetAttrEnum(TestCase):
     """Unittests for the `get_attr_enum` class method."""
