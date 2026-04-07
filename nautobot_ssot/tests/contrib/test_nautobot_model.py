@@ -81,58 +81,72 @@ class TestGetAttrEnum(TestCase):
     # Standard Attributes
     # ===================
     def test_get_string_attribute(self):
+        """Test that 'name' is detected as a standard attribute."""
         self.assertEqual(self.DeviceModel.get_attr_enum("name"), AttributeType.STANDARD)
 
     def test_get_optional_integer_attribute(self):
+        """Test that 'vc_position' is detected as a standard attribute."""
         self.assertEqual(self.DeviceModel.get_attr_enum("vc_position"), AttributeType.STANDARD)
 
     def test_get_bool_attribute(self):
+        """Test that 'vc_priority' is detected as a standard attribute."""
         self.assertEqual(self.DeviceModel.get_attr_enum("vc_priority"), AttributeType.STANDARD)
 
     # Foreign Keys
     # ============
     def test_get_foreign_key_attribute(self):
+        """Test that 'status__name' is detected as a foreign key attribute."""
         self.assertEqual(self.DeviceModel.get_attr_enum("status__name"), AttributeType.FOREIGN_KEY)
 
     def test_get_optional_foreign_key_attribute(self):
+        """Test that 'tenant__name' is detected as a foreign key attribute."""
         self.assertEqual(self.DeviceModel.get_attr_enum("tenant__name"), AttributeType.FOREIGN_KEY)
 
     # N to Many Relationships
     # =======================
     def test_get_n_to_many_attribute(self):
+        """Test that 'tags' is detected as a N-to-many relationship attribute."""
         self.assertEqual(self.DeviceModel.get_attr_enum("tags"), AttributeType.N_TO_MANY_RELATIONSHIP)
 
     def test_get_optional_n_to_many_attribute(self):
+        """Test that 'software_image_files' is detected as a N-to-many relationship attribute."""
         self.assertEqual(self.DeviceModel.get_attr_enum("software_image_files"), AttributeType.N_TO_MANY_RELATIONSHIP)
 
     # Custom Fields
     # =============
     def test_get_custom_string(self):
+        """Test that 'custom_str' is detected as a custom field attribute."""
         self.assertEqual(self.DeviceModel.get_attr_enum("custom_str"), AttributeType.CUSTOM_FIELD)
 
     def test_get_custom_int(self):
+        """Test that 'custom_int' is detected as a custom field attribute."""
         self.assertEqual(self.DeviceModel.get_attr_enum("custom_int"), AttributeType.CUSTOM_FIELD)
 
     def test_get_custom_bool(self):
+        """Test that 'custom_bool' is detected as a custom field attribute."""
         self.assertEqual(self.DeviceModel.get_attr_enum("custom_bool"), AttributeType.CUSTOM_FIELD)
 
     # Custom Foreign Keys
     # ===================
     def test_get_custom_foreign_key_attribute(self):
+        """Test that 'parent__name' is detected as a custom foreign key attribute."""
         self.assertEqual(self.DeviceModel.get_attr_enum("parent__name"), AttributeType.CUSTOM_FOREIGN_KEY)
 
     # Custom N to Many Relationships
     # ==============================
     def test_get_custom_n_to_many_attribute(self):
+        """Test that 'children' is detected as a custom N-to-many relationship attribute."""
         self.assertEqual(self.DeviceModel.get_attr_enum("children"), AttributeType.CUSTOM_N_TO_MANY_RELATIONSHIP)
 
     # Invalid attributes
     # ==================
     def test_non_existant_attribute(self):
+        """Test that an invalid field raises FieldDoesNotExist."""
         with self.assertRaises(FieldDoesNotExist):
             self.DeviceModel.get_attr_enum("invalid_field")
 
     def test_undefined_attribute(self):
+        """Test that an undefined attribute raises KeyError."""
         with self.assertRaises(KeyError):
             self.DeviceModel.get_attr_enum("undefined_attr")
 
