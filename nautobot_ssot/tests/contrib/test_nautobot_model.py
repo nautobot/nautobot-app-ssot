@@ -31,6 +31,7 @@ class DeviceDict(TypedDict):
 
     name: str
 
+
 class TestGetAttrEnum(TestCase):
     """Unittests for the `get_attr_enum` class method."""
 
