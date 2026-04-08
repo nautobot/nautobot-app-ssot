@@ -20,7 +20,7 @@ class LocationTypeModel(NautobotModel):
     _model = LocationType
 
     name: str
-    nestable: bool
+    nestable: Optional[bool]
 
 
 class DeviceModel(NautobotModel):
