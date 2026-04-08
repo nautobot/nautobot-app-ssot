@@ -14,7 +14,7 @@ from nautobot_ssot.tests.contrib.typeddicts import DeviceDict, SoftwareImageFile
 
 
 class LocationTypeModel(NautobotModel):
-    """"""
+    """Example model for LocationType in unittests."""
 
     _modelname = "location_type"
     _model = LocationType
