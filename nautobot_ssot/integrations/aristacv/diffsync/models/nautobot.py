@@ -302,7 +302,7 @@ class NautobotIPAssignment(IPAssignment):
         """Update IPAddressToInterface in Nautobot."""
         map = IPAddressToInterface.objects.get(id=self.uuid)
         if attrs.get("primary"):
-            if ":" in map.ip_address.address:
+            if ":" in str(map.ip_address.address):
                 map.interface.device.primary_ip6 = map.ip_address
             else:
                 map.interface.device.primary_ip4 = map.ip_address
