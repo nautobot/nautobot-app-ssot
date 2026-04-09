@@ -9,7 +9,6 @@ from typing import Optional
 from nautobot_ssot.contrib.enums import RelationshipSideEnum
 
 
-
 class CustomAnnotation:
     """Base class used to identify custom annotations in SSoT operations."""
 
