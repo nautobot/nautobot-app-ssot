@@ -9,6 +9,15 @@ This document describes all new features and changes in the release. The format 
 
 <!-- towncrier release notes start -->
 
+## [v4.2.1 (2026-04-01)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v4.2.1)
+
+### Fixed
+
+- [#1155](https://github.com/nautobot/nautobot-app-ssot/issues/1155) - Support uv controlled development environment to run unittest.
+- [#1160](https://github.com/nautobot/nautobot-app-ssot/issues/1160) - Fixed a bug in the DNA Center integration where the get_locations method was not correctly paginating the results.
+- [#1162](https://github.com/nautobot/nautobot-app-ssot/issues/1162) - Fixed SSoT tests that assumed integration/example Job records were preloaded, so they now pass regardless of local integration enablement settings.
+- [#1165](https://github.com/nautobot/nautobot-app-ssot/issues/1165) - Fixed maintainer
+
 ## [v4.2.0 (2025-03-23)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v4.2.0)
 
 ### Added

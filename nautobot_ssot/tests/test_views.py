@@ -14,7 +14,9 @@ from nautobot.extras.models import Job, JobResult
 from nautobot.users.models import ObjectPermission
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
+from nautobot_ssot.jobs.examples import ExampleDataSource
 from nautobot_ssot.models import Sync, SyncLogEntry
+from nautobot_ssot.tests.utils.job_helpers import get_test_job_model
 from nautobot_ssot.views import SyncLogEntryUIViewSet
 
 
@@ -31,12 +33,11 @@ class SyncViewsTestCase(  # pylint: disable=too-many-ancestors
     @classmethod
     def setUpTestData(cls):
         """One-time setup of test data for this class."""
+        source_job_model = get_test_job_model(ExampleDataSource)
         for i in range(0, 3):
             job_result = JobResult.objects.create(
                 name="ExampleDataSource",
-                job_model=Job.objects.get(
-                    module_name="nautobot_ssot.jobs.examples", job_class_name="ExampleDataSource"
-                ),
+                job_model=source_job_model,
                 task_name="nautobot_ssot.jobs.examples.ExampleDataSource",
                 worker="default",
             )
