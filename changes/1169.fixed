@@ -1,1 +1,2 @@
 Fixed bug in `DiffSyncModelUtilityMixin.get_attr_args()` for Annoted type hints wrapped in `Optional[]` tag.
+Fix hashing issue on Custom Annotations.

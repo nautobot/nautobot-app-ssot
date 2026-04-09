@@ -9,8 +9,13 @@ from typing import Optional
 from nautobot_ssot.contrib.enums import RelationshipSideEnum
 
 
+
 class CustomAnnotation:
     """Base class used to identify custom annotations in SSoT operations."""
+
+    def __hash__(self):
+        """Return a hash of the class instance."""
+        return hash(frozenset({"class": self.__class__} | self.__dict__))
 
 
 @dataclass
