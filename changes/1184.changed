@@ -1,0 +1,1 @@
+Deferred the missing python-magic warning in pysnow to only emit when attachment upload is attempted, rather than at import time.
