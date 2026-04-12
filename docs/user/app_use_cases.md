@@ -8,7 +8,8 @@ This document describes common use-cases and scenarios for this App.
 
 The dashboard UI can be accessed from the **Plugins > Single Source of Truth > Dashboard** menu item in Nautobot.
 
-![Dashboard](../images/dashboard_initial.png)
+![Dashboard](../images/dashboard_initial_light.png#only-light){ .on-glb }
+![Dashboard](../images/dashboard_initial_dark.png#only-dark){ .on-glb }
 
 The left side of the dashboard lists all discovered Data Sources and Data Targets. In a fresh installation this will include the "Example Data Source" and "Example Data Target"; when you install additional data synchronization Jobs they will be automatically discovered and included in the dashboard as well.
 
@@ -18,7 +19,8 @@ The right side of the dashboard lists the ten most recent data syncs executed (i
 
 From the dashboard UI, you can click on the name of any given Data Source or Data Target to access a detailed view of the integration between this system and Nautobot.
 
-![Data Source detail view](../images/data_source_detail.png)
+![Data Source detail view](../images/data_source_detail_light.png#only-light){ .on-glb }
+![Data Source detail view](../images/data_source_detail_dark.png#only-dark){ .on-glb }
 
 This view lists the configuration (if any) of the Data Source or Data Target, provides a table describing the types of data being mapped between Nautobot and the other system, and, at the bottom of the page, lists the history of data synchronization involving this system.
 
@@ -26,19 +28,22 @@ This view lists the configuration (if any) of the Data Source or Data Target, pr
 
 To synchronize data between Nautobot and a given Data Source or Data Target, select the **Sync** button for the desired integration from either the Dashboard view or the detailed view. This will bring up a form similar to that of executing any other Nautobot Job.
 
-![Job submission form](../images/run_job.png)
+![Job submission form](../images/run_job_light.png#only-light){ .on-glb }
+![Job submission form](../images/run_job_dark.png#only-dark){ .on-glb }
 
 Enter any appropriate parameters here, including selecting whether to execute the synchronization as a "dry run" (identifying data to be synchronized, but not actually making any changes to the system) or as an actual database update, and select **Run Job**.
 
 You will be redirected to a standard Nautobot "Job Result" view, which will update as the Job is enqueued, begins execution, and eventually completes. When execution is complete, an **SSoT Sync Details** button will appear at the top right of the page; you can select this button for a more detailed view of the outcome.
 
-![Job Result view](../images/job_result.png)
+![Job Result view](../images/job_result_light.png#only-light){ .on-glb }
+![Job Result view](../images/job_result_dark.png#only-dark){ .on-glb }
 
 ### Viewing a data sync record
 
 The detailed view of a single data synchronization attempt between Nautobot and a Data Source/Target can be accessed from the Job Result view as described in the previous section, or by navigating to **Plugins > Single Source of Truth > History** and selecting the desired record from the table presented in that view.
 
-![Sync detail view](../images/sync_detail.png)
+![Sync detail view](../images/sync_detail_light.png#only-light){ .on-glb }
+![Sync detail view](../images/sync_detail_dark.png#only-dark){ .on-glb }
 
 This view describes in detail everything that occurred during the data synchronization attempt. The primary **Data Sync** tab summarizes the overall outcome of the sync attempt, including a view of the diffs (if any) identified by DiffSync and a summary of the actions taken (create, update, delete) and their outcomes (success, failure, error).
 
@@ -71,12 +76,14 @@ Here is a consolidated view of all the pages within the SSoT Nautobot app.
 ---
 
 Initial dashboard showing the data targets, data sources and the last 10 syncs.
-![Initial Dashboard](../images/dashboard_initial.png)
+![Initial Dashboard](../images/dashboard_initial_light.png#only-light){ .on-glb }
+![Initial Dashboard](../images/dashboard_initial_dark.png#only-dark){ .on-glb }
 
 ---
 
 The detail page of the example data source.
-![Example Data Source Detail](../images/data_source_detail.png)
+![Example Data Source Detail](../images/data_source_detail_light.png#only-light){ .on-glb }
+![Example Data Source Detail](../images/data_source_detail_dark.png#only-dark){ .on-glb }
 
 ---
 
@@ -86,20 +93,22 @@ The detailed page of the ServiceNow Data Target.
 ---
 
 The job form page shown prior to running a job. The fields shown here depend on the job developed.
-![Job Form](../images/run_job.png)
+![Job Form](../images/run_job_light.png#only-light){ .on-glb }
+![Job Form](../images/run_job_dark.png#only-dark){ .on-glb }
 
 ---
 
 The job result page of running a sync.
-![Example Sync Result](../images/job_result.png)
+![Example Sync Result](../images/job_result_light.png#only-light){ .on-glb }
+![Example Sync Result](../images/job_result_dark.png#only-dark){ .on-glb }
 
 ---
 
 The sync detail page for a given sync.
-![Sync Detail](../images/sync_detail.png)
+![Sync Detail](../images/sync_detail_light.png#only-light){ .on-glb }
+![Sync Detail](../images/sync_detail_dark.png#only-dark){ .on-glb }
 
 ---
 
 The sync logs page for a given sync.
 ![Sync Logs](../images/sync_logs.png)
-
