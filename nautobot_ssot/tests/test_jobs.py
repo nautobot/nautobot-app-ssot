@@ -374,6 +374,59 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         self.assertIn("Source adapter loading completed", log_messages)
         self.assertIn("Target adapter loading completed", log_messages)
 
+    def test_parallel_loading_preserves_custom_groupings(self):
+        """Test that custom log groupings from extra dict are preserved in parallel mode.
+
+        Regression test: previously, create_job_log_entry() hardcoded grouping=adapter_type
+        ("source"/"target"), discarding the custom grouping set via extra={"grouping": ...}.
+        """
+        mock_diff = self._create_mock_diff()
+
+        def load_source():
+            """Simulate source adapter loading with custom log groupings."""
+            logger = logging.getLogger(f"nautobot.extras.jobs.run_job[{self.job.job_result.id}]")
+            logger.info("Loading locations from ServiceNow", extra={"grouping": "Loading ServiceNow Data"})
+            logger.warning("Bad record skipped", extra={"grouping": "Data Quality Issues"})
+            source_adapter = Mock()
+            source_adapter.diff_to.return_value = mock_diff
+            self.job.source_adapter = source_adapter
+
+        def load_target():
+            """Simulate target adapter loading with custom log groupings."""
+            logger = logging.getLogger(f"nautobot.extras.jobs.run_job[{self.job.job_result.id}]")
+            logger.info("Loading devices from Nautobot", extra={"grouping": "Loading Nautobot Data"})
+            self.job.target_adapter = Mock()
+
+        self.job.load_source_adapter = load_source
+        self.job.load_target_adapter = load_target
+
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+
+        log_entries = JobLogEntry.objects.filter(job_result=self.job.job_result)
+
+        # Custom groupings should be preserved, not collapsed to "source"/"target"
+        sn_data_logs = log_entries.filter(grouping="Loading ServiceNow Data")
+        self.assertGreater(sn_data_logs.count(), 0, "Custom grouping 'Loading ServiceNow Data' should be preserved")
+
+        dq_logs = log_entries.filter(grouping="Data Quality Issues")
+        self.assertGreater(dq_logs.count(), 0, "Custom grouping 'Data Quality Issues' should be preserved")
+
+        nb_data_logs = log_entries.filter(grouping="Loading Nautobot Data")
+        self.assertGreater(nb_data_logs.count(), 0, "Custom grouping 'Loading Nautobot Data' should be preserved")
+
+        # Verify the actual messages landed under the correct groupings
+        sn_messages = [e.message for e in sn_data_logs]
+        self.assertTrue(
+            any("Loading locations" in m for m in sn_messages),
+            f"Expected 'Loading locations' in ServiceNow Data logs, got: {sn_messages}",
+        )
+
+        dq_messages = [e.message for e in dq_logs]
+        self.assertTrue(
+            any("Bad record" in m for m in dq_messages),
+            f"Expected 'Bad record' in Data Quality Issues logs, got: {dq_messages}",
+        )
+
     def test_parallel_loading_timing_information(self):
         """Test that timing information is correctly recorded for parallel loading."""
         mock_diff = self._create_mock_diff()
