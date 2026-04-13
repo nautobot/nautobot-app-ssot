@@ -281,13 +281,16 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
                 # Include exception information if present
                 message += "\n" + "".join(traceback.format_exception(*record.exc_info))
 
-            # Create JobLogEntry object with grouping set to adapter type
+            # Use the custom grouping from the log record's extra dict if present,
+            # falling back to adapter_type ("source"/"target") when not set.
+            grouping = record.__dict__.get("grouping", adapter_type)
+
             # Note: JobLogEntry fields may vary by Nautobot version, using common fields
             JobLogEntry.objects.create(
                 job_result=job_result,
                 log_level=log_level,
                 message=message,
-                grouping=adapter_type,  # Group by source or target adapter
+                grouping=grouping,
             )
 
         # Merge source and target logs by timestamp to show interleaved execution
