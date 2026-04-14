@@ -9,9 +9,12 @@ from nautobot_ssot.integrations.panorama.diffsync.models.base import (
     IPAddressToInterface,
     LogicalGroup,
     LogicalGroupToDevice,
+    LogicalGroupToVirtualDeviceContext,
     LogicalGroupToVirtualSystem,
     SoftwareVersion,
     SoftwareVersionToDevice,
+    Vdc,
+    VirtualDeviceContextAssociation,
     VirtualSystemAssociation,
     Vsys,
 )
@@ -21,12 +24,24 @@ class PanoramaVsys(Vsys):
     """Panorama implementation of Vsys model."""
 
 
+class PanoramaVdc(Vdc):
+    """Panorama implementation of Vsys model."""
+
+
 class PanoramaVirtualSystemAssociation(VirtualSystemAssociation):
     """Panorama implementation of VirtualSystemAssociation model."""
 
 
+class PanoramaVirtualDeviceContextAssociation(VirtualDeviceContextAssociation):
+    """Panorama implementation of VirtualDeviceContextAssociation model."""
+
+
 class PanoramaLogicalGroupToVirtualSystem(LogicalGroupToVirtualSystem):
     """Panorama implementation of LogicalGroupToVirtualSystem model."""
+
+
+class PanoramaLogicalGroupToVirtualDeviceContext(LogicalGroupToVirtualDeviceContext):
+    """Panorama implementation of LogicalGroupToVirtualDeviceContext model."""
 
 
 class PanoramaLogicalGroupToDevice(LogicalGroupToDevice):

@@ -159,7 +159,7 @@ def load_firewall_to_diffsync(adapter, firewall, firewall_system_info):  # pylin
         raise err
 
 
-def load_vsys_interface_to_diffsync(adapter, interface_obj, interface_data, vsys):
+def load_vdc_interface_to_diffsync(adapter, interface_obj, interface_data, vsys):
     """
     Load a virtual system interface into the DiffSync adapter.
 
