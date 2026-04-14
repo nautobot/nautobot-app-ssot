@@ -28,7 +28,7 @@ from nautobot_ssot.integrations.vsphere.diffsync.models.vsphere import (
 from .vsphere_fixtures import create_default_vsphere_config
 
 
-class TestNautobotAdapter(TestCase):  # pylint: disable=too-many-instance-attributes
+class TestNautobotAdapter(TestCase):  # pylint: disable=too-many-instance-attributes,protected-access
     """Test cases for vSphere Nautobot adapter."""
 
     def setUp(self):
@@ -134,7 +134,7 @@ class TestNautobotAdapter(TestCase):  # pylint: disable=too-many-instance-attrib
     def test_sync_complete_sets_primary_ip6(self):
         """sync_complete assigns primary_ip6 when present in _primary_ips."""
         global_ns = Namespace.objects.get(name="Global")
-        prefix6, _ = Prefix.objects.get_or_create(
+        Prefix.objects.get_or_create(
             network="2001:db8::",
             prefix_length=32,
             namespace=global_ns,
@@ -162,7 +162,7 @@ class TestNautobotAdapter(TestCase):  # pylint: disable=too-many-instance-attrib
     def test_sync_complete_sets_both_primary_ips(self):
         """sync_complete assigns both primary_ip4 and primary_ip6 when both are present."""
         global_ns = Namespace.objects.get(name="Global")
-        prefix6, _ = Prefix.objects.get_or_create(
+        Prefix.objects.get_or_create(
             network="2001:db8::",
             prefix_length=32,
             namespace=global_ns,
